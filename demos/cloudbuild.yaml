@@ -10,6 +10,14 @@
 # project, override _PROJECT / _REGION / _IMAGE / _CONTROLPLANE_API_URL / _DEMO_*
 # and the secrets referenced in the deploy step. The publishable VITE_* values are
 # baked into the UI at build; server secrets stay runtime env.
+#
+# Build identity: demos-deployer (least-privilege, mirrors controlplane-deployer)
+# — AR-writer on voqalcloud-images, run.developer, build-bucket objectAdmin,
+# logging.logWriter, and serviceAccountUser on demos-runtime. Pinned so a manual
+# `gcloud builds submit` uses the same identity a trigger would. Requires
+# logging: CLOUD_LOGGING_ONLY (set below). To deploy in your own project, swap
+# this for your own build SA (or drop the line to use your default).
+serviceAccount: projects/voqal-cloud-dev/serviceAccounts/demos-deployer@voqal-cloud-dev.iam.gserviceaccount.com
 
 substitutions:
   _REGION: asia-south1
@@ -121,6 +129,12 @@ steps:
       - 'CONTROLPLANE_API_URL=${_CONTROLPLANE_API_URL}'
       - --set-secrets
       - 'GEMINI_API_KEY=gemini-api-key:latest,VOQALIZE_BRAIN_PUBKEYS=controlplane-pygato-pubkeys:latest'
+      # Runtime identity: dedicated least-privilege SA (accessor on the two
+      # secrets above only). The project default compute SA is disabled, so a
+      # runtime SA must be named explicitly.
+      - --service-account
+      - demos-runtime@voqal-cloud-dev.iam.gserviceaccount.com
+      - --quiet
 
 images:
   - '${_IMAGE}'
