@@ -1,4 +1,0 @@
-# Tokens now live in ~/.swiggy/tokens.json (outside the repo), but keep these
-# ignored as a safety net in case anyone generates a token in-tree.
-.swiggy_tokens.json
-tokens.json

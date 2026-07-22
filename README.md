@@ -27,6 +27,16 @@ is a managed service — everything you need to build against it is here.
 | [`demos/`](demos/) | Complete, runnable voice apps (a brain + a UI each). These are real example code, the live demos on our site, and our integration tests — all at once. |
 | [`docs/`](docs/) | The developer documentation site (`voqalize.com/docs`). |
 
+## Getting started
+
+The fastest on-ramp is the **Claude Code skill** — point your editor's agent at
+[`mcp/skill/SKILL.md`](mcp/skill/SKILL.md) and it will walk you from an empty
+project to a running voice agent (write a brain → create an agent → get a
+`brain_url` → wire a browser UI). Prefer to read code first? Start from
+[`sdk/python/examples/echo`](sdk/python/examples/echo) (the smallest complete
+brain) or [`sdk/python/examples/travel`](sdk/python/examples/travel) (a fuller
+one), and [`sdk/react`](sdk/react) for the browser side.
+
 ## The shape of a Voqalize app
 
 A brain is a single WebSocket URL. Voqalize dials `{brain_url}/s/{session_id}`,

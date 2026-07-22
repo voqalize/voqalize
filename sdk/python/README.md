@@ -119,7 +119,8 @@ pip install "voqalize-agent-sdk[examples]"   # + deps used only by examples/
 - [docs/architecture.md](docs/architecture.md) — connection model, per-session engine, ack-gated ordering, backpressure, reconnect.
 - [docs/decisions.md](docs/decisions.md) — why the SDK is pipecat-free, why the Brain is the sole surface, why routing stays out of the SDK, drop-newest, etc.
 - [docs/wire-protocol.md](docs/wire-protocol.md) — envelope shapes, frame vocabulary, close codes.
-- `examples/` — runnable brains: `echo`, `travel`, `grocery_brain`, `fastapi_inbound`.
+- `examples/` — runnable brains: `echo` (smallest complete brain), `travel`
+  (OpenAI Agents + Gemini), `fastapi_inbound` (mount a brain in your own FastAPI app).
 
 ## Development
 

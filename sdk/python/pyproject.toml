@@ -14,8 +14,8 @@ dependencies = [
 
 [project.optional-dependencies]
 # Deps used only by the bundled examples/ — never imported by the SDK itself.
-# `examples/travel` (OpenAI Agents + Gemini), `examples/grocery_brain`
-# (OpenAI Agents), `examples/fastapi_inbound` (FastAPI/uvicorn).
+# `examples/travel` (OpenAI Agents + Gemini), `examples/fastapi_inbound`
+# (FastAPI/uvicorn).
 examples = [
     "openai-agents>=0.17",
     "python-dotenv>=1.0",

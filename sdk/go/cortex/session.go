@@ -163,7 +163,7 @@ func (r *sessionRunner) enqueueInbound(it inboundItem) {
 	default:
 		// Drop newest; surface a non-fatal ErrorFrame DOWNSTREAM to the brain.
 		r.sess.DeliverError(wire.Downstream,
-			"voqalcloud: inbound queue full; dropping data frames until consumer catches up")
+			"voqalize: inbound queue full; dropping data frames until consumer catches up")
 	}
 }
 
@@ -208,7 +208,7 @@ func (r *sessionRunner) Send(f wire.Frame) {
 	accepted, _ := r.enqueueOutReport(outItem{frame: f}, isSystem, false)
 	if !accepted {
 		r.sess.DeliverError(wire.Upstream,
-			"voqalcloud: outbound queue full; dropping data frames until wire catches up")
+			"voqalize: outbound queue full; dropping data frames until wire catches up")
 	}
 }
 

@@ -1,5 +1,5 @@
 // Package brain is the ergonomic, capability-free agent surface over the cortex
-// wire — the Go analogue of voqalcloud.sdk.Brain (Python), with NO pipecat
+// wire — the Go analogue of voqalize.sdk.Brain (Python), with NO pipecat
 // dependency. You implement a Brain (your object holds only your state); SDK
 // capability arrives as the *Session / *Interaction / *Inference passed into
 // your callbacks.

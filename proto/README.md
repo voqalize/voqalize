@@ -1,9 +1,9 @@
 # proto — the Voqalize wire contract
 
 The canonical protobuf schema for the Voqalize voice protocol lives in
-[`voqalcloud/frames/frames.proto`](voqalcloud/frames/frames.proto): the `Vql`
+[`voqalize/frames/frames.proto`](voqalize/frames/frames.proto): the `Vql`
 frame set plus the lifecycle envelope. Everything a brain sends or receives is
-one of these frames.
+one of these frames. The proto package is `voqalize.frames`.
 
 This is the **contract of record**. The SDKs in this repo are generated from (Go,
 Python) or written against (React) this schema; the hosted Voqalize runtime
@@ -16,19 +16,15 @@ speaks the same set.
 
 ## Regenerating stubs
 
+From the repo root:
+
 ```bash
-cd proto
-buf generate     # emits Python + Go stubs (see buf.gen.yaml)
-buf lint
+make proto
 ```
 
-> **Wiring in progress.** `buf.gen.yaml` currently emits to `gen/`. Once the SDKs
-> are moved in, the generate targets point at `sdk/python` and `sdk/go` so a
-> single `make proto` refreshes the stubs both SDKs consume.
-
-## Namespace
-
-The proto package is currently `voqalcloud.frames` (historical). Standardizing
-the public surface on the `voqalize` namespace — proto package, Python import
-path, React scope, Go package — is a planned, coordinated rename (it changes
-generated symbol paths, so it's done once, deliberately, with tests green).
+This runs `buf lint` + `buf generate` and copies the generated stubs into the
+SDKs that consume them — the Python stub into
+`sdk/python/src/voqalize/sdk/wire/_frames_pb2.py` and the Go stub into
+`sdk/go/wire/framespb/frames.pb.go`. Run it after editing any `*.proto`. The
+generated `gen/` tree is git-ignored; the copied-in stubs are committed with
+each SDK.
