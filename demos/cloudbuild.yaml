@@ -20,10 +20,27 @@ substitutions:
   # The public vanity host (Firebase Hosting → control-plane Cloud Run) — no
   # internal Cloud Run URL leaks into this public config.
   _CONTROLPLANE_API_URL: https://app.dev.voqalize.com
-  # Demo wiring baked into the UI (publishable — browser-safe).
+  # Demo wiring baked into the UI (publishable — browser-safe). One agent id +
+  # publishable key per demo; all share one tenant. Provisioned in Phase 4 and
+  # passed via --substitutions at submit (empty here = an unprovisioned demo,
+  # whose UI shows a clear "publishableKey is required" error).
   _DEMO_TENANT: aCxzYVYr
   _TRAVEL_AGENT: ''
   _TRAVEL_PK: ''
+  _SHOPPING_AGENT: ''
+  _SHOPPING_PK: ''
+  _SUPPORT_AGENT: ''
+  _SUPPORT_PK: ''
+  _SERVICING_AGENT: ''
+  _SERVICING_PK: ''
+  _INTERVIEW_BOT_AGENT: ''
+  _INTERVIEW_BOT_PK: ''
+  _SUGAR_AGENT: ''
+  _SUGAR_PK: ''
+  _LEGAL_AGENT: ''
+  _LEGAL_PK: ''
+  _LEAD_QUAL_AGENT: ''
+  _LEAD_QUAL_PK: ''
 
 steps:
   # Build the image (frontend MPA + Python runtime, multi-stage).
@@ -41,6 +58,34 @@ steps:
       - 'VITE_TRAVEL_AGENT=${_TRAVEL_AGENT}'
       - --build-arg
       - 'VITE_TRAVEL_PK=${_TRAVEL_PK}'
+      - --build-arg
+      - 'VITE_SHOPPING_AGENT=${_SHOPPING_AGENT}'
+      - --build-arg
+      - 'VITE_SHOPPING_PK=${_SHOPPING_PK}'
+      - --build-arg
+      - 'VITE_SUPPORT_AGENT=${_SUPPORT_AGENT}'
+      - --build-arg
+      - 'VITE_SUPPORT_PK=${_SUPPORT_PK}'
+      - --build-arg
+      - 'VITE_SERVICING_AGENT=${_SERVICING_AGENT}'
+      - --build-arg
+      - 'VITE_SERVICING_PK=${_SERVICING_PK}'
+      - --build-arg
+      - 'VITE_INTERVIEW_BOT_AGENT=${_INTERVIEW_BOT_AGENT}'
+      - --build-arg
+      - 'VITE_INTERVIEW_BOT_PK=${_INTERVIEW_BOT_PK}'
+      - --build-arg
+      - 'VITE_SUGAR_AGENT=${_SUGAR_AGENT}'
+      - --build-arg
+      - 'VITE_SUGAR_PK=${_SUGAR_PK}'
+      - --build-arg
+      - 'VITE_LEGAL_AGENT=${_LEGAL_AGENT}'
+      - --build-arg
+      - 'VITE_LEGAL_PK=${_LEGAL_PK}'
+      - --build-arg
+      - 'VITE_LEAD_QUAL_AGENT=${_LEAD_QUAL_AGENT}'
+      - --build-arg
+      - 'VITE_LEAD_QUAL_PK=${_LEAD_QUAL_PK}'
       - .
 
   - name: 'gcr.io/cloud-builders/docker'

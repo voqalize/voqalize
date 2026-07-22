@@ -76,6 +76,41 @@ export const DEMOS = {
     import.meta.env.VITE_TRAVEL_AGENT as string | undefined,
     import.meta.env.VITE_TRAVEL_PK as string | undefined,
   ),
+  shopping: demo(
+    "shopping",
+    import.meta.env.VITE_SHOPPING_AGENT as string | undefined,
+    import.meta.env.VITE_SHOPPING_PK as string | undefined,
+  ),
+  support: demo(
+    "support",
+    import.meta.env.VITE_SUPPORT_AGENT as string | undefined,
+    import.meta.env.VITE_SUPPORT_PK as string | undefined,
+  ),
+  servicing: demo(
+    "servicing",
+    import.meta.env.VITE_SERVICING_AGENT as string | undefined,
+    import.meta.env.VITE_SERVICING_PK as string | undefined,
+  ),
+  interview_bot: demo(
+    "interview_bot",
+    import.meta.env.VITE_INTERVIEW_BOT_AGENT as string | undefined,
+    import.meta.env.VITE_INTERVIEW_BOT_PK as string | undefined,
+  ),
+  sugar: demo(
+    "sugar",
+    import.meta.env.VITE_SUGAR_AGENT as string | undefined,
+    import.meta.env.VITE_SUGAR_PK as string | undefined,
+  ),
+  legal: demo(
+    "legal",
+    import.meta.env.VITE_LEGAL_AGENT as string | undefined,
+    import.meta.env.VITE_LEGAL_PK as string | undefined,
+  ),
+  lead_qual: demo(
+    "lead_qual",
+    import.meta.env.VITE_LEAD_QUAL_AGENT as string | undefined,
+    import.meta.env.VITE_LEAD_QUAL_PK as string | undefined,
+  ),
 } as const;
 
 export type DemoKey = keyof typeof DEMOS;

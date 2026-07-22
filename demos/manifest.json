@@ -7,6 +7,55 @@
       "tagline": "A voice trip-planning copilot that builds a client itinerary on screen as the travel agent talks.",
       "stt": { "model": "vql-stt", "language": "en" },
       "tts": { "voice": "omnivoice/gauri", "language": "en" }
+    },
+    {
+      "name": "shopping",
+      "title": "Mobile Expert",
+      "tagline": "A voice shopping assistant that walks a phone buyer through the store and fills their cart on screen.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gaurav", "language": "en" }
+    },
+    {
+      "name": "support",
+      "title": "Returns Assistant",
+      "tagline": "A voice returns-and-support agent that looks up an order and drives the on-screen returns flow.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gaurav", "language": "en" }
+    },
+    {
+      "name": "servicing",
+      "title": "Meridian Servicing Desk",
+      "tagline": "A voice copilot for a mortgage-servicing advisor working their case queue.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+    },
+    {
+      "name": "interview_bot",
+      "title": "AI Interviewer",
+      "tagline": "A voice job-interview bot — the job, candidate, and interview plan arrive per session in the payload.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+    },
+    {
+      "name": "sugar",
+      "title": "Sugar Coach",
+      "tagline": "A daily diabetes habit check-in the app places to the patient each evening; the scenario rides the payload.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+    },
+    {
+      "name": "legal",
+      "title": "Docket — Contract Review",
+      "tagline": "An ambient voice copilot for in-house counsel reviewing a vendor MSA, marking clauses on screen.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+    },
+    {
+      "name": "lead_qual",
+      "title": "Auric Gold Loan Advisor",
+      "tagline": "A multilingual lead-qualification bot that walks a gold-loan enquiry through to a qualified call.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gauri", "language": "en" }
     }
   ]
 }

@@ -18,6 +18,13 @@ from pathlib import Path
 from typing import Any
 
 from voqalize.sdk import Brain
+from voqalize_demos.brains.interview_bot import InterviewBotBrain
+from voqalize_demos.brains.lead_qual import LeadQualBrain
+from voqalize_demos.brains.legal import LegalBrain
+from voqalize_demos.brains.servicing import ServicingBrain
+from voqalize_demos.brains.shopping import ShoppingBrain
+from voqalize_demos.brains.sugar import SugarBrain
+from voqalize_demos.brains.support import SupportBrain
 from voqalize_demos.brains.travel import TravelBrain
 from voqalize_demos.llm import GeminiProvider
 
@@ -28,6 +35,13 @@ _MANIFEST_PATH = Path(__file__).resolve().parents[2] / "manifest.json"
 # (``/{name}/s/{session_id}``). Each factory builds a fresh brain per session.
 _BRAIN_FACTORIES: dict[str, Callable[[GeminiProvider], Brain]] = {
     "travel": lambda llm: TravelBrain(llm=llm),
+    "shopping": lambda llm: ShoppingBrain(llm=llm),
+    "support": lambda llm: SupportBrain(llm=llm),
+    "servicing": lambda llm: ServicingBrain(llm=llm),
+    "interview_bot": lambda llm: InterviewBotBrain(llm=llm),
+    "sugar": lambda llm: SugarBrain(llm=llm),
+    "legal": lambda llm: LegalBrain(llm=llm),
+    "lead_qual": lambda llm: LeadQualBrain(llm=llm),
 }
 
 
