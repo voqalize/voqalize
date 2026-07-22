@@ -1,0 +1,15 @@
+version: v2
+modules:
+  - path: .
+    excludes:
+      # Legacy switchboard/orchestrator schema. Stays on disk for reference;
+      # not part of the cortex wire schema and not regenerated.
+      - _deprecated
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_VERSION_SUFFIX
+breaking:
+  use:
+    - FILE
