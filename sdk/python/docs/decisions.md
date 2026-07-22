@@ -38,7 +38,7 @@ The *why* behind the SDK's shape. Each entry: the decision, the reasoning, what 
 
 ## Caller supplies the Cortex URL; SDK does no routing
 
-**Decision:** `CortexAgent(cortex_url=..., api_key=..., version=...)` takes the Cortex URL as an opaque string. Customer agents read it from `VOQALCLOUD_CORTEX_URL`; the platform's reference agents do the same. Cortex runs as a single process behind a single URL — there is no ring, hash, or per-agent routing decision anywhere.
+**Decision:** `CortexAgent(cortex_url=..., api_key=..., version=...)` takes the Cortex URL as an opaque string, supplied by the caller (the example runners read it from an env var such as `CORTEX_AGENT_URL`). Cortex runs as a single process behind a single URL — there is no ring, hash, or per-agent routing decision anywhere.
 
 **Why:** Where/how Cortex is deployed is an *infrastructure* detail, not an SDK contract. The SDK never knew the agent's pool key anyway — Cortex resolves the Bearer credential (customer `ak_…` via controlplane lookup, platform JWT via RSA verification) to a pool key internally, for its own agent-pool bookkeeping, unrelated to which URL the customer dials. Letting the operator pick the URL also makes single-Cortex local-dev trivial.
 
