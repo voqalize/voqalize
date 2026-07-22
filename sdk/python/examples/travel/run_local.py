@@ -1,17 +1,14 @@
 """Run the cortex TravelBrain against the LOCAL Cortex relay (pm2 dev stack).
 
-    cd backend/agent-sdk && uv run python examples/travel/run_local.py
+    cd sdk/python && uv run python examples/travel/run_local.py
 
-Connects one outbound multiplexed WebSocket to ws://localhost:8480/agent,
-authenticating as a *platform agent* for the pool the locally-seeded
-``demo-travel`` agent routes to once flipped to ``deployment.mode = cortex``
-(``t:demo-tenant:voqal-travel`` — voqal-travel is a tenant key, not a platform
-key, so the pool is tenant-scoped; Cortex still accepts a platform-signed JWT
-for any agent_id and routes by it). Auth is a short-lived RS256 JWT signed with
-.dev-keys/platform.pem, which Cortex trusts via CORTEX_PLATFORM_PUBKEYS.
+Connects one outbound multiplexed WebSocket to a Cortex relay (here the local
+``ws://localhost:8480/agent``), authenticating as an agent for a pool, and Cortex
+splices each incoming session to this brain. Auth is a short-lived RS256 JWT (or a
+static ``ak_…``) that the relay verifies.
 
-Pair with the ``/travel`` console demo at http://localhost:5740/travel after
-flipping demo-travel to cortex (see scripts/flip_travel_cortex.py).
+Point an agent's ``brain_url`` at this relay pool (via the Voqalize MCP
+``set_brain_url`` tool or the console) and the voice runtime routes calls here.
 """
 
 from __future__ import annotations

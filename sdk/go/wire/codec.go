@@ -1,6 +1,6 @@
 // Package wire is the cortex wire vocabulary for the native Go agent SDK.
 //
-// It mirrors backend/agent-sdk (Python) but carries no pipecat dependency: the
+// It mirrors sdk/python (Python) but carries no pipecat dependency: the
 // contract is protobuf Envelope frames over a multiplexed WebSocket to cortex's
 // /agent endpoint. This file is the codec — typed Go frames <-> Envelope bytes.
 //

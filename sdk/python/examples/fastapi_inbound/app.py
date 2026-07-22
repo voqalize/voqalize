@@ -1,6 +1,6 @@
 """A runnable FastAPI inbound brain — the PRIMARY production path.
 
-    cd backend/agent-sdk
+    cd sdk/python
     uv run uvicorn examples.fastapi_inbound.app:app --host 0.0.0.0 --port 8080
 
 This is how a customer hosts a brain in production: your web framework owns the

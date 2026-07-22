@@ -3,7 +3,7 @@
 // ws://localhost:8788/s/{session_id} (one socket per session), with no Cortex
 // relay anywhere in the loop.
 //
-//	cd backend/agent-sdk-go && go run ./cmd/travel-direct
+//	cd sdk/go && go run ./cmd/travel-direct
 //
 // It is the direct-mode analogue of ./cmd/travel-local (which speaks to the
 // Cortex relay). Same TravelBrain, same Vql* protocol, same media path — only
@@ -16,9 +16,8 @@
 // verify — so verification is skipped here. A real customer runs the SDK default
 // (no options), which verifies against the embedded prod key with no config.
 //
-// Pair with the /travel console demo at http://localhost:5740/travel after
-// flipping demo-travel to deployment.mode=direct with
-// brain_url=ws://localhost:8788 (scripts/flip_travel_direct.py in controlplane).
+// Point an agent's brain_url at ws://localhost:8788 (via the Voqalize MCP
+// set_brain_url tool or the console) and the voice runtime dials in — no relay.
 package main
 
 import (

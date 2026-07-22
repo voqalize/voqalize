@@ -1,4 +1,4 @@
-// Package travel is the TBO travel-desk agent, ported from the Python
+// Package travel is the travel-desk agent, ported from the Python
 // examples/travel brain to the native Go SDK (no pipecat). It exercises the
 // cortex core concepts: per-turn interaction, multi-inference tool round-trips
 // (speak a line → call a screen tool → speak the result), screen-driving via

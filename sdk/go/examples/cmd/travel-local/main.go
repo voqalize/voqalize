@@ -1,15 +1,14 @@
 // Command travel-local runs the Go TravelBrain against the LOCAL Cortex relay
 // (pm2 dev stack), the Go analogue of examples/travel/run_local.py.
 //
-//	cd backend/agent-sdk-go && go run ./cmd/travel-local
+//	cd sdk/go && go run ./cmd/travel-local
 //
-// It dials ws://localhost:8480/agent as a *platform agent* for the pool the
-// locally-seeded demo-travel agent routes to once flipped to deployment.mode =
-// cortex (t:demo-tenant:voqal-travel). Auth is a short-lived RS256 JWT signed
-// with .dev-keys/platform.pem, which Cortex trusts via CORTEX_PLATFORM_PUBKEYS.
+// It dials a Cortex relay (here the local ws://localhost:8480/agent) as an agent
+// for a pool; Cortex splices each incoming session to this brain. Auth is a
+// short-lived RS256 JWT (or a static ak_…) that the relay verifies.
 //
-// Pair with the /travel console demo at http://localhost:5740/travel after
-// flipping demo-travel to cortex (scripts/flip_travel_cortex.py).
+// Point an agent's brain_url at this relay pool (via the Voqalize MCP
+// set_brain_url tool or the console) and the voice runtime routes calls here.
 package main
 
 import (

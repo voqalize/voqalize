@@ -1,6 +1,6 @@
 """Run EchoBrain as an inbound DIRECT server (no Cortex relay, no LLM keys).
 
-    cd backend/agent-sdk && uv run python -m examples.echo.run_direct
+    cd sdk/python && uv run python -m examples.echo.run_direct
 
 Hosts ``EchoBrain`` on ``ws://127.0.0.1:8789/s/{session_id}``. PyGato opens one
 connection per session just-in-time; there is no relay. Point a local demo

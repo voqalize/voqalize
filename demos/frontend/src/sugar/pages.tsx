@@ -1073,7 +1073,7 @@ function VideoOverlay() {
     const p = playerRef.current;
     if (!p) return;
     try {
-      // Unlike the muted axis explainer, this video is FOR the patient — sound on.
+      // Unlike a muted explainer clip, this video is FOR the patient — sound on.
       p.unMute?.();
       if (cmd.action === 'play' && cmd.youtubeId) p.loadVideoById({ videoId: cmd.youtubeId, startSeconds: cmd.startSec ?? 0 });
       else if (cmd.action === 'pause') p.pauseVideo();

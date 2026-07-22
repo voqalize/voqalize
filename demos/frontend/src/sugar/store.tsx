@@ -2,7 +2,7 @@
  * Shared state for the Sugar Coach demo — the patient's phone and the voice
  * call drive one store, so the agent and the patient see the same screen.
  *
- * Same two-way pattern as travel/servicing/axis:
+ * Same two-way pattern as travel/servicing:
  *   - `handleUiCommand(cmd)` replays the brain's `ui_command` RTVI messages
  *     onto this store (meals appear, meds tick, the chart zooms, videos play);
  *   - `snapshot()` is echoed back as `state_sync` (`{ screen: ... }`) so the
@@ -84,7 +84,7 @@ interface SugarStore {
   sensorOrder: SensorOrderState;
   highlightSection: string | null;
 
-  // Video (axis-style imperative command queue for the YouTube player)
+  // Video (imperative command queue for the YouTube player)
   videoOpen: boolean;
   videoTitle: string | null;
   videoCmd: VideoCommand | null;

@@ -49,7 +49,7 @@ PyGato gives up), **1011** on an unexpected error (retriable, PyGato reconnects)
 ## Run it locally
 
 ```bash
-cd backend/agent-sdk
+cd sdk/python
 VOQAL_ALLOW_UNVERIFIED=true \
   uv run uvicorn examples.fastapi_inbound.app:app --host 0.0.0.0 --port 8080
 ```
@@ -90,7 +90,7 @@ trusts.
 
 `requirements.txt` lists `voqalize-agent-sdk` as if it were on a package index.
 Until it's published there, vendor the SDK into the build context (copy
-`backend/agent-sdk/` alongside this dir and `pip install ./agent-sdk` in the
+`sdk/python/` alongside this dir and `pip install ./python` in the
 Dockerfile), or build a wheel with `uv build` and `COPY` it in. The
 `--allow-unauthenticated` flag is about *Cloud Run's* IAM front door (PyGato is an
 anonymous external caller); the brain still authenticates PyGato itself via the

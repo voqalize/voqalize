@@ -13,8 +13,8 @@ package cortex
 // That makes rotation seamless (ship an SDK carrying both old and new key, roll
 // the signer, later drop the old). Rotation/release: append the new PEM and cut a
 // release; never remove a key until every signer that used it is retired. These
-// must stay in sync with the production PyGato signer — the same key the prod
-// control plane and Cortex (CORTEX_PLATFORM_PUBKEYS) already verify against.
+// must stay in sync with the production PyGato signer — the same key the
+// production control plane and Cortex already verify against.
 const platformPublicKeysPEM = `
 -----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnZqkG9xDlyjo9ONJruEt
@@ -25,4 +25,4 @@ t7YGwisdUH/pr52PTiXAEoGwQkut+KzK+prQ+FzLd7vxA4+CBdPNu0FQgs4Rir00
 kHs+GpZL175nsEJJ01k+M2hl/atxfFgrFucrLPqEk2Tyydtl9j4aQsNCaUKXUZfw
 2QIDAQAB
 -----END PUBLIC KEY-----
-` // prod (voqal-cloud-prod pygato signer; GSM controlplane-pygato-pubkeys)
+` // production PyGato brain-token signer

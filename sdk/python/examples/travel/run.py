@@ -1,7 +1,7 @@
 """Run the cortex TravelBrain against a Cortex relay.
 
     GEMINI_API_KEY=...  python -m examples.travel.run \
-        --api-key ak_...  --cortex-url wss://cortex.prod.voqalize.com/agent
+        --api-key ak_...  --cortex-url wss://cortex.voqalize.com/agent
 
 One ``CortexAgent`` process; a fresh ``TravelBrain`` per session.
 """

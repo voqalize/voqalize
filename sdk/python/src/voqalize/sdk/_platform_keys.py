@@ -22,11 +22,10 @@ from __future__ import annotations
 #
 # Order is irrelevant; each is tried in turn. Keep the human-readable label in the
 # comment so ops knows which signer/environment a key belongs to. These must stay
-# in sync with the production PyGato signer — the same key the prod control plane
-# (`controlplane-pygato-pubkeys` / `pygato_pubkeys`) and Cortex
-# (`CORTEX_PLATFORM_PUBKEYS`) already verify against.
+# in sync with the production PyGato signer — the same key the production control
+# plane and Cortex already verify against.
 VOQAL_PLATFORM_PUBLIC_KEYS: list[str] = [
-    # prod (voqal-cloud-prod pygato signer; GSM `controlplane-pygato-pubkeys`).
+    # production PyGato brain-token signer.
     """-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnZqkG9xDlyjo9ONJruEt
 assF7hCeNeS42hGs4U1Z6mht/hWFQoCgK6/DlsRTo1aXvrpFvw7K0WlGZgVXgwm2

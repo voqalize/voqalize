@@ -1,16 +1,11 @@
 """Run the Python TravelBrain as an inbound DIRECT server (no Cortex relay).
 
-    cd backend/agent-sdk && uv run python examples/travel/run_direct.py
+    cd sdk/python && uv run python examples/travel/run_direct.py
 
-Hosts ``TravelBrain`` on ``ws://localhost:8788/s/{session_id}`` — the port the
-``demo-travel`` agent dials when flipped to ``deployment.mode = direct``. PyGato
-opens one connection per session just-in-time; there is no relay.
-
-Pair with the ``/travel`` console demo:
-
-    # in backend/controlplane:
-    uv run python scripts/flip_travel_direct.py        # point demo-travel at ws://localhost:8788
-    # then open http://localhost:5740/travel
+Hosts ``TravelBrain`` on ``ws://localhost:8788/s/{session_id}``. Point an agent's
+``brain_url`` at this address (via the Voqalize MCP ``set_brain_url`` tool or the
+console) and the voice runtime dials in — one connection per session, just-in-time,
+with no relay in the path.
 
 Auth is disabled here (``allow_unverified=True``) for local dev only: the local
 PyGato signs its brain token with the dev key, while the SDK's embedded default

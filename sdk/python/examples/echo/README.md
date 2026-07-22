@@ -28,7 +28,7 @@ class EchoBrain(Brain):
 ## Run it
 
 ```bash
-cd backend/agent-sdk
+cd sdk/python
 uv run python -m examples.echo.run_direct
 # → serving on ws://127.0.0.1:8789/s/{session_id}
 ```
