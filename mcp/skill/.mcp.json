@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "voqalize": {
+      "command": "uvx",
+      "args": ["voqalize-mcp"],
+      "env": {
+        "VOQALIZE_MANAGEMENT_KEY": "mk_live_REPLACE_ME",
+        "VOQALIZE_TENANT": "your-tenant-slug",
+        "VOQALIZE_API_BASE": "https://api.voqalize.com"
+      }
+    }
+  }
+}

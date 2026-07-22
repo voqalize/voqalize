@@ -1,0 +1,83 @@
+"""A barge-in InterruptionFrame cancels the in-flight interaction on the agent
+side. No further LLM frames from that inference cross the wire after the
+interruption, and the agent echoes an InterruptionFrame back as pygato's drain
+barrier."""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+
+from tests.e2e_cortex.conftest import connect_pygato, wait_until
+from tests.fakes.cortex import FakeCortex
+from voqalize.sdk import Brain, make_agent
+from voqalize.sdk.wire import (
+    InterruptionFrame,
+    VqlLLMTextFrame,
+    VqlStartFrame,
+    VqlUserTextFrame,
+)
+
+
+class StreamingResponder(Brain):
+    """Speaks one chunk then blocks forever; gets cancelled by the barge-in."""
+
+    timeline: list[str] = []
+
+    async def on_interaction(self, interaction) -> None:
+        iid = interaction.id
+        StreamingResponder.timeline.append(f"start:{iid}")
+        async with interaction.inference() as inf:
+            await inf.speak("chunk-1")
+            try:
+                await asyncio.Event().wait()  # block until cancelled
+            except asyncio.CancelledError:
+                StreamingResponder.timeline.append(f"cancelled:{iid}")
+                raise
+
+
+async def test_interruption_cancels_in_flight() -> None:
+    StreamingResponder.timeline = []
+
+    async with FakeCortex() as cortex:
+        agent = make_agent(
+            StreamingResponder,
+            api_key="welcome",
+            version="1.0.0",
+            cortex_url=cortex.agent_url("welcome"),
+        )
+        run_task = asyncio.create_task(agent.run())
+
+        client = await connect_pygato(cortex, "s1")
+        try:
+            await client.send(VqlStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(VqlUserTextFrame(interaction_id=1, text="say hi"))
+
+            # Wait for the first chunk to arrive over the wire.
+            frames, _ = await client.collect_until(
+                lambda fr, _ac: any(isinstance(f, VqlLLMTextFrame) for f in fr),
+                timeout=3.0,
+            )
+            assert any(f.text == "chunk-1" for f in frames if isinstance(f, VqlLLMTextFrame))
+
+            # Barge in. The agent cancels the interaction and echoes an
+            # InterruptionFrame back as the drain barrier — on the outbound
+            # system lane, so it jumps ahead of any queued data.
+            await client.send(InterruptionFrame())
+            await wait_until(lambda: "cancelled:1" in StreamingResponder.timeline, timeout=3.0)
+
+            # Collect everything up to and including the InterruptionFrame echo.
+            frames2, _ = await client.collect_until(
+                lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr),
+                timeout=3.0,
+            )
+            assert any(isinstance(f, InterruptionFrame) for f in frames2)
+            # No further LLM text frames slipped through after the barge-in.
+            assert not any(isinstance(f, VqlLLMTextFrame) for f in frames2), (
+                f"text frames slipped through after interruption: {frames2}"
+            )
+        finally:
+            await client.close()
+            run_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await run_task

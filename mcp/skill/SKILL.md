@@ -1,0 +1,198 @@
+---
+name: voqalize
+description: >-
+  Build a voice agent on Voqalize end-to-end. Use when the developer wants to add
+  voice/phone/talk-to-my-app capability, build a voice agent or voice bot, or
+  mentions Voqalize. Guides you to scaffold a "brain" (a WebSocket the SDK runs),
+  choose the inbound (direct) or Cortex (outbound) transport, create the agent
+  over the Voqalize MCP server, wire its brain_url, mint a browser key, and embed
+  the React widget. Requires the `voqalize` MCP server (a management key).
+---
+
+# Build a voice agent on Voqalize
+
+Voqalize is **"you bring the brain, we bring the voice."** The developer writes a
+**brain** — a `Brain` subclass that receives transcribed user turns and speaks
+replies. Voqalize's runtime (PyGato) handles WebRTC, VAD, speech-to-text,
+text-to-speech, interruption, and recording. Brain and runtime talk over **one
+WebSocket per session**, carrying text frames — the brain never touches audio.
+
+Your job across a session with the developer: **scaffold the brain → pick the
+transport → create the agent (MCP) → wire `brain_url` → run + test → mint a
+browser key → embed the React widget → iterate.**
+
+## Prerequisites (check first)
+
+1. The **`voqalize` MCP server** is connected. Run its `whoami` tool — it should
+   return the tenant. If it errors, the developer needs a management key
+   (`mk_…`), minted by a tenant **owner** in the Voqalize console (API keys →
+   kind *management*), exported as `VOQALIZE_MANAGEMENT_KEY` (see `.mcp.json` in
+   this skill folder). Do not proceed until `whoami` succeeds.
+2. Python ≥ 3.12 for the brain. Node + a React app if they want the browser embed.
+
+## Step 1 — Understand the use case, draft the brain
+
+Ask what the agent should do (support bot, lead qualifier, booking assistant, …),
+what data/tools it needs, and what it should say first. Then scaffold from
+`templates/brain.py` — a `Brain` with:
+
+- `on_session_start(session, start)` — the greeting (agent speaks first).
+  `start.init` is the app payload the browser sent at connect (see Step 6's
+  `payload=`) — the logged-in user, their current cart, etc.
+- `on_interaction(interaction)` — one user turn. `interaction.transcript` is the
+  heard text; open `interaction.inference()` and `speak(...)` or stream an LLM.
+- `on_app_event(session, event)` — a message the browser sent up (a tap, a state
+  sync). Needed for any UI the user also touches by hand.
+
+**If the agent drives the screen** (a shopping cart, a form, a map) it also calls
+`interaction.action(name, {...})` to push commands to the browser — see
+[UI actions](#ui-actions-the-two-way-contract) for the exact wire shape both ways.
+
+Keep the first version tiny (greet + echo, or greet + one canned reply) so you can
+prove the pipe before adding an LLM or tools. The SDK is **pipecat-free** (pulls no
+audio deps). **Pre-release: it isn't on PyPI yet** — install it editable from the
+Voqalize agent-sdk source (`pip install -e path/to/agent-sdk`, or
+`uv add --editable path/to/agent-sdk`). Once published the name will be
+`voqalize-agent-sdk`.
+
+## Step 2 — Pick the transport: inbound (direct) vs Cortex (outbound)
+
+This is the one real decision. **Default to inbound.**
+
+| | **Inbound / direct (PRIMARY)** | **Cortex / outbound (fallback)** |
+|---|---|---|
+| Who dials whom | PyGato dials **into** your brain | Your brain dials **out** to Cortex |
+| You run | one authenticated `wss://` route (like any webhook) | a process holding an outbound socket |
+| `brain_url` | your route: `wss://your-host/…` | the `cortex_url` from `create_agent` |
+| Use when | you can expose an inbound HTTPS/WSS endpoint (you already run a web backend) | serverless/FaaS, a laptop, or strict egress-only / air-gapped networks that **can't** accept inbound |
+| Template | `templates/inbound_app.py` (FastAPI) | `templates/run_cortex.py` |
+
+Rule of thumb: **if they already run a web/mobile backend, use inbound** — one WS
+route is trivial and there's no relay in the path. Only reach for Cortex when an
+inbound endpoint is genuinely impossible.
+
+## Step 3 — Create the agent (MCP)
+
+Call the MCP tool `create_agent` with a `name` (and `description`). The response
+is `{agent, agent_secret, cortex_url}`:
+
+- `agent.id` — you'll need it to set the brain URL.
+- `agent_secret` (`ak_…`) — **only for the Cortex path**; it's the key the
+  outbound brain authenticates with. Shown once — if using Cortex, capture it now
+  into the brain's env (never commit it). Inbound brains ignore it.
+- `cortex_url` — the URL a Cortex brain dials.
+
+You can pass `brain_url` to `create_agent` up front, or leave it and set it in
+step 5.
+
+## Step 4 — Run the brain locally, test in the console
+
+You talk to the agent in the hosted Voqalize **console Playground** (or your own
+embed from Step 6). The runtime that dials your brain (PyGato) is hosted by
+Voqalize, so it must reach your brain over the public internet — a plain
+`ws://127.0.0.1` `brain_url` only works if you are *also* running the whole
+Voqalize stack locally. For the normal case (hosted Voqalize, brain on your
+laptop), expose the local brain with a tunnel:
+
+- **Inbound:** run `templates/inbound_app.py` (uvicorn on `:8080`). Because the
+  brain can't verify PyGato's prod-signed token against a tunnel in dev, set
+  `VOQAL_ALLOW_UNVERIFIED=true` **locally only** (a deployed brain drops this and
+  verifies with zero config). Start a tunnel — e.g. `ngrok http 8080` or
+  `cloudflared tunnel --url http://localhost:8080` — and use the `wss://…` URL it
+  prints as your `brain_url` (Step 5). PyGato dials `{that}/s/{session_id}`.
+- **Cortex:** no tunnel needed — the brain dials *out*. Run
+  `templates/run_cortex.py` with `VOQALIZE_AGENT_SECRET` (the `ak_…`) and
+  `VOQALIZE_CORTEX_URL` (the `cortex_url`) exported. This is why Cortex exists:
+  brains that can't accept inbound (a laptop with no public URL) still work.
+
+Then set the brain URL (Step 5) and open the agent in the Voqalize console
+Playground to talk to it. (Deploying for real? Skip the tunnel — give the brain a
+real public `wss://` host and point `brain_url` at that.)
+
+## Step 5 — Wire `brain_url` (MCP)
+
+Call `set_brain_url(agent_id, brain_url)`:
+
+- Inbound: your route's base — PyGato appends `/s/{session_id}`. `wss://` in
+  production; `ws://` allowed only for `localhost`/`127.0.0.1`.
+- Cortex: the `cortex_url` from step 3.
+
+An empty `brain_url` falls back to the hosted `welcome` demo brain, so a bare
+agent still greets — but to serve *your* brain you must set this.
+
+## Step 6 — Embed in the browser (React)
+
+1. `create_api_key(kind="publishable", label="web", allowed_origins=["https://your-site.com"])`
+   → the `raw` `pk_…` (shown once). Publishable keys are origin-allowlisted and
+   safe to ship to the browser; **never** put an `sk_`/`mk_` key in frontend code.
+   For **local** testing, include your dev origin in `allowed_origins` too (e.g.
+   `["http://localhost:5173"]`) or the browser session mint is rejected. (The
+   `sk_` "secret" kind is a server-to-server backend key — you don't need it just
+   to embed the widget; `pk_` is the only key the browser uses.)
+2. Install `@voqalize/client-react` and drop in `templates/react_embed.tsx`,
+   passing the `pk_…` and the `agent.id`. Its four config values:
+   - `publishableKey` — the `pk_…` from step 1.
+   - `agentId` — `agent.id`.
+   - `tenantSlug` — your tenant slug: **the same string you set as
+     `VOQALIZE_TENANT`** for the MCP server (`whoami` echoes it back if unsure).
+   - `apiBase` — the control-plane root **including the API version**; the React
+     SDK appends `/{tenantSlug}/…`. Production: `https://api.voqalize.com/api/v1`.
+     ⚠️ This is *not* the same as the MCP server's `VOQALIZE_API_BASE`, which is
+     the **bare host** (`https://api.voqalize.com`) — the MCP client adds
+     `/api/v1/{tenant}` itself. Same host, different suffix; don't copy one into
+     the other.
+
+<a id="ui-actions-the-two-way-contract"></a>
+## UI actions — the two-way contract
+
+For agents that drive the screen (cart, form, map), brain and browser exchange
+JSON messages with **fixed shapes**:
+
+**Brain → browser.** The brain calls `interaction.action(name, {...args})` (or
+`session.action(...)` outside a turn). The React SDK's `onServerMessage` receives:
+
+```json
+{ "type": "ui_command", "action": "add_to_cart", "action_id": 7, "sku": "oat-milk", "qty": 2 }
+```
+
+The `args` dict is **spread onto the top level** (not nested under `data`/`args`).
+Switch on `msg.action` and read the args as top-level fields. `action(...)` is
+**fire-and-forget** — not a coroutine (don't `await` it); the SDK mints the
+`action_id` and returns it. It only *messages* the browser; it does **not** persist
+anything (writing to your own backend is your brain code's job).
+
+**Browser → brain.** The browser calls the SDK's `session.sendMessage(type, data)`
+(exposed by `useVoqalSession` / the `VoqalAgent` render-prop). The brain receives
+it as `on_app_event(session, event)` with `event.name == type`, `event.data == data`.
+
+**Action results (optional).** Pass `callback=` to `interaction.action(...)` and
+the browser can reply with `sendMessage("action_outcome", {action_id, status,
+result})`; the SDK routes it to your callback (matched by `action_id`) instead of
+`on_app_event`.
+
+`templates/brain.py` and `templates/react_embed.tsx` show both directions wired to
+a cart end-to-end.
+
+## Step 7 — Iterate & observe
+
+Test, gather feedback, refine the brain, redeploy, re-test. For logs / events /
+metrics and support, use the observability tools **if present** in the MCP server
+(a separate track owns them) — don't assume `tail_logs`/`get_metrics` exist yet.
+
+## MCP tools you'll use
+
+`whoami` · `list_agents` · `get_agent` · `create_agent` · `set_brain_url` ·
+`update_agent` · `archive_agent` · `create_api_key` · `list_api_keys` ·
+`revoke_api_key`. Every tool returns the control plane's raw JSON. A `not_authorized`
+error means the management key's role is too low; `validation_error` means bad input
+(e.g. a non-`wss://` `brain_url` on a non-loopback host).
+
+## Files in this skill
+
+| Path | Use |
+|---|---|
+| `.mcp.json` | MCP server config the developer copies into their repo. |
+| `templates/brain.py` | Starter `Brain` — greet + reply. Transport-agnostic. |
+| `templates/inbound_app.py` | FastAPI inbound host (primary path). |
+| `templates/run_cortex.py` | Cortex outbound runner (fallback path). |
+| `templates/react_embed.tsx` | Browser embed via `@voqalize/client-react`. |

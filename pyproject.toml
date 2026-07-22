@@ -141,6 +141,11 @@ exclude = [
     # Customer-facing skill scaffolding (sibling imports resolve in the
     # developer's repo, not here). Excluded from the strict-mode gate.
     "**/skill/templates/**",
+    # Example brains are illustrative usage code that legitimately import heavy
+    # optional deps (openai-agents, google-genai) parked behind the `examples`
+    # extra — not part of the base env. Ruff still lints them; strict pyright
+    # over optional-dep imports would be all false-positive noise.
+    "**/examples/**",
 ]
 
 # None-safety — these are the rules we DO want loud.
