@@ -1,9 +1,8 @@
 /* Voqalize docs theme — "Blueprint, teal".
  *
- * The brand's single source of truth is the private `@voqalcloud/tokens` package;
- * these values are copied from it so the public docs match the marketing site and
- * console (deep-teal anchor, cool-navy paper, signal-orange sparingly). Keep the
- * hex values in sync if the brand palette changes. Starlight derives its UI from
+ * These hex values are the Voqalize brand palette (deep-teal anchor, cool-navy
+ * paper, signal-orange sparingly), matching the marketing site and console. Keep
+ * them in sync if the brand palette changes. Starlight derives its UI from
  * the `--sl-*` custom properties set below. */
 
 :root {

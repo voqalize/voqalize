@@ -103,8 +103,11 @@ function CallButton() {
 The hook runs a two-step flow:
 
 1. **Mint** — one `POST {apiBase}/{tenantSlug}/sessions.create_and_start` with the
-   publishable key as a bearer token and `{ agent_id, payload }` as the body. The
-   response carries the signaling URL and a session token. (A missing
+   publishable key as a bearer token. The body is `{ agent_id, payload }`, where the
+   outer `payload` **wraps both** the `pipeline` override and your app `payload`:
+   `{ agent_id, payload: { pipeline?, payload? } }` — so your app data nests one level
+   in, under `payload.payload`. The response carries the signaling URL and a session
+   token. (A missing
    `connection_details.signaling_url` in the response means no worker is running
    for that agent — a `VoqalSessionError` is thrown with that hint.)
 2. **Connect** — it builds a `VoqalWebRTCTransport`, wraps it in a `PipecatClient`

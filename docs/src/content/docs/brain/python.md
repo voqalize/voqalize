@@ -19,7 +19,7 @@ Subclass `Brain` and implement callbacks. All are `async`. Only `on_interaction`
 is required.
 
 ```python
-from voqalize.sdk import Brain, Interaction, Session, SessionStart, AppEvent
+from voqalize.sdk import Brain, Interaction, Inference, Session, SessionStart, AppEvent
 
 class MyBrain(Brain):
     async def on_session_start(self, session: Session, start: SessionStart) -> None:
@@ -113,13 +113,16 @@ brain never writes to it directly; rebuild your model context from it each turn.
 
 ## Serving the brain
 
-You serve the same `Brain` class over one of two transports. Pass a **factory** so
-a fresh brain instance is built per session (inject dependencies with a lambda):
+You serve the same `Brain` class over one of two transports. Both build a **fresh
+brain per session** from a zero-arg `() -> Brain` builder (inject dependencies here):
 
 ```python
-from voqalize.sdk import brain_factory
-factory = brain_factory(lambda: MyBrain(llm=my_client))
+def build() -> MyBrain:            # a fresh instance per session
+    return MyBrain(llm=my_client)
 ```
+
+`run_session` takes this builder directly as `brain_builder=`; the outbound agents
+(`CortexAgent` / `DirectAgent`) take it wrapped in `brain_factory(build)`.
 
 ### Inbound (primary)
 
@@ -131,7 +134,7 @@ from voqalize.sdk import run_session
 
 await run_session(
     channel,                       # anything with async send(bytes)/recv()->bytes
-    brain_builder=factory,         # or brain=MyBrain
+    brain_builder=build,           # a () -> Brain builder; or brain=MyBrain
     session_id=session_id,
     token=token,                   # the Authorization header value
     public_keys=None,              # None → embedded Voqalize platform keys
@@ -153,7 +156,7 @@ from voqalize.sdk import CortexAgent, brain_factory
 agent = CortexAgent(
     version="1.0.0",
     cortex_url="wss://cortex.voqalize.com/<pool>",
-    factory=brain_factory(MyBrain),
+    factory=brain_factory(build),  # the () -> Brain builder, wrapped
     api_key="ak_…",                # OR authorization_provider=lambda: "Bearer <jwt>"
 )
 await agent.run()

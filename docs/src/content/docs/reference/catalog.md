@@ -47,13 +47,12 @@ English↔Indic boundary is applied at the **next end-of-turn**, never mid-utter
 
 Passed via `configure_stt` (applies live). Defaults shown:
 
-| Knob | Default | Range |
-|---|---|---|
-| `language_hint` | — | any code above |
-| `eot_threshold` | `0.5` | `0.0`–`1.0` (end-of-turn probability) |
-| `eot_timeout_ms` | `3000` | `500`–`30000` (force end-of-turn after trailing silence) |
-| `sample_rate` | `16000` | `8000`–`48000` |
-| VAD knobs | — | `vad_confidence`, `vad_min_volume`, `vad_start_frames`, `vad_stop_frames_to_trigger_update`, `vad_eager_frames`, `vad_barge_in_ms`, `resume_frames`, `min_segment_speech_frames`, `confidence_tail_ms` |
+| Knob | Purpose |
+|---|---|
+| `language_hint` | Switch STT language (any code above); crosses the English↔Indic boundary at the next end-of-turn |
+| VAD knobs | `vad_confidence`, `vad_min_volume`, `vad_start_frames`, `vad_stop_frames_to_trigger_update`, `vad_eager_frames`, `vad_barge_in_ms`, `resume_frames`, `min_segment_speech_frames`, `confidence_tail_ms` — voice-activity / end-of-turn tuning |
+
+These are exactly the arguments `Session.configure_stt(...)` accepts.
 
 ## Text-to-speech
 

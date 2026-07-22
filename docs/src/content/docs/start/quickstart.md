@@ -21,6 +21,17 @@ shown below. Published packages will follow at beta.
 - For local testing, a tunnel (`ngrok http 8080` or `cloudflared`) — the hosted
   voice runtime must be able to reach your brain over the public internet.
 
+Until the packages ship to PyPI / npm, install them **editable from your clone** of
+[`voqalize/voqalize`](https://github.com/voqalize/voqalize):
+
+```bash
+git clone https://github.com/voqalize/voqalize
+# Python SDK (into your project's venv):
+uv pip install -e voqalize/sdk/python      # or: pip install -e voqalize/sdk/python
+# React SDK (into your web app):
+pnpm add file:../voqalize/sdk/react        # adjust the relative path to your clone
+```
+
 ## 1. Write a brain
 
 A brain is a subclass of `Brain` with two callbacks: greet on start, respond on
@@ -52,7 +63,7 @@ you expose. Mount the SDK's session handler on a FastAPI app:
 ```python
 # app.py
 from fastapi import FastAPI, WebSocket
-from voqalize.sdk import run_session, brain_factory
+from voqalize.sdk import run_session
 from brain import QuickstartBrain
 
 app = FastAPI()
@@ -68,7 +79,7 @@ async def brain_socket(ws: WebSocket, session_id: str):
     token = ws.headers.get("authorization")
     await run_session(
         _WsChannel(ws),
-        brain_builder=brain_factory(QuickstartBrain),
+        brain=QuickstartBrain,
         session_id=session_id,
         token=token,
     )

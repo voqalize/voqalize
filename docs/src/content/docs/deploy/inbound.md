@@ -17,7 +17,7 @@ session and returns when the call ends.
 
 ```python
 from fastapi import FastAPI, WebSocket
-from voqalize.sdk import run_session, brain_factory
+from voqalize.sdk import run_session
 from mybrain import MyBrain
 
 app = FastAPI()
@@ -33,7 +33,7 @@ async def brain_socket(ws: WebSocket, session_id: str):
     try:
         await run_session(
             _WsChannel(ws),
-            brain_builder=brain_factory(MyBrain),
+            brain=MyBrain,            # or brain_builder=lambda: MyBrain(llm=...)
             session_id=session_id,
             token=ws.headers.get("authorization"),
         )

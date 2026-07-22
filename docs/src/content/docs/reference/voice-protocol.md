@@ -7,7 +7,7 @@ The voice runtime and your brain exchange a small set of `Vql*` frames over one
 WebSocket per session. The SDKs wrap these as objects, so most brains never touch
 the wire directly — but the frame set *is* the contract, and this is the reference.
 
-The canonical definition is [`proto/frames.proto`](https://github.com/voqalize/voqalize/tree/main/proto)
+The canonical definition is [`proto/voqalize/frames/frames.proto`](https://github.com/voqalize/voqalize/tree/main/proto)
 (package `voqalize.frames`); the SDK dataclasses mirror it exactly.
 
 ## Identity keys
