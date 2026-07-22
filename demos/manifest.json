@@ -3,7 +3,7 @@
   "demos": [
     {
       "name": "travel",
-      "title": "TBO Travel Advisor",
+      "title": "Travel Advisor",
       "tagline": "A voice trip-planning copilot that builds a client itinerary on screen as the travel agent talks.",
       "stt": { "model": "vql-stt", "language": "en" },
       "tts": { "voice": "omnivoice/gauri", "language": "en" }

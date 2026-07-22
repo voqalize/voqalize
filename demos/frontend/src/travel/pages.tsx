@@ -1,5 +1,5 @@
 /**
- * The TBO "Trip Studio" portal UI — a mock B2B itinerary planner.
+ * The "Trip Studio" portal UI — a mock B2B itinerary planner.
  *
  * Plain state-driven navigation (see store.tsx), so the live voice call is never
  * interrupted. Sections carry stable `id`s (`tv-sec-*`) so the agent's `highlight`
@@ -245,7 +245,7 @@ function TopBar() {
   return (
     <div className="tv-topbar">
       <div className="tv-brand">
-        <span className="mark">✈ TBO</span> Trip Studio
+        <span className="mark">✈</span> Trip Studio
         <span className="sub">B2B Itineraries</span>
       </div>
       <div className="tv-crumbs">
@@ -259,7 +259,7 @@ function TopBar() {
       </div>
       <div className="tv-spacer" />
       <div className="tv-agentchip">
-        <span className="av">RA</span> Agent: Rahul · TBO
+        <span className="av">RA</span> Agent: Rahul
       </div>
     </div>
   );
@@ -270,7 +270,7 @@ function TopBar() {
 // here as running spinners while the agent keeps working; when one finishes it
 // turns into a clickable "ready" chip that opens what it produced. This is the
 // visible proof that long-running work doesn't block the conversation — the
-// behaviour TBO will keep when real fare/hotel APIs are wired in behind it.
+// behaviour the desk will keep when real fare/hotel APIs are wired in behind it.
 function TaskTray() {
   const { tasks, openTaskTarget } = useTravel();
   if (tasks.length === 0) return null;
@@ -762,7 +762,7 @@ function whatsappText(it: Itinerary): string {
     for (const s of it.inclusions) lines.push(`✓ ${s}`);
   }
   lines.push('');
-  lines.push('— Sent via TBO Trip Studio');
+  lines.push('— Sent via Trip Studio');
   return lines.join('\n');
 }
 

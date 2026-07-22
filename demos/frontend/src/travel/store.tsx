@@ -1,5 +1,5 @@
 /**
- * TravelStore — the single source of truth for the TBO Travel Desk demo.
+ * TravelStore — the single source of truth for the Travel Desk demo.
  *
  * Both the human (clicking the portal) and the Travel Desk agent (via `ui_command`
  * RTVI messages) call the SAME actions, so the screen stays consistent no matter

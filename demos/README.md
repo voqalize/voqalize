@@ -85,7 +85,7 @@ them directly (one origin, path-separated); see `Dockerfile` / `cloudbuild.yaml`
 
 ## Status
 
-`travel` — the **TBO Travel Advisor** — is built as the reference demo: a
+`travel` — the **Travel Advisor** — is built as the reference demo: a
 `voqalize.sdk.Brain` (`backend/voqalize_demos/brains/travel/`) driven over the
 inbound path, and a Vite UI (`frontend/src/travel/`) embedded via the public
 `@voqalize/client-react` SDK. Its conformance test drives the real brain over the

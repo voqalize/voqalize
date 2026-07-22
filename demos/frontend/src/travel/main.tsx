@@ -1,5 +1,5 @@
 /**
- * Travel demo entrypoint — TBO "Trip Studio".
+ * Travel demo entrypoint — "Trip Studio".
  *
  * A mock B2B itinerary planner with the "Travel Desk" voice agent. The portal UI
  * and the voice widget share one `TravelProvider`, so the agent and the human

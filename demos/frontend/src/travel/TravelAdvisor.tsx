@@ -1,5 +1,5 @@
 /**
- * The "TBO Travel Desk" floating voice widget.
+ * The "Travel Desk" floating voice widget.
  *
  * A bottom-right launcher that opens an embedded voice panel. The whole session
  * lifecycle — mint against the control plane, WebRTC transport, mic control,
@@ -187,7 +187,7 @@ export function TravelAdvisor() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 14 }}>
-          <span aria-hidden>✈</span> TBO Travel Desk
+          <span aria-hidden>✈</span> Travel Desk
         </div>
         <button
           onClick={hangUp}

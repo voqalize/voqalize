@@ -1,5 +1,5 @@
 /**
- * The TBO Travel Desk itinerary data model.
+ * The Travel Desk itinerary data model.
  *
  * Unlike the orders demo (which mirrors a fixed Python catalog), there is no
  * catalog here: flights, hotels, and activities are INVENTED by the agent and

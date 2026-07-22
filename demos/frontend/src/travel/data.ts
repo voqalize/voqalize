@@ -1,5 +1,5 @@
 /**
- * Seed draft itineraries for the TBO Trip Studio demo.
+ * Seed draft itineraries for the Trip Studio demo.
  *
  * The dashboard opens on these so the agent can be asked to OPEN and MODIFY an
  * existing trip ("open the Mehta Vietnam group and move the Delhi family's return
