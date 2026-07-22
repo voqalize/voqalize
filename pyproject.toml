@@ -1,0 +1,180 @@
+# Voqalize public repo — Python workspace root (uv).
+#
+# Members: the Python brain SDK and the MCP server. The demos backend joins as
+# a member in its own phase. Ruff + pyright are configured here and run over
+# every member at once; pytest runs per-member.
+#
+# This is a virtual root (`package = false`) — nothing is built or installed
+# from the repo root itself.
+
+[project]
+name = "voqalize-workspace"
+version = "0"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "sdk/python",
+    "mcp",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "pyright>=1.1.390",
+]
+
+# ─── Ruff ─────────────────────────────────────────────────────────────────────
+# Workspace-wide config. Individual members can override via their own
+# pyproject.toml, but the defaults should be strict enough that they rarely
+# need to.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+    "**/_generated/**",
+    "**/generated/**",
+    "**/*_pb2.py",
+    "**/*_pb2.pyi",
+    "**/*_pb2_grpc.py",
+    # Customer-facing skill scaffolding: standalone templates a developer drops
+    # into their OWN repo (sibling `from brain import ...` imports that resolve
+    # there, not here). Shipped as docs, not workspace code.
+    "**/skill/templates/**",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade — modernize syntax for target-version
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RET",  # flake8-return
+    "RUF",  # ruff-specific
+    "N",    # pep8-naming
+    "PIE",  # flake8-pie
+    "PT",   # flake8-pytest-style
+    "TID",  # flake8-tidy-imports
+    "PTH",  # use pathlib
+]
+ignore = [
+    "E501",   # line length — formatter handles this; long URLs in docstrings shouldn't fail
+    "SIM108", # ternary-over-if — readability call, not always an improvement
+    "RET504", # unnecessary assignment before return — often clearer with the name
+    "PT011",  # pytest.raises(...) too broad — fine for our integration assertions
+    "TID252", # relative imports — both styles fine; we use either throughout
+    "N818",   # exception suffix — existing names (SessionRejected) aren't worth churn
+    "UP046",  # pep695 generic class syntax — not adopting yet
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI/Typer rely on call-in-default for dependency injection; these are
+# explicitly safe and idiomatic. Without this, every Depends(...) and
+# typer.Option(...) trips B008.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Cookie",
+    "fastapi.Security",
+    "typer.Option",
+    "typer.Argument",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests get a looser leash: unused arguments (fixtures), no-op asserts, magic values.
+"**/tests/**" = ["PT", "SIM117", "N802", "N806", "B017", "B007", "RUF012"]
+# Scripts often need late imports after sys.path manipulation or env setup.
+"scripts/**" = ["E402"]
+# Generated protobuf stubs — never lint.
+"**/_pb2*.py" = ["ALL"]
+"**/_pb2*.pyi" = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "voqalize",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ─── Pyright ──────────────────────────────────────────────────────────────────
+# Strict typing: avoid Optional/None, narrow at I/O boundaries, kill unreachable
+# branches. We disable a handful of strict checks that explode on third-party
+# libraries without stubs — those would drown signal in noise without improving
+# safety.
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+include = [
+    "sdk/python",
+    "mcp",
+]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.venv",
+    "**/_generated",
+    "**/generated",
+    "**/*_pb2.py",
+    "**/*_pb2.pyi",
+    "**/*_pb2_grpc.py",
+    # Tests use fakes that intentionally diverge from prod protocols
+    # (FakeCortex vs the real relay). The strict-mode signal we care about is in
+    # src/, not tests/.
+    "**/tests/**",
+    # Customer-facing skill scaffolding (sibling imports resolve in the
+    # developer's repo, not here). Excluded from the strict-mode gate.
+    "**/skill/templates/**",
+]
+
+# None-safety — these are the rules we DO want loud.
+reportOptionalMemberAccess = "error"
+reportOptionalSubscript = "error"
+reportOptionalCall = "error"
+reportOptionalIterable = "error"
+reportOptionalContextManager = "error"
+reportOptionalOperand = "error"
+reportPossiblyUnboundVariable = "error"
+
+# Dead-code / shape — narrow at boundaries, eliminate code paths.
+reportUnnecessaryIsInstance = "warning"
+reportUnnecessaryComparison = "warning"
+reportUnnecessaryCast = "warning"
+reportUnreachable = "warning"
+
+# Untyped third-party noise — disable so strict mode stays usable.
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"
+reportMissingParameterType = "none"
+reportMissingTypeArgument = "none"  # `dict` instead of `dict[str, Any]` — pure style
+reportImplicitOverride = "none"
+reportUntypedFunctionDecorator = "none"
+reportUntypedClassDecorator = "none"
+reportUntypedBaseClass = "none"
+reportPrivateUsage = "none"  # SDK internals + test access — not a real bug class
+# Protobuf-generated `_frames_pb2.py` uses descriptor_pool magic that pyright
+# can't trace. The serializer hits this every line; without these off the
+# noise drowns the signal.
+reportAttributeAccessIssue = "none"
+reportUnusedFunction = "none"
+reportUnusedImport = "none"

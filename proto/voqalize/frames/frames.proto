@@ -1,13 +1,13 @@
-// Voqalcloud cortex wire frames.
+// Voqalize cortex wire frames.
 //
 // This schema is the canonical wire vocabulary between:
-//   - pygato (CortexFrameProcessor) and cortex
-//   - agent-sdk (CortexAgent)        and cortex
+//   - the voice runtime (pygato / gato) and cortex
+//   - the agent SDK (CortexAgent)       and cortex
 //
 // Cortex itself is byte-opaque; this schema is consumed only by the two
-// endpoints. Generated Python stubs are committed in:
-//   - pygato/src/pygato/wire/_frames_pb2.py
-//   - agent-sdk/src/voqalcloud/sdk/wire/_frames_pb2.py
+// endpoints. Generated stubs are committed alongside each SDK:
+//   - sdk/python/src/voqalize/sdk/wire/_frames_pb2.py
+//   - sdk/go/wire/framespb/frames.pb.go
 //
 // Regenerate with `make proto` (root Makefile, driven by `buf generate`).
 //
@@ -21,11 +21,11 @@
 
 syntax = "proto3";
 
-package voqalcloud.frames;
+package voqalize.frames;
 
-// Go stubs for the native (no-pipecat) agent SDK. Python stubs are copied into
-// pygato + agent-sdk by `make proto`; Go stubs into agent-sdk-go/wire/framespb.
-option go_package = "github.com/recruit41/voqalcloud/agent-sdk-go/wire/framespb;framespb";
+// Go stubs for the native (no-pipecat) agent SDK. `make proto` copies the
+// Python stubs into sdk/python and the Go stubs into sdk/go/wire/framespb.
+option go_package = "github.com/voqalize/voqalize/sdk/go/wire/framespb;framespb";
 
 // ─── Envelope ─────────────────────────────────────────────────────────────────
 
