@@ -1,0 +1,20 @@
+{
+  "name": "@voqalize/docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Voqalize developer documentation site (voqalize.com/docs) — Astro Starlight, static output.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.34.0",
+    "astro": "^5.0.0",
+    "sharp": "^0.33.5"
+  }
+}

@@ -1,0 +1,72 @@
+/* Voqalize docs theme — "Blueprint, teal".
+ *
+ * The brand's single source of truth is the private `@voqalcloud/tokens` package;
+ * these values are copied from it so the public docs match the marketing site and
+ * console (deep-teal anchor, cool-navy paper, signal-orange sparingly). Keep the
+ * hex values in sync if the brand palette changes. Starlight derives its UI from
+ * the `--sl-*` custom properties set below. */
+
+:root {
+  --brand-teal: #10c5b4;
+  --brand-teal-deep: #00796b;
+  --brand-teal-strong: #0c8077;
+  --brand-teal-bright: #2bd9c5;
+  --brand-teal-text: #0a6e64;
+  --brand-signal: #ff5a1f;
+
+  --sl-font: "Archivo", "Noto Sans Devanagari", "Noto Sans Tamil", system-ui,
+    -apple-system, sans-serif;
+  --sl-font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+/* Dark theme (Starlight default). Teal reads as text-safe bright teal on navy. */
+:root,
+:root[data-theme="dark"] {
+  --sl-color-accent-low: #06342f;
+  --sl-color-accent: #0c8077;
+  --sl-color-accent-high: #2bd9c5;
+
+  --sl-color-white: #eaf1fd;
+  --sl-color-gray-1: #dbe3f1;
+  --sl-color-gray-2: #b6c1d6;
+  --sl-color-gray-3: #7f8da8;
+  --sl-color-gray-4: #4c5b78;
+  --sl-color-gray-5: #2c3f5e;
+  --sl-color-gray-6: #16284a;
+  --sl-color-black: #060e1f;
+
+  --sl-color-bg: #060e1f;
+  --sl-color-bg-nav: #0e1b33;
+  --sl-color-bg-sidebar: #0b1528;
+  --sl-color-text-accent: #2bd9c5;
+  --sl-color-hairline-shade: #16284a;
+}
+
+/* Light theme. */
+:root[data-theme="light"] {
+  --sl-color-accent-low: #d7efec;
+  --sl-color-accent: #00796b;
+  --sl-color-accent-high: #06342f;
+
+  --sl-color-white: #0e1b33;
+  --sl-color-gray-1: #16284a;
+  --sl-color-gray-2: #2c3f5e;
+  --sl-color-gray-3: #5c6e8c;
+  --sl-color-gray-4: #6b7e96;
+  --sl-color-gray-5: #c3d0e2;
+  --sl-color-gray-6: #eef2f8;
+  --sl-color-gray-7: #f8fafd;
+  --sl-color-black: #ffffff;
+
+  --sl-color-bg: #eef2f8;
+  --sl-color-bg-nav: #ffffff;
+  --sl-color-bg-sidebar: #f8fafd;
+  --sl-color-text-accent: #0a6e64;
+  --sl-color-hairline-shade: #e1e8f2;
+}
+
+/* Signal-orange for the "tip"/asides accent stays sparing; leave Starlight's own
+ * aside colors alone. A touch more weight on the hero tagline. */
+.hero .tagline {
+  font-weight: 500;
+}
