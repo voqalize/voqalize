@@ -1,0 +1,12 @@
+{
+  "$comment": "The single registry for the demos runtime — the spine both trees read. The Python backend (voqalize_demos.manifest) binds each name to a Brain and mounts /{name}/s/{id}. The frontend reads THIS FILE directly: vite.config.ts derives the MPA entrypoints, src/index/main.tsx renders the landing cards, and src/config.ts pulls each demo's stt/tts + wiring. The provisioning script creates one agent per entry with brain_url = wss://{host}/{name}. Adding a demo touches more than this file — follow the checklist in demos/README.md.",
+  "demos": [
+    {
+      "name": "travel",
+      "title": "TBO Travel Advisor",
+      "tagline": "A voice trip-planning copilot that builds a client itinerary on screen as the travel agent talks.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+    }
+  ]
+}

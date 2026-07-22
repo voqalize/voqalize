@@ -1,0 +1,84 @@
+# Build + deploy the demos runtime to Cloud Run (dev).
+#
+#   gcloud builds submit --config demos/cloudbuild.yaml \
+#     --substitutions=_TRAVEL_AGENT=<id>,_TRAVEL_PK=<pk_...> .
+#
+# One image, every demo (see demos/Dockerfile). Build context is the repo root.
+#
+# The substitutions below are Voqalize's own dev values — this is exactly how we
+# deploy the live demos at demos.dev.voqalize.com. To run the demos in your own
+# project, override _PROJECT / _REGION / _IMAGE / _CONTROLPLANE_API_URL / _DEMO_*
+# and the secrets referenced in the deploy step. The publishable VITE_* values are
+# baked into the UI at build; server secrets stay runtime env.
+
+substitutions:
+  _REGION: asia-south1
+  _PROJECT: voqal-cloud-dev
+  _SERVICE: voqalize-demos
+  _IMAGE: asia-south1-docker.pkg.dev/voqal-cloud-dev/voqalcloud-images/demos:latest
+  # Control-plane origin the umbrella reverse-proxies /api/* to (session bootstrap).
+  # The public vanity host (Firebase Hosting → control-plane Cloud Run) — no
+  # internal Cloud Run URL leaks into this public config.
+  _CONTROLPLANE_API_URL: https://app.dev.voqalize.com
+  # Demo wiring baked into the UI (publishable — browser-safe).
+  _DEMO_TENANT: aCxzYVYr
+  _TRAVEL_AGENT: ''
+  _TRAVEL_PK: ''
+
+steps:
+  # Build the image (frontend MPA + Python runtime, multi-stage).
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build
+    args:
+      - build
+      - -t
+      - '${_IMAGE}'
+      - -f
+      - demos/Dockerfile
+      - --build-arg
+      - 'VITE_DEMO_TENANT=${_DEMO_TENANT}'
+      - --build-arg
+      - 'VITE_TRAVEL_AGENT=${_TRAVEL_AGENT}'
+      - --build-arg
+      - 'VITE_TRAVEL_PK=${_TRAVEL_PK}'
+      - .
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push
+    waitFor: [build]
+    args: [push, '${_IMAGE}']
+
+  # Deploy to Cloud Run. Two secrets, both from Google Secret Manager (the deploy
+  # service account needs secretAccessor on each):
+  #   - gemini-api-key: the LLM key the brains run on (same one the control-plane
+  #     demo brains use).
+  #   - controlplane-pygato-pubkeys: dev PyGato's RS256 brain-token signer, wired to
+  #     VOQALIZE_BRAIN_PUBKEYS. REQUIRED on a dev deploy — dev and prod sign with
+  #     different keys, and the SDK's embedded fallback is the prod signer only, so
+  #     without this every dev session's token fails verification (4000). A prod
+  #     deploy can drop this and let the SDK fall back to its embedded prod key.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy
+    waitFor: [push]
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_SERVICE}'
+      - --image
+      - '${_IMAGE}'
+      - --region
+      - '${_REGION}'
+      - --project
+      - '${_PROJECT}'
+      - --allow-unauthenticated
+      - --set-env-vars
+      - 'CONTROLPLANE_API_URL=${_CONTROLPLANE_API_URL}'
+      - --set-secrets
+      - 'GEMINI_API_KEY=gemini-api-key:latest,VOQALIZE_BRAIN_PUBKEYS=controlplane-pygato-pubkeys:latest'
+
+images:
+  - '${_IMAGE}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

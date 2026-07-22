@@ -1,0 +1,17 @@
+# The demos image (demos/Dockerfile) builds from the repo root but needs only a
+# few trees. Keep the build context small and reproducible.
+**/node_modules
+**/.venv
+**/dist
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+.git
+**/.env
+**/.env.*
+!**/.env.example
+sdk/go
+proto/gen
+docs
