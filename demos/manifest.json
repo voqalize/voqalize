@@ -56,6 +56,13 @@
       "tagline": "A multilingual lead-qualification bot that walks a gold-loan enquiry through to a qualified call.",
       "stt": { "model": "vql-stt", "language": "en" },
       "tts": { "voice": "omnivoice/gauri", "language": "en" }
+    },
+    {
+      "name": "aura",
+      "title": "Aura Bank Support",
+      "tagline": "An authenticated L1 banking-support agent that signs the customer in, reads their accounts, and drives on-screen how-to videos.",
+      "stt": { "model": "vql-stt", "language": "en" },
+      "tts": { "voice": "omnivoice/gauri", "language": "en" }
     }
   ]
 }
