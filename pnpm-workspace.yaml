@@ -1,4 +1,8 @@
+# The root workspace holds only the publishable SDK and the docs site. Each demo
+# UI (demos/<name>/frontend) and the demos landing page are deliberately NOT
+# members — they're self-contained apps with their own lockfiles, built standalone
+# (pnpm install --ignore-workspace) and assembled by demos/build.mjs, each linking
+# the SDK by path (file:../../../sdk/react). See demos/README.md.
 packages:
   - 'sdk/react'
-  - 'demos/frontend'
   - 'docs'

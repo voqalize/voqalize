@@ -54,10 +54,11 @@ Same brain code either way; you only pick who dials whom.
 
 A polyglot monorepo, split by toolchain:
 
-- **Python** (`sdk/python`, `mcp`, `demos/backend`) — one `uv` workspace; the
-  demos depend on the SDK by path.
-- **JS/TS** (`sdk/react`, `demos/frontend`) — one `pnpm` workspace; the demo UIs
-  depend on the client SDK by path.
+- **Python** (`sdk/python`, `mcp`, `demos`) — one `uv` workspace; the demos'
+  shared backend depends on the SDK by path.
+- **JS/TS** (`sdk/react`, `docs`) — one `pnpm` workspace. Each demo UI
+  (`demos/<name>/frontend`) is a self-contained app *outside* the workspace, built
+  standalone and linking the client SDK by path.
 - **Go** (`sdk/go`) — its own module.
 - **proto** (`proto/`) — `buf`; regenerates the Python and Go stubs the SDKs
   consume.

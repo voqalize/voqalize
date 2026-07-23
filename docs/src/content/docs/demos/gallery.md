@@ -50,9 +50,9 @@ SDKs implement, so you can compare languages side by side. Then pick a demo whos
 - **Per-session scenario in the payload** → `interview_bot`, `sugar`.
 - **Voice-only + multilingual** → `lead_qual`.
 
-Each demo's brain lives under
-[`demos/backend/voqalize_demos/brains/<name>/`](https://github.com/voqalize/voqalize/tree/main/demos/backend/voqalize_demos/brains)
-and its UI under `demos/frontend/src/<name>/`.
+Each demo is co-located under
+[`demos/<name>/`](https://github.com/voqalize/voqalize/tree/main/demos): its brain
+in `demos/<name>/backend/` and its UI in `demos/<name>/frontend/`.
 
 ## Next
 

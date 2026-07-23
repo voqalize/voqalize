@@ -1,28 +1,27 @@
 # syntax=docker/dockerfile:1
 #
-# The demos runtime — one image, every demo. Multi-stage: build the Vite MPA
+# The demos runtime — one image, every demo. Multi-stage: build + assemble the MPA
 # (stage 1), then a Python runtime that runs the umbrella FastAPI app and serves
-# the built UIs (stage 2). Build context is the **repo root** (the backend depends
-# on the in-repo `sdk/python` by path, the frontend on `sdk/react`):
+# the built UIs + brains (stage 2). Each demo and the landing page are independent
+# Vite apps (demos/<name>/frontend, demos/landing/frontend); demos/build.mjs builds
+# them all and assembles them into demos/dist. Build context is the **repo root**
+# (the backend depends on in-repo sdk/python by path, each demo frontend on
+# sdk/react by path):
 #
 #   docker build -f demos/Dockerfile -t <img> .
 #
-# The publishable `VITE_*` values are baked at build (browser-safe pk_ keys); the
+# The publishable VITE_* values are baked at build (browser-safe pk_ keys); the
 # server-side secrets (GEMINI_API_KEY, brain pubkeys, control-plane URL) are
 # runtime env set on deploy.
 
-# ─── Stage 1: build the demo UIs (Vite MPA) ─────────────────────────────────────
+# ─── Stage 1: build + assemble the demo UIs (independent Vite apps) ──────────────
 FROM node:20-slim AS frontend
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 WORKDIR /repo
 
-# Workspace + member manifests first, for a cached install layer.
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY sdk/react/package.json ./sdk/react/
-COPY demos/frontend/package.json ./demos/frontend/
-RUN pnpm install --frozen-lockfile
-
-# Publishable demo wiring, inlined by Vite at build (see demos/frontend/src/config.ts).
+# Publishable per-demo wiring. demos/build.mjs maps each demo's VITE_<NAME>_AGENT /
+# VITE_<NAME>_PK (+ VITE_DEMO_TENANT) onto the app-local VITE_AGENT_ID /
+# VITE_PUBLISHABLE_KEY / VITE_TENANT that each demo's src/config.ts reads.
 ARG VITE_DEMO_TENANT
 ARG VITE_TRAVEL_AGENT
 ARG VITE_TRAVEL_PK
@@ -62,12 +61,12 @@ ENV VITE_DEMO_TENANT=$VITE_DEMO_TENANT \
     VITE_AURA_AGENT=$VITE_AURA_AGENT \
     VITE_AURA_PK=$VITE_AURA_PK
 
-# Sources, then build the SDK and the demo UIs.
+# The SDK each demo links by path (file:../../../sdk/react) + the demos tree, then
+# build & assemble every UI into demos/dist. (node_modules/dist are .dockerignored,
+# so each app installs fresh inside the image.)
 COPY sdk/react ./sdk/react
-COPY demos/manifest.json ./demos/manifest.json
-COPY demos/frontend ./demos/frontend
-RUN pnpm --filter @voqalize/client-react build \
- && pnpm --filter @voqalize/demos-frontend build
+COPY demos ./demos
+RUN node demos/build.mjs
 
 # ─── Stage 2: Python runtime (umbrella app) ─────────────────────────────────────
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS runtime
@@ -78,15 +77,15 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock ./
 COPY sdk/python/pyproject.toml ./sdk/python/
 COPY mcp/pyproject.toml ./mcp/
-COPY demos/backend/pyproject.toml ./demos/backend/
+COPY demos/pyproject.toml ./demos/
 
-# Path-dep sources the demos backend builds against, then the backend itself.
+# Path-dep source (sdk/python) + the demos tree: the shared backend package
+# (voqalize_demos) plus each demo's backend/, which discovery loads from source.
 COPY sdk/python ./sdk/python
-COPY demos/manifest.json ./demos/manifest.json
-COPY demos/backend ./demos/backend
+COPY demos ./demos
 
-# The built UIs from stage 1 (served by the umbrella at /{name}).
-COPY --from=frontend /repo/demos/frontend/dist ./demos/frontend/dist
+# The assembled UIs from stage 1 (served by the umbrella at / and /demos/{name}).
+COPY --from=frontend /repo/demos/dist ./demos/dist
 
 # Install just the demos backend + its runtime deps.
 RUN uv sync --package voqalize-demos --frozen --no-dev

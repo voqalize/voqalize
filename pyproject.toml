@@ -20,7 +20,7 @@ package = false
 members = [
     "sdk/python",
     "mcp",
-    "demos/backend",
+    "demos",
 ]
 
 [dependency-groups]
@@ -125,7 +125,7 @@ typeCheckingMode = "strict"
 include = [
     "sdk/python",
     "mcp",
-    "demos/backend",
+    "demos",
 ]
 exclude = [
     "**/node_modules",

@@ -1,68 +1,50 @@
 {
-  "$comment": "The single registry for the demos runtime — the spine both trees read. The Python backend (voqalize_demos.manifest) binds each name to a Brain and mounts /{name}/s/{id}. The frontend reads THIS FILE directly: vite.config.ts derives the MPA entrypoints, src/index/main.tsx renders the landing cards, and src/config.ts pulls each demo's stt/tts + wiring. The provisioning script creates one agent per entry with brain_url = wss://{host}/{name}. Adding a demo touches more than this file — follow the checklist in demos/README.md.",
+  "$comment": "The landing-page directory of demos — title + tagline for the cards on the demos index (demos/landing). This is NOT a runtime registry any more: each demo is self-contained (demos/<name>/frontend + demos/<name>/backend), the backend discovers routers by scanning demos/*/backend, and each frontend declares its own pipeline + wiring. Adding a demo: scaffold demos/<name>/ (see demos/README.md), then add a card here so it shows on the landing page.",
   "demos": [
     {
       "name": "travel",
       "title": "Travel Advisor",
-      "tagline": "A voice trip-planning copilot that builds a client itinerary on screen as the travel agent talks.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+      "tagline": "A voice trip-planning copilot that builds a client itinerary on screen as the travel agent talks."
     },
     {
       "name": "shopping",
       "title": "Mobile Expert",
-      "tagline": "A voice shopping assistant that walks a phone buyer through the store and fills their cart on screen.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gaurav", "language": "en" }
+      "tagline": "A voice shopping assistant that walks a phone buyer through the store and fills their cart on screen."
     },
     {
       "name": "support",
       "title": "Returns Assistant",
-      "tagline": "A voice returns-and-support agent that looks up an order and drives the on-screen returns flow.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gaurav", "language": "en" }
+      "tagline": "A voice returns-and-support agent that looks up an order and drives the on-screen returns flow."
     },
     {
       "name": "servicing",
       "title": "Meridian Servicing Desk",
-      "tagline": "A voice copilot for a mortgage-servicing advisor working their case queue.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+      "tagline": "A voice copilot for a mortgage-servicing advisor working their case queue."
     },
     {
       "name": "interview_bot",
       "title": "AI Interviewer",
-      "tagline": "A voice job-interview bot — the job, candidate, and interview plan arrive per session in the payload.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+      "tagline": "A voice job-interview bot — the job, candidate, and interview plan arrive per session in the payload."
     },
     {
       "name": "sugar",
       "title": "Sugar Coach",
-      "tagline": "A daily diabetes habit check-in the app places to the patient each evening; the scenario rides the payload.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+      "tagline": "A daily diabetes habit check-in the app places to the patient each evening; the scenario rides the payload."
     },
     {
       "name": "legal",
       "title": "Docket — Contract Review",
-      "tagline": "An ambient voice copilot for in-house counsel reviewing a vendor MSA, marking clauses on screen.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+      "tagline": "An ambient voice copilot for in-house counsel reviewing a vendor MSA, marking clauses on screen."
     },
     {
       "name": "lead_qual",
       "title": "Auric Gold Loan Advisor",
-      "tagline": "A multilingual lead-qualification bot that walks a gold-loan enquiry through to a qualified call.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+      "tagline": "A multilingual lead-qualification bot that walks a gold-loan enquiry through to a qualified call."
     },
     {
       "name": "aura",
       "title": "Aura Bank Support",
-      "tagline": "An authenticated L1 banking-support agent that signs the customer in, reads their accounts, and drives on-screen how-to videos.",
-      "stt": { "model": "vql-stt", "language": "en" },
-      "tts": { "voice": "omnivoice/gauri", "language": "en" }
+      "tagline": "An authenticated L1 banking-support agent that signs the customer in, reads their accounts, and drives on-screen how-to videos."
     }
   ]
 }

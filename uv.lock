@@ -1289,7 +1289,7 @@ dev = [
 [[package]]
 name = "voqalize-demos"
 version = "0.1.0"
-source = { editable = "demos/backend" }
+source = { editable = "demos" }
 dependencies = [
     { name = "fastapi" },
     { name = "google-genai" },
