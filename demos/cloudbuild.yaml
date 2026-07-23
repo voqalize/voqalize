@@ -48,6 +48,8 @@ substitutions:
   _LEGAL_PK: ''
   _LEAD_QUAL_AGENT: ''
   _LEAD_QUAL_PK: ''
+  _AURA_AGENT: ''
+  _AURA_PK: ''
 
 steps:
   # Build the image (frontend MPA + Python runtime, multi-stage).
@@ -93,6 +95,10 @@ steps:
       - 'VITE_LEAD_QUAL_AGENT=${_LEAD_QUAL_AGENT}'
       - --build-arg
       - 'VITE_LEAD_QUAL_PK=${_LEAD_QUAL_PK}'
+      - --build-arg
+      - 'VITE_AURA_AGENT=${_AURA_AGENT}'
+      - --build-arg
+      - 'VITE_AURA_PK=${_AURA_PK}'
       - .
 
   - name: 'gcr.io/cloud-builders/docker'

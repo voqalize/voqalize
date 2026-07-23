@@ -111,6 +111,11 @@ export const DEMOS = {
     import.meta.env.VITE_LEAD_QUAL_AGENT as string | undefined,
     import.meta.env.VITE_LEAD_QUAL_PK as string | undefined,
   ),
+  aura: demo(
+    "aura",
+    import.meta.env.VITE_AURA_AGENT as string | undefined,
+    import.meta.env.VITE_AURA_PK as string | undefined,
+  ),
 } as const;
 
 export type DemoKey = keyof typeof DEMOS;

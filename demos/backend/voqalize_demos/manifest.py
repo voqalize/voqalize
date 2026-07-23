@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from voqalize.sdk import Brain
+from voqalize_demos.brains.aura import AuraBrain
 from voqalize_demos.brains.interview_bot import InterviewBotBrain
 from voqalize_demos.brains.lead_qual import LeadQualBrain
 from voqalize_demos.brains.legal import LegalBrain
@@ -42,6 +43,7 @@ _BRAIN_FACTORIES: dict[str, Callable[[GeminiProvider], Brain]] = {
     "sugar": lambda llm: SugarBrain(llm=llm),
     "legal": lambda llm: LegalBrain(llm=llm),
     "lead_qual": lambda llm: LeadQualBrain(llm=llm),
+    "aura": lambda llm: AuraBrain(llm=llm),
 }
 
 
