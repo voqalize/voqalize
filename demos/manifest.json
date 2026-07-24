@@ -1,5 +1,5 @@
 {
-  "$comment": "The landing-page directory of demos — title + tagline for the cards on the demos index (demos/landing). This is NOT a runtime registry any more: each demo is self-contained (demos/<name>/frontend + demos/<name>/backend), the backend discovers routers by scanning demos/*/backend, and each frontend declares its own pipeline + wiring. Adding a demo: scaffold demos/<name>/ (see demos/README.md), then add a card here so it shows on the landing page.",
+  "$comment": "The demo directory — name + title + tagline per demo. This is NOT a runtime registry: each demo is self-contained (demos/<name>/frontend + demos/<name>/backend), the backend discovers routers by scanning demos/*/backend, and each frontend declares its own pipeline + wiring. This file is shipped inside the built web artifact so the marketing site can render the /demos index (the gallery) and weave the demos into its story without hardcoding the list. Adding a demo: scaffold demos/<name>/ (see demos/README.md), then add an entry here so it shows on the /demos index.",
   "demos": [
     {
       "name": "travel",

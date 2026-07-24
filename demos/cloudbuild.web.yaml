@@ -1,0 +1,146 @@
+# Build B — the WEB artifact: every demo UI + the docs site → a versioned tarball in
+# GCS. This is the entire interface between the public repo and the private marketing
+# build: the private "assemble" build (infra/cloudbuild/marketing.yaml in the
+# voqalcloud repo) downloads this artifact and lays it under the apex domain, so the
+# demos and docs are served same-origin with marketing (voqalize.com / dev.voqalize.com).
+#
+#   gcloud builds submit --config demos/cloudbuild.web.yaml .
+#
+# In dev this runs as a push-triggered Cloud Build on the public repo, path-filtered
+# to the web sources (demos/**/frontend, demos/build.mjs, demos/manifest.json,
+# sdk/react, docs/**). A brains-only change never rebuilds this artifact.
+#
+# On SUCCESS its final step publishes to the dedicated `web-artifact-built` Pub/Sub
+# topic, which the private marketing repo's `deploy-marketing-onweb` trigger is
+# subscribed to — the native Cloud Build dependent-build seam. No imperative
+# `gcloud builds triggers run`. (A dedicated topic, not the built-in `cloud-builds`
+# one, because that topic only filters on build status, not on which build ran.)
+#
+# This build runs in the PRIVATE project (so it can write the artifact bucket), but
+# reads only PUBLIC repo source. The per-demo wiring (tenant + publishable pk_ + agent
+# id) is publishable (it is baked into the browser JS regardless), but env-specific, so
+# it lives in the trigger's substitution set (private), NOT in this file. The values
+# below are empty placeholders — an unprovisioned demo's UI shows a clear
+# "publishableKey is required" error.
+#
+# This is a TEMPLATE. Real project / bucket / build SA live in the trigger (private).
+serviceAccount: ${_WEB_SA}
+
+substitutions:
+  _ARTIFACT_BUCKET: YOUR_WEB_ARTIFACT_BUCKET
+  _WEB_SA: projects/YOUR_GCP_PROJECT/serviceAccounts/YOUR_WEB_BUILD_SA@YOUR_GCP_PROJECT.iam.gserviceaccount.com
+  # Per-demo wiring baked into each UI at build (publishable, browser-safe). One agent
+  # id + publishable key per demo; all share one tenant. Supplied by the trigger.
+  _DEMO_TENANT: ''
+  _TRAVEL_AGENT: ''
+  _TRAVEL_PK: ''
+  _SHOPPING_AGENT: ''
+  _SHOPPING_PK: ''
+  _SUPPORT_AGENT: ''
+  _SUPPORT_PK: ''
+  _SERVICING_AGENT: ''
+  _SERVICING_PK: ''
+  _INTERVIEW_BOT_AGENT: ''
+  _INTERVIEW_BOT_PK: ''
+  _SUGAR_AGENT: ''
+  _SUGAR_PK: ''
+  _LEGAL_AGENT: ''
+  _LEGAL_PK: ''
+  _LEAD_QUAL_AGENT: ''
+  _LEAD_QUAL_PK: ''
+  _AURA_AGENT: ''
+  _AURA_PK: ''
+
+steps:
+  # 1. Build + assemble every demo UI → demos/dist/demos/<name>/. The per-demo
+  #    VITE_* wiring is read from the environment (build.mjs maps _<NAME>_AGENT/_PK
+  #    onto each app's VITE_AGENT_ID / VITE_PUBLISHABLE_KEY).
+  - name: 'node:20-slim'
+    id: demos
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        corepack enable && corepack prepare pnpm@10.32.1 --activate
+        node demos/build.mjs
+    env:
+      - 'VITE_DEMO_TENANT=${_DEMO_TENANT}'
+      - 'VITE_TRAVEL_AGENT=${_TRAVEL_AGENT}'
+      - 'VITE_TRAVEL_PK=${_TRAVEL_PK}'
+      - 'VITE_SHOPPING_AGENT=${_SHOPPING_AGENT}'
+      - 'VITE_SHOPPING_PK=${_SHOPPING_PK}'
+      - 'VITE_SUPPORT_AGENT=${_SUPPORT_AGENT}'
+      - 'VITE_SUPPORT_PK=${_SUPPORT_PK}'
+      - 'VITE_SERVICING_AGENT=${_SERVICING_AGENT}'
+      - 'VITE_SERVICING_PK=${_SERVICING_PK}'
+      - 'VITE_INTERVIEW_BOT_AGENT=${_INTERVIEW_BOT_AGENT}'
+      - 'VITE_INTERVIEW_BOT_PK=${_INTERVIEW_BOT_PK}'
+      - 'VITE_SUGAR_AGENT=${_SUGAR_AGENT}'
+      - 'VITE_SUGAR_PK=${_SUGAR_PK}'
+      - 'VITE_LEGAL_AGENT=${_LEGAL_AGENT}'
+      - 'VITE_LEGAL_PK=${_LEGAL_PK}'
+      - 'VITE_LEAD_QUAL_AGENT=${_LEAD_QUAL_AGENT}'
+      - 'VITE_LEAD_QUAL_PK=${_LEAD_QUAL_PK}'
+      - 'VITE_AURA_AGENT=${_AURA_AGENT}'
+      - 'VITE_AURA_PK=${_AURA_PK}'
+
+  # 2. Build the docs site (Astro Starlight, base:/docs) → docs/dist.
+  - name: 'node:20-slim'
+    id: docs
+    waitFor: ['-']  # independent of the demos step — run concurrently
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        corepack enable && corepack prepare pnpm@10.32.1 --activate
+        cd docs
+        pnpm install --ignore-workspace
+        pnpm build
+
+  # 3. Assemble the artifact (demos + docs + manifest.json), tar, upload to GCS under
+  #    the commit sha, and bump latest.json (the pointer the marketing build reads).
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: upload
+    waitFor: [demos, docs]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        SHA="${SHORT_SHA}"
+        if [ -z "$$SHA" ]; then SHA="manual-$$(date +%s)"; fi
+        rm -rf stage && mkdir -p stage/demos stage/docs
+        cp -r demos/dist/demos/. stage/demos/
+        cp -r docs/dist/. stage/docs/
+        cp demos/manifest.json stage/manifest.json
+        tar -czf web.tgz -C stage .
+        gsutil cp web.tgz gs://${_ARTIFACT_BUCKET}/web/$$SHA/web.tgz
+        printf '{"sha":"%s","artifact":"gs://%s/web/%s/web.tgz"}\n' \
+          "$$SHA" "${_ARTIFACT_BUCKET}" "$$SHA" > latest.json
+        gsutil -h "Cache-Control:no-store" cp latest.json gs://${_ARTIFACT_BUCKET}/web/latest.json
+        echo "web artifact → gs://${_ARTIFACT_BUCKET}/web/$$SHA/web.tgz"
+
+  # 4. Announce the new artifact on a dedicated Pub/Sub topic. The private
+  #    marketing repo's `deploy-marketing-onweb` trigger is subscribed to it and
+  #    re-assembles the apex (reading web/latest.json). The payload is just an
+  #    event ping — the marketing build discovers the sha itself. Only runs on a
+  #    successful upload, so a failed artifact never fires a deploy.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: notify
+    waitFor: [upload]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        gcloud pubsub topics publish web-artifact-built \
+          --project="${PROJECT_ID}" --message="web artifact updated (${SHORT_SHA:-manual})"
+
+# Tagged for observability; the dependent build is fired via the dedicated
+# web-artifact-built topic (step 4), not this tag.
+tags: ['web-artifact']
+
+options:
+  logging: CLOUD_LOGGING_ONLY

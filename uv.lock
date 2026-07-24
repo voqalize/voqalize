@@ -1293,7 +1293,6 @@ source = { editable = "demos" }
 dependencies = [
     { name = "fastapi" },
     { name = "google-genai" },
-    { name = "httpx" },
     { name = "loguru" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "uvicorn", extra = ["standard"] },
@@ -1303,6 +1302,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "cryptography" },
+    { name = "httpx" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
 ]
@@ -1311,7 +1311,6 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "google-genai", specifier = ">=1.0" },
-    { name = "httpx", specifier = ">=0.27" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
@@ -1321,6 +1320,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "cryptography", specifier = ">=43" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
 ]

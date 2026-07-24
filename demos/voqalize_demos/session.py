@@ -20,7 +20,6 @@ import contextlib
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 
 from fastapi import APIRouter, WebSocket
 from loguru import logger
@@ -65,21 +64,13 @@ class Settings:
     brain_pubkeys: tuple[str, ...]
     # Local dev escape hatch: skip token verification entirely.
     allow_unverified: bool
-    # Control-plane API origin for the /api reverse proxy (deploys only).
-    controlplane_api_url: str
-    # Built demo UIs directory (the assembled MPA); served when present.
-    frontend_dist: Path
 
     @classmethod
     def from_env(cls) -> Settings:
-        # demos/voqalize_demos/session.py → demos/dist
-        default_dist = Path(__file__).resolve().parents[1] / "dist"
         return cls(
             gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
             brain_pubkeys=_split_pem_bundle(os.environ.get("VOQALIZE_BRAIN_PUBKEYS", "")),
             allow_unverified=os.environ.get("VOQALIZE_ALLOW_UNVERIFIED", "") == "1",
-            controlplane_api_url=os.environ.get("CONTROLPLANE_API_URL", "").rstrip("/"),
-            frontend_dist=Path(os.environ.get("VOQALIZE_FRONTEND_DIST", str(default_dist))),
         )
 
 

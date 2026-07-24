@@ -9,9 +9,9 @@
  * be **static literals**, so they're spelled out here.
  *
  * `apiBase` is always `/api/v1`: in local dev Vite proxies it to the control
- * plane; in a deploy the demos umbrella reverse-proxies `/api/*` there. Either
- * way the browser calls same-origin, so a publishable key's `allowed_origins`
- * only ever needs this demo's own domain.
+ * plane; in a deploy the apex domain that serves the demo UI rewrites `/api/*`
+ * to the control plane. Either way the browser calls same-origin, so a
+ * publishable key's `allowed_origins` only needs the domain the UI is served on.
  */
 
 /** STT/TTS this demo's session opens with — its pipeline, declared once here. */

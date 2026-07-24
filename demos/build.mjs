@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 /**
- * Assemble the demos MPA — every demo is a self-contained Vite app under
- * `demos/<name>/frontend/`, built at base `/demos/<name>/`, plus the landing app
- * at `demos/landing/frontend/` built at `/`. This script builds them all and
- * lays the output out the way the umbrella backend serves it:
+ * Assemble the demo UIs — every demo is a self-contained Vite app under
+ * `demos/<name>/frontend/`, built at base `/demos/<name>/`. This script builds them
+ * all and lays the output out under `demos/dist/demos/<name>/`:
  *
  *     demos/dist/
- *       index.html, assets/…            ← landing (base /)
- *       demos/<name>/index.html, …      ← each demo (base /demos/<name>/)
+ *       demos/<name>/index.html, assets/…   ← each demo (base /demos/<name>/)
+ *
+ * There is no landing page here — the marketing site owns the `/demos` index and
+ * weaves the demos into its story. The private marketing build downloads this
+ * assembled `dist/` (as a versioned artifact) and lays it under the apex domain at
+ * `/demos/<name>`, so the browser loads a demo same-origin with marketing + docs.
  *
  * The React SDK (`sdk/react`) is built first because each demo depends on it by
  * path (`file:../../../sdk/react`) and resolves the freshly built `dist/`.
@@ -16,8 +19,8 @@
  * app reads the generic `VITE_TENANT` / `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`;
  * when building all demos at once we map each demo's values from the per-demo
  * `VITE_<NAME>_AGENT` / `VITE_<NAME>_PK` (and `VITE_DEMO_TENANT`) env — the same
- * interface the Dockerfile and cloudbuild pass through. Missing values just leave
- * a demo unprovisioned (its UI shows a clear "publishableKey is required" error).
+ * interface the cloudbuild passes through. Missing values just leave a demo
+ * unprovisioned (its UI shows a clear "publishableKey is required" error).
  */
 
 import { execSync } from "node:child_process";
@@ -56,11 +59,7 @@ run("pnpm build", join(repoRoot, "sdk", "react"));
 rmSync(distDir, { recursive: true, force: true });
 mkdirSync(distDir, { recursive: true });
 
-// 2. Landing app → dist/ (site root).
-console.log("\n=== landing ===");
-buildApp(join(demosDir, "landing", "frontend"), distDir);
-
-// 3. Each demo → dist/demos/<name>/, with its wiring mapped from per-demo env.
+// 2. Each demo → dist/demos/<name>/, with its wiring mapped from per-demo env.
 for (const name of demoNames) {
   console.log(`\n=== ${name} ===`);
   const up = name.toUpperCase();
@@ -71,4 +70,4 @@ for (const name of demoNames) {
   });
 }
 
-console.log(`\n✓ assembled ${demoNames.length} demos + landing → ${distDir.replace(repoRoot, ".")}`);
+console.log(`\n✓ assembled ${demoNames.length} demos → ${distDir.replace(repoRoot, ".")}`);

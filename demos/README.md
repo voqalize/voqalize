@@ -13,41 +13,53 @@ demos/<name>/
 Every demo does triple duty — example code, the live demos on our site, and our
 integration tests.
 
-## One service, one domain, path-separated
+## Two builds: brains run on Cloud Run, UIs ship to the apex
 
-All demos build into **one container** and deploy as **one Cloud Run service** at
-`demos.voqalize.com` (`demos.dev.voqalize.com` for dev). A single umbrella
-FastAPI app (`voqalize_demos/umbrella.py`) discovers every co-located backend,
-hosts its brain, reverse-proxies the API, and serves the assembled UIs. Routing
-is by path:
+A demo's two halves deploy to two different places, and that split is the whole
+architecture:
 
-| Path | Serves |
-|---|---|
-| `/` | the landing page (the demo directory) |
-| `/demos/{name}` | the demo's UI (its own independent Vite build) |
-| `/{name}/s/{session_id}` | the brain WebSocket (Voqalize dials here) |
-| `/api/*` | reverse proxy to the control plane (session bootstrap) |
+- **The backend brains** build into **one container** and deploy as **one Cloud
+  Run service** at `demos.voqalize.com` (`demos.dev.voqalize.com` for dev). A
+  single umbrella FastAPI app (`voqalize_demos/umbrella.py`) discovers every
+  co-located backend and hosts its brain WebSocket at `/{name}/s/{session_id}`.
+  That's *all* this service does — it's brains only. See `Dockerfile` +
+  `cloudbuild.brains.yaml`.
+- **The frontend UIs** (plus the docs) build into a versioned **web artifact**
+  (`cloudbuild.web.yaml`) that the private marketing repo downloads and lays under
+  the **apex domain** (`voqalize.com` / `dev.voqalize.com`) at `/demos/{name}`.
+  There the browser mints a session same-origin — the apex's Firebase Hosting
+  rewrites `/api/*` to the control plane — so nothing about session bootstrap
+  touches the Cloud Run service.
 
-The **UI path** (`/demos/{name}`) and the **brain path** (`/{name}/s/{id}`) are
-independent: the brain socket stays at the root because Voqalize dials it
-server-side regardless of where the browser loads the UI. So a demo's `brain_url`
-is `wss://demos.voqalize.com/{name}`.
+The **UI path** (`{apex}/demos/{name}`) and the **brain path**
+(`wss://demos.voqalize.com/{name}/s/{id}`) are independent: the brain socket lives
+on Cloud Run because Voqalize dials it **server-side**, regardless of where the
+browser loads the UI. So a demo's `brain_url` is `wss://demos.voqalize.com/{name}`
+— and moving the UI to the apex needed no agent re-provisioning at all.
+
+| Path | Serves | Where |
+|---|---|---|
+| `{apex}/demos/{name}` | the demo's UI (its own independent Vite build) | apex (Firebase Hosting) |
+| `{apex}/api/*` | session bootstrap → control plane (Hosting rewrite) | apex |
+| `wss://demos.<env>.voqalize.com/{name}/s/{id}` | the brain WebSocket (Voqalize dials here) | Cloud Run (brains only) |
 
 ## Structure
 
 ```
 demos/
-  manifest.json          # the landing directory: title + tagline per demo (cards only)
-  build.mjs              # builds every UI + the landing page → assembles demos/dist
+  manifest.json          # the demo directory: name + title + tagline per demo;
+                         #   shipped inside the web artifact so marketing renders /demos
+  build.mjs              # builds every UI → assembles demos/dist/demos/<name>/
+  Dockerfile             # brains-only Python image (no Node stage)
+  cloudbuild.brains.yaml # Build A: brains image → Cloud Run (public repo trigger)
+  cloudbuild.web.yaml    # Build B: UIs + docs → versioned web artifact in GCS
   pyproject.toml         # ONE shared backend package (uv) for all demos
   voqalize_demos/        # the shared backend spine
-    umbrella.py           # the single FastAPI app: discovers + mounts brains, /api proxy, static
+    umbrella.py           # the single FastAPI app: discovers + mounts brain routers
     discovery.py          # scans demos/*/backend, loads each router from source
     session.py            # the shared per-session WebSocket handler (make_brain_router)
     _gemini.py            # GeminiBrain base (context, tool loop, greeting helpers)
     llm.py                # GeminiProvider (the LLM the brains run on)
-  landing/
-    frontend/             # the landing page — a standalone Vite app, built at base /
   <name>/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/
       package.json         #   links the SDK by path: "@voqalize/client-react": "file:../../../sdk/react"
@@ -58,8 +70,6 @@ demos/
       brain.py             # the demo's Brain (usually a GeminiBrain subclass)
       routes.py            # one line: router = make_brain_router("<name>", lambda llm: <Name>Brain(llm=llm))
       __init__.py          # re-exports NAME, build, router
-  Dockerfile
-  cloudbuild.yaml
 ```
 
 Each **frontend** is fully self-contained (its own `package.json` + lockfile +
@@ -70,8 +80,8 @@ scanning `demos/*/backend`, so nothing binds names in a central registry.
 
 ## Adding a demo
 
-`manifest.json` is only the landing-page card now — the runtime discovers
-backends and each frontend declares its own wiring. To add `demos/<name>/`:
+`manifest.json` is the demo directory (cards for the `/demos` index) — the runtime
+discovers backends and each frontend declares its own wiring. To add `demos/<name>/`:
 
 1. **Backend** — `demos/<name>/backend/`:
    - `brain.py`: a `Brain` (usually a `GeminiBrain` subclass, importing its base
@@ -86,20 +96,20 @@ backends and each frontend declares its own wiring. To add `demos/<name>/`:
    a `src/config.ts` declaring this demo's `pipeline` (stt/tts).
 3. **Env** — `VITE_TENANT` / `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY` (this app's
    `.env.example`). For a deploy, add the demo's `VITE_<NAME>_AGENT` /
-   `VITE_<NAME>_PK` to `cloudbuild.yaml` substitutions + `Dockerfile` build args
-   (`build.mjs` maps them onto the app-local names).
+   `VITE_<NAME>_PK` to `cloudbuild.web.yaml` substitutions (`build.mjs` maps them
+   onto the app-local names).
 4. **Card** — add an entry (`name`, `title`, `tagline`) to `manifest.json` so it
-   shows on the landing page.
+   shows on the `/demos` index.
 5. **Provisioning** — create the agent and point its `brain_url` at
    `wss://{host}/<name>`.
 
 ## Running it
 
 Each demo UI runs on its own Vite dev server; the backend runs once and serves
-every brain + the `/api` proxy.
+every brain.
 
 ```bash
-# Backend (umbrella FastAPI): brains + /api proxy. No built UIs in dev.
+# Backend (umbrella FastAPI): brains only. No built UIs, no /api proxy in dev.
 cd demos && uv run uvicorn voqalize_demos.umbrella:app --reload --port 8080
 
 # A demo UI in dev — standalone, hot reload (proxies /api to the control plane):
@@ -109,15 +119,16 @@ pnpm install --ignore-workspace
 pnpm dev                      # http://localhost:5751/demos/travel/
 ```
 
-To build and assemble every UI the way the container serves them:
+To build and assemble every UI the way the web artifact ships them:
 
 ```bash
-node demos/build.mjs          # builds the SDK + every UI + landing → demos/dist/
+node demos/build.mjs          # builds the SDK + every UI → demos/dist/demos/<name>/
 ```
 
-In a deploy `build.mjs` runs in the image's build stage and the umbrella serves
-`demos/dist` directly (one origin, path-separated); see `Dockerfile` /
-`cloudbuild.yaml`.
+In a deploy `cloudbuild.web.yaml` runs `build.mjs`, tars `demos/dist` + the built
+docs + `manifest.json` into a versioned artifact, and the private marketing build
+lays it under the apex. The brains image (`Dockerfile` / `cloudbuild.brains.yaml`)
+ships separately to Cloud Run.
 
 ## Status
 

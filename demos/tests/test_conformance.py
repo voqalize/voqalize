@@ -142,7 +142,7 @@ def test_umbrella_app_builds():
 
     app = create_app()
     with TestClient(app) as client:
-        body = client.get("/healthz").json()
+        body = client.get("/_healthz").json()
     assert body["ok"] is True
     assert "travel" in body["demos"]
 

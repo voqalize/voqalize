@@ -1,0 +1,82 @@
+# Build A — the demos BRAINS image → Cloud Run.
+#
+# One image, every demo brain (see demos/Dockerfile — brains only, pure Python, no
+# Node stage). Build context is the repo root. The demo UIs are NOT built here; they
+# ship in the web artifact (cloudbuild.web.yaml) and are served under the apex.
+#
+#   gcloud builds submit --config demos/cloudbuild.web.yaml .   # ← the UIs
+#   gcloud builds submit --config demos/cloudbuild.brains.yaml . # ← this: the brains
+#
+# In dev this runs as a push-triggered Cloud Build on the public repo, path-filtered
+# to the brain sources (demos/**/backend, demos/voqalize_demos, sdk/python,
+# demos/pyproject.toml, demos/Dockerfile, uv.lock). A frontend-only change never
+# rebuilds this image.
+#
+# This is a TEMPLATE. The real project / region / registry / service accounts live in
+# the trigger's substitution set (private) — the values below are placeholders. The
+# only genuine secrets are runtime (GEMINI_API_KEY, brain pubkeys), pulled from Secret
+# Manager at deploy; nothing secret is baked into the image.
+#
+# Build identity: a least-privilege deploy SA — AR-writer on the registry,
+# run.developer, build-bucket objectAdmin, logging.logWriter, and serviceAccountUser
+# on the runtime SA. Requires logging: CLOUD_LOGGING_ONLY (set below).
+serviceAccount: ${_DEPLOYER_SA}
+
+substitutions:
+  _REGION: YOUR_REGION
+  _PROJECT: YOUR_GCP_PROJECT
+  _SERVICE: voqalize-demos
+  _IMAGE: ${_REGION}-docker.pkg.dev/${_PROJECT}/YOUR_REGISTRY/demos:latest
+  _DEPLOYER_SA: projects/YOUR_GCP_PROJECT/serviceAccounts/YOUR_DEPLOYER_SA@YOUR_GCP_PROJECT.iam.gserviceaccount.com
+  _RUNTIME_SA: YOUR_RUNTIME_SA@YOUR_GCP_PROJECT.iam.gserviceaccount.com
+
+steps:
+  # Build the brains-only image (pure Python; no build-args).
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build
+    args: [build, -t, '${_IMAGE}', -f, demos/Dockerfile, .]
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push
+    waitFor: [build]
+    args: [push, '${_IMAGE}']
+
+  # Deploy to Cloud Run. Two secrets, both from Google Secret Manager (the deploy
+  # service account needs secretAccessor on each):
+  #   - gemini-api-key: the LLM key the brains run on.
+  #   - controlplane-pygato-pubkeys: dev PyGato's RS256 brain-token signer, wired to
+  #     VOQALIZE_BRAIN_PUBKEYS. REQUIRED on a dev deploy — dev and prod sign with
+  #     different keys, and the SDK's embedded fallback is the prod signer only, so
+  #     without this every dev session's token fails verification (4000). A prod
+  #     deploy can drop this and let the SDK fall back to its embedded prod key.
+  # No CONTROLPLANE_API_URL and no static files: session bootstrap happens at the
+  # apex (Firebase Hosting rewrites /api → control plane), not here.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy
+    waitFor: [push]
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_SERVICE}'
+      - --image
+      - '${_IMAGE}'
+      - --region
+      - '${_REGION}'
+      - --project
+      - '${_PROJECT}'
+      - --allow-unauthenticated
+      - --set-secrets
+      - 'GEMINI_API_KEY=gemini-api-key:latest,VOQALIZE_BRAIN_PUBKEYS=controlplane-pygato-pubkeys:latest'
+      # Runtime identity: dedicated least-privilege SA (accessor on the two secrets
+      # above only). The project default compute SA is disabled, so a runtime SA
+      # must be named explicitly.
+      - --service-account
+      - '${_RUNTIME_SA}'
+      - --quiet
+
+images:
+  - '${_IMAGE}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
