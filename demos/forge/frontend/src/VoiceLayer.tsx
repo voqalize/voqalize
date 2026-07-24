@@ -27,6 +27,7 @@ import { useVoqalSession, type VoqalConnectionState } from "@voqalize/client-rea
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { useForge, type BotState, type ConnStatus } from "./store";
 import { AmbientGlow } from "./AmbientGlow";
+import { ActivityFeed } from "./ActivityFeed";
 import { ADMIN } from "./data";
 import { config } from "./config";
 
@@ -173,6 +174,7 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
     <>
       <AmbientGlow />
       {children(presence)}
+      <ActivityFeed />
     </>
   );
 

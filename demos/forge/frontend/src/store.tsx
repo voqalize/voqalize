@@ -195,6 +195,83 @@ export type Panel = 'flow' | 'code' | 'tests' | 'runtime';
 export type BotState = 'idle' | 'listening' | 'thinking' | 'speaking';
 export type ConnStatus = 'idle' | 'connecting' | 'live' | 'error';
 
+/**
+ * The **activity feed** — Ada narrates her work in *actions*, not words. Every
+ * ui_command (voice-driven or a manual click) becomes one short "task" row that
+ * lights up `active` and settles to `done`, so a spoken request is acknowledged
+ * on screen the instant she acts. It is the concrete companion to the ambient
+ * glow: the ring says "Ada is present", the feed says "here's exactly what she's
+ * doing". Navigation-only commands (panel/tab/highlight) don't earn a row.
+ */
+export interface ActivityItem {
+  id: string;
+  label: string; // the mono "machine" line, e.g. "Adding a decision"
+  detail?: string; // the plain-language object, e.g. "Contractor + privileged app"
+  status: 'active' | 'done';
+  ts: number;
+}
+
+/** How each ui_command reads as a task line — null means "too minor to show". */
+const ACTIVITY_KIND_WORD: Record<string, string> = {
+  form: 'a form',
+  approval: 'an approval',
+  service: 'an action',
+  wait: 'a timer',
+  code: 'a script',
+  end: 'an end step',
+  gateway: 'a decision',
+};
+
+function activityFor(action: string, p: Record<string, any>): { label: string; detail?: string } | null {
+  const s = (v: unknown): string | undefined => (v == null || v === '' ? undefined : String(v));
+  switch (action) {
+    case 'create_workflow':
+      return { label: 'Creating a workflow', detail: s(p.name) };
+    case 'open_workflow':
+      return { label: 'Opening the workflow' };
+    case 'open_list':
+      return { label: 'Back to workflows' };
+    case 'add_state':
+    case 'add_step':
+      return { label: `Adding ${ACTIVITY_KIND_WORD[p.kind] ?? 'a step'}`, detail: s(p.label) };
+    case 'insert_gateway':
+    case 'insert_branch':
+      return { label: 'Adding a decision', detail: s(p.label) };
+    case 'add_branch':
+      return { label: 'Adding a branch', detail: s(p.label) };
+    case 'set_route':
+      return { label: 'Rewiring the routing' };
+    case 'update_state':
+    case 'update_step':
+      return { label: 'Updating a step', detail: s(p.label) };
+    case 'remove_state':
+    case 'remove_step':
+      return { label: 'Removing a step' };
+    case 'add_context_field':
+      return { label: 'Adding a field', detail: s(p.label ?? p.key) };
+    case 'add_field':
+      return { label: 'Adding a form field', detail: s(p.field?.label ?? p.field?.key) };
+    case 'set_code':
+      return { label: 'Writing the logic' };
+    case 'add_test':
+      return { label: 'Adding a test', detail: s(p.name) };
+    case 'run_tests':
+      return { label: 'Running the tests' };
+    case 'review_coverage':
+      return { label: 'Scanning for gaps' };
+    case 'resolve_gap':
+      return { label: 'Closing a gap' };
+    case 'run_scenario':
+      return { label: 'Simulating', detail: s(p.personaLabel) };
+    case 'publish_workflow':
+      return { label: 'Publishing live' };
+    case 'show_code':
+      return { label: 'Revealing the code' };
+    default:
+      return null; // set_panel, focus_state/select_block — no noise
+  }
+}
+
 interface Model {
   admin: typeof ADMIN;
   workflows: Workflow[];
@@ -238,6 +315,8 @@ export interface ForgeStore {
   connectionState: ConnStatus;
   setBotState: (s: BotState) => void;
   setConnectionState: (s: ConnStatus) => void;
+  // the live activity feed (what Ada is doing right now)
+  activities: ActivityItem[];
   // navigation
   openList: () => void;
   openWorkflow: (id: string) => void;
@@ -266,6 +345,11 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   const [connectionState, setConnectionState] = useState<ConnStatus>('idle');
   const sendRef = useRef<AgentSend | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Activity-feed timers live in their own pool so a clearTimers() inside an op
+  // (run_tests / run_scenario / publish all reset the model's animation timers)
+  // never strands a task row as perpetually "active".
+  const activitiesRef = useRef<ActivityItem[]>([]);
+  const actTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const render = () => setTick((t) => t + 1);
   const clearTimers = () => {
@@ -274,6 +358,39 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   };
   const later = (fn: () => void, ms: number) => {
     timers.current.push(setTimeout(fn, ms));
+  };
+  const laterAct = (fn: () => void, ms: number) => {
+    actTimers.current.push(setTimeout(fn, ms));
+  };
+
+  // ── the activity feed ──
+  const pushActivity = (label: string, detail?: string): string => {
+    const id = `act_${nextSeq()}`;
+    const arr = activitiesRef.current;
+    arr.push({ id, label, detail, status: 'active', ts: Date.now() });
+    // keep the stack tight — only the most recent handful ever show
+    if (arr.length > 6) activitiesRef.current = arr.slice(-6);
+    render();
+    return id;
+  };
+  const completeActivity = (id: string) => {
+    const item = activitiesRef.current.find((a) => a.id === id);
+    if (!item || item.status === 'done') return;
+    item.status = 'done';
+    render();
+    // let it rest as "done" for a beat, then fade it out of the stack
+    laterAct(() => {
+      activitiesRef.current = activitiesRef.current.filter((a) => a.id !== id);
+      render();
+    }, 3200);
+  };
+  /** How long a task row stays "active" — matched to the op's own on-screen beat. */
+  const activityDuration = (action: string): number => {
+    if (action === 'run_tests') return 220 * (activeWf()?.tests.length ?? 0) + 550;
+    if (action === 'run_scenario') return 620 * ((ref.current.sim?.path.length ?? 5) + 1) + 300;
+    if (action === 'publish_workflow') return 950;
+    if (action === 'review_coverage') return 800;
+    return 620;
   };
 
   const activeWf = (): Workflow | null => {
@@ -690,6 +807,19 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   // A ui_command arrives as one flat object: `{ action, ...payload }`. The whole
   // object is handed to each op (they read the keys they need).
   const dispatch = (action: string, payload: Record<string, any> = {}) => {
+    // Acknowledge on screen the moment the command lands: paint a task row, run
+    // the op, then settle the row to "done" on the op's own beat.
+    const desc = activityFor(action, payload);
+    if (desc) {
+      const id = pushActivity(desc.label, desc.detail);
+      runOp(action, payload);
+      laterAct(() => completeActivity(id), activityDuration(action));
+      return;
+    }
+    runOp(action, payload);
+  };
+
+  const runOp = (action: string, payload: Record<string, any> = {}) => {
     switch (action) {
       case 'open_list':
         return openList();
@@ -809,6 +939,9 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
       connectionState,
       setBotState,
       setConnectionState,
+      get activities() {
+        return activitiesRef.current;
+      },
       openList,
       openWorkflow,
       setPanel,
