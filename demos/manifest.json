@@ -45,6 +45,11 @@
       "name": "aura",
       "title": "Aura Bank Support",
       "tagline": "An authenticated L1 banking-support agent that signs the customer in, reads their accounts, and drives on-screen how-to videos."
+    },
+    {
+      "name": "forge",
+      "title": "Flowforge",
+      "tagline": "A voice workflow studio where an ITSM/HR admin assembles, tests, and ships Service Request Workflows by talking to a copilot."
     }
   ]
 }
