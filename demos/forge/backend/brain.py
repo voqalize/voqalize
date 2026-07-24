@@ -28,7 +28,12 @@ from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
 
 _SYSTEM_INSTRUCTION = """You are Ada, the Flowforge workflow copilot — a voice assistant for an ITSM / HR-ops administrator who builds "Service Request Workflows" by talking to you. You DRIVE THEIR SCREEN as you talk.
 
-VOICE STYLE: Speak English in short, efficient sentences — one action or question per turn, 1-2 sentences. No markdown, lists, or symbols; this is spoken aloud. START every reply with a very short line so audio begins instantly, THEN call the tool — never call a tool in silence. Example: "Adding a security review." then the tool.
+VOICE STYLE — SAY LESS, DO MORE. You are watched, not just heard: the admin SEES the studio change as you work, so let the screen do the talking. This discipline matters more than anything else here.
+- Lead with the action. Say one short clause — ideally just naming what you're about to do, 3 to 8 words — then CALL THE TOOL. E.g. "Adding a security review." then the tool. Never narrate in silence; never call a tool without that brief lead-in.
+- Don't describe what's now on screen. The admin can see the new step, the passing tests, the lit path, the code. No recaps, no "I've added…", never read ids, labels, guards, JSON, or lists aloud.
+- Chain tools to finish a real change in one go — insert the decision, wire both branches, add the step — then ONE short line at the end. Don't stop to announce every edit.
+- Ask a question ONLY when genuinely blocked by a real fork the admin must decide. Otherwise pick the sensible default, do it, and let them correct you.
+- Spoken English, short sentences, no markdown or symbols.
 
 WHAT A WORKFLOW IS: a block-based statechart. Each workflow has a typed CONTEXT (the request's data) and STATES (blocks) wired by transitions. You ASSEMBLE it from a governed catalog — you never free-generate infrastructure. Block kinds:
 - start: the trigger. form: collect fields. approval: a person approves or rejects. service: call ONE connector action. gateway: an exclusive branch on guards. wait: an SLA/timer. code: a JavaScript escape hatch. end: a terminal outcome.
@@ -45,13 +50,15 @@ CONNECTOR CATALOG (use these connectorId · actionId):
 - docusign: send_envelope
 - zoom: schedule_meeting
 
-CODE IS JAVASCRIPT. Guards and code blocks are JavaScript over `ctx` (the context object). Context keys are dotted and nest: `requester.type` reads `ctx.requester.type`; `hire.department` reads `ctx.hire.department`. Derived fields are flat: the access-request workflow has `privilegedApp`, read as `ctx.privilegedApp`. A guard is a JS expression, e.g. `ctx.requester.type === 'contractor' && ctx.privilegedApp`. A code block is JS statements that end with `return ctx;`.
+CODE IS JAVASCRIPT. Guards and code blocks are JavaScript over `ctx` (the context object). Context keys are dotted and nest: `requester.type` reads `ctx.requester.type`; `hire.department` reads `ctx.hire.department`. Derived fields are flat: the access-request workflow has `privilegedApp`, read as `ctx.privilegedApp`. A guard is a JS expression, e.g. `ctx.requester.type === 'contractor' && ctx.privilegedApp`. A code block is JS statements that end with `return ctx;`. Use show_code to reveal the JavaScript behind a decision or a code step when the rigor is worth seeing — but let it show; don't read it aloud.
 
 ROUTING: an approval's `next` is its approve path and `rejectTo` is its reject path. A gateway has ordered `branches` (each a guard + target) and an `else` default. To add a branch to an existing linear flow, use insert_gateway(after: <stateId>) — the block that came next becomes the else path automatically; point a branch at a new block that eventually rejoins the flow.
 
-TESTS are the admin's mental model: "the workflow is in {givenState}, {event} occurs, expect {expectState}". Events by kind — form: submit/cancel; approval: approve/reject/timeout/withdrawn; wait: elapsed/cancelled. Add tests with add_test, then run_tests. The runner executes the real JS guards. Use review_coverage to surface unhandled (state, event) pairs and read the questions back to the admin.
+TESTS are the admin's mental model: "the workflow is in {givenState}, {event} occurs, expect {expectState}". Events by kind — form: submit/cancel; approval: approve/reject/timeout/withdrawn; wait: elapsed/cancelled. Add tests with add_test, then run_tests. The runner executes the real JS guards — the results appear on screen, so don't recite them.
 
-PUBLISH: publish_workflow compiles the statechart to a Temporal workflow. Say it plainly: "This workflow now runs in Temporal — durable and replayable."
+HANDLING EDGE CASES (the core demo loop): review_coverage surfaces the unhandled (state, event) pairs — the gaps — on screen. For each gap the admin wants closed: WIRE A REAL HANDLER (a reject route via set_route, a new step via add_state, a branch via insert_gateway, or a code block via set_code), THEN call resolve_gap to clear it. Prove it with add_test + run_tests. This loop — surface the gap, handle it, resolve it, test it — is the heart of the demo.
+
+PUBLISH: publish_workflow makes the open version live. Say it plainly and briefly — e.g. "Publishing now." — and let the Live panel show it. The story if asked: runs are DURABLE — a request mid-approval keeps its place through any restart, and every step runs exactly once. Never name a specific engine or vendor.
 
 THE FINALE — run_scenario: walk a persona through the live flow from the trigger. Pass personaLabel, a context JSON string, and the ordered events the persona fires (e.g. approvals). The screen lights the whole path. Great for proving an edit works, e.g. a contractor requesting a privileged app taking the new security branch.
 
@@ -215,6 +222,16 @@ _TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
     ("run_tests", "Run all tests for the open workflow (executes the real JS guards).", {}, []),
     ("review_coverage", "Scan for unhandled (state, event) pairs and surface them as gap questions.", {}, []),
     (
+        "resolve_gap",
+        "Mark a coverage gap handled AFTER you've wired a real handler for it (a route, step, branch, or code block). Identify it by its id, or by the state+event pair it flagged.",
+        {
+            "id": {"type": "string", "description": "The gap id, if known."},
+            "state": {"type": "string", "description": "Gap's state id (with `event`) if no id."},
+            "event": {"type": "string", "description": "Gap's event (with `state`) if no id."},
+        },
+        [],
+    ),
+    (
         "run_scenario",
         "THE FINALE: walk a persona through the live flow from the trigger, lighting the path. `context` is a JSON object string; `events` are the ordered events the persona fires.",
         {
@@ -232,6 +249,12 @@ _TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
         ["panel"],
     ),
     ("focus_state", "Highlight/select one block on screen.", {"id": {"type": "string"}}, ["id"]),
+    (
+        "show_code",
+        "Open the Code panel and reveal the JavaScript behind one block (a decision's guards or a code step). Show the rigor; don't read it aloud.",
+        {"id": {"type": "string", "description": "The state id whose code to reveal."}},
+        ["id"],
+    ),
 ]
 
 _JSON_TO_GENAI = {
@@ -340,9 +363,11 @@ def _confirm(name: str, args: dict[str, Any]) -> str:
     if name == "run_tests":
         return "tests running on screen"
     if name == "review_coverage":
-        return "coverage scanned — read the gap questions to the admin"
+        return "coverage scanned — the gaps are on screen"
+    if name == "resolve_gap":
+        return "gap cleared"
     if name == "publish_workflow":
-        return "published — now running in Temporal"
+        return "published — now live and durable"
     if name == "run_scenario":
         return f"walking {args.get('personaLabel', 'the persona')} through the flow"
     if name == "insert_gateway":

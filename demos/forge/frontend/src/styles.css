@@ -85,6 +85,86 @@ body {
   font-weight: 500;
 }
 
+/* ── header presence control (Ada, in the studio's own chrome) ── */
+.ff-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.ff-presence {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.ff-presence-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--dim);
+  min-width: 64px;
+  text-align: right;
+  white-space: nowrap;
+}
+.ff-presence-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--violet);
+  color: #f5f3ff;
+  cursor: pointer;
+  flex: none;
+  transition: transform 0.15s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+.ff-presence-btn:hover { transform: scale(1.06); }
+.ff-presence-btn:active { transform: scale(0.96); }
+.ff-presence-btn.is-connecting {
+  background: transparent;
+  color: var(--violet-l);
+  cursor: default;
+}
+.ff-presence-btn.is-connecting:hover { transform: none; }
+
+/* Live: a soft ring that tracks Ada's state, echoing the app-wide AmbientGlow —
+   violet while present/listening/answering, cyan (the "signal") while thinking. */
+.ff-presence-btn.is-live { box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2); }
+.ff-presence-btn.is-live.pstate-listening { box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.3); }
+.ff-presence-btn.is-live.pstate-thinking {
+  background: var(--cyan);
+  color: var(--bg);
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3);
+}
+.ff-presence-btn.is-live.pstate-speaking { box-shadow: 0 0 0 5px rgba(124, 58, 237, 0.34); }
+.ff-presence-btn.is-muted {
+  background: var(--panel-2);
+  color: var(--dim);
+  box-shadow: none;
+}
+.ff-presence-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--dim-2);
+  cursor: pointer;
+  flex: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.ff-presence-end:hover { color: var(--rose); background: var(--panel-2); }
+.ff-spin { animation: ff-spin 0.9s linear infinite; }
+@keyframes ff-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ff-spin { animation: none; }
+}
+
 /* ── list ── */
 .ff-list {
   flex: 1;

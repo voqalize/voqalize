@@ -8,15 +8,15 @@
  * Two-way `ui_command` / `state_sync` keeps them in lockstep.
  */
 
-import { StrictMode } from "react";
+import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { ForgeProvider, useForge } from "./store";
 import { Editor, ListView } from "./pages";
-import { ForgeAssistant } from "./ForgeAssistant";
+import { VoiceLayer } from "./VoiceLayer";
 import { ADMIN } from "./data";
 import "./styles.css";
 
-function Studio() {
+function Studio({ presence }: { presence: ReactNode }) {
   const { model } = useForge();
   return (
     <div className="ff-root">
@@ -25,8 +25,11 @@ function Studio() {
           <span className="ff-logo">◈</span> Flowforge
           <span className="ff-brand-sub">Workflow Studio</span>
         </div>
-        <div className="ff-who">
-          {ADMIN.name} · <span>{ADMIN.role}</span>
+        <div className="ff-topbar-right">
+          <div className="ff-who">
+            {ADMIN.name} · <span>{ADMIN.role}</span>
+          </div>
+          {presence}
         </div>
       </div>
       {model.view === "list" ? <ListView /> : <Editor />}
@@ -35,10 +38,12 @@ function Studio() {
 }
 
 function ForgeDemo() {
+  // VoiceLayer owns the session and hands the studio its header presence control,
+  // so the copilot is part of the studio's own chrome (top-bar mic + the
+  // app-wide AmbientGlow), not a bolted-on widget.
   return (
     <ForgeProvider>
-      <Studio />
-      <ForgeAssistant />
+      <VoiceLayer>{(presence) => <Studio presence={presence} />}</VoiceLayer>
     </ForgeProvider>
   );
 }

@@ -186,6 +186,15 @@ function runTransition(
 export type View = 'list' | 'editor';
 export type Panel = 'flow' | 'code' | 'tests' | 'runtime';
 
+/**
+ * Voice presence, mirrored from the SDK session into the store so the ambient
+ * glow (the full-viewport "Ada is present" ring) and the header presence control
+ * both read it. `connectionState` uses the desk vocabulary (`live`), not the
+ * transport's `connected`.
+ */
+export type BotState = 'idle' | 'listening' | 'thinking' | 'speaking';
+export type ConnStatus = 'idle' | 'connecting' | 'live' | 'error';
+
 interface Model {
   admin: typeof ADMIN;
   workflows: Workflow[];
@@ -224,6 +233,11 @@ export interface ForgeStore {
   model: Model;
   active: Workflow | null;
   connectors: typeof CONNECTORS;
+  // voice presence (mirrored from the live session)
+  botState: BotState;
+  connectionState: ConnStatus;
+  setBotState: (s: BotState) => void;
+  setConnectionState: (s: ConnStatus) => void;
   // navigation
   openList: () => void;
   openWorkflow: (id: string) => void;
@@ -248,6 +262,8 @@ export const useForge = (): ForgeStore => {
 export function ForgeProvider({ children }: { children: ReactNode }) {
   const ref = useRef<Model>(freshModel());
   const [tick, setTick] = useState(0);
+  const [botState, setBotState] = useState<BotState>('idle');
+  const [connectionState, setConnectionState] = useState<ConnStatus>('idle');
   const sendRef = useRef<AgentSend | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -789,6 +805,10 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
         return activeWf();
       },
       connectors: CONNECTORS,
+      botState,
+      connectionState,
+      setBotState,
+      setConnectionState,
       openList,
       openWorkflow,
       setPanel,
@@ -801,9 +821,10 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     }),
     // The store methods are ref-backed, but the Provider value must change
     // identity on each commit — otherwise a stable value + the children-as-props
-    // bailout means consumers never re-render. `tick` bumps on every commit().
+    // bailout means consumers never re-render. `tick` bumps on every commit();
+    // botState/connectionState are proper React state, so they belong here too.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tick],
+    [tick, botState, connectionState],
   );
 
   // dev handle for poking the store from the console
