@@ -8,7 +8,8 @@ latency-critical parts of a real-time voice stack — WebRTC media, voice activi
 detection, speech-to-text, text-to-speech, turn-taking, barge-in, recording — and
 leaves you exactly one job: the **brain**.
 
-> **You bring the brain, we bring the voice.**
+> **Voqalize is a voice operator that lives inside your app — it drives the UI, reads live
+> and authenticated state, and does the actual work. You write the brain; Voqalize runs the voice.**
 
 ## The split
 
@@ -64,4 +65,4 @@ call to your LLM and you have a real one. See the [Quickstart](/docs/start/quick
   and the `brain_url`.
 - **[Build a brain: Python](/docs/brain/python/)** / **[Go](/docs/brain/go/)** —
   the full SDK surface.
-- **[Demo gallery](/docs/demos/gallery/)** — eight complete, runnable voice apps.
+- **[Demo gallery](/docs/demos/gallery/)** — nine complete, runnable voice apps.

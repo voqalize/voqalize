@@ -7,17 +7,21 @@ This walks you from nothing to a voice agent you can talk to, in four moves:
 write a brain, create an agent, point the agent at your brain, embed it in a page.
 
 :::note[Pre-release]
-The SDK and MCP server are not yet published to PyPI / npm. Install them from a
-clone of the [`voqalize/voqalize`](https://github.com/voqalize/voqalize) repo, as
-shown below. Published packages will follow at beta.
+The **SDKs** are not yet published to PyPI / npm — install them from a clone of the
+[`voqalize/voqalize`](https://github.com/voqalize/voqalize) repo, as shown below.
+(The MCP server is hosted — nothing to install; see step 0.) Published packages will
+follow at beta.
 :::
 
 ## 0. Prerequisites
 
 - **Python 3.12+** for the brain.
-- A **tenant** and a **management key** (`mk_…`). The fastest way to drive the
-  platform is the [Voqalize MCP server](/docs/reference/mcp/) from your editor's
-  agent — it creates agents and mints keys for you. You can also use the console.
+- The **[Voqalize MCP server](/docs/reference/mcp/)** connected in your editor's
+  agent — it creates agents and mints keys for you. It's a hosted endpoint you add
+  with one command (`claude mcp add --transport http voqalize https://app.voqalize.com/mcp`)
+  and authenticate with a browser Google sign-in — no key to configure. You can also
+  use the console. Run `whoami` then `list_tenants` to get the `tenant` slug the
+  tools need.
 - For local testing, a tunnel (`ngrok http 8080` or `cloudflared`) — the hosted
   voice runtime must be able to reach your brain over the public internet.
 
@@ -100,20 +104,21 @@ and use the SDK's dev entrypoint). Never do this in production.
 
 ## 3. Create an agent and point it at your brain
 
-Using the MCP server (from your editor's agent):
+Using the MCP server (from your editor's agent). Every tool takes your `tenant`
+slug (from `list_tenants`):
 
 ```text
-create_agent(name="Quickstart")
-set_brain_url(agent_id="<agent.id>", brain_url="wss://<id>.ngrok.app")
+create_agent(tenant="<your-tenant>", name="Quickstart", brain_url="wss://<id>.ngrok.app")
 ```
 
 `brain_url` is the base — the runtime appends `/s/{session_id}` when it dials.
-It must be `wss://` (plain `ws://` is allowed only for localhost).
+It must be `wss://` (plain `ws://` is allowed only for localhost). To change it
+later, call `update_agent(tenant, agent_id, brain_url=…)`.
 
 Then mint a browser key:
 
 ```text
-create_api_key(kind="publishable", label="web", allowed_origins=["http://localhost:5173"])
+create_api_key(tenant="<your-tenant>", label="web", kind="publishable", allowed_origins=["http://localhost:5173"])
 ```
 
 ## 4. Talk to it in the browser
@@ -137,11 +142,10 @@ Open the page, allow the mic, and start talking. `<VoqalAgent/>` mints the
 session, connects the WebRTC transport, plays the agent's audio, and renders a
 mute/end bar. Full options in [React client SDK](/docs/client/react/).
 
-:::caution[`apiBase` vs the MCP host]
+:::caution[`apiBase` includes `/api/v1`]
 The React SDK's `apiBase` **includes** the `/api/v1` suffix
-(`https://api.voqalize.com/api/v1`). The MCP server's `VOQALIZE_API_BASE` is the
-**bare host** (`https://api.voqalize.com`) — it adds `/api/v1/{tenant}` itself.
-Same host, different suffix. This is the most common wiring mistake.
+(`https://api.voqalize.com/api/v1`) — the SDK appends `/{tenantSlug}/…` to it. Point
+it at the bare host instead and the browser session mint fails.
 :::
 
 ## Next steps

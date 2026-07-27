@@ -1,8 +1,9 @@
 # Voqalize public repo — Python workspace root (uv).
 #
-# Members: the Python brain SDK and the MCP server. The demos backend joins as
-# a member in its own phase. Ruff + pyright are configured here and run over
-# every member at once; pytest runs per-member.
+# Members: the Python brain SDK and the demos backend. (The developer-onboarding
+# MCP server is not here — it is embedded in the control plane and reached over
+# Google-OAuth HTTP at {base_url}/mcp; see docs/reference/mcp.md.) Ruff + pyright
+# are configured here and run over every member at once; pytest runs per-member.
 #
 # This is a virtual root (`package = false`) — nothing is built or installed
 # from the repo root itself.
@@ -19,7 +20,6 @@ package = false
 [tool.uv.workspace]
 members = [
     "sdk/python",
-    "mcp",
     "demos",
 ]
 
@@ -124,7 +124,6 @@ pythonVersion = "3.12"
 typeCheckingMode = "strict"
 include = [
     "sdk/python",
-    "mcp",
     "demos",
 ]
 exclude = [

@@ -6,14 +6,15 @@ description: >-
   mentions Voqalize. Guides you to scaffold a "brain" (a WebSocket the SDK runs),
   choose the inbound (direct) or Cortex (outbound) transport, create the agent
   over the Voqalize MCP server, wire its brain_url, mint a browser key, and embed
-  the React widget. Requires the `voqalize` MCP server (a management key).
+  the React widget. Requires the hosted `voqalize` MCP server (Google-OAuth HTTP).
 ---
 
 # Build a voice agent on Voqalize
 
-Voqalize is **"you bring the brain, we bring the voice."** The developer writes a
-**brain** — a `Brain` subclass that receives transcribed user turns and speaks
-replies. Voqalize's runtime (PyGato) handles WebRTC, VAD, speech-to-text,
+Voqalize is a **voice operator that lives inside the app** — it drives the UI,
+reads live state, and does the work. The developer writes the **brain** — a `Brain`
+subclass that receives transcribed user turns and speaks replies (and can drive the
+screen). Voqalize's runtime (PyGato) handles WebRTC, VAD, speech-to-text,
 text-to-speech, interruption, and recording. Brain and runtime talk over **one
 WebSocket per session**, carrying text frames — the brain never touches audio.
 
@@ -23,11 +24,14 @@ browser key → embed the React widget → iterate.**
 
 ## Prerequisites (check first)
 
-1. The **`voqalize` MCP server** is connected. Run its `whoami` tool — it should
-   return the tenant. If it errors, the developer needs a management key
-   (`mk_…`), minted by a tenant **owner** in the Voqalize console (API keys →
-   kind *management*), exported as `VOQALIZE_MANAGEMENT_KEY` (see `.mcp.json` in
-   this skill folder). Do not proceed until `whoami` succeeds.
+1. The **`voqalize` MCP server** is connected. It's a hosted HTTP endpoint
+   (`https://app.voqalize.com/mcp`) added with
+   `claude mcp add --transport http voqalize https://app.voqalize.com/mcp` (or the
+   `.mcp.json` in this skill folder) — **no key to configure**; first use runs a
+   browser Google sign-in. Run `whoami` (identity), then `list_tenants` to get the
+   `tenant` slug — **every scoped tool takes a required `tenant` argument.** If the
+   developer has no tenant yet, `create_tenant` makes one (and seeds demo agents).
+   Do not proceed until `whoami` succeeds.
 2. Python ≥ 3.12 for the brain. Node + a React app if they want the browser embed.
 
 ## Step 1 — Understand the use case, draft the brain
@@ -73,8 +77,9 @@ inbound endpoint is genuinely impossible.
 
 ## Step 3 — Create the agent (MCP)
 
-Call the MCP tool `create_agent` with a `name` (and `description`). The response
-is `{agent, agent_secret, cortex_url}`:
+Call the MCP tool `create_agent` with your `tenant` slug, a `name` (and optional
+`description`, and `brain_url` if you already have it). The response is
+`{agent, agent_secret, cortex_url}`:
 
 - `agent.id` — you'll need it to set the brain URL.
 - `agent_secret` (`ak_…`) — **only for the Cortex path**; it's the key the
@@ -111,7 +116,9 @@ real public `wss://` host and point `brain_url` at that.)
 
 ## Step 5 — Wire `brain_url` (MCP)
 
-Call `set_brain_url(agent_id, brain_url)`:
+Set it on `create_agent` up front, or later with
+`update_agent(tenant, agent_id, brain_url=…)` — there is no separate `set_brain_url`
+tool:
 
 - Inbound: your route's base — PyGato appends `/s/{session_id}`. `wss://` in
   production; `ws://` allowed only for `localhost`/`127.0.0.1`.
@@ -122,9 +129,9 @@ agent still greets — but to serve *your* brain you must set this.
 
 ## Step 6 — Embed in the browser (React)
 
-1. `create_api_key(kind="publishable", label="web", allowed_origins=["https://your-site.com"])`
+1. `create_api_key(tenant, label="web", kind="publishable", allowed_origins=["https://your-site.com"])`
    → the `raw` `pk_…` (shown once). Publishable keys are origin-allowlisted and
-   safe to ship to the browser; **never** put an `sk_`/`mk_` key in frontend code.
+   safe to ship to the browser; **never** put an `sk_` key in frontend code.
    For **local** testing, include your dev origin in `allowed_origins` too (e.g.
    `["http://localhost:5173"]`) or the browser session mint is rejected. (The
    `sk_` "secret" kind is a server-to-server backend key — you don't need it just
@@ -133,14 +140,11 @@ agent still greets — but to serve *your* brain you must set this.
    passing the `pk_…` and the `agent.id`. Its four config values:
    - `publishableKey` — the `pk_…` from step 1.
    - `agentId` — `agent.id`.
-   - `tenantSlug` — your tenant slug: **the same string you set as
-     `VOQALIZE_TENANT`** for the MCP server (`whoami` echoes it back if unsure).
+   - `tenantSlug` — your tenant slug (the one from `list_tenants` that you pass to
+     every MCP tool).
    - `apiBase` — the control-plane root **including the API version**; the React
      SDK appends `/{tenantSlug}/…`. Production: `https://api.voqalize.com/api/v1`.
-     ⚠️ This is *not* the same as the MCP server's `VOQALIZE_API_BASE`, which is
-     the **bare host** (`https://api.voqalize.com`) — the MCP client adds
-     `/api/v1/{tenant}` itself. Same host, different suffix; don't copy one into
-     the other.
+     ⚠️ Point it at the bare host (no `/api/v1`) and the browser session mint fails.
 
 <a id="ui-actions-the-two-way-contract"></a>
 ## UI actions — the two-way contract
@@ -175,17 +179,21 @@ a cart end-to-end.
 
 ## Step 7 — Iterate & observe
 
-Test, gather feedback, refine the brain, redeploy, re-test. For logs / events /
-metrics and support, use the observability tools **if present** in the MCP server
-(a separate track owns them) — don't assume `tail_logs`/`get_metrics` exist yet.
+Test, gather feedback, refine the brain, redeploy, re-test. To see what happened on
+a call, use the observability tools: `list_meetings(tenant)` for recent calls,
+`get_meeting` / `list_meeting_events` for one call's detail and timeline, and
+`query_logs(tenant, meeting_id)` for the runtime log lines.
 
 ## MCP tools you'll use
 
-`whoami` · `list_agents` · `get_agent` · `create_agent` · `set_brain_url` ·
-`update_agent` · `archive_agent` · `create_api_key` · `list_api_keys` ·
-`revoke_api_key`. Every tool returns the control plane's raw JSON. A `not_authorized`
-error means the management key's role is too low; `validation_error` means bad input
-(e.g. a non-`wss://` `brain_url` on a non-loopback host).
+Identity/workspace: `whoami` · `list_tenants` · `create_tenant`. Agents:
+`create_agent` · `get_agent` · `list_agents` · `update_agent` · `archive_agent`.
+Keys: `create_api_key` · `list_api_keys` · `revoke_api_key`. Calls/logs:
+`list_meetings` · `get_meeting` · `list_meeting_events` · `query_logs`. Every tool
+returns the control plane's raw JSON, and every scoped tool takes a required
+`tenant`. A `not_authorized` error means you're not a member of that tenant (or your
+role is too low); `validation_error` means bad input (e.g. a non-`wss://` `brain_url`
+on a non-loopback host).
 
 ## Files in this skill
 

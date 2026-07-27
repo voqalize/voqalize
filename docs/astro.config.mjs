@@ -12,8 +12,8 @@ export default defineConfig({
     starlight({
       title: "Voqalize",
       description:
-        "You bring the brain, we bring the voice. Build a voice agent that receives text and speaks text back — Voqalize runs WebRTC, STT, TTS, turn-taking, and interruptions.",
-      tagline: "You bring the brain, we bring the voice.",
+        "A voice operator that lives inside your app. You write the brain; Voqalize runs the voice — WebRTC, STT, TTS, turn-taking, interruptions, and recording.",
+      tagline: "A voice operator that lives inside your app. You write the brain; Voqalize runs the voice.",
       customCss: ["./src/styles/theme.css"],
       social: [
         {

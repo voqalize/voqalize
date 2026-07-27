@@ -1,9 +1,9 @@
 # Voqalize
 
-**You bring the brain, we bring the voice.** Voqalize runs the voice stack —
-WebRTC, VAD, speech-to-text, text-to-speech, interruption handling, recording.
-You write the *brain*: an agent that receives text and speaks text back. Your
-code never touches audio.
+**A voice operator that lives inside your app.** You write the *brain* — an agent
+that receives text and speaks text back — and Voqalize runs the voice stack: WebRTC,
+VAD, speech-to-text, text-to-speech, interruption handling, recording. Your code
+never touches audio.
 
 This repository is the **public developer surface** for Voqalize: the wire
 contract, the SDKs you build a brain with, runnable demo applications, and the
@@ -23,14 +23,14 @@ is a managed service — everything you need to build against it is here.
 | [`sdk/python/`](sdk/python/) | Python brain SDK — subclass `Brain`, implement a couple of callbacks. Pipecat-free. |
 | [`sdk/go/`](sdk/go/) | Go brain SDK — native, pipecat-free, speaks the wire protocol directly. |
 | [`sdk/react/`](sdk/react/) | React client SDK — embed a voice agent in a browser app. |
-| [`mcp/`](mcp/) | The Voqalize MCP server + Claude Code skill — create and manage agents from your editor. |
+| [`skill/`](skill/) | The **`voqalize` Claude Code skill** (`skill/SKILL.md`) — point your editor's agent at it and it builds an agent end-to-end over the hosted, Google-OAuth MCP server. |
 | [`demos/`](demos/) | Complete, runnable voice apps (a brain + a UI each). These are real example code, the live demos on our site, and our integration tests — all at once. |
 | [`docs/`](docs/) | The developer documentation site (`voqalize.com/docs`). |
 
 ## Getting started
 
 The fastest on-ramp is the **Claude Code skill** — point your editor's agent at
-[`mcp/skill/SKILL.md`](mcp/skill/SKILL.md) and it will walk you from an empty
+[`skill/SKILL.md`](skill/SKILL.md) and it will walk you from an empty
 project to a running voice agent (write a brain → create an agent → get a
 `brain_url` → wire a browser UI). Prefer to read code first? Start from
 [`sdk/python/examples/echo`](sdk/python/examples/echo) (the smallest complete
@@ -54,7 +54,7 @@ Same brain code either way; you only pick who dials whom.
 
 A polyglot monorepo, split by toolchain:
 
-- **Python** (`sdk/python`, `mcp`, `demos`) — one `uv` workspace; the demos'
+- **Python** (`sdk/python`, `demos`) — one `uv` workspace; the demos'
   shared backend depends on the SDK by path.
 - **JS/TS** (`sdk/react`, `docs`) — one `pnpm` workspace. Each demo UI
   (`demos/<name>/frontend`) is a self-contained app *outside* the workspace, built
