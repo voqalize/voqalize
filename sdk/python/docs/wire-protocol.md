@@ -11,11 +11,14 @@ Two endpoints, two envelopes, one connection class ([`wire/transport.py`](../src
 | `/s/{session_id}` | pygato (one connection per session) | `[1-byte direction][protobuf payload]` |
 | `/agent` | agent SDK (one connection multiplexes N sessions) | `[16-byte session_id][1-byte direction][protobuf payload]` |
 
-The 16-byte session prefix is raw UUID bytes — no separator, no length, fixed offset. Matches [`cortex/internal/protocol/protocol.go`](../../cortex/internal/protocol/protocol.go) `SessionIDLen`. The 1-byte direction is `0 = DOWNSTREAM`, `1 = UPSTREAM` (matches pipecat `FrameDirection`).
+The 16-byte session prefix is raw UUID bytes — no separator, no length, fixed offset. Matches [`sdk/go/wire/wire.go`](../../go/wire/wire.go) `SessionIDLen`. The 1-byte direction is `1 = DOWNSTREAM`, `2 = UPSTREAM` (matches pipecat `FrameDirection`).
 
 ## Frame vocabulary
 
-All `Vql*` classes are pipecat-frame subclasses ([decisions §2](decisions.md)). Two keys identify everything (see [docs/voice-protocol.md](../../../docs/voice-protocol.md)): `interaction_id` (Voice-minted, session-monotonic `uint64`; one committed user stimulus + the brain's full response) and `inference_id` (brain-minted, per-interaction `uint64`; one LLM call). `(interaction_id, inference_id)` is the composite key — two typed fields, never a dotted string on the wire. One interaction → N inferences.
+The SDK is **pipecat-free** — each `Vql*` frame is a plain dataclass in
+[`wire/frames.py`](../src/voqalize/sdk/wire/frames.py) mirroring the protobuf, not
+a pipecat subclass. (On the *runtime* side, inside PyGato, the matching classes
+subclass pipecat frames — but nothing on the SDK side depends on pipecat.) Two keys identify everything (see [docs/voice-protocol.md](../../../docs/src/content/docs/reference/voice-protocol.md)): `interaction_id` (Voice-minted, session-monotonic `uint64`; one committed user stimulus + the brain's full response) and `inference_id` (brain-minted, per-interaction `uint64`; one LLM call). `(interaction_id, inference_id)` is the composite key — two typed fields, never a dotted string on the wire. One interaction → N inferences.
 
 **Lifecycle:**
 
@@ -24,7 +27,7 @@ All `Vql*` classes are pipecat-frame subclasses ([decisions §2](decisions.md)).
 **User stimulus (DOWNSTREAM into the customer):**
 
 - `VqlUserTextFrame` — committed user utterance opening an interaction. Fields: `interaction_id`, `text`.
-- native `InterruptionFrame` (pipecat, not a `Vql*` class) — user interrupted. Field-less; rides the system-priority lane, bypasses queued data frames, cancels the in-flight `process_frame`. The customer (or the pipeline's `broadcast_interruption`) echoes an `InterruptionFrame` back UPSTREAM — pygato's drain barrier. Correlation lives on `inference_id`, not on the interrupt.
+- native `InterruptionFrame` (not a `Vql*` class) — user interrupted. Field-less; rides the system-priority lane, bypasses queued data frames, and cancels the in-flight `on_interaction` task(s) (the `CancelledError` unwinds their open `inference()` brackets). The `_BrainAdapter` echoes an `InterruptionFrame` back UPSTREAM on the outbound system lane — pygato's drain barrier. Correlation lives on `inference_id`, not on the interrupt.
 
 **Bot response (UPSTREAM from the customer; the brain stamps both ids):**
 
@@ -44,13 +47,12 @@ All `Vql*` classes are pipecat-frame subclasses ([decisions §2](decisions.md)).
 
 ## Ack envelope
 
-Every wire-vocab data frame carries `request_id > 0`. The receiver emits an `Ack(request_id)` envelope once the frame has been fully consumed (downstream pushes complete). The mechanics:
+Every wire-vocab data frame carries `request_id > 0`. The receiver emits an `Ack(request_id)` envelope once the frame has been dispatched. The mechanics live in the per-session `SessionRunner` ([`engine.py`](../src/voqalize/sdk/engine.py)):
 
-- The SDK runner queues an internal `_AckSentinel(ack_id=request_id)` behind every inbound data frame ([`_session_buffer.py`](../src/voqalize/sdk/_session_buffer.py)).
-- Pipecat's `__process_queue` is FIFO single-worker — the sentinel reaches `_SessionOutbound` only after the customer's `process_frame` returns.
-- `_SessionOutbound` hands the sentinel to the writer, which serializes it as an `Ack` envelope.
+- After `adapter.handle_frame(frame)` returns, the runner enqueues an `_Ack(request_id)` onto the **outbound normal lane** — so the ack FIFOs *behind* any response frames the handler emitted synchronously. Acks bypass the lane bound (`append_ack`): a dropped ack would hang pygato's per-frame flow control.
+- Because `_BrainAdapter` **spawns** `on_interaction` as a task rather than awaiting it, the `VqlUserText` ack fires promptly and pygato keeps sending; the reply streams out of the spawned task via `emitter.send`.
 
-Acks are bidirectional: UPSTREAM `VqlInferenceFinalizedFrame` is acked by pygato's `CortexFrameProcessor`.
+Acks are bidirectional: UPSTREAM `VqlInferenceFinalizedFrame` is acked by pygato's `CortexLLMService`.
 
 ## Close codes
 
@@ -68,4 +70,4 @@ Backoff: starts at 100ms, exponential ×2, capped at 60s, ±10% jitter (see [`Wi
 ## Reference
 
 - `VQL_FRAME_CLASSES` in [`frames.py`](../src/voqalize/sdk/wire/frames.py) — exhaustive registry. The completeness test asserts every entry round-trips through `CortexFrameSerializer`.
-- `cortex/internal/protocol/protocol.go` — Go-side counterpart (envelope constants).
+- `sdk/go/wire/wire.go` — Go-side counterpart (envelope constants).

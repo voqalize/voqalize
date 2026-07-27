@@ -3,6 +3,13 @@ title: Voice protocol (Vql frames)
 description: The Vql* frame set, the wire framing, ack semantics, and the greeting handshake — the contract both sides speak.
 ---
 
+:::note
+This is the reference for the `Vql*` wire **as shipped today** — exactly the
+frames a brain receives now. (Voqalize maintains a separate, internal
+forward-looking protocol design; this page always describes the currently
+implemented contract.)
+:::
+
 The voice runtime and your brain exchange a small set of `Vql*` frames over one
 WebSocket per session. The SDKs wrap these as objects, so most brains never touch
 the wire directly — but the frame set *is* the contract, and this is the reference.

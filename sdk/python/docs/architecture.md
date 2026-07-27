@@ -164,7 +164,7 @@ The direct/`run_session` path is one socket per session. The Cortex fallback
 ([`outbound.py`](../src/voqalize/sdk/outbound.py)) instead opens **one** outbound
 WebSocket to the `wss://…/agent` URL and multiplexes many sessions over it,
 demuxed by a **16-byte raw `session_id` prefix** (matches
-[`cortex/internal/protocol/protocol.go`](../../cortex/internal/protocol/protocol.go)
+[`sdk/go/wire/wire.go`](../../go/wire/wire.go)
 `SessionIDLen`). Auth is `Authorization: Bearer <api_key>` (or a per-connect JWT
 via `authorization_provider`) + `X-Agent-Version`; Cortex resolves the credential
 to a pool key internally. A shared fair writer drains per-session outbound lanes in
@@ -182,8 +182,8 @@ propagates out as `PermanentClose`.
   session implicit in the URL. Identical to the PyGato↔Cortex `/s/` leg.
 - **Cortex** (`/agent`): `[16-byte session_id][1-byte direction][protobuf]`.
 
-The 1-byte direction is `0 = DOWNSTREAM`, `1 = UPSTREAM`. Every brain→wire frame
-goes DOWNSTREAM (`OUT_DIRECTION`); PyGato flips `ui_command` to UPSTREAM on its own
-read. Serialization is
+The 1-byte direction is `1 = DOWNSTREAM`, `2 = UPSTREAM` (matching pipecat's
+`FrameDirection`). Every brain→wire frame goes DOWNSTREAM (`OUT_DIRECTION`); PyGato
+flips `ui_command` to UPSTREAM on its own read. Serialization is
 [`CortexFrameSerializer`](../src/voqalize/sdk/wire/serializer.py) (protobuf); the
 frame vocabulary is documented in [`wire-protocol.md`](wire-protocol.md).
