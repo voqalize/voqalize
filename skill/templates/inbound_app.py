@@ -8,7 +8,8 @@ Run it:
 
     uvicorn inbound_app:app --host 0.0.0.0 --port 8080
 
-Then set the agent's brain_url (via the `set_brain_url` MCP tool) to where this is
+Then set the agent's brain_url (via `update_agent(tenant, agent_id, brain_url=...)`,
+or by passing `brain_url` to `create_agent` up front) to where this is
 reachable — `wss://your-host` in production, or `ws://127.0.0.1:8080` for local
 loopback. PyGato appends `/s/{session_id}`.
 

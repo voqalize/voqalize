@@ -7,12 +7,18 @@ The primary path is `inbound_app.py` — prefer it whenever you can expose a rou
 
 Run it:
 
-    export VOQALIZE_AGENT_SECRET=ak_live_...     # from create_agent (shown once)
-    export VOQALIZE_CORTEX_URL=wss://...         # the cortex_url from create_agent
+    export VOQALIZE_AGENT_SECRET=ak_live_...     # an ak_ agent credential (see below)
+    export VOQALIZE_CORTEX_URL=wss://...         # the platform's Cortex URL (see below)
     python run_cortex.py
 
-Then set the agent's brain_url (via the `set_brain_url` MCP tool) to that same
-`cortex_url` so PyGato routes sessions to this relay.
+Then set the agent's brain_url (via `update_agent(tenant, agent_id, brain_url=...)`)
+to that same Cortex URL so PyGato routes sessions to this relay.
+
+Neither VOQALIZE_AGENT_SECRET nor VOQALIZE_CORTEX_URL is mintable through the
+`voqalize` MCP tool surface today — `create_agent` returns a session `sk_` key,
+not an `ak_` agent credential, and there's no MCP tool for the latter. Get both
+from whoever provisions Cortex credentials for your tenant; this template
+assumes you already have them.
 """
 
 from __future__ import annotations
@@ -26,8 +32,8 @@ from brain import MyBrain  # your Brain subclass
 
 
 async def main() -> None:
-    api_key = os.environ["VOQALIZE_AGENT_SECRET"]  # ak_… returned by create_agent
-    cortex_url = os.environ["VOQALIZE_CORTEX_URL"]  # cortex_url returned by create_agent
+    api_key = os.environ["VOQALIZE_AGENT_SECRET"]  # ak_… agent credential (see module docstring)
+    cortex_url = os.environ["VOQALIZE_CORTEX_URL"]  # the platform's Cortex URL (see module docstring)
     await serve(MyBrain, api_key=api_key, cortex_url=cortex_url, version="1")
 
 

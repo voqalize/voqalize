@@ -31,7 +31,7 @@ import { VoqalAgent } from "@voqalize/client-react";
 export function Support() {
   return (
     <VoqalAgent
-      apiBase="https://api.voqalize.com/api/v1"
+      apiBase="https://app.voqalize.com/api/v1"
       tenantSlug="acme"
       publishableKey={import.meta.env.VITE_VOQAL_PK}
       agentId="06a2…"
@@ -45,10 +45,8 @@ export function Support() {
 ### The four required props
 
 - `apiBase` — control-plane root **including the API version**; the SDK appends
-  `/{tenantSlug}/sessions.create_and_start`. Production: `https://api.voqalize.com/api/v1`.
-  Behind a Vite/Next dev proxy, a relative `"/api/v1"` works too. (This is *not*
-  the Voqalize MCP server's `VOQALIZE_API_BASE`, which is the bare host with no
-  `/api/v1` — the MCP client adds the version + tenant itself.)
+  `/{tenantSlug}/sessions.create_and_start`. Production: `https://app.voqalize.com/api/v1`.
+  Behind a Vite/Next dev proxy, a relative `"/api/v1"` works too.
 - `tenantSlug` — your tenant slug (the same value you set as `VOQALIZE_TENANT`).
 - `publishableKey` — a `pk_…` key (origin-allowlisted; browser-safe).
 - `agentId` — `agent.id` from the MCP `create_agent` / `list_agents`.

@@ -1,10 +1,10 @@
 ---
 title: Demo gallery
-description: Nine complete, runnable voice apps — each a Brain plus a UI, and the reference for how real agents are built.
+description: Ten complete, runnable voice apps — each a Brain plus a UI, and the reference for how real agents are built.
 ---
 
 The [`demos/`](https://github.com/voqalize/voqalize/tree/main/demos) directory
-holds nine complete voice applications. Each is a real example, a live demo, and
+holds ten complete voice applications. Each is a real example, a live demo, and
 an integration test at once. They share one architecture, so reading two or three
 teaches the whole pattern.
 
@@ -41,6 +41,7 @@ The URL segment for each demo is its `name` (the first column below).
 | **`legal`** — Docket — Contract Review | An ambient copilot for in-house counsel reviewing a vendor contract, marking clauses on screen. | Ambient document-driving (comment, redline, insert a clause, route for approval); streaming the reader's position via **silent** events to ground ambiguous questions. |
 | **`lead_qual`** — Auric Gold Loan Advisor | A multilingual lead-qualification bot that walks an enquiry through to a qualified call. | **Voice-only, no screen.** Deterministic eligibility rules and **switching STT+TTS language mid-call** into another Indic language. |
 | **`aura`** — Aura Bank Support | An authenticated L1 banking-support agent that signs the customer in, reads their accounts, and drives on-screen how-to videos. | Secure sign-in, authenticated account access, journey-aware cross-sell, and driving on-screen how-to content. |
+| **`forge`** — Flowforge | A voice workflow studio where an ITSM/HR admin assembles, tests, and ships Service Request Workflows by talking to a copilot. | Block-based statechart editing by voice, a governed connector catalog, surfacing and resolving untested edge cases, and running tests live on screen. |
 
 ## Reading them
 
@@ -48,7 +49,7 @@ Start with **`travel`** — it's the most complete and the one both the Python a
 SDKs implement, so you can compare languages side by side. Then pick a demo whose
 *shape* matches what you're building:
 
-- **Screen-driving** (highlight, fill, navigate) → `shopping`, `servicing`, `legal`.
+- **Screen-driving** (highlight, fill, navigate) → `shopping`, `servicing`, `legal`, `forge`.
 - **Reading what the user shows the agent** → `support` (photo upload).
 - **Per-session scenario in the payload** → `interview_bot`, `sugar`.
 - **Authenticated account access** → `aura` (secure sign-in, then reads accounts).

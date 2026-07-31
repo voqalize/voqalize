@@ -129,7 +129,7 @@ import { VoqalAgent } from "@voqalize/client-react";
 export function App() {
   return (
     <VoqalAgent
-      apiBase="https://api.voqalize.com/api/v1"
+      apiBase="https://app.voqalize.com/api/v1"
       tenantSlug="<your-tenant-slug>"
       publishableKey={import.meta.env.VITE_VOQAL_PK}
       agentId="<agent.id>"
@@ -144,7 +144,7 @@ mute/end bar. Full options in [React client SDK](/docs/client/react/).
 
 :::caution[`apiBase` includes `/api/v1`]
 The React SDK's `apiBase` **includes** the `/api/v1` suffix
-(`https://api.voqalize.com/api/v1`) — the SDK appends `/{tenantSlug}/…` to it. Point
+(`https://app.voqalize.com/api/v1`) — the SDK appends `/{tenantSlug}/…` to it. Point
 it at the bare host instead and the browser session mint fails.
 :::
 

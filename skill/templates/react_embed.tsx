@@ -18,17 +18,15 @@
  *
  * Publishable keys are origin-allowlisted and safe in the browser — mint one with
  * the `create_api_key` MCP tool (kind="publishable", allowed_origins=[...]).
- * NEVER put an sk_/mk_ key in frontend code.
+ * NEVER put an sk_ key in frontend code.
  *
  * Fill in the four values below from your Voqalize agent:
  *   - PUBLISHABLE_KEY: the pk_… you minted
  *   - AGENT_ID:        agent.id from create_agent / list_agents
- *   - TENANT_SLUG:     your tenant slug (the same one you set as VOQALIZE_TENANT;
- *                      `whoami` echoes it back)
+ *   - TENANT_SLUG:     your tenant slug (the one `list_tenants` returned; pass
+ *                      it to every MCP tool)
  *   - API_BASE:        control-plane root INCLUDING the version — the React SDK
- *                      appends `/{tenantSlug}/…`. Prod: https://api.voqalize.com/api/v1
- *                      (note: this differs from the MCP server's VOQALIZE_API_BASE,
- *                      which is the bare host with no /api/v1).
+ *                      appends `/{tenantSlug}/…`. Prod: https://app.voqalize.com/api/v1
  */
 
 import { useState } from "react";
@@ -37,7 +35,7 @@ import { VoqalAgent } from "@voqalize/client-react";
 const PUBLISHABLE_KEY = "pk_live_REPLACE_ME";
 const AGENT_ID = "REPLACE_WITH_AGENT_ID";
 const TENANT_SLUG = "your-tenant-slug";
-const API_BASE = "https://api.voqalize.com/api/v1";
+const API_BASE = "https://app.voqalize.com/api/v1";
 
 interface CartLine {
   sku: string;

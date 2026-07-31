@@ -25,7 +25,7 @@ import { VoqalAgent } from "@voqalize/client-react";
 export function Support() {
   return (
     <VoqalAgent
-      apiBase="https://api.voqalize.com/api/v1"
+      apiBase="https://app.voqalize.com/api/v1"
       tenantSlug="acme"
       publishableKey={import.meta.env.VITE_VOQAL_PK}
       agentId="06a2…"
@@ -36,8 +36,8 @@ export function Support() {
 
 :::caution[`apiBase` includes `/api/v1`]
 The React SDK's `apiBase` is the **versioned** root
-(`https://api.voqalize.com/api/v1`), unlike the MCP server's `VOQALIZE_API_BASE`,
-which is the bare host. Getting these confused is the most common wiring mistake.
+(`https://app.voqalize.com/api/v1`). Point it at the bare host and the browser
+session mint fails — this is the most common wiring mistake.
 :::
 
 ## The hook: `useVoqalSession`
@@ -52,7 +52,7 @@ const session = useVoqalSession(opts: UseVoqalSessionOptions): VoqalSessionHandl
 
 | Field | Type | Notes |
 |---|---|---|
-| `apiBase` | `string` (required) | Control-plane root incl. version, e.g. `"/api/v1"` or `"https://api.voqalize.com/api/v1"`. |
+| `apiBase` | `string` (required) | Control-plane root incl. version, e.g. `"/api/v1"` or `"https://app.voqalize.com/api/v1"`. |
 | `tenantSlug` | `string` (required) | Your tenant slug. |
 | `publishableKey` | `string` (required) | `pk_…` key (origin-allowlisted, browser-safe). |
 | `agentId` | `string` (required) | The agent's id. |

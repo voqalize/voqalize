@@ -65,4 +65,4 @@ call to your LLM and you have a real one. See the [Quickstart](/docs/start/quick
   and the `brain_url`.
 - **[Build a brain: Python](/docs/brain/python/)** / **[Go](/docs/brain/go/)** —
   the full SDK surface.
-- **[Demo gallery](/docs/demos/gallery/)** — nine complete, runnable voice apps.
+- **[Demo gallery](/docs/demos/gallery/)** — ten complete, runnable voice apps.

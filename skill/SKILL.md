@@ -67,7 +67,7 @@ This is the one real decision. **Default to inbound.**
 |---|---|---|
 | Who dials whom | PyGato dials **into** your brain | Your brain dials **out** to Cortex |
 | You run | one authenticated `wss://` route (like any webhook) | a process holding an outbound socket |
-| `brain_url` | your route: `wss://your-host/…` | the `cortex_url` from `create_agent` |
+| `brain_url` | your route: `wss://your-host/…` | the platform's single Cortex URL — same for every agent, no per-agent path |
 | Use when | you can expose an inbound HTTPS/WSS endpoint (you already run a web backend) | serverless/FaaS, a laptop, or strict egress-only / air-gapped networks that **can't** accept inbound |
 | Template | `templates/inbound_app.py` (FastAPI) | `templates/run_cortex.py` |
 
@@ -75,17 +75,28 @@ Rule of thumb: **if they already run a web/mobile backend, use inbound** — one
 route is trivial and there's no relay in the path. Only reach for Cortex when an
 inbound endpoint is genuinely impossible.
 
+⚠️ **Cortex isn't self-serviceable through this MCP tool surface yet.** A Cortex
+brain authenticates with an `ak_…` agent credential (not the `sk_…` this skill's
+`create_agent` mints — see Step 3), and today the only code path that mints an
+`ak_` + hands back the Cortex URL is the control-plane REST call
+`POST /api/v1/{tenant}/agents.create`, which is gated on an interactive console
+browser session — no MCP tool exposes it. If a developer genuinely needs Cortex,
+say so plainly (get the `ak_`/Cortex URL from whoever provisions them for the
+tenant) rather than improvising a working-looking flow — default to inbound.
+
 ## Step 3 — Create the agent (MCP)
 
 Call the MCP tool `create_agent` with your `tenant` slug, a `name` (and optional
 `description`, and `brain_url` if you already have it). The response is
-`{agent, agent_secret, cortex_url}`:
+`{agent, session_key}`:
 
 - `agent.id` — you'll need it to set the brain URL.
-- `agent_secret` (`ak_…`) — **only for the Cortex path**; it's the key the
-  outbound brain authenticates with. Shown once — if using Cortex, capture it now
-  into the brain's env (never commit it). Inbound brains ignore it.
-- `cortex_url` — the URL a Cortex brain dials.
+- `session_key.value` (`sk_…`) — a tenant-scoped secret, shown once, that your
+  own backend can use as a Bearer token to start test sessions
+  (`POST /api/v1/{tenant}/sessions.create_and_start`). Store it now — never
+  commit it. This is **not** the Cortex `ak_` credential (see the callout in
+  Step 2) — it works for both inbound and Cortex agents, but only for starting
+  sessions, not for the Cortex outbound leg itself.
 
 You can pass `brain_url` to `create_agent` up front, or leave it and set it in
 step 5.
@@ -106,9 +117,12 @@ laptop), expose the local brain with a tunnel:
   `cloudflared tunnel --url http://localhost:8080` — and use the `wss://…` URL it
   prints as your `brain_url` (Step 5). PyGato dials `{that}/s/{session_id}`.
 - **Cortex:** no tunnel needed — the brain dials *out*. Run
-  `templates/run_cortex.py` with `VOQALIZE_AGENT_SECRET` (the `ak_…`) and
-  `VOQALIZE_CORTEX_URL` (the `cortex_url`) exported. This is why Cortex exists:
-  brains that can't accept inbound (a laptop with no public URL) still work.
+  `templates/run_cortex.py` with `VOQALIZE_AGENT_SECRET` (an `ak_…` agent
+  credential) and `VOQALIZE_CORTEX_URL` (the platform's Cortex URL) exported.
+  Neither is mintable through this MCP tool surface today (see Step 2's
+  callout) — get both from whoever provisions Cortex credentials for the
+  tenant. This is why Cortex exists: brains that can't accept inbound (a
+  laptop with no public URL) still work.
 
 Then set the brain URL (Step 5) and open the agent in the Voqalize console
 Playground to talk to it. (Deploying for real? Skip the tunnel — give the brain a
@@ -122,7 +136,8 @@ tool:
 
 - Inbound: your route's base — PyGato appends `/s/{session_id}`. `wss://` in
   production; `ws://` allowed only for `localhost`/`127.0.0.1`.
-- Cortex: the `cortex_url` from step 3.
+- Cortex: the platform's Cortex URL (not returned by `create_agent` — see
+  Step 2's callout).
 
 An empty `brain_url` falls back to the hosted `welcome` demo brain, so a bare
 agent still greets — but to serve *your* brain you must set this.
@@ -143,7 +158,7 @@ agent still greets — but to serve *your* brain you must set this.
    - `tenantSlug` — your tenant slug (the one from `list_tenants` that you pass to
      every MCP tool).
    - `apiBase` — the control-plane root **including the API version**; the React
-     SDK appends `/{tenantSlug}/…`. Production: `https://api.voqalize.com/api/v1`.
+     SDK appends `/{tenantSlug}/…`. Production: `https://app.voqalize.com/api/v1`.
      ⚠️ Point it at the bare host (no `/api/v1`) and the browser session mint fails.
 
 <a id="ui-actions-the-two-way-contract"></a>

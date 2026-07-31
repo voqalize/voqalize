@@ -77,7 +77,7 @@ non-loopback host).
 
 | Tool | Signature | Does |
 |---|---|---|
-| `create_agent` | `(tenant, name, description="", brain_url="") -> dict` | Create an agent. Returns `{agent, agent_secret (ak_…, once), cortex_url}`. |
+| `create_agent` | `(tenant, name, description="", brain_url="") -> dict` | Create an agent. Returns `{agent, session_key (sk_…, once)}`. |
 | `get_agent` | `(tenant, agent_id) -> dict` | One agent, incl. STT/TTS config + `brain_url`. |
 | `list_agents` | `(tenant, status="", limit=20) -> dict` | List agents; optional `draft\|active\|archived` filter. |
 | `update_agent` | `(tenant, agent_id, name="", description="", brain_url="") -> dict` | Rename, re-describe, and/or point the brain at a WS URL. |
@@ -117,7 +117,7 @@ walks the flow:
 3. **Pick the transport** — inbound (primary) vs. Cortex (fallback). Default to
    [inbound](/docs/deploy/brain-url/).
 4. **Create the agent** — `create_agent(tenant, name, brain_url=…)` →
-   `{agent, agent_secret, cortex_url}`.
+   `{agent, session_key}`.
 5. **Run + test** — run the brain locally behind a tunnel (inbound) or dial out
    (Cortex), then talk to it in the console Playground.
 6. **Wire the `brain_url`** — via `create_agent` up front or `update_agent` later.

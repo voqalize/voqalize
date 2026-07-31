@@ -22,7 +22,7 @@ export interface VoqalPipelineConfig {
 
 /** Options for {@link createSession}. */
 export interface CreateSessionOptions {
-  /** Versioned API root, e.g. `"/api/v1"` or `"https://api.voqalize.com/v1"`. */
+  /** Versioned API root, e.g. `"/api/v1"` or `"https://app.voqalize.com/api/v1"`. */
   apiBase: string;
   /** Tenant slug for the `/{slug}/...` path. */
   tenantSlug: string;
