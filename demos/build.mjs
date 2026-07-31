@@ -24,7 +24,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { cpSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,6 +51,43 @@ function buildApp(appDir, outDir, env = {}) {
   cpSync(join(appDir, "dist"), outDir, { recursive: true });
 }
 
+/** Every file under a demo's `src/`, concatenated — enough for a coarse grep. */
+function readSource(appDir) {
+  const walk = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(join(dir, e.name)) : [readFileSync(join(dir, e.name), "utf8")],
+    );
+  return walk(join(appDir, "src")).join("\n");
+}
+
+/**
+ * Guard against the regression where a demo renders Tailwind-styled voice-ui-kit
+ * components but never imports the kit's stylesheet — Vite then emits no CSS
+ * chunk at all and the widget renders as raw browser defaults. Deliberately
+ * coarse: if the source either imports a `voice-ui-kit/styles*` bundle or
+ * renders `UserAudioControl`, the build output must contain at least one CSS
+ * asset.
+ */
+function assertStylesheetShipped(name, appDir, outDir) {
+  const src = readSource(appDir);
+  const needsCss =
+    /@pipecat-ai\/voice-ui-kit\/styles/.test(src) || /<UserAudioControl[\s/>]/.test(src);
+  if (!needsCss) return;
+  const assets = join(outDir, "assets");
+  const css = readdirSync(assets, { withFileTypes: true }).filter(
+    (e) => e.isFile() && e.name.endsWith(".css"),
+  );
+  if (css.length === 0) {
+    throw new Error(
+      `${name}: uses @pipecat-ai/voice-ui-kit UI but built no CSS asset — ` +
+        `the kit's components will render unstyled. Import ` +
+        `"@pipecat-ai/voice-ui-kit/styles.scoped" and wrap the widget in a ` +
+        `.vkui-root element.`,
+    );
+  }
+  console.log(`  ✓ ${name}: voice-ui-kit stylesheet shipped (${css.map((e) => e.name).join(", ")})`);
+}
+
 // 1. The SDK every demo links to by path — build first so `file:` deps see it.
 run("pnpm install --ignore-workspace", join(repoRoot, "sdk", "react"));
 run("pnpm build", join(repoRoot, "sdk", "react"));
@@ -63,11 +100,14 @@ mkdirSync(distDir, { recursive: true });
 for (const name of demoNames) {
   console.log(`\n=== ${name} ===`);
   const up = name.toUpperCase();
-  buildApp(join(demosDir, name, "frontend"), join(distDir, "demos", name), {
+  const appDir = join(demosDir, name, "frontend");
+  const outDir = join(distDir, "demos", name);
+  buildApp(appDir, outDir, {
     VITE_TENANT: tenant,
     VITE_AGENT_ID: process.env[`VITE_${up}_AGENT`] ?? "",
     VITE_PUBLISHABLE_KEY: process.env[`VITE_${up}_PK`] ?? "",
   });
+  assertStylesheetShipped(name, appDir, outDir);
 }
 
 console.log(`\n✓ assembled ${demoNames.length} demos → ${distDir.replace(repoRoot, ".")}`);

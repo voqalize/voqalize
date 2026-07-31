@@ -26,6 +26,10 @@ import {
   CircularWaveform,
   UserAudioControl,
 } from "@pipecat-ai/voice-ui-kit";
+// The kit ships Tailwind — without its stylesheet its components render as raw
+// browser defaults. We take the *scoped* bundle (everything under `.vkui-root`)
+// so the kit's preflight can't reset this demo's hand-rolled page chrome.
+import "@pipecat-ai/voice-ui-kit/styles.scoped";
 import { useVoqalSession, type VoqalBotState } from "@voqalize/client-react";
 import { useOrders } from "./store";
 import { config } from "./config";
@@ -196,12 +200,17 @@ export function ReturnsAssistant() {
                   className="os-assistant-controls"
                   style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 6, width: "100%" }}
                 >
-                  <UserAudioControl
-                    size="lg"
-                    dropdownMenuLabel="Audio devices"
-                    microphoneLabel="Microphone"
-                    speakerLabel="Speaker"
-                  />
+                  {/* `vkui-root` scopes the kit's CSS to just this control;
+                      `voice-ui-kit` is the element the kit portals its device
+                      dropdown into, so the menu lands inside the scope too. */}
+                  <div className="vkui-root voice-ui-kit" style={{ display: "flex" }}>
+                    <UserAudioControl
+                      size="lg"
+                      dropdownMenuLabel="Audio devices"
+                      microphoneLabel="Microphone"
+                      speakerLabel="Speaker"
+                    />
+                  </div>
                   <button
                     onClick={hangUp}
                     title="End call"
