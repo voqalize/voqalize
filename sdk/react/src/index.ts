@@ -7,6 +7,10 @@
  *   - {@link createSession} — mint + start a session with a `pk_` key.
  *   - {@link useVoqalSession} / {@link VoqalAgent} — the React surface that ties
  *     the two together and manages the `PipecatClient` lifecycle.
+ *
+ * Plus one piece of UI: {@link AmbientPresence}, the full-viewport glow that makes
+ * the agent read as a property of the page rather than a widget in a corner. It
+ * ships no stylesheet — drop it in and pass a palette.
  */
 
 export {
@@ -32,3 +36,10 @@ export {
 } from "./useVoqalSession";
 
 export { VoqalAgent, type VoqalAgentProps } from "./VoqalAgent";
+
+export {
+  AmbientPresence,
+  type AmbientPresenceProps,
+  type AmbientPresencePalette,
+  type AmbientPresenceBeam,
+} from "./AmbientPresence";
