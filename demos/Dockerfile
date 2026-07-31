@@ -19,7 +19,6 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 # Workspace + member manifests for a cached dependency layer.
 COPY pyproject.toml uv.lock ./
 COPY sdk/python/pyproject.toml ./sdk/python/
-COPY mcp/pyproject.toml ./mcp/
 COPY demos/pyproject.toml ./demos/
 
 # Path-dep source (sdk/python) + the demos tree: the shared backend package
