@@ -47,7 +47,7 @@ export function Support() {
 - `apiBase` — control-plane root **including the API version**; the SDK appends
   `/{tenantSlug}/sessions.create_and_start`. Production: `https://app.voqalize.com/api/v1`.
   Behind a Vite/Next dev proxy, a relative `"/api/v1"` works too.
-- `tenantSlug` — your tenant slug (the same value you set as `VOQALIZE_TENANT`).
+- `tenantSlug` — your tenant slug (shown by the MCP `whoami` / `list_tenants` tools).
 - `publishableKey` — a `pk_…` key (origin-allowlisted; browser-safe).
 - `agentId` — `agent.id` from the MCP `create_agent` / `list_agents`.
 

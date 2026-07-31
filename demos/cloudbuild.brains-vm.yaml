@@ -62,20 +62,22 @@ substitutions:
 steps:
   # 1. Build the brains-only image (pure Python; no build-args). Context is the
   #    repo root — the backend depends on in-repo sdk/python by path.
-  #    Two tags: the immutable $SHORT_SHA is what the node actually pins (this
-  #    is what makes rollback a one-liner); ${_ENV}-current is a human pointer.
-  #    Only $SHORT_SHA is ever deployed.
+  #    Two tags: an immutable per-revision tag is what the node actually pins
+  #    (this is what makes rollback a one-liner); ${_ENV}-current is a human
+  #    pointer. Only the immutable tag is ever deployed. $SHORT_SHA is empty on
+  #    a manual `gcloud builds submit`, so fall back to a timestamp tag the same
+  #    way cloudbuild.web.yaml does.
   - name: 'gcr.io/cloud-builders/docker'
     id: build
+    entrypoint: bash
     args:
-      - build
-      - -t
-      - '${_IMAGE}:$SHORT_SHA'
-      - -t
-      - '${_IMAGE}:${_ENV}-current'
-      - -f
-      - demos/Dockerfile
-      - .
+      - -c
+      - |
+        set -euo pipefail
+        TAG="${SHORT_SHA}"
+        if [ -z "$$TAG" ]; then TAG="manual-$$(date +%s)"; fi
+        echo "$$TAG" > /workspace/image_tag
+        docker build -t "${_IMAGE}:$$TAG" -t '${_IMAGE}:${_ENV}-current' -f demos/Dockerfile .
 
   - name: 'gcr.io/cloud-builders/docker'
     id: push
@@ -85,7 +87,8 @@ steps:
       - -c
       - |
         set -euo pipefail
-        docker push '${_IMAGE}:$SHORT_SHA'
+        TAG="$$(cat /workspace/image_tag)"
+        docker push "${_IMAGE}:$$TAG"
         docker push '${_IMAGE}:${_ENV}-current'
 
   # 2. Roll the container onto each node. All the interesting logic (secrets,
@@ -105,10 +108,11 @@ steps:
         chmod 600 /workspace/brains_deploy_key
         mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/known_hosts
 
+        TAG="$$(cat /workspace/image_tag)"
         IFS=',' read -ra HOSTS <<< '${_BRAIN_HOSTS}'
         for HOST in "$${HOSTS[@]}"; do
           bash demos/bin/brains-node-deploy.sh \
-            "$$HOST" '${_BRAINS_PORT}' '${_IMAGE}:$SHORT_SHA' \
+            "$$HOST" '${_BRAINS_PORT}' "${_IMAGE}:$$TAG" \
             /workspace/brains_deploy_key '${_PROJECT}' '${_REGION}'
         done
 
