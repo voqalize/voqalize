@@ -24,7 +24,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,28 +61,73 @@ function readSource(appDir) {
 }
 
 /**
+ * The one voice-ui-kit export that renders no DOM of its own — it just attaches
+ * the bot's audio track to a hidden `<audio>`. Every demo keeps it; none of them
+ * needs the kit's stylesheet for it.
+ */
+const HEADLESS_KIT_EXPORTS = new Set(["BotAudioOutput"]);
+
+/** Named bindings a demo imports from `@pipecat-ai/voice-ui-kit`. */
+function kitImports(src) {
+  const names = new Set();
+  const re = /import\s*\{([^}]*)\}\s*from\s*["']@pipecat-ai\/voice-ui-kit["']/g;
+  for (const m of src.matchAll(re)) {
+    for (const part of m[1].split(",")) {
+      const binding = part.trim().split(/\s+as\s+/).pop()?.trim();
+      if (binding) names.add(binding);
+    }
+  }
+  return names;
+}
+
+/**
  * Guard against the regression where a demo renders Tailwind-styled voice-ui-kit
- * components but never imports the kit's stylesheet — Vite then emits no CSS
- * chunk at all and the widget renders as raw browser defaults. Deliberately
- * coarse: if the source either imports a `voice-ui-kit/styles*` bundle or
- * renders `UserAudioControl`, the build output must contain at least one CSS
- * asset.
+ * components but never imports the kit's stylesheet — the components then render
+ * as raw browser defaults.
+ *
+ * Since the catalog moved to the shared `AmbientPresence` ring (Release 3), the
+ * demos render *no* styled kit component: they import only the headless
+ * `BotAudioOutput`, so none of them imports a kit stylesheet and none of them
+ * needs to. The old trigger (`UserAudioControl` in the source) therefore matches
+ * nothing and would silently pass a demo that reintroduced, say, a
+ * `<ControlBar>` — so the check now derives the trigger from the imports instead
+ * of a hardcoded component name: **any** binding taken from the kit that isn't
+ * on the headless allowlist and is actually rendered as JSX means styled kit UI
+ * is on the page, and then both the stylesheet import and a built CSS asset are
+ * required.
  */
 function assertStylesheetShipped(name, appDir, outDir) {
   const src = readSource(appDir);
-  const needsCss =
-    /@pipecat-ai\/voice-ui-kit\/styles/.test(src) || /<UserAudioControl[\s/>]/.test(src);
-  if (!needsCss) return;
+  const styled = [...kitImports(src)].filter(
+    (n) => !HEADLESS_KIT_EXPORTS.has(n) && new RegExp(`<${n}[\\s/>]`).test(src),
+  );
+  const importsStyles = /@pipecat-ai\/voice-ui-kit\/styles/.test(src);
+
+  if (styled.length === 0) {
+    if (importsStyles) {
+      console.log(`  · ${name}: imports the kit stylesheet but renders no kit UI — drop the import`);
+    }
+    return;
+  }
+
+  if (!importsStyles) {
+    throw new Error(
+      `${name}: renders styled @pipecat-ai/voice-ui-kit components ` +
+        `(${styled.join(", ")}) but never imports the kit's stylesheet — they ` +
+        `will render unstyled. Import "@pipecat-ai/voice-ui-kit/styles.scoped" ` +
+        `and wrap those components in a .vkui-root element.`,
+    );
+  }
+
   const assets = join(outDir, "assets");
-  const css = readdirSync(assets, { withFileTypes: true }).filter(
+  const css = (existsSync(assets) ? readdirSync(assets, { withFileTypes: true }) : []).filter(
     (e) => e.isFile() && e.name.endsWith(".css"),
   );
   if (css.length === 0) {
     throw new Error(
-      `${name}: uses @pipecat-ai/voice-ui-kit UI but built no CSS asset — ` +
-        `the kit's components will render unstyled. Import ` +
-        `"@pipecat-ai/voice-ui-kit/styles.scoped" and wrap the widget in a ` +
-        `.vkui-root element.`,
+      `${name}: renders styled @pipecat-ai/voice-ui-kit components ` +
+        `(${styled.join(", ")}) but built no CSS asset — the kit's stylesheet ` +
+        `import was tree-shaken or the build dropped it.`,
     );
   }
   console.log(`  ✓ ${name}: voice-ui-kit stylesheet shipped (${css.map((e) => e.name).join(", ")})`);
