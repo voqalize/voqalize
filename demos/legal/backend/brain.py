@@ -131,8 +131,9 @@ Open with ONE brief, quiet line acknowledging you're following along on the {MAT
 
 # Fixed opener — spoken straight to TTS with no LLM call, so the demo greets the
 # instant the session connects (the model's ~1s first token is off the start path).
-# A quiet acknowledgement, not a chat-assistant greeting.
-_GREETING = f"I've got the {MATTER['counterparty']} MSA open and I'm following along."
+# A quiet acknowledgement, not a chat-assistant greeting. Drops the ", Inc."
+# suffix: the TTS mispronounces "Inc.".
+_GREETING = f"I've got the {MATTER['counterparty'].removesuffix(', Inc.')} MSA open and I'm following along."
 
 
 # ── Nested JSON-schema fragments (the LLM-generated data shapes) ───────────────
