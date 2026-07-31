@@ -146,8 +146,9 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
   const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } = session;
   const status = CONNECTION_STATUS[connectionState];
 
-  // Mirror the SDK's bot/connection state into the store — AmbientGlow and the
-  // header presence control read them from `useForge()`.
+  // Mirror the SDK's bot/connection state into the store — the header presence
+  // control reads them from `useForge()`. (The ambient ring itself takes them as
+  // props, straight off the session.)
   useEffect(() => {
     setBotState(botState);
   }, [botState, setBotState]);

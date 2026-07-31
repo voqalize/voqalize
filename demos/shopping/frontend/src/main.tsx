@@ -2,9 +2,14 @@
  * Shopping demo entrypoint — "Voqal Mobile".
  *
  * A mock mobile-phone store with the "Mobile Expert" voice agent. The store UI
- * and the voice widget share one `MobileShopProvider`, so the agent and the
+ * and the voice layer share one `MobileShopProvider`, so the agent and the
  * shopper drive the same screen; state-based navigation keeps the live call
  * alive across screens. The agent drives the page via `ui_command` messages.
+ *
+ * `MobileExpert` owns the session and hands its one presence control back up as
+ * a render-prop, so the store keeps ownership of its own top bar — the voice
+ * layer is ambient (a ring around the whole page) plus one button in the chrome,
+ * never a docked panel.
  */
 
 import { StrictMode } from "react";
@@ -26,8 +31,7 @@ function ShoppingDemo() {
       }}
     >
       <MobileShopProvider>
-        <MobileShopApp />
-        <MobileExpert />
+        <MobileExpert>{(presence) => <MobileShopApp presence={presence} />}</MobileExpert>
       </MobileShopProvider>
     </div>
   );

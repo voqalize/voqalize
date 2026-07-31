@@ -40,7 +40,7 @@ function Studio({ presence }: { presence: ReactNode }) {
 function ForgeDemo() {
   // VoiceLayer owns the session and hands the studio its header presence control,
   // so the copilot is part of the studio's own chrome (top-bar mic + the
-  // app-wide AmbientGlow), not a bolted-on widget.
+  // app-wide ambient presence ring), not a bolted-on widget.
   return (
     <ForgeProvider>
       <VoiceLayer>{(presence) => <Studio presence={presence} />}</VoiceLayer>

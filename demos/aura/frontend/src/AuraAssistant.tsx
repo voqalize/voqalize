@@ -1,29 +1,35 @@
 /**
- * The Aura Bank support voice widget.
+ * The Aura Bank support voice layer — "Aria" as an ambient property of the whole
+ * help centre, not a docked chat widget.
  *
- * A bottom-right launcher that opens an embedded voice panel. The entire session
- * lifecycle — mint against the control plane, WebRTC transport, mic control,
- * bot-state — is the public SDK's {@link useVoqalSession} from
- * `@voqalize/client-react`, driven by a publishable (`pk_`) key. While live:
+ * The entire session lifecycle — mint against the control plane, WebRTC
+ * transport, mic control, bot-state — is the public SDK's {@link useVoqalSession}
+ * from `@voqalize/client-react`, driven by a publishable (`pk_`) key. While live:
  *   - the hook's `onServerMessage` replays the assistant's `ui_command` messages
  *     onto the shared Aura store, so the agent drives the help centre + video;
  *   - a debounced `state_sync` echoes a compact `screen_state` snapshot back
  *     (via `sendMessage`) so the assistant always knows what's on screen.
+ *
+ * Voice *status* lives in the shared `AmbientPresence` ring (the catalog-wide
+ * treatment, in Aura's indigo) — a full-viewport edge glow, legible peripherally
+ * while the customer reads the page. The only chrome is one small control in the
+ * bank's own navigation row: a label, a mic button that begins the call and then
+ * doubles as a mute toggle, and a small "end" beside it. It reaches the header
+ * through the `children` render-prop, so `pages.tsx` keeps owning its own chrome.
  *
  * Mounted once at the route level; navigation is React state, so the call
  * survives screen changes. Voice runs English STT with OmniVoice English TTS
  * (pipeline declared in this demo's src/config.ts).
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { PipecatClientProvider, usePipecatClientMediaTrack } from '@pipecat-ai/client-react';
-import { BotAudioOutput, CircularWaveform, UserAudioControl } from '@pipecat-ai/voice-ui-kit';
-// The kit ships Tailwind — without its stylesheet its components render as raw
-// browser defaults. We take the *scoped* bundle (everything under `.vkui-root`)
-// so the kit's preflight can't reset this demo's hand-rolled page chrome.
-import '@pipecat-ai/voice-ui-kit/styles.scoped';
+import { useCallback, useEffect, type ReactNode } from 'react';
+import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/client-react';
+import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
+import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
 import {
+  AmbientPresence,
   useVoqalSession,
+  type AmbientPresencePalette,
   type VoqalBotState,
   type VoqalConnectionState,
 } from '@voqalize/client-react';
@@ -35,14 +41,26 @@ import { config } from './config';
 const AURA = config;
 
 const PRIMARY = '#4F46E5';
-const PRIMARY_DARK = '#3730A3';
 const ACCENT = '#8B5CF6';
 
-type Status = 'idle' | 'connecting' | 'live' | 'error';
-type BotState = 'listening' | 'thinking' | 'speaking';
+// Aura's reading of the shared presence ring: the bank's own indigo while Aria
+// listens, its violet accent while she answers, and the amber this demo has
+// always used for the "working on it" dot while she reasons — a hue shift the
+// customer catches at the edge of vision without looking away from the article.
+// Offline is the page's own hairline border violet-grey: present, but asleep.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: PRIMARY,
+  listening: PRIMARY,
+  thinking: '#F0A020',
+  speaking: ACCENT,
+  offline: '#E6E2F2',
+};
 
-// The widget chrome speaks the source's `live` vocabulary; the SDK hook reports
-// `connected`/`disconnected`. Map the transport state onto the chrome's.
+type Status = 'idle' | 'connecting' | 'live' | 'error';
+
+// The control's chrome speaks the source's `live` vocabulary; the SDK hook
+// reports `connected`/`disconnected`. Map the transport state onto the chrome's.
+// (The ring itself takes the SDK's own states straight off the hook.)
 const CONNECTION_STATUS: Record<VoqalConnectionState, Status> = {
   idle: 'idle',
   connecting: 'connecting',
@@ -51,93 +69,127 @@ const CONNECTION_STATUS: Record<VoqalConnectionState, Status> = {
   error: 'error',
 };
 
-// The hook's bot state adds an `idle` the chrome never rendered; fold it into the
-// source's default resting state (`listening`).
-const chromeBot = (b: VoqalBotState): BotState => (b === 'idle' ? 'listening' : b);
-
-function BotVisualizer({ botState }: { botState: BotState }) {
-  const botTrack = usePipecatClientMediaTrack('audio', 'bot');
-  return <CircularWaveform audioTrack={botTrack} isThinking={botState === 'thinking'} size={116} color1={PRIMARY} color2={ACCENT} />;
-}
-
-// UI chrome and the assistant both speak English.
-const STATE_LABEL: Record<BotState, string> = {
-  listening: 'Listening…',
-  thinking: 'Thinking…',
+// The hook's resting `idle` is, from the customer's side, still "she's hearing
+// me" — fold it into this demo's long-standing default label.
+const STATE_LABEL: Record<VoqalBotState, string> = {
+  idle: 'Listening',
+  listening: 'Listening',
+  thinking: 'Thinking',
   speaking: 'Speaking',
 };
-const STATE_DOT: Record<BotState, string> = {
-  listening: '#34C759',
-  thinking: '#F0A020',
-  speaking: ACCENT,
-};
 
-// Collapsed pill — keeps the call fully live (provider + hook stay mounted in
-// the parent), just frees the screen. Click to expand.
-function MinimizedBar({
-  botState,
-  live,
-  onExpand,
-  onEnd,
-}: {
-  botState: BotState;
-  live: boolean;
-  onExpand: () => void;
-  onEnd: () => void;
-}) {
+// ── The one voice control, in Aura's own navigation row ───────────────────────
+
+function BeginControl({ status, error, onBegin }: { status: Status; error: string; onBegin: () => void }) {
+  const connecting = status === 'connecting';
   return (
-    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1200, display: 'flex', alignItems: 'center' }}>
+    <div className="aura-presence">
+      <span className="aura-presence-label">
+        {connecting ? 'Connecting…' : status === 'error' ? error || 'Connection issue' : 'Ask Aura Support'}
+      </span>
+      {connecting ? (
+        <button className="aura-presence-btn is-connecting" disabled title="Connecting…">
+          <Loader2 size={16} className="aura-spin" />
+        </button>
+      ) : (
+        <button className="aura-presence-btn" onClick={onBegin} title="Ask Aura Support">
+          <Mic size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Live: the mic doubles as a mute toggle; a small secondary control ends the call.
+function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () => void }) {
+  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
+  return (
+    <div className="aura-presence">
+      <span className="aura-presence-label">{isMicEnabled ? STATE_LABEL[botState] : 'Muted'}</span>
       <button
-        onClick={onExpand}
-        title="Expand"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          background: `linear-gradient(135deg, ${PRIMARY} 0%, ${ACCENT} 100%)`,
-          color: '#fff',
-          border: 'none',
-          borderRadius: '24px 0 0 24px',
-          padding: '11px 14px 11px 16px',
-          fontWeight: 800,
-          fontSize: 13.5,
-          cursor: 'pointer',
-          boxShadow: '0 6px 20px rgba(79,70,229,.40)',
-        }}
+        className={`aura-presence-btn is-live glow-${botState} ${isMicEnabled ? '' : 'is-muted'}`}
+        onClick={() => enableMic(!isMicEnabled)}
+        title={isMicEnabled ? 'Mute' : 'Unmute'}
       >
-        <span
-          aria-hidden
-          className={live && botState !== 'listening' ? 'aura-step-active' : undefined}
-          style={{ width: 9, height: 9, borderRadius: '50%', background: live ? STATE_DOT[botState] : '#fff' }}
-        />
-        Aura Support
-        <span style={{ fontWeight: 600, opacity: 0.9 }}>· {live ? STATE_LABEL[botState] : 'Connecting…'}</span>
-        <span aria-hidden style={{ marginLeft: 4, fontSize: 12, opacity: 0.9 }}>⤢</span>
+        {isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />}
       </button>
-      <button
-        onClick={onEnd}
-        title="End call"
-        style={{
-          background: PRIMARY_DARK,
-          color: '#fff',
-          border: 'none',
-          borderRadius: '0 24px 24px 0',
-          padding: '11px 14px',
-          fontWeight: 800,
-          fontSize: 13.5,
-          cursor: 'pointer',
-          boxShadow: '0 6px 20px rgba(79,70,229,.40)',
-        }}
-      >
-        ✕
+      <button className="aura-presence-end" onClick={onEnd} title="End call">
+        <PhoneOff size={13} />
       </button>
     </div>
   );
 }
 
-export function AuraAssistant() {
-  const [open, setOpen] = useState(false);
-  const [minimized, setMinimized] = useState(false);
+function PresenceStyles() {
+  return (
+    <style>{`
+      .aura-presence {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex: none;
+      }
+      .aura-presence-label {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #6E6470;
+        white-space: nowrap;
+      }
+      .aura-presence-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: none;
+        background: linear-gradient(135deg, ${PRIMARY} 0%, ${ACCENT} 100%);
+        color: #fff;
+        cursor: pointer;
+        flex: none;
+        transition: transform .15s ease, box-shadow .2s ease, background .15s ease;
+      }
+      .aura-presence-btn:hover { transform: scale(1.05); }
+      .aura-presence-btn:active { transform: scale(0.97); }
+      .aura-presence-btn.is-connecting {
+        background: none;
+        color: ${PRIMARY};
+        cursor: default;
+      }
+      .aura-presence-btn.is-connecting:hover { transform: none; }
+      .aura-presence-btn.is-live { box-shadow: 0 0 0 4px rgba(79,70,229,.16); }
+      .aura-presence-btn.is-live.glow-thinking { box-shadow: 0 0 0 4px rgba(240,160,32,.28); }
+      .aura-presence-btn.is-live.glow-speaking { box-shadow: 0 0 0 5px rgba(139,92,246,.30); }
+      .aura-presence-btn.is-muted {
+        background: #FFFFFF;
+        border: 1.5px solid #E6E2F2;
+        color: #6E6470;
+        box-shadow: none;
+      }
+      .aura-presence-end {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: none;
+        background: none;
+        color: #A79FB2;
+        cursor: pointer;
+        flex: none;
+        transition: color .15s ease, background .15s ease;
+      }
+      .aura-presence-end:hover { color: ${PRIMARY}; background: #EEF0FE; }
+      .aura-spin { animation: aura-spin .9s linear infinite; }
+      @keyframes aura-spin { to { transform: rotate(360deg); } }
+    `}</style>
+  );
+}
+
+// ── Session owner ─────────────────────────────────────────────────────────────
+
+export function AuraAssistant({ children }: { children: (presence: ReactNode) => ReactNode }) {
   const { handleUiCommand, registerAgentSend, snapshot, rev } = useAura();
 
   // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
@@ -146,7 +198,7 @@ export function AuraAssistant() {
     apiBase: AURA.apiBase,
     tenantSlug: AURA.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the panel's error state.
+    // required" error, shown in the presence control's error state.
     publishableKey: AURA.publishableKey ?? '',
     agentId: AURA.agentId,
     // STT/TTS come from this demo's config, so the pipeline is declared once.
@@ -162,7 +214,6 @@ export function AuraAssistant() {
 
   const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } = session;
   const status = CONNECTION_STATUS[connectionState];
-  const chrome = chromeBot(botState);
 
   // Once live: open the mic and register the store's agent-send channel
   // (the store echoes `card_selected` / `auth_complete` / etc. through it).
@@ -199,191 +250,28 @@ export function AuraAssistant() {
     };
   }, [client, handleUiCommand]);
 
-  const openAndConnect = () => {
-    setOpen(true);
-    setMinimized(false);
-    if (status === 'idle' || status === 'error') connect();
-  };
-  const hangUp = async () => {
-    await disconnect();
-    setOpen(false);
-    setMinimized(false);
-  };
-
-  if (!open) {
-    return (
-      <button
-        onClick={openAndConnect}
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 1200,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          background: `linear-gradient(135deg, ${PRIMARY} 0%, ${ACCENT} 100%)`,
-          color: '#fff',
-          border: 'none',
-          borderRadius: 28,
-          padding: '12px 18px',
-          fontWeight: 800,
-          fontSize: 14,
-          cursor: 'pointer',
-          boxShadow: '0 6px 20px rgba(79,70,229,.40)',
-        }}
-      >
-        <span aria-hidden style={{ width: 9, height: 9, borderRadius: '50%', background: '#fff' }} /> Ask Aura Support
-      </button>
-    );
-  }
-
-  // The bot audio + visualizer live inside the provider and must stay mounted
-  // whether the panel is expanded or minimized — so minimizing never drops the
-  // call. We render the provider once and switch only the visible chrome below
-  // it. (The ui_command-in / state_sync-out bridges are the hook's effects
-  // above, so they persist regardless of this panel's open/minimized chrome.)
-  const liveControls = client && (
-    <PipecatClientProvider client={client}>
-      <BotAudioOutput />
-      {minimized ? (
-        <MinimizedBar botState={chrome} live={status === 'live'} onExpand={() => setMinimized(false)} onEnd={hangUp} />
-      ) : (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            zIndex: 1200,
-            width: 300,
-            maxWidth: 'calc(100vw - 32px)',
-            background: '#fff',
-            borderRadius: 18,
-            boxShadow: '0 16px 40px rgba(26,22,32,.20)',
-            border: '1px solid #E6E2F2',
-          }}
-        >
-          <div
-            style={{
-              background: `linear-gradient(135deg, ${PRIMARY} 0%, ${ACCENT} 100%)`,
-              color: '#fff',
-              padding: '12px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderTopLeftRadius: 18,
-              borderTopRightRadius: 18,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 14 }}>Aura Support</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button
-                onClick={() => setMinimized(true)}
-                title="Minimize (keep talking)"
-                style={{ background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff', borderRadius: 8, width: 24, height: 24, cursor: 'pointer', fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                —
-              </button>
-              <button
-                onClick={hangUp}
-                title="End call"
-                style={{ background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff', borderRadius: 8, width: 24, height: 24, cursor: 'pointer', fontSize: 14 }}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          <div style={{ padding: '18px 16px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            {status === 'live' ? (
-              <>
-                <BotVisualizer botState={chrome} />
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: PRIMARY, height: 16 }}>{STATE_LABEL[chrome]}</div>
-                <div style={{ fontSize: 11, color: '#6E6470', textAlign: 'center', lineHeight: 1.4 }}>
-                  Ask anything — e.g. “Where do I download my interest certificate for tax filing?”
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 6, width: '100%' }}>
-                  {/* `vkui-root` scopes the kit's CSS to just this control;
-                      `voice-ui-kit` is the element the kit portals its device
-                      dropdown into, so the menu lands inside the scope too. */}
-                  <div className="vkui-root voice-ui-kit" style={{ display: 'flex' }}>
-                    <UserAudioControl size="lg" dropdownMenuLabel="Audio devices" microphoneLabel="Microphone" speakerLabel="Speaker" />
-                  </div>
-                  <button
-                    onClick={hangUp}
-                    title="End call"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 10, background: PRIMARY_DARK, border: 'none', cursor: 'pointer', color: '#fff', fontSize: 13, fontWeight: 700 }}
-                  >
-                    ✕ End
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <CircularWaveform isThinking size={116} color1={PRIMARY} color2={ACCENT} />
-                <div style={{ fontSize: 12.5, color: '#6E6470' }}>Connecting…</div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </PipecatClientProvider>
+  const presence = client ? (
+    <LiveControls botState={botState} onEnd={disconnect} />
+  ) : (
+    <BeginControl status={status} error={error ?? ''} onBegin={connect} />
   );
 
-  if (liveControls) return liveControls;
+  const shell = (
+    <>
+      <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
+      <PresenceStyles />
+      {children(presence)}
+    </>
+  );
 
-  // No client yet: error or initial connecting (no provider chrome to keep mounted).
+  // The bot audio lives inside the provider and must stay mounted for the whole
+  // live call — the page chrome renders *below* it, so navigating never drops it.
+  if (!client) return shell;
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 24,
-        right: 24,
-        zIndex: 1200,
-        width: 300,
-        maxWidth: 'calc(100vw - 32px)',
-        background: '#fff',
-        borderRadius: 18,
-        boxShadow: '0 16px 40px rgba(26,22,32,.20)',
-        border: '1px solid #E6E2F2',
-      }}
-    >
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${PRIMARY} 0%, ${ACCENT} 100%)`,
-          color: '#fff',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderTopLeftRadius: 18,
-          borderTopRightRadius: 18,
-        }}
-      >
-        <div style={{ fontWeight: 800, fontSize: 14 }}>Aura Support</div>
-        <button
-          onClick={hangUp}
-          title="Close"
-          style={{ background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff', borderRadius: 8, width: 24, height: 24, cursor: 'pointer', fontSize: 14 }}
-        >
-          ✕
-        </button>
-      </div>
-      <div style={{ padding: '18px 16px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        {status === 'error' ? (
-          <>
-            <div style={{ fontSize: 13, color: PRIMARY, textAlign: 'center', lineHeight: 1.4 }}>{error || 'Something went wrong.'}</div>
-            <button onClick={connect} style={{ background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-              Try again
-            </button>
-          </>
-        ) : (
-          <>
-            <CircularWaveform isThinking size={116} color1={PRIMARY} color2={ACCENT} />
-            <div style={{ fontSize: 12.5, color: '#6E6470' }}>Connecting…</div>
-          </>
-        )}
-      </div>
-    </div>
+    <PipecatClientProvider client={client}>
+      <BotAudioOutput />
+      {shell}
+    </PipecatClientProvider>
   );
 }

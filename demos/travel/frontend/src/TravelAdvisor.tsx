@@ -1,10 +1,18 @@
 /**
- * The "Travel Desk" floating voice widget.
+ * The "Travel Desk" voice layer — the desk as a property of the whole portal,
+ * not a widget parked in the corner.
  *
- * A bottom-right launcher that opens an embedded voice panel. The whole session
- * lifecycle — mint against the control plane, WebRTC transport, mic control,
- * bot-state — is the public SDK's {@link useVoqalSession}; this file is just the
- * widget chrome plus two bridges that tie the call to the on-screen portal:
+ * There is no panel and no launcher. The agent's state is the page itself: the
+ * shared `AmbientPresence` ring from `@voqalize/client-react` glows around the
+ * viewport in Trip Studio's vermilion, shifting to itinerary gold while the desk
+ * reasons, and firing a short beam at whatever section the agent just moved the
+ * travel agent's eye to. The only affordance is one small control handed up into
+ * the portal's own top bar (via the `children` render-prop, so the portal keeps
+ * ownership of its chrome): begin, then mute-toggle, plus a quiet "end".
+ *
+ * The whole session lifecycle — mint against the control plane, WebRTC transport,
+ * mic control, bot-state — is the public SDK's {@link useVoqalSession}; this file
+ * is just that control plus two bridges that tie the call to the on-screen portal:
  *   - the agent's `ui_command` server-messages replay onto the shared travel
  *     store, so the agent drives the portal;
  *   - a compact snapshot of the active itinerary is echoed back to the agent
@@ -16,21 +24,17 @@
  * once inside the `TravelProvider`, so the call survives screen changes.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
+import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
+import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
+import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import {
-  PipecatClientProvider,
-  usePipecatClientMediaTrack,
-} from "@pipecat-ai/client-react";
-import {
-  BotAudioOutput,
-  CircularWaveform,
-  UserAudioControl,
-} from "@pipecat-ai/voice-ui-kit";
-// The kit ships Tailwind — without its stylesheet its components render as raw
-// browser defaults. We take the *scoped* bundle (everything under `.vkui-root`)
-// so the kit's preflight can't reset this demo's hand-rolled page chrome.
-import "@pipecat-ai/voice-ui-kit/styles.scoped";
-import { useVoqalSession, type VoqalBotState } from "@voqalize/client-react";
+  AmbientPresence,
+  useVoqalSession,
+  type AmbientPresencePalette,
+  type VoqalBotState,
+  type VoqalConnectionState,
+} from "@voqalize/client-react";
 import { useTravel } from "./store";
 import { config } from "./config";
 
@@ -38,36 +42,127 @@ import { config } from "./config";
 // (src/config.ts), driven by Vite env vars.
 const TRAVEL = config;
 
-// Voqalize brand: vermilion is the live/agent colour; --action carries labels.
-const VERMILION = "#E24E2A";
-const ACTION = "#C2331A";
-const ACTION_DARK = "#972814";
+// Trip Studio's reading of the shared presence ring, straight off the portal's own
+// tokens: `--vermilion` (#E24E2A) is the live/agent colour everywhere in this demo,
+// so it carries idle / listening / speaking. Thinking shifts to the five-star gold
+// used for hotel ratings (`.tv-stars`, #C9A227) — a warm but unmistakably different
+// hue, readable at the edge of vision while the travel agent is scanning fares.
+// Offline is `--warm-300`, the same faint paper tone as the portal's card borders,
+// so a dead session reads as a hairline seam rather than a signal. The beam that
+// travels to a highlighted section is vermilion: the desk reaching into the page.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: "#E24E2A",
+  listening: "#E24E2A",
+  thinking: "#C9A227",
+  speaking: "#E24E2A",
+  offline: "#D2C6B2",
+  beam: "#E24E2A",
+};
 
+// The mic stays open once live, so `idle` is still "listening" to the user.
 const STATE_LABEL: Record<VoqalBotState, string> = {
-  idle: "Listening…",
-  listening: "Listening…",
-  thinking: "Thinking…",
+  idle: "Listening",
+  listening: "Listening",
+  thinking: "Thinking",
   speaking: "Speaking",
 };
 
-// ── Bot audio visualizer (inside the PipecatClientProvider) ────────────────────
-function BotVisualizer({ botState }: { botState: VoqalBotState }) {
-  const botTrack = usePipecatClientMediaTrack("audio", "bot");
+// ── Top-bar presence control ──────────────────────────────────────────────────
+// Not connected / connecting / failed: one invitation, one button.
+function BeginControl({
+  connectionState,
+  error,
+  onBegin,
+}: {
+  connectionState: VoqalConnectionState;
+  error: string;
+  onBegin: () => void;
+}) {
+  const connecting = connectionState === "connecting";
+  const label = connecting
+    ? "Connecting…"
+    : connectionState === "error"
+      ? error || "Connection issue"
+      : "Ask the Travel Desk";
   return (
-    <CircularWaveform
-      audioTrack={botTrack}
-      isThinking={botState === "thinking"}
-      size={120}
-      color1={VERMILION}
-      color2="#F0703F"
-    />
+    <div className="tv-presence">
+      <span className="tv-presence-label" title={label}>
+        {label}
+      </span>
+      {connecting ? (
+        <button className="tv-presence-btn is-connecting" disabled title="Connecting…">
+          <Loader2 size={16} className="tv-presence-spin" />
+        </button>
+      ) : (
+        <button
+          className="tv-presence-btn"
+          onClick={onBegin}
+          title={connectionState === "error" ? "Try again" : "Talk to the Travel Desk"}
+        >
+          <Mic size={16} />
+        </button>
+      )}
+    </div>
   );
 }
 
-// ── Widget ─────────────────────────────────────────────────────────────────────
-export function TravelAdvisor() {
-  const [open, setOpen] = useState(false);
-  const { handleUiCommand, registerAgentSend, rev, active, snapshot } = useTravel();
+// Live: the mic doubles as a mute toggle; a small secondary control ends the call.
+function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () => void }) {
+  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
+  return (
+    <div className="tv-presence">
+      <span className="tv-presence-label">{isMicEnabled ? STATE_LABEL[botState] : "Muted"}</span>
+      <button
+        className={`tv-presence-btn is-live pstate-${botState} ${isMicEnabled ? "" : "is-muted"}`}
+        onClick={() => enableMic(!isMicEnabled)}
+        title={isMicEnabled ? "Mute" : "Unmute"}
+      >
+        {isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />}
+      </button>
+      <button className="tv-presence-end" onClick={onEnd} title="End call">
+        <PhoneOff size={13} />
+      </button>
+    </div>
+  );
+}
+
+// The control lives inside `.tv-root`, so it can just read the portal's own
+// design tokens (`--action`, `--vermilion`, …) instead of restating hexes.
+const PRESENCE_STYLES = `
+.tv-presence{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.tv-presence-label{font-size:12px;font-weight:600;color:var(--muted-foreground);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px;text-align:right}
+.tv-presence-btn{display:flex;align-items:center;justify-content:center;flex:0 0 36px;
+  width:36px;height:36px;border-radius:50%;border:1.5px solid var(--action);
+  background:var(--action);color:var(--on-action);cursor:pointer;
+  transition:transform .15s,box-shadow .25s,background .15s}
+.tv-presence-btn:hover{transform:scale(1.05)}
+.tv-presence-btn:active{transform:scale(.97)}
+.tv-presence-btn.is-connecting{background:transparent;color:var(--vermilion-text);cursor:default}
+.tv-presence-btn.is-connecting:hover{transform:none}
+.tv-presence-btn.is-live{box-shadow:0 0 0 4px rgba(226,78,42,.16)}
+.tv-presence-btn.is-live.pstate-thinking{background:#A8861F;border-color:#A8861F;
+  box-shadow:0 0 0 4px rgba(201,162,39,.26)}
+.tv-presence-btn.is-live.pstate-speaking{box-shadow:0 0 0 5px rgba(226,78,42,.30)}
+.tv-presence-btn.is-muted{background:var(--card);border-color:var(--border-strong);
+  color:var(--muted-foreground);box-shadow:none}
+.tv-presence-end{display:flex;align-items:center;justify-content:center;flex:0 0 26px;
+  width:26px;height:26px;border-radius:50%;border:none;background:transparent;
+  color:var(--warm-400);cursor:pointer;transition:color .15s,background .15s}
+.tv-presence-end:hover{color:var(--vermilion-text);background:var(--muted)}
+.tv-presence-spin{animation:tv-spin .9s linear infinite}
+
+@media(max-width:640px){
+  .tv-presence{gap:7px}
+  .tv-presence-label{font-size:11.5px;max-width:120px}
+  .tv-presence-btn{flex:0 0 34px;width:34px;height:34px}
+  .tv-presence-end{flex:0 0 24px;width:24px;height:24px}
+}
+`;
+
+// ── Session owner ─────────────────────────────────────────────────────────────
+export function TravelAdvisor({ children }: { children: (presence: ReactNode) => ReactNode }) {
+  const { handleUiCommand, registerAgentSend, rev, active, snapshot, highlighted } = useTravel();
 
   // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
   // (past the `{ data }` quirk), so we read `type` directly.
@@ -75,7 +170,7 @@ export function TravelAdvisor() {
     apiBase: TRAVEL.apiBase,
     tenantSlug: TRAVEL.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the widget's error state.
+    // required" error, shown in the presence control's error state.
     publishableKey: TRAVEL.publishableKey ?? "",
     agentId: TRAVEL.agentId,
     // STT/TTS come from this demo's config, so the pipeline is declared once.
@@ -118,200 +213,39 @@ export function TravelAdvisor() {
     };
   }, [client]);
 
-  const openAndConnect = () => {
-    setOpen(true);
-    if (connectionState === "idle" || connectionState === "error") connect();
+  // A hung-up session leaves the hook's client behind; clear it before redialling.
+  const begin = async () => {
+    if (connectionState === "disconnected") await disconnect();
+    await connect();
   };
 
-  const hangUp = async () => {
-    await disconnect();
-    setOpen(false);
-  };
-
-  const isLive = connectionState === "connected";
-  const isError = connectionState === "error";
-
-  if (!open) {
-    return (
-      <button
-        className="tv-assistant-launcher"
-        onClick={openAndConnect}
-        style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          zIndex: 1200,
-          display: "flex",
-          alignItems: "center",
-          gap: 9,
-          background: `linear-gradient(135deg, ${VERMILION} 0%, ${ACTION} 100%)`,
-          color: "#FAF6F0",
-          border: "none",
-          borderRadius: 28,
-          padding: "12px 18px",
-          fontWeight: 700,
-          fontSize: 14,
-          cursor: "pointer",
-          boxShadow: "0 6px 20px rgba(226,78,42,.40)",
-        }}
-      >
-        <span aria-hidden style={{ width: 9, height: 9, borderRadius: "50%", background: "#FAF6F0" }} />
-        Ask the Travel Desk
-      </button>
+  const presence =
+    connectionState === "connected" ? (
+      <LiveControls botState={botState} onEnd={disconnect} />
+    ) : (
+      <BeginControl connectionState={connectionState} error={error ?? ""} onBegin={begin} />
     );
-  }
+
+  const shell = (
+    <>
+      <AmbientPresence
+        botState={botState}
+        connectionState={connectionState}
+        palette={PRESENCE}
+        // The desk points at the section it just moved the agent's eye to.
+        beam={highlighted ? { id: highlighted.nonce, targetId: `tv-sec-${highlighted.section}` } : null}
+      />
+      <style dangerouslySetInnerHTML={{ __html: PRESENCE_STYLES }} />
+      {children(presence)}
+    </>
+  );
+
+  if (!client) return shell;
 
   return (
-    <div
-      className="tv-assistant-panel"
-      style={{
-        position: "fixed",
-        bottom: 24,
-        right: 24,
-        zIndex: 1200,
-        width: 300,
-        maxWidth: "calc(100vw - 32px)",
-        background: "#FFFDFA",
-        borderRadius: 18,
-        boxShadow: "0 16px 40px rgba(26,22,19,.18)",
-        overflow: "visible",
-        border: "1px solid #E3DACD",
-      }}
-    >
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${VERMILION} 0%, ${ACTION} 100%)`,
-          color: "#FAF6F0",
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          borderTopLeftRadius: 18,
-          borderTopRightRadius: 18,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 14 }}>
-          <span aria-hidden>✈</span> Travel Desk
-        </div>
-        <button
-          onClick={hangUp}
-          title="Close"
-          style={{
-            background: "rgba(255,255,255,.2)",
-            border: "none",
-            color: "#FAF6F0",
-            borderRadius: 8,
-            width: 24,
-            height: 24,
-            cursor: "pointer",
-            fontSize: 14,
-          }}
-        >
-          ✕
-        </button>
-      </div>
-
-      <div
-        style={{
-          padding: "18px 16px 16px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        {isError ? (
-          <>
-            <div style={{ fontSize: 13, color: ACTION, textAlign: "center", lineHeight: 1.4 }}>
-              {error || "Something went wrong."}
-            </div>
-            <button
-              onClick={connect}
-              style={{
-                background: ACTION,
-                color: "#FAF6F0",
-                border: "none",
-                borderRadius: 10,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-            >
-              Try again
-            </button>
-          </>
-        ) : client ? (
-          <PipecatClientProvider client={client}>
-            <BotAudioOutput />
-            {isLive ? (
-              <>
-                <BotVisualizer botState={botState} />
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: ACTION, height: 16 }}>
-                  {STATE_LABEL[botState]}
-                </div>
-                <div style={{ fontSize: 11, color: "#6E665C", textAlign: "center", lineHeight: 1.4 }}>
-                  Tell me which trip to plan — हिंदी या English, दोनों चलेगा.
-                </div>
-
-                <div
-                  className="tv-assistant-controls"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 12,
-                    marginTop: 6,
-                    width: "100%",
-                  }}
-                >
-                  {/* `vkui-root` scopes the kit's CSS to just this control;
-                      `voice-ui-kit` is the element the kit portals its device
-                      dropdown into, so the menu lands inside the scope too. */}
-                  <div className="vkui-root voice-ui-kit" style={{ display: "flex" }}>
-                    <UserAudioControl
-                      size="lg"
-                      dropdownMenuLabel="Audio devices"
-                      microphoneLabel="Microphone"
-                      speakerLabel="Speaker"
-                    />
-                  </div>
-                  <button
-                    onClick={hangUp}
-                    title="End call"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      height: 40,
-                      padding: "0 14px",
-                      borderRadius: 10,
-                      background: ACTION_DARK,
-                      border: "none",
-                      cursor: "pointer",
-                      color: "#FAF6F0",
-                      fontSize: 13,
-                      fontWeight: 700,
-                    }}
-                  >
-                    ✕ End
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <CircularWaveform isThinking size={120} color1={VERMILION} color2="#F0703F" />
-                <div style={{ fontSize: 12.5, color: "#6E665C" }}>Connecting…</div>
-              </>
-            )}
-          </PipecatClientProvider>
-        ) : (
-          <>
-            <CircularWaveform isThinking size={120} color1={VERMILION} color2="#F0703F" />
-            <div style={{ fontSize: 12.5, color: "#6E665C" }}>Connecting…</div>
-          </>
-        )}
-      </div>
-    </div>
+    <PipecatClientProvider client={client}>
+      <BotAudioOutput />
+      {shell}
+    </PipecatClientProvider>
   );
 }

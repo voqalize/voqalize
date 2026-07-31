@@ -129,7 +129,7 @@ body {
 }
 .ff-presence-btn.is-connecting:hover { transform: none; }
 
-/* Live: a soft ring that tracks Ada's state, echoing the app-wide AmbientGlow —
+/* Live: a soft ring that tracks Ada's state, echoing the app-wide presence ring —
    violet while present/listening/answering, cyan (the "signal") while thinking. */
 .ff-presence-btn.is-live { box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2); }
 .ff-presence-btn.is-live.pstate-listening { box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.3); }

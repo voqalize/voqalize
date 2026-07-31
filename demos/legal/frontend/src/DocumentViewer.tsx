@@ -6,7 +6,7 @@
  * is the lawyer's "reading position" — and debounce-sends `clause_focus` to
  * the assistant. Comment bubbles and redline diffs render inline, anchored to
  * their clause. When the assistant calls `point_to_clause`, this smoothly
- * scrolls to it and fires a brief highlight + a "beam" cue that `AmbientGlow`
+ * scrolls to it and fires a brief highlight + a "beam" cue that `AmbientPresence`
  * picks up (via the clause's DOM rect) to animate a light thread from the
  * screen border to the clause.
  */

@@ -42,8 +42,78 @@ const FONTS = `
 const DISPLAY = "'Fraunces', Georgia, serif";
 const BODY = "'Inter', system-ui, sans-serif";
 
+/**
+ * Responsive scale. The phone-shaped layout already suits a handset, so the
+ * mobile pass is a set of custom properties (sizes that are set inline, where a
+ * media rule could not reach them) plus a handful of class overrides for the
+ * stage. Below 640px the device mock drops its bezel and goes full-bleed — a
+ * simulated phone inside a real phone is just a clipped phone — the presenter
+ * panel stacks underneath it, and every sub-11px label steps up a notch.
+ */
 const GLOBAL_CSS = `
 ${FONTS}
+:root {
+  --sugar-micro: 10px;
+  --sugar-mini: 10.5px;
+  --sugar-h1: 40px;
+  --sugar-picker-pad: 40px 28px 64px;
+  --sugar-stage-pad: 36px 28px;
+  --sugar-stage-gap: 44px;
+  --sugar-screen-radius: 44px;
+}
+.sugar-context {
+  width: 330px;
+  max-width: 90vw;
+  max-height: 780px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sugar-phone {
+  width: 378px;
+  height: 780px;
+  flex: none;
+  border-radius: 54px;
+  background: #101312;
+  padding: 11px;
+  box-shadow: 0 30px 80px rgba(15,35,28,.35), inset 0 0 0 2px #2A2E2C;
+}
+@media (max-width: 640px) {
+  :root {
+    --sugar-micro: 11px;
+    --sugar-mini: 11.5px;
+    --sugar-h1: 27px;
+    --sugar-picker-pad: 22px 14px 40px;
+    --sugar-stage-pad: 0px;
+    --sugar-stage-gap: 0px;
+    --sugar-screen-radius: 0px;
+  }
+  .sugar-stage { flex-direction: column; align-items: stretch; }
+  /* Full-bleed device: a 6px dark rim is all that is left of the bezel, and it
+     doubles as the mat the ambient presence ring paints on. */
+  .sugar-phone {
+    order: 1;
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+    padding: 6px;
+    box-sizing: border-box;
+    box-shadow: none;
+  }
+  .sugar-notch { display: none; }
+  .sugar-ended { overflow-y: auto; }
+  /* Presenter notes stack under the app rather than above it. */
+  .sugar-context {
+    order: 2;
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    overflow-y: visible;
+    padding: 20px 16px 32px;
+    box-sizing: border-box;
+  }
+}
 @keyframes sugarSlideDown { from { transform: translateY(-120%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes sugarFadeUp { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes sugarPulse { 0%,100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.35); opacity: 0; } }
@@ -90,10 +160,10 @@ export function SugarApp() {
 function PickerScreen() {
   const { language, setLanguage } = useSugar();
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '40px 28px 64px' }}>
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'var(--sugar-picker-pad)' }}>
       <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 10 }}>
         <div>
-          <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 40, letterSpacing: '-0.01em', color: GREEN_DARK }}>
+          <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 'var(--sugar-h1)', letterSpacing: '-0.01em', color: GREEN_DARK }}>
             {PROGRAM_NAME}
             <span style={{ fontFamily: BODY, fontWeight: 600, fontSize: 13, color: INK_SOFT, marginLeft: 12, letterSpacing: '.08em', textTransform: 'uppercase' }}>
               Care console
@@ -107,7 +177,9 @@ function PickerScreen() {
         <LanguageToggle language={language} setLanguage={setLanguage} />
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: 28, marginTop: 26 }}>
+      {/* `min(440px, 100%)` keeps the two-up console on desktop and collapses to a
+          single column on a handset instead of forcing a 440px track. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(440px, 100%), 1fr))', gap: 28, marginTop: 26 }}>
         {PATIENTS.map((p) => (
           <PatientColumn key={p.id} patient={p} />
         ))}
@@ -234,7 +306,7 @@ function PatientColumn({ patient }: { patient: Patient }) {
               color: INK,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: INK_SOFT }}>
                 {s.day_label}
               </span>
@@ -305,13 +377,14 @@ function PhoneStage() {
   if (!scenario || !patient) return null;
   return (
     <div
+      className="sugar-stage"
       style={{
         minHeight: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 44,
-        padding: '36px 28px',
+        gap: 'var(--sugar-stage-gap)',
+        padding: 'var(--sugar-stage-pad)',
         flexWrap: 'wrap',
       }}
     >
@@ -334,7 +407,7 @@ function ContextPanel({
   showBack: boolean;
 }) {
   return (
-    <aside style={{ width: 330, maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 780, overflowY: 'auto' }}>
+    <aside className="sugar-context">
       {showBack && (
         <button
           onClick={onBack}
@@ -413,31 +486,21 @@ function PanelCard({ title, children, tint }: { title: string; children: ReactNo
 function PhoneFrame({ scenario, patient }: { scenario: Scenario; patient: Patient }) {
   const { phase } = useSugar();
   return (
-    <div
-      style={{
-        width: 378,
-        height: 780,
-        flex: 'none',
-        borderRadius: 54,
-        background: '#101312',
-        padding: 11,
-        boxShadow: '0 30px 80px rgba(15,35,28,.35), inset 0 0 0 2px #2A2E2C',
-      }}
-    >
+    <div className="sugar-phone">
       <div
         style={{
           position: 'relative',
           width: '100%',
           height: '100%',
-          borderRadius: 44,
+          borderRadius: 'var(--sugar-screen-radius)',
           overflow: 'hidden',
           background: phase === 'incoming' ? CALL_BG : '#FAFAF7',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        {/* punch-hole camera */}
-        <div aria-hidden style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', width: 84, height: 24, borderRadius: 14, background: '#0B0D0C', zIndex: 40 }} />
+        {/* punch-hole camera — dropped on a real handset (.sugar-notch) */}
+        <div className="sugar-notch" aria-hidden style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', width: 84, height: 24, borderRadius: 14, background: '#0B0D0C', zIndex: 40 }} />
         {phase === 'incoming' && <IncomingSequence scenario={scenario} />}
         {phase === 'call' && <AppScreen scenario={scenario} patient={patient} />}
         {phase === 'ended' && <EndedScreen scenario={scenario} patient={patient} />}
@@ -451,7 +514,7 @@ function StatusBar({ clock, dark }: { clock: string; dark?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 26px 6px', fontSize: 13, fontWeight: 700, color: c, zIndex: 30 }}>
       <span>{clock}</span>
-      <span style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 10.5, fontWeight: 600 }}>
+      <span style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--sugar-mini)', fontWeight: 600 }}>
         5G
         <span aria-hidden style={{ display: 'inline-block', width: 22, height: 11, border: `1.5px solid ${c}`, borderRadius: 3.5, position: 'relative' }}>
           <span style={{ position: 'absolute', inset: 1.5, right: '30%', background: c, borderRadius: 1.5 }} />
@@ -685,7 +748,7 @@ function Greeting({ scenario, patient }: { scenario: Scenario; patient: Patient 
       </div>
       <div style={{ textAlign: 'right' }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: GREEN_DARK }}>{kcal > 0 ? `${kcal.toLocaleString('en-IN')} kcal` : '—'}</div>
-        <div style={{ fontSize: 10.5, color: INK_SOFT }}>
+        <div style={{ fontSize: 'var(--sugar-mini)', color: INK_SOFT }}>
           {scenario.app.streak_days > 0 ? `logged today · ${scenario.app.streak_days}-day streak` : 'logged today'}
         </div>
       </div>
@@ -696,7 +759,7 @@ function Greeting({ scenario, patient }: { scenario: Scenario; patient: Patient 
 function Section({ k, title, highlight, children }: { k: string; title: string; highlight: string | null; children: ReactNode }) {
   return (
     <section data-sec={k} className={highlight === k ? 'sugar-hl' : undefined}>
-      <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: INK_SOFT, margin: '2px 6px 5px' }}>
+      <div style={{ fontSize: 'var(--sugar-mini)', fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: INK_SOFT, margin: '2px 6px 5px' }}>
         {title}
       </div>
       {children}
@@ -1012,7 +1075,7 @@ function PlanCard({ patient }: { patient: Patient }) {
 function PlanRow({ k, children }: { k: string; children: ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: INK_SOFT, marginBottom: 2 }}>{k}</div>
+      <div style={{ fontSize: 'var(--sugar-micro)', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: INK_SOFT, marginBottom: 2 }}>{k}</div>
       {children}
     </div>
   );
@@ -1185,7 +1248,7 @@ function SummarySheet() {
 function EndedScreen({ scenario, patient }: { scenario: Scenario; patient: Patient }) {
   const { summary, commitment, flags, sensorOrder, backToPicker } = useSugar();
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', color: '#fff', background: CALL_BG, padding: '0 24px 30px' }}>
+    <div className="sugar-ended" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', color: '#fff', background: CALL_BG, padding: '0 24px 30px' }}>
       <StatusBar clock={scenario.app.clock_label} dark />
       <div style={{ textAlign: 'center', marginTop: 40 }}>
         <CoachMark size={72} />
@@ -1196,7 +1259,7 @@ function EndedScreen({ scenario, patient }: { scenario: Scenario; patient: Patie
       </div>
 
       <div style={{ marginTop: 26, background: 'rgba(255,255,255,.10)', borderRadius: 18, padding: '14px 16px', backdropFilter: 'blur(8px)' }}>
-        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
+        <div style={{ fontSize: 'var(--sugar-mini)', fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
           Today, in the book
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

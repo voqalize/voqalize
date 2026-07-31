@@ -13,7 +13,7 @@
  * appears so the verbal request never hangs in silence before the first tool call.
  *
  * Presentation-only: it reads `activities` + presence from the store, is
- * `pointer-events: none`, and sits just under the AmbientGlow ring.
+ * `pointer-events: none`, and sits just under the ambient presence ring.
  */
 
 import { useForge } from './store';

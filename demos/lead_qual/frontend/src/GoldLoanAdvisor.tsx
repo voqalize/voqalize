@@ -11,15 +11,23 @@
  *
  * This is exactly the surface an external developer embeds: `useVoqalSession`
  * from `@voqalize/client-react`, driven by a publishable (`pk_`) key.
+ *
+ * The voice layer is ambient, not a console: the shared {@link AmbientPresence}
+ * ring from `@voqalize/client-react` frames the whole page for the session, and
+ * the live call carries only a quiet timer + status and two small controls
+ * (mute, hang up). The "Start Verification Call" button on the call gate stays —
+ * it is the funnel's own CTA (Auric calls you), not a chat launcher.
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/client-react';
+import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
+import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
 import {
-  PipecatClientProvider,
-  usePipecatClientMediaTrack,
-} from '@pipecat-ai/client-react';
-import { BotAudioOutput, CircularWaveform } from '@pipecat-ai/voice-ui-kit';
-import { useVoqalSession } from '@voqalize/client-react';
+  AmbientPresence,
+  useVoqalSession,
+  type AmbientPresencePalette,
+} from '@voqalize/client-react';
 import { config } from './config';
 
 // Tenant + agent + pk + pipeline resolve per-environment from the shared demos
@@ -71,6 +79,23 @@ const AURIC_BRANCH = {
   address: 'Plot 27, Ring Road, Ashok Nagar, Hyderabad – 500020',
 };
 
+// ── Presence palette ──────────────────────────────────────────────────────────
+// Auric's reading of the shared ring. Gold (#c8960c) is the product — it is the
+// brand mark, the form header, the metal being pledged — so it carries idle,
+// listening and speaking. Thinking shifts to the demo's existing accent blue
+// (#4a90d9, the other half of its waveform gradient): the deep navy #1a2472
+// would disappear against the navy header and hero the ring runs over, while the
+// blue stays legible over navy *and* over the cream #fdf8ef body, and reads as a
+// different mode at a glance because it is gold's complement. Offline is the same
+// hairline grey the disabled call button uses.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: '#c8960c',
+  listening: '#c8960c',
+  thinking: '#4a90d9',
+  speaking: '#c8960c',
+  offline: '#e5e7eb',
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Step = 'form' | 'call-gate' | 'connecting' | 'call' | 'ended';
 type BotStatus = 'connecting' | 'ready' | 'thinking' | 'speaking' | 'listening';
@@ -94,15 +119,10 @@ export function GoldLoanAdvisor() {
     name: '', phone: '', state: '', city: '', goldWeight: '', loanAmount: '',
   });
   const [callError, setCallError]     = useState('');
-  const [isMuted, setIsMuted]         = useState(false);
   const [callResult, setCallResult]   = useState<CallResult | null>(null);
   const [micPermission, setMicPermission] = useState<MicPermission>('idle');
   const [callDuration, setCallDuration]   = useState(0);
-  const [availableMics, setAvailableMics]           = useState<MediaDeviceInfo[]>([]);
-  const [selectedMic, setSelectedMic]               = useState<MediaDeviceInfo | null>(null);
-  const [availableSpeakers, setAvailableSpeakers]   = useState<MediaDeviceInfo[]>([]);
-  const [selectedSpeaker, setSelectedSpeaker]       = useState<MediaDeviceInfo | null>(null);
-  const [language, setLanguage]                     = useState<string>('auto');
+  const [language, setLanguage]           = useState<string>('auto');
 
   // ── Session pipeline + payload (recomputed each render; the hook reads the ──
   //    latest at connect time) ────────────────────────────────────────────────
@@ -159,7 +179,6 @@ export function GoldLoanAdvisor() {
     if (connectionState === 'connected') {
       setStep(s => (s === 'connecting' ? 'call' : s));
       enableMic(true);
-      setIsMuted(false);
     } else if (connectionState === 'error') {
       setCallError(error || 'Could not connect. Please try again.');
       setStep(s => (s === 'connecting' || s === 'call' ? 'call-gate' : s));
@@ -169,22 +188,6 @@ export function GoldLoanAdvisor() {
     }
   }, [connectionState, error, enableMic]);
 
-  // ── Device enumeration (labels available once mic permission is granted) ────
-  const refreshDevices = useCallback(async () => {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const mics = devices.filter(d => d.kind === 'audioinput');
-    const speakers = devices.filter(d => d.kind === 'audiooutput');
-    setAvailableMics(mics);
-    setAvailableSpeakers(speakers);
-    setSelectedMic(m => m ?? mics[0] ?? null);
-    setSelectedSpeaker(s => s ?? speakers[0] ?? null);
-  }, []);
-
-  // Refresh the device list once the call is live too (device ids stabilise).
-  useEffect(() => {
-    if (connectionState === 'connected') refreshDevices();
-  }, [connectionState, refreshDevices]);
-
   // ── Auto-request mic permission on call-gate ───────────────────────────────
   useEffect(() => {
     if (step !== 'call-gate' || micPermission !== 'idle') return;
@@ -193,10 +196,9 @@ export function GoldLoanAdvisor() {
       .then(stream => {
         stream.getTracks().forEach(t => t.stop());
         setMicPermission('granted');
-        refreshDevices();
       })
       .catch(() => setMicPermission('denied'));
-  }, [step, micPermission, refreshDevices]);
+  }, [step, micPermission]);
 
   // Reset permission if user goes back to form
   useEffect(() => {
@@ -236,30 +238,9 @@ export function GoldLoanAdvisor() {
     await connect();
   };
 
-  const toggleMute = () => {
-    setIsMuted(m => {
-      const next = !m;
-      enableMic(!next);
-      return next;
-    });
-  };
-
   const hangUp = async () => {
     await disconnect();
-    setIsMuted(false);
     setStep('call-gate');
-  };
-
-  const updateMic = (deviceId: string) => {
-    const mic = availableMics.find(m => m.deviceId === deviceId) ?? null;
-    setSelectedMic(mic);
-    client?.updateMic(deviceId);
-  };
-
-  const updateSpeaker = (deviceId: string) => {
-    const spk = availableSpeakers.find(s => s.deviceId === deviceId) ?? null;
-    setSelectedSpeaker(spk);
-    client?.updateSpeaker(deviceId);
   };
 
   // ── Bot status (derived from the hook's connection + bot state) ─────────────
@@ -280,12 +261,17 @@ export function GoldLoanAdvisor() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const content = (
-    <div className="vkui-root" style={{ minHeight: '100vh', background: '#fdf8ef', color: '#1a1a2e', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#fdf8ef', color: '#1a1a2e', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+      <style>{PAGE_CSS}</style>
       {client && <BotAudioOutput />}
 
+      {/* The voice layer as a property of the whole page — the ring frames every
+          step of the funnel, not just the call screen. */}
+      <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
+
       {/* ── Header ── */}
-      <header style={{ background: '#1a2472', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 38, height: 38, background: '#c8960c', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: 'white', fontSize: 18 }}>A</div>
+      <header className="lq-header" style={{ background: '#1a2472', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 38, height: 38, background: '#c8960c', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: 'white', fontSize: 18, flex: 'none' }}>A</div>
         <div>
           <div style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>Auric Gold Finance</div>
           <div style={{ color: '#f0c040', fontSize: 12, fontWeight: 500 }}>Gold Loans</div>
@@ -293,14 +279,14 @@ export function GoldLoanAdvisor() {
       </header>
 
       {/* ── Hero ── */}
-      <div style={{ background: 'linear-gradient(135deg, #1a2472 0%, #111855 100%)', color: 'white', textAlign: 'center', padding: '48px 24px 36px' }}>
-        <h1 style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.2 }}>
+      <div className="lq-hero" style={{ background: 'linear-gradient(135deg, #1a2472 0%, #111855 100%)', color: 'white', textAlign: 'center', padding: '48px 24px 36px' }}>
+        <h1 className="lq-hero-title" style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.2 }}>
           Get a Gold Loan in <span style={{ color: '#f0c040' }}>Minutes</span>
         </h1>
-        <p style={{ marginTop: 10, color: 'rgba(255,255,255,.75)', fontSize: 15 }}>
+        <p className="lq-hero-sub" style={{ marginTop: 10, color: 'rgba(255,255,255,.75)', fontSize: 15 }}>
           Pledge your gold. Get funds instantly. Safe. Simple. Trusted.
         </p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 24 }}>
+        <div className="lq-pills" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 24 }}>
           {['12%+ p.a.', 'Up to 75% LTV', 'Same-day disbursal', 'Home visit available'].map(t => (
             <span key={t} style={{ background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 20, padding: '6px 16px', fontSize: 13, fontWeight: 600, color: '#f0c040' }}>{t}</span>
           ))}
@@ -308,12 +294,12 @@ export function GoldLoanAdvisor() {
       </div>
 
       {/* ── Card ── */}
-      <div style={{ maxWidth: 520, margin: '-24px auto 40px', background: 'white', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.12)', overflow: 'hidden' }}>
-        <div style={{ background: '#c8960c', padding: '14px 24px', fontWeight: 700, fontSize: 15, color: '#1a1600' }}>
+      <div className="lq-card" style={{ maxWidth: 520, margin: '-24px auto 40px', background: 'white', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.12)', overflow: 'hidden' }}>
+        <div className="lq-card-head" style={{ background: '#c8960c', padding: '14px 24px', fontWeight: 700, fontSize: 15, color: '#1a1600' }}>
           Apply for Gold Loan – Quick Form
         </div>
 
-        <div style={{ padding: 24 }}>
+        <div className="lq-card-body" style={{ padding: 24 }}>
           {step === 'form' && (
             <FormSection
               formData={formData}
@@ -336,11 +322,9 @@ export function GoldLoanAdvisor() {
           )}
 
           {step === 'connecting' && (
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div style={{ width: 200, height: 200, margin: '0 auto' }}>
-                <CircularWaveform isThinking size={200} color1="#4a90d9" color2="#c8960c" />
-              </div>
-              <p style={{ marginTop: 16, color: '#6b7280', fontSize: 14 }}>Connecting to your advisor…</p>
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+              <Loader2 className="lq-spin" size={26} color="#c8960c" />
+              <p style={{ marginTop: 14, color: '#6b7280', fontSize: 14 }}>Connecting to your advisor…</p>
             </div>
           )}
 
@@ -348,16 +332,8 @@ export function GoldLoanAdvisor() {
             <CallUI
               botStatus={botStatus}
               botStatusLabel={botStatusLabel}
-              isMuted={isMuted}
               callDuration={callDuration}
-              availableMics={availableMics}
-              selectedMic={selectedMic}
-              availableSpeakers={availableSpeakers}
-              selectedSpeaker={selectedSpeaker}
-              onToggleMute={toggleMute}
               onHangUp={hangUp}
-              onUpdateMic={updateMic}
-              onUpdateSpeaker={updateSpeaker}
             />
           )}
         </div>
@@ -389,7 +365,7 @@ function FormSection({ formData, errors, onChange, onSubmit }: {
         <input style={inputStyle} type="tel" placeholder="10-digit mobile number" maxLength={10} inputMode="numeric" value={formData.phone} onChange={onChange('phone')} />
       </Field>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="lq-grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <Field label="State *" error={errors.state}>
           <select style={inputStyle} value={formData.state} onChange={onChange('state')}>
             <option value="">Select state</option>
@@ -401,7 +377,7 @@ function FormSection({ formData, errors, onChange, onSubmit }: {
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="lq-grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <Field label="Gold Weight (grams)" note="Approximate is fine">
           <input style={inputStyle} type="number" placeholder="e.g. 50" min={1} value={formData.goldWeight} onChange={onChange('goldWeight')} />
         </Field>
@@ -529,29 +505,19 @@ function CallGateSection({ name: _name, error, micPermission, language, state, o
   );
 }
 
-// ── Active call UI ────────────────────────────────────────────────────────────
-function CallUI({
-  botStatus, botStatusLabel, isMuted, callDuration,
-  availableMics, selectedMic, availableSpeakers, selectedSpeaker,
-  onToggleMute, onHangUp, onUpdateMic, onUpdateSpeaker,
-}: {
+// ── Active call ───────────────────────────────────────────────────────────────
+// No console: the ring around the page carries the agent's state. All that is
+// left here is what a phone call legitimately shows — who is on the line, how
+// long it has run, and two controls: mute and hang up.
+function CallUI({ botStatus, botStatusLabel, callDuration, onHangUp }: {
   botStatus: BotStatus;
   botStatusLabel: Record<BotStatus, string>;
-  isMuted: boolean;
   callDuration: number;
-  availableMics: MediaDeviceInfo[];
-  selectedMic: MediaDeviceInfo | null;
-  availableSpeakers: MediaDeviceInfo[];
-  selectedSpeaker: MediaDeviceInfo | null;
-  onToggleMute: () => void;
   onHangUp: () => void;
-  onUpdateMic: (id: string) => void;
-  onUpdateSpeaker: (id: string) => void;
 }) {
-  // Media tracks come straight from the live PipecatClient (this component only
-  // renders inside the PipecatClientProvider, during an active call).
-  const botTrack = usePipecatClientMediaTrack('audio', 'bot');
-  const userTrack = usePipecatClientMediaTrack('audio', 'local');
+  // The mic lives on the live PipecatClient (this component only renders inside
+  // the PipecatClientProvider, during an active call).
+  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
 
   const fmt = (s: number) => {
     const m = Math.floor(s / 60).toString().padStart(2, '0');
@@ -560,106 +526,62 @@ function CallUI({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0 8px' }}>
+    <div style={{ padding: '14px 0 6px' }}>
+      <p style={{ margin: 0, fontSize: 14, color: '#374151', lineHeight: 1.6, textAlign: 'center' }}>
+        Priya is on the line to verify your details. Just speak naturally — the glow
+        around the page shows when she is listening.
+      </p>
 
-      {/* Call timer */}
-      <div style={{ fontSize: 13, color: '#9ca3af', fontVariantNumeric: 'tabular-nums', letterSpacing: 1, marginBottom: 20 }}>
-        {fmt(callDuration)}
-      </div>
-
-      {/* Bot waveform */}
-      <div style={{ width: 140, height: 140, position: 'relative', marginBottom: 4 }}>
-        <CircularWaveform
-          audioTrack={botTrack}
-          isThinking={botStatus === 'thinking'}
-          size={140}
-          color1="#4a90d9"
-          color2="#c8960c"
-        />
-        <div style={{
-          position: 'absolute', bottom: -2, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(26,36,114,.85)', color: 'white', fontSize: 11, fontWeight: 600,
-          padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap',
-        }}>
-          Priya — Advisor
+      <div
+        className="lq-call-bar"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 14, marginTop: 22,
+        }}
+      >
+        {/* Status + timer — small and quiet, not a console readout. */}
+        <div style={{ textAlign: 'right', lineHeight: 1.35 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a2472' }}>
+            {isMicEnabled ? botStatusLabel[botStatus] : 'Muted'}
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af', fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
+            {fmt(callDuration)}
+          </div>
         </div>
-      </div>
 
-      {/* Status */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#1a2472', marginTop: 14, marginBottom: 24, height: 20 }}>
-        {botStatusLabel[botStatus]}
-      </div>
-
-      {/* Three-button meeting control bar */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 32, width: '100%', paddingTop: 8 }}>
-
-        {/* ── Mic — CircularWaveform ring with button inside ── */}
-        <MeetingButton label={isMuted ? 'Unmute' : 'Mute'} deviceSelect={
-          availableMics.length > 1
-            ? <DeviceSelect devices={availableMics} selectedId={selectedMic?.deviceId} onChange={onUpdateMic} />
-            : undefined
-        }>
-          <div style={{ position: 'relative', width: 60, height: 60 }}>
-            <CircularWaveform
-              audioTrack={isMuted ? null : userTrack}
-              size={60}
-              color1="#6366f1"
-              color2="#a855f7"
-              numBars={20}
-            />
-            <button
-              onClick={onToggleMute}
-              style={{
-                position: 'absolute', top: '50%', left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 42, height: 42, borderRadius: '50%',
-                background: isMuted ? '#374151' : 'white',
-                border: '1.5px solid #e5e7eb',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 1px 6px rgba(0,0,0,.12)',
-              }}
-            >
-              {isMuted
-                ? <IconMicOff size={17} color="white" />
-                : <IconMic size={17} color="#374151" />}
-            </button>
-          </div>
-        </MeetingButton>
-
-        {/* ── End call ── */}
-        <MeetingButton label="End">
-          <button
-            onClick={onHangUp}
-            style={{
-              width: 52, height: 52, borderRadius: '50%',
-              background: '#dc2626', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(220,38,38,.45)',
-              marginTop: 4,
-            }}
-          >
-            <IconPhoneOff size={22} color="white" />
-          </button>
-        </MeetingButton>
-
-        {/* ── Speaker ── */}
-        <MeetingButton label="Speaker" deviceSelect={
-          availableSpeakers.length > 0
-            ? <DeviceSelect devices={availableSpeakers} selectedId={selectedSpeaker?.deviceId} onChange={onUpdateSpeaker} />
-            : undefined
-        }>
-          <div style={{
-            width: 42, height: 42, borderRadius: '50%',
-            background: 'white', border: '1.5px solid #e5e7eb',
+        {/* Mute toggle — the one prominent affordance while live. */}
+        <button
+          onClick={() => enableMic(!isMicEnabled)}
+          title={isMicEnabled ? 'Mute' : 'Unmute'}
+          aria-label={isMicEnabled ? 'Mute' : 'Unmute'}
+          style={{
+            width: 46, height: 46, borderRadius: '50%',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '9px 0 0 9px',
-            boxShadow: '0 1px 6px rgba(0,0,0,.12)',
-          }}>
-            <IconSpeaker size={17} color="#374151" />
-          </div>
-        </MeetingButton>
+            background: isMicEnabled ? '#c8960c' : 'white',
+            border: `1.5px solid ${isMicEnabled ? '#c8960c' : '#d1d5db'}`,
+            color: isMicEnabled ? 'white' : '#6b7280',
+            boxShadow: isMicEnabled ? '0 0 0 4px rgba(200,150,12,.16)' : 'none',
+            cursor: 'pointer', flex: 'none',
+            transition: 'background .15s, box-shadow .15s, border-color .15s',
+          }}
+        >
+          {isMicEnabled ? <Mic size={18} /> : <MicOff size={18} />}
+        </button>
 
+        {/* End — deliberately secondary. */}
+        <button
+          onClick={onHangUp}
+          title="End call"
+          aria-label="End call"
+          style={{
+            width: 34, height: 34, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent', border: 'none', color: '#9ca3af',
+            cursor: 'pointer', flex: 'none',
+          }}
+        >
+          <PhoneOff size={16} />
+        </button>
       </div>
     </div>
   );
@@ -689,16 +611,16 @@ function ResultsSection({ result, phone }: { result: CallResult; phone: string }
   ].filter(([, v]) => v && v !== '—') as [string, string][];
 
   return (
-    <div style={{ maxWidth: 520, margin: '0 auto 40px', background: 'white', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.12)', overflow: 'hidden' }}>
-      <div style={{ background: qualified ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' : 'linear-gradient(135deg, #6b7280, #4b5563)', color: 'white', padding: '18px 24px', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div className="lq-card lq-card-flat" style={{ maxWidth: 520, margin: '0 auto 40px', background: 'white', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.12)', overflow: 'hidden' }}>
+      <div className="lq-card-head" style={{ background: qualified ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' : 'linear-gradient(135deg, #6b7280, #4b5563)', color: 'white', padding: '18px 24px', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
         {qualified ? '✅' : 'ℹ️'}
         {qualified ? 'Qualification Complete!' : 'Call Ended'}
       </div>
 
-      <div style={{ padding: 24 }}>
+      <div className="lq-card-body" style={{ padding: 24 }}>
         <div style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Your Details</h3>
-          <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+          <dl className="lq-dl" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
             {fields.map(([k, v]) => (
               <div key={k} style={{ display: 'flex', flexDirection: 'column' }}>
                 <dt style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{k}</dt>
@@ -757,47 +679,6 @@ const inputStyle: React.CSSProperties = {
 };
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
-function IconMic({ size = 22, color = 'currentColor' }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M12 2c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3s3-1.34 3-3V5c0-1.66-1.34-3-3-3z" fill={color} />
-      <path d="M19 11c0 3.87-3.13 7-7 7s-7-3.13-7-7" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
-      <line x1="12" y1="18" x2="12" y2="22" stroke={color} strokeWidth="2" strokeLinecap="round" />
-      <line x1="8" y1="22" x2="16" y2="22" stroke={color} strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconMicOff({ size = 22, color = 'currentColor' }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M12 2c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3s3-1.34 3-3V5c0-1.66-1.34-3-3-3z" fill={color} opacity="0.4" />
-      <path d="M19 11c0 3.87-3.13 7-7 7s-7-3.13-7-7" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
-      <line x1="12" y1="18" x2="12" y2="22" stroke={color} strokeWidth="2" strokeLinecap="round" />
-      <line x1="8" y1="22" x2="16" y2="22" stroke={color} strokeWidth="2" strokeLinecap="round" />
-      <line x1="3" y1="3" x2="21" y2="21" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconPhoneOff({ size = 26, color = 'currentColor' }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{ transform: 'rotate(135deg)' }}>
-      <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.46.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
-    </svg>
-  );
-}
-
-function IconSpeaker({ size = 22, color = 'currentColor' }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M11 5L6 9H2v6h4l5 4V5z" fill={color} />
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
-    </svg>
-  );
-}
-
 function IconPhoneCall({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
@@ -806,42 +687,39 @@ function IconPhoneCall({ size = 24, color = 'currentColor' }: { size?: number; c
   );
 }
 
-// ── Meeting control helpers ───────────────────────────────────────────────────
-function MeetingButton({ children, label, deviceSelect }: {
-  children: React.ReactNode;
-  label: string;
-  deviceSelect?: React.ReactNode;
-}) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 60 }}>
-      {children}
-      <span style={{ fontSize: 11, color: '#6b7280', userSelect: 'none', whiteSpace: 'nowrap' }}>{label}</span>
-      {deviceSelect}
-    </div>
-  );
-}
+// ── Page CSS ──────────────────────────────────────────────────────────────────
+// The page is styled inline (CSS-in-JS) throughout; this block carries the two
+// things inline styles cannot express — the connecting spinner's keyframes and
+// the phone breakpoint. Mobile rules need `!important` because they override
+// inline `style` props. Desktop (>640px) is untouched.
+const PAGE_CSS = `
+  body { margin: 0; }
 
-function DeviceSelect({ devices, selectedId, onChange }: {
-  devices: MediaDeviceInfo[];
-  selectedId?: string;
-  onChange: (id: string) => void;
-}) {
-  if (devices.length <= 1) return null;
-  return (
-    <select
-      value={selectedId ?? ''}
-      onChange={e => onChange(e.target.value)}
-      style={{
-        fontSize: 11, color: '#9ca3af', border: 'none',
-        background: 'transparent', maxWidth: 90, cursor: 'pointer',
-        textAlign: 'center', outline: 'none',
-      }}
-    >
-      {devices.map(d => (
-        <option key={d.deviceId} value={d.deviceId}>
-          {d.label?.replace(/\s*\(.*?\)\s*/g, '').trim() || (d.kind === 'audioinput' ? 'Mic' : 'Speaker')}
-        </option>
-      ))}
-    </select>
-  );
-}
+  .lq-spin { animation: lq-spin 0.9s linear infinite; }
+  @keyframes lq-spin { to { transform: rotate(360deg); } }
+
+  /* The dd default indent would push every result value off its column. */
+  .lq-dl dd { margin-inline-start: 0; }
+
+  @media (max-width: 640px) {
+    .lq-header { padding: 12px 16px !important; }
+
+    .lq-hero { padding: 30px 18px 26px !important; }
+    .lq-hero-title { font-size: 25px !important; }
+    .lq-hero-sub { font-size: 14px !important; }
+    .lq-pills { gap: 8px !important; margin-top: 18px !important; }
+
+    /* Fluid card with real side gutters instead of a 520px block flush to the
+       viewport edge. */
+    .lq-card { margin: -20px 14px 30px !important; border-radius: 14px !important; }
+    .lq-card-flat { margin-top: 0 !important; }
+    .lq-card-head { padding: 13px 18px !important; }
+    .lq-card-body { padding: 18px !important; }
+
+    /* Paired fields and result values are too narrow to share a row at 390px. */
+    .lq-grid2 { grid-template-columns: 1fr !important; }
+    .lq-dl { grid-template-columns: 1fr !important; }
+
+    .lq-call-bar { gap: 12px !important; }
+  }
+`;

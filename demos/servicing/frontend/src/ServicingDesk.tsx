@@ -1,10 +1,18 @@
 /**
- * The "Servicing Desk" floating voice widget for the Meridian Servicing Console.
+ * The "Servicing Desk" voice layer for the Meridian Servicing Console.
  *
- * A bottom-right launcher that opens an embedded voice panel. The whole session
- * lifecycle — mint against the control plane, WebRTC transport, mic control,
- * bot-state — is the public SDK's {@link useVoqalSession}; this file is just the
- * widget chrome plus two bridges that tie the call to the on-screen console:
+ * Not a docked chat widget: the desk is ambient. The shared `AmbientPresence`
+ * ring from `@voqalize/client-react` paints the whole viewport in Meridian's
+ * teal, so the desk's state (listening / thinking / speaking) is legible
+ * peripherally while the advisor keeps working the case queue. The only chrome
+ * is one small control in the console's own top bar — a label, a mic button, and
+ * a quiet "end" — handed to the app through a render-prop so `pages.tsx` keeps
+ * ownership of its header.
+ *
+ * The whole session lifecycle — mint against the control plane, WebRTC
+ * transport, mic control, bot-state — is the public SDK's {@link useVoqalSession};
+ * this file is just that control plus two bridges that tie the call to the
+ * on-screen console:
  *   - the assistant's `ui_command` server-messages replay onto the shared
  *     servicing store, so the assistant drives the console;
  *   - a compact workspace snapshot is echoed back to the assistant (`state_sync`)
@@ -19,21 +27,17 @@
  * name.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
+import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
+import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
+import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import {
-  PipecatClientProvider,
-  usePipecatClientMediaTrack,
-} from "@pipecat-ai/client-react";
-import {
-  BotAudioOutput,
-  CircularWaveform,
-  UserAudioControl,
-} from "@pipecat-ai/voice-ui-kit";
-// The kit ships Tailwind — without its stylesheet its components render as raw
-// browser defaults. We take the *scoped* bundle (everything under `.vkui-root`)
-// so the kit's preflight can't reset this demo's hand-rolled page chrome.
-import "@pipecat-ai/voice-ui-kit/styles.scoped";
-import { useVoqalSession, type VoqalBotState } from "@voqalize/client-react";
+  AmbientPresence,
+  useVoqalSession,
+  type AmbientPresencePalette,
+  type VoqalBotState,
+  type VoqalConnectionState,
+} from "@voqalize/client-react";
 import { useServicing } from "./store";
 import { ADVISOR } from "./data";
 import { config } from "./config";
@@ -42,35 +46,97 @@ import { config } from "./config";
 // (src/config.ts), driven by Vite env vars.
 const SERVICING = config;
 
-// Teal "Blueprint" brand: deep teal anchor + signal-orange accent.
-const TEAL = "#0F766E";
-const TEAL_L = "#14B8A6";
-const TEAL_D = "#0B524C";
+// Meridian's reading of the shared presence ring: the console's own "Blueprint"
+// palette — deep teal at rest, its brighter teal while the desk hears and
+// answers, and the console's signal-orange (the same hue that marks "needs your
+// approval") the moment the desk is reasoning, so a working desk is unmistakable
+// from the corner of the eye. Offline is the console's hairline border colour, so
+// a dead session reads as ordinary window trim.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: "#0F766E",
+  listening: "#14B8A6",
+  thinking: "#EA580C",
+  speaking: "#14B8A6",
+  offline: "#D3E0DD",
+};
+
+type Status = "idle" | "connecting" | "live" | "error";
+
+// The SDK hook reports `connected`/`disconnected`; the control's vocabulary is
+// the shorter one below.
+const CONNECTION_STATUS: Record<VoqalConnectionState, Status> = {
+  idle: "idle",
+  connecting: "connecting",
+  connected: "live",
+  disconnected: "idle",
+  error: "error",
+};
 
 const STATE_LABEL: Record<VoqalBotState, string> = {
-  idle: "Listening…",
-  listening: "Listening…",
-  thinking: "Thinking…",
+  idle: "Live",
+  listening: "Listening",
+  thinking: "Thinking",
   speaking: "Speaking",
 };
 
-// ── Bot audio visualizer (inside the PipecatClientProvider) ────────────────────
-function BotVisualizer({ botState }: { botState: VoqalBotState }) {
-  const botTrack = usePipecatClientMediaTrack("audio", "bot");
+// ── Top-bar presence control ──────────────────────────────────────────────────
+// One affordance, sitting in the console's own header. Idle: click to begin.
+
+function BeginControl({
+  status,
+  error,
+  onBegin,
+}: {
+  status: Status;
+  error: string;
+  onBegin: () => void;
+}) {
+  const connecting = status === "connecting";
   return (
-    <CircularWaveform
-      audioTrack={botTrack}
-      isThinking={botState === "thinking"}
-      size={120}
-      color1={TEAL}
-      color2={TEAL_L}
-    />
+    <div className="svc-presence">
+      <span className="svc-presence-label">
+        {connecting
+          ? "Connecting…"
+          : status === "error"
+            ? error || "Connection issue"
+            : "Ask the Servicing Desk"}
+      </span>
+      {connecting ? (
+        <button className="svc-presence-btn is-connecting" disabled title="Connecting…">
+          <Loader2 size={16} className="svc-presence-spin" />
+        </button>
+      ) : (
+        <button className="svc-presence-btn" onClick={onBegin} title="Talk to the Servicing Desk">
+          <Mic size={16} />
+        </button>
+      )}
+    </div>
   );
 }
 
-// ── Widget ─────────────────────────────────────────────────────────────────────
-export function ServicingDesk() {
-  const [open, setOpen] = useState(false);
+// Live: the mic doubles as a mute toggle; a small secondary control ends the call.
+function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () => void }) {
+  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
+  return (
+    <div className="svc-presence">
+      <span className="svc-presence-label">{isMicEnabled ? STATE_LABEL[botState] : "Muted"}</span>
+      <button
+        className={`svc-presence-btn is-live pstate-${botState} ${isMicEnabled ? "" : "is-muted"}`}
+        onClick={() => enableMic(!isMicEnabled)}
+        title={isMicEnabled ? "Mute" : "Unmute"}
+      >
+        {isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />}
+      </button>
+      <button className="svc-presence-end" onClick={onEnd} title="End call">
+        <PhoneOff size={13} />
+      </button>
+    </div>
+  );
+}
+
+// ── Session owner ─────────────────────────────────────────────────────────────
+
+export function ServicingDesk({ children }: { children: (presence: ReactNode) => ReactNode }) {
   const { handleUiCommand, registerAgentSend, rev, activeRef, tab, snapshot } = useServicing();
 
   // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
@@ -79,7 +145,7 @@ export function ServicingDesk() {
     apiBase: SERVICING.apiBase,
     tenantSlug: SERVICING.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the widget's error state.
+    // required" error, shown in the control's error state.
     publishableKey: SERVICING.publishableKey ?? "",
     agentId: SERVICING.agentId,
     // STT/TTS come from this demo's config, so the pipeline is declared once.
@@ -99,6 +165,8 @@ export function ServicingDesk() {
 
   const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } =
     session;
+
+  const status = CONNECTION_STATUS[connectionState];
 
   // Register the store's agent-send channel and mic once a session is live.
   useEffect(() => {
@@ -126,201 +194,74 @@ export function ServicingDesk() {
     };
   }, [client]);
 
-  const openAndConnect = () => {
-    setOpen(true);
-    if (connectionState === "idle" || connectionState === "error") connect();
-  };
+  const presence = client ? (
+    <LiveControls botState={botState} onEnd={disconnect} />
+  ) : (
+    <BeginControl status={status} error={error ?? ""} onBegin={connect} />
+  );
 
-  const hangUp = async () => {
-    await disconnect();
-    setOpen(false);
-  };
+  const shell = (
+    <>
+      {/* The desk as a property of the whole console — a calm, slightly thinner
+          ring than the house default, because this screen is dense with work. */}
+      <AmbientPresence
+        botState={botState}
+        connectionState={connectionState}
+        palette={PRESENCE}
+        weight={0.9}
+        tempo={1.15}
+      />
+      {children(presence)}
+      <PresenceStyles />
+    </>
+  );
 
-  const isLive = connectionState === "connected";
-  const isError = connectionState === "error";
-
-  if (!open) {
-    return (
-      <button
-        onClick={openAndConnect}
-        style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          zIndex: 1200,
-          display: "flex",
-          alignItems: "center",
-          gap: 9,
-          background: `linear-gradient(135deg, ${TEAL_L} 0%, ${TEAL} 100%)`,
-          color: "#EAF6F4",
-          border: "none",
-          borderRadius: 28,
-          padding: "12px 18px",
-          fontWeight: 700,
-          fontSize: 14,
-          fontFamily: "Archivo, system-ui, sans-serif",
-          cursor: "pointer",
-          boxShadow: "0 6px 20px rgba(15,118,110,.40)",
-        }}
-      >
-        <span aria-hidden style={{ width: 9, height: 9, borderRadius: "50%", background: "#5EEAD4" }} />
-        Ask the Servicing Desk
-      </button>
-    );
-  }
+  if (!client) return shell;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 24,
-        right: 24,
-        zIndex: 1200,
-        width: 300,
-        maxWidth: "calc(100vw - 32px)",
-        background: "#FFFFFF",
-        borderRadius: 18,
-        boxShadow: "0 16px 40px rgba(11,61,57,.22)",
-        overflow: "visible",
-        border: "1px solid #D3E0DD",
-        fontFamily: "Archivo, system-ui, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${TEAL} 0%, ${TEAL_D} 100%)`,
-          color: "#EAF6F4",
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          borderTopLeftRadius: 18,
-          borderTopRightRadius: 18,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 14 }}>
-          <span aria-hidden>✦</span> Servicing Desk
-        </div>
-        <button
-          onClick={hangUp}
-          title="Close"
-          style={{
-            background: "rgba(255,255,255,.2)",
-            border: "none",
-            color: "#EAF6F4",
-            borderRadius: 8,
-            width: 24,
-            height: 24,
-            cursor: "pointer",
-            fontSize: 14,
-          }}
-        >
-          ✕
-        </button>
-      </div>
-
-      <div
-        style={{
-          padding: "18px 16px 16px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        {isError ? (
-          <>
-            <div style={{ fontSize: 13, color: TEAL_D, textAlign: "center", lineHeight: 1.4 }}>
-              {error || "Something went wrong."}
-            </div>
-            <button
-              onClick={connect}
-              style={{
-                background: TEAL,
-                color: "#fff",
-                border: "none",
-                borderRadius: 10,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Try again
-            </button>
-          </>
-        ) : client ? (
-          <PipecatClientProvider client={client}>
-            <BotAudioOutput />
-            {isLive ? (
-              <>
-                <BotVisualizer botState={botState} />
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: TEAL_D, height: 16 }}>
-                  {STATE_LABEL[botState]}
-                </div>
-                <div style={{ fontSize: 11, color: "#5C6F6C", textAlign: "center", lineHeight: 1.4 }}>
-                  Working alongside you on your case queue.
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 12,
-                    marginTop: 6,
-                    width: "100%",
-                  }}
-                >
-                  {/* `vkui-root` scopes the kit's CSS to just this control;
-                      `voice-ui-kit` is the element the kit portals its device
-                      dropdown into, so the menu lands inside the scope too. */}
-                  <div className="vkui-root voice-ui-kit" style={{ display: "flex" }}>
-                    <UserAudioControl
-                      size="lg"
-                      dropdownMenuLabel="Audio devices"
-                      microphoneLabel="Microphone"
-                      speakerLabel="Speaker"
-                    />
-                  </div>
-                  <button
-                    onClick={hangUp}
-                    title="End call"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      height: 40,
-                      padding: "0 14px",
-                      borderRadius: 10,
-                      background: TEAL_D,
-                      border: "none",
-                      cursor: "pointer",
-                      color: "#EAF6F4",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    ✕ End
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <CircularWaveform isThinking size={120} color1={TEAL} color2={TEAL_L} />
-                <div style={{ fontSize: 12.5, color: "#5C6F6C" }}>Connecting…</div>
-              </>
-            )}
-          </PipecatClientProvider>
-        ) : (
-          <>
-            <CircularWaveform isThinking size={120} color1={TEAL} color2={TEAL_L} />
-            <div style={{ fontSize: 12.5, color: "#5C6F6C" }}>Connecting…</div>
-          </>
-        )}
-      </div>
-    </div>
+    <PipecatClientProvider client={client}>
+      <BotAudioOutput />
+      {shell}
+    </PipecatClientProvider>
   );
 }
+
+// The control sits on the console's dark-teal header, so it is styled against
+// that bar rather than the page.
+function PresenceStyles() {
+  return <style dangerouslySetInnerHTML={{ __html: PRESENCE_STYLES }} />;
+}
+
+const PRESENCE_STYLES = `
+.svc-presence{ display:flex; align-items:center; gap:9px; flex:0 0 auto;
+  font-family:'Archivo',system-ui,sans-serif; }
+.svc-presence-label{ font-size:12px; font-weight:600; color:#9FD4CD; letter-spacing:.2px;
+  white-space:nowrap; max-width:190px; overflow:hidden; text-overflow:ellipsis; text-align:right; }
+.svc-presence-btn{ display:flex; align-items:center; justify-content:center; width:34px; height:34px;
+  border-radius:50%; border:1px solid #7fe6da55; color:#04211E; cursor:pointer; flex:0 0 auto;
+  background:linear-gradient(135deg,#14B8A6,#0F766E);
+  transition:transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.svc-presence-btn:hover{ transform:scale(1.05); }
+.svc-presence-btn:active{ transform:scale(.97); }
+.svc-presence-btn.is-connecting{ background:transparent; border-color:#ffffff2e; color:#9FD4CD; cursor:default; }
+.svc-presence-btn.is-connecting:hover{ transform:none; }
+.svc-presence-btn.is-live{ box-shadow:0 0 0 3px #14b8a633; }
+.svc-presence-btn.is-live.pstate-thinking{ background:linear-gradient(135deg,#FB923C,#EA580C); color:#3a1402;
+  border-color:#fdba7455; box-shadow:0 0 0 4px #ea580c33; }
+.svc-presence-btn.is-live.pstate-speaking{ box-shadow:0 0 0 5px #14b8a640; }
+.svc-presence-btn.is-muted{ background:#ffffff14; border-color:#ffffff2e; color:#9FD4CD; box-shadow:none; }
+.svc-presence-end{ display:flex; align-items:center; justify-content:center; width:26px; height:26px;
+  border-radius:50%; border:none; background:transparent; color:#7FA9A4; cursor:pointer; flex:0 0 auto;
+  transition:color .15s ease, background .15s ease; }
+.svc-presence-end:hover{ color:#EAF6F4; background:#ffffff1f; }
+.svc-presence-spin{ animation:svc-presence-spin .9s linear infinite; }
+@keyframes svc-presence-spin{ to{ transform:rotate(360deg); } }
+
+/* Phone: the ring carries the state, so the label steps aside and only the
+   affordances stay. */
+@media (max-width:640px){
+  .svc-presence{ gap:6px; }
+  .svc-presence-label{ display:none; }
+  .svc-presence-btn{ width:32px; height:32px; }
+}
+`;

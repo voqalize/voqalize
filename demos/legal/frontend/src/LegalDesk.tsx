@@ -400,8 +400,9 @@ function LiveLayer() {
 
   const status = CONNECTION_STATUS[connectionState];
 
-  // Mirror the SDK's bot/connection state into the shared store — AmbientGlow and
-  // the live presence control read them from `useLegal()`.
+  // Mirror the SDK's bot/connection state into the shared store — the live
+  // presence control reads them from `useLegal()`. (The ambient ring itself takes
+  // them as props, straight off the session.)
   useEffect(() => {
     setBotState(botState);
   }, [botState, setBotState]);

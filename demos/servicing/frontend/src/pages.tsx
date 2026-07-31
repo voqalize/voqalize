@@ -10,7 +10,7 @@
  *   - the CASE view — with the "Needs your approval" maker-checker queue.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useServicing } from './store';
 import {
   CASE_TYPE_LABEL,
@@ -76,7 +76,9 @@ function PriorityDot({ p }: { p: Priority }) {
 }
 
 // ── top bar ───────────────────────────────────────────────────────────────────
-function TopBar() {
+// `presence` is the voice layer's one control, handed up from `ServicingDesk` so
+// the desk reads as part of Meridian's own chrome rather than a bolted-on widget.
+function TopBar({ presence }: { presence?: ReactNode }) {
   const { advisor, view, active, openBoard } = useServicing();
   return (
     <header className="svc-topbar">
@@ -113,6 +115,13 @@ function TopBar() {
         </div>
         <Avatar label={advisor.name} />
       </div>
+
+      {presence && (
+        <>
+          <span className="svc-topbar-div" aria-hidden />
+          {presence}
+        </>
+      )}
     </header>
   );
 }
@@ -782,6 +791,9 @@ function PaymentsTab({ c }: { c: Case }) {
       {c.payments.length === 0 ? (
         <div className="svc-empty-line">No recent payments on file.</div>
       ) : (
+        // Six money columns: on a phone they scroll inside this box rather than
+        // pushing the whole console sideways.
+        <div className="svc-table-wrap">
         <table className="svc-table">
           <thead>
             <tr>
@@ -806,6 +818,7 @@ function PaymentsTab({ c }: { c: Case }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </section>
   );
@@ -820,6 +833,7 @@ function DocumentsTab({ c }: { c: Case }) {
       {c.documents.length === 0 ? (
         <div className="svc-empty-line">No documents held for this loan.</div>
       ) : (
+        <div className="svc-table-wrap">
         <table className="svc-table">
           <thead>
             <tr>
@@ -840,6 +854,7 @@ function DocumentsTab({ c }: { c: Case }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </section>
   );
@@ -950,12 +965,12 @@ function ArchiveResults() {
 }
 
 // ── root ──────────────────────────────────────────────────────────────────────
-export function ServicingApp() {
+export function ServicingApp({ presence }: { presence?: ReactNode }) {
   const { view, active } = useServicing();
   return (
     <div className="svc-root">
       <ServicingStyles />
-      <TopBar />
+      <TopBar presence={presence} />
       <div className="svc-body">
         <LeftRail />
         <main className="svc-main">
@@ -1010,6 +1025,8 @@ const STYLES = `
 .svc-advisor-text{ display:flex; flex-direction:column; line-height:1.15; text-align:right; }
 .svc-advisor-text strong{ font-size:12.5px; }
 .svc-advisor-text span{ font-size:10.5px; color:#9FD4CD; }
+/* hairline before the voice layer's presence control (mounted by ServicingDesk) */
+.svc-topbar-div{ width:1px; height:24px; background:#ffffff24; flex:0 0 auto; }
 
 /* avatars */
 .svc-avatar{ width:28px; height:28px; border-radius:50%; display:inline-grid; place-items:center;
@@ -1182,6 +1199,7 @@ const STYLES = `
 .svc-field-value{ font-size:13.5px; font-weight:500; }
 
 /* tables */
+.svc-table-wrap{ overflow-x:auto; }
 .svc-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
 .svc-table th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);
   padding:7px 10px; border-bottom:1px solid var(--line); font-weight:600; }
@@ -1314,4 +1332,73 @@ const STYLES = `
 .svc-archive-foot{ width:100%; text-align:center; padding:11px; background:var(--teal-bg); color:var(--teal-d);
   border:none; cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:600; }
 .svc-archive-foot:hover{ background:#d6ebe7; }
+
+/* ── phone (≤640px) ───────────────────────────────────────────────────────────
+   Same console, one column. The desk furniture that only earns its space on a
+   wide monitor (search box, breadcrumb, advisor name, rail labels) steps aside;
+   the work itself — queue, case, approvals — stays whole, and anything genuinely
+   wide (the payment ledger) scrolls inside its own box instead of dragging the
+   page sideways. */
+@media (max-width:640px){
+  /* top bar: brand mark, assistant tray, advisor avatar, voice control. */
+  .svc-topbar{ gap:10px; padding:0 10px; overflow:hidden; }
+  .svc-brand-text,.svc-crumbs,.svc-topbar-search,.svc-advisor-text,.svc-topbar-div{ display:none; }
+  .svc-tray{ margin-left:auto; }
+  .svc-tray-btn{ height:32px; padding:0 10px; gap:6px; font-size:12px; }
+  .svc-tray-pop{ position:fixed; top:56px; left:10px; right:10px; width:auto; }
+  .svc-advisor{ padding-left:0; }
+
+  /* left rail → a horizontal filter strip above the work */
+  .svc-body{ flex-direction:column; }
+  .svc-rail{ width:auto; flex:0 0 auto; flex-direction:row; align-items:center; gap:8px;
+    padding:8px 10px; border-right:none; border-bottom:1px solid var(--line);
+    overflow-x:auto; overflow-y:hidden; }
+  .svc-rail-group{ flex-direction:row; align-items:center; gap:6px; flex:0 0 auto; }
+  .svc-rail-label,.svc-rail-foot{ display:none; }
+  .svc-rail-item{ flex:0 0 auto; gap:6px; padding:6px 10px; border:1px solid var(--line);
+    background:var(--surface); white-space:nowrap; font-size:12px; }
+  .svc-rail-dept{ font-size:12px; }
+  .svc-main{ min-height:0; }
+
+  /* board: the stage columns stack instead of scrolling sideways */
+  .svc-board-wrap{ padding:14px 12px; }
+  .svc-board-head{ flex-direction:column; align-items:flex-start; gap:2px; margin-bottom:12px; }
+  .svc-board{ flex-direction:column; gap:12px; overflow-x:visible; }
+  .svc-col{ width:100%; min-width:0; }
+
+  /* case: the customer rail drops under the case body */
+  .svc-case{ flex-direction:column; }
+  .svc-case-main{ padding:14px 12px; }
+  .svc-case-head h1{ font-size:16px; }
+  .svc-case-rail{ width:auto; flex:0 0 auto; border-left:none; border-top:1px solid var(--line);
+    padding:14px 12px; }
+  .svc-tabs{ gap:2px; overflow-x:auto; }
+  .svc-tab{ flex:0 0 auto; padding:9px 10px; white-space:nowrap; }
+
+  /* panels: two-up grids, nothing side-by-side that needs the width */
+  .svc-panel{ padding:13px; }
+  .svc-loan-grid{ grid-template-columns:repeat(2,1fr); gap:12px 14px; }
+  .svc-packet-fields{ grid-template-columns:repeat(2,1fr); }
+  .svc-finding{ flex-direction:column; gap:3px; }
+  .svc-finding-label{ flex:0 0 auto; }
+  .svc-approval{ gap:9px; padding:11px; }
+  .svc-approval-icon{ width:28px; height:28px; font-size:14px; }
+  .svc-approval-title{ flex-wrap:wrap; gap:7px; }
+  .svc-blocker-actions{ flex-direction:column; align-items:flex-start; gap:7px; }
+  .svc-prep-job{ flex-wrap:wrap; }
+  .svc-packet-foot,.svc-note-compose-foot{ flex-wrap:wrap; }
+  .svc-note-dept-select{ max-width:100%; }
+
+  /* the payment ledger is the one genuinely wide thing: its own scroll box */
+  .svc-table-wrap{ -webkit-overflow-scrolling:touch; }
+  #svc-sec-payments .svc-table{ min-width:520px; }
+
+  /* legibility floor — nothing under 11px on a phone */
+  .svc-field-label,.svc-rail-card-label,.svc-table th,.svc-activity-actor,
+  .svc-note-time{ font-size:11px; }
+  .svc-activity-actor{ width:44px; }
+
+  /* archive overlay spans the viewport gutters */
+  .svc-archive{ left:10px; right:10px; top:60px; width:auto; max-width:none; transform:none; }
+}
 `;
