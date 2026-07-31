@@ -7,7 +7,7 @@
  * and semantic class names so the agent's screen-driving stays robust.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   BRANDS,
   CATALOG,
@@ -63,8 +63,8 @@ function RatingLine({ phone, size = 13 }: { phone: Phone; size?: number }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
       <Stars rating={phone.rating} size={size} />
-      <span style={{ fontSize: size - 1, fontWeight: 700, color: '#374151' }}>{phone.rating.toFixed(1)}</span>
-      <span style={{ fontSize: size - 1.5, color: '#9ca3af' }}>({phone.reviewCount.toLocaleString()})</span>
+      <span className="ms-rating-value" style={{ fontSize: size - 1, fontWeight: 700, color: '#374151' }}>{phone.rating.toFixed(1)}</span>
+      <span className="ms-rating-count" style={{ fontSize: size - 1.5, color: '#9ca3af' }}>({phone.reviewCount.toLocaleString()})</span>
     </span>
   );
 }
@@ -248,7 +248,7 @@ function PhoneCard({ phone }: { phone: Phone }) {
       <RatingLine phone={phone} size={12} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
         {chips.map((c) => (
-          <span key={c} style={{ background: '#f3f4f6', color: '#4b5563', borderRadius: 7, padding: '2px 7px', fontSize: 10.5, fontWeight: 600 }}>
+          <span key={c} className="ms-spec-chip" style={{ background: '#f3f4f6', color: '#4b5563', borderRadius: 7, padding: '2px 7px', fontSize: 10.5, fontWeight: 600 }}>
             {c}
           </span>
         ))}
@@ -311,6 +311,7 @@ function HomePage() {
     <div className="ms-home" style={{ padding: 14 }}>
       {/* Hero */}
       <div
+        className="ms-hero"
         style={{
           borderRadius: 20,
           background: `linear-gradient(135deg, ${BRAND_COLOR} 0%, ${BRAND_DARK} 100%)`,
@@ -319,10 +320,10 @@ function HomePage() {
           marginBottom: 16,
         }}
       >
-        <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.2 }}>Find your perfect phone</div>
+        <div className="ms-hero-title" style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.2 }}>Find your perfect phone</div>
         <div style={{ fontSize: 13.5, opacity: 0.88, marginTop: 6, maxWidth: 460 }}>
-          {CATALOG.length} phones from {BRANDS.length} brands, budget to flagship. Not sure which? Tap the Mobile Expert
-          below and just ask.
+          {CATALOG.length} phones from {BRANDS.length} brands, budget to flagship. Not sure which? Tap the mic up top and
+          just ask the Mobile Expert.
         </div>
         <button
           className="ms-hero-cta"
@@ -399,9 +400,9 @@ function HomePage() {
 
       {/* Featured */}
       <SectionTitle>Featured flagships</SectionTitle>
-      <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 6, marginBottom: 22 }}>
+      <div className="ms-featured-row" style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 6, marginBottom: 22 }}>
         {featured.map((p) => (
-          <div key={p.id} style={{ flex: '0 0 190px' }}>
+          <div key={p.id} className="ms-featured-card" style={{ flex: '0 0 190px' }}>
             <PhoneCard phone={p} />
           </div>
         ))}
@@ -706,7 +707,7 @@ function ReviewsSection({ phone }: { phone: Phone }) {
               <span style={{ flex: 1, height: 7, background: '#f1f3f5', borderRadius: 4, overflow: 'hidden' }}>
                 <span style={{ display: 'block', width: `${pct}%`, height: '100%', background: STAR }} />
               </span>
-              <span style={{ fontSize: 10.5, color: '#9ca3af', width: 28, textAlign: 'right' }}>{pct}%</span>
+              <span className="ms-hist-pct" style={{ fontSize: 10.5, color: '#9ca3af', width: 28, textAlign: 'right' }}>{pct}%</span>
             </div>
           ))}
         </div>
@@ -851,7 +852,7 @@ function ProductPage({ isDesktop }: { isDesktop: boolean }) {
       </SpecRow>
 
       {/* Pros / cons */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '10px 0' }}>
+      <div className="ms-proscons" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '10px 0' }}>
         <div style={{ background: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: 12, padding: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', marginBottom: 6 }}>PROS</div>
           {phone.pros.map((p) => (
@@ -917,10 +918,10 @@ function ComparePage() {
   return (
     <div className="ms-compare" style={{ padding: 14, overflowX: 'auto' }}>
       <SectionTitle>Compare</SectionTitle>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <table className="ms-compare-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
         <thead>
           <tr>
-            <th style={{ width: 74 }} />
+            <th className="ms-compare-gutter" style={{ width: 74 }} />
             {phones.map((p) => (
               <th key={p.id} data-product-id={p.id} style={{ padding: 8, textAlign: 'left', verticalAlign: 'top' }}>
                 <PhoneImage phone={p} height={92} />
@@ -998,7 +999,7 @@ const NAV_ITEMS = [
   { key: 'faq', label: 'Help', icon: '💬' },
 ] as const;
 
-export function MobileShopApp() {
+export function MobileShopApp({ presence }: { presence?: ReactNode }) {
   const { view, cart, wishlist, goHome, showSearch, openFaq } = useMobileShop();
   const isDesktop = useIsDesktop();
 
@@ -1007,7 +1008,7 @@ export function MobileShopApp() {
 
   return (
     <div className="ms-app" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f3f4f6' }}>
-      {/* Top bar */}
+      {/* Top bar — also the home of the one voice affordance (`presence`). */}
       <header
         className="ms-topbar"
         style={{
@@ -1017,10 +1018,10 @@ export function MobileShopApp() {
           padding: isDesktop ? '14px 24px' : '12px 16px',
         }}
       >
-        <div style={{ width: '100%', maxWidth: 1180, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={goHome} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer' }}>
-            <span style={{ width: 28, height: 28, borderRadius: 7, background: BRAND_COLOR, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15 }}>V</span>
-            <span style={{ fontWeight: 800, fontSize: 16, color: '#111827' }}>Voqal Mobile</span>
+        <div className="ms-topbar-inner" style={{ width: '100%', maxWidth: 1180, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <button className="ms-brand" onClick={goHome} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
+            <span className="ms-brand-mark" style={{ width: 28, height: 28, borderRadius: 7, background: BRAND_COLOR, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15, flex: 'none' }}>V</span>
+            <span className="ms-brand-name" style={{ fontWeight: 800, fontSize: 16, color: '#111827', whiteSpace: 'nowrap' }}>Voqal Mobile</span>
           </button>
 
           {/* Desktop nav lives in the header */}
@@ -1048,7 +1049,7 @@ export function MobileShopApp() {
             </nav>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="ms-topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 'none' }}>
             <div className="ms-wishlist" data-wishlist-count={wishlist.length} style={{ position: 'relative', fontSize: 20, color: '#e11d48' }}>
               ♥
               {wishlist.length > 0 && <CountBadge n={wishlist.length} color="#e11d48" />}
@@ -1057,6 +1058,7 @@ export function MobileShopApp() {
               🛒
               {cart.length > 0 && <CountBadge n={cart.length} color={BRAND_COLOR} />}
             </div>
+            {presence && <div className="ms-topbar-presence">{presence}</div>}
           </div>
         </div>
       </header>
@@ -1109,9 +1111,68 @@ export function MobileShopApp() {
           ))}
         </nav>
       )}
+
+      <style>{MOBILE_STYLES}</style>
     </div>
   );
 }
+
+/**
+ * Phone pass (≤640px). The store is mobile-first already, so this is corrective
+ * rather than a redesign: tighten the chrome so the top bar (logo + wishlist +
+ * cart + the voice control) fits 390px, hold the product grid at two real
+ * columns, unstack nothing on desktop, and let the one genuinely wide thing —
+ * the spec-compare table — scroll inside its own box instead of pushing the page
+ * sideways. Inline styles win over stylesheets, hence the `!important`s.
+ */
+const MOBILE_STYLES = `
+/* The voice control is chrome, not a widget — a hairline separates it from the
+   shopper's own controls (wishlist, cart). */
+.ms-topbar-presence {
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  border-left: 1px solid #e5e7eb;
+}
+
+@media (max-width: 640px) {
+  .ms-topbar { padding: 10px 12px !important; }
+  .ms-topbar-inner { gap: 8px; }
+  .ms-topbar-actions { gap: 12px !important; }
+  .ms-brand { gap: 7px !important; }
+  .ms-brand-name { font-size: 14.5px !important; }
+  .ms-topbar-presence { padding-left: 10px; }
+
+  .ms-home, .ms-search, .ms-product, .ms-compare, .ms-faq { padding: 12px !important; }
+
+  /* The demo ships no CSS reset, so these "width: 100%" + padding boxes are
+     content-box and render 26px wider than their track/column — enough to push
+     the whole page sideways on a 390px screen. Correct them where it bites. */
+  .ms-product-card, .ms-add-to-cart, .ms-wishlist-btn { box-sizing: border-box; }
+  /* Belt and braces: every intentional sideways scroll (featured rail, filter
+     rail, compare table) lives in its own container, so the page itself never
+     needs one. */
+  .ms-body { overflow-x: hidden; }
+
+  .ms-hero { padding: 20px 16px !important; }
+  .ms-hero-title { font-size: 20px !important; }
+
+  /* auto-fill would drop to a single 366px column on the narrowest phones —
+     pin two, and let the card contents shrink instead. */
+  .ms-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .ms-featured-card { flex: 0 0 168px !important; }
+
+  /* Nothing under 11px on a phone. */
+  .ms-spec-chip, .ms-rating-count, .ms-hist-pct, .ms-bottomnav button { font-size: 11px !important; }
+
+  .ms-proscons { grid-template-columns: 1fr !important; }
+
+  /* Never crush the comparison into unreadable columns: give it a real width
+     and let .ms-compare (overflow-x: auto) scroll it. */
+  .ms-compare-table { min-width: 540px; }
+  .ms-compare-gutter { width: 62px !important; }
+}
+`;
 
 function CountBadge({ n, color }: { n: number; color: string }) {
   return (

@@ -13,7 +13,7 @@
  * appears so the verbal request never hangs in silence before the first tool call.
  *
  * Presentation-only: it reads `activities` + presence from the store, is
- * `pointer-events: none`, and sits just under the AmbientGlow ring.
+ * `pointer-events: none`, and sits just under the ambient presence ring.
  */
 
 import { useForge } from './store';
@@ -148,6 +148,17 @@ export function ActivityFeed() {
         @keyframes ff-act-pulse {
           0%, 100% { transform: scale(0.7); opacity: 0.7; }
           50%      { transform: scale(1);   opacity: 1; }
+        }
+
+        /* On a phone the feed spans the bottom gutter rather than a 340px column. */
+        @media (max-width: 640px) {
+          .ff-activity {
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            max-width: none;
+          }
+          .ff-act-detail { max-width: none; }
         }
 
         @media (prefers-reduced-motion: reduce) {

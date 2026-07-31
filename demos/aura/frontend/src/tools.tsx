@@ -30,7 +30,7 @@ const inr = (n: number): string => `₹${Math.round(n).toLocaleString('en-IN')}`
 function PageShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   const { openHelpCenter } = useAura();
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '28px 24px 60px' }}>
+    <div className="aura-page" style={{ maxWidth: 1000, margin: '0 auto', padding: '28px 24px 60px' }}>
       <button onClick={openHelpCenter} style={{ background: 'none', border: 'none', color: PRIMARY, cursor: 'pointer', fontSize: 13, padding: 0, marginBottom: 8 }}>
         ← Help &amp; Support
       </button>
@@ -97,7 +97,7 @@ export function CalculatorPage() {
 
   return (
     <PageShell title={cfg.title} subtitle={cfg.subtitle}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)', gap: 24, alignItems: 'start' }}>
+      <div className="aura-two-col" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)', gap: 24, alignItems: 'start' }}>
         <div style={{ background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 20 }}>
           {cfg.inputs.map(([key, label]) => (
             <label key={key} style={{ display: 'block', marginBottom: 16 }}>
@@ -293,7 +293,7 @@ export function SendToPhoneToast() {
   if (!sentToPhone) return null;
   const masked = sentToPhone.number ? sentToPhone.number.replace(/.(?=.{4})/g, '•') : 'your registered number';
   return (
-    <div style={{ position: 'fixed', left: 24, bottom: 24, zIndex: 1150, background: '#0F2417', color: '#EAFBEF', borderRadius: 12, padding: '14px 18px', boxShadow: '0 12px 30px rgba(0,0,0,.3)', maxWidth: 320, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+    <div className="aura-toast" style={{ position: 'fixed', left: 24, bottom: 24, zIndex: 1150, background: '#0F2417', color: '#EAFBEF', borderRadius: 12, padding: '14px 18px', boxShadow: '0 12px 30px rgba(0,0,0,.3)', maxWidth: 320, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
       <span style={{ fontSize: 18 }}>{sentToPhone.channel === 'sms' ? '✉️' : '🟢'}</span>
       <div style={{ fontSize: 13.5, lineHeight: 1.5 }}>
         Sent <strong>{sentToPhone.what}</strong> to {masked} via {sentToPhone.channel === 'sms' ? 'SMS' : 'WhatsApp'}.
@@ -308,7 +308,7 @@ export function TicketCard() {
   const { ticket, closeTicket } = useAura();
   if (!ticket) return null;
   return (
-    <div style={{ position: 'fixed', right: 24, bottom: 110, zIndex: 1150, width: 300, background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 14, boxShadow: '0 16px 40px rgba(26,22,32,.22)', overflow: 'hidden' }}>
+    <div className="aura-dock" style={{ position: 'fixed', right: 24, bottom: 110, zIndex: 1150, width: 300, background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 14, boxShadow: '0 16px 40px rgba(26,22,32,.22)', overflow: 'hidden' }}>
       <div style={{ background: PRIMARY, color: '#fff', padding: '11px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontWeight: 800, fontSize: 13.5 }}>Request registered</span>
         <button onClick={closeTicket} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 14 }}>✕</button>
@@ -490,7 +490,7 @@ export function SessionBadge() {
   const { authSession, selectedAccount } = useAura();
   if (!authSession) return null;
   return (
-    <div style={{ position: 'fixed', top: 16, right: 24, zIndex: 1150, background: '#0F2417', color: '#EAFBEF', borderRadius: 999, padding: '7px 14px', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 6px 18px rgba(0,0,0,.22)' }}>
+    <div className="aura-badge" style={{ position: 'fixed', top: 16, right: 24, zIndex: 1150, background: '#0F2417', color: '#EAFBEF', borderRadius: 999, padding: '7px 14px', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 6px 18px rgba(0,0,0,.22)' }}>
       <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34C759' }} />
       🔒 {authSession.name}
       {selectedAccount && <span style={{ opacity: 0.75, fontWeight: 600 }}>· {selectedAccount.masked_number}</span>}
@@ -667,7 +667,7 @@ export function CardControlsPage() {
         <div style={{ fontSize: 11.5, opacity: 0.8, marginTop: 8 }}>Credit limit {inr(cardControls.credit_limit)}</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 12, maxWidth: 760 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 12, maxWidth: 760 }}>
         <Toggle spot="international" on={c.international_enabled} onChange={(v) => set({ international_enabled: v })} label="International usage" sub="Use this card abroad and on overseas sites" />
         <Toggle on={c.domestic_enabled} onChange={(v) => set({ domestic_enabled: v })} label="Domestic usage" sub="Use this card within India" />
         <Toggle on={c.contactless_enabled} onChange={(v) => set({ contactless_enabled: v })} label="Tap to pay (contactless)" sub="Wave to pay at the terminal" />
@@ -707,7 +707,7 @@ export function ForexCardPage() {
   if (!forex) return null;
   return (
     <PageShell title="Aura Multi-Currency Forex Card" subtitle="Travel-ready — zero markup, lounge access">
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)', gap: 24, alignItems: 'start' }}>
+      <div className="aura-two-col" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)', gap: 24, alignItems: 'start' }}>
         <div>
           <div style={{ maxWidth: 360, background: 'linear-gradient(135deg,#16142E 0%, #3730A3 55%, #8B5CF6 100%)', color: '#fff', borderRadius: 16, padding: 22, boxShadow: '0 14px 40px rgba(79,70,229,.28)', marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -730,7 +730,7 @@ export function ForexCardPage() {
           </ul>
         </div>
 
-        <div data-aura-spotlight="forex_request" style={{ background: PAPER, border: `1.5px solid ${BORDER}`, borderRadius: 16, padding: 22, position: 'sticky', top: 96 }}>
+        <div data-aura-spotlight="forex_request" className="aura-sticky-rail" style={{ background: PAPER, border: `1.5px solid ${BORDER}`, borderRadius: 16, padding: 22, position: 'sticky', top: 96 }}>
           {forex.submitted ? (
             <div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#1B7A38' }}>✓ Request received</div>

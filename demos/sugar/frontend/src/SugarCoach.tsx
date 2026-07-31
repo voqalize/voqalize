@@ -6,6 +6,12 @@
  * renders the slim in-call bar pinned to the top of the app screen. Hanging up
  * ends the phase (→ ended screen).
  *
+ * Presence is ambient, not docked: the shared {@link AmbientPresence} ring from
+ * `@voqalize/client-react` glows around the whole screen and carries the coach's
+ * state (listening / thinking / speaking) peripherally, so the bar itself is left
+ * with only the identity bits — the coach's name, the state label + call timer,
+ * and the end-call button.
+ *
  * The whole session lifecycle — mint against the control plane, WebRTC transport,
  * mic control, bot-state — is the public SDK's {@link useVoqalSession}; this file
  * is just the in-call bar chrome plus two bridges that tie the call to the screen:
@@ -20,9 +26,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { PipecatClientProvider, usePipecatClientMediaTrack } from "@pipecat-ai/client-react";
-import { BotAudioOutput, CircularWaveform } from "@pipecat-ai/voice-ui-kit";
-import { useVoqalSession, type VoqalBotState } from "@voqalize/client-react";
+import { PipecatClientProvider } from "@pipecat-ai/client-react";
+import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
+import {
+  AmbientPresence,
+  useVoqalSession,
+  type AmbientPresencePalette,
+  type VoqalBotState,
+} from "@voqalize/client-react";
 import { config } from "./config";
 import { COACH_NAME } from "./data";
 import { useSugar } from "./store";
@@ -32,8 +43,28 @@ import { useSugar } from "./store";
 const SUGAR = config;
 
 const GREEN = "#0E7A5F";
-const GREEN_DEEP = "#0A5C48";
 const RED = "#D6453D";
+const AMBER = "#C97F1E";
+
+// Sugar's reading of the shared presence ring: the app's own evergreen while the
+// coach is listening or talking, warming to the care-plan amber the moment she's
+// working something out — the one state a patient reads out of the corner of the
+// eye. Off the call it drops to a barely-there oat seam, the app's own line colour.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: GREEN,
+  listening: GREEN,
+  thinking: AMBER,
+  speaking: GREEN,
+  offline: "#D6D2C6",
+};
+
+// The bar's static state dot — the ring carries the motion, this just names it.
+const STATE_DOT: Record<VoqalBotState, string> = {
+  idle: "#7BD9BE",
+  listening: "#7BD9BE",
+  thinking: "#F2C063",
+  speaking: "#2FA875",
+};
 
 // The check-in runs in the patient's chosen language (the store's LanguageToggle).
 // Only the STT recognition hint + TTS language are keyed off it; the STT model and
@@ -47,20 +78,6 @@ const STATE_LABEL: Record<VoqalBotState, string> = {
   thinking: "Thinking…",
   speaking: "Speaking",
 };
-
-// ── Bot audio visualizer (inside the PipecatClientProvider) ────────────────────
-function CoachWaveform({ botState }: { botState: VoqalBotState }) {
-  const botTrack = usePipecatClientMediaTrack("audio", "bot");
-  return (
-    <CircularWaveform
-      audioTrack={botTrack}
-      isThinking={botState === "thinking"}
-      size={30}
-      color1={GREEN}
-      color2={GREEN_DEEP}
-    />
-  );
-}
 
 function CallTimer() {
   const [sec, setSec] = useState(0);
@@ -162,21 +179,26 @@ export function SugarCallSession() {
     endCall();
   };
 
+  // The ring is `position: fixed` and self-positioning — it rides alongside the
+  // bar in the tree, but paints around the whole screen.
   const bar = (inner: ReactNode) => (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "10px 14px",
-        background: "linear-gradient(135deg, #0F2B23 0%, #123A2E 100%)",
-        color: "#fff",
-        borderRadius: 16,
-        boxShadow: "0 8px 24px rgba(10,40,30,.35)",
-      }}
-    >
-      {inner}
-    </div>
+    <>
+      <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 14px",
+          background: "linear-gradient(135deg, #0F2B23 0%, #123A2E 100%)",
+          color: "#fff",
+          borderRadius: 16,
+          boxShadow: "0 8px 24px rgba(10,40,30,.35)",
+        }}
+      >
+        {inner}
+      </div>
+    </>
   );
 
   if (isError) {
@@ -205,12 +227,13 @@ export function SugarCallSession() {
       <BotAudioOutput />
       {bar(
         <>
-          <div style={{ flex: "none", width: 30, height: 30 }}>
-            <CoachWaveform botState={botState} />
-          </div>
+          <span
+            aria-hidden
+            style={{ flex: "none", width: 9, height: 9, borderRadius: "50%", background: STATE_DOT[botState] }}
+          />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 800, lineHeight: 1.15 }}>{COACH_NAME}</div>
-            <div style={{ fontSize: 10.5, opacity: 0.8 }}>
+            <div style={{ fontSize: "var(--sugar-mini)", opacity: 0.8 }}>
               {STATE_LABEL[botState]} · <CallTimer />
             </div>
           </div>

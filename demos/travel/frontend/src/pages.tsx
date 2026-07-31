@@ -10,7 +10,7 @@
  * `.tv-root`.
  */
 
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useTravel } from './store';
 import {
   paxSummary,
@@ -55,16 +55,19 @@ const STYLES = `
 /* top bar */
 .tv-topbar{display:flex;align-items:center;gap:16px;height:56px;flex:0 0 56px;
   padding:0 22px;background:var(--card);border-bottom:1px solid var(--border)}
-.tv-brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em;font-size:17px}
+.tv-brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em;font-size:17px;
+  flex:0 0 auto;white-space:nowrap}
 .tv-brand .mark{color:var(--vermilion)}
 .tv-brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);font-weight:500;
   letter-spacing:.04em;padding-left:9px;margin-left:3px;border-left:1px solid var(--border)}
-.tv-crumbs{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted-foreground)}
-.tv-crumbs a{color:var(--vermilion-text);cursor:pointer;text-decoration:none}
-.tv-crumbs .cur{color:var(--foreground);font-weight:600}
+.tv-crumbs{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted-foreground);
+  min-width:0;flex:0 1 auto;white-space:nowrap}
+.tv-crumbs a{color:var(--vermilion-text);cursor:pointer;text-decoration:none;flex:0 0 auto}
+.tv-crumbs .sep{flex:0 0 auto}
+.tv-crumbs .cur{color:var(--foreground);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .tv-spacer{flex:1}
 .tv-agentchip{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted-foreground);
-  background:var(--muted);border-radius:999px;padding:5px 12px}
+  background:var(--muted);border-radius:999px;padding:5px 12px;flex:0 0 auto;white-space:nowrap}
 .tv-agentchip .av{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#C23F1E,#E24E2A);
   color:#FAF6F0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
 
@@ -200,7 +203,8 @@ const STYLES = `
   font-size:12.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word;margin-left:auto;max-width:94%}
 .tv-bubble .tick{display:block;text-align:right;font-size:10px;color:#8fc7b9;margin-top:3px}
 .tv-wafoot{padding:12px 14px;background:#0b141a;display:flex;gap:10px;align-items:center}
-.tv-close{position:fixed;top:18px;right:20px;z-index:1301;background:rgba(255,255,255,.12);color:#fff;
+/* sits clear of the 56px top bar — that corner belongs to the presence control */
+.tv-close{position:fixed;top:72px;right:20px;z-index:1301;background:rgba(255,255,255,.12);color:#fff;
   border:none;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer}
 
 /* background-task tray (search flights/hotels, build day plan) */
@@ -233,6 +237,71 @@ const STYLES = `
   background:linear-gradient(90deg,var(--card) 0%,var(--muted) 50%,var(--card) 100%);
   background-size:200% 100%;animation:tv-shimmer 1.3s ease-in-out infinite}
 @keyframes tv-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── Phone (≤640px) ───────────────────────────────────────────────────────────
+   Desktop is untouched. Below this width the portal goes single-column: the top
+   bar keeps only the wordmark, the breadcrumb and the presence control; the split
+   option cards (detail | price rail) stack; the overview rows put their choice on
+   their own line; and nothing is allowed to push the page wider than the screen. */
+@media(max-width:640px){
+  /* top bar — the desk control is the one thing that never gets dropped */
+  .tv-topbar{gap:10px;padding:0 13px}
+  .tv-brand{font-size:15.5px;gap:7px}
+  .tv-brand .sub{display:none}
+  .tv-agentchip{display:none}
+  /* the trip name is the H1 right below — the crumb keeps only the way back */
+  .tv-crumbs{font-size:12px;gap:6px}
+  .tv-crumbs .sep,.tv-crumbs .cur{display:none}
+
+  /* task tray already scrolls in its own lane — just tighten it */
+  .tv-tasktray{padding:8px 13px;gap:8px}
+  .tv-tasktray .lead{font-size:11px}
+
+  /* page frame */
+  .tv-wrap{padding:18px 14px 72px}
+  .tv-h1{font-size:24px}
+  .tv-sub{font-size:13.5px;margin-bottom:18px}
+  .tv-grid{grid-template-columns:1fr;gap:12px}
+  .tv-empty{padding:24px 18px}
+  .tv-tripcard .meta{font-size:11px}
+
+  /* overview header */
+  .tv-ovh{padding:18px 16px;border-radius:14px}
+  .tv-ovh .nm{font-size:21px}
+  .tv-ovh .line{gap:6px 14px;font-size:13px}
+  .tv-ovh .dest{font-size:11px}
+
+  /* sections */
+  .tv-sec{padding:16px 15px;border-radius:14px}
+  .tv-scrh{flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .tv-scrh .t{font-size:18px}
+
+  /* leg / hotel rows: label on top, the pick + its button on their own line */
+  .tv-row{flex-wrap:wrap;align-items:flex-start;gap:8px}
+  .tv-row .pick{font-size:12.5px}
+  .tv-rowend{margin-left:0;width:100%;justify-content:space-between;gap:8px}
+
+  /* option cards: the price rail becomes a footer strip */
+  .tv-opt{flex-direction:column;gap:12px;padding:14px 15px}
+  .tv-opt .name{font-size:15px}
+  .tv-opt .det{font-size:12.5px;gap:4px 10px}
+  .tv-opt .side{flex-direction:row;align-items:center;justify-content:space-between;
+    width:100%;min-width:0;border-left:none;border-top:1px solid var(--border);
+    padding-left:0;padding-top:11px}
+  .tv-opt .price small{text-align:left;font-size:11px}
+
+  /* day plan: tighten the time gutter */
+  .tv-act{padding-left:24px;gap:8px}
+  .tv-act .tm{min-width:52px;font-size:11px}
+  .tv-daymeta{padding-left:24px}
+
+  /* WhatsApp preview — clear of the close button, never wider than the screen */
+  .tv-modal{padding:12px}
+  .tv-phone{max-height:82vh;border-width:5px}
+  /* the top-right corner is the presence control's — dismiss moves under the sheet */
+  .tv-close{top:auto;right:auto;bottom:16px;left:50%;transform:translateX(-50%);
+    width:38px;height:38px;background:rgba(255,255,255,.18)}
+}
 `;
 
 function TravelStyles() {
@@ -240,7 +309,9 @@ function TravelStyles() {
 }
 
 // ── Top bar ───────────────────────────────────────────────────────────────────
-function TopBar() {
+// Carries the wordmark, the breadcrumb, and the one voice affordance — the
+// presence control the voice layer hands up, so the desk reads as product chrome.
+function TopBar({ presence }: { presence: ReactNode }) {
   const { active, view, openDashboard } = useTravel();
   return (
     <div className="tv-topbar">
@@ -252,7 +323,7 @@ function TopBar() {
         <a onClick={openDashboard}>Itineraries</a>
         {active && view !== 'dashboard' && (
           <>
-            <span>/</span>
+            <span className="sep">/</span>
             <span className="cur">{active.name}</span>
           </>
         )}
@@ -261,6 +332,7 @@ function TopBar() {
       <div className="tv-agentchip">
         <span className="av">RA</span> Agent: Rahul
       </div>
+      {presence}
     </div>
   );
 }
@@ -824,13 +896,13 @@ function DevUiExpose() {
 }
 
 // ── App shell ─────────────────────────────────────────────────────────────────
-export function TravelApp() {
+export function TravelApp({ presence }: { presence: ReactNode }) {
   const { view, active, whatsappOpen } = useTravel();
   return (
     <div className="tv-root">
       <TravelStyles />
       <DevUiExpose />
-      <TopBar />
+      <TopBar presence={presence} />
       <TaskTray />
       <div className="tv-body">
         {view === 'dashboard' || !active ? (

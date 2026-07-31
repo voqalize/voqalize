@@ -11,21 +11,42 @@
  * publishable (`pk_`) key. This file is just the paste-JSON form, the call UI, and
  * the section/summary bridge the brain drives via `section_changed` /
  * `interview_completed`.
+ *
+ * The interviewer's state is carried by the shared `AmbientPresence` ring — the
+ * catalog-wide voice treatment, painted around the whole harness rather than
+ * parked in a widget. The call card keeps only the minimal controls (mute / end)
+ * and the section indicator this harness exists to surface.
  */
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
+import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
+import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import {
-  PipecatClientProvider,
-  usePipecatClientMediaTrack,
-} from "@pipecat-ai/client-react";
-import { BotAudioOutput, CircularWaveform } from "@pipecat-ai/voice-ui-kit";
-import "@pipecat-ai/voice-ui-kit/styles";
-import { useVoqalSession, type VoqalBotState } from "@voqalize/client-react";
+  AmbientPresence,
+  useVoqalSession,
+  type AmbientPresencePalette,
+  type VoqalBotState,
+} from "@voqalize/client-react";
 import { config } from "./config";
 
 // Tenant + agent + pk resolve per-environment from this demo's local config
 // (src/config.ts), driven by Vite env vars.
 const INTERVIEW = config;
+
+// This harness's reading of the shared presence ring: the indigo of its own
+// primary action is the interviewer present and speaking, and it shifts to the
+// cyan already used as the second waveform colour while the interviewer reasons
+// — a plainly different hue at the edge of vision. Offline is a slate lifted a
+// couple of steps off the card borders, because on a #0f172a page a #1e293b seam
+// would simply disappear.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: "#6366f1",
+  listening: "#6366f1",
+  thinking: "#22d3ee",
+  speaking: "#6366f1",
+  offline: "#475569",
+};
 
 const SAMPLE_AGENT_INPUT = {
   interview_id: 288,
@@ -93,23 +114,33 @@ interface SectionState {
 }
 
 const STATE_LABEL: Record<VoqalBotState, string> = {
-  idle: "Connecting…",
-  listening: "Listening…",
-  thinking: "Thinking…",
+  idle: "Live",
+  listening: "Listening",
+  thinking: "Thinking",
   speaking: "Speaking",
 };
 
-// ── Bot audio visualizer (inside the PipecatClientProvider) ────────────────────
-function BotVisualizer({ botState }: { botState: VoqalBotState }) {
-  const botTrack = usePipecatClientMediaTrack("audio", "bot");
+// ── Live call controls (inside the PipecatClientProvider) ─────────────────────
+// The catalog's minimal shape: the state label, a circular mic that doubles as
+// the mute toggle, and a small secondary control that ends the interview.
+function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () => void }) {
+  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
+  const label = isMicEnabled ? STATE_LABEL[botState] : "Muted";
   return (
-    <CircularWaveform
-      audioTrack={botTrack}
-      isThinking={botState === "thinking"}
-      size={96}
-      color1="#6366f1"
-      color2="#22d3ee"
-    />
+    <div className="iv-controls">
+      <span className="iv-controls-label">{label}</span>
+      <button
+        className={`iv-mic state-${botState} ${isMicEnabled ? "" : "is-muted"}`}
+        onClick={() => enableMic(!isMicEnabled)}
+        title={isMicEnabled ? "Mute" : "Unmute"}
+        aria-label={isMicEnabled ? "Mute" : "Unmute"}
+      >
+        {isMicEnabled ? <Mic size={17} /> : <MicOff size={17} />}
+      </button>
+      <button className="iv-end" onClick={onEnd} title="End interview" aria-label="End interview">
+        <PhoneOff size={14} />
+      </button>
+    </div>
   );
 }
 
@@ -121,7 +152,6 @@ export function InterviewDemo() {
   const [parseError, setParseError] = useState("");
   const [callError, setCallError] = useState("");
   const [micPermission, setMicPermission] = useState<MicPermission>("idle");
-  const [isMuted, setIsMuted] = useState(false);
   const [section, setSection] = useState<SectionState | null>(null);
   const [events, setEvents] = useState<string[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
@@ -193,7 +223,6 @@ export function InterviewDemo() {
   useEffect(() => {
     if (connectionState !== "connected") return;
     enableMic(true);
-    setIsMuted(false);
   }, [connectionState, enableMic]);
 
   // Tear the session down on unmount.
@@ -241,14 +270,6 @@ export function InterviewDemo() {
     connect();
   };
 
-  const toggleMute = () => {
-    setIsMuted((m) => {
-      const next = !m;
-      enableMic(!next);
-      return next;
-    });
-  };
-
   const hangUp = async () => {
     await disconnect();
     setStep("form");
@@ -257,7 +278,6 @@ export function InterviewDemo() {
 
   return (
     <div
-      className="vkui-root"
       style={{
         minHeight: "100vh",
         background: "#0f172a",
@@ -265,7 +285,10 @@ export function InterviewDemo() {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 24px" }}>
+      <style>{STYLES}</style>
+      <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
+
+      <div className="iv-page" style={{ maxWidth: 760, margin: "0 auto", padding: "32px 24px" }}>
         <header style={{ marginBottom: 20 }}>
           <span
             style={{
@@ -281,7 +304,9 @@ export function InterviewDemo() {
           >
             prototype · interview_bot
           </span>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>AI Interview (Voqalize)</h1>
+          <h1 className="iv-title" style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
+            AI Interview (Voqalize)
+          </h1>
           <p style={{ color: "#94a3b8", fontSize: 14, marginTop: 4 }}>
             Paste the <code>agent_input</code> JSON (job + candidate + plan) and start a live voice
             interview.
@@ -291,6 +316,7 @@ export function InterviewDemo() {
         {step === "form" && (
           <div>
             <textarea
+              className="iv-textarea"
               value={agentInputText}
               onChange={(e) => {
                 setAgentInputText(e.target.value);
@@ -299,6 +325,8 @@ export function InterviewDemo() {
               spellCheck={false}
               style={{
                 width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box",
                 height: 320,
                 background: "#020617",
                 color: "#e2e8f0",
@@ -336,7 +364,10 @@ export function InterviewDemo() {
             {callError && (
               <div style={{ color: "#f87171", fontSize: 13, margin: "12px 0" }}>{callError}</div>
             )}
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 16 }}>
+            <div
+              className="iv-gate-row"
+              style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 16 }}
+            >
               <button onClick={() => setStep("form")} style={secondaryBtn}>
                 ← Back
               </button>
@@ -351,12 +382,12 @@ export function InterviewDemo() {
           </div>
         )}
 
+        {/* The ring already carries "something is happening" — this step only
+            needs to say what, quietly. */}
         {step === "connecting" && (
-          <div style={{ textAlign: "center", padding: "48px 0" }}>
-            <div style={{ width: 160, height: 160, margin: "0 auto" }}>
-              <CircularWaveform isThinking size={160} color1="#6366f1" color2="#22d3ee" />
-            </div>
-            <p style={{ color: "#94a3b8", marginTop: 12 }}>Connecting…</p>
+          <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+            <Loader2 size={22} className="iv-spin" />
+            <p style={{ marginTop: 12 }}>Connecting…</p>
           </div>
         )}
 
@@ -366,6 +397,7 @@ export function InterviewDemo() {
               <PipecatClientProvider client={client}>
                 <BotAudioOutput />
                 <div
+                  className="iv-callcard"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -376,12 +408,9 @@ export function InterviewDemo() {
                     padding: 16,
                   }}
                 >
-                  <div style={{ width: 96, height: 96 }}>
-                    <BotVisualizer botState={botState} />
-                  </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: "#94a3b8" }}>
-                      {step === "ended" ? "Interview complete" : STATE_LABEL[botState]}
+                      {step === "ended" ? "Interview complete" : "Live interview"}
                     </div>
                     {section && (
                       <div style={{ marginTop: 6, fontSize: 15, fontWeight: 600 }}>
@@ -391,17 +420,7 @@ export function InterviewDemo() {
                     )}
                   </div>
                   {step === "call" && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={toggleMute} style={secondaryBtn}>
-                        {isMuted ? "Unmute" : "Mute"}
-                      </button>
-                      <button
-                        onClick={hangUp}
-                        style={{ ...secondaryBtn, color: "#f87171", borderColor: "#7f1d1d" }}
-                      >
-                        End
-                      </button>
-                    </div>
+                    <LiveControls botState={botState} onEnd={() => void hangUp()} />
                   )}
                 </div>
               </PipecatClientProvider>
@@ -437,12 +456,15 @@ export function InterviewDemo() {
             <div style={{ marginTop: 16 }}>
               <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Event log</div>
               <div
+                className="iv-log"
                 style={{
                   background: "#020617",
                   border: "1px solid #1e293b",
                   borderRadius: 10,
                   padding: 12,
                   height: 220,
+                  maxWidth: "100%",
+                  boxSizing: "border-box",
                   overflow: "auto",
                   fontFamily: "ui-monospace, monospace",
                   fontSize: 12,
@@ -452,7 +474,11 @@ export function InterviewDemo() {
                 {events.length === 0 ? (
                   <span style={{ color: "#475569" }}>waiting for events…</span>
                 ) : (
-                  events.map((e, i) => <div key={i}>{e}</div>)
+                  events.map((e, i) => (
+                    <div key={i} style={{ whiteSpace: "pre" }}>
+                      {e}
+                    </div>
+                  ))
                 )}
               </div>
             </div>
@@ -484,3 +510,84 @@ const secondaryBtn: CSSProperties = {
   fontWeight: 600,
   cursor: "pointer",
 };
+
+// The harness owns its own baseline now that the voice-ui-kit stylesheet (and its
+// reset) is gone, plus the one narrow-viewport pass. Desktop is untouched: every
+// override below is inside the 640px query.
+const STYLES = `
+  html, body { margin: 0; padding: 0; background: #0f172a; -webkit-text-size-adjust: 100%; }
+
+  .iv-spin { animation: iv-spin 0.9s linear infinite; }
+  @keyframes iv-spin { to { transform: rotate(360deg); } }
+
+  .iv-controls { display: flex; align-items: center; gap: 10px; flex: none; }
+  .iv-controls-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    letter-spacing: 0.01em;
+    min-width: 62px;
+    text-align: right;
+  }
+  .iv-mic {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1.5px solid #6366f1;
+    background: #6366f1;
+    color: #ffffff;
+    cursor: pointer;
+    flex: none;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .iv-mic:hover { transform: scale(1.05); }
+  .iv-mic:active { transform: scale(0.97); }
+  .iv-mic.state-thinking {
+    border-color: #22d3ee;
+    background: #22d3ee;
+    color: #0f172a;
+    box-shadow: 0 0 0 5px rgba(34, 211, 238, 0.22);
+  }
+  .iv-mic.state-speaking { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.28); }
+  .iv-mic.is-muted {
+    background: transparent;
+    border-color: #334155;
+    color: #94a3b8;
+    box-shadow: none;
+  }
+  .iv-end {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    flex: none;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+  .iv-end:hover { color: #f87171; background: #1e293b; }
+
+  @media (max-width: 640px) {
+    .iv-page { padding: 20px 14px !important; }
+    .iv-title { font-size: 20px !important; }
+    .iv-textarea { height: 240px !important; }
+    .iv-gate-row { flex-wrap: wrap; }
+    .iv-callcard {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 12px !important;
+    }
+    .iv-controls { justify-content: space-between; }
+    .iv-controls-label { min-width: 0; text-align: left; }
+    .iv-end { width: 36px; height: 36px; }
+    .iv-log { height: 180px !important; }
+  }
+`;

@@ -6,7 +6,7 @@
  * is the lawyer's "reading position" — and debounce-sends `clause_focus` to
  * the assistant. Comment bubbles and redline diffs render inline, anchored to
  * their clause. When the assistant calls `point_to_clause`, this smoothly
- * scrolls to it and fires a brief highlight + a "beam" cue that `AmbientGlow`
+ * scrolls to it and fires a brief highlight + a "beam" cue that `AmbientPresence`
  * picks up (via the clause's DOM rect) to animate a light thread from the
  * screen border to the clause.
  */
@@ -276,6 +276,42 @@ export function DocumentViewer() {
           text-decoration: underline;
           text-decoration-thickness: 1px;
           text-underline-offset: 2px;
+        }
+
+        /* Phone: the page gives up its margins so the prose keeps a readable
+           measure, and the clause cards bleed to the gutters instead of hanging
+           past them. Long party names and defined terms wrap rather than push. */
+        @media (max-width: 720px) {
+          .doc-scroll {
+            padding: 26px 0 30vh;
+          }
+          .doc-page {
+            padding: 0 18px;
+          }
+          .doc-header {
+            margin-bottom: 28px;
+          }
+          .doc-title {
+            font-size: 20px;
+            overflow-wrap: break-word;
+          }
+          .doc-clause {
+            margin-bottom: 28px;
+            padding: 12px 10px;
+            margin-left: -10px;
+            margin-right: -10px;
+          }
+          .doc-clause-head {
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+          .doc-clause-heading {
+            overflow-wrap: break-word;
+            min-width: 0;
+          }
+          .doc-redline-rationale {
+            font-size: 12px;
+          }
         }
       `}</style>
     </div>

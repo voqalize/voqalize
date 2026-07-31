@@ -15,11 +15,13 @@ import { TravelApp } from "./pages";
 import { TravelAdvisor } from "./TravelAdvisor";
 
 function TravelDemo() {
+  // TravelAdvisor owns the session and hands the portal its top-bar presence
+  // control, so the desk is part of Trip Studio's own chrome (top-bar mic + the
+  // app-wide AmbientPresence ring), not a bolted-on widget.
   return (
     <div className="tv-demo-root" style={{ position: "fixed", inset: 0, overflow: "hidden" }}>
       <TravelProvider>
-        <TravelApp />
-        <TravelAdvisor />
+        <TravelAdvisor>{(presence) => <TravelApp presence={presence} />}</TravelAdvisor>
       </TravelProvider>
     </div>
   );

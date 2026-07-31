@@ -3,8 +3,11 @@
  * demo. A slim top bar carries the wordmark, matter breadcrumb, and the one
  * prominent presence control (not a bottom chat-widget dock — this is meant
  * to read as part of the product's own chrome, not a bolted-on assistant).
- * Left rail is matter detail + clause outline only. Main = DocumentViewer
- * inside AmbientGlow. TaskTray docked, quiet. Once connected the mic stays
+ * Left rail is matter detail + clause outline only. Main = DocumentViewer, ringed
+ * by the shared `AmbientPresence` glow from `@voqalize/client-react` — the
+ * catalog-wide voice treatment, in Docket's oxblood. TaskTray docked, quiet.
+ * When the assistant points at a clause, the ring's beam layer travels from the
+ * screen edge to it. Once connected the mic stays
  * open — no push-to-talk — the presence control doubles as a mute toggle,
  * with a small secondary "end" control beside it.
  *
@@ -23,13 +26,14 @@ import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/c
 import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
 import { Mic, MicOff, PhoneOff, Loader2 } from 'lucide-react';
 import {
+  AmbientPresence,
   useVoqalSession,
+  type AmbientPresencePalette,
   type VoqalConnectionState,
 } from '@voqalize/client-react';
 import { useLegal } from './store';
 import { CLAUSES, DATA_ROOM, MATTER } from './content';
 import { DocumentViewer } from './DocumentViewer';
-import { AmbientGlow } from './AmbientGlow';
 import { TaskTray } from './TaskTray';
 import { ObligationsPanel } from './ObligationsPanel';
 import { config } from './config';
@@ -39,6 +43,18 @@ import { config } from './config';
 const LEGAL = config;
 
 type Status = 'idle' | 'connecting' | 'live' | 'error';
+
+// Docket's reading of the shared presence ring: the oxblood of a law-office desk
+// set, shifting to gold leaf while the assistant reasons. The beam that travels
+// from the edge to a clause is the same oxblood — the agent reaching into the page.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: '#9A3324',
+  listening: '#9A3324',
+  thinking: '#B9862E',
+  speaking: '#9A3324',
+  offline: '#E4E1DB',
+  beam: '#9A3324',
+};
 
 // The store's ConnectionState vocabulary uses `live`; the SDK hook reports
 // `connected`/`disconnected`. Map the transport state onto the store's.
@@ -236,6 +252,20 @@ function TopBar({ status, children }: { status: Status; children: ReactNode }) {
         .desk-presence-end:hover { color: #9A3324; background: #F2F1F0; }
         .desk-spin { animation: legal-spin 0.9s linear infinite; }
         @keyframes legal-spin { to { transform: rotate(360deg); } }
+
+        /* On a phone the bar carries the wordmark and the one voice affordance.
+           The matter caption is already on the document header, and the state
+           label is redundant with the ring — both step aside for the mic. */
+        @media (max-width: 720px) {
+          .desk-topbar {
+            padding: 0 14px;
+          }
+          .desk-topbar-sep,
+          .desk-topbar-matter,
+          .desk-presence-label {
+            display: none;
+          }
+        }
       `}</style>
     </header>
   );
@@ -350,13 +380,58 @@ function LeftRail() {
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+
+        /* On a phone the document is the whole product, so the 220px rail
+           becomes a thin horizontal clause strip beneath the top bar: the
+           reading position stays visible and jumpable, and the matter block and
+           data room — desktop orientation, not review work — drop away. */
+        @media (max-width: 720px) {
+          .desk-rail {
+            top: 56px;
+            right: 0;
+            bottom: auto;
+            width: auto;
+            height: 42px;
+            flex-direction: row;
+            align-items: center;
+            gap: 0;
+            padding: 0 12px;
+            border-right: none;
+            border-bottom: 1px solid #E4E1DB;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+          }
+          .desk-rail::-webkit-scrollbar { display: none; }
+          .desk-matter,
+          .desk-outline-label,
+          .desk-dataroom {
+            display: none;
+          }
+          .desk-outline {
+            flex-direction: row;
+            gap: 6px;
+            margin-top: 0;
+          }
+          .desk-outline-item {
+            flex: none;
+            white-space: nowrap;
+            padding: 5px 10px;
+            border: 1px solid #E4E1DB;
+            font-size: 12px;
+          }
+          .desk-outline-active {
+            border-color: rgba(154, 51, 36, 0.3);
+          }
+        }
       `}</style>
     </aside>
   );
 }
 
 function LiveLayer() {
-  const { setBotState, setConnectionState, handleUiCommand, registerAgentSend } = useLegal();
+  const { setBotState, setConnectionState, handleUiCommand, registerAgentSend, pointer } =
+    useLegal();
 
   // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
   // (past the `{ data }` quirk), so we read `type` directly.
@@ -383,8 +458,9 @@ function LiveLayer() {
 
   const status = CONNECTION_STATUS[connectionState];
 
-  // Mirror the SDK's bot/connection state into the shared store — AmbientGlow and
-  // the live presence control read them from `useLegal()`.
+  // Mirror the SDK's bot/connection state into the shared store — the live
+  // presence control reads them from `useLegal()`. (The ambient ring itself takes
+  // them as props, straight off the session.)
   useEffect(() => {
     setBotState(botState);
   }, [botState, setBotState]);
@@ -407,7 +483,12 @@ function LiveLayer() {
 
   const shell = (
     <>
-      <AmbientGlow />
+      <AmbientPresence
+        botState={botState}
+        connectionState={connectionState}
+        palette={PRESENCE}
+        beam={pointer ? { id: pointer.nonce, targetId: `clause-${pointer.clauseId}` } : null}
+      />
       <TopBar status={status}>
         {client ? <LiveControls onEnd={disconnect} /> : <BeginControl status={status} error={error ?? ''} onBegin={begin} />}
       </TopBar>
@@ -424,6 +505,13 @@ function LiveLayer() {
           left: 220px;
           overflow: hidden;
           background: #FAFAF9;
+        }
+        /* The rail is a 42px strip above the document, not a column beside it. */
+        @media (max-width: 720px) {
+          .desk-main {
+            top: 98px;
+            left: 0;
+          }
         }
       `}</style>
     </>

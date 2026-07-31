@@ -73,17 +73,23 @@ function Logo() {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
       <AuraMark />
-      <span style={{ color: '#fff', fontWeight: 800, letterSpacing: 1, fontSize: 18 }}>AURA BANK</span>
+      <span className="aura-wordmark" style={{ color: '#fff', fontWeight: 800, letterSpacing: 1, fontSize: 18 }}>
+        AURA BANK
+      </span>
     </span>
   );
 }
 
 // ── Header ──────────────────────────────────────────────────────────────────
-function Header() {
+// The voice control lands in the product's own navigation row (`presence`, handed
+// down by AuraAssistant) — bank chrome, not a floating widget. The header is
+// sticky, so the affordance stays reachable anywhere on the page, phone included.
+function Header({ presence }: { presence?: ReactNode }) {
   const { openHome, openHelpCenter } = useAura();
   return (
     <header style={{ position: 'sticky', top: 0, zIndex: 40 }}>
       <div
+        className="aura-topbar"
         style={{
           background: PRIMARY,
           color: '#fff',
@@ -96,7 +102,7 @@ function Header() {
         <button onClick={openHome} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           <Logo />
         </button>
-        <div style={{ display: 'flex', gap: 22, fontSize: 13.5, fontWeight: 600, opacity: 0.95 }}>
+        <div className="aura-personas" style={{ display: 'flex', gap: 22, fontSize: 13.5, fontWeight: 600, opacity: 0.95 }}>
           {['Personal', 'Business', 'NRI', 'Priority', 'Corporate'].map((t) => (
             <span key={t} style={{ opacity: t === 'Personal' ? 1 : 0.8 }}>
               {t}
@@ -106,12 +112,16 @@ function Header() {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18, fontSize: 13.5 }}>
           <button
             onClick={openHelpCenter}
+            className="aura-hdr-link"
             style={{ background: 'none', border: 'none', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13.5 }}
           >
             Support
           </button>
-          <span style={{ opacity: 0.85 }}>Lodge a Complaint</span>
+          <span className="aura-hdr-link" style={{ opacity: 0.85 }}>
+            Lodge a Complaint
+          </span>
           <span
+            className="aura-login"
             style={{
               border: '1px solid rgba(255,255,255,.6)',
               borderRadius: 8,
@@ -124,27 +134,32 @@ function Header() {
         </div>
       </div>
       <nav
+        className="aura-navrow"
         style={{
           background: PAPER,
           borderBottom: `1px solid ${BORDER}`,
           padding: '11px 24px',
           display: 'flex',
-          gap: 26,
+          alignItems: 'center',
+          gap: 18,
           fontSize: 14,
           fontWeight: 700,
           color: INK,
-          overflowX: 'auto',
         }}
       >
-        {NAV.map((t) => (
-          <span key={t} style={{ whiteSpace: 'nowrap', cursor: 'default' }}>
-            {t}
-          </span>
-        ))}
+        {/* The product nav scrolls on its own, so the help link and the voice
+            control can never be pushed off a narrow screen. */}
+        <div className="aura-navscroll" style={{ display: 'flex', gap: 26, flex: 1, minWidth: 0, overflowX: 'auto' }}>
+          {NAV.map((t) => (
+            <span key={t} style={{ whiteSpace: 'nowrap', cursor: 'default' }}>
+              {t}
+            </span>
+          ))}
+        </div>
         <button
           onClick={openHelpCenter}
+          className="aura-nav-help"
           style={{
-            marginLeft: 'auto',
             background: 'none',
             border: 'none',
             color: PRIMARY,
@@ -152,10 +167,13 @@ function Header() {
             cursor: 'pointer',
             fontSize: 14,
             whiteSpace: 'nowrap',
+            flex: 'none',
+            padding: 0,
           }}
         >
           Help & Support
         </button>
+        {presence}
       </nav>
     </header>
   );
@@ -254,18 +272,19 @@ function HomePage() {
   return (
     <div>
       <section
+        className="aura-hero"
         style={{
           background: 'linear-gradient(135deg,#ECEBFB 0%, #F2F1FC 55%, #FFFFFF 100%)',
           padding: '56px 24px 64px',
         }}
       >
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <h1 style={{ fontSize: 44, lineHeight: 1.1, margin: 0, color: INK, fontWeight: 800 }}>
+          <h1 className="aura-hero-h1" style={{ fontSize: 44, lineHeight: 1.1, margin: 0, color: INK, fontWeight: 800 }}>
             <span style={{ color: PRIMARY, fontStyle: 'italic' }}>Banking,</span> answered.
             <br />
             <span style={{ color: PRIMARY, fontStyle: 'italic' }}>Instant help,</span> anytime.
           </h1>
-          <p style={{ fontSize: 18, color: MUTED, marginTop: 14 }}>
+          <p className="aura-hero-p" style={{ fontSize: 18, color: MUTED, marginTop: 14 }}>
             Voice support that doesn’t just tell you — it shows you.
           </p>
           <button
@@ -287,7 +306,7 @@ function HomePage() {
         </div>
       </section>
 
-      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px' }}>
+      <section className="aura-page" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px' }}>
         <h2 style={{ fontSize: 22, color: INK, fontWeight: 800, marginBottom: 4 }}>Popular help topics</h2>
         <p style={{ color: MUTED, marginTop: 0, marginBottom: 20, fontSize: 14 }}>
           Ask a question by voice — the assistant pulls up the right video and walks you through it.
@@ -310,6 +329,7 @@ function HomePage() {
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 {a.video && (
                   <span
+                    className="aura-tiny"
                     style={{
                       fontSize: 10.5,
                       fontWeight: 800,
@@ -347,8 +367,10 @@ function HelpCenterPage() {
   const store = useAura();
   const { openCategory, openArticle } = store;
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 24px' }}>
-      <h1 style={{ fontSize: 30, color: INK, fontWeight: 800, margin: '0 0 6px' }}>Help &amp; Support</h1>
+    <div className="aura-page" style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 24px' }}>
+      <h1 className="aura-h1" style={{ fontSize: 30, color: INK, fontWeight: 800, margin: '0 0 6px' }}>
+        Help &amp; Support
+      </h1>
       <p style={{ color: MUTED, marginTop: 0, fontSize: 15 }}>
         Choose a topic, or just ask our voice assistant — it’ll pull up the right how-to video.
       </p>
@@ -422,7 +444,7 @@ function CategoryPage({ category }: { category: CategoryId }) {
   const { openArticle, openHelpCenter } = useAura();
   const cat = CATEGORIES.find((c) => c.id === category);
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="aura-page" style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
       <Breadcrumb items={[{ label: 'Help & Support', onClick: openHelpCenter }, { label: cat?.title ?? category }]} />
       <h1 style={{ fontSize: 26, color: INK, fontWeight: 800, margin: '6px 0 16px' }}>{cat?.title}</h1>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -442,12 +464,12 @@ function CategoryPage({ category }: { category: CategoryId }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: INK }}>{a.title_en}</span>
               {a.video && (
-                <span style={{ fontSize: 10, fontWeight: 800, color: ACCENT, background: '#EEF0FE', borderRadius: 20, padding: '2px 8px' }}>
+                <span className="aura-tiny" style={{ fontSize: 10, fontWeight: 800, color: ACCENT, background: '#EEF0FE', borderRadius: 20, padding: '2px 8px' }}>
                   ▶ VIDEO
                 </span>
               )}
               {a.needs_login && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: MUTED, border: `1px solid ${BORDER}`, borderRadius: 20, padding: '2px 8px' }}>
+                <span className="aura-tiny" style={{ fontSize: 10, fontWeight: 700, color: MUTED, border: `1px solid ${BORDER}`, borderRadius: 20, padding: '2px 8px' }}>
                   login needed
                 </span>
               )}
@@ -802,7 +824,7 @@ function ArticlePage({ article }: { article: Article }) {
   const hasVideo = Boolean(article.video && getVideo(article.video));
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 60px' }}>
+    <div className="aura-page" style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 60px' }}>
       <Breadcrumb
         items={[
           { label: 'Help & Support', onClick: openHelpCenter },
@@ -810,14 +832,20 @@ function ArticlePage({ article }: { article: Article }) {
           { label: article.title_en ?? article.title },
         ]}
       />
-      <h1 style={{ fontSize: 28, color: INK, fontWeight: 800, margin: '4px 0 18px', lineHeight: 1.2 }}>{article.title_en}</h1>
+      <h1 className="aura-h1" style={{ fontSize: 28, color: INK, fontWeight: 800, margin: '4px 0 18px', lineHeight: 1.2 }}>
+        {article.title_en}
+      </h1>
 
       {hasVideo ? (
         <>
-          {/* Video is the hero: large in the main column, step rail alongside. */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.7fr) minmax(290px,1fr)', gap: 24, alignItems: 'start' }}>
+          {/* Video is the hero: large in the main column, step rail alongside.
+              On a phone the rail drops below the (fluid 16:9) player. */}
+          <div
+            className="aura-two-col"
+            style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.7fr) minmax(290px,1fr)', gap: 24, alignItems: 'start' }}
+          >
             <VideoStage />
-            <div style={{ position: 'sticky', top: 96, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="aura-sticky-rail" style={{ position: 'sticky', top: 96, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5 }}>Steps</div>
               <StepList />
               {article.needs_login && (
@@ -846,6 +874,7 @@ function ContactPanel() {
   if (!contactOpen) return null;
   return (
     <div
+      className="aura-dock"
       style={{
         position: 'fixed',
         right: 24,
@@ -888,13 +917,13 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
-export function AuraApp() {
+export function AuraApp({ presence }: { presence?: ReactNode }) {
   const { screen, category, articleId } = useAura();
   const article = articleId ? getArticle(articleId) : undefined;
   return (
     <div
       className="aura-root"
-      style={{ position: 'absolute', inset: 0, overflowY: 'auto', background: '#F8F8FD', fontFamily: 'Inter, system-ui, sans-serif', color: INK }}
+      style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', background: '#F8F8FD', fontFamily: 'Inter, system-ui, sans-serif', color: INK }}
     >
       <style>{`
         @keyframes auraPulse {
@@ -905,8 +934,59 @@ export function AuraApp() {
         .aura-step-active { animation: auraPulse 1.7s ease-out infinite; }
         @keyframes auraCapIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .aura-cap-enter { animation: auraCapIn .35s ease-out; }
+
+        /* The product nav scrolls without showing a bar (it holds the voice
+           control's row, so a scrollbar would read as chrome). */
+        .aura-navscroll { scrollbar-width: none; -ms-overflow-style: none; }
+        .aura-navscroll::-webkit-scrollbar { display: none; }
+
+        /* ── Phone (≤640px) ────────────────────────────────────────────────
+           This demo's geometry is inline styles, so every override here is
+           !important by necessity. Desktop (>640px) is untouched: the rules
+           below only ever fire on a narrow viewport. The shape of the pass:
+           the header sheds its desktop-only links, every two-column grid
+           stacks, sticky rails go static, and fixed docks span the width. */
+        @media (max-width: 640px) {
+          .aura-topbar { padding: 10px 14px !important; gap: 12px !important; }
+          .aura-personas, .aura-hdr-link, .aura-login { display: none !important; }
+          .aura-wordmark { font-size: 15px !important; letter-spacing: .5px !important; }
+          .aura-navrow { padding: 9px 14px !important; gap: 12px !important; }
+          /* The eight decorative product links are the first thing a phone
+             sheds — on a 390px row they only ever showed a clipped word and a
+             half behind the two controls that actually do something. */
+          .aura-navscroll { display: none !important; }
+          .aura-nav-help { font-size: 13px !important; margin-right: auto !important; }
+
+          /* One column everywhere: article video + step rail, calculator +
+             result card, forex benefits + lead form. */
+          .aura-two-col { grid-template-columns: minmax(0, 1fr) !important; gap: 16px !important; }
+          .aura-sticky-rail { position: static !important; }
+
+          .aura-page { padding: 20px 14px 44px !important; }
+          .aura-hero { padding: 34px 14px 38px !important; }
+          .aura-hero-h1 { font-size: 29px !important; }
+          .aura-hero-p { font-size: 15px !important; }
+          .aura-h1 { font-size: 22px !important; }
+
+          /* Docked overlays span the viewport instead of a 300px card that
+             would sit half off-screen. */
+          .aura-dock {
+            left: 12px !important;
+            right: 12px !important;
+            bottom: 16px !important;
+            width: auto !important;
+            max-width: none !important;
+          }
+          .aura-toast { left: 12px !important; right: 12px !important; max-width: none !important; }
+          /* Sits over the top bar, whose desktop-only links are hidden here —
+             so it never lands on the voice control a row below. */
+          .aura-badge { right: 12px !important; font-size: 11.5px !important; padding: 5px 10px !important; }
+
+          /* Nothing under 11px on a phone. */
+          .aura-tiny { font-size: 11px !important; }
+        }
       `}</style>
-      <Header />
+      <Header presence={presence} />
       {screen === 'home' && <HomePage />}
       {screen === 'help' && <HelpCenterPage />}
       {screen === 'category' && category && <CategoryPage category={category} />}

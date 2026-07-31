@@ -129,7 +129,7 @@ body {
 }
 .ff-presence-btn.is-connecting:hover { transform: none; }
 
-/* Live: a soft ring that tracks Ada's state, echoing the app-wide AmbientGlow —
+/* Live: a soft ring that tracks Ada's state, echoing the app-wide presence ring —
    violet while present/listening/answering, cyan (the "signal") while thinking. */
 .ff-presence-btn.is-live { box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2); }
 .ff-presence-btn.is-live.pstate-listening { box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.3); }
@@ -1098,6 +1098,120 @@ body {
 .ff-block:focus-visible,
 .ff-card:focus-visible {
   outline-offset: 3px;
+}
+
+/* ── phones ──────────────────────────────────────────────────────────────────
+   The studio is a three-column desktop tool; on a phone it becomes one column
+   that scrolls: context and palette, then the flow, then the inspector. The
+   voice affordance stays in the top bar (the ring already carries Ada's state,
+   so the text label goes), and the chrome that only exists to orient a desktop
+   user — the studio sub-brand, who's signed in — steps aside. */
+@media (max-width: 640px) {
+  .ff-topbar {
+    padding: 0 12px;
+    gap: 10px;
+  }
+  .ff-brand-sub,
+  .ff-who,
+  .ff-presence-label {
+    display: none;
+  }
+
+  /* list */
+  .ff-list {
+    padding: 22px 16px 56px;
+  }
+  .ff-list-head h1 {
+    font-size: 21px;
+  }
+  .ff-list-head p {
+    margin-bottom: 20px;
+  }
+  .ff-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Nothing in the studio drops below 11px on a phone. */
+  .ff-status,
+  .ff-eyebrow,
+  .ff-ctx-type,
+  .ff-ctx-note,
+  .ff-ctx-derived,
+  .ff-cat-cat {
+    font-size: 11px;
+  }
+
+  /* editor header: the name and the publish action are what matter */
+  .ff-ehead {
+    flex: 0 0 auto;
+    min-height: 46px;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  .ff-ehead-mid {
+    min-width: 0;
+    flex: 1;
+  }
+  .ff-ename {
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ff-ewhen {
+    display: none;
+  }
+  .ff-publish {
+    flex: none;
+    padding: 7px 11px;
+  }
+
+  /* Three columns become one scrolling stack, reordered for a phone: the flow
+     is the product, so it leads; the inspector and tests follow (that's what
+     Ada drives); the authoring palette and connector catalog go last, since
+     on a phone you're reading the workflow far more often than assembling it. */
+  .ff-cols {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .ff-center {
+    order: 1;
+    flex: 0 0 auto;
+    overflow: visible;
+    padding: 22px 14px 30px;
+  }
+  .ff-right {
+    order: 2;
+    flex: 0 0 auto;
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+  .ff-left {
+    order: 3;
+    flex: 0 0 auto;
+    border-right: none;
+    border-top: 1px solid var(--line);
+    overflow: visible;
+    padding: 16px 14px 40px;
+  }
+  .ff-panel {
+    overflow: visible;
+    padding: 14px 14px 40px;
+  }
+  .ff-flow {
+    max-width: none;
+    align-self: stretch;
+  }
+  .ff-block,
+  .ff-block-sm {
+    width: 100%;
+  }
+  .ff-lane {
+    margin-left: 22px;
+    padding-left: 12px;
+  }
+  .ff-snippet pre {
+    overflow-x: auto;
+  }
 }
 
 /* Respect reduced-motion: keep the state legible, drop the movement and pulses. */

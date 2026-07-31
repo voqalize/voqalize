@@ -11,7 +11,7 @@
  * agent (`photo_upload`) which verifies the product + box before approving.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getItem, getOrder, ORDERS, orderTotal, type Item } from './catalog';
 import { useOrders, type RefundMethod } from './store';
 
@@ -272,7 +272,9 @@ function OrderDetailPage() {
             }}
           >
             <ItemThumb item={item} />
-            <div style={{ minWidth: 0, flex: 1 }}>
+            {/* `min-width` is CSS-side (not inline) so the phone media query can
+                raise it and push the Return button onto its own line. */}
+            <div className="os-order-item-text" style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827' }}>{item.name}</div>
               <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
                 {item.brand} · ${item.price.toLocaleString()}
@@ -614,8 +616,11 @@ function ReturnPage() {
 }
 
 // ── App shell ─────────────────────────────────────────────────────────────────
-export function OrdersApp() {
+export function OrdersApp({ presence }: { presence?: ReactNode }) {
   const { view, openOrders, orderId, openOrder } = useOrders();
+  // Still worth a JS branch: only the shell's own padding differs, and the value
+  // is consumed as an inline style. Everything else responsive lives in the
+  // `@media` block at the bottom of this file.
   const isDesktop = useIsDesktop();
 
   const showBack = view !== 'orders';
@@ -630,7 +635,7 @@ export function OrdersApp() {
         className="os-topbar"
         style={{ flex: '0 0 auto', background: 'white', borderBottom: '1px solid #e5e7eb', padding: isDesktop ? '14px 24px' : '12px 16px' }}
       >
-        <div style={{ width: '100%', maxWidth: 820, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="os-topbar-row" style={{ width: '100%', maxWidth: 820, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           {showBack && (
             <button
               className="os-back"
@@ -641,13 +646,15 @@ export function OrdersApp() {
               ‹
             </button>
           )}
-          <button onClick={openOrders} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer' }}>
-            <span style={{ width: 28, height: 28, borderRadius: 7, background: BRAND, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15 }}>V</span>
-            <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1, alignItems: 'flex-start' }}>
-              <span style={{ fontWeight: 800, fontSize: 15, color: '#111827' }}>Voqal Mobile</span>
-              <span style={{ fontSize: 11, color: '#6b7280' }}>Orders &amp; Returns</span>
+          <button className="os-brand" onClick={openOrders} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
+            <span style={{ flex: '0 0 auto', width: 28, height: 28, borderRadius: 7, background: BRAND, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15 }}>V</span>
+            <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1, alignItems: 'flex-start', minWidth: 0 }}>
+              <span className="os-brand-name" style={{ fontWeight: 800, fontSize: 15, color: '#111827' }}>Voqal Mobile</span>
+              <span className="os-brand-sub" style={{ fontSize: 11, color: '#6b7280' }}>Orders &amp; Returns</span>
             </span>
           </button>
+          {/* The voice layer's one control, mounted as part of the store's chrome. */}
+          {presence && <div className="os-topbar-presence">{presence}</div>}
         </div>
       </header>
 
@@ -660,7 +667,41 @@ export function OrdersApp() {
         </Container>
       </main>
 
-      <style>{`@keyframes os-pulse { 0%,100% { box-shadow: 0 0 0 0 ${BRAND}66; } 50% { box-shadow: 0 0 0 8px ${BRAND}00; } }`}</style>
+      <style>{`
+        @keyframes os-pulse { 0%,100% { box-shadow: 0 0 0 0 ${BRAND}66; } 50% { box-shadow: 0 0 0 8px ${BRAND}00; } }
+
+        /* The top bar carries the brand *and* the presence control. The control
+           never shrinks; the wordmark truncates first, so the row can't push the
+           page into a horizontal scroll on a narrow phone. */
+        .os-topbar-presence { flex: 0 0 auto; margin-left: auto; padding-left: 8px; }
+        .os-brand { min-width: 0; overflow: hidden; }
+        .os-order-item-text { min-width: 0; }
+        .os-brand-name, .os-brand-sub {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 100%;
+        }
+
+        /* ── Phone (390×844 target) ───────────────────────────────────────── */
+        @media (max-width: 640px) {
+          .os-topbar-row { gap: 8px; }
+          .os-brand-sub { display: none; }
+          .os-back { padding: 4px 6px; margin-left: -6px; font-size: 22px; }
+
+          .os-orders, .os-order, .os-diagnostics, .os-return { padding: 12px !important; }
+          .os-return-success { padding: 18px 14px !important; }
+
+          /* Order detail: keep the product name readable — the "Return item"
+             button drops to its own line instead of squeezing the title. */
+          .os-order-item { flex-wrap: wrap; }
+          .os-order-item-text { min-width: 60%; }
+          .os-order-item .os-return-btn { margin-left: auto; }
+
+          /* Photo preview shouldn't eat the whole fold on a phone. */
+          .os-photo-preview { max-height: 200px !important; }
+        }
+      `}</style>
     </div>
   );
 }
