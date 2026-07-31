@@ -10,7 +10,10 @@
 #   docker build -f demos/Dockerfile -t <img> .
 #
 # All configuration is runtime env set on deploy (GEMINI_API_KEY, brain pubkeys) —
-# nothing is baked at build.
+# nothing is baked at build. Secrets arrive either natively (Cloud Run) or
+# base64-encoded and single-line (the VM deploy, whose `--env-file` cannot carry a
+# multi-line PEM) — see demos/docker-entrypoint.sh, which decodes `FOO_B64` → `FOO`
+# and is a no-op when no such var is set.
 
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS runtime
 WORKDIR /repo
@@ -30,5 +33,8 @@ COPY demos ./demos
 RUN uv sync --package voqalize-demos --frozen --no-dev
 ENV PATH="/repo/.venv/bin:$PATH"
 
+RUN chmod +x /repo/demos/docker-entrypoint.sh
+
 EXPOSE 8080
+ENTRYPOINT ["/repo/demos/docker-entrypoint.sh"]
 CMD ["sh", "-c", "uvicorn voqalize_demos.umbrella:app --host 0.0.0.0 --port ${PORT:-8080}"]

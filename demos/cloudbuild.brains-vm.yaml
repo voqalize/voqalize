@@ -1,0 +1,149 @@
+# Build A' — the demos BRAINS image → the pygato VM (Docker on the node).
+#
+# Successor to demos/cloudbuild.brains.yaml (Cloud Run). Same image, same
+# registry, same path filter, same trigger shape — only the deploy target moves:
+# instead of `gcloud run deploy`, the build SSHes into the pygato node and rolls
+# a container that Caddy fronts at brain.<env>.voqalize.com. During the soak BOTH
+# configs exist and the Cloud Run service stays up as the rollback target; the old
+# one is deleted only after the cutover.
+#
+# Why the node at all: the brains are text-only (Gemini HTTP, no audio, no
+# models), a demo call already requires that exact node for WebRTC anyway, and
+# Cloud Run's scale-to-zero made the first call of the day pay a cold start before
+# the bot could greet. Always-on removes that. The cost is that an isolated brains
+# bug can now consume CPU/RAM on the voice node — which is precisely why the caps
+# in demos/bin/brains-node-deploy.sh are non-negotiable rather than nice-to-have.
+#
+#   gcloud builds submit --config demos/cloudbuild.web.yaml .      # the demo UIs
+#   gcloud builds submit --config demos/cloudbuild.brains-vm.yaml . # this: the brains
+#
+# Mirrors vql-speech's cloudbuild-speech.yaml idioms:
+#   - the build SA reads the deploy SSH key + runtime secrets from Secret Manager;
+#     the NODE never authenticates to GCP (the registry pull uses an ephemeral
+#     oauth2accesstoken, wiped by `docker logout` before the deploy script exits).
+#   - `$$` escapes shell vars from Cloud Build substitution; `$SHORT_SHA` /
+#     `${_FOO}` are real substitutions (single-$).
+#   - StrictHostKeyChecking=accept-new; logging: CLOUD_LOGGING_ONLY.
+# Divergence from vql-speech: no puller SA key on the box, and plain `docker run`
+# rather than `docker compose` (the node runs Ubuntu's docker.io, no compose
+# plugin, and one container needs no orchestrator).
+#
+# This is a TEMPLATE. Real project / region / registry / host / service account
+# live in the trigger's substitution set (private) — the values below are
+# placeholders, exactly as cloudbuild.brains.yaml and cloudbuild.web.yaml already
+# are. Nothing here is secret even so: the node's IP is already a public DNS A
+# record, secret NAMES are not secrets, and every secret VALUE is resolved at
+# build time by the trigger's own identity.
+serviceAccount: ${_DEPLOYER_SA}
+
+substitutions:
+  _REGION: YOUR_REGION
+  _PROJECT: YOUR_GCP_PROJECT
+  _ENV: dev
+  # The pygato node this env's brains run on. Comma-separate if it ever becomes
+  # more than one (each is deployed in turn).
+  _BRAIN_HOSTS: YOUR_BRAIN_HOST
+  # Loopback port the node's Caddy reverse-proxies brain.<env>.voqalize.com to.
+  # Must match config.BRAINS_PORT in the private repo's pygato/deploy.
+  _BRAINS_PORT: "8091"
+  # Public hostname, for the post-deploy gate over real DNS + TLS.
+  _BRAIN_DOMAIN: YOUR_BRAIN_DOMAIN
+  # GSM secret holding the `brains` user's SSH private key — distinct from
+  # pygato-deploy-ssh-key on purpose: that one is root on the voice runtime, and a
+  # build triggered by the PUBLIC repo must not be able to become it.
+  _SSH_SECRET: brains-deploy-ssh-key
+  _IMAGE: ${_REGION}-docker.pkg.dev/${_PROJECT}/YOUR_REGISTRY/demos
+  _DEPLOYER_SA: projects/YOUR_GCP_PROJECT/serviceAccounts/YOUR_DEPLOYER_SA@YOUR_GCP_PROJECT.iam.gserviceaccount.com
+  # Expected demo count — the gate asserts /_healthz lists exactly this many.
+  # Discovery is per-directory and the app starts happily with one brain missing,
+  # so a bare 200 would let a silently-dark demo ship.
+  _EXPECTED_DEMOS: "10"
+
+steps:
+  # 1. Build the brains-only image (pure Python; no build-args). Context is the
+  #    repo root — the backend depends on in-repo sdk/python by path.
+  #    Three tags: the immutable $SHORT_SHA is what the node actually pins (this
+  #    is what makes rollback a one-liner); ${_ENV}-current is a human pointer;
+  #    :latest keeps the Cloud Run rollback target's image ref valid during the
+  #    soak. Only $SHORT_SHA is ever deployed.
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build
+    args:
+      - build
+      - -t
+      - '${_IMAGE}:$SHORT_SHA'
+      - -t
+      - '${_IMAGE}:${_ENV}-current'
+      - -t
+      - '${_IMAGE}:latest'
+      - -f
+      - demos/Dockerfile
+      - .
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push
+    waitFor: [build]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        docker push '${_IMAGE}:$SHORT_SHA'
+        docker push '${_IMAGE}:${_ENV}-current'
+        docker push '${_IMAGE}:latest'
+
+  # 2. Roll the container onto each node. All the interesting logic (secrets,
+  #    ephemeral registry token, resource caps, health gate, PEM round-trip
+  #    check) lives in the committed script so it is reviewable and runnable by
+  #    hand — see demos/bin/brains-node-deploy.sh.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    id: deploy
+    waitFor: [push]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        gcloud secrets versions access latest \
+          --secret='${_SSH_SECRET}' --project='${_PROJECT}' > /workspace/brains_deploy_key
+        chmod 600 /workspace/brains_deploy_key
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/known_hosts
+
+        IFS=',' read -ra HOSTS <<< '${_BRAIN_HOSTS}'
+        for HOST in "$${HOSTS[@]}"; do
+          bash demos/bin/brains-node-deploy.sh \
+            "$$HOST" '${_BRAINS_PORT}' '${_IMAGE}:$SHORT_SHA' \
+            /workspace/brains_deploy_key '${_PROJECT}' '${_REGION}'
+        done
+
+  # 3. GATE over the PUBLIC name. The loopback gate inside the deploy script
+  #    proves the container; this proves DNS + the Let's Encrypt cert + the Caddy
+  #    vhost + discovery, all at once, and is the check that would have caught a
+  #    provision.py re-run silently dropping the brains vhost from the Caddyfile.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    id: verify
+    waitFor: [deploy]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        curl -fsS --retry 10 --retry-delay 3 --retry-all-errors \
+          'https://${_BRAIN_DOMAIN}/_healthz' > /workspace/healthz.json
+        cat /workspace/healthz.json; echo
+        python3 - <<'PY'
+        import json, sys
+        d = json.load(open("/workspace/healthz.json"))
+        names = d.get("demos") or []
+        expected = int("${_EXPECTED_DEMOS}")
+        assert d.get("ok") is True, f"not ok: {d}"
+        assert len(names) == expected, f"expected {expected} demos, got {len(names)}: {names}"
+        print(f"✓ {len(names)} demos live: {names}")
+        PY
+
+# No top-level `images:` — that pushes only AFTER every step, and the deploy step
+# has to pull the tag it just built. The explicit push step above is the real one.
+
+timeout: 1800s
+options:
+  logging: CLOUD_LOGGING_ONLY
