@@ -149,8 +149,16 @@ info "container started"
 
 # The PEM round-trip is the one thing a 200 does NOT prove: the app starts fine
 # with zero pubkeys and only fails later, per session, with close 4000.
-PEM_HEAD="$("${SSH[@]}" "docker exec ${CONTAINER} printenv VOQALIZE_BRAIN_PUBKEYS | head -c 26" || true)"
-[[ "$PEM_HEAD" == "-----BEGIN PUBLIC KEY-----" ]] \
+#
+# Read PID 1's environ, NOT `docker exec printenv`: exec builds a fresh
+# environment from the container's *configured* env (image + -e + --env-file), so
+# it shows the _B64 var and never the decoded one — the decode happens in the
+# entrypoint's own process, and `exec "$@"` carries it into PID 1 and only there.
+# (An earlier version of this check asserted on `docker exec printenv` and failed
+# a perfectly good deploy.)
+PEM_PROBE='tr "\0" "\n" < /proc/1/environ | grep -m1 "^VOQALIZE_BRAIN_PUBKEYS=" | cut -c1-49'
+PEM_HEAD="$("${SSH[@]}" "docker exec ${CONTAINER} sh -c '${PEM_PROBE}'" || true)"
+[[ "$PEM_HEAD" == "VOQALIZE_BRAIN_PUBKEYS=-----BEGIN PUBLIC KEY-----" ]] \
 	|| die "VOQALIZE_BRAIN_PUBKEYS did not survive into the container (got: '${PEM_HEAD}') — every session would close 4000"
 info "pubkey round-trip OK"
 
