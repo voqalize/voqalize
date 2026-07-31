@@ -132,5 +132,5 @@ carry the whole scenario in here).
 
 - **[Voice protocol reference](/docs/reference/voice-protocol/)** — the frames
   behind `speak`, `action`, and the callbacks.
-- **[Demo gallery](/docs/demos/gallery/)** — eight complete agents using these
+- **[Demo gallery](/docs/demos/gallery/)** — ten complete agents using these
   patterns.

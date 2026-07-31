@@ -23,9 +23,7 @@ architecture:
   (`brain.dev.voqalize.com` for dev). A single umbrella FastAPI app
   (`voqalize_demos/umbrella.py`) discovers every co-located backend and hosts
   its brain WebSocket at `/{name}/s/{session_id}`. That's *all* this container
-  does — it's brains only. See `Dockerfile` + `cloudbuild.brains-vm.yaml`. (An
-  earlier Cloud Run deploy path existed during the cutover soak and has since
-  been decommissioned.)
+  does — it's brains only. See `Dockerfile` + `cloudbuild.brains-vm.yaml`.
 - **The frontend UIs** (plus the docs) build into a versioned **web artifact**
   (`cloudbuild.web.yaml`) that the private marketing repo downloads and lays under
   the **apex domain** (`voqalize.com` / `dev.voqalize.com`) at `/demos/{name}`.
