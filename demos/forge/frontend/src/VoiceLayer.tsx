@@ -5,8 +5,9 @@
  * Same embedding surface every Voqalize demo uses: {@link useVoqalSession} from
  * `@voqalize/client-react`, minted with a publishable (`pk_`) key. This layer owns
  * the whole session lifecycle and wires it to the studio through the shared store:
- *   - it mirrors the SDK's bot/connection state into the store, so the
- *     {@link AmbientGlow} ring and the header presence control both read it;
+ *   - it mirrors the SDK's bot/connection state into the store, so the header
+ *     presence control reads it (the ring itself takes the state as props, from
+ *     the shared `AmbientPresence` in `@voqalize/client-react`);
  *   - the brain's `ui_command` server-messages replay onto the store (add a step,
  *     insert a decision, run the tests, publish live…);
  *   - a compact workspace snapshot is echoed back (`state_sync`) on connect and
@@ -23,10 +24,14 @@
 import { useCallback, useEffect, type ReactNode } from "react";
 import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
 import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
-import { useVoqalSession, type VoqalConnectionState } from "@voqalize/client-react";
+import {
+  AmbientPresence,
+  useVoqalSession,
+  type AmbientPresencePalette,
+  type VoqalConnectionState,
+} from "@voqalize/client-react";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { useForge, type BotState, type ConnStatus } from "./store";
-import { AmbientGlow } from "./AmbientGlow";
 import { ActivityFeed } from "./ActivityFeed";
 import { ADMIN } from "./data";
 import { config } from "./config";
@@ -41,6 +46,18 @@ const CONNECTION_STATUS: Record<VoqalConnectionState, ConnStatus> = {
   connected: "live",
   disconnected: "idle",
   error: "error",
+};
+
+// Flowforge's reading of the shared presence ring: violet is the build surface,
+// cyan is the machine computing — so Ada's ring shifts to cyan the moment she's
+// thinking, echoing "plain workflows backed by executable rigor". The studio is a
+// calm room, so it breathes slower and thinner than the house default.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: "#7C3AED",
+  listening: "#7C3AED",
+  thinking: "#22D3EE",
+  speaking: "#7C3AED",
+  offline: "#7C3AED",
 };
 
 const STATE_LABEL: Record<BotState, string> = {
@@ -172,7 +189,14 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
 
   const shell = (
     <>
-      <AmbientGlow />
+      <AmbientPresence
+        botState={botState}
+        connectionState={connectionState}
+        palette={PRESENCE}
+        weight={0.8}
+        tempo={1.5}
+        radius={2}
+      />
       {children(presence)}
       <ActivityFeed />
     </>

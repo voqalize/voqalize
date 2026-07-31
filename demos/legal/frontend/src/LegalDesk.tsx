@@ -3,8 +3,11 @@
  * demo. A slim top bar carries the wordmark, matter breadcrumb, and the one
  * prominent presence control (not a bottom chat-widget dock — this is meant
  * to read as part of the product's own chrome, not a bolted-on assistant).
- * Left rail is matter detail + clause outline only. Main = DocumentViewer
- * inside AmbientGlow. TaskTray docked, quiet. Once connected the mic stays
+ * Left rail is matter detail + clause outline only. Main = DocumentViewer, ringed
+ * by the shared `AmbientPresence` glow from `@voqalize/client-react` — the
+ * catalog-wide voice treatment, in Docket's oxblood. TaskTray docked, quiet.
+ * When the assistant points at a clause, the ring's beam layer travels from the
+ * screen edge to it. Once connected the mic stays
  * open — no push-to-talk — the presence control doubles as a mute toggle,
  * with a small secondary "end" control beside it.
  *
@@ -23,13 +26,14 @@ import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/c
 import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
 import { Mic, MicOff, PhoneOff, Loader2 } from 'lucide-react';
 import {
+  AmbientPresence,
   useVoqalSession,
+  type AmbientPresencePalette,
   type VoqalConnectionState,
 } from '@voqalize/client-react';
 import { useLegal } from './store';
 import { CLAUSES, DATA_ROOM, MATTER } from './content';
 import { DocumentViewer } from './DocumentViewer';
-import { AmbientGlow } from './AmbientGlow';
 import { TaskTray } from './TaskTray';
 import { ObligationsPanel } from './ObligationsPanel';
 import { config } from './config';
@@ -39,6 +43,18 @@ import { config } from './config';
 const LEGAL = config;
 
 type Status = 'idle' | 'connecting' | 'live' | 'error';
+
+// Docket's reading of the shared presence ring: the oxblood of a law-office desk
+// set, shifting to gold leaf while the assistant reasons. The beam that travels
+// from the edge to a clause is the same oxblood — the agent reaching into the page.
+const PRESENCE: Partial<AmbientPresencePalette> = {
+  idle: '#9A3324',
+  listening: '#9A3324',
+  thinking: '#B9862E',
+  speaking: '#9A3324',
+  offline: '#E4E1DB',
+  beam: '#9A3324',
+};
 
 // The store's ConnectionState vocabulary uses `live`; the SDK hook reports
 // `connected`/`disconnected`. Map the transport state onto the store's.
@@ -356,7 +372,8 @@ function LeftRail() {
 }
 
 function LiveLayer() {
-  const { setBotState, setConnectionState, handleUiCommand, registerAgentSend } = useLegal();
+  const { setBotState, setConnectionState, handleUiCommand, registerAgentSend, pointer } =
+    useLegal();
 
   // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
   // (past the `{ data }` quirk), so we read `type` directly.
@@ -407,7 +424,12 @@ function LiveLayer() {
 
   const shell = (
     <>
-      <AmbientGlow />
+      <AmbientPresence
+        botState={botState}
+        connectionState={connectionState}
+        palette={PRESENCE}
+        beam={pointer ? { id: pointer.nonce, targetId: `clause-${pointer.clauseId}` } : null}
+      />
       <TopBar status={status}>
         {client ? <LiveControls onEnd={disconnect} /> : <BeginControl status={status} error={error ?? ''} onBegin={begin} />}
       </TopBar>
