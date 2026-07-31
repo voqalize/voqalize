@@ -1,11 +1,11 @@
 # Build A' — the demos BRAINS image → the pygato VM (Docker on the node).
 #
-# Successor to demos/cloudbuild.brains.yaml (Cloud Run). Same image, same
-# registry, same path filter, same trigger shape — only the deploy target moves:
-# instead of `gcloud run deploy`, the build SSHes into the pygato node and rolls
-# a container that Caddy fronts at brain.<env>.voqalize.com. During the soak BOTH
-# configs exist and the Cloud Run service stays up as the rollback target; the old
-# one is deleted only after the cutover.
+# Successor to the now-removed demos/cloudbuild.brains.yaml (Cloud Run). Same
+# image, same registry, same path filter, same trigger shape — only the deploy
+# target moves: instead of `gcloud run deploy`, the build SSHes into the pygato
+# node and rolls a container that Caddy fronts at brain.<env>.voqalize.com. The
+# Cloud Run fallback (service, trigger, demos-runtime SA) has been decommissioned
+# — this is now the only brains deploy path.
 #
 # Why the node at all: the brains are text-only (Gemini HTTP, no audio, no
 # models), a demo call already requires that exact node for WebRTC anyway, and
@@ -62,10 +62,9 @@ substitutions:
 steps:
   # 1. Build the brains-only image (pure Python; no build-args). Context is the
   #    repo root — the backend depends on in-repo sdk/python by path.
-  #    Three tags: the immutable $SHORT_SHA is what the node actually pins (this
-  #    is what makes rollback a one-liner); ${_ENV}-current is a human pointer;
-  #    :latest keeps the Cloud Run rollback target's image ref valid during the
-  #    soak. Only $SHORT_SHA is ever deployed.
+  #    Two tags: the immutable $SHORT_SHA is what the node actually pins (this
+  #    is what makes rollback a one-liner); ${_ENV}-current is a human pointer.
+  #    Only $SHORT_SHA is ever deployed.
   - name: 'gcr.io/cloud-builders/docker'
     id: build
     args:
@@ -74,8 +73,6 @@ steps:
       - '${_IMAGE}:$SHORT_SHA'
       - -t
       - '${_IMAGE}:${_ENV}-current'
-      - -t
-      - '${_IMAGE}:latest'
       - -f
       - demos/Dockerfile
       - .
@@ -90,7 +87,6 @@ steps:
         set -euo pipefail
         docker push '${_IMAGE}:$SHORT_SHA'
         docker push '${_IMAGE}:${_ENV}-current'
-        docker push '${_IMAGE}:latest'
 
   # 2. Roll the container onto each node. All the interesting logic (secrets,
   #    ephemeral registry token, resource caps, health gate, PEM round-trip

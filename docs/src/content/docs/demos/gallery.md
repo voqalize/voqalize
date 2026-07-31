@@ -20,8 +20,9 @@ Every demo is **one brain + one UI**, co-located under `demos/<name>/`:
 - **Frontend** — each demo is a self-contained Vite app built at base
   `/demos/<name>/`, embedding the public `@voqalize/client-react` SDK.
 - **Deploy** — the two halves ship to two places. The **brains** build into one
-  container on Cloud Run (`brain_url = wss://demos.voqalize.com/{name}`, dialed
-  server-side per session). The **UIs** build into a versioned web artifact served
+  container that runs on the pygato voice-runtime node, behind Caddy
+  (`brain_url = wss://brain.voqalize.com/{name}`, dialed server-side per
+  session). The **UIs** build into a versioned web artifact served
   under the apex domain at `/demos/<name>`, same-origin with these docs and the
   marketing site; the apex rewrites `/api/*` to the control plane so a demo mints
   its session same-origin.
