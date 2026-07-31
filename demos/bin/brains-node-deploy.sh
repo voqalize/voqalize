@@ -29,11 +29,11 @@
 # Usage:
 #   demos/bin/brains-node-deploy.sh <host> <port> <image> <ssh_key> <project> <region>
 #
-#   host     the pygato node, e.g. 216.48.186.236
+#   host     the pygato node's address
 #   port     loopback port Caddy reverse-proxies to, e.g. 8091
 #   image    full AR ref pinned to an immutable tag (…/demos:<short_sha>)
 #   ssh_key  path to the brains deploy private key (GSM brains-deploy-ssh-key)
-#   project  GCP project holding the runtime secrets, e.g. voqal-cloud-dev
+#   project  GCP project holding the runtime secrets
 #   region   AR region, e.g. asia-south1
 #
 # SSHes as `brains` — a distinct, independently revocable identity from pygato's
