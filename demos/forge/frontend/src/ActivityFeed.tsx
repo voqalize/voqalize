@@ -150,6 +150,17 @@ export function ActivityFeed() {
           50%      { transform: scale(1);   opacity: 1; }
         }
 
+        /* On a phone the feed spans the bottom gutter rather than a 340px column. */
+        @media (max-width: 640px) {
+          .ff-activity {
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            max-width: none;
+          }
+          .ff-act-detail { max-width: none; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .ff-act { animation: none; }
           .ff-act-dot { animation: none; }

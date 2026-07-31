@@ -626,6 +626,19 @@ export function TaskTray() {
           margin-top: 8px;
         }
         .tray-summary-open { color: #9A3324; }
+
+        /* Phone: clear the clause strip, and keep the tray to the top third so
+           the document underneath stays readable while diligence runs. */
+        @media (max-width: 720px) {
+          .tray-rail {
+            top: 108px;
+            right: 10px;
+            left: 10px;
+            width: auto;
+            max-width: none;
+            max-height: 44vh;
+          }
+        }
       `}</style>
     </div>
   );

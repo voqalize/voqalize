@@ -252,6 +252,20 @@ function TopBar({ status, children }: { status: Status; children: ReactNode }) {
         .desk-presence-end:hover { color: #9A3324; background: #F2F1F0; }
         .desk-spin { animation: legal-spin 0.9s linear infinite; }
         @keyframes legal-spin { to { transform: rotate(360deg); } }
+
+        /* On a phone the bar carries the wordmark and the one voice affordance.
+           The matter caption is already on the document header, and the state
+           label is redundant with the ring — both step aside for the mic. */
+        @media (max-width: 720px) {
+          .desk-topbar {
+            padding: 0 14px;
+          }
+          .desk-topbar-sep,
+          .desk-topbar-matter,
+          .desk-presence-label {
+            display: none;
+          }
+        }
       `}</style>
     </header>
   );
@@ -366,6 +380,50 @@ function LeftRail() {
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+
+        /* On a phone the document is the whole product, so the 220px rail
+           becomes a thin horizontal clause strip beneath the top bar: the
+           reading position stays visible and jumpable, and the matter block and
+           data room — desktop orientation, not review work — drop away. */
+        @media (max-width: 720px) {
+          .desk-rail {
+            top: 56px;
+            right: 0;
+            bottom: auto;
+            width: auto;
+            height: 42px;
+            flex-direction: row;
+            align-items: center;
+            gap: 0;
+            padding: 0 12px;
+            border-right: none;
+            border-bottom: 1px solid #E4E1DB;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+          }
+          .desk-rail::-webkit-scrollbar { display: none; }
+          .desk-matter,
+          .desk-outline-label,
+          .desk-dataroom {
+            display: none;
+          }
+          .desk-outline {
+            flex-direction: row;
+            gap: 6px;
+            margin-top: 0;
+          }
+          .desk-outline-item {
+            flex: none;
+            white-space: nowrap;
+            padding: 5px 10px;
+            border: 1px solid #E4E1DB;
+            font-size: 12px;
+          }
+          .desk-outline-active {
+            border-color: rgba(154, 51, 36, 0.3);
+          }
+        }
       `}</style>
     </aside>
   );
@@ -447,6 +505,13 @@ function LiveLayer() {
           left: 220px;
           overflow: hidden;
           background: #FAFAF9;
+        }
+        /* The rail is a 42px strip above the document, not a column beside it. */
+        @media (max-width: 720px) {
+          .desk-main {
+            top: 98px;
+            left: 0;
+          }
         }
       `}</style>
     </>
