@@ -25,6 +25,19 @@ annotations and builds the declared models before the tool is invoked:
 * A value that cannot be parsed raises :class:`CoercionError`, which the adapter turns
   into a tool *error result* the model can see and retry — never a dead turn.
 
+:func:`coerce_result` closes the same loop on the way *out*. A tool may return its
+own pydantic model — the natural thing to write once its arguments are models — and
+the framework has to hand the model a JSON object. Left alone, ADK nests the live
+instance under ``{"result": <Model>}`` and lets genai flatten it late with a bare
+``model_dump()``: **aliases are dropped** (``from`` becomes ``from_``, silently
+asymmetric with the input path above) and a non-JSON scalar like ``datetime.date``
+only explodes at the HTTP boundary, as an opaque ``TypeError`` from ``json.dumps``.
+So the SDK dumps it here instead — ``model_dump(by_alias=True, mode="json")``,
+recursing into dicts and lists so a model nested inside a returned dict is dumped
+too. A returned model becomes the function response *directly* (its fields are the
+response object, not wrapped in ``result``); anything with no model in it is returned
+unchanged, so plain dict/str/int returns keep their exact current behavior.
+
 Framework-agnostic: nothing here imports ADK / genai (only pydantic, which every
 framework already depends on).
 """
@@ -39,7 +52,7 @@ from typing import Any, Union, get_args, get_origin, get_type_hints
 from loguru import logger
 from pydantic import BaseModel, ValidationError
 
-__all__ = ["CoercionError", "coerce_arguments"]
+__all__ = ["CoercionError", "coerce_arguments", "coerce_result"]
 
 # pydantic ≥ 2.11 validates by field name *and* alias in a single pass, recursively
 # through nested models — exactly the "populate_by_name both ways" semantics we want,
@@ -94,6 +107,41 @@ def coerce_arguments(func: Callable[..., Any], args: dict[str, Any]) -> dict[str
         elif isinstance(value, list):
             out[name] = [_build(model, item, name) for item in value]
     return out
+
+
+def coerce_result(result: Any) -> Any | None:
+    """A tool's return value with every pydantic model in it dumped for the wire.
+
+    ``model_dump(by_alias=True, mode="json")`` — the same rules a typed
+    :class:`~voqalize.sdk.actions.Action` serializes by, so a model that crosses to
+    the *browser* and the same model that goes back to the *LLM* have one spelling.
+    Recurses through ``dict`` values and ``list`` / ``tuple`` items, so a model nested
+    inside a returned dict is dumped too.
+
+    Returns ``None`` when there was no model anywhere in ``result`` — the caller's
+    signal to leave the framework's own handling completely alone. That keeps plain
+    ``dict`` / ``str`` / ``int`` returns byte-for-byte on their existing path.
+    """
+    converted, changed = _dump_models(result)
+    return converted if changed else None
+
+
+def _dump_models(value: Any) -> tuple[Any, bool]:
+    """``(converted, changed)`` — ``changed`` is False when nothing was a model."""
+    if isinstance(value, BaseModel):
+        return value.model_dump(by_alias=True, mode="json"), True
+    if isinstance(value, dict):
+        out: dict[Any, Any] = {}
+        changed = False
+        for key, item in value.items():  # pyright: ignore[reportUnknownVariableType]
+            out[key], item_changed = _dump_models(item)
+            changed = changed or item_changed
+        return out, changed
+    if isinstance(value, (list, tuple)):
+        items = [_dump_models(item) for item in value]  # pyright: ignore[reportUnknownVariableType]
+        changed = any(item_changed for _, item_changed in items)
+        return type(value)(item for item, _ in items), changed
+    return value, False
 
 
 def _type_hints(func: Callable[..., Any]) -> dict[str, Any]:

@@ -5,14 +5,15 @@
  *
  * This template shows the full two-way loop a screen-driving app needs:
  *   • voice in / voice out (the SDK handles WebRTC + mic + audio),
- *   • brain → screen: the brain's `interaction.action("add_to_cart", {...})`
- *     arrives here as an `onServerMessage` payload and updates the cart,
+ *   • brain → screen: the brain's `interaction.action(AddToCart(...))` arrives at
+ *     the `useUiCommand` handler of that name and updates the cart,
  *   • screen → brain: a tap calls `session.sendMessage(...)`, which the brain
  *     receives in `on_client_message`.
  *
  * The message shapes are fixed by the platform:
- *   brain → browser (onServerMessage):
+ *   brain → browser (a `ui_command` server message):
  *     { type: "ui_command", action: <name>, action_id: <int>, ...args }
+ *     `useUiCommand` strips the envelope and hands your handler the args alone.
  *   browser → brain (sendMessage(type, data)):
  *     arrives as on_client_message(message.type, message.data)
  *
@@ -35,7 +36,12 @@
  */
 
 import { useState } from "react";
-import { VoqalAgent, type VoqalPipelineConfig } from "@voqalize/client-react";
+import {
+  VoqalAgent,
+  useUiCommand,
+  type VoqalPipelineConfig,
+  type VoqalSessionHandle,
+} from "@voqalize/client-react";
 
 const PUBLISHABLE_KEY = "pk_live_REPLACE_ME";
 const AGENT_ID = "REPLACE_WITH_AGENT_ID";
@@ -58,6 +64,16 @@ interface CartLine {
   qty: number;
 }
 
+/**
+ * The screen contract, one entry per `voqalize.sdk.Action` subclass in the brain.
+ * Python is the source of truth for these shapes; keeping them here means a field
+ * renamed brain-side is a compile error, not an `undefined` on screen.
+ */
+interface ShopCommands {
+  add_to_cart: { sku: string; qty: number };
+  checkout: { total: number };
+}
+
 export function VoiceCart() {
   const [cart, setCart] = useState<CartLine[]>([]);
 
@@ -72,42 +88,53 @@ export function VoiceCart() {
       pipeline={PIPELINE}
       // What you pass here arrives brain-side as `start.init` in on_session_start.
       payload={{ surface: "web", user: { name: "Ada" } }}
-      // Brain → screen. Every `interaction.action(...)` the brain fires lands here.
-      onServerMessage={(msg) => {
-        if (msg.type !== "ui_command") return;
-        switch (msg.action) {
-          case "add_to_cart":
-            setCart((c) => [...c, { sku: String(msg.sku), qty: Number(msg.qty) }]);
-            break;
-          case "checkout":
-            // drive your checkout flow…
-            break;
-        }
-      }}
     >
-      {(session) => (
-        <div>
-          <ul>
-            {cart.map((line, i) => (
-              <li key={i}>
-                {line.qty}× {line.sku}{" "}
-                {/* Screen → brain: report a manual removal so the brain stays in sync. */}
-                <button
-                  onClick={() => {
-                    setCart((c) => c.filter((_, j) => j !== i));
-                    session.sendMessage("cart_edited", { removed: line.sku });
-                  }}
-                >
-                  remove
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button onClick={session.connect} disabled={session.connectionState !== "idle"}>
-            Talk ({session.connectionState})
-          </button>
-        </div>
-      )}
+      {(session) => <Cart session={session} cart={cart} setCart={setCart} />}
     </VoqalAgent>
+  );
+}
+
+function Cart({
+  session,
+  cart,
+  setCart,
+}: {
+  session: VoqalSessionHandle;
+  cart: CartLine[];
+  setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
+}) {
+  // Brain → screen. Every `interaction.action(...)` the brain fires is dispatched
+  // by name; the handler receives the args alone, typed by ShopCommands. Pass the
+  // type argument explicitly — an inline map gives TS nothing to infer from.
+  useUiCommand<ShopCommands>(session.client, {
+    add_to_cart: ({ sku, qty }) => setCart((c) => [...c, { sku, qty }]),
+    checkout: ({ total }) => {
+      // drive your checkout flow…
+      console.log("checkout", total);
+    },
+  });
+
+  return (
+    <div>
+      <ul>
+        {cart.map((line, i) => (
+          <li key={i}>
+            {line.qty}× {line.sku}{" "}
+            {/* Screen → brain: report a manual removal so the brain stays in sync. */}
+            <button
+              onClick={() => {
+                setCart((c) => c.filter((_, j) => j !== i));
+                session.sendMessage("cart_edited", { removed: line.sku });
+              }}
+            >
+              remove
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button onClick={session.connect} disabled={session.connectionState !== "idle"}>
+        Talk ({session.connectionState})
+      </button>
+    </div>
   );
 }

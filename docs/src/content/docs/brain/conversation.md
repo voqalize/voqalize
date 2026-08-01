@@ -79,6 +79,101 @@ async def on_session_start(self, session, start):
     session.action("show_welcome_screen", {"name": start.init.get("name")})
 ```
 
+### Typed actions
+
+The dict form above is the general one and always works. But a UI command is a
+contract between two codebases, and a dict is where that contract goes to drift: a
+key renamed in Python becomes a field that silently stops arriving in the browser.
+
+Declare the shape instead. An `Action` is a pydantic model that knows its own wire
+name — derived from the class name, `snake_case`:
+
+```python
+from voqalize.sdk import Action
+
+class AddToCart(Action):            # → "add_to_cart"
+    sku: str
+    qty: int = 1
+
+interaction.action(AddToCart(sku="pixel-9"))
+```
+
+That call is **byte-identical** to `interaction.action("add_to_cart", {"sku":
+"pixel-9", "qty": 1})`, so you can migrate one command at a time with no
+coordinated browser release. What you gain is a payload your editor, your linter
+and your tests all know.
+
+Actions compose — a field may be another model, or a list of them, and aliases are
+respected all the way down:
+
+```python
+from pydantic import BaseModel, Field
+
+class Leg(BaseModel):
+    from_: str = Field(default="", alias="from")   # `from` is a Python keyword
+    to: str = ""
+
+class SearchFlights(Action):
+    leg_id: str
+    legs: list[Leg]
+
+interaction.action(SearchFlights(leg_id="blr-out", legs=[Leg(**{"from": "BLR"}, to="SGN")]))
+# → { "type": "ui_command", "action": "search_flights", "action_id": 3,
+#     "leg_id": "blr-out", "legs": [{ "from": "BLR", "to": "SGN" }] }
+```
+
+The serialization rules, which are what the browser depends on:
+
+- **By alias.** `from_` goes out as `from`. Construction accepts either spelling.
+- **JSON mode.** A `date`, `Enum`, `Decimal` or `UUID` becomes a JSON scalar here,
+  where a bad field is a clear Python error — not an opaque crash at the transport.
+- **Every declared field is emitted, including `None`** (as JSON `null`). There is
+  no `exclude_none`: the wire shape is a function of the *class*, not of which
+  fields happened to be set, which is what lets the browser declare one total
+  TypeScript interface. If a key should be absent rather than null, model it as a
+  value the UI treats as empty (`""`, `[]`).
+- **Unknown keyword arguments are rejected**, so a typo fails at the call site.
+
+A few practical notes:
+
+- The class name is part of your browser contract. Pin the wire name explicitly if
+  you don't want that coupling: `class AddToCart(Action, name="add_to_cart")`.
+- A field that would serialize to `type`, `action` or `action_id` is rejected when
+  the class is defined — those keys belong to the envelope your fields are spread
+  onto.
+- `callback=` works exactly as it does for the dict form.
+- Ruff's `RUF012` doesn't recognize a pydantic model reached through `Action`, so a
+  mutable default (`items: list[Row] = []`) trips it. Either make the field
+  required — usually right for a wire contract, since every field is emitted
+  anyway — or write `Field(default_factory=list)`.
+
+On the browser side, mirror each `Action` as a TypeScript interface and hand the
+map to [`useUiCommand`](/docs/client/react/#typed-ui-commands-useuicommand). The
+`travel` demo does exactly this, in both directions.
+
+### Tools that return models
+
+If you're on the [Google ADK adapter](/docs/brain/python/), a tool may return a
+pydantic model directly — the natural thing to write once its arguments are models.
+The SDK dumps it with the same rules an `Action` serializes by (`by_alias`, JSON
+mode) before the result reaches the model, so the field names your tool declares
+are the field names the model reads, and a `date` field doesn't become a
+serialization crash at the API boundary:
+
+```python
+class SearchResult(BaseModel):
+    status: str = "ok"
+    legs: list[Leg] = []
+
+async def search(leg_id: str) -> SearchResult:
+    """Search one leg."""
+    return SearchResult(status="found", legs=[Leg(**{"from": "BLR"}, to="SGN")])
+    # the model sees: {"status": "found", "legs": [{"from": "BLR", "to": "SGN"}]}
+```
+
+Models nested inside a returned dict or list are dumped in place. A return with no
+model in it is passed through untouched.
+
 ## React to client messages
 
 The browser can send messages to the brain outside any turn — a screen-state sync,

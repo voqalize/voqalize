@@ -22,7 +22,8 @@ The browser's `onServerMessage` receives:
 ```
 
 **The args dict is spread onto the top level** — not nested under `data` or `args`.
-Switch on `msg.action` and read the args as top-level fields.
+Dispatch on `msg.action` and read the args as top-level fields (the browser's
+`useUiCommand` hook does both — see `references/frontend.md`).
 
 Rules that trip people up:
 
@@ -52,6 +53,68 @@ messages never reach `on_client_message`.
 
 `Outcome` fields: `action_id`, `interaction_id` (the originating turn), `status`,
 `result`.
+
+### Declaring the shape: typed actions
+
+The dict form above always works and is the general one. But a UI command is a
+contract between two codebases, and a dict is where that contract drifts — a key
+renamed in Python becomes a field that silently stops arriving in the browser.
+Declare it instead. An `Action` is a pydantic model that carries its own wire name,
+`snake_case`d from the class name:
+
+```python
+from voqalize.sdk import Action
+
+class AddToCart(Action):            # → "add_to_cart"
+    sku: str
+    qty: int = 1
+
+interaction.action(AddToCart(sku="oat-milk", qty=2))
+```
+
+That is **byte-identical on the wire** to the dict call above, so convert one
+command at a time — no coordinated browser release. `callback=` works the same.
+
+Serialization is exactly `model_dump(by_alias=True, mode="json")`:
+
+- **By alias** — a `from_: str = Field(alias="from")` goes out as `from`.
+  Construction accepts either spelling.
+- **JSON mode** — a `date`/`Enum`/`Decimal`/`UUID` field becomes a JSON scalar here,
+  where a bad field is a clear Python error rather than a transport crash.
+- **Every declared field is emitted, `None` included** (as `null`). There is no
+  `exclude_none`: the wire shape is a function of the *class*, not of which fields
+  were set — that's what lets the browser declare one total TypeScript interface.
+  If a key should be absent, model it as a value the UI reads as empty (`""`, `[]`).
+- **Unknown kwargs are rejected**, so a typo fails at the call site.
+- Nested models and lists of models compose, aliases included.
+
+Notes:
+
+- The class name *is* the browser contract. Pin it if you'd rather not couple them:
+  `class AddToCart(Action, name="add_to_cart")`.
+- A field serializing to `type`, `action` or `action_id` is rejected at class
+  definition — those keys belong to the envelope your fields are spread onto.
+- Ruff's `RUF012` doesn't see a pydantic model reached through `Action`, so
+  `items: list[Row] = []` trips it. Make the field required (usually right — every
+  field is emitted anyway) or use `Field(default_factory=list)`.
+
+Mirror each `Action` as a TypeScript interface and hand the map to `useUiCommand`
+(`references/frontend.md`). Python stays the source of truth.
+
+### Tools that return models
+
+On the Google ADK adapter, a tool may return a pydantic model directly. The SDK
+dumps it with the same rules (`by_alias`, JSON mode) before the result reaches the
+model, so your declared field names are the field names the model reads:
+
+```python
+async def search_flights(leg_id: str) -> FlightResults:
+    """Search one leg."""
+    return FlightResults(leg_id=leg_id, options=[...])
+```
+
+Models nested inside a returned dict or list are dumped in place; a return with no
+model in it passes through untouched.
 
 ---
 

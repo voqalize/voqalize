@@ -12,7 +12,7 @@ Swapping just the model is what makes this deterministic: a scripted tool call
 carries the exact arguments we assert the browser receives, so the demo's
 ``ui_command`` contract is a test, not a hope.
 
-Four properties are covered:
+Five properties are covered:
 
 * **the greeting + a tool round-trip.** One user turn drives two model calls (emit
   the ``function_call``, then answer given the tool result) → two inference
@@ -28,6 +28,10 @@ Four properties are covered:
 * **``state_sync`` grounds every prompt.** The browser's screen snapshot lands in
   the *system instruction* of the next model call — the SDK's ``grounding()`` seam,
   which replaced the old ``get_active_itinerary`` tool.
+* **the typed screen contract is pinned byte-for-byte.** The brain's ``ui_command``s
+  are :class:`voqalize.sdk.Action` subclasses; this file asserts the *whole
+  envelope* — envelope keys included — for three of them, so a field renamed on the
+  Python side fails here rather than in a browser nobody is watching.
 
 Run: ``cd demos && uv run pytest tests/test_travel_adk.py``
 """
@@ -49,6 +53,7 @@ from voqalize_demos.discovery import discover
 # is the test asserting on the module the umbrella will actually serve.
 discover()
 
+from voqalize_demos._loaded.travel import brain as travel_brain  # noqa: E402
 from voqalize_demos._loaded.travel.brain import TravelBrain  # noqa: E402
 
 from voqalize.conformance import (  # noqa: E402
@@ -302,6 +307,103 @@ async def test_trip_structure_rows_reach_the_browser_by_alias() -> None:
             }
         ]
         assert cmd["hotel_cities"] == [{"city": "Phu Quoc", "nights": 3}]
+    finally:
+        await driver.aclose()
+        await agent.aclose()
+
+
+async def test_typed_actions_pin_the_whole_ui_command_envelope() -> None:
+    """The cross-language contract, asserted as literals.
+
+    The sibling tests check the *arguments* the browser receives. This one checks
+    the **entire message**, envelope keys included, for three of the ten typed
+    actions — because the envelope is what the React ``useUiCommand`` hook strips,
+    and ``frontend/src/uiCommands.ts`` is hand-mirrored from the Python ``Action``
+    classes. If either side drifts, one of these literals stops matching.
+
+    The wire name is checked against the class too: it is *derived* from the class
+    name, so renaming ``SearchFlights`` would silently rename the command the UI
+    listens for.
+    """
+    agent, driver = await _host(ScriptedLlm(_script()))
+    try:
+        await driver.start_session()
+        checks.check_completed(
+            await driver.user_says("Start the Poddar Vietnam trip, 12th to 18th August 2026.")
+        )
+        checks.check_completed(await driver.user_says("Set up the trip structure."))
+        checks.check_completed(await driver.user_says("Show me the outbound flights."))
+
+        by_action = {str(c.get("action")): c for c in driver.ui_commands}
+
+        # The class name IS the wire name — the coupling the UI depends on.
+        assert travel_brain.CreateItinerary.__voqal_action__ == "create_itinerary"
+        assert travel_brain.SetTripStructure.__voqal_action__ == "set_trip_structure"
+        assert travel_brain.SearchFlights.__voqal_action__ == "search_flights"
+
+        assert by_action["create_itinerary"] == {
+            "type": "ui_command",
+            "action": "create_itinerary",
+            "action_id": 1,
+            "itinerary": {
+                "name": "Poddar Vietnam",
+                "coordinator": "",
+                "destination": "Ho Chi Minh and Phu Quoc",
+                "start_date": "12 Aug 2026",
+                "end_date": "18 Aug 2026",
+                "summary": "",
+                "families": [],
+                "legs": [],
+                "hotel_cities": [],
+            },
+        }
+
+        assert by_action["set_trip_structure"] == {
+            "type": "ui_command",
+            "action": "set_trip_structure",
+            "action_id": 2,
+            "families": [
+                {
+                    "label": "Poddar family (Bangalore)",
+                    "origin": "",
+                    "adults": 2,
+                    "children": 0,
+                    "infants": 0,
+                    "meal": "mixed",
+                    "assistance": "",
+                }
+            ],
+            # `from_` → `from`: the alias survives two levels of nesting (an Action
+            # holding a list of `Leg` models), which is the whole point of composing.
+            "legs": [
+                {
+                    "id": "blr-out",
+                    "label": "Bangalore → Ho Chi Minh",
+                    "from": "BLR",
+                    "to": "SGN",
+                    "date": "",
+                },
+                {
+                    "id": "leg2",
+                    "label": "Ho Chi Minh → Bangalore",
+                    "from": "SGN",
+                    "to": "BLR",
+                    "date": "",
+                },
+            ],
+            "hotel_cities": [{"city": "Phu Quoc", "nights": 3}],
+        }
+
+        assert by_action["search_flights"] == {
+            "type": "ui_command",
+            "action": "search_flights",
+            "action_id": 3,
+            "leg_id": "blr-out",
+            "options": [
+                {**_OMITTED, **_FLIGHTS[0], "id": "f1"},
+                {**_OMITTED, **_FLIGHTS[1], "id": "f2"},
+            ],
+        }
     finally:
         await driver.aclose()
         await agent.aclose()

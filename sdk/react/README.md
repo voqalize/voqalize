@@ -112,20 +112,41 @@ function Widget() {
 For agents that change the screen (a cart, a form, a map), brain and browser
 exchange JSON with **fixed shapes**.
 
-**Brain → browser.** The brain's `interaction.action(name, {...args})` arrives on
-`onServerMessage` — the `args` are **spread onto the top level**:
+**Brain → browser.** The brain's `interaction.action(name, {...args})` arrives as a
+`ui_command` server message — `{ type, action, action_id }` plus the `args`
+**spread onto the top level**. `useUiCommand` subscribes, strips that envelope and
+dispatches by name, so a handler sees the args alone:
 
 ```tsx
-<VoqalAgent {...props}
-  onServerMessage={(msg) => {
-    if (msg.type !== "ui_command") return;         // always this envelope
-    if (msg.action === "add_to_cart") {
-      // { type:"ui_command", action:"add_to_cart", action_id:7, sku:"oat-milk", qty:2 }
-      addToCart(String(msg.sku), Number(msg.qty));
-    }
-  }}
-/>
+import { useUiCommand } from "@voqalize/client-react";
+
+const { client } = useVoqalSession({ ...props });
+
+useUiCommand(client, {
+  add_to_cart: ({ sku, qty }) => addToCart(sku, qty),
+});
 ```
+
+Type it against the brain by declaring the command map — one entry per
+`voqalize.sdk.Action` subclass, Python being the source of truth — and passing it
+explicitly (an inline handler map gives TypeScript nothing to infer from):
+
+```tsx
+interface ShopCommands {
+  add_to_cart: { sku: string; qty: number };
+}
+
+useUiCommand<ShopCommands>(client, {
+  add_to_cart: ({ sku, qty }) => addToCart(sku, qty),     // sku: string, qty: number
+});
+```
+
+Every handler is optional, and an unknown action is **not** an error — brain and
+page ship separately, so it falls through to an optional `"*"` wildcard, else
+`console.debug`. Handlers are read through a ref, so an inline object literal never
+re-subscribes. `createUiCommandHandlers<T>(...)` pins a map defined away from the
+call site; `uiCommandArgs(command)` is the envelope-stripping on its own.
+`onServerMessage` remains the raw escape hatch for non-`ui_command` traffic.
 
 **Browser → brain.** Call `sendMessage(type, data)` (from the render-prop /
 `useVoqalSession`). The brain receives it as `on_client_message(message.type, message.data)`:
@@ -153,5 +174,6 @@ routes it back to that callback.
 
 ## Exports
 
-`VoqalAgent`, `useVoqalSession`, `createSession`, `VoqalWebRTCTransport`,
-`VoqalSessionError`, plus their TypeScript types.
+`VoqalAgent`, `useVoqalSession`, `useUiCommand`, `createUiCommandHandlers`,
+`uiCommandArgs`, `createSession`, `VoqalWebRTCTransport`, `VoqalSessionError`,
+plus their TypeScript types (`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`, …).

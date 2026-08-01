@@ -53,7 +53,7 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 from voqalize._framework.brain import _FrameworkBrain
-from voqalize._framework.coerce import CoercionError, coerce_arguments
+from voqalize._framework.coerce import CoercionError, coerce_arguments, coerce_result
 from voqalize._framework.heard import spoken_text_of
 from voqalize._framework.resume import resolve_greeting
 from voqalize._framework.turn import DEFAULT_ERROR_FALLBACK, DEFAULT_TURN_TIMEOUT
@@ -143,7 +143,7 @@ def _make_plugin(
     ``before_model_callback``) is the reason this is a plugin rather than a per-agent
     callback appended across the tree.
 
-    The three callbacks:
+    The callbacks:
 
     * ``before_model_callback`` — reconcile ADK's assembled history to heard-truth,
       then append :meth:`AdkBrain.grounding` to the system instruction. Grounding runs
@@ -155,7 +155,12 @@ def _make_plugin(
       deep-copies it out of the persisted ``function_call`` event first, so history is
       unaffected. Returning a dict here *overrides* the tool result, which is how a
       malformed argument becomes an error the model can see and retry instead of an
-      exception that kills the turn."""
+      exception that kills the turn.
+    * ``after_tool_callback`` — the symmetric half: dump any pydantic model the tool
+      *returned* into the JSON object ADK hands back to the model, by alias. Without
+      it ADK stores the live instance and genai flattens it late with a bare
+      ``model_dump()``, which drops aliases and defers non-JSON scalars to an opaque
+      ``json.dumps`` failure at the HTTP boundary."""
     from google.adk.plugins.base_plugin import BasePlugin
 
     class _VoqalizePlugin(BasePlugin):
@@ -172,6 +177,11 @@ def _make_plugin(
             self, *, tool: Any, tool_args: dict[str, Any], tool_context: Any
         ) -> dict[str, Any] | None:
             return _coerce_tool_args(tool, tool_args)
+
+        async def after_tool_callback(
+            self, *, tool: Any, tool_args: dict[str, Any], tool_context: Any, result: Any
+        ) -> dict[str, Any] | None:
+            return _coerce_tool_result(result)
 
     return _VoqalizePlugin()
 
@@ -200,6 +210,27 @@ def _coerce_tool_args(tool: Any, tool_args: dict[str, Any]) -> dict[str, Any] | 
     tool_args.clear()
     tool_args.update(coerced)
     return None
+
+
+def _coerce_tool_result(result: Any) -> dict[str, Any] | None:
+    """Dump the pydantic models in a tool's return value, before ADK stores it.
+
+    ``None`` (the normal path — nothing pydantic in the result) leaves ADK's own
+    handling completely untouched. Otherwise the dumped value *replaces* the result:
+
+    * a returned **model** becomes the function response object itself — its fields
+      are what the model reads, by alias, not ``{"result": {...}}``. That flat shape
+      is the point: the tool's declared return type *is* the tool's contract.
+    * a returned **dict/list** with models inside keeps its own shape, with each model
+      dumped in place. A non-dict is re-wrapped as ``{"result": ...}``, which is
+      exactly what ADK does with a non-dict return anyway — so only the models change.
+
+    See :func:`voqalize._framework.coerce.coerce_result` for the serialization rules
+    (``by_alias=True, mode="json"`` — the same ones a typed ``Action`` emits by)."""
+    dumped = coerce_result(result)
+    if dumped is None:
+        return None
+    return dumped if isinstance(dumped, dict) else {"result": dumped}
 
 
 def _is_async(func: Any) -> bool:

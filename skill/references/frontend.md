@@ -114,16 +114,39 @@ omnipresent and in-context; a widget in the corner reframes it as a chatbot.
 
 ## 5. The two-way lane
 
+Downward, **`useUiCommand(client, handlers)`** — subscribe, filter on
+`type === "ui_command"`, strip the envelope (`type`/`action`/`action_id`), dispatch
+on `action`. A handler gets the args alone:
+
 ```tsx
-onServerMessage={(msg) => {
-  if (msg.type !== "ui_command") return;
-  switch (msg.action) {
-    case "add_to_cart": setCart((c) => [...c, { sku: String(msg.sku), qty: Number(msg.qty) }]); break;
-  }
-}}
+useUiCommand(session.client, {
+  add_to_cart: ({ sku, qty }) => setCart((c) => [...c, { sku, qty }]),
+});
 ```
 
-and upward, `session.sendMessage("cart_edited", { removed: sku })`. Exact shapes and
+Type it against the brain by declaring the command map — one entry per
+`voqalize.sdk.Action` subclass — and passing it explicitly (an inline handler map
+gives TypeScript nothing to infer from):
+
+```tsx
+interface ShopCommands {
+  add_to_cart: { sku: string; qty: number };
+}
+
+useUiCommand<ShopCommands>(session.client, {
+  add_to_cart: ({ sku, qty }) => setCart((c) => [...c, { sku, qty }]),   // typed
+});
+```
+
+Every handler is optional and an unknown action is **not** an error — brain and
+page ship separately, so a new command reaching an old build falls through to an
+optional `"*"` wildcard, else `console.debug`. Handlers are read through a ref, so
+an inline literal never re-subscribes. Also exported: `createUiCommandHandlers<T>`
+(pin the map where it's defined instead of at the call site), `uiCommandArgs`, and
+the `UiCommand` / `UiCommandArgs` / `UiCommandHandlers` types. `onServerMessage`
+remains the raw escape hatch for non-`ui_command` traffic.
+
+And upward, `session.sendMessage("cart_edited", { removed: sku })`. Exact shapes and
 the state-only-vs-take-the-floor semantics: **`references/ui-actions.md`**.
 
 ## Gotchas

@@ -11,6 +11,7 @@
  */
 
 import { useEffect, type ReactNode } from 'react';
+import { uiCommandArgs, type UiCommand } from '@voqalize/client-react';
 import { useTravel } from './store';
 import {
   paxSummary,
@@ -881,17 +882,27 @@ function WhatsAppModal({ active }: { active: Itinerary }) {
   );
 }
 
-// Dev-only: expose handleUiCommand on window so the agent's screen-driving can be
-// exercised deterministically (without a mic) in browser automation / tests.
+// Dev-only: expose a ui_command dispatcher on window so the agent's screen-driving
+// can be exercised deterministically (without a mic) in browser automation / tests.
+// Takes the same envelope the brain sends — `{ action, ...args }` — and routes it
+// through the store's typed handlers, exactly as `useUiCommand` does on the wire.
+type DevDispatch = (cmd: UiCommand) => void;
+
 function DevUiExpose() {
-  const { handleUiCommand } = useTravel();
+  const { uiCommands } = useTravel();
   useEffect(() => {
     if (!import.meta.env.DEV) return;
-    (window as unknown as { __travelUi?: typeof handleUiCommand }).__travelUi = handleUiCommand;
-    return () => {
-      delete (window as unknown as { __travelUi?: typeof handleUiCommand }).__travelUi;
+    const dispatch: DevDispatch = (cmd) => {
+      const handler = (uiCommands as Record<string, ((args: never, cmd: UiCommand) => void) | undefined>)[
+        cmd.action
+      ];
+      handler?.(uiCommandArgs(cmd) as never, cmd);
     };
-  }, [handleUiCommand]);
+    (window as unknown as { __travelUi?: DevDispatch }).__travelUi = dispatch;
+    return () => {
+      delete (window as unknown as { __travelUi?: DevDispatch }).__travelUi;
+    };
+  }, [uiCommands]);
   return null;
 }
 

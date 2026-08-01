@@ -30,12 +30,14 @@ import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import {
   AmbientPresence,
+  useUiCommand,
   useVoqalSession,
   type AmbientPresencePalette,
   type VoqalBotState,
   type VoqalConnectionState,
 } from "@voqalize/client-react";
 import { useTravel } from "./store";
+import type { TravelCommands } from "./uiCommands";
 import { config } from "./config";
 
 // Tenant + agent + pk resolve per-environment from this demo's local config
@@ -162,10 +164,9 @@ const PRESENCE_STYLES = `
 
 // ── Session owner ─────────────────────────────────────────────────────────────
 export function TravelAdvisor({ children }: { children: (presence: ReactNode) => ReactNode }) {
-  const { handleUiCommand, registerAgentSend, rev, active, snapshot, highlighted } = useTravel();
+  const { uiCommands, registerAgentSend, rev, active, snapshot, highlighted } = useTravel();
 
-  // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
-  // (past the `{ data }` quirk), so we read `type` directly.
+  // The entire session lifecycle in one hook.
   const session = useVoqalSession({
     apiBase: TRAVEL.apiBase,
     tenantSlug: TRAVEL.tenantSlug,
@@ -176,16 +177,15 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
     // STT/TTS come from this demo's config, so the pipeline is declared once.
     pipeline: TRAVEL.pipeline,
     payload: { surface: "travel-web" },
-    onServerMessage: useCallback(
-      (msg: Record<string, unknown>) => {
-        if (msg.type === "ui_command") handleUiCommand(msg);
-      },
-      [handleUiCommand],
-    ),
   });
 
   const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } =
     session;
+
+  // The agent drives the screen: every `ui_command` goes to the store's typed
+  // handler for that action. Subscription, envelope stripping and dispatch are the
+  // hook's; the store only says what each command means.
+  useUiCommand<TravelCommands>(client, uiCommands);
 
   // Register the store's agent-send channel and mic once a session is live.
   useEffect(() => {

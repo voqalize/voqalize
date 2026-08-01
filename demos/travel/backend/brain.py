@@ -33,6 +33,14 @@ model had to remember to call, which is strictly worse for a screen-driving agen
 the model could answer "which flights are up?" from a stale turn, and it cost a
 round-trip. ``get_active_itinerary`` is therefore gone — it fired no ``ui_command``,
 so the browser contract is unchanged.
+
+**The screen contract is declared, not assembled.** Each of the ten ``ui_command``s
+is a :class:`voqalize.sdk.Action` subclass below, so the payload the ``/travel`` UI
+receives is a *type* — checked here, and mirrored one-for-one by the TypeScript
+interfaces in ``frontend/src/uiCommands.ts``. The wire is exactly what the old
+``voice().action("search_flights", {...})`` dict form emitted; what changed is that
+a renamed field is now a Python error and a TypeScript error instead of a key that
+silently stops arriving.
 """
 
 from __future__ import annotations
@@ -46,6 +54,7 @@ from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL
 
 from voqalize.google_adk import AdkBrain, voice
+from voqalize.sdk import Action
 
 if TYPE_CHECKING:
     from google.adk.models.base_llm import BaseLlm
@@ -145,15 +154,91 @@ class HotelOption(BaseModel):
     note: str = ""
 
 
-def _rows(items: Sequence[BaseModel], prefix: str) -> list[dict[str, Any]]:
-    """A list-of-models tool argument as the browser payload: each model dumped by
-    alias (so ``from_`` goes out as ``from``) plus a stable string ``id`` — the UI
-    keys a leg, a flight option and a hotel option off ``id``, and the model often
-    omits it."""
-    rows = [item.model_dump(by_alias=True) for item in items]
-    for i, row in enumerate(rows):
-        row["id"] = str(row["id"]) if str(row.get("id") or "").strip() else f"{prefix}{i + 1}"
-    return rows
+class Itinerary(BaseModel):
+    """The itinerary shell ``create_itinerary`` puts on screen, and this brain's own
+    mirror of it. The UI's ``buildItinerary()`` reads exactly these keys."""
+
+    name: str
+    coordinator: str = ""
+    destination: str = ""
+    start_date: str = ""
+    end_date: str = ""
+    summary: str = ""
+    families: list[Family] = []
+    legs: list[Leg] = []
+    hotel_cities: list[CityNights] = []
+
+
+def _with_ids[T: BaseModel](items: Sequence[T], prefix: str) -> list[T]:
+    """The same models, each guaranteed a stable string ``id``.
+
+    The UI keys a leg, a flight option and a hotel option off ``id``, and the model
+    routinely omits it. Filling it here (rather than in the browser) keeps one
+    numbering authority: the same ids go on screen, into this brain's mirror, and
+    back to the model as the tool result it will cite ("book f2")."""
+    out: list[T] = []
+    for i, item in enumerate(items):
+        current = str(getattr(item, "id", "") or "").strip()
+        out.append(item if current else item.model_copy(update={"id": f"{prefix}{i + 1}"}))
+    return out
+
+
+# ─── The screen contract: one Action per ui_command ────────────────────────────
+#
+# An `Action` is a pydantic model that knows its own wire name — `SearchFlights` →
+# `"search_flights"` — and serializes `by_alias`, so a nested `Leg` still reaches
+# the browser with the `from` key its store reads. The envelope is unchanged from
+# the dict form these replace: `{"type": "ui_command", "action": <name>,
+# "action_id": <int>, **fields}`.
+#
+# These are the source of truth for `frontend/src/uiCommands.ts`. Change a field
+# here and the TypeScript interface must move with it.
+
+
+class OpenDashboard(Action):
+    """Show the dashboard of saved draft trips. No arguments."""
+
+
+class OpenItinerary(Action):
+    name: str
+
+
+class CreateItinerary(Action):
+    itinerary: Itinerary
+
+
+class SetTripStructure(Action):
+    families: list[Family]
+    legs: list[Leg]
+    hotel_cities: list[CityNights]
+
+
+class SearchFlights(Action):
+    leg_id: str
+    options: list[FlightOption]
+
+
+class ShowFlights(Action):
+    leg_id: str
+
+
+class SelectFlight(Action):
+    leg_id: str
+    option_id: str
+
+
+class SearchHotels(Action):
+    city: str
+    options: list[HotelOption]
+
+
+class ShowHotels(Action):
+    city: str
+
+
+class SelectHotel(Action):
+    city: str
+    option_id: str
 
 
 # ─── The agent: tools + prompt ─────────────────────────────────────────────────
@@ -173,9 +258,9 @@ class TravelDesk:
     def __init__(self) -> None:
         # What this brain believes it put on screen. Used for grounding until the
         # browser's own snapshot arrives, and as the fallback if it never does.
-        self.itinerary: dict[str, Any] | None = None
-        self.flights: dict[str, list[dict[str, Any]]] = {}
-        self.hotels: dict[str, list[dict[str, Any]]] = {}
+        self.itinerary: Itinerary | None = None
+        self.flights: dict[str, list[FlightOption]] = {}
+        self.hotels: dict[str, list[HotelOption]] = {}
         self.selected: dict[str, str] = {}
 
     def mirror(self) -> dict[str, Any] | None:
@@ -183,13 +268,13 @@ class TravelDesk:
         (or without) a browser snapshot. ``None`` when nothing is open."""
         if not self.itinerary:
             return None
-        return {"itinerary": self.itinerary, "selected": self.selected}
+        return {"itinerary": self.itinerary.model_dump(by_alias=True), "selected": self.selected}
 
     # ─── tools ──────────────────────────────────────────────────────────
 
     async def open_dashboard(self) -> dict[str, Any]:
         """Open the dashboard of saved draft trips."""
-        voice().action("open_dashboard")
+        voice().action(OpenDashboard())
         return {"status": "dashboard open"}
 
     async def open_itinerary(self, name: str) -> dict[str, Any]:
@@ -198,7 +283,7 @@ class TravelDesk:
         Args:
             name: The itinerary's name, e.g. "Poddar Vietnam".
         """
-        voice().action("open_itinerary", {"name": name})
+        voice().action(OpenItinerary(name=name))
         return {"status": "opened", "name": name}
 
     async def create_itinerary(
@@ -223,19 +308,16 @@ class TravelDesk:
             coordinator: The travel agent handling the trip.
             summary: One-line summary of the trip.
         """
-        itinerary: dict[str, Any] = {
-            "name": name,
-            "coordinator": coordinator,
-            "destination": destination,
-            "start_date": start_date,
-            "end_date": end_date,
-            "summary": summary,
-            "families": [],
-            "legs": [],
-            "hotel_cities": [],
-        }
+        itinerary = Itinerary(
+            name=name,
+            coordinator=coordinator,
+            destination=destination,
+            start_date=start_date,
+            end_date=end_date,
+            summary=summary,
+        )
         self.itinerary = itinerary
-        voice().action("create_itinerary", {"itinerary": itinerary})
+        voice().action(CreateItinerary(itinerary=itinerary))
         return {"status": "created", "name": name}
 
     async def set_trip_structure(
@@ -253,18 +335,13 @@ class TravelDesk:
                 date like "12 Aug 2026".
             hotel_cities: Each city the group sleeps in, with the number of nights.
         """
-        fam_rows = [f.model_dump(by_alias=True) for f in families]
-        leg_rows = _rows(legs, "leg")
-        city_rows = [c.model_dump(by_alias=True) for c in hotel_cities]
+        legs = _with_ids(legs, "leg")
         if self.itinerary is not None:
-            self.itinerary.update(
-                {"families": fam_rows, "legs": leg_rows, "hotel_cities": city_rows}
-            )
-        voice().action(
-            "set_trip_structure",
-            {"families": fam_rows, "legs": leg_rows, "hotel_cities": city_rows},
-        )
-        return {"status": "structure set", "families": len(fam_rows), "legs": len(leg_rows)}
+            self.itinerary.families = families
+            self.itinerary.legs = legs
+            self.itinerary.hotel_cities = hotel_cities
+        voice().action(SetTripStructure(families=families, legs=legs, hotel_cities=hotel_cities))
+        return {"status": "structure set", "families": len(families), "legs": len(legs)}
 
     async def search_flights(self, leg_id: str, options: list[FlightOption]) -> dict[str, Any]:
         """Search one flight leg and show the option cards on screen.
@@ -277,9 +354,9 @@ class TravelDesk:
             leg_id: The leg's id, as given to set_trip_structure.
             options: The 3 invented flight options.
         """
-        rows = _rows(options, "f")
+        rows = _with_ids(options, "f")
         self.flights[leg_id] = rows
-        voice().action("search_flights", {"leg_id": leg_id, "options": rows})
+        voice().action(SearchFlights(leg_id=leg_id, options=rows))
         return {"status": "showing", "leg_id": leg_id, "count": len(rows)}
 
     async def show_flights(self, leg_id: str) -> dict[str, Any]:
@@ -288,7 +365,7 @@ class TravelDesk:
         Args:
             leg_id: The leg's id.
         """
-        voice().action("show_flights", {"leg_id": leg_id})
+        voice().action(ShowFlights(leg_id=leg_id))
         return {"status": "shown", "leg_id": leg_id}
 
     async def select_flight(self, leg_id: str, option_id: str) -> dict[str, Any]:
@@ -299,7 +376,7 @@ class TravelDesk:
             option_id: The chosen option's id, e.g. "f2".
         """
         self.selected[f"flight:{leg_id}"] = option_id
-        voice().action("select_flight", {"leg_id": leg_id, "option_id": option_id})
+        voice().action(SelectFlight(leg_id=leg_id, option_id=option_id))
         return {"status": "flight selected", "leg_id": leg_id, "option_id": option_id}
 
     async def search_hotels(self, city: str, options: list[HotelOption]) -> dict[str, Any]:
@@ -313,9 +390,9 @@ class TravelDesk:
             city: The city being searched.
             options: The 3 invented hotel options.
         """
-        rows = _rows(options, "h")
+        rows = _with_ids(options, "h")
         self.hotels[city] = rows
-        voice().action("search_hotels", {"city": city, "options": rows})
+        voice().action(SearchHotels(city=city, options=rows))
         return {"status": "showing", "city": city, "count": len(rows)}
 
     async def show_hotels(self, city: str) -> dict[str, Any]:
@@ -324,7 +401,7 @@ class TravelDesk:
         Args:
             city: The city whose options to re-show.
         """
-        voice().action("show_hotels", {"city": city})
+        voice().action(ShowHotels(city=city))
         return {"status": "shown", "city": city}
 
     async def select_hotel(self, city: str, option_id: str) -> dict[str, Any]:
@@ -335,7 +412,7 @@ class TravelDesk:
             option_id: The chosen option's id, e.g. "h1".
         """
         self.selected[f"hotel:{city}"] = option_id
-        voice().action("select_hotel", {"city": city, "option_id": option_id})
+        voice().action(SelectHotel(city=city, option_id=option_id))
         return {"status": "hotel selected", "city": city, "option_id": option_id}
 
     def tools(self) -> list[Any]:

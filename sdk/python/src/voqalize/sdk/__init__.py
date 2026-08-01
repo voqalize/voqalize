@@ -17,6 +17,7 @@ See [docs/architecture.md](docs/architecture.md) for the model and
 docs/voice-protocol.md §SDK for the design.
 """
 
+from .actions import Action
 from .brain import (
     Brain,
     ClientMessage,
@@ -42,6 +43,7 @@ from .outbound import CortexAgent
 from .session import Channel, SessionRejected, run_session
 
 __all__ = [
+    "Action",
     "Brain",
     "Channel",
     "ClientMessage",
