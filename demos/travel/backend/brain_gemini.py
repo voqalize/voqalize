@@ -1,4 +1,11 @@
-"""TravelBrain — the travel-desk agent.
+"""TravelBrain (raw google-genai) — the travel-desk agent's **previous** brain.
+
+**Superseded.** The shipping travel brain is now :mod:`brain` — the same agent on
+the Google ADK adapter (``voqalize.google_adk.AdkBrain``), where ADK derives the
+tool schemas from type hints and the SDK drives the run loop. This file is kept
+beside it so the two are readable side by side: the hand-written JSON schemas,
+the manual function-calling loop, and the ``dispatch_tool`` if/elif chain below
+are exactly the code the ADK version deletes. Nothing imports it.
 
 A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + session state). Voqalize
 dials this brain's WebSocket per session; one ``on_interaction`` runs a manual

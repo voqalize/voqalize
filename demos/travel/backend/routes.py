@@ -11,7 +11,7 @@ from __future__ import annotations
 from voqalize_demos import GeminiProvider
 from voqalize_demos.session import make_brain_router
 
-from .brain import TravelBrain
+from .brain_gemini import TravelBrain
 
 # The URL segment Voqalize dials; must equal this folder's name.
 NAME = "travel"
