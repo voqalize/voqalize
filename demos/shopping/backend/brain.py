@@ -3,7 +3,7 @@
 A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + session state). Voqalize
 dials this brain's WebSocket per session; the inherited tool-loop ``on_interaction``
 runs a manual Gemini function-calling loop where **each LLM call is one
-``interaction.inference()`` bracket** (1:1 with the wire). Each tool body drives
+``interaction.say()`` bracket** (1:1 with the wire). Each tool body drives
 the browser via ``interaction.action(name, {...})`` — the RTVI ``ui_command`` the
 ``/mobile`` UI renders — while returning catalog data to the model so it can talk
 about what's on screen.

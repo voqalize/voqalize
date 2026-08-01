@@ -2,7 +2,7 @@
 
 A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + session state). Voqalize
 dials this brain's WebSocket per session; one ``on_interaction`` runs a manual
-Gemini function-calling loop where **each LLM call is one ``interaction.inference()``
+Gemini function-calling loop where **each LLM call is one ``interaction.say()``
 bracket** (1:1 with the wire), so a tool round-trip is naturally multi-inference:
 speak a short line → call the screen tool → speak the result. Each tool body drives
 the browser via ``interaction.action(name, {...})`` — the RTVI ``ui_command`` the
@@ -248,7 +248,7 @@ class TravelBrain(GeminiBrain):
             "hotels": {},
             "selected": {},
         }
-        # Latest browser-pushed snapshot (state_sync via on_app_event) — what's
+        # Latest browser-pushed snapshot (state_sync via on_client_message) — what's
         # actually on screen, including the agent's hand edits. Grounds
         # get_active_itinerary so Priya stays in sync with manual changes.
         self.browser_state: Any = None
@@ -258,13 +258,14 @@ class TravelBrain(GeminiBrain):
     async def on_session_start(self, session, start) -> None:
         await self.say(session, _GREETING)
 
-    async def on_app_event(self, session, event) -> None:
-        # Browser→Brain feedback. The /travel UI pushes a state_sync snapshot
-        # on connect and after every change (incl. hand edits) — keep the latest so
-        # get_active_itinerary reflects what's actually on screen.
-        if event.name == "state_sync":
-            self.browser_state = event.data
-            logger.info("travel: state_sync from browser ({} keys)", len(event.data or {}))
+    async def on_client_message(self, session, message) -> None:
+        # Browser→Brain client message. The /travel UI pushes a state_sync
+        # snapshot on connect and after every change (incl. hand edits) — keep the
+        # latest so get_active_itinerary reflects what's actually on screen. Ingested
+        # silently (no floor taken): we never touch message.interaction.
+        if message.type == "state_sync":
+            self.browser_state = message.data
+            logger.info("travel: state_sync from browser ({} keys)", len(message.data or {}))
 
     # ─── Tools ──────────────────────────────────────────────────────────
 

@@ -3,7 +3,7 @@
 A ``voqalize.sdk.Brain`` (LLM + Auric Gold Finance tools + per-session language
 state). Voqalize dials this brain's WebSocket per session; ``respond`` (inherited
 from :class:`GeminiBrain`) runs the manual Gemini function-calling loop where
-**each LLM call is one ``interaction.inference()`` bracket** (1:1 with the wire):
+**each LLM call is one ``interaction.say()`` bracket** (1:1 with the wire):
 speak a short line, call a tool, feed the result back.
 
 The three tools are:

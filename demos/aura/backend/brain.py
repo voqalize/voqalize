@@ -1,9 +1,9 @@
 """AuraBrain — the Aura Bank L1 banking support assistant, hosted in the control plane.
 
-A ``voqalcloud.sdk.Brain`` (LLM + screen-driving tools + per-session state), ported
+A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + per-session state), ported
 verbatim from the in-process managed brain ``pygato.managed.aura`` (its ``AuraBot``).
 PyGato dials this brain's WebSocket per session; ``respond`` runs a manual Gemini
-function-calling loop where **each LLM call is one ``interaction.inference()`` bracket**
+function-calling loop where **each LLM call is one ``interaction.say()`` bracket**
 (1:1 with the wire): speak a short line, call a tool, feed the result back.
 
 This is the most complex demo — it fuses three workstreams:
@@ -22,12 +22,11 @@ Two mechanics need more than the standard tool-loop, so this brain overrides ``r
 
   * **Async, blocking tools.** ``authenticate`` / ``choose_account`` /
     ``choose_credit_card`` open an on-screen dialog and then *block* until the browser
-    reports the customer finished. The managed bot awaited an ``asyncio.Future``
-    resolved by ``on_client_message``; here the same futures are resolved by
-    :meth:`on_app_event`. Because the SDK **spawns** ``on_interaction`` as its own task
-    (the ``VqlUserText`` ack stays prompt) while ``on_app_event`` is delivered on the
-    reader path, the awaiting tool and the resolving browser message run concurrently —
-    exactly the managed behaviour. This is why :meth:`respond` awaits an async dispatch.
+    reports the customer finished, by awaiting an ``asyncio.Future`` resolved in
+    :meth:`on_client_message`. Because the SDK **spawns** both ``on_interaction`` and
+    ``on_client_message`` as their own tasks (the ``VqlUserText`` ack stays prompt),
+    the awaiting tool and the resolving browser message run concurrently. This is why
+    :meth:`respond` awaits an async dispatch.
   * **Silent screen-state awareness.** The browser pushes a compact ``state_sync``
     snapshot on connect and after every change. The managed bot folded it into the LLM
     context as a ``user`` message; here :meth:`working_context` appends the *latest*
@@ -891,7 +890,7 @@ class AuraBrain(GeminiBrain):
     :meth:`working_context` (folds the latest ``state_sync`` screen snapshot into the
     LLM's context each turn). Browser→brain feedback — screen syncs and the auth /
     picker completions/cancels that resolve those blocking tools — arrives on
-    :meth:`on_app_event`.
+    :meth:`on_client_message`.
     """
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
@@ -934,9 +933,9 @@ class AuraBrain(GeminiBrain):
         self.payload = dict(start.init)
         await self.say(session, _GREETING)
 
-    async def on_app_event(self, session, event) -> None:
-        """Browser→Brain feedback (the hosted analogue of the managed
-        ``on_client_message`` hook):
+    async def on_client_message(self, session, message) -> None:
+        """Browser→Brain client message. None take the floor — each mutates state or
+        resolves a blocking tool's future, so we never touch ``message.interaction``:
 
         * ``state_sync`` — a compact snapshot of what's on screen (sent on connect
           and after every change); folded into the LLM context via
@@ -952,8 +951,8 @@ class AuraBrain(GeminiBrain):
           customer dismissed the dialog; unblocks the waiting tool immediately so the
           bot recovers instead of sitting muted.
         """
-        name = event.name
-        data = event.data or {}
+        name = message.type
+        data = message.data or {}
         if name == "state_sync":
             self._ingest_state(data)
         elif name == "auth_complete":
@@ -992,12 +991,12 @@ class AuraBrain(GeminiBrain):
         """Standard tool loop, but awaiting an **async** dispatch: aura's secure
         tools (``authenticate`` / ``choose_account`` / ``choose_credit_card``) open a
         dialog and block until the browser reports the customer finished. Each LLM
-        call is still one ``interaction.inference()`` bracket (1:1 with the wire), and
+        call is still one ``interaction.say()`` bracket (1:1 with the wire), and
         the tool dispatch happens between brackets (so the blocking wait never sits
         inside an open inference)."""
         contents = self.working_context(interaction)
         for _ in range(self._max_tool_hops):
-            async with interaction.inference() as inf:
+            async with interaction.say() as inf:
                 fcalls, model_parts = await self.stream(inf, contents)
             if model_parts:
                 contents.append(types.Content(role="model", parts=model_parts))
