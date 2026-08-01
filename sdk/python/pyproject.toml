@@ -8,11 +8,17 @@ requires-python = ">=3.12"
 # — the `crypto` extra (cryptography) is what supplies RS256, and the conformance
 # harness needs it too to mint keypairs/tokens. Without it a clean install fails
 # at verification time with "Algorithm 'RS256' could not be found".
+# `pydantic` is a runtime dep because `voqalize.sdk.Action` — the typed UI
+# command — IS a pydantic model, so `import voqalize.sdk` needs it. It is not an
+# optional-extra candidate: an SDK that only *sometimes* exposes its typed
+# surface would be a dependency fallback, and every agent framework a customer
+# might pair this with already pulls pydantic anyway.
 dependencies = [
     "websockets>=13",
     "loguru>=0.7",
     "protobuf>=6.30,<7",
     "pyjwt[crypto]>=2.8",
+    "pydantic>=2.7",
 ]
 
 [project.optional-dependencies]

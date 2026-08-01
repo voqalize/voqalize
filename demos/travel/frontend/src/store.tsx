@@ -11,6 +11,14 @@
  * mutation bumps `rev`; the voice widget watches `rev` and echoes a compact
  * snapshot back to the agent (`state_sync`) so the AI always knows the active
  * itinerary and its state — including edits the travel agent makes by hand.
+ *
+ * The agent's half of that is `uiCommands` at the bottom: one typed handler per
+ * `ui_command`, checked against `TravelCommands` in `./uiCommands` (itself mirrored
+ * from the `Action` classes in `demos/travel/backend/brain.py`). `TravelAdvisor`
+ * hands the map to `useUiCommand`, which does the subscribing and the dispatch.
+ * This replaced a 21-case `switch` over `Record<string, unknown>` where every
+ * argument had to be re-coerced (`str(cmd.leg_id)!`) and a renamed field showed up
+ * as a command that quietly stopped working.
  */
 
 import {
@@ -40,6 +48,8 @@ import {
   type Task,
   type TaskKind,
 } from './types';
+import type { UiCommandHandlers } from '@voqalize/client-react';
+import type { TravelCommands, WireItinerary } from './uiCommands';
 import { SEED_ITINERARIES } from './data';
 
 export type View = 'dashboard' | 'overview' | 'flights' | 'hotels';
@@ -97,12 +107,22 @@ function now(): number {
 
 export type AgentSend = (type: string, data: unknown) => void;
 
+/**
+ * What `createItinerary` needs: the wire shell, or just a name.
+ *
+ * The brain always sends a complete `WireItinerary` (a pydantic `Action` emits its
+ * whole shape), but the "New trip" button in the UI has only a placeholder name —
+ * so everything but `name` is optional here, and the store fills the rest.
+ */
+export type NewItinerary = Partial<WireItinerary> & { name: string };
+
 export interface TravelActions {
   openDashboard: () => void;
   newBlankItinerary: () => void;
   openItinerary: (idOrName: string) => void;
-  createItinerary: (raw: Record<string, unknown>) => void;
-  setTripStructure: (raw: Record<string, unknown>) => void;
+  /** Build and open a new itinerary. `name` is all the agent must send. */
+  createItinerary: (wire: NewItinerary) => void;
+  setTripStructure: (args: TravelCommands['set_trip_structure']) => void;
   setSpecialRequests: (requests: SpecialRequest[]) => void;
   presentFlights: (legId: string, options: FlightOption[]) => void;
   selectFlight: (legId: string, optionId: string) => void;
@@ -146,7 +166,11 @@ export interface TravelStore extends TravelActions {
   registerAgentSend: (fn: AgentSend | null) => void;
   /** Compact snapshot of the active itinerary for `state_sync` (null on dashboard). */
   snapshot: () => Record<string, unknown> | null;
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  /**
+   * The agent's screen-driving handlers, keyed by wire name and typed against
+   * {@link TravelCommands}. Hand straight to `useUiCommand(client, uiCommands)`.
+   */
+  uiCommands: UiCommandHandlers<TravelCommands>;
 }
 
 const Ctx = createContext<TravelStore | null>(null);
@@ -187,29 +211,28 @@ function toDayPlan(p: Record<string, unknown>): DayPlan | null {
   };
 }
 
-function buildItinerary(raw: Record<string, unknown>): Itinerary {
-  const name = str(raw.name) ?? 'Untitled trip';
-  const hotelCities = arr<Record<string, unknown>>(raw.hotel_cities);
-  const legs = arr<Record<string, unknown>>(raw.legs).map<Leg>((l, i) => ({
-    id: str(l.id) ?? `leg${i + 1}`,
-    label: str(l.label) ?? `${str(l.from) ?? ''} → ${str(l.to) ?? ''}`,
-    from: str(l.from),
-    to: str(l.to),
-    date: str(l.date) ?? '',
-  }));
+/** The wire shell as the store's own itinerary — id, timestamps, empty sections. */
+function buildItinerary(wire: NewItinerary): Itinerary {
+  const name = wire.name || 'Untitled trip';
   return {
     id: slugify(name),
     name,
-    coordinator: str(raw.coordinator),
-    destination: str(raw.destination),
-    start_date: str(raw.start_date),
-    end_date: str(raw.end_date),
-    summary: str(raw.summary),
-    families: arr(raw.families),
-    legs,
-    hotels: hotelCities.map<HotelStay>((c) => ({
-      city: str(c.city) ?? '',
-      nights: typeof c.nights === 'number' ? c.nights : undefined,
+    coordinator: wire.coordinator,
+    destination: wire.destination,
+    start_date: wire.start_date,
+    end_date: wire.end_date,
+    summary: wire.summary,
+    families: wire.families ?? [],
+    legs: (wire.legs ?? []).map<Leg>((l, i) => ({
+      id: l.id || `leg${i + 1}`,
+      label: l.label || `${l.from} → ${l.to}`,
+      from: l.from,
+      to: l.to,
+      date: l.date,
+    })),
+    hotels: (wire.hotel_cities ?? []).map<HotelStay>((c) => ({
+      city: c.city,
+      nights: c.nights,
     })),
     days: [],
     specialRequests: [],
@@ -314,8 +337,8 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     [itineraries],
   );
 
-  const createItinerary = useCallback((raw: Record<string, unknown>) => {
-    const built = buildItinerary(raw);
+  const createItinerary = useCallback((wire: NewItinerary) => {
+    const built = buildItinerary(wire);
     setItineraries((list) => {
       // Replace any existing itinerary with the same slug (re-create), else add.
       const exists = list.some((it) => it.id === built.id);
@@ -354,37 +377,29 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   // the heavy part split out of create_itinerary so the shell renders first. Legs are
   // merged by id so any options already searched for a leg survive a re-call.
   const setTripStructure = useCallback(
-    (raw: Record<string, unknown>) =>
+    ({ families, legs: wireLegs, hotel_cities }: TravelCommands['set_trip_structure']) =>
       mutateActive((it) => {
-        const families = arr<Family>(raw.families);
-        const rawLegs = arr<Record<string, unknown>>(raw.legs);
         const legs: Leg[] =
-          rawLegs.length === 0
+          wireLegs.length === 0
             ? it.legs
-            : rawLegs.map((l, i) => {
-                const id = str(l.id) ?? `leg${i + 1}`;
+            : wireLegs.map((l, i) => {
+                const id = l.id || `leg${i + 1}`;
                 const existing = it.legs.find((e) => e.id === id);
                 return {
                   ...existing,
                   id,
-                  label: str(l.label) ?? `${str(l.from) ?? ''} → ${str(l.to) ?? ''}`,
-                  from: str(l.from),
-                  to: str(l.to),
-                  date: str(l.date) ?? existing?.date ?? '',
+                  label: l.label || `${l.from} → ${l.to}`,
+                  from: l.from,
+                  to: l.to,
+                  date: l.date || existing?.date || '',
                 };
               });
-        const rawCities = arr<Record<string, unknown>>(raw.hotel_cities);
         const hotels =
-          rawCities.length === 0
+          hotel_cities.length === 0
             ? it.hotels
-            : rawCities.map((c) => {
-                const city = str(c.city) ?? '';
-                const existing = it.hotels.find((h) => h.city === city);
-                return {
-                  ...existing,
-                  city,
-                  nights: typeof c.nights === 'number' ? c.nights : existing?.nights,
-                };
+            : hotel_cities.map((c) => {
+                const existing = it.hotels.find((h) => h.city === c.city);
+                return { ...existing, city: c.city, nights: c.nights };
               });
         return {
           ...it,
@@ -675,109 +690,35 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     };
   }, [active, view, flightsLeg, hotelsCity, tasks]);
 
-  const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      const action = String(cmd.action ?? '');
-      switch (action) {
-        case 'open_dashboard':
-          openDashboard();
-          break;
-        case 'open_itinerary':
-          if (str(cmd.name)) openItinerary(str(cmd.name)!);
-          break;
-        case 'create_itinerary':
-          if (cmd.itinerary && typeof cmd.itinerary === 'object') {
-            createItinerary(cmd.itinerary as Record<string, unknown>);
-          }
-          break;
-        case 'set_trip_structure':
-          setTripStructure(cmd);
-          break;
-        case 'set_special_requests':
-          setSpecialRequests(arr<SpecialRequest>(cmd.requests));
-          break;
-        // Background search (current path). present_* kept for back-compat / manual.
-        case 'search_flights':
-          if (str(cmd.leg_id)) searchFlights(str(cmd.leg_id)!, arr<FlightOption>(cmd.options));
-          break;
-        case 'present_flight_options':
-          if (str(cmd.leg_id)) presentFlights(str(cmd.leg_id)!, arr<FlightOption>(cmd.options));
-          break;
-        case 'show_flights':
-          if (str(cmd.leg_id)) viewFlights(str(cmd.leg_id)!);
-          break;
-        case 'select_flight':
-          if (str(cmd.leg_id) && str(cmd.option_id)) selectFlight(str(cmd.leg_id)!, str(cmd.option_id)!);
-          break;
-        case 'search_hotels':
-          if (str(cmd.city)) searchHotels(str(cmd.city)!, arr<HotelOption>(cmd.options));
-          break;
-        case 'present_hotel_options':
-          if (str(cmd.city)) presentHotels(str(cmd.city)!, arr<HotelOption>(cmd.options));
-          break;
-        case 'show_hotels':
-          if (str(cmd.city)) viewHotels(str(cmd.city)!);
-          break;
-        case 'select_hotel':
-          if (str(cmd.city) && str(cmd.option_id)) selectHotel(str(cmd.city)!, str(cmd.option_id)!);
-          break;
-        case 'generate_day_plan': {
-          const days = arr<Record<string, unknown>>(cmd.days)
-            .map(toDayPlan)
-            .filter((d): d is DayPlan => d !== null);
-          if (days.length) generateDayPlan(days);
-          break;
-        }
-        case 'set_day_plan':
-          if (cmd.plan && typeof cmd.plan === 'object') {
-            const plan = toDayPlan(cmd.plan as Record<string, unknown>);
-            if (plan) setDayPlan(plan);
-          }
-          break;
-        case 'set_inclusions':
-          setInclusions(arr<string>(cmd.inclusions).map(String), arr<string>(cmd.exclusions).map(String));
-          break;
-        case 'set_terms':
-          setTerms(arr<string>(cmd.terms).map(String));
-          break;
-        case 'patch_dates': {
-          const updates = arr<Record<string, unknown>>(cmd.updates)
-            .map((u) => ({ leg_id: str(u.leg_id) ?? '', new_date: str(u.new_date) ?? '' }))
-            .filter((u) => u.leg_id && u.new_date);
-          if (updates.length) patchDates(updates, str(cmd.summary) ?? '');
-          break;
-        }
-        case 'highlight':
-          if (str(cmd.section)) highlight(str(cmd.section)!);
-          break;
-        case 'send_whatsapp':
-          sendWhatsApp(str(cmd.to) ?? '', str(cmd.recipient_name) ?? '');
-          break;
-        default:
-          break;
-      }
-    },
+  // The agent's ten commands, one handler each. The map is checked against
+  // `TravelCommands` — a name the brain doesn't declare is a compile error here,
+  // and each `args` is the shape its Python `Action` emits, so there is nothing
+  // left to coerce or null-check. `useMemo` only to keep the object identity
+  // stable; `useUiCommand` reads it through a ref either way.
+  const uiCommands: UiCommandHandlers<TravelCommands> = useMemo(
+    () => ({
+      open_dashboard: () => openDashboard(),
+      open_itinerary: ({ name }) => openItinerary(name),
+      create_itinerary: ({ itinerary }) => createItinerary(itinerary),
+      set_trip_structure: (args) => setTripStructure(args),
+      search_flights: ({ leg_id, options }) => searchFlights(leg_id, options),
+      show_flights: ({ leg_id }) => viewFlights(leg_id),
+      select_flight: ({ leg_id, option_id }) => selectFlight(leg_id, option_id),
+      search_hotels: ({ city, options }) => searchHotels(city, options),
+      show_hotels: ({ city }) => viewHotels(city),
+      select_hotel: ({ city, option_id }) => selectHotel(city, option_id),
+    }),
     [
       openDashboard,
       openItinerary,
       createItinerary,
       setTripStructure,
-      setSpecialRequests,
-      presentFlights,
-      selectFlight,
-      presentHotels,
-      selectHotel,
       searchFlights,
-      searchHotels,
       viewFlights,
+      selectFlight,
+      searchHotels,
       viewHotels,
-      generateDayPlan,
-      setDayPlan,
-      setInclusions,
-      setTerms,
-      patchDates,
-      highlight,
-      sendWhatsApp,
+      selectHotel,
     ],
   );
 
@@ -797,7 +738,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     agentSend: agentSendRef.current,
     registerAgentSend,
     snapshot,
-    handleUiCommand,
+    uiCommands,
     openDashboard,
     newBlankItinerary,
     openItinerary,

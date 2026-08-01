@@ -60,7 +60,7 @@ const session = useVoqalSession(opts: UseVoqalSessionOptions): VoqalSessionHandl
 | `payload?` | `Record<string,unknown>` | App payload handed to the brain; arrives as `start.init`. |
 | `iceServers?` | `RTCIceServer[]` | Defaults to a public Google STUN server. |
 | `autoConnect?` | `boolean` | Default `false` (`<VoqalAgent/>` sets it `true`). |
-| `onServerMessage?` | `(msg) => void` | Each RTVI server message, unwrapped. |
+| `onServerMessage?` | `(msg) => void` | Every RTVI server message, unwrapped — the raw escape hatch. For UI commands prefer [`useUiCommand`](#typed-ui-commands-useuicommand). |
 
 ### Return value
 
@@ -85,9 +85,6 @@ function CallButton() {
     tenantSlug: "acme",
     publishableKey: import.meta.env.VITE_VOQAL_PK,
     agentId: "06a2…",
-    onServerMessage: (msg) => {
-      if (msg.type === "ui_command") handleUiCommand(msg);
-    },
   });
 
   return s.connectionState === "connected" ? (
@@ -120,18 +117,88 @@ For agents that drive the screen (see
 [Handling a conversation](/docs/brain/conversation/)):
 
 - **Brain → browser.** The brain's `interaction.action(name, { ...args })` arrives
-  on `onServerMessage` as `{ type: "ui_command", action, action_id, ...args }` —
-  the args are spread onto the top level.
+  as a server message `{ type: "ui_command", action, action_id, ...args }` — the
+  args are spread onto the top level. Dispatch it with `useUiCommand`, below.
 - **Browser → brain.** `session.sendMessage(type, data)` reaches the brain's
   `on_client_message(session, ClientMessage(type=type, data=data))`. Reply to a UI
   command's outcome with `sendMessage("action_outcome", { action_id, status, result })`.
 
+## Typed UI commands: `useUiCommand`
+
+Handling commands by hand is the same three lines in every app — subscribe to
+server messages, filter on `type`, `switch` on `action` — followed by re-coercing
+every argument out of an untyped bag. The hook is those lines, once:
+
+```tsx
+import { useUiCommand } from "@voqalize/client-react";
+
+const { client } = useVoqalSession({ /* … */ });
+
+useUiCommand(client, {
+  open_itinerary: ({ name }) => open(name),
+  select_flight: ({ leg_id, option_id }) => choose(leg_id, option_id),
+});
+```
+
+```ts
+useUiCommand<T>(client: PipecatClient | null, handlers: UiCommandHandlers<T>): void
+```
+
+A handler receives **only the arguments** — `type`, `action` and `action_id` are
+stripped, since they're the transport's — plus the whole command as a second
+argument when you need the `action_id` to reply with an outcome. `client` may be
+`null` before connect; the hook subscribes once one exists. Handlers are read
+through a ref, so an inline object literal is fine: re-rendering never
+re-subscribes.
+
+An action with no handler is **not** an error — the brain and the page ship
+separately, and a new command reaching an old build must not break it. It goes to
+an optional `"*"` wildcard, else to `console.debug`.
+
+### Typing it against the brain
+
+Declare the command map — wire name → argument shape — and pass it as the type
+argument. Each handler's parameter is then that action's args, so a field renamed
+in Python is a compile error instead of an `undefined` that reaches the screen:
+
+```ts
+// Shapes mirror the brain's `voqalize.sdk.Action` subclasses — Python is the
+// source of truth.
+export interface TravelCommands {
+  open_itinerary: { name: string };
+  select_flight: { leg_id: string; option_id: string };
+}
+
+useUiCommand<TravelCommands>(client, {
+  open_itinerary: ({ name }) => open(name),               // name: string
+  select_flight: ({ leg_id, option_id }) => pick(leg_id, option_id),
+});
+```
+
+Write the type argument explicitly — an inline handler map gives TypeScript
+nothing to infer it from. The map is checked both ways: an action you didn't
+declare is rejected, and every declared handler is optional (a page may handle a
+subset). If the map lives away from the call site, `createUiCommandHandlers<T>(…)`
+pins it there instead:
+
+```ts
+const handlers = createUiCommandHandlers<TravelCommands>({ /* … */ });
+useUiCommand(client, handlers);
+```
+
+`uiCommandArgs(command)` is the same envelope-stripping used internally, exported
+for the rare place you hold a whole `UiCommand` and want just its args.
+
+The `travel` demo (`demos/travel`) runs this end to end: `Action` subclasses in
+`backend/brain.py`, the mirrored `TravelCommands` in `frontend/src/uiCommands.ts`.
+
 ## Exports
 
-`VoqalAgent`, `useVoqalSession`, `createSession`, `VoqalWebRTCTransport`,
-`VoqalSessionError`, plus the TypeScript types (`UseVoqalSessionOptions`,
-`VoqalSessionHandle`, `VoqalConnectionState`, `VoqalBotState`,
-`VoqalPipelineConfig`, and more).
+`VoqalAgent`, `useVoqalSession`, `useUiCommand`, `createUiCommandHandlers`,
+`uiCommandArgs`, `createSession`, `VoqalWebRTCTransport`, `VoqalSessionError`,
+plus the TypeScript types (`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`,
+`UseVoqalSessionOptions`, `VoqalSessionHandle`, `VoqalConnectionState`,
+`VoqalBotState`, `VoqalPipelineConfig`, and more).
 
 ## Next
 

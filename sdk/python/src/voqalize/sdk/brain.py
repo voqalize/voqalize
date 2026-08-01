@@ -55,10 +55,11 @@ import inspect
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, overload
 
 from loguru import logger
 
+from .actions import Action, action_envelope
 from .engine import Emitter, SessionAdapter, SessionFactory
 from .inbound import DirectAgent
 from .outbound import CortexAgent
@@ -331,30 +332,60 @@ class Session:
         self._greeting_inferences += 1
         return _SpeechBracket(self._proc, GREETING_INTERACTION_ID, self._greeting_inferences)
 
+    @overload
+    def action(
+        self, action: Action, /, *, callback: Callable[[Outcome], Any] | None = None
+    ) -> int: ...
+
+    @overload
     def action(
         self,
         name: str,
         args: dict[str, Any] | None = None,
         *,
         callback: Callable[[Outcome], Any] | None = None,
+    ) -> int: ...
+
+    def action(
+        self,
+        name: str | Action,
+        args: dict[str, Any] | None = None,
+        *,
+        callback: Callable[[Outcome], Any] | None = None,
     ) -> int:
         """Fire a UI command to the browser (a "UI tool") *outside any interaction*.
+
+        Two calling forms, one wire shape:
+
+        - **typed** — ``session.action(OpenItinerary(name="Poddar Vietnam"))``, where
+          ``OpenItinerary`` is a :class:`~voqalize.sdk.Action` subclass. The wire
+          name comes from the class, the args from its fields
+          (``model_dump(by_alias=True, mode="json")``).
+        - **legacy** — ``session.action("open_itinerary", {"name": "Poddar Vietnam"})``.
+          Unchanged, and staying: the general form for brains that don't use pydantic.
+
+        Both emit the identical RTVI ``ui_command`` envelope pygato relays
+        (``{"type": "ui_command", "action": name, "action_id": id, **args}``) and
+        return the Brain-minted ``action_id``.
 
         Actions are session-scoped and floor-free (they carry no audio), so the
         Brain may emit one any time — a render from ``on_session_start``, an
         ``on_client_message`` handler, or an async-backend task that resolves after the
         triggering interaction has ended. Same fire-and-return semantics as
-        :meth:`Interaction.action`, minus the originating-turn attribution: it
-        emits the RTVI ``ui_command`` envelope pygato relays
-        (``{"type": "ui_command", "action": name, "action_id": id, **args}``) and
-        returns the Brain-minted ``action_id``. The optional ``callback(outcome)``
-        fires out-of-band when the browser echoes ``action_outcome`` (matched by
-        ``action_id`` at session scope). Never blocks.
+        :meth:`Interaction.action`, minus the originating-turn attribution. The
+        optional ``callback(outcome)`` fires out-of-band when the browser echoes
+        ``action_outcome`` (matched by ``action_id`` at session scope). Never blocks.
         """
+        wire_name, payload = action_envelope(name, args)
         action_id = self._register_action(callback)
         self._proc._emit_nowait(
             RTVIServerMessageFrame(
-                data={"type": "ui_command", "action": name, "action_id": action_id, **(args or {})}
+                data={
+                    "type": "ui_command",
+                    "action": wire_name,
+                    "action_id": action_id,
+                    **payload,
+                }
             )
         )
         return action_id
@@ -554,23 +585,41 @@ class Interaction:
         self._inferences += 1
         return _SpeechBracket(self._proc, self.id, self._inferences, interaction=self)
 
+    @overload
+    def action(
+        self, action: Action, /, *, callback: Callable[[Outcome], Any] | None = None
+    ) -> int: ...
+
+    @overload
     def action(
         self,
         name: str,
         args: dict[str, Any] | None = None,
         *,
         callback: Callable[[Outcome], Any] | None = None,
+    ) -> int: ...
+
+    def action(
+        self,
+        name: str | Action,
+        args: dict[str, Any] | None = None,
+        *,
+        callback: Callable[[Outcome], Any] | None = None,
     ) -> int:
         """Fire a UI command to the browser (a "UI tool") and return its ``action_id``.
 
-        :meth:`Session.action` attributed to *this* interaction. Fire-and-return —
-        never blocks. Emits the RTVI ``ui_command`` envelope pygato relays:
-        ``{"type": "ui_command", "action": name, "action_id": id, **args}``. The
-        browser echoes ``{"type": "action_outcome", "action_id": id, ...}`` when it
-        finishes; the optional ``callback(outcome)`` fires out-of-band when that
-        arrives (matched by ``action_id`` at session scope, so a late outcome in a
-        later interaction still fires). ``callback`` may be sync or async.
+        :meth:`Session.action` attributed to *this* interaction — same two calling
+        forms (typed ``action(MyAction(...))`` or legacy ``action(name, args)``), same
+        wire shape. Fire-and-return — never blocks. Emits the RTVI ``ui_command``
+        envelope pygato relays: ``{"type": "ui_command", "action": name, "action_id":
+        id, **args}``. The browser echoes ``{"type": "action_outcome", "action_id":
+        id, ...}`` when it finishes; the optional ``callback(outcome)`` fires
+        out-of-band when that arrives (matched by ``action_id`` at session scope, so a
+        late outcome in a later interaction still fires). ``callback`` may be sync or
+        async.
         """
+        if isinstance(name, Action):
+            return self.session.action(name, callback=callback)
         return self.session.action(name, args, callback=callback)
 
 

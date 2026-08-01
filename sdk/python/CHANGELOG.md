@@ -3,6 +3,47 @@
 All notable changes to `voqalize-agent-sdk`. This project is pre-1.0 and still
 alpha: the package API can break on a minor version, the **wire** does not.
 
+## Unreleased
+
+**No wire change.** Both additions below are package-API only; the frames a brain
+emits are byte-identical to what the previous release emitted.
+
+### Added
+
+- **`voqalize.sdk.Action` — typed UI commands.** Declare a command as a pydantic
+  model that carries its own wire name and pass an instance where you used to pass
+  `(name, args)`:
+
+  ```python
+  class AddToCart(Action):          # wire name: "add_to_cart"
+      sku: str
+      qty: int = 1
+
+  interaction.action(AddToCart(sku="oat-milk", qty=2))
+  ```
+
+  The name is `snake_case`d from the class name unless pinned
+  (`class AddToCart(Action, name="add_to_cart")`). Serialization is
+  `model_dump(by_alias=True, mode="json")`: aliases apply (a `from_` field goes out
+  as `from`), `date`/`Enum`/`Decimal`/`UUID` become JSON scalars, nested models and
+  lists compose, unknown kwargs are rejected, and **every declared field is emitted
+  including `None`** — no `exclude_none`, so the wire shape is a function of the
+  class and the browser can declare one total TypeScript interface. A field that
+  would serialize to `type`, `action` or `action_id` raises at class definition.
+  Accepted by `session.action`, `interaction.action` and `voice().action`, with
+  `callback=` unchanged. **The `(name, args)` dict form is unchanged and remains
+  first-class** — convert one command at a time. `pydantic` is now a core
+  dependency (it was already a transitive one for ADK users).
+- **Tools may return pydantic models.** The ADK adapter's new `after_tool_callback`
+  dumps a returned model — and models nested in a returned dict/list — with the
+  same `by_alias`/JSON-mode rules before the result reaches the model, so the field
+  names a tool declares are the field names the model reads, instead of ADK's
+  `str()` of a `BaseModel`. A non-dict dump is wrapped as `{"result": ...}`,
+  matching ADK's own handling; a result containing no model passes through
+  untouched. This is the mirror of the 0.3.0 tool-*argument* coercion.
+- **`useUiCommand`** in `@voqalize/client-react` is the browser half — see
+  [the React client docs](https://voqalize.com/docs/client/react/).
+
 ## 0.3.0
 
 The ADK adapter grows the seams a real screen-driving agent needed. **No wire

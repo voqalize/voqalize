@@ -94,6 +94,7 @@ Passed to `on_session_start`, `on_client_message`, `on_session_end`. Attributes:
 ```python
 session.say()                              # → bracket for agent-initiated speech (id 0)
 session.action(name, args=None, *, callback=None) -> int
+session.action(action, *, callback=None) -> int    # a voqalize.sdk.Action instance
 session.configure_tts(*, voice=None, language=None, model=None) -> None
 session.configure_stt(*, language_hint=None, vad_confidence=None, ...) -> None
 session.configure_idle(*, timeout_ms=None) -> None
@@ -102,7 +103,9 @@ session.configure_idle(*, timeout_ms=None) -> None
 - **`action(name, args)`** fires a UI command to the browser *outside* any
   interaction (from `on_session_start`, `on_client_message`, or a background task).
   Returns a brain-minted `action_id`; the browser echoes an outcome that your
-  optional `callback` receives. Never blocks.
+  optional `callback` receives. Never blocks. Pass an
+  [`Action`](/docs/brain/conversation/#typed-actions) instance instead of
+  `(name, args)` to declare the payload's shape — same bytes on the wire.
 - **`configure_tts`** changes voice/language/model for the **next** inference
   (never mid-utterance). Only the fields you pass change.
 - **`configure_stt`** applies **live** (mid-utterance safe); `language_hint` swaps
@@ -124,6 +127,7 @@ transcript, already including this turn), `.source` (`InteractionSource.USER` /
 ```python
 interaction.say()                          # → bracket; one per model call
 interaction.action(name, args=None, *, callback=None) -> int   # UI command, attributed to this turn
+interaction.action(action, *, callback=None) -> int            # ...or a typed Action instance
 ```
 
 ## Idle: `on_user_idle`

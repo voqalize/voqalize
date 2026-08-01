@@ -33,6 +33,21 @@ The `args` dict is spread onto the top level — so `action("add_to_cart",
 {"sku": "oat-milk", "qty": 2})` arrives as
 `{type:"ui_command", action:"add_to_cart", action_id:7, sku:"oat-milk", qty:2}`.
 
+Declare the command instead of assembling a dict, and both sides get a contract
+they can check — same wire bytes, so you can convert one command at a time:
+
+    from voqalize.sdk import Action
+
+    class AddToCart(Action):            # wire name: "add_to_cart"
+        sku: str
+        qty: int = 1
+
+    interaction.action(AddToCart(sku="oat-milk", qty=2))
+
+Fields serialize by alias in JSON mode, every declared field is emitted (`None`
+becomes `null`), and unknown kwargs are rejected. Full rules, plus the browser's
+matching `useUiCommand` hook: references/ui-actions.md.
+
 Browser → brain:  the browser calls the SDK's `sendMessage(type, data)`; you
 receive it in `on_client_message` as `ClientMessage(type=type, data=data)`. The
 one special type is `"action_outcome"` (`{action_id, status, result}`) — if you

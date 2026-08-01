@@ -7,11 +7,20 @@ through a :class:`~contextvars.ContextVar` the adapter sets around the driven ru
 a tool that runs inside that call reads it with :func:`voice`.
 
     from voqalize.google_adk import voice
+    from voqalize.sdk import Action
 
-    async def search_flights(destination: str) -> dict:
+    class RenderFlights(Action):                 # the browser contract, declared
+        flights: list[Flight]
+
+    async def search_flights(destination: str) -> SearchResult:
         flights = await backend.search(destination)
-        voice().action("render_flights", {"flights": flights})   # UI side-effect
-        return {"flights": flights}                                # goes back to the LLM
+        voice().action(RenderFlights(flights=flights))   # UI side-effect
+        return SearchResult(flights=flights)             # goes back to the LLM
+
+(Both halves are typed: the ``Action`` is dumped by alias onto the ``ui_command``
+envelope, and a pydantic return value is dumped the same way before ADK hands it
+to the model — see :mod:`voqalize.sdk.actions` and
+:func:`voqalize._framework.coerce.coerce_result`.)
 
 Because the ambient context propagates into the task that runs the tool,
 ``voice()`` resolves for **async** tools with no plumbing. Prefer async tools; a
@@ -25,7 +34,9 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
+
+from voqalize.sdk.actions import Action
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -56,15 +67,34 @@ class Voice:
     def interaction_id(self) -> int:
         return self._interaction.id
 
+    @overload
+    def action(
+        self, action: Action, /, *, callback: Callable[[Outcome], Any] | None = None
+    ) -> int: ...
+
+    @overload
     def action(
         self,
         name: str,
         args: dict[str, Any] | None = None,
         *,
         callback: Callable[[Outcome], Any] | None = None,
+    ) -> int: ...
+
+    def action(
+        self,
+        name: str | Action,
+        args: dict[str, Any] | None = None,
+        *,
+        callback: Callable[[Outcome], Any] | None = None,
     ) -> int:
-        """Fire a UI command to the browser, attributed to this turn. See
-        :meth:`voqalize.sdk.brain.Interaction.action`."""
+        """Fire a UI command to the browser, attributed to this turn.
+
+        Takes either a typed :class:`~voqalize.sdk.Action` instance
+        (``voice().action(SearchFlights(leg_id=..., options=...))``) or the legacy
+        ``(name, args)`` pair. See :meth:`voqalize.sdk.brain.Interaction.action`."""
+        if isinstance(name, Action):
+            return self._interaction.action(name, callback=callback)
         return self._interaction.action(name, args, callback=callback)
 
     def configure_tts(self, **kwargs: Any) -> None:
