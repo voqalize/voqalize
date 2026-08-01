@@ -128,7 +128,7 @@ exchange JSON with **fixed shapes**.
 ```
 
 **Browser → brain.** Call `sendMessage(type, data)` (from the render-prop /
-`useVoqalSession`). The brain receives it as `on_app_event(name=type, data=data)`:
+`useVoqalSession`). The brain receives it as `on_client_message(message.type, message.data)`:
 
 ```tsx
 <VoqalAgent {...props}>

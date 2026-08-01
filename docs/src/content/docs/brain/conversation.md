@@ -1,6 +1,6 @@
 ---
 title: Handling a conversation
-description: Stream from your LLM, call tools, drive the browser UI, react to app events, and reconfigure voice mid-call.
+description: Stream from your LLM, call tools, drive the browser UI, react to client messages and idle silence, and reconfigure voice mid-call.
 ---
 
 The echo brain shows the shape; a real agent adds a model, tools, and — often — a
@@ -16,9 +16,9 @@ output into `speak`:
 ```python
 async def on_interaction(self, interaction: Interaction) -> None:
     messages = to_model_messages(interaction.conversation.messages)
-    async with interaction.inference() as inf:
+    async with interaction.say() as speech:
         async for chunk in self.llm.stream(messages):
-            await inf.speak(chunk.text)
+            await speech.speak(chunk.text)
 ```
 
 Speak in small chunks as they arrive — the runtime handles TTS chunking and word
@@ -33,17 +33,17 @@ something the user never heard. You don't commit anything yourself.
 ## Call tools
 
 A single user turn often needs several model calls: think, call a tool, look at the
-result, speak. Each model call is its **own inference bracket** — open a new one per
+result, speak. Each model call is its **own speech bracket** — open a new one per
 call, and loop until the model stops asking for tools (cap the hops to stay safe):
 
 ```python
 async def on_interaction(self, interaction: Interaction) -> None:
     messages = to_model_messages(interaction.conversation.messages)
     for _ in range(6):                       # cap tool hops
-        async with interaction.inference() as inf:
+        async with interaction.say() as speech:
             reply = await self.llm.call(messages, tools=self.tools)
             for chunk in reply.text_chunks:
-                await inf.speak(chunk)
+                await speech.speak(chunk)
         if not reply.tool_calls:
             break
         for call in reply.tool_calls:
@@ -61,8 +61,8 @@ commands** to the browser. From within a turn, use `interaction.action`; the
 browser receives it and can reply with an outcome:
 
 ```python
-async with interaction.inference() as inf:
-    await inf.speak("Adding the Pixel to your cart.")
+async with interaction.say() as speech:
+    await speech.speak("Adding the Pixel to your cart.")
 interaction.action("add_to_cart", {"sku": "pixel-9"})
 ```
 
@@ -80,23 +80,52 @@ async def on_session_start(self, session, start):
     session.action("show_welcome_screen", {"name": start.init.get("name")})
 ```
 
-## React to app events
+## React to client messages
 
 The browser can send messages to the brain outside any turn — a screen-state sync,
-an uploaded photo, a button press. They arrive at `on_app_event`:
+an uploaded photo, a button press. They arrive at `on_client_message`:
 
 ```python
-async def on_app_event(self, session: Session, event: AppEvent) -> None:
-    if event.name == "state_sync":
-        self.browser_state = event.data          # remember what's on screen
-    elif event.name == "photo_upload":
-        # kick off an agent-initiated inference to look at it
-        async with session.inference() as inf:
-            await inf.speak("Thanks — let me take a look at that.")
+async def on_client_message(self, session: Session, message: ClientMessage) -> None:
+    if message.type == "state_sync":
+        self.browser_state = message.data        # silent: remember what's on screen
+    elif message.type == "photo_upload":
+        # Take the floor on the id the runtime minted for this message.
+        async with message.interaction.say() as speech:
+            await speech.speak("Thanks — let me take a look at that.")
 ```
 
-`event.name` is the message type the client sent via `sendMessage(type, data)`;
-`event.data` is its payload.
+`message.type` is the message type the client sent via `sendMessage(type, data)`;
+`message.data` is its payload.
+
+Every client message arrives with an `interaction_id` the runtime already minted,
+but the runtime does **not** decide whether the message deserves a reply — you do.
+Read the data and return and nothing is spoken; touch `message.interaction` and you
+have claimed the floor, so a barge-in cancels your response and the runtime is told
+the interaction completed when your callback returns. Touching it is lazy and
+idempotent; if you never touch it, the id simply goes unused.
+
+## Re-engage on silence
+
+If the user goes quiet, the runtime opens an interaction for you and calls
+`on_user_idle`. Configure the window with `session.configure_idle(timeout_ms=…)`
+(`0` disables idle detection):
+
+```python
+async def on_session_start(self, session, start):
+    session.configure_idle(timeout_ms=8000)
+
+async def on_user_idle(self, interaction: Interaction) -> None:
+    idle = interaction.idle                      # level + idle_ms
+    if idle is None or idle.level > 2:
+        return                                   # stop nudging; let the silence ride
+    async with interaction.say() as speech:
+        await speech.speak("Still there? No rush.")
+```
+
+`level` starts at 1 and escalates while the silence persists (any user speech
+resets it), so you can nudge gently first and wrap up later.
+`interaction.transcript` is empty — nothing was said.
 
 ## Reconfigure voice mid-call
 
@@ -115,13 +144,13 @@ multilingual qualification. Allowed values are in the
 
 ## Greet on connect
 
-Greeting is just an agent-initiated inference in `on_session_start`:
+Greeting is just an agent-initiated speech bracket in `on_session_start`:
 
 ```python
 async def on_session_start(self, session, start):
     name = start.init.get("name", "there")
-    async with session.inference() as inf:
-        await inf.speak(f"Hi {name}! What can I do for you today?")
+    async with session.say() as speech:
+        await speech.speak(f"Hi {name}! What can I do for you today?")
 ```
 
 `start.init` is the payload the client passed when it minted the session — use it

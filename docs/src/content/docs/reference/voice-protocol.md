@@ -39,6 +39,7 @@ string on the wire and arrive as a dict in the SDK.
 |---|---|---|---|
 | `VqlStart` | runtime → brain | `session_id`, `agent_id`, `payload` *(JSON)*, `audio_in_sample_rate`, `audio_out_sample_rate` | First frame of a session. `payload` is your opaque init data. |
 | `VqlUserText` | runtime → brain | `interaction_id`, `text` | A committed user utterance; opens an interaction. |
+| `VqlUserIdle` | runtime → brain | `interaction_id`, `level`, `idle_ms` | The user has been silent past the idle timeout; opens an interaction with no utterance. `level` escalates (1, 2, 3…) while the silence persists. |
 | `VqlInterruption` | both | *(none)* | Barge-in / drain barrier. Correlation lives on data frames, not here. |
 | `VqlInferenceFinalized` | runtime → brain | `interaction_id`, `inference_id`, `heard_text`, `interrupted`, `reason` | The text the user **actually heard** for one inference (post-TTS, truncated on barge-in). |
 | `VqlLLMFullResponseStart` | brain → runtime | `interaction_id`, `inference_id` | Start of one bot inference. |
@@ -71,11 +72,12 @@ helpers emit under the hood:
 | Frame | Direction | Emitted by | Purpose |
 |---|---|---|---|
 | `RTVIServerMessage` | brain → browser | `session.action` / `interaction.action` | A UI command: `{ type:"ui_command", action, action_id, ... }`. |
-| `RTVIClientMessage` | browser → brain | client `sendMessage` | A browser app event; surfaces as `on_app_event`. |
+| `RTVIClientMessage` | browser → brain | client `sendMessage` | A browser client message; surfaces as `on_client_message`. Carries `msg_id`, `type`, `data` *(JSON)* and a runtime-minted `interaction_id` the brain may spend on a reply. |
 | `TTSUpdateSettings` | brain → runtime | `session.configure_tts` | Mid-session TTS reconfigure (next inference). |
 | `STTUpdateSettings` | brain → runtime | `session.configure_stt` | Mid-session STT reconfigure (live). |
+| `IdleUpdateSettings` | brain → runtime | `session.configure_idle` | Mid-session idle-detection reconfigure (`timeout_ms`; `0` disables). |
 
-There is no `configure_tts` / `configure_stt` *frame* — those are SDK methods that
+There is no `configure_tts` / `configure_stt` / `configure_idle` *frame* — those are SDK methods that
 emit the update-settings frames above.
 
 ## Wire framing
@@ -119,7 +121,7 @@ On session start:
    and `payload`.
 2. The SDK calls your `on_session_start(session, start)`, where `start.init` is the
    payload.
-3. To greet, you open an agent-initiated inference — `session.inference()` — which
+3. To greet, you open an agent-initiated speech bracket — `session.say()` — which
    runs under the `interaction_id = 0` sentinel. Entering emits
    `VqlLLMFullResponseStart(interaction_id=0, inference_id=n)`; each `speak` emits
    `VqlLLMText`; exiting emits `VqlLLMFullResponseEnd`. (No `VqlInteractionCompleted`
@@ -128,8 +130,8 @@ On session start:
 ```python
 class Greeter(Brain):
     async def on_session_start(self, session, start):
-        async with session.inference() as inf:
-            await inf.speak("Hi! How can I help?")
+        async with session.say() as speech:
+            await speech.speak("Hi! How can I help?")
 ```
 
 ## Connection and auth

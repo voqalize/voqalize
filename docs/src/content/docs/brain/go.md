@@ -45,6 +45,15 @@ Payload types: `SessionStart{Init map[string]any}`, `AppEvent{Name string; Data
 map[string]any}`, `Outcome{ActionID, InteractionID uint64; Status string; Result
 any}`, `Message{Role, Content string}`.
 
+:::caution[The Go surface trails Python]
+The Go SDK is wire-compatible with the current runtime, but its API has not been
+renamed alongside the Python SDK: browser messages still arrive on `OnAppEvent`
+(Python: `on_client_message`), speech brackets are still `Inference(...)` (Python:
+`say()`), and there is no Go equivalent of `on_user_idle` /
+`session.configure_idle` yet. A Go brain written today keeps working — the new
+frames are additive — it just doesn't see idle interactions.
+:::
+
 ## Speaking
 
 Speech uses an inference **closure** (Go's equivalent of Python's `async with`

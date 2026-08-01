@@ -89,7 +89,7 @@ pass `allow_unverified=True` to `run_session` (or set
 Then point the agent at the tunnel:
 
 ```text
-set_brain_url(agent_id="06a2…", brain_url="wss://<id>.ngrok.app")
+update_agent(tenant="acme", agent_id="06a2…", brain_url="wss://<id>.ngrok.app")
 ```
 
 ## Production

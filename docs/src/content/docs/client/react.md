@@ -123,8 +123,8 @@ For agents that drive the screen (see
   on `onServerMessage` as `{ type: "ui_command", action, action_id, ...args }` —
   the args are spread onto the top level.
 - **Browser → brain.** `session.sendMessage(type, data)` reaches the brain's
-  `on_app_event(session, AppEvent(name=type, data=data))`. Reply to a UI command's
-  outcome with `sendMessage("action_outcome", { action_id, status, result })`.
+  `on_client_message(session, ClientMessage(type=type, data=data))`. Reply to a UI
+  command's outcome with `sendMessage("action_outcome", { action_id, status, result })`.
 
 ## Exports
 
