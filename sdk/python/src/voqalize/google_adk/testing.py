@@ -79,14 +79,41 @@ def reply(
     return Reply(text=text, chunks=tuple(chunks), chunk_delay=chunk_delay, thought=thought)
 
 
-def call(name: str, **args: Any) -> Reply:
-    """A model reply that only invokes tool ``name`` (no speech)."""
-    return Reply(calls=((name, args),))
+def call(name: str, /, *, args: dict[str, Any] | None = None, **kwargs: Any) -> Reply:
+    """A model reply that only invokes tool ``name`` (no speech).
+
+    Tool arguments go either as keywords (``call("book", city="Hanoi")``) or as one
+    explicit dict (``call("book", args={"name": "Poddar"})``). The dict form is the
+    escape hatch for an argument whose name collides with this helper's own parameters —
+    ``name`` and ``args`` themselves. ``name`` is positional-only, so
+    ``call("book", name="Poddar")`` already means *the tool's* ``name``."""
+    return Reply(calls=((name, _tool_args(args, kwargs)),))
 
 
-def reply_and_call(text: str, name: str, **args: Any) -> Reply:
-    """A model reply that speaks ``text`` *and* invokes tool ``name``."""
-    return Reply(text=text, calls=((name, args),))
+def reply_and_call(
+    text: str, name: str, /, *, args: dict[str, Any] | None = None, **kwargs: Any
+) -> Reply:
+    """A model reply that speaks ``text`` *and* invokes tool ``name``.
+
+    Same argument forms as :func:`call`. ``text`` and ``name`` are **positional-only**,
+    so tool arguments actually named ``text`` or ``name`` pass as keywords without
+    colliding: ``reply_and_call("Opening it.", "open_itinerary", name="Poddar Vietnam")``
+    calls the tool with ``{"name": "Poddar Vietnam"}``. For an argument literally named
+    ``args``, use the dict form."""
+    return Reply(text=text, calls=((name, _tool_args(args, kwargs)),))
+
+
+def _tool_args(args: dict[str, Any] | None, kwargs: dict[str, Any]) -> dict[str, Any]:
+    """One tool-argument dict from the two accepted forms, rejecting the ambiguous mix
+    (an explicit ``args=`` *and* keywords — which of the two is the tool call?)."""
+    if args is None:
+        return dict(kwargs)
+    if kwargs:
+        raise TypeError(
+            f"pass tool arguments either as args={args!r} or as keywords "
+            f"({', '.join(sorted(kwargs))}), not both"
+        )
+    return dict(args)
 
 
 def fail(message: str = "simulated model error") -> Reply:
@@ -107,6 +134,18 @@ def replies(*items: Reply) -> list[Reply]:
     return list(items)
 
 
+def _system_text(llm_request: Any) -> str:
+    """The request's system instruction as plain text (``""`` when unset). ADK keeps it
+    on ``config.system_instruction``, as a string or a ``Content``."""
+    si = getattr(getattr(llm_request, "config", None), "system_instruction", None)
+    if si is None:
+        return ""
+    if isinstance(si, str):
+        return si
+    parts = getattr(si, "parts", None) or []
+    return "".join(p.text for p in parts if getattr(p, "text", None))
+
+
 @dataclass
 class _Cursor:
     steps: list[Reply]
@@ -123,6 +162,7 @@ class ScriptedLlm(BaseLlm):
     model: str = "scripted-llm"
     _cursors: dict[str, _Cursor] = PrivateAttr(default_factory=dict)
     _captured: list[list[Any]] = PrivateAttr(default_factory=list)
+    _captured_system: list[str] = PrivateAttr(default_factory=list)
 
     def __init__(self, script: dict[str, list[Reply] | Reply]) -> None:
         super().__init__(model="scripted-llm")
@@ -137,10 +177,18 @@ class ScriptedLlm(BaseLlm):
         asserting the SDK corrected the prompt to heard-truth."""
         return self._captured
 
+    @property
+    def captured_system_instructions(self) -> list[str]:
+        """Every request's fully-assembled system instruction as text, in call order —
+        for asserting what the SDK grounded each call in (the client's instruction plus
+        whatever ``grounding()`` appended)."""
+        return self._captured_system
+
     async def generate_content_async(  # type: ignore[override]
         self, llm_request: Any, stream: bool = False
     ) -> AsyncGenerator[LlmResponse, None]:
         self._captured.append(list(llm_request.contents))
+        self._captured_system.append(_system_text(llm_request))
         key = last_user_text(llm_request.contents)
         cursor = self._cursors.get(key)
         if cursor is None or cursor.i >= len(cursor.steps):
