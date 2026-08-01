@@ -88,10 +88,10 @@ class GeminiBrain(Brain):
     async def respond(self, interaction) -> None:
         """Standard turn: stream the model over the heard transcript; if it calls
         tools, dispatch them and feed the results back, up to ``max_tool_hops``.
-        Each LLM call is one ``interaction.inference()`` bracket (1:1 with the wire)."""
+        Each LLM call is one ``interaction.say()`` bracket (1:1 with the wire)."""
         contents = self.working_context(interaction)
         for _ in range(self._max_tool_hops):
-            async with interaction.inference() as inf:
+            async with interaction.say() as inf:
                 fcalls, model_parts = await self.stream(inf, contents)
             if model_parts:
                 contents.append(types.Content(role="model", parts=model_parts))
@@ -122,7 +122,7 @@ class GeminiBrain(Brain):
 
     def grounding(self, interaction) -> str | None:
         """Optional authoritative context folded into every turn — typically the
-        live on-screen state a browser pushes via ``on_app_event`` (``state_sync``).
+        live on-screen state a browser pushes via ``on_client_message`` (``state_sync``).
         Override to return a text note; the base inserts it **just before the
         latest user turn** so an ambiguous question is grounded in what's on screen.
         Default: no grounding."""
@@ -176,12 +176,12 @@ class GeminiBrain(Brain):
 
     async def say(self, session, text: str) -> None:
         """Speak a fixed line as an agent-initiated inference (no LLM call)."""
-        async with session.inference() as inf:
+        async with session.say() as inf:
             await inf.speak(text)
 
     async def generate(self, session, prompt: str) -> None:
         """Speak an LLM-generated opening from a one-shot prompt (interaction 0)."""
-        async with session.inference() as inf:
+        async with session.say() as inf:
             await self.stream(inf, [types.Content(role="user", parts=[types.Part(text=prompt)])])
 
     async def say_then_generate(self, session, opener: str, prompt: str) -> None:
@@ -191,7 +191,7 @@ class GeminiBrain(Brain):
         **same** inference so the model's ~1s first-token latency is hidden behind
         the opener the caller already heard. A standing guard is appended so the
         model doesn't greet a second time."""
-        async with session.inference() as inf:
+        async with session.say() as inf:
             await inf.speak(opener)
             await self.stream(
                 inf,
