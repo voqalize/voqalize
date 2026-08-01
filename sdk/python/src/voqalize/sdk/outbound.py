@@ -135,6 +135,13 @@ class CortexAgent(RunnerHost):
 
         if self._permanent is not None:
             raise self._permanent
+        # A reader that DIED (factory raised, framing bug, …) must surface, not
+        # vanish as a clean exit-0 — the silent version cost a live debugging
+        # session to even notice. CancelledError means _stop cancelled it: normal.
+        if reader.done() and not reader.cancelled():
+            exc = reader.exception()
+            if exc is not None:
+                raise exc
 
     # ─── RunnerHost seam ────────────────────────────────────────────────
 
