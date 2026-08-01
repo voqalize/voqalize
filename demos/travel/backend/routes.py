@@ -17,9 +17,15 @@ from .brain import TravelBrain
 NAME = "travel"
 
 
-def build(llm: GeminiProvider) -> TravelBrain:
-    """Build a fresh brain for one session from the shared LLM provider."""
-    return TravelBrain(llm=llm)
+def build(_llm: GeminiProvider) -> TravelBrain:
+    """Build a fresh brain for one session.
+
+    Travel runs on the **Google ADK** adapter, which builds its own Gemini client
+    from the environment (``GOOGLE_API_KEY`` / ``GEMINI_API_KEY`` — the same key
+    the umbrella reads into ``Settings``), so the shared ``GeminiProvider`` the
+    discovery contract hands every demo is unused here. The other demos still take
+    it; ``brain_gemini.py`` is travel's previous, provider-injected version."""
+    return TravelBrain()
 
 
 router = make_brain_router(NAME, build)

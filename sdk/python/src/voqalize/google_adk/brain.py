@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -52,6 +53,7 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 from voqalize._framework.brain import _FrameworkBrain
+from voqalize._framework.coerce import CoercionError, coerce_arguments
 from voqalize._framework.heard import spoken_text_of
 from voqalize._framework.resume import resolve_greeting
 from voqalize._framework.turn import DEFAULT_ERROR_FALLBACK, DEFAULT_TURN_TIMEOUT
@@ -117,37 +119,117 @@ class _Supersession:
     target_event_id: str | None
 
 
-def _make_corrector(correct: Callable[[Any, Any], Awaitable[None]]) -> Any:
-    """Build the heard-truth corrector as an ADK **Runner-scoped plugin**.
+def _make_plugin(
+    correct: Callable[[Any, Any], Awaitable[None]],
+    ground: Callable[[Any], None],
+) -> Any:
+    """Build the SDK's one **Runner-scoped ADK plugin** — heard-truth correction,
+    live grounding, and tool-argument coercion in a single registration.
 
-    A plugin's ``before_model_callback`` fires for *every* model call in the agent
-    tree — the root agent and each sub-agent alike — from a single registration on
-    the Runner (ADK ``PluginManager``). It runs *before* the agents' own callbacks,
-    on the same fully-assembled ``llm_request``, and is awaited
-    (``PluginManager._run_callbacks`` does ``await callback(...)``), so the corrector
-    sees exactly the contents the model will (see :meth:`AdkBrain._correct`). A
-    multi-agent app's sub-agents make their **own** model calls; one plugin
-    registration corrects them all — no walking the ``sub_agents`` tree.
+    A plugin's callbacks fire for *every* model call and *every* tool call in the agent
+    tree — the root agent and each sub-agent alike — from one registration on the Runner
+    (ADK ``PluginManager``). ``before_model_callback`` runs *before* the agents' own
+    callbacks, on the same fully-assembled ``llm_request``, and is awaited
+    (``PluginManager._run_callbacks`` does ``await callback(...)``), so it sees exactly
+    the contents the model will (see :meth:`AdkBrain._correct`). A multi-agent app's
+    sub-agents make their **own** model calls; one plugin registration covers them all —
+    no walking the ``sub_agents`` tree.
 
     Living on the Runner — which :class:`AdkBrain` builds fresh per session — instead
-    of being mutated onto the agent object, the corrector also cannot *stack*: a
+    of being mutated onto the agent object, the plugin also cannot *stack*: a
     client whose factory returns one shared ``LlmAgent`` across sessions still gets
-    exactly one corrector, on each session's own runner. That structural property (no
+    exactly one, on each session's own runner. That structural property (no
     shared-agent corruption, and no dependence on preserving a client's own
     ``before_model_callback``) is the reason this is a plugin rather than a per-agent
-    callback appended across the tree."""
+    callback appended across the tree.
+
+    The three callbacks:
+
+    * ``before_model_callback`` — reconcile ADK's assembled history to heard-truth,
+      then append :meth:`AdkBrain.grounding` to the system instruction. Grounding runs
+      *last* so it lands after everything ADK assembled (the client's instruction
+      included) and is re-evaluated on every model call.
+    * ``before_tool_callback`` — construct the pydantic models the tool annotates from
+      the raw dicts the model emitted (see
+      :mod:`voqalize._framework.coerce`). Mutates the args dict in place — ADK
+      deep-copies it out of the persisted ``function_call`` event first, so history is
+      unaffected. Returning a dict here *overrides* the tool result, which is how a
+      malformed argument becomes an error the model can see and retry instead of an
+      exception that kills the turn."""
     from google.adk.plugins.base_plugin import BasePlugin
 
-    class _HeardTruthCorrector(BasePlugin):
+    class _VoqalizePlugin(BasePlugin):
         def __init__(self) -> None:
-            super().__init__(name="voqalize_heard_truth")
+            super().__init__(name="voqalize")
 
         async def before_model_callback(self, *, callback_context: Any, llm_request: Any) -> None:
             # Reconcile in place; an implicit None return lets the corrected call proceed
             # (a non-None return would short-circuit the model with a cached response).
             await correct(callback_context, llm_request)
+            ground(llm_request)
 
-    return _HeardTruthCorrector()
+        async def before_tool_callback(
+            self, *, tool: Any, tool_args: dict[str, Any], tool_context: Any
+        ) -> dict[str, Any] | None:
+            return _coerce_tool_args(tool, tool_args)
+
+    return _VoqalizePlugin()
+
+
+def _coerce_tool_args(tool: Any, tool_args: dict[str, Any]) -> dict[str, Any] | None:
+    """Build the tool's annotated pydantic models in place, before ADK invokes it.
+
+    ``None`` (the normal path) lets the call proceed with the coerced arguments; a dict
+    is ADK's "the plugin answered for the tool" signal, which we use to hand the model a
+    readable error for an argument it shaped wrong — the model retries in-conversation
+    instead of the turn dying. Only ``FunctionTool``-style tools (those exposing the
+    client's own ``func``) are touched; a ``BaseTool`` subclass owns its own parsing."""
+    func = getattr(tool, "func", None)
+    if func is None:
+        return None
+    try:
+        coerced = coerce_arguments(func, tool_args)
+    except CoercionError as exc:
+        logger.warning(
+            "adk: tool {} got un-coercible arguments: {}", getattr(tool, "name", "?"), exc
+        )
+        return {"error": str(exc)}
+    # In place: ADK passes this same dict on to the tool (it already deep-copied it out
+    # of the persisted function_call event), and a returned dict would mean something
+    # else entirely.
+    tool_args.clear()
+    tool_args.update(coerced)
+    return None
+
+
+def _is_async(func: Any) -> bool:
+    """Whether ``func`` is awaitable when called (``inspect.iscoroutinefunction`` also
+    sees through a ``functools.partial``)."""
+    return bool(func) and (inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func))
+
+
+def _sync_tool_names(agent: Any) -> list[str]:
+    """The client tools on ``agent`` that are **not** coroutine functions.
+
+    Only plain callables and ``FunctionTool``-wrapped functions are judged — a
+    ``BaseTool`` subclass or a toolset runs its own dispatch and is none of our
+    business. A callable object counts as async when its ``__call__`` is."""
+    names: list[str] = []
+    for tool in getattr(agent, "tools", None) or []:
+        # A FunctionTool exposes the client's function as ``func``; a bare callable
+        # handed to ``LlmAgent(tools=[...])`` *is* the function. Anything else (a
+        # BaseTool subclass, a toolset) dispatches itself and is skipped.
+        func = getattr(tool, "func", None) or (tool if callable(tool) else None)
+        if func is None:
+            continue
+        if _is_async(func):
+            continue
+        # A callable *object* (an instance with ``__call__``) is async iff its
+        # ``__call__`` is.
+        if not inspect.isroutine(func) and _is_async(func.__call__):
+            continue
+        names.append(getattr(func, "__name__", None) or getattr(tool, "name", None) or repr(func))
+    return names
 
 
 # ─── content helpers (operate on genai ``types.Content`` / ``Part``) ───────────
@@ -198,12 +280,48 @@ class AdkBrain(_FrameworkBrain):
     """A :class:`Brain` that drives an ADK ``Runner`` per interaction.
 
     Subclass it to build a voice agent — hand your ``LlmAgent`` factory to
-    ``super().__init__(...)`` and override the Voice seams you care about
-    (``on_user_idle`` / ``on_client_message`` / ``on_resume`` /
-    ``on_error``), calling :meth:`~.._framework.brain._FrameworkBrain.run_inference`
-    to spend the floor. Holds one ADK agent + runner and one ADK session for the
-    session's lifetime. ADK's session is the source of truth for the prompt;
-    :meth:`_correct` reconciles it to heard-truth in place.
+    ``super().__init__(...)`` and override the seams you care about, calling
+    :meth:`~.._framework.brain._FrameworkBrain.run_inference` to spend the floor. Holds
+    one ADK agent + runner and one ADK session for the session's lifetime. ADK's session
+    is the source of truth for the prompt; :meth:`_correct` reconciles it to heard-truth
+    in place.
+
+    **The seams, in the order most agents need them:**
+
+    * :meth:`grounding` — ``str | None`` appended to the system instruction on **every
+      model call**. This is where live context goes (the screen, the open record, the
+      cart) so the model can never answer from a stale turn. ``None`` appends nothing,
+      turn by turn.
+    * :attr:`~.._framework.brain._FrameworkBrain.browser_state` — the last
+      ``state_sync`` client message the browser pushed, parsed and kept for you. Handled
+      by default; no floor is taken (a screen change must not make the agent talk).
+      Override ``on_client_message`` for other message types and call ``super()`` to keep
+      it.
+    * ``on_user_idle`` / ``on_resume`` / ``on_error`` / ``on_session_end`` — the
+      remaining Voice seams, inherited and overridable as ordinary methods.
+
+    **The agent is built lazily** — on session start, not in ``__init__`` — so state a
+    subclass assigns *after* ``super().__init__(...)`` is already there when the factory,
+    its tools and its instruction run. There is no ordering trap to remember.
+
+    **Tools are async.** A sync tool is rejected at build time with a ValueError naming
+    it (ADK would dispatch it on a thread pool, where ``voice()`` is unset); pass
+    ``allow_sync_tools=True`` only for tools that never call ``voice()``.
+
+    **Tool arguments arrive as the models you annotated.** A parameter typed ``Leg`` or
+    ``list[Leg]`` is constructed from the model's raw JSON before your tool runs, aliases
+    honored both ways (``from_ = Field(alias="from")`` validates from ``from`` *and*
+    ``from_``; dump with ``model_dump(by_alias=True)``). Un-parseable arguments come back
+    to the model as a tool error it can retry, not an exception.
+
+    .. important:: **Put per-field prose in the tool's docstring, not in
+       ``Field(description=...)``.** ADK derives each tool's schema from its type hints,
+       and only field *names*, *types* and required-ness survive — pydantic field
+       descriptions and ``Args:`` entries for nested model fields are dropped. The
+       model's only prose guidance is the tool docstring as a whole, so formats,
+       examples and units ("times read like 'BLR 02:15'", "price is per-person, in
+       rupees") belong there. This is upstream ADK behavior, not something the SDK can
+       fix for you.
 
     For the no-override request/response case, :func:`adk_brain` bundles the same
     constructor into a zero-arg builder. Either way the base owns ``run_inference`` /
@@ -218,6 +336,7 @@ class AdkBrain(_FrameworkBrain):
         streaming: bool = True,
         app_name: str = "voqalize",
         runner_factory: Callable[[LlmAgent], Runner] | None = None,
+        allow_sync_tools: bool = False,
         answer_conformance_dump: bool = False,
         error_fallback: str | None = DEFAULT_ERROR_FALLBACK,
         turn_timeout: float | None = DEFAULT_TURN_TIMEOUT,
@@ -228,31 +347,134 @@ class AdkBrain(_FrameworkBrain):
             error_fallback=error_fallback,
             turn_timeout=turn_timeout,
         )
-        self._agent = agent_factory()
-        if runner_factory is not None:
-            # The client brings their own Runner — so their own session_service /
-            # memory_service / artifact_service (a DatabaseSessionService, a
-            # VertexAiSessionService, …) survive, instead of being silently replaced
-            # by the in-memory defaults.
-            self._runner = runner_factory(self._agent)
-        else:
-            from google.adk.runners import InMemoryRunner
-
-            self._runner = InMemoryRunner(agent=self._agent, app_name=app_name)
-        # Register the corrector plugin on the runner (either path) — a single
-        # Runner-scoped registration corrects every model call in the agent tree. Done
-        # after construction (not via the deprecated ``plugins=`` argument) so it holds
-        # for a client-supplied runner too.
-        self._runner.plugin_manager.register_plugin(_make_corrector(self._correct))
-        # Track the runner's own app_name, so create_session matches a custom runner
-        # configured with a different one.
-        self._app_name = getattr(self._runner, "app_name", app_name)
+        # The agent is built LAZILY (see :meth:`_build`), not here: a subclass's
+        # ``super().__init__(...)`` runs *before* its own attributes exist, so calling
+        # the factory now would hand it a half-initialized ``self``.
+        self._agent_factory = agent_factory
+        self._runner_factory = runner_factory
+        self._configured_app_name = app_name
+        self._allow_sync_tools = allow_sync_tools
+        self._built: tuple[LlmAgent, Runner] | None = None
+        self._app_name = app_name
         self._greeting = greeting
         self._streaming = streaming
         self._session_id: str | None = None
         # (interaction_id, inference_id) → the record read at finalize to write the
         # accountant event. Populated as ``_drive`` streams each model call.
         self._inferences: dict[tuple[int, int], _InferenceRecord] = {}
+
+    # ─── lazy construction ─────────────────────────────────────────────────────
+
+    def _build(self) -> tuple[LlmAgent, Runner]:
+        """Build (once) the ADK agent + runner this brain drives.
+
+        Deferred out of ``__init__`` on purpose. A subclass sets its own state *after*
+        ``super().__init__(...)`` returns::
+
+            class TravelBrain(AdkBrain):
+                def __init__(self) -> None:
+                    super().__init__(lambda: build_agent(self.desk))
+                    self.desk = TravelDesk()      # ← visible to the factory
+
+        so the factory (and everything it closes over — tools bound to session state,
+        an instruction that reads it) must not run until the object is whole. First
+        need is session start; nothing before that touches the model."""
+        if self._built is not None:
+            return self._built
+        agent = self._agent_factory()
+        self._check_tools(agent)
+        if self._runner_factory is not None:
+            # The client brings their own Runner — so their own session_service /
+            # memory_service / artifact_service (a DatabaseSessionService, a
+            # VertexAiSessionService, …) survive, instead of being silently replaced
+            # by the in-memory defaults.
+            runner = self._runner_factory(agent)
+        else:
+            from google.adk.runners import InMemoryRunner
+
+            runner = InMemoryRunner(agent=agent, app_name=self._configured_app_name)
+        # Register the SDK plugin on the runner (either path) — a single Runner-scoped
+        # registration covers every model call and tool call in the agent tree. Done
+        # after construction (not via the deprecated ``plugins=`` argument) so it holds
+        # for a client-supplied runner too.
+        runner.plugin_manager.register_plugin(_make_plugin(self._correct, self._append_grounding))
+        # Track the runner's own app_name, so create_session matches a custom runner
+        # configured with a different one.
+        self._app_name = getattr(runner, "app_name", self._configured_app_name)
+        self._built = (agent, runner)
+        return self._built
+
+    def _check_tools(self, agent: LlmAgent) -> None:
+        """Reject sync tools up front, at the first moment the agent exists.
+
+        A *sync* tool is dispatched by ADK on a thread pool, in a fresh context where
+        the SDK's ``voice()`` ``ContextVar`` is unset — so ``voice().action(...)`` raises
+        ``NoActiveVoice`` deep inside a live call, after the model already spoke. Failing
+        here instead turns a mid-call surprise into a startup error naming the tool.
+        ``allow_sync_tools=True`` opts out (a tool that never calls ``voice()``)."""
+        if self._allow_sync_tools:
+            return
+        names = _sync_tool_names(agent)
+        if not names:
+            return
+        listed = ", ".join(names)
+        raise ValueError(
+            f"AdkBrain: tool(s) {listed} on agent {agent.name!r} are not `async def`. "
+            "Voice tools must be async: ADK dispatches a sync tool on a thread pool, "
+            "where the SDK's voice() context var is unset and voice().action(...) "
+            "raises NoActiveVoice mid-call. Make them `async def` (add `async` — the "
+            "body needs no other change), or pass allow_sync_tools=True if these tools "
+            "never call voice()."
+        )
+
+    @property
+    def agent(self) -> LlmAgent:
+        """The ADK ``LlmAgent`` this brain drives, built on first access."""
+        return self._build()[0]
+
+    @property
+    def _agent(self) -> LlmAgent:
+        return self._build()[0]
+
+    @property
+    def _runner(self) -> Runner:
+        return self._build()[1]
+
+    # ─── grounding (live context on every model call) ──────────────────────────
+
+    def grounding(self) -> str | None:
+        """Text appended to the system instruction on **every model call** — override
+        to keep the model grounded in what is true *right now*.
+
+        Called once per model call (the root agent's and every sub-agent's), so whatever
+        it returns is always fresh: the screen the user is looking at, the record open in
+        the CRM, the cart as it stands. Return ``None`` (the default) to append nothing —
+        including *conditionally*, turn by turn, when there is nothing to say::
+
+            def grounding(self) -> str | None:
+                if not self.browser_state:
+                    return None
+                return "ON SCREEN NOW: " + json.dumps(self.browser_state)
+
+        This composes with the client's instruction rather than replacing it: your
+        ``LlmAgent``'s ``instruction`` — a plain string (ADK's ``{state}`` templating
+        still applied) or your own ``InstructionProvider`` — is assembled by ADK first,
+        and this block is appended after it.
+
+        Why not a tool the model can call for the same data: a tool is only as fresh as
+        the model's decision to call it, so the model can answer "what's on screen?" from
+        a stale turn. Grounding costs no round-trip and cannot be forgotten. Pair it with
+        :attr:`~voqalize._framework.brain._FrameworkBrain.browser_state` (the default
+        ``state_sync`` handling) for a screen-driving agent."""
+        return None
+
+    def _append_grounding(self, llm_request: Any) -> None:
+        """Append :meth:`grounding` to the assembled system instruction (plugin
+        ``before_model_callback``, after the corrector). ``None`` / empty appends
+        nothing at all — no header, no blank block."""
+        text = self.grounding()
+        if text:
+            llm_request.append_instructions([text])
 
     # ─── heard-truth correction (before_model_callback) ────────────────────────
 
@@ -622,6 +844,7 @@ def adk_brain(
     streaming: bool = True,
     app_name: str = "voqalize",
     runner_factory: Callable[[LlmAgent], Runner] | None = None,
+    allow_sync_tools: bool = False,
     answer_conformance_dump: bool = False,
     error_fallback: str | None = DEFAULT_ERROR_FALLBACK,
     turn_timeout: float | None = DEFAULT_TURN_TIMEOUT,
@@ -660,6 +883,10 @@ def adk_brain(
       heard-truth corrector plugin on the ``Runner`` you return
       (``plugin_manager.register_plugin``), so prompting is unaffected. Defaults to
       ``InMemoryRunner(agent=agent, app_name=app_name)``.
+    * ``allow_sync_tools`` — skip the startup check that every tool on the agent is
+      ``async def``. The check exists because ADK dispatches a *sync* tool on a thread
+      pool, where the SDK's ``voice()`` context var is unset and ``voice().action(...)``
+      raises mid-call; set this only for tools that never call ``voice()``.
     * ``answer_conformance_dump`` — answer the conformance harness's backchannel
       dump with the committed conversation (test/CI only; off in production).
     * ``error_fallback`` — the spoken line if a turn fails with an unrecoverable
@@ -683,6 +910,7 @@ def adk_brain(
             streaming=streaming,
             app_name=app_name,
             runner_factory=runner_factory,
+            allow_sync_tools=allow_sync_tools,
             answer_conformance_dump=answer_conformance_dump,
             error_fallback=error_fallback,
             turn_timeout=turn_timeout,

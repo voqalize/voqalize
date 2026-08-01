@@ -68,6 +68,41 @@ spanned an earlier call, `turn_timeout` / `error_fallback`, and `voice().action(
 from inside a tool to drive the browser. For the full knob list, read the
 `adk_brain` docstring. ADK is the one shipped framework integration today.
 
+### Subclass `AdkBrain` when the agent needs the screen
+
+A screen-driving agent extends `AdkBrain` instead of calling `adk_brain(...)`, and
+gets four things the raw framework doesn't give you:
+
+```python
+class TravelBrain(AdkBrain):
+    def __init__(self) -> None:
+        super().__init__(lambda: build_agent(self.desk), greeting="Where to?")
+        self.desk = TravelDesk()          # the agent is built lazily — this is in time
+
+    def grounding(self) -> str:           # appended to the system instruction, every call
+        return "ON SCREEN NOW: " + json.dumps(self.browser_state or {})
+```
+
+- **`grounding()`** is appended to the *fully assembled* system instruction on every
+  model call — the root agent's and each sub-agent's. It composes with your own
+  `instruction` rather than replacing it, is re-read per call (so `return None`
+  omits the block turn by turn), and costs no round-trip. Use it for anything the
+  model must not answer from a stale turn.
+- **`self.browser_state`** is the last `state_sync` client message your UI pushed,
+  parsed and kept for you. It takes **no floor** — a screen change never makes the
+  agent talk — and replaces rather than merges. Override `on_client_message` for
+  your own message types and call `super()` to keep it.
+- **Tool arguments arrive as the models you annotated.** A parameter typed `Leg` or
+  `list[Leg]` is constructed before your tool runs, `Field(alias=...)` honored both
+  ways; an argument the model shaped wrong comes back to it as a retryable tool
+  error, not an exception. No defensive `isinstance(raw, dict)` in the body.
+- **Tools must be `async`.** A sync tool is rejected when the agent is built, naming
+  it — ADK would dispatch it on a thread pool where `voice()` is unset, and you'd
+  find out mid-call. `allow_sync_tools=True` opts out.
+
+The [`travel` demo](https://github.com/voqalize/voqalize/blob/main/demos/travel/backend/brain.py)
+is the worked example: a prompt, ten async tools, and one `grounding()` override.
+
 ## Layout
 
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement

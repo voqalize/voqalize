@@ -36,7 +36,7 @@ Framework-agnostic: nothing here imports ADK / genai / openai.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -49,7 +49,13 @@ if TYPE_CHECKING:
 
     from ..sdk.brain import ClientMessage, Interaction, Message, SessionStart
 
-__all__ = ["_FrameworkBrain"]
+__all__ = ["STATE_SYNC", "_FrameworkBrain"]
+
+# The client-message type a browser uses to push its own state to the brain. A
+# convention, not protocol: Voice never interprets a client message, and a UI is free to
+# use another name (handle it in your own ``on_client_message``). Every Voqalize
+# screen-driving demo sends this one, so the adapters handle it out of the box.
+STATE_SYNC = "state_sync"
 
 
 def _answer_conformance_dump(session: Session, message: ClientMessage) -> bool:
@@ -90,6 +96,9 @@ class _FrameworkBrain(Brain):
     ) -> None:
         self._name = name
         self._answer_conformance_dump = answer_conformance_dump
+        # The browser's own latest snapshot of what the user is looking at — see
+        # ``on_client_message`` / the ``state_sync`` convention.
+        self.browser_state: dict[str, Any] | None = None
         # Shared by run_inference on every trigger (user / idle / app event): the
         # no-dead-air fallback line and the whole-turn watchdog.
         self._error_fallback = error_fallback
@@ -174,12 +183,29 @@ class _FrameworkBrain(Brain):
 
     async def on_client_message(self, session: Session, message: ClientMessage) -> None:
         """A browser-originated client message, delivered with a pre-minted
-        ``interaction_id`` (Voice never interprets it). Default: answer the conformance
-        backchannel (test/CI only, when ``answer_conformance_dump`` is on) and
-        otherwise do nothing. Override to react — update state / append to history with
-        ``session.action(...)``, or spend the floor and respond by calling
+        ``interaction_id`` (Voice never interprets it).
+
+        Two things are handled by default:
+
+        * **``state_sync`` — the browser-snapshot convention.** A screen-driving UI
+          pushes its own state on connect and after every change (including edits the
+          *user* made by hand); the payload is kept on :attr:`browser_state`, replacing
+          the previous one. **No floor is taken** — ``message.interaction`` is left
+          untouched, so a screen change never makes the agent talk. Read it from a tool,
+          or fold it into every prompt by returning it from
+          :meth:`~voqalize.google_adk.AdkBrain.grounding`.
+        * the conformance backchannel (test/CI only, when ``answer_conformance_dump``
+          is on).
+
+        Override to react to your own message types — update state / append to history
+        with ``session.action(...)``, or spend the floor and respond by calling
         ``run_inference(message.interaction, ...)``. Call
-        ``super().on_client_message(...)`` to keep answering the conformance dump."""
+        ``super().on_client_message(...)`` to keep the two defaults above."""
+        if message.type == STATE_SYNC:
+            # Replace, don't merge: the browser sends a complete snapshot, and a merge
+            # would resurrect rows the user just deleted.
+            self.browser_state = dict(message.data) if message.data else None
+            return
         if self._answer_conformance_dump and _answer_conformance_dump(session, message):
             return
 
