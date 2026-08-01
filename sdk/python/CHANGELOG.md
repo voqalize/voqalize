@@ -3,6 +3,61 @@
 All notable changes to `voqalize-agent-sdk`. This project is pre-1.0 and still
 alpha: the package API can break on a minor version, the **wire** does not.
 
+## 0.3.0
+
+The ADK adapter grows the seams a real screen-driving agent needed. **No wire
+change** — `proto/voqalize/frames/frames.proto` is untouched, so this is a pure
+package-API release and any 0.2.0 runtime pairing keeps working.
+
+### Added
+
+- **`AdkBrain.grounding() -> str | None`** — override it to append live context to
+  the **fully assembled** system instruction on *every* model call (the root
+  agent's and every sub-agent's). Appending after ADK assembles is what makes it
+  compose instead of clobber: a plain-string `instruction` keeps ADK's `{state}`
+  templating, a client's own `InstructionProvider` still runs, and one
+  registration covers the whole agent tree. `None` appends nothing, turn by turn.
+  This replaces reaching for an `InstructionProvider` just to re-read state.
+- **The `state_sync` browser-snapshot convention.** `on_client_message` now
+  handles the `state_sync` message type by default and parks the payload on
+  **`self.browser_state`**. It **takes no floor** — a screen change never makes
+  the agent talk — and it **replaces** rather than merges (the browser sends a
+  complete picture; merging would resurrect rows the user just deleted). Pair it
+  with `grounding()`. A subclass that overrides `on_client_message` keeps the
+  default by calling `super()`. Convention, not protocol: the wire still carries
+  an opaque client message.
+- **Tool arguments arrive as the models you annotated.** A parameter typed `Leg`
+  or `list[Leg]` (also `Model | None`, `Sequence`/`tuple`/`set` of a model) is
+  constructed from the model's raw JSON before the tool runs; every other
+  annotation is passed through untouched. `Field(alias=...)` validates **both
+  ways** — from the wire's `from` *and* from the schema's `from_` — so a wire key
+  that is a Python keyword needs no rename in the body. An argument the model
+  shaped wrong comes back to it as a **tool error result** it can retry, not an
+  exception that kills the turn. (`voqalize._framework.coerce`, wired at
+  `before_tool_callback`.)
+- **The sync-tool guard.** A non-`async` tool is rejected when the agent is
+  built, with a `ValueError` naming it — ADK dispatches a sync tool on a thread
+  pool, where `voice()` is unset and `voice().action(...)` would raise mid-call,
+  after the model already spoke. **`allow_sync_tools=True`** opts out for tools
+  that never call `voice()`.
+- **`AdkBrain.agent`** — the ADK `LlmAgent` this brain drives, for inspection in
+  tests.
+
+### Changed
+
+- **The ADK agent is built lazily**, on first need (session start, or the `agent`
+  property) and exactly once — never in `__init__`. A subclass can therefore
+  assign its per-session state *after* `super().__init__(...)` and still have the
+  factory, the instruction and the tools see it. The "build your state before
+  `super().__init__`" ordering trap is gone.
+- **`ScriptedLlm`** records `captured_system_instructions` (each call's assembled
+  system instruction, in call order) alongside `captured_contents`.
+- **`call(name, /, ...)` / `reply_and_call(text, name, /, ...)`** take the
+  helper's own parameters **positional-only**, so every keyword is unambiguously
+  a tool argument — a tool taking `name=` or `text=` no longer collides — plus an
+  explicit `args={...}` form for an argument literally named `args`. Mixing the
+  two forms raises `TypeError`.
+
 ## 0.2.0
 
 Breaking changes to the package API. The wire protocol is fully backward

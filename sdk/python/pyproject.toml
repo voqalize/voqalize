@@ -1,6 +1,6 @@
 [project]
 name = "voqalize-agent-sdk"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.12"
 # Pipecat-free by design: installing this SDK must NOT pull pipecat. The
 # customer writes a plain `Brain`; the wire is plain protobuf. `pyjwt[crypto]` is
