@@ -2936,7 +2936,7 @@ dependencies = [
     { name = "loguru" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "uvicorn", extra = ["standard"] },
-    { name = "voqalize-agent-sdk" },
+    { name = "voqalize-agent-sdk", extra = ["adk"] },
 ]
 
 [package.dev-dependencies]
@@ -2954,7 +2954,7 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
-    { name = "voqalize-agent-sdk", editable = "sdk/python" },
+    { name = "voqalize-agent-sdk", extras = ["adk"], editable = "sdk/python" },
 ]
 
 [package.metadata.requires-dev]

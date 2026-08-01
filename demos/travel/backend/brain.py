@@ -1,0 +1,446 @@
+"""TravelBrain — the travel-desk agent, written on **Google ADK**.
+
+The client-authored surface here is a normal ADK ``LlmAgent`` (a model, an
+instruction, and plain async tool functions) plus a thin
+:class:`voqalize.google_adk.AdkBrain` subclass for the two voice-side seams this
+demo needs: the opening line and the browser's ``state_sync`` push. Everything
+between — the function-calling loop, the per-model-call speech brackets, history,
+barge-in and heard-truth correction — is the SDK's, not ours.
+
+Compare ``brain_gemini.py`` (the previous, still-readable version) to see what the
+port deletes:
+
+* **the JSON tool schemas.** ADK derives each tool's schema from its type hints,
+  so a nested option shape is a small pydantic model instead of a hand-written
+  ``{"type": "object", "properties": {...}}`` dict and a ``_to_schema`` walker.
+* **the tool-dispatch chain.** ADK calls the tool function by name; the ``if
+  name == ...`` ladder and the ``(name, description, properties, required)``
+  tuple table both go away.
+* **the run loop.** ``GeminiBrain.respond`` streamed inferences, collected
+  function calls, appended ``role="tool"`` contents and looped up to
+  ``max_tool_hops``. The SDK's adapter does all of that.
+
+What we still write is exactly the domain: the prompt, ten tools that drive the
+screen, and this session's itinerary state.
+
+**Screen grounding.** The ``/travel`` UI pushes a compact snapshot of the active
+itinerary (``state_sync``) on connect and after every change — including edits the
+travel agent makes by hand. The genai version exposed that snapshot through a
+``get_active_itinerary`` tool the model had to remember to call. Here it is folded
+into **every** prompt instead, via ADK's ``InstructionProvider`` (an
+``instruction=`` callable ADK re-evaluates per model call). That is the ADK-native
+equivalent of the old ``GeminiBrain.grounding()`` hook, and it is strictly better
+for a screen-driving agent: the model can never answer "which flights are up?"
+from a stale turn, and it costs no extra round-trip. ``get_active_itinerary`` is
+therefore gone — it fired no ``ui_command``, so the browser contract is unchanged.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Literal
+
+from google.adk.agents import LlmAgent
+from loguru import logger
+from pydantic import BaseModel
+from voqalize_demos import DEFAULT_MODEL
+
+from voqalize.google_adk import AdkBrain, voice
+
+if TYPE_CHECKING:
+    from google.adk.agents.readonly_context import ReadonlyContext
+    from google.adk.models.base_llm import BaseLlm
+
+    from voqalize.sdk.brain import ClientMessage, Session
+
+_INSTRUCTION = """You are Priya, the Travel Desk assistant — a voice copilot for a professional travel agent building trip itineraries for their clients. The agent talks to you live and YOU DRIVE THEIR SCREEN as you talk.
+
+LANGUAGE: Speak the agent's language (English, Hindi in Devanagari, or Hinglish), matching them. Short, efficient sentences — one question or confirmation per turn, 1-2 sentences. This is voice: no markdown, lists, or symbols; say "rupees" not the symbol. START every reply with a very short sentence so audio begins instantly.
+
+YOU CONTROL THE SCREEN. Whenever you discuss a trip, flight, hotel, or change, call the matching tool so the agent SEES it. ALWAYS SPEAK A SHORT LINE FIRST (a handful of words), THEN call the tool — never call a tool in silence. Example: "Sure, opening that up." then the tool.
+
+YOU INVENT THE DATA. There is no live inventory. Generate realistic options yourself (real-sounding carriers like IndiGo / Vietnam Airlines, real 5-star hotels, plausible times, ratings, and fares in rupees) and pass them as the tool's structured arguments. Usually offer 3 options. Keep numbers consistent.
+
+WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure with the families, flight legs, and hotel cities. For each flight leg speak a line then call search_flights with 3 invented options; select_flight once picked. For each hotel city call search_hotels with 3 options; select_hotel once picked. Use show_flights / show_hotels to bring a leg/city back on screen, and open_itinerary / open_dashboard to navigate.
+
+Open with a brief greeting and ask which trip they want to work on."""
+
+_GREETING = "नमस्ते, मैं प्रिया हूँ ट्रैवल डेस्क से। हम किस ट्रिप पर काम करें?"
+
+# Prepended to the live snapshot the instruction provider appends every turn.
+_SCREEN_HEADER = """
+
+ON SCREEN RIGHT NOW (authoritative — this is what the agent is actually looking at, including any edits they made by hand; never contradict it):
+"""
+
+_NOTHING_ON_SCREEN = "No itinerary is open yet — the agent is on the dashboard of saved drafts."
+
+
+# ─── Tool argument shapes ──────────────────────────────────────────────────────
+#
+# These pydantic models exist for ONE reason: ADK reads them to build each tool's
+# JSON schema, so the model knows a flight option has an `airline` and an integer
+# `price`. Two things to know, both learned the hard way:
+#
+#   * ADK does NOT construct these models. A tool annotated `list[FlightOption]`
+#     is handed the model's **raw dicts**; the annotation is a schema declaration,
+#     not a parse. Tool bodies therefore go through `_rows()`, which accepts
+#     either.
+#   * Only field NAMES, TYPES and required-ness survive into the schema. Pydantic
+#     `Field(description=...)` and docstring `Args:` text are dropped from the
+#     properties — the model's only prose guidance is the tool docstring as a
+#     whole. So per-field hints (formats, examples) live in the docstring below,
+#     not in `Field`.
+
+
+class Family(BaseModel):
+    """One travelling family on the itinerary."""
+
+    label: str
+    origin: str = ""
+    adults: int = 0
+    children: int = 0
+    infants: int = 0
+    meal: Literal["veg", "nonveg", "mixed"] = "mixed"
+    assistance: str = ""
+
+
+class Leg(BaseModel):
+    """One flight leg of the trip."""
+
+    id: str = ""
+    label: str = ""
+    # `from` is a Python keyword and ADK ignores pydantic aliases, so the schema
+    # field is `from_`; `_rows()` renames it to the `from` the browser reads.
+    from_: str = ""
+    to: str = ""
+    date: str = ""
+
+
+class CityNights(BaseModel):
+    """One hotel city and how many nights the group stays there."""
+
+    city: str
+    nights: int = 0
+
+
+class FlightOption(BaseModel):
+    """One invented flight option for a leg."""
+
+    id: str = ""
+    airline: str
+    flight_no: str = ""
+    depart: str = ""
+    arrive: str = ""
+    duration: str = ""
+    stops: str = ""
+    cabin: str = ""
+    baggage: str = ""
+    price: int = 0
+    note: str = ""
+
+
+class HotelOption(BaseModel):
+    """One invented hotel option for a city."""
+
+    id: str = ""
+    name: str
+    area: str = ""
+    stars: int = 5
+    board: str = ""
+    room_type: str = ""
+    rating: float = 0.0
+    amenities: list[str] = []
+    price_per_night: int = 0
+    note: str = ""
+
+
+def _dicts(items: Sequence[Any]) -> list[dict[str, Any]]:
+    """One list-of-objects tool argument as plain dicts, ready for the browser.
+
+    Accepts what ADK actually passes (raw dicts) as well as constructed models,
+    and renames ``from_`` → ``from`` (see :class:`Leg`)."""
+    out: list[dict[str, Any]] = []
+    for raw in items:
+        row: dict[str, Any] = dict(raw) if isinstance(raw, dict) else dict(raw.model_dump())
+        if "from_" in row:
+            row["from"] = row.pop("from_")
+        out.append(row)
+    return out
+
+
+def _rows(items: Sequence[Any], prefix: str) -> list[dict[str, Any]]:
+    """:func:`_dicts` plus a stable string id per row — the UI keys a leg, a
+    flight option and a hotel option off ``id``, and the model often omits it."""
+    rows = _dicts(items)
+    for i, row in enumerate(rows):
+        row["id"] = str(row["id"]) if str(row.get("id") or "").strip() else f"{prefix}{i + 1}"
+    return rows
+
+
+# ─── The agent: tools + prompt ─────────────────────────────────────────────────
+
+
+class TravelDesk:
+    """One session's screen: the itinerary state, the ten screen-driving tools,
+    and the instruction that grounds every prompt in what's actually displayed.
+
+    The tools are ordinary async methods — ADK drops the bound ``self`` when it
+    builds their schemas, so holding session state on the instance costs nothing.
+    Each one mutates this mirror **and** fires ``voice().action(...)``, the RTVI
+    ``ui_command`` the ``/travel`` UI renders; the value it returns goes back to
+    the model as the tool result. Tools must be ``async`` — a sync tool would be
+    dispatched on a thread pool, where the ``voice()`` context var is unset."""
+
+    def __init__(self) -> None:
+        # What this brain believes it put on screen. Used for grounding until the
+        # browser's own snapshot arrives, and as the fallback if it never does.
+        self.itinerary: dict[str, Any] | None = None
+        self.flights: dict[str, list[dict[str, Any]]] = {}
+        self.hotels: dict[str, list[dict[str, Any]]] = {}
+        self.selected: dict[str, str] = {}
+        # The browser's own compact snapshot (``state_sync``) — authoritative,
+        # because it also carries the travel agent's hand edits.
+        self.browser: Any = None
+
+    # ─── grounding ──────────────────────────────────────────────────────
+
+    def screen_note(self) -> str:
+        """The on-screen state, as the prompt sees it. Prefers the browser's
+        snapshot (it includes hand edits) over this brain's own mirror."""
+        if self.browser:
+            return json.dumps(self.browser, ensure_ascii=False, default=str)
+        if not self.itinerary:
+            return _NOTHING_ON_SCREEN
+        return json.dumps(
+            {"itinerary": self.itinerary, "selected": self.selected},
+            ensure_ascii=False,
+            default=str,
+        )
+
+    def instruction(self, _ctx: ReadonlyContext) -> str:
+        """ADK ``InstructionProvider``: re-evaluated on every model call, so the
+        live screen state is folded into each prompt (the ADK-native replacement
+        for ``GeminiBrain.grounding()``)."""
+        return _INSTRUCTION + _SCREEN_HEADER + self.screen_note()
+
+    # ─── tools ──────────────────────────────────────────────────────────
+
+    async def open_dashboard(self) -> dict[str, Any]:
+        """Open the dashboard of saved draft trips."""
+        voice().action("open_dashboard")
+        return {"status": "dashboard open"}
+
+    async def open_itinerary(self, name: str) -> dict[str, Any]:
+        """Open a saved itinerary by name.
+
+        Args:
+            name: The itinerary's name, e.g. "Poddar Vietnam".
+        """
+        voice().action("open_itinerary", {"name": name})
+        return {"status": "opened", "name": name}
+
+    async def create_itinerary(
+        self,
+        name: str,
+        destination: str,
+        start_date: str,
+        end_date: str,
+        coordinator: str = "",
+        summary: str = "",
+    ) -> dict[str, Any]:
+        """Create a new itinerary SHELL and open its overview.
+
+        Just the headline fields — add travellers, flight legs and hotel cities
+        with set_trip_structure next.
+
+        Args:
+            name: Itinerary name, e.g. "Poddar Vietnam".
+            destination: Primary destination and routing.
+            start_date: Trip start, e.g. "12 Aug 2026".
+            end_date: Trip end, e.g. "18 Aug 2026".
+            coordinator: The travel agent handling the trip.
+            summary: One-line summary of the trip.
+        """
+        itinerary: dict[str, Any] = {
+            "name": name,
+            "coordinator": coordinator,
+            "destination": destination,
+            "start_date": start_date,
+            "end_date": end_date,
+            "summary": summary,
+            "families": [],
+            "legs": [],
+            "hotel_cities": [],
+        }
+        self.itinerary = itinerary
+        voice().action("create_itinerary", {"itinerary": itinerary})
+        return {"status": "created", "name": name}
+
+    async def set_trip_structure(
+        self,
+        families: list[Family],
+        legs: list[Leg],
+        hotel_cities: list[CityNights],
+    ) -> dict[str, Any]:
+        """Fill in the active itinerary's travelling families, flight legs and hotel cities.
+
+        Args:
+            families: The travelling families; label each like "Poddar family (Bangalore)".
+            legs: The flight legs. Give each a short stable id ("blr-out"), a human
+                label ("Bangalore → Ho Chi Minh (Outbound)"), from/to cities and a
+                date like "12 Aug 2026".
+            hotel_cities: Each city the group sleeps in, with the number of nights.
+        """
+        fam_rows = _dicts(families)
+        leg_rows = _rows(legs, "leg")
+        city_rows = _dicts(hotel_cities)
+        if self.itinerary is not None:
+            self.itinerary.update(
+                {"families": fam_rows, "legs": leg_rows, "hotel_cities": city_rows}
+            )
+        voice().action(
+            "set_trip_structure",
+            {"families": fam_rows, "legs": leg_rows, "hotel_cities": city_rows},
+        )
+        return {"status": "structure set", "families": len(fam_rows), "legs": len(leg_rows)}
+
+    async def search_flights(self, leg_id: str, options: list[FlightOption]) -> dict[str, Any]:
+        """Search one flight leg and show the option cards on screen.
+
+        Invent 3 realistic options. Times go in depart/arrive like "BLR 02:15" /
+        "SGN 09:40"; stops reads "Non-stop" or "1 stop · KUL"; price is the
+        per-person fare in rupees.
+
+        Args:
+            leg_id: The leg's id, as given to set_trip_structure.
+            options: The 3 invented flight options.
+        """
+        rows = _rows(options, "f")
+        self.flights[leg_id] = rows
+        voice().action("search_flights", {"leg_id": leg_id, "options": rows})
+        return {"status": "showing", "leg_id": leg_id, "count": len(rows)}
+
+    async def show_flights(self, leg_id: str) -> dict[str, Any]:
+        """Bring an already-searched leg's flight options back on screen.
+
+        Args:
+            leg_id: The leg's id.
+        """
+        voice().action("show_flights", {"leg_id": leg_id})
+        return {"status": "shown", "leg_id": leg_id}
+
+    async def select_flight(self, leg_id: str, option_id: str) -> dict[str, Any]:
+        """Select one flight option for a leg and pin it to the itinerary.
+
+        Args:
+            leg_id: The leg's id.
+            option_id: The chosen option's id, e.g. "f2".
+        """
+        self.selected[f"flight:{leg_id}"] = option_id
+        voice().action("select_flight", {"leg_id": leg_id, "option_id": option_id})
+        return {"status": "flight selected", "leg_id": leg_id, "option_id": option_id}
+
+    async def search_hotels(self, city: str, options: list[HotelOption]) -> dict[str, Any]:
+        """Search 5-star hotels for one city and show them on screen.
+
+        Invent 3 realistic properties. stars is 1-5, rating is out of 10, board
+        reads like "Breakfast included", and price_per_night is the group rate in
+        rupees.
+
+        Args:
+            city: The city being searched.
+            options: The 3 invented hotel options.
+        """
+        rows = _rows(options, "h")
+        self.hotels[city] = rows
+        voice().action("search_hotels", {"city": city, "options": rows})
+        return {"status": "showing", "city": city, "count": len(rows)}
+
+    async def show_hotels(self, city: str) -> dict[str, Any]:
+        """Bring an already-searched city's hotel options back on screen.
+
+        Args:
+            city: The city whose options to re-show.
+        """
+        voice().action("show_hotels", {"city": city})
+        return {"status": "shown", "city": city}
+
+    async def select_hotel(self, city: str, option_id: str) -> dict[str, Any]:
+        """Select one hotel option for a city.
+
+        Args:
+            city: The city.
+            option_id: The chosen option's id, e.g. "h1".
+        """
+        self.selected[f"hotel:{city}"] = option_id
+        voice().action("select_hotel", {"city": city, "option_id": option_id})
+        return {"status": "hotel selected", "city": city, "option_id": option_id}
+
+    def tools(self) -> list[Any]:
+        """The ten bound methods handed to ``LlmAgent(tools=...)``."""
+        return [
+            self.open_dashboard,
+            self.open_itinerary,
+            self.create_itinerary,
+            self.set_trip_structure,
+            self.search_flights,
+            self.show_flights,
+            self.select_flight,
+            self.search_hotels,
+            self.show_hotels,
+            self.select_hotel,
+        ]
+
+
+def build_travel_agent(model: str | BaseLlm, desk: TravelDesk) -> LlmAgent:
+    """Build the travel-desk ``LlmAgent`` over one session's :class:`TravelDesk`.
+
+    ``model`` is any ADK model — a model-id string in production, or a fake
+    ``BaseLlm`` (``voqalize.google_adk.testing.ScriptedLlm``) in tests."""
+    return LlmAgent(
+        name="travel_desk",
+        model=model,
+        instruction=desk.instruction,
+        tools=desk.tools(),
+    )
+
+
+# ─── The brain ─────────────────────────────────────────────────────────────────
+
+
+class TravelBrain(AdkBrain):
+    """One per session. Hosts the ADK agent above and adds the two voice seams
+    the demo needs: the fixed opening line, and the browser's screen snapshot."""
+
+    def __init__(
+        self,
+        *,
+        model: str | BaseLlm = DEFAULT_MODEL,
+        answer_conformance_dump: bool = False,
+    ) -> None:
+        # Built BEFORE super().__init__, which calls the agent factory eagerly —
+        # anything the tools or the instruction provider close over must already
+        # exist by then.
+        self.desk = TravelDesk()
+        super().__init__(
+            lambda: build_travel_agent(model, self.desk),
+            greeting=_GREETING,
+            streaming=True,
+            answer_conformance_dump=answer_conformance_dump,
+        )
+
+    async def on_client_message(self, session: Session, message: ClientMessage) -> None:
+        """Browser→brain client message. The ``/travel`` UI pushes a ``state_sync``
+        snapshot on connect and after every change (including the travel agent's
+        hand edits); keep the latest so :meth:`TravelDesk.instruction` grounds the
+        next prompt in it. Ingested silently — we never take the floor
+        (``message.interaction`` is left alone), so the agent doesn't speak just
+        because a screen changed."""
+        if message.type == "state_sync":
+            data: Any = message.data or {}
+            self.desk.browser = data.get("itinerary") if isinstance(data, dict) else None
+            logger.info("travel: state_sync from browser (screen={})", bool(self.desk.browser))
+            return
+        await super().on_client_message(session, message)
