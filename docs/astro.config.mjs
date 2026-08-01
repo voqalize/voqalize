@@ -40,6 +40,7 @@ export default defineConfig({
             { label: "Python SDK", slug: "brain/python" },
             { label: "Go SDK", slug: "brain/go" },
             { label: "Handling a conversation", slug: "brain/conversation" },
+            { label: "Testing a brain", slug: "brain/testing" },
           ],
         },
         {

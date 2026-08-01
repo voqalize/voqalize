@@ -60,7 +60,7 @@ the Voqalize control plane behind Google OAuth. Nothing to `pip`/`uvx`-install.
 
 ## Tools
 
-Fifteen tools. Every tool returns the control plane's raw JSON. Errors surface with
+Sixteen tools. Every tool returns the control plane's raw JSON. Errors surface with
 a platform code — `not_authorized` (you're not a member of that tenant, or your role
 is too low) or `validation_error` (bad input, e.g. a non-`wss://` `brain_url` on a
 non-loopback host).
@@ -78,6 +78,7 @@ non-loopback host).
 | Tool | Signature | Does |
 |---|---|---|
 | `create_agent` | `(tenant, name, description="", brain_url="") -> dict` | Create an agent. Returns `{agent, session_key (sk_…, once)}`. |
+| `create_agent_credentials` | `(tenant, agent_id, label="") -> dict` | Mint Cortex outbound credentials for a brain that **can't accept inbound** (localhost, serverless, egress-only). Returns `{agent_secret (ak_…, once), cortex_url, brain_url, key_id, usage}`. |
 | `get_agent` | `(tenant, agent_id) -> dict` | One agent: `id`, name, description, status, `brain_url`, Playground `test_url`, timestamps. It does **not** return STT/TTS config. |
 | `list_agents` | `(tenant, status="", limit=20) -> dict` | List agents; optional `draft\|active\|archived` filter. |
 | `update_agent` | `(tenant, agent_id, name="", description="", brain_url="") -> dict` | Rename, re-describe, and/or point the brain at a WS URL. |
@@ -87,6 +88,16 @@ There is no separate `set_brain_url` tool — pass `brain_url` to `create_agent`
 front, or set it later with `update_agent`. It must be `wss://` (`ws://` only for
 `localhost`/`127.0.0.1`); an empty `brain_url` falls back to the hosted `welcome`
 demo brain so a bare agent still greets.
+
+`create_agent_credentials` returns **two different URLs and they are not
+interchangeable**: `cortex_url` goes to the SDK's `cortex_url=` argument (it already
+carries the `/agent` path — pass it verbatim), while `brain_url` is what the agent's
+own `brain_url` must become so the runtime dials Cortex instead of your server.
+Setting it is **not automatic** — finish with
+`update_agent(tenant, agent_id, brain_url=…)`. The `ak_` secret is shown once, never
+expires, and minting revokes nothing, so rotation is: mint → redeploy → revoke the
+old key. This is what makes local development tunnel-free; see
+[Cortex relay](/docs/deploy/cortex/).
 
 ### Keys
 
@@ -103,31 +114,40 @@ demo brain so a bare agent still greets.
 | `list_meetings` | `(tenant, agent_id="", state="", limit=20) -> dict` | List calls, most recent first; filter by agent/state. |
 | `get_meeting` | `(tenant, meeting_id) -> dict` | One call's detail. |
 | `list_meeting_events` | `(tenant, meeting_id) -> dict` | The event timeline for a call. |
-| `query_logs` | `(tenant, meeting_id, severity_min="INFO", component="", limit=100) -> dict` | Runtime log lines for one call. |
+| `query_logs` | `(tenant, meeting_id, severity_min="INFO", component="", limit=100) -> dict` | Platform runtime log lines for one call. |
+
+These four are the inspect-a-call loop: find the call, read its transcript, check how
+far it got, then read the logs. `query_logs` returns the **platform's** logs — your
+brain runs in your own environment and logs there. The meeting's
+`active_session_id` is the brain's `session.id`, so that string joins the two sides.
 
 ## The `voqalize` skill
 
-The skill (`skill/SKILL.md`) drives the end-to-end build on top of those tools. It
+The skill (`skill/SKILL.md`) drives the end-to-end build on top of those tools. It is
+a short entry file plus references loaded on demand (`skill/references/`), and it
 walks the flow:
 
 1. **Prereqs** — confirm the MCP server is connected (`whoami` → `list_tenants`);
    Python 3.12+; a React app for the embed.
 2. **Draft the brain** — scaffold from `templates/brain.py`; implement
-   `on_session_start` / `on_interaction` / `on_client_message`.
-3. **Pick the transport** — inbound (primary) vs. Cortex (fallback). Default to
-   [inbound](/docs/deploy/brain-url/).
-4. **Create the agent** — `create_agent(tenant, name, brain_url=…)` →
-   `{agent, session_key}`.
-5. **Run + test** — run the brain locally behind a tunnel (inbound) or dial out
-   (Cortex), then talk to it in the console Playground.
-6. **Wire the `brain_url`** — via `create_agent` up front or `update_agent` later.
-7. **Embed in the browser** — `create_api_key(tenant, label, kind="publishable", …)`
+   `on_session_start` / `on_interaction` / `on_client_message` / `on_user_idle`.
+3. **Create the agent** — `create_agent(tenant, name)` → `{agent, session_key}`.
+4. **Run it and point `brain_url` at it** — locally, `create_agent_credentials` and
+   dial out over [Cortex](/docs/deploy/cortex/) (no tunnel); in production, an
+   [inbound](/docs/deploy/inbound/) route. Either way finish with `update_agent`.
+5. **Test it unattended** — the [conformance harness](/docs/brain/testing/) drives
+   the brain in text mode, with no audio and no human. Then talk to it live at the
+   agent's `test_url`.
+6. **Embed in the browser** — `create_api_key(tenant, label, kind="publishable", …)`
    → `pk_…`, then `@voqalize/client-react`.
+7. **Instrument and observe** — `on_inference_finalized` / `on_error` brain-side,
+   `list_meetings` / `get_meeting` / `query_logs` platform-side.
 
-Templates ship alongside it: `brain.py`, `inbound_app.py`, `run_cortex.py`, and
-`react_embed.tsx`.
+Templates ship alongside it: `brain.py`, `run_cortex.py`, `inbound_app.py`,
+`test_brain.py`, and `react_embed.tsx`.
 
 ## Next
 
 - **[Quickstart](/docs/start/quickstart/)** — the same flow, by hand.
 - **[Where the brain runs](/docs/deploy/brain-url/)** — inbound vs. Cortex.
+- **[Testing a brain](/docs/brain/testing/)** — the unattended test loop.

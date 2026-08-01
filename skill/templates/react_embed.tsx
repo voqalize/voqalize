@@ -27,15 +27,31 @@
  *                      it to every MCP tool)
  *   - API_BASE:        control-plane root INCLUDING the version — the React SDK
  *                      appends `/{tenantSlug}/…`. Prod: https://app.voqalize.com/api/v1
+ *
+ * And one you should set deliberately rather than inherit: PIPELINE, the STT/TTS
+ * the session opens with (voice + language). See the voice & language catalog at
+ * /docs/reference/catalog/. The brain can change it mid-call with
+ * session.configure_tts(...) / session.configure_stt(...).
  */
 
 import { useState } from "react";
-import { VoqalAgent } from "@voqalize/client-react";
+import { VoqalAgent, type VoqalPipelineConfig } from "@voqalize/client-react";
 
 const PUBLISHABLE_KEY = "pk_live_REPLACE_ME";
 const AGENT_ID = "REPLACE_WITH_AGENT_ID";
 const TENANT_SLUG = "your-tenant-slug";
 const API_BASE = "https://app.voqalize.com/api/v1";
+
+/**
+ * Speech config for the session. `vql-stt` is a router covering English plus 22
+ * Indic languages — it picks the engine from `language`, so you normally set only
+ * the language. `tts.voice` is a catalog voice id. Omit `pipeline` entirely to take
+ * the server defaults.
+ */
+const PIPELINE: VoqalPipelineConfig = {
+  stt: { model: "vql-stt", language: "en" },
+  tts: { voice: "omnivoice/gauri", language: "en" },
+};
 
 interface CartLine {
   sku: string;
@@ -51,6 +67,9 @@ export function VoiceCart() {
       tenantSlug={TENANT_SLUG}
       publishableKey={PUBLISHABLE_KEY}
       agentId={AGENT_ID}
+      // Voice + language for this session. Distinct from `payload` below: this is
+      // speech config the platform consumes, not app data the brain reads.
+      pipeline={PIPELINE}
       // What you pass here arrives brain-side as `start.init` in on_session_start.
       payload={{ surface: "web", user: { name: "Ada" } }}
       // Brain → screen. Every `interaction.action(...)` the brain fires lands here.

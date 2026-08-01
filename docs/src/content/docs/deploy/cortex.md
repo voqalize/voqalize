@@ -16,19 +16,42 @@ Cortex only when inbound genuinely isn't possible.
 
 ## How it works
 
-Cortex is a stateless, schema-free WebSocket relay. It has two sides:
+Cortex is a stateless, schema-free WebSocket relay with exactly two routes:
 
-- The voice runtime connects on one side at `/s/{session_id}`.
-- Your brain connects on the other, dialing *out* to a Cortex URL that carries your
-  agent's **pool key** in the path: `{cortex_url}/{pool}/s/{session_id}`.
+- The voice runtime lands on `/s/{session_id}`.
+- Your brain dials *out* to `/agent`.
 
-Cortex matches the two legs by pool key and forwards frames between them. It holds
-no state — kill it any time and both sides reconnect. Many sessions multiplex over
-your one outbound socket, demuxed by a 16-byte session prefix.
+Both legs authenticate to the same tenant-and-agent **rendezvous scope**, and Cortex
+matches them on that — derived from the credentials, not from the URL. There is
+nothing to encode in a path and nothing to configure. Cortex holds no state; kill it
+any time and both sides reconnect. Many sessions multiplex over your one outbound
+socket, demuxed by a 16-byte session prefix.
 
-Your `brain_url` for a Cortex agent is the Cortex URL with the pool key in the
-path. Scaling out means handing the agent a different Cortex URL — routing lives in
-the URL, not in a token.
+## Get the credentials
+
+Self-service, over the [MCP server](/docs/reference/mcp/):
+
+```
+create_agent_credentials(tenant, agent_id, label="")
+```
+
+It returns three things you use in three different places:
+
+| Field | Where it goes |
+|---|---|
+| `agent_secret` | `ak_…` — the SDK's `api_key=`. **Shown once**, never recoverable. |
+| `cortex_url` | The SDK's `cortex_url=`. It already ends in `/agent` — pass it verbatim; the SDK does not append. |
+| `brain_url` | The Cortex origin. This is what the **agent's** `brain_url` must become. |
+
+Wiring the `brain_url` is **not** automatic:
+
+```
+update_agent(tenant, agent_id, brain_url="<the brain_url it returned>")
+```
+
+Until you do, the agent still points wherever it pointed before. The `ak_` never
+expires; minting revokes nothing, so rotation is mint → redeploy → `revoke_api_key`
+on the old one, with no window where the agent can't connect.
 
 ## Serving over Cortex
 
@@ -42,7 +65,7 @@ from mybrain import MyBrain
 
 agent = CortexAgent(
     version="1.0.0",
-    cortex_url="wss://cortex.voqalize.com/<pool>",
+    cortex_url="wss://cortex.dev.voqalize.com/agent",   # verbatim, from the tool
     factory=brain_factory(MyBrain),
     api_key="ak_…",     # OR authorization_provider=lambda: "Bearer <jwt>"
 )
@@ -59,7 +82,7 @@ transport from `$VOQAL_AGENT_MODE`.
 ```go
 agent, _ := cortex.New(cortex.Options{
     Version:   "1.0.0",
-    CortexURL: "wss://cortex.voqalize.com/<pool>",
+    CortexURL: "wss://cortex.dev.voqalize.com/agent",
     APIKey:    "ak_…",            // OR AuthorizationProvider: func() string { ... }
     Logger:    logger,
 }, brain.Factory(func() brain.Brain { return &MyBrain{} }, logger))
@@ -69,8 +92,20 @@ agent.Run(ctx)
 ## No tunnel needed
 
 Because the brain dials out, Cortex needs no public inbound route and no tunnel —
-which is exactly why it fits serverless and egress-only environments. Set the
-outbound credentials (`VOQALIZE_AGENT_SECRET`, `VOQALIZE_CORTEX_URL`) and run.
+which is why it fits serverless and egress-only environments, and why it is the
+fastest way to develop against the hosted platform from a laptop. Export the
+credentials and run:
+
+```bash
+export VOQAL_AGENT_SECRET=ak_...                              # agent_secret
+export VOQAL_CORTEX_URL=wss://cortex.dev.voqalize.com/agent   # cortex_url, verbatim
+export VOQAL_AGENT_MODE=outbound
+python run_cortex.py
+```
+
+`$VOQAL_AGENT_MODE` is the only one of the three the SDK reads itself — `serve_auto`
+uses it to pick the transport (`outbound`/`cortex` vs `inbound`/`direct`). The other
+two are conventions your code passes through as the kwargs above.
 
 ## Crash-only
 

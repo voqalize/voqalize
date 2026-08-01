@@ -2883,7 +2883,7 @@ source = { editable = "sdk/python" }
 dependencies = [
     { name = "loguru" },
     { name = "protobuf" },
-    { name = "pyjwt" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "websockets" },
 ]
 
@@ -2913,7 +2913,7 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7" },
     { name = "openai-agents", marker = "extra == 'examples'", specifier = ">=0.17" },
     { name = "protobuf", specifier = ">=6.30,<7" },
-    { name = "pyjwt", specifier = ">=2.8" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8" },
     { name = "python-dotenv", marker = "extra == 'examples'", specifier = ">=1.0" },
     { name = "uvicorn", marker = "extra == 'examples'", specifier = ">=0.30" },
     { name = "websockets", specifier = ">=13" },
