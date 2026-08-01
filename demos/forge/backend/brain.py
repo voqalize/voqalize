@@ -69,7 +69,7 @@ Open with a brief greeting and ask what they'd like to build or change."""
 
 # ─── Reusable schema fragments ──────────────────────────────────────────────────
 
-_CONTEXT_FIELD = {
+_CONTEXT_FIELD: dict[str, Any] = {
     "type": "object",
     "properties": {
         "key": {
