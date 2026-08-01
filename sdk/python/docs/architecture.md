@@ -124,7 +124,7 @@ bound). The Brain sees it via optional `on_error`. The session is never killed.
 
 Barge-in rides the wire as a field-less native `InterruptionFrame` on the system
 lane. The `_BrainAdapter` cancels the in-flight `on_interaction` task(s) — the
-`CancelledError` unwinds their open `inference()` brackets — then echoes an
+`CancelledError` unwinds their open `say()` brackets — then echoes an
 `InterruptionFrame` back on the outbound system lane, which is PyGato's drain
 barrier. Correlation lives on `inference_id`, not on the interrupt.
 
@@ -139,13 +139,14 @@ callbacks, and the Brain's responses back onto the wire via the `Emitter`:
 | `VqlUserTextFrame` | commit user turn to `Conversation`; spawn `on_interaction(interaction)` |
 | `InterruptionFrame` | cancel in-flight interaction(s); echo the drain barrier |
 | `VqlInferenceFinalizedFrame` | commit assistant **heard** text; `on_inference_finalized(inference)` |
-| `RTVIClientMessageFrame` (`action_outcome`) | route to the pending `action` callback by `action_id` |
-| `RTVIClientMessageFrame` (other) | `on_app_event(session, event)` |
+| `VqlUserIdleFrame` | open a floor-owning idle interaction; `on_user_idle(interaction)` |
+| `VqlRTVIClientMessageFrame` (`action_outcome`) | route to the pending `action` callback by `action_id` |
+| `VqlRTVIClientMessageFrame` (other) | pre-mint an `interaction_id`; `on_client_message(session, message)` |
 | `ErrorFrame` | `on_error(session, error)` |
 
 | Brain action | Outbound frame |
 |---|---|
-| `async with interaction.inference()` | `VqlLLMFullResponseStart` … `End` (mints `inference_id`) |
+| `async with interaction.say()` | `VqlLLMFullResponseStart` … `End` (mints `inference_id`) |
 | `await inf.speak(text)` | `VqlLLMTextFrame` |
 | `interaction.action(name, {...})` / `session.action(...)` | `RTVIServerMessageFrame` (`ui_command`) |
 | `session.configure_tts(...)` / `configure_stt(...)` | `TTSUpdateSettingsFrame` / `STTUpdateSettingsFrame` |

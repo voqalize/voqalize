@@ -3,15 +3,15 @@
     cd sdk/python && uv run python examples/travel/run_direct.py
 
 Hosts ``TravelBrain`` on ``ws://localhost:8788/s/{session_id}``. Point an agent's
-``brain_url`` at this address (via the Voqalize MCP ``set_brain_url`` tool or the
+``brain_url`` at this address (via the Voqalize MCP ``update_agent`` tool —
+``update_agent(tenant, agent_id, brain_url="ws://localhost:8788")`` — or the
 console) and the voice runtime dials in — one connection per session, just-in-time,
 with no relay in the path.
 
 Auth is disabled here (``allow_unverified=True``) for local dev only: the local
-PyGato signs its brain token with the dev key, while the SDK's embedded default
-keys are prod. A real customer passes no such flag and gets zero-config prod
-verification. This is the Python peer of the Go ``cmd/travel-direct`` (which uses
-``AllowUnverified: true`` for the same reason).
+voice runtime signs its brain token with the dev key, while the SDK's embedded
+default keys are prod. A real customer passes no such flag and gets zero-config
+prod verification.
 """
 
 from __future__ import annotations

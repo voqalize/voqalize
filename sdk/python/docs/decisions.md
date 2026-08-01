@@ -8,7 +8,7 @@ The *why* behind the SDK's shape. Each entry: the decision, the reasoning, what 
 
 **Decision:** the sole customer surface is `voqalize.sdk.Brain` — subclass it,
 implement `on_interaction(interaction)` (the rest are optional hooks), and drive
-turns through `interaction.inference()` / `speak(...)`. Installing the SDK pulls
+turns through `interaction.say()` / `speak(...)`. Installing the SDK pulls
 **no** `pipecat` dependency; the `Vql*` wire is plain protobuf and the Brain
 surface is plain dataclasses.
 

@@ -17,11 +17,11 @@ from voqalize.sdk import Brain, Interaction, Session, SessionStart
 
 class EchoBrain(Brain):
     async def on_session_start(self, session: Session, start: SessionStart) -> None:
-        async with session.inference() as inf:            # agent-initiated greeting
+        async with session.say() as inf:                  # agent-initiated greeting
             await inf.speak("Hi! I'm an echo bot. Say something and I'll repeat it back.")
 
     async def on_interaction(self, interaction: Interaction) -> None:
-        async with interaction.inference() as inf:         # one inference per user turn
+        async with interaction.say() as inf:               # one inference per user turn
             await inf.speak(f"You said: {interaction.transcript}")
 ```
 

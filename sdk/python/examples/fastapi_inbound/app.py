@@ -43,11 +43,11 @@ class EchoBrain(Brain):
     """Greets on session start, echoes each user turn."""
 
     async def on_session_start(self, session: Session, start: SessionStart) -> None:
-        async with session.inference() as inf:
+        async with session.say() as inf:
             await inf.speak("Hi! I'm an echo bot. Say something and I'll repeat it back.")
 
     async def on_interaction(self, interaction: Interaction) -> None:
-        async with interaction.inference() as inf:
+        async with interaction.say() as inf:
             await inf.speak(f"You said: {interaction.transcript}")
 
 
