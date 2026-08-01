@@ -12,18 +12,22 @@ Swapping just the model is what makes this deterministic: a scripted tool call
 carries the exact arguments we assert the browser receives, so the demo's
 ``ui_command`` contract is a test, not a hope.
 
-Three properties are covered:
+Four properties are covered:
 
 * **the greeting + a tool round-trip.** One user turn drives two model calls (emit
   the ``function_call``, then answer given the tool result) → two inference
   brackets, and the tools fire the ``ui_command``s the ``/travel`` UI renders,
   with the ids the brain assigns.
+* **structured tool arguments reach the browser.** The SDK builds the ``Leg`` /
+  ``FlightOption`` models the tools annotate (from either spelling of an aliased
+  field), and the demo dumps them back out by alias — so the ``from`` key the UI
+  store reads is a test, not a hand-rolled rename.
 * **barge-in re-anchors the next prompt.** A reply is cut mid-stream; the un-heard
   tail is never committed and never reaches the model's next prompt — the SDK
   corrected ADK's own history to heard-truth.
 * **``state_sync`` grounds every prompt.** The browser's screen snapshot lands in
-  the *system instruction* of the next model call, which is the ADK-native
-  replacement for the old ``get_active_itinerary`` tool.
+  the *system instruction* of the next model call — the SDK's ``grounding()`` seam,
+  which replaced the old ``get_active_itinerary`` tool.
 
 Run: ``cd demos && uv run pytest tests/test_travel_adk.py``
 """
@@ -31,15 +35,12 @@ Run: ``cd demos && uv run pytest tests/test_travel_adk.py``
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator
 from typing import Any
 
 import pytest
 
 pytest.importorskip("google.adk")
 
-from google.adk.models.llm_response import LlmResponse
-from pydantic import PrivateAttr
 from voqalize_demos.discovery import discover
 
 # The demo backends are loaded from source, in place (see ``discovery``) — running
@@ -57,12 +58,7 @@ from voqalize.conformance import (  # noqa: E402
     generate_keypair,
     mint_pygato_token,
 )
-from voqalize.google_adk.testing import (  # noqa: E402
-    Reply,
-    ScriptedLlm,
-    reply,
-    reply_and_call,
-)
+from voqalize.google_adk.testing import ScriptedLlm, reply, reply_and_call  # noqa: E402
 from voqalize.sdk import DirectAgent, brain_factory  # noqa: E402
 
 GREETING = "नमस्ते, मैं प्रिया हूँ ट्रैवल डेस्क से। हम किस ट्रिप पर काम करें?"
@@ -73,26 +69,15 @@ _FLIGHTS = [
     {"airline": "IndiGo", "flight_no": "6E-123", "depart": "BLR 02:15", "price": 28000},
     {"airline": "Vietnam Airlines", "flight_no": "VN-567", "depart": "BLR 06:40", "price": 35000},
 ]
-
-
-class _CapturingLlm(ScriptedLlm):
-    """A ``ScriptedLlm`` that also records each request's *system instruction* —
-    where ADK puts an ``InstructionProvider``'s output, and therefore where the
-    travel brain's screen grounding lands."""
-
-    _instructions: list[str] = PrivateAttr(default_factory=list)
-
-    @property
-    def captured_instructions(self) -> list[str]:
-        return self._instructions
-
-    async def generate_content_async(  # type: ignore[override]
-        self, llm_request: Any, stream: bool = False
-    ) -> AsyncGenerator[LlmResponse, None]:
-        config = getattr(llm_request, "config", None)
-        self._instructions.append(str(getattr(config, "system_instruction", "") or ""))
-        async for response in super().generate_content_async(llm_request, stream=stream):
-            yield response
+# What the model left out of _FLIGHTS, as `FlightOption` declares it.
+_OMITTED = {
+    "arrive": "",
+    "duration": "",
+    "stops": "",
+    "cabin": "",
+    "baggage": "",
+    "note": "",
+}
 
 
 def _script() -> dict[str, Any]:
@@ -100,24 +85,39 @@ def _script() -> dict[str, Any]:
     model call (a tool round-trip keys two Replies under the same utterance)."""
     return {
         "Start the Poddar Vietnam trip, 12th to 18th August 2026.": [
-            # Not ``reply_and_call``: this tool takes a ``name`` argument, which
-            # collides with that helper's own ``name`` parameter (it forwards tool
-            # args as **kwargs). Build the Reply directly instead.
-            Reply(
-                text="Sure, opening that up.",
-                calls=(
-                    (
-                        "create_itinerary",
-                        {
-                            "name": "Poddar Vietnam",
-                            "destination": "Ho Chi Minh and Phu Quoc",
-                            "start_date": "12 Aug 2026",
-                            "end_date": "18 Aug 2026",
-                        },
-                    ),
-                ),
+            # ``create_itinerary`` takes an argument called ``name`` — the same word
+            # as ``reply_and_call``'s own tool-name parameter. That parameter is
+            # positional-only, so the keyword is unambiguously the tool's.
+            reply_and_call(
+                "Sure, opening that up.",
+                "create_itinerary",
+                name="Poddar Vietnam",
+                destination="Ho Chi Minh and Phu Quoc",
+                start_date="12 Aug 2026",
+                end_date="18 Aug 2026",
             ),
             reply("Poddar Vietnam is open. Shall we do the outbound flight?"),
+        ],
+        "Set up the trip structure.": [
+            reply_and_call(
+                "Setting it up.",
+                "set_trip_structure",
+                families=[{"label": "Poddar family (Bangalore)", "adults": 2}],
+                # `from` is the key the browser store reads; `from_` is the field
+                # name ADK puts in the generated schema. The SDK validates a `Leg`
+                # from either — both spellings are scripted here on purpose.
+                legs=[
+                    {
+                        "id": "blr-out",
+                        "label": "Bangalore → Ho Chi Minh",
+                        "from": "BLR",
+                        "to": "SGN",
+                    },
+                    {"label": "Ho Chi Minh → Bangalore", "from_": "SGN", "to": "BLR"},
+                ],
+                hotel_cities=[{"city": "Phu Quoc", "nights": 3}],
+            ),
+            reply("Structure is in. Shall we do the outbound flight?"),
         ],
         "Show me the outbound flights.": [
             reply_and_call(
@@ -184,7 +184,7 @@ async def test_greeting_and_tool_roundtrip_drive_the_screen() -> None:
     """The fixed Hindi greeting, then two turns each spanning a tool round-trip:
     two inference brackets per turn, the exact ``ui_command`` payloads the
     ``/travel`` UI consumes, and a heard-truth conversation."""
-    agent, driver = await _host(_CapturingLlm(_script()))
+    agent, driver = await _host(ScriptedLlm(_script()))
     try:
         greeting = await driver.start_session()
         checks.check_greeting(driver, greeting)
@@ -221,12 +221,15 @@ async def test_greeting_and_tool_roundtrip_drive_the_screen() -> None:
         }
 
         # search_flights passes the model's invented options through, with the
-        # stable ids the brain assigns when the model omits them.
+        # stable ids the brain assigns when the model omits them. The tool receives
+        # real `FlightOption`s (the SDK builds them from the annotation), so the row
+        # that reaches the browser is complete: every field the model left out comes
+        # through as the option model's own default.
         search = next(c for c in driver.ui_commands if c.get("action") == "search_flights")
         assert search["leg_id"] == "blr-out"
         assert search["options"] == [
-            {**_FLIGHTS[0], "id": "f1"},
-            {**_FLIGHTS[1], "id": "f2"},
+            {**_OMITTED, **_FLIGHTS[0], "id": "f1"},
+            {**_OMITTED, **_FLIGHTS[1], "id": "f2"},
         ]
 
         checks.check_no_unsolicited_interactions(
@@ -259,11 +262,56 @@ async def test_greeting_and_tool_roundtrip_drive_the_screen() -> None:
         await agent.aclose()
 
 
+async def test_trip_structure_rows_reach_the_browser_by_alias() -> None:
+    """The list-of-models tool argument, end to end: the SDK constructs each ``Leg``
+    from the model's raw JSON — accepting the aliased ``from`` *and* the schema's
+    ``from_`` — and the demo dumps them ``by_alias``, so the browser gets the ``from``
+    key its store reads and an id-less leg still gets a stable one."""
+    agent, driver = await _host(ScriptedLlm(_script()))
+    try:
+        await driver.start_session()
+        turn = await driver.user_says("Set up the trip structure.")
+        checks.check_completed(turn)
+
+        cmd = next(c for c in driver.ui_commands if c.get("action") == "set_trip_structure")
+        assert cmd["legs"] == [
+            {
+                "id": "blr-out",
+                "label": "Bangalore → Ho Chi Minh",
+                "from": "BLR",
+                "to": "SGN",
+                "date": "",
+            },
+            {
+                "id": "leg2",
+                "label": "Ho Chi Minh → Bangalore",
+                "from": "SGN",
+                "to": "BLR",
+                "date": "",
+            },
+        ]
+        assert cmd["families"] == [
+            {
+                "label": "Poddar family (Bangalore)",
+                "origin": "",
+                "adults": 2,
+                "children": 0,
+                "infants": 0,
+                "meal": "mixed",
+                "assistance": "",
+            }
+        ]
+        assert cmd["hotel_cities"] == [{"city": "Phu Quoc", "nights": 3}]
+    finally:
+        await driver.aclose()
+        await agent.aclose()
+
+
 async def test_barge_in_commits_heard_and_corrects_next_prompt() -> None:
     """A barge-in mid-reply: the drain barrier is echoed, completion is skipped,
     the un-heard tail is neither spoken nor committed, and — the load-bearing
     assertion — the *next* model call sees the HEARD partial, not the tail."""
-    llm = _CapturingLlm(_script())
+    llm = ScriptedLlm(_script())
     agent, driver = await _host(llm)
     try:
         await driver.start_session()
@@ -300,16 +348,17 @@ async def test_barge_in_commits_heard_and_corrects_next_prompt() -> None:
 
 async def test_state_sync_grounds_the_next_prompt() -> None:
     """The browser's ``state_sync`` snapshot reaches the model as *system
-    instruction* on the next call — the ADK ``InstructionProvider`` grounding that
-    replaced the old ``get_active_itinerary`` tool. It is ingested silently: no
-    interaction is opened, so the agent never speaks because a screen changed."""
-    llm = _CapturingLlm(_script())
+    instruction* on the next call — the SDK parks it on ``browser_state`` and
+    ``TravelBrain.grounding()`` appends it, replacing the old
+    ``get_active_itinerary`` tool. It is ingested silently: no interaction is
+    opened, so the agent never speaks because a screen changed."""
+    llm = ScriptedLlm(_script())
     agent, driver = await _host(llm)
     try:
         await driver.start_session()
         # Before any snapshot, the prompt says the dashboard is showing.
         first = await driver.user_says("Show me the outbound flights.")
-        assert "No itinerary is open yet" in llm.captured_instructions[0]
+        assert "No itinerary is open yet" in llm.captured_system_instructions[0]
 
         await driver.send_client_message(
             "state_sync",
@@ -328,7 +377,7 @@ async def test_state_sync_grounds_the_next_prompt() -> None:
 
         turn = await driver.user_says("Which hotels are showing?")
         checks.check_completed(turn)
-        grounded = llm.captured_instructions[-1]
+        grounded = llm.captured_system_instructions[-1]
         assert "ON SCREEN RIGHT NOW" in grounded
         assert '"screen": "hotels"' in grounded, grounded[-500:]
         assert '"screen_context": "Phu Quoc"' in grounded, grounded[-500:]

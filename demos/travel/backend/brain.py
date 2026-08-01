@@ -2,8 +2,8 @@
 
 The client-authored surface here is a normal ADK ``LlmAgent`` (a model, an
 instruction, and plain async tool functions) plus a thin
-:class:`voqalize.google_adk.AdkBrain` subclass for the two voice-side seams this
-demo needs: the opening line and the browser's ``state_sync`` push. Everything
+:class:`voqalize.google_adk.AdkBrain` subclass whose only override is
+:meth:`~voqalize.google_adk.AdkBrain.grounding` — the live screen state. Everything
 between — the function-calling loop, the per-model-call speech brackets, history,
 barge-in and heard-truth correction — is the SDK's, not ours.
 
@@ -25,14 +25,14 @@ screen, and this session's itinerary state.
 
 **Screen grounding.** The ``/travel`` UI pushes a compact snapshot of the active
 itinerary (``state_sync``) on connect and after every change — including edits the
-travel agent makes by hand. The genai version exposed that snapshot through a
-``get_active_itinerary`` tool the model had to remember to call. Here it is folded
-into **every** prompt instead, via ADK's ``InstructionProvider`` (an
-``instruction=`` callable ADK re-evaluates per model call). That is the ADK-native
-equivalent of the old ``GeminiBrain.grounding()`` hook, and it is strictly better
-for a screen-driving agent: the model can never answer "which flights are up?"
-from a stale turn, and it costs no extra round-trip. ``get_active_itinerary`` is
-therefore gone — it fired no ``ui_command``, so the browser contract is unchanged.
+travel agent makes by hand. The SDK ingests that message convention itself and
+parks the payload on ``self.browser_state`` (silently — a screen change never makes
+the agent talk); :meth:`TravelBrain.grounding` folds it into **every** prompt. The
+genai version exposed the same snapshot through a ``get_active_itinerary`` tool the
+model had to remember to call, which is strictly worse for a screen-driving agent:
+the model could answer "which flights are up?" from a stale turn, and it cost a
+round-trip. ``get_active_itinerary`` is therefore gone — it fired no ``ui_command``,
+so the browser contract is unchanged.
 """
 
 from __future__ import annotations
@@ -42,17 +42,13 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 from google.adk.agents import LlmAgent
-from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL
 
 from voqalize.google_adk import AdkBrain, voice
 
 if TYPE_CHECKING:
-    from google.adk.agents.readonly_context import ReadonlyContext
     from google.adk.models.base_llm import BaseLlm
-
-    from voqalize.sdk.brain import ClientMessage, Session
 
 _INSTRUCTION = """You are Priya, the Travel Desk assistant — a voice copilot for a professional travel agent building trip itineraries for their clients. The agent talks to you live and YOU DRIVE THEIR SCREEN as you talk.
 
@@ -68,30 +64,22 @@ Open with a brief greeting and ask which trip they want to work on."""
 
 _GREETING = "नमस्ते, मैं प्रिया हूँ ट्रैवल डेस्क से। हम किस ट्रिप पर काम करें?"
 
-# Prepended to the live snapshot the instruction provider appends every turn.
-_SCREEN_HEADER = """
-
-ON SCREEN RIGHT NOW (authoritative — this is what the agent is actually looking at, including any edits they made by hand; never contradict it):
-"""
+# Prepended to the live snapshot `grounding()` appends on every model call.
+_SCREEN_HEADER = "ON SCREEN RIGHT NOW (authoritative — this is what the agent is actually looking at, including any edits they made by hand; never contradict it):\n"
 
 _NOTHING_ON_SCREEN = "No itinerary is open yet — the agent is on the dashboard of saved drafts."
 
 
 # ─── Tool argument shapes ──────────────────────────────────────────────────────
 #
-# These pydantic models exist for ONE reason: ADK reads them to build each tool's
-# JSON schema, so the model knows a flight option has an `airline` and an integer
-# `price`. Two things to know, both learned the hard way:
-#
-#   * ADK does NOT construct these models. A tool annotated `list[FlightOption]`
-#     is handed the model's **raw dicts**; the annotation is a schema declaration,
-#     not a parse. Tool bodies therefore go through `_rows()`, which accepts
-#     either.
-#   * Only field NAMES, TYPES and required-ness survive into the schema. Pydantic
-#     `Field(description=...)` and docstring `Args:` text are dropped from the
-#     properties — the model's only prose guidance is the tool docstring as a
-#     whole. So per-field hints (formats, examples) live in the docstring below,
-#     not in `Field`.
+# These pydantic models exist so ADK can build each tool's JSON schema from the
+# type hints, and the SDK constructs them before the tool runs — a parameter typed
+# `list[FlightOption]` really is a list of `FlightOption`s in the body. One thing
+# to know, learned the hard way: only field NAMES, TYPES and required-ness survive
+# into the generated schema. Pydantic `Field(description=...)` and docstring
+# `Args:` text for nested fields are dropped — the model's only prose guidance is
+# the tool docstring as a whole. So per-field hints (formats, examples) live in the
+# docstrings below, not in `Field`.
 
 
 class Family(BaseModel):
@@ -111,9 +99,10 @@ class Leg(BaseModel):
 
     id: str = ""
     label: str = ""
-    # `from` is a Python keyword and ADK ignores pydantic aliases, so the schema
-    # field is `from_`; `_rows()` renames it to the `from` the browser reads.
-    from_: str = ""
+    # `from` is a Python keyword, so the field is `from_` and the browser's key is
+    # the alias. The SDK validates from either spelling (the model sends `from_`,
+    # the schema name); `model_dump(by_alias=True)` emits the `from` the UI reads.
+    from_: str = Field(default="", alias="from")
     to: str = ""
     date: str = ""
 
@@ -156,24 +145,12 @@ class HotelOption(BaseModel):
     note: str = ""
 
 
-def _dicts(items: Sequence[Any]) -> list[dict[str, Any]]:
-    """One list-of-objects tool argument as plain dicts, ready for the browser.
-
-    Accepts what ADK actually passes (raw dicts) as well as constructed models,
-    and renames ``from_`` → ``from`` (see :class:`Leg`)."""
-    out: list[dict[str, Any]] = []
-    for raw in items:
-        row: dict[str, Any] = dict(raw) if isinstance(raw, dict) else dict(raw.model_dump())
-        if "from_" in row:
-            row["from"] = row.pop("from_")
-        out.append(row)
-    return out
-
-
-def _rows(items: Sequence[Any], prefix: str) -> list[dict[str, Any]]:
-    """:func:`_dicts` plus a stable string id per row — the UI keys a leg, a
-    flight option and a hotel option off ``id``, and the model often omits it."""
-    rows = _dicts(items)
+def _rows(items: Sequence[BaseModel], prefix: str) -> list[dict[str, Any]]:
+    """A list-of-models tool argument as the browser payload: each model dumped by
+    alias (so ``from_`` goes out as ``from``) plus a stable string ``id`` — the UI
+    keys a leg, a flight option and a hotel option off ``id``, and the model often
+    omits it."""
+    rows = [item.model_dump(by_alias=True) for item in items]
     for i, row in enumerate(rows):
         row["id"] = str(row["id"]) if str(row.get("id") or "").strip() else f"{prefix}{i + 1}"
     return rows
@@ -183,15 +160,15 @@ def _rows(items: Sequence[Any], prefix: str) -> list[dict[str, Any]]:
 
 
 class TravelDesk:
-    """One session's screen: the itinerary state, the ten screen-driving tools,
-    and the instruction that grounds every prompt in what's actually displayed.
+    """One session's screen: the itinerary state and the ten screen-driving tools.
 
     The tools are ordinary async methods — ADK drops the bound ``self`` when it
     builds their schemas, so holding session state on the instance costs nothing.
     Each one mutates this mirror **and** fires ``voice().action(...)``, the RTVI
     ``ui_command`` the ``/travel`` UI renders; the value it returns goes back to
     the model as the tool result. Tools must be ``async`` — a sync tool would be
-    dispatched on a thread pool, where the ``voice()`` context var is unset."""
+    dispatched on a thread pool, where the ``voice()`` context var is unset, and
+    the SDK refuses one at startup."""
 
     def __init__(self) -> None:
         # What this brain believes it put on screen. Used for grounding until the
@@ -200,30 +177,13 @@ class TravelDesk:
         self.flights: dict[str, list[dict[str, Any]]] = {}
         self.hotels: dict[str, list[dict[str, Any]]] = {}
         self.selected: dict[str, str] = {}
-        # The browser's own compact snapshot (``state_sync``) — authoritative,
-        # because it also carries the travel agent's hand edits.
-        self.browser: Any = None
 
-    # ─── grounding ──────────────────────────────────────────────────────
-
-    def screen_note(self) -> str:
-        """The on-screen state, as the prompt sees it. Prefers the browser's
-        snapshot (it includes hand edits) over this brain's own mirror."""
-        if self.browser:
-            return json.dumps(self.browser, ensure_ascii=False, default=str)
+    def mirror(self) -> dict[str, Any] | None:
+        """This brain's own picture of the screen — the grounding fallback before
+        (or without) a browser snapshot. ``None`` when nothing is open."""
         if not self.itinerary:
-            return _NOTHING_ON_SCREEN
-        return json.dumps(
-            {"itinerary": self.itinerary, "selected": self.selected},
-            ensure_ascii=False,
-            default=str,
-        )
-
-    def instruction(self, _ctx: ReadonlyContext) -> str:
-        """ADK ``InstructionProvider``: re-evaluated on every model call, so the
-        live screen state is folded into each prompt (the ADK-native replacement
-        for ``GeminiBrain.grounding()``)."""
-        return _INSTRUCTION + _SCREEN_HEADER + self.screen_note()
+            return None
+        return {"itinerary": self.itinerary, "selected": self.selected}
 
     # ─── tools ──────────────────────────────────────────────────────────
 
@@ -293,9 +253,9 @@ class TravelDesk:
                 date like "12 Aug 2026".
             hotel_cities: Each city the group sleeps in, with the number of nights.
         """
-        fam_rows = _dicts(families)
+        fam_rows = [f.model_dump(by_alias=True) for f in families]
         leg_rows = _rows(legs, "leg")
-        city_rows = _dicts(hotel_cities)
+        city_rows = [c.model_dump(by_alias=True) for c in hotel_cities]
         if self.itinerary is not None:
             self.itinerary.update(
                 {"families": fam_rows, "legs": leg_rows, "hotel_cities": city_rows}
@@ -402,7 +362,7 @@ def build_travel_agent(model: str | BaseLlm, desk: TravelDesk) -> LlmAgent:
     return LlmAgent(
         name="travel_desk",
         model=model,
-        instruction=desk.instruction,
+        instruction=_INSTRUCTION,
         tools=desk.tools(),
     )
 
@@ -411,8 +371,8 @@ def build_travel_agent(model: str | BaseLlm, desk: TravelDesk) -> LlmAgent:
 
 
 class TravelBrain(AdkBrain):
-    """One per session. Hosts the ADK agent above and adds the two voice seams
-    the demo needs: the fixed opening line, and the browser's screen snapshot."""
+    """One per session. Hosts the ADK agent above and adds the one voice seam the
+    demo needs: what's on screen, in front of the model on every call."""
 
     def __init__(
         self,
@@ -420,27 +380,24 @@ class TravelBrain(AdkBrain):
         model: str | BaseLlm = DEFAULT_MODEL,
         answer_conformance_dump: bool = False,
     ) -> None:
-        # Built BEFORE super().__init__, which calls the agent factory eagerly —
-        # anything the tools or the instruction provider close over must already
-        # exist by then.
-        self.desk = TravelDesk()
         super().__init__(
             lambda: build_travel_agent(model, self.desk),
             greeting=_GREETING,
             streaming=True,
             answer_conformance_dump=answer_conformance_dump,
         )
+        # The agent is built lazily, on session start — so the factory above sees
+        # this even though it's assigned after super().__init__.
+        self.desk = TravelDesk()
 
-    async def on_client_message(self, session: Session, message: ClientMessage) -> None:
-        """Browser→brain client message. The ``/travel`` UI pushes a ``state_sync``
-        snapshot on connect and after every change (including the travel agent's
-        hand edits); keep the latest so :meth:`TravelDesk.instruction` grounds the
-        next prompt in it. Ingested silently — we never take the floor
-        (``message.interaction`` is left alone), so the agent doesn't speak just
-        because a screen changed."""
-        if message.type == "state_sync":
-            data: Any = message.data or {}
-            self.desk.browser = data.get("itinerary") if isinstance(data, dict) else None
-            logger.info("travel: state_sync from browser (screen={})", bool(self.desk.browser))
-            return
-        await super().on_client_message(session, message)
+    def grounding(self) -> str:
+        """Appended to the system instruction on every model call, so the model can
+        never answer "which flights are up?" from a stale turn.
+
+        Prefers the browser's own ``state_sync`` snapshot — the SDK keeps the latest
+        on ``browser_state`` — because it also carries the travel agent's hand edits;
+        falls back to this brain's own mirror of what its tools put on screen."""
+        screen = (self.browser_state or {}).get("itinerary") or self.desk.mirror()
+        if not screen:
+            return _SCREEN_HEADER + _NOTHING_ON_SCREEN
+        return _SCREEN_HEADER + json.dumps(screen, ensure_ascii=False, default=str)
