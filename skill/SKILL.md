@@ -44,9 +44,14 @@ what data/tools it needs, and what it should say first. Then scaffold from
   `start.init` is the app payload the browser sent at connect (see Step 6's
   `payload=`) — the logged-in user, their current cart, etc.
 - `on_interaction(interaction)` — one user turn. `interaction.transcript` is the
-  heard text; open `interaction.inference()` and `speak(...)` or stream an LLM.
-- `on_app_event(session, event)` — a message the browser sent up (a tap, a state
-  sync). Needed for any UI the user also touches by hand.
+  heard text; open `interaction.say()` and `speak(...)` or stream an LLM.
+- `on_client_message(session, message)` — a message the browser sent up (a tap, a
+  state sync). Needed for any UI the user also touches by hand. `message.type` is
+  the name, `message.data` the payload. Read them and return to ingest silently;
+  touch `message.interaction` to take the floor and answer.
+- `on_user_idle(interaction)` — the user went silent past the idle timeout and you
+  hold the floor to re-engage (`interaction.idle.level` escalates while the silence
+  persists). Set it with `session.configure_idle(timeout_ms=…)`; `0` disables it.
 
 **If the agent drives the screen** (a shopping cart, a form, a map) it also calls
 `interaction.action(name, {...})` to push commands to the browser — see
@@ -182,12 +187,16 @@ anything (writing to your own backend is your brain code's job).
 
 **Browser → brain.** The browser calls the SDK's `session.sendMessage(type, data)`
 (exposed by `useVoqalSession` / the `VoqalAgent` render-prop). The brain receives
-it as `on_app_event(session, event)` with `event.name == type`, `event.data == data`.
+it as `on_client_message(session, message)` with `message.type == type`,
+`message.data == data`. Every client message also carries an `interaction_id` the
+platform minted for it — the brain decides whether it warrants a reply: read the
+data and return (silent), or touch `message.interaction` to take the floor and
+answer on it.
 
 **Action results (optional).** Pass `callback=` to `interaction.action(...)` and
 the browser can reply with `sendMessage("action_outcome", {action_id, status,
 result})`; the SDK routes it to your callback (matched by `action_id`) instead of
-`on_app_event`.
+`on_client_message`.
 
 `templates/brain.py` and `templates/react_embed.tsx` show both directions wired to
 a cart end-to-end.

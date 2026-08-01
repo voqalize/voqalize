@@ -30,7 +30,7 @@ class LLMResponder(Brain):
     """On each interaction, speak a one-chunk LLM response."""
 
     async def on_interaction(self, interaction) -> None:
-        async with interaction.inference() as inf:
+        async with interaction.say() as inf:
             await inf.speak("hello")
 
 

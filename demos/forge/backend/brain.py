@@ -69,15 +69,24 @@ Open with a brief greeting and ask what they'd like to build or change."""
 
 # ─── Reusable schema fragments ──────────────────────────────────────────────────
 
-_CONTEXT_FIELD = {
+_CONTEXT_FIELD: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "key": {"type": "string", "description": "Dotted key, e.g. 'requester.type' or 'privilegedApp'."},
+        "key": {
+            "type": "string",
+            "description": "Dotted key, e.g. 'requester.type' or 'privilegedApp'.",
+        },
         "label": {"type": "string"},
         "type": {"type": "string", "enum": ["string", "boolean", "number", "enum", "user"]},
         "enumValues": {"type": "array", "items": {"type": "string"}},
-        "derived": {"type": "boolean", "description": "True if computed from other fields by a JS expr."},
-        "expr": {"type": "string", "description": "JS expression for a derived field, e.g. ctx.app length check."},
+        "derived": {
+            "type": "boolean",
+            "description": "True if computed from other fields by a JS expr.",
+        },
+        "expr": {
+            "type": "string",
+            "description": "JS expression for a derived field, e.g. ctx.app length check.",
+        },
         "note": {"type": "string", "description": "Provenance, e.g. 'from Entra ID'."},
     },
 }
@@ -93,7 +102,10 @@ _FORM_FIELD = {
 _BRANCH = {
     "type": "object",
     "properties": {
-        "label": {"type": "string", "description": "Human summary, e.g. 'Contractor + privileged app'."},
+        "label": {
+            "type": "string",
+            "description": "Human summary, e.g. 'Contractor + privileged app'.",
+        },
         "guard": {"type": "string", "description": "JS expression over ctx, first truthy wins."},
         "to": {"type": "string", "description": "Target state id."},
     },
@@ -128,12 +140,18 @@ _TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
         {
             "id": {"type": "string", "description": "Optional stable id; auto if omitted."},
             "after": {"type": "string", "description": "Insert after this state id."},
-            "kind": {"type": "string", "enum": ["form", "approval", "service", "wait", "code", "end"]},
+            "kind": {
+                "type": "string",
+                "enum": ["form", "approval", "service", "wait", "code", "end"],
+            },
             "label": {"type": "string"},
             "subtitle": {"type": "string"},
             "connectorId": {"type": "string"},
             "actionId": {"type": "string"},
-            "approver": {"type": "string", "description": "e.g. 'Reporting manager', 'VP, Engineering'."},
+            "approver": {
+                "type": "string",
+                "description": "e.g. 'Reporting manager', 'VP, Engineering'.",
+            },
             "fields": _arr(_FORM_FIELD),
             "code": {"type": "string", "description": "JS body ending in 'return ctx;'."},
             "slaHours": {"type": "integer"},
@@ -159,7 +177,12 @@ _TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
     (
         "add_branch",
         "Append one guarded branch to an existing gateway.",
-        {"gateway": {"type": "string"}, "label": {"type": "string"}, "guard": {"type": "string"}, "to": {"type": "string"}},
+        {
+            "gateway": {"type": "string"},
+            "label": {"type": "string"},
+            "guard": {"type": "string"},
+            "to": {"type": "string"},
+        },
         ["gateway", "guard", "to"],
     ),
     (
@@ -188,7 +211,12 @@ _TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
         },
         ["id"],
     ),
-    ("remove_state", "Delete a block and heal the flow around it.", {"id": {"type": "string"}}, ["id"]),
+    (
+        "remove_state",
+        "Delete a block and heal the flow around it.",
+        {"id": {"type": "string"}},
+        ["id"],
+    ),
     (
         "add_context_field",
         "Add a field to the request context. Set derived+expr for a JS-computed field.",
@@ -215,12 +243,20 @@ _TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
             "givenState": {"type": "string"},
             "event": {"type": "string"},
             "expectState": {"type": "string"},
-            "context": {"type": "string", "description": 'JSON, e.g. {"requester.type":"contractor","app":"AWS Console"}.'},
+            "context": {
+                "type": "string",
+                "description": 'JSON, e.g. {"requester.type":"contractor","app":"AWS Console"}.',
+            },
         },
         ["name", "givenState", "event", "expectState"],
     ),
     ("run_tests", "Run all tests for the open workflow (executes the real JS guards).", {}, []),
-    ("review_coverage", "Scan for unhandled (state, event) pairs and surface them as gap questions.", {}, []),
+    (
+        "review_coverage",
+        "Scan for unhandled (state, event) pairs and surface them as gap questions.",
+        {},
+        [],
+    ),
     (
         "resolve_gap",
         "Mark a coverage gap handled AFTER you've wired a real handler for it (a route, step, branch, or code block). Identify it by its id, or by the state+event pair it flagged.",
@@ -241,7 +277,12 @@ _TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
         },
         ["personaLabel"],
     ),
-    ("publish_workflow", "Publish the open workflow — makes this version live and durable.", {}, []),
+    (
+        "publish_workflow",
+        "Publish the open workflow — makes this version live and durable.",
+        {},
+        [],
+    ),
     (
         "set_panel",
         "Switch the right panel.",
@@ -320,9 +361,10 @@ class ForgeBrain(GeminiBrain):
             f"Hi {self.admin_name} — Ada here. Want to open a workflow to change, or build a new one?",
         )
 
-    async def on_app_event(self, session, event) -> None:
-        if event.name == "state_sync":
-            snapshot = (event.data or {}).get("workspace")
+    async def on_client_message(self, session, message) -> None:
+        # Ingested silently (no floor taken): we never touch message.interaction.
+        if message.type == "state_sync":
+            snapshot = (message.data or {}).get("workspace")
             self.current_state = snapshot if isinstance(snapshot, dict) else None
             self._state_received = True
             logger.info("forge: state_sync ingested (active={})", bool(self.current_state))

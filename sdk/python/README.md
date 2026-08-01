@@ -31,17 +31,51 @@ production entrypoint is a *connected socket*:
 
 ```bash
 pip install voqalize-agent-sdk               # core, pipecat-free
+pip install "voqalize-agent-sdk[adk]"        # + the Google ADK integration
 pip install "voqalize-agent-sdk[examples]"   # + deps used only by examples/
 ```
+
+## Already have an ADK agent? Wrap it
+
+If your brain is already a **Google ADK** agent, you don't port it to the `Brain`
+API. You hand the SDK a factory for the agent you already have, and it drives your
+agent's own run loop — adding only the voice concerns: one speech bracket per model
+call, barge-in, heard-truth history (what the user *actually heard*, truncated on
+interruption), and the wire. Your agent, tools, model, and prompt stay exactly as
+they are.
+
+The integration is an **optional extra** — `import voqalize.sdk` pulls none of it;
+installing `[adk]` is what pulls in `google-adk`.
+
+```python
+from google.adk.agents import LlmAgent
+from voqalize.google_adk import adk_brain
+from voqalize.sdk import serve_direct
+
+def build_agent() -> LlmAgent:                 # your existing agent, unchanged
+    return LlmAgent(name="desk", model="gemini-2.5-flash",
+                    instruction="You are a travel desk.", tools=[book_flight])
+
+make = adk_brain(build_agent, greeting="Travel desk — where to?")
+await serve_direct(make)                       # or mount make() in your own route
+```
+
+Every default is overridable and your existing framework customizations survive:
+a dynamic `greeting=` callback, your own ADK `Runner` / `SessionService` via
+`runner_factory=`, multi-agent trees, `on_resume=` to rehydrate a conversation that
+spanned an earlier call, `turn_timeout` / `error_fallback`, and `voice().action(...)`
+from inside a tool to drive the browser. For the full knob list, read the
+`adk_brain` docstring. ADK is the one shipped framework integration today.
 
 ## Layout
 
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
   `on_interaction`; the rest are optional — `on_session_start`/`on_session_end`/
-  `on_inference_finalized`/`on_app_event`/`on_error`) + `Session`/`Interaction`/
-  `Inference`/`Conversation`/`Outcome`/`AppEvent`, the `_BrainAdapter` that maps
-  `Vql*` frames ↔ callbacks, and the entry points (`serve`/`serve_direct`/
-  `make_agent`/`make_direct_agent`/`brain_factory`).
+  `on_user_idle`/`on_inference_finalized`/`on_client_message`/`on_error`) +
+  `Session`/`Interaction`/`Inference`/`Conversation`/`Outcome`/`ClientMessage`/
+  `IdleInfo`, the `_BrainAdapter` that maps `Vql*` frames ↔ callbacks, and the
+  entry points (`serve`/`serve_direct`/`make_agent`/`make_direct_agent`/
+  `brain_factory`).
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
   `SessionRunner` (two-lane in/out, system-first feeder, ack-after-dispatch,
   drop-newest + `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` /
@@ -60,6 +94,19 @@ pip install "voqalize-agent-sdk[examples]"   # + deps used only by examples/
 - `src/voqalize/sdk/wire/` — plain-dataclass `Vql*` + lifecycle/RTVI frames,
   `FrameDirection`, `is_system()`, `CortexFrameSerializer` (protobuf transcoder,
   no base class), `Wire`/`MultiplexedWire` transport, protobuf stubs.
+- `src/voqalize/_framework/` — the shared, framework-agnostic core every framework
+  integration is built on: `_FrameworkBrain` (owns `run_inference`, the one
+  primitive that spends a floor on a model turn), `voice()` (the `ContextVar`
+  accessor a native tool uses for UI side-effects), heard-truth readers, the
+  greeting/resume resolver, and the no-dead-air turn runner. Internal.
+- `src/voqalize/google_adk/` — the **Google ADK** integration (`[adk]` extra):
+  `AdkBrain` / `adk_brain(...)` plus `ScriptedLlm` for tests. See
+  [Already have an ADK agent? Wrap it](#already-have-an-adk-agent-wrap-it).
+- `src/voqalize/conformance/` — the wire-level conformance harness: `VoiceDriver`
+  (drives a brain over a real socket from the voice-runtime side, no runtime
+  needed), the scenario catalog, the MUST checks, and a `python -m
+  voqalize.conformance` CLI. Point it at your brain to prove it speaks the
+  protocol correctly.
 
 ## Core invariants
 
@@ -120,7 +167,9 @@ pip install "voqalize-agent-sdk[examples]"   # + deps used only by examples/
 - [docs/decisions.md](docs/decisions.md) — why the SDK is pipecat-free, why the Brain is the sole surface, why routing stays out of the SDK, drop-newest, etc.
 - [docs/wire-protocol.md](docs/wire-protocol.md) — envelope shapes, frame vocabulary, close codes.
 - `examples/` — runnable brains: `echo` (smallest complete brain), `travel`
-  (OpenAI Agents + Gemini), `fastapi_inbound` (mount a brain in your own FastAPI app).
+  (a hand-written `Brain` over Gemini with screen-driving tools), `travel_adk`
+  (the same agent as a native ADK `LlmAgent`, wrapped with `adk_brain`),
+  `fastapi_inbound` (mount a brain in your own FastAPI app).
 
 ## Development
 

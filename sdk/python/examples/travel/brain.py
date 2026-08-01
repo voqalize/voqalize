@@ -4,7 +4,7 @@
 The mature-agent migration: real Gemini, the real travel system prompt, and
 screen-driving tools — expressed entirely in the ``Brain`` surface (no ``Vql*``
 frames). One ``on_interaction`` runs a manual google-genai function-calling loop;
-**each LLM call is one ``interaction.inference()`` bracket** (1:1 with the wire),
+**each LLM call is one ``interaction.say()`` bracket** (1:1 with the wire),
 so a tool round-trip is naturally multi-inference: speak a short line → call the
 screen tool → speak the result. Each tool body drives the browser via
 ``interaction.action(name, {...})`` — which the SDK relays as the RTVI
@@ -268,7 +268,7 @@ class TravelBrain(Brain):
             "hotels": {},
             "selected": {},
         }
-        # Latest browser-pushed snapshot (state_sync via on_app_event) — what's
+        # Latest browser-pushed snapshot (state_sync via on_client_message) — what's
         # actually on screen, including the agent's hand edits. Grounds
         # get_active_itinerary so Priya stays in sync with manual changes.
         self.browser_state: Any = None
@@ -276,7 +276,7 @@ class TravelBrain(Brain):
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session, start) -> None:
-        async with session.inference() as inf:
+        async with session.say() as inf:
             await inf.speak(_GREETING)
 
     async def on_interaction(self, interaction) -> None:
@@ -305,13 +305,14 @@ class TravelBrain(Brain):
                     )
                 )
 
-    async def on_app_event(self, session, event) -> None:
+    async def on_client_message(self, session, message) -> None:
         # Browser→Brain feedback. The /travel console pushes a state_sync snapshot
         # on connect and after every change (incl. hand edits) — keep the latest so
-        # get_active_itinerary reflects what's actually on screen.
-        if event.name == "state_sync":
-            self.browser_state = event.data
-            logger.info("travel: state_sync from browser ({} keys)", len(event.data or {}))
+        # get_active_itinerary reflects what's actually on screen. This is the
+        # update-internal-state path: record it, don't spend the floor.
+        if message.type == "state_sync":
+            self.browser_state = message.data
+            logger.info("travel: state_sync from browser ({} keys)", len(message.data or {}))
 
     # ─── Internals ──────────────────────────────────────────────────────
 
@@ -334,7 +335,7 @@ class TravelBrain(Brain):
     ) -> tuple[list[Any], list[types.Part]]:
         fcalls: list[Any] = []
         model_parts: list[types.Part] = []
-        async with interaction.inference() as inf:
+        async with interaction.say() as inf:
             stream = await self._client.aio.models.generate_content_stream(
                 model=self._model,
                 contents=contents,  # type: ignore[arg-type]

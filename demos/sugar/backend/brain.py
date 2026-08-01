@@ -18,7 +18,8 @@ Two things worth calling out about how per-session state flows in:
     LLM-generated greeting.
   * **state_sync** — the browser echoes a compact ``state_sync`` snapshot of the
     patient's screen (what's logged, med ticks, taps the patient made by hand).
-    :meth:`on_app_event` stores the latest snapshot and :meth:`working_context`
+    :meth:`on_client_message` folds it into the context *silently* (no inference,
+    no floor taken): it stores the latest snapshot and :meth:`working_context`
     appends it as a trailing user turn so the assistant always reasons from the
     live screen — silently, no turn is triggered by a state_sync.
 
@@ -420,7 +421,7 @@ class SugarBrain(GeminiBrain):
 
     The per-scenario patient picture arrives via ``init_payload`` and is folded
     into the system instruction in :meth:`on_session_start`. The browser echoes a
-    ``state_sync`` snapshot on :meth:`on_app_event`; :meth:`working_context`
+    ``state_sync`` snapshot on :meth:`on_client_message`; :meth:`working_context`
     appends it so every turn reasons from the live screen."""
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
@@ -489,14 +490,14 @@ class SugarBrain(GeminiBrain):
             session, hello_for(self.language_name), self._greeting_instruction()
         )
 
-    async def on_app_event(self, session, event) -> None:
-        """Browser→Brain feedback. ``state_sync`` carries a compact snapshot of
-        the patient's screen — what's logged, med ticks, video position, and taps
-        the patient made by hand. Ingested *silently* (no inference); the next
-        turn's :meth:`working_context` surfaces it so the assistant reasons from
-        the live screen."""
-        if event.name == "state_sync":
-            self._ingest_state(event.data or {})
+    async def on_client_message(self, session, message) -> None:
+        """Browser→Brain client message. ``state_sync`` carries a compact snapshot
+        of the patient's screen — what's logged, med ticks, video position, and taps
+        the patient made by hand. Ingested *silently* (no floor taken, no inference);
+        the next turn's :meth:`working_context` surfaces it so the assistant reasons
+        from the live screen."""
+        if message.type == "state_sync":
+            self._ingest_state(message.data or {})
 
     def _greeting_instruction(self) -> str:
         """A one-shot prompt for the LLM-generated opening line (grounded in the

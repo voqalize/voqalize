@@ -108,6 +108,20 @@ func (FinalizeReason) EnumDescriptor() ([]byte, []int) {
 //     are not ack-gated — they have no `request_id`.
 type Envelope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// COMPATIBILITY RULE — this oneof is ADD-ONLY.
+	//
+	// PyGato and the Brains that talk to it deploy independently and promote at
+	// different times (dev-first for pygato, both-envs-at-once for the demo
+	// brains), so at any moment an old sender can be talking to a new receiver or
+	// vice versa. Protobuf drops an unknown oneof field silently, which turns a
+	// renumbering into a frame that vanishes with no error.
+	//
+	// Therefore: NEVER remove a field, NEVER renumber one, and never repurpose a
+	// retired number. A new capability is either a new OPTIONAL field appended to
+	// an existing message (absent == the old behaviour) or an entirely new frame
+	// number — and it must be DEFAULT-OFF, so a peer that has never heard of it
+	// behaves exactly as before.
+	//
 	// Types that are valid to be assigned to Body:
 	//
 	//	*Envelope_VqlStart
@@ -121,6 +135,7 @@ type Envelope struct {
 	//	*Envelope_VqlFcInProgress
 	//	*Envelope_VqlFcResult
 	//	*Envelope_VqlInteractionCompleted
+	//	*Envelope_VqlUserIdle
 	//	*Envelope_End
 	//	*Envelope_Cancel
 	//	*Envelope_Error
@@ -128,6 +143,7 @@ type Envelope struct {
 	//	*Envelope_SttUpdateSettings
 	//	*Envelope_TtsUpdateSettings
 	//	*Envelope_RtviClientMessage
+	//	*Envelope_IdleUpdateSettings
 	//	*Envelope_Ack
 	Body isEnvelope_Body `protobuf_oneof:"body"`
 	// Set by the sender on data frames that require an ack back. Zero / absent
@@ -274,6 +290,15 @@ func (x *Envelope) GetVqlInteractionCompleted() *VqlInteractionCompleted {
 	return nil
 }
 
+func (x *Envelope) GetVqlUserIdle() *VqlUserIdle {
+	if x != nil {
+		if x, ok := x.Body.(*Envelope_VqlUserIdle); ok {
+			return x.VqlUserIdle
+		}
+	}
+	return nil
+}
+
 func (x *Envelope) GetEnd() *End {
 	if x != nil {
 		if x, ok := x.Body.(*Envelope_End); ok {
@@ -332,6 +357,15 @@ func (x *Envelope) GetRtviClientMessage() *RTVIClientMessage {
 	if x != nil {
 		if x, ok := x.Body.(*Envelope_RtviClientMessage); ok {
 			return x.RtviClientMessage
+		}
+	}
+	return nil
+}
+
+func (x *Envelope) GetIdleUpdateSettings() *IdleUpdateSettings {
+	if x != nil {
+		if x, ok := x.Body.(*Envelope_IdleUpdateSettings); ok {
+			return x.IdleUpdateSettings
 		}
 	}
 	return nil
@@ -402,6 +436,10 @@ type Envelope_VqlInteractionCompleted struct {
 	VqlInteractionCompleted *VqlInteractionCompleted `protobuf:"bytes,11,opt,name=vql_interaction_completed,json=vqlInteractionCompleted,proto3,oneof"`
 }
 
+type Envelope_VqlUserIdle struct {
+	VqlUserIdle *VqlUserIdle `protobuf:"bytes,12,opt,name=vql_user_idle,json=vqlUserIdle,proto3,oneof"`
+}
+
 type Envelope_End struct {
 	// Pipeline lifecycle / transport frames (31+)
 	End *End `protobuf:"bytes,31,opt,name=end,proto3,oneof"`
@@ -436,6 +474,10 @@ type Envelope_RtviClientMessage struct {
 	RtviClientMessage *RTVIClientMessage `protobuf:"bytes,37,opt,name=rtvi_client_message,json=rtviClientMessage,proto3,oneof"`
 }
 
+type Envelope_IdleUpdateSettings struct {
+	IdleUpdateSettings *IdleUpdateSettings `protobuf:"bytes,38,opt,name=idle_update_settings,json=idleUpdateSettings,proto3,oneof"`
+}
+
 type Envelope_Ack struct {
 	// Ordering acks (40+). Not application frames; consumed by the bridge.
 	Ack *Ack `protobuf:"bytes,40,opt,name=ack,proto3,oneof"`
@@ -463,6 +505,8 @@ func (*Envelope_VqlFcResult) isEnvelope_Body() {}
 
 func (*Envelope_VqlInteractionCompleted) isEnvelope_Body() {}
 
+func (*Envelope_VqlUserIdle) isEnvelope_Body() {}
+
 func (*Envelope_End) isEnvelope_Body() {}
 
 func (*Envelope_Cancel) isEnvelope_Body() {}
@@ -476,6 +520,8 @@ func (*Envelope_SttUpdateSettings) isEnvelope_Body() {}
 func (*Envelope_TtsUpdateSettings) isEnvelope_Body() {}
 
 func (*Envelope_RtviClientMessage) isEnvelope_Body() {}
+
+func (*Envelope_IdleUpdateSettings) isEnvelope_Body() {}
 
 func (*Envelope_Ack) isEnvelope_Body() {}
 
@@ -648,6 +694,74 @@ func (x *VqlUserText) GetText() string {
 	return ""
 }
 
+// Voice-opened idle interaction. Voice detected the user has been silent past
+// the configured idle timeout and opened a fresh interaction so the Brain can
+// re-engage ("still there?"). interaction_id is Voice-minted, same monotonic
+// space as VqlUserText — the Brain responds through it and returns
+// VqlInteractionCompleted exactly like a spoken turn. level counts consecutive
+// idle escalations without intervening user speech (1 = first nudge); it resets
+// when the user speaks. idle_ms is the silence elapsed when the interaction
+// opened.
+type VqlUserIdle struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InteractionId uint64                 `protobuf:"varint,1,opt,name=interaction_id,json=interactionId,proto3" json:"interaction_id,omitempty"`
+	Level         uint32                 `protobuf:"varint,2,opt,name=level,proto3" json:"level,omitempty"`
+	IdleMs        uint32                 `protobuf:"varint,3,opt,name=idle_ms,json=idleMs,proto3" json:"idle_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VqlUserIdle) Reset() {
+	*x = VqlUserIdle{}
+	mi := &file_voqalize_frames_frames_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VqlUserIdle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VqlUserIdle) ProtoMessage() {}
+
+func (x *VqlUserIdle) ProtoReflect() protoreflect.Message {
+	mi := &file_voqalize_frames_frames_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VqlUserIdle.ProtoReflect.Descriptor instead.
+func (*VqlUserIdle) Descriptor() ([]byte, []int) {
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *VqlUserIdle) GetInteractionId() uint64 {
+	if x != nil {
+		return x.InteractionId
+	}
+	return 0
+}
+
+func (x *VqlUserIdle) GetLevel() uint32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *VqlUserIdle) GetIdleMs() uint32 {
+	if x != nil {
+		return x.IdleMs
+	}
+	return 0
+}
+
 // Pure interruption signal — field-less. Maps to pipecat's native
 // InterruptionFrame; correlation is carried by inference_id on the data frames,
 // not here.
@@ -659,7 +773,7 @@ type VqlInterruption struct {
 
 func (x *VqlInterruption) Reset() {
 	*x = VqlInterruption{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[3]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -671,7 +785,7 @@ func (x *VqlInterruption) String() string {
 func (*VqlInterruption) ProtoMessage() {}
 
 func (x *VqlInterruption) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[3]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -684,7 +798,7 @@ func (x *VqlInterruption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlInterruption.ProtoReflect.Descriptor instead.
 func (*VqlInterruption) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{3}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{4}
 }
 
 // Per-inference finalize: the text the user actually heard for ONE inference
@@ -703,7 +817,7 @@ type VqlInferenceFinalized struct {
 
 func (x *VqlInferenceFinalized) Reset() {
 	*x = VqlInferenceFinalized{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[4]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -715,7 +829,7 @@ func (x *VqlInferenceFinalized) String() string {
 func (*VqlInferenceFinalized) ProtoMessage() {}
 
 func (x *VqlInferenceFinalized) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[4]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -728,7 +842,7 @@ func (x *VqlInferenceFinalized) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlInferenceFinalized.ProtoReflect.Descriptor instead.
 func (*VqlInferenceFinalized) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{4}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *VqlInferenceFinalized) GetInteractionId() uint64 {
@@ -776,7 +890,7 @@ type VqlLLMFullResponseStart struct {
 
 func (x *VqlLLMFullResponseStart) Reset() {
 	*x = VqlLLMFullResponseStart{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[5]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -788,7 +902,7 @@ func (x *VqlLLMFullResponseStart) String() string {
 func (*VqlLLMFullResponseStart) ProtoMessage() {}
 
 func (x *VqlLLMFullResponseStart) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[5]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -801,7 +915,7 @@ func (x *VqlLLMFullResponseStart) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlLLMFullResponseStart.ProtoReflect.Descriptor instead.
 func (*VqlLLMFullResponseStart) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{5}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *VqlLLMFullResponseStart) GetInteractionId() uint64 {
@@ -829,7 +943,7 @@ type VqlLLMText struct {
 
 func (x *VqlLLMText) Reset() {
 	*x = VqlLLMText{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[6]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -841,7 +955,7 @@ func (x *VqlLLMText) String() string {
 func (*VqlLLMText) ProtoMessage() {}
 
 func (x *VqlLLMText) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[6]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -854,7 +968,7 @@ func (x *VqlLLMText) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlLLMText.ProtoReflect.Descriptor instead.
 func (*VqlLLMText) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{6}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *VqlLLMText) GetInteractionId() uint64 {
@@ -888,7 +1002,7 @@ type VqlLLMFullResponseEnd struct {
 
 func (x *VqlLLMFullResponseEnd) Reset() {
 	*x = VqlLLMFullResponseEnd{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[7]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -900,7 +1014,7 @@ func (x *VqlLLMFullResponseEnd) String() string {
 func (*VqlLLMFullResponseEnd) ProtoMessage() {}
 
 func (x *VqlLLMFullResponseEnd) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[7]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -913,7 +1027,7 @@ func (x *VqlLLMFullResponseEnd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlLLMFullResponseEnd.ProtoReflect.Descriptor instead.
 func (*VqlLLMFullResponseEnd) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{7}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *VqlLLMFullResponseEnd) GetInteractionId() uint64 {
@@ -943,7 +1057,7 @@ type VqlFunctionCallsStarted struct {
 
 func (x *VqlFunctionCallsStarted) Reset() {
 	*x = VqlFunctionCallsStarted{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[8]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -955,7 +1069,7 @@ func (x *VqlFunctionCallsStarted) String() string {
 func (*VqlFunctionCallsStarted) ProtoMessage() {}
 
 func (x *VqlFunctionCallsStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[8]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -968,7 +1082,7 @@ func (x *VqlFunctionCallsStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlFunctionCallsStarted.ProtoReflect.Descriptor instead.
 func (*VqlFunctionCallsStarted) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{8}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *VqlFunctionCallsStarted) GetInteractionId() uint64 {
@@ -1019,7 +1133,7 @@ type VqlFunctionCallInProgress struct {
 
 func (x *VqlFunctionCallInProgress) Reset() {
 	*x = VqlFunctionCallInProgress{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[9]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1031,7 +1145,7 @@ func (x *VqlFunctionCallInProgress) String() string {
 func (*VqlFunctionCallInProgress) ProtoMessage() {}
 
 func (x *VqlFunctionCallInProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[9]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1044,7 +1158,7 @@ func (x *VqlFunctionCallInProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlFunctionCallInProgress.ProtoReflect.Descriptor instead.
 func (*VqlFunctionCallInProgress) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{9}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *VqlFunctionCallInProgress) GetInteractionId() uint64 {
@@ -1095,7 +1209,7 @@ type VqlFunctionCallResult struct {
 
 func (x *VqlFunctionCallResult) Reset() {
 	*x = VqlFunctionCallResult{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[10]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1107,7 +1221,7 @@ func (x *VqlFunctionCallResult) String() string {
 func (*VqlFunctionCallResult) ProtoMessage() {}
 
 func (x *VqlFunctionCallResult) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[10]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1120,7 +1234,7 @@ func (x *VqlFunctionCallResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlFunctionCallResult.ProtoReflect.Descriptor instead.
 func (*VqlFunctionCallResult) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{10}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *VqlFunctionCallResult) GetInteractionId() uint64 {
@@ -1170,7 +1284,7 @@ type VqlInteractionCompleted struct {
 
 func (x *VqlInteractionCompleted) Reset() {
 	*x = VqlInteractionCompleted{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[11]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1182,7 +1296,7 @@ func (x *VqlInteractionCompleted) String() string {
 func (*VqlInteractionCompleted) ProtoMessage() {}
 
 func (x *VqlInteractionCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[11]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1195,7 +1309,7 @@ func (x *VqlInteractionCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VqlInteractionCompleted.ProtoReflect.Descriptor instead.
 func (*VqlInteractionCompleted) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{11}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *VqlInteractionCompleted) GetInteractionId() uint64 {
@@ -1213,7 +1327,7 @@ type End struct {
 
 func (x *End) Reset() {
 	*x = End{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[12]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1225,7 +1339,7 @@ func (x *End) String() string {
 func (*End) ProtoMessage() {}
 
 func (x *End) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[12]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1238,7 +1352,7 @@ func (x *End) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use End.ProtoReflect.Descriptor instead.
 func (*End) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{12}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{13}
 }
 
 type Cancel struct {
@@ -1250,7 +1364,7 @@ type Cancel struct {
 
 func (x *Cancel) Reset() {
 	*x = Cancel{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[13]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1262,7 +1376,7 @@ func (x *Cancel) String() string {
 func (*Cancel) ProtoMessage() {}
 
 func (x *Cancel) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[13]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1275,7 +1389,7 @@ func (x *Cancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cancel.ProtoReflect.Descriptor instead.
 func (*Cancel) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{13}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Cancel) GetReason() string {
@@ -1295,7 +1409,7 @@ type Error struct {
 
 func (x *Error) Reset() {
 	*x = Error{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[14]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1307,7 +1421,7 @@ func (x *Error) String() string {
 func (*Error) ProtoMessage() {}
 
 func (x *Error) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[14]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1320,7 +1434,7 @@ func (x *Error) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Error.ProtoReflect.Descriptor instead.
 func (*Error) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{14}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Error) GetError() string {
@@ -1350,7 +1464,7 @@ type RTVIServerMessage struct {
 
 func (x *RTVIServerMessage) Reset() {
 	*x = RTVIServerMessage{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[15]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1362,7 +1476,7 @@ func (x *RTVIServerMessage) String() string {
 func (*RTVIServerMessage) ProtoMessage() {}
 
 func (x *RTVIServerMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[15]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1375,7 +1489,7 @@ func (x *RTVIServerMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RTVIServerMessage.ProtoReflect.Descriptor instead.
 func (*RTVIServerMessage) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{15}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RTVIServerMessage) GetData() string {
@@ -1388,19 +1502,36 @@ func (x *RTVIServerMessage) GetData() string {
 // Carries pipecat's RTVIClientMessageFrame — a browser→Brain custom message
 // (e.g. state_sync). pygato's RTVI processor emits it DOWNSTREAM into the cortex
 // bridge, which forwards it to the customer agent; the SDK surfaces it as
-// `on_app_event`. `data` is the message's `d` payload, JSON-encoded.
+// `on_client_message`. `data` is the message's `d` payload, JSON-encoded.
+//
+// EVERY client message is delivered to the Brain — Voice never interprets `type`
+// and there is no respond:true/false flag. The Brain decides what to do: update
+// its own state (and let a tool read it on demand), append it to history without
+// running the model, or spend the stamped interaction_id on an inference right
+// away. Most ids never drive an inference, and that is fine. Delivered
+// fire-and-forget (no ack) so high-frequency ambient messages (e.g. state_sync)
+// never block the ordered conversation lane.
 type RTVIClientMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MsgId         string                 `protobuf:"bytes,1,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	Data          string                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"` // JSON-encoded
+	state protoimpl.MessageState `protogen:"open.v1"`
+	MsgId string                 `protobuf:"bytes,1,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	Type  string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Data  string                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"` // JSON-encoded
+	// Voice-minted session-monotonic stamp, in the same space as VqlUserText /
+	// VqlUserIdle, letting the Brain spend this message's turn on an inference.
+	//
+	// ADDED LATER — 0/absent means "unstamped", i.e. the sender is an older pygato
+	// that predates the stamp. Real ids start at 1, so 0 can never collide with a
+	// live interaction. An unstamped message still reaches the Brain and still
+	// updates its state; the Brain just cannot spend the id and must respond (if
+	// it wants to) with an agent-initiated turn instead.
+	InteractionId uint64 `protobuf:"varint,4,opt,name=interaction_id,json=interactionId,proto3" json:"interaction_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RTVIClientMessage) Reset() {
 	*x = RTVIClientMessage{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[16]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1412,7 +1543,7 @@ func (x *RTVIClientMessage) String() string {
 func (*RTVIClientMessage) ProtoMessage() {}
 
 func (x *RTVIClientMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[16]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1425,7 +1556,7 @@ func (x *RTVIClientMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RTVIClientMessage.ProtoReflect.Descriptor instead.
 func (*RTVIClientMessage) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{16}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RTVIClientMessage) GetMsgId() string {
@@ -1449,6 +1580,13 @@ func (x *RTVIClientMessage) GetData() string {
 	return ""
 }
 
+func (x *RTVIClientMessage) GetInteractionId() uint64 {
+	if x != nil {
+		return x.InteractionId
+	}
+	return 0
+}
+
 // Carries pipecat's STTUpdateSettingsFrame.settings (legacy dict path).
 // Receiver reconstructs STTUpdateSettingsFrame(settings=<decoded>); pipecat's
 // STT services convert dict → typed delta with a deprecation warning.
@@ -1462,7 +1600,7 @@ type STTUpdateSettings struct {
 
 func (x *STTUpdateSettings) Reset() {
 	*x = STTUpdateSettings{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[17]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1474,7 +1612,7 @@ func (x *STTUpdateSettings) String() string {
 func (*STTUpdateSettings) ProtoMessage() {}
 
 func (x *STTUpdateSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[17]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1487,7 +1625,7 @@ func (x *STTUpdateSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use STTUpdateSettings.ProtoReflect.Descriptor instead.
 func (*STTUpdateSettings) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{17}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *STTUpdateSettings) GetSettings() string {
@@ -1508,7 +1646,7 @@ type TTSUpdateSettings struct {
 
 func (x *TTSUpdateSettings) Reset() {
 	*x = TTSUpdateSettings{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[18]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1520,7 +1658,7 @@ func (x *TTSUpdateSettings) String() string {
 func (*TTSUpdateSettings) ProtoMessage() {}
 
 func (x *TTSUpdateSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[18]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1533,10 +1671,59 @@ func (x *TTSUpdateSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TTSUpdateSettings.ProtoReflect.Descriptor instead.
 func (*TTSUpdateSettings) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{18}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TTSUpdateSettings) GetSettings() string {
+	if x != nil {
+		return x.Settings
+	}
+	return ""
+}
+
+// Brain → Voice: (re)configure idle detection mid-session — the idle half of
+// the voice-protocol session.configure() DTO, mirroring STT/TTSUpdateSettings.
+// settings is a JSON-encoded IdlePolicy (e.g. {"timeout_ms": 30000}); Voice
+// applies it to its idle detector (pipecat UserIdleTimeoutUpdateFrame). A
+// timeout of 0 disables idle detection.
+type IdleUpdateSettings struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Settings      string                 `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"` // JSON-encoded IdlePolicy
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IdleUpdateSettings) Reset() {
+	*x = IdleUpdateSettings{}
+	mi := &file_voqalize_frames_frames_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IdleUpdateSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IdleUpdateSettings) ProtoMessage() {}
+
+func (x *IdleUpdateSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_voqalize_frames_frames_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IdleUpdateSettings.ProtoReflect.Descriptor instead.
+func (*IdleUpdateSettings) Descriptor() ([]byte, []int) {
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *IdleUpdateSettings) GetSettings() string {
 	if x != nil {
 		return x.Settings
 	}
@@ -1560,7 +1747,7 @@ type Ack struct {
 
 func (x *Ack) Reset() {
 	*x = Ack{}
-	mi := &file_voqalize_frames_frames_proto_msgTypes[19]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1759,7 @@ func (x *Ack) String() string {
 func (*Ack) ProtoMessage() {}
 
 func (x *Ack) ProtoReflect() protoreflect.Message {
-	mi := &file_voqalize_frames_frames_proto_msgTypes[19]
+	mi := &file_voqalize_frames_frames_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1772,7 @@ func (x *Ack) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ack.ProtoReflect.Descriptor instead.
 func (*Ack) Descriptor() ([]byte, []int) {
-	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{19}
+	return file_voqalize_frames_frames_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Ack) GetAckId() uint64 {
@@ -1599,7 +1786,7 @@ var File_voqalize_frames_frames_proto protoreflect.FileDescriptor
 
 const file_voqalize_frames_frames_proto_rawDesc = "" +
 	"\n" +
-	"\x1cvoqalize/frames/frames.proto\x12\x0fvoqalize.frames\"\xad\v\n" +
+	"\x1cvoqalize/frames/frames.proto\x12\x0fvoqalize.frames\"\xca\f\n" +
 	"\bEnvelope\x128\n" +
 	"\tvql_start\x18\x01 \x01(\v2\x19.voqalize.frames.VqlStartH\x00R\bvqlStart\x12B\n" +
 	"\rvql_user_text\x18\x02 \x01(\v2\x1c.voqalize.frames.VqlUserTextH\x00R\vvqlUserText\x12M\n" +
@@ -1613,14 +1800,16 @@ const file_voqalize_frames_frames_proto_rawDesc = "" +
 	"\x12vql_fc_in_progress\x18\t \x01(\v2*.voqalize.frames.VqlFunctionCallInProgressH\x00R\x0fvqlFcInProgress\x12L\n" +
 	"\rvql_fc_result\x18\n" +
 	" \x01(\v2&.voqalize.frames.VqlFunctionCallResultH\x00R\vvqlFcResult\x12f\n" +
-	"\x19vql_interaction_completed\x18\v \x01(\v2(.voqalize.frames.VqlInteractionCompletedH\x00R\x17vqlInteractionCompleted\x12(\n" +
+	"\x19vql_interaction_completed\x18\v \x01(\v2(.voqalize.frames.VqlInteractionCompletedH\x00R\x17vqlInteractionCompleted\x12B\n" +
+	"\rvql_user_idle\x18\f \x01(\v2\x1c.voqalize.frames.VqlUserIdleH\x00R\vvqlUserIdle\x12(\n" +
 	"\x03end\x18\x1f \x01(\v2\x14.voqalize.frames.EndH\x00R\x03end\x121\n" +
 	"\x06cancel\x18  \x01(\v2\x17.voqalize.frames.CancelH\x00R\x06cancel\x12.\n" +
 	"\x05error\x18! \x01(\v2\x16.voqalize.frames.ErrorH\x00R\x05error\x12T\n" +
 	"\x13rtvi_server_message\x18\" \x01(\v2\".voqalize.frames.RTVIServerMessageH\x00R\x11rtviServerMessage\x12T\n" +
 	"\x13stt_update_settings\x18# \x01(\v2\".voqalize.frames.STTUpdateSettingsH\x00R\x11sttUpdateSettings\x12T\n" +
 	"\x13tts_update_settings\x18$ \x01(\v2\".voqalize.frames.TTSUpdateSettingsH\x00R\x11ttsUpdateSettings\x12T\n" +
-	"\x13rtvi_client_message\x18% \x01(\v2\".voqalize.frames.RTVIClientMessageH\x00R\x11rtviClientMessage\x12(\n" +
+	"\x13rtvi_client_message\x18% \x01(\v2\".voqalize.frames.RTVIClientMessageH\x00R\x11rtviClientMessage\x12W\n" +
+	"\x14idle_update_settings\x18& \x01(\v2#.voqalize.frames.IdleUpdateSettingsH\x00R\x12idleUpdateSettings\x12(\n" +
 	"\x03ack\x18( \x01(\v2\x14.voqalize.frames.AckH\x00R\x03ack\x12\x1d\n" +
 	"\n" +
 	"request_id\x182 \x01(\x04R\trequestIdB\x06\n" +
@@ -1639,7 +1828,11 @@ const file_voqalize_frames_frames_proto_rawDesc = "" +
 	"\x18report_only_initial_ttfb\x18\x0f \x01(\bR\x15reportOnlyInitialTtfb\"H\n" +
 	"\vVqlUserText\x12%\n" +
 	"\x0einteraction_id\x18\x01 \x01(\x04R\rinteractionId\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\"\x11\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"c\n" +
+	"\vVqlUserIdle\x12%\n" +
+	"\x0einteraction_id\x18\x01 \x01(\x04R\rinteractionId\x12\x14\n" +
+	"\x05level\x18\x02 \x01(\rR\x05level\x12\x17\n" +
+	"\aidle_ms\x18\x03 \x01(\rR\x06idleMs\"\x11\n" +
 	"\x0fVqlInterruption\"\xdb\x01\n" +
 	"\x15VqlInferenceFinalized\x12%\n" +
 	"\x0einteraction_id\x18\x01 \x01(\x04R\rinteractionId\x12!\n" +
@@ -1689,14 +1882,17 @@ const file_voqalize_frames_frames_proto_rawDesc = "" +
 	"\x05error\x18\x01 \x01(\tR\x05error\x12\x14\n" +
 	"\x05fatal\x18\x02 \x01(\bR\x05fatal\"'\n" +
 	"\x11RTVIServerMessage\x12\x12\n" +
-	"\x04data\x18\x01 \x01(\tR\x04data\"R\n" +
+	"\x04data\x18\x01 \x01(\tR\x04data\"y\n" +
 	"\x11RTVIClientMessage\x12\x15\n" +
 	"\x06msg_id\x18\x01 \x01(\tR\x05msgId\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x12\n" +
-	"\x04data\x18\x03 \x01(\tR\x04data\"/\n" +
+	"\x04data\x18\x03 \x01(\tR\x04data\x12%\n" +
+	"\x0einteraction_id\x18\x04 \x01(\x04R\rinteractionId\"/\n" +
 	"\x11STTUpdateSettings\x12\x1a\n" +
 	"\bsettings\x18\x01 \x01(\tR\bsettings\"/\n" +
 	"\x11TTSUpdateSettings\x12\x1a\n" +
+	"\bsettings\x18\x01 \x01(\tR\bsettings\"0\n" +
+	"\x12IdleUpdateSettings\x12\x1a\n" +
 	"\bsettings\x18\x01 \x01(\tR\bsettings\"\x1c\n" +
 	"\x03Ack\x12\x15\n" +
 	"\x06ack_id\x18\x01 \x01(\x04R\x05ackId*s\n" +
@@ -1718,56 +1914,60 @@ func file_voqalize_frames_frames_proto_rawDescGZIP() []byte {
 }
 
 var file_voqalize_frames_frames_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_voqalize_frames_frames_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_voqalize_frames_frames_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_voqalize_frames_frames_proto_goTypes = []any{
 	(FinalizeReason)(0),               // 0: voqalize.frames.FinalizeReason
 	(*Envelope)(nil),                  // 1: voqalize.frames.Envelope
 	(*VqlStart)(nil),                  // 2: voqalize.frames.VqlStart
 	(*VqlUserText)(nil),               // 3: voqalize.frames.VqlUserText
-	(*VqlInterruption)(nil),           // 4: voqalize.frames.VqlInterruption
-	(*VqlInferenceFinalized)(nil),     // 5: voqalize.frames.VqlInferenceFinalized
-	(*VqlLLMFullResponseStart)(nil),   // 6: voqalize.frames.VqlLLMFullResponseStart
-	(*VqlLLMText)(nil),                // 7: voqalize.frames.VqlLLMText
-	(*VqlLLMFullResponseEnd)(nil),     // 8: voqalize.frames.VqlLLMFullResponseEnd
-	(*VqlFunctionCallsStarted)(nil),   // 9: voqalize.frames.VqlFunctionCallsStarted
-	(*VqlFunctionCallInProgress)(nil), // 10: voqalize.frames.VqlFunctionCallInProgress
-	(*VqlFunctionCallResult)(nil),     // 11: voqalize.frames.VqlFunctionCallResult
-	(*VqlInteractionCompleted)(nil),   // 12: voqalize.frames.VqlInteractionCompleted
-	(*End)(nil),                       // 13: voqalize.frames.End
-	(*Cancel)(nil),                    // 14: voqalize.frames.Cancel
-	(*Error)(nil),                     // 15: voqalize.frames.Error
-	(*RTVIServerMessage)(nil),         // 16: voqalize.frames.RTVIServerMessage
-	(*RTVIClientMessage)(nil),         // 17: voqalize.frames.RTVIClientMessage
-	(*STTUpdateSettings)(nil),         // 18: voqalize.frames.STTUpdateSettings
-	(*TTSUpdateSettings)(nil),         // 19: voqalize.frames.TTSUpdateSettings
-	(*Ack)(nil),                       // 20: voqalize.frames.Ack
+	(*VqlUserIdle)(nil),               // 4: voqalize.frames.VqlUserIdle
+	(*VqlInterruption)(nil),           // 5: voqalize.frames.VqlInterruption
+	(*VqlInferenceFinalized)(nil),     // 6: voqalize.frames.VqlInferenceFinalized
+	(*VqlLLMFullResponseStart)(nil),   // 7: voqalize.frames.VqlLLMFullResponseStart
+	(*VqlLLMText)(nil),                // 8: voqalize.frames.VqlLLMText
+	(*VqlLLMFullResponseEnd)(nil),     // 9: voqalize.frames.VqlLLMFullResponseEnd
+	(*VqlFunctionCallsStarted)(nil),   // 10: voqalize.frames.VqlFunctionCallsStarted
+	(*VqlFunctionCallInProgress)(nil), // 11: voqalize.frames.VqlFunctionCallInProgress
+	(*VqlFunctionCallResult)(nil),     // 12: voqalize.frames.VqlFunctionCallResult
+	(*VqlInteractionCompleted)(nil),   // 13: voqalize.frames.VqlInteractionCompleted
+	(*End)(nil),                       // 14: voqalize.frames.End
+	(*Cancel)(nil),                    // 15: voqalize.frames.Cancel
+	(*Error)(nil),                     // 16: voqalize.frames.Error
+	(*RTVIServerMessage)(nil),         // 17: voqalize.frames.RTVIServerMessage
+	(*RTVIClientMessage)(nil),         // 18: voqalize.frames.RTVIClientMessage
+	(*STTUpdateSettings)(nil),         // 19: voqalize.frames.STTUpdateSettings
+	(*TTSUpdateSettings)(nil),         // 20: voqalize.frames.TTSUpdateSettings
+	(*IdleUpdateSettings)(nil),        // 21: voqalize.frames.IdleUpdateSettings
+	(*Ack)(nil),                       // 22: voqalize.frames.Ack
 }
 var file_voqalize_frames_frames_proto_depIdxs = []int32{
 	2,  // 0: voqalize.frames.Envelope.vql_start:type_name -> voqalize.frames.VqlStart
 	3,  // 1: voqalize.frames.Envelope.vql_user_text:type_name -> voqalize.frames.VqlUserText
-	4,  // 2: voqalize.frames.Envelope.vql_interruption:type_name -> voqalize.frames.VqlInterruption
-	5,  // 3: voqalize.frames.Envelope.vql_inference_finalized:type_name -> voqalize.frames.VqlInferenceFinalized
-	6,  // 4: voqalize.frames.Envelope.vql_llm_start:type_name -> voqalize.frames.VqlLLMFullResponseStart
-	7,  // 5: voqalize.frames.Envelope.vql_llm_text:type_name -> voqalize.frames.VqlLLMText
-	8,  // 6: voqalize.frames.Envelope.vql_llm_end:type_name -> voqalize.frames.VqlLLMFullResponseEnd
-	9,  // 7: voqalize.frames.Envelope.vql_fc_started:type_name -> voqalize.frames.VqlFunctionCallsStarted
-	10, // 8: voqalize.frames.Envelope.vql_fc_in_progress:type_name -> voqalize.frames.VqlFunctionCallInProgress
-	11, // 9: voqalize.frames.Envelope.vql_fc_result:type_name -> voqalize.frames.VqlFunctionCallResult
-	12, // 10: voqalize.frames.Envelope.vql_interaction_completed:type_name -> voqalize.frames.VqlInteractionCompleted
-	13, // 11: voqalize.frames.Envelope.end:type_name -> voqalize.frames.End
-	14, // 12: voqalize.frames.Envelope.cancel:type_name -> voqalize.frames.Cancel
-	15, // 13: voqalize.frames.Envelope.error:type_name -> voqalize.frames.Error
-	16, // 14: voqalize.frames.Envelope.rtvi_server_message:type_name -> voqalize.frames.RTVIServerMessage
-	18, // 15: voqalize.frames.Envelope.stt_update_settings:type_name -> voqalize.frames.STTUpdateSettings
-	19, // 16: voqalize.frames.Envelope.tts_update_settings:type_name -> voqalize.frames.TTSUpdateSettings
-	17, // 17: voqalize.frames.Envelope.rtvi_client_message:type_name -> voqalize.frames.RTVIClientMessage
-	20, // 18: voqalize.frames.Envelope.ack:type_name -> voqalize.frames.Ack
-	0,  // 19: voqalize.frames.VqlInferenceFinalized.reason:type_name -> voqalize.frames.FinalizeReason
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	5,  // 2: voqalize.frames.Envelope.vql_interruption:type_name -> voqalize.frames.VqlInterruption
+	6,  // 3: voqalize.frames.Envelope.vql_inference_finalized:type_name -> voqalize.frames.VqlInferenceFinalized
+	7,  // 4: voqalize.frames.Envelope.vql_llm_start:type_name -> voqalize.frames.VqlLLMFullResponseStart
+	8,  // 5: voqalize.frames.Envelope.vql_llm_text:type_name -> voqalize.frames.VqlLLMText
+	9,  // 6: voqalize.frames.Envelope.vql_llm_end:type_name -> voqalize.frames.VqlLLMFullResponseEnd
+	10, // 7: voqalize.frames.Envelope.vql_fc_started:type_name -> voqalize.frames.VqlFunctionCallsStarted
+	11, // 8: voqalize.frames.Envelope.vql_fc_in_progress:type_name -> voqalize.frames.VqlFunctionCallInProgress
+	12, // 9: voqalize.frames.Envelope.vql_fc_result:type_name -> voqalize.frames.VqlFunctionCallResult
+	13, // 10: voqalize.frames.Envelope.vql_interaction_completed:type_name -> voqalize.frames.VqlInteractionCompleted
+	4,  // 11: voqalize.frames.Envelope.vql_user_idle:type_name -> voqalize.frames.VqlUserIdle
+	14, // 12: voqalize.frames.Envelope.end:type_name -> voqalize.frames.End
+	15, // 13: voqalize.frames.Envelope.cancel:type_name -> voqalize.frames.Cancel
+	16, // 14: voqalize.frames.Envelope.error:type_name -> voqalize.frames.Error
+	17, // 15: voqalize.frames.Envelope.rtvi_server_message:type_name -> voqalize.frames.RTVIServerMessage
+	19, // 16: voqalize.frames.Envelope.stt_update_settings:type_name -> voqalize.frames.STTUpdateSettings
+	20, // 17: voqalize.frames.Envelope.tts_update_settings:type_name -> voqalize.frames.TTSUpdateSettings
+	18, // 18: voqalize.frames.Envelope.rtvi_client_message:type_name -> voqalize.frames.RTVIClientMessage
+	21, // 19: voqalize.frames.Envelope.idle_update_settings:type_name -> voqalize.frames.IdleUpdateSettings
+	22, // 20: voqalize.frames.Envelope.ack:type_name -> voqalize.frames.Ack
+	0,  // 21: voqalize.frames.VqlInferenceFinalized.reason:type_name -> voqalize.frames.FinalizeReason
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_voqalize_frames_frames_proto_init() }
@@ -1787,6 +1987,7 @@ func file_voqalize_frames_frames_proto_init() {
 		(*Envelope_VqlFcInProgress)(nil),
 		(*Envelope_VqlFcResult)(nil),
 		(*Envelope_VqlInteractionCompleted)(nil),
+		(*Envelope_VqlUserIdle)(nil),
 		(*Envelope_End)(nil),
 		(*Envelope_Cancel)(nil),
 		(*Envelope_Error)(nil),
@@ -1794,6 +1995,7 @@ func file_voqalize_frames_frames_proto_init() {
 		(*Envelope_SttUpdateSettings)(nil),
 		(*Envelope_TtsUpdateSettings)(nil),
 		(*Envelope_RtviClientMessage)(nil),
+		(*Envelope_IdleUpdateSettings)(nil),
 		(*Envelope_Ack)(nil),
 	}
 	type x struct{}
@@ -1802,7 +2004,7 @@ func file_voqalize_frames_frames_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_voqalize_frames_frames_proto_rawDesc), len(file_voqalize_frames_frames_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

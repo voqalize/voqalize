@@ -3,12 +3,13 @@
 A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + session state). Voqalize
 dials this brain's WebSocket per session; the inherited tool-loop ``on_interaction``
 runs a manual Gemini function-calling loop where **each LLM call is one
-``interaction.inference()`` bracket** (1:1 with the wire). Each tool body drives the
+``interaction.say()`` bracket** (1:1 with the wire). Each tool body drives the
 browser via ``interaction.action(name, {...})`` — the RTVI ``ui_command`` the
 ``/orders`` UI renders — while returning order/return data to the model.
 
 Two browser→brain feedback channels beyond the standard turn arrive on
-``on_app_event`` (a browser→brain feedback hook):
+``on_client_message``. Both respond, so each takes the floor via
+``message.interaction`` (the interaction Voice pre-minted for the client message):
 
   * ``photo_upload`` — a browser-captured product photo (data URL). We decode it,
     build a working context from the heard transcript, append the image plus a
@@ -291,7 +292,7 @@ class SupportBrain(GeminiBrain):
     """One per session. Owns this session's return state + screen-driving tools.
     ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
     runs each call. Browser-captured photos + submissions arrive via
-    :meth:`on_app_event`."""
+    :meth:`on_client_message`."""
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
@@ -309,17 +310,18 @@ class SupportBrain(GeminiBrain):
     async def on_session_start(self, session, start) -> None:
         await self.say(session, _GREETING)
 
-    async def on_app_event(self, session, event) -> None:
-        """Browser→Brain feedback. ``photo_upload`` feeds a captured image into a
-        verification turn; ``return_submitted`` nudges a warm close."""
-        if event.name == "photo_upload":
-            await self._handle_photo(session, event.data or {})
-        elif event.name == "return_submitted":
-            await self._handle_submitted(session, event.data or {})
+    async def on_client_message(self, session, message) -> None:
+        """Browser→Brain client message. ``photo_upload`` feeds a captured image
+        into a verification turn; ``return_submitted`` nudges a warm close. Both
+        respond, so we take the floor via ``message.interaction``."""
+        if message.type == "photo_upload":
+            await self._handle_photo(message.interaction, message.data or {})
+        elif message.type == "return_submitted":
+            await self._handle_submitted(message.interaction, message.data or {})
 
     # ─── Browser→brain: photo verification & submission ─────────────────
 
-    async def _handle_photo(self, session, data: dict[str, Any]) -> None:
+    async def _handle_photo(self, interaction, data: dict[str, Any]) -> None:
         """Decode the browser-captured photo and run one verification turn: the
         image + a verify instruction as a final user turn, over the heard transcript.
         The tool loop lets the model call set_photo_check / fill_return_form."""
@@ -357,9 +359,9 @@ class SupportBrain(GeminiBrain):
             types.Part.from_bytes(data=image_bytes, mime_type=mime),
             types.Part(text=instruction),
         ]
-        await self._app_turn(session, parts)
+        await self._app_turn(interaction, parts)
 
-    async def _handle_submitted(self, session, data: dict[str, Any]) -> None:
+    async def _handle_submitted(self, interaction, data: dict[str, Any]) -> None:
         rma = str(data.get("rma") or "")
         logger.info("support: return_submitted rma={}", rma)
         instruction = (
@@ -367,24 +369,24 @@ class SupportBrain(GeminiBrain):
             "warmly, tell them a prepaid return label is on its way by email, and that "
             "the refund lands once the carrier scans the package. One or two sentences."
         )
-        await self._app_turn(session, [types.Part(text=instruction)])
+        await self._app_turn(interaction, [types.Part(text=instruction)])
 
-    async def _app_turn(self, session, user_parts: list[types.Part]) -> None:
-        """Run one agent-initiated turn triggered by a browser event: build the
-        working context from the heard transcript, append ``user_parts`` as a final
-        user turn, and run the same tool loop as ``respond`` — but over
-        ``session`` (interaction_id 0) since there is no user interaction here."""
-        contents = self.working_context(session)
+    async def _app_turn(self, interaction, user_parts: list[types.Part]) -> None:
+        """Run one turn triggered by a browser client message: build the working
+        context from the heard transcript, append ``user_parts`` as a final user
+        turn, and run the same tool loop as ``respond`` — over the client message's
+        floor-owning ``interaction`` (the id Voice minted for it)."""
+        contents = self.working_context(interaction)
         contents.append(types.Content(role="user", parts=user_parts))
         for _ in range(self._max_tool_hops):
-            async with session.inference() as inf:
+            async with interaction.say() as inf:
                 fcalls, model_parts = await self.stream(inf, contents)
             if model_parts:
                 contents.append(types.Content(role="model", parts=model_parts))
             if not fcalls:
                 return
             for fc in fcalls:
-                result = self.dispatch_tool(session, fc.name, dict(fc.args or {}))
+                result = self.dispatch_tool(interaction, fc.name, dict(fc.args or {}))
                 contents.append(
                     types.Content(
                         role="tool",

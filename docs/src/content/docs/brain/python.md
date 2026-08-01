@@ -19,7 +19,9 @@ Subclass `Brain` and implement callbacks. All are `async`. Only `on_interaction`
 is required.
 
 ```python
-from voqalize.sdk import Brain, Interaction, Inference, Session, SessionStart, AppEvent
+from voqalize.sdk import (
+    Brain, ClientMessage, Inference, Interaction, Session, SessionStart,
+)
 
 class MyBrain(Brain):
     async def on_session_start(self, session: Session, start: SessionStart) -> None:
@@ -31,8 +33,11 @@ class MyBrain(Brain):
     async def on_inference_finalized(self, inference: Inference) -> None:
         ...   # per-inference side effects (logging/persistence); default no-op
 
-    async def on_app_event(self, session: Session, event: AppEvent) -> None:
-        ...   # browser → brain message outside an interaction; default no-op
+    async def on_user_idle(self, interaction: Interaction) -> None:
+        ...   # the user went silent past the idle timeout; default no-op
+
+    async def on_client_message(self, session: Session, message: ClientMessage) -> None:
+        ...   # browser → brain message; default no-op
 
     async def on_session_end(self, session: Session) -> None:
         ...   # teardown; default no-op
@@ -46,24 +51,34 @@ class MyBrain(Brain):
 | `on_session_start(session, start)` | Once, at connect. `start.init` is the opaque payload from the client. Greet here. |
 | `on_interaction(interaction)` | **Required.** Once per committed user turn. A clean return emits `VqlInteractionCompleted`. |
 | `on_inference_finalized(inference)` | After each bot inference finishes; the heard transcript is already committed. |
-| `on_app_event(session, event)` | Browser sent a message outside any turn (e.g. `state_sync`, an uploaded photo). |
+| `on_user_idle(interaction)` | The user has been silent past the idle timeout. You hold the floor; re-engage or stay quiet. |
+| `on_client_message(session, message)` | Browser sent a message (e.g. `state_sync`, an uploaded photo). Replying is opt-in. |
 | `on_session_end(session)` | Session teardown. |
 | `on_error(session, error)` | Non-fatal congestion/drop signal. Never fatal. |
 
+### Who holds the floor
+
+Voice is the sole interaction initiator: it mints every `interaction_id` and hands
+the brain the floor through a callback. `on_session_start`, `on_interaction` and
+`on_user_idle` are **floor-owning** — the runtime opened the interaction for you,
+so respond freely. `on_client_message` is the exception: Voice delivers *every*
+client message with a pre-minted id but does not judge whether it deserves a
+reply. You do — see below.
+
 ## Speaking
 
-There are no `say`/`generate` helpers — all bot speech goes through an **inference
-bracket**. One bracket equals one model call (1:1 with the wire):
+All bot speech goes through a **speech bracket**, opened with `say()`. One bracket
+equals one model call (1:1 with the wire):
 
 ```python
 # Agent-initiated (greeting) — runs under interaction_id = 0.
-async with session.inference() as inf:
-    await inf.speak("Hi! How can I help?")
+async with session.say() as speech:
+    await speech.speak("Hi! How can I help?")
 
 # Response to a user turn.
-async with interaction.inference() as inf:
-    await inf.speak("You said: ")
-    await inf.speak(interaction.transcript)   # many speak() calls per bracket are fine
+async with interaction.say() as speech:
+    await speech.speak("You said: ")
+    await speech.speak(interaction.transcript)   # many speak() calls per bracket are fine
 ```
 
 Entering emits `VqlLLMFullResponseStart` (and mints the inference id); each
@@ -73,18 +88,19 @@ bracket.
 
 ## The `Session` object
 
-Passed to `on_session_start`, `on_app_event`, `on_session_end`. Attributes:
+Passed to `on_session_start`, `on_client_message`, `on_session_end`. Attributes:
 `.id: str`, `.init: dict`, `.conversation: Conversation`.
 
 ```python
-session.inference()                        # → bracket for agent-initiated speech (id 0)
+session.say()                              # → bracket for agent-initiated speech (id 0)
 session.action(name, args=None, *, callback=None) -> int
 session.configure_tts(*, voice=None, language=None, model=None) -> None
 session.configure_stt(*, language_hint=None, vad_confidence=None, ...) -> None
+session.configure_idle(*, timeout_ms=None) -> None
 ```
 
 - **`action(name, args)`** fires a UI command to the browser *outside* any
-  interaction (from `on_session_start`, `on_app_event`, or a background task).
+  interaction (from `on_session_start`, `on_client_message`, or a background task).
   Returns a brain-minted `action_id`; the browser echoes an outcome that your
   optional `callback` receives. Never blocks.
 - **`configure_tts`** changes voice/language/model for the **next** inference
@@ -92,17 +108,66 @@ session.configure_stt(*, language_hint=None, vad_confidence=None, ...) -> None
 - **`configure_stt`** applies **live** (mid-utterance safe); `language_hint` swaps
   the recognition language mid-call. See the [catalog](/docs/reference/catalog/)
   for allowed values.
+- **`configure_idle`** sets how long the user may stay silent (after the agent
+  stops speaking) before Voice opens an idle interaction and calls
+  `on_user_idle`. `timeout_ms=0` disables idle detection entirely. Fire-and-forget,
+  callable any time mid-call.
 
 ## The `Interaction` object
 
-Passed to `on_interaction`. Attributes: `.id`, `.transcript: str` (what the user
-said), `.session`, `.conversation` (the running transcript, already including this
-turn).
+Passed to `on_interaction` and `on_user_idle` (and reachable from a
+`ClientMessage`). Attributes: `.id`, `.transcript: str` (what the user said —
+empty for an idle interaction), `.session`, `.conversation` (the running
+transcript, already including this turn), `.source` (`InteractionSource.USER` /
+`IDLE` / `CLIENT_MESSAGE`), and `.idle` (an `IdleInfo` on idle interactions).
 
 ```python
-interaction.inference()                    # → bracket; one per model call
+interaction.say()                          # → bracket; one per model call
 interaction.action(name, args=None, *, callback=None) -> int   # UI command, attributed to this turn
 ```
+
+## Idle: `on_user_idle`
+
+When the user stays silent past the configured timeout, Voice opens an idle
+interaction and hands you the floor. `interaction.idle` carries `level` (1 for the
+first nudge, escalating while the silence persists, reset by any user speech) and
+`idle_ms` (elapsed silence). `interaction.transcript` is empty — nothing was said.
+
+```python
+async def on_session_start(self, session, start) -> None:
+    session.configure_idle(timeout_ms=8000)     # 0 disables idle entirely
+
+async def on_user_idle(self, interaction: Interaction) -> None:
+    idle = interaction.idle
+    if idle is not None and idle.level == 1:
+        async with interaction.say() as speech:
+            await speech.speak("Still there?")
+    # returning without speaking is fine — the silence just rides
+```
+
+## Browser messages: `on_client_message`
+
+`client.sendClientMessage(type, data)` in the browser arrives here as a
+`ClientMessage` with `.type`, `.data`, `.id` (the browser-supplied message id, may
+be empty) and `.interaction_id` (minted by Voice for this message). Voice delivers
+every message and does not interpret it — the brain decides what it's worth:
+
+```python
+async def on_client_message(self, session: Session, message: ClientMessage) -> None:
+    if message.type == "state_sync":
+        self._screen = message.data          # silent: nothing is spoken
+    elif message.type == "photo_upload":
+        # Take the floor: touching `.interaction` claims the pre-minted id, so a
+        # barge-in cancels this reply and Voice is told the interaction completed.
+        async with message.interaction.say() as speech:
+            await speech.speak("Got the photo — let me take a look.")
+```
+
+Touching `message.interaction` is what takes the floor; it is lazy and idempotent.
+If you never touch it, no interaction is driven and the id simply goes unused.
+
+`type == "action_outcome"` never reaches this callback — it is routed to the
+`callback=` you passed to the `action(...)` that fired it.
 
 ## The `Conversation` and `Message` objects
 
@@ -174,6 +239,9 @@ inbound vs. Cortex from `$VOQAL_AGENT_MODE`. See [Cortex relay](/docs/deploy/cor
   and rebuilding model context from the heard transcript.
 - **`sdk/python/examples/fastapi_inbound`** — the production inbound shape, with
   proper close-code discipline.
+- **`sdk/python/examples/travel_adk`** — the same travel agent written as a native
+  Google ADK agent, handed to the SDK's ADK adapter (`voqalize.google_adk`).
+  Install the optional extra for it: `uv pip install -e 'sdk/python[adk]'`.
 
 ## Next
 

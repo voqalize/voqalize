@@ -33,11 +33,11 @@ _TEARDOWN_ERRORS = (TimeoutError, asyncio.CancelledError, ConnectionError)
 
 class EchoBrain(Brain):
     async def on_session_start(self, session, start) -> None:
-        async with session.inference() as inf:
+        async with session.say() as inf:
             await inf.speak("hi there")
 
     async def on_interaction(self, interaction) -> None:
-        async with interaction.inference() as inf:
+        async with interaction.say() as inf:
             await inf.speak(f"echo: {interaction.transcript}")
 
 

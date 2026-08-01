@@ -3,7 +3,7 @@
 A ``voqalize.sdk.Brain`` (LLM + case/board screen-driving tools + per-session
 workspace state). Voqalize dials this brain's WebSocket per session; ``respond``
 (inherited from :class:`GeminiBrain`) runs the manual Gemini function-calling loop
-where **each LLM call is one ``interaction.inference()`` bracket** (1:1 with the
+where **each LLM call is one ``interaction.say()`` bracket** (1:1 with the
 wire): speak a short line, call a tool, feed the result back.
 
 The user here is a bank ADVISOR working a mortgage-case queue, not a customer.
@@ -16,7 +16,7 @@ pass-throughs that normalize ids, forward to the UI via
 renders), and ack the model.
 
 The browser echoes a compact workspace snapshot back via ``state_sync``
-(delivered to :meth:`on_app_event`). We keep the latest snapshot so the assistant
+(delivered to :meth:`on_client_message`). We keep the latest snapshot so the assistant
 always knows the live on-screen state — surfaced two ways: the
 ``get_advisor_context`` tool reads it on demand, and each turn's working context
 is grounded with it (folding every ``state_sync`` into the LLM context silently,
@@ -599,7 +599,7 @@ class ServicingBrain(GeminiBrain):
     screen-driving tools + this session's advisor + live workspace state.
     ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
     runs each call. The browser's ``state_sync`` snapshots arrive via
-    :meth:`on_app_event` and ground every turn's working context."""
+    :meth:`on_client_message` and ground every turn's working context."""
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
@@ -632,14 +632,14 @@ class ServicingBrain(GeminiBrain):
             f"Hi {self.advisor_name} — {DESK_NAME} here. What would you like to start on?",
         )
 
-    async def on_app_event(self, session, event) -> None:
-        """Browser→Brain feedback. ``state_sync`` carries a compact snapshot of
-        the workspace — which case/tab is on screen, pending approvals, and a lean
-        view of the cases. We keep the latest silently (no inference) so the
-        assistant always knows the live on-screen state; the snapshot grounds every
-        turn's working context and backs get_advisor_context."""
-        if event.name == "state_sync":
-            self._ingest_state(event.data or {})
+    async def on_client_message(self, session, message) -> None:
+        """Browser→Brain client message. ``state_sync`` carries a compact snapshot
+        of the workspace — which case/tab is on screen, pending approvals, and a lean
+        view of the cases. We keep the latest silently (no floor taken, no inference)
+        so the assistant always knows the live on-screen state; the snapshot grounds
+        every turn's working context and backs get_advisor_context."""
+        if message.type == "state_sync":
+            self._ingest_state(message.data or {})
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
         snapshot = data.get("workspace")

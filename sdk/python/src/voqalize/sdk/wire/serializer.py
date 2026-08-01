@@ -4,9 +4,13 @@ Converts between the SDK's plain-dataclass ``Frame`` types (Vql frames +
 lifecycle/RTVI twins, all defined in :mod:`.frames`) and ``Envelope`` protobuf
 bytes. Pipecat-free — a pure transcoder with no base class.
 
-Unknown frames are a programmer error: serializing an unsupported frame
-raises `UnsupportedFrameError`; deserializing a malformed / unknown envelope
-raises `MalformedFrameError`. Silent drops are not allowed.
+Serializing an unsupported frame is a programmer error and raises
+`UnsupportedFrameError`. On decode, `deserialize()` is strict (raises
+`MalformedFrameError` on a malformed / unknown envelope), while
+`deserialize_message()` — the entry point the wire read loops use — is
+forward-compatible: corrupt bytes still raise, but an envelope whose body this
+build does not know is logged and skipped, since a newer PyGato may legitimately
+send a frame added after this SDK shipped.
 
 In addition to pipecat frames, the wire carries `Ack` envelopes — ordering
 acks the SDK emits after the customer's `process_frame` returns for a given
@@ -21,6 +25,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from loguru import logger
+
 from . import _frames_pb2 as pb
 from .frames import (
     VQL_FRAME_CLASSES,
@@ -29,8 +35,8 @@ from .frames import (
     ErrorFrame,
     FinalizeReason,
     Frame,
+    IdleUpdateSettingsFrame,
     InterruptionFrame,
-    RTVIClientMessageFrame,
     RTVIServerMessageFrame,
     STTUpdateSettingsFrame,
     TTSUpdateSettingsFrame,
@@ -42,7 +48,9 @@ from .frames import (
     VqlLLMFullResponseEndFrame,
     VqlLLMFullResponseStartFrame,
     VqlLLMTextFrame,
+    VqlRTVIClientMessageFrame,
     VqlStartFrame,
+    VqlUserIdleFrame,
     VqlUserTextFrame,
 )
 
@@ -198,8 +206,12 @@ def _encode_rtvi_server_message(f: RTVIServerMessageFrame, env: pb.Envelope) -> 
     env.rtvi_server_message.data = json.dumps(f.data)
 
 
-def _encode_rtvi_client_message(f: RTVIClientMessageFrame, env: pb.Envelope) -> None:
+def _encode_rtvi_client_message(f: VqlRTVIClientMessageFrame, env: pb.Envelope) -> None:
+    # Envelope field 37 — the same key older pygato/SDKs already speak. The
+    # Voice-minted stamp is an appended optional field, so a peer that predates
+    # it still decodes msg_id/type/data and simply sees no interaction_id.
     m = env.rtvi_client_message
+    m.interaction_id = f.interaction_id
     m.msg_id = f.msg_id
     m.type = f.type
     m.data = json.dumps(f.data)
@@ -218,12 +230,25 @@ def _encode_tts_update_settings(f: TTSUpdateSettingsFrame, env: pb.Envelope) -> 
     env.tts_update_settings.settings = json.dumps(dict(f.settings))
 
 
+def _encode_idle_update_settings(f: IdleUpdateSettingsFrame, env: pb.Envelope) -> None:
+    env.idle_update_settings.settings = json.dumps(dict(f.settings))
+
+
+def _encode_vql_user_idle(f: VqlUserIdleFrame, env: pb.Envelope) -> None:
+    m = env.vql_user_idle
+    m.interaction_id = f.interaction_id
+    m.level = f.level
+    m.idle_ms = f.idle_ms
+
+
 # Class-keyed dispatch. VqlStartFrame is checked before StartFrame because the
 # subclass must win (otherwise StartFrame's encoder would fire and miss the
 # Vql fields).
 _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     VqlStartFrame: _encode_vql_start,
     VqlUserTextFrame: _encode_vql_user_text,
+    VqlUserIdleFrame: _encode_vql_user_idle,
+    VqlRTVIClientMessageFrame: _encode_rtvi_client_message,
     InterruptionFrame: _encode_vql_interruption,
     VqlInferenceFinalizedFrame: _encode_vql_inference_finalized,
     VqlLLMFullResponseStartFrame: _encode_vql_llm_start,
@@ -237,9 +262,9 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     CancelFrame: _encode_cancel,
     ErrorFrame: _encode_error,
     RTVIServerMessageFrame: _encode_rtvi_server_message,
-    RTVIClientMessageFrame: _encode_rtvi_client_message,
     STTUpdateSettingsFrame: _encode_stt_update_settings,
     TTSUpdateSettingsFrame: _encode_tts_update_settings,
+    IdleUpdateSettingsFrame: _encode_idle_update_settings,
 }
 
 
@@ -355,9 +380,17 @@ def _decode_rtvi_server_message(env: pb.Envelope) -> RTVIServerMessageFrame:
     return RTVIServerMessageFrame(data=json.loads(env.rtvi_server_message.data))
 
 
-def _decode_rtvi_client_message(env: pb.Envelope) -> RTVIClientMessageFrame:
+def _decode_rtvi_client_message(env: pb.Envelope) -> VqlRTVIClientMessageFrame:
     m = env.rtvi_client_message
-    return RTVIClientMessageFrame(msg_id=m.msg_id, type=m.type, data=json.loads(m.data))
+    return VqlRTVIClientMessageFrame(
+        # 0 when the sender predates the stamp (an older pygato that only sets
+        # msg_id/type/data). Voice mints real ids from 1, so 0 can never collide
+        # with a live interaction — it reads as "unstamped".
+        interaction_id=m.interaction_id,
+        msg_id=m.msg_id,
+        type=m.type,
+        data=json.loads(m.data),
+    )
 
 
 def _decode_stt_update_settings(env: pb.Envelope) -> STTUpdateSettingsFrame:
@@ -368,10 +401,21 @@ def _decode_tts_update_settings(env: pb.Envelope) -> TTSUpdateSettingsFrame:
     return TTSUpdateSettingsFrame(settings=json.loads(env.tts_update_settings.settings))
 
 
+def _decode_idle_update_settings(env: pb.Envelope) -> IdleUpdateSettingsFrame:
+    return IdleUpdateSettingsFrame(settings=json.loads(env.idle_update_settings.settings))
+
+
+def _decode_vql_user_idle(env: pb.Envelope) -> VqlUserIdleFrame:
+    m = env.vql_user_idle
+    return VqlUserIdleFrame(interaction_id=m.interaction_id, level=m.level, idle_ms=m.idle_ms)
+
+
 # Oneof-name-keyed decoder dispatch. Names match the proto field names.
 _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
     "vql_start": _decode_vql_start,
     "vql_user_text": _decode_vql_user_text,
+    "vql_user_idle": _decode_vql_user_idle,
+    "rtvi_client_message": _decode_rtvi_client_message,
     "vql_interruption": _decode_vql_interruption,
     "vql_inference_finalized": _decode_vql_inference_finalized,
     "vql_llm_start": _decode_vql_llm_start,
@@ -381,7 +425,7 @@ _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
     "vql_fc_started": _decode_vql_fc_started,
     "vql_fc_in_progress": _decode_vql_fc_in_progress,
     "vql_fc_result": _decode_vql_fc_result,
-    "rtvi_client_message": _decode_rtvi_client_message,
+    "idle_update_settings": _decode_idle_update_settings,
     "end": _decode_end,
     "cancel": _decode_cancel,
     "error": _decode_error,
@@ -420,10 +464,18 @@ class CortexFrameSerializer:
         return decoded.frame
 
     async def deserialize_message(self, data: str | bytes) -> DecodedMessage:
-        """Decode an envelope. Returns the frame (or ack) plus any request_id."""
-        return self._decode_envelope(data)
+        """Decode an envelope. Returns the frame (or ack) plus any request_id.
 
-    def _decode_envelope(self, data: str | bytes) -> DecodedMessage:
+        Forward-compatible: an envelope carrying a body this build does not know
+        (a newer peer sent a frame added after this SDK was released — protobuf
+        files it away as an unknown field, so ``WhichOneof`` reports nothing) is
+        **skipped with a warning**, not raised on. Envelope fields are add-only
+        and new frames are default-off, so ignoring one leaves the Brain behaving
+        exactly as before. Genuinely corrupt bytes still raise.
+        """
+        return self._decode_envelope(data, strict=False)
+
+    def _decode_envelope(self, data: str | bytes, *, strict: bool = True) -> DecodedMessage:
         if isinstance(data, str):
             raise MalformedFrameError("CortexFrameSerializer is binary; got str input.")
         env = pb.Envelope()
@@ -432,20 +484,34 @@ class CortexFrameSerializer:
         except Exception as exc:
             raise MalformedFrameError(f"Envelope parse failed: {exc}") from exc
 
+        request_id = env.request_id
+
         which = env.WhichOneof("body")
         if which is None:
-            raise MalformedFrameError("Envelope has no body set.")
-
-        request_id = env.request_id
+            # Either a truly empty envelope or — the case that matters — a frame
+            # a NEWER peer added after this SDK shipped: protobuf parks the
+            # unknown field aside and reports no body. Skip it.
+            if strict:
+                raise MalformedFrameError("Envelope has no body set.")
+            logger.warning(
+                "wire: envelope with no known body (unknown/newer frame?); skipping. "
+                "Envelope fields are add-only and new frames are default-off, so this is safe."
+            )
+            return DecodedMessage(frame=None, ack=None, request_id=request_id)
 
         if which == "ack":
             return DecodedMessage(frame=None, ack=env.ack.ack_id, request_id=request_id)
 
         decoder = _DECODERS.get(which)
         if decoder is None:
-            raise MalformedFrameError(
-                f"Envelope body {which!r} has no decoder. Schema and serializer drift?"
-            )
+            # In our schema but nothing maps it — a frame this side deliberately
+            # does not consume, or genuine schema/serializer drift.
+            if strict:
+                raise MalformedFrameError(
+                    f"Envelope body {which!r} has no decoder. Schema and serializer drift?"
+                )
+            logger.warning("wire: envelope body {!r} has no decoder; skipping", which)
+            return DecodedMessage(frame=None, ack=None, request_id=request_id)
         try:
             return DecodedMessage(frame=decoder(env), ack=None, request_id=request_id)
         except Exception as exc:

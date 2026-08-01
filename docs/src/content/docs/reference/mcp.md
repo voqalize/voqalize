@@ -78,7 +78,7 @@ non-loopback host).
 | Tool | Signature | Does |
 |---|---|---|
 | `create_agent` | `(tenant, name, description="", brain_url="") -> dict` | Create an agent. Returns `{agent, session_key (sk_…, once)}`. |
-| `get_agent` | `(tenant, agent_id) -> dict` | One agent, incl. STT/TTS config + `brain_url`. |
+| `get_agent` | `(tenant, agent_id) -> dict` | One agent: `id`, name, description, status, `brain_url`, Playground `test_url`, timestamps. It does **not** return STT/TTS config. |
 | `list_agents` | `(tenant, status="", limit=20) -> dict` | List agents; optional `draft\|active\|archived` filter. |
 | `update_agent` | `(tenant, agent_id, name="", description="", brain_url="") -> dict` | Rename, re-describe, and/or point the brain at a WS URL. |
 | `archive_agent` | `(tenant, agent_id) -> dict` | Soft delete (stops serving new sessions). |
@@ -113,7 +113,7 @@ walks the flow:
 1. **Prereqs** — confirm the MCP server is connected (`whoami` → `list_tenants`);
    Python 3.12+; a React app for the embed.
 2. **Draft the brain** — scaffold from `templates/brain.py`; implement
-   `on_session_start` / `on_interaction` / `on_app_event`.
+   `on_session_start` / `on_interaction` / `on_client_message`.
 3. **Pick the transport** — inbound (primary) vs. Cortex (fallback). Default to
    [inbound](/docs/deploy/brain-url/).
 4. **Create the agent** — `create_agent(tenant, name, brain_url=…)` →

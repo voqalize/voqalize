@@ -47,12 +47,12 @@ from voqalize.sdk import Brain, Interaction, Session, SessionStart
 
 class EchoBrain(Brain):
     async def on_session_start(self, session: Session, start: SessionStart) -> None:
-        async with session.inference() as inf:
-            await inf.speak("Hi! I'm an echo bot. Say something and I'll repeat it.")
+        async with session.say() as speech:
+            await speech.speak("Hi! I'm an echo bot. Say something and I'll repeat it.")
 
     async def on_interaction(self, interaction: Interaction) -> None:
-        async with interaction.inference() as inf:
-            await inf.speak(f"You said: {interaction.transcript}")
+        async with interaction.say() as speech:
+            await speech.speak(f"You said: {interaction.transcript}")
 ```
 
 That's a complete, running voice agent. Swap the body of `on_interaction` for a

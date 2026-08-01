@@ -27,6 +27,15 @@ members = [
 dev = [
     "ruff>=0.8.0",
     "pyright>=1.1.390",
+    # The framework-SDK integration (voqalize.google_adk) is lint- and type-gated
+    # here, so the shared workspace venv needs google-adk installed. It is NOT a
+    # runtime dep of the core SDK — `import voqalize.sdk` pulls none of it;
+    # customers opt in via the sdk/python `adk` extra. Only `import
+    # voqalize.google_adk` needs it. (google-genai is a transitive dep of
+    # google-adk and the ADK adapter imports its `types`, so it's declared
+    # explicitly here rather than relying on the transitive edge for pyright.)
+    "google-adk>=1.33,<2",
+    "google-genai>=1.0,<3",
 ]
 
 # ─── Ruff ─────────────────────────────────────────────────────────────────────

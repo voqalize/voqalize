@@ -58,22 +58,46 @@ The composite `(interaction_id, inference_id)` uniquely names any piece of the
 bot's output. In the SDK these map to the `Session`, `Interaction`, and
 `Inference` objects your callbacks receive.
 
-## Speaking: the inference bracket
+## Speaking: the speech bracket
 
-Your brain never sends raw text frames. It opens an **inference bracket** and
-calls `speak`:
+Your brain never sends raw text frames. It opens a **speech bracket** with `say()`
+and calls `speak`:
 
 ```python
-async with interaction.inference() as inf:   # one bracket == one LLM call
-    await inf.speak("Let me check that for you.")
+async with interaction.say() as speech:   # one bracket == one LLM call
+    await speech.speak("Let me check that for you.")
 ```
 
 Entering the bracket tells the runtime a bot response is starting; each `speak`
 streams a chunk of text (the runtime does TTS and word timing); exiting closes the
 response. Open a fresh bracket per model call — never wrap a multi-call run in one.
 
-Agent-initiated speech (the greeting) uses `session.inference()` instead, which
-runs under the `interaction_id = 0` sentinel.
+Agent-initiated speech (the greeting) uses `session.say()` instead, which runs
+under the `interaction_id = 0` sentinel.
+
+## Who opens an interaction
+
+The runtime is the sole interaction initiator — it mints every `interaction_id`.
+There are four triggers, and three of them hand your brain the floor outright:
+
+| Trigger | Callback | Floor |
+|---|---|---|
+| Session start (the greeting) | `on_session_start` | yours (`interaction_id = 0`) |
+| The user stopped speaking | `on_interaction` | yours |
+| The user went silent past the idle timeout | `on_user_idle` | yours |
+| The browser sent a client message | `on_client_message` | **opt-in** |
+
+**Idle.** Set the silence window with `session.configure_idle(timeout_ms=…)`
+(`0` disables it). When it elapses the runtime opens an interaction with no
+transcript and calls `on_user_idle`; `interaction.idle` carries the escalation
+`level` (1, 2, 3… while the silence persists) and the elapsed `idle_ms`. Nudge, or
+return without speaking and let the silence ride.
+
+**Client messages.** `client.sendClientMessage(type, data)` in the browser arrives
+at `on_client_message` as a `ClientMessage` (`.type`, `.data`, `.interaction_id`).
+The runtime pre-mints an id for every one but never decides whether it deserves a
+reply — the brain does. Read the data and return to ingest it silently, or touch
+`message.interaction` to claim the floor and answer on it.
 
 ## The `Vql*` frames
 
@@ -85,7 +109,8 @@ work through SDK objects, but it helps to know the shape:
 | `VqlStart` (session begins, with payload) | `VqlLLMFullResponseStart` / `VqlLLMText` / `VqlLLMFullResponseEnd` (a spoken response) |
 | `VqlUserText` (a committed user turn) | `VqlFunctionCallsStarted` / `…Result` (tool calls, for UI + transcript) |
 | `VqlInferenceFinalized` (what the user *actually heard*) | `RTVIServerMessage` (a UI command to the browser) |
-| `RTVIClientMessage` (a browser app event) | `STTUpdateSettings` / `TTSUpdateSettings` (mid-call reconfigure) |
+| `RTVIClientMessage` (a browser client message, carrying its minted `interaction_id`) | `STTUpdateSettings` / `TTSUpdateSettings` / `IdleUpdateSettings` (mid-call reconfigure) |
+| `VqlUserIdle` (the user went silent past the timeout) | |
 
 Full field-level detail is in the [Voice protocol reference](/docs/reference/voice-protocol/).
 

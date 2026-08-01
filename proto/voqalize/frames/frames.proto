@@ -42,6 +42,19 @@ option go_package = "github.com/voqalize/voqalize/sdk/go/wire/framespb;framespb"
 //   • Lifecycle frames (Vql*Start/Interruption/End/Cancel) and SystemFrames
 //     are not ack-gated — they have no `request_id`.
 message Envelope {
+  // COMPATIBILITY RULE — this oneof is ADD-ONLY.
+  //
+  // PyGato and the Brains that talk to it deploy independently and promote at
+  // different times (dev-first for pygato, both-envs-at-once for the demo
+  // brains), so at any moment an old sender can be talking to a new receiver or
+  // vice versa. Protobuf drops an unknown oneof field silently, which turns a
+  // renumbering into a frame that vanishes with no error.
+  //
+  // Therefore: NEVER remove a field, NEVER renumber one, and never repurpose a
+  // retired number. A new capability is either a new OPTIONAL field appended to
+  // an existing message (absent == the old behaviour) or an entirely new frame
+  // number — and it must be DEFAULT-OFF, so a peer that has never heard of it
+  // behaves exactly as before.
   oneof body {
     // Vql application frames (1 – 30)
     VqlStart                   vql_start            = 1;
@@ -55,6 +68,7 @@ message Envelope {
     VqlFunctionCallInProgress  vql_fc_in_progress   = 9;
     VqlFunctionCallResult      vql_fc_result        = 10;
     VqlInteractionCompleted    vql_interaction_completed = 11;
+    VqlUserIdle                vql_user_idle        = 12;
 
     // Pipeline lifecycle / transport frames (31+)
     End    end    = 31;
@@ -70,6 +84,7 @@ message Envelope {
     STTUpdateSettings  stt_update_settings  = 35;
     TTSUpdateSettings  tts_update_settings  = 36;
     RTVIClientMessage  rtvi_client_message  = 37;
+    IdleUpdateSettings idle_update_settings = 38;
 
     // Ordering acks (40+). Not application frames; consumed by the bridge.
     Ack ack = 40;
@@ -117,6 +132,20 @@ enum FinalizeReason {
 message VqlUserText {
   uint64 interaction_id = 1;
   string text           = 2;
+}
+
+// Voice-opened idle interaction. Voice detected the user has been silent past
+// the configured idle timeout and opened a fresh interaction so the Brain can
+// re-engage ("still there?"). interaction_id is Voice-minted, same monotonic
+// space as VqlUserText — the Brain responds through it and returns
+// VqlInteractionCompleted exactly like a spoken turn. level counts consecutive
+// idle escalations without intervening user speech (1 = first nudge); it resets
+// when the user speaks. idle_ms is the silence elapsed when the interaction
+// opened.
+message VqlUserIdle {
+  uint64 interaction_id = 1;
+  uint32 level          = 2;
+  uint32 idle_ms        = 3;
 }
 
 // Pure interruption signal — field-less. Maps to pipecat's native
@@ -208,11 +237,29 @@ message RTVIServerMessage {
 // Carries pipecat's RTVIClientMessageFrame — a browser→Brain custom message
 // (e.g. state_sync). pygato's RTVI processor emits it DOWNSTREAM into the cortex
 // bridge, which forwards it to the customer agent; the SDK surfaces it as
-// `on_app_event`. `data` is the message's `d` payload, JSON-encoded.
+// `on_client_message`. `data` is the message's `d` payload, JSON-encoded.
+//
+// EVERY client message is delivered to the Brain — Voice never interprets `type`
+// and there is no respond:true/false flag. The Brain decides what to do: update
+// its own state (and let a tool read it on demand), append it to history without
+// running the model, or spend the stamped interaction_id on an inference right
+// away. Most ids never drive an inference, and that is fine. Delivered
+// fire-and-forget (no ack) so high-frequency ambient messages (e.g. state_sync)
+// never block the ordered conversation lane.
 message RTVIClientMessage {
   string msg_id = 1;
   string type   = 2;
   string data   = 3;  // JSON-encoded
+
+  // Voice-minted session-monotonic stamp, in the same space as VqlUserText /
+  // VqlUserIdle, letting the Brain spend this message's turn on an inference.
+  //
+  // ADDED LATER — 0/absent means "unstamped", i.e. the sender is an older pygato
+  // that predates the stamp. Real ids start at 1, so 0 can never collide with a
+  // live interaction. An unstamped message still reaches the Brain and still
+  // updates its state; the Brain just cannot spend the id and must respond (if
+  // it wants to) with an agent-initiated turn instead.
+  uint64 interaction_id = 4;
 }
 
 // Carries pipecat's STTUpdateSettingsFrame.settings (legacy dict path).
@@ -227,6 +274,15 @@ message STTUpdateSettings {
 // Agent pushes DOWNSTREAM so it reaches pygato's TTS (downstream of the bridge).
 message TTSUpdateSettings {
   string settings = 1;  // JSON-encoded dict
+}
+
+// Brain → Voice: (re)configure idle detection mid-session — the idle half of
+// the voice-protocol session.configure() DTO, mirroring STT/TTSUpdateSettings.
+// settings is a JSON-encoded IdlePolicy (e.g. {"timeout_ms": 30000}); Voice
+// applies it to its idle detector (pipecat UserIdleTimeoutUpdateFrame). A
+// timeout of 0 disables idle detection.
+message IdleUpdateSettings {
+  string settings = 1;  // JSON-encoded IdlePolicy
 }
 
 // ─── Ordering acks ────────────────────────────────────────────────────────────

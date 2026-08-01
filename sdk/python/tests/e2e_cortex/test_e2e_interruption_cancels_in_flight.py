@@ -27,7 +27,7 @@ class StreamingResponder(Brain):
     async def on_interaction(self, interaction) -> None:
         iid = interaction.id
         StreamingResponder.timeline.append(f"start:{iid}")
-        async with interaction.inference() as inf:
+        async with interaction.say() as inf:
             await inf.speak("chunk-1")
             try:
                 await asyncio.Event().wait()  # block until cancelled

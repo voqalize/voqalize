@@ -8,7 +8,8 @@ splices each incoming session to this brain. Auth is a short-lived RS256 JWT (or
 static ``ak_…``) that the relay verifies.
 
 Point an agent's ``brain_url`` at this relay pool (via the Voqalize MCP
-``set_brain_url`` tool or the console) and the voice runtime routes calls here.
+``update_agent`` tool — ``update_agent(tenant, agent_id, brain_url=...)`` — or the
+console) and the voice runtime routes calls here.
 """
 
 from __future__ import annotations

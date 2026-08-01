@@ -8,13 +8,13 @@
  *   • brain → screen: the brain's `interaction.action("add_to_cart", {...})`
  *     arrives here as an `onServerMessage` payload and updates the cart,
  *   • screen → brain: a tap calls `session.sendMessage(...)`, which the brain
- *     receives in `on_app_event`.
+ *     receives in `on_client_message`.
  *
  * The message shapes are fixed by the platform:
  *   brain → browser (onServerMessage):
  *     { type: "ui_command", action: <name>, action_id: <int>, ...args }
  *   browser → brain (sendMessage(type, data)):
- *     arrives as on_app_event(name=type, data=data)
+ *     arrives as on_client_message(message.type, message.data)
  *
  * Publishable keys are origin-allowlisted and safe in the browser — mint one with
  * the `create_api_key` MCP tool (kind="publishable", allowed_origins=[...]).

@@ -4,7 +4,7 @@ A ``voqalize.sdk.Brain`` (LLM + document-driving tools + per-session
 reading-position state). Voqalize dials this brain's WebSocket
 per session; ``respond`` (inherited from :class:`GeminiBrain`) runs the manual
 Gemini function-calling loop where **each LLM call is one
-``interaction.inference()`` bracket** (1:1 with the wire): speak a short line,
+``interaction.say()`` bracket** (1:1 with the wire): speak a short line,
 call a document tool, feed the result back.
 
 Every tool body drives the browser via ``interaction.action(name, {...})`` — the
@@ -13,8 +13,8 @@ add a comment, propose a redline, insert a clause, fan out diligence tasks, rout
 for approval, extract obligations, summarize the session).
 
 Beyond the standard turn, the browser streams the lawyer's *reading position*:
-the clause centered in their viewport arrives on :meth:`on_app_event` as a
-``clause_focus`` event. Unlike the support brain's ``photo_upload`` — which
+the clause centered in their viewport arrives on :meth:`on_client_message` as a
+``clause_focus`` message. Unlike the support brain's ``photo_upload`` — which
 triggers an LLM turn — ``clause_focus`` is **silent**: it never runs an
 inference, it just folds the current reading position into the working context so
 an ambiguous question ("what does this mean", "is this okay") is grounded in the
@@ -500,7 +500,7 @@ class LegalBrain(GeminiBrain):
     this session's reading-position (clause_focus) state. ``on_interaction`` is the
     inherited tool-loop ``respond``; :meth:`dispatch_tool` runs each call. The
     browser's silent ``clause_focus`` reading-position stream arrives on
-    :meth:`on_app_event` and is folded into the working context (never an inference).
+    :meth:`on_client_message` and is folded into the working context (never an inference).
     """
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
@@ -519,12 +519,13 @@ class LegalBrain(GeminiBrain):
         # Open with a fixed quiet line (no LLM call on the start path).
         await self.say(session, _GREETING)
 
-    async def on_app_event(self, session, event) -> None:
-        """Browser→Brain feedback. ``clause_focus`` carries the clause centered in
-        the lawyer's viewport; we fold it into context SILENTLY (no inference) so the
-        copilot always knows the current reading position without speaking unprompted."""
-        if event.name == "clause_focus":
-            self._ingest_focus(event.data or {})
+    async def on_client_message(self, session, message) -> None:
+        """Browser→Brain client message. ``clause_focus`` carries the clause centered
+        in the lawyer's viewport; we fold it into context SILENTLY (no floor taken, no
+        inference) so the copilot always knows the current reading position without
+        speaking unprompted."""
+        if message.type == "clause_focus":
+            self._ingest_focus(message.data or {})
 
     # ─── Browser→brain: reading-position sync (silent awareness) ────────
 

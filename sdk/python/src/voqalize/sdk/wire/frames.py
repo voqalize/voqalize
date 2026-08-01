@@ -130,16 +130,15 @@ class TTSUpdateSettingsFrame(Frame):
 
 
 @dataclass
-class RTVIClientMessageFrame(Frame):
-    """A browser-originated RTVI client message relayed to the brain.
+class IdleUpdateSettingsFrame(Frame):
+    """Mid-session idle-detection reconfigure. Brain → Voice.
 
-    ``client.sendClientMessage(type, data)`` in the browser → PyGato → here.
-    Also carries UI-action outcomes (``type == "action_outcome"``).
+    The idle half of ``session.configure()`` — mirrors STT/TTSUpdateSettings.
+    ``settings`` is the JSON-encoded ``IdlePolicy`` Voice applies to its idle
+    detector (e.g. ``{"timeout_ms": 30000}``; ``timeout_ms == 0`` disables idle).
     """
 
-    msg_id: str = ""
-    type: str = ""
-    data: Any = None
+    settings: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -163,6 +162,46 @@ class VqlUserTextFrame(Frame):
 
     interaction_id: int = 0
     text: str = ""
+
+
+@dataclass
+class VqlUserIdleFrame(Frame):
+    """Voice-opened idle interaction (the user went silent past the idle timeout).
+
+    Voice mints the session-monotonic ``interaction_id`` (same space as
+    ``VqlUserTextFrame``) and hands the brain the floor to re-engage. The brain
+    responds through it and returns ``VqlInteractionCompletedFrame`` exactly like
+    a spoken turn. ``level`` counts consecutive idle escalations without
+    intervening user speech (1 = first nudge); ``idle_ms`` is the silence elapsed
+    when it opened.
+    """
+
+    interaction_id: int = 0
+    level: int = 1
+    idle_ms: int = 0
+
+
+@dataclass
+class VqlRTVIClientMessageFrame(Frame):
+    """A browser-originated RTVI client message relayed to the brain.
+
+    ``client.sendClientMessage(type, data)`` in the browser → PyGato → here. Voice
+    wraps **every** client message with a session-monotonic ``interaction_id``
+    (same space as :class:`VqlUserTextFrame` / :class:`VqlUserIdleFrame`) — one of
+    the four triggers that can open an interaction. Voice does not interpret the
+    message: it always delivers it and mints the id "for posterity"; the brain
+    decides whether to merely update state, append to history, or spend the floor
+    and respond (most ids never drive an inference, and that is fine).
+
+    ``type`` is the message name and ``data`` its JSON object payload. UI-action
+    outcomes ride this frame too (``type == "action_outcome"``); the SDK routes
+    those to their pending ``action`` callback rather than the generic handler.
+    """
+
+    interaction_id: int = 0
+    msg_id: str = ""
+    type: str = ""
+    data: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -279,6 +318,8 @@ def is_system(frame: Frame) -> bool:
 VQL_FRAME_CLASSES: tuple[type, ...] = (
     VqlStartFrame,
     VqlUserTextFrame,
+    VqlUserIdleFrame,
+    VqlRTVIClientMessageFrame,
     VqlInferenceFinalizedFrame,
     VqlLLMFullResponseStartFrame,
     VqlLLMTextFrame,

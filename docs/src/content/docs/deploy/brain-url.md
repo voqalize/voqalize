@@ -39,8 +39,11 @@ two legs by a pool key in the URL. See [Cortex relay](/docs/deploy/cortex/).
 Point an agent at your brain with the MCP server:
 
 ```text
-set_brain_url(agent_id="06a2…", brain_url="wss://brain.example.com")
+update_agent(tenant="acme", agent_id="06a2…", brain_url="wss://brain.example.com")
 ```
+
+There is no `set_brain_url` tool — `brain_url` is a field on the agent, set with
+`create_agent` up front or `update_agent` later.
 
 Rules:
 

@@ -27,7 +27,8 @@ subclass pipecat frames — but nothing on the SDK side depends on pipecat.) Two
 **User stimulus (DOWNSTREAM into the customer):**
 
 - `VqlUserTextFrame` — committed user utterance opening an interaction. Fields: `interaction_id`, `text`.
-- native `InterruptionFrame` (not a `Vql*` class) — user interrupted. Field-less; rides the system-priority lane, bypasses queued data frames, and cancels the in-flight `on_interaction` task(s) (the `CancelledError` unwinds their open `inference()` brackets). The `_BrainAdapter` echoes an `InterruptionFrame` back UPSTREAM on the outbound system lane — pygato's drain barrier. Correlation lives on `inference_id`, not on the interrupt.
+- `VqlUserIdleFrame` — Voice opened an interaction because the user went silent past the idle timeout. Fields: `interaction_id` (Voice-minted, same space as `VqlUserText`), `level` (consecutive idle escalations without intervening speech; 1 = first nudge), `idle_ms`. Surfaced as `on_user_idle(interaction)`; the brain responds through it and completes it exactly like a spoken turn. Off by default — the brain opts in with `session.configure_idle(timeout_ms=…)`, which rides an `IdleUpdateSettingsFrame` UPSTREAM (JSON `{"timeout_ms": …}`; `0` disables).
+- native `InterruptionFrame` (not a `Vql*` class) — user interrupted. Field-less; rides the system-priority lane, bypasses queued data frames, and cancels the in-flight `on_interaction` task(s) (the `CancelledError` unwinds their open `say()` brackets). The `_BrainAdapter` echoes an `InterruptionFrame` back UPSTREAM on the outbound system lane — pygato's drain barrier. Correlation lives on `inference_id`, not on the interrupt.
 
 **Bot response (UPSTREAM from the customer; the brain stamps both ids):**
 
