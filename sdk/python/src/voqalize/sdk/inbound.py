@@ -12,7 +12,7 @@ verifies, and runs each connection through the *same* transport-neutral loop
 
     class MyBrain(Brain):
         async def on_interaction(self, interaction):
-            async with interaction.inference() as inf:
+            async with interaction.say() as inf:
                 await inf.speak(f"You said: {interaction.transcript}")
 
     asyncio.run(serve_direct(MyBrain, host="0.0.0.0", port=8787))

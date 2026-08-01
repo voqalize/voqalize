@@ -11,24 +11,30 @@ objects passed into your callbacks.
 
     class Greeter(Brain):
         async def on_session_start(self, session, start):
-            async with session.inference() as inf:        # agent-initiated greeting
-                await inf.speak("Hi! How can I help?")
+            async with session.say() as speech:      # the opening line the agent speaks
+                await speech.speak("Hi! How can I help?")
 
         async def on_interaction(self, interaction):
             # interaction.conversation is the faithful (heard) transcript, already
             # incl. this user turn — build your LLM prompt from it. The SDK commits
             # the assistant's HEARD text for you; you keep no parallel history.
             history = interaction.conversation.messages
-            async with interaction.inference() as inf:
-                await inf.speak(f"You said: {interaction.transcript}")
+            async with interaction.say() as speech:
+                await speech.speak(f"You said: {interaction.transcript}")
 
     serve(Greeter, api_key="ak_...", cortex_url="wss://.../agent")
+
+``say()`` is the raw-speech bracket: *you* supply the words and the SDK streams
+them to Voice for TTS. (A framework integration's ``run_inference()`` is the
+sibling verb where the *model* supplies the words — see ``voqalize.google_adk``
+et al.; under the hood it opens the same ``say()`` bracket per model call.)
 
 Mapping onto the *current* Vql wire (the implemented subset of the protocol):
 
 - ``interaction``                 ← ``VqlUserTextFrame`` (transcript opens it; Voice mints ``interaction_id``)
-- ``async with .inference()``     → ``VqlLLMFullResponseStart`` … ``VqlLLMFullResponseEnd`` (mints ``inference_id``)
-- ``inf.speak(text)``             → ``VqlLLMTextFrame``
+- ``on_client_message``           ← ``VqlRTVIClientMessageFrame`` (every browser message; Voice mints ``interaction_id`` for posterity, respond by touching ``message.interaction``)
+- ``async with .say()``           → ``VqlLLMFullResponseStart`` … ``VqlLLMFullResponseEnd`` (mints ``inference_id``)
+- ``speech.speak(text)``          → ``VqlLLMTextFrame``
 - ``on_inference_finalized``      ← ``VqlInferenceFinalizedFrame`` (``heard`` / ``interrupted``)
 - ``session.conversation``        ← faithful transcript: SDK commits user@start + assistant ``heard``@finalize
 - barge-in                        ← native ``InterruptionFrame`` → cancels the interaction coroutine + echoes the drain barrier
@@ -36,8 +42,9 @@ Mapping onto the *current* Vql wire (the implemented subset of the protocol):
   ``session.action(...)``         → ``RTVIServerMessageFrame`` (UI command to the browser; fire-and-forget,
                                     session-scoped — use ``session.action`` for renders outside any interaction)
 
-Agent-initiated speech (the opening greeting) uses ``interaction_id = 0`` — the
-"no user stimulus" sentinel; Voice mints user interaction ids from 1.
+The opening greeting is speech the agent emits at **session start** — an
+interaction the runtime opens before any user turn. It rides ``interaction_id =
+0`` (the "no user stimulus" sentinel; Voice mints user interaction ids from 1).
 """
 
 from __future__ import annotations
@@ -45,8 +52,9 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from loguru import logger
@@ -55,10 +63,11 @@ from .engine import Emitter, SessionAdapter, SessionFactory
 from .inbound import DirectAgent
 from .outbound import CortexAgent
 from .wire import (
+    EndFrame,
     ErrorFrame,
     Frame,
+    IdleUpdateSettingsFrame,
     InterruptionFrame,
-    RTVIClientMessageFrame,
     RTVIServerMessageFrame,
     STTUpdateSettingsFrame,
     TTSUpdateSettingsFrame,
@@ -67,7 +76,9 @@ from .wire import (
     VqlLLMFullResponseEndFrame,
     VqlLLMFullResponseStartFrame,
     VqlLLMTextFrame,
+    VqlRTVIClientMessageFrame,
     VqlStartFrame,
+    VqlUserIdleFrame,
     VqlUserTextFrame,
 )
 
@@ -75,6 +86,10 @@ from .wire import (
 ACTION_OUTCOME = "action_outcome"
 
 GREETING_INTERACTION_ID = 0
+# Same sentinel, read from the other direction: a client message carrying
+# interaction_id 0 was sent by a PyGato that predates the Voice-minted stamp.
+# Real ids start at 1, so 0 unambiguously means "unstamped".
+UNSTAMPED_INTERACTION_ID = 0
 
 
 # ─── Objects passed into callbacks ────────────────────────────────────────────
@@ -88,14 +103,30 @@ class SessionStart:
 
 
 @dataclass
-class AppEvent:
-    """Out-of-interaction UI→Brain feedback, delivered to ``on_app_event``.
+class IdleInfo:
+    """Why an idle interaction opened, reachable as ``interaction.idle`` inside
+    ``on_user_idle``.
 
-    ``data`` is the message's JSON object payload (the wire always carries an
-    object — matches the Go SDK's ``map[string]any``)."""
+    ``level`` counts consecutive idle escalations without intervening user speech
+    (1 = first nudge; resets when the user speaks), so the Brain can escalate —
+    a gentle "still there?" at level 1, a wrap-up at level 3. ``idle_ms`` is the
+    silence elapsed when Voice opened the interaction."""
 
-    name: str
-    data: dict[str, Any]
+    level: int
+    idle_ms: int
+
+
+class InteractionSource(StrEnum):
+    """What made Voice open an interaction (``interaction.source``).
+
+    Voice is the sole interaction initiator; this says *which* of the triggers
+    fired. ``USER`` carries a ``transcript``; ``IDLE`` carries ``idle``;
+    ``CLIENT_MESSAGE`` carries ``client_message`` (both with an empty
+    ``transcript`` — no words were spoken)."""
+
+    USER = "user"
+    IDLE = "idle"
+    CLIENT_MESSAGE = "client_message"
 
 
 @dataclass
@@ -150,6 +181,35 @@ class Conversation:
         """The committed transcript so far (a copy; mutate via the SDK only)."""
         return list(self._messages)
 
+    def seed(self, messages: Iterable[Message]) -> None:
+        """Prepend prior-session turns so a logical conversation resumes (RESUME).
+
+        A voice session is one WebSocket, but a *logical* conversation may span
+        several — a dropped call reconnects, or a caller phones back. When it does,
+        the new session boots with an empty record, so the model would start cold.
+        Hand the SDK the :attr:`messages` you persisted from the previous session
+        (keyed by your own stable identifier, which you read from
+        ``session.init`` / ``SessionStart.init``) and they become the heard-truth
+        prefix: the faithful record spans sessions and the very first prompt of the
+        new session already carries prior context.
+
+        Seed **once, at session start, before any live interaction** — it is the
+        opening state, not a mid-call edit. A framework integration
+        (``adk_brain`` / ``genai_brain`` / ``agents_brain``) wires this to its
+        ``on_resume`` hook and also seeds its own tool-aware transcript from the
+        same messages; a hand-written :class:`Brain` calls it directly from
+        ``on_session_start``. No-op on an empty iterable; raises if the record
+        already holds a turn (seed before the first one)."""
+        seeded = list(messages)
+        if not seeded:
+            return
+        if self._messages:
+            raise RuntimeError(
+                "Conversation.seed() must run before any turn is recorded "
+                "(seed prior-session history at session start, not mid-conversation)"
+            )
+        self._messages.extend(Message(m.role, m.content) for m in seeded)
+
     def _record_user(self, text: str) -> None:
         self._messages.append(Message("user", text))
 
@@ -182,16 +242,27 @@ class Inference:
         self.interaction = interaction
 
 
-class _InferenceBracket:
-    """`async with <interaction|session>.inference() as inf:` — emits the
-    ``VqlLLMFullResponse{Start,End}`` pair and mints the ``inference_id``."""
+class _SpeechBracket:
+    """`async with <interaction|session>.say() as speech:` — one unit of bot
+    speech. Emits the ``VqlLLMFullResponse{Start,End}`` pair, mints the
+    ``inference_id``, and streams whatever text you ``speak()`` to Voice for TTS."""
 
-    def __init__(self, proc: _BrainAdapter, interaction_id: int, inference_id: int) -> None:
+    def __init__(
+        self,
+        proc: _BrainAdapter,
+        interaction_id: int,
+        inference_id: int,
+        interaction: Interaction | None = None,
+    ) -> None:
         self._proc = proc
         self.interaction_id = interaction_id
         self.id = inference_id
+        # The owning interaction (None for agent-initiated/greeting speech), so a
+        # non-empty speak() can record that the turn produced audio — the signal the
+        # no-dead-air guard reads.
+        self._interaction = interaction
 
-    async def __aenter__(self) -> _InferenceBracket:
+    async def __aenter__(self) -> _SpeechBracket:
         await self._proc._emit(
             VqlLLMFullResponseStartFrame(interaction_id=self.interaction_id, inference_id=self.id)
         )
@@ -202,6 +273,8 @@ class _InferenceBracket:
         times within one bracket; Voice TTS chunks + word-times it for playout."""
         if not text:
             return
+        if self._interaction is not None:
+            self._interaction._spoke = True
         await self._proc._emit(
             VqlLLMTextFrame(interaction_id=self.interaction_id, inference_id=self.id, text=text)
         )
@@ -228,12 +301,35 @@ class Session:
         # a late action.outcome (even in a later interaction) still fires.
         self._action_seq = 0
         self._action_callbacks: dict[int, Callable[[Outcome], Any]] = {}
+        # Set once the Brain asks to end the session, so end() is idempotent.
+        self._ended = False
 
-    def inference(self) -> _InferenceBracket:
-        """Open an agent-initiated inference (e.g. the opening greeting),
-        scoped to the ``interaction_id = 0`` sentinel."""
+    def end(self, reason: str = "agent_ended") -> None:
+        """End the session from the Brain side (e.g. after a goodbye).
+
+        Emits a bare ``End`` frame on the normal lane, so it drains behind any
+        speech you queued first (say your goodbye, *then* ``session.end()``).
+        Voice tears the call down in response and closes the socket; the Brain's
+        :meth:`Brain.on_session_end` fires on that close. Idempotent — a second
+        call is a no-op.
+
+        ``reason`` is logged locally for your own diagnostics; it does **not**
+        cross the wire (the ``End`` frame carries no reason field — Voice never
+        needs the Brain's rationale to hang up).
+        """
+        if self._ended:
+            return
+        self._ended = True
+        logger.info("session {}: ending (reason={})", self.id, reason)
+        self._proc._emit_nowait(EndFrame())
+
+    def say(self) -> _SpeechBracket:
+        """Open a session-scoped speech bracket — *you* supply the words (e.g. the
+        opening greeting). Scoped to the ``interaction_id = 0`` sentinel (session
+        start, no user stimulus). ``async with session.say() as speech: await
+        speech.speak(...)``."""
         self._greeting_inferences += 1
-        return _InferenceBracket(self._proc, GREETING_INTERACTION_ID, self._greeting_inferences)
+        return _SpeechBracket(self._proc, GREETING_INTERACTION_ID, self._greeting_inferences)
 
     def action(
         self,
@@ -246,7 +342,7 @@ class Session:
 
         Actions are session-scoped and floor-free (they carry no audio), so the
         Brain may emit one any time — a render from ``on_session_start``, an
-        ``on_app_event`` handler, or an async-backend task that resolves after the
+        ``on_client_message`` handler, or an async-backend task that resolves after the
         triggering interaction has ended. Same fire-and-return semantics as
         :meth:`Interaction.action`, minus the originating-turn attribution: it
         emits the RTVI ``ui_command`` envelope pygato relays
@@ -351,6 +447,24 @@ class Session:
             return
         self._proc._emit_nowait(STTUpdateSettingsFrame(settings=settings))
 
+    def configure_idle(self, *, timeout_ms: int | None = None) -> None:
+        """(Re)configure idle detection mid-call — the idle half of the
+        voice-protocol ``session.configure()`` DTO (mirrors :meth:`configure_tts`
+        / :meth:`configure_stt`).
+
+        Fire-and-forget. ``timeout_ms`` is the silence after Voice stops speaking
+        before it opens an idle interaction (``on_user_idle``). Pass ``0`` to
+        disable idle detection entirely (no idle interactions until you re-enable
+        it). Only pass the fields you want to change; omitted fields keep their
+        current value.
+        """
+        settings: dict[str, Any] = {}
+        if timeout_ms is not None:
+            settings["timeout_ms"] = timeout_ms
+        if not settings:
+            return
+        self._proc._emit_nowait(IdleUpdateSettingsFrame(settings=settings))
+
     def _register_action(self, callback: Callable[[Outcome], Any] | None) -> int:
         self._action_seq += 1
         if callback is not None:
@@ -362,10 +476,18 @@ class Session:
 
 
 class Interaction:
-    """One committed user stimulus + the handle you respond through.
+    """One Voice-opened interaction + the handle you respond through.
 
-    Passed into ``on_interaction``. ``transcript`` is the committed utterance;
-    open one ``inference()`` bracket per LLM call.
+    Reached one of two ways: passed into a floor-owning callback the trigger
+    routed to (``on_interaction`` / ``on_user_idle``), or materialized on demand
+    from ``on_client_message`` via ``message.interaction`` when the Brain chooses
+    to respond. ``source`` says which trigger opened it; open one ``say()`` bracket
+    per LLM call.
+
+    - ``source == USER`` — ``transcript`` is the committed utterance.
+    - ``source == IDLE`` — ``idle`` carries the escalation; ``transcript`` empty.
+    - ``source == CLIENT_MESSAGE`` — ``client_message`` carries the browser
+      message; ``transcript`` empty.
     """
 
     def __init__(
@@ -375,13 +497,33 @@ class Interaction:
         transcript: str,
         session: Session,
         brain: Brain,
+        *,
+        source: InteractionSource = InteractionSource.USER,
+        idle: IdleInfo | None = None,
+        client_message: ClientMessage | None = None,
+        unstamped: bool = False,
     ) -> None:
         self._proc = proc
         self.id = interaction_id
+        # True only for a CLIENT_MESSAGE interaction whose id Voice never minted
+        # (an older PyGato that predates the stamp — see
+        # `_materialize_client_interaction`). Such a turn degrades to plain
+        # agent-initiated speech: `say()` delegates to the session bracket, and
+        # nothing is registered or completed against the sentinel id.
+        self._unstamped = unstamped
         self.transcript = transcript
         self.session = session
         self.brain = brain
+        # Which trigger opened this interaction, plus the trigger-specific payload
+        # (exactly one of idle/client_message is set for the non-USER sources).
+        self.source = source
+        self.idle = idle
+        self.client_message = client_message
         self._inferences = 0
+        # Flipped by a bracket's first non-empty speak(); read by the no-dead-air
+        # guard to tell a silent turn (empty/safety-blocked model reply) from a
+        # spoken one.
+        self._spoke = False
 
     @property
     def conversation(self) -> Conversation:
@@ -391,11 +533,26 @@ class Interaction:
         ``on_interaction`` runs) — build your LLM prompt straight from it."""
         return self.session.conversation
 
-    def inference(self) -> _InferenceBracket:
-        """Open one inference bracket — 1:1 with an LLM call. Never wrap a whole
-        multi-inference run in a single bracket."""
+    @property
+    def spoke(self) -> bool:
+        """Whether this interaction has emitted any non-empty bot speech yet. The
+        no-dead-air guard speaks a fallback for a turn that ends having said
+        nothing (an empty or safety-blocked model reply that raised no error)."""
+        return self._spoke
+
+    def say(self) -> _SpeechBracket:
+        """Open one speech bracket for this interaction — 1:1 with an LLM call
+        (mints one ``inference_id``). Never wrap a whole multi-inference run in a
+        single bracket; open one per model call."""
+        if self._unstamped:
+            # No Voice-minted id to spend: borrow the session's agent-initiated
+            # bracket (the same one `session.say()` uses) so inference ids stay
+            # unique across the session instead of restarting at 1 per message.
+            bracket = self.session.say()
+            bracket._interaction = self  # keep no-dead-air `spoke` tracking
+            return bracket
         self._inferences += 1
-        return _InferenceBracket(self._proc, self.id, self._inferences)
+        return _SpeechBracket(self._proc, self.id, self._inferences, interaction=self)
 
     def action(
         self,
@@ -417,6 +574,63 @@ class Interaction:
         return self.session.action(name, args, callback=callback)
 
 
+class ClientMessage:
+    """A browser→Brain client message, delivered to ``on_client_message``.
+
+    ``client.sendClientMessage(type, data)`` in the browser → Voice → here. Voice
+    wraps **every** client message with a session-monotonic ``interaction_id`` and
+    delivers it unconditionally — it does not interpret the message or decide
+    whether it warrants a reply. That is the Brain's call:
+
+    - **update internal state** (a tool reads it later) — just read ``data`` and
+      return; nothing is spoken and the pre-minted id is spent on posterity only;
+    - **append to your model history without responding** — your own concern
+      (e.g. add an event to your framework session), then return;
+    - **respond right away** — touch :attr:`interaction` to take the floor and
+      ``say()`` / ``run_inference`` on it. No coordination with Voice is needed.
+
+    ``type`` is the message name, ``data`` its JSON object payload, ``id`` the
+    browser-supplied message id (may be empty). ``interaction_id`` is the id Voice
+    minted for this message.
+    """
+
+    def __init__(
+        self,
+        proc: _BrainAdapter,
+        session: Session,
+        brain: Brain,
+        *,
+        interaction_id: int,
+        msg_id: str,
+        msg_type: str,
+        data: dict[str, Any],
+    ) -> None:
+        self._proc = proc
+        self._session = session
+        self._brain = brain
+        self.interaction_id = interaction_id
+        self.id = msg_id
+        self.type = msg_type
+        self.data = data
+        # Materialized lazily by `interaction` — its presence is how the adapter
+        # knows the Brain took the floor and must emit VqlInteractionCompleted.
+        self._interaction: Interaction | None = None
+
+    @property
+    def interaction(self) -> Interaction:
+        """Take the floor for this message and get the interaction to respond on.
+
+        Lazily materializes the interaction Voice pre-minted for this message
+        (``source == CLIENT_MESSAGE``) and registers it, so a barge-in cancels your
+        response and Voice is told the interaction completed when your
+        ``on_client_message`` returns. Idempotent — repeated reads return the same
+        interaction. If you never read it, no interaction is driven (responding is
+        opt-in); the id stays unused."""
+        if self._interaction is None:
+            self._interaction = self._proc._materialize_client_interaction(self)
+        return self._interaction
+
+
 # ─── The Brain contract ───────────────────────────────────────────────────────
 
 
@@ -427,18 +641,63 @@ class Brain:
 
     Only ``on_interaction`` is required. ``on_inference_finalized`` is the core
     companion (commit the heard text). The rest are optional.
+
+    **Floor management (guidance, not enforced).** Voice is the sole interaction
+    initiator: it mints every ``interaction_id`` and hands the brain the floor via
+    a callback. Respond — invoke the LLM, ``say()`` — only when you hold the floor.
+    There are four triggers that open (or can open) an interaction, all
+    Voice-minted:
+
+    1. ``on_session_start`` — session start, the opening greeting (``interaction_id = 0``).
+    2. ``on_interaction`` — the user stopped speaking.
+    3. ``on_user_idle`` — the user went silent past the idle timeout.
+    4. ``on_client_message`` — a browser client message.
+
+    The first three are floor-owning: the runtime opens the interaction and hands
+    it to you. ``on_client_message`` is different — Voice delivers **every** client
+    message (with a pre-minted ``interaction_id``) but does not decide whether it
+    deserves a reply. You do: update state and return, or take the floor by
+    touching ``message.interaction`` and responding. Speaking or invoking the model
+    outside a floor you hold is bad practice — the SDK won't stop you (it logs a
+    warning), but you're talking out of turn.
     """
 
     async def on_session_start(self, session: Session, start: SessionStart) -> None:
-        """Setup; may open agent-initiated speech via ``session.inference()``."""
+        """Setup, and the floor-owning callback for the opening greeting. The
+        runtime opens a session-start interaction before any user turn; speak the
+        greeting via ``session.say()``."""
 
     async def on_session_end(self, session: Session) -> None:
-        """Teardown."""
+        """Teardown. Called once when the session ends (any reason). Best-effort:
+        exceptions are swallowed and it never blocks the socket from closing."""
 
     async def on_interaction(self, interaction: Interaction) -> None:
-        """The core callback. Input is complete; invoke the LLM and respond via
-        ``interaction.inference()``. Return ⇒ the interaction is complete."""
+        """The core callback — the user stopped speaking, so you hold the floor.
+        Input is complete; invoke the LLM and respond via ``interaction.say()``.
+        Return ⇒ the interaction is complete."""
         raise NotImplementedError("Brain.on_interaction must be implemented")
+
+    async def on_user_idle(self, interaction: Interaction) -> None:
+        """The user went silent past the idle timeout — you hold the floor to
+        re-engage. ``interaction.idle`` (``IdleInfo``) carries the escalation
+        ``level`` (1 = first nudge; escalates while silence persists) and elapsed
+        ``idle_ms``; ``interaction.transcript`` is empty (nothing was said).
+        Respond via ``interaction.say()`` (a nudge like "Are you still there?"),
+        or return without speaking to let the silence ride. Default: no-op (the
+        interaction completes silently and Voice keeps listening).
+
+        Configure the timeout with ``session.configure_idle(timeout_ms=…)``."""
+
+    async def on_client_message(self, session: Session, message: ClientMessage) -> None:
+        """A browser client message arrived (``client.sendClientMessage``). Voice
+        delivers **every** one with a pre-minted ``interaction_id`` and lets you
+        decide: read ``message.type`` / ``message.data`` and update state (return
+        without speaking), or take the floor by touching ``message.interaction`` and
+        responding via ``interaction.say()`` / ``run_inference``. Default: no-op
+        (state the browser pushes is ignored unless you handle it).
+
+        UI-action outcomes (``type == "action_outcome"``) never reach here — they
+        are routed to the pending ``action`` callback that fired them."""
 
     async def on_inference_finalized(self, inference: Inference) -> None:
         """Per-inference side-effect hook (logging, durable store, metrics).
@@ -447,9 +706,6 @@ class Brain:
         ``inference.heard`` to ``session.conversation`` (the heard-text contract,
         framework-enforced) before this fires. You no longer need to maintain a
         parallel committed-history; read ``interaction.conversation`` instead."""
-
-    async def on_app_event(self, session: Session, event: AppEvent) -> None:
-        """Out-of-interaction UI→Brain feedback (e.g. ``state_sync``)."""
 
     async def on_error(self, session: Session, error: ErrorFrame) -> None:
         """Non-fatal runtime signal (e.g. backpressure drop). Default: ignore.
@@ -508,17 +764,27 @@ class _BrainAdapter:
             # Commit the user utterance to the faithful transcript at interaction
             # start, before on_interaction runs (framework-enforced record).
             self._session.conversation._record_user(frame.text)
-            interaction = Interaction(
-                self, frame.interaction_id, frame.text, self._session, self._brain
+            self._open_interaction(
+                Interaction(self, frame.interaction_id, frame.text, self._session, self._brain)
             )
-            self._interactions[frame.interaction_id] = interaction
-            # SPAWN (don't await): handle_frame must return promptly so the runner
-            # acks this frame and PyGato's flow control keeps moving; the response
-            # streams out of the spawned task via emitter.send.
-            task = asyncio.create_task(
-                self._run_interaction(interaction), name=f"interaction-{frame.interaction_id}"
+            return
+
+        if isinstance(frame, VqlUserIdleFrame):
+            # Voice opened an idle interaction (user silent past the timeout). No
+            # user utterance to record — nothing was said — so the faithful
+            # transcript stays clean; only the brain's response inferences land.
+            assert self._session is not None
+            self._open_interaction(
+                Interaction(
+                    self,
+                    frame.interaction_id,
+                    "",
+                    self._session,
+                    self._brain,
+                    source=InteractionSource.IDLE,
+                    idle=IdleInfo(level=frame.level, idle_ms=frame.idle_ms),
+                )
             )
-            self._pending[frame.interaction_id] = _Pending(interaction, task)
             return
 
         if isinstance(frame, InterruptionFrame):
@@ -547,17 +813,29 @@ class _BrainAdapter:
             await self._brain.on_inference_finalized(inference)
             return
 
-        if isinstance(frame, RTVIClientMessageFrame) and self._session is not None:
+        if isinstance(frame, VqlRTVIClientMessageFrame) and self._session is not None:
             # action.outcome (App→Brain): correlated by action_id, routed to the
-            # pending callback — never surfaced as a generic app event.
+            # pending callback — never surfaced as a generic client message.
             if frame.type == ACTION_OUTCOME:
                 self._dispatch_action_outcome(frame.data)
                 return
-            # Other browser→Brain custom messages (out-of-interaction UI feedback,
-            # e.g. state_sync). `type` is the message name; `data` its payload (the
-            # wire always carries an object; coerce a missing payload to ``{}``).
-            data = frame.data if isinstance(frame.data, dict) else {}
-            await self._brain.on_app_event(self._session, AppEvent(name=frame.type, data=data))
+            # Every other browser→Brain message goes to on_client_message with the
+            # interaction_id Voice minted. `type` is the message name; `data` its
+            # JSON object payload (the wire dataclass always carries an object).
+            # Spawned so an ambient high-frequency message never blocks the ordered
+            # conversation lane, and a response the Brain chooses to run streams out
+            # of the spawned task.
+            self._spawn_client_message(
+                ClientMessage(
+                    self,
+                    self._session,
+                    self._brain,
+                    interaction_id=frame.interaction_id,
+                    msg_id=frame.msg_id,
+                    msg_type=frame.type,
+                    data=frame.data,
+                )
+            )
             return
 
         if isinstance(frame, ErrorFrame) and self._session is not None:
@@ -603,13 +881,141 @@ class _BrainAdapter:
             self._bg_tasks.add(task)
             task.add_done_callback(self._bg_tasks.discard)
 
+    def _open_interaction(self, interaction: Interaction) -> None:
+        """Register a Voice-opened interaction and SPAWN its floor-owning callback.
+
+        Shared by the two Voice-opened triggers (user text / idle). Spawn (don't
+        await): handle_frame must return promptly so the runner acks the opening
+        frame and PyGato's flow control keeps moving; the response streams out of
+        the spawned task via emitter.send. (Client messages take their own spawn
+        path — see :meth:`_spawn_client_message`.)
+        """
+        self._interactions[interaction.id] = interaction
+        task = asyncio.create_task(
+            self._run_interaction(interaction), name=f"interaction-{interaction.id}"
+        )
+        self._pending[interaction.id] = _Pending(interaction, task)
+
+    def _spawn_client_message(self, message: ClientMessage) -> None:
+        """Deliver a client message to ``on_client_message`` without blocking inbound
+        dispatch.
+
+        Spawned (not awaited) for the same reason interactions are: handle_frame
+        must return promptly. Unlike an interaction this does **not** open one up
+        front — Voice minted the id, but whether it drives an interaction is the
+        Brain's call. The task tracks the message so, when the callback returns,
+        completion is emitted iff the Brain took the floor (materialized
+        ``message.interaction``)."""
+        task = asyncio.create_task(
+            self._run_client_message(message),
+            name=f"client-message-{message.interaction_id}",
+        )
+        self._bg_tasks.add(task)
+        task.add_done_callback(self._bg_tasks.discard)
+
+    def _materialize_client_interaction(self, message: ClientMessage) -> Interaction:
+        """Open + register the interaction a Brain takes the floor with from
+        ``on_client_message`` (via ``message.interaction``).
+
+        Bound to the ``interaction_id`` Voice pre-minted for the message, registered
+        in ``_interactions`` (so its inference finalize resolves) and ``_pending``
+        against the running ``on_client_message`` task (so a barge-in cancels the
+        response and teardown tears it down), exactly like a Voice-opened
+        interaction — the only difference is who opened it.
+
+        **Unstamped messages.** An older PyGato predates the stamp and sends the
+        message with no ``interaction_id`` (0 on the wire — Voice mints real ids
+        from 1, so the sentinel is unambiguous). There is no id to spend, so the
+        interaction degrades to exactly the pre-stamp behaviour: the Brain's code
+        is unchanged and its speech still goes out, but as an *agent-initiated*
+        turn on the session bracket. It is deliberately NOT registered in
+        ``_interactions``/``_pending`` and emits no ``VqlInteractionCompleted`` —
+        the old PyGato never opened an interaction, so nothing is waiting on one,
+        and completing the sentinel id would be a frame it cannot place."""
+        assert self._session is not None
+        unstamped = message.interaction_id == UNSTAMPED_INTERACTION_ID
+        interaction = Interaction(
+            self,
+            message.interaction_id,
+            "",
+            self._session,
+            self._brain,
+            source=InteractionSource.CLIENT_MESSAGE,
+            client_message=message,
+            unstamped=unstamped,
+        )
+        if unstamped:
+            logger.debug(
+                "brain: client message {!r} arrived unstamped (pre-stamp PyGato); "
+                "responding as an agent-initiated turn",
+                message.type,
+            )
+            return interaction
+        self._interactions[interaction.id] = interaction
+        task = asyncio.current_task()
+        if task is not None:
+            self._pending[interaction.id] = _Pending(interaction, task)
+        return interaction
+
+    async def _run_client_message(self, message: ClientMessage) -> None:
+        try:
+            await self._brain.on_client_message(message._session, message)
+        except asyncio.CancelledError:
+            raise  # barge-in cut a response mid-flight (Voice finalizes the cut inference)
+        except Exception:
+            # A brain that raises must not leave a taken floor hanging: if it
+            # materialized the interaction, Voice is waiting on its completion, so
+            # complete it (the turn failed but the session stays live). If it never
+            # took the floor, there is nothing to complete.
+            logger.exception("brain: on_client_message failed for message type {}", message.type)
+            await self._complete_client_interaction(message)
+        else:
+            # Completion is emitted ONLY if the brain spent the floor. A message
+            # that merely updated state drives no interaction — its pre-minted id
+            # stays unused (posterity), and Voice never waits on it.
+            await self._complete_client_interaction(message)
+        finally:
+            if message._interaction is not None and not message._interaction._unstamped:
+                self._pending.pop(message._interaction.id, None)
+
+    async def _complete_client_interaction(self, message: ClientMessage) -> None:
+        """Tell Voice the floor taken from ``on_client_message`` is done.
+
+        No-op when the brain never took the floor, and when the message was
+        unstamped — a pre-stamp PyGato opened no interaction, so there is nothing
+        waiting on a completion and the sentinel id names nothing."""
+        interaction = message._interaction
+        if interaction is None or interaction._unstamped:
+            return
+        await self._emit(VqlInteractionCompletedFrame(interaction_id=interaction.id))
+
+    async def _dispatch_interaction(self, interaction: Interaction) -> None:
+        """Route an interaction to its floor-owning callback by ``source``.
+
+        Only the two Voice-opened triggers reach here (``USER`` / ``IDLE``); a
+        ``CLIENT_MESSAGE`` interaction is materialized and driven from within
+        ``on_client_message`` (see :meth:`_run_client_message`), not spawned here."""
+        if interaction.source is InteractionSource.IDLE:
+            await self._brain.on_user_idle(interaction)
+        else:
+            await self._brain.on_interaction(interaction)
+
     async def _run_interaction(self, interaction: Interaction) -> None:
         try:
-            await self._brain.on_interaction(interaction)
+            await self._dispatch_interaction(interaction)
         except asyncio.CancelledError:
             raise  # barge-in: skip interaction.completed (Voice finalizes the cut inference)
         except Exception:
+            # A brain that raises must NOT leave the interaction hanging: Voice waits
+            # on VqlInteractionCompleted to unmute and accept the next turn, so a
+            # dropped completion is dead air for the whole rest of the call. We log
+            # the fault and still complete the interaction — the brain failed this
+            # turn, but the session stays live. (Barge-in is the one path that
+            # legitimately skips completion; it re-raises above and never reaches
+            # here.) Adapters layer a spoken fallback on top; the core guarantee is
+            # only that the turn always terminates.
             logger.exception("brain: on_interaction failed for interaction {}", interaction.id)
+            await self._emit(VqlInteractionCompletedFrame(interaction_id=interaction.id))
         else:
             # Clean return ⇒ the brain is done responding to the whole interaction.
             await self._emit(VqlInteractionCompletedFrame(interaction_id=interaction.id))

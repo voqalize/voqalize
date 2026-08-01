@@ -13,6 +13,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The Google ADK framework integration (`voqalize.google_adk`). Optional by
+# design: the core SDK stays dependency-light (`import voqalize.sdk` pulls no
+# ADK). Install with `pip install voqalize-agent-sdk[adk]` to hand the SDK a
+# native ADK agent and let it drive the run loop.
+adk = ["google-adk>=1.33,<2"]
 # Deps used only by the bundled examples/ — never imported by the SDK itself.
 # `examples/travel` (OpenAI Agents + Gemini), `examples/fastapi_inbound`
 # (FastAPI/uvicorn).
@@ -40,3 +45,6 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Make the project root importable so tests can drive the client-authored
+# `examples/` demos (e.g. the ADK travel agent) as a customer would import them.
+pythonpath = ["."]

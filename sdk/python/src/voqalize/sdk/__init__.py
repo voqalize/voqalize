@@ -18,11 +18,13 @@ docs/voice-protocol.md §SDK for the design.
 """
 
 from .brain import (
-    AppEvent,
     Brain,
+    ClientMessage,
     Conversation,
+    IdleInfo,
     Inference,
     Interaction,
+    InteractionSource,
     Message,
     Outcome,
     Session,
@@ -40,14 +42,16 @@ from .outbound import CortexAgent
 from .session import Channel, SessionRejected, run_session
 
 __all__ = [
-    "AppEvent",
     "Brain",
     "Channel",
+    "ClientMessage",
     "Conversation",
     "CortexAgent",
     "DirectAgent",
+    "IdleInfo",
     "Inference",
     "Interaction",
+    "InteractionSource",
     "Message",
     "Outcome",
     "Session",
