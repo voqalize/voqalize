@@ -39,10 +39,16 @@ one special type is `"action_outcome"` (`{action_id, status, result}`) — if yo
 passed a `callback=` to `.action(...)`, it's routed there instead of
 `on_client_message`.
 
-Install (pre-release — the SDK isn't on PyPI yet): install it editable from the
-Voqalize agent-sdk source you were given —
-  pip install -e path/to/agent-sdk        (or: uv add --editable path/to/agent-sdk)
+Install (pre-release — the SDK isn't on PyPI yet). Clone
+https://github.com/voqalize/voqalize and install it editable from the clone:
+
+  uv pip install -e voqalize/sdk/python   (or: pip install -e voqalize/sdk/python)
+
 Once it's published the name will be `voqalize-agent-sdk`. Requires Python ≥ 3.12.
+The SDK is pipecat-free — installing it pulls no audio dependencies.
+
+Test it without a microphone: `templates/test_brain.py` drives this Brain over a
+real socket in text mode using `voqalize.conformance`. Write the tests as you go.
 """
 
 from __future__ import annotations
