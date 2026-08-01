@@ -90,10 +90,11 @@ class MyBrain(Brain):
             self._cart = message.data.get("cart")
 
         # To ANSWER a client message instead, take the floor by touching
-        # `message.interaction` — the interaction Voice pre-minted for it:
-        #   if message.type == "help_tapped":
-        #       async with message.interaction.say() as speech:
-        #           await speech.speak("Sure — what do you need a hand with?")
+        # `message.interaction` — the interaction Voice pre-minted for it. Only
+        # touching it makes the agent speak; the branch above stays silent.
+        if message.type == "help_tapped":
+            async with message.interaction.say() as speech:
+                await speech.speak("Sure — what do you need a hand with?")
 
     async def on_user_idle(self, interaction: Interaction) -> None:
         # The user has gone quiet. `interaction.idle.level` escalates (1, 2, 3…)
