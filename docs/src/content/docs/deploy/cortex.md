@@ -77,18 +77,6 @@ Pass **exactly one** credential: a static `api_key` (`ak_…`), or an
 ...)` is the sugar wrapper; `serve_auto(MyBrain, mode="cortex")` selects this
 transport from `$VOQAL_AGENT_MODE`.
 
-### Go
-
-```go
-agent, _ := cortex.New(cortex.Options{
-    Version:   "1.0.0",
-    CortexURL: "wss://cortex.dev.voqalize.com/agent",
-    APIKey:    "ak_…",            // OR AuthorizationProvider: func() string { ... }
-    Logger:    logger,
-}, brain.Factory(func() brain.Brain { return &MyBrain{} }, logger))
-agent.Run(ctx)
-```
-
 ## No tunnel needed
 
 Because the brain dials out, Cortex needs no public inbound route and no tunnel —

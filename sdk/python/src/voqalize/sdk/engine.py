@@ -2,11 +2,9 @@
 
 One :class:`SessionRunner` per session. It owns the two-lane inbound buffer, the
 two-lane outbound buffer, the feeder loop that dispatches frames to the session
-adapter, and ack-gating. This is the Python port of the Go SDK's
-``cortex/session.go`` ``sessionRunner`` + ``runnerHost`` seam: the *same* runner
-drives both transports (the outbound Cortex relay and the inbound direct server),
-which differ only in the small :class:`RunnerHost` seam (who signals the writer
-and who tears the session down).
+adapter, and ack-gating. The *same* runner drives both transports (the outbound
+Cortex relay and the inbound direct server), which differ only in the small
+:class:`RunnerHost` seam (who signals the writer and who tears the session down).
 
 Design (identical to the previous pipecat-pipeline version, minus pipecat):
 
@@ -47,7 +45,7 @@ DEFAULT_SYSTEM_MAXSIZE = 32  # tripwire; never expected to fill
 _LOW_WATERMARK_FRAC = 0.5
 
 # Every brain→wire frame is sent DOWNSTREAM (1); PyGato flips ui_command to
-# UPSTREAM on its own read. (Matches the Go SDK.)
+# UPSTREAM on its own read.
 OUT_DIRECTION = FrameDirection.DOWNSTREAM
 
 

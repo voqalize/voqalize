@@ -5,7 +5,7 @@ description: Stream from your LLM, call tools, drive the browser UI, react to cl
 
 The echo brain shows the shape; a real agent adds a model, tools, and — often — a
 screen it drives. This page covers the patterns you'll actually use. Examples are
-Python; the Go equivalents are one-to-one (see [Build a brain (Go)](/docs/brain/go/)).
+Python.
 
 ## Stream from your LLM
 
@@ -72,8 +72,7 @@ args are spread onto the top level. See [React client SDK](/docs/client/react/)
 for rendering these and replying with `action_outcome`.
 
 To act **outside** a turn — render something the moment the call connects, or in
-response to a browser event — use `session.action` (Python; the Go SDK does not
-expose this yet):
+response to a browser event — use `session.action`:
 
 ```python
 async def on_session_start(self, session, start):

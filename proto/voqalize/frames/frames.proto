@@ -7,7 +7,6 @@
 // Cortex itself is byte-opaque; this schema is consumed only by the two
 // endpoints. Generated stubs are committed alongside each SDK:
 //   - sdk/python/src/voqalize/sdk/wire/_frames_pb2.py
-//   - sdk/go/wire/framespb/frames.pb.go
 //
 // Regenerate with `make proto` (root Makefile, driven by `buf generate`).
 //
@@ -22,10 +21,6 @@
 syntax = "proto3";
 
 package voqalize.frames;
-
-// Go stubs for the native (no-pipecat) agent SDK. `make proto` copies the
-// Python stubs into sdk/python and the Go stubs into sdk/go/wire/framespb.
-option go_package = "github.com/voqalize/voqalize/sdk/go/wire/framespb;framespb";
 
 // ─── Envelope ─────────────────────────────────────────────────────────────────
 

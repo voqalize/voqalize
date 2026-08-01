@@ -6,7 +6,8 @@ Part of the Voqalize voice AI platform: **you bring the brain, we bring the voic
 promise is "bring the brain, not the voice infra." The customer writes a
 `Brain` of callbacks; the wire is plain protobuf and the Brain surface is
 plain dataclasses. (Pipecat lives only inside the Voqalize voice runtime, on
-the far side of the socket.) A native Go SDK speaks the same `Vql*` wire.
+the far side of the socket.) The `Vql*` wire is language-neutral — see
+[`proto/`](../../proto) for the contract.
 
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
 path. One Brain runs on either transport; a config flip picks which, with no

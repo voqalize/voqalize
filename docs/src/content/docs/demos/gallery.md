@@ -46,8 +46,7 @@ The URL segment for each demo is its `name` (the first column below).
 
 ## Reading them
 
-Start with **`travel`** — it's the most complete and the one both the Python and Go
-SDKs implement, so you can compare languages side by side. Then pick a demo whose
+Start with **`travel`** — it's the most complete demo. Then pick a demo whose
 *shape* matches what you're building:
 
 - **Screen-driving** (highlight, fill, navigate) → `shopping`, `servicing`, `legal`, `forge`.

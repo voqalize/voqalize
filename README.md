@@ -21,11 +21,15 @@ is a managed service — everything you need to build against it is here.
 |---|---|
 | [`proto/`](proto/) | **The wire contract of record** — the `Vql*` frame set both sides speak. Everything else is generated from or written against this. |
 | [`sdk/python/`](sdk/python/) | Python brain SDK — subclass `Brain`, implement a couple of callbacks. Pipecat-free. |
-| [`sdk/go/`](sdk/go/) | Go brain SDK — native, pipecat-free, speaks the wire protocol directly. |
 | [`sdk/react/`](sdk/react/) | React client SDK — embed a voice agent in a browser app. |
 | [`skill/`](skill/) | The **`voqalize` Claude Code skill** (`skill/SKILL.md`) — point your editor's agent at it and it builds an agent end-to-end over the hosted, Google-OAuth MCP server. |
 | [`demos/`](demos/) | Complete, runnable voice apps (a brain + a UI each). These are real example code, the live demos on our site, and our integration tests — all at once. |
 | [`docs/`](docs/) | The developer documentation site (`voqalize.com/docs`). |
+
+> The Go SDK was removed while the platform surface is moving fast on the
+> Python/ADK track, and will return once that surface stabilizes. The wire
+> protocol itself stays language-neutral — [`proto/`](proto/) is the contract
+> a future Go (or any other language) SDK would build against.
 
 ## Getting started
 
@@ -59,9 +63,7 @@ A polyglot monorepo, split by toolchain:
 - **JS/TS** (`sdk/react`, `docs`) — one `pnpm` workspace. Each demo UI
   (`demos/<name>/frontend`) is a self-contained app *outside* the workspace, built
   standalone and linking the client SDK by path.
-- **Go** (`sdk/go`) — its own module.
-- **proto** (`proto/`) — `buf`; regenerates the Python and Go stubs the SDKs
-  consume.
+- **proto** (`proto/`) — `buf`; regenerates the Python stub the SDK consumes.
 
 ## License
 

@@ -20,8 +20,10 @@ author never needed, and a hard coupling to pipecat's release cadence. `Brain`
 exposes exactly the text/tool surface and nothing else. pipecat now lives **only**
 inside PyGato (the runtime), on the far side of the socket, so the customer installs
 a small pure-Python package and the same `Brain` runs identically inbound or over
-Cortex. This mirrors the pipecat-free [Go SDK](../../go/AGENTS.md); the two
-speak the same wire.
+Cortex. This mirrored the pipecat-free Go SDK, which spoke the same wire; the Go
+SDK was removed (2026-08) while the platform surface moves fast on the
+Python/ADK track — the language-neutral wire (`proto/`) is what a future Go SDK
+would build back against.
 
 **Rejected:** the pipecat `FrameProcessor` surface (the prior model). Forced every
 brain author to learn pipecat and pinned the SDK to pipecat's versioning for no
@@ -44,25 +46,25 @@ stock pipecat processors recognize them — but that inheritance is PyGato's, no
 SDK's.) Interruption rides the wire as a field-less native `InterruptionFrame` in
 both directions; correlation lives on `inference_id`, not on the interrupt.
 
-**Why:** the wire is a language-neutral protobuf contract — the Go SDK mirrors the
-same frames as Go structs. Binding the *SDK's* representation to pipecat's class
-hierarchy would have forced pipecat on every consumer and blocked the Go port.
+**Why:** the wire is a language-neutral protobuf contract, so any language's SDK
+can mirror the same frames as its own native structs. Binding the *SDK's*
+representation to pipecat's class hierarchy would have forced pipecat on every
+consumer and blocked non-Python ports (the now-removed Go SDK proved this out).
 Keeping the pipecat-subclassing on the runtime side gives PyGato the aggregator
 compatibility it wants without leaking the dependency outward.
 
 **Rejected:** SDK frames that subclass pipecat. Reintroduces the pipecat dependency
-the SDK deliberately dropped, and has no analog in the Go SDK.
+the SDK deliberately dropped, and has no analog in a non-Python SDK.
 
 ---
 
 ## One multiplexed WebSocket per process (Cortex fallback), demuxed by 16-byte session prefix
 
 **Decision:** on the Cortex fallback, the agent process opens one WebSocket to
-`/agent`. Per-message framing prepends the 16-byte raw `session_id` (matches
-[`sdk/go/wire/wire.go`](../../go/wire/wire.go)
-`SessionIDLen`). Inside the process, one `SessionRunner` per `session_id` owns its
-own engine. (The primary inbound path — `run_session` — is instead one socket per
-session, session implicit in the URL; no prefix.)
+`/agent`. Per-message framing prepends the 16-byte raw `session_id`. Inside the
+process, one `SessionRunner` per `session_id` owns its own engine. (The primary
+inbound path — `run_session` — is instead one socket per session, session
+implicit in the URL; no prefix.)
 
 **Why:** one TCP connection per session on the outbound path would be N× the file
 descriptors, N× the TLS handshakes, and N× the keepalive traffic. Multiplexing on a
@@ -204,6 +206,7 @@ kept in lockstep with the canonical `proto/frames.proto`. `make proto` regenerat
 copies the stubs to every consumer (pygato, this SDK); CI fails on diff.
 
 **Why:** the schema is small and stable and changes rarely; when it does, all
-consumers update in a single lockstep change. There is now more than one consumer (the
-Go SDK, the public OSS repo), which is exactly why the canonical schema lives at
-`proto/frames.proto` and is generated from there rather than edited per-copy.
+consumers update in a single lockstep change. There is more than one consumer
+across the platform (pygato, this SDK, and any future non-Python SDK), which is
+exactly why the canonical schema lives at `proto/frames.proto` and is generated
+from there rather than edited per-copy.
