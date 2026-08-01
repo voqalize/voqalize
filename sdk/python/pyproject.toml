@@ -3,13 +3,16 @@ name = "voqalize-agent-sdk"
 version = "0.2.0"
 requires-python = ">=3.12"
 # Pipecat-free by design: installing this SDK must NOT pull pipecat. The
-# customer writes a plain `Brain`; the wire is plain protobuf. `pyjwt` is a
-# runtime dep because the inbound (direct) server verifies PyGato's RS256 token.
+# customer writes a plain `Brain`; the wire is plain protobuf. `pyjwt[crypto]` is
+# a runtime dep because the inbound (direct) server verifies PyGato's RS256 token
+# — the `crypto` extra (cryptography) is what supplies RS256, and the conformance
+# harness needs it too to mint keypairs/tokens. Without it a clean install fails
+# at verification time with "Algorithm 'RS256' could not be found".
 dependencies = [
     "websockets>=13",
     "loguru>=0.7",
     "protobuf>=6.30,<7",
-    "pyjwt>=2.8",
+    "pyjwt[crypto]>=2.8",
 ]
 
 [project.optional-dependencies]
