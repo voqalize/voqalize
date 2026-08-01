@@ -46,18 +46,6 @@ bytes`, so it mounts on Starlette, aiohttp, or Django Channels the same way. For
 standalone local server that owns the socket for you, use
 `serve_direct(MyBrain, host=..., port=...)`.
 
-### Go
-
-```go
-srv, _ := cortex.NewDirectServer(
-    brain.Factory(func() brain.Brain { return &MyBrain{} }, logger),
-    cortex.DirectOptions{Audience: "brain"},
-)
-http.Handle("/s/", srv)                       // srv.ServeHTTP does the WS upgrade
-log.Fatal(http.ListenAndServe(":8080", nil))
-// or: srv.ListenAndServe(ctx, ":8080")
-```
-
 ## Authentication
 
 The runtime presents an RS256 JWT (`iss=pygato`, `aud="brain"`,
@@ -103,5 +91,4 @@ drain. Scale horizontally with your LB; the runtime just dials whatever the
 
 - **[Cortex relay](/docs/deploy/cortex/)** — the fallback when you can't accept
   inbound.
-- **[Build a brain (Python)](/docs/brain/python/)** / **[Go](/docs/brain/go/)** —
-  the serving APIs in full.
+- **[Build a brain (Python)](/docs/brain/python/)** — the serving API in full.

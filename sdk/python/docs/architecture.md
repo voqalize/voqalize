@@ -164,9 +164,8 @@ generated text by mistake — it never commits at all.
 The direct/`run_session` path is one socket per session. The Cortex fallback
 ([`outbound.py`](../src/voqalize/sdk/outbound.py)) instead opens **one** outbound
 WebSocket to the `wss://…/agent` URL and multiplexes many sessions over it,
-demuxed by a **16-byte raw `session_id` prefix** (matches
-[`sdk/go/wire/wire.go`](../../go/wire/wire.go)
-`SessionIDLen`). Auth is `Authorization: Bearer <api_key>` (or a per-connect JWT
+demuxed by a **16-byte raw `session_id` prefix**. Auth is `Authorization:
+Bearer <api_key>` (or a per-connect JWT
 via `authorization_provider`) + `X-Agent-Version`; Cortex resolves the credential
 to a pool key internally. A shared fair writer drains per-session outbound lanes in
 round-robin so one talkative session can't starve the others. Each session still

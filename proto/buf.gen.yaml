@@ -4,9 +4,4 @@ plugins:
   # Bump in lockstep with the runtime version in both packages' pyproject.toml.
   - remote: buf.build/protocolbuffers/python:v32.0
     out: gen/python
-  # Go stubs for the native agent SDK (agent-sdk-go). source_relative keeps the
-  # output path shallow (gen/go/voqalize/frames/frames.pb.go).
-  - remote: buf.build/protocolbuffers/go:v1.36.6
-    out: gen/go
-    opt: paths=source_relative
 clean: true

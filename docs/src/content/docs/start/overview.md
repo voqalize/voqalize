@@ -63,6 +63,10 @@ call to your LLM and you have a real one. See the [Quickstart](/docs/start/quick
 - **[Quickstart](/docs/start/quickstart/)** — build and run your first brain.
 - **[Core concepts](/docs/start/concepts/)** — sessions, interactions, inferences,
   and the `brain_url`.
-- **[Build a brain: Python](/docs/brain/python/)** / **[Go](/docs/brain/go/)** —
-  the full SDK surface.
+- **[Build a brain: Python](/docs/brain/python/)** — the full SDK surface.
 - **[Demo gallery](/docs/demos/gallery/)** — ten complete, runnable voice apps.
+
+> The Go SDK was removed while the platform surface is moving fast on the
+> Python/ADK track, and will return once that surface stabilizes. The wire
+> protocol itself stays language-neutral — see [`proto/`](https://github.com/voqalize/voqalize/tree/main/proto)
+> for the contract.

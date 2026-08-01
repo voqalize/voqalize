@@ -8,8 +8,7 @@ the pygato pipeline both deal in these dataclasses — never in protobuf objects
 :class:`Frame` marker — the SDK carries no ``pipecat`` dependency. The wire only
 ever moves protobuf ``Envelope`` bytes, so the Python class identity never
 crosses the wire; pipecat's own frame hierarchy lives entirely inside PyGato, on
-the far side of the socket, and is irrelevant here. (This mirrors the Go SDK's
-``wire/codec.go``, where the same frames are plain Go structs.)
+the far side of the socket, and is irrelevant here.
 
 Two keys identify everything (see ``docs/voice-protocol.md``):
 
@@ -35,8 +34,8 @@ from typing import Any
 
 class FrameDirection(IntEnum):
     """Wire direction byte. Values MUST match pipecat's ``FrameDirection`` enum
-    (PyGato is still pipecat internally) and the Go SDK's ``wire.Direction``:
-    ``DOWNSTREAM=1`` (toward the brain / bot output), ``UPSTREAM=2`` (back)."""
+    (PyGato is still pipecat internally): ``DOWNSTREAM=1`` (toward the brain /
+    bot output), ``UPSTREAM=2`` (back)."""
 
     DOWNSTREAM = 1
     UPSTREAM = 2
@@ -107,8 +106,7 @@ class InterruptionFrame(Frame):
 class ErrorFrame(Frame):
     """Non-fatal (``fatal=False``) or fatal error surfaced to the peer.
 
-    The SDK emits this on normal-lane overflow (drop-newest congestion signal),
-    matching the Go SDK's ``DeliverError``.
+    The SDK emits this on normal-lane overflow (drop-newest congestion signal).
     """
 
     error: str = ""
@@ -302,9 +300,8 @@ class VqlInteractionCompletedFrame(Frame):
 # ─── Lane routing ─────────────────────────────────────────────────────────────
 
 # The priority (system) lane carries session-control signals that must bypass
-# queued data. Matches the Go SDK's ``wire.IsSystem``: ``End`` is deliberately
-# NOT system — it rides the normal lane so a session tears down only after its
-# queued data has drained.
+# queued data. ``End`` is deliberately NOT system — it rides the normal lane so
+# a session tears down only after its queued data has drained.
 _SYSTEM_FRAMES: tuple[type, ...] = (VqlStartFrame, InterruptionFrame, CancelFrame)
 
 

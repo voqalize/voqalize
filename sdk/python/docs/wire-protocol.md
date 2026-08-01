@@ -11,7 +11,7 @@ Two endpoints, two envelopes, one connection class ([`wire/transport.py`](../src
 | `/s/{session_id}` | pygato (one connection per session) | `[1-byte direction][protobuf payload]` |
 | `/agent` | agent SDK (one connection multiplexes N sessions) | `[16-byte session_id][1-byte direction][protobuf payload]` |
 
-The 16-byte session prefix is raw UUID bytes — no separator, no length, fixed offset. Matches [`sdk/go/wire/wire.go`](../../go/wire/wire.go) `SessionIDLen`. The 1-byte direction is `1 = DOWNSTREAM`, `2 = UPSTREAM` (matches pipecat `FrameDirection`).
+The 16-byte session prefix is raw UUID bytes — no separator, no length, fixed offset. The 1-byte direction is `1 = DOWNSTREAM`, `2 = UPSTREAM` (matches pipecat `FrameDirection`).
 
 ## Frame vocabulary
 
@@ -71,4 +71,3 @@ Backoff: starts at 100ms, exponential ×2, capped at 60s, ±10% jitter (see [`Wi
 ## Reference
 
 - `VQL_FRAME_CLASSES` in [`frames.py`](../src/voqalize/sdk/wire/frames.py) — exhaustive registry. The completeness test asserts every entry round-trips through `CortexFrameSerializer`.
-- `sdk/go/wire/wire.go` — Go-side counterpart (envelope constants).
