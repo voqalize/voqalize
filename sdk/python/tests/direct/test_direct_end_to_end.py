@@ -41,11 +41,11 @@ class EchoBrain(Brain):
     """Greets on session start; echoes each user turn back as one inference."""
 
     async def on_session_start(self, session, start) -> None:
-        async with session.inference() as inf:
+        async with session.say() as inf:
             await inf.speak("hi there")
 
     async def on_interaction(self, interaction) -> None:
-        async with interaction.inference() as inf:
+        async with interaction.say() as inf:
             await inf.speak(f"echo: {interaction.transcript}")
 
 
@@ -53,7 +53,7 @@ class SlowBrain(Brain):
     """Speaks after a delay — long enough to be barged in on."""
 
     async def on_interaction(self, interaction) -> None:
-        async with interaction.inference() as inf:
+        async with interaction.say() as inf:
             await asyncio.sleep(5.0)  # cancelled by the interruption before this
             await inf.speak("you should never hear this")
 
@@ -164,6 +164,46 @@ async def test_direct_interruption_echoes_drain_barrier():
         assert any(isinstance(f, InterruptionFrame) for f in frames)
         # The cancelled inference never produced its (post-sleep) text.
         assert not any(isinstance(f, VqlLLMTextFrame) and "never hear" in f.text for f in frames)
+    finally:
+        await wire.close()
+        await agent.aclose()
+
+
+async def test_direct_idle_interruption_is_handled_and_session_survives():
+    """An ``InterruptionFrame`` arriving with **no turn in flight** (an idle
+    barge-in — the user speaks while the agent is silent, e.g. just after the
+    greeting settles) is handled gracefully: the brain cancels nothing, still echoes
+    the drain barrier, and the session stays live for the next turn.
+
+    The other interruption test barges a *running* turn; this pins the empty-pending
+    path (``_cancel_pending`` over zero interactions), which a regression could
+    plausibly crash on or leave wedged so the next turn never answers."""
+    agent, port = await _serve(EchoBrain, allow_unverified=True)
+    session_id = str(uuid.uuid4())
+    wire = await _connect(port, session_id)
+    client = _Client(wire)
+    try:
+        await client.send(VqlStartFrame(session_id=session_id, agent_id="echo"))
+        # Drain the greeting first, so the InterruptionFrame we look for next can
+        # only be the idle barge-in's drain echo.
+        await client.collect_until(_has_text("hi there"))
+
+        # Idle barge-in: interrupt with no interaction in flight.
+        await client.send(InterruptionFrame())
+        frames, _ = await client.collect_until(
+            lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr)
+        )
+        assert any(isinstance(f, InterruptionFrame) for f in frames), (
+            "an idle interruption must still echo the drain barrier"
+        )
+
+        # The session survived: a subsequent user turn is served normally + acked.
+        await client.send(VqlUserTextFrame(interaction_id=1, text="ping"), request_id=7)
+        frames, acks = await client.collect_until(
+            lambda fr, ac: _has_text("echo: ping")(fr, ac) and 7 in ac
+        )
+        assert any(isinstance(f, VqlLLMTextFrame) and "echo: ping" in f.text for f in frames)
+        assert 7 in acks, "the post-interruption turn must still be acked"
     finally:
         await wire.close()
         await agent.aclose()

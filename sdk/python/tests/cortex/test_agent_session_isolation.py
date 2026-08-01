@@ -37,7 +37,7 @@ class Echo(Brain):
 
     async def on_interaction(self, interaction) -> None:
         self.seen_contexts.append(interaction.transcript)
-        async with interaction.inference() as inf:
+        async with interaction.say() as inf:
             await inf.speak(f"echo:{interaction.transcript}")
 
 
