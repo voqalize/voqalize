@@ -9,8 +9,11 @@
 #
 #   docker build -f demos/Dockerfile -t <img> .
 #
-# All configuration is runtime env set on deploy (GEMINI_API_KEY, brain pubkeys) —
-# nothing is baked at build. Secrets arrive either natively (Cloud Run) or
+# All *configuration* is runtime env set on deploy (GEMINI_API_KEY, brain pubkeys).
+# The one thing baked at build is the commit (`GIT_SHA`), because a deployed
+# container that cannot say what it is forces an SSH to find out — see the ARG at
+# the bottom, deliberately placed after every COPY so it busts no cached layer.
+# Secrets arrive either natively (Cloud Run) or
 # base64-encoded and single-line (the VM deploy, whose `--env-file` cannot carry a
 # multi-line PEM) — see demos/docker-entrypoint.sh, which decodes `FOO_B64` → `FOO`
 # and is a no-op when no such var is set.
@@ -34,6 +37,13 @@ RUN uv sync --package voqalize-demos --frozen --no-dev
 ENV PATH="/repo/.venv/bin:$PATH"
 
 RUN chmod +x /repo/demos/docker-entrypoint.sh
+
+# The commit this image was built from, surfaced at GET /_healthz. Last, so a
+# new SHA invalidates nothing above it — the whole dependency install stays
+# cached. Empty on a plain `docker build` with no --build-arg, which reads as
+# "unknown" rather than lying.
+ARG GIT_SHA=""
+ENV VOQALIZE_GIT_SHA=$GIT_SHA
 
 EXPOSE 8080
 ENTRYPOINT ["/repo/demos/docker-entrypoint.sh"]

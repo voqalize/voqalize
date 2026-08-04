@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import importlib
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -145,6 +146,34 @@ def test_umbrella_app_builds():
         body = client.get("/_healthz").json()
     assert body["ok"] is True
     assert "travel" in body["demos"]
+
+
+def test_healthz_reports_the_build_commit(monkeypatch: pytest.MonkeyPatch):
+    """``/_healthz`` carries the commit the image was built from.
+
+    The post-deploy gate asserts this equals the tag it just pushed, which is the
+    only thing separating a real gate from a liveness ping: an old container that
+    was never replaced answers ``/_healthz`` perfectly well. Outside a built image
+    there is no build-arg, and the field reads ``"unknown"`` rather than being
+    absent — an absent field would compare equal to nothing and quietly disarm the
+    gate."""
+    from starlette.testclient import TestClient
+    from voqalize_demos import umbrella
+
+    with TestClient(create_app()) as client:
+        assert client.get("/_healthz").json()["git_sha"] == "unknown"
+
+    # The SHA is read once at import, the way a baked-in build-arg is, so the
+    # populated path only exists after a reload under the env var — and a reload
+    # back afterwards, or every later test in this process sees a fake commit.
+    monkeypatch.setenv("VOQALIZE_GIT_SHA", "deadbee")
+    try:
+        importlib.reload(umbrella)
+        with TestClient(umbrella.create_app()) as client:
+            assert client.get("/_healthz").json()["git_sha"] == "deadbee"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(umbrella)
 
 
 # ─── Inbound protocol conformance (real stack, no LLM) ─────────────────────────

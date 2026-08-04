@@ -60,8 +60,11 @@ substitutions:
   _EXPECTED_DEMOS: "11"
 
 steps:
-  # 1. Build the brains-only image (pure Python; no build-args). Context is the
-  #    repo root — the backend depends on in-repo sdk/python by path.
+  # 1. Build the brains-only image. Context is the repo root — the backend
+  #    depends on in-repo sdk/python by path. The one build-arg is GIT_SHA,
+  #    which the image surfaces at /_healthz so step 3 can prove it is talking
+  #    to the container this build just pushed (it sits last in the Dockerfile,
+  #    so it invalidates no cached layer).
   #    Two tags: an immutable per-revision tag is what the node actually pins
   #    (this is what makes rollback a one-liner); ${_ENV}-current is a human
   #    pointer. Only the immutable tag is ever deployed. $SHORT_SHA is empty on
@@ -77,7 +80,8 @@ steps:
         TAG="${SHORT_SHA}"
         if [ -z "$$TAG" ]; then TAG="manual-$$(date +%s)"; fi
         echo "$$TAG" > /workspace/image_tag
-        docker build -t "${_IMAGE}:$$TAG" -t '${_IMAGE}:${_ENV}-current' -f demos/Dockerfile .
+        docker build --build-arg "GIT_SHA=$$TAG" \
+          -t "${_IMAGE}:$$TAG" -t '${_IMAGE}:${_ENV}-current' -f demos/Dockerfile .
 
   - name: 'gcr.io/cloud-builders/docker'
     id: push
@@ -120,6 +124,11 @@ steps:
   #    proves the container; this proves DNS + the Let's Encrypt cert + the Caddy
   #    vhost + discovery, all at once, and is the check that would have caught a
   #    provision.py re-run silently dropping the brains vhost from the Caddyfile.
+  #
+  #    The git_sha assertion is what makes this a real gate rather than a
+  #    liveness ping: without it a deploy that never actually replaced the
+  #    container reports SUCCESS, because the *old* container answers /_healthz
+  #    perfectly well. Same failure class as the silent-auth deploy bug.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
     id: verify
     waitFor: [deploy]
@@ -128,17 +137,24 @@ steps:
       - -c
       - |
         set -euo pipefail
+        TAG="$$(cat /workspace/image_tag)"
         curl -fsS --retry 10 --retry-delay 3 --retry-all-errors \
           'https://${_BRAIN_DOMAIN}/_healthz' > /workspace/healthz.json
         cat /workspace/healthz.json; echo
-        python3 - <<'PY'
-        import json, sys
+        TAG="$$TAG" python3 - <<'PY'
+        import json, os
         d = json.load(open("/workspace/healthz.json"))
         names = d.get("demos") or []
         expected = int("${_EXPECTED_DEMOS}")
+        want = os.environ["TAG"]
         assert d.get("ok") is True, f"not ok: {d}"
         assert len(names) == expected, f"expected {expected} demos, got {len(names)}: {names}"
-        print(f"✓ {len(names)} demos live: {names}")
+        got = d.get("git_sha")
+        assert got == want, (
+            f"served git_sha {got!r} != just-deployed {want!r} — the old container "
+            "is still answering, so this deploy did not take"
+        )
+        print(f"✓ {len(names)} demos live at {got}: {names}")
         PY
 
 # No top-level `images:` — that pushes only AFTER every step, and the deploy step

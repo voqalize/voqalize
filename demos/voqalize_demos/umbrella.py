@@ -11,11 +11,15 @@ The assembled MPA (marketing + docs + every demo UI) is built elsewhere and serv
 under the apex domain (``dev.voqalize.com`` / ``voqalize.com``), where the browser
 mints a session same-origin (Firebase Hosting rewrites ``/api`` → control plane).
 So this runtime carries no static files and no reverse proxy — just the brain
-sockets Voqalize dials server-side. Its URL (``demos.<env>.voqalize.com``) is the
-``brain_url`` each demo agent stores; the browser never touches it.
+sockets Voqalize dials server-side. Its URL (``brain.voqalize.com``, and
+``brain.dev.voqalize.com`` for dev) is the ``brain_url`` each demo agent stores;
+the browser never touches it. (``demos.<env>.voqalize.com`` never worked and its
+DNS is gone — don't reintroduce the name.)
 """
 
 from __future__ import annotations
+
+import os
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -24,6 +28,10 @@ from loguru import logger
 from voqalize_demos.discovery import discover
 from voqalize_demos.llm import GeminiProvider
 from voqalize_demos.session import Settings, init_runtime
+
+#: Commit this image was built from — baked in by ``demos/Dockerfile``'s
+#: ``GIT_SHA`` build-arg, empty outside a built image (local dev, tests).
+GIT_SHA = os.environ.get("VOQALIZE_GIT_SHA") or "unknown"
 
 
 def create_app() -> FastAPI:
@@ -40,9 +48,16 @@ def create_app() -> FastAPI:
 
     # Not ``/healthz``: on *.run.app the Google Frontend swallows the exact path
     # ``/healthz`` before it reaches the app. ``/_healthz`` is reachable.
+    #
+    # ``git_sha`` is the commit the *image* was built from, baked in by
+    # demos/Dockerfile. It is here so that verifying a deploy is one curl rather
+    # than an SSH to read `docker ps` — and, more usefully, so the post-deploy
+    # gate can assert the container it is talking to is the one this build just
+    # pushed. A deploy that reports success while the old container is still up
+    # is otherwise invisible. ``"unknown"`` when built without the build-arg.
     @app.get("/_healthz")
     async def healthz() -> JSONResponse:
-        return JSONResponse({"ok": True, "demos": sorted(demo_names)})
+        return JSONResponse({"ok": True, "git_sha": GIT_SHA, "demos": sorted(demo_names)})
 
     # ─── Brain sockets (one router per co-located demo) ──────────────────
     for demo in demos:
