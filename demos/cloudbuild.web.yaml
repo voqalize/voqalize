@@ -52,6 +52,8 @@ substitutions:
   _AURA_PK: ''
   _FORGE_AGENT: ''
   _FORGE_PK: ''
+  _ORDERDESK_AGENT: ''
+  _ORDERDESK_PK: ''
 
 steps:
   # 1. Build + assemble every demo UI → demos/dist/demos/<name>/. The per-demo
@@ -88,6 +90,8 @@ steps:
       - 'VITE_AURA_PK=${_AURA_PK}'
       - 'VITE_FORGE_AGENT=${_FORGE_AGENT}'
       - 'VITE_FORGE_PK=${_FORGE_PK}'
+      - 'VITE_ORDERDESK_AGENT=${_ORDERDESK_AGENT}'
+      - 'VITE_ORDERDESK_PK=${_ORDERDESK_PK}'
 
   # 2. Build the docs site (Astro Starlight, base:/docs) → docs/dist.
   - name: 'node:20-slim'

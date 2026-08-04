@@ -1,0 +1,355 @@
+{
+  "bucket": "vw-vowels-clusters",
+  "entries": [
+    {
+      "sku_code": "J0034534",
+      "name": "VOLINI GEL",
+      "family": "VOLINI",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "वोलिनी", "romanized": ["volini", "wolini"] },
+        { "devanagari": "वॉलीनी", "romanized": ["vaalini", "waaleeni"] },
+        { "devanagari": "वोलनी", "romanized": ["volni", "wolni"] },
+        { "devanagari": "बोलिनी", "romanized": ["bolini", "boleni"] },
+        { "devanagari": "वोलाइनी", "romanized": ["volaini", "volyni", "wolayni"] },
+        { "devanagari": "वोल्नीजेल", "romanized": ["volnijel", "volnigel"] }
+      ]
+    },
+    {
+      "sku_code": "J0034628",
+      "name": "VOVERAN EMULGEL",
+      "family": "VOVERAN",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "वोवेरान", "romanized": ["voveran", "woweran"] },
+        { "devanagari": "वोवेरैन", "romanized": ["voverain", "voveren"] },
+        { "devanagari": "वोव्रान", "romanized": ["vovran", "wowran"] },
+        { "devanagari": "बोबेरान", "romanized": ["boberan", "boveran"] },
+        { "devanagari": "वॉवेरॉन", "romanized": ["voveron", "vaaveraun"] },
+        { "devanagari": "वोवेरान इमलजेल", "romanized": ["voveran imaljel", "voveran emulgel"] }
+      ]
+    },
+    {
+      "sku_code": "J0033971",
+      "name": "VERTIN 16 TABLET",
+      "family": "VERTIN",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "वर्टिन", "romanized": ["vertin", "wartin"] },
+        { "devanagari": "वेरटीन", "romanized": ["verateen", "verteen"] },
+        { "devanagari": "बर्टिन", "romanized": ["bertin", "bartin"] },
+        { "devanagari": "वर्तिन", "romanized": ["vartin", "wartin"] },
+        { "devanagari": "वर्टिन सोलह", "romanized": ["vertin solah", "wartin solah"] },
+        { "devanagari": "वर्टन", "romanized": ["vartan", "vertan"] }
+      ]
+    },
+    {
+      "sku_code": "J0034560",
+      "name": "VOLIX 0.2 TABLET",
+      "family": "VOLIX",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "वोलिक्स", "romanized": ["voliks", "wolix"] },
+        { "devanagari": "वॉलिक्स", "romanized": ["vaaliks", "waalix"] },
+        { "devanagari": "बोलिक्स", "romanized": ["boliks", "bolix"] },
+        { "devanagari": "वोलिक्ष", "romanized": ["voliksh", "volix"] },
+        { "devanagari": "वोलाइक्स", "romanized": ["volaiks", "volyx"] },
+        { "devanagari": "वोल्क्स", "romanized": ["volks", "wolks"] }
+      ]
+    },
+    {
+      "sku_code": "J0034359",
+      "name": "VIZYLAC CAPSULE",
+      "family": "VIZYLAC",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "विज़ाइलैक", "romanized": ["vizailac", "vizylac"] },
+        { "devanagari": "विजीलैक", "romanized": ["vijeelac", "vizeelak"] },
+        { "devanagari": "बिजाइलक", "romanized": ["bizailak", "bijailak"] },
+        { "devanagari": "वाइज़ीलैक", "romanized": ["vaizeelac", "wyzeelak"] },
+        { "devanagari": "विज़ीलेक", "romanized": ["vizeelek", "wizeelec"] },
+        { "devanagari": "विज़्लैक", "romanized": ["vizlac", "vizlak"] }
+      ]
+    },
+    {
+      "sku_code": "J0033845",
+      "name": "VELOZ-20 TABLET",
+      "family": "VELOZ",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "वेलोज़", "romanized": ["veloz", "weloz"] },
+        { "devanagari": "वेलॉज़", "romanized": ["velauz", "welauz"] },
+        { "devanagari": "बेलोज़", "romanized": ["beloz", "belos"] },
+        { "devanagari": "वीलोज़", "romanized": ["veeloz", "weeloz"] },
+        { "devanagari": "वेलोज़ेड", "romanized": ["velozed", "velozzed"] },
+        { "devanagari": "वेल्ज़ बीस", "romanized": ["velz bees", "welz bis"] }
+      ]
+    },
+    {
+      "sku_code": "J0034596",
+      "name": "VOMIKIND-MD 2 TABLET",
+      "family": "VOMIKIND",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "वोमीकाइंड", "romanized": ["vomikaind", "womikind"] },
+        { "devanagari": "वोमिकिंड", "romanized": ["vomikind", "vomiking"] },
+        { "devanagari": "बोमिकाइंड", "romanized": ["bomikaind", "bomikind"] },
+        { "devanagari": "वॉमीकाइन", "romanized": ["vomikain", "waumikine"] },
+        { "devanagari": "वोमीकाइन्ड एमडी", "romanized": ["vomikaind emdi", "vomikind md"] },
+        { "devanagari": "वोम्काइंड", "romanized": ["vomkaind", "womkind"] }
+      ]
+    },
+    {
+      "sku_code": "J0034930",
+      "name": "WYSOLONE 5 DT TABLET",
+      "family": "WYSOLONE",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "वायसोलोन", "romanized": ["vysolone", "waisolon"] },
+        { "devanagari": "विसोलोन", "romanized": ["visolone", "wisolon"] },
+        { "devanagari": "वाइसलोन", "romanized": ["vaisalone", "vysalon"] },
+        { "devanagari": "बायसोलोन", "romanized": ["baisolone", "bysolon"] },
+        { "devanagari": "वायसोलोने", "romanized": ["vysolone", "vaisolone"] },
+        { "devanagari": "वैसलोन", "romanized": ["vaisalon", "wasalon"] }
+      ]
+    },
+    {
+      "sku_code": "J0034825",
+      "name": "WIKORYL ORAL DROPS",
+      "family": "WIKORYL",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "विकोरिल", "romanized": ["vikoril", "wikoril"] },
+        { "devanagari": "विकॉरिल", "romanized": ["vikauril", "wikaaril"] },
+        { "devanagari": "विकोराइल", "romanized": ["vikorail", "wikoryl"] },
+        { "devanagari": "बिकोरिल", "romanized": ["bikoril", "bikaril"] },
+        { "devanagari": "विकोरील", "romanized": ["vikoreel", "wikoreel"] },
+        { "devanagari": "विक्रिल ड्रॉप", "romanized": ["vikril drop", "wikril drops"] }
+      ]
+    },
+    {
+      "sku_code": "J0005114",
+      "name": "BECOSULES CAPSULE",
+      "family": "BECOSULES",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "बेकोसूल्स", "romanized": ["becosules", "bekosuls"] },
+        { "devanagari": "वेकोसूल्स", "romanized": ["vecosules", "wekosuls"] },
+        { "devanagari": "बीकोसूल्स", "romanized": ["beecosules", "bikosuls"] },
+        { "devanagari": "बेकोसुलेस", "romanized": ["bekosules", "becosulase"] },
+        { "devanagari": "बेकोसूल", "romanized": ["becosool", "bekosul"] },
+        { "devanagari": "बेक्सूल्स", "romanized": ["beksuls", "bexuls"] }
+      ]
+    },
+    {
+      "sku_code": "PROD1610",
+      "name": "BECADEXAMIN CAPSULE",
+      "family": "BECADEXAMIN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "बीकाडेक्सामिन", "romanized": ["becadexamin", "beekadexamin"] },
+        { "devanagari": "बेकाडेक्समिन", "romanized": ["bekadexmin", "becadexmin"] },
+        { "devanagari": "वेकाडेक्सामिन", "romanized": ["vecadexamin", "wekadexamin"] },
+        { "devanagari": "बीकाडेक्सैमिन", "romanized": ["beecadexaimin", "becadexamin"] },
+        { "devanagari": "बीकाडेक्समीन", "romanized": ["beekadexmeen", "bikadexmin"] },
+        { "devanagari": "बेक्डेक्समिन", "romanized": ["bekdexmin", "bakdexamin"] }
+      ]
+    },
+    {
+      "sku_code": "J0005423",
+      "name": "BEVON CAPSULE",
+      "family": "BEVON",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "बेवोन", "romanized": ["bevon", "bewon"] },
+        { "devanagari": "बीवॉन", "romanized": ["beevaun", "bivon"] },
+        { "devanagari": "बेबॉन", "romanized": ["bebon", "bebaun"] },
+        { "devanagari": "वेवोन", "romanized": ["vevon", "wewon"] },
+        { "devanagari": "बेव्हॉन", "romanized": ["bevhon", "bevhaun"] },
+        { "devanagari": "बेव्न कैप", "romanized": ["bevn cap", "bewn kaip"] }
+      ]
+    },
+    {
+      "sku_code": "J0005231",
+      "name": "BEPLEX FORTE TABLET",
+      "family": "BEPLEX",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "बेप्लेक्स फोर्ट", "romanized": ["beplex fort", "beplecks forte"] },
+        { "devanagari": "बेपलेक्स", "romanized": ["bepalex", "bepaleks"] },
+        { "devanagari": "वेप्लेक्स", "romanized": ["veplex", "weplex"] },
+        { "devanagari": "बीप्लेक्स", "romanized": ["beeplex", "biplex"] },
+        { "devanagari": "बेपेलेक्स", "romanized": ["bepelex", "bepelaks"] },
+        { "devanagari": "बेप्लेक्सफोर्ट", "romanized": ["beplexfort", "beplexforte"] }
+      ]
+    },
+    {
+      "sku_code": "J0005323",
+      "name": "BETADINE 10% SOLUTION",
+      "family": "BETADINE",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "बीटाडीन", "romanized": ["betadine", "beetadeen"] },
+        { "devanagari": "वीटाडीन", "romanized": ["vetadine", "weetadeen"] },
+        { "devanagari": "बेटाडाइन", "romanized": ["betadaine", "betadyne"] },
+        { "devanagari": "बीटाडिन", "romanized": ["beetadin", "betadin"] },
+        { "devanagari": "बेतादीन", "romanized": ["betadeen", "betaadin"] },
+        { "devanagari": "बीटडीन सलूशन", "romanized": ["betdeen salushan", "beetdin solution"] }
+      ]
+    },
+    {
+      "sku_code": "J0004502",
+      "name": "AUGMENTIN 625 DUO TABLET",
+      "family": "AUGMENTIN",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "ऑगमेंटिन", "romanized": ["augmentin", "ogmentin"] },
+        { "devanagari": "ओगमेंटिन", "romanized": ["ogmentin", "ogamentin"] },
+        { "devanagari": "अगमेंटिन", "romanized": ["agmentin", "agamentin"] },
+        { "devanagari": "औगमेंटिन", "romanized": ["augmentin", "aumentin"] },
+        { "devanagari": "ऑगमेन्टीन", "romanized": ["augmenteen", "ogmenteen"] },
+        { "devanagari": "ऑगमेंट छह सौ पच्चीस", "romanized": ["augment chhah sau pachchees", "ogment 625"] }
+      ]
+    },
+    {
+      "sku_code": "J0024266",
+      "name": "OMNIGEL SPRAY",
+      "family": "OMNIGEL",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "ऑम्नीजेल", "romanized": ["omnigel", "omneejel"] },
+        { "devanagari": "ओमनीजेल", "romanized": ["omanijel", "omnijel"] },
+        { "devanagari": "ऑम्निगेल", "romanized": ["omniguel", "omnigel"] },
+        { "devanagari": "ऑम्नीजेल इस्प्रे", "romanized": ["omnijel ispray", "omnigel ispre"] },
+        { "devanagari": "ओमनीजेल सपरे", "romanized": ["omnijel sapre", "omanijel saprey"] },
+        { "devanagari": "ओम्जेल", "romanized": ["omjel", "omgel"] }
+      ]
+    },
+    {
+      "sku_code": "J0024319",
+      "name": "ONDEM-MD 4 TABLET",
+      "family": "ONDEM",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "ऑनडेम", "romanized": ["ondem", "aundem"] },
+        { "devanagari": "ओंडेम", "romanized": ["ondem", "ondaim"] },
+        { "devanagari": "अंडेम", "romanized": ["andem", "undem"] },
+        { "devanagari": "ऑनडैम", "romanized": ["ondaim", "ondam"] },
+        { "devanagari": "ऑन्डेम एमडी", "romanized": ["ondem emdi", "ondem md"] },
+        { "devanagari": "ऑंडम", "romanized": ["ondum", "aundum"] }
+      ]
+    },
+    {
+      "sku_code": "J0024244",
+      "name": "OMNACORTIL-30 TABLET",
+      "family": "OMNACORTIL",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "ऑम्नाकोर्टिल", "romanized": ["omnacortil", "omnakortil"] },
+        { "devanagari": "ओमनाकोरटिल", "romanized": ["omanakoratil", "omnakoratil"] },
+        { "devanagari": "ऑम्नाकॉर्टिल", "romanized": ["omnakaurtil", "omnacaurtil"] },
+        { "devanagari": "ओम्नाकोर्टील", "romanized": ["omnacorteel", "omnakorteel"] },
+        { "devanagari": "ऑम्नाकोर्टाइल", "romanized": ["omnacortail", "omnacortyl"] },
+        { "devanagari": "ओम्नाकोर्ट तीस", "romanized": ["omnakort tees", "omnacort 30"] }
+      ]
+    },
+    {
+      "sku_code": "J0021606",
+      "name": "MOOV PAIN RELIEF SPECIALIST SPRAY",
+      "family": "MOOV",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "मूव", "romanized": ["moov", "muv"] },
+        { "devanagari": "मूव्ह", "romanized": ["moovh", "muvh"] },
+        { "devanagari": "मुव", "romanized": ["muv", "moov"] },
+        { "devanagari": "मोव", "romanized": ["mov", "mow"] },
+        { "devanagari": "मूब", "romanized": ["moob", "mub"] },
+        { "devanagari": "मूव इस्प्रे", "romanized": ["moov ispray", "muv ispre"] }
+      ]
+    },
+    {
+      "sku_code": "J0036014",
+      "name": "ZOCON-100 DT TABLET",
+      "family": "ZOCON",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "ज़ोकॉन", "romanized": ["zocon", "zokaun"] },
+        { "devanagari": "जोकोन", "romanized": ["jokon", "jocon"] },
+        { "devanagari": "ज़ॉकोन", "romanized": ["zaukon", "zaucon"] },
+        { "devanagari": "ज़ोकून", "romanized": ["zokoon", "zocoon"] },
+        { "devanagari": "सोकॉन", "romanized": ["socon", "sokaun"] },
+        { "devanagari": "ज़ोकन डीटी", "romanized": ["zokan diti", "zocan dt"] }
+      ]
+    },
+    {
+      "sku_code": "J0042714",
+      "name": "SPORLAC TABLET",
+      "family": "SPORLAC",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "स्पोरलैक", "romanized": ["sporlac", "sporlak"] },
+        { "devanagari": "इस्पोरलैक", "romanized": ["isporlac", "isporlak"] },
+        { "devanagari": "सपोरलैक", "romanized": ["saporlac", "saporlak"] },
+        { "devanagari": "स्पॉरलेक", "romanized": ["spaurlek", "spaurlac"] },
+        { "devanagari": "स्पोरलाक", "romanized": ["sporlaak", "sporlaac"] },
+        { "devanagari": "स्पोर्लैक", "romanized": ["spurlac", "sporlaik"] }
+      ]
+    },
+    {
+      "sku_code": "J0030117",
+      "name": "STAMLO-5 TABLET",
+      "family": "STAMLO",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "स्टैमलो", "romanized": ["stamlo", "staimlo"] },
+        { "devanagari": "इस्टैमलो", "romanized": ["istamlo", "istaimlo"] },
+        { "devanagari": "सटैमलो", "romanized": ["satamlo", "sataimlo"] },
+        { "devanagari": "स्टामलो", "romanized": ["staamlo", "staamlow"] },
+        { "devanagari": "स्तैमलो", "romanized": ["staimlo", "stamlow"] },
+        { "devanagari": "स्टैम्ल पाँच", "romanized": ["staml panch", "stamla paanch"] }
+      ]
+    },
+    {
+      "sku_code": "J0004246",
+      "name": "ASTHALIN RESPULES",
+      "family": "ASTHALIN",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "अस्थालिन", "romanized": ["asthalin", "asthaalin"] },
+        { "devanagari": "अस्तालिन", "romanized": ["astalin", "astaalin"] },
+        { "devanagari": "अष्ठालिन", "romanized": ["ashthalin", "ashthaalin"] },
+        { "devanagari": "अस्थलिन", "romanized": ["asthlin", "asthalin"] },
+        { "devanagari": "अस्थालाइन", "romanized": ["asthalain", "asthalyn"] },
+        { "devanagari": "अस्थालिन रेसप्यूल्स", "romanized": ["asthalin resapyuls", "asthalin respules"] }
+      ]
+    },
+    {
+      "sku_code": "J0025784",
+      "name": "PLACENTREX GEL",
+      "family": "PLACENTREX",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "प्लासेंट्रेक्स", "romanized": ["placentrex", "plasentrex"] },
+        { "devanagari": "पलासेंट्रेक्स", "romanized": ["palasentrex", "palacentrex"] },
+        { "devanagari": "प्लेसेंट्रेक्स", "romanized": ["plesentrex", "placentrex"] },
+        { "devanagari": "प्लासेनट्रेक्स", "romanized": ["plasenatrex", "plasentraks"] },
+        { "devanagari": "प्लाकेंट्रेक्स", "romanized": ["plakentrex", "plaakentrex"] },
+        { "devanagari": "प्लासंट्रेक्स जेल", "romanized": ["plasantrex jel", "plasntrex gel"] }
+      ]
+    },
+    {
+      "sku_code": "J0044802",
+      "name": "STREPSILS ORANGE  288S BLISTER",
+      "family": "STREPSILS",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "स्ट्रेप्सिल्स", "romanized": ["strepsils", "strepsilas"] },
+        { "devanagari": "इस्ट्रेप्सिल्स", "romanized": ["istrepsils", "istrepsil"] },
+        { "devanagari": "सट्रेपसिल्स", "romanized": ["satrepsils", "satarepsils"] },
+        { "devanagari": "स्ट्रेप्सिल", "romanized": ["strepsil", "strepsill"] },
+        { "devanagari": "स्ट्रेप्साइल्स", "romanized": ["strepsails", "strepsyls"] },
+        { "devanagari": "स्टेप्सिल ऑरेंज", "romanized": ["stepsil orange", "stepsils aurenj"] }
+      ]
+    }
+  ]
+}

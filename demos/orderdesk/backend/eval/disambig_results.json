@@ -1,0 +1,7347 @@
+{
+  "meta": {
+    "model": "gemini-3.1-flash-lite",
+    "seed": 20260803,
+    "generated_at": "2026-08-03T11:38:30+00:00",
+    "candidate_source": "search.py / catalog.db",
+    "prompt_fragment_source": "brain.py :: _INSTRUCTION (DISAMBIGUATION section)",
+    "prompt_fragment": "DISAMBIGUATION WHEN MANY SKUS MATCH — never twenty pills:\n- Four or fewer choices need no machinery: the pills are already on his screen, so just ask the one short thing that differs (the rule above).\n- Five or more, and the tool hands you a CANDIDATE TABLE instead of options. Never read it. Never try to show it all. Call ask_choice ONCE with one short English question and TWO TO FOUR choices that split those candidates as evenly as you can. The sharpest question is the one that eliminates the most candidates WHATEVER he answers — a choice that keeps twenty-three of twenty-four is a wasted turn.\n- Group on the axis that actually partitions the list: the suffix line first (plain / H / AM / CT / BETA…), then form, then a strength band. Never split on pack size while a bigger axis still divides the list. Labels must be short, English and obviously different from each other.\n- Every candidate must sit inside exactly one choice — the tool rejects a choice set that leaves a code uncovered, and you will have to call again.\n- TWO ROUNDS AT MOST. Round one cuts twenty-four to a handful; round two is leaf pills he can tap, or he simply says which one and you call choose.\n- Worked example — he says \"टेल्मा\" and the catalog hands you twenty-four TELMA SKUs.\n    Round 1: ask_choice(item_id \"li1\", question \"Which Telma line?\", choices: \"Plain Telma\" / \"Telma H (with diuretic)\" / \"Telma AM combos\" / \"Telma CT / Beta\") — then say ONLY: \"टेल्मा — कौन सी लाइन? स्क्रीन पर देखिए।\"\n    Him: \"प्लेन वाली\" → the tool told you that choice keeps six.\n    Round 2: ask_choice(item_id \"li1\", question \"Which strength?\", choices: \"20 mg\" / \"40 mg\" / \"80 mg\") — then say ONLY: \"कितने एम जी?\"\n    Him: \"फोर्टी\" → one or two SKUs left; call choose, or let him tap the pill.\n  What you must NOT do: read the twenty-four names aloud, ask \"कौन सा टेल्मा चाहिए?\" with no choices, or ask about pack size first.\n- After ask_choice, say THAT SAME question out loud in ONE short Hindi sentence. Do not list the choices aloud — they are pills on his screen.\n- If he taps a group pill himself, your screen grounding shows fewer candidates on that row. Do not repeat the question — ask the NEXT one over what is left, or lock it with choose.",
+    "families_eligible": 944,
+    "families_sampled": 20,
+    "trials": 80,
+    "model_calls": 193,
+    "wall_seconds": 386.2,
+    "thresholds": {
+      "validity": 0.98,
+      "avg_rounds": 2.0,
+      "max_rounds": 3
+    }
+  },
+  "trials": [
+    {
+      "family": "TELMA",
+      "size": 26,
+      "bucket": "16+",
+      "target": "J0031280",
+      "target_label": "AM TABLET 15'S",
+      "target_name": "TELMA AM TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0031280",
+        "J0031283",
+        "J0031284"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 26,
+          "candidates": [
+            "J0031267",
+            "J0031270",
+            "J0031274",
+            "J0031276",
+            "J0031280",
+            "J0031283",
+            "J0031284",
+            "J0051763",
+            "J0031286",
+            "J0031288",
+            "PROD7131",
+            "J0050848",
+            "J0031293",
+            "J0031294",
+            "J0031297",
+            "J0031299",
+            "J0031305",
+            "J0031301",
+            "J0031307",
+            "PROD7138",
+            "J0031308",
+            "PROD6455",
+            "PROD4215",
+            "J0043070",
+            "J0043071",
+            "PROD4001"
+          ],
+          "question": "Which Telma line?",
+          "choices": [
+            {
+              "label": "Plain Telma",
+              "sku_codes": [
+                "J0031267",
+                "J0031270",
+                "J0031274"
+              ]
+            },
+            {
+              "label": "Telma AM / AMH / AZ / BETA",
+              "sku_codes": [
+                "J0031280",
+                "J0031283",
+                "J0031284",
+                "J0051763",
+                "J0031286",
+                "J0031288",
+                "PROD7131",
+                "J0050848"
+              ]
+            },
+            {
+              "label": "Telma CT / H / D",
+              "sku_codes": [
+                "J0031293",
+                "J0031294",
+                "J0031297",
+                "J0031299",
+                "J0031305",
+                "J0031301"
+              ]
+            },
+            {
+              "label": "Telma LN / LNB / MCT",
+              "sku_codes": [
+                "J0031307",
+                "PROD7138",
+                "J0031308",
+                "PROD6455",
+                "PROD4215",
+                "J0043070",
+                "J0043071",
+                "PROD4001",
+                "J0031276"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.385,
+          "repaired": false,
+          "chosen_label": "Telma AM / AMH / AZ / BETA",
+          "remaining": 8
+        },
+        {
+          "index": 2,
+          "n_candidates": 8,
+          "candidates": [
+            "J0031280",
+            "J0031283",
+            "J0031284",
+            "J0051763",
+            "J0031286",
+            "J0031288",
+            "PROD7131",
+            "J0050848"
+          ],
+          "question": "Which variant?",
+          "choices": [
+            {
+              "label": "Telma AM / AMH",
+              "sku_codes": [
+                "J0031280",
+                "J0031283",
+                "J0031284"
+              ]
+            },
+            {
+              "label": "Telma AZ / BS",
+              "sku_codes": [
+                "J0051763",
+                "J0031286",
+                "J0050848"
+              ]
+            },
+            {
+              "label": "Telma BETA / BETA AM",
+              "sku_codes": [
+                "J0031288",
+                "PROD7131"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.125,
+          "repaired": false,
+          "chosen_label": "Telma AM / AMH",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "TELMA",
+      "size": 26,
+      "bucket": "16+",
+      "target": "J0031307",
+      "target_label": "LN 40 TABLET 15'S",
+      "target_name": "TELMA LN 40 TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0031307",
+        "PROD7138",
+        "J0031308",
+        "PROD6455"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 26,
+          "candidates": [
+            "J0031267",
+            "J0031270",
+            "J0031274",
+            "J0031276",
+            "J0031280",
+            "J0031283",
+            "J0031284",
+            "J0051763",
+            "J0031286",
+            "J0031288",
+            "PROD7131",
+            "J0050848",
+            "J0031293",
+            "J0031294",
+            "J0031297",
+            "J0031299",
+            "J0031305",
+            "J0031301",
+            "J0031307",
+            "PROD7138",
+            "J0031308",
+            "PROD6455",
+            "PROD4215",
+            "J0043070",
+            "J0043071",
+            "PROD4001"
+          ],
+          "question": "Which Telma line?",
+          "choices": [
+            {
+              "label": "Plain Telma",
+              "sku_codes": [
+                "J0031267",
+                "J0031270",
+                "J0031274"
+              ]
+            },
+            {
+              "label": "Telma AM / AMH / AZ / BETA",
+              "sku_codes": [
+                "J0031280",
+                "J0031283",
+                "J0031284",
+                "J0051763",
+                "J0031286",
+                "J0031288",
+                "PROD7131",
+                "J0050848"
+              ]
+            },
+            {
+              "label": "Telma CT / H / D",
+              "sku_codes": [
+                "J0031293",
+                "J0031294",
+                "J0031297",
+                "J0031299",
+                "J0031305",
+                "J0031301"
+              ]
+            },
+            {
+              "label": "Telma LN / LNB / MCT",
+              "sku_codes": [
+                "J0031307",
+                "PROD7138",
+                "J0031308",
+                "PROD6455",
+                "PROD4215",
+                "J0043070",
+                "J0043071",
+                "PROD4001",
+                "J0031276"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.385,
+          "repaired": false,
+          "chosen_label": "Telma LN / LNB / MCT",
+          "remaining": 9
+        },
+        {
+          "index": 2,
+          "n_candidates": 9,
+          "candidates": [
+            "J0031276",
+            "J0031307",
+            "PROD7138",
+            "J0031308",
+            "PROD6455",
+            "PROD4215",
+            "J0043070",
+            "J0043071",
+            "PROD4001"
+          ],
+          "question": "Which specific variant?",
+          "choices": [
+            {
+              "label": "Telma LN / LNB",
+              "sku_codes": [
+                "J0031307",
+                "PROD7138",
+                "J0031308",
+                "PROD6455"
+              ]
+            },
+            {
+              "label": "Telma MCT / ACT",
+              "sku_codes": [
+                "PROD4215",
+                "J0043070",
+                "J0043071",
+                "PROD4001",
+                "J0031276"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.111,
+          "repaired": false,
+          "chosen_label": "Telma LN / LNB",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "TELMA",
+      "size": 26,
+      "bucket": "16+",
+      "target": "PROD4001",
+      "target_label": "MCT 6.25 50 TABLET 10'S",
+      "target_name": "TELMA MCT 50 6.25 TABLET",
+      "outcome": "success",
+      "rounds": 3,
+      "bound": 2,
+      "final_candidates": [
+        "J0043071",
+        "PROD4001"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 26,
+          "candidates": [
+            "J0031267",
+            "J0031270",
+            "J0031274",
+            "J0031276",
+            "J0031280",
+            "J0031283",
+            "J0031284",
+            "J0051763",
+            "J0031286",
+            "J0031288",
+            "PROD7131",
+            "J0050848",
+            "J0031293",
+            "J0031294",
+            "J0031297",
+            "J0031299",
+            "J0031305",
+            "J0031301",
+            "J0031307",
+            "PROD7138",
+            "J0031308",
+            "PROD6455",
+            "PROD4215",
+            "J0043070",
+            "J0043071",
+            "PROD4001"
+          ],
+          "question": "Which Telma line?",
+          "choices": [
+            {
+              "label": "Plain Telma",
+              "sku_codes": [
+                "J0031267",
+                "J0031270",
+                "J0031274"
+              ]
+            },
+            {
+              "label": "Telma AM / AMH / AZ / BETA",
+              "sku_codes": [
+                "J0031280",
+                "J0031283",
+                "J0031284",
+                "J0051763",
+                "J0031286",
+                "J0031288",
+                "PROD7131",
+                "J0050848"
+              ]
+            },
+            {
+              "label": "Telma CT / H / D",
+              "sku_codes": [
+                "J0031293",
+                "J0031294",
+                "J0031297",
+                "J0031299",
+                "J0031305",
+                "J0031301"
+              ]
+            },
+            {
+              "label": "Telma LN / LNB / MCT",
+              "sku_codes": [
+                "J0031307",
+                "PROD7138",
+                "J0031308",
+                "PROD6455",
+                "PROD4215",
+                "J0043070",
+                "J0043071",
+                "PROD4001",
+                "J0031276"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.385,
+          "repaired": false,
+          "chosen_label": "Telma LN / LNB / MCT",
+          "remaining": 9
+        },
+        {
+          "index": 2,
+          "n_candidates": 9,
+          "candidates": [
+            "J0031276",
+            "J0031307",
+            "PROD7138",
+            "J0031308",
+            "PROD6455",
+            "PROD4215",
+            "J0043070",
+            "J0043071",
+            "PROD4001"
+          ],
+          "question": "Which specific variant?",
+          "choices": [
+            {
+              "label": "Telma LN / LNB",
+              "sku_codes": [
+                "J0031307",
+                "PROD7138",
+                "J0031308",
+                "PROD6455"
+              ]
+            },
+            {
+              "label": "Telma MCT / ACT",
+              "sku_codes": [
+                "PROD4215",
+                "J0043070",
+                "J0043071",
+                "PROD4001",
+                "J0031276"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.111,
+          "repaired": false,
+          "chosen_label": "Telma MCT / ACT",
+          "remaining": 5
+        },
+        {
+          "index": 3,
+          "n_candidates": 5,
+          "candidates": [
+            "J0031276",
+            "PROD4215",
+            "J0043070",
+            "J0043071",
+            "PROD4001"
+          ],
+          "question": "Which strength?",
+          "choices": [
+            {
+              "label": "Telma MCT 25 mg strength",
+              "sku_codes": [
+                "PROD4215",
+                "J0043070"
+              ]
+            },
+            {
+              "label": "Telma MCT 50 mg strength",
+              "sku_codes": [
+                "J0043071",
+                "PROD4001"
+              ]
+            },
+            {
+              "label": "Telma ACT 40 mg strength",
+              "sku_codes": [
+                "J0031276"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Telma MCT 50 mg strength",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "TELMA",
+      "size": 26,
+      "bucket": "16+",
+      "target": "J0031288",
+      "target_label": "BETA 25 TABLET 10'S",
+      "target_name": "TELMA BETA 25 TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0031288",
+        "PROD7131"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 26,
+          "candidates": [
+            "J0031267",
+            "J0031270",
+            "J0031274",
+            "J0031276",
+            "J0031280",
+            "J0031283",
+            "J0031284",
+            "J0051763",
+            "J0031286",
+            "J0031288",
+            "PROD7131",
+            "J0050848",
+            "J0031293",
+            "J0031294",
+            "J0031297",
+            "J0031299",
+            "J0031305",
+            "J0031301",
+            "J0031307",
+            "PROD7138",
+            "J0031308",
+            "PROD6455",
+            "PROD4215",
+            "J0043070",
+            "J0043071",
+            "PROD4001"
+          ],
+          "question": "Which Telma line?",
+          "choices": [
+            {
+              "label": "Plain Telma",
+              "sku_codes": [
+                "J0031267",
+                "J0031270",
+                "J0031274"
+              ]
+            },
+            {
+              "label": "Telma AM / AMH / AZ / BETA",
+              "sku_codes": [
+                "J0031280",
+                "J0031283",
+                "J0031284",
+                "J0051763",
+                "J0031286",
+                "J0031288",
+                "PROD7131",
+                "J0050848"
+              ]
+            },
+            {
+              "label": "Telma CT / H / D",
+              "sku_codes": [
+                "J0031293",
+                "J0031294",
+                "J0031297",
+                "J0031299",
+                "J0031305",
+                "J0031301"
+              ]
+            },
+            {
+              "label": "Telma LN / LNB / MCT",
+              "sku_codes": [
+                "J0031307",
+                "PROD7138",
+                "J0031308",
+                "PROD6455",
+                "PROD4215",
+                "J0043070",
+                "J0043071",
+                "PROD4001",
+                "J0031276"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.385,
+          "repaired": false,
+          "chosen_label": "Telma AM / AMH / AZ / BETA",
+          "remaining": 8
+        },
+        {
+          "index": 2,
+          "n_candidates": 8,
+          "candidates": [
+            "J0031280",
+            "J0031283",
+            "J0031284",
+            "J0051763",
+            "J0031286",
+            "J0031288",
+            "PROD7131",
+            "J0050848"
+          ],
+          "question": "Which variant?",
+          "choices": [
+            {
+              "label": "Telma AM / AMH",
+              "sku_codes": [
+                "J0031280",
+                "J0031283",
+                "J0031284"
+              ]
+            },
+            {
+              "label": "Telma AZ / BS",
+              "sku_codes": [
+                "J0051763",
+                "J0031286",
+                "J0050848"
+              ]
+            },
+            {
+              "label": "Telma BETA / BETA AM",
+              "sku_codes": [
+                "J0031288",
+                "PROD7131"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.125,
+          "repaired": false,
+          "chosen_label": "Telma BETA / BETA AM",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "GLYCOMET",
+      "size": 16,
+      "bucket": "16+",
+      "target": "J0014920",
+      "target_label": "TRIO FORTE 2 TABLET 1×10",
+      "target_name": "GLYCOMET TRIO FORTE 2 TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 1,
+      "final_candidates": [
+        "J0014920"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 16,
+          "candidates": [
+            "J0050909",
+            "J0014898",
+            "J0014899",
+            "PROD7469",
+            "J0014908",
+            "J0014910",
+            "PROD6792",
+            "J0014909",
+            "J0014912",
+            "J0014913",
+            "J0014902",
+            "PROD6689",
+            "J0043908",
+            "J0014914",
+            "J0014916",
+            "J0014920"
+          ],
+          "question": "Which Glycomet variant?",
+          "choices": [
+            {
+              "label": "Plain Glycomet",
+              "sku_codes": [
+                "J0050909",
+                "J0014898",
+                "J0014899",
+                "J0014902"
+              ]
+            },
+            {
+              "label": "Glycomet GP / GP Forte",
+              "sku_codes": [
+                "PROD7469",
+                "J0014908",
+                "J0014910",
+                "PROD6792",
+                "J0014909",
+                "J0014912",
+                "J0014913"
+              ]
+            },
+            {
+              "label": "Glycomet Trio / Trio Forte",
+              "sku_codes": [
+                "PROD6689",
+                "J0043908",
+                "J0014914",
+                "J0014916",
+                "J0014920"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.312,
+          "repaired": false,
+          "chosen_label": "Glycomet Trio / Trio Forte",
+          "remaining": 5
+        },
+        {
+          "index": 2,
+          "n_candidates": 5,
+          "candidates": [
+            "PROD6689",
+            "J0043908",
+            "J0014914",
+            "J0014916",
+            "J0014920"
+          ],
+          "question": "Is it Trio or Trio Forte?",
+          "choices": [
+            {
+              "label": "Trio (Standard)",
+              "sku_codes": [
+                "PROD6689",
+                "J0043908",
+                "J0014914",
+                "J0014916"
+              ]
+            },
+            {
+              "label": "Trio Forte",
+              "sku_codes": [
+                "J0014920"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.6,
+          "repaired": false,
+          "chosen_label": "Trio Forte",
+          "remaining": 1
+        }
+      ]
+    },
+    {
+      "family": "GLYCOMET",
+      "size": 16,
+      "bucket": "16+",
+      "target": "J0014899",
+      "target_label": "500 MG TABLET 1×10",
+      "target_name": "GLYCOMET 500 MG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0050909",
+        "J0014898",
+        "J0014899",
+        "J0014902"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 16,
+          "candidates": [
+            "J0050909",
+            "J0014898",
+            "J0014899",
+            "PROD7469",
+            "J0014908",
+            "J0014910",
+            "PROD6792",
+            "J0014909",
+            "J0014912",
+            "J0014913",
+            "J0014902",
+            "PROD6689",
+            "J0043908",
+            "J0014914",
+            "J0014916",
+            "J0014920"
+          ],
+          "question": "Which Glycomet variant?",
+          "choices": [
+            {
+              "label": "Plain Glycomet",
+              "sku_codes": [
+                "J0050909",
+                "J0014898",
+                "J0014899",
+                "J0014902"
+              ]
+            },
+            {
+              "label": "Glycomet GP / GP Forte",
+              "sku_codes": [
+                "PROD7469",
+                "J0014908",
+                "J0014910",
+                "PROD6792",
+                "J0014909",
+                "J0014912",
+                "J0014913"
+              ]
+            },
+            {
+              "label": "Glycomet Trio / Trio Forte",
+              "sku_codes": [
+                "PROD6689",
+                "J0043908",
+                "J0014914",
+                "J0014916",
+                "J0014920"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.312,
+          "repaired": false,
+          "chosen_label": "Plain Glycomet",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "GLYCOMET",
+      "size": 16,
+      "bucket": "16+",
+      "target": "J0014912",
+      "target_label": "GP FORTE 3 TABLET 1×10",
+      "target_name": "GLYCOMET-GP 3 FORTE TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 1,
+      "final_candidates": [
+        "J0014909",
+        "J0014912",
+        "J0014913"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 16,
+          "candidates": [
+            "J0050909",
+            "J0014898",
+            "J0014899",
+            "PROD7469",
+            "J0014908",
+            "J0014910",
+            "PROD6792",
+            "J0014909",
+            "J0014912",
+            "J0014913",
+            "J0014902",
+            "PROD6689",
+            "J0043908",
+            "J0014914",
+            "J0014916",
+            "J0014920"
+          ],
+          "question": "Which Glycomet variant?",
+          "choices": [
+            {
+              "label": "Plain Glycomet",
+              "sku_codes": [
+                "J0050909",
+                "J0014898",
+                "J0014899",
+                "J0014902"
+              ]
+            },
+            {
+              "label": "Glycomet GP / GP Forte",
+              "sku_codes": [
+                "PROD7469",
+                "J0014908",
+                "J0014910",
+                "PROD6792",
+                "J0014909",
+                "J0014912",
+                "J0014913"
+              ]
+            },
+            {
+              "label": "Glycomet Trio / Trio Forte",
+              "sku_codes": [
+                "PROD6689",
+                "J0043908",
+                "J0014914",
+                "J0014916",
+                "J0014920"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.312,
+          "repaired": false,
+          "chosen_label": "Glycomet GP / GP Forte",
+          "remaining": 7
+        },
+        {
+          "index": 2,
+          "n_candidates": 7,
+          "candidates": [
+            "PROD7469",
+            "J0014908",
+            "J0014910",
+            "PROD6792",
+            "J0014909",
+            "J0014912",
+            "J0014913"
+          ],
+          "question": "Is it GP or GP Forte?",
+          "choices": [
+            {
+              "label": "GP (Standard)",
+              "sku_codes": [
+                "PROD7469",
+                "J0014908",
+                "J0014910",
+                "PROD6792"
+              ]
+            },
+            {
+              "label": "GP Forte",
+              "sku_codes": [
+                "J0014909",
+                "J0014912",
+                "J0014913"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.143,
+          "repaired": false,
+          "chosen_label": "GP Forte",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "GLYCOMET",
+      "size": 16,
+      "bucket": "16+",
+      "target": "J0014910",
+      "target_label": "GP 2 TABLET 15'S",
+      "target_name": "GLYCOMET-GP 2 TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 1,
+      "final_candidates": [
+        "PROD7469",
+        "J0014908",
+        "J0014910",
+        "PROD6792"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 16,
+          "candidates": [
+            "J0050909",
+            "J0014898",
+            "J0014899",
+            "PROD7469",
+            "J0014908",
+            "J0014910",
+            "PROD6792",
+            "J0014909",
+            "J0014912",
+            "J0014913",
+            "J0014902",
+            "PROD6689",
+            "J0043908",
+            "J0014914",
+            "J0014916",
+            "J0014920"
+          ],
+          "question": "Which Glycomet variant?",
+          "choices": [
+            {
+              "label": "Plain Glycomet",
+              "sku_codes": [
+                "J0050909",
+                "J0014898",
+                "J0014899",
+                "J0014902"
+              ]
+            },
+            {
+              "label": "Glycomet GP / GP Forte",
+              "sku_codes": [
+                "PROD7469",
+                "J0014908",
+                "J0014910",
+                "PROD6792",
+                "J0014909",
+                "J0014912",
+                "J0014913"
+              ]
+            },
+            {
+              "label": "Glycomet Trio / Trio Forte",
+              "sku_codes": [
+                "PROD6689",
+                "J0043908",
+                "J0014914",
+                "J0014916",
+                "J0014920"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.312,
+          "repaired": false,
+          "chosen_label": "Glycomet GP / GP Forte",
+          "remaining": 7
+        },
+        {
+          "index": 2,
+          "n_candidates": 7,
+          "candidates": [
+            "PROD7469",
+            "J0014908",
+            "J0014910",
+            "PROD6792",
+            "J0014909",
+            "J0014912",
+            "J0014913"
+          ],
+          "question": "Is it GP or GP Forte?",
+          "choices": [
+            {
+              "label": "GP (Standard)",
+              "sku_codes": [
+                "PROD7469",
+                "J0014908",
+                "J0014910",
+                "PROD6792"
+              ]
+            },
+            {
+              "label": "GP Forte",
+              "sku_codes": [
+                "J0014909",
+                "J0014912",
+                "J0014913"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.143,
+          "repaired": false,
+          "chosen_label": "GP (Standard)",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "SHELCAL",
+      "size": 17,
+      "bucket": "16+",
+      "target": "J0029370",
+      "target_label": "OS TABLET 15'S",
+      "target_name": "SHELCAL-OS TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0029368",
+        "PROD2168",
+        "J0029370"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 17,
+          "candidates": [
+            "J0029371",
+            "J0029358",
+            "J0029359",
+            "J0029361",
+            "J0029360",
+            "J0029363",
+            "J0029362",
+            "J0043211",
+            "J0043435",
+            "J0029368",
+            "PROD2168",
+            "J0029370",
+            "PROD5988",
+            "PROD531",
+            "PROD7019",
+            "PROD6109",
+            "PROD6110"
+          ],
+          "question": "Which form of Shelcal do you need?",
+          "choices": [
+            {
+              "label": "Shelcal Tablets/Capsules",
+              "sku_codes": [
+                "J0029358",
+                "J0029359",
+                "J0029361",
+                "J0029360",
+                "J0029363",
+                "J0029362",
+                "J0043211",
+                "J0043435",
+                "J0029368",
+                "PROD2168",
+                "J0029370"
+              ]
+            },
+            {
+              "label": "Shelcal Syrup/Gummies/Powder",
+              "sku_codes": [
+                "J0029371",
+                "PROD5988",
+                "PROD531",
+                "PROD7019",
+                "PROD6109",
+                "PROD6110"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.294,
+          "repaired": false,
+          "chosen_label": "Shelcal Tablets/Capsules",
+          "remaining": 11
+        },
+        {
+          "index": 2,
+          "n_candidates": 11,
+          "candidates": [
+            "J0029358",
+            "J0029359",
+            "J0029361",
+            "J0029360",
+            "J0029363",
+            "J0029362",
+            "J0043211",
+            "J0043435",
+            "J0029368",
+            "PROD2168",
+            "J0029370"
+          ],
+          "question": "Which Shelcal variant?",
+          "choices": [
+            {
+              "label": "Plain Shelcal (250/500)",
+              "sku_codes": [
+                "J0029358",
+                "J0029359"
+              ]
+            },
+            {
+              "label": "Shelcal CT / CT Max",
+              "sku_codes": [
+                "J0029361",
+                "J0029360"
+              ]
+            },
+            {
+              "label": "Shelcal HD / ISO / JOINTS",
+              "sku_codes": [
+                "J0029363",
+                "J0029362",
+                "J0043211",
+                "J0043435"
+              ]
+            },
+            {
+              "label": "Shelcal M / NEU / OS",
+              "sku_codes": [
+                "J0029368",
+                "PROD2168",
+                "J0029370"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.455,
+          "repaired": false,
+          "chosen_label": "Shelcal M / NEU / OS",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "SHELCAL",
+      "size": 17,
+      "bucket": "16+",
+      "target": "PROD2168",
+      "target_label": "NEU TABLET 15'S",
+      "target_name": "SHELCAL NEU TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0029368",
+        "PROD2168",
+        "J0029370"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 17,
+          "candidates": [
+            "J0029371",
+            "J0029358",
+            "J0029359",
+            "J0029361",
+            "J0029360",
+            "J0029363",
+            "J0029362",
+            "J0043211",
+            "J0043435",
+            "J0029368",
+            "PROD2168",
+            "J0029370",
+            "PROD5988",
+            "PROD531",
+            "PROD7019",
+            "PROD6109",
+            "PROD6110"
+          ],
+          "question": "Which form of Shelcal do you need?",
+          "choices": [
+            {
+              "label": "Shelcal Tablets/Capsules",
+              "sku_codes": [
+                "J0029358",
+                "J0029359",
+                "J0029361",
+                "J0029360",
+                "J0029363",
+                "J0029362",
+                "J0043211",
+                "J0043435",
+                "J0029368",
+                "PROD2168",
+                "J0029370"
+              ]
+            },
+            {
+              "label": "Shelcal Syrup/Gummies/Powder",
+              "sku_codes": [
+                "J0029371",
+                "PROD5988",
+                "PROD531",
+                "PROD7019",
+                "PROD6109",
+                "PROD6110"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.294,
+          "repaired": false,
+          "chosen_label": "Shelcal Tablets/Capsules",
+          "remaining": 11
+        },
+        {
+          "index": 2,
+          "n_candidates": 11,
+          "candidates": [
+            "J0029358",
+            "J0029359",
+            "J0029361",
+            "J0029360",
+            "J0029363",
+            "J0029362",
+            "J0043211",
+            "J0043435",
+            "J0029368",
+            "PROD2168",
+            "J0029370"
+          ],
+          "question": "Which Shelcal variant?",
+          "choices": [
+            {
+              "label": "Plain Shelcal (250/500)",
+              "sku_codes": [
+                "J0029358",
+                "J0029359"
+              ]
+            },
+            {
+              "label": "Shelcal CT / CT Max",
+              "sku_codes": [
+                "J0029361",
+                "J0029360"
+              ]
+            },
+            {
+              "label": "Shelcal HD / ISO / JOINTS",
+              "sku_codes": [
+                "J0029363",
+                "J0029362",
+                "J0043211",
+                "J0043435"
+              ]
+            },
+            {
+              "label": "Shelcal M / NEU / OS",
+              "sku_codes": [
+                "J0029368",
+                "PROD2168",
+                "J0029370"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.455,
+          "repaired": false,
+          "chosen_label": "Shelcal M / NEU / OS",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "SHELCAL",
+      "size": 17,
+      "bucket": "16+",
+      "target": "J0043211",
+      "target_label": "ISO CAPSULE 15'S",
+      "target_name": "SHELCAL-ISO CAPSULE",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0029363",
+        "J0029362",
+        "J0043211",
+        "J0043435"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 17,
+          "candidates": [
+            "J0029371",
+            "J0029358",
+            "J0029359",
+            "J0029361",
+            "J0029360",
+            "J0029363",
+            "J0029362",
+            "J0043211",
+            "J0043435",
+            "J0029368",
+            "PROD2168",
+            "J0029370",
+            "PROD5988",
+            "PROD531",
+            "PROD7019",
+            "PROD6109",
+            "PROD6110"
+          ],
+          "question": "Which form of Shelcal do you need?",
+          "choices": [
+            {
+              "label": "Shelcal Tablets/Capsules",
+              "sku_codes": [
+                "J0029358",
+                "J0029359",
+                "J0029361",
+                "J0029360",
+                "J0029363",
+                "J0029362",
+                "J0043211",
+                "J0043435",
+                "J0029368",
+                "PROD2168",
+                "J0029370"
+              ]
+            },
+            {
+              "label": "Shelcal Syrup/Gummies/Powder",
+              "sku_codes": [
+                "J0029371",
+                "PROD5988",
+                "PROD531",
+                "PROD7019",
+                "PROD6109",
+                "PROD6110"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.294,
+          "repaired": false,
+          "chosen_label": "Shelcal Tablets/Capsules",
+          "remaining": 11
+        },
+        {
+          "index": 2,
+          "n_candidates": 11,
+          "candidates": [
+            "J0029358",
+            "J0029359",
+            "J0029361",
+            "J0029360",
+            "J0029363",
+            "J0029362",
+            "J0043211",
+            "J0043435",
+            "J0029368",
+            "PROD2168",
+            "J0029370"
+          ],
+          "question": "Which Shelcal variant?",
+          "choices": [
+            {
+              "label": "Plain Shelcal (250/500)",
+              "sku_codes": [
+                "J0029358",
+                "J0029359"
+              ]
+            },
+            {
+              "label": "Shelcal CT / CT Max",
+              "sku_codes": [
+                "J0029361",
+                "J0029360"
+              ]
+            },
+            {
+              "label": "Shelcal HD / ISO / JOINTS",
+              "sku_codes": [
+                "J0029363",
+                "J0029362",
+                "J0043211",
+                "J0043435"
+              ]
+            },
+            {
+              "label": "Shelcal M / NEU / OS",
+              "sku_codes": [
+                "J0029368",
+                "PROD2168",
+                "J0029370"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.455,
+          "repaired": false,
+          "chosen_label": "Shelcal HD / ISO / JOINTS",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "SHELCAL",
+      "size": 17,
+      "bucket": "16+",
+      "target": "J0029371",
+      "target_label": "SYRUP 200 ML",
+      "target_name": "SHELCAL SYRUP",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0029371",
+        "PROD5988",
+        "PROD531"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 17,
+          "candidates": [
+            "J0029371",
+            "J0029358",
+            "J0029359",
+            "J0029361",
+            "J0029360",
+            "J0029363",
+            "J0029362",
+            "J0043211",
+            "J0043435",
+            "J0029368",
+            "PROD2168",
+            "J0029370",
+            "PROD5988",
+            "PROD531",
+            "PROD7019",
+            "PROD6109",
+            "PROD6110"
+          ],
+          "question": "Which form of Shelcal do you need?",
+          "choices": [
+            {
+              "label": "Shelcal Tablets/Capsules",
+              "sku_codes": [
+                "J0029358",
+                "J0029359",
+                "J0029361",
+                "J0029360",
+                "J0029363",
+                "J0029362",
+                "J0043211",
+                "J0043435",
+                "J0029368",
+                "PROD2168",
+                "J0029370"
+              ]
+            },
+            {
+              "label": "Shelcal Syrup/Gummies/Powder",
+              "sku_codes": [
+                "J0029371",
+                "PROD5988",
+                "PROD531",
+                "PROD7019",
+                "PROD6109",
+                "PROD6110"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.294,
+          "repaired": false,
+          "chosen_label": "Shelcal Syrup/Gummies/Powder",
+          "remaining": 6
+        },
+        {
+          "index": 2,
+          "n_candidates": 6,
+          "candidates": [
+            "J0029371",
+            "PROD5988",
+            "PROD531",
+            "PROD7019",
+            "PROD6109",
+            "PROD6110"
+          ],
+          "question": "Which type of Shelcal?",
+          "choices": [
+            {
+              "label": "Syrup or Gummies",
+              "sku_codes": [
+                "J0029371",
+                "PROD5988",
+                "PROD531"
+              ]
+            },
+            {
+              "label": "Powder Refill",
+              "sku_codes": [
+                "PROD7019",
+                "PROD6109",
+                "PROD6110"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.0,
+          "repaired": false,
+          "chosen_label": "Syrup or Gummies",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "DERMADEW",
+      "size": 25,
+      "bucket": "16+",
+      "target": "PROD5695",
+      "target_label": "SHOWER PLUS GEL 100 ML",
+      "target_name": "DERMADEW SHOWER PLUS GEL",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "PROD5695"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 25,
+          "candidates": [
+            "J0009539",
+            "J0009546",
+            "J0009551",
+            "J0009550",
+            "J0009514",
+            "J0009509",
+            "J0042425",
+            "PROD5230",
+            "PROD5423",
+            "PROD5231",
+            "PROD5229",
+            "PROD2121",
+            "J0009525",
+            "J0009527",
+            "J0009529",
+            "PROD1212",
+            "J0042467",
+            "J0009531",
+            "PROD6323",
+            "PROD6157",
+            "J0009537",
+            "J0042923",
+            "J0009544",
+            "PROD5695",
+            "J0009553"
+          ],
+          "question": "Which Dermadew variant?",
+          "choices": [
+            {
+              "label": "Dermadew (Plain/Acne/Glow/VG)",
+              "sku_codes": [
+                "J0009539",
+                "J0009546",
+                "J0009551",
+                "J0009550",
+                "J0009514",
+                "J0009509",
+                "J0042923",
+                "J0009553"
+              ]
+            },
+            {
+              "label": "Dermadew Aloe/Caloe/Lite/Bact/Shower",
+              "sku_codes": [
+                "PROD5230",
+                "PROD5423",
+                "PROD5231",
+                "PROD5229",
+                "PROD2121",
+                "PROD6323",
+                "PROD6157",
+                "J0009531",
+                "J0009544",
+                "PROD5695"
+              ]
+            },
+            {
+              "label": "Dermadew Baby/AHF/Diaper",
+              "sku_codes": [
+                "J0042425",
+                "J0009525",
+                "J0009527",
+                "J0009529",
+                "PROD1212",
+                "J0042467",
+                "J0009537"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Dermadew Aloe/Caloe/Lite/Bact/Shower",
+          "remaining": 10
+        },
+        {
+          "index": 2,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD5230",
+            "PROD5423",
+            "PROD5231",
+            "PROD5229",
+            "PROD2121",
+            "J0009531",
+            "PROD6323",
+            "PROD6157",
+            "J0009544",
+            "PROD5695"
+          ],
+          "question": "Which specific product?",
+          "choices": [
+            {
+              "label": "Aloe Plus (Cream/Lotion)",
+              "sku_codes": [
+                "PROD5230",
+                "PROD5423",
+                "PROD5231",
+                "PROD5229"
+              ]
+            },
+            {
+              "label": "Caloe Plus Lotion",
+              "sku_codes": [
+                "PROD6323",
+                "PROD6157"
+              ]
+            },
+            {
+              "label": "Soaps (B Bar/Bact/Lite)",
+              "sku_codes": [
+                "PROD2121",
+                "J0009531",
+                "J0009544"
+              ]
+            },
+            {
+              "label": "Shower Plus Gel",
+              "sku_codes": [
+                "PROD5695"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.6,
+          "repaired": false,
+          "chosen_label": "Shower Plus Gel",
+          "remaining": 1
+        }
+      ]
+    },
+    {
+      "family": "DERMADEW",
+      "size": 25,
+      "bucket": "16+",
+      "target": "J0009553",
+      "target_label": "VG WASH WASH 100 ML",
+      "target_name": "DERMADEW VG WASH WASH",
+      "outcome": "success",
+      "rounds": 3,
+      "bound": 2,
+      "final_candidates": [
+        "J0009539",
+        "J0009509",
+        "J0042923",
+        "J0009553"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 25,
+          "candidates": [
+            "J0009539",
+            "J0009546",
+            "J0009551",
+            "J0009550",
+            "J0009514",
+            "J0009509",
+            "J0042425",
+            "PROD5230",
+            "PROD5423",
+            "PROD5231",
+            "PROD5229",
+            "PROD2121",
+            "J0009525",
+            "J0009527",
+            "J0009529",
+            "PROD1212",
+            "J0042467",
+            "J0009531",
+            "PROD6323",
+            "PROD6157",
+            "J0009537",
+            "J0042923",
+            "J0009544",
+            "PROD5695",
+            "J0009553"
+          ],
+          "question": "Which Dermadew variant?",
+          "choices": [
+            {
+              "label": "Dermadew (Plain/Acne/Glow/VG)",
+              "sku_codes": [
+                "J0009539",
+                "J0009546",
+                "J0009551",
+                "J0009550",
+                "J0009514",
+                "J0009509",
+                "J0042923",
+                "J0009553"
+              ]
+            },
+            {
+              "label": "Dermadew Aloe/Caloe/Lite/Bact/Shower",
+              "sku_codes": [
+                "PROD5230",
+                "PROD5423",
+                "PROD5231",
+                "PROD5229",
+                "PROD2121",
+                "PROD6323",
+                "PROD6157",
+                "J0009531",
+                "J0009544",
+                "PROD5695"
+              ]
+            },
+            {
+              "label": "Dermadew Baby/AHF/Diaper",
+              "sku_codes": [
+                "J0042425",
+                "J0009525",
+                "J0009527",
+                "J0009529",
+                "PROD1212",
+                "J0042467",
+                "J0009537"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Dermadew (Plain/Acne/Glow/VG)",
+          "remaining": 8
+        },
+        {
+          "index": 2,
+          "n_candidates": 8,
+          "candidates": [
+            "J0009539",
+            "J0009546",
+            "J0009551",
+            "J0009550",
+            "J0009514",
+            "J0009509",
+            "J0042923",
+            "J0009553"
+          ],
+          "question": "Which form?",
+          "choices": [
+            {
+              "label": "Soap/Wash/Facewash",
+              "sku_codes": [
+                "J0009539",
+                "J0009551",
+                "J0009550",
+                "J0009514",
+                "J0009509",
+                "J0042923",
+                "J0009553"
+              ]
+            },
+            {
+              "label": "Shampoo",
+              "sku_codes": [
+                "J0009546"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.75,
+          "repaired": false,
+          "chosen_label": "Soap/Wash/Facewash",
+          "remaining": 7
+        },
+        {
+          "index": 3,
+          "n_candidates": 7,
+          "candidates": [
+            "J0009539",
+            "J0009551",
+            "J0009550",
+            "J0009514",
+            "J0009509",
+            "J0042923",
+            "J0009553"
+          ],
+          "question": "Which type?",
+          "choices": [
+            {
+              "label": "Soap",
+              "sku_codes": [
+                "J0009551",
+                "J0009550",
+                "J0009514"
+              ]
+            },
+            {
+              "label": "Wash/Facewash",
+              "sku_codes": [
+                "J0009539",
+                "J0009509",
+                "J0042923",
+                "J0009553"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.143,
+          "repaired": false,
+          "chosen_label": "Wash/Facewash",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "DERMADEW",
+      "size": 25,
+      "bucket": "16+",
+      "target": "PROD2121",
+      "target_label": "B BAR PLUS SOAP 75 GM",
+      "target_name": "DERMADEW B BAR PLUS SOAP",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "PROD2121",
+        "J0009531",
+        "J0009544"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 25,
+          "candidates": [
+            "J0009539",
+            "J0009546",
+            "J0009551",
+            "J0009550",
+            "J0009514",
+            "J0009509",
+            "J0042425",
+            "PROD5230",
+            "PROD5423",
+            "PROD5231",
+            "PROD5229",
+            "PROD2121",
+            "J0009525",
+            "J0009527",
+            "J0009529",
+            "PROD1212",
+            "J0042467",
+            "J0009531",
+            "PROD6323",
+            "PROD6157",
+            "J0009537",
+            "J0042923",
+            "J0009544",
+            "PROD5695",
+            "J0009553"
+          ],
+          "question": "Which Dermadew variant?",
+          "choices": [
+            {
+              "label": "Dermadew (Plain/Acne/Glow/VG)",
+              "sku_codes": [
+                "J0009539",
+                "J0009546",
+                "J0009551",
+                "J0009550",
+                "J0009514",
+                "J0009509",
+                "J0042923",
+                "J0009553"
+              ]
+            },
+            {
+              "label": "Dermadew Aloe/Caloe/Lite/Bact/Shower",
+              "sku_codes": [
+                "PROD5230",
+                "PROD5423",
+                "PROD5231",
+                "PROD5229",
+                "PROD2121",
+                "PROD6323",
+                "PROD6157",
+                "J0009531",
+                "J0009544",
+                "PROD5695"
+              ]
+            },
+            {
+              "label": "Dermadew Baby/AHF/Diaper",
+              "sku_codes": [
+                "J0042425",
+                "J0009525",
+                "J0009527",
+                "J0009529",
+                "PROD1212",
+                "J0042467",
+                "J0009537"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Dermadew Aloe/Caloe/Lite/Bact/Shower",
+          "remaining": 10
+        },
+        {
+          "index": 2,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD5230",
+            "PROD5423",
+            "PROD5231",
+            "PROD5229",
+            "PROD2121",
+            "J0009531",
+            "PROD6323",
+            "PROD6157",
+            "J0009544",
+            "PROD5695"
+          ],
+          "question": "Which specific product?",
+          "choices": [
+            {
+              "label": "Aloe Plus (Cream/Lotion)",
+              "sku_codes": [
+                "PROD5230",
+                "PROD5423",
+                "PROD5231",
+                "PROD5229"
+              ]
+            },
+            {
+              "label": "Caloe Plus Lotion",
+              "sku_codes": [
+                "PROD6323",
+                "PROD6157"
+              ]
+            },
+            {
+              "label": "Soaps (B Bar/Bact/Lite)",
+              "sku_codes": [
+                "PROD2121",
+                "J0009531",
+                "J0009544"
+              ]
+            },
+            {
+              "label": "Shower Plus Gel",
+              "sku_codes": [
+                "PROD5695"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.6,
+          "repaired": false,
+          "chosen_label": "Soaps (B Bar/Bact/Lite)",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "DERMADEW",
+      "size": 25,
+      "bucket": "16+",
+      "target": "PROD6323",
+      "target_label": "CALOE PLUS LOTION 60 ML",
+      "target_name": "DERMADEW CALOE PLUS LOTION",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "PROD6323",
+        "PROD6157"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 25,
+          "candidates": [
+            "J0009539",
+            "J0009546",
+            "J0009551",
+            "J0009550",
+            "J0009514",
+            "J0009509",
+            "J0042425",
+            "PROD5230",
+            "PROD5423",
+            "PROD5231",
+            "PROD5229",
+            "PROD2121",
+            "J0009525",
+            "J0009527",
+            "J0009529",
+            "PROD1212",
+            "J0042467",
+            "J0009531",
+            "PROD6323",
+            "PROD6157",
+            "J0009537",
+            "J0042923",
+            "J0009544",
+            "PROD5695",
+            "J0009553"
+          ],
+          "question": "Which Dermadew variant?",
+          "choices": [
+            {
+              "label": "Dermadew (Plain/Acne/Glow/VG)",
+              "sku_codes": [
+                "J0009539",
+                "J0009546",
+                "J0009551",
+                "J0009550",
+                "J0009514",
+                "J0009509",
+                "J0042923",
+                "J0009553"
+              ]
+            },
+            {
+              "label": "Dermadew Aloe/Caloe/Lite/Bact/Shower",
+              "sku_codes": [
+                "PROD5230",
+                "PROD5423",
+                "PROD5231",
+                "PROD5229",
+                "PROD2121",
+                "PROD6323",
+                "PROD6157",
+                "J0009531",
+                "J0009544",
+                "PROD5695"
+              ]
+            },
+            {
+              "label": "Dermadew Baby/AHF/Diaper",
+              "sku_codes": [
+                "J0042425",
+                "J0009525",
+                "J0009527",
+                "J0009529",
+                "PROD1212",
+                "J0042467",
+                "J0009537"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Dermadew Aloe/Caloe/Lite/Bact/Shower",
+          "remaining": 10
+        },
+        {
+          "index": 2,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD5230",
+            "PROD5423",
+            "PROD5231",
+            "PROD5229",
+            "PROD2121",
+            "J0009531",
+            "PROD6323",
+            "PROD6157",
+            "J0009544",
+            "PROD5695"
+          ],
+          "question": "Which specific product?",
+          "choices": [
+            {
+              "label": "Aloe Plus (Cream/Lotion)",
+              "sku_codes": [
+                "PROD5230",
+                "PROD5423",
+                "PROD5231",
+                "PROD5229"
+              ]
+            },
+            {
+              "label": "Caloe Plus Lotion",
+              "sku_codes": [
+                "PROD6323",
+                "PROD6157"
+              ]
+            },
+            {
+              "label": "Soaps (B Bar/Bact/Lite)",
+              "sku_codes": [
+                "PROD2121",
+                "J0009531",
+                "J0009544"
+              ]
+            },
+            {
+              "label": "Shower Plus Gel",
+              "sku_codes": [
+                "PROD5695"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.6,
+          "repaired": false,
+          "chosen_label": "Caloe Plus Lotion",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "TAXIM",
+      "size": 18,
+      "bucket": "16+",
+      "target": "J0030993",
+      "target_label": "125 MG INJECTION VIALS",
+      "target_name": "TAXIM 125 MG INJECTION",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 2,
+      "final_candidates": [
+        "J0041474",
+        "J0030993",
+        "J0030995",
+        "J0030998"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 18,
+          "candidates": [
+            "J0041474",
+            "J0030993",
+            "J0030995",
+            "J0030998",
+            "J0031015",
+            "J0043008",
+            "J0031005",
+            "J0031007",
+            "J0031011",
+            "J0031010",
+            "J0031009",
+            "J0031001",
+            "J0031016",
+            "J0050777",
+            "J0031020",
+            "J0031012",
+            "J0031022",
+            "PROD6418"
+          ],
+          "question": "Which Taxim variant?",
+          "choices": [
+            {
+              "label": "Taxim Injection",
+              "sku_codes": [
+                "J0041474",
+                "J0030993",
+                "J0030995",
+                "J0030998"
+              ]
+            },
+            {
+              "label": "Taxim-O (Oral)",
+              "sku_codes": [
+                "J0031015",
+                "J0043008",
+                "J0031005",
+                "J0031007",
+                "J0031011",
+                "J0031010",
+                "J0031009",
+                "J0031001",
+                "J0031016",
+                "J0050777",
+                "J0031020",
+                "J0031012"
+              ]
+            },
+            {
+              "label": "Taxim-OF",
+              "sku_codes": [
+                "J0031022",
+                "PROD6418"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 2.0,
+          "repaired": false,
+          "chosen_label": "Taxim Injection",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "TAXIM",
+      "size": 18,
+      "bucket": "16+",
+      "target": "J0030998",
+      "target_label": "500 MG INJECTION VIAL",
+      "target_name": "TAXIM 500 MG INJECTION",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 2,
+      "final_candidates": [
+        "J0041474",
+        "J0030993",
+        "J0030995",
+        "J0030998"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 18,
+          "candidates": [
+            "J0041474",
+            "J0030993",
+            "J0030995",
+            "J0030998",
+            "J0031015",
+            "J0043008",
+            "J0031005",
+            "J0031007",
+            "J0031011",
+            "J0031010",
+            "J0031009",
+            "J0031001",
+            "J0031016",
+            "J0050777",
+            "J0031020",
+            "J0031012",
+            "J0031022",
+            "PROD6418"
+          ],
+          "question": "Which Taxim variant?",
+          "choices": [
+            {
+              "label": "Taxim Injection",
+              "sku_codes": [
+                "J0041474",
+                "J0030993",
+                "J0030995",
+                "J0030998"
+              ]
+            },
+            {
+              "label": "Taxim-O (Oral)",
+              "sku_codes": [
+                "J0031015",
+                "J0043008",
+                "J0031005",
+                "J0031007",
+                "J0031011",
+                "J0031010",
+                "J0031009",
+                "J0031001",
+                "J0031016",
+                "J0050777",
+                "J0031020",
+                "J0031012"
+              ]
+            },
+            {
+              "label": "Taxim-OF",
+              "sku_codes": [
+                "J0031022",
+                "PROD6418"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 2.0,
+          "repaired": false,
+          "chosen_label": "Taxim Injection",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "TAXIM",
+      "size": 18,
+      "bucket": "16+",
+      "target": "J0030995",
+      "target_label": "250 MG INJECTION VIALS",
+      "target_name": "TAXIM 250 MG INJECTION",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 2,
+      "final_candidates": [
+        "J0041474",
+        "J0030993",
+        "J0030995",
+        "J0030998"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 18,
+          "candidates": [
+            "J0041474",
+            "J0030993",
+            "J0030995",
+            "J0030998",
+            "J0031015",
+            "J0043008",
+            "J0031005",
+            "J0031007",
+            "J0031011",
+            "J0031010",
+            "J0031009",
+            "J0031001",
+            "J0031016",
+            "J0050777",
+            "J0031020",
+            "J0031012",
+            "J0031022",
+            "PROD6418"
+          ],
+          "question": "Which Taxim variant?",
+          "choices": [
+            {
+              "label": "Taxim Injection",
+              "sku_codes": [
+                "J0041474",
+                "J0030993",
+                "J0030995",
+                "J0030998"
+              ]
+            },
+            {
+              "label": "Taxim-O (Oral)",
+              "sku_codes": [
+                "J0031015",
+                "J0043008",
+                "J0031005",
+                "J0031007",
+                "J0031011",
+                "J0031010",
+                "J0031009",
+                "J0031001",
+                "J0031016",
+                "J0050777",
+                "J0031020",
+                "J0031012"
+              ]
+            },
+            {
+              "label": "Taxim-OF",
+              "sku_codes": [
+                "J0031022",
+                "PROD6418"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 2.0,
+          "repaired": false,
+          "chosen_label": "Taxim Injection",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "TAXIM",
+      "size": 18,
+      "bucket": "16+",
+      "target": "J0031020",
+      "target_label": "O PAED DROPS 10 ML",
+      "target_name": "TAXIM O PAED DROPS",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0031016",
+        "J0050777",
+        "J0031020"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 18,
+          "candidates": [
+            "J0041474",
+            "J0030993",
+            "J0030995",
+            "J0030998",
+            "J0031015",
+            "J0043008",
+            "J0031005",
+            "J0031007",
+            "J0031011",
+            "J0031010",
+            "J0031009",
+            "J0031001",
+            "J0031016",
+            "J0050777",
+            "J0031020",
+            "J0031012",
+            "J0031022",
+            "PROD6418"
+          ],
+          "question": "Which Taxim variant?",
+          "choices": [
+            {
+              "label": "Taxim Injection",
+              "sku_codes": [
+                "J0041474",
+                "J0030993",
+                "J0030995",
+                "J0030998"
+              ]
+            },
+            {
+              "label": "Taxim-O (Oral)",
+              "sku_codes": [
+                "J0031015",
+                "J0043008",
+                "J0031005",
+                "J0031007",
+                "J0031011",
+                "J0031010",
+                "J0031009",
+                "J0031001",
+                "J0031016",
+                "J0050777",
+                "J0031020",
+                "J0031012"
+              ]
+            },
+            {
+              "label": "Taxim-OF",
+              "sku_codes": [
+                "J0031022",
+                "PROD6418"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 2.0,
+          "repaired": false,
+          "chosen_label": "Taxim-O (Oral)",
+          "remaining": 12
+        },
+        {
+          "index": 2,
+          "n_candidates": 12,
+          "candidates": [
+            "J0031015",
+            "J0043008",
+            "J0031005",
+            "J0031007",
+            "J0031011",
+            "J0031010",
+            "J0031009",
+            "J0031001",
+            "J0031016",
+            "J0050777",
+            "J0031020",
+            "J0031012"
+          ],
+          "question": "Which Taxim-O sub-type?",
+          "choices": [
+            {
+              "label": "Taxim-O Plain/Juicy Lemon",
+              "sku_codes": [
+                "J0031015",
+                "J0043008",
+                "J0031005",
+                "J0031007",
+                "J0031012"
+              ]
+            },
+            {
+              "label": "Taxim-O CV",
+              "sku_codes": [
+                "J0031011",
+                "J0031010"
+              ]
+            },
+            {
+              "label": "Taxim-O DT",
+              "sku_codes": [
+                "J0031009",
+                "J0031001"
+              ]
+            },
+            {
+              "label": "Taxim-O Forte/Paed",
+              "sku_codes": [
+                "J0031016",
+                "J0050777",
+                "J0031020"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.667,
+          "repaired": false,
+          "chosen_label": "Taxim-O Forte/Paed",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "GLIMESTAR",
+      "size": 21,
+      "bucket": "16+",
+      "target": "PROD3045",
+      "target_label": "M 0.5 TABLET 10'S",
+      "target_name": "GLIMESTAR M 0.5 TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "PROD3045",
+        "PROD8133",
+        "J0014410"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 21,
+          "candidates": [
+            "J0014405",
+            "J0036736",
+            "J0014407",
+            "J0014408",
+            "PROD3331",
+            "PROD3330",
+            "PROD3045",
+            "PROD8133",
+            "J0014410",
+            "J0014409",
+            "J0014411",
+            "J0050105",
+            "J0014413",
+            "PROD1134",
+            "J0014414",
+            "J0046906",
+            "J0046907",
+            "J0014415",
+            "J0014416",
+            "PROD5476",
+            "PROD5477"
+          ],
+          "question": "Which Glimestar variant?",
+          "choices": [
+            {
+              "label": "Plain Glimestar",
+              "sku_codes": [
+                "J0014405",
+                "J0036736",
+                "J0014407",
+                "J0014408"
+              ]
+            },
+            {
+              "label": "Glimestar M / M1 / M2 / M3 / M4 series",
+              "sku_codes": [
+                "PROD3045",
+                "PROD8133",
+                "J0014410",
+                "J0014409",
+                "J0014411",
+                "J0050105",
+                "J0014413",
+                "PROD1134",
+                "J0014414"
+              ]
+            },
+            {
+              "label": "Glimestar DM / SM Forte series",
+              "sku_codes": [
+                "PROD3331",
+                "PROD3330",
+                "PROD5476",
+                "PROD5477"
+              ]
+            },
+            {
+              "label": "Glimestar MV / PM series",
+              "sku_codes": [
+                "J0046906",
+                "J0046907",
+                "J0014415",
+                "J0014416"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.714,
+          "repaired": false,
+          "chosen_label": "Glimestar M / M1 / M2 / M3 / M4 series",
+          "remaining": 9
+        },
+        {
+          "index": 2,
+          "n_candidates": 9,
+          "candidates": [
+            "PROD3045",
+            "PROD8133",
+            "J0014410",
+            "J0014409",
+            "J0014411",
+            "J0050105",
+            "J0014413",
+            "PROD1134",
+            "J0014414"
+          ],
+          "question": "Which strength or Forte version?",
+          "choices": [
+            {
+              "label": "M / M1 series",
+              "sku_codes": [
+                "PROD3045",
+                "PROD8133",
+                "J0014410"
+              ]
+            },
+            {
+              "label": "M1 Forte / M2 Forte series",
+              "sku_codes": [
+                "J0014409",
+                "J0014411"
+              ]
+            },
+            {
+              "label": "M3 / M3 Forte series",
+              "sku_codes": [
+                "J0050105",
+                "J0014413"
+              ]
+            },
+            {
+              "label": "M4 / M4 Forte series",
+              "sku_codes": [
+                "PROD1134",
+                "J0014414"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.333,
+          "repaired": false,
+          "chosen_label": "M / M1 series",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "GLIMESTAR",
+      "size": 21,
+      "bucket": "16+",
+      "target": "J0014410",
+      "target_label": "M1 TABLET 10'S",
+      "target_name": "GLIMESTAR-M1 TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "PROD3045",
+        "PROD8133",
+        "J0014410"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 21,
+          "candidates": [
+            "J0014405",
+            "J0036736",
+            "J0014407",
+            "J0014408",
+            "PROD3331",
+            "PROD3330",
+            "PROD3045",
+            "PROD8133",
+            "J0014410",
+            "J0014409",
+            "J0014411",
+            "J0050105",
+            "J0014413",
+            "PROD1134",
+            "J0014414",
+            "J0046906",
+            "J0046907",
+            "J0014415",
+            "J0014416",
+            "PROD5476",
+            "PROD5477"
+          ],
+          "question": "Which Glimestar variant?",
+          "choices": [
+            {
+              "label": "Plain Glimestar",
+              "sku_codes": [
+                "J0014405",
+                "J0036736",
+                "J0014407",
+                "J0014408"
+              ]
+            },
+            {
+              "label": "Glimestar M / M1 / M2 / M3 / M4 series",
+              "sku_codes": [
+                "PROD3045",
+                "PROD8133",
+                "J0014410",
+                "J0014409",
+                "J0014411",
+                "J0050105",
+                "J0014413",
+                "PROD1134",
+                "J0014414"
+              ]
+            },
+            {
+              "label": "Glimestar DM / SM Forte series",
+              "sku_codes": [
+                "PROD3331",
+                "PROD3330",
+                "PROD5476",
+                "PROD5477"
+              ]
+            },
+            {
+              "label": "Glimestar MV / PM series",
+              "sku_codes": [
+                "J0046906",
+                "J0046907",
+                "J0014415",
+                "J0014416"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.714,
+          "repaired": false,
+          "chosen_label": "Glimestar M / M1 / M2 / M3 / M4 series",
+          "remaining": 9
+        },
+        {
+          "index": 2,
+          "n_candidates": 9,
+          "candidates": [
+            "PROD3045",
+            "PROD8133",
+            "J0014410",
+            "J0014409",
+            "J0014411",
+            "J0050105",
+            "J0014413",
+            "PROD1134",
+            "J0014414"
+          ],
+          "question": "Which strength or Forte version?",
+          "choices": [
+            {
+              "label": "M / M1 series",
+              "sku_codes": [
+                "PROD3045",
+                "PROD8133",
+                "J0014410"
+              ]
+            },
+            {
+              "label": "M1 Forte / M2 Forte series",
+              "sku_codes": [
+                "J0014409",
+                "J0014411"
+              ]
+            },
+            {
+              "label": "M3 / M3 Forte series",
+              "sku_codes": [
+                "J0050105",
+                "J0014413"
+              ]
+            },
+            {
+              "label": "M4 / M4 Forte series",
+              "sku_codes": [
+                "PROD1134",
+                "J0014414"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.333,
+          "repaired": false,
+          "chosen_label": "M / M1 series",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "GLIMESTAR",
+      "size": 21,
+      "bucket": "16+",
+      "target": "J0014411",
+      "target_label": "M2 FORTE TABLET 30'S",
+      "target_name": "GLIMESTAR-M2 FORTE TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0014409",
+        "J0014411"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 21,
+          "candidates": [
+            "J0014405",
+            "J0036736",
+            "J0014407",
+            "J0014408",
+            "PROD3331",
+            "PROD3330",
+            "PROD3045",
+            "PROD8133",
+            "J0014410",
+            "J0014409",
+            "J0014411",
+            "J0050105",
+            "J0014413",
+            "PROD1134",
+            "J0014414",
+            "J0046906",
+            "J0046907",
+            "J0014415",
+            "J0014416",
+            "PROD5476",
+            "PROD5477"
+          ],
+          "question": "Which Glimestar variant?",
+          "choices": [
+            {
+              "label": "Plain Glimestar",
+              "sku_codes": [
+                "J0014405",
+                "J0036736",
+                "J0014407",
+                "J0014408"
+              ]
+            },
+            {
+              "label": "Glimestar M / M1 / M2 / M3 / M4 series",
+              "sku_codes": [
+                "PROD3045",
+                "PROD8133",
+                "J0014410",
+                "J0014409",
+                "J0014411",
+                "J0050105",
+                "J0014413",
+                "PROD1134",
+                "J0014414"
+              ]
+            },
+            {
+              "label": "Glimestar DM / SM Forte series",
+              "sku_codes": [
+                "PROD3331",
+                "PROD3330",
+                "PROD5476",
+                "PROD5477"
+              ]
+            },
+            {
+              "label": "Glimestar MV / PM series",
+              "sku_codes": [
+                "J0046906",
+                "J0046907",
+                "J0014415",
+                "J0014416"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.714,
+          "repaired": false,
+          "chosen_label": "Glimestar M / M1 / M2 / M3 / M4 series",
+          "remaining": 9
+        },
+        {
+          "index": 2,
+          "n_candidates": 9,
+          "candidates": [
+            "PROD3045",
+            "PROD8133",
+            "J0014410",
+            "J0014409",
+            "J0014411",
+            "J0050105",
+            "J0014413",
+            "PROD1134",
+            "J0014414"
+          ],
+          "question": "Which strength or Forte version?",
+          "choices": [
+            {
+              "label": "M / M1 series",
+              "sku_codes": [
+                "PROD3045",
+                "PROD8133",
+                "J0014410"
+              ]
+            },
+            {
+              "label": "M1 Forte / M2 Forte series",
+              "sku_codes": [
+                "J0014409",
+                "J0014411"
+              ]
+            },
+            {
+              "label": "M3 / M3 Forte series",
+              "sku_codes": [
+                "J0050105",
+                "J0014413"
+              ]
+            },
+            {
+              "label": "M4 / M4 Forte series",
+              "sku_codes": [
+                "PROD1134",
+                "J0014414"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.333,
+          "repaired": false,
+          "chosen_label": "M1 Forte / M2 Forte series",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "GLIMESTAR",
+      "size": 21,
+      "bucket": "16+",
+      "target": "PROD3330",
+      "target_label": "DM FORTE 2 TABLET 10'S",
+      "target_name": "GLIMESTAR DM 2 FORTE TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 2,
+      "final_candidates": [
+        "PROD3331",
+        "PROD3330",
+        "PROD5476",
+        "PROD5477"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 21,
+          "candidates": [
+            "J0014405",
+            "J0036736",
+            "J0014407",
+            "J0014408",
+            "PROD3331",
+            "PROD3330",
+            "PROD3045",
+            "PROD8133",
+            "J0014410",
+            "J0014409",
+            "J0014411",
+            "J0050105",
+            "J0014413",
+            "PROD1134",
+            "J0014414",
+            "J0046906",
+            "J0046907",
+            "J0014415",
+            "J0014416",
+            "PROD5476",
+            "PROD5477"
+          ],
+          "question": "Which Glimestar variant?",
+          "choices": [
+            {
+              "label": "Plain Glimestar",
+              "sku_codes": [
+                "J0014405",
+                "J0036736",
+                "J0014407",
+                "J0014408"
+              ]
+            },
+            {
+              "label": "Glimestar M / M1 / M2 / M3 / M4 series",
+              "sku_codes": [
+                "PROD3045",
+                "PROD8133",
+                "J0014410",
+                "J0014409",
+                "J0014411",
+                "J0050105",
+                "J0014413",
+                "PROD1134",
+                "J0014414"
+              ]
+            },
+            {
+              "label": "Glimestar DM / SM Forte series",
+              "sku_codes": [
+                "PROD3331",
+                "PROD3330",
+                "PROD5476",
+                "PROD5477"
+              ]
+            },
+            {
+              "label": "Glimestar MV / PM series",
+              "sku_codes": [
+                "J0046906",
+                "J0046907",
+                "J0014415",
+                "J0014416"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.714,
+          "repaired": false,
+          "chosen_label": "Glimestar DM / SM Forte series",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "FORACORT",
+      "size": 18,
+      "bucket": "16+",
+      "target": "J0013550",
+      "target_label": "200 ROTACAP 30'S",
+      "target_name": "FORACORT 200 ROTACAP",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0013550",
+        "PROD3550"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 18,
+          "candidates": [
+            "J0013546",
+            "PROD712",
+            "PROD7596",
+            "PROD8201",
+            "J0013543",
+            "J0013545",
+            "J0013547",
+            "J0013550",
+            "PROD3550",
+            "J0013557",
+            "J0013555",
+            "PROD3553",
+            "J0051642",
+            "J0044190",
+            "J0051844",
+            "PROD1661",
+            "J0013551",
+            "J0013558"
+          ],
+          "question": "Which form of Foracort?",
+          "choices": [
+            {
+              "label": "Inhaler",
+              "sku_codes": [
+                "J0013546",
+                "PROD712",
+                "PROD7596",
+                "PROD8201",
+                "J0013555",
+                "J0051642",
+                "J0044190",
+                "J0013551",
+                "J0013558"
+              ]
+            },
+            {
+              "label": "Rotacap",
+              "sku_codes": [
+                "J0013547",
+                "J0013550",
+                "PROD3550",
+                "J0013557",
+                "J0051844"
+              ]
+            },
+            {
+              "label": "Respules/Other",
+              "sku_codes": [
+                "J0013543",
+                "J0013545",
+                "PROD3553",
+                "PROD1661"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.5,
+          "repaired": false,
+          "chosen_label": "Rotacap",
+          "remaining": 5
+        },
+        {
+          "index": 2,
+          "n_candidates": 5,
+          "candidates": [
+            "J0013547",
+            "J0013550",
+            "PROD3550",
+            "J0013557",
+            "J0051844"
+          ],
+          "question": "Which strength?",
+          "choices": [
+            {
+              "label": "100 mcg",
+              "sku_codes": [
+                "J0013547"
+              ]
+            },
+            {
+              "label": "200 mcg",
+              "sku_codes": [
+                "J0013550",
+                "PROD3550"
+              ]
+            },
+            {
+              "label": "400 mcg",
+              "sku_codes": [
+                "J0013557",
+                "J0051844"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "200 mcg",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "FORACORT",
+      "size": 18,
+      "bucket": "16+",
+      "target": "J0013545",
+      "target_label": "1 MG RESPULES 5×2 ML",
+      "target_name": "FORACORT 1 MG RESPULES",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 2,
+      "final_candidates": [
+        "J0013543",
+        "J0013545",
+        "PROD3553",
+        "PROD1661"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 18,
+          "candidates": [
+            "J0013546",
+            "PROD712",
+            "PROD7596",
+            "PROD8201",
+            "J0013543",
+            "J0013545",
+            "J0013547",
+            "J0013550",
+            "PROD3550",
+            "J0013557",
+            "J0013555",
+            "PROD3553",
+            "J0051642",
+            "J0044190",
+            "J0051844",
+            "PROD1661",
+            "J0013551",
+            "J0013558"
+          ],
+          "question": "Which form of Foracort?",
+          "choices": [
+            {
+              "label": "Inhaler",
+              "sku_codes": [
+                "J0013546",
+                "PROD712",
+                "PROD7596",
+                "PROD8201",
+                "J0013555",
+                "J0051642",
+                "J0044190",
+                "J0013551",
+                "J0013558"
+              ]
+            },
+            {
+              "label": "Rotacap",
+              "sku_codes": [
+                "J0013547",
+                "J0013550",
+                "PROD3550",
+                "J0013557",
+                "J0051844"
+              ]
+            },
+            {
+              "label": "Respules/Other",
+              "sku_codes": [
+                "J0013543",
+                "J0013545",
+                "PROD3553",
+                "PROD1661"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.5,
+          "repaired": false,
+          "chosen_label": "Respules/Other",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "FORACORT",
+      "size": 18,
+      "bucket": "16+",
+      "target": "J0051844",
+      "target_label": "G 400 ROTACAP 3×10S",
+      "target_name": "FORACORT G 400 ROTACAP",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0013557",
+        "J0051844"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 18,
+          "candidates": [
+            "J0013546",
+            "PROD712",
+            "PROD7596",
+            "PROD8201",
+            "J0013543",
+            "J0013545",
+            "J0013547",
+            "J0013550",
+            "PROD3550",
+            "J0013557",
+            "J0013555",
+            "PROD3553",
+            "J0051642",
+            "J0044190",
+            "J0051844",
+            "PROD1661",
+            "J0013551",
+            "J0013558"
+          ],
+          "question": "Which form of Foracort?",
+          "choices": [
+            {
+              "label": "Inhaler",
+              "sku_codes": [
+                "J0013546",
+                "PROD712",
+                "PROD7596",
+                "PROD8201",
+                "J0013555",
+                "J0051642",
+                "J0044190",
+                "J0013551",
+                "J0013558"
+              ]
+            },
+            {
+              "label": "Rotacap",
+              "sku_codes": [
+                "J0013547",
+                "J0013550",
+                "PROD3550",
+                "J0013557",
+                "J0051844"
+              ]
+            },
+            {
+              "label": "Respules/Other",
+              "sku_codes": [
+                "J0013543",
+                "J0013545",
+                "PROD3553",
+                "PROD1661"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.5,
+          "repaired": false,
+          "chosen_label": "Rotacap",
+          "remaining": 5
+        },
+        {
+          "index": 2,
+          "n_candidates": 5,
+          "candidates": [
+            "J0013547",
+            "J0013550",
+            "PROD3550",
+            "J0013557",
+            "J0051844"
+          ],
+          "question": "Which strength?",
+          "choices": [
+            {
+              "label": "100 mcg",
+              "sku_codes": [
+                "J0013547"
+              ]
+            },
+            {
+              "label": "200 mcg",
+              "sku_codes": [
+                "J0013550",
+                "PROD3550"
+              ]
+            },
+            {
+              "label": "400 mcg",
+              "sku_codes": [
+                "J0013557",
+                "J0051844"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "400 mcg",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "FORACORT",
+      "size": 18,
+      "bucket": "16+",
+      "target": "J0013546",
+      "target_label": "100 INHALER 120 MDI",
+      "target_name": "FORACORT 100 INHALER",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 2,
+      "final_candidates": [
+        "J0013546",
+        "PROD712",
+        "PROD7596",
+        "J0013551"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 18,
+          "candidates": [
+            "J0013546",
+            "PROD712",
+            "PROD7596",
+            "PROD8201",
+            "J0013543",
+            "J0013545",
+            "J0013547",
+            "J0013550",
+            "PROD3550",
+            "J0013557",
+            "J0013555",
+            "PROD3553",
+            "J0051642",
+            "J0044190",
+            "J0051844",
+            "PROD1661",
+            "J0013551",
+            "J0013558"
+          ],
+          "question": "Which form of Foracort?",
+          "choices": [
+            {
+              "label": "Inhaler",
+              "sku_codes": [
+                "J0013546",
+                "PROD712",
+                "PROD7596",
+                "PROD8201",
+                "J0013555",
+                "J0051642",
+                "J0044190",
+                "J0013551",
+                "J0013558"
+              ]
+            },
+            {
+              "label": "Rotacap",
+              "sku_codes": [
+                "J0013547",
+                "J0013550",
+                "PROD3550",
+                "J0013557",
+                "J0051844"
+              ]
+            },
+            {
+              "label": "Respules/Other",
+              "sku_codes": [
+                "J0013543",
+                "J0013545",
+                "PROD3553",
+                "PROD1661"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.5,
+          "repaired": false,
+          "chosen_label": "Inhaler",
+          "remaining": 9
+        },
+        {
+          "index": 2,
+          "n_candidates": 9,
+          "candidates": [
+            "J0013546",
+            "PROD712",
+            "PROD7596",
+            "PROD8201",
+            "J0013555",
+            "J0051642",
+            "J0044190",
+            "J0013551",
+            "J0013558"
+          ],
+          "question": "Which strength or variant?",
+          "choices": [
+            {
+              "label": "100/200 mcg",
+              "sku_codes": [
+                "J0013546",
+                "PROD712",
+                "PROD7596",
+                "J0013551"
+              ]
+            },
+            {
+              "label": "400 mcg",
+              "sku_codes": [
+                "PROD8201",
+                "J0013555",
+                "J0013558"
+              ]
+            },
+            {
+              "label": "Forte/G variant",
+              "sku_codes": [
+                "J0051642",
+                "J0044190"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.333,
+          "repaired": false,
+          "chosen_label": "100/200 mcg",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "VOLINI",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "PROD1551",
+      "target_label": "SPRAY 1×42 GM",
+      "target_name": "VOLINI SPRAY",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "PROD1551"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "J0034539",
+            "J0034534",
+            "PROD1551",
+            "J0051604",
+            "J0044262",
+            "J0051923",
+            "PROD4392",
+            "PROD2856",
+            "PROD2699",
+            "PROD4927"
+          ],
+          "question": "Which Volini variant?",
+          "choices": [
+            {
+              "label": "Volini Gel (Standard)",
+              "sku_codes": [
+                "J0034539",
+                "J0034534"
+              ]
+            },
+            {
+              "label": "Volini Spray (Standard)",
+              "sku_codes": [
+                "PROD1551"
+              ]
+            },
+            {
+              "label": "Volini Joint Xpert Gel",
+              "sku_codes": [
+                "J0051604",
+                "J0044262"
+              ]
+            },
+            {
+              "label": "Volini Maxx or Pain Relief variants",
+              "sku_codes": [
+                "J0051923",
+                "PROD4392",
+                "PROD2856",
+                "PROD2699",
+                "PROD4927"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 2.0,
+          "repaired": false,
+          "chosen_label": "Volini Spray (Standard)",
+          "remaining": 1
+        }
+      ]
+    },
+    {
+      "family": "VOLINI",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0044262",
+      "target_label": "JOINT XPERT GEL 50 GM",
+      "target_name": "VOLINI JOINT XPERT GEL",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0051604",
+        "J0044262"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "J0034539",
+            "J0034534",
+            "PROD1551",
+            "J0051604",
+            "J0044262",
+            "J0051923",
+            "PROD4392",
+            "PROD2856",
+            "PROD2699",
+            "PROD4927"
+          ],
+          "question": "Which Volini variant?",
+          "choices": [
+            {
+              "label": "Volini Gel (Standard)",
+              "sku_codes": [
+                "J0034539",
+                "J0034534"
+              ]
+            },
+            {
+              "label": "Volini Spray (Standard)",
+              "sku_codes": [
+                "PROD1551"
+              ]
+            },
+            {
+              "label": "Volini Joint Xpert Gel",
+              "sku_codes": [
+                "J0051604",
+                "J0044262"
+              ]
+            },
+            {
+              "label": "Volini Maxx or Pain Relief variants",
+              "sku_codes": [
+                "J0051923",
+                "PROD4392",
+                "PROD2856",
+                "PROD2699",
+                "PROD4927"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 2.0,
+          "repaired": false,
+          "chosen_label": "Volini Joint Xpert Gel",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "VOLINI",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "PROD4927",
+      "target_label": "PAIN RELIEF SPRAY 62 GM",
+      "target_name": "VOLINI PAIN RELIEF SPRAY",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 1,
+      "final_candidates": [
+        "PROD4927"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "J0034539",
+            "J0034534",
+            "PROD1551",
+            "J0051604",
+            "J0044262",
+            "J0051923",
+            "PROD4392",
+            "PROD2856",
+            "PROD2699",
+            "PROD4927"
+          ],
+          "question": "Which Volini variant?",
+          "choices": [
+            {
+              "label": "Volini Gel (Standard)",
+              "sku_codes": [
+                "J0034539",
+                "J0034534"
+              ]
+            },
+            {
+              "label": "Volini Spray (Standard)",
+              "sku_codes": [
+                "PROD1551"
+              ]
+            },
+            {
+              "label": "Volini Joint Xpert Gel",
+              "sku_codes": [
+                "J0051604",
+                "J0044262"
+              ]
+            },
+            {
+              "label": "Volini Maxx or Pain Relief variants",
+              "sku_codes": [
+                "J0051923",
+                "PROD4392",
+                "PROD2856",
+                "PROD2699",
+                "PROD4927"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 2.0,
+          "repaired": false,
+          "chosen_label": "Volini Maxx or Pain Relief variants",
+          "remaining": 5
+        },
+        {
+          "index": 2,
+          "n_candidates": 5,
+          "candidates": [
+            "J0051923",
+            "PROD4392",
+            "PROD2856",
+            "PROD2699",
+            "PROD4927"
+          ],
+          "question": "Which specific product?",
+          "choices": [
+            {
+              "label": "Volini Maxx Spray",
+              "sku_codes": [
+                "J0051923",
+                "PROD4392"
+              ]
+            },
+            {
+              "label": "Volini Pain Relief Gel",
+              "sku_codes": [
+                "PROD2856",
+                "PROD2699"
+              ]
+            },
+            {
+              "label": "Volini Pain Relief Spray",
+              "sku_codes": [
+                "PROD4927"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Volini Pain Relief Spray",
+          "remaining": 1
+        }
+      ]
+    },
+    {
+      "family": "VOLINI",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0051923",
+      "target_label": "MAXX SPRAY 25 GM",
+      "target_name": "VOLINI MAXX SPRAY",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 1,
+      "final_candidates": [
+        "J0051923",
+        "PROD4392"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "J0034539",
+            "J0034534",
+            "PROD1551",
+            "J0051604",
+            "J0044262",
+            "J0051923",
+            "PROD4392",
+            "PROD2856",
+            "PROD2699",
+            "PROD4927"
+          ],
+          "question": "Which Volini variant?",
+          "choices": [
+            {
+              "label": "Volini Gel (Standard)",
+              "sku_codes": [
+                "J0034539",
+                "J0034534"
+              ]
+            },
+            {
+              "label": "Volini Spray (Standard)",
+              "sku_codes": [
+                "PROD1551"
+              ]
+            },
+            {
+              "label": "Volini Joint Xpert Gel",
+              "sku_codes": [
+                "J0051604",
+                "J0044262"
+              ]
+            },
+            {
+              "label": "Volini Maxx or Pain Relief variants",
+              "sku_codes": [
+                "J0051923",
+                "PROD4392",
+                "PROD2856",
+                "PROD2699",
+                "PROD4927"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 2.0,
+          "repaired": false,
+          "chosen_label": "Volini Maxx or Pain Relief variants",
+          "remaining": 5
+        },
+        {
+          "index": 2,
+          "n_candidates": 5,
+          "candidates": [
+            "J0051923",
+            "PROD4392",
+            "PROD2856",
+            "PROD2699",
+            "PROD4927"
+          ],
+          "question": "Which specific product?",
+          "choices": [
+            {
+              "label": "Volini Maxx Spray",
+              "sku_codes": [
+                "J0051923",
+                "PROD4392"
+              ]
+            },
+            {
+              "label": "Volini Pain Relief Gel",
+              "sku_codes": [
+                "PROD2856",
+                "PROD2699"
+              ]
+            },
+            {
+              "label": "Volini Pain Relief Spray",
+              "sku_codes": [
+                "PROD4927"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Volini Maxx Spray",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "PAN",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0024999",
+      "target_label": "L CAPSULE 10'S",
+      "target_name": "PAN-L CAPSULE",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0024995",
+        "J0050821",
+        "J0024999"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "J0024988",
+            "J0024991",
+            "J0040858",
+            "J0024995",
+            "J0050821",
+            "J0050819",
+            "J0024999",
+            "J0050820",
+            "J0025000",
+            "PROD2881"
+          ],
+          "question": "Which Pan variant?",
+          "choices": [
+            {
+              "label": "Pan Tablet (Plain)",
+              "sku_codes": [
+                "J0024988",
+                "J0024991",
+                "J0040858"
+              ]
+            },
+            {
+              "label": "Pan Capsule (D/IT/L)",
+              "sku_codes": [
+                "J0024995",
+                "J0050821",
+                "J0024999"
+              ]
+            },
+            {
+              "label": "Pan Liquid/Injection",
+              "sku_codes": [
+                "J0050819",
+                "J0050820",
+                "J0025000",
+                "PROD2881"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Pan Capsule (D/IT/L)",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "PAN",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "PROD2881",
+      "target_label": "RFT MINT SF SUSPENSION 200 ML",
+      "target_name": "PAN RFT MINT SF SUSPENSION",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0050819",
+        "J0050820",
+        "J0025000",
+        "PROD2881"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "J0024988",
+            "J0024991",
+            "J0040858",
+            "J0024995",
+            "J0050821",
+            "J0050819",
+            "J0024999",
+            "J0050820",
+            "J0025000",
+            "PROD2881"
+          ],
+          "question": "Which Pan variant?",
+          "choices": [
+            {
+              "label": "Pan Tablet (Plain)",
+              "sku_codes": [
+                "J0024988",
+                "J0024991",
+                "J0040858"
+              ]
+            },
+            {
+              "label": "Pan Capsule (D/IT/L)",
+              "sku_codes": [
+                "J0024995",
+                "J0050821",
+                "J0024999"
+              ]
+            },
+            {
+              "label": "Pan Liquid/Injection",
+              "sku_codes": [
+                "J0050819",
+                "J0050820",
+                "J0025000",
+                "PROD2881"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Pan Liquid/Injection",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "PAN",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0024995",
+      "target_label": "D CAPSULE 15'S",
+      "target_name": "PAN D CAPSULE",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0024995",
+        "J0050821",
+        "J0024999"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "J0024988",
+            "J0024991",
+            "J0040858",
+            "J0024995",
+            "J0050821",
+            "J0050819",
+            "J0024999",
+            "J0050820",
+            "J0025000",
+            "PROD2881"
+          ],
+          "question": "Which Pan variant?",
+          "choices": [
+            {
+              "label": "Pan Tablet (Plain)",
+              "sku_codes": [
+                "J0024988",
+                "J0024991",
+                "J0040858"
+              ]
+            },
+            {
+              "label": "Pan Capsule (D/IT/L)",
+              "sku_codes": [
+                "J0024995",
+                "J0050821",
+                "J0024999"
+              ]
+            },
+            {
+              "label": "Pan Liquid/Injection",
+              "sku_codes": [
+                "J0050819",
+                "J0050820",
+                "J0025000",
+                "PROD2881"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Pan Capsule (D/IT/L)",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "PAN",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0050821",
+      "target_label": "IT CAPSULE 10'S",
+      "target_name": "PAN IT CAPSULE",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0024995",
+        "J0050821",
+        "J0024999"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "J0024988",
+            "J0024991",
+            "J0040858",
+            "J0024995",
+            "J0050821",
+            "J0050819",
+            "J0024999",
+            "J0050820",
+            "J0025000",
+            "PROD2881"
+          ],
+          "question": "Which Pan variant?",
+          "choices": [
+            {
+              "label": "Pan Tablet (Plain)",
+              "sku_codes": [
+                "J0024988",
+                "J0024991",
+                "J0040858"
+              ]
+            },
+            {
+              "label": "Pan Capsule (D/IT/L)",
+              "sku_codes": [
+                "J0024995",
+                "J0050821",
+                "J0024999"
+              ]
+            },
+            {
+              "label": "Pan Liquid/Injection",
+              "sku_codes": [
+                "J0050819",
+                "J0050820",
+                "J0025000",
+                "PROD2881"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Pan Capsule (D/IT/L)",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "MOX",
+      "size": 11,
+      "bucket": "9-15",
+      "target": "J0021697",
+      "target_label": "KID 250 TABLET 1×15",
+      "target_name": "MOX KID 250 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0051318",
+        "J0021706",
+        "J0021694",
+        "J0021697"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 11,
+          "candidates": [
+            "J0040106",
+            "J0021699",
+            "J0021708",
+            "J0021711",
+            "J0051318",
+            "J0021706",
+            "J0021694",
+            "J0021697",
+            "J0021710",
+            "J0021713",
+            "J0021714"
+          ],
+          "question": "Which Mox variant?",
+          "choices": [
+            {
+              "label": "Plain Mox (Capsule)",
+              "sku_codes": [
+                "J0040106",
+                "J0021699"
+              ]
+            },
+            {
+              "label": "Mox CV / KID / Drops",
+              "sku_codes": [
+                "J0051318",
+                "J0021694",
+                "J0021697",
+                "J0021706"
+              ]
+            },
+            {
+              "label": "Mox Suspension / Syrup",
+              "sku_codes": [
+                "J0021708",
+                "J0021711",
+                "J0021710",
+                "J0021713",
+                "J0021714"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.364,
+          "repaired": false,
+          "chosen_label": "Mox CV / KID / Drops",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "MOX",
+      "size": 11,
+      "bucket": "9-15",
+      "target": "J0051318",
+      "target_label": "CV 625 TABLET 10'S",
+      "target_name": "MOX CV 625 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0051318",
+        "J0021706",
+        "J0021694",
+        "J0021697"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 11,
+          "candidates": [
+            "J0040106",
+            "J0021699",
+            "J0021708",
+            "J0021711",
+            "J0051318",
+            "J0021706",
+            "J0021694",
+            "J0021697",
+            "J0021710",
+            "J0021713",
+            "J0021714"
+          ],
+          "question": "Which Mox variant?",
+          "choices": [
+            {
+              "label": "Plain Mox (Capsule)",
+              "sku_codes": [
+                "J0040106",
+                "J0021699"
+              ]
+            },
+            {
+              "label": "Mox CV / KID / Drops",
+              "sku_codes": [
+                "J0051318",
+                "J0021694",
+                "J0021697",
+                "J0021706"
+              ]
+            },
+            {
+              "label": "Mox Suspension / Syrup",
+              "sku_codes": [
+                "J0021708",
+                "J0021711",
+                "J0021710",
+                "J0021713",
+                "J0021714"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.364,
+          "repaired": false,
+          "chosen_label": "Mox CV / KID / Drops",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "MOX",
+      "size": 11,
+      "bucket": "9-15",
+      "target": "J0040106",
+      "target_label": "250 MG CAPSULE 15'S",
+      "target_name": "MOX 250 MG CAPSULE",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0040106",
+        "J0021699"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 11,
+          "candidates": [
+            "J0040106",
+            "J0021699",
+            "J0021708",
+            "J0021711",
+            "J0051318",
+            "J0021706",
+            "J0021694",
+            "J0021697",
+            "J0021710",
+            "J0021713",
+            "J0021714"
+          ],
+          "question": "Which Mox variant?",
+          "choices": [
+            {
+              "label": "Plain Mox (Capsule)",
+              "sku_codes": [
+                "J0040106",
+                "J0021699"
+              ]
+            },
+            {
+              "label": "Mox CV / KID / Drops",
+              "sku_codes": [
+                "J0051318",
+                "J0021694",
+                "J0021697",
+                "J0021706"
+              ]
+            },
+            {
+              "label": "Mox Suspension / Syrup",
+              "sku_codes": [
+                "J0021708",
+                "J0021711",
+                "J0021710",
+                "J0021713",
+                "J0021714"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.364,
+          "repaired": false,
+          "chosen_label": "Plain Mox (Capsule)",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "MOX",
+      "size": 11,
+      "bucket": "9-15",
+      "target": "J0021699",
+      "target_label": "500 MG CAPSULE 1×15",
+      "target_name": "MOX 500 MG CAPSULE",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0040106",
+        "J0021699"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 11,
+          "candidates": [
+            "J0040106",
+            "J0021699",
+            "J0021708",
+            "J0021711",
+            "J0051318",
+            "J0021706",
+            "J0021694",
+            "J0021697",
+            "J0021710",
+            "J0021713",
+            "J0021714"
+          ],
+          "question": "Which Mox variant?",
+          "choices": [
+            {
+              "label": "Plain Mox (Capsule)",
+              "sku_codes": [
+                "J0040106",
+                "J0021699"
+              ]
+            },
+            {
+              "label": "Mox CV / KID / Drops",
+              "sku_codes": [
+                "J0051318",
+                "J0021694",
+                "J0021697",
+                "J0021706"
+              ]
+            },
+            {
+              "label": "Mox Suspension / Syrup",
+              "sku_codes": [
+                "J0021708",
+                "J0021711",
+                "J0021710",
+                "J0021713",
+                "J0021714"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.364,
+          "repaired": false,
+          "chosen_label": "Plain Mox (Capsule)",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "CEFOLAC",
+      "size": 12,
+      "bucket": "9-15",
+      "target": "J0040893",
+      "target_label": "400 TABLET 10'S",
+      "target_name": "CEFOLAC-400 TABLET",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 1,
+      "final_candidates": [
+        "J0006885",
+        "J0040893",
+        "J0006892"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 12,
+          "candidates": [
+            "PROD7034",
+            "PROD7035",
+            "J0006886",
+            "J0006884",
+            "J0006885",
+            "J0040893",
+            "J0006889",
+            "J0006892",
+            "46214",
+            "J0006895",
+            "J0006894",
+            "J0006897"
+          ],
+          "question": "Which Cefolac variant?",
+          "choices": [
+            {
+              "label": "Plain Cefolac",
+              "sku_codes": [
+                "PROD7034",
+                "PROD7035",
+                "J0006886",
+                "J0006884",
+                "J0006885",
+                "J0040893",
+                "J0006892"
+              ]
+            },
+            {
+              "label": "Cefolac O / O-200 / O-100 DT",
+              "sku_codes": [
+                "46214",
+                "J0006895",
+                "J0006894"
+              ]
+            },
+            {
+              "label": "Cefolac CV or XL",
+              "sku_codes": [
+                "J0006889",
+                "J0006897"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.75,
+          "repaired": false,
+          "chosen_label": "Plain Cefolac",
+          "remaining": 7
+        },
+        {
+          "index": 2,
+          "n_candidates": 7,
+          "candidates": [
+            "PROD7034",
+            "PROD7035",
+            "J0006886",
+            "J0006884",
+            "J0006885",
+            "J0040893",
+            "J0006892"
+          ],
+          "question": "Which form?",
+          "choices": [
+            {
+              "label": "Suspension / Syrup",
+              "sku_codes": [
+                "PROD7034",
+                "PROD7035",
+                "J0006886",
+                "J0006884"
+              ]
+            },
+            {
+              "label": "Tablets (200mg / 400mg / DT-100)",
+              "sku_codes": [
+                "J0006885",
+                "J0040893",
+                "J0006892"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.143,
+          "repaired": false,
+          "chosen_label": "Tablets (200mg / 400mg / DT-100)",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "CEFOLAC",
+      "size": 12,
+      "bucket": "9-15",
+      "target": "J0006897",
+      "target_label": "XL 200 TABLET 10'S",
+      "target_name": "CEFOLAC XL 200 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0006889",
+        "J0006897"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 12,
+          "candidates": [
+            "PROD7034",
+            "PROD7035",
+            "J0006886",
+            "J0006884",
+            "J0006885",
+            "J0040893",
+            "J0006889",
+            "J0006892",
+            "46214",
+            "J0006895",
+            "J0006894",
+            "J0006897"
+          ],
+          "question": "Which Cefolac variant?",
+          "choices": [
+            {
+              "label": "Plain Cefolac",
+              "sku_codes": [
+                "PROD7034",
+                "PROD7035",
+                "J0006886",
+                "J0006884",
+                "J0006885",
+                "J0040893",
+                "J0006892"
+              ]
+            },
+            {
+              "label": "Cefolac O / O-200 / O-100 DT",
+              "sku_codes": [
+                "46214",
+                "J0006895",
+                "J0006894"
+              ]
+            },
+            {
+              "label": "Cefolac CV or XL",
+              "sku_codes": [
+                "J0006889",
+                "J0006897"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.75,
+          "repaired": false,
+          "chosen_label": "Cefolac CV or XL",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "CEFOLAC",
+      "size": 12,
+      "bucket": "9-15",
+      "target": "J0006886",
+      "target_label": "50 MG SUSPENSION 30 ML",
+      "target_name": "CEFOLAC 50 MG SUSPENSION",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 1,
+      "final_candidates": [
+        "PROD7034",
+        "PROD7035",
+        "J0006886",
+        "J0006884"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 12,
+          "candidates": [
+            "PROD7034",
+            "PROD7035",
+            "J0006886",
+            "J0006884",
+            "J0006885",
+            "J0040893",
+            "J0006889",
+            "J0006892",
+            "46214",
+            "J0006895",
+            "J0006894",
+            "J0006897"
+          ],
+          "question": "Which Cefolac variant?",
+          "choices": [
+            {
+              "label": "Plain Cefolac",
+              "sku_codes": [
+                "PROD7034",
+                "PROD7035",
+                "J0006886",
+                "J0006884",
+                "J0006885",
+                "J0040893",
+                "J0006892"
+              ]
+            },
+            {
+              "label": "Cefolac O / O-200 / O-100 DT",
+              "sku_codes": [
+                "46214",
+                "J0006895",
+                "J0006894"
+              ]
+            },
+            {
+              "label": "Cefolac CV or XL",
+              "sku_codes": [
+                "J0006889",
+                "J0006897"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.75,
+          "repaired": false,
+          "chosen_label": "Plain Cefolac",
+          "remaining": 7
+        },
+        {
+          "index": 2,
+          "n_candidates": 7,
+          "candidates": [
+            "PROD7034",
+            "PROD7035",
+            "J0006886",
+            "J0006884",
+            "J0006885",
+            "J0040893",
+            "J0006892"
+          ],
+          "question": "Which form?",
+          "choices": [
+            {
+              "label": "Suspension / Syrup",
+              "sku_codes": [
+                "PROD7034",
+                "PROD7035",
+                "J0006886",
+                "J0006884"
+              ]
+            },
+            {
+              "label": "Tablets (200mg / 400mg / DT-100)",
+              "sku_codes": [
+                "J0006885",
+                "J0040893",
+                "J0006892"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.143,
+          "repaired": false,
+          "chosen_label": "Suspension / Syrup",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "CEFOLAC",
+      "size": 12,
+      "bucket": "9-15",
+      "target": "J0006884",
+      "target_label": "100 SYRUP 30 ML",
+      "target_name": "CEFOLAC 100 SYRUP",
+      "outcome": "success",
+      "rounds": 2,
+      "bound": 1,
+      "final_candidates": [
+        "PROD7034",
+        "PROD7035",
+        "J0006886",
+        "J0006884"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 12,
+          "candidates": [
+            "PROD7034",
+            "PROD7035",
+            "J0006886",
+            "J0006884",
+            "J0006885",
+            "J0040893",
+            "J0006889",
+            "J0006892",
+            "46214",
+            "J0006895",
+            "J0006894",
+            "J0006897"
+          ],
+          "question": "Which Cefolac variant?",
+          "choices": [
+            {
+              "label": "Plain Cefolac",
+              "sku_codes": [
+                "PROD7034",
+                "PROD7035",
+                "J0006886",
+                "J0006884",
+                "J0006885",
+                "J0040893",
+                "J0006892"
+              ]
+            },
+            {
+              "label": "Cefolac O / O-200 / O-100 DT",
+              "sku_codes": [
+                "46214",
+                "J0006895",
+                "J0006894"
+              ]
+            },
+            {
+              "label": "Cefolac CV or XL",
+              "sku_codes": [
+                "J0006889",
+                "J0006897"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.75,
+          "repaired": false,
+          "chosen_label": "Plain Cefolac",
+          "remaining": 7
+        },
+        {
+          "index": 2,
+          "n_candidates": 7,
+          "candidates": [
+            "PROD7034",
+            "PROD7035",
+            "J0006886",
+            "J0006884",
+            "J0006885",
+            "J0040893",
+            "J0006892"
+          ],
+          "question": "Which form?",
+          "choices": [
+            {
+              "label": "Suspension / Syrup",
+              "sku_codes": [
+                "PROD7034",
+                "PROD7035",
+                "J0006886",
+                "J0006884"
+              ]
+            },
+            {
+              "label": "Tablets (200mg / 400mg / DT-100)",
+              "sku_codes": [
+                "J0006885",
+                "J0040893",
+                "J0006892"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.143,
+          "repaired": false,
+          "chosen_label": "Suspension / Syrup",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "NEXPRO",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0022678",
+      "target_label": "FAST 40 TABLET 10'S",
+      "target_name": "NEXPRO FAST 40 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "PROD3302",
+        "J0022675",
+        "J0022676",
+        "J0022678"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD3302",
+            "J0022675",
+            "J0022676",
+            "J0022678",
+            "J0022679",
+            "J0022680",
+            "J0022681",
+            "J0041550",
+            "J0022684",
+            "J0022685"
+          ],
+          "question": "Which Nexpro variant?",
+          "choices": [
+            {
+              "label": "Nexpro Tablet/Injection",
+              "sku_codes": [
+                "PROD3302",
+                "J0022675",
+                "J0022676",
+                "J0022678"
+              ]
+            },
+            {
+              "label": "Nexpro RD Capsule",
+              "sku_codes": [
+                "J0022684",
+                "J0022685"
+              ]
+            },
+            {
+              "label": "Other Nexpro (HP/IT/L/Junior)",
+              "sku_codes": [
+                "J0022679",
+                "J0022680",
+                "J0022681",
+                "J0041550"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Nexpro Tablet/Injection",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "NEXPRO",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0022675",
+      "target_label": "20 TABLET 15'S",
+      "target_name": "NEXPRO-20 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "PROD3302",
+        "J0022675",
+        "J0022676",
+        "J0022678"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD3302",
+            "J0022675",
+            "J0022676",
+            "J0022678",
+            "J0022679",
+            "J0022680",
+            "J0022681",
+            "J0041550",
+            "J0022684",
+            "J0022685"
+          ],
+          "question": "Which Nexpro variant?",
+          "choices": [
+            {
+              "label": "Nexpro Tablet/Injection",
+              "sku_codes": [
+                "PROD3302",
+                "J0022675",
+                "J0022676",
+                "J0022678"
+              ]
+            },
+            {
+              "label": "Nexpro RD Capsule",
+              "sku_codes": [
+                "J0022684",
+                "J0022685"
+              ]
+            },
+            {
+              "label": "Other Nexpro (HP/IT/L/Junior)",
+              "sku_codes": [
+                "J0022679",
+                "J0022680",
+                "J0022681",
+                "J0041550"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Nexpro Tablet/Injection",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "NEXPRO",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0022681",
+      "target_label": "JUNIOR SACHET 1 GM",
+      "target_name": "NEXPRO JUNIOR SACHET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0022679",
+        "J0022680",
+        "J0022681",
+        "J0041550"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD3302",
+            "J0022675",
+            "J0022676",
+            "J0022678",
+            "J0022679",
+            "J0022680",
+            "J0022681",
+            "J0041550",
+            "J0022684",
+            "J0022685"
+          ],
+          "question": "Which Nexpro variant?",
+          "choices": [
+            {
+              "label": "Nexpro Tablet/Injection",
+              "sku_codes": [
+                "PROD3302",
+                "J0022675",
+                "J0022676",
+                "J0022678"
+              ]
+            },
+            {
+              "label": "Nexpro RD Capsule",
+              "sku_codes": [
+                "J0022684",
+                "J0022685"
+              ]
+            },
+            {
+              "label": "Other Nexpro (HP/IT/L/Junior)",
+              "sku_codes": [
+                "J0022679",
+                "J0022680",
+                "J0022681",
+                "J0041550"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Other Nexpro (HP/IT/L/Junior)",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "NEXPRO",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0041550",
+      "target_label": "L CAPSULE 1×10",
+      "target_name": "NEXPRO L CAPSULE",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0022679",
+        "J0022680",
+        "J0022681",
+        "J0041550"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD3302",
+            "J0022675",
+            "J0022676",
+            "J0022678",
+            "J0022679",
+            "J0022680",
+            "J0022681",
+            "J0041550",
+            "J0022684",
+            "J0022685"
+          ],
+          "question": "Which Nexpro variant?",
+          "choices": [
+            {
+              "label": "Nexpro Tablet/Injection",
+              "sku_codes": [
+                "PROD3302",
+                "J0022675",
+                "J0022676",
+                "J0022678"
+              ]
+            },
+            {
+              "label": "Nexpro RD Capsule",
+              "sku_codes": [
+                "J0022684",
+                "J0022685"
+              ]
+            },
+            {
+              "label": "Other Nexpro (HP/IT/L/Junior)",
+              "sku_codes": [
+                "J0022679",
+                "J0022680",
+                "J0022681",
+                "J0041550"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Other Nexpro (HP/IT/L/Junior)",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "METROGYL",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0020884",
+      "target_label": "P OINTMENT 20 GM",
+      "target_name": "METROGYL P OINTMENT",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0020883",
+        "J0020884"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD6880",
+            "J0020886",
+            "J0042788",
+            "PROD996",
+            "J0020879",
+            "PROD1590",
+            "PROD5907",
+            "J0020883",
+            "JE042372",
+            "J0020884"
+          ],
+          "question": "Which form do you need?",
+          "choices": [
+            {
+              "label": "Tablets",
+              "sku_codes": [
+                "J0042788",
+                "PROD996",
+                "PROD5907",
+                "JE042372"
+              ]
+            },
+            {
+              "label": "Gels",
+              "sku_codes": [
+                "PROD6880",
+                "J0020879",
+                "PROD1590"
+              ]
+            },
+            {
+              "label": "Ointments",
+              "sku_codes": [
+                "J0020883",
+                "J0020884"
+              ]
+            },
+            {
+              "label": "Suspension",
+              "sku_codes": [
+                "J0020886"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.6,
+          "repaired": false,
+          "chosen_label": "Ointments",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "METROGYL",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "PROD1590",
+      "target_label": "DG LA GEL 15 GM",
+      "target_name": "METROGYL DG LA GEL",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "PROD6880",
+        "J0020879",
+        "PROD1590"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD6880",
+            "J0020886",
+            "J0042788",
+            "PROD996",
+            "J0020879",
+            "PROD1590",
+            "PROD5907",
+            "J0020883",
+            "JE042372",
+            "J0020884"
+          ],
+          "question": "Which form do you need?",
+          "choices": [
+            {
+              "label": "Tablets",
+              "sku_codes": [
+                "J0042788",
+                "PROD996",
+                "PROD5907",
+                "JE042372"
+              ]
+            },
+            {
+              "label": "Gels",
+              "sku_codes": [
+                "PROD6880",
+                "J0020879",
+                "PROD1590"
+              ]
+            },
+            {
+              "label": "Ointments",
+              "sku_codes": [
+                "J0020883",
+                "J0020884"
+              ]
+            },
+            {
+              "label": "Suspension",
+              "sku_codes": [
+                "J0020886"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.6,
+          "repaired": false,
+          "chosen_label": "Gels",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "METROGYL",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "J0020879",
+      "target_label": "DG GEL FORTE GEL 20 GM",
+      "target_name": "METROGYL DG GEL FORTE GEL",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "PROD6880",
+        "J0020879",
+        "PROD1590"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD6880",
+            "J0020886",
+            "J0042788",
+            "PROD996",
+            "J0020879",
+            "PROD1590",
+            "PROD5907",
+            "J0020883",
+            "JE042372",
+            "J0020884"
+          ],
+          "question": "Which form do you need?",
+          "choices": [
+            {
+              "label": "Tablets",
+              "sku_codes": [
+                "J0042788",
+                "PROD996",
+                "PROD5907",
+                "JE042372"
+              ]
+            },
+            {
+              "label": "Gels",
+              "sku_codes": [
+                "PROD6880",
+                "J0020879",
+                "PROD1590"
+              ]
+            },
+            {
+              "label": "Ointments",
+              "sku_codes": [
+                "J0020883",
+                "J0020884"
+              ]
+            },
+            {
+              "label": "Suspension",
+              "sku_codes": [
+                "J0020886"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.6,
+          "repaired": false,
+          "chosen_label": "Gels",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "METROGYL",
+      "size": 10,
+      "bucket": "9-15",
+      "target": "PROD5907",
+      "target_label": "ER 600 MG TABLET 15'S",
+      "target_name": "METROGYL ER 600 MG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0042788",
+        "PROD996",
+        "PROD5907",
+        "JE042372"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 10,
+          "candidates": [
+            "PROD6880",
+            "J0020886",
+            "J0042788",
+            "PROD996",
+            "J0020879",
+            "PROD1590",
+            "PROD5907",
+            "J0020883",
+            "JE042372",
+            "J0020884"
+          ],
+          "question": "Which form do you need?",
+          "choices": [
+            {
+              "label": "Tablets",
+              "sku_codes": [
+                "J0042788",
+                "PROD996",
+                "PROD5907",
+                "JE042372"
+              ]
+            },
+            {
+              "label": "Gels",
+              "sku_codes": [
+                "PROD6880",
+                "J0020879",
+                "PROD1590"
+              ]
+            },
+            {
+              "label": "Ointments",
+              "sku_codes": [
+                "J0020883",
+                "J0020884"
+              ]
+            },
+            {
+              "label": "Suspension",
+              "sku_codes": [
+                "J0020886"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.6,
+          "repaired": false,
+          "chosen_label": "Tablets",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "SALBAIR",
+      "size": 11,
+      "bucket": "9-15",
+      "target": "A00647",
+      "target_label": "NEB TRANSPULE 2.5 TRANSPULES 0.31 2.5ML3",
+      "target_name": "SALBAIR NEB 0.31 TRANSPULE 2.5 ML TRANSPULES",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0028761",
+        "PROD625",
+        "J0028760",
+        "A00647"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 11,
+          "candidates": [
+            "J0028755",
+            "J0028756",
+            "PROD3282",
+            "J0028754",
+            "PROD3283",
+            "J0028762",
+            "J0028763",
+            "J0028761",
+            "PROD625",
+            "J0028760",
+            "A00647"
+          ],
+          "question": "Which Salbair variant?",
+          "choices": [
+            {
+              "label": "Salbair (Plain)",
+              "sku_codes": [
+                "J0028755",
+                "J0028756"
+              ]
+            },
+            {
+              "label": "Salbair B / B Forte",
+              "sku_codes": [
+                "PROD3282",
+                "J0028754",
+                "PROD3283"
+              ]
+            },
+            {
+              "label": "Salbair I (Caps/Inhaler)",
+              "sku_codes": [
+                "J0028762",
+                "J0028763"
+              ]
+            },
+            {
+              "label": "Salbair Nebulizer (I/Plain)",
+              "sku_codes": [
+                "J0028761",
+                "PROD625",
+                "J0028760",
+                "A00647"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.455,
+          "repaired": false,
+          "chosen_label": "Salbair Nebulizer (I/Plain)",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "SALBAIR",
+      "size": 11,
+      "bucket": "9-15",
+      "target": "J0028756",
+      "target_label": "INHALER 1 UNIT",
+      "target_name": "SALBAIR TRANSHALER",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0028755",
+        "J0028756"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 11,
+          "candidates": [
+            "J0028755",
+            "J0028756",
+            "PROD3282",
+            "J0028754",
+            "PROD3283",
+            "J0028762",
+            "J0028763",
+            "J0028761",
+            "PROD625",
+            "J0028760",
+            "A00647"
+          ],
+          "question": "Which Salbair variant?",
+          "choices": [
+            {
+              "label": "Salbair (Plain)",
+              "sku_codes": [
+                "J0028755",
+                "J0028756"
+              ]
+            },
+            {
+              "label": "Salbair B / B Forte",
+              "sku_codes": [
+                "PROD3282",
+                "J0028754",
+                "PROD3283"
+              ]
+            },
+            {
+              "label": "Salbair I (Caps/Inhaler)",
+              "sku_codes": [
+                "J0028762",
+                "J0028763"
+              ]
+            },
+            {
+              "label": "Salbair Nebulizer (I/Plain)",
+              "sku_codes": [
+                "J0028761",
+                "PROD625",
+                "J0028760",
+                "A00647"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.455,
+          "repaired": false,
+          "chosen_label": "Salbair (Plain)",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "SALBAIR",
+      "size": 11,
+      "bucket": "9-15",
+      "target": "J0028760",
+      "target_label": "I NEB TRANSPULES 2.5 TRANSPULES 0.63 2.5 ML",
+      "target_name": "SALBAIR I NEB 0.63 TRANSPULES 2.5 ML TRANSPULES",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0028761",
+        "PROD625",
+        "J0028760",
+        "A00647"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 11,
+          "candidates": [
+            "J0028755",
+            "J0028756",
+            "PROD3282",
+            "J0028754",
+            "PROD3283",
+            "J0028762",
+            "J0028763",
+            "J0028761",
+            "PROD625",
+            "J0028760",
+            "A00647"
+          ],
+          "question": "Which Salbair variant?",
+          "choices": [
+            {
+              "label": "Salbair (Plain)",
+              "sku_codes": [
+                "J0028755",
+                "J0028756"
+              ]
+            },
+            {
+              "label": "Salbair B / B Forte",
+              "sku_codes": [
+                "PROD3282",
+                "J0028754",
+                "PROD3283"
+              ]
+            },
+            {
+              "label": "Salbair I (Caps/Inhaler)",
+              "sku_codes": [
+                "J0028762",
+                "J0028763"
+              ]
+            },
+            {
+              "label": "Salbair Nebulizer (I/Plain)",
+              "sku_codes": [
+                "J0028761",
+                "PROD625",
+                "J0028760",
+                "A00647"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.455,
+          "repaired": false,
+          "chosen_label": "Salbair Nebulizer (I/Plain)",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "SALBAIR",
+      "size": 11,
+      "bucket": "9-15",
+      "target": "PROD3283",
+      "target_label": "B FORTE CAPSULE 30'S",
+      "target_name": "SALBAIR B FORTE TRANSCAPS",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "PROD3282",
+        "J0028754",
+        "PROD3283"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 11,
+          "candidates": [
+            "J0028755",
+            "J0028756",
+            "PROD3282",
+            "J0028754",
+            "PROD3283",
+            "J0028762",
+            "J0028763",
+            "J0028761",
+            "PROD625",
+            "J0028760",
+            "A00647"
+          ],
+          "question": "Which Salbair variant?",
+          "choices": [
+            {
+              "label": "Salbair (Plain)",
+              "sku_codes": [
+                "J0028755",
+                "J0028756"
+              ]
+            },
+            {
+              "label": "Salbair B / B Forte",
+              "sku_codes": [
+                "PROD3282",
+                "J0028754",
+                "PROD3283"
+              ]
+            },
+            {
+              "label": "Salbair I (Caps/Inhaler)",
+              "sku_codes": [
+                "J0028762",
+                "J0028763"
+              ]
+            },
+            {
+              "label": "Salbair Nebulizer (I/Plain)",
+              "sku_codes": [
+                "J0028761",
+                "PROD625",
+                "J0028760",
+                "A00647"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.455,
+          "repaired": false,
+          "chosen_label": "Salbair B / B Forte",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "THYRONORM",
+      "size": 8,
+      "bucket": "5-8",
+      "target": "J0031960",
+      "target_label": "88 MCG TABLET 120'S",
+      "target_name": "THYRONORM 88 MCG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0031960",
+        "J0031950",
+        "J0031952"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 8,
+          "candidates": [
+            "J0038287",
+            "J0038288",
+            "J0038635",
+            "J0031960",
+            "J0031950",
+            "J0031952",
+            "PROD727",
+            "J0031953"
+          ],
+          "question": "Which strength range?",
+          "choices": [
+            {
+              "label": "12.5 to 75 mcg",
+              "sku_codes": [
+                "J0038287",
+                "J0038288",
+                "J0038635"
+              ]
+            },
+            {
+              "label": "88 to 125 mcg",
+              "sku_codes": [
+                "J0031960",
+                "J0031950",
+                "J0031952"
+              ]
+            },
+            {
+              "label": "137 to 150 mcg",
+              "sku_codes": [
+                "PROD727",
+                "J0031953"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.125,
+          "repaired": false,
+          "chosen_label": "88 to 125 mcg",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "THYRONORM",
+      "size": 8,
+      "bucket": "5-8",
+      "target": "J0031950",
+      "target_label": "112 MCG TABLET 120'S",
+      "target_name": "THYRONORM 112 MCG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0031960",
+        "J0031950",
+        "J0031952"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 8,
+          "candidates": [
+            "J0038287",
+            "J0038288",
+            "J0038635",
+            "J0031960",
+            "J0031950",
+            "J0031952",
+            "PROD727",
+            "J0031953"
+          ],
+          "question": "Which strength range?",
+          "choices": [
+            {
+              "label": "12.5 to 75 mcg",
+              "sku_codes": [
+                "J0038287",
+                "J0038288",
+                "J0038635"
+              ]
+            },
+            {
+              "label": "88 to 125 mcg",
+              "sku_codes": [
+                "J0031960",
+                "J0031950",
+                "J0031952"
+              ]
+            },
+            {
+              "label": "137 to 150 mcg",
+              "sku_codes": [
+                "PROD727",
+                "J0031953"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.125,
+          "repaired": false,
+          "chosen_label": "88 to 125 mcg",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "THYRONORM",
+      "size": 8,
+      "bucket": "5-8",
+      "target": "PROD727",
+      "target_label": "137 MCG TABLET 1×120",
+      "target_name": "THYRONORM 137 MCG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "PROD727",
+        "J0031953"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 8,
+          "candidates": [
+            "J0038287",
+            "J0038288",
+            "J0038635",
+            "J0031960",
+            "J0031950",
+            "J0031952",
+            "PROD727",
+            "J0031953"
+          ],
+          "question": "Which strength range?",
+          "choices": [
+            {
+              "label": "12.5 to 75 mcg",
+              "sku_codes": [
+                "J0038287",
+                "J0038288",
+                "J0038635"
+              ]
+            },
+            {
+              "label": "88 to 125 mcg",
+              "sku_codes": [
+                "J0031960",
+                "J0031950",
+                "J0031952"
+              ]
+            },
+            {
+              "label": "137 to 150 mcg",
+              "sku_codes": [
+                "PROD727",
+                "J0031953"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.125,
+          "repaired": false,
+          "chosen_label": "137 to 150 mcg",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "THYRONORM",
+      "size": 8,
+      "bucket": "5-8",
+      "target": "J0038288",
+      "target_label": "50 MCG TABLET 120'S",
+      "target_name": "THYRONORM 50 MCG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0038287",
+        "J0038288",
+        "J0038635"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 8,
+          "candidates": [
+            "J0038287",
+            "J0038288",
+            "J0038635",
+            "J0031960",
+            "J0031950",
+            "J0031952",
+            "PROD727",
+            "J0031953"
+          ],
+          "question": "Which strength range?",
+          "choices": [
+            {
+              "label": "12.5 to 75 mcg",
+              "sku_codes": [
+                "J0038287",
+                "J0038288",
+                "J0038635"
+              ]
+            },
+            {
+              "label": "88 to 125 mcg",
+              "sku_codes": [
+                "J0031960",
+                "J0031950",
+                "J0031952"
+              ]
+            },
+            {
+              "label": "137 to 150 mcg",
+              "sku_codes": [
+                "PROD727",
+                "J0031953"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.125,
+          "repaired": false,
+          "chosen_label": "12.5 to 75 mcg",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "4 QUIN",
+      "size": 6,
+      "bucket": "5-8",
+      "target": "J0037800",
+      "target_label": "EYE OINTMENT 5 GM",
+      "target_name": "4 QUIN EYE OINTMENT",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0002080",
+        "J0037800"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 6,
+          "candidates": [
+            "J0002080",
+            "J0037800",
+            "J0050198",
+            "J0002079",
+            "PROD3873",
+            "PROD3865"
+          ],
+          "question": "Which 4 Quin variant?",
+          "choices": [
+            {
+              "label": "Plain 4 Quin",
+              "sku_codes": [
+                "J0002080",
+                "J0037800"
+              ]
+            },
+            {
+              "label": "4 Quin with additives (Brom/D/KT/Lot)",
+              "sku_codes": [
+                "J0050198",
+                "J0002079",
+                "PROD3873",
+                "PROD3865"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.333,
+          "repaired": false,
+          "chosen_label": "Plain 4 Quin",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "4 QUIN",
+      "size": 6,
+      "bucket": "5-8",
+      "target": "PROD3865",
+      "target_label": "LOT EYE DROPS 5 ML",
+      "target_name": "4 QUIN LOT EYE DROPS",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0050198",
+        "J0002079",
+        "PROD3873",
+        "PROD3865"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 6,
+          "candidates": [
+            "J0002080",
+            "J0037800",
+            "J0050198",
+            "J0002079",
+            "PROD3873",
+            "PROD3865"
+          ],
+          "question": "Which 4 Quin variant?",
+          "choices": [
+            {
+              "label": "Plain 4 Quin",
+              "sku_codes": [
+                "J0002080",
+                "J0037800"
+              ]
+            },
+            {
+              "label": "4 Quin with additives (Brom/D/KT/Lot)",
+              "sku_codes": [
+                "J0050198",
+                "J0002079",
+                "PROD3873",
+                "PROD3865"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.333,
+          "repaired": false,
+          "chosen_label": "4 Quin with additives (Brom/D/KT/Lot)",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "4 QUIN",
+      "size": 6,
+      "bucket": "5-8",
+      "target": "PROD3873",
+      "target_label": "KT EYE DROPS 5 ML",
+      "target_name": "4 QUIN KT EYE DROPS",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0050198",
+        "J0002079",
+        "PROD3873",
+        "PROD3865"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 6,
+          "candidates": [
+            "J0002080",
+            "J0037800",
+            "J0050198",
+            "J0002079",
+            "PROD3873",
+            "PROD3865"
+          ],
+          "question": "Which 4 Quin variant?",
+          "choices": [
+            {
+              "label": "Plain 4 Quin",
+              "sku_codes": [
+                "J0002080",
+                "J0037800"
+              ]
+            },
+            {
+              "label": "4 Quin with additives (Brom/D/KT/Lot)",
+              "sku_codes": [
+                "J0050198",
+                "J0002079",
+                "PROD3873",
+                "PROD3865"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.333,
+          "repaired": false,
+          "chosen_label": "4 Quin with additives (Brom/D/KT/Lot)",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "4 QUIN",
+      "size": 6,
+      "bucket": "5-8",
+      "target": "J0002079",
+      "target_label": "D EYE DROPS 5 ML",
+      "target_name": "4 QUIN-D EYE DROPS",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0050198",
+        "J0002079",
+        "PROD3873",
+        "PROD3865"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 6,
+          "candidates": [
+            "J0002080",
+            "J0037800",
+            "J0050198",
+            "J0002079",
+            "PROD3873",
+            "PROD3865"
+          ],
+          "question": "Which 4 Quin variant?",
+          "choices": [
+            {
+              "label": "Plain 4 Quin",
+              "sku_codes": [
+                "J0002080",
+                "J0037800"
+              ]
+            },
+            {
+              "label": "4 Quin with additives (Brom/D/KT/Lot)",
+              "sku_codes": [
+                "J0050198",
+                "J0002079",
+                "PROD3873",
+                "PROD3865"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.333,
+          "repaired": false,
+          "chosen_label": "4 Quin with additives (Brom/D/KT/Lot)",
+          "remaining": 4
+        }
+      ]
+    },
+    {
+      "family": "DAPASACH",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0041030",
+      "target_label": "10 MG TABLET 10'S",
+      "target_name": "DAPASACH 10 MG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0041031",
+        "J0041030"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0041031",
+            "J0041030",
+            "J0046582",
+            "J0041097",
+            "J0041032"
+          ],
+          "question": "Which Dapasach variant?",
+          "choices": [
+            {
+              "label": "Plain Dapasach",
+              "sku_codes": [
+                "J0041031",
+                "J0041030"
+              ]
+            },
+            {
+              "label": "Dapasach S (Combo)",
+              "sku_codes": [
+                "J0041097",
+                "J0041032"
+              ]
+            },
+            {
+              "label": "Dapasach MS",
+              "sku_codes": [
+                "J0046582"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Plain Dapasach",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "DAPASACH",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0041031",
+      "target_label": "5 MG TABLET 10'S",
+      "target_name": "DAPASACH 5 MG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0041031",
+        "J0041030"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0041031",
+            "J0041030",
+            "J0046582",
+            "J0041097",
+            "J0041032"
+          ],
+          "question": "Which Dapasach variant?",
+          "choices": [
+            {
+              "label": "Plain Dapasach",
+              "sku_codes": [
+                "J0041031",
+                "J0041030"
+              ]
+            },
+            {
+              "label": "Dapasach S (Combo)",
+              "sku_codes": [
+                "J0041097",
+                "J0041032"
+              ]
+            },
+            {
+              "label": "Dapasach MS",
+              "sku_codes": [
+                "J0046582"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Plain Dapasach",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "DAPASACH",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0046582",
+      "target_label": "MS 500/100/10 TABLET 10'S",
+      "target_name": "DAPASACH-MS 500/100/10 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0046582"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0041031",
+            "J0041030",
+            "J0046582",
+            "J0041097",
+            "J0041032"
+          ],
+          "question": "Which Dapasach variant?",
+          "choices": [
+            {
+              "label": "Plain Dapasach",
+              "sku_codes": [
+                "J0041031",
+                "J0041030"
+              ]
+            },
+            {
+              "label": "Dapasach S (Combo)",
+              "sku_codes": [
+                "J0041097",
+                "J0041032"
+              ]
+            },
+            {
+              "label": "Dapasach MS",
+              "sku_codes": [
+                "J0046582"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Dapasach MS",
+          "remaining": 1
+        }
+      ]
+    },
+    {
+      "family": "DAPASACH",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0041097",
+      "target_label": "S 5/50 MG TABLET 10'S",
+      "target_name": "DAPASACH S 5/50 MG TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0041097",
+        "J0041032"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0041031",
+            "J0041030",
+            "J0046582",
+            "J0041097",
+            "J0041032"
+          ],
+          "question": "Which Dapasach variant?",
+          "choices": [
+            {
+              "label": "Plain Dapasach",
+              "sku_codes": [
+                "J0041031",
+                "J0041030"
+              ]
+            },
+            {
+              "label": "Dapasach S (Combo)",
+              "sku_codes": [
+                "J0041097",
+                "J0041032"
+              ]
+            },
+            {
+              "label": "Dapasach MS",
+              "sku_codes": [
+                "J0046582"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Dapasach S (Combo)",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "GFH",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0014301",
+      "target_label": "10 TABLET 10'S",
+      "target_name": "GFH-10 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0014301",
+        "J0036795"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0014301",
+            "J0036795",
+            "J0014303",
+            "PROD7555",
+            "J0014304"
+          ],
+          "question": "Which GFH variant?",
+          "choices": [
+            {
+              "label": "GFH Plain or D",
+              "sku_codes": [
+                "J0014301",
+                "J0036795"
+              ]
+            },
+            {
+              "label": "GFH HEPA, LIV, or NAC",
+              "sku_codes": [
+                "J0014303",
+                "PROD7555",
+                "J0014304"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "GFH Plain or D",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "GFH",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0014304",
+      "target_label": "NAC TABLET 10'S",
+      "target_name": "GFH NAC TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0014303",
+        "PROD7555",
+        "J0014304"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0014301",
+            "J0036795",
+            "J0014303",
+            "PROD7555",
+            "J0014304"
+          ],
+          "question": "Which GFH variant?",
+          "choices": [
+            {
+              "label": "GFH Plain or D",
+              "sku_codes": [
+                "J0014301",
+                "J0036795"
+              ]
+            },
+            {
+              "label": "GFH HEPA, LIV, or NAC",
+              "sku_codes": [
+                "J0014303",
+                "PROD7555",
+                "J0014304"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "GFH HEPA, LIV, or NAC",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "GFH",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0014303",
+      "target_label": "HEPA TABLET 10'S",
+      "target_name": "GFH-HEPA TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0014303",
+        "PROD7555",
+        "J0014304"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0014301",
+            "J0036795",
+            "J0014303",
+            "PROD7555",
+            "J0014304"
+          ],
+          "question": "Which GFH variant?",
+          "choices": [
+            {
+              "label": "GFH Plain or D",
+              "sku_codes": [
+                "J0014301",
+                "J0036795"
+              ]
+            },
+            {
+              "label": "GFH HEPA, LIV, or NAC",
+              "sku_codes": [
+                "J0014303",
+                "PROD7555",
+                "J0014304"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "GFH HEPA, LIV, or NAC",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "GFH",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0036795",
+      "target_label": "D TABLET 10'S",
+      "target_name": "GFH-D TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0014301",
+        "J0036795"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0014301",
+            "J0036795",
+            "J0014303",
+            "PROD7555",
+            "J0014304"
+          ],
+          "question": "Which GFH variant?",
+          "choices": [
+            {
+              "label": "GFH Plain or D",
+              "sku_codes": [
+                "J0014301",
+                "J0036795"
+              ]
+            },
+            {
+              "label": "GFH HEPA, LIV, or NAC",
+              "sku_codes": [
+                "J0014303",
+                "PROD7555",
+                "J0014304"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "GFH Plain or D",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "STARVOG",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0030165",
+      "target_label": "0.2 TABLET 10'S",
+      "target_name": "STARVOG 0.2 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0030165"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0030165",
+            "J0030167",
+            "J0050851",
+            "J0030169",
+            "J0030170"
+          ],
+          "question": "Which Starvog variant?",
+          "choices": [
+            {
+              "label": "Plain Starvog",
+              "sku_codes": [
+                "J0030165"
+              ]
+            },
+            {
+              "label": "Starvog GM",
+              "sku_codes": [
+                "J0030167",
+                "J0050851"
+              ]
+            },
+            {
+              "label": "Starvog M",
+              "sku_codes": [
+                "J0030169",
+                "J0030170"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Plain Starvog",
+          "remaining": 1
+        }
+      ]
+    },
+    {
+      "family": "STARVOG",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0030169",
+      "target_label": "M 0.2 TABLET 10'S",
+      "target_name": "STARVOG M 0.2 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0030169",
+        "J0030170"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0030165",
+            "J0030167",
+            "J0050851",
+            "J0030169",
+            "J0030170"
+          ],
+          "question": "Which Starvog variant?",
+          "choices": [
+            {
+              "label": "Plain Starvog",
+              "sku_codes": [
+                "J0030165"
+              ]
+            },
+            {
+              "label": "Starvog GM",
+              "sku_codes": [
+                "J0030167",
+                "J0050851"
+              ]
+            },
+            {
+              "label": "Starvog M",
+              "sku_codes": [
+                "J0030169",
+                "J0030170"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Starvog M",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "STARVOG",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0050851",
+      "target_label": "GM 2 TABLET 10'S",
+      "target_name": "STARVOG GM 2 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0030167",
+        "J0050851"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0030165",
+            "J0030167",
+            "J0050851",
+            "J0030169",
+            "J0030170"
+          ],
+          "question": "Which Starvog variant?",
+          "choices": [
+            {
+              "label": "Plain Starvog",
+              "sku_codes": [
+                "J0030165"
+              ]
+            },
+            {
+              "label": "Starvog GM",
+              "sku_codes": [
+                "J0030167",
+                "J0050851"
+              ]
+            },
+            {
+              "label": "Starvog M",
+              "sku_codes": [
+                "J0030169",
+                "J0030170"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Starvog GM",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "STARVOG",
+      "size": 5,
+      "bucket": "5-8",
+      "target": "J0030170",
+      "target_label": "M 0.3 TABLET 10'S",
+      "target_name": "STARVOG M 0.3 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0030169",
+        "J0030170"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 5,
+          "candidates": [
+            "J0030165",
+            "J0030167",
+            "J0050851",
+            "J0030169",
+            "J0030170"
+          ],
+          "question": "Which Starvog variant?",
+          "choices": [
+            {
+              "label": "Plain Starvog",
+              "sku_codes": [
+                "J0030165"
+              ]
+            },
+            {
+              "label": "Starvog GM",
+              "sku_codes": [
+                "J0030167",
+                "J0050851"
+              ]
+            },
+            {
+              "label": "Starvog M",
+              "sku_codes": [
+                "J0030169",
+                "J0030170"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.2,
+          "repaired": false,
+          "chosen_label": "Starvog M",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "WIKORYL",
+      "size": 6,
+      "bucket": "5-8",
+      "target": "PROD2299",
+      "target_label": "AF SYRUP 75 ML",
+      "target_name": "WIKORYL AF SYRUP",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0034823",
+        "PROD2299"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 6,
+          "candidates": [
+            "J0034825",
+            "PROD1735",
+            "J0034830",
+            "J0034823",
+            "PROD2299",
+            "J0034826"
+          ],
+          "question": "Which Wikoryl variant?",
+          "choices": [
+            {
+              "label": "Standard Wikoryl",
+              "sku_codes": [
+                "J0034825",
+                "PROD1735",
+                "J0034830"
+              ]
+            },
+            {
+              "label": "Wikoryl AF",
+              "sku_codes": [
+                "J0034823",
+                "PROD2299"
+              ]
+            },
+            {
+              "label": "Wikoryl DS",
+              "sku_codes": [
+                "J0034826"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.5,
+          "repaired": false,
+          "chosen_label": "Wikoryl AF",
+          "remaining": 2
+        }
+      ]
+    },
+    {
+      "family": "WIKORYL",
+      "size": 6,
+      "bucket": "5-8",
+      "target": "J0034830",
+      "target_label": "10 TABLET 15'S",
+      "target_name": "WIKORYL 10 TABLET",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0034825",
+        "PROD1735",
+        "J0034830"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 6,
+          "candidates": [
+            "J0034825",
+            "PROD1735",
+            "J0034830",
+            "J0034823",
+            "PROD2299",
+            "J0034826"
+          ],
+          "question": "Which Wikoryl variant?",
+          "choices": [
+            {
+              "label": "Standard Wikoryl",
+              "sku_codes": [
+                "J0034825",
+                "PROD1735",
+                "J0034830"
+              ]
+            },
+            {
+              "label": "Wikoryl AF",
+              "sku_codes": [
+                "J0034823",
+                "PROD2299"
+              ]
+            },
+            {
+              "label": "Wikoryl DS",
+              "sku_codes": [
+                "J0034826"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.5,
+          "repaired": false,
+          "chosen_label": "Standard Wikoryl",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "WIKORYL",
+      "size": 6,
+      "bucket": "5-8",
+      "target": "J0034825",
+      "target_label": "ORAL DROPS 15 ML",
+      "target_name": "WIKORYL ORAL DROPS",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0034825",
+        "PROD1735",
+        "J0034830"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 6,
+          "candidates": [
+            "J0034825",
+            "PROD1735",
+            "J0034830",
+            "J0034823",
+            "PROD2299",
+            "J0034826"
+          ],
+          "question": "Which Wikoryl variant?",
+          "choices": [
+            {
+              "label": "Standard Wikoryl",
+              "sku_codes": [
+                "J0034825",
+                "PROD1735",
+                "J0034830"
+              ]
+            },
+            {
+              "label": "Wikoryl AF",
+              "sku_codes": [
+                "J0034823",
+                "PROD2299"
+              ]
+            },
+            {
+              "label": "Wikoryl DS",
+              "sku_codes": [
+                "J0034826"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.5,
+          "repaired": false,
+          "chosen_label": "Standard Wikoryl",
+          "remaining": 3
+        }
+      ]
+    },
+    {
+      "family": "WIKORYL",
+      "size": 6,
+      "bucket": "5-8",
+      "target": "J0034826",
+      "target_label": "DS SUSPENSION SYRUP 60 ML",
+      "target_name": "WIKORYL DS ORAL SUSPENSION SYRUP",
+      "outcome": "success",
+      "rounds": 1,
+      "bound": 1,
+      "final_candidates": [
+        "J0034826"
+      ],
+      "log": [
+        {
+          "index": 1,
+          "n_candidates": 6,
+          "candidates": [
+            "J0034825",
+            "PROD1735",
+            "J0034830",
+            "J0034823",
+            "PROD2299",
+            "J0034826"
+          ],
+          "question": "Which Wikoryl variant?",
+          "choices": [
+            {
+              "label": "Standard Wikoryl",
+              "sku_codes": [
+                "J0034825",
+                "PROD1735",
+                "J0034830"
+              ]
+            },
+            {
+              "label": "Wikoryl AF",
+              "sku_codes": [
+                "J0034823",
+                "PROD2299"
+              ]
+            },
+            {
+              "label": "Wikoryl DS",
+              "sku_codes": [
+                "J0034826"
+              ]
+            }
+          ],
+          "valid": true,
+          "errors": [],
+          "flags": [],
+          "balance": 1.5,
+          "repaired": false,
+          "chosen_label": "Wikoryl DS",
+          "remaining": 1
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "trials": 80,
+    "choice_sets": 109,
+    "validity": 1.0,
+    "repairs": 0,
+    "repairs_that_worked": 0,
+    "success_rate": 1.0,
+    "avg_rounds": 1.363,
+    "avg_rounds_successful": 1.363,
+    "max_rounds": 3,
+    "avg_excess_over_bound": 0.062,
+    "at_or_under_bound": 70,
+    "avg_balance": 1.394,
+    "median_balance": 1.333,
+    "worst_balance": 2.0,
+    "coverage_failures": 0,
+    "outcomes": {
+      "success": 80
+    },
+    "quality_flags": {}
+  }
+}

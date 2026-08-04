@@ -1,0 +1,1715 @@
+{
+  "lens": "stt-damage",
+  "entries": [
+    {
+      "sku_code": "J0021527",
+      "name": "MONTAIR-4 TABLET",
+      "family": "MONTAIR",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "मौन टेयर",
+          "romanized": ["maun teyar", "mon tair"],
+          "attack": "1-real-word-capture",
+          "why": "मों- has no lexicon entry, so the decoder snaps it to the common word मौन (silence)."
+        },
+        {
+          "devanagari": "मोंटेयरएल सी",
+          "romanized": ["montairel si", "monteyarel see"],
+          "attack": "2-boundary-destruction",
+          "why": "'montair LC' fuses the L onto the brand and re-splits before the C, so the brand token itself is corrupted."
+        },
+        {
+          "devanagari": "टेयर",
+          "romanized": ["teyar", "tair"],
+          "attack": "3-truncation",
+          "why": "Phone line clips the onset; only the stressed second syllable survives."
+        },
+        {
+          "devanagari": "मोंटियर",
+          "romanized": ["montiyar", "montiar"],
+          "attack": "4-matra-error",
+          "why": "े → ि in the unstressed medial syllable, a routine Devanagari ASR matra slip."
+        },
+        {
+          "devanagari": "मन तार",
+          "romanized": ["man taar", "mun tar"],
+          "attack": "5-confidence-collapse",
+          "why": "Only the M-N-T-R skeleton survives; both halves land on frequent Hindi words (मन, तार)."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0027195",
+      "name": "RANTAC 150 TABLET",
+      "family": "RANTAC",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "रण टैक",
+          "romanized": ["ran taik", "rann tak"],
+          "attack": "1-real-word-capture",
+          "why": "रैन- is snapped to रण (battle), a high-frequency Hindi word with the same consonant onset."
+        },
+        {
+          "devanagari": "रैंट ऐक",
+          "romanized": ["rant aik", "raint ek"],
+          "attack": "2-boundary-destruction",
+          "why": "Split lands inside the -nt- cluster, leaving a stranded vowel-initial second word."
+        },
+        {
+          "devanagari": "रैन",
+          "romanized": ["rain", "ren"],
+          "attack": "3-truncation",
+          "why": "Trailing clip on a counter shout: the -टैक is cut and only रैन reaches the recognizer."
+        },
+        {
+          "devanagari": "रेनटेक",
+          "romanized": ["rentek", "renteck"],
+          "attack": "4-matra-error",
+          "why": "Both ै marks flatten to े — the single most common Devanagari ASR vowel confusion."
+        },
+        {
+          "devanagari": "रन ठीक",
+          "romanized": ["ran theek", "run thik"],
+          "attack": "5-confidence-collapse",
+          "why": "R-N-T-K skeleton survives but the decoder emits the ordinary phrase 'रन ठीक', aspirating the T."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0040116",
+      "name": "ZIFI DROPS",
+      "family": "ZIFI",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "जी फी",
+          "romanized": ["jee phee", "ji fi"],
+          "attack": "1-real-word-capture",
+          "why": "The first syllable becomes जी, the ubiquitous Hindi honorific/affirmative."
+        },
+        {
+          "devanagari": "ज़िफ़ीदो सौ",
+          "romanized": ["zifido sau", "jifeedo sau"],
+          "attack": "2-boundary-destruction",
+          "why": "'zifi do sau' fuses दो onto the brand; the re-split leaves a brand token that exists nowhere."
+        },
+        {
+          "devanagari": "फी",
+          "romanized": ["fee", "phi"],
+          "attack": "3-truncation",
+          "why": "A two-syllable brand loses its onset entirely on a clipped line — one syllable left."
+        },
+        {
+          "devanagari": "ज़ीफ़ि",
+          "romanized": ["zeefi", "jeefi"],
+          "attack": "4-matra-error",
+          "why": "ि and ी swap places between the two syllables — length is the least reliable cue for ASR."
+        },
+        {
+          "devanagari": "ज़ी फिर",
+          "romanized": ["zee phir", "ji fir"],
+          "attack": "5-confidence-collapse",
+          "why": "Second syllable collapses into फिर (again); only the Z-F skeleton remains."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0021496",
+      "name": "MONOCEF-O DROPS",
+      "family": "MONOCEF",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "मनो सेफ",
+          "romanized": ["mano sef", "manoh saif"],
+          "attack": "1-real-word-capture",
+          "why": "मोनो is pulled onto मनो (mind/consider), a real Hindi word one vowel away."
+        },
+        {
+          "devanagari": "मो नोसेफ",
+          "romanized": ["mo nosef", "moh nosaif"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after the first mora only, producing a one-mora word and a nonsense remainder."
+        },
+        {
+          "devanagari": "नोसेफ",
+          "romanized": ["nosef", "nausaif"],
+          "attack": "3-truncation",
+          "why": "Leading मो- clipped; the surviving नोसेफ is a plausible but wrong brand stem."
+        },
+        {
+          "devanagari": "मोनोसिफ",
+          "romanized": ["monosif", "monosiff"],
+          "attack": "4-matra-error",
+          "why": "े → ि in the final syllable, unstressed and shortest in duration."
+        },
+        {
+          "devanagari": "मुन्ना सेफ",
+          "romanized": ["munna sef", "muna saif"],
+          "attack": "5-confidence-collapse",
+          "why": "Decoder falls back on the very frequent name मुन्ना; only M-N/S-F survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0006463",
+      "name": "CANDID CREAM",
+      "family": "CANDID",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "कैन दिन",
+          "romanized": ["kain din", "ken din"],
+          "attack": "1-real-word-capture",
+          "why": "The final -डिड is heard as दिन (day), among the commonest Hindi nouns."
+        },
+        {
+          "devanagari": "कैंडि डबी",
+          "romanized": ["kandi dabee", "kaindi dbee"],
+          "attack": "2-boundary-destruction",
+          "why": "'candid B' re-segments so the last D joins the B — the brand token loses its coda."
+        },
+        {
+          "devanagari": "कैंडि",
+          "romanized": ["kandi", "kaindi"],
+          "attack": "3-truncation",
+          "why": "Trailing -द cut by the line; leaves an open-syllable stem."
+        },
+        {
+          "devanagari": "कंडीड",
+          "romanized": ["kandeed", "candeed"],
+          "attack": "4-matra-error",
+          "why": "ै collapses to bare anusvara and ि lengthens to ी — two independent small-mark slips."
+        },
+        {
+          "devanagari": "कान दीद",
+          "romanized": ["kaan deed", "kan did"],
+          "attack": "5-confidence-collapse",
+          "why": "K-N-D-D skeleton only; कान (ear) is a far likelier unigram than any brand."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0044190",
+      "name": "FORACORT G INHALER",
+      "family": "FORACORT",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "फ़ौरन कोर्ट",
+          "romanized": ["fauran court", "phauran kort"],
+          "attack": "1-real-word-capture",
+          "why": "फोरा- snaps to फ़ौरन (immediately) and -कोर्ट to the loanword कोर्ट — both in-lexicon."
+        },
+        {
+          "devanagari": "फोर आकोर्ट",
+          "romanized": ["for aakort", "phor akort"],
+          "attack": "2-boundary-destruction",
+          "why": "The intervocalic 'a' is re-assigned to the second word, wrecking both tokens."
+        },
+        {
+          "devanagari": "राकोर्ट",
+          "romanized": ["raakort", "rakort"],
+          "attack": "3-truncation",
+          "why": "Leading फो- clipped mid-word by a phone-line dropout."
+        },
+        {
+          "devanagari": "फुराकोर्ट",
+          "romanized": ["furakort", "phurakort"],
+          "attack": "4-matra-error",
+          "why": "ो → ु in the unstressed first syllable, a routine short/long-o confusion."
+        },
+        {
+          "devanagari": "फर का कोट",
+          "romanized": ["phar ka kot", "far ka coat"],
+          "attack": "5-confidence-collapse",
+          "why": "Reparsed as three ordinary words ('fur coat'); only F-R-K-T survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0050141",
+      "name": "NUROKIND SYRUP",
+      "family": "NUROKIND",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "नूरो काइंड",
+          "romanized": ["nooro kaind", "nuro kind"],
+          "attack": "1-real-word-capture",
+          "why": "न्यूरो loses its glide and lands on नूर (light), a common Hindi/Urdu noun."
+        },
+        {
+          "devanagari": "न्यूरोका इंड",
+          "romanized": ["nyuroka ind", "neuroka eind"],
+          "attack": "2-boundary-destruction",
+          "why": "Split after the linking -का, stranding a vowel-initial fragment."
+        },
+        {
+          "devanagari": "रोकाइंड",
+          "romanized": ["rokaind", "rokind"],
+          "attack": "3-truncation",
+          "why": "The न्यू- onset is clipped; रो- happens to also be a Hindi verb stem."
+        },
+        {
+          "devanagari": "न्युरोकाइंड",
+          "romanized": ["nyurokaind", "niurokind"],
+          "attack": "4-matra-error",
+          "why": "ू shortens to ु — pure length error, everything else intact."
+        },
+        {
+          "devanagari": "नौ रोक इंड",
+          "romanized": ["nau rok ind", "no rok eind"],
+          "attack": "5-confidence-collapse",
+          "why": "Shatters into three real words (नौ nine, रोक stop); only N-R-K-N-D survives across them."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0007310",
+      "name": "CILACAR 10 TABLET",
+      "family": "CILACAR",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "सिला कार",
+          "romanized": ["sila kaar", "seela car"],
+          "attack": "1-real-word-capture",
+          "why": "Both halves are real Hindi words (सिला sewn, कार car) — a maximally attractive decode."
+        },
+        {
+          "devanagari": "सी लाकार",
+          "romanized": ["see laakar", "si lakar"],
+          "attack": "2-boundary-destruction",
+          "why": "Break one mora too early; the 'la' migrates to the second word."
+        },
+        {
+          "devanagari": "लाकार",
+          "romanized": ["laakar", "lakar"],
+          "attack": "3-truncation",
+          "why": "Leading सि- lost; लाकार is near-homophonous with लकार/लकड़ी-type real words."
+        },
+        {
+          "devanagari": "सीलाकर",
+          "romanized": ["seelakar", "silakar"],
+          "attack": "4-matra-error",
+          "why": "ि lengthens to ी and the final ा shortens — opposite-direction length errors in one word."
+        },
+        {
+          "devanagari": "सिल्क कार",
+          "romanized": ["silk kaar", "silk car"],
+          "attack": "5-confidence-collapse",
+          "why": "Decoder inserts a k-coda to reach the frequent loanword सिल्क; skeleton S-L-K-R."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0032237",
+      "name": "TONACT 10 TABLET",
+      "family": "TONACT",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "तो नैक्ट",
+          "romanized": ["to naikt", "toh nakt"],
+          "attack": "1-real-word-capture",
+          "why": "The initial टो becomes तो, the single most frequent Hindi particle."
+        },
+        {
+          "devanagari": "टोनैक्टए एसपी",
+          "romanized": ["tonakte espee", "tonaikte aspi"],
+          "attack": "2-boundary-destruction",
+          "why": "'tonact ASP' fuses the A onto the brand, then splits before SP."
+        },
+        {
+          "devanagari": "नैक्ट",
+          "romanized": ["naikt", "nakt"],
+          "attack": "3-truncation",
+          "why": "Onset clipped; the surviving cluster is unpronounceable as a Hindi word so it stays garbled."
+        },
+        {
+          "devanagari": "टोनेक्ट",
+          "romanized": ["tonekt", "tonect"],
+          "attack": "4-matra-error",
+          "why": "ै → े before a consonant cluster, where the vowel is shortest."
+        },
+        {
+          "devanagari": "तन एक्ट",
+          "romanized": ["tan act", "tan ekt"],
+          "attack": "5-confidence-collapse",
+          "why": "Reparsed as तन (body) + the loanword एक्ट; T-N-K-T skeleton only."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0041345",
+      "name": "CETAPHIL BABY SHAMPOO",
+      "family": "CETAPHIL",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "सेठ फिल",
+          "romanized": ["seth phil", "seth fil"],
+          "attack": "1-real-word-capture",
+          "why": "सिटा- is heard as सेठ (merchant), a very high-frequency Hindi noun."
+        },
+        {
+          "devanagari": "सि टाफिल",
+          "romanized": ["si taaphil", "se tafil"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after one mora; the ट migrates and the brand root disappears."
+        },
+        {
+          "devanagari": "टाफिल",
+          "romanized": ["taaphil", "tafil"],
+          "attack": "3-truncation",
+          "why": "Leading सि- clipped; टाफिल reads like a plausible different brand."
+        },
+        {
+          "devanagari": "सीटाफ़ील",
+          "romanized": ["seetafeel", "sitafeel"],
+          "attack": "4-matra-error",
+          "why": "Both ि marks lengthen to ी — one systematic bias applied twice."
+        },
+        {
+          "devanagari": "सीता फूल",
+          "romanized": ["sita phool", "seeta ful"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses onto two extremely frequent words (सीता, फूल); only S-T-F-L remains."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0014856",
+      "name": "GLYCIPHAGE-G1 TABLET",
+      "family": "GLYCIPHAGE",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "ग्लाइसी पेज",
+          "romanized": ["glaisee page", "glycee pej"],
+          "attack": "1-real-word-capture",
+          "why": "-फेज is snapped to the everyday loanword पेज (page), losing the aspirate."
+        },
+        {
+          "devanagari": "ग्लाइ सिफेज",
+          "romanized": ["glai siphej", "gly sifej"],
+          "attack": "2-boundary-destruction",
+          "why": "Cut before the -si-, which then heads the second word instead of ending the first."
+        },
+        {
+          "devanagari": "सिफेज",
+          "romanized": ["siphej", "sifej"],
+          "attack": "3-truncation",
+          "why": "The heavy ग्लाइ- onset is exactly what a clipped line loses first."
+        },
+        {
+          "devanagari": "ग्लाइसीफ़ेज",
+          "romanized": ["glaiseefej", "glycifej"],
+          "attack": "4-matra-error",
+          "why": "ि → ी in the medial syllable; single small-mark change."
+        },
+        {
+          "devanagari": "गली से फेज",
+          "romanized": ["gali se phej", "gully se fej"],
+          "attack": "5-confidence-collapse",
+          "why": "The consonant cluster gl- is broken by an epenthetic vowel into गली (lane) + से."
+        }
+      ]
+    },
+    {
+      "sku_code": "PROD6880",
+      "name": "METROGYL 2 % GEL",
+      "family": "METROGYL",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "मेट्रो जिल",
+          "romanized": ["metro jil", "metro gil"],
+          "attack": "1-real-word-capture",
+          "why": "मेट्रो is a very high-frequency Hindi loanword; the LM strongly prefers it as a standalone token."
+        },
+        {
+          "devanagari": "मेट रोजिल",
+          "romanized": ["met rojil", "mate rojeel"],
+          "attack": "2-boundary-destruction",
+          "why": "The r is re-assigned to the second word, so neither token matches the brand."
+        },
+        {
+          "devanagari": "रोजिल",
+          "romanized": ["rojil", "rojeel"],
+          "attack": "3-truncation",
+          "why": "Leading मेट- clipped; रोज़- is itself a frequent Hindi stem so it decodes confidently."
+        },
+        {
+          "devanagari": "मेट्रोजील",
+          "romanized": ["metrojeel", "metrogeel"],
+          "attack": "4-matra-error",
+          "why": "Final ि lengthens to ी — the word-final syllable is the least reliable."
+        },
+        {
+          "devanagari": "मेरा जेल",
+          "romanized": ["mera jel", "mera gel"],
+          "attack": "5-confidence-collapse",
+          "why": "The -tr- cluster is dropped entirely, yielding मेरा (my) + जेल — and 'gel' is the actual form word."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0044113",
+      "name": "LEVOLIN INHALER",
+      "family": "LEVOLIN",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "ले वो लीन",
+          "romanized": ["le vo leen", "le wo lin"],
+          "attack": "1-real-word-capture",
+          "why": "Shatters into the two commonest Hindi function words ले (take) and वो (that)."
+        },
+        {
+          "devanagari": "लेवोल इन",
+          "romanized": ["levol in", "levol een"],
+          "attack": "2-boundary-destruction",
+          "why": "Break before the final nasal so the brand keeps an l-coda it never had."
+        },
+        {
+          "devanagari": "वोलिन",
+          "romanized": ["volin", "wolin"],
+          "attack": "3-truncation",
+          "why": "Leading ले- clipped — routine phone-line onset loss on a three-syllable brand."
+        },
+        {
+          "devanagari": "लिवोलीन",
+          "romanized": ["livoleen", "livolin"],
+          "attack": "4-matra-error",
+          "why": "े → ि in syllable one and ि → ी in syllable three: two small-mark slips, no consonant change."
+        },
+        {
+          "devanagari": "लेवल इन",
+          "romanized": ["level in", "leval in"],
+          "attack": "5-confidence-collapse",
+          "why": "The vowel between v and l is deleted, landing on the frequent loanword लेवल."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0025103",
+      "name": "PANTOP 20 TABLET",
+      "family": "PANTOP",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "पान टॉप",
+          "romanized": ["paan top", "pan taup"],
+          "attack": "1-real-word-capture",
+          "why": "पैं- denasalizes and lengthens into पान (betel leaf), an everyday noun."
+        },
+        {
+          "devanagari": "पैंटॉपचा लीस",
+          "romanized": ["pantopcha lees", "paintopcha lis"],
+          "attack": "2-boundary-destruction",
+          "why": "'pantop chalees' fuses the number's first syllable onto the brand before re-splitting."
+        },
+        {
+          "devanagari": "टॉप",
+          "romanized": ["top", "taup"],
+          "attack": "3-truncation",
+          "why": "Onset clipped entirely; only the stressed final syllable survives the line."
+        },
+        {
+          "devanagari": "पेंटोप",
+          "romanized": ["pentop", "paintop"],
+          "attack": "4-matra-error",
+          "why": "ैं → ें and ॉ → ो — two of the most common Devanagari ASR mark confusions."
+        },
+        {
+          "devanagari": "पैन टाइप",
+          "romanized": ["pain type", "pen taip"],
+          "attack": "5-confidence-collapse",
+          "why": "Second syllable collapses onto the very frequent loanword टाइप; P-N-T-P skeleton only."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0041550",
+      "name": "NEXPRO L CAPSULE",
+      "family": "NEXPRO",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "नेक प्रो",
+          "romanized": ["nek pro", "naik pro"],
+          "attack": "1-real-word-capture",
+          "why": "The -क्स coda is dropped so the first token becomes नेक (noble), a real Hindi adjective."
+        },
+        {
+          "devanagari": "ने क्सप्रो",
+          "romanized": ["ne ksapro", "nay ksepro"],
+          "attack": "2-boundary-destruction",
+          "why": "Boundary drawn inside the -ksp- cluster, producing a token no index can hold."
+        },
+        {
+          "devanagari": "क्सप्रो",
+          "romanized": ["ksapro", "xpro"],
+          "attack": "3-truncation",
+          "why": "Leading ने- clipped; the residue starts with an illegal Hindi onset."
+        },
+        {
+          "devanagari": "निक्सप्रो",
+          "romanized": ["nikspro", "nixpro"],
+          "attack": "4-matra-error",
+          "why": "े → ि before a consonant cluster where the vowel is barely voiced."
+        },
+        {
+          "devanagari": "नेक्स्ट प्रो",
+          "romanized": ["next pro", "nekst pro"],
+          "attack": "5-confidence-collapse",
+          "why": "The LM inserts a t to reach the far more frequent नेक्स्ट (next)."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0041545",
+      "name": "SINAREST SYRUP",
+      "family": "SINAREST",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "सीना रेस्ट",
+          "romanized": ["seena rest", "sina rest"],
+          "attack": "1-real-word-capture",
+          "why": "सीना (chest) plus रेस्ट — semantically coherent for a cold remedy, so the LM locks onto it."
+        },
+        {
+          "devanagari": "सिनार एस्ट",
+          "romanized": ["sinar est", "seenar aist"],
+          "attack": "2-boundary-destruction",
+          "why": "The r is pulled back into the first word, leaving a vowel-initial fragment."
+        },
+        {
+          "devanagari": "रेस्ट",
+          "romanized": ["rest", "raist"],
+          "attack": "3-truncation",
+          "why": "Two-syllable onset clipped; only the loanword tail survives."
+        },
+        {
+          "devanagari": "सीनारीस्ट",
+          "romanized": ["seenareest", "sinareest"],
+          "attack": "4-matra-error",
+          "why": "ि → ी and े → ी: both vowels drift toward the same long i."
+        },
+        {
+          "devanagari": "सुना रस्ता",
+          "romanized": ["suna rasta", "soona rasta"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses onto two very frequent words (सुना heard, रस्ता road); only S-N-R-S-T survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0004148",
+      "name": "ASCORIL LS DROPS",
+      "family": "ASCORIL",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "आस कोरिल",
+          "romanized": ["aas koril", "as koril"],
+          "attack": "1-real-word-capture",
+          "why": "एस्- becomes आस (hope), which the LM prefers over an unknown syllable."
+        },
+        {
+          "devanagari": "एस्कोरिलएल एस",
+          "romanized": ["ascorilel es", "eskorilel ess"],
+          "attack": "2-boundary-destruction",
+          "why": "'ascoril LS' fuses the L onto the brand, then the S is split off alone."
+        },
+        {
+          "devanagari": "कोरिल",
+          "romanized": ["koril", "coril"],
+          "attack": "3-truncation",
+          "why": "The vowel-initial एस्- is the first thing lost when a line clips."
+        },
+        {
+          "devanagari": "एस्कोरील",
+          "romanized": ["askoreel", "eskoreel"],
+          "attack": "4-matra-error",
+          "why": "Final ि lengthens to ी — word-final vowel length is the weakest acoustic cue."
+        },
+        {
+          "devanagari": "इसको रील",
+          "romanized": ["isko reel", "usko ril"],
+          "attack": "5-confidence-collapse",
+          "why": "Reparsed as इसको (to this) + रील; extremely high-probability word sequence, S-K-R-L skeleton."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0004297",
+      "name": "ATARAX 10 MG TABLET",
+      "family": "ATARAX",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "आटा रैक्स",
+          "romanized": ["aata raks", "ata rax"],
+          "attack": "1-real-word-capture",
+          "why": "एटा- lands on आटा (flour), one of the commonest Hindi nouns."
+        },
+        {
+          "devanagari": "ए टारैक्स",
+          "romanized": ["e taraks", "ay tarax"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after the bare vowel, so the t heads the second word instead of closing the first."
+        },
+        {
+          "devanagari": "रैक्स",
+          "romanized": ["raks", "rax"],
+          "attack": "3-truncation",
+          "why": "Both leading syllables clipped; a two-mora residue is all that reaches the recognizer."
+        },
+        {
+          "devanagari": "एटारेक्स",
+          "romanized": ["atareks", "etarex"],
+          "attack": "4-matra-error",
+          "why": "ै → े before the -क्स cluster."
+        },
+        {
+          "devanagari": "आठ रैक्स",
+          "romanized": ["aath raks", "aat rax"],
+          "attack": "5-confidence-collapse",
+          "why": "आठ (eight) is a frequent numeral and drags a t→ṭh aspiration; T-R-K-S skeleton only."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0006574",
+      "name": "CARDACE 5 TABLET",
+      "family": "CARDACE",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "कार दे",
+          "romanized": ["kaar de", "car day"],
+          "attack": "1-real-word-capture",
+          "why": "Splits into कार (car) + दे (give) — two of the most frequent Hindi tokens there are."
+        },
+        {
+          "devanagari": "कार्डेसए एम",
+          "romanized": ["kardase em", "cardacee em"],
+          "attack": "2-boundary-destruction",
+          "why": "'cardace AM' fuses the A onto the brand before the M is split off."
+        },
+        {
+          "devanagari": "डेस",
+          "romanized": ["des", "dais"],
+          "attack": "3-truncation",
+          "why": "Leading कार- clipped; the residue is homophonous with देस (country)."
+        },
+        {
+          "devanagari": "कारडीस",
+          "romanized": ["kardees", "cardees"],
+          "attack": "4-matra-error",
+          "why": "े → ी in the final syllable, plus the loss of the conjunct's inherent break."
+        },
+        {
+          "devanagari": "कार्ड ऐस",
+          "romanized": ["card ace", "kard ais"],
+          "attack": "5-confidence-collapse",
+          "why": "Decodes as the two English loanwords कार्ड + ऐस; K-R-D-S skeleton survives across a wrong boundary."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0010581",
+      "name": "DROTIN TABLET",
+      "family": "DROTIN",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "ड्रो तीन",
+          "romanized": ["dro teen", "dro three"],
+          "attack": "1-real-word-capture",
+          "why": "-टिन snaps to तीन (three) — a numeral, so it also risks being parsed as a strength."
+        },
+        {
+          "devanagari": "ड्रोट इन",
+          "romanized": ["drot in", "drote in"],
+          "attack": "2-boundary-destruction",
+          "why": "Break before the final nasal, leaving a stranded इन (a real Hindi word)."
+        },
+        {
+          "devanagari": "रोटिन",
+          "romanized": ["rotin", "roteen"],
+          "attack": "3-truncation",
+          "why": "The d of the dr- cluster is lost on a clipped onset."
+        },
+        {
+          "devanagari": "ड्रोटीन",
+          "romanized": ["droteen", "drotein"],
+          "attack": "4-matra-error",
+          "why": "ि → ी in the final syllable; nothing else changes."
+        },
+        {
+          "devanagari": "दो रोटीन",
+          "romanized": ["do roteen", "do roti"],
+          "attack": "5-confidence-collapse",
+          "why": "The dr- cluster breaks with an epenthetic vowel into दो (two) — and दो रोटी is an extremely frequent bigram."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0020340",
+      "name": "MEFTAL-P TABLET",
+      "family": "MEFTAL",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "मेफ ताल",
+          "romanized": ["mef taal", "maif tal"],
+          "attack": "1-real-word-capture",
+          "why": "-टाल becomes ताल (rhythm/pond), a common Hindi noun with the dental stop."
+        },
+        {
+          "devanagari": "मेफ्टालस पास",
+          "romanized": ["meftalas paas", "meftals pas"],
+          "attack": "2-boundary-destruction",
+          "why": "'meftal spas' moves the s onto the brand, leaving पास (near) as a second word."
+        },
+        {
+          "devanagari": "फ्ताल",
+          "romanized": ["ftaal", "phtal"],
+          "attack": "3-truncation",
+          "why": "Leading मे- clipped; the residue opens with an impossible Hindi cluster."
+        },
+        {
+          "devanagari": "मिफ़टाल",
+          "romanized": ["miftal", "miphtaal"],
+          "attack": "4-matra-error",
+          "why": "े → ि in the first syllable, which is short before the f."
+        },
+        {
+          "devanagari": "मेथी ताल",
+          "romanized": ["methi taal", "methee tal"],
+          "attack": "5-confidence-collapse",
+          "why": "f is re-heard as the aspirate th, landing on मेथी (fenugreek); only M-T-L is stable."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0050346",
+      "name": "EVION 400 CAPSULE",
+      "family": "EVION",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "एवं ऑन",
+          "romanized": ["evam on", "evan aun"],
+          "attack": "1-real-word-capture",
+          "why": "एवि- snaps to एवं (and), a real formal-Hindi word the LM sees constantly."
+        },
+        {
+          "devanagari": "एवि योन",
+          "romanized": ["evi yon", "avi yaun"],
+          "attack": "2-boundary-destruction",
+          "why": "The glide is promoted to word-initial, splitting the brand at a non-existent boundary."
+        },
+        {
+          "devanagari": "वियोन",
+          "romanized": ["viyon", "veeyon"],
+          "attack": "3-truncation",
+          "why": "The vowel-initial ए- is the first casualty of a clipped line."
+        },
+        {
+          "devanagari": "एवीयून",
+          "romanized": ["eveeyoon", "avioon"],
+          "attack": "4-matra-error",
+          "why": "ि → ी and ो → ू: two independent length/height errors, consonants intact."
+        },
+        {
+          "devanagari": "ए वन",
+          "romanized": ["e van", "a one"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses to 'A one', an extremely frequent Hinglish phrase; only V-N survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0013137",
+      "name": "FLAGYL 400 TABLET",
+      "family": "FLAGYL",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "फल जिल",
+          "romanized": ["phal jil", "fal jeel"],
+          "attack": "1-real-word-capture",
+          "why": "The fl- cluster breaks and lands on फल (fruit), a top-frequency Hindi noun."
+        },
+        {
+          "devanagari": "फ्लैज इल",
+          "romanized": ["flaj il", "flej il"],
+          "attack": "2-boundary-destruction",
+          "why": "Break before the final vowel so the j closes the first word — the wrong side entirely."
+        },
+        {
+          "devanagari": "जिल",
+          "romanized": ["jil", "jeel"],
+          "attack": "3-truncation",
+          "why": "Heavy fla- onset clipped; a single light syllable survives."
+        },
+        {
+          "devanagari": "फ्लेजील",
+          "romanized": ["flejeel", "phlejil"],
+          "attack": "4-matra-error",
+          "why": "ै → े and ि → ी — the standard pair of Devanagari matra slips."
+        },
+        {
+          "devanagari": "फैला जेल",
+          "romanized": ["phaila jel", "faila gel"],
+          "attack": "5-confidence-collapse",
+          "why": "Epenthesis in fl- yields फैला (spread); the tail becomes जेल, which is also a real form word."
+        }
+      ]
+    },
+    {
+      "sku_code": "PROD5829",
+      "name": "LIVOGEN CAPTABS",
+      "family": "LIVOGEN",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "लिवो जन",
+          "romanized": ["livo jan", "leevo jan"],
+          "attack": "1-real-word-capture",
+          "why": "-जेन reduces to जन (people), a real Hindi morpheme the LM strongly favours."
+        },
+        {
+          "devanagari": "लिव ओजेन",
+          "romanized": ["liv ojen", "leev ojan"],
+          "attack": "2-boundary-destruction",
+          "why": "The linking o is re-assigned to the second word."
+        },
+        {
+          "devanagari": "वोजेन",
+          "romanized": ["vojen", "wojan"],
+          "attack": "3-truncation",
+          "why": "Leading लि- clipped; वो- is itself a frequent Hindi word so the residue decodes confidently."
+        },
+        {
+          "devanagari": "लीवोजिन",
+          "romanized": ["leevojin", "livojin"],
+          "attack": "4-matra-error",
+          "why": "ि → ी in syllable one, े → ि in syllable three: opposite-direction drift in one word."
+        },
+        {
+          "devanagari": "लिवर जान",
+          "romanized": ["liver jaan", "livar jan"],
+          "attack": "5-confidence-collapse",
+          "why": "Semantic pull to लिवर (liver, a tonic context) plus जान (life); only L-V-R-J-N remains."
+        }
+      ]
+    },
+    {
+      "sku_code": "PROD7514",
+      "name": "DUPHALAC RAPID SOLUTION",
+      "family": "DUPHALAC",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "दो फलक",
+          "romanized": ["do phalak", "doh falak"],
+          "attack": "1-real-word-capture",
+          "why": "Splits into दो (two) + फलक (sky) — both ordinary Hindi words, so the LM commits."
+        },
+        {
+          "devanagari": "डु फालैक",
+          "romanized": ["du phalak", "doo falaik"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after one mora, so the ph heads the second word instead of the brand's second syllable."
+        },
+        {
+          "devanagari": "फालैक",
+          "romanized": ["phalak", "falaik"],
+          "attack": "3-truncation",
+          "why": "Leading डु- clipped on a phone line — short unstressed onsets go first."
+        },
+        {
+          "devanagari": "दूफ़ालेक",
+          "romanized": ["doophalek", "dufalek"],
+          "attack": "4-matra-error",
+          "why": "ु → ू and ै → े: two small-mark slips, consonant skeleton untouched."
+        },
+        {
+          "devanagari": "दूध फलक",
+          "romanized": ["doodh phalak", "dudh falak"],
+          "attack": "5-confidence-collapse",
+          "why": "The initial syllable inflates to दूध (milk), plausible in a pharmacy context; D-PH-L-K skeleton."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0003162",
+      "name": "AMARYL 3 MG TABLET",
+      "family": "AMARYL",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "अमर इल",
+          "romanized": ["amar il", "amar eel"],
+          "attack": "1-real-word-capture",
+          "why": "अमर (immortal) is a common word and a common name; the residue is stranded."
+        },
+        {
+          "devanagari": "अम रिल",
+          "romanized": ["am ril", "um reel"],
+          "attack": "2-boundary-destruction",
+          "why": "The r moves to the second word, so neither token is the brand."
+        },
+        {
+          "devanagari": "मरिल",
+          "romanized": ["maril", "mareel"],
+          "attack": "3-truncation",
+          "why": "Vowel-initial अ- clipped; leaves a stem that reads like a different brand entirely."
+        },
+        {
+          "devanagari": "अमरील",
+          "romanized": ["amareel", "amreel"],
+          "attack": "4-matra-error",
+          "why": "ि → ी in the final syllable."
+        },
+        {
+          "devanagari": "अमर बेल",
+          "romanized": ["amar bel", "amarbel"],
+          "attack": "5-confidence-collapse",
+          "why": "Falls into the real compound अमरबेल (dodder plant); the r-l becomes b-l, only M-R-L stable."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0008293",
+      "name": "CONCOR 5 TABLET",
+      "family": "CONCOR",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "कौन कोर",
+          "romanized": ["kaun kor", "kon core"],
+          "attack": "1-real-word-capture",
+          "why": "कॉन- lands on कौन (who), one of the highest-frequency Hindi interrogatives."
+        },
+        {
+          "devanagari": "कॉ नकोर",
+          "romanized": ["ko nakor", "kau nakor"],
+          "attack": "2-boundary-destruction",
+          "why": "Nasal re-assigned to the second word, breaking the brand at a phantom boundary."
+        },
+        {
+          "devanagari": "नकोर",
+          "romanized": ["nakor", "nankor"],
+          "attack": "3-truncation",
+          "why": "Leading कॉ- clipped; the residue is not a brand prefix anywhere in the catalogue."
+        },
+        {
+          "devanagari": "कोंकुर",
+          "romanized": ["konkur", "koenkur"],
+          "attack": "4-matra-error",
+          "why": "ॉ → ो+ं and ो → ु — nasalisation placement plus a rounding shift."
+        },
+        {
+          "devanagari": "कंकर",
+          "romanized": ["kankar", "kanker"],
+          "attack": "5-confidence-collapse",
+          "why": "Two syllables merge into the single real word कंकर (pebble); K-N-K-R skeleton, one token."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0033475",
+      "name": "URIMAX D TABLET",
+      "family": "URIMAX",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "उड़ी मैक्स",
+          "romanized": ["udi max", "udee maiks"],
+          "attack": "1-real-word-capture",
+          "why": "यूरी- snaps to उड़ी (flew) — the retroflex flap is easily hallucinated between vowels."
+        },
+        {
+          "devanagari": "यू रीमैक्स",
+          "romanized": ["yu reemax", "you rimaiks"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after the long u alone; the r heads the second word."
+        },
+        {
+          "devanagari": "रीमैक्स",
+          "romanized": ["reemax", "rimaiks"],
+          "attack": "3-truncation",
+          "why": "The यू- onset is clipped; रीमैक्स reads as a plausible unrelated brand."
+        },
+        {
+          "devanagari": "युरीमेक्स",
+          "romanized": ["yurimeks", "yureemex"],
+          "attack": "4-matra-error",
+          "why": "ू → ु and ै → े: pure matra drift with the consonants intact."
+        },
+        {
+          "devanagari": "यूरिन मैक्स",
+          "romanized": ["urine max", "yurin maiks"],
+          "attack": "5-confidence-collapse",
+          "why": "Semantic pull: a urology drug decodes as यूरिन (urine), inserting an n the speaker never said."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0011229",
+      "name": "ELECTRAL ORS SACHET",
+      "family": "ELECTRAL",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "इलेक्ट्रिक ऑल",
+          "romanized": ["electric all", "ilektrik aul"],
+          "attack": "1-real-word-capture",
+          "why": "इलेक्ट्रिक is orders of magnitude more frequent in Hindi text than the brand; the LM completes to it."
+        },
+        {
+          "devanagari": "इले क्ट्रल",
+          "romanized": ["ile ktral", "ele ktral"],
+          "attack": "2-boundary-destruction",
+          "why": "Split before the -ktr- cluster, producing a second token with an illegal Hindi onset."
+        },
+        {
+          "devanagari": "लेक्ट्रल",
+          "romanized": ["lektral", "laiktral"],
+          "attack": "3-truncation",
+          "why": "Vowel-initial इ- clipped by the line."
+        },
+        {
+          "devanagari": "इलैक्ट्राल",
+          "romanized": ["ilaiktraal", "elaiktral"],
+          "attack": "4-matra-error",
+          "why": "े → ै and the final schwa surfaces as ा — both small-mark level."
+        },
+        {
+          "devanagari": "एक तरल",
+          "romanized": ["ek taral", "ek tarl"],
+          "attack": "5-confidence-collapse",
+          "why": "Reparsed as एक तरल ('one liquid') — semantically apt for ORS, only K-T-R-L survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0011361",
+      "name": "EMESET-4 TABLET",
+      "family": "EMESET",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "एमी सेट",
+          "romanized": ["emi set", "amee set"],
+          "attack": "1-real-word-capture",
+          "why": "-सेट is the frequent loanword सेट; the LM splits to make it a standalone token."
+        },
+        {
+          "devanagari": "एम ईसेट",
+          "romanized": ["em eeset", "aim iset"],
+          "attack": "2-boundary-destruction",
+          "why": "The medial vowel is promoted to word-initial, so the brand becomes a stray letter plus junk."
+        },
+        {
+          "devanagari": "मीसेट",
+          "romanized": ["meeset", "misait"],
+          "attack": "3-truncation",
+          "why": "Vowel-initial ए- clipped; the residue starts mid-brand."
+        },
+        {
+          "devanagari": "इमिसिट",
+          "romanized": ["imisit", "emisit"],
+          "attack": "4-matra-error",
+          "why": "Both े marks reduce to ि — a single systematic height error applied throughout."
+        },
+        {
+          "devanagari": "अभी सेठ",
+          "romanized": ["abhi seth", "abhee seth"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses onto अभी (now) + सेठ (merchant), two very frequent words; skeleton barely holds."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0021552",
+      "name": "MONTEK 10 TABLET",
+      "family": "MONTEK",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "मन टेक",
+          "romanized": ["man tek", "mun take"],
+          "attack": "1-real-word-capture",
+          "why": "मोन- shortens to मन (mind); टेक is also a real Hindi noun (support), so both halves are lexical."
+        },
+        {
+          "devanagari": "मोंटेकएल सी",
+          "romanized": ["montekel si", "monteckel see"],
+          "attack": "2-boundary-destruction",
+          "why": "'montek LC' fuses the L onto the brand and splits before the C."
+        },
+        {
+          "devanagari": "टेक",
+          "romanized": ["tek", "take"],
+          "attack": "3-truncation",
+          "why": "Onset clipped; a single syllable is all that survives, and it is a real word."
+        },
+        {
+          "devanagari": "मुंटेक",
+          "romanized": ["muntek", "moontek"],
+          "attack": "4-matra-error",
+          "why": "ो → ु before the nasal, where rounding is hardest to resolve."
+        },
+        {
+          "devanagari": "मोम तक",
+          "romanized": ["mom tak", "moum tuk"],
+          "attack": "5-confidence-collapse",
+          "why": "Decodes as मोम (wax) + तक (until); nasal becomes a labial and only M-T-K holds."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0022648",
+      "name": "NEXITO 20 TABLET",
+      "family": "NEXITO",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "नेक सीटो",
+          "romanized": ["nek sito", "naik seeto"],
+          "attack": "1-real-word-capture",
+          "why": "नेक्- resolves to नेक (noble) and the boundary is drawn to protect that real word."
+        },
+        {
+          "devanagari": "ने क्सिटो",
+          "romanized": ["ne ksito", "nay ksitau"],
+          "attack": "2-boundary-destruction",
+          "why": "Break inside the -ks- cluster; the second token opens illegally for Hindi."
+        },
+        {
+          "devanagari": "सिटो",
+          "romanized": ["sito", "seeto"],
+          "attack": "3-truncation",
+          "why": "The heavy नेक्स- onset is clipped, leaving two light morae."
+        },
+        {
+          "devanagari": "नेक्सीटू",
+          "romanized": ["nekseetoo", "naixeetu"],
+          "attack": "4-matra-error",
+          "why": "ि → ी and ो → ू — both length errors on unstressed syllables."
+        },
+        {
+          "devanagari": "एक्ज़िट तो",
+          "romanized": ["exit to", "eksit toh"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses onto एक्ज़िट (exit) + तो; both high-frequency, only K-S-T survives in order."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0023792",
+      "name": "OFLOX INFUSION",
+      "family": "OFLOX",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "ओफ़ लोक",
+          "romanized": ["of lok", "auf loke"],
+          "attack": "1-real-word-capture",
+          "why": "The -क्स coda drops and the tail becomes लोक (world/people), a real Hindi noun."
+        },
+        {
+          "devanagari": "ओफ्लॉक्सओ ज़ेड",
+          "romanized": ["ofloxo zed", "auflauksau jed"],
+          "attack": "2-boundary-destruction",
+          "why": "'oflox OZ' fuses the O onto the brand, then splits before the Z."
+        },
+        {
+          "devanagari": "फ्लॉक्स",
+          "romanized": ["floks", "flaux"],
+          "attack": "3-truncation",
+          "why": "Vowel-initial ओ- clipped; the residue is a full English word (flocks/phlox)."
+        },
+        {
+          "devanagari": "ऑफ़्लुक्स",
+          "romanized": ["ofluks", "aufluks"],
+          "attack": "4-matra-error",
+          "why": "ॉ → ु in the stressed syllable — a rounding-height slip, consonants intact."
+        },
+        {
+          "devanagari": "ऑफ लॉक",
+          "romanized": ["off lock", "auf lauk"],
+          "attack": "5-confidence-collapse",
+          "why": "Two ubiquitous loanwords (ऑफ, लॉक) absorb the utterance; only F-L-K survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0029256",
+      "name": "SEROFLO 100 ROTACAP",
+      "family": "SEROFLO",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "सेर फ्लो",
+          "romanized": ["ser flo", "sair phlo"],
+          "attack": "1-real-word-capture",
+          "why": "सेरो- contracts to सेर, the traditional Hindi weight unit — a real, frequent word."
+        },
+        {
+          "devanagari": "से रोफ्लो",
+          "romanized": ["se roflo", "say rauphlo"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after one mora and the r heads word two — से is itself a very frequent postposition."
+        },
+        {
+          "devanagari": "रोफ्लो",
+          "romanized": ["roflo", "rauflo"],
+          "attack": "3-truncation",
+          "why": "Leading से- clipped; two morae of the brand are gone."
+        },
+        {
+          "devanagari": "सिरोफ्लू",
+          "romanized": ["siroflu", "seerophlu"],
+          "attack": "4-matra-error",
+          "why": "े → ि and ो → ू in one word, both classic Devanagari ASR matra confusions."
+        },
+        {
+          "devanagari": "सिर्फ़ लो",
+          "romanized": ["sirf lo", "sirph lo"],
+          "attack": "5-confidence-collapse",
+          "why": "Reparsed as सिर्फ़ (only) + लो (take); S-R-F-L survives but the word count and shape are wrong."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0006067",
+      "name": "BUDECORT 100 INHALER",
+      "family": "BUDECORT",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "बूढ़े कोर्ट",
+          "romanized": ["boodhe court", "budhe kort"],
+          "attack": "1-real-word-capture",
+          "why": "बुडे- snaps to बूढ़े (old people); Hindi ASR readily hallucinates the retroflex ढ़."
+        },
+        {
+          "devanagari": "बुड ईकोर्ट",
+          "romanized": ["bud ekort", "budd eekort"],
+          "attack": "2-boundary-destruction",
+          "why": "The medial e is promoted to the head of word two, splitting the brand off-centre."
+        },
+        {
+          "devanagari": "बुडेको",
+          "romanized": ["budeko", "budaiko"],
+          "attack": "3-truncation",
+          "why": "Trailing -र्ट cut when the speaker turns away from the handset."
+        },
+        {
+          "devanagari": "बुडिकोर्ट",
+          "romanized": ["budikort", "budicourt"],
+          "attack": "4-matra-error",
+          "why": "े → ि in the unstressed medial syllable."
+        },
+        {
+          "devanagari": "बुध कोट",
+          "romanized": ["budh kot", "budh coat"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses to बुध (Wednesday) + कोट (coat); the r is lost and only B-D-K-T remains."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0030625",
+      "name": "SUSTEN 100 CAPSULE",
+      "family": "SUSTEN",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "सुस्त एन",
+          "romanized": ["sust en", "soost ain"],
+          "attack": "1-real-word-capture",
+          "why": "सस्- resolves to सुस्त (sluggish), a frequent adjective, stranding the final syllable."
+        },
+        {
+          "devanagari": "सस्टेनदो सौ",
+          "romanized": ["sustendo sau", "sastendo sau"],
+          "attack": "2-boundary-destruction",
+          "why": "'susten do sau' fuses दो onto the brand before the split, corrupting the brand token."
+        },
+        {
+          "devanagari": "स्टेन",
+          "romanized": ["sten", "stain"],
+          "attack": "3-truncation",
+          "why": "Leading सु- clipped; स्टेन is itself a plausible English/Hindi token."
+        },
+        {
+          "devanagari": "सुस्टिन",
+          "romanized": ["sustin", "soostin"],
+          "attack": "4-matra-error",
+          "why": "े → ि in the final syllable, unstressed and short."
+        },
+        {
+          "devanagari": "सस्ते न",
+          "romanized": ["saste na", "sasten"],
+          "attack": "5-confidence-collapse",
+          "why": "Decodes as सस्ते (cheap) + न — a natural pharmacy phrase; only S-S-T-N holds."
+        }
+      ]
+    },
+    {
+      "sku_code": "PROD3315",
+      "name": "TUGAIN 5 GEL",
+      "family": "TUGAIN",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "तू गेन",
+          "romanized": ["tu gain", "too gen"],
+          "attack": "1-real-word-capture",
+          "why": "The first syllable becomes तू (you), a top-frequency Hindi pronoun, and dentalises the t."
+        },
+        {
+          "devanagari": "टुगे न",
+          "romanized": ["tuge n", "tugay na"],
+          "attack": "2-boundary-destruction",
+          "why": "Split before the final nasal, stranding a single consonant as its own word."
+        },
+        {
+          "devanagari": "गेन",
+          "romanized": ["gain", "gen"],
+          "attack": "3-truncation",
+          "why": "Onset clipped; the residue is an English word so it decodes with high confidence."
+        },
+        {
+          "devanagari": "तुगीन",
+          "romanized": ["tugeen", "toogin"],
+          "attack": "4-matra-error",
+          "why": "ै → ी — a diphthong-to-long-vowel slip in the stressed syllable."
+        },
+        {
+          "devanagari": "तुम गिन",
+          "romanized": ["tum gin", "toom gin"],
+          "attack": "5-confidence-collapse",
+          "why": "Reparsed as तुम (you) + गिन (count); a nasal is inserted and only T-G-N survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0051064",
+      "name": "MINTOP SHAMPOO",
+      "family": "MINTOP",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "मीन टॉप",
+          "romanized": ["meen top", "min taup"],
+          "attack": "1-real-word-capture",
+          "why": "मिन- lengthens to मीन (fish/Pisces), a real Hindi noun."
+        },
+        {
+          "devanagari": "मिन्टो प",
+          "romanized": ["minto p", "mintau pe"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after the vowel strands the final p as a one-letter word."
+        },
+        {
+          "devanagari": "मिन्टो",
+          "romanized": ["minto", "mintau"],
+          "attack": "3-truncation",
+          "why": "Trailing p clipped; मिन्टो is a real proper noun so the decoder never flags it."
+        },
+        {
+          "devanagari": "मिनटूप",
+          "romanized": ["mintoop", "minutoop"],
+          "attack": "4-matra-error",
+          "why": "ॉ → ू in the final syllable, plus the conjunct opening up."
+        },
+        {
+          "devanagari": "मिनट अप",
+          "romanized": ["minute up", "minat up"],
+          "attack": "5-confidence-collapse",
+          "why": "मिनट (minute) is vastly more frequent than the brand; the p becomes its own word अप."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0002291",
+      "name": "ACILOC 150 TABLET",
+      "family": "ACILOC",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "अच्छी लोक",
+          "romanized": ["achhi lok", "acchi loke"],
+          "attack": "1-real-word-capture",
+          "why": "एसि- geminates into अच्छी (good) — the LM's favourite reading of that syllable shape."
+        },
+        {
+          "devanagari": "एसिल ऑक",
+          "romanized": ["asil ok", "esil auk"],
+          "attack": "2-boundary-destruction",
+          "why": "The l joins word one and the vowel opens word two — boundary one segment too late."
+        },
+        {
+          "devanagari": "सिलॉक",
+          "romanized": ["silok", "silauk"],
+          "attack": "3-truncation",
+          "why": "Vowel-initial ए- clipped; the residue looks like a different brand stem."
+        },
+        {
+          "devanagari": "असीलूक",
+          "romanized": ["aseelook", "asilook"],
+          "attack": "4-matra-error",
+          "why": "ि → ी and ॉ → ू: length plus rounding drift on unstressed syllables."
+        },
+        {
+          "devanagari": "असली लॉक",
+          "romanized": ["asli lock", "aslee lauk"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses onto असली (genuine) + लॉक (lock), both extremely frequent; S-L-L-K skeleton."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0043093",
+      "name": "CLAVAM DROPS",
+      "family": "CLAVAM",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "कला वम",
+          "romanized": ["kala vam", "kalaa wam"],
+          "attack": "1-real-word-capture",
+          "why": "The kl- cluster breaks with an epenthetic vowel and lands on कला (art)."
+        },
+        {
+          "devanagari": "क्लाव अम",
+          "romanized": ["klav am", "clav um"],
+          "attack": "2-boundary-destruction",
+          "why": "The v closes word one and the final vowel becomes a word of its own."
+        },
+        {
+          "devanagari": "लैवम",
+          "romanized": ["laivam", "lavam"],
+          "attack": "3-truncation",
+          "why": "The k of the kl- cluster is lost on a clipped onset."
+        },
+        {
+          "devanagari": "क्लेवाम",
+          "romanized": ["klevaam", "clevam"],
+          "attack": "4-matra-error",
+          "why": "ै → े and the inherent a lengthens to ा — pure matra drift."
+        },
+        {
+          "devanagari": "कल आम",
+          "romanized": ["kal aam", "kul am"],
+          "attack": "5-confidence-collapse",
+          "why": "Reparsed as कल (tomorrow) + आम (mango); the v vanishes and only K-L-M remains."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0023168",
+      "name": "NOVAMOX-500 CAPSULE",
+      "family": "NOVAMOX",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "नौ आमोक्स",
+          "romanized": ["nau amoks", "no aamox"],
+          "attack": "1-real-word-capture",
+          "why": "नो- becomes the numeral नौ (nine), which also risks being read as a strength."
+        },
+        {
+          "devanagari": "नो वामॉक्स",
+          "romanized": ["no vamoks", "noh wamaux"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after the first mora; the va heads word two instead of closing the brand's first half."
+        },
+        {
+          "devanagari": "वामॉक्स",
+          "romanized": ["vamoks", "wamaux"],
+          "attack": "3-truncation",
+          "why": "Leading नो- clipped — a light open syllable, the first thing a phone line drops."
+        },
+        {
+          "devanagari": "नुवामुक्स",
+          "romanized": ["nuvamuks", "nuwamux"],
+          "attack": "4-matra-error",
+          "why": "Both ो marks shorten to ु — one systematic rounding bias applied twice."
+        },
+        {
+          "devanagari": "नया मॉक्स",
+          "romanized": ["naya moks", "naya maux"],
+          "attack": "5-confidence-collapse",
+          "why": "नया (new) is a top-100 Hindi word and absorbs नोवा-; only N-M-K-S survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0023855",
+      "name": "OLEANZ 5 TABLET",
+      "family": "OLEANZ",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "ओले आंज",
+          "romanized": ["ole aanj", "olay anj"],
+          "attack": "1-real-word-capture",
+          "why": "ओले (hailstones) is a real Hindi noun and splits off cleanly from the nasal tail."
+        },
+        {
+          "devanagari": "ओलिएं ज़",
+          "romanized": ["olien z", "oliaen jed"],
+          "attack": "2-boundary-destruction",
+          "why": "Split before the final fricative, leaving a stray single-consonant word."
+        },
+        {
+          "devanagari": "लिएंज़",
+          "romanized": ["lienz", "leeainz"],
+          "attack": "3-truncation",
+          "why": "Vowel-initial ओ- clipped by the line."
+        },
+        {
+          "devanagari": "ओलीऐंज़",
+          "romanized": ["oleeainz", "olee-ainz"],
+          "attack": "4-matra-error",
+          "why": "ि → ी and े → ै: two independent small-mark slips in adjacent syllables."
+        },
+        {
+          "devanagari": "उलझन",
+          "romanized": ["uljhan", "ulzan"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses to the single very frequent word उलझन (confusion); only L-J-N of the skeleton survives."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0015795",
+      "name": "HIFENAC TABLET",
+      "family": "HIFENAC",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "ही फेनैक",
+          "romanized": ["hi phenak", "hee fenaik"],
+          "attack": "1-real-word-capture",
+          "why": "The हाइ- onset monophthongises to ही, the ubiquitous Hindi emphatic particle."
+        },
+        {
+          "devanagari": "हाइफ़ेनै क",
+          "romanized": ["haifenai k", "haifenay ka"],
+          "attack": "2-boundary-destruction",
+          "why": "Split before the final k, leaving a one-consonant word — exactly what a coda-final brand invites."
+        },
+        {
+          "devanagari": "फेनैक",
+          "romanized": ["phenak", "fenaik"],
+          "attack": "3-truncation",
+          "why": "Leading हाइ- clipped; the residue is close to the generic name, so it decodes confidently."
+        },
+        {
+          "devanagari": "हिफ़ेनेक",
+          "romanized": ["hiphenek", "hifenek"],
+          "attack": "4-matra-error",
+          "why": "ाइ shortens to ि and ै → े — both small marks, consonants untouched."
+        },
+        {
+          "devanagari": "हाथी नाक",
+          "romanized": ["hathi naak", "haathee nak"],
+          "attack": "5-confidence-collapse",
+          "why": "Falls into हाथी (elephant) + नाक (nose); f is re-heard as the aspirate th, leaving H-TH-N-K."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0043573",
+      "name": "CHESTON D SYRUP",
+      "family": "CHESTON",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "चेस्ट ऑन",
+          "romanized": ["chest on", "chaist aun"],
+          "attack": "1-real-word-capture",
+          "why": "चेस्ट (chest) is in the Hindi lexicon and semantically apt for a cough syrup, so the LM commits hard."
+        },
+        {
+          "devanagari": "चे स्टोन",
+          "romanized": ["che ston", "chay stone"],
+          "attack": "2-boundary-destruction",
+          "why": "The s moves to word two, so the brand's coda is gone and a real English word appears."
+        },
+        {
+          "devanagari": "स्टोन",
+          "romanized": ["ston", "stone"],
+          "attack": "3-truncation",
+          "why": "Leading चे- clipped; the residue is a confident English decode with no brand signal."
+        },
+        {
+          "devanagari": "चिस्टून",
+          "romanized": ["chistoon", "chistun"],
+          "attack": "4-matra-error",
+          "why": "े → ि and ॉ → ू — height plus rounding drift on the two syllables."
+        },
+        {
+          "devanagari": "छह टन",
+          "romanized": ["chhah tan", "chha tan"],
+          "attack": "5-confidence-collapse",
+          "why": "Reparsed as छह (six) + टन (ton), both frequent; only CH-T-N survives and it looks like a quantity."
+        }
+      ]
+    },
+    {
+      "sku_code": "J0051640",
+      "name": "DUOLIN INHALER",
+      "family": "DUOLIN",
+      "expect": "family",
+      "variants": [
+        {
+          "devanagari": "दो लिन",
+          "romanized": ["do lin", "doh leen"],
+          "attack": "1-real-word-capture",
+          "why": "डुओ- becomes दो (two) — a numeral, so it may also be swallowed as a quantity."
+        },
+        {
+          "devanagari": "डु ओलिन",
+          "romanized": ["du olin", "doo aulin"],
+          "attack": "2-boundary-destruction",
+          "why": "Break after one mora; ओलिन heads word two and the brand root is unrecoverable."
+        },
+        {
+          "devanagari": "ओलिन",
+          "romanized": ["olin", "auleen"],
+          "attack": "3-truncation",
+          "why": "Leading डु- clipped on a short unstressed onset."
+        },
+        {
+          "devanagari": "डूऑलीन",
+          "romanized": ["duoleen", "dooaulin"],
+          "attack": "4-matra-error",
+          "why": "ु → ू, ो → ॉ and ि → ी: three small marks drift, every consonant intact."
+        },
+        {
+          "devanagari": "दुआ लीन",
+          "romanized": ["dua leen", "duaa lin"],
+          "attack": "5-confidence-collapse",
+          "why": "Collapses onto दुआ (prayer) + लीन (absorbed), both real words; only D-L-N remains."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,797 @@
+{
+  "lens": "hostile-pharmacist",
+  "entries": [
+    {
+      "sku_code": "J0027195",
+      "name": "RANTAC 150 TABLET",
+      "family": "RANTAC",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "रैनटैक वाला डेढ़ सौ दे दो", "romanized": ["rantac wala dedh sau de do", "rantak vala dedh sau de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "रन टैक टिकिया", "romanized": ["run tak tikiya", "ran tak tikiya"], "attack": "hindi-word-substitution"},
+        {"devanagari": "रैटैक डेढ़ सौ", "romanized": ["ratak dedh sau", "rataik dedh sau"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "रैनटैकडेढ़सौ", "romanized": ["rantakdedhsau", "rantacdedhsau"], "attack": "wrong-boundary-fusion"},
+        {"devanagari": "रैंटेक की गोली चाहिए", "romanized": ["rantek ki goli chahiye", "raintek ki goli chahiye"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0025106",
+      "name": "PANTOP 40 TABLET",
+      "family": "PANTOP",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "पान टॉप चालीस", "romanized": ["paan top chalis", "pan top 40"], "attack": "hindi-word-substitution"},
+        {"devanagari": "पैनटॉप चालीस वाला दे दो", "romanized": ["pantop chalis wala de do", "pentop chalis vala de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "पैनटॉप४०", "romanized": ["pantop40", "pentop40"], "attack": "brand-digit-fusion"},
+        {"devanagari": "पेनटाप", "romanized": ["pentaap", "paintop"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "पैनटॉप की गोली चालीस वाली", "romanized": ["pantop ki goli chalis wali", "pantop ki goli 40 wali"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0021536",
+      "name": "MONTAIR LC KID SYRUP",
+      "family": "MONTAIR",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "मॉन्ट एयर एल सी", "romanized": ["mont air el see", "mont air lc"], "attack": "wrong-boundary-split"},
+        {"devanagari": "मोटेर एलसी", "romanized": ["moter elsee", "motair elsi"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "मॉन्टेयरएलसी सिरप दे दीजिए", "romanized": ["montairelsee syrup de dijiye", "montairelsi sirap de dijiye"], "attack": "fused-filler-tail"},
+        {"devanagari": "मोंटेयर एलसी बच्चों की दवा", "romanized": ["montair elsee bachchon ki dawa", "montair lc bachchon ki dava"], "attack": "hindi-form-word-only"},
+        {"devanagari": "मुंटियर एल सी", "romanized": ["muntiyar el see", "munteer el si"], "attack": "dialect-vowel-damage"}
+      ]
+    },
+    {
+      "sku_code": "PROD996",
+      "name": "METROGYL 400 TABLET",
+      "family": "METROGYL",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "मेट्रो जिल चार सौ", "romanized": ["metro jil char sau", "metro gil 400"], "attack": "hindi-word-substitution"},
+        {"devanagari": "मेट्रोजील", "romanized": ["metrojeel", "metrozil"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "मेट्गिल चार सौ", "romanized": ["metgil char sau", "metgeel 400"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "मेट्रोजिलचारसौ दे दो", "romanized": ["metrojilcharsau de do", "metrogilcharsau de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "मेट्रोजिल का मलहम", "romanized": ["metrojil ka malham", "metrogil ka marham"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "PROD4189",
+      "name": "CANDID B CREAM",
+      "family": "CANDID",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "कैंडिड बी", "romanized": ["kandid bee", "candid b"], "attack": "bv-fold-collision"},
+        {"devanagari": "कैण्डीड", "romanized": ["kandeed", "kaindid"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "कैंडिड वाला मलहम दे दो", "romanized": ["kandid wala malham de do", "candid vala marham de do"], "attack": "hindi-form-word-only"},
+        {"devanagari": "कैंडिडबीक्रीम", "romanized": ["kandidbeecream", "candidbcream"], "attack": "wrong-boundary-fusion"},
+        {"devanagari": "कैडिड बी", "romanized": ["kadid bee", "kadeed bee"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0029182",
+      "name": "SENSODYNE RAPID RELIEF TOOTHPASTE",
+      "family": "SENSODYNE",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "सेंसोडाइन वाला मंजन", "romanized": ["sensodine wala manjan", "sensodain vala manjan"], "attack": "hindi-form-word-only"},
+        {"devanagari": "सेंसोडीन रैपिड", "romanized": ["sensodeen rapid", "sensoden rapid"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "सेंसो डाइन रैपिड", "romanized": ["senso dine rapid", "senso dain rapid"], "attack": "wrong-boundary-split"},
+        {"devanagari": "सेंसोडाइनरैपिड दे दीजिए", "romanized": ["sensodinerapid de dijiye", "sensodainrapid de dijiye"], "attack": "fused-filler-tail"},
+        {"devanagari": "सेसोडाइन", "romanized": ["sesodine", "sesodain"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0020347",
+      "name": "MEFTAL-SPAS TABLET",
+      "family": "MEFTAL",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "मेफ़ ताल स्पास", "romanized": ["mef taal spas", "mef tal spaas"], "attack": "hindi-word-substitution"},
+        {"devanagari": "मेफ्टालस्पास दे दो", "romanized": ["meftalspas de do", "meftalaspas de do"], "attack": "wrong-boundary-fusion"},
+        {"devanagari": "मेफ्टाल स्पास की दर्द वाली गोली", "romanized": ["meftal spas ki dard wali goli", "meftal spaas ki dard vali goli"], "attack": "hindi-form-word-only"},
+        {"devanagari": "मिफ्टल इस्पास", "romanized": ["miftal ispas", "meftal ispaas"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "मेफ्ट स्पास", "romanized": ["meft spas", "mept spaas"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0029516",
+      "name": "SINAREST NASAL SPRAY",
+      "family": "SINAREST",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "सीना रेस्ट", "romanized": ["seena rest", "sina rest"], "attack": "hindi-word-substitution"},
+        {"devanagari": "सिनारेस्ट नाक की दवा", "romanized": ["sinarest naak ki dawa", "sinarest nak ki dava"], "attack": "hindi-form-word-only"},
+        {"devanagari": "सिनरेस", "romanized": ["sinares", "sinres"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "सिनारेस्टवाला स्प्रे दे दो", "romanized": ["sinarestwala spray de do", "sinarestvala sprey de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "सैनारिस्ट", "romanized": ["sainarist", "senarest"], "attack": "dialect-vowel-damage"}
+      ]
+    },
+    {
+      "sku_code": "J0013550",
+      "name": "FORACORT 200 ROTACAP",
+      "family": "FORACORT",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "चार कोर्ट दो सौ", "romanized": ["char court do sau", "chaar kort 200"], "attack": "hindi-word-substitution"},
+        {"devanagari": "फोरा कोर्ट रोटाकैप", "romanized": ["fora court rotacap", "phora kort rotakap"], "attack": "wrong-boundary-split"},
+        {"devanagari": "फोराकोर्ट२००", "romanized": ["foracort200", "phorakort200"], "attack": "brand-digit-fusion"},
+        {"devanagari": "फोराकोर्ट वाला पंप", "romanized": ["foracort wala pump", "phorakort vala pamp"], "attack": "hindi-form-word-only"},
+        {"devanagari": "फुराकुर्ट", "romanized": ["furakurt", "phurakort"], "attack": "dialect-vowel-damage"}
+      ]
+    },
+    {
+      "sku_code": "J0023404",
+      "name": "NUROKIND G TABLET",
+      "family": "NUROKIND",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "न्यूरो काइंड जी", "romanized": ["neuro kind jee", "nyuro kaind g"], "attack": "hindi-word-substitution"},
+        {"devanagari": "न्यूरोकाइंडजी दे दो", "romanized": ["nurokindjee de do", "neurokindjee de do"], "attack": "wrong-boundary-fusion"},
+        {"devanagari": "नुरोकाइड जी", "romanized": ["nurokaid jee", "nurokid g"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "नरोकिंद जी", "romanized": ["narokind jee", "narokinda g"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "न्यूरोकाइंड की सुई", "romanized": ["nurokind ki sui", "neurokaind ki sooi"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0007117",
+      "name": "CETAPHIL MOISTURISING LOTION",
+      "family": "CETAPHIL",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "सेटा फिल लोशन", "romanized": ["seta fil lotion", "setta phil loshan"], "attack": "wrong-boundary-split"},
+        {"devanagari": "सिटाफील", "romanized": ["sitafeel", "setafil"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "सेटाफिलवाला लोशन दे दीजिए", "romanized": ["setafilwala lotion de dijiye", "cetaphilwala loshan de dijiye"], "attack": "fused-filler-tail"},
+        {"devanagari": "सेटाफिल वाली मलाई", "romanized": ["setafil wali malai", "cetaphil vali malai"], "attack": "hindi-form-word-only"},
+        {"devanagari": "सेटफिल", "romanized": ["setfil", "setphil"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0035674",
+      "name": "ZIFI 200 TABLET",
+      "family": "ZIFI",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "ज़ी फ़ाई दो सौ", "romanized": ["zee fi do sau", "jee fai 200"], "attack": "hindi-word-substitution"},
+        {"devanagari": "ज़िफ़ी२००", "romanized": ["zifi200", "jifi200"], "attack": "brand-digit-fusion"},
+        {"devanagari": "जीफी", "romanized": ["jeefi", "jifee"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ज़िफ़ी दो सौ वाली गोली दे दो", "romanized": ["zifi do sau wali goli de do", "jifi do sau vali goli de do"], "attack": "hindi-form-word-only"},
+        {"devanagari": "ज़िफ़ीदोसौ", "romanized": ["zifidosau", "jifidosau"], "attack": "wrong-boundary-fusion"}
+      ]
+    },
+    {
+      "sku_code": "J0014851",
+      "name": "GLYCIPHAGE 850 TABLET",
+      "family": "GLYCIPHAGE",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "ग्लाइसी फ़ेज़ आठ सौ पचास", "romanized": ["glycee phase aath sau pachas", "glaisi fez 850"], "attack": "hindi-word-substitution"},
+        {"devanagari": "ग्लाइफेज", "romanized": ["glaifej", "glyphage"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "गिलसीफेज", "romanized": ["gilsifej", "gilasifage"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ग्लाइसीफेजआठसौपचास दे दो", "romanized": ["glaisifejaathsaupachas de do", "glycifageaathsaupachas de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "आठ सौ पचास वाला ग्लाइसीफेज", "romanized": ["aath sau pachas wala glaisifej", "850 wala glycifage"], "attack": "strength-misattached"}
+      ]
+    },
+    {
+      "sku_code": "J0021699",
+      "name": "MOX 500 MG CAPSULE",
+      "family": "MOX",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "मोक्ष पाँच सौ", "romanized": ["moksh paanch sau", "moksh 500"], "attack": "hindi-word-substitution"},
+        {"devanagari": "माक्स पाँच सौ", "romanized": ["maaks paanch sau", "maks 500"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "मॉक्सपाँचसौ का कैप्सूल दे दो", "romanized": ["mokspaanchsau ka capsule de do", "moxpaanchsau ka kaipsool de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "एम ओ एक्स पाँच सौ", "romanized": ["em o eks paanch sau", "m o x 500"], "attack": "wrong-boundary-split"},
+        {"devanagari": "मॉक्स वाली गोली पाँच सौ", "romanized": ["mox wali goli paanch sau", "moks vali goli 500"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0004150",
+      "name": "ASCORIL LS SYRUP",
+      "family": "ASCORIL",
+      "tier": "famous",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "एस्कोरिल एलएस खाँसी की दवा", "romanized": ["ascoril els khansi ki dawa", "askoril elas khaansi ki dava"], "attack": "hindi-form-word-only"},
+        {"devanagari": "अस्कोरिल एलेस", "romanized": ["askoril eles", "asqoril elas"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "आस कोरिल एल एस", "romanized": ["aas koril el es", "as coril l s"], "attack": "wrong-boundary-split"},
+        {"devanagari": "एस्कोरिलएलएस दे दो", "romanized": ["ascorilels de do", "askorilelas de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "एस्कोइल एलएस", "romanized": ["askoil els", "ascoil elas"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0011863",
+      "name": "ERITEL 40 TABLET",
+      "family": "ERITEL",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "एरी तेल चालीस", "romanized": ["eri tel chalis", "eri tail 40"], "attack": "hindi-word-substitution"},
+        {"devanagari": "इरीटील", "romanized": ["ireeteel", "iritel"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "चालीस वाला एरिटेल", "romanized": ["chalis wala eritel", "40 wala eritel"], "attack": "strength-misattached"},
+        {"devanagari": "एरिटेलचालीस दे दीजिए", "romanized": ["eritelchalis de dijiye", "eritailchalis de dijiye"], "attack": "fused-filler-tail"},
+        {"devanagari": "एरीटेल४०", "romanized": ["eritel40", "eiritel40"], "attack": "brand-digit-fusion"}
+      ]
+    },
+    {
+      "sku_code": "J0031241",
+      "name": "TELLZY 40 TABLET",
+      "family": "TELLZY",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "तेल ज़ी चालीस", "romanized": ["tel zee chalis", "tail zee 40"], "attack": "hindi-word-substitution"},
+        {"devanagari": "टेल्जी", "romanized": ["telji", "teljee"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "टेल्ज़ीचालीस वाला दे दो", "romanized": ["telzeechalis wala de do", "tellzichalis vala de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "टेल ज़ेड आई", "romanized": ["tel zed ai", "tel z i"], "attack": "wrong-boundary-split"},
+        {"devanagari": "टेल्ज़ी चालीस की गोली", "romanized": ["telzee chalis ki goli", "telzi 40 ki goli"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0028437",
+      "name": "ROSUVAS 10 TABLET",
+      "family": "ROSUVAS",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "रोज़ूवास दस", "romanized": ["rozuvas das", "rosuwas 10"], "attack": "bv-fold-collision"},
+        {"devanagari": "रोज़ू वास दस", "romanized": ["rozu vaas das", "rozu vas 10"], "attack": "hindi-word-substitution"},
+        {"devanagari": "रसूवस", "romanized": ["rasoovas", "rasuvas"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "रोसुवासदस दे दो", "romanized": ["rosuvasdas de do", "rozuvasdas de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "दस एमजी वाला रोसुवास", "romanized": ["das mg wala rosuvas", "10 mg wala rozuvas"], "attack": "strength-misattached"}
+      ]
+    },
+    {
+      "sku_code": "J0014693",
+      "name": "GLUCONORM G2 FORTE TABLET",
+      "family": "GLUCONORM",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "ग्लाइकोनॉर्म जी टू", "romanized": ["glykonorm gee two", "glaikonorm g2"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ग्लूको नॉर्म जी दो", "romanized": ["gluco norm gee do", "gluko norm g do"], "attack": "hindi-word-substitution"},
+        {"devanagari": "ग्लूकोनॉम जी टू", "romanized": ["gluconom gee tu", "glukonom g2"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "ग्लूकोनॉर्मजीटू फोर्ट दे दो", "romanized": ["gluconormjeetu fort de do", "glukonormjitu phort de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "ग्लूकोनॉर्म जी टू की गोली", "romanized": ["gluconorm jee tu ki goli", "glukonorm g2 ki goli"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0004923",
+      "name": "AZULIX 2 MF TABLET",
+      "family": "AZULIX",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "अजूलिक्स दो एमएफ", "romanized": ["ajoolix do emef", "ajulix do em ef"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ए ज़ू लिक्स दो एम एफ", "romanized": ["e zoo liks do em ef", "a zu lix do m f"], "attack": "wrong-boundary-split"},
+        {"devanagari": "अज़ुलिक्सदोएमएफ दे दो", "romanized": ["azuliksdoemef de do", "azulixdoemef de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "एमएफ दो वाला अजुलिक्स", "romanized": ["emef do wala ajulix", "mf 2 wala azulix"], "attack": "strength-misattached"},
+        {"devanagari": "अजलिक्स एमएफ", "romanized": ["ajliks emef", "azlix mf"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0007310",
+      "name": "CILACAR 10 TABLET",
+      "family": "CILACAR",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "सिला कार दस", "romanized": ["sila car das", "seela kaar 10"], "attack": "hindi-word-substitution"},
+        {"devanagari": "सीलाकर", "romanized": ["seelakar", "silakar"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "सिलाकारदस दे दीजिए", "romanized": ["silakardas de dijiye", "cilacardas de dijiye"], "attack": "fused-filler-tail"},
+        {"devanagari": "सिलाकार दस वाली गोली", "romanized": ["silakar das wali goli", "cilacar 10 vali goli"], "attack": "hindi-form-word-only"},
+        {"devanagari": "सिलाकार१०", "romanized": ["cilacar10", "silakar10"], "attack": "brand-digit-fusion"}
+      ]
+    },
+    {
+      "sku_code": "J0022264",
+      "name": "NEBICARD-2.5 TABLET",
+      "family": "NEBICARD",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "नेबी कार्ड ढाई", "romanized": ["nebi card dhai", "nebi kard dhaai"], "attack": "hindi-word-substitution"},
+        {"devanagari": "नेविकार्ड ढाई", "romanized": ["nevicard dhai", "nevikard dhaai"], "attack": "bv-fold-collision"},
+        {"devanagari": "नबीकर्ड", "romanized": ["nabikard", "nebikaard"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "नेबिकार्डढाई दे दो", "romanized": ["nebikarddhai de do", "nebicarddhaai de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "नेबिकार्ड ढाई की टिकिया", "romanized": ["nebikard dhai ki tikiya", "nebicard dhaai ki tikiya"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0007886",
+      "name": "CLOPITAB-A 75 CAPSULE",
+      "family": "CLOPITAB",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "क्लोपी टैब ए पचहत्तर", "romanized": ["clopi tab e pachhattar", "klopi tab a 75"], "attack": "wrong-boundary-split"},
+        {"devanagari": "कलोपिटाब ए", "romanized": ["kalopitab e", "kalopitaab a"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "क्लोपिटैबएपचहत्तर दे दो", "romanized": ["clopitabepachhattar de do", "klopitabepachhattar de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "पचहत्तर वाला क्लोपीटैब ए", "romanized": ["pachhattar wala clopitab e", "75 wala klopitab a"], "attack": "strength-misattached"},
+        {"devanagari": "क्लोपिटैब ए वाला खून पतला करने का कैप्सूल", "romanized": ["clopitab a wala khoon patla karne ka capsule", "klopitab a vala khun patla karne ka kaipsool"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0036945",
+      "name": "HIFENAC P TABLET",
+      "family": "HIFENAC",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "हाइफ़न ऐक पी", "romanized": ["hyphen ak pee", "haifan ek p"], "attack": "hindi-word-substitution"},
+        {"devanagari": "हिफनाक पी", "romanized": ["hifnaak pee", "hifanak p"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "हाइफेक पी", "romanized": ["haifek pee", "haifek p"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "हाइफेनैकपी दे दो", "romanized": ["hifenacpee de do", "haifenakpi de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "हाइफेनैक पी दर्द की गोली", "romanized": ["hifenac pee dard ki goli", "haifenak p dard ki goli"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0023279",
+      "name": "NUCOXIA MR TABLET",
+      "family": "NUCOXIA",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "न्यू कॉक्सिया एमआर", "romanized": ["new coxia emar", "nyu koksia mr"], "attack": "hindi-word-substitution"},
+        {"devanagari": "नुकोक्सिया", "romanized": ["nukoksia", "nookoxia"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "न्यू कोक्स िया एम आर", "romanized": ["nu koks iya em ar", "new cox iya m r"], "attack": "wrong-boundary-split"},
+        {"devanagari": "न्यूकॉक्सियाएमआर दे दीजिए", "romanized": ["nukoksiaemar de dijiye", "nucoxiaemaar de dijiye"], "attack": "fused-filler-tail"},
+        {"devanagari": "न्यूकॉक्सिया एमआर की गोली चाहिए", "romanized": ["nukoksia mr ki goli chahiye", "nucoxia emar ki goli chahiye"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0023758",
+      "name": "OFLOMAC 200 TABLET",
+      "family": "OFLOMAC",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "ऑफ़्लो मैक दो सौ", "romanized": ["oflo mac do sau", "aflo mak 200"], "attack": "hindi-word-substitution"},
+        {"devanagari": "अफलोमक", "romanized": ["aflomak", "afalomak"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ऑफ्लोमैक२००", "romanized": ["oflomac200", "aflomak200"], "attack": "brand-digit-fusion"},
+        {"devanagari": "ऑफ्लोमैकदोसौ दे दो", "romanized": ["oflomacdosau de do", "aflomakdosau de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "ओफ्मैक दो सौ", "romanized": ["ofmak do sau", "ofmac 200"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0030273",
+      "name": "STORVAS 20 TABLET",
+      "family": "STORVAS",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "स्टोर वास बीस", "romanized": ["store vaas bees", "stor vas 20"], "attack": "hindi-word-substitution"},
+        {"devanagari": "इस्टोरवास बीस", "romanized": ["istorvas bees", "istorwas 20"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "स्टोरबास बीस", "romanized": ["storbas bees", "storbaas 20"], "attack": "bv-fold-collision"},
+        {"devanagari": "स्टोरवासबीस दे दो", "romanized": ["storvasbees de do", "storvas20 de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "स्टोरवास बीस वाली गोली", "romanized": ["storvas bees wali goli", "storvas 20 vali goli"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0011371",
+      "name": "EMESET MD 4 TABLET",
+      "family": "EMESET",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "इमीसेट एमडी चार", "romanized": ["imeeset emdee char", "imiset md 4"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "एमी सेट एमडी", "romanized": ["emmy set emdee", "emi set md"], "attack": "hindi-word-substitution"},
+        {"devanagari": "एमीसेटएमडीचार दे दो", "romanized": ["emisetemdeechar de do", "emesetmdchar de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "इमेसेट उल्टी की गोली", "romanized": ["emeset ulti ki goli", "imeset ulti ki goli"], "attack": "hindi-form-word-only"},
+        {"devanagari": "एमसेट एमडी", "romanized": ["emset emdee", "emcet md"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0024770",
+      "name": "OXETOL 300 TABLET",
+      "family": "OXETOL",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "ऑक्सी टोल तीन सौ", "romanized": ["oxy toll teen sau", "oksi tol 300"], "attack": "hindi-word-substitution"},
+        {"devanagari": "अक्सिटोल", "romanized": ["aksitol", "axitol"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ऑक्सेटोल३००", "romanized": ["oxetol300", "oksetol300"], "attack": "brand-digit-fusion"},
+        {"devanagari": "ऑक्सेटोलतीनसौ दे दीजिए", "romanized": ["oxetolteensau de dijiye", "oksetolteensau de dijiye"], "attack": "fused-filler-tail"},
+        {"devanagari": "ऑक्स ई टोल तीन सौ", "romanized": ["oks ee tol teen sau", "ox e tol 300"], "attack": "wrong-boundary-split"}
+      ]
+    },
+    {
+      "sku_code": "J0023166",
+      "name": "NOVAMOX 250 REDIUSE SUSPENSION",
+      "family": "NOVAMOX",
+      "tier": "mid-tail",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "नोवामिक्स दो सौ पचास", "romanized": ["novamix do sau pachas", "nowamix 250"], "attack": "bv-fold-collision"},
+        {"devanagari": "नोवामॉक्स वाली शीशी", "romanized": ["novamox wali sheeshi", "nowamoks vali shishi"], "attack": "hindi-form-word-only"},
+        {"devanagari": "नवामाक्स", "romanized": ["navamaks", "nawamax"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "नोवामॉक्सदोसौपचास दे दो", "romanized": ["novamoxdosaupachas de do", "nowamoksdosaupachas de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "नोवा मॉक्स रेडीयूज़", "romanized": ["nova mox rediyuz", "nova moks redius"], "attack": "wrong-boundary-split"}
+      ]
+    },
+    {
+      "sku_code": "J0015600",
+      "name": "HEPATOGLOBINE ORAL LIQUID",
+      "family": "HEPATOGLOBINE",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "हेपाटो ग्लोबिन", "romanized": ["hepato globin", "hipato globine"], "attack": "wrong-boundary-split"},
+        {"devanagari": "हेपाग्लोबिन", "romanized": ["hepaglobin", "hepaglobeen"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "हिपटोगिलोबीन", "romanized": ["hipatogilobeen", "hipetogilobin"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "हेपाटोग्लोबिनवाला सिरप दे दो", "romanized": ["hepatoglobinwala syrup de do", "hipatoglobinvala sirap de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "हेपाटोग्लोबिन की शीशी", "romanized": ["hepatoglobine ki sheeshi", "hepatoglobin ki shishi"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0031739",
+      "name": "TERBINAFORCE PLUS NF CREAM",
+      "family": "TERBINAFORCE",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "टर्बाइन फोर्स प्लस", "romanized": ["turbine force plus", "tarbain fors plus"], "attack": "hindi-word-substitution"},
+        {"devanagari": "टर्बीफोर्स", "romanized": ["terbiforce", "tarbifors"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "टर्बिनाफोर्स वाला मलहम", "romanized": ["terbinaforce wala malham", "tarbinafors vala marham"], "attack": "hindi-form-word-only"},
+        {"devanagari": "तरबिनाफर्स", "romanized": ["tarbinafars", "tarbinaphors"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "टर्बिनाफोर्सप्लसएनएफ दे दो", "romanized": ["terbinaforceplusenef de do", "tarbinaforsplusnf de do"], "attack": "fused-filler-tail"}
+      ]
+    },
+    {
+      "sku_code": "J0006115",
+      "name": "BUTAPROXYVON CAPSULE",
+      "family": "BUTAPROXYVON",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "बूटा प्रॉक्सी वोन", "romanized": ["boota proxy von", "buta proksi won"], "attack": "hindi-word-substitution"},
+        {"devanagari": "बुटाप्रॉक्सीबोन", "romanized": ["butaproxybone", "butaproksibon"], "attack": "bv-fold-collision"},
+        {"devanagari": "बुटाप्रोक्सन", "romanized": ["butaproxan", "butaproksan"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "बटाप्रकसीवान", "romanized": ["bataprakseevan", "batapraksiwan"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "बूटाप्रॉक्सीवोनकैप्सूल दे दो", "romanized": ["bootaproxyvoncapsule de do", "butaproksivonkaipsool de do"], "attack": "fused-filler-tail"}
+      ]
+    },
+    {
+      "sku_code": "J0025028",
+      "name": "PANKREOFLAT TABLET",
+      "family": "PANKREOFLAT",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "पैंक्रियो फ्लैट", "romanized": ["pancreo flat", "pankriyo flat"], "attack": "hindi-word-substitution"},
+        {"devanagari": "पंकरीओफ्लाट", "romanized": ["pankareoflaat", "pankriophlat"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "पैक्रोफ्लैट", "romanized": ["pakroflat", "pekroflat"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "पैंक्रियोफ्लैट की गोली दे दो", "romanized": ["pankreoflat ki goli de do", "pankriyoflat ki goli de do"], "attack": "hindi-form-word-only"},
+        {"devanagari": "पैन क्रियो फ्लैट", "romanized": ["pan kriyo flat", "pan creo flat"], "attack": "wrong-boundary-split"}
+      ]
+    },
+    {
+      "sku_code": "J0007007",
+      "name": "CEPHAGRAINE NASAL DROPS",
+      "family": "CEPHAGRAINE",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "सेफा माइग्रेन", "romanized": ["sepha migraine", "sefa maigren"], "attack": "hindi-word-substitution"},
+        {"devanagari": "सेफाग्रेन नाक की दवा", "romanized": ["cephagraine naak ki dawa", "sefagren nak ki dava"], "attack": "hindi-form-word-only"},
+        {"devanagari": "सिफाग्रीन", "romanized": ["sifagreen", "sephagrin"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "सेफाग्रे", "romanized": ["sefagre", "cephagre"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "सेफाग्रेननेज़लड्रॉप दे दो", "romanized": ["cephagrainenasaldrop de do", "sefagrennezaldrop de do"], "attack": "fused-filler-tail"}
+      ]
+    },
+    {
+      "sku_code": "J0024641",
+      "name": "OSTOCALCIUM B12 BANANA SYRUP",
+      "family": "OSTOCALCIUM",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "ऑस्टियो कैल्शियम बी ट्वेल्व", "romanized": ["osteo calcium bee twelve", "ostiyo kalsiyam b12"], "attack": "hindi-word-substitution"},
+        {"devanagari": "ऑस्टो कैल्शियम केले वाला", "romanized": ["osto calcium kele wala", "asto kalsiyam kele vala"], "attack": "wrong-boundary-split"},
+        {"devanagari": "अस्तुकलसियम", "romanized": ["astukalsiyam", "astokalshiyam"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ऑस्टोकैल्शियमबीट्वेल्व सिरप दे दो", "romanized": ["ostocalciumbeetwelve syrup de do", "astokalsiyambitvelv sirap de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "ऑस्कैल्शियम", "romanized": ["oskalsiyam", "oscalcium"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0015168",
+      "name": "GRILINCTUS-BM TABLET",
+      "family": "GRILINCTUS",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "गिरीलिंक्टस बीएम", "romanized": ["gireelinktus beeem", "girilinctus bm"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ग्रिलिक्टस बीएम", "romanized": ["griliktus beeem", "grilictus bm"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "ग्रिलिंक्टस खाँसी की दवा", "romanized": ["grilinctus khansi ki dawa", "grilinktas khaansi ki dava"], "attack": "hindi-form-word-only"},
+        {"devanagari": "ग्रिलिंक्टसबीएम दे दीजिए", "romanized": ["grilinctusbeeem de dijiye", "grilinktasbeem de dijiye"], "attack": "fused-filler-tail"},
+        {"devanagari": "ग्री लिंक्टस बी एम", "romanized": ["gree linctus bee em", "gri linktas b m"], "attack": "wrong-boundary-split"}
+      ]
+    },
+    {
+      "sku_code": "J0031862",
+      "name": "THERMOSEAL REPAIR TOOTHPASTE",
+      "family": "THERMOSEAL",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "थर्मोसील वाला मंजन", "romanized": ["thermoseal wala manjan", "tharmoseel vala manjan"], "attack": "hindi-form-word-only"},
+        {"devanagari": "थर्मो सील रिपेयर", "romanized": ["thermo seal repair", "tharmo seel ripeyar"], "attack": "hindi-word-substitution"},
+        {"devanagari": "तरमोसिल", "romanized": ["taramosil", "tharmoseel"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "थर्मोसीलरिपेयर दे दो", "romanized": ["thermosealrepair de do", "tharmoseelripeyar de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "थर्मसील", "romanized": ["tharmseel", "thermsil"], "attack": "dropped-syllable-nasal"}
+      ]
+    },
+    {
+      "sku_code": "J0020409",
+      "name": "MEGANEURON OD PLUS CAPSULE",
+      "family": "MEGANEURON",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "मेगा न्यूरॉन ओडी प्लस", "romanized": ["mega neuron odee plus", "mega nyuron od plus"], "attack": "hindi-word-substitution"},
+        {"devanagari": "मिगानूरान", "romanized": ["miganooran", "meganuran"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "मेगान्यूरो ओडी", "romanized": ["meganyuro odee", "meganuro od"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "मेगान्यूरॉनओडीप्लस दे दो", "romanized": ["meganeuronodeeplus de do", "meganyuronodiplus de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "मेगान्यूरॉन वाला कैप्सूल चाहिए", "romanized": ["meganuron wala capsule chahiye", "meganyuron vala kaipsool chahiye"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0022372",
+      "name": "NEOPEPTINE DROPS",
+      "family": "NEOPEPTINE",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "नियो पेप्टिन", "romanized": ["neo peptin", "niyo peptine"], "attack": "hindi-word-substitution"},
+        {"devanagari": "नियोपेप्टिन बच्चे की पेट की दवा", "romanized": ["neopeptin bachche ki pet ki dawa", "niyopeptin bachche ki pet ki dava"], "attack": "hindi-form-word-only"},
+        {"devanagari": "नेउपिप्टीन", "romanized": ["neupipteen", "nyopeptin"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "नियोपेटिन", "romanized": ["neopetin", "niyopetin"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "नियोपेप्टिनड्रॉप दे दो", "romanized": ["neopeptindrop de do", "niyopeptindrop de do"], "attack": "fused-filler-tail"}
+      ]
+    },
+    {
+      "sku_code": "J0034699",
+      "name": "WALAPHAGE-SR 500 TABLET",
+      "family": "WALAPHAGE",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "वाला फेज एसआर पाँच सौ", "romanized": ["wala phage sr paanch sau", "vala fej es aar 500"], "attack": "hindi-word-substitution"},
+        {"devanagari": "बालाफेज एसआर", "romanized": ["balaphage sr", "balafej es aar"], "attack": "bv-fold-collision"},
+        {"devanagari": "वलाफाज", "romanized": ["walafaaj", "valafaj"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "वालाफेजएसआरपाँचसौ दे दो", "romanized": ["walaphageesaarpaanchsau de do", "valafejesarpaanchsau de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "पाँच सौ एसआर वाला वालाफेज", "romanized": ["paanch sau sr wala walaphage", "500 es aar vala valafej"], "attack": "strength-misattached"}
+      ]
+    },
+    {
+      "sku_code": "J0016028",
+      "name": "HUMINSULIN N 100 IU INJECTION",
+      "family": "HUMINSULIN",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "ह्यूमन इंसुलिन एन", "romanized": ["human insulin en", "hyuman insulin n"], "attack": "hindi-word-substitution"},
+        {"devanagari": "ह्यूमिन्सुलिन एन वाली सुई", "romanized": ["huminsulin en wali sui", "hyuminsulin n vali sooi"], "attack": "hindi-form-word-only"},
+        {"devanagari": "हुमिनसुलीन", "romanized": ["huminsuleen", "hoominsulin"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "ह्यूमिसुलिन एन", "romanized": ["hyumisulin en", "humisulin n"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "सौ यूनिट वाला ह्यूमिनसुलिन एन", "romanized": ["sau unit wala huminsulin en", "100 unit vala hyuminsulin n"], "attack": "strength-misattached"}
+      ]
+    },
+    {
+      "sku_code": "J0038561",
+      "name": "UV DOUX SPF 30 LOTION",
+      "family": "UV DOUX",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "यूवी दो एसपीएफ तीस", "romanized": ["uv do spf tees", "yuvi do spf 30"], "attack": "hindi-word-substitution"},
+        {"devanagari": "यूवीडक्स एसपीएफ तीस", "romanized": ["uvidux spf tees", "uvdoux spf 30"], "attack": "wrong-boundary-fusion"},
+        {"devanagari": "यू वी दूध", "romanized": ["u v doodh", "yu vi doodh"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "यूवीडूएसपीएफतीस वाला लोशन दे दो", "romanized": ["uvidooespeeeftees wala lotion de do", "uvduspfteesvala loshan de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "यूवी डू वाली धूप की क्रीम", "romanized": ["uv doo wali dhoop ki cream", "yuvi du vali dhup ki krim"], "attack": "hindi-form-word-only"}
+      ]
+    },
+    {
+      "sku_code": "J0027324",
+      "name": "R-CINEX 600 TABLET",
+      "family": "R CINEX",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "आरसिनेक्स छह सौ", "romanized": ["aarcinex chhah sau", "arsinex 600"], "attack": "wrong-boundary-fusion"},
+        {"devanagari": "आर साइनेक्स", "romanized": ["aar sinex", "ar cynex"], "attack": "hindi-word-substitution"},
+        {"devanagari": "अर्सीनिक्स", "romanized": ["arseeniks", "arsinix"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "आरसिनेक्सछहसौ दे दो", "romanized": ["arcinexchhahsau de do", "aarsineksachhahsau de do"], "attack": "fused-filler-tail"},
+        {"devanagari": "छह सौ वाला आर सिनेक्स", "romanized": ["chhah sau wala aar cinex", "600 vala ar sineks"], "attack": "strength-misattached"}
+      ]
+    },
+    {
+      "sku_code": "J0026437",
+      "name": "PROPYSALIC NF OINTMENT",
+      "family": "PROPYSALIC",
+      "tier": "obscure",
+      "expect": "family",
+      "variants": [
+        {"devanagari": "प्रोपीसैलिक एनएफ वाला मलहम", "romanized": ["propysalic enef wala malham", "propisalik nf vala marham"], "attack": "hindi-form-word-only"},
+        {"devanagari": "प्रॉपी सैलिक एन एफ", "romanized": ["propi salic en ef", "praupi salik n f"], "attack": "wrong-boundary-split"},
+        {"devanagari": "परोपीसलिक", "romanized": ["paropisalik", "propeesalik"], "attack": "dialect-vowel-damage"},
+        {"devanagari": "प्रोपिसलिक एनएफ", "romanized": ["propsalik enef", "propisalk nf"], "attack": "dropped-syllable-nasal"},
+        {"devanagari": "प्रोपीसैलिकएनएफ लेप दे दो", "romanized": ["propysalicenef lep de do", "propisalikenef lep de do"], "attack": "fused-filler-tail"}
+      ]
+    }
+  ],
+  "traps": [
+    {
+      "kind": "absent",
+      "query_devanagari": "ज़िनटैक डेढ़ सौ दे दो",
+      "romanized": ["zinetac dedh sau de do", "jinetak 150 de do"],
+      "target_family": null,
+      "must_not_win": null,
+      "note": "ZINETAC (GSK ranitidine) is one of the most-said brand names in an Indian pharmacy but is ABSENT from this catalog — grep of enterro_products.csv: 0 boundary hits, 0 substring hits. Live probe of 'zinetac' returns multi_variant on JOINTACE at confidence 0.5 (a glucosamine joint supplement). Expected: not_found, or multi_family with no high-confidence match. Anything that confidently hands over JOINTACE for a ranitidine request is a fail."
+    },
+    {
+      "kind": "absent",
+      "query_devanagari": "डेकड्रान की गोली चाहिए",
+      "romanized": ["decdan ki goli chahiye", "dekdan ki goli chahiye"],
+      "target_family": null,
+      "must_not_win": null,
+      "note": "DECDAN (Cadila dexamethasone) — ABSENT: 0 boundary hits, 0 substring hits in enterro_products.csv. Live probe of both 'decdan' and 'dekdan' returns status=matched, sku=DOXYDIN LB CAPSULE, confidence 0.62 — a single confidently-named wrong SKU (doxycycline for a steroid). This is the worst possible outcome shape and the highest-value trap in the set."
+    },
+    {
+      "kind": "absent",
+      "query_devanagari": "ज़ंडू बाम दे दो",
+      "romanized": ["zandu balm de do", "jandu baam de do"],
+      "target_family": null,
+      "must_not_win": null,
+      "note": "ZANDU — ABSENT: 0 boundary hits, 0 substring hits. Live probe of 'zandu balm' returns status=matched, sku=ZINDEE TABLET at confidence 0.62. A topical balm request resolving to an oral zinc tablet with a single confident SKU. Expected: not_found."
+    },
+    {
+      "kind": "absent",
+      "query_devanagari": "अल्ट्रासेट की गोली दे दीजिए",
+      "romanized": ["ultracet ki goli de dijiye", "altraset ki goli de dijiye"],
+      "target_family": null,
+      "must_not_win": "ULTRACID",
+      "note": "ULTRACET (tramadol+paracetamol, J&J) — ABSENT: 0 boundary hits. ULTRACID (an antacid) IS present. Live probe of 'ultracet' returns multi_variant on ULTRACID at confidence 0.5. Key ALTRK vs ALTRSD differ, but the token-prefix and phonetic-near paths bridge them. A painkiller request must not silently become an antacid brand."
+    },
+    {
+      "kind": "absent",
+      "query_devanagari": "कोल्डारिन वाली गोली",
+      "romanized": ["coldarin wali goli", "koldarin vali goli"],
+      "target_family": null,
+      "must_not_win": "CALADRYL",
+      "note": "COLDARIN (a real Indian cold tablet) — ABSENT: 0 boundary hits, 0 substring hits. Live probe of 'coldarin' returns status=matched, sku=CALADRYL LOTION at confidence 0.62. phonetic_key('COLDARIN')='KLDRN', phonetic_key('CALADRYL')='KLDRL' — one character apart, so it comes in through _PHON_NEAR, and the difflib floor _PHON_SIM_NEAR=0.50 is cleared. This is the COLDACT/CALDIKIND failure mode the docstring claims to have closed, reopened with a different pair."
+    },
+    {
+      "kind": "absent",
+      "query_devanagari": "साइनेक्स नाक वाला स्प्रे",
+      "romanized": ["sinex naak wala spray", "sineks nak vala sprey"],
+      "target_family": null,
+      "must_not_win": "R CINEX",
+      "note": "SINEX (Vicks nasal spray) — ABSENT as a brand: 0 boundary hits; the only substring occurrence is inside TORSINEX PLUS (a different brand root). Live probe of 'sineks' returns multi_variant on R CINEX at confidence 0.5. R-CINEX is rifampicin+isoniazid, a first-line anti-TB combination. A nasal-decongestant request resolving to anti-TB therapy is the single most dangerous confusion in this file."
+    },
+    {
+      "kind": "absent",
+      "query_devanagari": "निमुलिड दे दो दर्द वाली",
+      "romanized": ["nimulid de do dard wali", "nimulide de do dard vali"],
+      "target_family": null,
+      "must_not_win": "NUMLO",
+      "note": "NIMULID (Panacea nimesulide) — ABSENT: 0 boundary hits, 0 substring hits. Live probe of 'nimulid' returns multi_family led by NUMLO and S NUMLO (amlodipine). phonetic_key('NIMULID')='NMLD' vs phonetic_key('NUMLO')='NML' — a one-character _PHON_NEAR hit. Expected: not_found or multi_family with no high-confidence match; an antihypertensive must never be the confident answer to a painkiller."
+    },
+    {
+      "kind": "absent",
+      "query_devanagari": "अल्कासोल की शीशी दे दो",
+      "romanized": ["alkasol ki sheeshi de do", "alkasol ki shishi de do"],
+      "target_family": null,
+      "must_not_win": null,
+      "note": "ALKASOL (potassium citrate urinary alkalizer, a counter staple) — ABSENT: 0 boundary hits, 0 substring hits. Live probe of 'alkasol' returns multi_family over ALKASTON and ALKASHOT — both real but different products. Expected: not_found or a low-confidence multi_family; must not become matched/multi_variant on either."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "सीनॉड दस वाली गोली दे दो",
+      "romanized": ["seenod das wali goli de do", "sinod 10 wali goli de do"],
+      "target_family": "CINOD",
+      "must_not_win": "CANDID",
+      "note": "Both present: CINOD 7 rows, CANDID 21 rows (grep of names starting with the brand). phonetic_key('CINOD')='KND' and phonetic_key('CANDID')='KND' — identical, because phonetic_key's dedupe runs on the OUTPUT list, so CANDID's two D's separated by a vowel collapse to one. CANDID then wins the _PHON_BREADTH term (21/8 caps at 1.0 vs CINOD's 7/8=0.875). CINOD is amlodipine; CANDID is clotrimazole. The query clearly means CINOD."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "सेंसोडीन वाला मंजन दे दो",
+      "romanized": ["sensodeen wala manjan de do", "sensodine wala manjan de do"],
+      "target_family": "SENSODYNE",
+      "must_not_win": "SENSODENT",
+      "note": "Both present: SENSODYNE 10 rows, SENSODENT 11 rows. Keys SNSDN vs SNSDNT — one character apart, so SENSODENT enters through the key[:-1]* GLOB and _PHON_NEAR, and it carries MORE SKUs, so _PHON_BREADTH favours the wrong one. 'मंजन' is the only form word in the query and is not in FORM_WORDS, so it stays a brandish token and adds noise to the phonetic probe."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "ग्लाइसीनॉर्म ओडी साठ",
+      "romanized": ["glycinorm od saath", "glaisinorm odee 60"],
+      "target_family": "GLYCINORM",
+      "must_not_win": "GLUCONORM",
+      "note": "Both present: GLYCINORM 12 rows, GLUCONORM 31 rows. phonetic_key is identical for both — 'GLKNRM' — because every non-initial vowel is discarded and the only difference between the two brands is vowels. GLUCONORM is 2.5x deeper, so _PHON_BREADTH and the shortest-name FTS cut both lean its way. GLYCINORM is gliclazide, GLUCONORM is glimepiride+metformin; both are diabetes drugs, which makes a silent swap plausible-looking and clinically wrong."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "रोज़ूवास दस वाली गोली",
+      "romanized": ["rozoovas das wali goli", "rozuvas 10 vali goli"],
+      "target_family": "ROSUVAS",
+      "must_not_win": "ROSUWISE",
+      "note": "Both present: ROSUVAS 14 rows, ROSUWISE 10 rows. _SINGLES maps W to V, so phonetic_key('ROSUWISE')='RSVS' and phonetic_key('ROSUVAS')='RSVS' — an exact key tie with no length difference for the abs(len) guard to catch. The tie then falls to the raw difflib ratio against a vowel-damaged spoken token, which is exactly where the ranking is least reliable."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "ओरटील पाँच सौ",
+      "romanized": ["orateel paanch sau", "orateel 500"],
+      "target_family": "ORATIL",
+      "must_not_win": "ERITEL",
+      "note": "Both present: ORATIL 5 rows, ERITEL 17 rows. Initial vowels all fold to 'A' in phonetic_key, so ORATIL and ERITEL both key to 'ARTL' — an exact collision. ERITEL has 3.4x the SKU count, so _PHON_BREADTH hands it the win by ~+1.5 while _PHON_EXACT is tied. ORATIL is cefuroxime (an antibiotic), ERITEL is telmisartan (a BP drug)."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "अटरैक्स पच्चीस",
+      "romanized": ["ataraks pachchees", "atraks 25"],
+      "target_family": "ATARAX",
+      "must_not_win": "EUTHYROX",
+      "note": "Both present: ATARAX 9 rows, EUTHYROX 6 rows. phonetic_key('ATARAX')='ATRK'; phonetic_key('EUTHYROX') is also 'ATRK' — TH folds to T, X folds to K, the initial vowel folds to A, and every other vowel is dropped. Four other families (ATOREC, ETORICA, ITORAX, ETRIK) share the same key, so with _MAX_FAMILIES=5 the intended family can be pushed off the candidate list entirely before scoring even starts. ATARAX is hydroxyzine, EUTHYROX is levothyroxine."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "इमीसेट एमडी चार दे दो",
+      "romanized": ["imeeset emdee char de do", "imiset md 4 de do"],
+      "target_family": "EMESET",
+      "must_not_win": "EMSITA",
+      "note": "Both present: EMESET 8 rows, EMSITA 7 rows. Both key to 'AMST' exactly (initial-vowel fold plus vowel deletion), as do EYEMIST and EMESTAT. EMESET is ondansetron (antiemetic); EMSITA is sitagliptin+metformin (diabetes). The vowel-damaged rendering 'imeeset' pushes the difflib similarity toward the middle, which is where the exact-key floor of 0.45 stops discriminating."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "अक्सिटोल तीन सौ",
+      "romanized": ["aksitol teen sau", "axitol 300"],
+      "target_family": "OXETOL",
+      "must_not_win": "ECITELO",
+      "note": "Both present: OXETOL 8 rows, ECITELO 6 rows. Keys are both 'AKTL' — X folds to K, initial vowels fold to A, and the remaining vowels are dropped, so 'oxetol' and 'ecitelo' are indistinguishable to the coder. OXETOL is oxcarbazepine (an antiepileptic — a wrong substitution here is a seizure risk); ECITELO is escitalopram."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "कार्डिबास सवा तीन एमजी",
+      "romanized": ["kardibas sawa teen mg", "cardibas 3.125 mg"],
+      "target_family": "CARDIVAS",
+      "must_not_win": "CARDIBIS",
+      "note": "Both present: CARDIVAS 6 rows, CARDIBIS 5 rows. This is the ABEVIA/ABIWAYS class: _key_folds folds B to V, so CARDIBIS's alternate key 'KRDVS' is exactly CARDIVAS's canonical key. spoken_shape similarity between the two brands is 0.88 — above the _PHON_SIM_ALT floor of 0.72 — so the alternate-key net is wide open. CARDIVAS is carvedilol, CARDIBIS is bisoprolol: different beta blockers at wildly different mg scales (3.125 mg vs 1.25 mg). Also probes the Hindi fraction 'सवा तीन' (3.25/3.125), which spoken_numbers cannot fold because it only knows English number words."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "अस्कोरील एलएस खाँसी की दवा",
+      "romanized": ["askoreel els khansi ki dawa", "askoril elas khaansi ki dava"],
+      "target_family": "ASCORIL",
+      "must_not_win": "ISRYL",
+      "note": "Both present: ASCORIL 9 rows, ISRYL 8 rows. The SC digraph collapses to S, so phonetic_key('ASCORIL')='ASRL'; ISRYL's initial vowel folds to A and Y is treated as a vowel, giving 'ASRL' too. _key_folds then adds the epenthetic-S alternate 'SRL' for BOTH, doubling the ways they can meet. ASCORIL is a cough syrup, ISRYL is glimepiride — handing a diabetic sulfonylurea to someone asking for cough syrup. 'खाँसी की दवा' carries no FORM_WORDS token, so KHANSI and DAWA both survive into q.brandish and pollute the probe."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "नोवामाक्स दो सौ पचास की शीशी",
+      "romanized": ["novamaks do sau pachas ki sheeshi", "nowamax 250 ki shishi"],
+      "target_family": "NOVAMOX",
+      "must_not_win": "NOVOMIX",
+      "note": "Both present: NOVAMOX 14 rows, NOVOMIX 3 rows. Keys are both 'NVMK' — the only difference between the brands is vowels, which phonetic_key discards. NOVAMOX is amoxicillin syrup for a child; NOVOMIX is biphasic insulin aspart. This is the highest-consequence collision in the catalog: a paediatric antibiotic and an injectable insulin one vowel apart."
+    },
+    {
+      "kind": "collision",
+      "query_devanagari": "असोमेक्स ढाई वाली गोली",
+      "romanized": ["asomeks dhai wali goli", "assomex dhai vali goli"],
+      "target_family": "ASOMEX",
+      "must_not_win": "ESOMAC",
+      "note": "Both present: ASOMEX 10 rows, ESOMAC 5 rows. Both key to 'ASMK' — initial vowel folds to A, X folds to K, interior vowels dropped, so the consonant skeletons S-M-K are identical. ASOMEX is S-amlodipine (BP); ESOMAC is esomeprazole (acid). 'ढाई' (2.5) is a Hindi fraction word that spoken_numbers cannot convert, so the strength cannot be used to break the tie."
+    }
+  ]
+}

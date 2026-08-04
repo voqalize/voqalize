@@ -57,7 +57,7 @@ substitutions:
   # Expected demo count — the gate asserts /_healthz lists exactly this many.
   # Discovery is per-directory and the app starts happily with one brain missing,
   # so a bare 200 would let a silently-dark demo ship.
-  _EXPECTED_DEMOS: "10"
+  _EXPECTED_DEMOS: "11"
 
 steps:
   # 1. Build the brains-only image (pure Python; no build-args). Context is the

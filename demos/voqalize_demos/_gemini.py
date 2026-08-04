@@ -19,6 +19,7 @@ scaffolding across several.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from google.genai import types
@@ -26,7 +27,11 @@ from google.genai import types
 from voqalize.sdk import Brain
 from voqalize_demos.llm import GeminiProvider
 
-DEFAULT_MODEL = "gemini-3.1-flash-lite"
+# Overridable because free-tier Gemini quotas are per model — when one model's
+# daily bucket is spent (an eval run, a long demo day), pointing the process at
+# a sibling model is the difference between "demo works" and "come back
+# tomorrow". Production sets nothing and gets the default.
+DEFAULT_MODEL = os.environ.get("DEMOS_GEMINI_MODEL", "gemini-3.1-flash-lite")
 
 # Appended to a hybrid greeting prompt so the model, having heard the caller's
 # fixed opener already spoken, continues instead of greeting a second time.

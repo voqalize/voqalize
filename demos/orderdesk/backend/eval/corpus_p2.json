@@ -1,0 +1,355 @@
+{
+  "bucket": "dentals-aspiration-numbers",
+  "entries": [
+    {
+      "sku_code": "J0031270",
+      "name": "TELMA 40 TABLET",
+      "family": "TELMA",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "टेल्मा फोर्टी", "romanized": ["telma forty", "telma 40"] },
+        { "devanagari": "तेल्मा चालीस", "romanized": ["telma chalis", "telma 40"] },
+        { "devanagari": "टैल्मा ४० एम जी", "romanized": ["talma 40 mg", "telma 40 mg"] },
+        { "devanagari": "टेलमा चालिस एमजी", "romanized": ["telma chalis mg", "telma 40 mg"] },
+        { "devanagari": "टी ई एल एम ए फोर्टी टैबलेट", "romanized": ["t e l m a forty tablet", "telma 40 tablet"] },
+        { "devanagari": "टेल्मचालीस", "romanized": ["telmachalis", "telma chalis", "telma 40"] }
+      ]
+    },
+    {
+      "sku_code": "J0038288",
+      "name": "THYRONORM 50 MCG TABLET",
+      "family": "THYRONORM",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "थायरोनॉर्म फिफ्टी", "romanized": ["thyronorm fifty", "thyronorm 50"] },
+        { "devanagari": "टाइरोनोर्म पचास", "romanized": ["tyronorm pachas", "thyronorm 50"] },
+        { "devanagari": "तायरोनार्म ५० एमसीजी", "romanized": ["tayronarm 50 mcg", "thyronorm 50 mcg"] },
+        { "devanagari": "थाइरोनोम फिफ्टी माइक्रोग्राम", "romanized": ["thaironom fifty microgram", "thyronorm 50 mcg"] },
+        { "devanagari": "थायरो नॉर्म फिफ्टी एम सी जी टैबलेट", "romanized": ["thyro norm fifty m c g tablet", "thyronorm 50 mcg tablet"] },
+        { "devanagari": "थायरनॉम पचास", "romanized": ["thyarnom pachas", "thyronorm 50"] }
+      ]
+    },
+    {
+      "sku_code": "J0010291",
+      "name": "DOLO-650 TABLET",
+      "family": "DOLO",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डोलो छह सौ पचास", "romanized": ["dolo chhah sau pachas", "dolo 650"] },
+        { "devanagari": "डोलो सिक्स फिफ्टी", "romanized": ["dolo six fifty", "dolo 650"] },
+        { "devanagari": "धोलो ६५०", "romanized": ["dholo 650", "dolo 650"] },
+        { "devanagari": "दोलो साढ़े छह सौ", "romanized": ["dolo sadhe chhah sau", "dolo 650"] },
+        { "devanagari": "डी ओ एल ओ सिक्स फिफ्टी टैबलेट", "romanized": ["d o l o six fifty tablet", "dolo 650 tablet"] },
+        { "devanagari": "डौलोछसौपचास", "romanized": ["daulochhasaupachas", "dolo chhasau pachas", "dolo 650"] }
+      ]
+    },
+    {
+      "sku_code": "J0032996",
+      "name": "TRYPTOMER 25 MG TABLET",
+      "family": "TRYPTOMER",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ट्रिप्टोमर पच्चीस", "romanized": ["triptomer pachchis", "tryptomer 25"] },
+        { "devanagari": "त्रिप्टोमेर ट्वेंटी फाइव", "romanized": ["triptomer twenty five", "tryptomer 25"] },
+        { "devanagari": "ट्रिप्टोमर २५ एमजी", "romanized": ["triptomer 25 mg", "tryptomer 25 mg"] },
+        { "devanagari": "ट्रिप्टोमीर पच्चीस एम जी", "romanized": ["triptomeer pachchis mg", "tryptomer 25 mg"] },
+        { "devanagari": "ट्राइप्टोमर ट्वेंटी फाइव एमजी टैबलेट", "romanized": ["traiptomer twenty five mg tablet", "tryptomer 25 mg tablet"] },
+        { "devanagari": "ट्रिप्टोम्पच्चीस", "romanized": ["triptompachchis", "triptom pachchis", "tryptomer 25"] }
+      ]
+    },
+    {
+      "sku_code": "J0010941",
+      "name": "DYTOR-40 TABLET",
+      "family": "DYTOR",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डायटर फोर्टी", "romanized": ["dytor forty", "dytor 40"] },
+        { "devanagari": "डाइटोर चालीस", "romanized": ["daitor chalis", "dytor 40"] },
+        { "devanagari": "दायटोर ४०", "romanized": ["daytor 40", "dytor 40"] },
+        { "devanagari": "धाइटर फोर्टी एमजी", "romanized": ["dhaitar forty mg", "dytor 40 mg"] },
+        { "devanagari": "डी वाई टी ओ आर चालीस टैबलेट", "romanized": ["d y t o r chalis tablet", "dytor 40 tablet"] },
+        { "devanagari": "डाइट्रचालीस", "romanized": ["daitrachalis", "daitr chalis", "dytor 40"] }
+      ]
+    },
+    {
+      "sku_code": "J0031005",
+      "name": "TAXIM-O 200 TABLET",
+      "family": "TAXIM",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "टैक्सिम ओ टू हंड्रेड", "romanized": ["taxim o two hundred", "taxim-o 200"] },
+        { "devanagari": "तक्सिम ओ दो सौ", "romanized": ["taksim o do sau", "taxim-o 200"] },
+        { "devanagari": "टैक्सीम-ओ २०० टैबलेट", "romanized": ["taxeem-o 200 tablet", "taxim-o 200 tablet"] },
+        { "devanagari": "थैक्सिम ओ दो सौ एमजी", "romanized": ["thaxim o do sau mg", "taxim-o 200 mg"] },
+        { "devanagari": "टी ए एक्स आई एम ओ टू हंड्रेड", "romanized": ["t a x i m o two hundred", "taxim o 200"] },
+        { "devanagari": "टैक्सिमोदोसौ", "romanized": ["taximodosau", "taximo do sau", "taxim o 200"] }
+      ]
+    },
+    {
+      "sku_code": "J0009240",
+      "name": "DAXID 50 MG TABLET",
+      "family": "DAXID",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डैक्सिड फिफ्टी", "romanized": ["daxid fifty", "daxid 50"] },
+        { "devanagari": "दक्सिद पचास", "romanized": ["daksid pachas", "daxid 50"] },
+        { "devanagari": "डाक्सिड ५० एमजी", "romanized": ["daaksid 50 mg", "daxid 50 mg"] },
+        { "devanagari": "धैक्सिड पचास एम जी", "romanized": ["dhaxid pachas mg", "daxid 50 mg"] },
+        { "devanagari": "डी ए एक्स आई डी फिफ्टी टैबलेट", "romanized": ["d a x i d fifty tablet", "daxid 50 tablet"] },
+        { "devanagari": "डैक्सिड्पचास", "romanized": ["daxidpachas", "daxid pachas", "daxid 50"] }
+      ]
+    },
+    {
+      "sku_code": "PROD5422",
+      "name": "THROMBOPHOB GEL",
+      "family": "THROMBOPHOB",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "थ्रोम्बोफोब जेल", "romanized": ["thrombophob gel"] },
+        { "devanagari": "ट्रोम्बोफोब जेल", "romanized": ["trombophob gel", "thrombophob gel"] },
+        { "devanagari": "थ्रम्बोफॉब जैल", "romanized": ["thrambophob jail", "thrombophob gel"] },
+        { "devanagari": "त्रोम्बोफोब की ट्यूब", "romanized": ["trombophob ki tube", "thrombophob gel tube"] },
+        { "devanagari": "टी एच आर ओ एम बी ओ फोब जेल", "romanized": ["t h r o m b o phob gel", "thrombophob gel"] },
+        { "devanagari": "थ्रोम्फोब्जेल", "romanized": ["thromphobjel", "thromphob gel", "thrombophob gel"] }
+      ]
+    },
+    {
+      "sku_code": "J0009745",
+      "name": "DEXONA TABLET",
+      "family": "DEXONA",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "डेक्सोना टैबलेट", "romanized": ["dexona tablet"] },
+        { "devanagari": "देक्सोना गोली", "romanized": ["dexona goli", "dexona tablet"] },
+        { "devanagari": "धेक्सोना टेबलेट", "romanized": ["dhexona tablet", "dexona tablet"] },
+        { "devanagari": "डैक्सोना टैब", "romanized": ["daxona tab", "dexona tablet"] },
+        { "devanagari": "डी ई एक्स ओ एन ए टैबलेट", "romanized": ["d e x o n a tablet", "dexona tablet"] },
+        { "devanagari": "डेक्सोन्टैब", "romanized": ["dexontab", "dexon tab", "dexona tablet"] }
+      ]
+    },
+    {
+      "sku_code": "J0031977",
+      "name": "THYROX 50 TABLET",
+      "family": "THYROX",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "थायरॉक्स फिफ्टी", "romanized": ["thyrox fifty", "thyrox 50"] },
+        { "devanagari": "टायरोक्स पचास", "romanized": ["tyrox pachas", "thyrox 50"] },
+        { "devanagari": "तायरॉक्स ५०", "romanized": ["tayrox 50", "thyrox 50"] },
+        { "devanagari": "थाइरोक्स पचास माइक्रोग्राम", "romanized": ["thairox pachas microgram", "thyrox 50 mcg"] },
+        { "devanagari": "टी एच वाई आर ओ एक्स फिफ्टी टैबलेट", "romanized": ["t h y r o x fifty tablet", "thyrox 50 tablet"] },
+        { "devanagari": "थैरॉक्स्पचास", "romanized": ["thairoxpachas", "thairox pachas", "thyrox 50"] }
+      ]
+    },
+    {
+      "sku_code": "J0043917",
+      "name": "TAZLOC-40 TABLET",
+      "family": "TAZLOC",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "टैज़लॉक फोर्टी", "romanized": ["tazloc forty", "tazloc 40"] },
+        { "devanagari": "तजलोक चालीस", "romanized": ["tajlok chalis", "tazloc 40"] },
+        { "devanagari": "टाज़लोक ४० एमजी", "romanized": ["tazlok 40 mg", "tazloc 40 mg"] },
+        { "devanagari": "थैज़लॉक चालीस", "romanized": ["thazlok chalis", "tazloc 40"] },
+        { "devanagari": "टी ए ज़ेड एल ओ सी फोर्टी टैबलेट", "romanized": ["t a z l o c forty tablet", "tazloc 40 tablet"] },
+        { "devanagari": "टैज़्लॉक्चालीस", "romanized": ["tazlokchalis", "tazlok chalis", "tazloc 40"] }
+      ]
+    },
+    {
+      "sku_code": "J0031503",
+      "name": "TELVAS 80 TABLET",
+      "family": "TELVAS",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "टेलवास एटी", "romanized": ["telvas eighty", "telvas 80"] },
+        { "devanagari": "तेलवास अस्सी", "romanized": ["telvas assi", "telvas 80"] },
+        { "devanagari": "टेल्वस ८० एमजी", "romanized": ["telvas 80 mg"] },
+        { "devanagari": "टैल्वास अस्सी एम जी", "romanized": ["talvas assi mg", "telvas 80 mg"] },
+        { "devanagari": "टी ई एल वी ए एस एटी टैबलेट", "romanized": ["t e l v a s eighty tablet", "telvas 80 tablet"] },
+        { "devanagari": "टेल्वसस्सी", "romanized": ["telvasassi", "telvas assi", "telvas 80"] }
+      ]
+    },
+    {
+      "sku_code": "PROD676",
+      "name": "TELSARTAN 40 MG TABLET",
+      "family": "TELSARTAN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "टेलसार्टन फोर्टी", "romanized": ["telsartan forty", "telsartan 40"] },
+        { "devanagari": "तेलसारतान चालीस", "romanized": ["telsartaan chalis", "telsartan 40"] },
+        { "devanagari": "टेल्सार्टान ४० एम जी", "romanized": ["telsartaan 40 mg", "telsartan 40 mg"] },
+        { "devanagari": "टेलसार्थन चालीस एमजी", "romanized": ["telsarthan chalis mg", "telsartan 40 mg"] },
+        { "devanagari": "टेल सार्टन फोर्टी एमजी टैबलेट", "romanized": ["tel sartan forty mg tablet", "telsartan 40 mg tablet"] },
+        { "devanagari": "टेल्सार्टन्चालीस", "romanized": ["telsartanchalis", "telsartan chalis", "telsartan 40"] }
+      ]
+    },
+    {
+      "sku_code": "JE042471",
+      "name": "DEPLATT 75 TABLET",
+      "family": "DEPLATT",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डेप्लाट पचहत्तर", "romanized": ["deplatt pachhattar", "deplatt 75"] },
+        { "devanagari": "डेप्लैट सेवंटी फाइव", "romanized": ["deplatt seventy five", "deplatt 75"] },
+        { "devanagari": "देप्लात ७५ एमजी", "romanized": ["deplat 75 mg", "deplatt 75 mg"] },
+        { "devanagari": "धेप्लाट पचहत्तर", "romanized": ["dheplatt pachhattar", "deplatt 75"] },
+        { "devanagari": "डी ई पी एल ए टी टी सेवंटी फाइव", "romanized": ["d e p l a t t seventy five", "deplatt 75"] },
+        { "devanagari": "डेप्लाट्पचत्तर", "romanized": ["deplatpachattar", "deplat pachattar", "deplatt 75"] }
+      ]
+    },
+    {
+      "sku_code": "J0009307",
+      "name": "DEFCORT 6 TABLET",
+      "family": "DEFCORT",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डेफकोर्ट सिक्स", "romanized": ["defcort six", "defcort 6"] },
+        { "devanagari": "देफकोर्त छह", "romanized": ["defkort chhah", "defcort 6"] },
+        { "devanagari": "डेफ्कॉर्ट ६ एमजी", "romanized": ["defcort 6 mg"] },
+        { "devanagari": "धेफकोर्ट छै एम जी", "romanized": ["dhefcort chhai mg", "defcort 6 mg"] },
+        { "devanagari": "डी ई एफ सी ओ आर टी सिक्स टैबलेट", "romanized": ["d e f c o r t six tablet", "defcort 6 tablet"] },
+        { "devanagari": "डेफ्कोर्छै", "romanized": ["defkorchhai", "defkor chhai", "defcort 6"] }
+      ]
+    },
+    {
+      "sku_code": "J0009999",
+      "name": "DIGENE MINT TABLET",
+      "family": "DIGENE",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "डाइजीन मिंट टैबलेट", "romanized": ["digene mint tablet"] },
+        { "devanagari": "दाइजीन मिन्ट गोली", "romanized": ["daijeen mint goli", "digene mint tablet"] },
+        { "devanagari": "डायजिन मींट टैब", "romanized": ["dayjin meent tab", "digene mint tablet"] },
+        { "devanagari": "धाइजीन मिंट", "romanized": ["dhaijeen mint", "digene mint"] },
+        { "devanagari": "डी आई जी ई एन ई मिंट टैबलेट", "romanized": ["d i g e n e mint tablet", "digene mint tablet"] },
+        { "devanagari": "डाइजिन्मिंट", "romanized": ["daijinmint", "daijin mint", "digene mint"] }
+      ]
+    },
+    {
+      "sku_code": "J0010412",
+      "name": "DOMSTAL 10 MG TABLET",
+      "family": "DOMSTAL",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डोमस्टाल टेन", "romanized": ["domstal ten", "domstal 10"] },
+        { "devanagari": "दोमस्ताल दस", "romanized": ["domstaal das", "domstal 10"] },
+        { "devanagari": "डॉमस्टल १० एमजी", "romanized": ["domstal 10 mg"] },
+        { "devanagari": "धोमस्टाल दस एम जी", "romanized": ["dhomstal das mg", "domstal 10 mg"] },
+        { "devanagari": "डी ओ एम एस टी ए एल टेन टैबलेट", "romanized": ["d o m s t a l ten tablet", "domstal 10 tablet"] },
+        { "devanagari": "डोम्स्टल्दस", "romanized": ["domstaldas", "domstal das", "domstal 10"] }
+      ]
+    },
+    {
+      "sku_code": "J0010921",
+      "name": "DYNAPAR SR 75 TABLET",
+      "family": "DYNAPAR",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डायनापार एसआर पचहत्तर", "romanized": ["dynapar sr pachhattar", "dynapar sr 75"] },
+        { "devanagari": "डाइनापार एस आर सेवंटी फाइव", "romanized": ["dainapar s r seventy five", "dynapar sr 75"] },
+        { "devanagari": "दायनापर एसआर ७५", "romanized": ["daynapar sr 75", "dynapar sr 75"] },
+        { "devanagari": "धायनापार एसआर पचहत्तर एमजी", "romanized": ["dhaynapar sr pachhattar mg", "dynapar sr 75 mg"] },
+        { "devanagari": "डी वाई एन ए पी ए आर एस आर सेवंटी फाइव", "romanized": ["d y n a p a r s r seventy five", "dynapar sr 75"] },
+        { "devanagari": "डायनपार्सार पचत्तर", "romanized": ["dynaparsaar pachattar", "dynapar sr pachattar", "dynapar sr 75"] }
+      ]
+    },
+    {
+      "sku_code": "J0010074",
+      "name": "DILZEM-60 TABLET",
+      "family": "DILZEM",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डिलज़ेम सिक्सटी", "romanized": ["dilzem sixty", "dilzem 60"] },
+        { "devanagari": "दिलजेम साठ", "romanized": ["diljem saath", "dilzem 60"] },
+        { "devanagari": "डिल्ज़ैम ६० एमजी", "romanized": ["dilzam 60 mg", "dilzem 60 mg"] },
+        { "devanagari": "धिलज़ेम साठ एम जी", "romanized": ["dhilzem saath mg", "dilzem 60 mg"] },
+        { "devanagari": "डी आई एल ज़ेड ई एम सिक्सटी टैबलेट", "romanized": ["d i l z e m sixty tablet", "dilzem 60 tablet"] },
+        { "devanagari": "डिल्ज़म्साठ", "romanized": ["dilzamsaath", "dilzam saath", "dilzem 60"] }
+      ]
+    },
+    {
+      "sku_code": "J0009477",
+      "name": "DERIPHYLLIN RETARD 300 TABLET",
+      "family": "DERIPHYLLIN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डेरिफिलिन रिटार्ड थ्री हंड्रेड", "romanized": ["deriphyllin retard three hundred", "deriphyllin retard 300"] },
+        { "devanagari": "देरिफिलिन रिटार्ड तीन सौ", "romanized": ["deriphyllin retard teen sau", "deriphyllin retard 300"] },
+        { "devanagari": "डेरीफायलिन रिटार्ड ३००", "romanized": ["deriphaylin retard 300", "deriphyllin retard 300"] },
+        { "devanagari": "धेरिफिलिन रीटार्ड तीन सौ एमजी", "romanized": ["dheriphyllin reetard teen sau mg", "deriphyllin retard 300 mg"] },
+        { "devanagari": "डी ई आर आई पी एच वाई एल एल आई एन रिटार्ड थ्री हंड्रेड", "romanized": ["d e r i p h y l l i n retard three hundred", "deriphyllin retard 300"] },
+        { "devanagari": "डेरिफ्लिन्रिटार्ड तीनसौ", "romanized": ["deriphlinritard teensau", "deriphlin retard teen sau", "deriphyllin retard 300"] }
+      ]
+    },
+    {
+      "sku_code": "J0009841",
+      "name": "DIAMICRON MR 30 MG TABLET",
+      "family": "DIAMICRON",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डायमाइक्रॉन एमआर थर्टी", "romanized": ["diamicron mr thirty", "diamicron mr 30"] },
+        { "devanagari": "दायमिक्रोन एम आर तीस", "romanized": ["daymicron m r tees", "diamicron mr 30"] },
+        { "devanagari": "डाइअमाइक्रोन एमआर ३० एमजी", "romanized": ["diamaicron mr 30 mg", "diamicron mr 30 mg"] },
+        { "devanagari": "धायमाइक्रॉन एमआर तीस एम जी", "romanized": ["dhaimicron mr tees mg", "diamicron mr 30 mg"] },
+        { "devanagari": "डी आई ए एम आई सी आर ओ एन एम आर थर्टी", "romanized": ["d i a m i c r o n m r thirty", "diamicron mr 30"] },
+        { "devanagari": "डायमिक्रॉन्मार तीस", "romanized": ["diamicronmaar tees", "diamicron mar tees", "diamicron mr 30"] }
+      ]
+    },
+    {
+      "sku_code": "JE034618",
+      "name": "THYROUP 50 TABLET",
+      "family": "THYROUP",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "थायरअप फिफ्टी", "romanized": ["thyroup fifty", "thyroup 50"] },
+        { "devanagari": "टायरप पचास", "romanized": ["tyrup pachas", "thyroup 50"] },
+        { "devanagari": "तायरअप ५० एमसीजी", "romanized": ["tayroup 50 mcg", "thyroup 50 mcg"] },
+        { "devanagari": "थाइरोअप पचास माइक्रोग्राम", "romanized": ["thairoap pachas microgram", "thyroup 50 mcg"] },
+        { "devanagari": "टी एच वाई आर ओ यू पी फिफ्टी टैबलेट", "romanized": ["t h y r o u p fifty tablet", "thyroup 50 tablet"] },
+        { "devanagari": "थैरप्पचास", "romanized": ["thairappachas", "thairap pachas", "thyroup 50"] }
+      ]
+    },
+    {
+      "sku_code": "J0009111",
+      "name": "DAFLON 500MG TABLET",
+      "family": "DAFLON",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "डैफ्लॉन फाइव हंड्रेड", "romanized": ["daflon five hundred", "daflon 500"] },
+        { "devanagari": "दाफलोन पांच सौ", "romanized": ["daflon paanch sau", "daflon 500"] },
+        { "devanagari": "डाफ्लोन ५०० एमजी", "romanized": ["daflon 500 mg"] },
+        { "devanagari": "धैफ्लॉन पाँच सौ एमजी", "romanized": ["dhaflon panch sau mg", "daflon 500 mg"] },
+        { "devanagari": "डी ए एफ एल ओ एन फाइव हंड्रेड एमजी", "romanized": ["d a f l o n five hundred mg", "daflon 500 mg"] },
+        { "devanagari": "डैफ्लोन्पाँचसौ", "romanized": ["daflonpanchsau", "daflon panch sau", "daflon 500"] }
+      ]
+    },
+    {
+      "sku_code": "J0009749",
+      "name": "DEXORANGE SYRUP",
+      "family": "DEXORANGE",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "डेक्सोरेंज सिरप", "romanized": ["dexorange syrup"] },
+        { "devanagari": "देक्सोरेंज सीरप", "romanized": ["dexorenj seerap", "dexorange syrup"] },
+        { "devanagari": "डैक्सोरैंज सिरप की बोतल", "romanized": ["daxoranj syrup ki botal", "dexorange syrup bottle"] },
+        { "devanagari": "धेक्सोरेंज सिरप", "romanized": ["dhexorange syrup", "dexorange syrup"] },
+        { "devanagari": "डी ई एक्स ओ रेंज सिरप", "romanized": ["d e x o range syrup", "dexorange syrup"] },
+        { "devanagari": "डेक्सोरेंज्सिरप", "romanized": ["dexorenjsirap", "dexorenj sirap", "dexorange syrup"] }
+      ]
+    },
+    {
+      "sku_code": "J0010905",
+      "name": "DYNAGLIPT TABLET",
+      "family": "DYNAGLIPT",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "डायनाग्लिप्ट टैबलेट", "romanized": ["dynaglipt tablet"] },
+        { "devanagari": "दायनाग्लिप्त गोली", "romanized": ["daynaglipt goli", "dynaglipt tablet"] },
+        { "devanagari": "डाइनाग्लिप्ट टेबलेट", "romanized": ["dinaglipt tablet", "dynaglipt tablet"] },
+        { "devanagari": "धायनाग्लिप्ट टैब", "romanized": ["dhaynaglipt tab", "dynaglipt tablet"] },
+        { "devanagari": "डी वाई एन ए जी एल आई पी टी टैबलेट", "romanized": ["d y n a g l i p t tablet", "dynaglipt tablet"] },
+        { "devanagari": "डायनग्लिप्ट्टैब", "romanized": ["dynagliptab", "dynaglipt tab", "dynaglipt tablet"] }
+      ]
+    }
+  ]
+}

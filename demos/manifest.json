@@ -50,6 +50,11 @@
       "name": "forge",
       "title": "Flowforge",
       "tagline": "A voice workflow studio where an ITSM/HR admin assembles, tests, and ships Service Request Workflows by talking to a copilot."
+    },
+    {
+      "name": "orderdesk",
+      "title": "OrderDesk — B2B Order Intake",
+      "tagline": "A Hindi voice order-intake agent for a B2B pharma distributor — spoken bulk orders resolve live against a real 20k-SKU catalog on screen."
     }
   ]
 }

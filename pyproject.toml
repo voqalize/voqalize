@@ -109,6 +109,12 @@ extend-immutable-calls = [
 "**/tests/**" = ["PT", "SIM117", "N802", "N806", "B017", "B007", "RUF012"]
 # Scripts often need late imports after sys.path manipulation or env setup.
 "scripts/**" = ["E402"]
+# Offline eval harnesses that emit markdown reports. The "ambiguous" characters
+# are the report's own typography — en-dash ranges (p1–p4), primes on method
+# variants (A′ vs A″), × in "severity × volume" — plus a literal set of smart
+# quotes the LLM-output cleanup strips. Rewriting them as ASCII would degrade the
+# artifact these scripts exist to produce.
+"demos/orderdesk/backend/eval/**" = ["RUF001", "RUF002"]
 # Generated protobuf stubs — never lint.
 "**/_pb2*.py" = ["ALL"]
 "**/_pb2*.pyi" = ["ALL"]

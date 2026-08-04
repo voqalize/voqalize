@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "model": "gemini-3.1-flash-lite",
+    "prompt_version": "v1",
+    "updated_at": "2026-08-03T13:08:57+00:00",
+    "count": 25
+  },
+  "romanizations": {
+    "gemini-3.1-flash-lite|v1|रैटैक डेढ़ सौ": "rantac 150",
+    "gemini-3.1-flash-lite|v1|रैनटैक वाला डेढ़ सौ दे दो": "rantac 150",
+    "gemini-3.1-flash-lite|v1|रन टैक टिकिया": "rantac tablet",
+    "gemini-3.1-flash-lite|v1|रैनटैकडेढ़सौ": "rantac 150",
+    "gemini-3.1-flash-lite|v1|रैंटेक की गोली चाहिए": "rantac",
+    "gemini-3.1-flash-lite|v1|पान टॉप चालीस": "pan top 40",
+    "gemini-3.1-flash-lite|v1|पैनटॉप चालीस वाला दे दो": "pantop 40",
+    "gemini-3.1-flash-lite|v1|पैनटॉप४०": "pantop 40",
+    "gemini-3.1-flash-lite|v1|पेनटाप": "pentap",
+    "gemini-3.1-flash-lite|v1|पैनटॉप की गोली चालीस वाली": "pantop 40",
+    "gemini-3.1-flash-lite|v1|मॉन्ट एयर एल सी": "montair lc",
+    "gemini-3.1-flash-lite|v1|मोटेर एलसी": "montair lc",
+    "gemini-3.1-flash-lite|v1|मॉन्टेयरएलसी सिरप दे दीजिए": "montair lc syrup",
+    "gemini-3.1-flash-lite|v1|मोंटेयर एलसी बच्चों की दवा": "montair lc kid",
+    "gemini-3.1-flash-lite|v1|मुंटियर एल सी": "montair lc",
+    "gemini-3.1-flash-lite|v1|मेट्रो जिल चार सौ": "metrogyl 400",
+    "gemini-3.1-flash-lite|v1|मेट्रोजील": "metrogyl",
+    "gemini-3.1-flash-lite|v1|मेट्गिल चार सौ": "metgyl 400",
+    "gemini-3.1-flash-lite|v1|मेट्रोजिलचारसौ दे दो": "metrogyl 400",
+    "gemini-3.1-flash-lite|v1|मेट्रोजिल का मलहम": "metrogyl ointment",
+    "gemini-3.1-flash-lite|v1|कैंडिड बी": "candid b",
+    "gemini-3.1-flash-lite|v1|कैण्डीड": "candid",
+    "gemini-3.1-flash-lite|v1|कैंडिड वाला मलहम दे दो": "candid cream",
+    "gemini-3.1-flash-lite|v1|कैंडिडबीक्रीम": "candid b cream",
+    "gemini-3.1-flash-lite|v1|कैडिड बी": "candid b"
+  }
+}

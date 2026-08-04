@@ -1,0 +1,355 @@
+{
+  "bucket": "vowels-compounds-suffixes",
+  "entries": [
+    {
+      "sku_code": "J0002120",
+      "name": "A TO Z NS SYRUP",
+      "family": "A TO Z",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ए टू ज़ेड एनएस सिरप", "romanized": ["a to zed ns syrup", "a to z ns syrup"] },
+        { "devanagari": "ए टू जेड एन एस सिरप", "romanized": ["a to jed en es syrup", "a to zed n s syrup", "a to z ns syrup"] },
+        { "devanagari": "ए से ज़ेड एनएस सिरप", "romanized": ["a se zed ns syrup", "a to z ns syrup"] },
+        { "devanagari": "ए टू ज़ैड एनएस सीरप", "romanized": ["a to zad ns seerap", "a to zed ns syrup"] },
+        { "devanagari": "ए टी ओ ज़ेड एन एस सिरप", "romanized": ["a t o zed n s syrup", "a to z ns syrup"] },
+        { "devanagari": "एटूज़ेड एनेस सिरप", "romanized": ["atozed nes syrup", "a to z ns syrup"] }
+      ]
+    },
+    {
+      "sku_code": "J0042061",
+      "name": "A TO Z NS+ TABLET",
+      "family": "A TO Z",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ए टू ज़ेड एनएस प्लस टैबलेट", "romanized": ["a to zed ns plus tablet", "a to z ns plus tablet"] },
+        { "devanagari": "ए टू जेड एन एस प्लस गोली", "romanized": ["a to jed n s plus goli", "a to z ns plus tablet"] },
+        { "devanagari": "ए से ज़ेड एनएस प्लस टैबलेट", "romanized": ["a se zed ns plus tablet", "a to z ns plus tablet"] },
+        { "devanagari": "ए टू ज़ेड एनएस पल्स टैबलेट", "romanized": ["a to zed ns pals tablet", "a to z ns plus tablet"] },
+        { "devanagari": "ए टी ओ ज़ेड एन एस प्लस टैबलेट", "romanized": ["a t o zed n s plus tablet", "a to z ns plus tablet"] },
+        { "devanagari": "एटूज़ेड एनसप्लस टेबलेट", "romanized": ["atozed nasplus tebalet", "a to z ns plus tablet"] }
+      ]
+    },
+    {
+      "sku_code": "J0002115",
+      "name": "A TO Z-GOLD CAPSULE",
+      "family": "A TO Z",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ए टू ज़ेड गोल्ड कैप्सूल", "romanized": ["a to zed gold capsule", "a to z gold capsule"] },
+        { "devanagari": "ए टू जेड गोल्ड कैपसुल", "romanized": ["a to jed gold kapsul", "a to z gold capsule"] },
+        { "devanagari": "ए से ज़ेड गोल्ड कैप्सूल", "romanized": ["a se zed gold capsule", "a to z gold capsule"] },
+        { "devanagari": "ए टू ज़ेड सोना कैप्सूल", "romanized": ["a to zed sona capsule", "a to z gold capsule"] },
+        { "devanagari": "ए टी ओ ज़ेड डैश गोल्ड कैप्सूल", "romanized": ["a t o zed dash gold capsule", "a to z-gold capsule"] },
+        { "devanagari": "एटूज़ेडगोल्ड कैप्सुल", "romanized": ["atozedgold kapsul", "a to z gold capsule"] }
+      ]
+    },
+    {
+      "sku_code": "J0014899",
+      "name": "GLYCOMET 500 MG TABLET",
+      "family": "GLYCOMET",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ग्लाइकोमेट पाँच सौ एमजी टैबलेट", "romanized": ["glycomet paanch sau mg tablet", "glycomet 500 mg tablet"] },
+        { "devanagari": "ग्लायकोमेट फाइव हंड्रेड टैबलेट", "romanized": ["glaycomet five hundred tablet", "glycomet 500 tablet"] },
+        { "devanagari": "ग्लिकोमेट पाँच सौ की गोली", "romanized": ["glicomet paanch sau ki goli", "glycomet 500 tablet"] },
+        { "devanagari": "ग्लूकोमेट पाँच सौ एमजी", "romanized": ["glucomet paanch sau mg", "glycomet 500 mg"] },
+        { "devanagari": "जी एल वाई ग्लाइकोमेट फाइव ज़ीरो ज़ीरो", "romanized": ["g l y glycomet five zero zero", "glycomet 500"] },
+        { "devanagari": "ग्लाइकोमेटपाँचसौ एमजी", "romanized": ["glycometpaanchsau mg", "glycomet 500 mg"] }
+      ]
+    },
+    {
+      "sku_code": "J0014902",
+      "name": "GLYCOMET-850 SR TABLET",
+      "family": "GLYCOMET",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ग्लाइकोमेट आठ सौ पचास एसआर टैबलेट", "romanized": ["glycomet aath sau pachas sr tablet", "glycomet 850 sr tablet"] },
+        { "devanagari": "ग्लाइकोमेट ८५० एस आर टैबलेट", "romanized": ["glycomet 850 s r tablet", "glycomet 850 sr tablet"] },
+        { "devanagari": "ग्लायकोमेट एट फिफ्टी एसआर", "romanized": ["glaycomet eight fifty sr", "glycomet 850 sr"] },
+        { "devanagari": "ग्लिकोमेट आठ सौ पचास सस्टेन्ड रिलीज़", "romanized": ["glicomet aath sau pachas sustained release", "glycomet 850 sr"] },
+        { "devanagari": "जी एल वाई ग्लाइकोमेट डैश एट फाइव ज़ीरो एस आर", "romanized": ["g l y glycomet dash eight five zero s r", "glycomet-850 sr"] },
+        { "devanagari": "ग्लाइकोमेटआठसौपचास एसार", "romanized": ["glycometaathsaupachas esar", "glycomet 850 sr"] }
+      ]
+    },
+    {
+      "sku_code": "J0014909",
+      "name": "GLYCOMET-GP 1 FORTE TABLET",
+      "family": "GLYCOMET",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ग्लाइकोमेट जीपी वन फोर्टे टैबलेट", "romanized": ["glycomet gp one forte tablet", "glycomet gp 1 forte tablet"] },
+        { "devanagari": "ग्लाइकोमेट जी पी एक फोर्ट", "romanized": ["glycomet g p ek fort", "glycomet gp 1 forte"] },
+        { "devanagari": "ग्लाइकोमेट जीपी १ फ़ोर्टी टैबलेट", "romanized": ["glycomet gp 1 forty tablet", "glycomet gp 1 forte tablet"] },
+        { "devanagari": "ग्लायकोमेट जीपी वन स्ट्रॉन्ग वाली गोली", "romanized": ["glaycomet gp one strong wali goli", "glycomet gp 1 forte tablet"] },
+        { "devanagari": "ग्लाइकोमेट डैश जी पी वन एफ ओ आर टी ई", "romanized": ["glycomet dash g p one f o r t e", "glycomet-gp 1 forte"] },
+        { "devanagari": "ग्लाइकोमेटजीपीवन फोर्ट", "romanized": ["glycometgpone fort", "glycomet gp 1 forte"] }
+      ]
+    },
+    {
+      "sku_code": "J0024991",
+      "name": "PAN 40 TABLET",
+      "family": "PAN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "पैन चालीस टैबलेट", "romanized": ["pan chalis tablet", "pan 40 tablet"] },
+        { "devanagari": "पान ४० टैबलेट", "romanized": ["paan 40 tablet", "pan 40 tablet"] },
+        { "devanagari": "पेन फोर्टी टैबलेट", "romanized": ["pen forty tablet", "pan 40 tablet"] },
+        { "devanagari": "पैन फोर्टी की गोली", "romanized": ["pan forty ki goli", "pan 40 tablet"] },
+        { "devanagari": "पी ए एन फोर ज़ीरो टैबलेट", "romanized": ["p a n four zero tablet", "pan 40 tablet"] },
+        { "devanagari": "पैन्चालीस", "romanized": ["panchalis", "pan 40"] }
+      ]
+    },
+    {
+      "sku_code": "J0024995",
+      "name": "PAN D CAPSULE",
+      "family": "PAN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "पैन डी कैप्सूल", "romanized": ["pan d capsule", "pan-d capsule"] },
+        { "devanagari": "पान डी कैप्सुल", "romanized": ["paan dee kapsul", "pan d capsule"] },
+        { "devanagari": "पेन डी कैप्सूल", "romanized": ["pen d capsule", "pan d capsule"] },
+        { "devanagari": "पैन डैश डी कैप्सूल", "romanized": ["pan dash d capsule", "pan-d capsule"] },
+        { "devanagari": "पी ए एन डी कैप्सूल", "romanized": ["p a n d capsule", "pan d capsule"] },
+        { "devanagari": "पैंडी कैप्सूल", "romanized": ["pandi capsule", "pan d capsule"] }
+      ]
+    },
+    {
+      "sku_code": "J0025000",
+      "name": "PAN MPS O SUSPENSION",
+      "family": "PAN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "पैन एमपीएस ओ सस्पेंशन", "romanized": ["pan mps o suspension"] },
+        { "devanagari": "पान एम पी एस ओ सिरप", "romanized": ["paan m p s o syrup", "pan mps o syrup"] },
+        { "devanagari": "पेन एमपीएस औ सस्पेंशन", "romanized": ["pen mps au suspension", "pan mps o suspension"] },
+        { "devanagari": "पैन एमपीएस ज़ीरो सस्पेंशन", "romanized": ["pan mps zero suspension", "pan mps o suspension"] },
+        { "devanagari": "पी ए एन एम पी एस ओ सस्पेंशन", "romanized": ["p a n m p s o suspension", "pan mps o suspension"] },
+        { "devanagari": "पैनएमपीएसो सस्पेंशन", "romanized": ["panempeeso suspension", "pan mps o suspension"] }
+      ]
+    },
+    {
+      "sku_code": "J0018838",
+      "name": "LIV 52 DS TABLET",
+      "family": "LIV 52",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "लिव बावन डीएस टैबलेट", "romanized": ["liv bavan ds tablet", "liv 52 ds tablet"] },
+        { "devanagari": "लीव फिफ्टी टू डीएस टैबलेट", "romanized": ["leev fifty two ds tablet", "liv 52 ds tablet"] },
+        { "devanagari": "लिव डॉट बावन डी एस टैबलेट", "romanized": ["liv dot bavan d s tablet", "liv.52 ds tablet"] },
+        { "devanagari": "लिव के बावन डीएस", "romanized": ["liv ke bavan ds", "liv 52 ds"] },
+        { "devanagari": "एल आई वी बावन डबल स्ट्रेंथ टैबलेट", "romanized": ["l i v bavan double strength tablet", "liv 52 ds tablet"] },
+        { "devanagari": "लिवबावन डीएस", "romanized": ["livbavan ds", "liv 52 ds"] }
+      ]
+    },
+    {
+      "sku_code": "J0018839",
+      "name": "LIV 52 HB CAPSULE",
+      "family": "LIV 52",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "लिव बावन एचबी कैप्सूल", "romanized": ["liv bavan hb capsule", "liv 52 hb capsule"] },
+        { "devanagari": "लीव फिफ्टी टू एच बी कैप्सुल", "romanized": ["leev fifty two h b kapsul", "liv 52 hb capsule"] },
+        { "devanagari": "लिव डॉट ५२ एचबी कैप्सूल", "romanized": ["liv dot 52 hb capsule", "liv.52 hb capsule"] },
+        { "devanagari": "लिव बावन हेच बी कैप्सूल", "romanized": ["liv bavan hech bi capsule", "liv 52 hb capsule"] },
+        { "devanagari": "एल आई वी फिफ्टी टू एच बी", "romanized": ["l i v fifty two h b", "liv 52 hb"] },
+        { "devanagari": "लिबावन एचबी", "romanized": ["libavan hb", "liv 52 hb"] }
+      ]
+    },
+    {
+      "sku_code": "J0004502",
+      "name": "AUGMENTIN 625 DUO TABLET",
+      "family": "AUGMENTIN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ऑगमेंटिन छह सौ पच्चीस ड्यूओ टैबलेट", "romanized": ["augmentin chhah sau pachchis duo tablet", "augmentin 625 duo tablet"] },
+        { "devanagari": "औगमेंटिन ६२५ डुओ टैबलेट", "romanized": ["augmentin 625 duo tablet", "aaugmentin 625 duo tablet"] },
+        { "devanagari": "आगमेंटिन सिक्स टू फाइव ड्यूओ", "romanized": ["aagmentin six two five duo", "augmentin 625 duo"] },
+        { "devanagari": "ऑग्मेंटिन छह पच्चीस डबल टैबलेट", "romanized": ["augmentin chhah pachchis double tablet", "augmentin 625 duo tablet"] },
+        { "devanagari": "ए यू जी ऑगमेंटिन सिक्स ट्वेंटी फाइव ड्यूओ", "romanized": ["a u g augmentin six twenty five duo", "augmentin 625 duo"] },
+        { "devanagari": "ऑगमेंटिनछेसोपच्चीस ड्यूओ", "romanized": ["augmentinchhesopachchis duo", "augmentin 625 duo"] }
+      ]
+    },
+    {
+      "sku_code": "J0004505",
+      "name": "AUGMENTIN ES-600 SUSPENSION",
+      "family": "AUGMENTIN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ऑगमेंटिन ईएस छह सौ सस्पेंशन", "romanized": ["augmentin es chhah sau suspension", "augmentin es 600 suspension"] },
+        { "devanagari": "औगमेंटिन इएस ६०० सिरप", "romanized": ["augmentin is 600 syrup", "augmentin es-600 syrup"] },
+        { "devanagari": "ऑगमेंटिन ई एस डैश सिक्स हंड्रेड सस्पेंशन", "romanized": ["augmentin e s dash six hundred suspension", "augmentin es-600 suspension"] },
+        { "devanagari": "आगमेंटिन एस छह सौ का सिरप", "romanized": ["aagmentin es chhah sau ka syrup", "augmentin es 600 syrup"] },
+        { "devanagari": "ऑगमेंटिन एक्स्ट्रा स्ट्रेंथ छह सौ सस्पेंशन", "romanized": ["augmentin extra strength chhah sau suspension", "augmentin es 600 suspension"] },
+        { "devanagari": "ऑगमेंटिनईएस छैसौ", "romanized": ["augmentines chhaisau", "augmentin es 600"] }
+      ]
+    },
+    {
+      "sku_code": "J0011110",
+      "name": "ECOSPRIN-AV 75 CAPSULE",
+      "family": "ECOSPRIN",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "इकोस्प्रिन एवी पचहत्तर कैप्सूल", "romanized": ["ecosprin av pachhattar capsule", "ecosprin av 75 capsule"] },
+        { "devanagari": "ईकोस्प्रिन ए वी ७५ कैप्सुल", "romanized": ["eecosprin a v 75 kapsul", "ecosprin av 75 capsule"] },
+        { "devanagari": "एकोस्प्रिन एवी सेवेंटी फाइव कैप्सूल", "romanized": ["ecosprin av seventy five capsule", "acosprin av 75 capsule"] },
+        { "devanagari": "इकोस्पिरिन एवी पचहत्तर", "romanized": ["ecospirin av pachhattar", "ecosprin av 75"] },
+        { "devanagari": "ई सी ओ इकोस्प्रिन डैश ए वी सेवेंटी फाइव", "romanized": ["e c o ecosprin dash a v seventy five", "ecosprin-av 75"] },
+        { "devanagari": "इकोस्प्रिनएवी पचत्तर", "romanized": ["ecosprinav pachattar", "ecosprin av 75"] }
+      ]
+    },
+    {
+      "sku_code": "J0044262",
+      "name": "VOLINI JOINT XPERT GEL",
+      "family": "VOLINI",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "वोलिनी जॉइंट एक्सपर्ट जेल", "romanized": ["volini joint xpert gel", "volini joint expert gel"] },
+        { "devanagari": "वोलीनी जोइंट एक्सपर्ट जेल", "romanized": ["voleeni joint xpert gel", "volini joint expert gel"] },
+        { "devanagari": "वॉलिनी जाइंट एक्सपर्ट जेल", "romanized": ["volini giant expert gel", "volini joint xpert gel"] },
+        { "devanagari": "वोलिनी जोड़ों वाला एक्सपर्ट जेल", "romanized": ["volini jodon wala expert gel", "volini joint xpert gel"] },
+        { "devanagari": "वोलिनी जॉइंट एक्स पी ई आर टी जेल", "romanized": ["volini joint x p e r t gel", "volini joint xpert gel"] },
+        { "devanagari": "वोलिनीजॉइंटएक्सपर्ट जेल", "romanized": ["volinijointxpert gel", "volini joint xpert gel"] }
+      ]
+    },
+    {
+      "sku_code": "PROD4927",
+      "name": "VOLINI PAIN RELIEF SPRAY",
+      "family": "VOLINI",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "वोलिनी पेन रिलीफ स्प्रे", "romanized": ["volini pain relief spray"] },
+        { "devanagari": "वोलीनी पैन रीलिफ स्प्रे", "romanized": ["voleeni pan relif spray", "volini pain relief spray"] },
+        { "devanagari": "वोलिनी दर्द निवारक स्प्रे", "romanized": ["volini dard nivarak spray", "volini pain relief spray"] },
+        { "devanagari": "वॉलिनी पेन रिलीव स्प्रे", "romanized": ["volini pain relieve spray", "volini pain relief spray"] },
+        { "devanagari": "वी ओ एल वोलिनी पेन रिलीफ स्प्रे", "romanized": ["v o l volini pain relief spray", "volini pain relief spray"] },
+        { "devanagari": "वोलिनीपेनरिलीफ स्प्रे", "romanized": ["volinipainrelief spray", "volini pain relief spray"] }
+      ]
+    },
+    {
+      "sku_code": "J0021602",
+      "name": "MOOV PAIN RELIEF SPECIALIST OINTMENT",
+      "family": "MOOV",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "मूव पेन रिलीफ स्पेशलिस्ट ऑइंटमेंट", "romanized": ["moov pain relief specialist ointment"] },
+        { "devanagari": "मुव पैन रिलीफ स्पेशलिस्ट मलहम", "romanized": ["muv pan relief specialist malham", "moov pain relief specialist ointment"] },
+        { "devanagari": "मूव दर्द निवारक स्पेशलिस्ट क्रीम", "romanized": ["moov dard nivarak specialist cream", "moov pain relief specialist ointment"] },
+        { "devanagari": "मोव पेन रिलीफ स्पेश्यलिस्ट ऑइंटमेंट", "romanized": ["mov pain relief speshyalist ointment", "moov pain relief specialist ointment"] },
+        { "devanagari": "एम ओ ओ वी पेन रिलीफ स्पेशलिस्ट ऑइंटमेंट", "romanized": ["m o o v pain relief specialist ointment", "moov pain relief specialist ointment"] },
+        { "devanagari": "मूवपेनरिलीफ स्पेशलिस्ट ऑइंटमेंट", "romanized": ["moovpainrelief specialist ointment", "moov pain relief specialist ointment"] }
+      ]
+    },
+    {
+      "sku_code": "J0016847",
+      "name": "ITCH GUARD PLUS CREAM",
+      "family": "ITCH GUARD",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "इच गार्ड प्लस क्रीम", "romanized": ["itch guard plus cream", "ich guard plus cream"] },
+        { "devanagari": "ईच गार्ड प्लस क्रीम", "romanized": ["eech guard plus cream", "itch guard plus cream"] },
+        { "devanagari": "इच गार्ड पल्स क्रीम", "romanized": ["itch guard pals cream", "itch guard plus cream"] },
+        { "devanagari": "खुजली वाला गार्ड प्लस क्रीम", "romanized": ["khujli wala guard plus cream", "itch guard plus cream"] },
+        { "devanagari": "आई टी सी एच गार्ड प्लस क्रीम", "romanized": ["i t c h guard plus cream", "itch guard plus cream"] },
+        { "devanagari": "इचगार्डप्लस क्रीम", "romanized": ["itchguardplus cream", "itch guard plus cream"] }
+      ]
+    },
+    {
+      "sku_code": "J0005325",
+      "name": "BETADINE 5% OINTMENT",
+      "family": "BETADINE",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "बीटाडीन पाँच परसेंट ऑइंटमेंट", "romanized": ["betadine paanch percent ointment", "betadine 5% ointment"] },
+        { "devanagari": "बिटाडिन ५ परसेंट मरहम", "romanized": ["bitadin 5 percent marham", "betadine 5% ointment"] },
+        { "devanagari": "बेटाडाइन फाइव परसेंट ऑइंटमेंट", "romanized": ["betadyne five percent ointment", "betadine 5% ointment"] },
+        { "devanagari": "बीटाडीन पाँच प्रतिशत का मलहम", "romanized": ["betadine paanch pratishat ka malham", "betadine 5% ointment"] },
+        { "devanagari": "बी ई टी ए बीटाडीन फाइव परसेंट", "romanized": ["b e t a betadine five percent", "betadine 5 percent"] },
+        { "devanagari": "बीटाडीनपाँच परसेंट ऑइंटमेंट", "romanized": ["betadinepaanch percent ointment", "betadine 5% ointment"] }
+      ]
+    },
+    {
+      "sku_code": "J0009989",
+      "name": "DIGENE GEL MINT FLAVOUR SUSPENSION",
+      "family": "DIGENE",
+      "expect": "family",
+      "variants": [
+        { "devanagari": "डाइजीन जेल मिंट फ्लेवर सस्पेंशन", "romanized": ["digene gel mint flavour suspension"] },
+        { "devanagari": "डिजीन जेल मिन्ट फ्लेवर सिरप", "romanized": ["dijeen gel mint flavour syrup", "digene gel mint flavour syrup"] },
+        { "devanagari": "डाइजिन जेल पुदीना फ्लेवर", "romanized": ["digin gel pudina flavour", "digene gel mint flavour"] },
+        { "devanagari": "डायजीन जैल मिंट फ्लेवर सस्पेंशन", "romanized": ["dyzine jal mint flavour suspension", "digene gel mint flavour suspension"] },
+        { "devanagari": "डी आई जी डाइजीन जेल मिंट फ्लेवर", "romanized": ["d i g digene gel mint flavour", "digene gel mint flavour"] },
+        { "devanagari": "डाइजीनजेल मिंटफ्लेवर", "romanized": ["digenegel mintflavour", "digene gel mint flavour"] }
+      ]
+    },
+    {
+      "sku_code": "J0002027",
+      "name": "1-AL 10 TABLET",
+      "family": "1-AL",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "वन एएल दस टैबलेट", "romanized": ["one al das tablet", "1-al 10 tablet"] },
+        { "devanagari": "वन डैश एएल टेन टैबलेट", "romanized": ["one dash al ten tablet", "1-al 10 tablet"] },
+        { "devanagari": "एक एएल दस की गोली", "romanized": ["ek al das ki goli", "1-al 10 tablet"] },
+        { "devanagari": "वन एल दस टैबलेट", "romanized": ["one el das tablet", "1-al 10 tablet"] },
+        { "devanagari": "वन हाइफ़न ए एल वन ज़ीरो", "romanized": ["one hyphen a l one zero", "1-al 10"] },
+        { "devanagari": "वनएल्दस टैबलेट", "romanized": ["vanaldas tablet", "1-al 10 tablet"] }
+      ]
+    },
+    {
+      "sku_code": "PROD1750",
+      "name": "4PCOS TABLET",
+      "family": "4PCOS",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "फोर पीसीओएस टैबलेट", "romanized": ["four pcos tablet", "4pcos tablet"] },
+        { "devanagari": "चार पीसीओएस की गोली", "romanized": ["char pcos ki goli", "4pcos tablet"] },
+        { "devanagari": "फ़ोर पी सी ओ एस टैबलेट", "romanized": ["for p c o s tablet", "4pcos tablet"] },
+        { "devanagari": "फोर पीकोस टैबलेट", "romanized": ["four peekos tablet", "4pcos tablet"] },
+        { "devanagari": "फोर पी सी औ एस टैबलेट", "romanized": ["four p c au s tablet", "4pcos tablet"] },
+        { "devanagari": "फोरपीसीओएस", "romanized": ["fourpcos", "4pcos"] }
+      ]
+    },
+    {
+      "sku_code": "J0042832",
+      "name": "AZEE XL 200 MG DRY SYRUP",
+      "family": "AZEE",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "एज़ी एक्सएल दो सौ ड्राई सिरप", "romanized": ["azee xl do sau dry syrup", "azee xl 200 dry syrup"] },
+        { "devanagari": "अज़ी एक्स एल २०० एमजी ड्राई सिरप", "romanized": ["azi x l 200 mg dry syrup", "azee xl 200 mg dry syrup"] },
+        { "devanagari": "एजी एक्सएल टू हंड्रेड ड्राई सिरप", "romanized": ["ejee xl two hundred dry syrup", "azee xl 200 dry syrup"] },
+        { "devanagari": "एज़ी एक्स्ट्रा लार्ज दो सौ का सूखा सिरप", "romanized": ["azee extra large do sau ka sookha syrup", "azee xl 200 dry syrup"] },
+        { "devanagari": "ए ज़ेड ई ई एक्स एल टू ज़ीरो ज़ीरो", "romanized": ["a z e e x l two zero zero", "azee xl 200"] },
+        { "devanagari": "एज़ीएक्सेल दोसौ सिरप", "romanized": ["azeexel dosau syrup", "azee xl 200 syrup"] }
+      ]
+    },
+    {
+      "sku_code": "PROD621",
+      "name": "OMEZ DSR+ CAPSULE",
+      "family": "OMEZ",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "ओमेज़ डीएसआर प्लस कैप्सूल", "romanized": ["omez dsr plus capsule"] },
+        { "devanagari": "औमेज़ डी एस आर प्लस कैप्सुल", "romanized": ["aumez d s r plus kapsul", "omez dsr plus capsule"] },
+        { "devanagari": "ओमिज़ डीएसआर पल्स कैप्सूल", "romanized": ["omiz dsr pals capsule", "omez dsr plus capsule"] },
+        { "devanagari": "ओमेज डीएसआर प्लस वाला कैप्सूल", "romanized": ["omej dsr plus wala capsule", "omez dsr plus capsule"] },
+        { "devanagari": "ओ एम ई ज़ेड डी एस आर प्लस कैप्सूल", "romanized": ["o m e z d s r plus capsule", "omez dsr plus capsule"] },
+        { "devanagari": "ओमेज़डीएसआरप्लस कैप्सूल", "romanized": ["omezdsrplus capsule", "omez dsr plus capsule"] }
+      ]
+    },
+    {
+      "sku_code": "J0021777",
+      "name": "MOXIKIND-CV 625 TABLET",
+      "family": "MOXIKIND",
+      "expect": "sku",
+      "variants": [
+        { "devanagari": "मॉक्सीकाइंड सीवी छह सौ पच्चीस टैबलेट", "romanized": ["moxikind cv chhah sau pachchis tablet", "moxikind cv 625 tablet"] },
+        { "devanagari": "मोक्सिकिंड सी वी ६२५ टैबलेट", "romanized": ["moxikind c v 625 tablet", "moksikind c v 625 tablet"] },
+        { "devanagari": "मॉक्सीकाइंड डैश सीवी सिक्स ट्वेंटी फाइव", "romanized": ["moxikind dash cv six twenty five", "moxikind-cv 625"] },
+        { "devanagari": "मॉक्सीकाइंड सी वी सिक्स टू फाइव टैबलेट", "romanized": ["moxikind c v six two five tablet", "moxikind cv 625 tablet"] },
+        { "devanagari": "एम ओ एक्स मॉक्सीकाइंड सीवी सिक्स ट्वेंटी फाइव", "romanized": ["m o x moxikind cv six twenty five", "moxikind cv 625"] },
+        { "devanagari": "मॉक्सीकाइन्डसीवी छैपच्चीस", "romanized": ["moxikaindcv chhaipachchis", "moxikind cv 625"] }
+      ]
+    }
+  ]
+}
