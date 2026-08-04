@@ -64,7 +64,7 @@ demos/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/
       package.json         #   links the SDK by path: "@voqalize/client-react": "file:../../../sdk/react"
       vite.config.ts       #   base: "/demos/<name>/", dev proxy /api → control plane
-      src/config.ts        #   this demo's wiring: tenant + agent id + pk + pipeline
+      src/config.ts        #   this demo's wiring: tenant + agent id + pk (NO voice/language)
       src/…                #   the app
     backend/
       brain.py             # the demo's Brain (usually a GeminiBrain subclass)
@@ -81,7 +81,8 @@ scanning `demos/*/backend`, so nothing binds names in a central registry.
 ## Adding a demo
 
 `manifest.json` is the demo directory (cards for the `/demos` index) — the runtime
-discovers backends and each frontend declares its own wiring. To add `demos/<name>/`:
+discovers backends and each frontend declares its own connection wiring. To add
+`demos/<name>/`:
 
 1. **Backend** — `demos/<name>/backend/`:
    - `brain.py`: a `Brain` (usually a `GeminiBrain` subclass, importing its base
@@ -93,7 +94,12 @@ discovers backends and each frontend declares its own wiring. To add `demos/<nam
 2. **Frontend** — `demos/<name>/frontend/`: a standalone Vite app. Copy an
    existing demo's `package.json` / `vite.config.ts` (set `base: "/demos/<name>/"`
    and a unique dev `port`) / `tsconfig.json` / `index.html` / `.env.example`, and
-   a `src/config.ts` declaring this demo's `pipeline` (stt/tts).
+   a `src/config.ts` declaring only the connection wiring. **Voice and language do
+   not live here** — the brain declares them (`Brain.voice` / `Brain.language`, or
+   `session.configure_language(...)` per caller), because that is the only place
+   the STT and TTS legs move together. Setting one leg from the page is the
+   half-applied-pair bug, and it is silent: the words stay right and only the
+   speaker is wrong.
 3. **Env** — `VITE_TENANT` / `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY` (this app's
    `.env.example`). For a deploy, add the demo's `VITE_<NAME>_AGENT` /
    `VITE_<NAME>_PK` to `cloudbuild.web.yaml` substitutions (`build.mjs` maps them
@@ -135,5 +141,16 @@ ships separately, onto the pygato node.
 `travel` — the **Travel Advisor** — is the reference demo: a `voqalize.sdk.Brain`
 (`demos/travel/backend/`) driven over the inbound path, and a standalone Vite UI
 (`demos/travel/frontend/`) embedded via the public `@voqalize/client-react` SDK.
-Its conformance test (`demos/tests/`) drives the real brain over the `Vql*` wire.
 The remaining demos follow this same shape.
+
+**Every demo has an end-to-end test** (`demos/tests/test_<name>_e2e.py`): the real
+brain on a real `DirectAgent` socket, driven by the conformance `VoiceDriver`, with
+only the *model* faked — `ScriptedGemini` for the `GeminiBrain` demos, ADK's
+`ScriptedLlm` for `travel` and `orderdesk`. No network, no API key. Plus
+`test_demo_voice_contract.py`, a cross-demo sweep that asserts every demo puts a
+**matched** voice/language pair on both legs before its first audio — the one
+defect no transcript, log or WER score can see.
+
+```bash
+cd demos && uv run pytest tests/
+```
