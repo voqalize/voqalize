@@ -13,46 +13,50 @@
  */
 
 /**
- * STT/TTS pipeline selection for a session.
+ * Per-session STT/TTS overrides. **Most pages should not set this.**
  *
- * ## Setting the language — there is exactly one way
+ * ## Voice and language belong to the brain
  *
- * **Set `language` to the same ISO code on both `stt` and `tts`.** That is the
- * whole contract, and it is the only supported way to open a session in a
- * language:
+ * The canonical place to say how an agent sounds is the brain, in Python:
  *
- * ```ts
- * pipeline={{
- *   stt: { model: "vql-stt", language: "hi" },
- *   tts: { voice: "omnivoice/gauri", language: "hi" },
- * }}
+ * ```python
+ * class ConciergeBrain(Brain):
+ *     voice = "omnivoice/gauri"
+ *     language = "hi"          # sets the recognizer AND the TTS voice together
  * ```
  *
- * Do not reach for `stt.language_hint`. It is the raw wire field the runtime
- * derives from `stt.language`, kept only as an escape hatch for the rare session
- * that must recognise one language and speak another. Setting it by hand is how
- * a config ends up half-applied.
+ * and, when the language depends on *this* caller, `session.configure_language(...)`
+ * inside `on_session_start` — the brain is the only thing that sees the caller.
+ * The same call switches language mid-call. Full contract: the Voice & language
+ * catalog (`docs/src/content/docs/reference/catalog.md`).
  *
- * Both halves matter, and each fails quietly on its own:
+ * That is not a style preference. Voice and language used to be settable from
+ * three places — the agent record, this prop, and the brain — and a Hindi demo
+ * shipped speaking Devanagari in an English voice because one link in that chain
+ * dropped the field. Nothing automated caught it: the words are correct and
+ * accent is invisible to transcription-based scoring, so it was found by ear,
+ * weeks later. The agent record no longer carries voice or language at all, and
+ * every demo in this repo now declares it on the brain.
  *
- * - `tts.language` picks the **voice-cloning reference clip**, not a text tag.
- *   `omnivoice/gauri` carries a Hindi clip and a separate English one, so Hindi
- *   text sent as `language: "en"` is read by the English speaker — it sounds like
- *   a non-native accent, and every automated check still passes, because the
- *   words are correct and accent is invisible to transcription-based scoring.
- *   This shipped to a live demo and was found by ear, weeks later.
- * - `stt.language` picks the **recognizer** (English → Parakeet, the 22 Indic
- *   languages → IndicConformer). Omit it and the session transcribes with the
- *   English model whatever the caller speaks.
+ * ## When this prop is still right
  *
- * To change language mid-call, call `session.configure_language(...)` in the
- * brain — one call that moves both halves. Full contract:
- * `docs/voice-and-language.md`.
+ * A page that is genuinely the authority on the pipeline — a console that lets a
+ * human pick a voice to audition, an A/B harness — sets it here. It layers over
+ * the platform defaults at session start, and **a brain that declares or
+ * configures a voice overrides it**, since the brain speaks last.
+ *
+ * If you do set a language here, set the same ISO code on both `stt` and `tts`;
+ * each half fails quietly on its own. `tts.language` picks the voice-cloning
+ * reference clip (`omnivoice/gauri` carries a Hindi clip and a separate English
+ * one), and `stt.language` picks the recognizer (English → Parakeet, the 22
+ * Indic languages → IndicConformer). Do not reach for `stt.language_hint`: it is
+ * the raw wire field the runtime derives from `stt.language`, and setting it by
+ * hand is how a config ends up half-applied.
  */
 export interface VoqalPipelineConfig {
-  /** Speech-to-text config. Set `language` — see the interface docs above. */
+  /** Speech-to-text config. Prefer the brain — see the interface docs above. */
   stt?: { model?: string; language?: string } & Record<string, unknown>;
-  /** Text-to-speech config. Set `language` — see the interface docs above. */
+  /** Text-to-speech config. Prefer the brain — see the interface docs above. */
   tts?: { voice?: string; language?: string } & Record<string, unknown>;
 }
 
@@ -66,7 +70,10 @@ export interface CreateSessionOptions {
   publishableKey: string;
   /** Firestore agent id to start. */
   agentId: string;
-  /** Optional STT/TTS pipeline overrides. Server defaults apply if omitted. */
+  /**
+   * Optional STT/TTS pipeline overrides. **Usually omit this** — voice and
+   * language belong to the brain (see {@link VoqalPipelineConfig}).
+   */
   pipeline?: VoqalPipelineConfig;
   /** Optional app-level payload handed to the brain (surface, user info, …). */
   payload?: Record<string, unknown>;

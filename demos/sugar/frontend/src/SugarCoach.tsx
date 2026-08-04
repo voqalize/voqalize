@@ -66,12 +66,6 @@ const STATE_DOT: Record<VoqalBotState, string> = {
   speaking: "#2FA875",
 };
 
-// The check-in runs in the patient's chosen language (the store's LanguageToggle).
-// Only the STT recognition hint + TTS language are keyed off it; the STT model and
-// TTS voice come from this demo's config (`SUGAR.pipeline`), so they're never
-// hardcoded here. The brain can still switch language mid-call via its switch_language tool.
-const LANG_HINT: Record<string, string> = { English: "en", Hindi: "hi" };
-
 const STATE_LABEL: Record<VoqalBotState, string> = {
   idle: "Listening",
   listening: "Listening",
@@ -96,10 +90,8 @@ function CallTimer() {
  * connects on mount, and hanging up moves the demo to the ended screen.
  */
 export function SugarCallSession() {
-  const { endCall, handleUiCommand, registerAgentSend, rev, snapshot, brainPayload, language } =
-    useSugar();
+  const { endCall, handleUiCommand, registerAgentSend, rev, snapshot, brainPayload } = useSugar();
   const startedRef = useRef(false);
-  const hint = LANG_HINT[language] ?? "en";
 
   // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
   // (past the `{ data }` quirk), so we read `type` directly.
@@ -110,13 +102,10 @@ export function SugarCallSession() {
     // required" error, shown in the bar's error state.
     publishableKey: SUGAR.publishableKey ?? "",
     agentId: SUGAR.agentId,
-    // STT model + TTS voice come from this demo's config; only the language
-    // is overridden from the patient's LanguageToggle choice, so picking Hindi opens
-    // the call in Hindi rather than defaulting to English.
-    pipeline: {
-      stt: { ...SUGAR.pipeline.stt, language: hint },
-      tts: { ...SUGAR.pipeline.tts, language: hint },
-    },
+    // No pipeline override. The patient's LanguageToggle choice rides the payload
+    // below (`language`), and the brain applies it with one configure_language
+    // call at session start — so the recognizer and the TTS voice can't drift
+    // apart, which is what happens when the browser sets one half of the pair.
     // The scenario's PATIENT CONTEXT rides the payload → the brain's init_payload.
     payload: { surface: "sugar-web", ...(brainPayload() as Record<string, unknown>) },
     onServerMessage: useCallback(

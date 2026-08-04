@@ -180,8 +180,8 @@ export function InterviewDemo() {
     // required" error, shown in the call error state.
     publishableKey: INTERVIEW.publishableKey ?? "",
     agentId: INTERVIEW.agentId,
-    // STT/TTS come from this demo's config, so the pipeline is declared once.
-    pipeline: INTERVIEW.pipeline,
+    // No pipeline override: this agent's voice and language are declared on
+    // its brain (backend/brain.py), which is the only place they belong.
     // The opaque agent_input the brain receives as init_payload.
     payload,
     onServerMessage: useCallback(

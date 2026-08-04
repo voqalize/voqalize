@@ -40,6 +40,14 @@ The React SDK's `apiBase` is the **versioned** root
 session mint fails — this is the most common wiring mistake.
 :::
 
+Note what is *not* in that embed: the voice and the language. Those belong to the
+brain — `voice` / `language` class attributes on your `Brain`, or
+`session.configure_language(...)` when they depend on *this* caller — and the
+agent record has no `stt`/`tts` fields either. One owner, because `language`
+picks both the recognizer and the voice-cloning reference clip, and a page that
+sets only half of that pair fails silently in the right words with the wrong
+accent. See the [voice & language catalog](/docs/reference/catalog/).
+
 ## The hook: `useVoqalSession`
 
 For full control over the UI, use the hook directly:
@@ -56,7 +64,7 @@ const session = useVoqalSession(opts: UseVoqalSessionOptions): VoqalSessionHandl
 | `tenantSlug` | `string` (required) | Your tenant slug. |
 | `publishableKey` | `string` (required) | `pk_…` key (origin-allowlisted, browser-safe). |
 | `agentId` | `string` (required) | The agent's id. |
-| `pipeline?` | `{ stt?, tts? }` | Per-session STT/TTS override; omit for agent defaults. See the [catalog](/docs/reference/catalog/). |
+| `pipeline?` | `{ stt?, tts? }` | **Usually omit.** Voice and language are declared on the brain, not here — see the [catalog](/docs/reference/catalog/). Kept for a page that is genuinely the pipeline's authority (a voice-auditioning console, an A/B harness); a brain that declares or configures a voice overrides it. |
 | `payload?` | `Record<string,unknown>` | App payload handed to the brain; arrives as `start.init`. |
 | `iceServers?` | `RTCIceServer[]` | Defaults to a public Google STUN server. |
 | `autoConnect?` | `boolean` | Default `false` (`<VoqalAgent/>` sets it `true`). |
@@ -204,4 +212,5 @@ plus the TypeScript types (`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`,
 
 - **[Handling a conversation](/docs/brain/conversation/)** — the brain side of the
   UI contract.
-- **[Voice & language catalog](/docs/reference/catalog/)** — `pipeline` values.
+- **[Voice & language catalog](/docs/reference/catalog/)** — the voices and languages,
+  and why the brain is the one place that sets them.

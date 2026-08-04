@@ -130,8 +130,8 @@ export function MobileExpert({ children }: { children: (presence: ReactNode) => 
     // required" error, shown in the presence control's error state.
     publishableKey: MOBILE.publishableKey ?? "",
     agentId: MOBILE.agentId,
-    // STT/TTS come from this demo's config, so the pipeline is declared once.
-    pipeline: MOBILE.pipeline,
+    // No pipeline override: this agent's voice and language are declared on
+    // its brain (backend/brain.py), which is the only place they belong.
     payload: { surface: "mobile-web" },
     onServerMessage: useCallback(
       (msg: Record<string, unknown>) => {

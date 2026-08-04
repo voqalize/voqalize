@@ -55,7 +55,7 @@ import inspect
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, overload
+from typing import Any, ClassVar, overload
 
 from loguru import logger
 
@@ -732,7 +732,34 @@ class Brain:
     touching ``message.interaction`` and responding. Speaking or invoking the model
     outside a floor you hold is bad practice — the SDK won't stop you (it logs a
     warning), but you're talking out of turn.
+
+    **Voice and language are declared here, not configured elsewhere.** Set
+    :attr:`voice` (and :attr:`language` if the agent doesn't speak English) as
+    class attributes; the SDK applies them at session start, before
+    :meth:`on_session_start` runs::
+
+        class ConciergeBrain(Brain):
+            voice = "omnivoice/gauri"
+            language = "hi"
+
+    They live in the brain because the brain is the only thing that knows the
+    caller — an agent record can hold one language for everyone, which is wrong
+    the moment a customer speaks a different one. Declaring them here means they
+    are version-controlled and reviewed with the rest of the agent. When the
+    language depends on *this* call (the caller's state, their profile, what they
+    just said), leave the attribute unset and call
+    :meth:`Session.configure_language` from ``on_session_start`` instead — it
+    lands before the greeting is spoken.
     """
+
+    #: TTS voice for every session this brain serves, e.g. ``"omnivoice/gauri"``.
+    #: ``None`` ⇒ leave the platform default in place.
+    voice: ClassVar[str | None] = None
+
+    #: ISO language code for both halves of the call — the recognizer *and* the
+    #: voice-cloning reference clip, applied via :meth:`Session.configure_language`
+    #: so the two can never half-apply. ``None`` ⇒ platform default (English).
+    language: ClassVar[str | None] = None
 
     async def on_session_start(self, session: Session, start: SessionStart) -> None:
         """Setup, and the floor-owning callback for the opening greeting. The
@@ -823,9 +850,31 @@ class _BrainAdapter:
     def _emit_nowait(self, frame: Frame) -> None:
         self._emitter.send(frame)
 
+    def _apply_declared_voice(self, session: Session) -> None:
+        """Apply the brain's declared :attr:`Brain.voice` / :attr:`Brain.language`.
+
+        Runs here — in the adapter, on the way into the session — rather than in a
+        base class's ``on_session_start``, because a subclass that overrides that
+        hook and forgets ``super()`` would silently lose its voice, and a wrong
+        voice is inaudible to every automated check we have (accent and speaker
+        identity do not show up in a transcript).
+
+        Emitted *before* the brain's own hook, so a brain that resolves the
+        language per caller can still override it there with
+        :meth:`Session.configure_language` — later frame on the same ordered lane
+        wins, and both land before the greeting audio.
+        """
+        language, voice = self._brain.language, self._brain.voice
+        if language is not None:
+            # Both halves in one call: the recognizer and the reference clip.
+            session.configure_language(language, voice=voice)
+        elif voice is not None:
+            session.configure_tts(voice=voice)
+
     async def handle_frame(self, frame: Frame) -> None:
         if isinstance(frame, VqlStartFrame):
             self._session = Session(self, frame.session_id, dict(frame.payload))
+            self._apply_declared_voice(self._session)
             await self._brain.on_session_start(
                 self._session, SessionStart(init=dict(frame.payload))
             )

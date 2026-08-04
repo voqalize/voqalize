@@ -201,8 +201,8 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
     // required" error, shown in the presence control's error state.
     publishableKey: AURA.publishableKey ?? '',
     agentId: AURA.agentId,
-    // STT/TTS come from this demo's config, so the pipeline is declared once.
-    pipeline: AURA.pipeline,
+    // No pipeline override: this agent's voice and language are declared on
+    // its brain (backend/brain.py), which is the only place they belong.
     payload: { surface: 'aura-web' },
     onServerMessage: useCallback(
       (msg: Record<string, unknown>) => {

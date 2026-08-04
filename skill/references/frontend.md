@@ -37,50 +37,45 @@ setup failure: the session mint 404s. If the app is served behind a proxy that
 rewrites `/api/*` to the control plane, `apiBase: "/api/v1"` is same-origin and the
 `pk_` only needs the one domain in `allowed_origins`.
 
-## 3. Choose the voice and language — the `pipeline` prop
+## 3. Voice and language are NOT set here
 
-**This is the prop people miss.** Without it the session uses server defaults; with
-it you pick STT model/language and TTS voice/language per session:
+**The page does not choose the voice.** The brain does — as class attributes:
 
-```tsx
-<VoqalAgent
-  apiBase={API_BASE}
-  tenantSlug={TENANT_SLUG}
-  publishableKey={PUBLISHABLE_KEY}
-  agentId={AGENT_ID}
-  pipeline={{
-    stt: { model: "vql-stt", language: "hi" },
-    tts: { voice: "omnivoice/gauri", language: "hi" },
-  }}
-  payload={{ surface: "web", user: { name: "Ada" } }}
-/>
+```python
+class ConciergeBrain(Brain):
+    voice = "omnivoice/gauri"
+    language = "hi"          # sets the recognizer AND the voice together
 ```
 
-**Setting the language has exactly one form: the same `language` code on both
-`stt` and `tts`.** Write both every time, even for English. Do not set
-`stt.language_hint` — it is the raw recognizer field the runtime derives from
-`stt.language`, and setting it by hand is how a config ends up half-applied.
+or, when the language depends on *this* caller, with one call in
+`on_session_start` (which is also how you switch mid-call):
 
-- `stt.model` — leave it `vql-stt` (a router covering English plus 22 Indic
-  languages; it picks the engine from `language`). There is no other recognizer.
-- `stt.language` picks the **recognizer**; `tts.language` picks the **voice-cloning
-  reference clip**, so it changes *who is speaking*, not just how text is read.
-- `tts.voice` — a catalog voice id: `omnivoice/gauri` or `omnivoice/gaurav`.
-- Full value list: the **Voice & language catalog** in the docs
-  (`/docs/reference/catalog/`).
+```python
+session.configure_language("ta", voice="omnivoice/gauri")
+```
 
-Get one half wrong and nothing errors. A wrong `stt.language` transcribes the
-caller with the English model; a wrong `tts.language` reads the right words in the
-wrong speaker's accent — and that one is inaudible to every automated check,
-because the transcript is still correct. Both have shipped. Write the pair.
+Nothing in the frontend, and nothing on the agent record — the record has no
+`stt`/`tts` fields at all. See `references/brain.md` and the **Voice & language
+catalog** in the docs (`/docs/reference/catalog/`) for the value lists.
 
-Mid-call the brain changes language with **one** call —
-`session.configure_language("hi")` (add `voice=` if the language wants another
-persona). Never as a `configure_tts` + `configure_stt` pair. The `pipeline` prop
-only sets what the session *opens* with.
+Why the rule is this blunt: `language` is really two settings. It picks the
+**recognizer** (English → Parakeet, 22 Indic languages → IndicConformer) *and* the
+**voice-cloning reference clip**, which changes *who is speaking* rather than how
+text is read. Get one half wrong and nothing errors: a wrong recognizer garbles
+the caller, and a wrong reference clip reads the right words in the wrong
+speaker's accent — inaudible to every automated check, because the transcript is
+still correct. Both have shipped. One field, one owner, both halves.
 
-`payload` is separate from `pipeline`: it is app data, and it arrives brain-side as
-`start.init` in `on_session_start`.
+The `pipeline` prop still exists for a page that is genuinely the authority over
+the pipeline — a console auditioning voices, an A/B harness. A brain that declares
+or configures a voice overrides it, since the brain speaks last. If you do use it,
+set the same `language` code on both `stt` and `tts`, and never set
+`stt.language_hint` (the raw recognizer field the runtime derives from
+`stt.language`; setting it by hand is how a config ends up half-applied).
+
+`payload` is a different thing entirely: app data, which arrives brain-side as
+`start.init` in `on_session_start`. A per-caller language belongs *there* — send
+the choice, let the brain apply it.
 
 ## 4. Pick a surface
 

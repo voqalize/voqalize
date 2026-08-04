@@ -451,6 +451,13 @@ class TravelBrain(AdkBrain):
     """One per session. Hosts the ADK agent above and adds the one voice seam the
     demo needs: what's on screen, in front of the model on every call."""
 
+    # Priya speaks Hindi to every caller, so the agent says so itself rather than
+    # depending on the connecting page to remember. `language` sets both the
+    # recognizer's hint and the TTS reference clip — get it wrong and the model
+    # still writes Devanagari, but an en-IN voice reads it aloud.
+    voice = "omnivoice/gauri"
+    language = "hi"
+
     def __init__(
         self,
         *,

@@ -242,6 +242,11 @@ class TravelBrain(GeminiBrain):
     ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
     runs each call."""
 
+    # Same voice/language as the ADK brain next door (``brain.py``) — Priya is
+    # Hindi-speaking whichever model backs her.
+    voice = "omnivoice/gauri"
+    language = "hi"
+
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
             llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model

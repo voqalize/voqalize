@@ -424,6 +424,14 @@ class SugarBrain(GeminiBrain):
     ``state_sync`` snapshot on :meth:`on_client_message`; :meth:`working_context`
     appends it so every turn reasons from the live screen."""
 
+    # The default this coach opens in. The patient's own LanguageToggle choice
+    # rides ``init_payload["language"]`` and overrides it in on_session_start —
+    # which is where a per-caller language belongs, since only the brain sees
+    # the caller. `language` sets both the recognizer's hint and the TTS
+    # reference clip (the accent), so the two can never drift apart.
+    voice = "omnivoice/gauri"
+    language = "en"
+
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         # The base system instruction only; the PATIENT CONTEXT is folded in per
         # session in on_session_start once init_payload has arrived.
@@ -456,6 +464,14 @@ class SugarBrain(GeminiBrain):
         self.patient_name = str(patient.get("name") or "").strip() or "there"
         language = str(payload.get("language", "")).strip()
         self.language_name = language if language in _LANG else "English"
+        # Apply the patient's chosen language to the wire BEFORE greeting. Until
+        # this call existed the choice only reached the prompt, so the coach wrote
+        # Devanagari while an en-IN reference voice read it aloud — the whole
+        # conversation right on paper and foreign-accented in the ear. It only
+        # sounded correct because the browser happened to send a matching
+        # per-session override; the brain must not depend on that.
+        _, tts_voice, tts_lang = _LANG[self.language_name]
+        session.configure_language(tts_lang, voice=tts_voice)
         # How much the coach leads vs. listens. "quiet" = the patient narrates
         # and we log silently; "guided" = we walk them through beat by beat.
         # Either way the two-or-three-sentence ceiling holds. Default quiet.

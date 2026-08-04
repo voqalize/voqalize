@@ -282,6 +282,14 @@ class LeadQualBrain(GeminiBrain):
     ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
     runs each call."""
 
+    # The default this advisor opens in. The caller's own selection — or, failing
+    # that, the state they entered — rides ``init_payload`` and overrides this in
+    # on_session_start, which is the only place that knows *this* caller. An agent
+    # record could never hold the right value: it holds one, and Tamil Nadu wants
+    # Tamil while Gujarat wants Gujarati.
+    voice = _DEFAULT_LANG[1]
+    language = _DEFAULT_LANG[2]
+
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
             llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model
@@ -301,7 +309,21 @@ class LeadQualBrain(GeminiBrain):
         # remainder streams in behind it.
         payload = dict(start.init)
         self.payload = payload
-        self.language_name = _resolve_initial_language(payload)[3]
+        _stt_lang, voice, tts_lang, self.language_name = _resolve_initial_language(payload)
+
+        # Apply the resolved language BEFORE speaking. This brain is the only
+        # thing that knows it — the language comes from the enquiry form's state
+        # (Tamil Nadu → Tamil), which does not exist until this session starts, so
+        # no agent-level setting could ever have been right. Until this call
+        # existed the resolved pair was thrown away and only the display name
+        # kept, so a Tamil customer got a Tamil hello read by the *Hindi* voice
+        # and transcribed by the *Hindi* recognizer, on the greeting, every time.
+        #
+        # Ordering is load-bearing and measured: a settings frame emitted here is
+        # on the same ordered lane as the speech that follows, so it lands on the
+        # greeting rather than the turn after it.
+        session.configure_language(tts_lang, voice=voice)
+
         await self.say_then_generate(
             session, hello_for(self.language_name), self._greeting_instruction(payload)
         )

@@ -64,10 +64,11 @@ don't preload them.
    `get_agent`) — the hosted Playground, pre-selected on your agent.
 7. **Embed it in the app.** → **`references/frontend.md`**
    `create_api_key(tenant, label, kind="publishable", allowed_origins=[…])` → `pk_…`,
-   then `@voqalize/client-react` (`templates/react_embed.tsx`), including the
-   `pipeline` prop for voice/language. **Set `language` to the same code on both
-   `pipeline.stt` and `pipeline.tts`** — that is the only supported way to pick a
-   language, and getting one side wrong fails silently.
+   then `@voqalize/client-react` (`templates/react_embed.tsx`). **The page does not
+   set the voice or the language** — the brain does, via its `voice`/`language`
+   class attributes or `session.configure_language(...)`. There are no `stt`/`tts`
+   fields on the agent record either. One owner, because a language split across
+   two owners fails silently.
 8. **Make it drive the screen** (only if the agent touches UI). →
    **`references/ui-actions.md`** The two-way contract: `interaction.action(...)` out,
    `sendMessage(...)` → `on_client_message` back.
@@ -100,5 +101,5 @@ your role is too low); `validation_error` = bad input (e.g. a non-`wss://`
 | `references/transport.md` | Where the brain runs; local Cortex flow; production inbound. |
 | `references/testing.md` | The conformance harness + live-call inspection. |
 | `references/ui-actions.md` | The brain ↔ browser message contract. |
-| `references/frontend.md` | React embed, `pk_` keys, `pipeline`, ambient UI. |
+| `references/frontend.md` | React embed, `pk_` keys, ambient UI, and why voice/language aren't set here. |
 | `references/instrumentation.md` | Logging, correlation, and value metrics. |

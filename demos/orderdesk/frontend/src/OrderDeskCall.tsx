@@ -98,8 +98,8 @@ export function OrderDeskCallSession() {
     // required" error, shown in the bar's error state.
     publishableKey: ORDERDESK.publishableKey ?? "",
     agentId: ORDERDESK.agentId,
-    // Hindi on both legs; the screen stays English. Declared once, in config.ts.
-    pipeline: ORDERDESK.pipeline,
+    // No pipeline override: this agent's voice and language are declared on
+    // its brain (backend/brain.py), which is the only place they belong.
     // The scenario's PHARMACY CONTEXT rides the payload → the brain's init_payload.
     payload: { surface: "orderdesk-web", ...(brainPayload() as Record<string, unknown>) },
   });

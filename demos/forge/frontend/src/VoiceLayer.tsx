@@ -130,7 +130,8 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
     tenantSlug: FORGE.tenantSlug,
     publishableKey: FORGE.publishableKey ?? "",
     agentId: FORGE.agentId,
-    pipeline: FORGE.pipeline,
+    // No pipeline override: this agent's voice and language are declared on
+    // its brain (backend/brain.py), which is the only place they belong.
     payload: {
       surface: "forge-web",
       admin: { name: ADMIN.name, role: ADMIN.role },

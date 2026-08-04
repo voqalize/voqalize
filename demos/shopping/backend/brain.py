@@ -328,6 +328,11 @@ class ShoppingBrain(GeminiBrain):
     ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
     runs each call, driving the browser and feeding catalog data back to the model."""
 
+    # This agent's own voice — not the connecting page's to choose. `language`
+    # sets both the recognizer's hint and the TTS reference clip (the accent).
+    voice = "omnivoice/gaurav"
+    language = "en"
+
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
             llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model

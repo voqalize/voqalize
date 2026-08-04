@@ -13,17 +13,11 @@
  * to the control plane. Either way the browser calls same-origin.
  */
 
-export interface PipelineConfig {
-  stt: { model: string; language?: string };
-  tts: { voice: string; language: string };
-}
-
 export interface DemoConfig {
   apiBase: string;
   tenantSlug: string;
   agentId: string;
   publishableKey: string | undefined;
-  pipeline: PipelineConfig;
 }
 
 const TENANT = (import.meta.env.VITE_TENANT as string | undefined) ?? "demo";
@@ -33,8 +27,4 @@ export const config: DemoConfig = {
   tenantSlug: TENANT,
   agentId: (import.meta.env.VITE_AGENT_ID as string | undefined) ?? "",
   publishableKey: import.meta.env.VITE_PUBLISHABLE_KEY as string | undefined,
-  pipeline: {
-    stt: { model: "vql-stt", language: "en" },
-    tts: { voice: "omnivoice/gauri", language: "en" },
-  },
 };

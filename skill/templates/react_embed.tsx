@@ -39,7 +39,6 @@ import { useState } from "react";
 import {
   VoqalAgent,
   useUiCommand,
-  type VoqalPipelineConfig,
   type VoqalSessionHandle,
 } from "@voqalize/client-react";
 
@@ -47,22 +46,6 @@ const PUBLISHABLE_KEY = "pk_live_REPLACE_ME";
 const AGENT_ID = "REPLACE_WITH_AGENT_ID";
 const TENANT_SLUG = "your-tenant-slug";
 const API_BASE = "https://app.voqalize.com/api/v1";
-
-/**
- * Speech config for the session. `vql-stt` is a router covering English plus 22
- * Indic languages — it picks the engine from `language`. `tts.voice` is a catalog
- * voice id. Omit `pipeline` entirely to take the server defaults.
- *
- * SET `language` TO THE SAME CODE ON BOTH LINES. That is the only supported way
- * to pick a language, and the pair is not decorative: `stt.language` picks the
- * recognizer, `tts.language` picks the voice-cloning reference clip (i.e. which
- * recorded speaker you hear). Half-applied, neither one errors — you just get a
- * bad transcript, or the right words in a non-native accent.
- */
-const PIPELINE: VoqalPipelineConfig = {
-  stt: { model: "vql-stt", language: "en" },
-  tts: { voice: "omnivoice/gauri", language: "en" },
-};
 
 interface CartLine {
   sku: string;
@@ -88,9 +71,11 @@ export function VoiceCart() {
       tenantSlug={TENANT_SLUG}
       publishableKey={PUBLISHABLE_KEY}
       agentId={AGENT_ID}
-      // Voice + language for this session. Distinct from `payload` below: this is
-      // speech config the platform consumes, not app data the brain reads.
-      pipeline={PIPELINE}
+      // No voice or language here: the brain declares them (`Brain.voice` /
+      // `Brain.language`, or `session.configure_language(...)` per caller). One
+      // owner — a language split across a page and an agent record fails silently,
+      // because `language` picks BOTH the recognizer and the voice-cloning
+      // reference clip, and a wrong clip is the right words in the wrong accent.
       // What you pass here arrives brain-side as `start.init` in on_session_start.
       payload={{ surface: "web", user: { name: "Ada" } }}
     >

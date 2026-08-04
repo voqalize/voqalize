@@ -17,13 +17,6 @@
  * stays English — so the pipeline below opens in `hi` on both legs.
  */
 
-/** STT/TTS this demo's session opens with — its pipeline, declared once here. */
-export interface PipelineConfig {
-  /** `language_hint` is the field the recognizer actually reads — see below. */
-  stt: { model: string; language?: string; language_hint?: string };
-  tts: { voice: string; language: string };
-}
-
 /** Resolved wiring for this demo agent. */
 export interface DemoConfig {
   /** Versioned API root the page calls (same-origin; proxied to the control plane). */
@@ -34,8 +27,6 @@ export interface DemoConfig {
   agentId: string;
   /** Publishable key for browser auth. Undefined until the demo is provisioned. */
   publishableKey: string | undefined;
-  /** STT/TTS for the session. */
-  pipeline: PipelineConfig;
 }
 
 /** All demos live in one tenant; `VITE_TENANT` selects which (default `demo`). */
@@ -47,18 +38,4 @@ export const config: DemoConfig = {
   // Empty when unprovisioned — the SDK surfaces a clear error the call bar shows.
   agentId: (import.meta.env.VITE_AGENT_ID as string | undefined) ?? "",
   publishableKey: import.meta.env.VITE_PUBLISHABLE_KEY as string | undefined,
-  pipeline: {
-    // One code, both sides — the only supported way to set a language (see
-    // VoqalPipelineConfig in @voqalize/client-react). The runtime derives the
-    // recognizer's `language_hint` from `stt.language`; this config used to
-    // spell out both by hand because it once had to.
-    //
-    // Worth keeping: in production the MCP `create_agent` surface cannot set
-    // STT/TTS at all, so the agent is created with platform defaults (English,
-    // `omnivoice/gaurav`) and THIS per-session pipeline is the only thing making
-    // the call Hindi. Locally the seeded agent record also carries `hi`, which is
-    // why the emulator path worked either way and hid the gap.
-    stt: { model: "vql-stt", language: "hi" },
-    tts: { voice: "omnivoice/gauri", language: "hi" },
-  },
 };

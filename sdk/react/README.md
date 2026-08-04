@@ -51,12 +51,27 @@ export function Support() {
 - `publishableKey` — a `pk_…` key (origin-allowlisted; browser-safe).
 - `agentId` — `agent.id` from the MCP `create_agent` / `list_agents`.
 
-**Choosing the voice / STT model (optional).** Both `<VoqalAgent/>` and
-`useVoqalSession` accept an optional `pipeline` prop — `<VoqalAgent {...props}
-pipeline={{ tts: { voice: "omnivoice/gauri" }, stt: { model: "vql-stt", language: "en" } }} />`.
-It selects STT/TTS **for this session**; omit it and the agent's server-side
-defaults apply. (There's no need to set anything on the agent for a first run —
-a bare agent has working defaults.)
+**The voice and the language are not props.** They are declared on the brain, in
+Python:
+
+```python
+class ConciergeBrain(Brain):
+    voice = "omnivoice/gauri"
+    language = "hi"          # sets the recognizer AND the TTS voice together
+```
+
+or, when the language depends on *this* caller, with one
+`session.configure_language("ta", voice="omnivoice/gauri")` in `on_session_start`
+(the same call switches language mid-call). The agent record carries no
+`stt`/`tts` fields at all, so the brain is the single owner — which matters
+because `language` picks both the recognizer *and* the voice-cloning reference
+clip, and a half-applied pair errors nowhere: you get the right words in the
+wrong speaker's accent, invisible to any transcript-based check.
+
+A `pipeline` prop does still exist on `<VoqalAgent/>` and `useVoqalSession`, for a
+page that is genuinely the pipeline's authority — a console auditioning voices, an
+A/B harness. A brain that declares or configures a voice overrides it, because the
+brain speaks last.
 
 ## Custom UI — render prop
 
@@ -84,7 +99,7 @@ function Widget() {
     tenantSlug: "acme",
     publishableKey: pk,
     agentId: id,
-    pipeline: { stt: { model: "vql-stt", language: "en" }, tts: { voice: "omnivoice/gauri" } },
+    // No `pipeline`: the brain declares the voice and the language.
     payload: { surface: "web", user: { name: "Ada" } },
     onServerMessage: (msg) => {
       // Already unwrapped past the `{ data }` quirk.
@@ -168,7 +183,8 @@ routes it back to that callback.
 ## Low level
 
 - `createSession({ apiBase, tenantSlug, publishableKey, agentId, pipeline?, payload? })`
-  → `{ signalingUrl, token }`. Throws `VoqalSessionError` on failure.
+  → `{ signalingUrl, token }`. Throws `VoqalSessionError` on failure. (`pipeline` is
+  the escape hatch above; normal embeds pass `payload` only.)
 - `VoqalWebRTCTransport` — the pipecat `Transport`. Use with a raw `PipecatClient`
   and `pc.connect({ connection_url, token })` for total control.
 

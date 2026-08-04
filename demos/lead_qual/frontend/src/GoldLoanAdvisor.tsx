@@ -35,20 +35,10 @@ import { config } from './config';
 const LEAD = config;
 
 // ── Language config ───────────────────────────────────────────────────────────
-// The demo is Indic multi-language: the STT recognition hint and TTS language are
-// keyed off the chosen call language. Everything else in the pipeline (STT model,
-// TTS voice/engine) comes from this demo's config (`LEAD.pipeline`), so it is
-// never hardcoded here.
-const LANG_HINT: Record<string, string> = {
-  Hindi: 'hi',
-  Telugu: 'te',
-  Tamil: 'ta',
-  Kannada: 'kn',
-  Malayalam: 'ml',
-  Marathi: 'mr',
-  Gujarati: 'gu',
-  Bengali: 'bn',
-};
+// The demo is Indic multi-language, but the page does not map a language to a
+// recognizer or a voice — it sends the caller's choice by NAME in the payload and
+// the brain resolves both halves (backend/brain.py, `_LANG_BY_NAME`). One owner,
+// one mapping.
 
 const INDIAN_STATES = [
   'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh',
@@ -124,10 +114,9 @@ export function GoldLoanAdvisor() {
   const [callDuration, setCallDuration]   = useState(0);
   const [language, setLanguage]           = useState<string>('auto');
 
-  // ── Session pipeline + payload (recomputed each render; the hook reads the ──
-  //    latest at connect time) ────────────────────────────────────────────────
+  // ── Session payload (recomputed each render; the hook reads the latest at ──
+  //    connect time) ──────────────────────────────────────────────────────────
   const callLanguage = language === 'auto' ? inferredLanguage(formData.state) : language;
-  const hint = LANG_HINT[callLanguage] ?? 'hi';
 
   // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
   // (past the `{ data }` quirk), so we read `type`/`action` directly.
@@ -138,12 +127,10 @@ export function GoldLoanAdvisor() {
     // required" error, shown in the call-gate error state.
     publishableKey: LEAD.publishableKey ?? '',
     agentId: LEAD.agentId,
-    // STT model + TTS voice/engine come from this demo's config; only the
-    // language is overridden from the caller's selection.
-    pipeline: {
-      stt: { ...LEAD.pipeline.stt, language: hint },
-      tts: { ...LEAD.pipeline.tts, language: hint },
-    },
+    // No pipeline override. The caller's language selection rides the payload
+    // below and the brain applies it with one configure_language call at session
+    // start — the brain is the only thing that sees this caller, and one call
+    // keeps the recognizer and the TTS voice from drifting apart.
     payload: {
       name: formData.name,
       phone: formData.phone,

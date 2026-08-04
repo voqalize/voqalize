@@ -3,25 +3,32 @@ title: Voice & language catalog
 description: The STT models, languages, and TTS voices a session can select, and the knobs a brain can change mid-call.
 ---
 
-A session picks its speech-to-text model, language, and text-to-speech voice
-either at connect time (the client's `pipeline` config) or mid-call (the brain's
-`configure_*` methods). This page is the catalog of allowed values.
+A session's speech-to-text language and text-to-speech voice are chosen by **the
+brain**. This page is the catalog of allowed values.
 
-:::caution[Setting the language: there is exactly one way]
-**At connect:** set `language` to the same code on **both** `stt` and `tts`.
+:::caution[Setting the voice and language: there is exactly one place]
+**The brain declares them**, either as class attributes:
 
-```ts
-pipeline: {
-  stt: { model: "vql-stt", language: "hi" },
-  tts: { voice: "omnivoice/gauri", language: "hi" },
-}
+```python
+class ConciergeBrain(Brain):
+    voice = "omnivoice/gauri"
+    language = "hi"          # sets the recognizer AND the voice together
 ```
 
-**Mid-call:** one call — `session.configure_language("hi")`.
+or, when the language depends on *this* caller, with one call inside
+`on_session_start`:
 
+```python
+async def on_session_start(self, session, start):
+    session.configure_language("ta", voice="omnivoice/gauri")
+```
+
+The same call switches language mid-call.
+
+Not the agent record — it has no `stt`/`tts` fields at all — and not the browser.
 Do not set `stt.language_hint`, and do not change a language with a
 `configure_stt` + `configure_tts` pair. Those are the raw halves; the runtime
-derives them from the above. Setting them by hand is how a config ends up
+derives them from `language`. Setting them by hand is how a config ends up
 half-applied, and **a half-applied language is silent** — see
 [Why both halves](#why-both-halves-matter) below.
 :::
@@ -112,22 +119,38 @@ shipped with Devanagari under `language: "en"` and spoke in an accented English
 voice for weeks: every test was green, every log line looked right, and every
 automated score was unchanged, because none of them can hear.
 
-Setting one field, `language`, on both sides makes the pair impossible to
+Setting one field, `language`, in one place makes the pair impossible to
 half-apply. That is the whole reason the rule exists.
+
+## Why the brain, and not the agent record
+
+Voice and language used to be settable from three places: the agent record in the
+control plane, the connecting page's `pipeline` config, and the brain. Three
+owners of one value is how a field gets dropped in transit, and dropping it is
+exactly the failure above.
+
+The agent record was the wrong owner on its own terms: it holds **one** value for
+**every** caller, and the brain is the only thing that sees *this* caller. The
+`lead_qual` demo makes the point — a caller from Tamil Nadu should be answered in
+Tamil and one from Gujarat in Gujarati, and no single stored value is right for
+both. So the record no longer carries `stt` or `tts` at all; it holds the agent's
+name and what the handshake needs, and everything about how the agent behaves —
+voice included — lives in the brain, in your version control.
 
 ## Setting it
 
-- **At connect (client):** the React SDK's `pipeline` prop.
-  ```ts
-  pipeline: {
-    stt: { model: "vql-stt", language: "hi" },
-    tts: { voice: "omnivoice/gauri", language: "hi" },
-  }
-  ```
-- **Mid-call (brain):** `session.configure_language("hi")`, optionally with
+- **For every session:** the `voice` / `language` class attributes on your
+  `Brain`. The SDK applies them on the way into `on_session_start`, so a subclass
+  that overrides that hook cannot accidentally drop them.
+- **Per caller, or mid-call:** `session.configure_language("hi")`, optionally with
   `voice=` when the target language wants a different persona. STT applies at the
   next turn boundary; TTS at the next inference, never mid-utterance. See
   [Handling a conversation](/docs/brain/conversation/#reconfigure-voice-mid-call).
+- **From the client:** the React SDK's `pipeline` prop still exists for a page
+  that is genuinely the authority — a console auditioning voices, an A/B harness.
+  A brain that declares or configures a voice overrides it, because the brain
+  speaks last. If you use it, set the same `language` code on both `stt` and
+  `tts`.
 
-The `lead_qual` demo switches language mid-call across eight Indic languages — a
-good worked example.
+The `lead_qual` demo resolves its language per caller and then switches mid-call
+across eight Indic languages — a good worked example of both.

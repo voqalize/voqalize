@@ -49,7 +49,6 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -75,6 +74,11 @@ from voqalize.conformance import (  # noqa: E402
 )
 from voqalize.google_adk.testing import ScriptedLlm, call, reply, reply_and_call  # noqa: E402
 from voqalize.sdk import DirectAgent, brain_factory  # noqa: E402
+from voqalize.sdk.wire import (  # noqa: E402
+    STTUpdateSettingsFrame,
+    TTSUpdateSettingsFrame,
+    VqlLLMTextFrame,
+)
 
 HELLO = "नमस्ते!"
 OPENER = "गुप्ता जी, MedSetu से। आज का ऑर्डर बता दीजिए।"
@@ -1854,24 +1858,52 @@ async def test_quantity_and_removal_keep_the_mirror_honest() -> None:
 # ─── the language contract (Hindi audio, English screen) ──────────────────────
 
 
-CONFIG_TS = Path(__file__).resolve().parents[1] / "orderdesk" / "frontend" / "src" / "config.ts"
+async def test_the_brain_puts_hindi_on_both_legs_before_it_greets() -> None:
+    """The call is Hindi on both legs, and the brain is the *only* thing making it
+    so — ``OrderDeskBrain.language``/``voice``, applied by the SDK on the way into
+    ``on_session_start``.
 
+    It used to be the browser's per-session pipeline instead, and this test used to
+    read that pipeline out of ``config.ts`` as text. Both moved for the same reason:
+    a page and an agent record each held half the answer, and when one link dropped
+    the field the model still wrote Devanagari while an en-IN reference voice read
+    it aloud. Nothing automated caught it — the transcript is word-perfect and
+    accent is invisible to transcription-based scoring — so it shipped, and was
+    found by ear weeks later.
 
-def test_the_session_pipeline_speaks_and_hears_hindi():
-    """The call is Hindi on both legs, and the *only* thing making it so is the
-    per-session pipeline the browser sends: the control plane's ``create_agent``
-    surface has no STT/TTS fields, so a production agent is born with English
-    defaults (``stt.language_hint`` unset ⇒ Parakeet, voice ``omnivoice/gaurav``).
+    Two properties, both load-bearing:
 
-    ``language_hint`` is pinned separately from ``language`` because PyGato picks
-    the recognition engine from ``language_hint`` alone (``session.py``:
-    ``stt_override.get("language_hint") or runtime_config.stt.language_hint``).
-    A pipeline carrying only ``language: "hi"`` type-checks, deploys, and
-    transcribes Hindi with an English model — the failure looks like bad
-    recognition, not bad config, which is exactly why it is asserted here."""
-    pipeline = CONFIG_TS.read_text(encoding="utf-8").split("pipeline: {", 1)[-1]
-    stt, tts = pipeline.split("tts:", 1)
-    assert '"vql-stt"' in stt
-    assert 'language_hint: "hi"' in stt, "Hindi STT hinges on language_hint, not language"
-    assert 'language: "hi"' in tts
-    assert '"omnivoice/gauri"' in tts
+    * **Both halves.** ``configure_language`` moves the recognizer and the voice
+      together. PyGato picks the recognition engine from ``language_hint``, which it
+      derives from the TTS-side language; a config that sets only one of the pair
+      transcribes Hindi with the English model, and the failure then reads as bad
+      recognition rather than bad config.
+    * **Before the greeting.** A settings frame that lands after the first audio is
+      worse than useless — the caller has already heard the wrong voice say hello.
+    """
+    llm = ScriptedLlm(_script())
+    agent, driver = await _host(llm)
+    try:
+        await driver.start_session(payload=PAYLOAD)
+
+        tts = [r for r in driver.log if isinstance(r.frame, TTSUpdateSettingsFrame)]
+        stt = [r for r in driver.log if isinstance(r.frame, STTUpdateSettingsFrame)]
+        assert [dict(r.frame.settings) for r in tts] == [
+            {"voice": "omnivoice/gauri", "language": "hi"}
+        ]
+        assert [dict(r.frame.settings) for r in stt] == [{"language_hint": "hi"}]
+
+        greeting_at = next(
+            i for i, r in enumerate(driver.log) if isinstance(r.frame, VqlLLMTextFrame)
+        )
+        first_tts = next(
+            i for i, r in enumerate(driver.log) if isinstance(r.frame, TTSUpdateSettingsFrame)
+        )
+        first_stt = next(
+            i for i, r in enumerate(driver.log) if isinstance(r.frame, STTUpdateSettingsFrame)
+        )
+        assert first_tts < greeting_at, "the Hindi voice landed after the greeting audio"
+        assert first_stt < greeting_at, "the Hindi recognizer landed after the greeting"
+    finally:
+        await driver.aclose()
+        await agent.aclose()

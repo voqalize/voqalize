@@ -174,8 +174,8 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
     // required" error, shown in the presence control's error state.
     publishableKey: TRAVEL.publishableKey ?? "",
     agentId: TRAVEL.agentId,
-    // STT/TTS come from this demo's config, so the pipeline is declared once.
-    pipeline: TRAVEL.pipeline,
+    // No pipeline override: this agent's voice and language are declared on
+    // its brain (backend/brain.py), which is the only place they belong.
     payload: { surface: "travel-web" },
   });
 
