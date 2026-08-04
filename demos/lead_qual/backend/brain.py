@@ -362,11 +362,12 @@ class LeadQualBrain(GeminiBrain):
         logger.info(
             "lead-qual: switch_language → {} (hint={} voice={})", language, stt_hint, tts_voice
         )
-        # Swap the whole voice mid-call via the public reconfigure API: TTS
-        # voice/language + the STT recognition language_hint (both queued for the
-        # next inference).
-        interaction.session.configure_tts(voice=tts_voice, language=tts_lang)
-        interaction.session.configure_stt(language_hint=stt_hint)
+        # One call moves both halves — recognizer and voice. This is the only
+        # supported way to change language mid-call; doing it as a configure_tts
+        # + configure_stt pair by hand is two calls that can drift, and either
+        # half missing is silent (wrong recognizer transcribes badly; wrong voice
+        # just sounds non-native).
+        interaction.session.configure_language(tts_lang, voice=tts_voice)
         return str({"switched_to": language})
 
     def _end_call(self, interaction, args: dict[str, Any]) -> str:

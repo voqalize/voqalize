@@ -95,6 +95,7 @@ Passed to `on_session_start`, `on_client_message`, `on_session_end`. Attributes:
 session.say()                              # → bracket for agent-initiated speech (id 0)
 session.action(name, args=None, *, callback=None) -> int
 session.action(action, *, callback=None) -> int    # a voqalize.sdk.Action instance
+session.configure_language(language, *, voice=None) -> None   # the whole call
 session.configure_tts(*, voice=None, language=None, model=None) -> None
 session.configure_stt(*, language_hint=None, vad_confidence=None, ...) -> None
 session.configure_idle(*, timeout_ms=None) -> None
@@ -106,11 +107,16 @@ session.configure_idle(*, timeout_ms=None) -> None
   optional `callback` receives. Never blocks. Pass an
   [`Action`](/docs/brain/conversation/#typed-actions) instance instead of
   `(name, args)` to declare the payload's shape — same bytes on the wire.
+- **`configure_language`** switches the whole call — recognizer *and* voice — to
+  another language. **This is the only supported way to change language.** The two
+  sides name the field differently, so doing it as a `configure_tts` +
+  `configure_stt` pair can half-apply, and a half-applied language is silent.
 - **`configure_tts`** changes voice/language/model for the **next** inference
-  (never mid-utterance). Only the fields you pass change.
-- **`configure_stt`** applies **live** (mid-utterance safe); `language_hint` swaps
-  the recognition language mid-call. See the [catalog](/docs/reference/catalog/)
-  for allowed values.
+  (never mid-utterance). Only the fields you pass change. Use it for a voice
+  change; for a language change use `configure_language`.
+- **`configure_stt`** applies **live** (mid-utterance safe) — the VAD/turn knobs.
+  It also accepts the raw `language_hint`; prefer `configure_language`. See the
+  [catalog](/docs/reference/catalog/) for allowed values.
 - **`configure_idle`** sets how long the user may stay silent (after the agent
   stops speaking) before Voice opens an idle interaction and calls
   `on_user_idle`. `timeout_ms=0` disables idle detection entirely. Fire-and-forget,

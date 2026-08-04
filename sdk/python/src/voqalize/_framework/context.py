@@ -97,6 +97,15 @@ class Voice:
             return self._interaction.action(name, callback=callback)
         return self._interaction.action(name, args, callback=callback)
 
+    def configure_language(self, language: str, *, voice: str | None = None) -> None:
+        """Switch the whole call to another language — the only supported way.
+
+        See :meth:`voqalize.sdk.brain.Session.configure_language`: doing it as a
+        ``configure_tts`` + ``configure_stt`` pair can half-apply, and a
+        half-applied language is silent.
+        """
+        self._interaction.session.configure_language(language, voice=voice)
+
     def configure_tts(self, **kwargs: Any) -> None:
         """Change TTS voice/language/model for the next inference (mid-call)."""
         self._interaction.session.configure_tts(**kwargs)

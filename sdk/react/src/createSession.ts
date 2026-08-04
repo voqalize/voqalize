@@ -12,12 +12,48 @@
  * publishable (`pk_`) key — safe to ship in browser code.
  */
 
-/** STT/TTS pipeline selection for a session. Shape is passed through verbatim. */
+/**
+ * STT/TTS pipeline selection for a session.
+ *
+ * ## Setting the language — there is exactly one way
+ *
+ * **Set `language` to the same ISO code on both `stt` and `tts`.** That is the
+ * whole contract, and it is the only supported way to open a session in a
+ * language:
+ *
+ * ```ts
+ * pipeline={{
+ *   stt: { model: "vql-stt", language: "hi" },
+ *   tts: { voice: "omnivoice/gauri", language: "hi" },
+ * }}
+ * ```
+ *
+ * Do not reach for `stt.language_hint`. It is the raw wire field the runtime
+ * derives from `stt.language`, kept only as an escape hatch for the rare session
+ * that must recognise one language and speak another. Setting it by hand is how
+ * a config ends up half-applied.
+ *
+ * Both halves matter, and each fails quietly on its own:
+ *
+ * - `tts.language` picks the **voice-cloning reference clip**, not a text tag.
+ *   `omnivoice/gauri` carries a Hindi clip and a separate English one, so Hindi
+ *   text sent as `language: "en"` is read by the English speaker — it sounds like
+ *   a non-native accent, and every automated check still passes, because the
+ *   words are correct and accent is invisible to transcription-based scoring.
+ *   This shipped to a live demo and was found by ear, weeks later.
+ * - `stt.language` picks the **recognizer** (English → Parakeet, the 22 Indic
+ *   languages → IndicConformer). Omit it and the session transcribes with the
+ *   English model whatever the caller speaks.
+ *
+ * To change language mid-call, call `session.configure_language(...)` in the
+ * brain — one call that moves both halves. Full contract:
+ * `docs/voice-and-language.md`.
+ */
 export interface VoqalPipelineConfig {
-  /** Speech-to-text config, e.g. `{ model: "vql-stt", language: "en" }`. */
-  stt?: Record<string, unknown>;
-  /** Text-to-speech config, e.g. `{ voice: "omnivoice/gauri", language: "en" }`. */
-  tts?: Record<string, unknown>;
+  /** Speech-to-text config. Set `language` — see the interface docs above. */
+  stt?: { model?: string; language?: string } & Record<string, unknown>;
+  /** Text-to-speech config. Set `language` — see the interface docs above. */
+  tts?: { voice?: string; language?: string } & Record<string, unknown>;
 }
 
 /** Options for {@link createSession}. */

@@ -44,7 +44,15 @@ export const config: DemoConfig = {
   agentId: (import.meta.env.VITE_AGENT_ID as string | undefined) ?? "",
   publishableKey: import.meta.env.VITE_PUBLISHABLE_KEY as string | undefined,
   pipeline: {
-    stt: { model: "vql-stt", language: "en" },
-    tts: { voice: "omnivoice/gauri", language: "en" },
+    // Hindi on BOTH sides, because Priya opens every session with a hardcoded
+    // Devanagari greeting (`_GREETING` in backend/brain.py, spoken with no model
+    // call) and the instruction tells her to keep matching the agent. Under the
+    // `en` this used to carry, that greeting was read by `gauri`'s ENGLISH
+    // reference clip — a Hindi line in a non-native accent, on every single
+    // session — and the agent's Hindi replies went to the English recognizer.
+    // Same code on both fields is the only supported way to set a language; see
+    // VoqalPipelineConfig in @voqalize/client-react.
+    stt: { model: "vql-stt", language: "hi" },
+    tts: { voice: "omnivoice/gauri", language: "hi" },
   },
 };

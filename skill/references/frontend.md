@@ -49,24 +49,35 @@ it you pick STT model/language and TTS voice/language per session:
   publishableKey={PUBLISHABLE_KEY}
   agentId={AGENT_ID}
   pipeline={{
-    stt: { model: "vql-stt", language: "en" },
-    tts: { voice: "omnivoice/gauri", language: "en" },
+    stt: { model: "vql-stt", language: "hi" },
+    tts: { voice: "omnivoice/gauri", language: "hi" },
   }}
   payload={{ surface: "web", user: { name: "Ada" } }}
 />
 ```
 
+**Setting the language has exactly one form: the same `language` code on both
+`stt` and `tts`.** Write both every time, even for English. Do not set
+`stt.language_hint` — it is the raw recognizer field the runtime derives from
+`stt.language`, and setting it by hand is how a config ends up half-applied.
+
 - `stt.model` — leave it `vql-stt` (a router covering English plus 22 Indic
-  languages; it picks the engine from `language`). Pinned engines exist for
-  comparison only.
-- `stt.language` / `tts.language` — set both when the agent isn't English.
-- `tts.voice` — a catalog voice id, e.g. `omnivoice/gauri`.
+  languages; it picks the engine from `language`). There is no other recognizer.
+- `stt.language` picks the **recognizer**; `tts.language` picks the **voice-cloning
+  reference clip**, so it changes *who is speaking*, not just how text is read.
+- `tts.voice` — a catalog voice id: `omnivoice/gauri` or `omnivoice/gaurav`.
 - Full value list: the **Voice & language catalog** in the docs
   (`/docs/reference/catalog/`).
 
-The brain can also change these mid-call with `session.configure_tts(voice=…,
-language=…)` and `session.configure_stt(language_hint=…)` — the `pipeline` prop only
-sets what the session *opens* with. Language switching mid-call means calling both.
+Get one half wrong and nothing errors. A wrong `stt.language` transcribes the
+caller with the English model; a wrong `tts.language` reads the right words in the
+wrong speaker's accent — and that one is inaudible to every automated check,
+because the transcript is still correct. Both have shipped. Write the pair.
+
+Mid-call the brain changes language with **one** call —
+`session.configure_language("hi")` (add `voice=` if the language wants another
+persona). Never as a `configure_tts` + `configure_stt` pair. The `pipeline` prop
+only sets what the session *opens* with.
 
 `payload` is separate from `pipeline`: it is app data, and it arrives brain-side as
 `start.init` in `on_session_start`.

@@ -48,17 +48,17 @@ export const config: DemoConfig = {
   agentId: (import.meta.env.VITE_AGENT_ID as string | undefined) ?? "",
   publishableKey: import.meta.env.VITE_PUBLISHABLE_KEY as string | undefined,
   pipeline: {
-    // `language_hint` — not `language` — is what selects the recognition engine:
-    // PyGato reads `stt.language_hint` and falls back to English (Parakeet) when
-    // it is unset, so a session that sends only `language: "hi"` transcribes
-    // Hindi speech with an English model. Both are sent: `language_hint` drives
-    // the engine, `language` keeps the wire shape consistent with the agent record.
-    // This matters most in production, where the MCP `create_agent` surface
-    // cannot set STT/TTS at all — the agent is created with platform defaults
-    // (English STT, `omnivoice/gaurav`), so this per-session pipeline is the ONLY
-    // thing making the call Hindi. Locally the seeded agent record also carries
-    // `hi`, which is why the emulator path worked either way.
-    stt: { model: "vql-stt", language: "hi", language_hint: "hi" },
+    // One code, both sides — the only supported way to set a language (see
+    // VoqalPipelineConfig in @voqalize/client-react). The runtime derives the
+    // recognizer's `language_hint` from `stt.language`; this config used to
+    // spell out both by hand because it once had to.
+    //
+    // Worth keeping: in production the MCP `create_agent` surface cannot set
+    // STT/TTS at all, so the agent is created with platform defaults (English,
+    // `omnivoice/gaurav`) and THIS per-session pipeline is the only thing making
+    // the call Hindi. Locally the seeded agent record also carries `hi`, which is
+    // why the emulator path worked either way and hid the gap.
+    stt: { model: "vql-stt", language: "hi" },
     tts: { voice: "omnivoice/gauri", language: "hi" },
   },
 };

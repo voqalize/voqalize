@@ -711,8 +711,8 @@ class SugarBrain(GeminiBrain):
         stt_hint, tts_voice, tts_lang = cfg
         self.language_name = language
         logger.info("sugar: switch_language → {} (hint={} voice={})", language, stt_hint, tts_voice)
-        # Swap the whole voice mid-call via the public reconfigure API: TTS
-        # voice/language + the STT recognition language_hint.
-        interaction.session.configure_tts(voice=tts_voice, language=tts_lang)
-        interaction.session.configure_stt(language_hint=stt_hint)
+        # One call moves both halves — recognizer and voice. This is the only
+        # supported way to change language mid-call; the configure_tts +
+        # configure_stt pair can drift, and either half missing is silent.
+        interaction.session.configure_language(tts_lang, voice=tts_voice)
         return str({"switched_to": language})

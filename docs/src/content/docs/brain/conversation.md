@@ -226,15 +226,23 @@ resets it), so you can nudge gently first and wrap up later.
 Change how the agent sounds or listens without dropping the call:
 
 ```python
-session.configure_tts(voice="omnivoice/gaurav")          # applies to the NEXT inference
-session.configure_stt(language_hint="hi")                # applies live, mid-utterance safe
+session.configure_language("hi")                         # BOTH halves — the whole call
+session.configure_language("ta", voice="omnivoice/gauri")  # …and a different persona
+session.configure_tts(voice="omnivoice/gaurav")          # voice only, next inference
+session.configure_stt(vad_barge_in_ms=400)               # VAD knobs, applied live
 ```
 
-`configure_tts` swaps voice/language/model at the next inference boundary (never
-mid-utterance). `configure_stt` applies immediately — `language_hint` even switches
-the recognition language mid-call, which is how the `lead_qual` demo does
-multilingual qualification. Allowed values are in the
-[Voice & language catalog](/docs/reference/catalog/).
+**To change language, use `configure_language` — it is the only supported way.**
+The two sides name the field differently (TTS `language`, STT `language_hint`), so
+doing it as a `configure_tts` + `configure_stt` pair is two calls that can drift,
+and a half-applied language is silent: the wrong recognizer just transcribes
+badly, and the wrong voice reads the right words in a non-native accent that no
+automated check can hear. This is how the `lead_qual` demo does multilingual
+qualification.
+
+Timing is inherited from each half: STT applies at the next turn boundary, TTS at
+the next inference — never mid-utterance. `configure_stt`'s VAD knobs apply live.
+Allowed values are in the [Voice & language catalog](/docs/reference/catalog/).
 
 ## Greet on connect
 

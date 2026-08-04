@@ -31,8 +31,8 @@
  *
  * And one you should set deliberately rather than inherit: PIPELINE, the STT/TTS
  * the session opens with (voice + language). See the voice & language catalog at
- * /docs/reference/catalog/. The brain can change it mid-call with
- * session.configure_tts(...) / session.configure_stt(...).
+ * /docs/reference/catalog/. The brain changes it mid-call with the single call
+ * session.configure_language("hi").
  */
 
 import { useState } from "react";
@@ -50,9 +50,14 @@ const API_BASE = "https://app.voqalize.com/api/v1";
 
 /**
  * Speech config for the session. `vql-stt` is a router covering English plus 22
- * Indic languages — it picks the engine from `language`, so you normally set only
- * the language. `tts.voice` is a catalog voice id. Omit `pipeline` entirely to take
- * the server defaults.
+ * Indic languages — it picks the engine from `language`. `tts.voice` is a catalog
+ * voice id. Omit `pipeline` entirely to take the server defaults.
+ *
+ * SET `language` TO THE SAME CODE ON BOTH LINES. That is the only supported way
+ * to pick a language, and the pair is not decorative: `stt.language` picks the
+ * recognizer, `tts.language` picks the voice-cloning reference clip (i.e. which
+ * recorded speaker you hear). Half-applied, neither one errors — you just get a
+ * bad transcript, or the right words in a non-native accent.
  */
 const PIPELINE: VoqalPipelineConfig = {
   stt: { model: "vql-stt", language: "en" },

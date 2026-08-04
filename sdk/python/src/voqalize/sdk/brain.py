@@ -390,6 +390,29 @@ class Session:
         )
         return action_id
 
+    def configure_language(self, language: str, *, voice: str | None = None) -> None:
+        """Switch the whole call to another language — **the only way to do this.**
+
+        One call moves both halves. Do not reach for :meth:`configure_tts` and
+        :meth:`configure_stt` to change a language: the two sides name the field
+        differently (TTS ``language``, STT ``language_hint``), so doing it by hand
+        is two calls that can drift, and half-applying it is silent. A session
+        that speaks Hindi through the English recognizer transcribes badly with no
+        error; one that recognises Hindi in an English voice sounds like a
+        non-native speaker and passes every automated check we have — accent is
+        invisible to WER.
+
+        ``language`` is an ISO code (``"hi"``, ``"ta"``, ``"en"``). Pass ``voice``
+        too when the target language needs a different catalog voice. To open a
+        session in a language, set ``pipeline.stt.language`` and
+        ``pipeline.tts.language`` at connect instead — same field, same value.
+
+        Fire-and-forget, and inherits each half's timing: STT applies at the next
+        turn boundary, TTS at the next inference (never mid-utterance).
+        """
+        self.configure_tts(voice=voice, language=language)
+        self.configure_stt(language_hint=language)
+
     def configure_tts(
         self,
         *,

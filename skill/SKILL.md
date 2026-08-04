@@ -65,7 +65,9 @@ don't preload them.
 7. **Embed it in the app.** → **`references/frontend.md`**
    `create_api_key(tenant, label, kind="publishable", allowed_origins=[…])` → `pk_…`,
    then `@voqalize/client-react` (`templates/react_embed.tsx`), including the
-   `pipeline` prop for voice/language.
+   `pipeline` prop for voice/language. **Set `language` to the same code on both
+   `pipeline.stt` and `pipeline.tts`** — that is the only supported way to pick a
+   language, and getting one side wrong fails silently.
 8. **Make it drive the screen** (only if the agent touches UI). →
    **`references/ui-actions.md`** The two-way contract: `interaction.action(...)` out,
    `sendMessage(...)` → `on_client_message` back.
