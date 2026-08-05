@@ -42,11 +42,12 @@ import asyncio
 import contextlib
 import uuid
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import jwt
 from loguru import logger
 
+from ._logging import session_context
 from ._platform_keys import VOQAL_PLATFORM_PUBLIC_KEYS
 from .engine import (
     DEFAULT_NORMAL_MAXSIZE,
@@ -113,8 +114,16 @@ def verify_token(
     *,
     public_keys: list[str],
     allow_unverified: bool,
-) -> bool:
+) -> dict[str, Any] | None:
     """Verify PyGato's RS256 brain-connection token against ``public_keys``.
+
+    Returns the verified claims on success and ``None`` on rejection — so it is
+    still usable as a boolean guard, but the caller can also read the identity
+    the token asserts. That matters because ``tenant_id`` / ``agent_id`` /
+    ``meeting_id`` are what tag the session's log lines (`_logging`), and the
+    only trustworthy source for them is the signature that was just checked.
+    An unverified session yields ``{}``, which is truthy-negative in the same
+    way: verified-with-no-claims and not-verified stay distinguishable.
 
     Every brain — a customer's WebSocket, a Cortex relay, or one of Voqalize's own
     hosted demo brains — verifies the *same* token the *same* way: signature, plus
@@ -125,9 +134,9 @@ def verify_token(
     ``"Authorization: Bearer <jwt>"`` header value; ``allow_unverified`` skips the
     check entirely (local dev only)."""
     if allow_unverified:
-        return True
+        return {}
     if not token:
-        return False
+        return None
     if token.lower().startswith("bearer "):
         token = token[len("bearer ") :].strip()
     for pem in public_keys:
@@ -143,10 +152,10 @@ def verify_token(
         except Exception:
             continue
         if claims.get("sub") == session_id:
-            return True
+            return claims
         logger.warning("session: token sub != session id for {}", session_id)
-        return False
-    return False
+        return None
+    return None
 
 
 class _ChannelSession(RunnerHost):
@@ -333,11 +342,21 @@ async def run_session(
             "run_session: no verification keys (embedded platform keys empty and "
             "public_keys= not passed). Pass public_keys= or allow_unverified=True."
         )
-    if not verify_token(token, session_id, public_keys=keys, allow_unverified=allow_unverified):
+    claims = verify_token(token, session_id, public_keys=keys, allow_unverified=allow_unverified)
+    if claims is None:
         raise SessionRejected(f"unauthorized session {session_id}")
-    await serve_channel(
-        channel,
-        factory=brain_factory(build),
-        session_id=session_id,
-        inbound_queue_maxsize=inbound_queue_maxsize,
-    )
+    # Tag every line this session writes — including the brain's own — with the
+    # identity the signature just vouched for, never with anything the caller
+    # supplied. See `_logging`.
+    with session_context(
+        session_id,
+        tenant_id=str(claims.get("tenant_id", "")),
+        agent_id=str(claims.get("agent_id", "")),
+        meeting_id=str(claims.get("meeting_id", "")),
+    ):
+        await serve_channel(
+            channel,
+            factory=brain_factory(build),
+            session_id=session_id,
+            inbound_queue_maxsize=inbound_queue_maxsize,
+        )

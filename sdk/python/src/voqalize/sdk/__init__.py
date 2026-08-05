@@ -17,6 +17,7 @@ See [docs/architecture.md](docs/architecture.md) for the model and
 docs/voice-protocol.md §SDK for the design.
 """
 
+from ._logging import configure_logging, session_context
 from .actions import Action
 from .brain import (
     Brain,
@@ -61,10 +62,12 @@ __all__ = [
     "SessionStart",
     "adapter_for",
     "brain_factory",
+    "configure_logging",
     "make_agent",
     "make_direct_agent",
     "run_session",
     "serve",
     "serve_auto",
     "serve_direct",
+    "session_context",
 ]

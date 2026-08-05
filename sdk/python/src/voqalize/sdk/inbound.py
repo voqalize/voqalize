@@ -34,6 +34,7 @@ from loguru import logger
 from websockets.asyncio.server import ServerConnection
 from websockets.asyncio.server import serve as ws_serve
 
+from ._logging import session_context
 from ._platform_keys import VOQAL_PLATFORM_PUBLIC_KEYS
 from .engine import DEFAULT_NORMAL_MAXSIZE, SessionFactory
 from .session import normalize_keys, serve_channel, verify_token
@@ -126,31 +127,38 @@ class DirectAgent:
         if not session_id:
             await ws.close(code=1008, reason="expected /s/{session_id}")
             return
-        if not verify_token(
+        claims = verify_token(
             _bearer(ws),
             session_id,
             public_keys=self._public_keys,
             allow_unverified=self._allow_unverified,
-        ):
+        )
+        if claims is None:
             # 4000 mirrors Cortex's permanent "no agent / rejected" close.
             await ws.close(code=CLOSE_NO_AGENT, reason="unauthorized")
             logger.warning("direct: rejected session {} (auth)", session_id)
             return
 
-        logger.info("direct: opened session {}", session_id)
-        try:
-            await serve_channel(
-                _ServerChannel(ws),
-                factory=self._factory,
-                session_id=session_id,
-                inbound_queue_maxsize=self._normal_maxsize,
-            )
-        except Exception:
-            logger.exception("direct: session {} errored", session_id)
-        finally:
-            with contextlib.suppress(Exception):
-                await ws.close(code=1000)
-            logger.info("direct: closed session {}", session_id)
+        with session_context(
+            session_id,
+            tenant_id=str(claims.get("tenant_id", "")),
+            agent_id=str(claims.get("agent_id", "")),
+            meeting_id=str(claims.get("meeting_id", "")),
+        ):
+            logger.info("direct: opened session {}", session_id)
+            try:
+                await serve_channel(
+                    _ServerChannel(ws),
+                    factory=self._factory,
+                    session_id=session_id,
+                    inbound_queue_maxsize=self._normal_maxsize,
+                )
+            except Exception:
+                logger.exception("direct: session {} errored", session_id)
+            finally:
+                with contextlib.suppress(Exception):
+                    await ws.close(code=1000)
+                logger.info("direct: closed session {}", session_id)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

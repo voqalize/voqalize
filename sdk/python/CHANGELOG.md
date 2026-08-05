@@ -5,10 +5,25 @@ alpha: the package API can break on a minor version, the **wire** does not.
 
 ## Unreleased
 
-**No wire change.** Both additions below are package-API only; the frames a brain
+**No wire change.** Every addition below is package-API only; the frames a brain
 emits are byte-identical to what the previous release emitted.
 
 ### Added
+
+- **Session-scoped logging — your brain's logs join the rest of the call.** Every
+  session now runs inside a context that tags each log line with `session_id`,
+  and with `tenant_id`/`agent_id` when the connection's verified token carries
+  them. A bare `from loguru import logger` anywhere in your brain — including in
+  tasks it spawns — picks that up with nothing threaded through your signatures.
+
+  The SDK **only adds fields**; it never touches your logging setup. If you
+  already configure loguru, add `{extra}` to your format. If you don't, call
+  `voqalize.sdk.configure_logging()` from your entrypoint — `json_logs=True`
+  writes one JSON object per line with the identity fields at top level, which is
+  the shape a log shipper indexes on.
+
+  `session_context(...)` is exported too, for tagging work you do outside a
+  session (a warm-up, a background reconciler).
 
 - **`voqalize.sdk.Action` — typed UI commands.** Declare a command as a pydantic
   model that carries its own wire name and pass an instance where you used to pass

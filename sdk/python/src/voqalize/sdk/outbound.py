@@ -38,6 +38,7 @@ from collections.abc import Callable
 
 from loguru import logger
 
+from ._logging import session_context
 from .engine import (
     DEFAULT_NORMAL_MAXSIZE,
     OUT_DIRECTION,
@@ -194,9 +195,15 @@ class CortexAgent(RunnerHost):
                     host=self,
                     normal_max=self._normal_maxsize,
                 )
-                runner.start()
+                # `start()` inside the context, not merely the log line: the
+                # tasks it creates copy the ambient context, so the brain's own
+                # coroutines — which run in the feeder task — inherit the
+                # session id without anything being threaded through. The relay
+                # leg carries no per-session token, so the id is all there is.
+                with session_context(_sid_str(sid)):
+                    runner.start()
+                    logger.info("cortex: opened session {}", _sid_str(sid))
                 self._sessions[sid] = runner
-                logger.info("cortex: opened session {}", _sid_str(sid))
             runner.enqueue_inbound(decoded.frame, decoded.request_id)
 
     async def _writer_loop(self) -> None:
