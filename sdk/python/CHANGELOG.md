@@ -59,6 +59,18 @@ emits are byte-identical to what the previous release emitted.
 - **`useUiCommand`** in `@voqalize/client-react` is the browser half — see
   [the React client docs](https://voqalize.com/docs/client/react/).
 
+### Changed
+
+- **The `adk` extra now requires `google-adk>=2.3,<3`** (was `>=1.33,<2`). The old
+  ceiling held installs on the 1.x line, and 1.x caps two things a host
+  application is likely to be ahead of: `starlette<1` (lifted in ADK 2.2) and
+  `opentelemetry-*<=1.41.1` (lifted in ADK 2.3). Installing `[adk]` next to a
+  modern FastAPI or OTel stack therefore walked those backwards, and dragged in
+  the 1.x-only `google-cloud-aiplatform` subtree with them. 2.3 is the first
+  release that pins neither. The adapter itself is unchanged — the ADK surfaces
+  it uses (`Runner`, `InvocationContext`, callbacks, `types`) are identical
+  across the two lines, and the drift canaries pass on 2.3.0 and 2.6.2 alike.
+
 ## 0.3.0
 
 The ADK adapter grows the seams a real screen-driving agent needed. **No wire

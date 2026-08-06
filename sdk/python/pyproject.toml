@@ -26,7 +26,13 @@ dependencies = [
 # design: the core SDK stays dependency-light (`import voqalize.sdk` pulls no
 # ADK). Install with `pip install voqalize-agent-sdk[adk]` to hand the SDK a
 # native ADK agent and let it drive the run loop.
-adk = ["google-adk>=1.33,<2"]
+#
+# Floor is 2.3 rather than the oldest ADK the adapter works against, because of
+# what the older releases drag in: ADK <2.2 caps `starlette<1` and ADK <2.3 caps
+# `opentelemetry-*<=1.41.1`, so a host application on current versions of either
+# is silently walked backwards by installing this extra. 2.3 is the first release
+# that pins neither.
+adk = ["google-adk>=2.3,<3"]
 # Deps used only by the bundled examples/ — never imported by the SDK itself.
 # `examples/travel` (OpenAI Agents + Gemini), `examples/fastapi_inbound`
 # (FastAPI/uvicorn).

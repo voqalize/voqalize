@@ -34,7 +34,7 @@ dev = [
     # voqalize.google_adk` needs it. (google-genai is a transitive dep of
     # google-adk and the ADK adapter imports its `types`, so it's declared
     # explicitly here rather than relying on the transitive edge for pyright.)
-    "google-adk>=1.33,<2",
+    "google-adk>=2.3,<3",
     "google-genai>=1.0,<3",
 ]
 
