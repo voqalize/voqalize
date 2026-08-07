@@ -21,7 +21,7 @@
  * publishable (`pk_`) key. Mounted once inside the `LegalProvider`.
  */
 
-import { useCallback, useEffect, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/client-react';
 import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
 import { Mic, MicOff, PhoneOff, Loader2 } from 'lucide-react';
@@ -31,6 +31,7 @@ import {
   type AmbientPresencePalette,
   type VoqalConnectionState,
 } from '@voqalize/client-react';
+import { DemoGate } from '@voqalize/demo-kit';
 import { useLegal } from './store';
 import { CLAUSES, DATA_ROOM, MATTER } from './content';
 import { DocumentViewer } from './DocumentViewer';
@@ -481,8 +482,23 @@ function LiveLayer() {
     connect();
   };
 
+  // Nothing opens a microphone until the visitor has read the notice and joined.
+  const [joined, setJoined] = useState(false);
+
   const shell = (
     <>
+      <DemoGate
+        open={!joined}
+        title="Legal Desk"
+        blurb="Review a contract with counsel out loud — ask what's risky in it and watch the clauses and obligations light up on screen."
+        accent={PRESENCE.listening}
+        busy={status === 'connecting'}
+        error={status === 'error' ? error || 'Connection issue' : null}
+        onJoin={async () => {
+          await connect();
+          setJoined(true);
+        }}
+      />
       <AmbientPresence
         botState={botState}
         connectionState={connectionState}

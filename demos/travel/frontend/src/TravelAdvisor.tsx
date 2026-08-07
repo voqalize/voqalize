@@ -24,7 +24,7 @@
  * once inside the `TravelProvider`, so the call survives screen changes.
  */
 
-import { useCallback, useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
 import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
@@ -36,6 +36,7 @@ import {
   type VoqalBotState,
   type VoqalConnectionState,
 } from "@voqalize/client-react";
+import { DemoGate } from "@voqalize/demo-kit";
 import { useTravel } from "./store";
 import type { TravelCommands } from "./uiCommands";
 import { config } from "./config";
@@ -219,6 +220,11 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
     await connect();
   };
 
+  // Nothing opens a microphone until the visitor has read the notice and joined.
+  // The gate is the first thing on screen; `begin` runs from inside it, so the
+  // demo's own control only ever appears to someone who has already consented.
+  const [joined, setJoined] = useState(false);
+
   const presence =
     connectionState === "connected" ? (
       <LiveControls botState={botState} onEnd={disconnect} />
@@ -228,6 +234,18 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
 
   const shell = (
     <>
+      <DemoGate
+        open={!joined}
+        title="Travel Desk"
+        blurb="Plan a trip out loud — say where you want to go and watch the itinerary build itself on screen."
+        accent={PRESENCE.listening}
+        busy={connectionState === "connecting"}
+        error={connectionState === "error" ? error || "Connection issue" : null}
+        onJoin={async () => {
+          await begin();
+          setJoined(true);
+        }}
+      />
       <AmbientPresence
         botState={botState}
         connectionState={connectionState}

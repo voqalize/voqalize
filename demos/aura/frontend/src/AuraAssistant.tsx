@@ -22,7 +22,7 @@
  * (pipeline declared in this demo's src/config.ts).
  */
 
-import { useCallback, useEffect, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/client-react';
 import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
 import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
@@ -33,6 +33,7 @@ import {
   type VoqalBotState,
   type VoqalConnectionState,
 } from '@voqalize/client-react';
+import { DemoGate } from '@voqalize/demo-kit';
 import { useAura } from './store';
 import { config } from './config';
 
@@ -250,6 +251,9 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
     };
   }, [client, handleUiCommand]);
 
+  // Nothing opens a microphone until the visitor has read the notice and joined.
+  const [joined, setJoined] = useState(false);
+
   const presence = client ? (
     <LiveControls botState={botState} onEnd={disconnect} />
   ) : (
@@ -258,6 +262,18 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
 
   const shell = (
     <>
+      <DemoGate
+        open={!joined}
+        title="Aura Support"
+        blurb="Call your bank's support line — ask about your account and watch Aura work the answer out on screen."
+        accent={PRESENCE.listening}
+        busy={status === 'connecting'}
+        error={status === 'error' ? error || 'Connection issue' : null}
+        onJoin={async () => {
+          await connect();
+          setJoined(true);
+        }}
+      />
       <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
       <PresenceStyles />
       {children(presence)}

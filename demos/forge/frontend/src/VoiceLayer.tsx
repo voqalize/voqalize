@@ -21,7 +21,7 @@
  * the call survives navigating between the list and the editor.
  */
 
-import { useCallback, useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
 import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
 import {
@@ -31,6 +31,7 @@ import {
   type VoqalConnectionState,
 } from "@voqalize/client-react";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
+import { DemoGate } from "@voqalize/demo-kit";
 import { useForge, type BotState, type ConnStatus } from "./store";
 import { ActivityFeed } from "./ActivityFeed";
 import { ADMIN } from "./data";
@@ -183,6 +184,9 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
     };
   }, [client]);
 
+  // Nothing opens a microphone until the visitor has read the notice and joined.
+  const [joined, setJoined] = useState(false);
+
   const presence = client ? (
     <LiveControls onEnd={disconnect} />
   ) : (
@@ -191,6 +195,18 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
 
   const shell = (
     <>
+      <DemoGate
+        open={!joined}
+        title="Forge"
+        blurb="Build an internal app by talking to Ada — describe what you want and watch the flow assemble itself on screen."
+        accent={PRESENCE.listening}
+        busy={status === "connecting"}
+        error={status === "error" ? error || "Connection issue" : null}
+        onJoin={async () => {
+          await connect();
+          setJoined(true);
+        }}
+      />
       <AmbientPresence
         botState={botState}
         connectionState={connectionState}

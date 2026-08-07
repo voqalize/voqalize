@@ -10,9 +10,14 @@
  *   - {@link useUiCommand} — the other direction: dispatch the brain's
  *     `ui_command`s to typed per-action handlers instead of a hand-rolled switch.
  *
- * Plus one piece of UI: {@link AmbientPresence}, the full-viewport glow that makes
- * the agent read as a property of the page rather than a widget in a corner. It
- * ships no stylesheet — drop it in and pass a palette.
+ * Plus two pieces of UI, one for each end of a call:
+ *   - {@link PreCallGate} — the notice-and-consent screen shown before a
+ *     microphone opens. Structure only; every word is yours, because what has to
+ *     be disclosed is your call to make, not ours.
+ *   - {@link AmbientPresence} — the full-viewport glow that makes the agent read
+ *     as a property of the page rather than a widget in a corner.
+ *
+ * Neither ships a stylesheet — drop them in and pass a palette.
  */
 
 export {
@@ -54,3 +59,5 @@ export {
   type AmbientPresencePalette,
   type AmbientPresenceBeam,
 } from "./AmbientPresence";
+
+export { PreCallGate, type PreCallGateProps } from "./PreCallGate";

@@ -137,6 +137,12 @@ function assertStylesheetShipped(name, appDir, outDir) {
 run("pnpm install --ignore-workspace", join(repoRoot, "sdk", "react"));
 run("pnpm build", join(repoRoot, "sdk", "react"));
 
+// 1b. Then the gallery's own shared chrome, which links to the SDK the same way
+// and holds the notice-and-consent wording every demo shows before it opens a
+// microphone. Order matters: it consumes the SDK's freshly built `dist/`.
+run("pnpm install --ignore-workspace", join(demosDir, "shared"));
+run("pnpm build", join(demosDir, "shared"));
+
 // Fresh output tree.
 rmSync(distDir, { recursive: true, force: true });
 mkdirSync(distDir, { recursive: true });

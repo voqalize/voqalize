@@ -28,6 +28,7 @@ import {
   useVoqalSession,
   type AmbientPresencePalette,
 } from '@voqalize/client-react';
+import { DemoGate } from '@voqalize/demo-kit';
 import { config } from './config';
 
 // Tenant + agent + pk + pipeline resolve per-environment from the shared demos
@@ -103,6 +104,7 @@ interface CallResult {
 
 export function GoldLoanAdvisor() {
   // ── State ──────────────────────────────────────────────────────────────────
+  const [joined, setJoined]           = useState(false);
   const [step, setStep]               = useState<Step>('form');
   const [formErrors, setFormErrors]   = useState<Partial<FormData>>({});
   const [formData, setFormData]       = useState<FormData>({
@@ -251,6 +253,18 @@ export function GoldLoanAdvisor() {
     <div style={{ minHeight: '100vh', background: '#fdf8ef', color: '#1a1a2e', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <style>{PAGE_CSS}</style>
       {client && <BotAudioOutput />}
+
+      {/* Root-level: the funnel starts with an enquiry form and only reaches its
+          own call-gate step afterwards, so joining here uncovers the page — the
+          microphone opens at that step, inside the demo's own flow. */}
+      <DemoGate
+        open={!joined}
+        title="Auric Gold Finance"
+        blurb="Fill in a gold-loan enquiry, then take the verification call — the advisor confirms your details out loud and the eligibility result lands on screen."
+        accent={PRESENCE.listening}
+        joinLabel="Start the demo"
+        onJoin={() => setJoined(true)}
+      />
 
       {/* The voice layer as a property of the whole page — the ring frames every
           step of the funnel, not just the call screen. */}

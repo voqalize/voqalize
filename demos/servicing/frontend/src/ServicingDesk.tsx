@@ -27,7 +27,7 @@
  * name.
  */
 
-import { useCallback, useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
 import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
@@ -38,6 +38,7 @@ import {
   type VoqalBotState,
   type VoqalConnectionState,
 } from "@voqalize/client-react";
+import { DemoGate } from "@voqalize/demo-kit";
 import { useServicing } from "./store";
 import { ADVISOR } from "./data";
 import { config } from "./config";
@@ -194,6 +195,9 @@ export function ServicingDesk({ children }: { children: (presence: ReactNode) =>
     };
   }, [client]);
 
+  // Nothing opens a microphone until the visitor has read the notice and joined.
+  const [joined, setJoined] = useState(false);
+
   const presence = client ? (
     <LiveControls botState={botState} onEnd={disconnect} />
   ) : (
@@ -202,6 +206,18 @@ export function ServicingDesk({ children }: { children: (presence: ReactNode) =>
 
   const shell = (
     <>
+      <DemoGate
+        open={!joined}
+        title="Servicing Desk"
+        blurb="Call your bank's servicing desk — ask about a card, a payment or a dispute and watch the account respond on screen."
+        accent={PRESENCE.listening}
+        busy={status === "connecting"}
+        error={status === "error" ? error || "Connection issue" : null}
+        onJoin={async () => {
+          await connect();
+          setJoined(true);
+        }}
+      />
       {/* The desk as a property of the whole console — a calm, slightly thinner
           ring than the house default, because this screen is dense with work. */}
       <AmbientPresence

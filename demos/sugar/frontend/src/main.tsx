@@ -8,14 +8,29 @@
  * stays aware of the live screen via two-way `ui_command` / `state_sync`.
  */
 
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { DemoGate } from "@voqalize/demo-kit";
 import { SugarProvider } from "./store";
 import { SugarApp } from "./pages";
 
 function SugarDemo() {
+  // The gate sits at the root, not around a connect call: this demo opens on a
+  // scenario picker and only rings the patient's phone a few taps later, so
+  // "join" here uncovers the demo and the microphone opens inside its own flow.
+  // The notice still lands before anything is chosen, which is the point.
+  const [joined, setJoined] = useState(false);
+
   return (
     <div className="sugar-demo-root" style={{ position: "fixed", inset: 0, overflow: "hidden" }}>
+      <DemoGate
+        open={!joined}
+        title="Sugar Coach"
+        blurb="Pick a patient and a scenario, then answer the call — the coach runs a daily diabetes check-in and logs it on screen as you talk."
+        accent="#0E9F6E"
+        joinLabel="Start the demo"
+        onJoin={() => setJoined(true)}
+      />
       <SugarProvider>
         <SugarApp />
       </SugarProvider>

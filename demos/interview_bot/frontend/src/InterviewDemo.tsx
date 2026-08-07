@@ -28,6 +28,7 @@ import {
   type AmbientPresencePalette,
   type VoqalBotState,
 } from "@voqalize/client-react";
+import { DemoGate } from "@voqalize/demo-kit";
 import { config } from "./config";
 
 // Tenant + agent + pk resolve per-environment from this demo's local config
@@ -145,6 +146,7 @@ function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () 
 }
 
 export function InterviewDemo() {
+  const [joined, setJoined] = useState(false);
   const [step, setStep] = useState<Step>("form");
   const [agentInputText, setAgentInputText] = useState(() =>
     JSON.stringify(SAMPLE_AGENT_INPUT, null, 2),
@@ -286,6 +288,17 @@ export function InterviewDemo() {
       }}
     >
       <style>{STYLES}</style>
+      {/* Root-level: this demo opens on a setup form and only dials once the
+          interview plan is in, so joining here uncovers the harness — the
+          microphone opens at the call-gate step, in the demo's own flow. */}
+      <DemoGate
+        open={!joined}
+        title="Interview Bot"
+        blurb="Paste an interview plan, then sit the screening interview out loud — the bot paces it and writes up each section on screen as you answer."
+        accent={PRESENCE.listening}
+        joinLabel="Start the demo"
+        onJoin={() => setJoined(true)}
+      />
       <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
 
       <div className="iv-page" style={{ maxWidth: 760, margin: "0 auto", padding: "32px 24px" }}>

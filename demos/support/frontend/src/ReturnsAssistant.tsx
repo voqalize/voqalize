@@ -24,7 +24,7 @@
  * changes.
  */
 
-import { useCallback, useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
 import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
@@ -34,6 +34,7 @@ import {
   type AmbientPresencePalette,
   type VoqalBotState,
 } from "@voqalize/client-react";
+import { DemoGate } from "@voqalize/demo-kit";
 import { useOrders } from "./store";
 import { config } from "./config";
 
@@ -184,6 +185,9 @@ export function ReturnsAssistant({
 
   const isLive = connectionState === "connected";
 
+  // Nothing opens a microphone until the visitor has read the notice and joined.
+  const [joined, setJoined] = useState(false);
+
   const presence = isLive ? (
     <LiveControls botState={botState} onEnd={disconnect} />
   ) : (
@@ -196,6 +200,18 @@ export function ReturnsAssistant({
 
   const shell = (
     <>
+      <DemoGate
+        open={!joined}
+        title="Returns Assistant"
+        blurb="Call a retailer about a return — say what went wrong with your order and watch the case move on screen."
+        accent={PRESENCE.listening}
+        busy={connectionState === "connecting"}
+        error={connectionState === "error" ? error || "Something went wrong." : null}
+        onJoin={async () => {
+          await connect();
+          setJoined(true);
+        }}
+      />
       <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
       {children(presence)}
     </>
