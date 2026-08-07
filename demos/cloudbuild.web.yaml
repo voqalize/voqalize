@@ -8,7 +8,13 @@
 #
 # In dev this runs as a push-triggered Cloud Build on the public repo, path-filtered
 # to the web sources (demos/**/frontend, demos/build.mjs, demos/manifest.json,
-# sdk/react, docs/**). A brains-only change never rebuilds this artifact.
+# demos/shared, sdk/react, docs/**). A brains-only change never rebuilds this artifact.
+#
+# `demos/shared` is in that list for a reason worth keeping: it holds the consent
+# wording every demo shows before opening a microphone, and it is the one web
+# source that lives outside a `frontend/` directory. Leave it out of the filter and
+# a change to the notice builds locally, passes review, merges — and never reaches
+# the site, because nothing rebuilt the artifact. Both env triggers carry it.
 #
 # On SUCCESS its final step publishes to the dedicated `web-artifact-built` Pub/Sub
 # topic, which the private marketing repo's `deploy-marketing-onweb` trigger is
