@@ -162,6 +162,14 @@ exclude = [
     # extra — not part of the base env. Ruff still lints them; strict pyright
     # over optional-dep imports would be all false-positive noise.
     "**/examples/**",
+    # An offline eval harness for the orderdesk disambiguator — run by hand
+    # against a real key, imported by nothing the umbrella app serves. It carries
+    # ten long-standing strict-mode errors, and while they sat unexcluded a
+    # whole-repo `pyright` could not be a gate at all: CI would have been red on
+    # arrival and every other file in the repo would have gone unchecked. This is
+    # debt, deliberately fenced rather than hidden — fix the ten and delete the
+    # line.
+    "demos/orderdesk/backend/eval/disambig_eval.py",
 ]
 
 # None-safety — these are the rules we DO want loud.

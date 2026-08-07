@@ -8,27 +8,45 @@ the private `voqalcloud` repo; the speech stack lives in `vql-speech`.
 Read `README.md` for what each directory is and `demos/README.md` for how a demo
 is built and deployed. This file is only the things that will bite you.
 
-## ⚠️ Pushing `main` deploys PRODUCTION
+## Two branches: `main` → dev, `prod` → production
 
-There is **no `prod` branch in this repo**. A push to `main` fires four Cloud Build
-triggers across two GCP projects, and two of them are production:
+`main` deploys **dev**. Production moves only when someone pushes `prod`:
 
 | Trigger | Project | Branch | What it touches |
 |---|---|---|---|
 | `deploy-brains-vm` | `voqal-cloud-dev` | `^main$` | dev brains → `brain.dev.voqalize.com` |
-| **`deploy-brains-vm-prod`** | **`voqal-cloud-prod`** | **`^main$`** | **live brains → `brain.voqalize.com`** |
+| **`deploy-brains-vm-prod`** | **`voqal-cloud-prod`** | **`^prod$`** | **live brains → `brain.voqalize.com`** |
 | `build-demos-web` | `voqal-cloud-dev` | `^main$` | web artifact → `gs://voqal-cloud-dev-web-artifacts/web/latest.json` |
-| `build-demos-web` | `voqal-cloud-prod` | `^main$` | web artifact → the prod bucket's `web/latest.json` |
+| `build-demos-web` | `voqal-cloud-prod` | `^prod$` | web artifact → the prod bucket's `web/latest.json` |
 
-Every *other* production service (cortex, pygato, controlplane, marketing) is gated
-on a `prod` branch in `voqalcloud`. **The demos are the sole exception** — they
-promote themselves. One `git push origin main` and the brains behind
-`voqalize.com/demos/*` are running your commit about four minutes later.
+This is the same shape every other service already had (cortex, pygato,
+controlplane, marketing are all `main` → dev, `prod` → prod in `voqalcloud`). The
+demos were the sole exception until 2026-08-07: both production triggers watched
+`^main$`, so one `git push origin main` had the brains behind `voqalize.com/demos/*`
+running your commit about four minutes later, with no gate, no soak and no canary
+in between.
+
+Promote by fast-forward, never by committing on `prod`:
+
+```sh
+git checkout prod && git merge --ff-only main && git push origin prod && git checkout main
+```
+
+`--ff-only` is the point: `prod` is a pointer at a commit that has already been on
+`main`, been through CI, and run in dev. Anything that cannot fast-forward means
+someone committed to `prod` directly, which is the state this branch exists to
+prevent.
 
 Consequences to internalize:
 
-- **Run `cd demos && uv run pytest tests/` before you push.** It is the only gate;
-  there is no staging soak, no approval, no canary.
+- **CI is now a real gate.** `.github/workflows/ci.yml` runs ruff, pyright, the SDK
+  suite and every demo e2e on every push and PR — deliberately unfiltered, because
+  which paths deploy is decided by the trigger, not by anything readable here (see
+  below). `ci-web.yml` builds the demo UIs and the docs site, and *is* path-filtered.
+  Run `cd demos && uv run pytest tests/` locally anyway; it is 33 s.
+- **A dev deploy is now the thing that proves a change**, not a hope. `main` lands
+  on `brain.dev.voqalize.com`; exercise it at `dev.voqalize.com/demos/*` before you
+  fast-forward `prod`.
 - The web half is a two-step: `build-demos-web` only *stages* an artifact and moves
   `latest.json`. The apex site (`voqalize.com`) picks it up on the **next**
   `deploy-marketing-prod` run (fired by `voqalcloud`'s `prod` branch), which reads
@@ -43,17 +61,22 @@ Consequences to internalize:
     `sdk/react/**`, `docs/**`
   Note what that means: **`demos/voqalize_demos/**` is on the brains list**, and
   that is where the test fakes live (`testing.py`). A commit that adds nothing but
-  tests still rolls production if it touches the shared spine — `e2cc025` did
-  exactly that. `demos/tests/**` alone is on neither list and fires nothing.
-- **Neither brains host reports its commit.** `GET /_healthz` returns
-  `{"ok":true,"demos":[...11 names...]}` and nothing else. To learn what is
-  actually running: `ssh root@<node> 'docker ps --format "{{.Image}}"'` — the node
-  addresses are in `voqalcloud`'s `docs/infrastructure-inventory.md`, not here.
+  tests still rolls the brains if it touches the shared spine — `e2cc025` did
+  exactly that. `demos/tests/**` alone is on neither list and fires nothing. This
+  is also why `ci.yml` has no path filter: the list above is a transcription of a
+  private trigger field, and a CI filter derived from it would skip the run on
+  exactly the commits nobody expected to deploy.
+- **Each brains host reports the commit it is running**, at `GET /_healthz` as
+  `git_sha` (`e521f72`), and the deploy *gates* on it — a build that never
+  actually replaced the container fails instead of reporting success while the old
+  one keeps answering. That field is how you tell dev and prod apart now that they
+  can legitimately differ.
 
-Verify a push landed on **both** hosts, not one:
+See what each environment is running — the two `git_sha`s are now expected to
+differ between a `main` push and its promotion:
 
 ```sh
-for h in brain.voqalize.com brain.dev.voqalize.com; do curl -fsS https://$h/_healthz; echo; done
+for h in brain.dev.voqalize.com brain.voqalize.com; do curl -fsS https://$h/_healthz; echo; done
 ```
 
 ## Voice and language belong to the brain — never to the page
@@ -117,14 +140,25 @@ Footguns found writing them (see `demos/tests/_harness.py`):
 ## Quality gates
 
 ```sh
-cd demos && uv run pytest tests/     # the deploy gate — run it before every push
 uv run ruff format --check . && uv run ruff check .
-uv run pyright demos/voqalize_demos
+uv run pyright                       # whole repo, and it is clean — keep it that way
+cd sdk/python && uv run pytest -q
+cd demos && uv run pytest tests/     # every demo's brain over the real wire, ~33 s
 ```
 
-`pyright` excludes `**/tests/**`; `demos/voqalize_demos/` is checked strictly.
-Ten pre-existing errors live in `demos/orderdesk/backend/eval/disambig_eval.py` —
-don't be alarmed by a full-repo `pyright` run, but don't add to them either.
+These are exactly what `.github/workflows/ci.yml` runs, in the same order, on the
+Python version `demos/Dockerfile` ships (3.12) with `uv sync --frozen` — so a
+lockfile that has drifted from `pyproject.toml` fails CI before it fails the image
+build.
+
+`pyright` is strict and excludes `**/tests/**`. **A bare `uv run pyright` used to
+report ten errors**, which made a whole-repo type gate impossible — CI would have
+been red on arrival, so every other file went unchecked. That is resolved:
+`demos/orderdesk/backend/eval/disambig_eval.py` (an offline eval harness the
+umbrella app never imports) is excluded in `pyproject.toml` with a note, and the
+three errors that turned out to be in *shipping* brain code — a possibly-unbound
+`spoke` and a `str | None` joined as `str`, both in `demos/orderdesk/backend/
+brain.py` — were fixed rather than fenced. Don't add to the exclusion.
 
 ## Hard rules
 

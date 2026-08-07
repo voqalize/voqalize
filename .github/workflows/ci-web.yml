@@ -1,0 +1,95 @@
+name: CI — web artifact
+
+# The browser half of what this repo ships: every demo UI and the docs site, the
+# two things `demos/cloudbuild.web.yaml` assembles into the tarball the marketing
+# build lays under the apex domain.
+#
+# Path-filtered, unlike the Python gate in ci.yml, and the asymmetry is deliberate.
+# Missing a Python run is dangerous: the brains deploy rolls a container onto the
+# production node on push. Missing a web run is not: the web build only *stages* an
+# artifact and moves `latest.json`, and a broken build fails before either — so the
+# worst case is that the apex keeps serving the previous artifact. Filtering buys
+# back the several minutes eleven standalone `pnpm install`s cost, on the one job
+# where a false negative is cheap.
+#
+# The paths below mirror the web trigger's `includedFiles`. They will drift, because
+# that list lives in the trigger (private) and cannot be read from here — treat this
+# as a convenience filter, not a contract.
+
+on:
+  push:
+    branches: [main, prod]
+    paths:
+      - 'demos/**/frontend/**'
+      - 'demos/build.mjs'
+      - 'demos/manifest.json'
+      - 'sdk/react/**'
+      - 'docs/**'
+      - '.github/workflows/ci-web.yml'
+  pull_request:
+    paths:
+      - 'demos/**/frontend/**'
+      - 'demos/build.mjs'
+      - 'demos/manifest.json'
+      - 'sdk/react/**'
+      - 'docs/**'
+      - '.github/workflows/ci-web.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # pnpm 10.32.1 via corepack — the same two lines cloudbuild.web.yaml runs,
+      # NOT the `packageManager: pnpm@9.12.0` in the root package.json. That field
+      # governs the workspace a developer works in; the deploy pins its own, and CI
+      # has to match the deploy or it is testing a build that never happens. The
+      # assertion below fails when someone moves one and not the other.
+      - name: pnpm
+        run: |
+          pinned=$(sed -n 's/.*corepack prepare pnpm@\([0-9.]*\) --activate.*/\1/p' \
+            demos/cloudbuild.web.yaml | head -1)
+          if [ -z "$pinned" ]; then
+            echo "::error::could not read the pnpm pin out of demos/cloudbuild.web.yaml"
+            exit 1
+          fi
+          echo "deploy pins pnpm $pinned"
+          corepack enable
+          corepack prepare "pnpm@$pinned" --activate
+          pnpm --version
+
+      # Every demo UI, built standalone and assembled exactly as the deploy does.
+      # No VITE_* wiring is passed: the per-demo tenant/agent/publishable key are
+      # trigger substitutions, and a demo built without them renders a clear
+      # "publishableKey is required" rather than failing the build — so this
+      # proves the build, not the provisioning.
+      - name: Build the demo UIs
+        run: node demos/build.mjs
+
+      - name: Build the docs site
+        working-directory: docs
+        run: |
+          pnpm install --ignore-workspace
+          pnpm build
+
+      # Cheap proof the assembly is non-empty and complete: every demo named in
+      # manifest.json must have produced an index.html. A Vite app that builds to
+      # nothing is a green build and a blank page.
+      - name: Check every demo in the manifest was built
+        run: |
+          node -e '
+            const fs = require("fs");
+            const names = JSON.parse(fs.readFileSync("demos/manifest.json", "utf8")).demos.map(d => d.name);
+            const missing = names.filter(n => !fs.existsSync(`demos/dist/demos/${n}/index.html`));
+            if (missing.length) {
+              console.error(`::error::built no index.html for: ${missing.join(", ")}`);
+              process.exit(1);
+            }
+            console.log(`✓ ${names.length} demo UIs built: ${names.join(", ")}`);
+          '

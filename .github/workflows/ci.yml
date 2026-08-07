@@ -1,0 +1,75 @@
+name: CI
+
+# The gate this repo never had.
+#
+# Every other Voqalize service is gated on a `prod` branch and a CI run before it
+# reaches a node. The demos were the exception: a push to `main` rolled the brains
+# behind `voqalize.com/demos/*` about four minutes later, and the only thing
+# standing between a bad commit and production was whether the author remembered
+# to run pytest.
+#
+# Deliberately NOT path-filtered. The Cloud Build triggers decide what to deploy
+# from an `includedFiles` list that lives in the trigger (private) and is invisible
+# from this repo — CLAUDE.md spells out how surprising it is (a test-only commit
+# that touches `demos/voqalize_demos/**` rolls production). A filter here would be
+# a second copy of a list we cannot read, and its failure mode is the bad one:
+# a change that deploys the brains while its CI job is skipped. The whole Python
+# suite runs in about 90 seconds; that is cheaper than being wrong about it.
+
+on:
+  push:
+    branches: [main, prod]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          # The version the brains image ships on, not the `>=3.12` floor in
+          # pyproject.toml. See the assertion below.
+          python-version: '3.12'
+          enable-cache: true
+
+      - name: Assert CI runs the Python the image ships
+        run: |
+          image=$(sed -n 's|^FROM ghcr.io/astral-sh/uv:python\([0-9.]*\)-.*|\1|p' demos/Dockerfile | head -1)
+          ci=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+          if [ "$ci" != "$image" ]; then
+            echo "::error::demos/Dockerfile builds on python $image but CI runs $ci"
+            exit 1
+          fi
+          echo "both on python $ci"
+
+      # --frozen, because the image builds with `uv sync --frozen`: a lockfile that
+      # has drifted from pyproject.toml fails the deploy, and it should fail here
+      # first. --all-packages because the SDK and the demos are separate workspace
+      # members and both are gated below.
+      - name: Install
+        run: uv sync --all-packages --frozen
+
+      - name: ruff format
+        run: uv run ruff format --check .
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: pyright
+        run: uv run pyright
+
+      # The SDK first: the demos import it by path, so an SDK break shows up here
+      # as one failure rather than as thirty confusing ones downstream.
+      - name: Test the SDK
+        working-directory: sdk/python
+        run: uv run pytest -q
+
+      # Every demo's brain on a real DirectAgent socket with only the model faked —
+      # no network, no API key. This is the suite CLAUDE.md calls "the deploy gate";
+      # it is now actually a gate.
+      - name: Test the demos
+        working-directory: demos
+        run: uv run pytest tests/ -q
