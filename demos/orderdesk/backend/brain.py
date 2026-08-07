@@ -1495,6 +1495,11 @@ class OrderDeskBrain(AdkBrain):
         **same** greeting bracket behind it, hiding the model's first-token latency.
         Both are spoken here, so the hook returns ``None`` — its "already opened, say
         nothing more" answer."""
+        # Bound before the bracket, not inside it: an `async with` whose __aexit__
+        # can suppress means control reaches the check below even if the body did
+        # not finish, and an unbound name there would turn a failed opener into a
+        # dead call rather than the fixed line.
+        spoke = False
         async with session.say() as speech:
             await speech.speak(_HELLO)
             spoke = await self._stream_opener(speech)
@@ -1529,9 +1534,12 @@ class OrderDeskBrain(AdkBrain):
                 if event.author == "user" or event.content is None:
                     continue
                 text = "".join(
+                    # `part.text`, not `getattr(part, "text", None)` — the getattr
+                    # tested the same value but narrowed nothing, so the generator
+                    # still yielded `str | None` into a join that takes `str`.
                     part.text
                     for part in (event.content.parts or [])
-                    if getattr(part, "text", None) and not getattr(part, "thought", False)
+                    if part.text and not getattr(part, "thought", False)
                 )
                 # Partials stream; the aggregate that follows them repeats the whole
                 # reply, so it is only spoken when nothing streamed (non-SSE models).
