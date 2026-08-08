@@ -197,7 +197,6 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
   // (past the `{ data }` quirk), so we read `type` directly.
   const session = useVoqalSession({
     apiBase: AURA.apiBase,
-    tenantSlug: AURA.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the presence control's error state.
     publishableKey: AURA.publishableKey ?? '',

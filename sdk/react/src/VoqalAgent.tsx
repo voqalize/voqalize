@@ -1,8 +1,8 @@
 /**
  * <VoqalAgent/> — drop-in voice agent embed.
  *
- * The smallest possible surface: give it an `apiBase`, `tenantSlug`,
- * `publishableKey`, and `agentId`, and it mints a session, connects, plays the
+ * The smallest possible surface: give it an `apiBase`, `publishableKey`, and
+ * `agentId`, and it mints a session, connects, plays the
  * agent's audio, and renders a minimal status + mic/end control bar.
  *
  * For a custom UI, pass a render-prop `children` — you get the full

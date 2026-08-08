@@ -438,7 +438,6 @@ function LiveLayer() {
   // (past the `{ data }` quirk), so we read `type` directly.
   const session = useVoqalSession({
     apiBase: LEGAL.apiBase,
-    tenantSlug: LEGAL.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the presence control's error state.
     publishableKey: LEGAL.publishableKey ?? '',

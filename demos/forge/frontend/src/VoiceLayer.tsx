@@ -128,7 +128,6 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
 
   const session = useVoqalSession({
     apiBase: FORGE.apiBase,
-    tenantSlug: FORGE.tenantSlug,
     publishableKey: FORGE.publishableKey ?? "",
     agentId: FORGE.agentId,
     // No pipeline override: this agent's voice and language are declared on

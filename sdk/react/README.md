@@ -32,7 +32,6 @@ export function Support() {
   return (
     <VoqalAgent
       apiBase="https://app.voqalize.com/api/v1"
-      tenantSlug="acme"
       publishableKey={import.meta.env.VITE_VOQAL_PK}
       agentId="06a2…"
     />
@@ -42,14 +41,17 @@ export function Support() {
 
 `pk_` keys are safe to ship in browser code.
 
-### The four required props
+### The three required props
 
 - `apiBase` — control-plane root **including the API version**; the SDK appends
-  `/{tenantSlug}/sessions.create_and_start`. Production: `https://app.voqalize.com/api/v1`.
+  `/sessions.create_and_start`. Production: `https://app.voqalize.com/api/v1`.
   Behind a Vite/Next dev proxy, a relative `"/api/v1"` works too.
-- `tenantSlug` — your tenant slug (shown by the MCP `whoami` / `list_tenants` tools).
 - `publishableKey` — a `pk_…` key (origin-allowlisted; browser-safe).
 - `agentId` — `agent.id` from the MCP `create_agent` / `list_agents`.
+
+**There is no workspace prop.** A `pk_` key belongs to exactly one workspace, so
+the server reads it off the key. An earlier version took a `tenantSlug` and
+posted to `/{slug}/…`; that route and that prop were both removed on 2026-08-09.
 
 **The voice and the language are not props.** They are declared on the brain, in
 Python:
@@ -78,7 +80,7 @@ brain speaks last.
 Pass a function child to own all the markup. Audio playback is still wired for you.
 
 ```tsx
-<VoqalAgent apiBase="/api/v1" tenantSlug="acme" publishableKey={pk} agentId={id}>
+<VoqalAgent apiBase="/api/v1" publishableKey={pk} agentId={id}>
   {({ connectionState, botState, isUserSpeaking, error, disconnect, enableMic, sendMessage }) => (
     <MyPanel state={connectionState} bot={botState} onEnd={disconnect} />
   )}
@@ -96,7 +98,6 @@ import { PipecatClientProvider } from "@pipecat-ai/client-react";
 function Widget() {
   const session = useVoqalSession({
     apiBase: "/api/v1",
-    tenantSlug: "acme",
     publishableKey: pk,
     agentId: id,
     // No `pipeline`: the brain declares the voice and the language.
@@ -182,7 +183,7 @@ routes it back to that callback.
 
 ## Low level
 
-- `createSession({ apiBase, tenantSlug, publishableKey, agentId, pipeline?, payload? })`
+- `createSession({ apiBase, publishableKey, agentId, pipeline?, payload? })`
   → `{ signalingUrl, token }`. Throws `VoqalSessionError` on failure. (`pipeline` is
   the escape hatch above; normal embeds pass `payload` only.)
 - `VoqalWebRTCTransport` — the pipecat `Transport`. Use with a raw `PipecatClient`

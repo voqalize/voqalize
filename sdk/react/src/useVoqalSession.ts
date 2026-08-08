@@ -36,8 +36,6 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
 export interface UseVoqalSessionOptions {
   /** Versioned API root, e.g. `"/api/v1"`. */
   apiBase: string;
-  /** Tenant slug. */
-  tenantSlug: string;
   /** Publishable (`pk_...`) key. */
   publishableKey: string;
   /** Firestore agent id. */
@@ -120,7 +118,6 @@ export function useVoqalSession(
     try {
       const { signalingUrl, token } = await createSession({
         apiBase: o.apiBase,
-        tenantSlug: o.tenantSlug,
         publishableKey: o.publishableKey,
         agentId: o.agentId,
         pipeline: o.pipeline,

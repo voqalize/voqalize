@@ -21,13 +21,16 @@
  * the `create_api_key` MCP tool (kind="publishable", allowed_origins=[...]).
  * NEVER put an sk_ key in frontend code.
  *
- * Fill in the four values below from your Voqalize agent:
+ * Fill in the three values below from your Voqalize agent:
  *   - PUBLISHABLE_KEY: the pk_… you minted
  *   - AGENT_ID:        agent.id from create_agent / list_agents
- *   - TENANT_SLUG:     your tenant slug (the one `list_tenants` returned; pass
- *                      it to every MCP tool)
  *   - API_BASE:        control-plane root INCLUDING the version — the React SDK
- *                      appends `/{tenantSlug}/…`. Prod: https://app.voqalize.com/api/v1
+ *                      appends `/sessions.create_and_start`.
+ *                      Prod: https://app.voqalize.com/api/v1
+ *
+ * There is no workspace to fill in: the pk_ key belongs to exactly one, so the
+ * control plane reads it off the key. (MCP tools still take a `tenant` — they are
+ * stateless and hold no credential that names one.)
  *
  * And one you should set deliberately rather than inherit: PIPELINE, the STT/TTS
  * the session opens with (voice + language). See the voice & language catalog at
@@ -44,7 +47,6 @@ import {
 
 const PUBLISHABLE_KEY = "pk_live_REPLACE_ME";
 const AGENT_ID = "REPLACE_WITH_AGENT_ID";
-const TENANT_SLUG = "your-tenant-slug";
 const API_BASE = "https://app.voqalize.com/api/v1";
 
 interface CartLine {
@@ -68,7 +70,6 @@ export function VoiceCart() {
   return (
     <VoqalAgent
       apiBase={API_BASE}
-      tenantSlug={TENANT_SLUG}
       publishableKey={PUBLISHABLE_KEY}
       agentId={AGENT_ID}
       // No voice or language here: the brain declares them (`Brain.voice` /

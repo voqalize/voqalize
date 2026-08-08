@@ -3,7 +3,7 @@
  *
  * Wraps the single public bootstrap call every embed makes:
  *
- *   POST {apiBase}/{tenantSlug}/sessions.create_and_start
+ *   POST {apiBase}/sessions.create_and_start
  *   Authorization: Bearer <pk_...>
  *   { agent_id, payload: { pipeline, payload } }
  *
@@ -64,8 +64,6 @@ export interface VoqalPipelineConfig {
 export interface CreateSessionOptions {
   /** Versioned API root, e.g. `"/api/v1"` or `"https://app.voqalize.com/api/v1"`. */
   apiBase: string;
-  /** Tenant slug for the `/{slug}/...` path. */
-  tenantSlug: string;
   /** Publishable (`pk_...`) key. Sent as `Authorization: Bearer`. */
   publishableKey: string;
   /** Firestore agent id to start. */
@@ -118,7 +116,6 @@ export async function createSession(
 ): Promise<VoqalSession> {
   const {
     apiBase,
-    tenantSlug,
     publishableKey,
     agentId,
     pipeline,
@@ -133,7 +130,10 @@ export async function createSession(
     throw new VoqalSessionError("createSession: agentId is required", 0);
   }
 
-  const url = `${apiBase.replace(/\/$/, "")}/${tenantSlug}/sessions.create_and_start`;
+  // No workspace anywhere in the URL. A `pk_` key belongs to exactly one, so
+  // the server reads it off the credential; naming one here would be a second
+  // answer to a question the key has already answered.
+  const url = `${apiBase.replace(/\/$/, "")}/sessions.create_and_start`;
 
   const inner: { pipeline?: VoqalPipelineConfig; payload?: Record<string, unknown> } = {};
   if (pipeline) inner.pipeline = pipeline;

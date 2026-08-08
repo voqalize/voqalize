@@ -26,7 +26,6 @@ export function Support() {
   return (
     <VoqalAgent
       apiBase="https://app.voqalize.com/api/v1"
-      tenantSlug="acme"
       publishableKey={import.meta.env.VITE_VOQAL_PK}
       agentId="06a2…"
     />
@@ -40,7 +39,15 @@ The React SDK's `apiBase` is the **versioned** root
 session mint fails — this is the most common wiring mistake.
 :::
 
-Note what is *not* in that embed: the voice and the language. Those belong to the
+Note what is *not* in that embed: the workspace, the voice, and the language.
+
+There is no tenant prop — a `pk_` key belongs to exactly one workspace, so the
+control plane reads it off the key; naming it again in the call would be a second
+answer to a question the credential has already answered, and the only interesting
+case is the two disagreeing. (MCP tools do still take a `tenant`, because stateless
+RPC holds no credential that names one.)
+
+Nor is the voice or the language. Those belong to the
 brain — `voice` / `language` class attributes on your `Brain`, or
 `session.configure_language(...)` when they depend on *this* caller — and the
 agent record has no `stt`/`tts` fields either. One owner, because `language`
@@ -61,7 +68,6 @@ const session = useVoqalSession(opts: UseVoqalSessionOptions): VoqalSessionHandl
 | Field | Type | Notes |
 |---|---|---|
 | `apiBase` | `string` (required) | Control-plane root incl. version, e.g. `"/api/v1"` or `"https://app.voqalize.com/api/v1"`. |
-| `tenantSlug` | `string` (required) | Your tenant slug. |
 | `publishableKey` | `string` (required) | `pk_…` key (origin-allowlisted, browser-safe). |
 | `agentId` | `string` (required) | The agent's id. |
 | `pipeline?` | `{ stt?, tts? }` | **Usually omit.** Voice and language are declared on the brain, not here — see the [catalog](/docs/reference/catalog/). Kept for a page that is genuinely the pipeline's authority (a voice-auditioning console, an A/B harness); a brain that declares or configures a voice overrides it. |
@@ -90,7 +96,6 @@ const session = useVoqalSession(opts: UseVoqalSessionOptions): VoqalSessionHandl
 function CallButton() {
   const s = useVoqalSession({
     apiBase: "/api/v1",
-    tenantSlug: "acme",
     publishableKey: import.meta.env.VITE_VOQAL_PK,
     agentId: "06a2…",
   });
@@ -107,7 +112,7 @@ function CallButton() {
 
 The hook runs a two-step flow:
 
-1. **Mint** — one `POST {apiBase}/{tenantSlug}/sessions.create_and_start` with the
+1. **Mint** — one `POST {apiBase}/sessions.create_and_start` with the
    publishable key as a bearer token. The body is `{ agent_id, payload }`, where the
    outer `payload` **wraps both** the `pipeline` override and your app `payload`:
    `{ agent_id, payload: { pipeline?, payload? } }` — so your app data nests one level

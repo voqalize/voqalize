@@ -23,14 +23,18 @@ ship to the browser. **Include the dev origin too**, or local session minting is
 rejected. Never put an `sk_` (backend) or `ak_` (Cortex) key in frontend code — `pk_`
 is the only key the browser ever sees.
 
-## 2. Wire the four required values
+## 2. Wire the three required values
 
 | Prop | Value |
 |---|---|
 | `publishableKey` | the `pk_…` above |
 | `agentId` | `agent.id` from `create_agent` / `list_agents` |
-| `tenantSlug` | the same slug you pass to every MCP tool |
-| `apiBase` | the control-plane root **including the API version** — the SDK appends `/{tenantSlug}/…`. Production: `https://app.voqalize.com/api/v1` |
+| `apiBase` | the control-plane root **including the API version** — the SDK appends `/sessions.create_and_start`. Production: `https://app.voqalize.com/api/v1` |
+
+There is no workspace prop. A `pk_` key belongs to exactly one workspace, so the
+control plane reads it off the key — naming it again in the call would just be a
+second answer to a question the credential already answered. (MCP tools still take
+a `tenant`: they are stateless RPC and hold no credential that names one.)
 
 ⚠️ Pointing `apiBase` at the bare host (no `/api/v1`) is the single most common
 setup failure: the session mint 404s. If the app is served behind a proxy that

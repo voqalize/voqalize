@@ -124,7 +124,6 @@ export function GoldLoanAdvisor() {
   // (past the `{ data }` quirk), so we read `type`/`action` directly.
   const session = useVoqalSession({
     apiBase: LEAD.apiBase,
-    tenantSlug: LEAD.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the call-gate error state.
     publishableKey: LEAD.publishableKey ?? '',

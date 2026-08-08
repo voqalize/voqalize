@@ -126,7 +126,6 @@ export function MobileExpert({ children }: { children: (presence: ReactNode) => 
   // (past the `{ data }` quirk), so we read `type` directly.
   const session = useVoqalSession({
     apiBase: MOBILE.apiBase,
-    tenantSlug: MOBILE.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the presence control's error state.
     publishableKey: MOBILE.publishableKey ?? "",

@@ -97,7 +97,6 @@ export function SugarCallSession() {
   // (past the `{ data }` quirk), so we read `type` directly.
   const session = useVoqalSession({
     apiBase: SUGAR.apiBase,
-    tenantSlug: SUGAR.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the bar's error state.
     publishableKey: SUGAR.publishableKey ?? "",

@@ -16,11 +16,15 @@
  * path (`file:../../../sdk/react`) and resolves the freshly built `dist/`.
  *
  * Per-demo wiring is baked at build (Vite inlines `import.meta.env.VITE_*`). Each
- * app reads the generic `VITE_TENANT` / `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`;
- * when building all demos at once we map each demo's values from the per-demo
- * `VITE_<NAME>_AGENT` / `VITE_<NAME>_PK` (and `VITE_DEMO_TENANT`) env — the same
- * interface the cloudbuild passes through. Missing values just leave a demo
- * unprovisioned (its UI shows a clear "publishableKey is required" error).
+ * app reads the generic `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`; when building all
+ * demos at once we map each demo's values from the per-demo `VITE_<NAME>_AGENT` /
+ * `VITE_<NAME>_PK` env — the same interface the cloudbuild passes through. Missing
+ * values just leave a demo unprovisioned (its UI shows a clear "publishableKey is
+ * required" error).
+ *
+ * There is no workspace in that list any more: a `pk_` key belongs to exactly one,
+ * so the control plane reads it off the key. `VITE_DEMO_TENANT` is still passed in
+ * by the deploy and is ignored here.
  */
 
 import { execSync } from "node:child_process";
@@ -34,8 +38,6 @@ const distDir = join(demosDir, "dist");
 
 const manifest = JSON.parse(readFileSync(join(demosDir, "manifest.json"), "utf8"));
 const demoNames = manifest.demos.map((d) => d.name);
-
-const tenant = process.env.VITE_DEMO_TENANT ?? process.env.VITE_TENANT ?? "demo";
 
 function run(cmd, cwd, extraEnv = {}) {
   console.log(`\n$ ${cmd}\n  (cwd: ${cwd.replace(repoRoot, ".")})`);
@@ -154,7 +156,6 @@ for (const name of demoNames) {
   const appDir = join(demosDir, name, "frontend");
   const outDir = join(distDir, "demos", name);
   buildApp(appDir, outDir, {
-    VITE_TENANT: tenant,
     VITE_AGENT_ID: process.env[`VITE_${up}_AGENT`] ?? "",
     VITE_PUBLISHABLE_KEY: process.env[`VITE_${up}_PK`] ?? "",
   });

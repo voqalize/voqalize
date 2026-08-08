@@ -170,7 +170,6 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
   // The entire session lifecycle in one hook.
   const session = useVoqalSession({
     apiBase: TRAVEL.apiBase,
-    tenantSlug: TRAVEL.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the presence control's error state.
     publishableKey: TRAVEL.publishableKey ?? "",

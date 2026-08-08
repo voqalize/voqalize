@@ -100,7 +100,7 @@ discovers backends and each frontend declares its own connection wiring. To add
    the STT and TTS legs move together. Setting one leg from the page is the
    half-applied-pair bug, and it is silent: the words stay right and only the
    speaker is wrong.
-3. **Env** — `VITE_TENANT` / `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY` (this app's
+3. **Env** — `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY` (this app's
    `.env.example`). For a deploy, add the demo's `VITE_<NAME>_AGENT` /
    `VITE_<NAME>_PK` to `cloudbuild.web.yaml` substitutions (`build.mjs` maps them
    onto the app-local names).

@@ -146,7 +146,6 @@ export function ReturnsAssistant({
   // (past the `{ data }` quirk), so we read `type` directly.
   const session = useVoqalSession({
     apiBase: SUPPORT.apiBase,
-    tenantSlug: SUPPORT.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the presence control's label.
     publishableKey: SUPPORT.publishableKey ?? "",

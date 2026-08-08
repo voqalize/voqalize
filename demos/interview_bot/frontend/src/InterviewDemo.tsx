@@ -177,7 +177,6 @@ export function InterviewDemo() {
   // drives the UI via section_changed / interview_completed ui_commands.
   const session = useVoqalSession({
     apiBase: INTERVIEW.apiBase,
-    tenantSlug: INTERVIEW.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the call error state.
     publishableKey: INTERVIEW.publishableKey ?? "",

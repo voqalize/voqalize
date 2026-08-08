@@ -130,7 +130,6 @@ export function App() {
   return (
     <VoqalAgent
       apiBase="https://app.voqalize.com/api/v1"
-      tenantSlug="<your-tenant-slug>"
       publishableKey={import.meta.env.VITE_VOQAL_PK}
       agentId="<agent.id>"
     />
@@ -144,8 +143,15 @@ mute/end bar. Full options in [React client SDK](/docs/client/react/).
 
 :::caution[`apiBase` includes `/api/v1`]
 The React SDK's `apiBase` **includes** the `/api/v1` suffix
-(`https://app.voqalize.com/api/v1`) — the SDK appends `/{tenantSlug}/…` to it. Point
-it at the bare host instead and the browser session mint fails.
+(`https://app.voqalize.com/api/v1`) — the SDK appends
+`/sessions.create_and_start` to it. Point it at the bare host instead and the
+browser session mint fails.
+:::
+
+:::note[No tenant in the embed]
+The embed names no workspace. A `pk_` key belongs to exactly one, so the control
+plane reads it off the key. MCP tools still take a `tenant` argument — they are
+stateless RPC with no credential that names one.
 :::
 
 ## Next steps

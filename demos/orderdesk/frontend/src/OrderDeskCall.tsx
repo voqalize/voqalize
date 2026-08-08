@@ -93,7 +93,6 @@ export function OrderDeskCallSession() {
   // The entire session lifecycle in one hook.
   const session = useVoqalSession({
     apiBase: ORDERDESK.apiBase,
-    tenantSlug: ORDERDESK.tenantSlug,
     // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
     // required" error, shown in the bar's error state.
     publishableKey: ORDERDESK.publishableKey ?? "",
