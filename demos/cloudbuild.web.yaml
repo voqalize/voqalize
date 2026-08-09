@@ -23,8 +23,8 @@
 # one, because that topic only filters on build status, not on which build ran.)
 #
 # This build runs in the PRIVATE project (so it can write the artifact bucket), but
-# reads only PUBLIC repo source. The per-demo wiring (tenant + publishable pk_ + agent
-# id) is publishable (it is baked into the browser JS regardless), but env-specific, so
+# reads only PUBLIC repo source. The per-demo wiring (publishable pk_ + agent id) is
+# publishable (it is baked into the browser JS regardless), but env-specific, so
 # it lives in the trigger's substitution set (private), NOT in this file. The values
 # below are empty placeholders — an unprovisioned demo's UI shows a clear
 # "publishableKey is required" error.
@@ -38,12 +38,11 @@ substitutions:
   # Per-demo wiring baked into each UI at build (publishable, browser-safe). One agent
   # id + publishable key per demo. Supplied by the trigger.
   #
-  # `_DEMO_TENANT` is dead: the demos stopped naming a workspace on 2026-08-09 (the
-  # `pk_` key names it), and `build.mjs` ignores the value. It stays declared and
-  # passed through only because the private trigger still supplies it, and a
-  # substitution the template doesn't know is a build error. Delete it from the
-  # trigger first, then from here.
-  _DEMO_TENANT: ''
+  # No workspace is named here: a `pk_` key belongs to exactly one, so the control
+  # plane reads it off the key. `_DEMO_TENANT` was removed on 2026-08-09, from both
+  # `build-demos-web` triggers first and then from here — a substitution a trigger
+  # supplies but the template does not declare is a build error, so that order is
+  # the only safe one in either direction.
   _TRAVEL_AGENT: ''
   _TRAVEL_PK: ''
   _SHOPPING_AGENT: ''
@@ -81,7 +80,6 @@ steps:
         corepack enable && corepack prepare pnpm@10.32.1 --activate
         node demos/build.mjs
     env:
-      - 'VITE_DEMO_TENANT=${_DEMO_TENANT}'
       - 'VITE_TRAVEL_AGENT=${_TRAVEL_AGENT}'
       - 'VITE_TRAVEL_PK=${_TRAVEL_PK}'
       - 'VITE_SHOPPING_AGENT=${_SHOPPING_AGENT}'

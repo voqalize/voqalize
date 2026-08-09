@@ -23,8 +23,8 @@
  * required" error).
  *
  * There is no workspace in that list any more: a `pk_` key belongs to exactly one,
- * so the control plane reads it off the key. `VITE_DEMO_TENANT` is still passed in
- * by the deploy and is ignored here.
+ * so the control plane reads it off the key. `VITE_DEMO_TENANT` stopped being passed
+ * in on 2026-08-09 and nothing here ever read it.
  */
 
 import { execSync } from "node:child_process";
