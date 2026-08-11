@@ -12,8 +12,11 @@
  * assembled `dist/` (as a versioned artifact) and lays it under the apex domain at
  * `/demos/<name>`, so the browser loads a demo same-origin with marketing + docs.
  *
- * The React SDK (`sdk/react`) is built first because each demo depends on it by
- * path (`file:../../../sdk/react`) and resolves the freshly built `dist/`.
+ * Each demo depends on `@voqalize/client-react` by **published version range**,
+ * exactly as a customer's app would — a demo is read and copied, and a `file:`
+ * path is not something anyone can copy. So that this repo still tests the SDK it
+ * is about to publish rather than the one it published last, the build overlays
+ * the locally built `sdk/react` over each install; see `overlayLocalSdk`.
  *
  * Per-demo wiring is baked at build (Vite inlines `import.meta.env.VITE_*`). Each
  * app reads the generic `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`; when building all
@@ -44,10 +47,42 @@ function run(cmd, cwd, extraEnv = {}) {
   execSync(cmd, { cwd, stdio: "inherit", env: { ...process.env, ...extraEnv } });
 }
 
+const sdkDir = join(repoRoot, "sdk", "react");
+
+/**
+ * Replace the installed `@voqalize/client-react` with the one built from this
+ * tree.
+ *
+ * The demos ask npm for a published range, which is what makes them copyable —
+ * but it would also mean a change to `sdk/react` was never exercised by anything
+ * until after it shipped, and the break would surface in a customer's install
+ * rather than in CI. Overlaying keeps both: the manifest a reader copies says
+ * `^0.x`, the bytes this build compiles against are the working tree's.
+ *
+ * Copied rather than symlinked on purpose. A link would resolve React and pipecat
+ * out of `sdk/react/node_modules`, giving the page a second copy of React and
+ * every hook in the SDK an "invalid hook call". A plain directory with no
+ * `node_modules` of its own leaves resolution to walk up to the demo's, which is
+ * where a real install would find the peers too.
+ */
+function overlayLocalSdk(appDir) {
+  const target = join(appDir, "node_modules", "@voqalize", "client-react");
+  if (!existsSync(join(sdkDir, "dist", "index.js"))) {
+    throw new Error("sdk/react was not built before the demos — nothing to overlay");
+  }
+  rmSync(target, { recursive: true, force: true });
+  mkdirSync(target, { recursive: true });
+  for (const entry of ["dist", "package.json", "README.md", "LICENSE", "CHANGELOG.md"]) {
+    const from = join(sdkDir, entry);
+    if (existsSync(from)) cpSync(from, join(target, entry), { recursive: true });
+  }
+}
+
 /** Install (standalone, outside any workspace) and build one Vite app, then copy
  *  its `dist/` into the assembled tree at `outDir`. */
 function buildApp(appDir, outDir, env = {}) {
   run("pnpm install --ignore-workspace", appDir);
+  overlayLocalSdk(appDir);
   run("pnpm build", appDir, env);
   mkdirSync(outDir, { recursive: true });
   cpSync(join(appDir, "dist"), outDir, { recursive: true });
@@ -135,14 +170,15 @@ function assertStylesheetShipped(name, appDir, outDir) {
   console.log(`  ✓ ${name}: voice-ui-kit stylesheet shipped (${css.map((e) => e.name).join(", ")})`);
 }
 
-// 1. The SDK every demo links to by path — build first so `file:` deps see it.
-run("pnpm install --ignore-workspace", join(repoRoot, "sdk", "react"));
-run("pnpm build", join(repoRoot, "sdk", "react"));
+// 1. The SDK every demo installs — built first, so there is something to overlay.
+run("pnpm install --ignore-workspace", sdkDir);
+run("pnpm build", sdkDir);
 
-// 1b. Then the gallery's own shared chrome, which links to the SDK the same way
-// and holds the notice-and-consent wording every demo shows before it opens a
-// microphone. Order matters: it consumes the SDK's freshly built `dist/`.
+// 1b. Then the gallery's own shared chrome, which consumes the SDK the same way
+// the demos do and holds the notice-and-consent wording every demo shows before
+// it opens a microphone.
 run("pnpm install --ignore-workspace", join(demosDir, "shared"));
+overlayLocalSdk(join(demosDir, "shared"));
 run("pnpm build", join(demosDir, "shared"));
 
 // Fresh output tree.

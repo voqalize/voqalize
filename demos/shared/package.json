@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.1.8",
-    "@voqalize/client-react": "file:../../sdk/react",
+    "@voqalize/client-react": "^0.0.1",
     "react": "^19.1.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
