@@ -62,6 +62,10 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
 const CONNECTION_STATUS: Record<VoqalConnectionState, Status> = {
   idle: 'idle',
   connecting: 'connecting',
+  // `awaiting-microphone` folds into `connecting`: the browser's own permission
+  // prompt is on screen at that moment and is the thing to answer, so the chrome
+  // should keep saying "wait" rather than invent a state of its own.
+  'awaiting-microphone': 'connecting',
   connected: 'live',
   disconnected: 'idle',
   error: 'error',
