@@ -3,10 +3,19 @@
 All notable changes to `voqalize-agent-sdk`. This project is pre-1.0 and still
 alpha: the package API can break on a minor version, the **wire** does not.
 
-## Unreleased
+**The numbering restarts at `0.0.1`.** Everything below it — `0.1.0` through the
+work that would have been `0.4.0` — was never published: the one host that used
+the SDK installed it from a path in a sibling checkout. `0.0.1` is the first
+version anyone can `pip install`, and starting the public series at the bottom
+says plainly that nothing here is promised yet. Those older entries stay,
+because the API they describe is the API `0.0.1` ships.
 
-**No wire change.** Every addition below is package-API only; the frames a brain
-emits are byte-identical to what the previous release emitted.
+## 0.0.1
+
+First release published to PyPI: `pip install voqalize-agent-sdk`.
+
+**No wire change.** Every change below is package-API or packaging only; the
+frames a brain emits are byte-identical to what the previous release emitted.
 
 ### Added
 
@@ -61,6 +70,18 @@ emits are byte-identical to what the previous release emitted.
 
 ### Changed
 
+- **`protobuf>=5.29.3,<7`** (was `>=6.30,<7`) — **the SDK no longer drags a host
+  application onto protobuf 6.** The old floor came from the committed wire stubs,
+  which were generated with protoc v32 and therefore assert a 6.32 runtime at
+  import. A protobuf runtime accepts gencode from its own major or an older one,
+  so the stubs are now generated with protoc **v29.3**: they run unchanged on
+  protobuf 5.29+ *and* on 6.x, and an application already resolved on 5.29 keeps
+  its resolution when it adds this SDK. The `.proto` contract is untouched and the
+  wire bytes are identical — this is a gencode-target change, not a wire change.
+  We test against both majors.
+
+  The generator pin lives in `proto/buf.gen.yaml` and now tracks the **oldest**
+  runtime we support, not the newest; raise it only together with the floor here.
 - **The `adk` extra now requires `google-adk>=2.3,<3`** (was `>=1.33,<2`). The old
   ceiling held installs on the 1.x line, and 1.x caps two things a host
   application is likely to be ahead of: `starlette<1` (lifted in ADK 2.2) and
