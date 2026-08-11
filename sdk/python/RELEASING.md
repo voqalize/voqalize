@@ -62,8 +62,9 @@ publish. The name matters — PyPI pins its trust to it below.
 PyPI supports a *pending* publisher, so this is done **before** the project
 exists and the first tagged release claims the name.
 
-1. Log in as the account that owns `voqalize-avatar` → **Your projects →
-   Publishing** → *Add a new pending publisher*.
+1. Log in as `sripathi-voqalize` — the account that already owns
+   [`voqalize-avatar`](https://pypi.org/project/voqalize-avatar/) — and go to
+   **Your projects → Publishing** → *Add a new pending publisher*.
 2. Fill in exactly:
    - PyPI Project Name: `voqalize-agent-sdk`
    - Owner: `voqalize`
@@ -72,10 +73,10 @@ exists and the first tagged release claims the name.
    - Environment name: `pypi`
 3. Save, then push the tag.
 
-If a `voqalize` PyPI **organization** already holds `voqalize-avatar`, add the
-pending publisher from the organization rather than a personal account, so the
-project lands there directly. PyPI has no scopes — `voqalize-` is the namespace,
-and holding the org name is what stops someone else using it.
+Both Voqalize packages currently sit under a personal account. PyPI has no
+scopes, so `voqalize-` is the namespace and there is nothing holding it: worth
+creating a `voqalize` **organization** and moving both projects into it, so the
+name survives one person's account.
 
 ### Fallback: a token
 
