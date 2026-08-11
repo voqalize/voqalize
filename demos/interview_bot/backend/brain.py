@@ -318,9 +318,12 @@ class InterviewBotBrain(GeminiBrain):
 
         # Hybrid greeting: a quick "Hi!" is spoken instantly (no LLM call), then the
         # personalised intro + first question streams in behind it so the model's
-        # first-token latency is off the perceived start path.
+        # first-token latency is off the perceived start path. The trailing "…" is
+        # load-bearing — it is the lookahead character pipecat's aggregator waits for,
+        # without which the opener is held back until the LLM's first chunk and is not
+        # instant at all. Same reason as `_HELLO_BY_LANGUAGE` in voqalize_demos.
         await self.say_then_generate(
-            session, "Hi!", _greeting_prompt(job, candidate, self.sections)
+            session, "Hi!…", _greeting_prompt(job, candidate, self.sections)
         )
 
     # ─── Tools ──────────────────────────────────────────────────────────

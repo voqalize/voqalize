@@ -80,7 +80,10 @@ from voqalize.sdk.wire import (  # noqa: E402
     VqlLLMTextFrame,
 )
 
-HELLO = "नमस्ते!"
+# The trailing "…" is the lookahead character that lets the instant opener flush
+# on its own — see `_HELLO_BY_LANGUAGE` in voqalize_demos. It is part of the
+# spoken string, so it is part of what the greeting bracket carries.
+HELLO = "नमस्ते!…"
 OPENER = "गुप्ता जी, MedSetu से। आज का ऑर्डर बता दीजिए।"
 
 

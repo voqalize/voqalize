@@ -43,20 +43,31 @@ _CONTINUE_AFTER_OPENER = (
 # A one-word hello per demo language, for the instant opener of a hybrid greeting
 # (the LLM-generated remainder then follows in the caller's language). Falls back
 # to English for anything unmapped.
+#
+# THE TRAILING "…" IS LOAD-BEARING — do not tidy it away. pipecat's
+# SimpleTextAggregator holds a sentence back after terminal punctuation until a
+# non-whitespace LOOKAHEAD character arrives (there is no unambiguous fast path,
+# not even for the danda), so a bare "Hi!" sits in the buffer until the LLM's
+# first chunk lands and the "instant" opener is not instant — measured at ~1.3 s
+# on a prod call, where the first synthesis was the glued "Hi!Evening, Rajesh.".
+# The ellipsis IS that lookahead char, and punkt then closes the sentence over
+# the whole string, so the opener flushes on its own. Verified inaudible against
+# a deployed host: same audio duration (±0.05 s) and an identical TTS→STT
+# round-trip transcript, in English and Devanagari.
 _HELLO_BY_LANGUAGE = {
-    "english": "Hi!",
-    "hindi": "नमस्ते!",
-    "telugu": "నమస్తే!",
-    "tamil": "வணக்கம்!",
-    "kannada": "ನಮಸ್ಕಾರ!",
-    "marathi": "नमस्कार!",
-    "bengali": "নমস্কার!",
+    "english": "Hi!…",
+    "hindi": "नमस्ते!…",
+    "telugu": "నమస్తే!…",
+    "tamil": "வணக்கம்!…",
+    "kannada": "ನಮಸ್ಕಾರ!…",
+    "marathi": "नमस्कार!…",
+    "bengali": "নমস্কার!…",
 }
 
 
 def hello_for(language_name: str) -> str:
     """A short, language-appropriate opener for a hybrid greeting; English default."""
-    return _HELLO_BY_LANGUAGE.get((language_name or "").strip().lower(), "Hi!")
+    return _HELLO_BY_LANGUAGE.get((language_name or "").strip().lower(), "Hi!…")
 
 
 class GeminiBrain(Brain):
