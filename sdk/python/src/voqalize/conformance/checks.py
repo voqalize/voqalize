@@ -144,13 +144,26 @@ def check_interruption_echoed(driver: VoiceDriver) -> None:
 
 
 def check_barge_in_skips_completion(driver: VoiceDriver, turn: Turn) -> None:
-    """A barged-in interaction MUST NOT receive ``VqlInteractionCompleted`` — Voice
-    finalizes the cut inference directly instead."""
+    """An interaction cut *mid-generation* MUST NOT then receive
+    ``VqlInteractionCompleted`` — Voice finalizes the cut inference directly instead.
+
+    Conditional on the cut landing mid-flight, because the other barge-in is just
+    as legal and far more common: generation outruns playout, so a brain routinely
+    finishes a reply — and correctly completes the interaction — while the user is
+    still listening to it. Interrupt that and there is no in-flight task to cancel
+    and no completion to withhold; the frame is already on the wire. Asserting the
+    MUST unconditionally called that a protocol violation, which is how an
+    ordinary brain that emits its reply in one go was told it was non-conformant
+    for behaving exactly as designed.
+    """
+    if turn.completed_before_cut:
+        return
     io = driver.interactions.get(turn.interaction_id)
     require(
         io is not None and not io.completed,
         f"interaction {turn.interaction_id}: brain sent VqlInteractionCompleted for "
-        "a barged-in interaction — barge-in must skip completion",
+        "an interaction that was still generating when the barge-in landed — a cut "
+        "interaction is finalized by Voice, not completed by the brain",
     )
 
 

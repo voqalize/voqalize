@@ -109,23 +109,51 @@ re-engagement, and bad-token rejection.
 
 ```bash
 # Point it at any brain that speaks the wire.
-python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --no-auth --no-reference
+python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --private-key ./pygato_priv.pem
 
 # Prove the harness itself: host the bundled reference brain, run everything.
 python -m voqalize.conformance --self-test
 ```
 
-:::caution[Use `--no-reference` against your own brain]
-The deep-semantics scenarios need a cooperating brain that speaks the reference
-command grammar (`voqalize.conformance.reference.ConformanceBrain`). Against an
-ordinary brain they fail for the wrong reason. `--no-auth` only if the brain runs
-`allow_unverified`.
-:::
+Add `--no-auth` instead of `--private-key` if the brain runs `allow_unverified`;
+the auth scenarios are then skipped, because an unverified brain has no bad token
+to reject.
 
-`--only name1,name2` restricts the run; the exit code is 0 iff conformant.
-Programmatically it's `run_suite(brain_url, private_key_pem=…,
-include_reference=False)` → a `Report` with `.ok`, `.passed`, `.failed`,
-`.summary()`.
+Twelve of the sixteen need a *cooperating* brain — one that speaks a private
+command grammar (`say banana`, `count slowly`) and echoes its committed state back,
+which is what `voqalize.conformance.reference.ConformanceBrain` is for. Yours
+doesn't, and shouldn't. The suite probes for that grammar on connect and **skips**
+what can't apply, naming the reason and qualifying the verdict:
+
+```
+  [PASS] greeting                     (299 ms)
+  [PASS] single_turn                  (299 ms)
+  [PASS] multi_turn                   (300 ms)
+  [SKIP] two_inferences_one_turn
+  [SKIP] barge_in
+  …
+  [PASS] reject_bad_token             (83 ms)
+  …
+
+  12 skipped: needs the reference command grammar — this brain answered the probe with its own words, which is what any real brain does
+
+  4 passed, 0 failed, 12 skipped — CONFORMANT on what ran (4 of 16 scenarios; see the skips above)
+```
+
+That is the honest result for an ordinary brain: the wire-level tier is what the
+suite can prove about it, and the verdict says so rather than claiming more. Force
+the probe either way with `--reference` / `--no-reference` if you need to.
+
+`--only name1,name2` restricts the run; the exit code is 0 iff nothing **failed**
+— skips don't fail a build, so this is safe in CI. Programmatically it's
+`run_suite(brain_url, private_key_pem=…)` → a `Report` with `.ok`, `.passed`,
+`.failed`, `.skipped`, `.summary()`.
+
+The deep tier is worth reaching for once your own scenarios are in place: to run
+it, your brain needs a test mode that answers the grammar and answers a
+`__voqal.conformance.dump` client message with its conversation. Read
+`ConformanceBrain` for the shape — the cooperation is small, and it buys you
+heard-truth reconciliation across multiple interruptions.
 
 ## Then: inspect a live call
 

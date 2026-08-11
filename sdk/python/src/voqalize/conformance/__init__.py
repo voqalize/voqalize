@@ -30,7 +30,7 @@ from .driver import (
 )
 from .reference import ConformanceBrain, conformance_state
 from .report import Report, ScenarioResult, run_suite
-from .scenarios import CATALOG, Scenario, ScenarioContext, catalog
+from .scenarios import CATALOG, Scenario, ScenarioContext
 from .wire_pygato import (
     DirectConnection,
     Keypair,
@@ -56,7 +56,6 @@ __all__ = [
     "ScenarioResult",
     "Turn",
     "VoiceDriver",
-    "catalog",
     "conformance_state",
     "decode_upstream",
     "generate_keypair",

@@ -20,7 +20,7 @@ import pytest
 from voqalize.conformance import generate_keypair, run_suite
 from voqalize.conformance.reference import ConformanceBrain
 from voqalize.conformance.scenarios import CATALOG
-from voqalize.sdk import DirectAgent, brain_factory
+from voqalize.sdk import Brain, DirectAgent, Interaction, Session, brain_factory
 
 
 async def _host_verified() -> tuple[DirectAgent, int, bytes]:
@@ -45,12 +45,14 @@ async def test_scenario_conformant(name: str) -> None:
         report = await run_suite(
             f"ws://127.0.0.1:{port}",
             private_key_pem=private_key_pem,
+            include_reference=True,
             only=[name],
         )
     finally:
         await agent.aclose()
     assert report.results, f"scenario {name!r} did not run"
     result = report.results[0]
+    assert not result.skipped, result.skip_reason
     assert result.passed, result.traceback or result.error
 
 
@@ -66,7 +68,11 @@ async def test_full_suite_reports_conformant() -> None:
         await agent.aclose()
     assert report.ok, "\n" + report.summary()
     assert report.failed == 0
+    # No `include_reference` passed, so the suite probed — and the reference brain
+    # speaks the grammar, so nothing was skipped and the verdict is unqualified.
+    assert report.skipped == 0, "\n" + report.summary()
     assert report.passed == len(CATALOG)
+    assert report.summary().endswith("CONFORMANT")
 
 
 async def test_wire_level_subset_against_unverified_brain() -> None:
@@ -90,8 +96,55 @@ async def test_wire_level_subset_against_unverified_brain() -> None:
     finally:
         await agent.aclose()
     assert report.ok, "\n" + report.summary()
-    # It really did run a subset, not the whole thing.
-    assert 0 < len(report.results) < len(CATALOG)
+    # It really did run a subset, not the whole thing — and the part it could not
+    # run is *in* the report as skips, not quietly missing from it.
+    assert 0 < report.passed < len(CATALOG)
+    assert report.passed + report.skipped == len(CATALOG)
+    assert "CONFORMANT on what ran" in report.summary()
+
+
+class _PlainBrain(Brain):
+    """An ordinary conformant brain: no reference command grammar, no LLM, one
+    fixed line per turn. What a developer following the quickstart actually has."""
+
+    async def on_session_start(self, session: Session, start: object) -> None:
+        async with session.say() as speech:
+            await speech.speak("Hi, this is the plain brain.")
+
+    async def on_interaction(self, interaction: Interaction) -> None:
+        async with interaction.say() as speech:
+            await speech.speak("One. Two. Three. That is everything I have to say.")
+
+
+async def test_ordinary_brain_is_conformant_on_what_ran() -> None:
+    """A brain that does not speak the reference grammar is *skipped*, not failed.
+
+    The regression this pins: pointed at an ordinary brain the suite used to report
+    a page of failures and NON-CONFORMANT — for not knowing a private vocabulary it
+    was never supposed to know. The probe now detects that up front, the deep tier
+    is skipped with its reason attached, and the verdict says how much it covered.
+    """
+    keypair = generate_keypair()
+    agent = DirectAgent(
+        factory=brain_factory(_PlainBrain),
+        host="127.0.0.1",
+        port=0,
+        public_keys=keypair.public_pem,
+    )
+    port = await agent.start()
+    try:
+        report = await run_suite(
+            f"ws://127.0.0.1:{port}",
+            private_key_pem=keypair.private_pem,
+        )
+    finally:
+        await agent.aclose()
+    assert report.ok, "\n" + report.summary()
+    assert report.skipped > 0, "\n" + report.summary()
+    assert report.passed + report.skipped == len(CATALOG)
+    # Every skip carries a reason — a skip nobody can act on is just a silent drop.
+    assert all(r.skip_reason for r in report.results if r.skipped)
+    assert "CONFORMANT on what ran" in report.summary()
 
 
 async def test_wrong_key_is_rejected_directly() -> None:
