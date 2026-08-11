@@ -86,6 +86,7 @@ export class VoqalWebRTCTransport extends Transport {
   private _pc: RTCPeerConnection | null = null;
   private _dc: RTCDataChannel | null = null;
   private _pcId: string | null = null;
+  private _sctpMaxMessageSize = 64 * 1024;
 
   private _localStream: MediaStream | null = null;
   private _audioTrack: MediaStreamTrack | null = null;
@@ -121,6 +122,18 @@ export class VoqalWebRTCTransport extends Transport {
     return this._micError;
   }
 
+  /**
+   * Largest single message the data channel will carry, once connected.
+   *
+   * Read from SCTP rather than assumed, and declared here rather than by writing
+   * the base class's `_maxMessageSize`: that field only exists from
+   * `@pipecat-ai/client-js` 1.7, and nothing in pipecat enforces it — it is
+   * advisory, surfaced to callers through exactly this getter.
+   */
+  get maxMessageSize(): number {
+    return this._sctpMaxMessageSize;
+  }
+
   // ─── Transport interface ─────────────────────────────────────────────────
 
   initialize(
@@ -149,11 +162,7 @@ export class VoqalWebRTCTransport extends Transport {
     // Acquire mic first so enumerateDevices returns labeled device names.
     await this._acquireMic();
     await this._enumerateAndNotifyDevices();
-
-    this._deviceChangeListener = () => {
-      this._enumerateAndNotifyDevices().catch(console.warn);
-    };
-    navigator.mediaDevices.addEventListener("devicechange", this._deviceChangeListener);
+    this._startDeviceWatch();
 
     this.state = "initialized";
   }
@@ -221,6 +230,9 @@ export class VoqalWebRTCTransport extends Transport {
       this.state = "error";
       throw this._micError;
     }
+    // A caller that skipped `initDevices` still needs to be told when a headset
+    // is plugged in mid-call, so the watch is started from both paths.
+    this._startDeviceWatch();
 
     // 1. Open WebSocket signaling channel
     await this._openWebSocket(signalingUrl);
@@ -417,6 +429,11 @@ export class VoqalWebRTCTransport extends Transport {
   }
 
   private async _acquireMic(): Promise<void> {
+    // A second capture while a track is live would replace the track the sender
+    // is holding without ever being attached to it, and the caller goes silent.
+    // `updateMic` is the only supported way to swap devices mid-call.
+    if (this._audioTrack?.readyState === "live") return;
+
     const result = await requestMicrophone({
       onWaiting: this._onMicrophoneWaiting,
       timeoutMs: this._micPromptTimeoutMs,
@@ -435,6 +452,15 @@ export class VoqalWebRTCTransport extends Transport {
     this._micError = null;
     this._localStream = result;
     this._audioTrack = result.getAudioTracks()[0] ?? null;
+  }
+
+  /** Idempotent: `initDevices` and `_connect` both want the watch, either order. */
+  private _startDeviceWatch(): void {
+    if (this._deviceChangeListener) return;
+    this._deviceChangeListener = () => {
+      this._enumerateAndNotifyDevices().catch(console.warn);
+    };
+    navigator.mediaDevices.addEventListener("devicechange", this._deviceChangeListener);
   }
 
   private _openWebSocket(url: string): Promise<void> {
@@ -542,7 +568,7 @@ export class VoqalWebRTCTransport extends Transport {
     if (!this._dc) return;
 
     this._dc.addEventListener("open", () => {
-      this._maxMessageSize = this._pc?.sctp?.maxMessageSize ?? 64 * 1024;
+      this._sctpMaxMessageSize = this._pc?.sctp?.maxMessageSize ?? 64 * 1024;
 
       this._sendSignalling({
         type: "trackStatus",

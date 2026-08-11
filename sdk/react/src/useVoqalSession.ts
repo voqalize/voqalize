@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PipecatClient } from "@pipecat-ai/client-js";
 import { VoqalWebRTCTransport } from "./transport";
+import { MicrophoneError } from "./microphone";
 import {
   createSession,
   type VoqalPipelineConfig,
@@ -75,6 +76,15 @@ export interface VoqalSessionHandle {
   isUserSpeaking: boolean;
   /** Last error message, or `null`. */
   error: string | null;
+  /**
+   * Set when the failure was the microphone rather than the service.
+   *
+   * The distinction is the whole point: a blocked microphone is something the
+   * person in front of the browser can fix in one click, and telling them to
+   * "check your connection" instead sends them somewhere there is nothing to
+   * find. Branch on `.problem`; `.message` is already written for them.
+   */
+  microphoneError: MicrophoneError | null;
   /** Mint + connect a session. No-op if one is already active. */
   connect: () => Promise<void>;
   /** Tear down the active session. Safe to call repeatedly. */
@@ -108,20 +118,31 @@ export function useVoqalSession(
   const [botState, setBotState] = useState<VoqalBotState>("idle");
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [microphoneError, setMicrophoneError] = useState<MicrophoneError | null>(
+    null
+  );
 
   // Keep the latest options in a ref so `connect` stays stable and always reads
   // current values without re-subscribing effects.
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
+  // `clientRef` alone cannot guard re-entry: it is only set after `createSession`
+  // resolves, so a teardown-and-remount inside that window (React StrictMode does
+  // exactly this) starts a second session while the first is still in flight. The
+  // generation counter lets the stale attempt notice it lost and bow out.
+  const generationRef = useRef(0);
+
   const connect = useCallback(async () => {
     if (clientRef.current) return;
     const o = optsRef.current;
+    const generation = generationRef.current;
 
     setConnectionState("connecting");
     setBotState("idle");
     setIsUserSpeaking(false);
     setError(null);
+    setMicrophoneError(null);
 
     try {
       const { signalingUrl, token } = await createSession({
@@ -131,6 +152,7 @@ export function useVoqalSession(
         pipeline: o.pipeline,
         payload: o.payload,
       });
+      if (generation !== generationRef.current) return;
 
       const transport = new VoqalWebRTCTransport({
         iceServers: o.iceServers ?? DEFAULT_ICE_SERVERS,
@@ -197,6 +219,12 @@ export function useVoqalSession(
       clientRef.current = pc;
       setClient(pc);
       await pc.connect({ connection_url: signalingUrl, token });
+      if (generation !== generationRef.current) {
+        await pc.disconnect().catch(() => {
+          /* ignore */
+        });
+        return;
+      }
       setConnectionState("connected");
     } catch (err) {
       try {
@@ -208,10 +236,12 @@ export function useVoqalSession(
       setClient(null);
       setConnectionState("error");
       setError(err instanceof Error ? err.message : String(err));
+      if (err instanceof MicrophoneError) setMicrophoneError(err);
     }
   }, []);
 
   const disconnect = useCallback(async () => {
+    generationRef.current += 1;
     const pc = clientRef.current;
     clientRef.current = null;
     if (pc) {
@@ -226,6 +256,7 @@ export function useVoqalSession(
     setBotState("idle");
     setIsUserSpeaking(false);
     setError(null);
+    setMicrophoneError(null);
   }, []);
 
   const enableMic = useCallback((enable: boolean) => {
@@ -246,6 +277,7 @@ export function useVoqalSession(
       });
     }
     return () => {
+      generationRef.current += 1;
       clientRef.current?.disconnect().catch(() => {
         /* ignore */
       });
@@ -261,6 +293,7 @@ export function useVoqalSession(
     botState,
     isUserSpeaking,
     error,
+    microphoneError,
     connect,
     disconnect,
     enableMic,

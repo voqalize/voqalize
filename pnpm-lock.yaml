@@ -23,10 +23,10 @@ importers:
   sdk/react:
     devDependencies:
       '@pipecat-ai/client-js':
-        specifier: ^1.7.0
+        specifier: ^1.13.0
         version: 1.13.0
       '@pipecat-ai/client-react':
-        specifier: ^1.3.0
+        specifier: ^1.8.1
         version: 1.8.1(@babel/core@7.29.7)(@babel/template@7.29.7)(@pipecat-ai/client-js@1.13.0)(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/react':
         specifier: ^19.1.8

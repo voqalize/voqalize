@@ -201,18 +201,23 @@ you to discover them in a support ticket:
   for the person in front of the browser; `problem` (`"denied"`,
   `"no-microphone"`, `"in-use"`, …) is what you branch on.
 
-```tsx
-import { MicrophoneError } from "@voqalize/client-react";
+The handle carries the typed error, so a render-prop UI never has to catch
+anything — and with `autoConnect` there is no promise to catch:
 
+```tsx
 const session = useVoqalSession({ ...props });
-// `session.error` already holds the message; catch it yourself for custom
-// handling:
-try {
-  await session.connect();
-} catch (err) {
-  if (err instanceof MicrophoneError && err.problem === "denied") {
-    showHowToUnblockMic();
-  }
+
+if (session.connectionState === "error") {
+  // A blocked microphone is the user's to fix and is already worded for them;
+  // anything else is ours, and telling them to check their connection is the
+  // most useful thing we can say.
+  return session.microphoneError ? (
+    <MicHelp problem={session.microphoneError.problem}>
+      {session.microphoneError.message}
+    </MicHelp>
+  ) : (
+    <GenericFailure onRetry={session.connect} />
+  );
 }
 ```
 
