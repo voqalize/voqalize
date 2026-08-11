@@ -20,6 +20,9 @@ on:
   push:
     branches: [main, prod]
   pull_request:
+  # release-python-sdk.yml runs this suite before it publishes, so a release is
+  # gated on exactly the checks a merge is — not on a copy of them that can drift.
+  workflow_call:
 
 jobs:
   python:
