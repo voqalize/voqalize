@@ -18,9 +18,9 @@ transcript, so past turns are the heard truth, never the generated tail of a
 barged-in reply. The per-turn working context additionally carries the in-flight
 generated text + tool round-trips, which aren't part of the durable record.
 
-Tool schemas + ui_command payloads mirror ``pygato.managed.travel.bot`` so the
-same console screens drive. (Day-plan / inclusions / terms / whatsapp tools from
-the managed bot aren't ported yet — the itinerary + flights + hotels flow is.)
+Tool schemas + ui_command payloads match what the Travel Desk demo's screens
+expect, so the same UI drives. (Day-plan / inclusions / terms / whatsapp tools
+aren't ported here — the itinerary + flights + hotels flow is.)
 
 Run it against the local relay: ``examples/travel/run_local.py``.
 """

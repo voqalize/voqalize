@@ -128,7 +128,10 @@ Every brain connection carries a short-lived RS256 JWT the runtime signs. Your
 brain verifies it against Voqalize's public key (the SDK does this for you). The
 claims:
 
-- `iss = "pygato"` — the runtime.
+- `iss = "pygato"` — the voice runtime. `pygato` is our internal name for the
+  process that holds the call; it appears as a literal claim value here, as the
+  `service` on runtime log lines, and nowhere you have to care about beyond
+  matching it.
 - `aud = "brain"` — a protocol constant shared by all brain connections.
 - `sub = session_id` — scopes the token to exactly one session.
 - `tenant_id` / `agent_id` — informational; your brain can use them to decide

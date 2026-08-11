@@ -80,7 +80,9 @@ async def _self_test(args: argparse.Namespace) -> Report:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="voqalize.conformance")
     parser.add_argument("--brain-url", help="ws://host:port base URL of the brain under test")
-    parser.add_argument("--private-key", help="PEM file to sign the pygato token with")
+    parser.add_argument(
+        "--private-key", help="PEM file to sign the runtime token the brain verifies"
+    )
     parser.add_argument(
         "--no-auth",
         action="store_true",

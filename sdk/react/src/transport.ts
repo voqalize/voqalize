@@ -71,7 +71,7 @@ export interface VoqalWebRTCTransportOptions {
 export interface VoqalConnectParams {
   /** WebSocket URL for the signaling endpoint (wss://...) */
   connection_url: string;
-  /** RS256 JWT for the PyGato handshake (issued by controlplane). If omitted,
+  /** RS256 JWT for the voice-runtime handshake (issued by controlplane). If omitted,
    *  token is extracted from the connection_url query string (?token=...). */
   token?: string;
 }

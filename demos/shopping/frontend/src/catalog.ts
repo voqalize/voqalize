@@ -1,6 +1,6 @@
 /**
  * Mobile-phone catalog — browser mirror of the canonical Python catalog at
- * `pygato/src/pygato/shopping_catalog.py`.
+ * `demos/shopping/backend/catalog.py`.
  *
  * The voice agent reasons over the Python copy and drives the UI by pushing
  * product `id`s in `ui_command` RTVI messages. This file resolves those ids for
