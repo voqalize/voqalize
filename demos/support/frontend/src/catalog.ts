@@ -1,6 +1,6 @@
 /**
  * Past-orders catalog — browser mirror of the canonical Python catalog at
- * `pygato/src/pygato/orders_catalog.py`.
+ * `demos/support/backend/catalog.py`.
  *
  * The support agent reasons over the Python copy and drives the UI by pushing
  * order/item `id`s in `ui_command` RTVI messages. This file resolves those ids

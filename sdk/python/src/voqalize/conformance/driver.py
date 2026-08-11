@@ -145,6 +145,13 @@ class Turn:
     # ``""`` means the barge landed before any audio played; ``None`` means the
     # turn was not a barge-in (or no inference was open to cut).
     heard: str | None = None
+    # For a barge-in: had the brain already sent VqlInteractionCompleted when the
+    # InterruptionFrame went out? This is the difference between cutting a reply
+    # mid-generation and barging the *playout* of one the brain already finished —
+    # and several MUSTs only apply to the first. A brain that finished first did
+    # nothing wrong: generation outruns TTS all the time, so on a real call the
+    # user is usually still listening to a turn the brain considers over.
+    completed_before_cut: bool = False
 
     @property
     def text(self) -> str:
@@ -529,6 +536,11 @@ class VoiceDriver:
             await asyncio.sleep(speak_delay)
 
         cut = self._cut_inference(iid)
+        # Read *before* the interrupt goes out: afterwards the answer is a race,
+        # and the checks that depend on it need to know which of the two barge-ins
+        # this was — one that cut a live generation, or one that landed on the
+        # playout of a reply the brain had already closed out.
+        completed_before_cut = (obs := self.interactions.get(iid)) is not None and obs.completed
 
         # Send the interruption(s) (system lane, request_id 0) and await the echo.
         # A rapid multi-barge sends several before the brain can echo the first.
@@ -550,7 +562,14 @@ class VoiceDriver:
                 )
             )
             io.finalized.add(cut.inference_id)
-        return Turn(iid, list(io.inferences), completed=io.completed, interrupted=True, heard=heard)
+        return Turn(
+            iid,
+            list(io.inferences),
+            completed=io.completed,
+            interrupted=True,
+            heard=heard,
+            completed_before_cut=completed_before_cut,
+        )
 
     def _cut_inference(self, interaction_id: int) -> InferenceObs | None:
         """The inference in flight when the barge-in lands: prefer the last one

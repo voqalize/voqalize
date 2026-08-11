@@ -2,9 +2,9 @@
 
 Two wire shapes, one connection class:
 
-  `Wire`              — single-session connection. PyGato has its own copy at
-                        `pygato/src/pygato/wire/transport.py`; this one stays
-                        here for symmetry and for in-SDK single-session uses.
+  `Wire`              — single-session connection. The voice runtime has its own
+                        copy on its side of the wire; this one stays here for
+                        symmetry and for in-SDK single-session uses.
                         Message format: `[1-byte direction][protobuf payload]`.
 
   `MultiplexedWire`   — used by the agent SDK (`/agent` endpoint).

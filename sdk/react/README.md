@@ -181,6 +181,44 @@ If the brain passed a `callback=` to `.action(...)`, reply with
 `sendMessage("action_outcome", { action_id, status: "done", result })` and the SDK
 routes it back to that callback.
 
+## The microphone
+
+Every session needs one, and the browser will not give you one quietly. Three
+things follow from that, and the SDK makes all three visible rather than leaving
+you to discover them in a support ticket:
+
+- **The page must be a secure context.** `https://`, or `localhost` in
+  development. On plain `http://` a browser does not expose microphones at all,
+  and `connect()` fails with `MicrophoneError { problem: "insecure-context" }`.
+- **A permission prompt can stay open forever.** `connectionState` becomes
+  `"awaiting-microphone"` while it is — render something that tells the user to
+  look for the dialog, because "Connecting…" tells them to wait, which is the
+  opposite of what they should do. After 30 s the connect fails with
+  `problem: "no-response"`.
+- **No microphone means no call.** A blocked, missing or already-in-use
+  microphone rejects `connect()` rather than joining a call the user cannot
+  speak into. The rejection is a `MicrophoneError` whose `message` is written
+  for the person in front of the browser; `problem` (`"denied"`,
+  `"no-microphone"`, `"in-use"`, …) is what you branch on.
+
+```tsx
+import { MicrophoneError } from "@voqalize/client-react";
+
+const session = useVoqalSession({ ...props });
+// `session.error` already holds the message; catch it yourself for custom
+// handling:
+try {
+  await session.connect();
+} catch (err) {
+  if (err instanceof MicrophoneError && err.problem === "denied") {
+    showHowToUnblockMic();
+  }
+}
+```
+
+`requestMicrophone()` is exported too, if you want to ask for permission (and
+render the outcome) before minting a session at all.
+
 ## Low level
 
 - `createSession({ apiBase, publishableKey, agentId, pipeline?, payload? })`
@@ -193,4 +231,5 @@ routes it back to that callback.
 
 `VoqalAgent`, `useVoqalSession`, `useUiCommand`, `createUiCommandHandlers`,
 `uiCommandArgs`, `createSession`, `VoqalWebRTCTransport`, `VoqalSessionError`,
-plus their TypeScript types (`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`, …).
+`MicrophoneError`, `requestMicrophone`, plus their TypeScript types
+(`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`, `MicrophoneProblem`, …).

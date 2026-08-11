@@ -24,10 +24,16 @@ Two reasons it lives in the harness rather than the tests:
    a brain under test.
 
 The brain is driven purely by the user transcript — a tiny command grammar the
-scenarios speak (see the ``SAY`` / ``TWO`` / ``COUNT_SLOWLY`` / ``STORY`` / ``DO``
-constants). A brain under test does *not* need this grammar; the generic
-scenarios (greeting, single/multi-turn, barge-in, brackets) work against any
-brain. Only the deep-semantics + action scenarios need a cooperating brain.
+scenarios speak (see the ``SAY`` / ``TWO`` / ``COUNT_SLOWLY`` / ``DO`` constants).
+A brain under test does *not* need this grammar: the wire-level tier (greeting,
+single/multi-turn, bracket integrity, auth) works against any brain, and the suite
+**probes** for the grammar and skips the rest rather than failing a brain for not
+knowing a vocabulary it was never supposed to know (see :mod:`.report`).
+
+Everything that needs the grammar is marked ``requires_reference`` in the catalog,
+barge-in included — cutting a reply mid-flight needs a reply long enough to still
+be playing, which is exactly what ``count slowly`` is for. Against an ordinary
+brain the cut lands after generation finished, which is legal and proves nothing.
 """
 
 from __future__ import annotations

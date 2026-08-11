@@ -17,10 +17,18 @@ import {
   type VoqalPipelineConfig,
 } from "./createSession";
 
-/** Transport-level connection lifecycle. */
+/**
+ * Transport-level connection lifecycle.
+ *
+ * `awaiting-microphone` is its own state rather than a flavour of `connecting`
+ * because the two need opposite things from the user: `connecting` means wait,
+ * and this one means *do something* — the browser is holding a permission
+ * prompt open and will hold it indefinitely.
+ */
 export type VoqalConnectionState =
   | "idle"
   | "connecting"
+  | "awaiting-microphone"
   | "connected"
   | "disconnected"
   | "error";
@@ -126,6 +134,13 @@ export function useVoqalSession(
 
       const transport = new VoqalWebRTCTransport({
         iceServers: o.iceServers ?? DEFAULT_ICE_SERVERS,
+        onMicrophoneWaiting: () => {
+          // Only from `connecting` — by the time the mic is being re-acquired
+          // mid-call the connection state means something else.
+          setConnectionState((prev) =>
+            prev === "connecting" ? "awaiting-microphone" : prev
+          );
+        },
       });
 
       const pc = new PipecatClient({

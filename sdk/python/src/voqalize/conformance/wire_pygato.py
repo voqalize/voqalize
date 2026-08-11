@@ -248,11 +248,17 @@ def mint_pygato_token(
     tenant_id: str,
     ttl_seconds: int = 60,
 ) -> str:
-    """Mint the short-lived RS256 token PyGato presents on a brain connection.
+    """Mint the short-lived RS256 token the voice runtime presents on a brain
+    connection.
 
-    Claim shape is identical to ``pygato._cortex_token.CortexTokenSigner.mint``:
-    ``iss=pygato``, ``aud=brain`` (the protocol constant), ``sub=session_id``,
-    ``kind=pygato``, plus ``agent_id`` / ``tenant_id`` for the recipient to decide.
+    ``pygato`` is Voqalize's internal name for that runtime — the process that holds
+    the call. It survives here because it is a **literal claim value** your brain
+    verifies against, not because you have to know what it stands for.
+
+    Claims: ``iss=pygato``, ``aud=brain`` (the protocol constant),
+    ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` / ``tenant_id`` for the
+    recipient to decide. Byte-identical to what the real runtime signs, so a brain
+    that accepts this one accepts production.
     """
     now = datetime.now(UTC)
     claims = {

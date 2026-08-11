@@ -4,8 +4,9 @@ Write a :class:`Brain` of callbacks (``on_interaction`` / ``on_inference_finaliz
 / …); SDK capability arrives as the ``Session`` / ``Interaction`` / ``Inference``
 passed into them. Then host it, one Brain instance per session:
 
-- **Inbound (primary):** ``serve_direct(MyBrain, host=..., port=...)`` — PyGato
-  dials your WebSocket route per session. Cloud Run / any backend can expose it.
+- **Inbound (primary):** ``serve_direct(MyBrain, host=..., port=...)`` — the
+  Voqalize voice runtime dials your WebSocket route per session. Cloud Run / any
+  backend can expose it.
 - **Outbound (fallback, localhost/egress-only):** ``serve(MyBrain, api_key=...,
   cortex_url=...)`` — your process dials the Cortex relay.
 

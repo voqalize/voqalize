@@ -10,12 +10,18 @@ scenario that returns cleanly *passed*; a scenario that raises
 Two tiers, per the depth decision (both, layered):
 
 * **wire-level** (``requires_reference=False``) — greeting, turns, bracket
-  integrity, barge-in drain, auth. These work against *any* brain that speaks
-  the wire, so they can be pointed at a shipped brain (``welcome`` / ``travel``).
+  integrity, auth. These work against *any* brain that speaks the wire, so they
+  can be pointed at a shipped brain (``welcome`` / ``travel``).
 * **deep-semantics** (``requires_reference=True``) — heard-truth reconciliation,
-  action-outcome round-trips, app-event delivery. These need a cooperating brain
-  that echoes its committed state (see :mod:`.reference`), and speak the command
-  grammar defined there.
+  barge-in, action-outcome round-trips, app-event delivery. These need a
+  cooperating brain that echoes its committed state (see :mod:`.reference`), and
+  speak the command grammar defined there. Barge-in belongs here despite being a
+  wire concern: cutting a reply mid-flight needs a reply still in flight, which is
+  what the grammar's ``count slowly`` guarantees and an ordinary brain does not.
+
+The tier a brain can't run is **skipped and reported**, never failed and never
+dropped — :func:`~voqalize.conformance.report.run_suite` probes for the grammar
+and says in the verdict how much of the catalog it covered.
 """
 
 from __future__ import annotations
@@ -583,9 +589,9 @@ CATALOG: list[Scenario] = [
 ]
 
 
-def catalog(*, include_reference: bool = True) -> list[Scenario]:
-    """The scenario catalog, optionally excluding the ones that need a cooperating
-    reference brain (so it can be pointed at an arbitrary shipped brain)."""
-    if include_reference:
-        return list(CATALOG)
-    return [s for s in CATALOG if not s.requires_reference]
+# There was a `catalog(include_reference=…)` helper here that returned a filtered
+# copy. It was the old answer to "this brain can't run the deep tier" — hand back a
+# shorter list — and it is exactly how a run of four scenarios came to print a bare
+# CONFORMANT. Selection now happens inside `run_suite`, which records what it left
+# out. Nothing called this; a filtered catalog is the one shape that must not exist
+# next to a report that refuses to shrink silently.

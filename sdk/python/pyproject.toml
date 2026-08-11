@@ -1,6 +1,21 @@
 [project]
 name = "voqalize-agent-sdk"
-version = "0.3.0"
+version = "0.0.1"
+description = "Bring the brain, we bring the voice: write a plain Python Brain, Voqalize runs the voice."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Voqalize" }]
+keywords = ["voice", "agents", "realtime", "speech", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
 requires-python = ">=3.12"
 # Pipecat-free by design: installing this SDK must NOT pull pipecat. The
 # customer writes a plain `Brain`; the wire is plain protobuf. `pyjwt[crypto]` is
@@ -16,7 +31,10 @@ requires-python = ">=3.12"
 dependencies = [
     "websockets>=13",
     "loguru>=0.7",
-    "protobuf>=6.30,<7",
+    # Floor is the version the committed stubs assert, not the newest runtime we
+    # test against: a host application that already has protobuf 5.29 must not be
+    # dragged to 6.x by installing an SDK whose wire happens to be protobuf.
+    "protobuf>=5.29.3,<7",
     "pyjwt[crypto]>=2.8",
     "pydantic>=2.7",
 ]
@@ -43,6 +61,12 @@ examples = [
     "uvicorn>=0.30",
     "google-genai>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://voqalize.com"
+Documentation = "https://voqalize.com/docs"
+Source = "https://github.com/voqalize/voqalize/tree/main/sdk/python"
+Changelog = "https://github.com/voqalize/voqalize/blob/main/sdk/python/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]

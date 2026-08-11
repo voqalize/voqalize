@@ -101,22 +101,31 @@ interruptions, action-outcome correlation, client-message delivery, idle,
 bad-token rejection).
 
 ```bash
-# Any brain that speaks the wire — the transport-level scenarios only.
-python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --no-auth --no-reference
+# Any brain that speaks the wire.
+python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --private-key ./pygato_priv.pem
 
 # Prove the harness itself: host the bundled reference brain and run everything.
 python -m voqalize.conformance --self-test
 ```
 
-**Use `--no-reference` when pointing it at a customer brain.** The deep-semantics
-scenarios need a cooperating brain that speaks the reference command grammar
-(`voqalize.conformance.reference.ConformanceBrain`); against an ordinary brain they
-fail for the wrong reason. `--no-auth` only if the brain runs `allow_unverified`.
-`--only name1,name2` restricts the run; exit code is 0 iff conformant.
+**Expect skips against a customer brain, and don't treat them as failures.** Twelve
+of the sixteen need a cooperating brain that speaks the reference command grammar
+(`voqalize.conformance.reference.ConformanceBrain`). The suite probes for it on
+connect and skips what can't apply, so a customer brain reports something like
+`4 passed, 0 failed, 12 skipped — CONFORMANT on what ran (4 of 16 scenarios)`.
+That is the correct result, and the exit code is 0. `--reference` /
+`--no-reference` force the probe either way; `--no-auth` only if the brain runs
+`allow_unverified` (which also skips the auth scenario — an unverified brain has no
+bad token to reject). `--only name1,name2` restricts the run; the exit code is 0
+iff nothing **failed**.
 
-Programmatically the same thing is `run_suite(brain_url, private_key_pem=...,
-include_reference=False)` → a `Report` with `.ok`, `.passed`, `.failed`,
-`.summary()`.
+Programmatically the same thing is `run_suite(brain_url, private_key_pem=...)` → a
+`Report` with `.ok`, `.passed`, `.failed`, `.skipped`, `.summary()`.
+
+Reaching the deep tier means giving the brain a test mode that answers the grammar
+and answers a `__voqal.conformance.dump` client message with its conversation —
+worth suggesting once the customer's own scenarios are in place, since that tier is
+where heard-truth across multiple interruptions gets proven.
 
 ---
 

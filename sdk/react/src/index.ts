@@ -27,6 +27,12 @@ export {
 } from "./transport";
 
 export {
+  MicrophoneError,
+  requestMicrophone,
+  type MicrophoneProblem,
+} from "./microphone";
+
+export {
   createSession,
   VoqalSessionError,
   type CreateSessionOptions,

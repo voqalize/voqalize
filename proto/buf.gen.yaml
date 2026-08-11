@@ -1,7 +1,10 @@
 version: v2
 plugins:
-  # Pinned to v32.0 because pygato/agent-sdk are on protobuf-runtime 6.x.
-  # Bump in lockstep with the runtime version in both packages' pyproject.toml.
-  - remote: buf.build/protocolbuffers/python:v32.0
+  # Pinned to the OLDEST runtime the SDK supports, not the newest. Generated
+  # stubs assert a minimum runtime version, and a protobuf runtime accepts
+  # gencode from its own or an older major — so v29 stubs run on 5.29 and on
+  # 6.x, while v32 stubs would force every host application onto protobuf 6.
+  # Raise this only to raise the floor in sdk/python/pyproject.toml with it.
+  - remote: buf.build/protocolbuffers/python:v29.3
     out: gen/python
 clean: true

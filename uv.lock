@@ -1802,7 +1802,7 @@ wheels = [
 
 [[package]]
 name = "voqalize-agent-sdk"
-version = "0.3.0"
+version = "0.0.1"
 source = { editable = "sdk/python" }
 dependencies = [
     { name = "loguru" },
@@ -1837,7 +1837,7 @@ requires-dist = [
     { name = "google-genai", marker = "extra == 'examples'", specifier = ">=1.0" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "openai-agents", marker = "extra == 'examples'", specifier = ">=0.17" },
-    { name = "protobuf", specifier = ">=6.30,<7" },
+    { name = "protobuf", specifier = ">=5.29.3,<7" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8" },
     { name = "python-dotenv", marker = "extra == 'examples'", specifier = ">=1.0" },

@@ -11,10 +11,9 @@ Examples::
     # A brain running allow_unverified (local dev): no token.
     python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --no-auth
 
-    # Only the wire-level scenarios (point at any shipped brain that doesn't
-    # speak the reference command grammar):
-    python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 \\
-        --no-auth --no-reference
+    # Point it at your own brain: the suite probes for the reference command
+    # grammar, skips the scenarios that need it, and says so in the verdict.
+    python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --no-auth
 
     # Spin up the bundled reference brain and self-test the driver:
     python -m voqalize.conformance --self-test
@@ -36,10 +35,13 @@ async def _run(args: argparse.Namespace) -> Report:
         private_key_pem = Path(args.private_key).read_bytes()
 
     only = args.only.split(",") if args.only else None
+    # None ⇒ probe the brain for the reference grammar. The flags are the two
+    # overrides, and neither is the normal path any more.
+    include_reference = True if args.reference else (False if args.no_reference else None)
     return await run_suite(
         args.brain_url,
         private_key_pem=private_key_pem,
-        include_reference=not args.no_reference,
+        include_reference=include_reference,
         # An unverified brain can't reject a bad token, so skip auth scenarios.
         include_auth=not args.no_auth,
         only=only,
@@ -78,7 +80,9 @@ async def _self_test(args: argparse.Namespace) -> Report:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="voqalize.conformance")
     parser.add_argument("--brain-url", help="ws://host:port base URL of the brain under test")
-    parser.add_argument("--private-key", help="PEM file to sign the pygato token with")
+    parser.add_argument(
+        "--private-key", help="PEM file to sign the runtime token the brain verifies"
+    )
     parser.add_argument(
         "--no-auth",
         action="store_true",
@@ -87,7 +91,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-reference",
         action="store_true",
-        help="skip scenarios that need the cooperating reference brain grammar",
+        help="force-skip the scenarios that need the reference command grammar "
+        "(by default the suite probes for it and skips them itself)",
+    )
+    parser.add_argument(
+        "--reference",
+        action="store_true",
+        help="force-run them even if the probe says the brain doesn't speak the grammar",
     )
     parser.add_argument("--only", help="comma-separated scenario names to run")
     parser.add_argument("--timeout", type=float, default=5.0, help="per-wait timeout (s)")

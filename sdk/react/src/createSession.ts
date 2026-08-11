@@ -83,7 +83,7 @@ export interface CreateSessionOptions {
 export interface VoqalSession {
   /** `wss://.../signal/{session_id}` signaling URL. */
   signalingUrl: string;
-  /** RS256 JWT for the PyGato handshake. */
+  /** RS256 JWT for the voice-runtime handshake. */
   token: string;
 }
 
