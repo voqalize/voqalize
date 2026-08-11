@@ -80,7 +80,7 @@ const session = useVoqalSession(opts: UseVoqalSessionOptions): VoqalSessionHandl
 
 | Field | Type | Meaning |
 |---|---|---|
-| `connectionState` | `"idle" \| "connecting" \| "connected" \| "disconnected" \| "error"` | Transport state. |
+| `connectionState` | `"idle" \| "connecting" \| "awaiting-microphone" \| "connected" \| "disconnected" \| "error"` | Transport state. `awaiting-microphone` is [its own state on purpose](#the-microphone). |
 | `botState` | `"idle" \| "listening" \| "thinking" \| "speaking"` | Derived from runtime events. |
 | `isUserSpeaking` | `boolean` | Local voice activity. |
 | `error` | `string \| null` | Last error. |
@@ -123,6 +123,57 @@ The hook runs a two-step flow:
 2. **Connect** — it builds a `VoqalWebRTCTransport`, wraps it in a `PipecatClient`
    (mic on, camera off), and connects to the runtime's signaling endpoint. Media is
    direct WebRTC; RTVI control messages ride a data channel.
+
+## The microphone
+
+Every session needs one, and the browser will not hand one over quietly. The SDK
+makes each way that can fail visible, rather than leaving you to find it in a
+support ticket.
+
+**The page must be a secure context** — `https://`, or `localhost` while you
+develop. On plain `http://` the browser does not expose microphones at all, and
+`connect()` fails immediately.
+
+**A permission prompt can stay open forever**, and a caller who missed the
+dialog has no reason to think the browser is waiting on them. While it is open
+`connectionState` is `"awaiting-microphone"` — its own state rather than a
+flavour of `connecting`, because the two ask the user for opposite things:
+`connecting` means wait, this one means *go look for the dialog*. Render
+something that says so. If nothing comes back within 30 s the connect fails.
+
+**No microphone means no call.** Blocked, missing, or already held by another
+app — `connect()` rejects rather than joining a call the user cannot speak into.
+Before this was true, a denied prompt produced the worst outcome available: the
+call connected with no audio track, the agent greeted, the caller talked, and
+nothing left the page while the UI said "Listening…".
+
+The rejection is a `MicrophoneError`. Its `message` is written for the person in
+front of the browser and is what `session.error` already carries; `problem` is
+what you branch on:
+
+| `problem` | What happened |
+|---|---|
+| `"denied"` | The user (or a policy) blocked microphone access. |
+| `"no-response"` | The prompt was never answered. |
+| `"no-microphone"` | No input device exists. |
+| `"in-use"` | Another application holds the device. |
+| `"insecure-context"` | The page is not `https://` or `localhost`. |
+| `"unknown"` | Anything else the browser reported. |
+
+```tsx
+import { MicrophoneError } from "@voqalize/client-react";
+
+try {
+  await session.connect();
+} catch (err) {
+  if (err instanceof MicrophoneError && err.problem === "denied") {
+    showHowToUnblockMic();
+  }
+}
+```
+
+`requestMicrophone()` is exported on its own, for asking permission — and
+rendering the outcome — before you mint a session at all.
 
 ## The two-way UI contract
 
@@ -209,9 +260,10 @@ The `travel` demo (`demos/travel`) runs this end to end: `Action` subclasses in
 
 `VoqalAgent`, `useVoqalSession`, `useUiCommand`, `createUiCommandHandlers`,
 `uiCommandArgs`, `createSession`, `VoqalWebRTCTransport`, `VoqalSessionError`,
-plus the TypeScript types (`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`,
-`UseVoqalSessionOptions`, `VoqalSessionHandle`, `VoqalConnectionState`,
-`VoqalBotState`, `VoqalPipelineConfig`, and more).
+`MicrophoneError`, `requestMicrophone`, plus the TypeScript types (`UiCommand`,
+`UiCommandArgs`, `UiCommandHandlers`, `UseVoqalSessionOptions`,
+`VoqalSessionHandle`, `VoqalConnectionState`, `VoqalBotState`,
+`MicrophoneProblem`, `VoqalPipelineConfig`, and more).
 
 ## Next
 

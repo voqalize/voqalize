@@ -24,6 +24,7 @@ import {
   Transport,
   TransportStartError,
 } from "@pipecat-ai/client-js";
+import { MicrophoneError, requestMicrophone } from "./microphone";
 
 // ─── Internal types ────────────────────────────────────────────────────────
 
@@ -56,6 +57,15 @@ function botParticipant(pcId: string | null): Participant {
 
 export interface VoqalWebRTCTransportOptions {
   iceServers?: RTCIceServer[];
+  /**
+   * Called once if the microphone permission prompt is still open after a
+   * moment. Render something — a caller who missed the dialog otherwise sees
+   * only "Connecting…" and has no reason to think the browser is waiting on
+   * them.
+   */
+  onMicrophoneWaiting?: () => void;
+  /** Override the permission-prompt deadline. Testing seam. */
+  micPromptTimeoutMs?: number;
 }
 
 export interface VoqalConnectParams {
@@ -68,6 +78,9 @@ export interface VoqalConnectParams {
 
 export class VoqalWebRTCTransport extends Transport {
   private _iceServers: RTCIceServer[];
+  private _onMicrophoneWaiting?: () => void;
+  private _micPromptTimeoutMs?: number;
+  private _micError: MicrophoneError | null = null;
 
   private _ws: WebSocket | null = null;
   private _pc: RTCPeerConnection | null = null;
@@ -99,6 +112,13 @@ export class VoqalWebRTCTransport extends Transport {
   constructor(opts: VoqalWebRTCTransportOptions = {}) {
     super();
     this._iceServers = opts.iceServers ?? [];
+    this._onMicrophoneWaiting = opts.onMicrophoneWaiting;
+    this._micPromptTimeoutMs = opts.micPromptTimeoutMs;
+  }
+
+  /** Why there is no microphone, or `null` if there is one. */
+  get microphoneError(): MicrophoneError | null {
+    return this._micError;
   }
 
   // ─── Transport interface ─────────────────────────────────────────────────
@@ -113,6 +133,17 @@ export class VoqalWebRTCTransport extends Transport {
     this.state = "disconnected";
   }
 
+  /**
+   * Acquire the microphone and enumerate devices.
+   *
+   * **Deliberately never rejects**, and that is not politeness — it is the
+   * difference between an error and a hang. `PipecatClient.connect()` awaits
+   * this call *outside* its own try/catch, so a rejection here escapes as an
+   * unhandled promise rejection and the promise `connect()` returned never
+   * settles: the caller sits on "Connecting…" forever with nothing thrown to
+   * catch. A microphone failure is stashed instead and raised from
+   * {@link _connect}, which pipecat does guard, so `connect()` rejects with it.
+   */
   async initDevices(): Promise<void> {
     this.state = "initializing";
     // Acquire mic first so enumerateDevices returns labeled device names.
@@ -178,7 +209,17 @@ export class VoqalWebRTCTransport extends Transport {
     this.state = "connecting";
 
     if (!this._audioTrack) {
-      this._acquireMicInBackground();
+      // Last chance, synchronously this time: `initDevices` may have been
+      // skipped (the transport was already past "disconnected"), and a
+      // connect that proceeds without a microphone is a call the caller
+      // cannot speak into.
+      await this._acquireMic();
+    }
+    if (this._micError) {
+      // The one place a microphone failure can be thrown and actually be
+      // caught — pipecat guards `transport.connect()` but not `initDevices()`.
+      this.state = "error";
+      throw this._micError;
     }
 
     // 1. Open WebSocket signaling channel
@@ -376,25 +417,24 @@ export class VoqalWebRTCTransport extends Transport {
   }
 
   private async _acquireMic(): Promise<void> {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-      this._localStream = stream;
-      this._audioTrack = stream.getAudioTracks()[0] ?? null;
-    } catch (err) {
-      console.warn("[VoqalWebRTCTransport] mic access unavailable:", err);
-    }
-  }
+    const result = await requestMicrophone({
+      onWaiting: this._onMicrophoneWaiting,
+      timeoutMs: this._micPromptTimeoutMs,
+    });
 
-  private _acquireMicInBackground(): void {
-    this._acquireMic().then(() => {
-      if (this._audioTrack && this._pc) {
-        const txr = this._pc.getTransceivers()[AUDIO_TRANSCEIVER_IDX];
-        txr?.sender.replaceTrack(this._audioTrack).catch(console.warn);
-      }
-    }).catch(console.warn);
+    if (result instanceof MicrophoneError) {
+      // Recorded, not thrown — see `initDevices`. Recorded rather than logged,
+      // which is what it used to be: a `console.warn` meant the call went on to
+      // connect with no audio track at all, so the agent greeted a caller whose
+      // every word went nowhere and the UI said "Listening…".
+      this._micError = result;
+      this._audioTrack = null;
+      return;
+    }
+
+    this._micError = null;
+    this._localStream = result;
+    this._audioTrack = result.getAudioTracks()[0] ?? null;
   }
 
   private _openWebSocket(url: string): Promise<void> {

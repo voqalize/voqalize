@@ -56,6 +56,9 @@ function BotAudio() {
 const STATUS_LABEL: Record<string, string> = {
   idle: "Ready",
   connecting: "Connecting…",
+  // Not "Connecting…" — the browser is holding a permission prompt open and
+  // will hold it forever. This is the one status that asks the user to act.
+  "awaiting-microphone": "Allow microphone access…",
   connected: "Live",
   disconnected: "Disconnected",
   error: "Error",
