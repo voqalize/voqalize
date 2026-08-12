@@ -146,8 +146,22 @@ jobs:
       - run: npm install -g npm@latest
       # No --provenance flag: publishing through a trusted publisher generates and
       # attaches the attestation on its own.
+      # `./dist/…`, not `dist/…`: npm reads a bare `a/b` argument as the GitHub
+      # `owner/repo` shorthand, so the unprefixed path fails with EALLOWGIT
+      # ("Refusing to fetch github:dist/voqalize-client-react-0.1.0.tgz") rather
+      # than publishing the tarball sitting right there. The leading `./` is what
+      # makes it unambiguously a file. Exactly one tarball is expected — glob to
+      # a variable first so a second one is an error instead of a silent extra
+      # argument.
       - name: publish
-        run: npm publish --access public dist/*.tgz
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tarballs=(./dist/*.tgz)
+          [ ${#tarballs[@]} -eq 1 ] || {
+            echo "::error::expected exactly one tarball, got ${#tarballs[@]}: ${tarballs[*]:-none}"
+            exit 1; }
+          npm publish --access public "${tarballs[0]}"
 
   github-release:
     name: github release
