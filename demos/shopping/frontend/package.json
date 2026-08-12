@@ -15,7 +15,7 @@
     "@pipecat-ai/client-react": "^1.3.0",
     "@pipecat-ai/small-webrtc-transport": "^1.10.6",
     "@pipecat-ai/voice-ui-kit": "^0.9.0",
-    "@voqalize/client-react": "^0.0.1",
+    "@voqalize/client-react": "^0.1.0",
     "@voqalize/demo-kit": "file:../../shared",
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",
