@@ -63,7 +63,7 @@ don't preload them.
 6. **Talk to it live.** Open the agent's `test_url` (returned by `create_agent` /
    `get_agent`) — the hosted Playground, pre-selected on your agent.
 7. **Embed it in the app.** → **`references/frontend.md`**
-   `create_api_key(tenant, label, kind="publishable", allowed_origins=[…])` → `pk_…`,
+   `create_api_key(tenant, agent_id, label, kind="publishable", allowed_origins=[…])` → `pk_…`,
    then `@voqalize/client-react` (`templates/react_embed.tsx`). **The page does not
    set the voice or the language** — the brain does, via its `voice`/`language`
    class attributes or `session.configure_language(...)`. There are no `stt`/`tts`

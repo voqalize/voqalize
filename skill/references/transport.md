@@ -34,7 +34,7 @@ Returns:
 
 | Field | What to do with it |
 |---|---|
-| `agent_secret` | `ak_…` — the brain's credential. **Shown once**, never recoverable. |
+| `agent_secret` | `sk_…` — the brain's credential, the same kind `create_agent` gave you. **Shown once**, never recoverable. |
 | `cortex_url` | Pass **verbatim** to the SDK's `cortex_url=`. Already ends in `/agent`; the SDK does not append. |
 | `brain_url` | The Cortex **origin** — what this agent's `brain_url` must become. |
 | `key_id` | For `revoke_api_key` later. |
@@ -55,7 +55,7 @@ Until you do this, the agent still points wherever it pointed before.
 **3. Run the brain.** Export exactly the env block the tool handed back:
 
 ```bash
-export VOQAL_AGENT_SECRET=ak_...            # agent_secret
+export VOQAL_AGENT_SECRET=sk_...            # agent_secret
 export VOQAL_CORTEX_URL=wss://cortex.dev.voqalize.com/agent   # cortex_url, verbatim
 export VOQAL_AGENT_MODE=outbound
 python run_cortex.py
@@ -76,7 +76,7 @@ conventions your code passes through as kwargs.
 **4. Talk to it.** Open the agent's `test_url` (from `create_agent` / `get_agent`).
 
 Rotation is safe by construction: minting revokes nothing. Mint → redeploy the brain
-with the new key → `revoke_api_key(tenant, old_key_id)`. `ak_` keys never expire.
+with the new key → `revoke_api_key(tenant, old_key_id)`. Keys never expire.
 
 **How Cortex splices the legs.** It exposes two routes: PyGato lands on
 `/s/{session_id}`, your brain on `/agent`. Both legs authenticate to the same
@@ -132,10 +132,13 @@ in the framework you already run.
 
 - An **empty `brain_url`** falls back to the hosted `welcome` brain, so a bare agent
   still greets. If your agent greets with something you didn't write, it's unwired.
-- `create_agent` returns an `sk_` **session key**, not the Cortex `ak_`. They are
-  different credentials for different jobs: `sk_` starts sessions from your backend;
-  `ak_` authenticates the brain's outbound leg to Cortex.
-- Never expose an `sk_` or `ak_` to a browser. The browser gets a `pk_` only.
+- **One `sk_` does both jobs.** The `sk_` `create_agent` hands back starts sessions
+  from your backend *and* authenticates that agent's brain on the Cortex outbound
+  leg. There used to be a separate `ak_` kind for the second job; it was retired
+  once every `sk_` named exactly one agent, because that is all `ak_` ever said.
+- **An agent may hold several `sk_` keys**, which is what makes rotation safe: mint,
+  redeploy, then revoke the old one.
+- Never expose an `sk_` to a browser. The browser gets a `pk_` only.
 
 ## Read next
 

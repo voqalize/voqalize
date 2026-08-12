@@ -351,7 +351,7 @@ class FakeCortex:
     def _agent_id_from_bearer(cls, ws: ServerConnection) -> str | None:
         """Extract the routing agent_id from `Authorization: Bearer <token>`.
 
-        Customer keys (``ak_…``) are used verbatim as the routing key — that
+        Customer keys (``sk_…``) are used verbatim as the routing key — that
         matches local-dev where the customer key is also the pool key.
         Otherwise the token is decoded as a JWT *without verification*:
         FakeCortex routes on the claim, so a forged claim would only fool
@@ -363,7 +363,7 @@ class FakeCortex:
         token = raw[len("Bearer ") :].strip()
         if not token:
             return None
-        if token.startswith("ak_"):
+        if token.startswith("sk_"):
             return token
         try:
             import jwt as _jwt

@@ -9,7 +9,7 @@ a web backend, prefer `inbound_app.py` — one less hop.
 This is fully self-service. Get the credentials from the MCP server:
 
     create_agent_credentials(tenant, agent_id, label="")
-      -> agent_secret  (ak_…, shown ONCE)    -> VOQAL_AGENT_SECRET
+      -> agent_secret  (sk_…, shown ONCE)    -> VOQAL_AGENT_SECRET
       -> cortex_url    (already ends /agent)  -> VOQAL_CORTEX_URL, pass verbatim
       -> brain_url     (the Cortex origin)    -> update_agent(..., brain_url=...)
 
@@ -19,7 +19,7 @@ Then wire the agent to Cortex — this is NOT automatic:
 
 Run it:
 
-    export VOQAL_AGENT_SECRET=ak_...
+    export VOQAL_AGENT_SECRET=sk_...
     export VOQAL_CORTEX_URL=wss://cortex.dev.voqalize.com/agent
     export VOQAL_AGENT_MODE=outbound
     python run_cortex.py
@@ -48,7 +48,7 @@ async def main() -> None:
     # script passes through as kwargs.
     await serve_auto(
         MyBrain,
-        api_key=os.environ["VOQAL_AGENT_SECRET"],  # ak_… from create_agent_credentials
+        api_key=os.environ["VOQAL_AGENT_SECRET"],  # sk_… for this agent
         cortex_url=os.environ["VOQAL_CORTEX_URL"],  # verbatim; it already ends in /agent
         version="1.0.0",
     )

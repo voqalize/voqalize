@@ -18,7 +18,8 @@
  *     arrives as on_client_message(message.type, message.data)
  *
  * Publishable keys are origin-allowlisted and safe in the browser — mint one with
- * the `create_api_key` MCP tool (kind="publishable", allowed_origins=[...]).
+ * the `create_api_key` MCP tool (agent_id=<this agent>, kind="publishable",
+ * allowed_origins=[...]). The key names one agent — the one this embed talks to.
  * NEVER put an sk_ key in frontend code.
  *
  * Fill in the three values below from your Voqalize agent:

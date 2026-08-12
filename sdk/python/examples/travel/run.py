@@ -1,7 +1,7 @@
 """Run the cortex TravelBrain against a Cortex relay.
 
     GEMINI_API_KEY=...  python -m examples.travel.run \
-        --api-key ak_...  --cortex-url wss://cortex.voqalize.com/agent
+        --api-key sk_...  --cortex-url wss://cortex.voqalize.com/agent
 
 One ``CortexAgent`` process; a fresh ``TravelBrain`` per session.
 """
@@ -18,7 +18,7 @@ from .brain import TravelBrain
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--api-key", required=True, help="agent key (ak_…) from agents.create")
+    ap.add_argument("--api-key", required=True, help="the agent's secret (sk_…) from agents.create")
     ap.add_argument("--version", default="1.0.0")
     ap.add_argument("--cortex-url", required=True, help="wss://…/agent")
     args = ap.parse_args()

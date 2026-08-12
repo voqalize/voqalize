@@ -78,7 +78,7 @@ non-loopback host).
 | Tool | Signature | Does |
 |---|---|---|
 | `create_agent` | `(tenant, name, description="", brain_url="") -> dict` | Create an agent. Returns `{agent, session_key (sk_…, once)}`. |
-| `create_agent_credentials` | `(tenant, agent_id, label="") -> dict` | Mint Cortex outbound credentials for a brain that **can't accept inbound** (localhost, serverless, egress-only). Returns `{agent_secret (ak_…, once), cortex_url, brain_url, key_id, usage}`. |
+| `create_agent_credentials` | `(tenant, agent_id, label="") -> dict` | Mint Cortex outbound credentials for a brain that **can't accept inbound** (localhost, serverless, egress-only). Returns `{agent_secret (sk_…, once), cortex_url, brain_url, key_id, usage}`. |
 | `get_agent` | `(tenant, agent_id) -> dict` | One agent: `id`, name, description, status, `brain_url`, Playground `test_url`, timestamps. It does **not** return STT/TTS config. |
 | `list_agents` | `(tenant, status="", limit=20) -> dict` | List agents; optional `draft\|active\|archived` filter. |
 | `update_agent` | `(tenant, agent_id, name="", description="", brain_url="") -> dict` | Rename, re-describe, and/or point the brain at a WS URL. |
@@ -94,7 +94,7 @@ interchangeable**: `cortex_url` goes to the SDK's `cortex_url=` argument (it alr
 carries the `/agent` path — pass it verbatim), while `brain_url` is what the agent's
 own `brain_url` must become so the runtime dials Cortex instead of your server.
 Setting it is **not automatic** — finish with
-`update_agent(tenant, agent_id, brain_url=…)`. The `ak_` secret is shown once, never
+`update_agent(tenant, agent_id, brain_url=…)`. The `sk_` secret is shown once, never
 expires, and minting revokes nothing, so rotation is: mint → redeploy → revoke the
 old key. This is what makes local development tunnel-free; see
 [Cortex relay](/docs/deploy/cortex/).
@@ -103,8 +103,8 @@ old key. This is what makes local development tunnel-free; see
 
 | Tool | Signature | Does |
 |---|---|---|
-| `create_api_key` | `(tenant, label, kind="secret", allowed_origins=None) -> dict` | Mint a runtime key. `kind="publishable"` (`pk_`, browser — pass origins) or `"secret"` (`sk_`, backend). Raw key shown once. |
-| `list_api_keys` | `(tenant, include_revoked=False) -> dict` | List keys (prefixes only). |
+| `create_api_key` | `(tenant, agent_id, label, kind="secret", allowed_origins=None) -> dict` | Mint another key for one agent. `kind="publishable"` (`pk_`, browser — pass origins) or `"secret"` (`sk_`, backend). Raw key shown once. |
+| `list_api_keys` | `(tenant, include_revoked=False) -> dict` | List keys (prefixes only), each with the agent it names. |
 | `revoke_api_key` | `(tenant, key_id) -> dict` | Revoke by id (irreversible). |
 
 ### Calls & logs (observability)
@@ -138,7 +138,7 @@ walks the flow:
 5. **Test it unattended** — the [conformance harness](/docs/brain/testing/) drives
    the brain in text mode, with no audio and no human. Then talk to it live at the
    agent's `test_url`.
-6. **Embed in the browser** — `create_api_key(tenant, label, kind="publishable", …)`
+6. **Embed in the browser** — `create_api_key(tenant, agent_id, label, kind="publishable", …)`
    → `pk_…`, then `@voqalize/client-react`.
 7. **Instrument and observe** — `on_inference_finalized` / `on_error` brain-side,
    `list_meetings` / `get_meeting` / `query_logs` platform-side.

@@ -118,7 +118,7 @@ later, call `update_agent(tenant, agent_id, brain_url=…)`.
 Then mint a browser key:
 
 ```text
-create_api_key(tenant="<your-tenant>", label="web", kind="publishable", allowed_origins=["http://localhost:5173"])
+create_api_key(tenant="<your-tenant>", agent_id="<the agent you just made>", label="web", kind="publishable", allowed_origins=["http://localhost:5173"])
 ```
 
 ## 4. Talk to it in the browser

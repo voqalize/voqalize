@@ -22,7 +22,7 @@ objects passed into your callbacks.
             async with interaction.say() as speech:
                 await speech.speak(f"You said: {interaction.transcript}")
 
-    serve(Greeter, api_key="ak_...", cortex_url="wss://.../agent")
+    serve(Greeter, api_key="sk_...", cortex_url="wss://.../agent")
 
 ``say()`` is the raw-speech bracket: *you* supply the words and the SDK streams
 them to Voice for TTS. (A framework integration's ``run_inference()`` is the

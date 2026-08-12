@@ -14,14 +14,15 @@ dependency.
 ## 1. Mint a publishable key
 
 ```
-create_api_key(tenant, label="web", kind="publishable",
+create_api_key(tenant, agent_id, label="web", kind="publishable",
                allowed_origins=["https://your-site.com", "http://localhost:5173"])
 ```
 
 The raw `pk_…` is shown **once**. Publishable keys are origin-allowlisted and safe to
 ship to the browser. **Include the dev origin too**, or local session minting is
-rejected. Never put an `sk_` (backend) or `ak_` (Cortex) key in frontend code — `pk_`
-is the only key the browser ever sees.
+rejected. `agent_id` is required: the key starts sessions for that one agent, so a
+page holding it cannot reach anything else you own. Never put an `sk_` in frontend
+code — `pk_` is the only key the browser ever sees.
 
 ## 2. Wire the three required values
 
