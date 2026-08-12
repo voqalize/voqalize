@@ -7,9 +7,14 @@
  *   Authorization: Bearer <pk_...>
  *   { agent_id, payload: { pipeline, payload } }
  *
- * and normalizes the response into `{ signalingUrl, token }`, which is exactly
- * what {@link VoqalWebRTCTransport} needs to `connect`. Authentication uses a
- * publishable (`pk_`) key — safe to ship in browser code.
+ * and normalizes the response into {@link VoqalConnectParams} — exactly what
+ * `PipecatClient.connect()` hands pipecat's `SmallWebRTCTransport`.
+ * Authentication uses a publishable (`pk_`) key, safe to ship in browser code.
+ *
+ * This is step one of pipecat's two-step connect: *ask someone who holds a
+ * credential where the bot is*, then negotiate WebRTC against the address you
+ * were given. A page that mints on its own backend instead skips this function
+ * entirely and calls {@link toConnectParams} on whatever its server returns.
  */
 
 /**
@@ -79,12 +84,34 @@ export interface CreateSessionOptions {
   fetchImpl?: typeof fetch;
 }
 
-/** Resolved connection details for {@link VoqalWebRTCTransport}. */
-export interface VoqalSession {
-  /** `wss://.../signal/{session_id}` signaling URL. */
-  signalingUrl: string;
-  /** RS256 JWT for the voice-runtime handshake. */
-  token: string;
+/**
+ * Where the WebRTC offer goes, and what it must carry to be accepted.
+ *
+ * The shape pipecat's `SmallWebRTCTransport` reads: it `POST`s the SDP offer to
+ * `endpoint` and `PATCH`es trickled ICE candidates to the same URL, sending
+ * `headers` on both.
+ *
+ * `headers` is a real `Headers`, not a plain object, and that is load-bearing:
+ * pipecat builds every request with `Object.fromEntries(headers.entries())`, so
+ * a plain object — which is what a JSON body naturally gives you — throws a
+ * `TypeError` at the offer POST rather than failing anywhere legible. Running
+ * a server response through {@link toConnectParams} is what makes it a
+ * `Headers`.
+ */
+export interface VoqalConnectParams {
+  webrtcRequestParams: {
+    /** Absolute URL of the assigned node's offer endpoint. */
+    endpoint: string;
+    /** Sent on the offer POST and every ICE PATCH. Carries the session token. */
+    headers?: Headers;
+  };
+  /**
+   * The session this call is. Not used to address anything — the endpoint
+   * already names the node and the token already names the session — but it is
+   * the id every log, recording and transcript is filed under, so it travels
+   * with the connection details rather than being derivable from them.
+   */
+  sessionId?: string;
 }
 
 /** Thrown when `sessions.create_and_start` fails or returns an unusable body. */
@@ -98,22 +125,79 @@ export class VoqalSessionError extends Error {
   }
 }
 
+/**
+ * Normalize a minted session's `connect_params` into {@link VoqalConnectParams}.
+ *
+ * Accepts the wire form the control plane serves and a customer's own backend
+ * is expected to mirror:
+ *
+ * ```json
+ * {
+ *   "webrtc_request_params": {
+ *     "endpoint": "https://n1.signal.voqalize.com/webrtc",
+ *     "headers": { "Authorization": "Bearer <session token>" }
+ *   },
+ *   "session_id": "..."
+ * }
+ * ```
+ *
+ * Both `snake_case` (the wire) and `camelCase` (already-normalized) keys are
+ * read, so passing the result of this function back through it is a no-op.
+ *
+ * @throws {VoqalSessionError} when there is no endpoint to negotiate against.
+ */
+export function toConnectParams(raw: unknown): VoqalConnectParams {
+  if (!raw || typeof raw !== "object") {
+    throw new VoqalSessionError(
+      "toConnectParams: expected an object of connection parameters",
+      0
+    );
+  }
+  const body = raw as Record<string, unknown>;
+  const request = (body["webrtc_request_params"] ??
+    body["webrtcRequestParams"] ??
+    {}) as Record<string, unknown>;
+
+  const endpoint = request["endpoint"];
+  if (typeof endpoint !== "string" || !endpoint) {
+    throw new VoqalSessionError(
+      "toConnectParams: no webrtc_request_params.endpoint — nothing to send the offer to",
+      0
+    );
+  }
+
+  const params: VoqalConnectParams = { webrtcRequestParams: { endpoint } };
+
+  const headers = request["headers"];
+  if (headers instanceof Headers) {
+    params.webrtcRequestParams.headers = headers;
+  } else if (headers && typeof headers === "object") {
+    params.webrtcRequestParams.headers = new Headers(
+      headers as Record<string, string>
+    );
+  }
+
+  const sessionId = body["session_id"] ?? body["sessionId"];
+  if (typeof sessionId === "string" && sessionId) params.sessionId = sessionId;
+
+  return params;
+}
+
 interface CreateAndStartResponse {
   connection_details?: {
-    signaling_url?: string;
-    token?: string;
+    connect_params?: unknown;
   };
 }
 
 /**
- * Create and start a session, returning the signaling URL + token.
+ * Create and start a session, returning the parameters to connect with.
  *
- * @throws {VoqalSessionError} on a non-2xx response or a body missing the
- *   signaling URL / token.
+ * @throws {VoqalSessionError} on a non-2xx response or a body that carries no
+ *   usable connection parameters.
  */
 export async function createSession(
   opts: CreateSessionOptions
-): Promise<VoqalSession> {
+): Promise<VoqalConnectParams> {
   const {
     apiBase,
     publishableKey,
@@ -180,14 +264,19 @@ export async function createSession(
     );
   }
 
-  const signalingUrl = body.connection_details?.signaling_url ?? "";
-  const token = body.connection_details?.token ?? "";
-  if (!signalingUrl) {
+  const connectParams = body.connection_details?.connect_params;
+  if (!connectParams) {
     throw new VoqalSessionError(
-      "createSession: response missing connection_details.signaling_url — is a worker running for this agent?",
+      "createSession: response missing connection_details.connect_params — is a voice runtime node configured for this environment?",
       res.status
     );
   }
 
-  return { signalingUrl, token };
+  try {
+    return toConnectParams(connectParams);
+  } catch (err) {
+    // Re-thrown with the HTTP status attached: a malformed body is a server
+    // problem, and `status: 0` would read as a network failure in the browser.
+    throw new VoqalSessionError((err as Error).message, res.status);
+  }
 }

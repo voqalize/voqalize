@@ -83,7 +83,8 @@ jobs:
                    package/README.md package/LICENSE; do
             tar -tzf "$tarball" | grep -qx "$f" || { echo "::error::$f missing from the tarball"; exit 1; }
           done
-          for peer in "react" "@pipecat-ai/client-js" "@pipecat-ai/client-react"; do
+          for peer in "react" "@pipecat-ai/client-js" "@pipecat-ai/client-react" \
+                      "@pipecat-ai/small-webrtc-transport"; do
             grep -qF "from '$peer'" dist/index.js || {
               echo "::error::$peer is not imported from dist/index.js — it was bundled"; exit 1; }
           done
@@ -100,9 +101,15 @@ jobs:
           cp -r src tsconfig.json "$floor/"
           cd "$floor"
           echo '{"name":"floor-check","private":true,"type":"module"}' > package.json
-          npm install --no-audit --no-fund \
+          # --legacy-peer-deps: small-webrtc-transport tilde-pins the client-js
+          # minor it was built against, so npm refuses any floor but the newest.
+          # The point of this job is to compile against the floor we claim, and
+          # the claim is that 1.10.0 works on client-js 1.7 — which is what its
+          # own peer range says.
+          npm install --no-audit --no-fund --legacy-peer-deps \
             react@18.2.0 react-dom@18.2.0 @types/react@18.2.0 @types/react-dom@18.2.0 \
-            @pipecat-ai/client-js@1.5.0 @pipecat-ai/client-react@1.1.0 \
+            @pipecat-ai/client-js@1.7.0 @pipecat-ai/client-react@1.1.0 \
+            @pipecat-ai/small-webrtc-transport@1.10.0 \
             typescript@5.8.3
           npx tsc --noEmit
 

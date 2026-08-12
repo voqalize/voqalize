@@ -40,9 +40,12 @@ release as potentially breaking and let consumers pin narrowly.
 wide.** A library that demands the newest React and the newest pipecat is one
 its would-be consumers copy instead of install — which is exactly how this
 package ended up with two divergent forks of itself before it ever shipped. The
-declared floor is React 18.2, `@pipecat-ai/client-js` 1.5 and
-`@pipecat-ai/client-react` 1.1: the oldest combination anything actually *runs*,
-not the oldest that happens to compile. The release job typechecks the source
+declared floor is React 18.2, `@pipecat-ai/client-js` 1.7,
+`@pipecat-ai/client-react` 1.1 and `@pipecat-ai/small-webrtc-transport` 1.10: the
+oldest combination anything actually *runs*, not the oldest that happens to
+compile. The client-js floor is 1.7 rather than 1.5 because the transport pins
+it, not because this code needs it — every peer's own range is part of ours.
+The release job typechecks the source
 against exactly those versions, so the range is a checked claim rather than a
 number someone typed. Raise the floor only when the code genuinely needs a newer
 API, and say so in the changelog — every bump is a consumer who has to move

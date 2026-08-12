@@ -9,6 +9,75 @@ into their own tree, which is exactly the problem this release exists to end.
 `0.0.1` is the first version anyone can `npm install`, and starting the public
 series at the bottom says plainly that nothing here is promised yet.
 
+## 0.1.0
+
+**Breaking.** The call now rides pipecat's own `SmallWebRTCTransport`, and the
+bespoke `VoqalWebRTCTransport` is gone.
+
+### Changed
+
+- **`VoqalWebRTCTransport` is deleted; pipecat's `SmallWebRTCTransport` carries
+  the call.** The old transport signalled over a WebSocket we hand-rolled: open a
+  socket, send a JWT handshake frame, wait for `handshake_ok`, exchange SDP and
+  trickle ICE as JSON messages, then keep the socket alive with a heartbeat. All
+  of it existed to move an offer and an answer — which is one HTTP POST, and
+  pipecat already implements it. Everything the socket carried, the request now
+  carries: the token is an `Authorization` header, the answer is the response
+  body, and ICE candidates trickle as `PATCH`es to the same URL.
+
+  What that buys is not brevity. A WebSocket makes the *first* request pick the
+  process that will hold the peer connection and every later request stick to it,
+  which is a load balancer's problem to solve and an availability risk while
+  there is no load balancer. Over HTTP the control plane assigns a node when it
+  mints the session and hands you its address, so affinity lives in the URL and
+  nothing in the media path has to remember anything. It also means the WebRTC
+  half of your app is stock pipecat: upgradable, and debuggable with everything
+  written about it.
+
+  `@pipecat-ai/small-webrtc-transport` is a new peer dependency — add it
+  alongside the ones you already have.
+
+- **`createSession` returns connection parameters, not a URL and a token.** It
+  now hands back `{ webrtcRequestParams: { endpoint, headers }, sessionId }`,
+  which goes straight into `PipecatClient.connect(...)`. Callers using
+  `<VoqalAgent/>` or `useVoqalSession` see nothing; a caller wiring a raw
+  `PipecatClient` replaces `pc.connect({ connection_url, token })` with
+  `pc.connect(await createSession({…}))`.
+
+- **Peer floor raised to `@pipecat-ai/client-js` 1.7** (from 1.5), because
+  `small-webrtc-transport` 1.10 — the oldest release with the request-shaped
+  connection parameters this uses — declares that floor itself. React 18.2 and
+  `client-react` 1.1 are unchanged. The release job still typechecks against
+  exactly those versions, so the range stays a checked claim.
+
+### Added
+
+- **`connectEndpoint` — mint the session on your own backend.** A publishable key
+  puts the decision to start a call in the page, which is right for a public demo
+  and wrong as soon as that decision depends on something the browser must not be
+  trusted with: who the caller is, whether they have credit, which agent they get.
+  Point the hook at a route on your server instead and it `POST`s there with
+  `credentials: "include"` — your cookie, your credential, your rules — and
+  connects to whatever session that route minted. Same hook, same handle, same
+  UI; the two paths differ only in who is trusted to say a call may start.
+
+- **`toConnectParams(body)`** — normalize a minted session's `connect_params`
+  into transport-ready parameters, reading both the `snake_case` wire form and
+  the already-normalized one. Run every server response through it, including
+  your own backend's: pipecat builds each request with `headers.entries()`, so
+  the plain object a JSON body naturally gives you throws a `TypeError` at the
+  offer POST rather than failing anywhere legible. This is the one line that
+  makes it a `Headers`.
+
+### Fixed
+
+- **The microphone is asked for before the session is minted.** It used to be
+  acquired inside the transport, part-way through connecting — so a caller who
+  had blocked their microphone still paid for a session, and the failure arrived
+  as whatever the transport happened to throw. The permission prompt now comes
+  first, keeps its typed `MicrophoneError` and its `awaiting-microphone` state,
+  and nothing is minted until there is a microphone to speak into.
+
 ## 0.0.1
 
 First release published to npm: `npm install @voqalize/client-react`.
