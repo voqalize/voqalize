@@ -78,10 +78,16 @@ jobs:
           v="${{ needs.guard.outputs.version }}"
           tarball="voqalize-client-react-${v}.tgz"
           test -f "$tarball" || { echo "::error::no tarball for ${v}"; exit 1; }
-          tar -tzf "$tarball" | sort
+          # List once into a variable rather than re-running `tar` per file.
+          # `tar -tzf … | grep -q` looks right and fails on a tarball that is
+          # perfectly fine: grep exits at the first match, tar takes EPIPE on its
+          # next write, and `pipefail` reports the whole pipeline as failed — so
+          # every present file reads as missing.
+          contents=$(tar -tzf "$tarball" | sort)
+          echo "$contents"
           for f in package/dist/index.js package/dist/index.cjs package/dist/index.d.ts \
                    package/README.md package/LICENSE; do
-            tar -tzf "$tarball" | grep -qx "$f" || { echo "::error::$f missing from the tarball"; exit 1; }
+            grep -qx "$f" <<<"$contents" || { echo "::error::$f missing from the tarball"; exit 1; }
           done
           for peer in "react" "@pipecat-ai/client-js" "@pipecat-ai/client-react" \
                       "@pipecat-ai/small-webrtc-transport"; do
