@@ -253,7 +253,7 @@ the Voqalize API, and returns that response's `connect_params` verbatim:
 ```json
 {
   "webrtc_request_params": {
-    "endpoint": "https://n1.signal.voqalize.com/webrtc",
+    "endpoint": "https://signal.prod.voqalize.com/webrtc",
     "headers": { "Authorization": "Bearer <session token>" }
   },
   "session_id": "01J…"
