@@ -10,6 +10,26 @@ version anyone can `pip install`, and starting the public series at the bottom
 says plainly that nothing here is promised yet. Those older entries stay,
 because the API they describe is the API `0.0.1` ships.
 
+## 0.0.2
+
+**No wire change.**
+
+### Fixed
+
+- **A rejected API key now fails immediately, and says so.** Connecting a
+  `CortexAgent` with a key the relay refuses used to retry forever behind
+  exponential backoff, and the only evidence was
+  `wire: connect attempt 14 failed (InvalidStatus(...)); retrying` — the number
+  `401` appeared nowhere, and the process looked alive. The relay rejects a bad
+  credential at the *HTTP upgrade*, so there is no websocket close code to read;
+  the transport was looking for one, not finding it, and concluding "transient".
+
+  `serve(...)` / `CortexAgent.run()` now raise **`AuthRejected`** on the first
+  `401`/`403`, with a message that names the status and what to check. It
+  subclasses `PermanentClose`, so code that already catches that keeps working.
+  Failures that genuinely *are* transient — the relay down, DNS not yet
+  resolving, a network blip — still retry exactly as before.
+
 ## 0.0.1
 
 First release published to PyPI: `pip install voqalize-agent-sdk`.

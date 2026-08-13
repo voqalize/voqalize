@@ -23,6 +23,12 @@ Close code semantics (matches existing cortex contract):
   - anything else         → transient, reconnect with backoff
   - 1000 from us (close()) → no reconnect
 
+A rejection at the *HTTP handshake* is not a close code at all — cortex answers
+`401`/`403` before the upgrade, so there is no websocket to carry a code. Those
+are terminal too (`AuthRejected`): a credential cortex refuses will not start
+working on attempt 12, and retrying only buries the real cause under a backoff
+loop that logs "retrying" forever.
+
 After each successful reconnect, the optional `on_reconnect` callback fires so
 the consumer can re-establish session state (e.g. re-send VqlStartFrame).
 """
@@ -45,6 +51,11 @@ from .frames import FrameDirection
 CLOSE_NO_AGENT = 4000  # permanent
 CLOSE_AGENT_GONE = 4001  # transient
 
+# HTTP statuses cortex answers the upgrade with when the credential itself is
+# the problem. Retrying these is pointless — the key is missing, revoked, or
+# not an `sk_` for this agent, and no amount of backoff changes that.
+FATAL_HTTP_STATUSES = frozenset({401, 403})
+
 # Length of the session-id prefix on the multiplexed `/agent` leg.
 SESSION_ID_LEN = 16
 
@@ -52,10 +63,31 @@ SESSION_ID_LEN = 16
 class PermanentClose(Exception):
     """Raised by send/recv/start when cortex returned a non-retriable close."""
 
-    def __init__(self, code: int, reason: str = ""):
-        super().__init__(f"cortex permanently closed: code={code} reason={reason!r}")
+    def __init__(self, code: int, reason: str = "", message: str | None = None):
+        super().__init__(message or f"cortex permanently closed: code={code} reason={reason!r}")
         self.code = code
         self.reason = reason
+
+
+class AuthRejected(PermanentClose):
+    """Cortex refused the handshake itself (HTTP 401/403), before any upgrade.
+
+    A subclass of `PermanentClose` so every existing caller that already treats
+    a permanent close as fatal keeps working unchanged; catch this specifically
+    to tell "your credential is wrong" apart from "there is no agent here".
+    """
+
+    def __init__(self, status: int, reason: str = ""):
+        super().__init__(
+            status,
+            reason,
+            message=(
+                f"cortex refused the connection: HTTP {status}. The API key is "
+                "missing, revoked, or is not an sk_ secret key for this agent — "
+                "check VOQAL_API_KEY against the key shown in the console."
+            ),
+        )
+        self.status = status
 
 
 class WireClosed(Exception):
@@ -101,6 +133,9 @@ class _Connection:
     async def start(self) -> None:
         """Establish the first connection. Blocks until success or PermanentClose."""
         await self._reconnect_loop(is_first=True)
+        # A first connect that failed terminally raises here rather than
+        # returning a wire that only explodes on the caller's first recv().
+        self._raise_if_terminal()
 
     async def close(self, code: int = 1000) -> None:
         """Close gracefully. No further reconnect attempts."""
@@ -191,9 +226,12 @@ class _Connection:
                     timeout=self._config.connect_timeout,
                 )
             except Exception as exc:
-                code = self._extract_close_code(exc)
-                if code == CLOSE_NO_AGENT:
-                    self._permanent_error = PermanentClose(code)
+                terminal = self._terminal_error(exc)
+                if terminal is not None:
+                    self._permanent_error = terminal
+                    logger.error(
+                        f"wire: connect attempt {attempt} refused; not retrying: {terminal}"
+                    )
                     return
                 logger.warning(
                     f"wire: connect attempt {attempt} failed ({exc!r}); retrying in {delay:.2f}s"
@@ -224,10 +262,31 @@ class _Connection:
             return delay
         return delay * (1.0 + random.uniform(-jit, jit))
 
+    @classmethod
+    def _terminal_error(cls, exc: Exception) -> PermanentClose | None:
+        """Classify a failed connect attempt: terminal, or worth retrying?"""
+        if cls._extract_close_code(exc) == CLOSE_NO_AGENT:
+            return PermanentClose(CLOSE_NO_AGENT)
+        status = cls._extract_http_status(exc)
+        if status is not None and status in FATAL_HTTP_STATUSES:
+            return AuthRejected(status)
+        return None
+
     @staticmethod
     def _extract_close_code(exc: Exception) -> int | None:
         rcvd = getattr(exc, "rcvd", None)
         return rcvd.code if rcvd is not None else None
+
+    @staticmethod
+    def _extract_http_status(exc: Exception) -> int | None:
+        """The status of a handshake rejection (`websockets.InvalidStatus`).
+
+        Read defensively rather than by isinstance: the exception's shape is
+        websockets' to change, and a missing attribute must degrade to "retry",
+        never to a crash inside the reconnect loop.
+        """
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        return status if isinstance(status, int) else None
 
 
 class Wire(_Connection):
