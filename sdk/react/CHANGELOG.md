@@ -9,6 +9,35 @@ into their own tree, which is exactly the problem this release exists to end.
 `0.0.1` is the first version anyone can `npm install`, and starting the public
 series at the bottom says plainly that nothing here is promised yet.
 
+## 0.1.1
+
+Widens the pipecat peer range. No source change; `dist` is byte-identical.
+
+### Changed
+
+- **`@pipecat-ai/client-js` floor drops from `>=1.7.0` to `>=1.5.0`, and
+  `@pipecat-ai/small-webrtc-transport` from `>=1.10.0` to `>=1.8.0`.** The old
+  floors were the versions this package happened to be developed against, not
+  versions it needs, and that distinction is not academic: the transport pins
+  client-js with a *tilde* (`1.10.6` peers `~1.13.0`, `1.8.1` peers `~1.5.0`), so
+  our floor propagates through it and lands on client-js exactly. An application
+  that adds this SDK therefore has its pipecat version chosen by us, and pipecat
+  is very often already load-bearing somewhere else in that application. The
+  first host to install `0.1.0` had `client-js` move `1.5.0 → 1.13.0` underneath
+  a live product the SDK has nothing to do with.
+
+  Nothing here uses an API newer than 1.5: the surface is `PipecatClient`,
+  `RTVIEvent`, `SmallWebRTCTransport({ iceServers })`, `connect`/`disconnect`,
+  `enableMic`, `sendClientMessage`, and the standard callbacks. `APIRequest` has
+  carried `endpoint` and a `Headers` since 1.5, which is the shape
+  `toConnectParams` builds. All eight source files typecheck against
+  `client-js@1.5.0` + `small-webrtc-transport@1.8.1` + `client-react@1.1.0`.
+
+  Devdependencies stay at the current releases, so the tested configuration is
+  still the top of the range. The floor says what we are willing to support, and
+  it should be the oldest thing that works rather than the newest thing we
+  happened to have installed.
+
 ## 0.1.0
 
 **Breaking.** The call now rides pipecat's own `SmallWebRTCTransport`, and the

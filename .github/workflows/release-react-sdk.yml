@@ -110,12 +110,12 @@ jobs:
           # --legacy-peer-deps: small-webrtc-transport tilde-pins the client-js
           # minor it was built against, so npm refuses any floor but the newest.
           # The point of this job is to compile against the floor we claim, and
-          # the claim is that 1.10.0 works on client-js 1.7 — which is what its
+          # the claim is that 1.8.0 works on client-js 1.5 — which is what its
           # own peer range says.
           npm install --no-audit --no-fund --legacy-peer-deps \
             react@18.2.0 react-dom@18.2.0 @types/react@18.2.0 @types/react-dom@18.2.0 \
-            @pipecat-ai/client-js@1.7.0 @pipecat-ai/client-react@1.1.0 \
-            @pipecat-ai/small-webrtc-transport@1.10.0 \
+            @pipecat-ai/client-js@1.5.0 @pipecat-ai/client-react@1.1.0 \
+            @pipecat-ai/small-webrtc-transport@1.8.0 \
             typescript@5.8.3
           npx tsc --noEmit
 
