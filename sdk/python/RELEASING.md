@@ -8,7 +8,8 @@ the oldest protobuf we claim to support, publishes to
 
 The tag is package-prefixed. This repo holds two publishable SDKs — the Python
 brain SDK and `@voqalize/client-react` — and they do **not** version in lockstep,
-so `python-sdk-v*` and (later) `react-sdk-v*` are separate series.
+so `python-sdk-v*` and `react-sdk-v*` are separate series (see
+[`sdk/react/RELEASING.md`](../react/RELEASING.md)).
 
 ## Cutting a release
 

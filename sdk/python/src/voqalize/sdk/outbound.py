@@ -73,7 +73,7 @@ class CortexAgent(RunnerHost):
         authorization_provider: Callable[[], str] | None = None,
         inbound_queue_maxsize: int | None = None,
     ) -> None:
-        # Exactly one auth source: a static ak_… (customer agents) OR a callable
+        # Exactly one auth source: a static sk_… (customer agents) OR a callable
         # that mints a fresh ``"Bearer <jwt>"`` per connect (platform agents).
         if (api_key is None) == (authorization_provider is None):
             raise ValueError("CortexAgent: pass exactly one of api_key= or authorization_provider=")

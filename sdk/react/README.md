@@ -1,10 +1,17 @@
 # @voqalize/client-react
 
-Embed a [Voqalize](https://voqalize.com) voice agent in a React app. Ships the
-browser WebRTC transport, a one-call session bootstrap, and a hook + component
-that manage the whole voice-session lifecycle.
+Embed a [Voqalize](https://voqalize.com) voice agent in a React app. Ships a
+one-call session bootstrap and a hook + component that manage the whole
+voice-session lifecycle.
 
 You bring the brain, we bring the voice.
+
+**The media transport is pipecat's own `SmallWebRTCTransport`**, not one of ours.
+A Voqalize session's connection details are an offer endpoint and a token, which
+is exactly what it already speaks — so the WebRTC half of your app is stock
+pipecat, upgradable and debuggable with everything written about it. What this
+package adds is the half pipecat leaves to you: minting the session, the
+microphone and its failure modes, and the UI around a live call.
 
 ## Install
 
@@ -12,6 +19,8 @@ You bring the brain, we bring the voice.
 pnpm add @voqalize/client-react
 # peers you already have in a React app:
 pnpm add @pipecat-ai/client-js @pipecat-ai/client-react react react-dom
+# and the transport that carries the call:
+pnpm add @pipecat-ai/small-webrtc-transport
 ```
 
 > **Working from this repo?** The package lives at `sdk/react/` and is part of
@@ -201,35 +210,88 @@ you to discover them in a support ticket:
   for the person in front of the browser; `problem` (`"denied"`,
   `"no-microphone"`, `"in-use"`, …) is what you branch on.
 
-```tsx
-import { MicrophoneError } from "@voqalize/client-react";
+The handle carries the typed error, so a render-prop UI never has to catch
+anything — and with `autoConnect` there is no promise to catch:
 
+```tsx
 const session = useVoqalSession({ ...props });
-// `session.error` already holds the message; catch it yourself for custom
-// handling:
-try {
-  await session.connect();
-} catch (err) {
-  if (err instanceof MicrophoneError && err.problem === "denied") {
-    showHowToUnblockMic();
-  }
+
+if (session.connectionState === "error") {
+  // A blocked microphone is the user's to fix and is already worded for them;
+  // anything else is ours, and telling them to check their connection is the
+  // most useful thing we can say.
+  return session.microphoneError ? (
+    <MicHelp problem={session.microphoneError.problem}>
+      {session.microphoneError.message}
+    </MicHelp>
+  ) : (
+    <GenericFailure onRetry={session.connect} />
+  );
 }
 ```
 
 `requestMicrophone()` is exported too, if you want to ask for permission (and
 render the outcome) before minting a session at all.
 
+## Minting on your own backend
+
+`publishableKey` puts the decision to start a call in the page. That is right for
+a public demo and wrong the moment starting a call depends on something the
+browser must not be trusted with — who the caller is, whether they still have
+credit, which agent they are entitled to. For that, swap the key for a route on
+your own server:
+
+```tsx
+<VoqalAgent connectEndpoint="/api/voice/start" connectData={{ orderId }} />
+```
+
+The hook `POST`s there with `credentials: "include"`, so the session cookie you
+already set is what authorizes it. Your route holds whatever credential it likes
+— a secret (`sk_…`) key, an internal service token — mints the session against
+the Voqalize API, and returns that response's `connect_params` verbatim:
+
+```json
+{
+  "webrtc_request_params": {
+    "endpoint": "https://n1.signal.voqalize.com/webrtc",
+    "headers": { "Authorization": "Bearer <session token>" }
+  },
+  "session_id": "01J…"
+}
+```
+
+Nothing else changes: same hook, same handle, same UI. The two paths differ only
+in *who* is trusted to say a call may start.
+
 ## Low level
 
-- `createSession({ apiBase, publishableKey, agentId, pipeline?, payload? })`
-  → `{ signalingUrl, token }`. Throws `VoqalSessionError` on failure. (`pipeline` is
-  the escape hatch above; normal embeds pass `payload` only.)
-- `VoqalWebRTCTransport` — the pipecat `Transport`. Use with a raw `PipecatClient`
-  and `pc.connect({ connection_url, token })` for total control.
+Connecting is pipecat's two-step — ask something that holds a credential where
+the bot is, then negotiate WebRTC against the address you were given — and both
+halves are exported so you can drive a raw `PipecatClient` yourself:
+
+- `createSession({ apiBase, publishableKey, agentId, pipeline?, payload? })` —
+  step one against the Voqalize control plane. Returns parameters ready for
+  `pc.connect(...)`. Throws `VoqalSessionError` on failure. (`pipeline` is the
+  escape hatch above; normal embeds pass `payload` only.)
+- `toConnectParams(body)` — turn any minted session's `connect_params` into those
+  same parameters. **Run every server response through this**, including your own
+  backend's: pipecat builds each request with `headers.entries()`, so the plain
+  object a JSON body gives you throws a `TypeError` at the offer POST rather than
+  failing anywhere legible. This is what makes it a `Headers`.
+
+```tsx
+import { PipecatClient } from "@pipecat-ai/client-js";
+import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
+import { toConnectParams } from "@voqalize/client-react";
+
+const pc = new PipecatClient({ transport: new SmallWebRTCTransport(), enableMic: true });
+await pc.connect(toConnectParams(await mintOnMyServer()));
+```
 
 ## Exports
 
 `VoqalAgent`, `useVoqalSession`, `useUiCommand`, `createUiCommandHandlers`,
-`uiCommandArgs`, `createSession`, `VoqalWebRTCTransport`, `VoqalSessionError`,
+`uiCommandArgs`, `createSession`, `toConnectParams`, `VoqalSessionError`,
 `MicrophoneError`, `requestMicrophone`, plus their TypeScript types
-(`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`, `MicrophoneProblem`, …).
+(`VoqalConnectParams`, `UiCommand`, `UiCommandArgs`, `UiCommandHandlers`,
+`MicrophoneProblem`, …).

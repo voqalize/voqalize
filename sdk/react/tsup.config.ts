@@ -13,5 +13,6 @@ export default defineConfig({
     "react-dom",
     "@pipecat-ai/client-js",
     "@pipecat-ai/client-react",
+    "@pipecat-ai/small-webrtc-transport",
   ],
 });

@@ -89,7 +89,7 @@ there is no ring, hash, or per-agent routing decision anywhere.
 
 **Why:** where/how Cortex is deployed is an *infrastructure* detail, not an SDK
 contract. The SDK never knew the agent's pool key anyway — Cortex resolves the Bearer
-credential (customer `ak_…` via controlplane lookup) to a pool key internally, for
+credential (customer `sk_…` via controlplane lookup) to a pool key internally, for
 its own agent-pool bookkeeping, unrelated to which URL the customer dials. Letting the
 operator pick the URL also makes single-Cortex local-dev trivial.
 

@@ -13,6 +13,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import {
   PipecatClientProvider,
+  usePipecatClientMediaDevices,
   usePipecatClientMediaTrack,
 } from "@pipecat-ai/client-react";
 import {
@@ -21,8 +22,14 @@ import {
   type VoqalSessionHandle,
 } from "./useVoqalSession";
 
-/** Props for {@link VoqalAgent}. */
-export interface VoqalAgentProps extends UseVoqalSessionOptions {
+/**
+ * Props for {@link VoqalAgent}.
+ *
+ * An intersection rather than an `interface … extends`, because
+ * {@link UseVoqalSessionOptions} is a union — mint with a publishable key, or
+ * mint on your own backend — and an interface cannot extend one.
+ */
+export type VoqalAgentProps = UseVoqalSessionOptions & {
   /**
    * Render-prop for a custom UI. Receives the live session handle. When
    * provided, the built-in status bar is not rendered (audio is still wired).
@@ -30,12 +37,19 @@ export interface VoqalAgentProps extends UseVoqalSessionOptions {
   children?: (session: VoqalSessionHandle) => ReactNode;
   /** Optional className applied to the default UI wrapper. */
   className?: string;
-}
+};
+
+/** An `<audio>` element that can be pointed at a non-default output device. */
+type SinkCapableAudio = HTMLAudioElement & {
+  setSinkId?: (deviceId: string) => Promise<void>;
+};
 
 /** Hidden `<audio>` element that plays the bot's audio track. */
 function BotAudio() {
   const track = usePipecatClientMediaTrack("audio", "bot");
-  const ref = useRef<HTMLAudioElement | null>(null);
+  const { selectedSpeaker } = usePipecatClientMediaDevices();
+  const speakerId = "deviceId" in selectedSpeaker ? selectedSpeaker.deviceId : "";
+  const ref = useRef<SinkCapableAudio | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -49,6 +63,18 @@ function BotAudio() {
       el.srcObject = null;
     }
   }, [track]);
+
+  // The transport records the chosen output but cannot route to it; routing is a
+  // property of the element doing the playing, and this is that element. Firefox
+  // and Safari have no setSinkId at all, which is why this is feature-detected
+  // rather than assumed.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el?.setSinkId || !speakerId) return;
+    el.setSinkId(speakerId).catch(() => {
+      /* an output that vanished mid-call keeps playing on the previous one */
+    });
+  }, [speakerId, track]);
 
   return <audio ref={ref} autoPlay playsInline hidden />;
 }
@@ -143,7 +169,13 @@ const btnStyle: React.CSSProperties = {
 };
 
 export function VoqalAgent({ children, className, ...options }: VoqalAgentProps) {
-  const session = useVoqalSession({ autoConnect: true, ...options });
+  // `options` is a union member with the two UI-only props stripped; spreading
+  // it into a fresh literal widens it past what TypeScript can narrow back, so
+  // the cast is asserting what the destructure already guaranteed.
+  const session = useVoqalSession({
+    autoConnect: true,
+    ...options,
+  } as UseVoqalSessionOptions);
 
   const body = children ? (
     children(session)

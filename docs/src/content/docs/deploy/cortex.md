@@ -39,7 +39,7 @@ It returns three things you use in three different places:
 
 | Field | Where it goes |
 |---|---|
-| `agent_secret` | `ak_…` — the SDK's `api_key=`. **Shown once**, never recoverable. |
+| `agent_secret` | `sk_…` — the SDK's `api_key=`. The same kind `create_agent` gave you; **shown once**, never recoverable. |
 | `cortex_url` | The SDK's `cortex_url=`. It already ends in `/agent` — pass it verbatim; the SDK does not append. |
 | `brain_url` | The Cortex origin. This is what the **agent's** `brain_url` must become. |
 
@@ -49,9 +49,9 @@ Wiring the `brain_url` is **not** automatic:
 update_agent(tenant, agent_id, brain_url="<the brain_url it returned>")
 ```
 
-Until you do, the agent still points wherever it pointed before. The `ak_` never
-expires; minting revokes nothing, so rotation is mint → redeploy → `revoke_api_key`
-on the old one, with no window where the agent can't connect.
+Until you do, the agent still points wherever it pointed before. Keys never expire,
+and minting revokes nothing, so rotation is mint → redeploy → `revoke_api_key` on
+the old one, with no window where the agent can't connect.
 
 ## Serving over Cortex
 
@@ -67,12 +67,12 @@ agent = CortexAgent(
     version="1.0.0",
     cortex_url="wss://cortex.dev.voqalize.com/agent",   # verbatim, from the tool
     factory=brain_factory(MyBrain),
-    api_key="ak_…",     # OR authorization_provider=lambda: "Bearer <jwt>"
+    api_key="sk_…",     # OR authorization_provider=lambda: "Bearer <jwt>"
 )
 await agent.run()        # returns when the wire closes permanently
 ```
 
-Pass **exactly one** credential: a static `api_key` (`ak_…`), or an
+Pass **exactly one** credential: a static `api_key` (`sk_…`), or an
 `authorization_provider` that mints a `"Bearer <jwt>"` per connect. `serve(MyBrain,
 ...)` is the sugar wrapper; `serve_auto(MyBrain, mode="cortex")` selects this
 transport from `$VOQAL_AGENT_MODE`.
@@ -85,7 +85,7 @@ fastest way to develop against the hosted platform from a laptop. Export the
 credentials and run:
 
 ```bash
-export VOQAL_AGENT_SECRET=ak_...                              # agent_secret
+export VOQAL_AGENT_SECRET=sk_...                              # agent_secret
 export VOQAL_CORTEX_URL=wss://cortex.dev.voqalize.com/agent   # cortex_url, verbatim
 export VOQAL_AGENT_MODE=outbound
 python run_cortex.py

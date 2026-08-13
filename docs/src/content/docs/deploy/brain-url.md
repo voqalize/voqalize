@@ -32,7 +32,9 @@ directly with no relay in the path. See [Inbound server](/docs/deploy/inbound/).
 Reach for **Cortex** only when your brain genuinely can't accept inbound
 connections — a serverless function, a process on a laptop behind NAT, or a
 network that only allows egress. Your brain dials out to Cortex, which splices the
-two legs by a pool key in the URL. See [Cortex relay](/docs/deploy/cortex/).
+two legs on a scope it derives from the **credential each leg presents** — never
+from the URL, so nothing an attacker can type decides who gets your sessions. See
+[Cortex relay](/docs/deploy/cortex/).
 
 ## Setting the `brain_url`
 
@@ -49,8 +51,8 @@ Rules:
 
 - It must be `wss://` (plain `ws://` is allowed only for `localhost`).
 - Give the **base** URL — the runtime appends `/s/{session_id}` itself. For
-  inbound, that's the base of your route; for Cortex, it's the Cortex URL with your
-  pool key in the path.
+  inbound, that's the base of your route; for Cortex, it's the Cortex origin
+  exactly as `create_agent_credentials` returned it, with nothing appended.
 - Changing `brain_url` never touches the agent's STT/TTS config.
 
 An **empty** `brain_url` falls back to a hosted `welcome` brain, so a freshly

@@ -1,0 +1,182 @@
+# Publish `@voqalize/client-react` to npm from a tag.
+#
+#   git tag react-sdk-v0.0.1 && git push origin main --follow-tags
+#
+# The tag is package-prefixed because this repo holds two publishable SDKs that
+# do NOT version in lockstep — the Python brain SDK and this one. A bare `v0.0.1`
+# would be ambiguous, and the ambiguity would surface as a release publishing
+# the wrong half.
+#
+# No long-lived credential lives here. npm accepts an OIDC token this workflow
+# mints for this repository and this environment; see sdk/react/RELEASING.md for
+# the one-time setup.
+name: release react sdk
+
+on:
+  push:
+    tags: ["react-sdk-v[0-9]+.[0-9]+.[0-9]+", "react-sdk-v[0-9]+.[0-9]+.[0-9]+-*"]
+  workflow_dispatch: # re-run a failed publish without re-tagging
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: tag matches the manifest
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#react-sdk-v}"
+          manifest=$(node -p "require('./sdk/react/package.json').version")
+          echo "tag=$tag  package.json=$manifest"
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::tag $tag disagrees with sdk/react/package.json ($manifest)"
+            exit 1
+          fi
+          # A release with no changelog entry is one nobody can read the diff of.
+          grep -q "^## ${tag}\$" sdk/react/CHANGELOG.md || {
+            echo "::error::sdk/react/CHANGELOG.md has no '## ${tag}' section"; exit 1; }
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: ci
+    needs: guard
+    uses: ./.github/workflows/ci-web.yml
+
+  build:
+    name: build the package
+    needs: [guard, ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: corepack enable
+
+      - name: build
+        working-directory: sdk/react
+        run: |
+          pnpm install --ignore-workspace
+          pnpm typecheck
+          pnpm build
+
+      # React and pipecat are peers, never bundled: a copy of React inside this
+      # package would give the host application a second renderer, and hooks
+      # across the two throw "invalid hook call" at runtime with nothing in the
+      # build to explain it. Two ESM/CJS entry points and their types, nothing else.
+      - name: check the artifacts before uploading
+        working-directory: sdk/react
+        run: |
+          set -euo pipefail
+          pnpm pack --pack-destination .
+          v="${{ needs.guard.outputs.version }}"
+          tarball="voqalize-client-react-${v}.tgz"
+          test -f "$tarball" || { echo "::error::no tarball for ${v}"; exit 1; }
+          # List once into a variable rather than re-running `tar` per file.
+          # `tar -tzf … | grep -q` looks right and fails on a tarball that is
+          # perfectly fine: grep exits at the first match, tar takes EPIPE on its
+          # next write, and `pipefail` reports the whole pipeline as failed — so
+          # every present file reads as missing.
+          contents=$(tar -tzf "$tarball" | sort)
+          echo "$contents"
+          for f in package/dist/index.js package/dist/index.cjs package/dist/index.d.ts \
+                   package/README.md package/LICENSE; do
+            grep -qx "$f" <<<"$contents" || { echo "::error::$f missing from the tarball"; exit 1; }
+          done
+          for peer in "react" "@pipecat-ai/client-js" "@pipecat-ai/client-react" \
+                      "@pipecat-ai/small-webrtc-transport"; do
+            grep -qF "from '$peer'" dist/index.js || {
+              echo "::error::$peer is not imported from dist/index.js — it was bundled"; exit 1; }
+          done
+
+      # The floor in `peerDependencies` is a promise to anyone still on React 18
+      # and an older pipecat. Typechecking the source against exactly those
+      # versions is what keeps the promise honest; the range is otherwise just a
+      # number someone typed.
+      - name: typecheck against the oldest supported peers
+        working-directory: sdk/react
+        run: |
+          set -euo pipefail
+          floor=$(mktemp -d)
+          cp -r src tsconfig.json "$floor/"
+          cd "$floor"
+          echo '{"name":"floor-check","private":true,"type":"module"}' > package.json
+          # --legacy-peer-deps: small-webrtc-transport tilde-pins the client-js
+          # minor it was built against, so npm refuses any floor but the newest.
+          # The point of this job is to compile against the floor we claim, and
+          # the claim is that 1.8.0 works on client-js 1.5 — which is what its
+          # own peer range says.
+          npm install --no-audit --no-fund --legacy-peer-deps \
+            react@18.2.0 react-dom@18.2.0 @types/react@18.2.0 @types/react-dom@18.2.0 \
+            @pipecat-ai/client-js@1.5.0 @pipecat-ai/client-react@1.1.0 \
+            @pipecat-ai/small-webrtc-transport@1.8.0 \
+            typescript@5.8.3
+          npx tsc --noEmit
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: react-sdk-dist
+          path: sdk/react/*.tgz
+
+  npm:
+    name: publish @voqalize/client-react
+    needs: [guard, build]
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # mints the OIDC token npm exchanges for a publish grant
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: react-sdk-dist
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          # Trusted publishing needs Node >=22.14 and npm >=11.5.1; the runner
+          # ships an older npm even on Node 22, hence the upgrade below.
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - run: npm install -g npm@latest
+      # No --provenance flag: publishing through a trusted publisher generates and
+      # attaches the attestation on its own.
+      # `./dist/…`, not `dist/…`: npm reads a bare `a/b` argument as the GitHub
+      # `owner/repo` shorthand, so the unprefixed path fails with EALLOWGIT
+      # ("Refusing to fetch github:dist/voqalize-client-react-0.1.0.tgz") rather
+      # than publishing the tarball sitting right there. The leading `./` is what
+      # makes it unambiguously a file. Exactly one tarball is expected — glob to
+      # a variable first so a second one is an error instead of a silent extra
+      # argument.
+      - name: publish
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tarballs=(./dist/*.tgz)
+          [ ${#tarballs[@]} -eq 1 ] || {
+            echo "::error::expected exactly one tarball, got ${#tarballs[@]}: ${tarballs[*]:-none}"
+            exit 1; }
+          npm publish --access public "${tarballs[0]}"
+
+  github-release:
+    name: github release
+    needs: [guard, npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # --generate-notes diffs against the previous tag
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && exit 0
+          gh release create "$GITHUB_REF_NAME" \
+            --title "@voqalize/client-react ${{ needs.guard.outputs.version }}" \
+            --generate-notes

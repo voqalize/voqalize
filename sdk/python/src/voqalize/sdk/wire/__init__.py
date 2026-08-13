@@ -10,7 +10,9 @@ Public surface:
   lane-routing predicate.
 - ``CortexFrameSerializer`` — protobuf transcoder (plain class).
 - ``MultiplexedWire``, ``Wire``, ``WireConfig``, ``PermanentClose`` — websocket
-  transport with reconnect.
+  transport with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
+  handshake-refused case: a credential cortex answers 401/403 to is never
+  retried.
 - ``UnsupportedFrameError``, ``MalformedFrameError`` — fail-loud signaling.
 """
 
@@ -49,11 +51,19 @@ from .serializer import (
     UnsupportedFrameError,
     serialize_ack,
 )
-from .transport import MultiplexedWire, PermanentClose, Wire, WireClosed, WireConfig
+from .transport import (
+    AuthRejected,
+    MultiplexedWire,
+    PermanentClose,
+    Wire,
+    WireClosed,
+    WireConfig,
+)
 
 __all__ = [
     "VQL_FRAME_CLASSES",
     "Ack",
+    "AuthRejected",
     "CancelFrame",
     "CortexFrameSerializer",
     "DecodedMessage",

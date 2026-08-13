@@ -5,7 +5,7 @@
 Connects one outbound multiplexed WebSocket to a Cortex relay (here the local
 ``ws://localhost:8480/agent``), authenticating as an agent for a pool, and Cortex
 splices each incoming session to this brain. Auth is a short-lived RS256 JWT (or a
-static ``ak_…``) that the relay verifies.
+static ``sk_…``) that the relay verifies.
 
 Point an agent's ``brain_url`` at this relay pool (via the Voqalize MCP
 ``update_agent`` tool — ``update_agent(tenant, agent_id, brain_url=...)`` — or the

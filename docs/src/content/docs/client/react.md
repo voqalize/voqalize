@@ -116,13 +116,14 @@ The hook runs a two-step flow:
    publishable key as a bearer token. The body is `{ agent_id, payload }`, where the
    outer `payload` **wraps both** the `pipeline` override and your app `payload`:
    `{ agent_id, payload: { pipeline?, payload? } }` — so your app data nests one level
-   in, under `payload.payload`. The response carries the signaling URL and a session
-   token. (A missing
-   `connection_details.signaling_url` in the response means no worker is running
-   for that agent — a `VoqalSessionError` is thrown with that hint.)
-2. **Connect** — it builds a `VoqalWebRTCTransport`, wraps it in a `PipecatClient`
-   (mic on, camera off), and connects to the runtime's signaling endpoint. Media is
-   direct WebRTC; RTVI control messages ride a data channel.
+   in, under `payload.payload`. The response carries `connection_details.connect_params`
+   — the runtime node's offer endpoint and the session token to present on it. (A
+   missing `connect_params` means no worker is running for that agent — a
+   `VoqalSessionError` is thrown with that hint.)
+2. **Connect** — it builds pipecat's own `SmallWebRTCTransport`, wraps it in a
+   `PipecatClient` (mic on, camera off), and POSTs the SDP offer to that endpoint.
+   Media is direct WebRTC; RTVI control messages ride a data channel. There is no
+   transport of ours in the path — `toConnectParams` is the whole adaptation.
 
 ## The microphone
 
@@ -259,11 +260,12 @@ The `travel` demo (`demos/travel`) runs this end to end: `Action` subclasses in
 ## Exports
 
 `VoqalAgent`, `useVoqalSession`, `useUiCommand`, `createUiCommandHandlers`,
-`uiCommandArgs`, `createSession`, `VoqalWebRTCTransport`, `VoqalSessionError`,
-`MicrophoneError`, `requestMicrophone`, plus the TypeScript types (`UiCommand`,
-`UiCommandArgs`, `UiCommandHandlers`, `UseVoqalSessionOptions`,
-`VoqalSessionHandle`, `VoqalConnectionState`, `VoqalBotState`,
-`MicrophoneProblem`, `VoqalPipelineConfig`, and more).
+`uiCommandArgs`, `createSession`, `toConnectParams`, `VoqalSessionError`,
+`MicrophoneError`, `requestMicrophone`, `AmbientPresence`, `PreCallGate`, plus the
+TypeScript types (`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`,
+`UseVoqalSessionOptions`, `VoqalSessionHandle`, `VoqalConnectionState`,
+`VoqalBotState`, `MicrophoneProblem`, `VoqalConnectParams`,
+`VoqalPipelineConfig`, and more).
 
 ## Next
 

@@ -230,9 +230,9 @@ from voqalize.sdk import CortexAgent, brain_factory
 
 agent = CortexAgent(
     version="1.0.0",
-    cortex_url="wss://cortex.voqalize.com/<pool>",
+    cortex_url="wss://cortex.voqalize.com/agent",  # verbatim from create_agent_credentials
     factory=brain_factory(build),  # the () -> Brain builder, wrapped
-    api_key="ak_…",                # OR authorization_provider=lambda: "Bearer <jwt>"
+    api_key="sk_…",                # OR authorization_provider=lambda: "Bearer <jwt>"
 )
 await agent.run()
 ```
