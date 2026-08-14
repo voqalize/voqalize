@@ -113,7 +113,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   entry points (`serve`/`serve_direct`/`make_agent`/`make_direct_agent`/
   `brain_factory`).
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
-  `SessionRunner` (two-lane in/out, system-first feeder, ack-after-dispatch,
+  `SessionRunner` (two-lane in/out, system-first feeder, ack-on-dequeue,
   drop-newest + `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` /
   `SessionFactory` / `RunnerHost` seams. **One runner drives both transports.**
 - `src/voqalize/sdk/session.py` — the connection-handoff surface: the `Channel`
@@ -180,10 +180,17 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   *not* system — it rides the normal lane so a session tears down only after its
   queued data drains.
 - **Ack-gated ordering.** Every wire-vocab data frame carries `request_id > 0`.
-  The runner emits an `Ack(request_id)` envelope **after** `adapter.handle_frame`
-  returns — so the ack FIFOs behind any frames the handler emitted synchronously.
-  The adapter **spawns** `on_interaction` (rather than awaiting it), so the
-  `VqlUserText` ack is prompt and the runtime's per-frame flow control keeps moving.
+  The runner emits an `Ack(request_id)` envelope the moment the frame comes **off
+  the inbound lane**, before `adapter.handle_frame` runs. The ack means *"committed
+  to the ordered lane"*, not *"handled"* — the feeder is a single sequential
+  consumer, so ordering is already settled at dequeue, and that is all the
+  runtime's flow control needs. **Do slow I/O off the callback lane.** The runtime
+  blocks its own pipeline on this ack; when the ack waited for your handler (the
+  shape until 2026-08-13), a `on_inference_finalized` that wrote a row to a
+  database delayed the *next* user utterance by exactly that write. Callbacks
+  behind a slow one still wait — one ordered lane is the contract, and it is what
+  commits heard-truth before the next utterance arrives — so spawn your own
+  background work, as the adapter already does for `on_interaction`.
 - **Interruption is a drain barrier.** Barge-in rides the wire as a field-less
   `InterruptionFrame` (system lane); the adapter cancels the in-flight interaction
   task(s) and echoes an `InterruptionFrame` back on the outbound system lane — the

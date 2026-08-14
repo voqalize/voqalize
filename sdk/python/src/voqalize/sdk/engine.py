@@ -14,11 +14,22 @@ Design (identical to the previous pipecat-pipeline version, minus pipecat):
   semantics. ``End`` is *not* system — it rides the normal lane so a session tears
   down only after its queued data drains.
 - **Ack-gating.** For any inbound frame carrying ``request_id > 0``, the runner
-  emits an ``Ack`` envelope **after** ``adapter.handle_frame`` returns — so the ack
-  FIFOs behind any response frames the handler emitted synchronously. Because the
-  adapter *spawns* ``on_interaction`` (rather than awaiting it), the ack for a
-  ``VqlUserText`` fires promptly, which is what keeps PyGato's per-frame flow
-  control moving.
+  emits an ``Ack`` envelope the moment the frame is **taken off the inbound lane**,
+  before ``adapter.handle_frame`` runs. The ack answers "this frame is committed to
+  the ordered lane", not "the brain finished thinking about it" — and that is
+  exactly the fact PyGato's ``_send_and_await_ack`` needs, because the feeder below
+  is a single sequential consumer, so ordering into the adapter is already
+  guaranteed at dequeue time.
+
+  Acking *after* the handler (what this did until 2026-08-13) made the ack mean
+  "handled", which quietly welded brain-side compute onto PyGato's pipeline: a
+  customer's ``on_inference_finalized`` doing a database write parked
+  ``__process_queue`` for the whole write, and the *next* user utterance — queued
+  behind it in the same direction-agnostic queue — went out late by exactly that
+  much. It cost a real call about two seconds a turn and was invisible, because the
+  delay landed on PyGato's transmit lane where no timer was watching. A slow
+  callback still delays the *callbacks* behind it (they are one ordered lane by
+  design); it no longer delays the wire.
 - **Backpressure.** Normal-lane overflow drops the newest frame and delivers a
   non-fatal ``ErrorFrame`` to the adapter (edge-triggered: one per congestion
   episode per direction). The runner never kills a session.
@@ -173,7 +184,8 @@ class _OutLanes:
 
     def append_ack(self, item: _Ack) -> None:
         # Acks bypass the bound: a dropped ack hangs the bridge. They stay in the
-        # normal lane so they FIFO behind the response frames just emitted.
+        # normal lane so they FIFO with the session's own frames rather than
+        # overtaking them on the system lane.
         self.normal.append(item)
 
     def pop(self) -> OutItem | None:
@@ -282,6 +294,12 @@ class SessionRunner:
         try:
             while True:
                 frame, request_id = await self._in.get()
+                # Ack first: the frame is now committed to this single sequential
+                # consumer, which is the whole of what the ack promises. Waiting
+                # until `handle_frame` returns would put the customer's callback
+                # on PyGato's critical path — see the module docstring.
+                if request_id:
+                    self._enqueue_ack(request_id)
                 try:
                     await self._adapter.handle_frame(frame)
                 except asyncio.CancelledError:
@@ -290,8 +308,6 @@ class SessionRunner:
                     logger.exception(
                         "session: adapter.handle_frame failed for {}", type(frame).__name__
                     )
-                if request_id:
-                    self._enqueue_ack(request_id)
                 if self._inbound_congested and self._in.depth() <= self._low_watermark:
                     self._inbound_congested = False
                 if isinstance(frame, EndFrame):

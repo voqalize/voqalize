@@ -3,8 +3,8 @@
 Drives a runner directly through a fake :class:`RunnerHost`, pinning the lane
 semantics that used to live in ``SessionBuffer``: system-lane priority (both
 directions), drop-newest on the normal lane with an edge-triggered congestion
-``ErrorFrame`` delivered to the adapter, ack emission after ``handle_frame``
-returns, and EndFrame teardown notifying the host.
+``ErrorFrame`` delivered to the adapter, ack emission at dequeue (never waiting on
+``handle_frame``), and EndFrame teardown notifying the host.
 
 (Cross-session fair-writer round-robin is now a CortexAgent concern and is
 covered by ``tests/cortex/test_agent_session_isolation.py``; single-session
@@ -140,10 +140,10 @@ async def test_inbound_normal_lane_drops_newest_and_signals_error() -> None:
         await runner.cancel()
 
 
-# ─── Ack emitted after handle_frame returns ──────────────────────────────────
+# ─── Ack emitted on dequeue, NOT after handle_frame ──────────────────────────
 
 
-async def test_ack_enqueued_after_handle_frame() -> None:
+async def test_ack_enqueued_when_the_frame_is_taken_off_the_lane() -> None:
     runner, adapter, host = _build()
     runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="x"), request_id=42)
     runner.start()
@@ -154,6 +154,36 @@ async def test_ack_enqueued_after_handle_frame() -> None:
         assert item.ack_id == 42
         assert host.ready_signals >= 1
     finally:
+        await runner.cancel()
+
+
+async def test_a_slow_handler_does_not_hold_the_ack() -> None:
+    """The ack must not wait for the brain's compute.
+
+    PyGato blocks its own pipeline queue on this ack, so a handler that waits —
+    a customer writing a transcript row inside ``on_inference_finalized``, which
+    is the real case this pins — would otherwise delay the *next* user utterance
+    by exactly its own cost, on a lane nothing times.
+    """
+    gate = asyncio.Event()
+
+    async def block(frame: Frame, _adapter: Recorder) -> None:
+        if isinstance(frame, VqlUserTextFrame):
+            await gate.wait()
+
+    runner, adapter, _host = _build(on_frame=block)
+    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="x"), request_id=7)
+    runner.start()
+    try:
+        # The handler is parked on the gate and has NOT returned.
+        await _until(lambda: bool(adapter.received))
+        await _until(lambda: not runner.out_empty())
+        item = runner.pop_out()
+        assert isinstance(item, _Ack) and item.ack_id == 7, (
+            "the ack must be out while the handler is still running"
+        )
+    finally:
+        gate.set()
         await runner.cancel()
 
 
