@@ -414,6 +414,7 @@ class AdkBrain(_FrameworkBrain):
             return self._built
         agent = self._agent_factory()
         self._check_tools(agent)
+        self._check_thinking(agent)
         if self._runner_factory is not None:
             # The client brings their own Runner — so their own session_service /
             # memory_service / artifact_service (a DatabaseSessionService, a
@@ -456,6 +457,38 @@ class AdkBrain(_FrameworkBrain):
             "raises NoActiveVoice mid-call. Make them `async def` (add `async` — the "
             "body needs no other change), or pass allow_sync_tools=True if these tools "
             "never call voice()."
+        )
+
+    def _check_thinking(self, agent: LlmAgent) -> None:
+        """Say once, out loud, that this agent is paying thinking latency per turn.
+
+        A Gemini model left at its default thinks before it answers, and on a voice
+        call that happens in **silence**: the caller has stopped speaking and nothing
+        is playing. The SDK then drops the thought parts (they are never spoken and
+        never counted as generated text), so the cost has no visible half at all —
+        it reads as "the brain is slow" and there is nothing in any log or transcript
+        that names it. Measured on one production screening agent (2026-08-14, a
+        four-thousand-character instruction and five turns of history): 2115 ms to
+        the first spoken token with the default, 1119 ms with the budget at zero.
+
+        Not an error and not a default we override — a reasoning budget is the right
+        call for some agents, and only the client knows which. Said once per session,
+        at the one moment we can see the config, so the choice is at least deliberate.
+        """
+        model = getattr(agent, "model", None)
+        if not isinstance(model, str) or "gemini" not in model.lower():
+            return  # a BaseLlm instance (a fake, a custom model) — nothing to read
+        config = getattr(agent, "generate_content_config", None)
+        if getattr(config, "thinking_config", None) is not None:
+            return
+        logger.info(
+            "adk: agent {!r} runs {} at its default thinking budget — on a voice turn "
+            "that time is silence the caller sits through, and the thought parts are "
+            "dropped rather than spoken. Set generate_content_config="
+            "GenerateContentConfig(thinking_config=ThinkingConfig(thinking_budget=0)) "
+            "to spend it on the answer instead.",
+            agent.name,
+            model,
         )
 
     @property
