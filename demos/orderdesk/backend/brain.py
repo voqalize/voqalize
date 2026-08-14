@@ -58,7 +58,7 @@ from google.adk.agents import LlmAgent
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
-from voqalize_demos import DEFAULT_MODEL, MINIMAL_THINKING, hello_for
+from voqalize_demos import DEFAULT_MODEL, VOICE_THINKING, hello_for
 
 from voqalize.google_adk import AdkBrain, voice
 from voqalize.sdk import Action
@@ -1405,7 +1405,7 @@ def build_orderdesk_agent(model: str | BaseLlm, desk: OrderDesk, instruction: st
         model=model,
         instruction=instruction,
         tools=desk.tools(),
-        generate_content_config=types.GenerateContentConfig(thinking_config=MINIMAL_THINKING),
+        generate_content_config=types.GenerateContentConfig(thinking_config=VOICE_THINKING),
     )
 
 

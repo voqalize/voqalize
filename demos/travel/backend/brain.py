@@ -52,7 +52,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from google.adk.agents import LlmAgent
 from google.genai import types
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, MINIMAL_THINKING
+from voqalize_demos import DEFAULT_MODEL, VOICE_THINKING
 
 from voqalize.google_adk import AdkBrain, voice
 from voqalize.sdk import Action
@@ -446,7 +446,7 @@ def build_travel_agent(model: str | BaseLlm, desk: TravelDesk) -> LlmAgent:
         model=model,
         instruction=_INSTRUCTION,
         tools=desk.tools(),
-        generate_content_config=types.GenerateContentConfig(thinking_config=MINIMAL_THINKING),
+        generate_content_config=types.GenerateContentConfig(thinking_config=VOICE_THINKING),
     )
 
 

@@ -31,20 +31,31 @@ from voqalize_demos.llm import GeminiProvider
 # daily bucket is spent (an eval run, a long demo day), pointing the process at
 # a sibling model is the difference between "demo works" and "come back
 # tomorrow". Production sets nothing and gets the default.
-DEFAULT_MODEL = os.environ.get("DEMOS_GEMINI_MODEL", "gemini-3.5-flash-lite")
+DEFAULT_MODEL = os.environ.get("DEMOS_GEMINI_MODEL", "gemini-3.7-flash")
 
-# Minimum thinking, for lowest voice latency: on a voice turn a reasoning budget
-# is spent in silence the caller sits through, and the thought parts are never
-# spoken, so the cost has no audible half at all.
+# The least thinking this model allows, for lowest voice latency: on a voice turn
+# a reasoning budget is spent in silence the caller sits through, and the thought
+# parts are never spoken, so the cost has no audible half at all.
 #
-# THE KNOB IS `thinking_level`, NOT `thinking_budget` — do not "simplify" this
-# back. `thinking_budget=0` is what the 3.1 models took, and 3.5 rejects it
-# outright with a bare `400 INVALID_ARGUMENT` ("Request contains an invalid
-# argument", naming no field). Verified against the live API on 2026-08-14:
-# every demo turn would have failed. If a future model refuses `thinking_level`
-# in turn, probe one call before changing the default here — the error says
-# nothing useful, and the demos are the first thing anyone sees.
-MINIMAL_THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
+# BOTH HALVES OF THIS LINE ARE MODEL-SPECIFIC — measure, do not assume, when you
+# change DEFAULT_MODEL. Two ways it bites, each verified against the live API on
+# 2026-08-14:
+#
+#   - The KNOB moved. `thinking_budget=0` is what the 3.1 models took; 3.5+ reject
+#     it with a bare `400 INVALID_ARGUMENT` ("Request contains an invalid
+#     argument") that names no field.
+#   - The FLOOR moved. `thinking_level=MINIMAL` works on 3.5, and 3.7 refuses it
+#     ("Thinking level MINIMAL is not supported for this model"). LOW is 3.7's
+#     floor and it still spends ~275 thought tokens — there is no zero-thinking
+#     setting on this model.
+#
+# And the floor that a model *accepts* is not automatically one it works at:
+# gemini-3.5-flash-lite takes MINIMAL happily, then calls `open_itinerary` on only
+# 9 of 15 identical travel-demo turns (LOW: 11/15; MEDIUM fixes it at ~1s/turn).
+# It was shipped to dev on that basis and the smoke suite caught it. So when you
+# move models, re-run the tool-call check — a model that answers is not the same
+# as a model that acts.
+VOICE_THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
 
 # Appended to a hybrid greeting prompt so the model, having heard the caller's
 # fixed opener already spoken, continues instead of greeting a second time.
@@ -100,7 +111,7 @@ class GeminiBrain(Brain):
         self._max_tool_hops = max_tool_hops
         cfg: dict[str, Any] = {
             "system_instruction": system_instruction,
-            "thinking_config": MINIMAL_THINKING,
+            "thinking_config": VOICE_THINKING,
         }
         if tools is not None:
             cfg["tools"] = tools
