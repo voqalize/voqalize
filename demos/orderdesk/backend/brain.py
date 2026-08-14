@@ -55,9 +55,10 @@ import re
 from typing import TYPE_CHECKING, Any, Literal
 
 from google.adk.agents import LlmAgent
+from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
-from voqalize_demos import DEFAULT_MODEL, hello_for
+from voqalize_demos import DEFAULT_MODEL, MINIMAL_THINKING, hello_for
 
 from voqalize.google_adk import AdkBrain, voice
 from voqalize.sdk import Action
@@ -1394,8 +1395,18 @@ def build_orderdesk_agent(model: str | BaseLlm, desk: OrderDesk, instruction: st
     ``model`` is any ADK model — a model-id string in production, or a fake
     ``BaseLlm`` (``voqalize.google_adk.testing.ScriptedLlm``) in tests.
     ``instruction`` is the base prompt with this session's PHARMACY CONTEXT already
-    folded in (see :meth:`OrderDeskBrain.on_session_start`)."""
-    return LlmAgent(name="orderdesk", model=model, instruction=instruction, tools=desk.tools())
+    folded in (see :meth:`OrderDeskBrain.on_session_start`).
+
+    ``generate_content_config`` is what keeps the thinking budget off the turn: an
+    ADK agent left unset thinks by default, and on a voice call that is dead air
+    the caller sits through (the SDK's own ``AdkBrain`` says so at startup)."""
+    return LlmAgent(
+        name="orderdesk",
+        model=model,
+        instruction=instruction,
+        tools=desk.tools(),
+        generate_content_config=types.GenerateContentConfig(thinking_config=MINIMAL_THINKING),
+    )
 
 
 # ─── The brain ─────────────────────────────────────────────────────────────────

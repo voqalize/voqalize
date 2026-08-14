@@ -31,7 +31,20 @@ from voqalize_demos.llm import GeminiProvider
 # daily bucket is spent (an eval run, a long demo day), pointing the process at
 # a sibling model is the difference between "demo works" and "come back
 # tomorrow". Production sets nothing and gets the default.
-DEFAULT_MODEL = os.environ.get("DEMOS_GEMINI_MODEL", "gemini-3.1-flash-lite")
+DEFAULT_MODEL = os.environ.get("DEMOS_GEMINI_MODEL", "gemini-3.5-flash-lite")
+
+# Minimum thinking, for lowest voice latency: on a voice turn a reasoning budget
+# is spent in silence the caller sits through, and the thought parts are never
+# spoken, so the cost has no audible half at all.
+#
+# THE KNOB IS `thinking_level`, NOT `thinking_budget` — do not "simplify" this
+# back. `thinking_budget=0` is what the 3.1 models took, and 3.5 rejects it
+# outright with a bare `400 INVALID_ARGUMENT` ("Request contains an invalid
+# argument", naming no field). Verified against the live API on 2026-08-14:
+# every demo turn would have failed. If a future model refuses `thinking_level`
+# in turn, probe one call before changing the default here — the error says
+# nothing useful, and the demos are the first thing anyone sees.
+MINIMAL_THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
 
 # Appended to a hybrid greeting prompt so the model, having heard the caller's
 # fixed opener already spoken, continues instead of greeting a second time.
@@ -87,8 +100,7 @@ class GeminiBrain(Brain):
         self._max_tool_hops = max_tool_hops
         cfg: dict[str, Any] = {
             "system_instruction": system_instruction,
-            # Minimum thinking for lowest voice latency.
-            "thinking_config": types.ThinkingConfig(thinking_budget=0),
+            "thinking_config": MINIMAL_THINKING,
         }
         if tools is not None:
             cfg["tools"] = tools
