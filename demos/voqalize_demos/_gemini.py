@@ -31,7 +31,34 @@ from voqalize_demos.llm import GeminiProvider
 # daily bucket is spent (an eval run, a long demo day), pointing the process at
 # a sibling model is the difference between "demo works" and "come back
 # tomorrow". Production sets nothing and gets the default.
-DEFAULT_MODEL = os.environ.get("DEMOS_GEMINI_MODEL", "gemini-3.1-flash-lite")
+DEFAULT_MODEL = os.environ.get("DEMOS_GEMINI_MODEL", "gemini-3.5-flash")
+
+# The least thinking this model allows, for lowest voice latency: on a voice turn
+# a reasoning budget is spent in silence the caller sits through, and the thought
+# parts are never spoken, so the cost has no audible half at all.
+#
+# BOTH HALVES OF THIS LINE ARE MODEL-SPECIFIC — measure, do not assume, when you
+# change DEFAULT_MODEL. Three ways it bites, each verified against the live API on
+# 2026-08-14, and all three were hit in one afternoon getting to this pair:
+#
+#   - The KNOB moved. `thinking_budget=0` is what the 3.1 models took; 3.5+ reject
+#     it with a bare `400 INVALID_ARGUMENT` ("Request contains an invalid
+#     argument") that names no field.
+#   - The FLOOR moved. MINIMAL works here, and `gemini-3.7-flash` refuses it
+#     ("Thinking level MINIMAL is not supported for this model") — LOW is that
+#     model's floor and still spends ~275 thought tokens, so it has no
+#     zero-thinking setting at all, and its turns ran ~2x this one's.
+#   - A LEVEL A MODEL ACCEPTS IS NOT ONE IT ACTS AT. `gemini-3.5-flash-lite` takes
+#     MINIMAL happily, then calls `open_itinerary` on only 9 of 15 identical
+#     travel-demo turns — it asks "which trip?" instead of driving the screen
+#     (LOW: 11/15, and open_dashboard drops to 12/15; MEDIUM fixes it at ~1s/turn;
+#     a prompt nudge made it worse, 1/15). Clean build, green unit tests, and the
+#     Playwright voice smoke suite is what caught it.
+#
+# So when you move models: probe the knob, then re-run the tool-call check, then
+# read the `_TurnClock` think= numbers on a real deployed call — a one-shot TTFT
+# probe understates a turn that carries history and screen grounding.
+VOICE_THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
 
 # Appended to a hybrid greeting prompt so the model, having heard the caller's
 # fixed opener already spoken, continues instead of greeting a second time.
@@ -87,8 +114,7 @@ class GeminiBrain(Brain):
         self._max_tool_hops = max_tool_hops
         cfg: dict[str, Any] = {
             "system_instruction": system_instruction,
-            # Minimum thinking for lowest voice latency.
-            "thinking_config": types.ThinkingConfig(thinking_budget=0),
+            "thinking_config": VOICE_THINKING,
         }
         if tools is not None:
             cfg["tools"] = tools

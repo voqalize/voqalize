@@ -50,8 +50,9 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 from google.adk.agents import LlmAgent
+from google.genai import types
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL
+from voqalize_demos import DEFAULT_MODEL, VOICE_THINKING
 
 from voqalize.google_adk import AdkBrain, voice
 from voqalize.sdk import Action
@@ -435,12 +436,17 @@ def build_travel_agent(model: str | BaseLlm, desk: TravelDesk) -> LlmAgent:
     """Build the travel-desk ``LlmAgent`` over one session's :class:`TravelDesk`.
 
     ``model`` is any ADK model — a model-id string in production, or a fake
-    ``BaseLlm`` (``voqalize.google_adk.testing.ScriptedLlm``) in tests."""
+    ``BaseLlm`` (``voqalize.google_adk.testing.ScriptedLlm``) in tests.
+
+    ``generate_content_config`` is what keeps the thinking budget off the turn: an
+    ADK agent left unset thinks by default, and on a voice call that is dead air
+    the caller sits through (the SDK's own ``AdkBrain`` says so at startup)."""
     return LlmAgent(
         name="travel_desk",
         model=model,
         instruction=_INSTRUCTION,
         tools=desk.tools(),
+        generate_content_config=types.GenerateContentConfig(thinking_config=VOICE_THINKING),
     )
 
 

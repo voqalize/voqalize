@@ -14,7 +14,7 @@ co-located ``demos/<name>/backend/brain.py`` imports them from one obvious place
 See ``demos/README.md`` for the routing contract and the add-a-demo checklist.
 """
 
-from voqalize_demos._gemini import DEFAULT_MODEL, GeminiBrain, hello_for
+from voqalize_demos._gemini import DEFAULT_MODEL, VOICE_THINKING, GeminiBrain, hello_for
 from voqalize_demos.llm import GeminiProvider
 
-__all__ = ["DEFAULT_MODEL", "GeminiBrain", "GeminiProvider", "hello_for"]
+__all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain", "GeminiProvider", "hello_for"]
