@@ -10,6 +10,51 @@ version anyone can `pip install`, and starting the public series at the bottom
 says plainly that nothing here is promised yet. Those older entries stay,
 because the API they describe is the API `0.0.1` ships.
 
+## 0.0.3
+
+**No wire change.** The ack below is sent at a different *moment*, not in a
+different shape, and a runtime running the old timing is unaffected.
+
+### Fixed
+
+- **A slow callback no longer holds up the caller's next sentence.** The SDK
+  acknowledged each inbound frame *after* your handler returned, so the ack
+  doubled as "handled". The voice runtime blocks its transmit lane until that
+  ack arrives — that is what keeps frames in order — which meant any work your
+  callback did was welded onto the runtime's critical path. A brain writing a
+  transcript to a database from `on_inference_finalized` charged the candidate's
+  *next* question for the previous one's write.
+
+  The ack is now sent when the frame is taken off the inbound queue, before your
+  handler runs. It says **"committed to the ordered lane"**, not "handled" —
+  which is all the runtime ever needed it to mean, since ordering is settled the
+  moment the frame is queued. Measured on a production call, the runtime's own
+  share of a turn is now 2–4 ms; it had been carrying seconds that were never
+  its own.
+
+  Ordering is unchanged: frames are still handled one at a time, in arrival
+  order, on a single lane. Nothing becomes concurrent. But **the lane is still
+  yours to keep clear** — a handler that blocks still delays every frame behind
+  it, it just no longer stalls the runtime as well. Do slow I/O in a background
+  task and drain it at session end.
+
+### Added
+
+- **`AdkBrain` now says what a default thinking budget costs you.** A Gemini
+  agent built without an explicit `thinking_config` reasons before its first
+  spoken token, and the SDK drops thought parts rather than speaking them — so
+  on a voice call that time is silence the caller sits through, with nothing to
+  show for it. Building such an agent logs the measurement and the one-line fix.
+
+  Measured against a real screening prompt, median time-to-first-token:
+  default **2115 ms**, `thinking_level="low"` **1480 ms**, `thinking_budget=0`
+  **1119 ms**.
+
+  It is a notice, not a change: nothing is set on your behalf. An agent that
+  passes its own `thinking_config` has made the decision deliberately and stays
+  quiet, as does a non-Gemini model or a model instance you constructed
+  yourself.
+
 ## 0.0.2
 
 **No wire change.**
