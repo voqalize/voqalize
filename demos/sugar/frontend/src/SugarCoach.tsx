@@ -199,21 +199,32 @@ export function SugarCallSession() {
     );
   }
 
-  if (!client || !isLive) {
-    return bar(
-      <>
-        <span className="sugar-pulse" aria-hidden style={{ width: 9, height: 9, borderRadius: "50%", background: "#7BD9BE" }} />
-        <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{COACH_NAME}</span>
-        <span style={{ fontSize: 12, opacity: 0.85 }}>Connecting…</span>
-        <button onClick={hangUp} style={pillBtn(RED)} title="End call">✕</button>
-      </>,
-    );
+  const connecting = (
+    <>
+      <span className="sugar-pulse" aria-hidden style={{ width: 9, height: 9, borderRadius: "50%", background: "#7BD9BE" }} />
+      <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{COACH_NAME}</span>
+      <span style={{ fontSize: 12, opacity: 0.85 }}>Connecting…</span>
+      <button onClick={hangUp} style={pillBtn(RED)} title="End call">✕</button>
+    </>
+  );
+
+  if (!client) {
+    return bar(connecting);
   }
 
+  // The provider — and with it BotAudioOutput — mounts the moment the client
+  // exists, NOT when the call goes live. `BotAudioOutput` learns about the bot's
+  // audio track from a single `TrackStarted` event, and SmallWebRTCTransport
+  // fires that from the remote track's `unmute`, ~250 ms after the peer
+  // connection is up. There is no second chance: `client.tracks()` only ever
+  // reports the LOCAL tracks, so a listener that subscribes late finds nothing
+  // to read. Gating this subtree on `connectionState === "connected"` mounted it
+  // ~1 s after the event and the call played silently — RTP arriving, decoded by
+  // nobody. Only the bar chrome may depend on `isLive`.
   return (
     <PipecatClientProvider client={client}>
       <BotAudioOutput />
-      {bar(
+      {!isLive ? bar(connecting) : bar(
         <>
           <span
             aria-hidden
