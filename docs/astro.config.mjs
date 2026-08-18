@@ -8,6 +8,7 @@ export default defineConfig({
   site: "https://voqalize.com",
   base: "/docs",
   trailingSlash: "ignore",
+  vite: { server: { allowedHosts: [".local.voqalize.com"] } },
   integrations: [
     starlight({
       title: "Voqalize",

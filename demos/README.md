@@ -111,8 +111,14 @@ discovers backends and each frontend declares its own connection wiring. To add
 
 ## Running it
 
-Each demo UI runs on its own Vite dev server; the backend runs once and serves
-every brain.
+`pm2 start ecosystem.config.cjs` from the repo root is the supervised path: the
+brains umbrella at `brain.local.voqalize.com` and every UI at
+`local.voqalize.com/demos/<name>` — the same apex layout production serves, so a
+demo mints its session same-origin exactly as it does deployed. Ports are
+declared in that file and nowhere else.
+
+Standalone, one demo at a time, no nginx: each demo UI runs on its own Vite dev
+server; the backend runs once and serves every brain.
 
 ```bash
 # Backend (umbrella FastAPI): brains only. No built UIs, no /api proxy in dev.
@@ -122,7 +128,7 @@ cd demos && uv run uvicorn voqalize_demos.umbrella:app --reload --port 8080
 cd demos/travel/frontend
 cp .env.example .env          # fill in VITE_AGENT_ID / VITE_PUBLISHABLE_KEY
 pnpm install --ignore-workspace
-pnpm dev                      # http://localhost:5751/demos/travel/
+pnpm dev                      # open the URL it prints, at /demos/travel/
 ```
 
 To build and assemble every UI the way the web artifact ships them:

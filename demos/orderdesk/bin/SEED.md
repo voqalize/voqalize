@@ -157,16 +157,19 @@ into the app's `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`.)
 
 ## Local dev
 
-The local control plane (voqalcloud, `localhost:8274`) serves the same API; the
-demo UI's vite proxy already points `/api` there. Provision a local agent the
-same way against the local console (or local MCP if running), with
-`brain_url = "ws://localhost:8080/orderdesk"` (`ws://` is allowed for loopback),
-then put its id + pk in `demos/orderdesk/frontend/.env`.
+The local control plane (voqalcloud, `api.local.voqalize.com`) serves the same
+API. Provision a local agent the same way against the local console
+(`app.local.voqalize.com`, or local MCP if running), with
+`brain_url = "wss://brain.local.voqalize.com/orderdesk"`, then put its id + pk in
+`demos/orderdesk/frontend/.env`.
 
 ```bash
-# local brains umbrella
-cd demos && uv run uvicorn voqalize_demos.umbrella:app --reload --port 8080
-# local UI
-cd demos/orderdesk/frontend && pnpm install --ignore-workspace && pnpm dev
-# → http://localhost:5760/demos/orderdesk/
+# both halves, supervised — ports live in ecosystem.config.cjs and nowhere else
+pm2 start ecosystem.config.cjs
+# → https://local.voqalize.com/demos/orderdesk/ , brain at brain.local.voqalize.com
 ```
+
+Standalone still works if you want one demo and no nginx — `cd demos && uv run
+uvicorn voqalize_demos.umbrella:app --reload --port 8080` plus `cd
+demos/orderdesk/frontend && pnpm dev` — with `brain_url = "ws://localhost:8080/orderdesk"`
+(`ws://` is allowed for loopback).

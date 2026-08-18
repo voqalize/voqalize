@@ -9,7 +9,8 @@ export default defineConfig({
   base: "/demos/shopping/",
   plugins: [react()],
   server: {
-    port: 5752,
+    // Vite rejects unknown Host headers; allow the local nginx front.
+    allowedHosts: [".local.voqalize.com"],
     // Session-bootstrap API is proxied to the local control plane in dev.
     proxy: {
       "/api": { target: "http://localhost:8274", changeOrigin: true },
