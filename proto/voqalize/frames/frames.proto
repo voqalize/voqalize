@@ -1,22 +1,24 @@
 // Voqalize cortex wire frames.
 //
-// This schema is the canonical wire vocabulary between:
-//   - the voice runtime (pygato / gato) and cortex
-//   - the agent SDK (CortexAgent)       and cortex
+// The wire vocabulary between a voice runtime and a brain. Cortex relays these
+// bytes without reading them; the schema is consumed only at the two ends.
 //
-// Cortex itself is byte-opaque; this schema is consumed only by the two
-// endpoints. Generated stubs are committed alongside each SDK:
-//   - sdk/python/src/voqalize/sdk/wire/_frames_pb2.py
+// Regenerate with `make proto`; stubs are committed at
+// sdk/python/src/voqalize/sdk/wire/_frames_pb2.py.
 //
-// Regenerate with `make proto` (root Makefile, driven by `buf generate`).
+// Correlation lives in the envelope, never in a message body. Two scalars carry
+// it — `epoch` and `inference_id` — and every body is then just its own payload.
 //
-// Field-number policy in `Envelope.body`:
-//   1 – 30   reserved for Vql application frames
-//   31 +     reserved for pipeline lifecycle / transport frames
+// Direction, where V = voice runtime and B = brain:
 //
-// Opaque dict fields (`payload`, function call `arguments` / `result`) are
-// JSON-encoded `string`, matching pipecat's `MessageFrame.data` pattern.
-// No `google.protobuf.Struct` dependency.
+//   V→B  session_start  user_message  user_idle  client_message  interruption
+//        inference_finalized  end  cancel
+//   B→V  llm_start  llm_text  llm_end  server_message  update_tts_settings
+//        update_stt_settings  update_idle_settings  cancel
+//   both error  ack
+//
+// Opaque fields (`payload`, `data`, `settings`) are JSON-encoded strings,
+// matching pipecat's MessageFrame.data pattern. No Struct dependency.
 
 syntax = "proto3";
 
@@ -24,189 +26,129 @@ package voqalize.frames;
 
 // ─── Envelope ─────────────────────────────────────────────────────────────────
 
-// Top-level message carried in each websocket binary payload.
-// Wire layout: [1 byte direction] [Envelope serialized bytes].
-//
-// Ordering ack protocol (CortexLLMService ↔ CortexAgent):
-//   • The pygato bridge tags outbound data frames with `request_id` (a
-//     monotonically increasing uint64).
-//   • The agent SDK, after the customer's `process_frame` returns for that
-//     frame, sends an `Ack { ack_id = request_id }` envelope back over the
-//     wire. The bridge resolves the pending future to unblock its own
-//     `process_frame`, which releases pipecat's next queued frame.
-//   • Lifecycle frames (Vql*Start/Interruption/End/Cancel) and SystemFrames
-//     are not ack-gated — they have no `request_id`.
+// Top-level message in each websocket binary payload.
+// Wire layout: [1 byte direction] [Envelope bytes].
 message Envelope {
-  // COMPATIBILITY RULE — this oneof is ADD-ONLY.
-  //
-  // PyGato and the Brains that talk to it deploy independently and promote at
-  // different times (dev-first for pygato, both-envs-at-once for the demo
-  // brains), so at any moment an old sender can be talking to a new receiver or
-  // vice versa. Protobuf drops an unknown oneof field silently, which turns a
-  // renumbering into a frame that vanishes with no error.
-  //
-  // Therefore: NEVER remove a field, NEVER renumber one, and never repurpose a
-  // retired number. A new capability is either a new OPTIONAL field appended to
-  // an existing message (absent == the old behaviour) or an entirely new frame
-  // number — and it must be DEFAULT-OFF, so a peer that has never heard of it
-  // behaves exactly as before.
   oneof body {
-    // Vql application frames (1 – 30)
-    VqlStart                   vql_start            = 1;
-    VqlUserText                vql_user_text        = 2;
-    VqlInterruption            vql_interruption     = 3;
-    VqlInferenceFinalized      vql_inference_finalized = 4;
-    VqlLLMFullResponseStart    vql_llm_start        = 5;
-    VqlLLMText                 vql_llm_text         = 6;
-    VqlLLMFullResponseEnd      vql_llm_end          = 7;
-    VqlFunctionCallsStarted    vql_fc_started       = 8;
-    VqlFunctionCallInProgress  vql_fc_in_progress   = 9;
-    VqlFunctionCallResult      vql_fc_result        = 10;
-    VqlInteractionCompleted    vql_interaction_completed = 11;
-    VqlUserIdle                vql_user_idle        = 12;
-
-    // Pipeline lifecycle / transport frames (31+)
-    End    end    = 31;
-    Cancel cancel = 32;
-    Error  error  = 33;
-
-    // Pipecat-native frames that ride the cortex wire.
-    // These are NOT Vql vocabulary — they wrap pipecat's own frame types so
-    // a customer agent can drive pygato's STT/TTS/RTVI processors over the
-    // wire. JSON-encoded dicts; the deserialized frame reconstructs the
-    // pipecat-native type.
-    RTVIServerMessage  rtvi_server_message  = 34;
-    STTUpdateSettings  stt_update_settings  = 35;
-    TTSUpdateSettings  tts_update_settings  = 36;
-    RTVIClientMessage  rtvi_client_message  = 37;
-    IdleUpdateSettings idle_update_settings = 38;
-
-    // Ordering acks (40+). Not application frames; consumed by the bridge.
-    Ack ack = 40;
+    SessionStart         session_start        = 1;
+    UserMessage          user_message         = 2;
+    UserIdle             user_idle            = 3;
+    ClientMessage        client_message       = 4;
+    Interruption         interruption         = 5;
+    LLMFullResponseStart llm_start            = 6;
+    LLMText              llm_text             = 7;
+    LLMFullResponseEnd   llm_end              = 8;
+    InferenceFinalized   inference_finalized  = 9;
+    ServerMessage        server_message       = 10;
+    UpdateTTSSettings    update_tts_settings  = 11;
+    UpdateSTTSettings    update_stt_settings  = 12;
+    UpdateIdleSettings   update_idle_settings = 13;
+    End                  end                  = 14;
+    Cancel               cancel               = 15;
+    Error                error                = 16;
+    Ack                  ack                  = 17;
   }
 
-  // Set by the sender on data frames that require an ack back. Zero / absent
-  // means "no ack expected." Bridge-scoped counter starting at 1; receiver
-  // does not need to interpret the value, only echo it.
+  // Non-zero means the sender is blocked on this envelope and expects an Ack
+  // echoing the value. The receiver acks on taking it onto its ordered inbound
+  // lane — not after handling it. Zero means fire-and-forget: the envelope is
+  // ambient and must never stall the ordered lane.
   uint64 request_id = 50;
+
+  // Voice-minted, session-monotonic, incremented on every stimulus the voice
+  // runtime commits. The brain echoes it, unread, on everything it emits while
+  // handling that stimulus.
+  //
+  // It exists for exactly one decision: when a barge-in opens a drain barrier,
+  // the runtime must tell "emitted before the barrier" from "emitted after it,
+  // in response to the new stimulus". Only a voice-minted counter can settle
+  // that — a brain-minted one proves an ordering the barrier does not care
+  // about. Nothing else reads it, and no brain-facing API names it.
+  uint64 epoch = 51;
+
+  // Session-monotonic, minted by the emitter of an inference bracket. Every
+  // envelope belonging to one model call carries the same value: the bracket
+  // (llm_start / llm_end), its llm_text, and the inference_finalized that
+  // reports what was heard. This is pipecat's per-turn TTS context id.
+  uint64 inference_id = 52;
 }
 
-// ─── Vql application frames ───────────────────────────────────────────────────
+// ─── Voice → Brain ────────────────────────────────────────────────────────────
 
-// First frame on the wire. session_id and agent_id are named protocol fields;
-// `payload` is opaque customer-defined init data, JSON-encoded.
-//
-// VqlStart also carries the pipecat StartFrame fields the agent's logical
-// pipeline needs to bootstrap (sample rates, metrics flags). Tracing context
-// is intentionally omitted — not portable across processes.
-message VqlStart {
+// First envelope on a session. `payload` is opaque customer init data.
+message SessionStart {
   string session_id = 1;
   string agent_id   = 2;
-  string payload    = 3;
-
-  // Inherited pipecat StartFrame fields.
-  uint32 audio_in_sample_rate     = 10;
-  uint32 audio_out_sample_rate    = 11;
-  bool   enable_metrics           = 12;
-  bool   enable_tracing           = 13;
-  bool   enable_usage_metrics     = 14;
-  bool   report_only_initial_ttfb = 15;
+  string payload    = 3;  // JSON-encoded
 }
 
-// Why a finalize was emitted. interrupted == true iff reason == USER_BARGE_IN;
-// both are kept because consumers key off either the bool (cheap) or the reason
-// (extensible). UNSPECIFIED never appears on the wire — the sender always sets it.
+// Committed user stimulus. Text-only today; richer content gets new fields.
+message UserMessage {
+  string text = 1;
+}
+
+// The user has been silent past the configured timeout and the runtime has
+// opened a stimulus so the brain can re-engage. `level` counts consecutive
+// escalations without intervening speech (1 = first nudge) and resets when the
+// user speaks; `idle_ms` is the silence elapsed when it fired.
+message UserIdle {
+  uint32 level   = 1;
+  uint32 idle_ms = 2;
+}
+
+// A browser→brain message. Every one is delivered — the runtime never reads
+// `type` and there is no respond flag. `data` is the message payload.
+message ClientMessage {
+  string msg_id = 1;
+  string type   = 2;
+  string data   = 3;  // JSON-encoded
+}
+
+// The user spoke over the bot. Pipecat's InterruptionFrame.
+message Interruption {}
+
 enum FinalizeReason {
   FINALIZE_REASON_UNSPECIFIED   = 0;
   FINALIZE_REASON_COMPLETED     = 1;
   FINALIZE_REASON_USER_BARGE_IN = 2;
 }
 
-// Committed user stimulus for one interaction. interaction_id is Voice-minted,
-// session-monotonic. Emitted downstream by UserContextAggregator.
-message VqlUserText {
-  uint64 interaction_id = 1;
-  string text           = 2;
+// What the user actually heard of one inference — never a cross-inference
+// concatenation. The inference is identified by the envelope's inference_id.
+message InferenceFinalized {
+  string         heard_text = 1;
+  FinalizeReason reason     = 2;
 }
 
-// Voice-opened idle interaction. Voice detected the user has been silent past
-// the configured idle timeout and opened a fresh interaction so the Brain can
-// re-engage ("still there?"). interaction_id is Voice-minted, same monotonic
-// space as VqlUserText — the Brain responds through it and returns
-// VqlInteractionCompleted exactly like a spoken turn. level counts consecutive
-// idle escalations without intervening user speech (1 = first nudge); it resets
-// when the user speaks. idle_ms is the silence elapsed when the interaction
-// opened.
-message VqlUserIdle {
-  uint64 interaction_id = 1;
-  uint32 level          = 2;
-  uint32 idle_ms        = 3;
+// ─── Brain → Voice ────────────────────────────────────────────────────────────
+
+message LLMFullResponseStart {}
+
+message LLMText {
+  string text = 1;
 }
 
-// Pure interruption signal — field-less. Maps to pipecat's native
-// InterruptionFrame; correlation is carried by inference_id on the data frames,
-// not here.
-message VqlInterruption {}
+message LLMFullResponseEnd {}
 
-// Per-inference finalize: the text the user actually heard for ONE inference
-// (never a cross-inference concatenation). interaction_id + inference_id are the
-// composite key.
-message VqlInferenceFinalized {
-  uint64         interaction_id = 1;
-  uint64         inference_id   = 2;
-  string         heard_text     = 3;
-  bool           interrupted    = 4;
-  FinalizeReason reason         = 5;
+// Pipecat's RTVIServerMessageFrame.data, bound for the browser.
+message ServerMessage {
+  string data = 1;  // JSON-encoded
 }
 
-message VqlLLMFullResponseStart {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
+message UpdateTTSSettings {
+  string settings = 1;  // JSON-encoded
 }
 
-message VqlLLMText {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
-  string text           = 3;
+message UpdateSTTSettings {
+  string settings = 1;  // JSON-encoded
 }
 
-message VqlLLMFullResponseEnd {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
+// Idle detection config; a timeout of 0 disables it.
+message UpdateIdleSettings {
+  string settings = 1;  // JSON-encoded
 }
 
-message VqlFunctionCallsStarted {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
-  string tool_call_id   = 3;
-  string function_name  = 4;
-  string arguments      = 5;  // JSON-encoded
-}
-
-message VqlFunctionCallInProgress {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
-  string tool_call_id   = 3;
-  string function_name  = 4;
-  string arguments      = 5;  // JSON-encoded
-}
-
-message VqlFunctionCallResult {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
-  string tool_call_id   = 3;
-  string function_name  = 4;
-  string result         = 5;  // JSON-encoded
-}
-
-// Brain → Voice: the Brain is done responding to the whole interaction (emitted
-// when on_interaction returns cleanly). Barge-in skips this — Voice finalizes the
-// cut inference directly. Idempotent per interaction_id.
-message VqlInteractionCompleted {
-  uint64 interaction_id = 1;
-}
-
-// ─── Pipeline lifecycle / transport frames ────────────────────────────────────
+// ─── Lifecycle and acks ───────────────────────────────────────────────────────
 
 message End {}
 
@@ -219,77 +161,7 @@ message Error {
   bool   fatal = 2;
 }
 
-// ─── Pipecat-native frames (wrappers) ─────────────────────────────────────────
-
-// Carries pipecat's RTVIServerMessageFrame.data verbatim, JSON-encoded.
-// Direction on the wire (byte prefix) is set by the sender's push_frame call;
-// for browser-bound server messages the agent pushes UPSTREAM so pygato's
-// RTVI processor (upstream of the cortex bridge) picks it up.
-message RTVIServerMessage {
-  string data = 1;  // JSON-encoded
-}
-
-// Carries pipecat's RTVIClientMessageFrame — a browser→Brain custom message
-// (e.g. state_sync). pygato's RTVI processor emits it DOWNSTREAM into the cortex
-// bridge, which forwards it to the customer agent; the SDK surfaces it as
-// `on_client_message`. `data` is the message's `d` payload, JSON-encoded.
-//
-// EVERY client message is delivered to the Brain — Voice never interprets `type`
-// and there is no respond:true/false flag. The Brain decides what to do: update
-// its own state (and let a tool read it on demand), append it to history without
-// running the model, or spend the stamped interaction_id on an inference right
-// away. Most ids never drive an inference, and that is fine. Delivered
-// fire-and-forget (no ack) so high-frequency ambient messages (e.g. state_sync)
-// never block the ordered conversation lane.
-message RTVIClientMessage {
-  string msg_id = 1;
-  string type   = 2;
-  string data   = 3;  // JSON-encoded
-
-  // Voice-minted session-monotonic stamp, in the same space as VqlUserText /
-  // VqlUserIdle, letting the Brain spend this message's turn on an inference.
-  //
-  // ADDED LATER — 0/absent means "unstamped", i.e. the sender is an older pygato
-  // that predates the stamp. Real ids start at 1, so 0 can never collide with a
-  // live interaction. An unstamped message still reaches the Brain and still
-  // updates its state; the Brain just cannot spend the id and must respond (if
-  // it wants to) with an agent-initiated turn instead.
-  uint64 interaction_id = 4;
-}
-
-// Carries pipecat's STTUpdateSettingsFrame.settings (legacy dict path).
-// Receiver reconstructs STTUpdateSettingsFrame(settings=<decoded>); pipecat's
-// STT services convert dict → typed delta with a deprecation warning.
-// Agent pushes UPSTREAM so it reaches pygato's STT (upstream of the bridge).
-message STTUpdateSettings {
-  string settings = 1;  // JSON-encoded dict
-}
-
-// Carries pipecat's TTSUpdateSettingsFrame.settings (legacy dict path).
-// Agent pushes DOWNSTREAM so it reaches pygato's TTS (downstream of the bridge).
-message TTSUpdateSettings {
-  string settings = 1;  // JSON-encoded dict
-}
-
-// Brain → Voice: (re)configure idle detection mid-session — the idle half of
-// the voice-protocol session.configure() DTO, mirroring STT/TTSUpdateSettings.
-// settings is a JSON-encoded IdlePolicy (e.g. {"timeout_ms": 30000}); Voice
-// applies it to its idle detector (pipecat UserIdleTimeoutUpdateFrame). A
-// timeout of 0 disables idle detection.
-message IdleUpdateSettings {
-  string settings = 1;  // JSON-encoded IdlePolicy
-}
-
-// ─── Ordering acks ────────────────────────────────────────────────────────────
-
-// Sent by the agent SDK after the customer's `process_frame` returns for a
-// data frame the bridge sent with an ack_id. Used by the bridge to gate
-// `push_frame` of subsequent plumbing frames so that pipecat's strict in-order
-// dispatch contract is preserved across the websocket round-trip.
-//
-// Acks are wire-level — they do not appear as pipecat Frames in either
-// pipeline. ack_id is bridge-scoped; counter starts at 1 and is monotonic
-// per bridge instance.
+// Echoes the request_id of the envelope being acknowledged.
 message Ack {
   uint64 ack_id = 1;
 }
