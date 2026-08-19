@@ -1,4 +1,4 @@
-"""Burst 10 VqlUserTextFrames over the wire. The agent's ``handle_frame``
+"""Burst 10 UserMessageFrames over the wire. The agent's ``handle_frame``
 invocations are serialized — the engine feeder awaits each ``handle_frame``
 before pulling the next inbound frame, so at most one runs at a time."""
 
@@ -9,9 +9,9 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, SessionAdapter
+from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
-from voqalize.sdk.wire import Frame, VqlStartFrame, VqlUserTextFrame
+from voqalize.sdk.wire import SessionStartFrame, UserMessageFrame
 
 
 class SerialChecker(SessionAdapter):
@@ -22,13 +22,15 @@ class SerialChecker(SessionAdapter):
     def __init__(self, emitter: Emitter) -> None:
         self.emitter = emitter
 
-    async def handle_frame(self, frame: Frame) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+    async def handle_frame(self, env: Envelope) -> None:
+
+        frame = env.frame
+        if isinstance(frame, UserMessageFrame):
             SerialChecker.in_flight += 1
             SerialChecker.max_in_flight = max(SerialChecker.max_in_flight, SerialChecker.in_flight)
-            SerialChecker.timeline.append(("start", frame.interaction_id))
+            SerialChecker.timeline.append(("start", env.epoch))
             await asyncio.sleep(0.01)
-            SerialChecker.timeline.append(("end", frame.interaction_id))
+            SerialChecker.timeline.append(("end", env.epoch))
             SerialChecker.in_flight -= 1
 
     async def close(self) -> None:
@@ -51,9 +53,9 @@ async def test_serial_dispatch_under_burst() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(VqlStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
             for i in range(10):
-                await client.send(VqlUserTextFrame(interaction_id=i, text=f"msg-{i}"))
+                await client.send(UserMessageFrame(text=f"msg-{i}"), epoch=i)
 
             await wait_until(
                 lambda: sum(1 for kind, _ in SerialChecker.timeline if kind == "end") == 10,

@@ -194,43 +194,48 @@ async def scn_two_inferences_one_turn(ctx: ScenarioContext) -> None:
 
 
 async def scn_barge_in(ctx: ScenarioContext) -> None:
-    """Barge-in mid-response: the brain echoes the InterruptionFrame drain barrier,
-    skips VqlInteractionCompleted, and stops emitting the cut tail.
+    """Barge-in mid-response: the brain echoes the InterruptionFrame drain barrier
+    and stops emitting the cut tail.
     (Reference grammar: ``count slowly`` — a long response with a cuttable tail.)"""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.barge_in(COUNT_SLOWLY)
     checks.check_interruption_echoed(driver)
-    checks.check_barge_in_skips_completion(driver, turn)
     checks.check_no_speech_after_barge_in(driver, turn, forbidden=BARGE_SENTINEL)
 
 
-async def scn_brain_error_terminates(ctx: ScenarioContext) -> None:
-    """Liveness under a brain fault: the brain's ``on_interaction`` raises before
-    speaking a word, yet the interaction MUST still terminate (the SDK core
-    completes it) — otherwise Voice stays muted forever and the whole rest of the
-    call is dead air. (Reference grammar: ``raise``.)
+async def scn_brain_error_isolated(ctx: ScenarioContext) -> None:
+    """A brain fault costs exactly one turn. ``on_interaction`` raises before
+    speaking a word: that turn is silent — the honest outcome, nothing was
+    generated — but it MUST leave no bracket open and MUST NOT take the session
+    with it, so the very next user turn answers normally. (Reference grammar:
+    ``raise``.)
 
-    This is the protocol-level form of the adversarial review's sharpest finding —
-    an unguarded exception in brain/tool code silently dropping the completion
-    frame. It is a *core* guarantee, so every brain built on the SDK inherits it;
-    the reference brain just gives us a deterministic way to trigger the fault."""
+    This is a *core* guarantee, so every brain built on the SDK inherits it; the
+    reference brain just gives us a deterministic way to trigger the fault."""
     driver = await ctx.connect()
     await driver.start_session()
-    turn = await driver.user_says(RAISE, timeout=3.0)
-    checks.check_terminates(turn)
-    checks.check_no_unsolicited_interactions(driver, opened={turn.interaction_id})
+    faulted = await driver.user_says(RAISE, timeout=3.0)
+    checks.check_brackets_closed(faulted)
+
+    recovered = await driver.user_says("are you still there")
+    checks.check_spoke(recovered)
+    checks.check_completed(recovered)
+    checks.check_brackets_closed(recovered)
+    checks.check_no_unsolicited_interactions(
+        driver, opened={faulted.interaction_id, recovered.interaction_id}
+    )
 
 
 async def scn_brain_error_after_speech_keeps_heard(ctx: ScenarioContext) -> None:
-    """A brain that speaks and *then* raises: the interaction still terminates, and
-    the heard-truth spoken before the fault is committed to the conversation (the
-    fault truncates the turn, it does not erase what the user already heard).
+    """A brain that speaks and *then* raises: the bracket still closes, and the
+    heard-truth spoken before the fault is committed to the conversation (the fault
+    truncates the turn, it does not erase what the user already heard).
     (Reference grammar: ``speak then raise <text>``.)"""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.user_says(f"{SPEAK_RAISE_PREFIX}acknowledged", timeout=3.0)
-    checks.check_terminates(turn)
+    checks.check_completed(turn)
     checks.check_spoke(turn)
     checks.check_brackets_closed(turn)
     state = await driver.dump_conversation()
@@ -323,10 +328,8 @@ async def scn_heard_truth_multi_interruption(ctx: ScenarioContext) -> None:
     b = await driver.barge_in(f"{STORY_PREFIX}jack and jill")
     c = await driver.user_says(f"{STORY_PREFIX}giant killer")
 
-    # Each interruption was a proper drain barrier: echoed, and no completion.
+    # Each interruption was a proper drain barrier: echoed by the brain.
     checks.check_interruption_echoed(driver)
-    checks.check_barge_in_skips_completion(driver, a)
-    checks.check_barge_in_skips_completion(driver, b)
 
     # The two cut turns committed exactly the deterministic heard opening — the
     # driver dictated the heard-truth, so this is an exact-string assertion.
@@ -435,7 +438,7 @@ async def scn_client_message_delivery(ctx: ScenarioContext) -> None:
 
 async def scn_user_idle(ctx: ScenarioContext) -> None:
     """The idle trigger: Voice opens an interaction because the user went silent
-    (``VqlUserIdle``), the brain's ``on_user_idle`` re-engages, and the interaction
+    (``UserIdle``), the brain's ``on_user_idle`` re-engages, and the interaction
     plays out and completes exactly like a spoken turn — with the escalation level
     carried through. Crucially, the committed conversation records the assistant
     nudge but **no user turn** (nothing was said), so idle re-engagement never
@@ -462,7 +465,7 @@ async def scn_user_idle(ctx: ScenarioContext) -> None:
 
 async def scn_client_message_responds(ctx: ScenarioContext) -> None:
     """The client-message trigger: Voice wraps a browser message in a
-    ``VqlRTVIClientMessage`` with a freshly minted ``interaction_id`` and delivers it
+    ``ClientMessage`` on a freshly minted epoch and delivers it
     to ``on_client_message``; a responding brain takes the floor
     (``message.interaction``) and answers, and it plays out like a spoken turn. Like
     idle, no user turn is recorded — a client message is not speech — so the
@@ -512,15 +515,15 @@ CATALOG: list[Scenario] = [
         requires_reference=True,
     ),
     Scenario(
-        "brain_error_terminates",
-        "A raising brain still terminates the interaction (no dead-air hang).",
-        scn_brain_error_terminates,
+        "brain_error_isolated",
+        "A raising brain costs one turn; the next turn answers normally.",
+        scn_brain_error_isolated,
         requires_reference=True,
         tags=("fault",),
     ),
     Scenario(
         "brain_error_after_speech_keeps_heard",
-        "Speak-then-raise: interaction terminates and heard text is committed.",
+        "Speak-then-raise: the bracket closes and heard text is committed.",
         scn_brain_error_after_speech_keeps_heard,
         requires_reference=True,
         tags=("fault",),

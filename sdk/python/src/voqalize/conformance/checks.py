@@ -10,12 +10,12 @@ observation model and :class:`~voqalize.conformance.driver.Turn` results.
 The rules come straight from ``docs/voice-protocol.md``:
 
 * **one bracket per inference** — every inference the brain opens
-  (``VqlLLMFullResponseStart``) must close (``…End``) exactly once, with a
-  monotone, per-interaction ``inference_id`` sequence;
+  (``LLMFullResponseStart``) must close (``…End``) exactly once, with a monotone
+  ``inference_id`` sequence;
 * **heard-truth** — the assistant text committed to the conversation is what the
   driver *heard* (played out), never brain-generated tail past a barge-in;
 * **barge-in is a drain barrier** — the brain echoes the ``InterruptionFrame``
-  and **skips** ``VqlInteractionCompleted`` for the cut interaction;
+  and stops generating the cut tail;
 * **greeting rides interaction 0**; **no proactive brain speech** outside an
   interaction the driver opened.
 """
@@ -43,13 +43,14 @@ def check_brackets_closed(turn: Turn) -> None:
         require(
             inf.ended,
             f"interaction {turn.interaction_id} inference {inf.inference_id}: "
-            "bracket opened (VqlLLMFullResponseStart) but never closed "
-            "(VqlLLMFullResponseEnd) — one-bracket-per-inference violated",
+            "bracket opened (LLMFullResponseStart) but never closed "
+            "(LLMFullResponseEnd) — one-bracket-per-inference violated",
         )
 
 
 def check_inference_ids_monotonic(turn: Turn, *, start: int = 1) -> None:
-    """Inference ids within an interaction are strictly increasing from ``start``."""
+    """Inference ids within a turn are strictly increasing from ``start``. Ids are
+    session-monotonic, so a later turn legitimately starts well above 1."""
     ids = [inf.inference_id for inf in turn.inferences]
     require(
         ids == sorted(ids) and len(set(ids)) == len(ids),
@@ -64,8 +65,8 @@ def check_inference_ids_monotonic(turn: Turn, *, start: int = 1) -> None:
 
 
 def check_stamped_with_interaction(driver: VoiceDriver, turn: Turn) -> None:
-    """Every recorded LLM frame for this turn carries the interaction id the driver
-    opened — the brain must echo Voice's ``interaction_id``, never invent one."""
+    """Every recorded LLM frame for this turn carries the epoch the driver stamped
+    the stimulus with — the brain must echo it, never invent one."""
     io = driver.interactions.get(turn.interaction_id)
     require(
         io is not None,
@@ -77,28 +78,11 @@ def check_stamped_with_interaction(driver: VoiceDriver, turn: Turn) -> None:
 
 
 def check_completed(turn: Turn) -> None:
+    """A clean turn answered and closed every bracket it opened."""
     require(
         turn.completed,
-        f"interaction {turn.interaction_id}: brain never sent "
-        "VqlInteractionCompleted for a clean turn",
-    )
-
-
-def check_terminates(turn: Turn) -> None:
-    """Liveness: every driven interaction MUST terminate — the brain sent
-    ``VqlInteractionCompleted``, or it was a barge-in the driver finalized directly.
-
-    A turn that neither completes nor is interrupted *hung the session*: Voice waits
-    on completion to unmute and accept the next user turn, so a dropped completion
-    is dead air for the entire rest of the call. This is the strongest form of the
-    "no dead air" rule, and it MUST hold even when the brain's own logic raised —
-    the SDK core completes the interaction regardless of a brain-side exception, so
-    a buggy brain degrades one turn instead of bricking the session."""
-    require(
-        turn.completed or turn.interrupted,
-        f"interaction {turn.interaction_id}: never terminated — no "
-        "VqlInteractionCompleted and no barge-in finalize. The brain hung the "
-        "session; Voice stays muted waiting to unmute.",
+        f"interaction {turn.interaction_id}: the brain opened no bracket, or left "
+        "one open — a clean turn answers and closes what it opened",
     )
 
 
@@ -110,11 +94,9 @@ def check_spoke(turn: Turn) -> None:
 
 
 def check_greeting(driver: VoiceDriver, turn: Turn | None) -> None:
-    """The greeting is agent-initiated speech stamped with interaction id 0.
-
-    It is *not* a user interaction, so it MUST NOT carry ``VqlInteractionCompleted``
-    (Voice never opened it) — the requirements are: it spoke, its bracket(s)
-    closed, and it used interaction 0."""
+    """The greeting is agent-initiated speech, and answers no stimulus — so it
+    echoes epoch 0. The requirements are: it spoke, its bracket(s) closed, and it
+    rode interaction 0."""
     require(turn is not None, "brain did not greet on session start")
     assert turn is not None
     require(
@@ -123,11 +105,6 @@ def check_greeting(driver: VoiceDriver, turn: Turn | None) -> None:
     )
     check_spoke(turn)
     check_brackets_closed(turn)
-    require(
-        not turn.completed,
-        "greeting (interaction 0) carried VqlInteractionCompleted — agent-initiated "
-        "speech is not a user interaction and must not be completed",
-    )
 
 
 # ─── barge-in / drain barrier ─────────────────────────────────────────────────
@@ -140,30 +117,6 @@ def check_interruption_echoed(driver: VoiceDriver) -> None:
         driver._interruption_seen.is_set(),
         "brain did not echo InterruptionFrame after barge-in — no drain barrier, "
         "Voice would stay muted until the fallback timeout",
-    )
-
-
-def check_barge_in_skips_completion(driver: VoiceDriver, turn: Turn) -> None:
-    """An interaction cut *mid-generation* MUST NOT then receive
-    ``VqlInteractionCompleted`` — Voice finalizes the cut inference directly instead.
-
-    Conditional on the cut landing mid-flight, because the other barge-in is just
-    as legal and far more common: generation outruns playout, so a brain routinely
-    finishes a reply — and correctly completes the interaction — while the user is
-    still listening to it. Interrupt that and there is no in-flight task to cancel
-    and no completion to withhold; the frame is already on the wire. Asserting the
-    MUST unconditionally called that a protocol violation, which is how an
-    ordinary brain that emits its reply in one go was told it was non-conformant
-    for behaving exactly as designed.
-    """
-    if turn.completed_before_cut:
-        return
-    io = driver.interactions.get(turn.interaction_id)
-    require(
-        io is not None and not io.completed,
-        f"interaction {turn.interaction_id}: brain sent VqlInteractionCompleted for "
-        "an interaction that was still generating when the barge-in landed — a cut "
-        "interaction is finalized by Voice, not completed by the brain",
     )
 
 

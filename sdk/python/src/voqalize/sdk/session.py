@@ -52,6 +52,7 @@ from ._platform_keys import VOQAL_PLATFORM_PUBLIC_KEYS
 from .engine import (
     DEFAULT_NORMAL_MAXSIZE,
     OUT_DIRECTION,
+    Envelope,
     RunnerHost,
     SessionFactory,
     SessionRunner,
@@ -228,7 +229,14 @@ class _ChannelSession(RunnerHost):
                 continue
             if decoded.frame is None:
                 continue  # SDK is the ack sender, never the receiver
-            self._runner.enqueue_inbound(decoded.frame, decoded.request_id)
+            self._runner.enqueue_inbound(
+                Envelope(
+                    frame=decoded.frame,
+                    request_id=decoded.request_id,
+                    epoch=decoded.epoch,
+                    inference_id=decoded.inference_id,
+                )
+            )
 
     async def _writer_loop(self) -> None:
         assert self._runner is not None
@@ -243,7 +251,9 @@ class _ChannelSession(RunnerHost):
                     if isinstance(item, _Ack):
                         out = serialize_ack_bytes(item.ack_id)
                     else:
-                        out = await self._serializer.serialize(item)
+                        out = await self._serializer.serialize(
+                            item.frame, epoch=item.epoch, inference_id=item.inference_id
+                        )
                 except Exception:
                     logger.exception("session: serialize failed")
                     continue

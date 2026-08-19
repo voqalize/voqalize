@@ -18,8 +18,8 @@ from voqalize.sdk.wire import (
     CortexFrameSerializer,
     FrameDirection,
     InterruptionFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
 )
@@ -55,12 +55,12 @@ async def test_interruption_cancels_in_flight_interaction() -> None:
         await pygato_wire.send(
             FrameDirection.DOWNSTREAM,
             await serializer.serialize(
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={})
+                SessionStartFrame(session_id="s1", agent_id="welcome", payload={})
             ),
         )
         await pygato_wire.send(
             FrameDirection.DOWNSTREAM,
-            await serializer.serialize(VqlUserTextFrame(interaction_id=1, text="hi")),
+            await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),
         )
         await asyncio.wait_for(started.wait(), timeout=3.0)
         assert timeline == ["start:1"]

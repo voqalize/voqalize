@@ -1,32 +1,25 @@
 """The pygato/Voice side of the wire — what the conformance driver needs to
 impersonate PyGato against a brain.
 
-Three pieces the driver builds on:
+Two pieces the driver builds on:
 
-1. :func:`decode_upstream` — decode a brain→pygato ``Envelope`` into a plain
-   :class:`~voqalize.sdk.wire.Frame` (or :class:`~voqalize.sdk.wire.Ack`).
-   The SDK's own ``CortexFrameSerializer`` decoder is deliberately *asymmetric*
-   — it only decodes the frames a *brain* receives, so it is missing
-   ``rtvi_server_message`` and the STT/TTS settings frames, which travel
-   brain→pygato (i.e. *toward* this driver). This decoder is the complete
-   pygato-receive vocabulary. (Encoding pygato→brain frames reuses the SDK's
-   ``CortexFrameSerializer.serialize`` unchanged — its encoder table is complete.)
-
-2. :class:`DirectConnection` — a bare ``websockets`` client that dials
+1. :class:`DirectConnection` — a bare ``websockets`` client that dials
    ``{brain_url}/s/{session_id}`` exactly as PyGato does: one WS per session, an
    ``Authorization: Bearer <token>`` header, and ``[1-byte direction][protobuf]``
    framing (direction always ``DOWNSTREAM`` pygato→brain, per the wire).
 
-3. :func:`generate_keypair` / :func:`mint_pygato_token` — the RS256 brain token
+2. :func:`generate_keypair` / :func:`mint_pygato_token` — the RS256 brain token
    PyGato presents, byte-for-byte the claim shape of
    ``pygato._cortex_token.CortexTokenSigner`` (``iss=pygato``, ``aud=brain``,
    ``sub=session_id``, plus ``agent_id`` / ``tenant_id``). A conformance run mints
    with an ephemeral keypair and hands the public half to the brain under test.
+
+Decoding is not one of them: ``CortexFrameSerializer`` decodes every body in the
+schema, in either direction, so the driver uses it directly.
 """
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -35,130 +28,11 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from websockets.asyncio.client import ClientConnection, connect
 
-from voqalize.sdk.wire import (
-    Ack,
-    CancelFrame,
-    EndFrame,
-    ErrorFrame,
-    FinalizeReason,
-    Frame,
-    FrameDirection,
-    IdleUpdateSettingsFrame,
-    InterruptionFrame,
-    RTVIServerMessageFrame,
-    STTUpdateSettingsFrame,
-    TTSUpdateSettingsFrame,
-    VqlFunctionCallInProgressFrame,
-    VqlFunctionCallResultFrame,
-    VqlFunctionCallsStartedFrame,
-    VqlInteractionCompletedFrame,
-    VqlLLMFullResponseEndFrame,
-    VqlLLMFullResponseStartFrame,
-    VqlLLMTextFrame,
-)
-from voqalize.sdk.wire import _frames_pb2 as pb
+from voqalize.sdk.wire import FrameDirection
 
 # Same protocol constant every brain verifies (voqalize.sdk.session.BRAIN_AUDIENCE
 # / pygato._cortex_token.CortexTokenSigner.BRAIN_AUDIENCE). Not per-agent.
 BRAIN_AUDIENCE = "brain"
-
-# Reason enum on decode — falls back to COMPLETED defensively (mirrors the SDK).
-_REASON_FROM_PB: dict[int, FinalizeReason] = {
-    pb.FINALIZE_REASON_COMPLETED: FinalizeReason.COMPLETED,
-    pb.FINALIZE_REASON_USER_BARGE_IN: FinalizeReason.USER_BARGE_IN,
-}
-
-
-class UpstreamDecodeError(Exception):
-    """A brain→pygato envelope did not parse into a known frame."""
-
-
-def decode_upstream(payload: bytes) -> Frame | Ack:
-    """Decode one brain→pygato ``Envelope`` payload (direction byte already stripped).
-
-    Covers the complete set of frames a brain may send toward Voice:
-    ``vql_llm_*``, ``vql_fc_*``, ``vql_interaction_completed``, the
-    ``vql_interruption`` drain echo, ``rtvi_server_message`` (UI commands / the
-    voice-lifecycle lane), the STT/TTS/idle settings frames (``session.configure*``),
-    ``error``, ``end``, ``cancel``, and bare ``ack`` envelopes.
-    """
-    env = pb.Envelope()
-    try:
-        env.ParseFromString(payload)
-    except Exception as exc:
-        raise UpstreamDecodeError(f"envelope parse failed: {exc}") from exc
-
-    which = env.WhichOneof("body")
-    if which is None:
-        raise UpstreamDecodeError("envelope has no body set")
-
-    if which == "ack":
-        return Ack(env.ack.ack_id)
-    if which == "vql_llm_start":
-        m = env.vql_llm_start
-        return VqlLLMFullResponseStartFrame(
-            interaction_id=m.interaction_id, inference_id=m.inference_id
-        )
-    if which == "vql_llm_text":
-        m = env.vql_llm_text
-        return VqlLLMTextFrame(
-            interaction_id=m.interaction_id, inference_id=m.inference_id, text=m.text
-        )
-    if which == "vql_llm_end":
-        m = env.vql_llm_end
-        return VqlLLMFullResponseEndFrame(
-            interaction_id=m.interaction_id, inference_id=m.inference_id
-        )
-    if which == "vql_fc_started":
-        m = env.vql_fc_started
-        return VqlFunctionCallsStartedFrame(
-            interaction_id=m.interaction_id,
-            inference_id=m.inference_id,
-            tool_call_id=m.tool_call_id,
-            function_name=m.function_name,
-            arguments=json.loads(m.arguments) if m.arguments else {},
-        )
-    if which == "vql_fc_in_progress":
-        m = env.vql_fc_in_progress
-        return VqlFunctionCallInProgressFrame(
-            interaction_id=m.interaction_id,
-            inference_id=m.inference_id,
-            tool_call_id=m.tool_call_id,
-            function_name=m.function_name,
-            arguments=json.loads(m.arguments) if m.arguments else {},
-        )
-    if which == "vql_fc_result":
-        m = env.vql_fc_result
-        return VqlFunctionCallResultFrame(
-            interaction_id=m.interaction_id,
-            inference_id=m.inference_id,
-            tool_call_id=m.tool_call_id,
-            function_name=m.function_name,
-            result=json.loads(m.result) if m.result else {},
-        )
-    if which == "vql_interaction_completed":
-        return VqlInteractionCompletedFrame(
-            interaction_id=env.vql_interaction_completed.interaction_id
-        )
-    if which == "vql_interruption":
-        return InterruptionFrame()
-    if which == "rtvi_server_message":
-        return RTVIServerMessageFrame(data=json.loads(env.rtvi_server_message.data))
-    if which == "stt_update_settings":
-        return STTUpdateSettingsFrame(settings=json.loads(env.stt_update_settings.settings))
-    if which == "tts_update_settings":
-        return TTSUpdateSettingsFrame(settings=json.loads(env.tts_update_settings.settings))
-    if which == "idle_update_settings":
-        return IdleUpdateSettingsFrame(settings=json.loads(env.idle_update_settings.settings))
-    if which == "error":
-        return ErrorFrame(error=env.error.error, fatal=env.error.fatal)
-    if which == "end":
-        return EndFrame()
-    if which == "cancel":
-        return CancelFrame(reason=env.cancel.reason or None)
-
-    raise UpstreamDecodeError(f"envelope body {which!r} has no pygato-side decoder")
-
 
 # ─── The direct-path connection (bare websockets client) ──────────────────────
 

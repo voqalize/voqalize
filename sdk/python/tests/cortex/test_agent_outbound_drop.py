@@ -14,16 +14,16 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, SessionAdapter
+from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
     ErrorFrame,
     Frame,
     FrameDirection,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    LLMTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
 )
@@ -33,7 +33,7 @@ _FLOOD = 64  # well above _QUEUE_MAX so drops are guaranteed
 
 
 class Flooder(SessionAdapter):
-    """On the first VqlUserTextFrame, emit ``_FLOOD`` VqlLLMTextFrames in a tight
+    """On the first UserMessageFrame, emit ``_FLOOD`` LLMTextFrames in a tight
     synchronous loop (no await → the outbound lane can't drain between sends, so
     it overflows). Records any ErrorFrame the runner delivers back."""
 
@@ -45,25 +45,25 @@ class Flooder(SessionAdapter):
         self.errors: list[ErrorFrame] = []
         self._fired = False
 
-    async def handle_frame(self, frame: Frame) -> None:
+    async def handle_frame(self, env: Envelope) -> None:
+
+        frame = env.frame
         if isinstance(frame, ErrorFrame):
             self.errors.append(frame)
             return
-        if isinstance(frame, VqlUserTextFrame) and not self._fired:
+        if isinstance(frame, UserMessageFrame) and not self._fired:
             self._fired = True
             for i in range(_FLOOD):
-                self.emitter.send(
-                    VqlLLMTextFrame(
-                        interaction_id=frame.interaction_id, inference_id=1, text=f"chunk-{i}"
-                    )
-                )
+                self.emitter.send(LLMTextFrame(text=f"chunk-{i}"), epoch=env.epoch, inference_id=1)
 
     async def close(self) -> None:
         pass
 
 
-async def _send(wire: Wire, serializer: CortexFrameSerializer, frame: Frame) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame))
+async def _send(
+    wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
+) -> None:
+    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_outbound_overflow_delivers_error_frame() -> None:
@@ -94,12 +94,13 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
             await _send(
                 wire,
                 serializer,
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(session_id="s1", agent_id="welcome", payload={}),
             )
             await _send(
                 wire,
                 serializer,
-                VqlUserTextFrame(interaction_id=1, text="go"),
+                UserMessageFrame(text="go"),
+                epoch=1,
             )
 
             await wait_for(lambda: len(Flooder.instances) == 1, timeout=3.0)

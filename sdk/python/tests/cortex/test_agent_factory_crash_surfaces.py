@@ -17,7 +17,7 @@ from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
     FrameDirection,
-    VqlStartFrame,
+    SessionStartFrame,
     Wire,
     WireConfig,
 )
@@ -48,7 +48,7 @@ async def test_factory_crash_raises_out_of_run() -> None:
         await wire.send(
             FrameDirection.DOWNSTREAM,
             await serializer.serialize(
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={})
+                SessionStartFrame(session_id="s1", agent_id="welcome", payload={})
             ),
         )
 

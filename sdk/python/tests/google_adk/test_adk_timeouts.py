@@ -92,9 +92,10 @@ async def test_hung_tool_hits_turn_watchdog_and_speaks_fallback() -> None:
     agent, driver = await _host(llm, turn_timeout=0.3)
     try:
         await driver.start_session()
-        t = await driver.user_says("Hang forever please.")
+        # The watchdog speaks after the torn-down run's empty bracket closes, so the
+        # driver's quiet window has to outlast the 0.3s turn_timeout.
+        t = await driver.user_says("Hang forever please.", quiet_for=1.0)
 
-        checks.check_terminates(t)
         checks.check_completed(t)
         assert _tool_started == ["hang"], _tool_started  # the tool really started
         assert FALLBACK in t.text, (

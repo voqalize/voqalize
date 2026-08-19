@@ -169,7 +169,7 @@ class _FrameworkBrain(Brain):
 
         A voice session is one socket, but a logical conversation may span several (a
         dropped call reconnects, a caller phones back). Read your **own** stable
-        identifier from ``start.init`` (the opaque ``VqlStart`` payload), load that
+        identifier from ``start.init`` (the opaque ``SessionStart`` payload), load that
         conversation from your **own** store, and return its messages; the adapter
         seeds them as heard-truth history so the first prompt already carries prior
         context, and skips the cold greeting (a resumed call is a continuation).
@@ -182,8 +182,7 @@ class _FrameworkBrain(Brain):
     # ─── the two adapter-internal seams (overridable) ──────────────────────────
 
     async def on_client_message(self, session: Session, message: ClientMessage) -> None:
-        """A browser-originated client message, delivered with a pre-minted
-        ``interaction_id`` (Voice never interprets it).
+        """A browser-originated client message (Voice never interprets it).
 
         Two things are handled by default:
 

@@ -92,7 +92,6 @@ async def test_model_error_speaks_fallback_and_completes() -> None:
         await driver.start_session()
         t = await driver.user_says("Trigger an error.")
 
-        checks.check_terminates(t)
         checks.check_completed(t)
         assert FALLBACK in t.text, (
             f"model error left the turn silent — no spoken fallback:\n{t.text!r}"
@@ -112,7 +111,6 @@ async def test_silent_reply_speaks_fallback_and_completes() -> None:
         await driver.start_session()
         t = await driver.user_says("Say nothing at all.")
 
-        checks.check_terminates(t)
         checks.check_completed(t)
         assert FALLBACK in t.text, (
             f"a silent (empty/safety-blocked) reply left the turn with no speech:\n{t.text!r}"
@@ -139,7 +137,6 @@ async def test_tool_exception_never_leaves_dead_air() -> None:
         await driver.start_session()
         t = await driver.user_says("Please do the risky thing.")
 
-        checks.check_terminates(t)
         checks.check_completed(t)
         assert _tool_calls == ["user asked"], _tool_calls  # the tool really ran and raised
         assert t.text.strip(), f"tool error left the turn silent — dead air:\n{t.text!r}"

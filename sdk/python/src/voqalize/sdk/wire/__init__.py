@@ -1,14 +1,14 @@
-"""Cortex wire layer — plain-dataclass frames + protobuf serializer + transport.
+"""Cortex wire layer — plain-dataclass frames, protobuf codec, transport.
 
-Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. The wire only
-ever moves protobuf ``Envelope`` bytes; the frame *classes* here are plain
-dataclasses that never cross the socket.
+Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. Only protobuf
+``Envelope`` bytes cross the socket; the frame classes here never do.
 
 Public surface:
-- ``Frame`` + the ``Vql*Frame`` / lifecycle / RTVI dataclasses — the wire's frame
-  vocabulary. ``FrameDirection`` — the 1-byte direction enum. ``is_system`` — the
-  lane-routing predicate.
-- ``CortexFrameSerializer`` — protobuf transcoder (plain class).
+- The frame dataclasses plus ``Frame``, ``FrameDirection`` (the 1-byte direction
+  enum) and ``is_system`` (the lane-routing predicate).
+- ``CortexFrameSerializer`` — the protobuf codec; ``DecodedMessage`` carries a
+  decoded frame beside the envelope's ``request_id`` / ``epoch`` /
+  ``inference_id``.
 - ``MultiplexedWire``, ``Wire``, ``WireConfig``, ``PermanentClose`` — websocket
   transport with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
   handshake-refused case: a credential cortex answers 401/403 to is never
@@ -17,30 +17,26 @@ Public surface:
 """
 
 from .frames import (
-    VQL_FRAME_CLASSES,
+    WIRE_FRAME_CLASSES,
     CancelFrame,
+    ClientMessageFrame,
     EndFrame,
     ErrorFrame,
     FinalizeReason,
     Frame,
     FrameDirection,
-    IdleUpdateSettingsFrame,
+    InferenceFinalizedFrame,
     InterruptionFrame,
-    RTVIServerMessageFrame,
-    STTUpdateSettingsFrame,
-    TTSUpdateSettingsFrame,
-    VqlFunctionCallInProgressFrame,
-    VqlFunctionCallResultFrame,
-    VqlFunctionCallsStartedFrame,
-    VqlInferenceFinalizedFrame,
-    VqlInteractionCompletedFrame,
-    VqlLLMFullResponseEndFrame,
-    VqlLLMFullResponseStartFrame,
-    VqlLLMTextFrame,
-    VqlRTVIClientMessageFrame,
-    VqlStartFrame,
-    VqlUserIdleFrame,
-    VqlUserTextFrame,
+    LLMFullResponseEndFrame,
+    LLMFullResponseStartFrame,
+    LLMTextFrame,
+    ServerMessageFrame,
+    SessionStartFrame,
+    UpdateIdleSettingsFrame,
+    UpdateSTTSettingsFrame,
+    UpdateTTSSettingsFrame,
+    UserIdleFrame,
+    UserMessageFrame,
     is_system,
 )
 from .serializer import (
@@ -61,10 +57,11 @@ from .transport import (
 )
 
 __all__ = [
-    "VQL_FRAME_CLASSES",
+    "WIRE_FRAME_CLASSES",
     "Ack",
     "AuthRejected",
     "CancelFrame",
+    "ClientMessageFrame",
     "CortexFrameSerializer",
     "DecodedMessage",
     "EndFrame",
@@ -72,27 +69,22 @@ __all__ = [
     "FinalizeReason",
     "Frame",
     "FrameDirection",
-    "IdleUpdateSettingsFrame",
+    "InferenceFinalizedFrame",
     "InterruptionFrame",
+    "LLMFullResponseEndFrame",
+    "LLMFullResponseStartFrame",
+    "LLMTextFrame",
     "MalformedFrameError",
     "MultiplexedWire",
     "PermanentClose",
-    "RTVIServerMessageFrame",
-    "STTUpdateSettingsFrame",
-    "TTSUpdateSettingsFrame",
+    "ServerMessageFrame",
+    "SessionStartFrame",
     "UnsupportedFrameError",
-    "VqlFunctionCallInProgressFrame",
-    "VqlFunctionCallResultFrame",
-    "VqlFunctionCallsStartedFrame",
-    "VqlInferenceFinalizedFrame",
-    "VqlInteractionCompletedFrame",
-    "VqlLLMFullResponseEndFrame",
-    "VqlLLMFullResponseStartFrame",
-    "VqlLLMTextFrame",
-    "VqlRTVIClientMessageFrame",
-    "VqlStartFrame",
-    "VqlUserIdleFrame",
-    "VqlUserTextFrame",
+    "UpdateIdleSettingsFrame",
+    "UpdateSTTSettingsFrame",
+    "UpdateTTSSettingsFrame",
+    "UserIdleFrame",
+    "UserMessageFrame",
     "Wire",
     "WireClosed",
     "WireConfig",

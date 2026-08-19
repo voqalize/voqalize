@@ -20,6 +20,7 @@ from voqalize.sdk.engine import (
     DEFAULT_NORMAL_MAXSIZE,
     DEFAULT_SYSTEM_MAXSIZE,
     Emitter,
+    Envelope,
     RunnerHost,
     SessionAdapter,
     SessionRunner,
@@ -31,8 +32,8 @@ from voqalize.sdk.wire import (
     ErrorFrame,
     Frame,
     InterruptionFrame,
-    VqlLLMTextFrame,
-    VqlUserTextFrame,
+    LLMTextFrame,
+    UserMessageFrame,
 )
 
 SID = b"\x00" * 15 + b"\x01"
@@ -59,10 +60,10 @@ class Recorder(SessionAdapter):
         self.closed = False
         self._on_frame = on_frame
 
-    async def handle_frame(self, frame: Frame) -> None:
-        self.received.append(frame)
+    async def handle_frame(self, env: Envelope) -> None:
+        self.received.append(env.frame)
         if self._on_frame is not None:
-            await self._on_frame(frame, self)
+            await self._on_frame(env.frame, self)
 
     async def close(self) -> None:
         self.closed = True
@@ -100,17 +101,17 @@ async def test_system_lane_dispatched_before_normal() -> None:
     runner, adapter, _host = _build(normal_max=64)
     # Enqueue three normal frames, then one system frame, all before the feeder
     # starts — so the feeder's first pop must choose the system lane.
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="a"))
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="b"))
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="c"))
-    runner.enqueue_inbound(InterruptionFrame())  # system lane
+    runner.enqueue_inbound(Envelope(UserMessageFrame(text="a")))
+    runner.enqueue_inbound(Envelope(UserMessageFrame(text="b")))
+    runner.enqueue_inbound(Envelope(UserMessageFrame(text="c")))
+    runner.enqueue_inbound(Envelope(InterruptionFrame()))  # system lane
     runner.start()
     try:
         await _until(lambda: len(adapter.received) == 4)
         assert isinstance(adapter.received[0], InterruptionFrame), (
             f"system lane must come first; got {type(adapter.received[0]).__name__}"
         )
-        texts = [f.text for f in adapter.received[1:] if isinstance(f, VqlUserTextFrame)]
+        texts = [f.text for f in adapter.received[1:] if isinstance(f, UserMessageFrame)]
         assert texts == ["a", "b", "c"]
     finally:
         await runner.cancel()
@@ -122,7 +123,7 @@ async def test_system_lane_dispatched_before_normal() -> None:
 async def test_inbound_normal_lane_drops_newest_and_signals_error() -> None:
     runner, adapter, _host = _build(normal_max=4)
     for i in range(8):
-        runner.enqueue_inbound(VqlUserTextFrame(interaction_id=i, text=f"f{i}"))
+        runner.enqueue_inbound(Envelope(UserMessageFrame(text=f"f{i}")))
     # First 4 kept, remaining 4 dropped (drop-newest) — all before the feeder ran.
     assert runner._in.depth() == 4
     runner.start()
@@ -130,7 +131,7 @@ async def test_inbound_normal_lane_drops_newest_and_signals_error() -> None:
         # The four survivors are the FIRST four, and a single non-fatal
         # ErrorFrame is delivered to the adapter about the congestion.
         await _until(lambda: any(isinstance(f, ErrorFrame) for f in adapter.received))
-        texts = [f.text for f in adapter.received if isinstance(f, VqlUserTextFrame)]
+        texts = [f.text for f in adapter.received if isinstance(f, UserMessageFrame)]
         assert texts == ["f0", "f1", "f2", "f3"]
         errs = [f for f in adapter.received if isinstance(f, ErrorFrame)]
         assert len(errs) == 1
@@ -145,7 +146,7 @@ async def test_inbound_normal_lane_drops_newest_and_signals_error() -> None:
 
 async def test_ack_enqueued_when_the_frame_is_taken_off_the_lane() -> None:
     runner, adapter, host = _build()
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="x"), request_id=42)
+    runner.enqueue_inbound(Envelope(UserMessageFrame(text="x"), request_id=42))
     runner.start()
     try:
         await _until(lambda: adapter.received and not runner.out_empty())
@@ -168,11 +169,11 @@ async def test_a_slow_handler_does_not_hold_the_ack() -> None:
     gate = asyncio.Event()
 
     async def block(frame: Frame, _adapter: Recorder) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+        if isinstance(frame, UserMessageFrame):
             await gate.wait()
 
     runner, adapter, _host = _build(on_frame=block)
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="x"), request_id=7)
+    runner.enqueue_inbound(Envelope(UserMessageFrame(text="x"), request_id=7))
     runner.start()
     try:
         # The handler is parked on the gate and has NOT returned.
@@ -192,16 +193,14 @@ async def test_a_slow_handler_does_not_hold_the_ack() -> None:
 
 async def test_outbound_overflow_delivers_error_frame() -> None:
     async def flood(frame: Frame, adapter: Recorder) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+        if isinstance(frame, UserMessageFrame):
             # Tight synchronous burst; nobody pops the outbound lane in this
             # unit test, so it overflows past normal_max and drops newest.
             for i in range(64):
-                adapter.emitter.send(
-                    VqlLLMTextFrame(interaction_id=1, inference_id=1, text=f"c{i}")
-                )
+                adapter.emitter.send(LLMTextFrame(text=f"c{i}"))
 
     runner, adapter, host = _build(normal_max=4, on_frame=flood)
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="go"))
+    runner.enqueue_inbound(Envelope(UserMessageFrame(text="go")))
     runner.start()
     try:
         await _until(lambda: any(isinstance(f, ErrorFrame) for f in adapter.received))
@@ -219,21 +218,19 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
 
 async def test_outbound_system_frame_pops_first() -> None:
     async def emit_mix(frame: Frame, adapter: Recorder) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+        if isinstance(frame, UserMessageFrame):
             for i in range(3):
-                adapter.emitter.send(
-                    VqlLLMTextFrame(interaction_id=1, inference_id=1, text=f"n{i}")
-                )
+                adapter.emitter.send(LLMTextFrame(text=f"n{i}"))
             adapter.emitter.send(CancelFrame())  # system lane
 
     runner, _adapter, _host = _build(normal_max=64, on_frame=emit_mix)
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="go"))
+    runner.enqueue_inbound(Envelope(UserMessageFrame(text="go")))
     runner.start()
     try:
         await _until(lambda: runner._out.depth() == 4)
         first = runner.pop_out()
-        assert isinstance(first, CancelFrame), (
-            f"system lane must pop first; got {type(first).__name__}"
+        assert isinstance(first, Envelope) and isinstance(first.frame, CancelFrame), (
+            f"system lane must pop first; got {first!r}"
         )
     finally:
         await runner.cancel()
@@ -244,7 +241,7 @@ async def test_outbound_system_frame_pops_first() -> None:
 
 async def test_endframe_tears_down_and_notifies_host() -> None:
     runner, adapter, host = _build()
-    runner.enqueue_inbound(EndFrame())
+    runner.enqueue_inbound(Envelope(EndFrame()))
     runner.start()
     await _until(lambda: runner in host.closed)
     assert adapter.closed is True

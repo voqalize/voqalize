@@ -13,9 +13,9 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk import Brain, make_agent
 from voqalize.sdk.wire import (
     InterruptionFrame,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    LLMTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
 )
 
 
@@ -50,15 +50,15 @@ async def test_interruption_cancels_in_flight() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(VqlStartFrame(session_id="s1", agent_id="welcome", payload={}))
-            await client.send(VqlUserTextFrame(interaction_id=1, text="say hi"))
+            await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(UserMessageFrame(text="say hi"), epoch=1)
 
             # Wait for the first chunk to arrive over the wire.
             frames, _ = await client.collect_until(
-                lambda fr, _ac: any(isinstance(f, VqlLLMTextFrame) for f in fr),
+                lambda fr, _ac: any(isinstance(f, LLMTextFrame) for f in fr),
                 timeout=3.0,
             )
-            assert any(f.text == "chunk-1" for f in frames if isinstance(f, VqlLLMTextFrame))
+            assert any(f.text == "chunk-1" for f in frames if isinstance(f, LLMTextFrame))
 
             # Barge in. The agent cancels the interaction and echoes an
             # InterruptionFrame back as the drain barrier — on the outbound
@@ -73,7 +73,7 @@ async def test_interruption_cancels_in_flight() -> None:
             )
             assert any(isinstance(f, InterruptionFrame) for f in frames2)
             # No further LLM text frames slipped through after the barge-in.
-            assert not any(isinstance(f, VqlLLMTextFrame) for f in frames2), (
+            assert not any(isinstance(f, LLMTextFrame) for f in frames2), (
                 f"text frames slipped through after interruption: {frames2}"
             )
         finally:

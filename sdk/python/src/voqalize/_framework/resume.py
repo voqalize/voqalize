@@ -9,7 +9,7 @@ with when the call is *not* a resume.
 
 The client keys resume off its **own** stable identifier — read from
 ``session.init`` / ``start.init`` (the opaque payload the control plane puts on
-``VqlStart``) — loads that conversation from its **own** store, and hands the
+``SessionStart``) — loads that conversation from its **own** store, and hands the
 messages back. The SDK persists nothing and interprets no identifier. This keeps
 the moat intact: the transcript never leaves the client's environment.
 """

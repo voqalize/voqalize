@@ -93,7 +93,7 @@ _FOREIGN_CONTEXT_PREFIX = "For context:"
 class _InferenceRecord:
     """Per-inference bookkeeping populated as ``_drive`` streams a model call, read
     once at finalize to write the accountant event. Correlates the SDK's
-    ``(interaction_id, inference_id)`` to ADK's ``invocation_id`` and the persisted
+    ``inference_id`` to ADK's ``invocation_id`` and the persisted
     model event, so the accountant event points at the exact reply it supersedes."""
 
     invocation_id: str | None = None
@@ -390,9 +390,9 @@ class AdkBrain(_FrameworkBrain):
         self._greeting = greeting
         self._streaming = streaming
         self._session_id: str | None = None
-        # (interaction_id, inference_id) → the record read at finalize to write the
-        # accountant event. Populated as ``_drive`` streams each model call.
-        self._inferences: dict[tuple[int, int], _InferenceRecord] = {}
+        # inference_id → the record read at finalize to write the accountant
+        # event. Populated as ``_drive`` streams each model call.
+        self._inferences: dict[int, _InferenceRecord] = {}
 
     # ─── lazy construction ─────────────────────────────────────────────────────
 
@@ -817,7 +817,7 @@ class AdkBrain(_FrameworkBrain):
                 spoke_any = False
         finally:
             # Barge-in (CancelledError) or error mid-call. Close the open bracket
-            # FIRST: its ``VqlLLMFullResponseEnd`` emit is a synchronous
+            # FIRST: its ``LLMFullResponseEnd`` emit is a synchronous
             # ``emitter.send`` with no suspension point, so even a *second* barge
             # landing during teardown cannot abort it (the double-``CancelledError``
             # bug — ``CancelledError`` is a ``BaseException``, so it must not be
@@ -825,8 +825,7 @@ class AdkBrain(_FrameworkBrain):
             # behind an interruptible await). Only then tear down the ADK run
             # generator, whose ``aclose()`` *does* suspend (model/tool cleanup): shield
             # it so it completes even if a second barge cancels us, and absorb that
-            # extra cancel — the original one still propagates from the try body, so
-            # ``run_turn`` still skips ``VqlInteractionCompleted``.
+            # extra cancel — the original one still propagates from the try body.
             if current is not None:
                 with contextlib.suppress(Exception):
                     await current.__aexit__(None, None, None)
@@ -835,11 +834,11 @@ class AdkBrain(_FrameworkBrain):
 
     async def _open(self, interaction: Interaction, event: Any) -> tuple[Any, _InferenceRecord]:
         """Open one inference bracket and register its record (keyed by
-        ``(interaction_id, inference_id)``, carrying ADK's ``invocation_id``)."""
+        ``inference_id``, carrying ADK's ``invocation_id``)."""
         inference = interaction.say()
         await inference.__aenter__()
         record = _InferenceRecord(invocation_id=getattr(event, "invocation_id", None))
-        self._inferences[(interaction.id, inference.id)] = record
+        self._inferences[inference.id] = record
         return inference, record
 
     async def on_inference_finalized(self, inference: Inference) -> None:
@@ -847,7 +846,7 @@ class AdkBrain(_FrameworkBrain):
         # inference's generated reply == what was heard, so ADK's own persisted event
         # is already heard-truth; the greeting and other non-driven speech have no
         # record here (they never went through ADK's Runner).
-        record = self._inferences.pop((inference.interaction_id, inference.id), None)
+        record = self._inferences.pop(inference.id, None)
         if record is None or not inference.interrupted:
             return
         heard = inference.heard or ""

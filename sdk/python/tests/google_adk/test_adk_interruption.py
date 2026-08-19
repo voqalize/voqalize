@@ -6,12 +6,12 @@ the conformance harness (the exact PyGato leg). The load-bearing facts they enco
 straight from the pygato/wire trace:
 
 * ``heard_text`` is computed by PyGato from the audio playout clock — the words that
-  physically played — and shipped to the brain in ``VqlInferenceFinalized`` keyed by
+  physically played — and shipped to the brain in ``InferenceFinalized`` keyed by
   ``(interaction_id, inference_id)``, ``interrupted=True``. The brain commits that
   prefix; it never derives heard-truth itself. In the harness the driver *is* Voice
   and dictates the prefix, which is what makes these deterministic.
-* Wire order to the brain on a barge is ``VqlInterruption`` first (cancel the
-  in-flight run), ``VqlInferenceFinalized{interrupted}`` second (commit the prefix).
+* Wire order to the brain on a barge is ``Interruption`` first (cancel the
+  in-flight run), ``InferenceFinalized{interrupted}`` second (commit the prefix).
 * An idle / no-audio barge emits **no** finalize at all (``heard is None``).
 * PyGato **mutes the user during a tool round-trip** (``FunctionCallUserMuteStrategy``),
   so a barge cannot land between a ``function_call`` and its ``function_response`` —
@@ -228,7 +228,6 @@ async def test_barge_in_mid_partial_supplies_heard_turn() -> None:
         assert t.heard == "Kyoto is ", repr(t.heard)
         checks.check_interruption_echoed(driver)
         checks.check_no_speech_after_barge_in(driver, t, forbidden=SENTINEL)
-        checks.check_barge_in_skips_completion(driver, t)
 
         # Heard-truth committed: the heard prefix, never the tail.
         state = await driver.dump_conversation()
@@ -363,7 +362,7 @@ async def test_barge_in_mid_tool_round_trip_keeps_the_tool_but_drops_the_tail() 
 async def test_rapid_double_barge_cancels_cleanly() -> None:
     """Two ``InterruptionFrame``s land back-to-back before the brain can echo the
     first. The cancel path must survive it: the open bracket still closes (its
-    ``VqlLLMFullResponseEnd`` lands — the double-``CancelledError`` teardown bug does
+    ``LLMFullResponseEnd`` lands — the double-``CancelledError`` teardown bug does
     not swallow it), no un-heard tail is emitted, and the session is not hung — a
     later turn still works.
 

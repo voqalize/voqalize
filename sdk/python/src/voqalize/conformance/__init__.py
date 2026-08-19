@@ -3,7 +3,7 @@ drives a brain over the wire and checks it against the MUSTs.
 
 This package *is* the compatibility test bench: :class:`VoiceDriver` impersonates
 PyGato/Voice on the single-session ``/s/{session_id}`` direct leg, speaks the
-shipped ``Vql*`` protobuf wire, models playout/heard-truth finalization the way
+shipped protobuf wire, models playout/heard-truth finalization the way
 real Voice does, and records everything the brain sends back. On top of it sit a
 named :data:`~voqalize.conformance.scenarios.CATALOG` of scenarios and the
 :mod:`~voqalize.conformance.checks` library of protocol assertions. Run the
@@ -34,7 +34,6 @@ from .scenarios import CATALOG, Scenario, ScenarioContext
 from .wire_pygato import (
     DirectConnection,
     Keypair,
-    decode_upstream,
     generate_keypair,
     mint_pygato_token,
 )
@@ -57,7 +56,6 @@ __all__ = [
     "Turn",
     "VoiceDriver",
     "conformance_state",
-    "decode_upstream",
     "generate_keypair",
     "mint_pygato_token",
     "run_suite",

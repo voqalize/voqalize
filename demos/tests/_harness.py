@@ -10,8 +10,8 @@ exercise the same wire a production session runs on.
 
 What every demo's e2e must prove, and why each one is here:
 
-* **it greets** — on interaction 0, brackets closed, no ``VqlInteractionCompleted``
-  (Voice never opened that interaction). The liveness floor.
+* **it greets** — on interaction 0, with every bracket it opened closed. The
+  liveness floor.
 * **its voice and language reach the wire, as a pair** — see :func:`check_voice_pair`.
   This is the check that would have caught the OrderDesk Hindi-in-an-English-voice
   bug, and the invalid ``stt.model`` that took prod down: neither is visible in a

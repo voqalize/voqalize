@@ -17,9 +17,9 @@ from voqalize.sdk.wire import (
     CortexFrameSerializer,
     Frame,
     FrameDirection,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    LLMTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
 )
@@ -80,34 +80,34 @@ async def test_two_sessions_are_isolated() -> None:
             await wire.send(
                 FrameDirection.DOWNSTREAM,
                 await serializer.serialize(
-                    VqlStartFrame(session_id=session_id, agent_id="welcome", payload={})
+                    SessionStartFrame(session_id=session_id, agent_id="welcome", payload={})
                 ),
             )
 
         # Send a context frame on each leg.
         await wire_a.send(
             FrameDirection.DOWNSTREAM,
-            await serializer.serialize(VqlUserTextFrame(interaction_id=1, text="hello-A")),
+            await serializer.serialize(UserMessageFrame(text="hello-A"), epoch=1),
         )
         await wire_b.send(
             FrameDirection.DOWNSTREAM,
-            await serializer.serialize(VqlUserTextFrame(interaction_id=1, text="hello-B")),
+            await serializer.serialize(UserMessageFrame(text="hello-B"), epoch=1),
         )
 
         # Each pygato wire must receive only its own session's response.
         recv_a = await _drain_until(
             wire_a,
             serializer,
-            lambda r: any(isinstance(f, VqlLLMTextFrame) for f in r),
+            lambda r: any(isinstance(f, LLMTextFrame) for f in r),
         )
         recv_b = await _drain_until(
             wire_b,
             serializer,
-            lambda r: any(isinstance(f, VqlLLMTextFrame) for f in r),
+            lambda r: any(isinstance(f, LLMTextFrame) for f in r),
         )
 
-        text_a = next(f for f in recv_a if isinstance(f, VqlLLMTextFrame))
-        text_b = next(f for f in recv_b if isinstance(f, VqlLLMTextFrame))
+        text_a = next(f for f in recv_a if isinstance(f, LLMTextFrame))
+        text_b = next(f for f in recv_b if isinstance(f, LLMTextFrame))
         assert text_a.text == "echo:hello-A"
         assert text_b.text == "echo:hello-B"
 

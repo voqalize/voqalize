@@ -3,12 +3,8 @@
 ``action`` is floor-free and session-scoped: the Brain may fire one outside any
 interaction (``session.action``, e.g. a render from ``on_session_start``) as well
 as within one (``interaction.action``). Both serialize to the same ``ui_command``
-``RTVIServerMessageFrame`` and must arrive at the pygato-side client, with
+``ServerMessageFrame`` and must arrive at the pygato-side client, with
 session-monotonic ``action_id``s minted across both call sites.
-
-``RTVIServerMessageFrame`` is encode-only, so the client reads the raw envelope
-(see ``conftest.parse_ui_command``) rather than round-tripping through the
-serializer.
 """
 
 from __future__ import annotations
@@ -22,9 +18,9 @@ from tests.e2e_cortex.conftest import connect_pygato
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk import Action, Brain, make_agent
 from voqalize.sdk.wire import (
-    VqlRTVIClientMessageFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    ClientMessageFrame,
+    SessionStartFrame,
+    UserMessageFrame,
 )
 
 
@@ -70,8 +66,8 @@ async def _drive(brain: type[Brain], cortex: FakeCortex, key: str) -> list[dict]
     run_task = asyncio.create_task(agent.run())
     client = await connect_pygato(cortex, f"s-{key}", key)
     try:
-        await client.send(VqlStartFrame(session_id=f"s-{key}", agent_id=key, payload={}))
-        await client.send(VqlUserTextFrame(interaction_id=1, text="hi there"))
+        await client.send(SessionStartFrame(session_id=f"s-{key}", agent_id=key, payload={}))
+        await client.send(UserMessageFrame(text="hi there"), epoch=1)
         return await client.collect_ui_commands(2, timeout=5.0)
     finally:
         await client.close()
@@ -94,9 +90,9 @@ async def test_session_action_round_trip() -> None:
         try:
             # Open the session — on_session_start fires a session.action before
             # any interaction exists.
-            await client.send(VqlStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
             # A user turn fires an interaction-scoped action.
-            await client.send(VqlUserTextFrame(interaction_id=1, text="hi there"))
+            await client.send(UserMessageFrame(text="hi there"), epoch=1)
 
             cmds_list = await client.collect_ui_commands(2, timeout=5.0)
             cmds = {c["action"]: c for c in cmds_list}
@@ -171,16 +167,16 @@ async def test_typed_action_callback_still_fires() -> None:
         run_task = asyncio.create_task(agent.run())
         client = await connect_pygato(cortex, "s-cb", "cb")
         try:
-            await client.send(VqlStartFrame(session_id="s-cb", agent_id="cb", payload={}))
+            await client.send(SessionStartFrame(session_id="s-cb", agent_id="cb", payload={}))
             (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
             # The browser's echo, on the same frame any client message rides.
             await client.send(
-                VqlRTVIClientMessageFrame(
-                    interaction_id=1,
+                ClientMessageFrame(
                     msg_id="m1",
                     type="action_outcome",
                     data={"action_id": cmd["action_id"], "status": "done"},
-                )
+                ),
+                epoch=1,
             )
             for _ in range(50):
                 if seen:

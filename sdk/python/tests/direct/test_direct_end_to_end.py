@@ -3,7 +3,7 @@
 Exercises the real server stack — ``DirectAgent`` → ``_ServerWire`` →
 ``SessionBuffer`` → ``_SessionRunner`` → the ergonomic ``Brain`` adapter — over
 a real TCP WebSocket, driven by the actual PyGato-leg ``Wire`` client speaking
-the same bare ``[direction][payload]`` framing and ``Vql*`` vocabulary PyGato
+the same bare ``[direction][payload]`` framing and frame vocabulary PyGato
 uses against Cortex today. No Cortex relay is involved.
 
 This is the proof that "PyGato dials the customer's brain directly, one socket
@@ -26,10 +26,10 @@ from voqalize.sdk.wire import (
     CortexFrameSerializer,
     FrameDirection,
     InterruptionFrame,
+    LLMTextFrame,
     PermanentClose,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
 )
@@ -68,8 +68,12 @@ class _Client:
         self._wire = wire
         self._ser = CortexFrameSerializer()
 
-    async def send(self, frame, *, request_id: int = 0) -> None:
-        payload = await self._ser.serialize(frame, request_id=request_id)
+    async def send(
+        self, frame, *, request_id: int = 0, epoch: int = 0, inference_id: int = 0
+    ) -> None:
+        payload = await self._ser.serialize(
+            frame, request_id=request_id, epoch=epoch, inference_id=inference_id
+        )
         await self._wire.send(FrameDirection.DOWNSTREAM, payload)
 
     async def collect_until(self, predicate, timeout: float = 3.0):
@@ -112,7 +116,7 @@ async def _connect(port: int, session_id: str, *, headers: dict | None = None) -
 
 def _has_text(substr: str):
     def _pred(frames, _acks) -> bool:
-        return any(isinstance(f, VqlLLMTextFrame) and substr in f.text for f in frames)
+        return any(isinstance(f, LLMTextFrame) and substr in f.text for f in frames)
 
     return _pred
 
@@ -128,16 +132,16 @@ async def test_direct_round_trip_greeting_and_echo():
     client = _Client(wire)
     try:
         # Session start → the brain greets (agent-initiated inference 0).
-        await client.send(VqlStartFrame(session_id=session_id, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=session_id, agent_id="echo"))
         frames, _ = await client.collect_until(_has_text("hi there"))
-        assert any(isinstance(f, VqlLLMTextFrame) and "hi there" in f.text for f in frames)
+        assert any(isinstance(f, LLMTextFrame) and "hi there" in f.text for f in frames)
 
         # A user turn → the brain echoes, and the frame is acked after dispatch.
-        await client.send(VqlUserTextFrame(interaction_id=1, text="ping"), request_id=42)
+        await client.send(UserMessageFrame(text="ping"), epoch=1, request_id=42)
         frames, acks = await client.collect_until(
             lambda fr, ac: _has_text("echo: ping")(fr, ac) and 42 in ac
         )
-        assert any(isinstance(f, VqlLLMTextFrame) and "echo: ping" in f.text for f in frames)
+        assert any(isinstance(f, LLMTextFrame) and "echo: ping" in f.text for f in frames)
         assert 42 in acks, "the data frame must be acked after the brain consumes it"
     finally:
         await wire.close()
@@ -151,9 +155,9 @@ async def test_direct_interruption_echoes_drain_barrier():
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        await client.send(VqlStartFrame(session_id=session_id, agent_id="slow"))
+        await client.send(SessionStartFrame(session_id=session_id, agent_id="slow"))
         # Kick off the slow interaction, then barge in before it can speak.
-        await client.send(VqlUserTextFrame(interaction_id=1, text="hello"), request_id=1)
+        await client.send(UserMessageFrame(text="hello"), epoch=1, request_id=1)
         await asyncio.sleep(0.1)
         await client.send(InterruptionFrame())
 
@@ -163,7 +167,7 @@ async def test_direct_interruption_echoes_drain_barrier():
         )
         assert any(isinstance(f, InterruptionFrame) for f in frames)
         # The cancelled inference never produced its (post-sleep) text.
-        assert not any(isinstance(f, VqlLLMTextFrame) and "never hear" in f.text for f in frames)
+        assert not any(isinstance(f, LLMTextFrame) and "never hear" in f.text for f in frames)
     finally:
         await wire.close()
         await agent.aclose()
@@ -183,7 +187,7 @@ async def test_direct_idle_interruption_is_handled_and_session_survives():
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        await client.send(VqlStartFrame(session_id=session_id, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=session_id, agent_id="echo"))
         # Drain the greeting first, so the InterruptionFrame we look for next can
         # only be the idle barge-in's drain echo.
         await client.collect_until(_has_text("hi there"))
@@ -198,11 +202,11 @@ async def test_direct_idle_interruption_is_handled_and_session_survives():
         )
 
         # The session survived: a subsequent user turn is served normally + acked.
-        await client.send(VqlUserTextFrame(interaction_id=1, text="ping"), request_id=7)
+        await client.send(UserMessageFrame(text="ping"), epoch=1, request_id=7)
         frames, acks = await client.collect_until(
             lambda fr, ac: _has_text("echo: ping")(fr, ac) and 7 in ac
         )
-        assert any(isinstance(f, VqlLLMTextFrame) and "echo: ping" in f.text for f in frames)
+        assert any(isinstance(f, LLMTextFrame) and "echo: ping" in f.text for f in frames)
         assert 7 in acks, "the post-interruption turn must still be acked"
     finally:
         await wire.close()
@@ -250,7 +254,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
         good_sid = str(uuid.uuid4())
         wire = await _connect(port, good_sid, headers={"Authorization": f"Bearer {mint(good_sid)}"})
         client = _Client(wire)
-        await client.send(VqlStartFrame(session_id=good_sid, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=good_sid, agent_id="echo"))
         frames, _ = await client.collect_until(_has_text("hi there"))
         assert frames
         await wire.close()

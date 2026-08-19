@@ -75,9 +75,9 @@ from voqalize.conformance import (  # noqa: E402
 from voqalize.google_adk.testing import ScriptedLlm, call, reply, reply_and_call  # noqa: E402
 from voqalize.sdk import DirectAgent, brain_factory  # noqa: E402
 from voqalize.sdk.wire import (  # noqa: E402
-    STTUpdateSettingsFrame,
-    TTSUpdateSettingsFrame,
-    VqlLLMTextFrame,
+    LLMTextFrame,
+    UpdateSTTSettingsFrame,
+    UpdateTTSSettingsFrame,
 )
 
 # The trailing "…" is the lookahead character that lets the instant opener flush
@@ -1889,21 +1889,19 @@ async def test_the_brain_puts_hindi_on_both_legs_before_it_greets() -> None:
     try:
         await driver.start_session(payload=PAYLOAD)
 
-        tts = [r for r in driver.log if isinstance(r.frame, TTSUpdateSettingsFrame)]
-        stt = [r for r in driver.log if isinstance(r.frame, STTUpdateSettingsFrame)]
+        tts = [r for r in driver.log if isinstance(r.frame, UpdateTTSSettingsFrame)]
+        stt = [r for r in driver.log if isinstance(r.frame, UpdateSTTSettingsFrame)]
         assert [dict(r.frame.settings) for r in tts] == [
             {"voice": "omnivoice/gauri", "language": "hi"}
         ]
         assert [dict(r.frame.settings) for r in stt] == [{"language_hint": "hi"}]
 
-        greeting_at = next(
-            i for i, r in enumerate(driver.log) if isinstance(r.frame, VqlLLMTextFrame)
-        )
+        greeting_at = next(i for i, r in enumerate(driver.log) if isinstance(r.frame, LLMTextFrame))
         first_tts = next(
-            i for i, r in enumerate(driver.log) if isinstance(r.frame, TTSUpdateSettingsFrame)
+            i for i, r in enumerate(driver.log) if isinstance(r.frame, UpdateTTSSettingsFrame)
         )
         first_stt = next(
-            i for i, r in enumerate(driver.log) if isinstance(r.frame, STTUpdateSettingsFrame)
+            i for i, r in enumerate(driver.log) if isinstance(r.frame, UpdateSTTSettingsFrame)
         )
         assert first_tts < greeting_at, "the Hindi voice landed after the greeting audio"
         assert first_stt < greeting_at, "the Hindi recognizer landed after the greeting"

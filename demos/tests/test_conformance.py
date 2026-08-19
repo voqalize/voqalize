@@ -29,7 +29,7 @@ from voqalize_demos.llm import GeminiProvider
 from voqalize_demos.umbrella import create_app
 
 from voqalize.sdk import run_session
-from voqalize.sdk.wire import CortexFrameSerializer, VqlLLMTextFrame, VqlStartFrame
+from voqalize.sdk.wire import CortexFrameSerializer, LLMTextFrame, SessionStartFrame
 
 _TEARDOWN_ERRORS = (TimeoutError, asyncio.CancelledError, ConnectionError)
 
@@ -203,11 +203,11 @@ async def test_travel_greeting_rides_the_wire():
     )
     client = _Client(client_ch)
     try:
-        await client.send(VqlStartFrame(session_id=sid, agent_id="travel"))
+        await client.send(SessionStartFrame(session_id=sid, agent_id="travel"))
         frames, _ = await client.collect_until(
-            lambda fr, _ac: any(isinstance(f, VqlLLMTextFrame) and "प्रिया" in f.text for f in fr)
+            lambda fr, _ac: any(isinstance(f, LLMTextFrame) and "प्रिया" in f.text for f in fr)
         )
-        assert any(isinstance(f, VqlLLMTextFrame) for f in frames)
+        assert any(isinstance(f, LLMTextFrame) for f in frames)
     finally:
         await client_ch.close()
         with contextlib.suppress(*_TEARDOWN_ERRORS):

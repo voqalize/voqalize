@@ -57,9 +57,9 @@ DO_PREFIX = "do "  # "do open_panel" → speak + fire an action, await its outco
 
 # Fault grammar — the brain deliberately misbehaves so the driver can assert the
 # SDK's liveness guarantee: a raising ``on_interaction`` must NOT hang the session.
-# Voice waits on VqlInteractionCompleted to unmute, so a dropped completion is dead
-# air for the rest of the call — the single failure the adversarial review flagged
-# as a protocol violation. These exercise the core's except-path completion.
+# A turn left with an open bracket is dead air for the rest of the call — TTS
+# never flushes the tail and the user waits on a reply that will not come. These
+# exercise the core's except-path unwind.
 RAISE = "raise"  # raise immediately, before speaking a word
 SPEAK_RAISE_PREFIX = "speak then raise "  # "speak then raise ok" → speak "ok", then raise
 

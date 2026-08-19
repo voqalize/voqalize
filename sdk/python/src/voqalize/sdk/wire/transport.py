@@ -30,7 +30,7 @@ working on attempt 12, and retrying only buries the real cause under a backoff
 loop that logs "retrying" forever.
 
 After each successful reconnect, the optional `on_reconnect` callback fires so
-the consumer can re-establish session state (e.g. re-send VqlStartFrame).
+the consumer can re-establish session state (e.g. re-send SessionStartFrame).
 """
 
 from __future__ import annotations

@@ -11,9 +11,8 @@ The no-dead-air contract
 A voice turn that ends in silence is a UX failure: the user asked something and heard
 nothing back. Two failure classes cause it, and this module handles the second:
 
-* the interaction never *terminates* (no ``VqlInteractionCompleted``) — the SDK core
-  handles that (it completes the interaction even if the brain raised; see
-  ``checks.check_terminates``). That keeps the *session* alive.
+* the interaction never *terminates* — the SDK core handles that (the turn task
+  always unwinds, even if the brain raised). That keeps the *session* alive.
 * the interaction terminates but the brain never *spoke*. Two ways this happens:
   the driven run **raised** (a tool raised and the framework couldn't recover, or the
   model call itself errored), or it **returned cleanly but silently** (the model
@@ -23,16 +22,14 @@ nothing back. Two failure classes cause it, and this module handles the second:
   speaking a short fallback if it didn't, so the turn always has a voice.
 
 Barge-in is **not** a failure: a ``CancelledError`` is the user interrupting, and it
-must propagate untouched (the runner skips completion, the driver finalizes the cut
-inference). :func:`run_turn` only ever handles a real :class:`Exception`; a barged
+must propagate untouched (the driver finalizes the cut inference). :func:`run_turn` only ever handles a real :class:`Exception`; a barged
 turn that spoke a partial before the cut is not "silent".
 
 The turn watchdog (``turn_timeout``)
 ------------------------------------
 A third way a turn strands the user: it neither raises nor returns — it *hangs*. A
 tool that never comes back, a model stream that stalls, a runaway loop — the driven
-run just never completes, so ``VqlInteractionCompleted`` never fires and the rest of
-the call is dead air (only a barge-in would rescue it). :func:`run_turn` bounds this
+run just never completes and the rest of the call is dead air (only a barge-in would rescue it). :func:`run_turn` bounds this
 with an optional ``turn_timeout``: it runs ``drive()`` under
 :func:`asyncio.wait_for`, and a timeout cancels the stuck run (unwinding its open
 brackets), speaks the fallback, and lets the turn complete — the same recovery as a

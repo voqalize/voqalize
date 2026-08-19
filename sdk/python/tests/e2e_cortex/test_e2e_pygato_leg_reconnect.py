@@ -1,5 +1,5 @@
 """Drop the pygato leg with code 4001 mid-session; the pygato-side Wire
-reconnects; it does **not** resend a second VqlStartFrame. (Resending would
+reconnects; it does **not** resend a second SessionStartFrame. (Resending would
 trample the agent's session state — agents own their session lifecycle. The
 agent-side session persists across a pygato-leg reconnect.)
 """
@@ -11,9 +11,9 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, SessionAdapter
+from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
-from voqalize.sdk.wire import Frame, VqlStartFrame
+from voqalize.sdk.wire import SessionStartFrame
 
 
 class StartCounter(SessionAdapter):
@@ -22,8 +22,10 @@ class StartCounter(SessionAdapter):
     def __init__(self, emitter: Emitter) -> None:
         self.emitter = emitter
 
-    async def handle_frame(self, frame: Frame) -> None:
-        if isinstance(frame, VqlStartFrame):
+    async def handle_frame(self, env: Envelope) -> None:
+
+        frame = env.frame
+        if isinstance(frame, SessionStartFrame):
             StartCounter.starts.append(frame.session_id or "?")
 
     async def close(self) -> None:
@@ -45,7 +47,7 @@ async def test_pygato_leg_reconnect_does_not_resend_start() -> None:
         client = await connect_pygato(cortex, "s1")
         try:
             await client.send(
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={"k": "v"})
+                SessionStartFrame(session_id="s1", agent_id="welcome", payload={"k": "v"})
             )
             await wait_until(lambda: len(StartCounter.starts) >= 1, timeout=3.0)
             assert len(StartCounter.starts) == 1
@@ -53,10 +55,10 @@ async def test_pygato_leg_reconnect_does_not_resend_start() -> None:
             await cortex.kill_pygato_leg("s1", code=4001)
 
             # Give the pygato Wire time to reconnect. It does *not* resend
-            # VqlStartFrame after the reconnect — agents own session lifecycle.
+            # SessionStartFrame after the reconnect — agents own session lifecycle.
             await asyncio.sleep(1.0)
             assert len(StartCounter.starts) == 1, (
-                f"unexpected second VqlStartFrame: {StartCounter.starts}"
+                f"unexpected second SessionStartFrame: {StartCounter.starts}"
             )
         finally:
             await client.close()

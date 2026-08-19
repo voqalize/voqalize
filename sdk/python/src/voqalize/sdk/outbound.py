@@ -26,7 +26,7 @@ Per-session guarantees, by construction:
    lane), dispatched ahead of queued data; the adapter cancels in-flight work and
    echoes the drain barrier.
 5. **Reconnect** (via ``MultiplexedWire``): on reconnect all sessions are torn
-   down; PyGato re-sends each ``VqlStartFrame``, creating fresh runners.
+   down; the voice runtime re-sends each ``SessionStartFrame``, creating fresh runners.
 """
 
 from __future__ import annotations
@@ -42,6 +42,7 @@ from ._logging import session_context
 from .engine import (
     DEFAULT_NORMAL_MAXSIZE,
     OUT_DIRECTION,
+    Envelope,
     RunnerHost,
     SessionFactory,
     SessionRunner,
@@ -52,7 +53,7 @@ from .wire import (
     MalformedFrameError,
     MultiplexedWire,
     PermanentClose,
-    VqlStartFrame,
+    SessionStartFrame,
     WireClosed,
     WireConfig,
 )
@@ -182,7 +183,7 @@ class CortexAgent(RunnerHost):
 
             runner = self._sessions.get(sid)
             if runner is None:
-                if not isinstance(decoded.frame, VqlStartFrame):
+                if not isinstance(decoded.frame, SessionStartFrame):
                     logger.warning(
                         "cortex: dropping {} for unknown session {}",
                         type(decoded.frame).__name__,
@@ -204,7 +205,14 @@ class CortexAgent(RunnerHost):
                     runner.start()
                     logger.info("cortex: opened session {}", _sid_str(sid))
                 self._sessions[sid] = runner
-            runner.enqueue_inbound(decoded.frame, decoded.request_id)
+            runner.enqueue_inbound(
+                Envelope(
+                    frame=decoded.frame,
+                    request_id=decoded.request_id,
+                    epoch=decoded.epoch,
+                    inference_id=decoded.inference_id,
+                )
+            )
 
     async def _writer_loop(self) -> None:
         assert self._wire is not None
@@ -220,7 +228,9 @@ class CortexAgent(RunnerHost):
                 if isinstance(item, _Ack):
                     payload = serialize_ack(item.ack_id)
                 else:
-                    payload = await self._serializer.serialize(item)
+                    payload = await self._serializer.serialize(
+                        item.frame, epoch=item.epoch, inference_id=item.inference_id
+                    )
             except Exception:
                 logger.exception("cortex: serialize failed for session {}", _sid_str(sid))
                 if not runner.out_empty():

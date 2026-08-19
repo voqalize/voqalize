@@ -1,25 +1,20 @@
-"""Opaque dict fields (VqlStart.payload, fc.arguments, fc.result) survive
-round-trip with nested structure intact.
+"""Opaque dict fields (SessionStart.payload, ClientMessage.data,
+ServerMessage.data, the *Settings frames) survive round-trip with nested
+structure intact.
 """
 
 from voqalize.sdk.wire import (
+    ClientMessageFrame,
     CortexFrameSerializer,
-    VqlFunctionCallResultFrame,
-    VqlInteractionCompletedFrame,
-    VqlStartFrame,
+    ServerMessageFrame,
+    SessionStartFrame,
+    UpdateTTSSettingsFrame,
 )
-
-
-async def test_interaction_completed_roundtrip() -> None:
-    ser = CortexFrameSerializer()
-    out = await ser.deserialize(await ser.serialize(VqlInteractionCompletedFrame(interaction_id=7)))
-    assert isinstance(out, VqlInteractionCompletedFrame)
-    assert out.interaction_id == 7
 
 
 async def test_nested_payload_roundtrip() -> None:
     ser = CortexFrameSerializer()
-    frame = VqlStartFrame(
+    frame = SessionStartFrame(
         session_id="s",
         agent_id="a",
         payload={
@@ -30,23 +25,33 @@ async def test_nested_payload_roundtrip() -> None:
         },
     )
     out = await ser.deserialize(await ser.serialize(frame))
-    assert isinstance(out, VqlStartFrame)
+    assert isinstance(out, SessionStartFrame)
     assert out.payload == frame.payload
 
 
-async def test_function_call_result_dict_roundtrip() -> None:
+async def test_client_message_data_roundtrip() -> None:
     ser = CortexFrameSerializer()
-    frame = VqlFunctionCallResultFrame(
-        interaction_id=1,
-        inference_id=1,
-        tool_call_id="tc",
-        function_name="lookup",
-        result={
-            "rows": [{"id": 1}, {"id": 2}],
-            "total": 2,
-            "meta": {"ms": 12.5},
-        },
+    frame = ClientMessageFrame(
+        msg_id="m-1",
+        type="form_submitted",
+        data={"rows": [{"id": 1}, {"id": 2}], "total": 2, "meta": {"ms": 12.5}},
     )
     out = await ser.deserialize(await ser.serialize(frame))
-    assert isinstance(out, VqlFunctionCallResultFrame)
-    assert out.result == frame.result
+    assert isinstance(out, ClientMessageFrame)
+    assert out.data == frame.data
+
+
+async def test_server_message_data_roundtrip() -> None:
+    ser = CortexFrameSerializer()
+    frame = ServerMessageFrame(data={"ui": "open_panel", "args": [1, {"deep": True}]})
+    out = await ser.deserialize(await ser.serialize(frame))
+    assert isinstance(out, ServerMessageFrame)
+    assert out.data == frame.data
+
+
+async def test_settings_roundtrip() -> None:
+    ser = CortexFrameSerializer()
+    frame = UpdateTTSSettingsFrame(settings={"voice": "omnivoice/gauri", "speed": 1.05})
+    out = await ser.deserialize(await ser.serialize(frame))
+    assert isinstance(out, UpdateTTSSettingsFrame)
+    assert out.settings == frame.settings

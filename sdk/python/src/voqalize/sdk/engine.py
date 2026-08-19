@@ -8,12 +8,12 @@ Cortex relay and the inbound direct server), which differ only in the small
 
 Design (identical to the previous pipecat-pipeline version, minus pipecat):
 
-- **Two lanes each way.** System frames (``VqlStart`` / ``Interruption`` / ``Cancel``
+- **Two lanes each way.** System frames (``SessionStart`` / ``Interruption`` / ``Cancel``
   — see :func:`~voqalize.sdk.wire.is_system`) ride a priority lane that bypasses
   queued data; everything else rides a bounded normal lane with **drop-newest**
   semantics. ``End`` is *not* system — it rides the normal lane so a session tears
   down only after its queued data drains.
-- **Ack-gating.** For any inbound frame carrying ``request_id > 0``, the runner
+- **Ack-gating.** For any inbound envelope carrying ``request_id > 0``, the runner
   emits an ``Ack`` envelope the moment the frame is **taken off the inbound lane**,
   before ``adapter.handle_frame`` runs. The ack answers "this frame is committed to
   the ordered lane", not "the brain finished thinking about it" — and that is
@@ -60,6 +60,24 @@ _LOW_WATERMARK_FRAC = 0.5
 OUT_DIRECTION = FrameDirection.DOWNSTREAM
 
 
+# ─── The unit that moves ──────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class Envelope:
+    """A frame plus the wire correlation that travels beside it.
+
+    ``epoch`` is minted by the voice runtime and echoed back unread; the runner
+    and the adapter only carry it. ``inference_id`` is minted per model call by
+    whichever side opens the inference.
+    """
+
+    frame: Frame
+    request_id: int = 0
+    epoch: int = 0
+    inference_id: int = 0
+
+
 # ─── Seams ────────────────────────────────────────────────────────────────────
 
 
@@ -70,7 +88,7 @@ class Emitter(Protocol):
     :class:`SessionRunner`.
     """
 
-    def send(self, frame: Frame) -> None: ...
+    def send(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> None: ...
 
 
 class SessionAdapter(Protocol):
@@ -82,13 +100,13 @@ class SessionAdapter(Protocol):
     session teardown (``on_session_end``).
     """
 
-    async def handle_frame(self, frame: Frame) -> None: ...
+    async def handle_frame(self, env: Envelope) -> None: ...
 
     async def close(self) -> None: ...
 
 
 # A factory builds the adapter for one session, wired to the runner's Emitter.
-# The session id itself arrives inside the VqlStart frame, so it isn't a
+# The session id itself arrives inside the SessionStart frame, so it isn't a
 # parameter here (matches the Brain surface, where Session.id = frame.session_id).
 SessionFactory = Callable[["Emitter"], SessionAdapter]
 
@@ -115,7 +133,7 @@ class _Ack:
     ack_id: int
 
 
-OutItem = Frame | _Ack
+OutItem = Envelope | _Ack
 
 
 # ─── Lane containers ──────────────────────────────────────────────────────────
@@ -127,24 +145,24 @@ class _InLanes:
 
     system_max: int
     normal_max: int
-    system: deque[tuple[Frame, int]] = field(default_factory=deque)
-    normal: deque[tuple[Frame, int]] = field(default_factory=deque)
+    system: deque[Envelope] = field(default_factory=deque)
+    normal: deque[Envelope] = field(default_factory=deque)
     ready: asyncio.Event = field(default_factory=asyncio.Event)
 
-    def put_system(self, item: tuple[Frame, int]) -> None:
+    def put_system(self, item: Envelope) -> None:
         if len(self.system) >= self.system_max:
             raise RuntimeError(f"inbound system lane overflow at {self.system_max} — bug")
         self.system.append(item)
         self.ready.set()
 
-    def put_normal(self, item: tuple[Frame, int]) -> bool:
+    def put_normal(self, item: Envelope) -> bool:
         if len(self.normal) >= self.normal_max:
             return False
         self.normal.append(item)
         self.ready.set()
         return True
 
-    async def get(self) -> tuple[Frame, int]:
+    async def get(self) -> Envelope:
         while True:
             if self.system:
                 item = self.system.popleft()
@@ -164,7 +182,7 @@ class _InLanes:
 
 @dataclass
 class _OutLanes:
-    """Outbound: system (Interruption echo) + normal (Frame | _Ack)."""
+    """Outbound: system (Interruption echo) + normal (Envelope | _Ack)."""
 
     system_max: int
     normal_max: int
@@ -251,20 +269,20 @@ class SessionRunner:
 
     # ─── Inbound (called by the transport reader) ───────────────────────
 
-    def enqueue_inbound(self, frame: Frame, request_id: int = 0) -> None:
-        item = (frame, request_id)
-        if is_system(frame):
-            self._in.put_system(item)
-        elif not self._in.put_normal(item):
+    def enqueue_inbound(self, env: Envelope) -> None:
+        if is_system(env.frame):
+            self._in.put_system(env)
+        elif not self._in.put_normal(env):
             self._notify_inbound_drop()
 
     # ─── Outbound (Emitter, called by the adapter) ──────────────────────
 
-    def send(self, frame: Frame) -> None:
+    def send(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> None:
+        env = Envelope(frame=frame, epoch=epoch, inference_id=inference_id)
         was_empty = self._out.empty()
         if is_system(frame):
-            self._out.put_system(frame)
-        elif not self._out.put_normal(frame):
+            self._out.put_system(env)
+        elif not self._out.put_normal(env):
             self._notify_outbound_drop()
             return
         if was_empty:
@@ -293,24 +311,24 @@ class SessionRunner:
         ended = False
         try:
             while True:
-                frame, request_id = await self._in.get()
+                env = await self._in.get()
                 # Ack first: the frame is now committed to this single sequential
                 # consumer, which is the whole of what the ack promises. Waiting
                 # until `handle_frame` returns would put the customer's callback
                 # on PyGato's critical path — see the module docstring.
-                if request_id:
-                    self._enqueue_ack(request_id)
+                if env.request_id:
+                    self._enqueue_ack(env.request_id)
                 try:
-                    await self._adapter.handle_frame(frame)
+                    await self._adapter.handle_frame(env)
                 except asyncio.CancelledError:
                     raise
                 except Exception:
                     logger.exception(
-                        "session: adapter.handle_frame failed for {}", type(frame).__name__
+                        "session: adapter.handle_frame failed for {}", type(env.frame).__name__
                     )
                 if self._inbound_congested and self._in.depth() <= self._low_watermark:
                     self._inbound_congested = False
-                if isinstance(frame, EndFrame):
+                if isinstance(env.frame, EndFrame):
                     ended = True
                     break
         except asyncio.CancelledError:
@@ -345,7 +363,9 @@ class SessionRunner:
         while True:
             _direction, message = await self._error_events.get()
             try:
-                await self._adapter.handle_frame(ErrorFrame(error=message, fatal=False))
+                await self._adapter.handle_frame(
+                    Envelope(frame=ErrorFrame(error=message, fatal=False))
+                )
             except asyncio.CancelledError:
                 raise
             except Exception:

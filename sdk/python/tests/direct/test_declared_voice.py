@@ -32,9 +32,9 @@ from voqalize.conformance import (
 )
 from voqalize.sdk import Brain, DirectAgent, brain_factory
 from voqalize.sdk.wire import (
-    STTUpdateSettingsFrame,
-    TTSUpdateSettingsFrame,
-    VqlLLMTextFrame,
+    LLMTextFrame,
+    UpdateSTTSettingsFrame,
+    UpdateTTSSettingsFrame,
 )
 
 SESSION_ID = "declared-voice-test"
@@ -121,15 +121,15 @@ def _first_index(log, frame_type) -> int | None:
 async def test_declared_language_configures_both_halves_before_the_greeting() -> None:
     log = await _run(HindiBrain())
 
-    assert _settings(log, TTSUpdateSettingsFrame) == [
+    assert _settings(log, UpdateTTSSettingsFrame) == [
         {"voice": "omnivoice/gauri", "language": "hi"}
     ]
-    assert _settings(log, STTUpdateSettingsFrame) == [{"language_hint": "hi"}]
+    assert _settings(log, UpdateSTTSettingsFrame) == [{"language_hint": "hi"}]
 
-    greeting = _first_index(log, VqlLLMTextFrame)
+    greeting = _first_index(log, LLMTextFrame)
     assert greeting is not None, "the brain must have greeted"
-    tts_at = _first_index(log, TTSUpdateSettingsFrame)
-    stt_at = _first_index(log, STTUpdateSettingsFrame)
+    tts_at = _first_index(log, UpdateTTSSettingsFrame)
+    stt_at = _first_index(log, UpdateSTTSettingsFrame)
     assert tts_at is not None and tts_at < greeting, (
         "the declared voice landed after the greeting audio — the caller already "
         "heard the wrong voice say hello"
@@ -142,10 +142,10 @@ async def test_declared_language_configures_both_halves_before_the_greeting() ->
 
 async def test_voice_without_language_leaves_the_recognizer_alone() -> None:
     log = await _run(VoiceOnlyBrain())
-    assert _settings(log, TTSUpdateSettingsFrame) == [{"voice": "omnivoice/gaurav"}]
+    assert _settings(log, UpdateTTSSettingsFrame) == [{"voice": "omnivoice/gaurav"}]
     # Changing which of two English voices speaks is not a language change; sending
     # a language_hint here would re-point the recognizer for no reason.
-    assert _settings(log, STTUpdateSettingsFrame) == []
+    assert _settings(log, UpdateSTTSettingsFrame) == []
 
 
 async def test_declaring_nothing_emits_nothing() -> None:
@@ -153,20 +153,20 @@ async def test_declaring_nothing_emits_nothing() -> None:
     # all, so the assertions above are reading the attributes and not some
     # unrelated frame the runtime always sends.
     log = await _run(PlainBrain())
-    assert _settings(log, TTSUpdateSettingsFrame) == []
-    assert _settings(log, STTUpdateSettingsFrame) == []
+    assert _settings(log, UpdateTTSSettingsFrame) == []
+    assert _settings(log, UpdateSTTSettingsFrame) == []
 
 
 async def test_on_session_start_can_override_the_declaration() -> None:
     # The per-caller escape hatch: a brain that resolves the language from this
     # session's payload speaks last, and both still precede the greeting.
     log = await _run(OverridingBrain())
-    tts = _settings(log, TTSUpdateSettingsFrame)
+    tts = _settings(log, UpdateTTSSettingsFrame)
     assert [s["language"] for s in tts] == ["hi", "ta"], (
         "the declaration must be applied first and the per-call override second, "
         "so the override wins"
     )
-    greeting = _first_index(log, VqlLLMTextFrame)
+    greeting = _first_index(log, LLMTextFrame)
     assert greeting is not None
-    last_tts = max(i for i, r in enumerate(log) if isinstance(r.frame, TTSUpdateSettingsFrame))
+    last_tts = max(i for i, r in enumerate(log) if isinstance(r.frame, UpdateTTSSettingsFrame))
     assert last_tts < greeting

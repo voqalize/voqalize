@@ -25,15 +25,17 @@ from voqalize.sdk.wire import (
     Frame,
     FrameDirection,
     InterruptionFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
 )
 
 
-async def _send(wire: Wire, serializer: CortexFrameSerializer, frame: Frame) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame))
+async def _send(
+    wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
+) -> None:
+    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_interruption_preempts_backlog() -> None:
@@ -71,7 +73,7 @@ async def test_interruption_preempts_backlog() -> None:
             await _send(
                 wire,
                 serializer,
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(session_id="s1", agent_id="welcome", payload={}),
             )
 
             # Pile up 16 user turns. Each spawns a slow interaction task.
@@ -79,7 +81,8 @@ async def test_interruption_preempts_backlog() -> None:
                 await _send(
                     wire,
                     serializer,
-                    VqlUserTextFrame(interaction_id=i, text=f"hi-{i}"),
+                    UserMessageFrame(text=f"hi-{i}"),
+                    epoch=i,
                 )
 
             # Wait until the first interaction is actually running.

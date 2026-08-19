@@ -172,7 +172,7 @@ async def test_scripted_multi_turn_with_tool_calls() -> None:
 
 
 async def test_barge_in_commits_heard_and_corrects_next_prompt() -> None:
-    """A barge-in mid-reply: the drain barrier is echoed, completion is skipped,
+    """A barge-in mid-reply: the drain barrier is echoed,
     the un-heard tail is neither spoken nor committed, and — the load-bearing
     assertion — the *next* model call sees the HEARD partial, not the tail."""
     llm = ScriptedLlm(_script())
@@ -186,7 +186,6 @@ async def test_barge_in_commits_heard_and_corrects_next_prompt() -> None:
         # Heard the first chunk, never the sentinel tail.
         assert t2.heard == "The cheapest is IndiGo, ", repr(t2.heard)
         checks.check_interruption_echoed(driver)
-        checks.check_barge_in_skips_completion(driver, t2)
         checks.check_no_speech_after_barge_in(driver, t2, forbidden=SENTINEL)
 
         # The committed conversation records the heard partial, not the tail.

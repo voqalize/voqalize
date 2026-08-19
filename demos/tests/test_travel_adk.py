@@ -423,7 +423,6 @@ async def test_barge_in_commits_heard_and_corrects_next_prompt() -> None:
         assert t2.interrupted
         assert t2.heard == "The cheapest is IndiGo, ", repr(t2.heard)
         checks.check_interruption_echoed(driver)
-        checks.check_barge_in_skips_completion(driver, t2)
         checks.check_no_speech_after_barge_in(driver, t2, forbidden=SENTINEL)
 
         state = await driver.dump_conversation()

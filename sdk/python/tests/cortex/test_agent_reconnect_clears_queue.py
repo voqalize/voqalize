@@ -1,5 +1,5 @@
 """On wire reconnect the SDK tears down every active session; pygato re-sends
-VqlStartFrame for each live session, which builds a fresh SessionRunner + adapter
+SessionStartFrame for each live session, which builds a fresh SessionRunner + adapter
 instance.
 """
 
@@ -10,14 +10,13 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, SessionAdapter
+from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
-    Frame,
     FrameDirection,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
 )
@@ -36,17 +35,19 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
             Probe.instances.append(self)
             self._mine = len(Probe.instances)
 
-        async def handle_frame(self, frame: Frame) -> None:
-            if isinstance(frame, VqlStartFrame):
+        async def handle_frame(self, env: Envelope) -> None:
+
+            frame = env.frame
+            if isinstance(frame, SessionStartFrame):
                 timeline.append(f"start#{self._mine}:{frame.payload.get('which', '?')}")
-            elif isinstance(frame, VqlUserTextFrame):
-                timeline.append(f"data#{self._mine}:start:{frame.interaction_id}")
+            elif isinstance(frame, UserMessageFrame):
+                timeline.append(f"data#{self._mine}:start:{env.epoch}")
                 try:
                     await block.wait()
                 except asyncio.CancelledError:
-                    timeline.append(f"data#{self._mine}:cancelled:{frame.interaction_id}")
+                    timeline.append(f"data#{self._mine}:cancelled:{env.epoch}")
                     raise
-                timeline.append(f"data#{self._mine}:end:{frame.interaction_id}")
+                timeline.append(f"data#{self._mine}:end:{env.epoch}")
 
         async def close(self) -> None:
             pass
@@ -66,12 +67,12 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
         await pygato_wire.send(
             FrameDirection.DOWNSTREAM,
             await serializer.serialize(
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={"which": "first"})
+                SessionStartFrame(session_id="s1", agent_id="welcome", payload={"which": "first"})
             ),
         )
         await pygato_wire.send(
             FrameDirection.DOWNSTREAM,
-            await serializer.serialize(VqlUserTextFrame(interaction_id=1, text="hi")),
+            await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),
         )
         await wait_for(lambda: "data#1:start:1" in timeline, timeout=3.0)
 
@@ -81,11 +82,11 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
         # The in-flight handle_frame on the first session must be cancelled.
         await wait_for(lambda: "data#1:cancelled:1" in timeline, timeout=3.0)
 
-        # Pygato re-sends VqlStart for the same session — fresh adapter.
+        # Pygato re-sends SessionStart for the same session — fresh adapter.
         await pygato_wire.send(
             FrameDirection.DOWNSTREAM,
             await serializer.serialize(
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={"which": "second"})
+                SessionStartFrame(session_id="s1", agent_id="welcome", payload={"which": "second"})
             ),
         )
         await wait_for(
@@ -93,7 +94,7 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
             timeout=3.0,
         )
         assert len(Probe.instances) >= 2, (
-            f"expected a fresh adapter on the second VqlStart; got {len(Probe.instances)}"
+            f"expected a fresh adapter on the second SessionStart; got {len(Probe.instances)}"
         )
 
         await pygato_wire.close()

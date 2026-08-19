@@ -23,9 +23,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from voqalize.sdk import Brain, SessionRejected, run_session
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    LLMTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
 )
 
 _TEARDOWN_ERRORS = (TimeoutError, asyncio.CancelledError, ConnectionError)
@@ -76,8 +76,12 @@ class _Client:
         self._ep = endpoint
         self._ser = CortexFrameSerializer()
 
-    async def send(self, frame, *, request_id: int = 0) -> None:
-        payload = await self._ser.serialize(frame, request_id=request_id)
+    async def send(
+        self, frame, *, request_id: int = 0, epoch: int = 0, inference_id: int = 0
+    ) -> None:
+        payload = await self._ser.serialize(
+            frame, request_id=request_id, epoch=epoch, inference_id=inference_id
+        )
         await self._ep.send(b"\x01" + payload)  # DOWNSTREAM
 
     async def collect_until(self, predicate, timeout: float = 3.0):
@@ -99,7 +103,7 @@ class _Client:
 
 def _has_text(substr: str):
     return lambda frames, _acks: any(
-        isinstance(f, VqlLLMTextFrame) and substr in f.text for f in frames
+        isinstance(f, LLMTextFrame) and substr in f.text for f in frames
     )
 
 
@@ -112,15 +116,15 @@ async def test_run_session_handoff_greeting_echo_and_ack():
     )
     client = _Client(client_ch)
     try:
-        await client.send(VqlStartFrame(session_id=sid, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=sid, agent_id="echo"))
         frames, _ = await client.collect_until(_has_text("hi there"))
-        assert any(isinstance(f, VqlLLMTextFrame) and "hi there" in f.text for f in frames)
+        assert any(isinstance(f, LLMTextFrame) and "hi there" in f.text for f in frames)
 
-        await client.send(VqlUserTextFrame(interaction_id=1, text="ping"), request_id=7)
+        await client.send(UserMessageFrame(text="ping"), epoch=1, request_id=7)
         frames, acks = await client.collect_until(
             lambda fr, ac: _has_text("echo: ping")(fr, ac) and 7 in ac
         )
-        assert any(isinstance(f, VqlLLMTextFrame) and "echo: ping" in f.text for f in frames)
+        assert any(isinstance(f, LLMTextFrame) and "echo: ping" in f.text for f in frames)
         assert 7 in acks, "the data frame must be acked after dispatch"
     finally:
         await client_ch.close()  # closes the server side's recv → run_session returns
@@ -198,7 +202,7 @@ async def test_run_session_accepts_valid_token():
     )
     client = _Client(client_ch)
     try:
-        await client.send(VqlStartFrame(session_id=sid, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=sid, agent_id="echo"))
         frames, _ = await client.collect_until(_has_text("hi there"))
         assert frames
     finally:

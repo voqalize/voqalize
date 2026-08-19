@@ -2,13 +2,17 @@
 from a brain's point of view.
 
 The driver *is* the "compliant voqalize": it dials a brain over the single
-session ``/s/{session_id}`` leg, speaks the shipped ``Vql*`` protobuf wire, and
-plays out the brain's responses the way real Voice does — auto-finalizing each
-inference with a *heard-truth* transcript, honouring the barge-in drain barrier,
-and acking nothing of its own (its outbound data frames carry ``request_id>0``;
-the brain's outbound frames carry ``request_id=0`` and are never blocked on the
+session ``/s/{session_id}`` leg, speaks the shipped protobuf wire, and plays out
+the brain's responses the way real Voice does — auto-finalizing each inference
+with a *heard-truth* transcript, honouring the barge-in drain barrier, and
+acking nothing of its own (its outbound data frames carry ``request_id>0``; the
+brain's outbound frames carry ``request_id=0`` and are never blocked on the
 driver). Everything the brain sends back is decoded, timestamped, and recorded
 so scenarios can assert the protocol MUSTs against a structured transcript.
+
+Turns end the way they end on a real call: the wire carries no "the brain is
+done" frame, so a turn is over when every inference bracket it opened has closed
+and the brain has gone quiet. Real Voice has no more than that either.
 
 What the driver deliberately does *not* do: audio, VAD, STT/TTS, WebRTC. Playout
 is modelled as "the whole inference is heard unless barged in", which is all the
@@ -25,36 +29,32 @@ from dataclasses import dataclass, field
 from websockets.exceptions import ConnectionClosed
 
 from voqalize.sdk.wire import (
-    Ack,
     CancelFrame,
+    ClientMessageFrame,
     EndFrame,
     ErrorFrame,
     FinalizeReason,
     Frame,
-    IdleUpdateSettingsFrame,
+    InferenceFinalizedFrame,
     InterruptionFrame,
-    RTVIServerMessageFrame,
-    STTUpdateSettingsFrame,
-    TTSUpdateSettingsFrame,
-    VqlFunctionCallInProgressFrame,
-    VqlFunctionCallResultFrame,
-    VqlFunctionCallsStartedFrame,
-    VqlInferenceFinalizedFrame,
-    VqlInteractionCompletedFrame,
-    VqlLLMFullResponseEndFrame,
-    VqlLLMFullResponseStartFrame,
-    VqlLLMTextFrame,
-    VqlRTVIClientMessageFrame,
-    VqlStartFrame,
-    VqlUserIdleFrame,
-    VqlUserTextFrame,
+    LLMFullResponseEndFrame,
+    LLMFullResponseStartFrame,
+    LLMTextFrame,
+    ServerMessageFrame,
+    SessionStartFrame,
+    UpdateIdleSettingsFrame,
+    UpdateSTTSettingsFrame,
+    UpdateTTSSettingsFrame,
+    UserIdleFrame,
+    UserMessageFrame,
 )
-from voqalize.sdk.wire.serializer import CortexFrameSerializer
+from voqalize.sdk.wire.serializer import CortexFrameSerializer, DecodedMessage
 
-from .wire_pygato import DirectConnection, decode_upstream
+from .wire_pygato import DirectConnection
 
 # The greeting interaction: the brain speaks first on session start, with no
-# user turn to attribute it to. Per the wire, that uses interaction_id 0.
+# user turn to attribute it to. Agent-initiated speech echoes no epoch, so it
+# lands on 0.
 GREETING_INTERACTION_ID = 0
 
 # ─── the conformance backchannel ─────────────────────────────────────────────
@@ -65,8 +65,8 @@ GREETING_INTERACTION_ID = 0
 # history-request frame, and we do not add one: the wire stays frozen.
 #
 # Instead the driver reuses the generic, schema-free client-message lane the
-# protocol already has (browser→brain ``VqlRTVIClientMessage`` / brain→browser
-# ``RTVIServerMessage``, the same lane real UIs use for ``ui_command`` /
+# protocol already has (browser→brain ``ClientMessage`` / brain→browser
+# ``ServerMessage``, the same lane real UIs use for ``ui_command`` /
 # ``action_outcome`` — opaque to Voice, which just relays it). A conformance-aware
 # brain opts in by answering one namespaced client message with its committed state.
 # Because the SDK *owns* ``session.conversation``, that answer can be produced by
@@ -79,10 +79,10 @@ CONFORMANCE_STATE_ACTION = "__voqal.conformance.state"
 # system/control frames it sends with request_id=0 (urgent, never ack-gated) —
 # mirroring PyGato: only wire-vocab *data* frames are ack-gated.
 _ACK_GATED = (
-    VqlUserTextFrame,
-    VqlUserIdleFrame,
-    VqlRTVIClientMessageFrame,
-    VqlInferenceFinalizedFrame,
+    UserMessageFrame,
+    UserIdleFrame,
+    ClientMessageFrame,
+    InferenceFinalizedFrame,
 )
 
 
@@ -104,7 +104,6 @@ class InferenceObs:
     ended_t: float | None = None
     texts: list[str] = field(default_factory=list)
     text_times: list[float] = field(default_factory=list)
-    tool_calls: list[str] = field(default_factory=list)
 
     @property
     def text(self) -> str:
@@ -121,9 +120,13 @@ class InteractionObs:
 
     interaction_id: int
     inferences: list[InferenceObs] = field(default_factory=list)
-    completed: bool = False
-    completed_t: float | None = None
     finalized: set[int] = field(default_factory=set)
+
+    @property
+    def completed(self) -> bool:
+        """Every bracket the brain opened for this turn, it closed. The wire has
+        no end-of-turn frame; this is what "the brain finished" means."""
+        return bool(self.inferences) and all(inf.ended for inf in self.inferences)
 
     def inference(self, inference_id: int) -> InferenceObs | None:
         for inf in self.inferences:
@@ -145,13 +148,6 @@ class Turn:
     # ``""`` means the barge landed before any audio played; ``None`` means the
     # turn was not a barge-in (or no inference was open to cut).
     heard: str | None = None
-    # For a barge-in: had the brain already sent VqlInteractionCompleted when the
-    # InterruptionFrame went out? This is the difference between cutting a reply
-    # mid-generation and barging the *playout* of one the brain already finished —
-    # and several MUSTs only apply to the first. A brain that finished first did
-    # nothing wrong: generation outruns TTS all the time, so on a real call the
-    # user is usually still listening to a turn the brain considers over.
-    completed_before_cut: bool = False
 
     @property
     def text(self) -> str:
@@ -178,11 +174,13 @@ class VoiceDriver:
         session_id: str,
         agent_id: str,
         default_timeout: float = 5.0,
+        quiet_for: float = 0.25,
     ) -> None:
         self._conn = conn
         self.session_id = session_id
         self.agent_id = agent_id
         self.default_timeout = default_timeout
+        self.quiet_for = quiet_for
         self._ser = CortexFrameSerializer()
 
         self._req = 0
@@ -237,73 +235,55 @@ class VoiceDriver:
                 return
             if not payload:
                 continue
-            decoded = decode_upstream(payload)
-            if isinstance(decoded, Ack):
-                self.acks.append(decoded.ack_id)
-                self._wake()
-                continue
-            self._route(decoded, self._now())
+            decoded = await self._ser.deserialize_message(payload)
+            if decoded.ack is not None:
+                self.acks.append(decoded.ack)
+            if decoded.frame is not None:
+                self._route(decoded, self._now())
             self._wake()
 
     def _wake(self) -> None:
         self._tick.set()
         self._tick.clear()
 
-    def _route(self, frame: Frame, t: float) -> None:
+    def _route(self, msg: DecodedMessage, t: float) -> None:
+        frame = msg.frame
+        assert frame is not None
         self.log.append(Recorded(frame, t))
 
-        if isinstance(frame, VqlLLMFullResponseStartFrame):
-            io = self.interactions.setdefault(
-                frame.interaction_id, InteractionObs(frame.interaction_id)
-            )
-            io.inferences.append(InferenceObs(frame.inference_id, started_t=t))
-        elif isinstance(frame, VqlLLMTextFrame):
-            inf = self._inf(frame.interaction_id, frame.inference_id)
+        if isinstance(frame, LLMFullResponseStartFrame):
+            io = self.interactions.setdefault(msg.epoch, InteractionObs(msg.epoch))
+            io.inferences.append(InferenceObs(msg.inference_id, started_t=t))
+        elif isinstance(frame, LLMTextFrame):
+            inf = self._inf(msg.epoch, msg.inference_id)
             if inf is not None:
                 inf.texts.append(frame.text)
                 inf.text_times.append(t)
-        elif isinstance(frame, VqlLLMFullResponseEndFrame):
-            inf = self._inf(frame.interaction_id, frame.inference_id)
+        elif isinstance(frame, LLMFullResponseEndFrame):
+            inf = self._inf(msg.epoch, msg.inference_id)
             if inf is not None:
                 inf.ended = True
                 inf.ended_t = t
-        elif isinstance(
-            frame,
-            (
-                VqlFunctionCallsStartedFrame,
-                VqlFunctionCallInProgressFrame,
-                VqlFunctionCallResultFrame,
-            ),
-        ):
-            inf = self._inf(frame.interaction_id, frame.inference_id)
-            if inf is not None:
-                inf.tool_calls.append(frame.function_name)
-        elif isinstance(frame, VqlInteractionCompletedFrame):
-            io = self.interactions.setdefault(
-                frame.interaction_id, InteractionObs(frame.interaction_id)
-            )
-            io.completed = True
-            io.completed_t = t
         elif isinstance(frame, InterruptionFrame):
             self._interruption_seen.set()
-        elif isinstance(frame, RTVIServerMessageFrame):
+        elif isinstance(frame, ServerMessageFrame):
             self.ui_commands.append(frame.data)
         elif isinstance(frame, ErrorFrame):
             self.errors.append(frame)
-        elif isinstance(frame, STTUpdateSettingsFrame):
+        elif isinstance(frame, UpdateSTTSettingsFrame):
             self.stt_settings.append(frame.settings)
-        elif isinstance(frame, TTSUpdateSettingsFrame):
+        elif isinstance(frame, UpdateTTSSettingsFrame):
             self.tts_settings.append(frame.settings)
-        elif isinstance(frame, IdleUpdateSettingsFrame):
+        elif isinstance(frame, UpdateIdleSettingsFrame):
             self.idle_settings.append(frame.settings)
 
-    def _inf(self, interaction_id: int, inference_id: int) -> InferenceObs | None:
-        io = self.interactions.get(interaction_id)
+    def _inf(self, epoch: int, inference_id: int) -> InferenceObs | None:
+        io = self.interactions.get(epoch)
         return io.inference(inference_id) if io is not None else None
 
     # ─── sending ───────────────────────────────────────────────────────────────
 
-    async def _send(self, frame: Frame) -> int:
+    async def _send(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> int:
         """Serialize and send a pygato→brain frame; returns the request_id used
         (>0 for ack-gated data frames, 0 for system/control frames)."""
         if isinstance(frame, _ACK_GATED):
@@ -311,11 +291,14 @@ class VoiceDriver:
             request_id = self._req
         else:
             request_id = 0
-        payload = await self._ser.serialize(frame, request_id=request_id)
+        payload = await self._ser.serialize(
+            frame, request_id=request_id, epoch=epoch, inference_id=inference_id
+        )
         await self._conn.send_payload(payload)
         return request_id
 
     def next_interaction_id(self) -> int:
+        """Mint the next epoch — Voice stamps every stimulus it commits."""
         self._interaction_seq += 1
         return self._interaction_seq
 
@@ -358,18 +341,17 @@ class VoiceDriver:
         payload: dict | None = None,
         finalize_greeting: bool = True,
         greeting_timeout: float = 3.0,
-        quiet_for: float = 0.25,
+        quiet_for: float | None = None,
     ) -> Turn | None:
-        """Send ``VqlStart`` (system lane) and, if the brain greets, play out and
-        finalize the greeting interaction (interaction_id 0). Returns the greeting
-        turn, or ``None`` if the brain did not greet within the timeout.
+        """Send ``SessionStart`` (system lane) and, if the brain greets, play out
+        and finalize the greeting interaction (epoch 0). Returns the greeting turn,
+        or ``None`` if the brain did not greet within the timeout.
 
-        The greeting is *agent-initiated speech* (``session.say()``), so it
-        emits ``VqlLLMFullResponse{Start,End}`` for interaction 0 but **no**
-        ``VqlInteractionCompleted`` — the driver waits for a closed bracket plus a
-        short quiescence, then finalizes each greeting inference (heard-truth)."""
+        The greeting is *agent-initiated speech* (``session.say()``): the driver
+        waits for a closed bracket plus a short quiescence, then finalizes each
+        greeting inference (heard-truth)."""
         await self._send(
-            VqlStartFrame(
+            SessionStartFrame(
                 session_id=self.session_id,
                 agent_id=self.agent_id,
                 payload=payload or {},
@@ -385,7 +367,7 @@ class VoiceDriver:
         if not got:
             return None
         # A greeting may open more than one bracket; let them all land.
-        await self._quiesce(quiet_for, timeout=greeting_timeout)
+        await self._quiesce(self._quiet(quiet_for), timeout=greeting_timeout)
         io = self.interactions.get(GREETING_INTERACTION_ID)
         if io is None or not io.inferences:
             return None
@@ -398,29 +380,46 @@ class VoiceDriver:
         )
 
     async def user_says(
-        self, text: str, *, timeout: float | None = None, finalize: bool = True
+        self,
+        text: str,
+        *,
+        timeout: float | None = None,
+        finalize: bool = True,
+        quiet_for: float | None = None,
     ) -> Turn:
-        """Drive one user turn: send ``VqlUserText``, play out the brain's response
-        to completion (or quiescence), and finalize each spoken inference with a
-        heard-truth transcript. Returns the observed :class:`Turn`."""
+        """Drive one user turn: send ``UserMessage``, play out the brain's response,
+        and finalize each spoken inference with a heard-truth transcript. Returns
+        the observed :class:`Turn`."""
         timeout = self.default_timeout if timeout is None else timeout
         iid = self.next_interaction_id()
-        await self._send(VqlUserTextFrame(interaction_id=iid, text=text))
-        return await self._play_out(iid, timeout=timeout, finalize=finalize)
+        await self._send(UserMessageFrame(text=text), epoch=iid)
+        return await self._play_out(iid, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
 
-    async def _play_out(self, iid: int, *, timeout: float, finalize: bool) -> Turn:
-        """Play out the brain's response to an already-opened interaction: wait for
-        ``VqlInteractionCompleted``, then finalize each spoken inference with a
-        heard-truth transcript. Shared by ``user_says`` / ``user_idle`` /
-        ``client_message`` — every Voice-opened interaction plays out identically."""
-        completed = await self._wait_for(
+    def _quiet(self, quiet_for: float | None) -> float:
+        return self.quiet_for if quiet_for is None else quiet_for
+
+    async def _play_out(
+        self, iid: int, *, timeout: float, finalize: bool, quiet_for: float | None = None
+    ) -> Turn:
+        """Play out the brain's response to an already-opened turn, then finalize
+        each spoken inference with a heard-truth transcript. Shared by ``user_says``
+        / ``user_idle`` / ``client_message`` — every Voice-opened turn plays out
+        identically.
+
+        The wire carries no end-of-turn frame, so "the brain is done" is: every
+        bracket it opened has closed, and it has then stayed quiet for ``quiet_for``
+        (a multi-inference turn opens the next bracket immediately after closing the
+        last, so a closed bracket alone is not enough). A brain with a watchdog that
+        speaks late needs a window longer than that watchdog."""
+        await self._wait_for(
             lambda: (io := self.interactions.get(iid)) is not None and io.completed,
             timeout=timeout,
         )
+        await self._quiesce(self._quiet(quiet_for), timeout=timeout)
         io = self.interactions.setdefault(iid, InteractionObs(iid))
         if finalize:
             await self._finalize_completed(io, FinalizeReason.COMPLETED)
-        return Turn(iid, list(io.inferences), completed=completed or io.completed)
+        return Turn(iid, list(io.inferences), completed=io.completed)
 
     async def user_idle(
         self,
@@ -429,15 +428,16 @@ class VoiceDriver:
         idle_ms: int = 30000,
         timeout: float | None = None,
         finalize: bool = True,
+        quiet_for: float | None = None,
     ) -> Turn:
         """Drive an idle trigger: Voice opened a fresh interaction because the user
-        went silent past the idle timeout (``VqlUserIdle``). The brain's
+        went silent past the idle timeout (``UserIdle``). The brain's
         ``on_user_idle`` may re-engage; play out its response exactly like a spoken
         turn (or observe an empty interaction if it chose to stay silent)."""
         timeout = self.default_timeout if timeout is None else timeout
         iid = self.next_interaction_id()
-        await self._send(VqlUserIdleFrame(interaction_id=iid, level=level, idle_ms=idle_ms))
-        return await self._play_out(iid, timeout=timeout, finalize=finalize)
+        await self._send(UserIdleFrame(level=level, idle_ms=idle_ms), epoch=iid)
+        return await self._play_out(iid, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
 
     async def client_message(
         self,
@@ -446,22 +446,21 @@ class VoiceDriver:
         *,
         timeout: float | None = None,
         finalize: bool = True,
+        quiet_for: float | None = None,
     ) -> Turn:
-        """Drive a client message the brain *responds* to. Voice wraps every browser
-        message in a ``VqlRTVIClientMessage`` with a freshly minted ``interaction_id``
-        (one of the four triggers) and delivers it to the brain's
-        ``on_client_message`` — Voice never interprets it. A responding brain takes
-        the floor (``message.interaction``) and answers; play out its response exactly
-        like a spoken turn. (When the brain merely records the message and does not
-        respond, use :meth:`send_client_message`, which does not wait for a reply.)"""
+        """Drive a client message the brain *responds* to. Voice stamps every browser
+        message with a fresh epoch (one of the four triggers) and delivers it to the
+        brain's ``on_client_message`` — Voice never interprets it. A responding brain
+        takes the floor (``message.interaction``) and answers; play out its response
+        exactly like a spoken turn. (When the brain merely records the message and
+        does not respond, use :meth:`send_client_message`, which does not wait.)"""
         timeout = self.default_timeout if timeout is None else timeout
         iid = self.next_interaction_id()
         await self._send(
-            VqlRTVIClientMessageFrame(
-                interaction_id=iid, msg_id=str(uuid.uuid4()), type=type, data=data or {}
-            )
+            ClientMessageFrame(msg_id=str(uuid.uuid4()), type=type, data=data or {}),
+            epoch=iid,
         )
-        return await self._play_out(iid, timeout=timeout, finalize=finalize)
+        return await self._play_out(iid, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
 
     async def barge_in(
         self,
@@ -504,19 +503,19 @@ class VoiceDriver:
         ``interrupts`` (default 1) sends that many ``InterruptionFrame``s back-to-back
         before awaiting the echo — a rapid multi-barge that stresses the brain's
         cancel path (each must cancel cleanly; the teardown of the open bracket must
-        still land its ``VqlLLMFullResponseEnd``)."""
+        still land its ``LLMFullResponseEnd``)."""
         timeout = self.default_timeout if timeout is None else timeout
         iid = self.next_interaction_id()
         self._interruption_seen.clear()
-        await self._send(VqlUserTextFrame(interaction_id=iid, text=text))
+        await self._send(UserMessageFrame(text=text), epoch=iid)
 
         if wait_for_complete:
-            # Let the reply fully generate — the bracket closes (or the interaction
-            # completes) — then barge its playout with a known heard prefix.
+            # Let the reply fully generate — the bracket closes — then barge its
+            # playout with a known heard prefix.
             await self._wait_for(
                 lambda: (
                     (io := self.interactions.get(iid)) is not None
-                    and (io.completed or any(inf.ended for inf in io.inferences))
+                    and any(inf.ended for inf in io.inferences)
                 ),
                 timeout=timeout,
             )
@@ -536,11 +535,6 @@ class VoiceDriver:
             await asyncio.sleep(speak_delay)
 
         cut = self._cut_inference(iid)
-        # Read *before* the interrupt goes out: afterwards the answer is a race,
-        # and the checks that depend on it need to know which of the two barge-ins
-        # this was — one that cut a live generation, or one that landed on the
-        # playout of a reply the brain had already closed out.
-        completed_before_cut = (obs := self.interactions.get(iid)) is not None and obs.completed
 
         # Send the interruption(s) (system lane, request_id 0) and await the echo.
         # A rapid multi-barge sends several before the brain can echo the first.
@@ -553,13 +547,9 @@ class VoiceDriver:
         if cut is not None:
             heard = heard_prefix if heard_prefix is not None else cut.text
             await self._send(
-                VqlInferenceFinalizedFrame(
-                    interaction_id=iid,
-                    inference_id=cut.inference_id,
-                    heard_text=heard,
-                    interrupted=True,
-                    reason=FinalizeReason.USER_BARGE_IN,
-                )
+                InferenceFinalizedFrame(heard_text=heard, reason=FinalizeReason.USER_BARGE_IN),
+                epoch=iid,
+                inference_id=cut.inference_id,
             )
             io.finalized.add(cut.inference_id)
         return Turn(
@@ -568,13 +558,12 @@ class VoiceDriver:
             completed=io.completed,
             interrupted=True,
             heard=heard,
-            completed_before_cut=completed_before_cut,
         )
 
-    def _cut_inference(self, interaction_id: int) -> InferenceObs | None:
+    def _cut_inference(self, epoch: int) -> InferenceObs | None:
         """The inference in flight when the barge-in lands: prefer the last one
         still open (no end), else the last one observed."""
-        io = self.interactions.get(interaction_id)
+        io = self.interactions.get(epoch)
         if io is None or not io.inferences:
             return None
         for inf in reversed(io.inferences):
@@ -589,13 +578,9 @@ class VoiceDriver:
             if inf.inference_id in io.finalized or not inf.spoke or not inf.ended:
                 continue
             await self._send(
-                VqlInferenceFinalizedFrame(
-                    interaction_id=io.interaction_id,
-                    inference_id=inf.inference_id,
-                    heard_text=inf.text,
-                    interrupted=False,
-                    reason=reason,
-                )
+                InferenceFinalizedFrame(heard_text=inf.text, reason=reason),
+                epoch=io.interaction_id,
+                inference_id=inf.inference_id,
             )
             io.finalized.add(inf.inference_id)
 
@@ -603,18 +588,15 @@ class VoiceDriver:
 
     async def send_client_message(self, type: str, data: dict | None = None) -> int:
         """Send a browser client message the brain is *not* expected to answer, and
-        return the ``interaction_id`` Voice minted for it.
+        return the epoch Voice stamped it with.
 
-        Voice wraps **every** browser message in a ``VqlRTVIClientMessage`` with a
-        session-monotonic ``interaction_id`` (minted "for posterity" — most never
-        drive an inference) and delivers it to the brain's ``on_client_message``
-        without interpreting it. This method does not wait for a reply; the responding
-        case is :meth:`client_message`."""
+        Voice delivers **every** browser message to the brain's
+        ``on_client_message`` without interpreting it. This method does not wait for
+        a reply; the responding case is :meth:`client_message`."""
         iid = self.next_interaction_id()
         await self._send(
-            VqlRTVIClientMessageFrame(
-                interaction_id=iid, msg_id=str(uuid.uuid4()), type=type, data=data or {}
-            )
+            ClientMessageFrame(msg_id=str(uuid.uuid4()), type=type, data=data or {}),
+            epoch=iid,
         )
         return iid
 
@@ -624,28 +606,21 @@ class VoiceDriver:
         *,
         status: str = "ok",
         result: dict | None = None,
-        interaction_id: int = 0,
     ) -> None:
         """Report the outcome of a UI action the brain requested (client→brain).
 
-        Rides the same ``VqlRTVIClientMessage`` frame as any browser message (with a
-        fresh Voice-minted ``interaction_id`` for posterity), typed ``action_outcome``
-        — the SDK routes those to the pending ``action`` callback rather than
-        ``on_client_message``. ``action_id`` is the integer the brain minted in its
-        ``ui_command``; the adapter correlates the outcome by that int at session
-        scope, and ``data["interaction_id"]`` records the originating turn."""
+        Rides the same ``ClientMessage`` frame as any browser message, typed
+        ``action_outcome`` — the SDK routes those to the pending ``action`` callback
+        rather than ``on_client_message``. ``action_id`` is the integer the brain
+        minted in its ``ui_command``; the adapter correlates the outcome by that int
+        at session scope."""
         await self._send(
-            VqlRTVIClientMessageFrame(
-                interaction_id=self.next_interaction_id(),
+            ClientMessageFrame(
                 msg_id=str(uuid.uuid4()),
                 type="action_outcome",
-                data={
-                    "action_id": action_id,
-                    "interaction_id": interaction_id,
-                    "status": status,
-                    "result": result or {},
-                },
-            )
+                data={"action_id": action_id, "status": status, "result": result or {}},
+            ),
+            epoch=self.next_interaction_id(),
         )
 
     async def wait_closed(self, *, timeout: float | None = None) -> int | None:

@@ -15,15 +15,15 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, SessionAdapter
+from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
     ErrorFrame,
     Frame,
     FrameDirection,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
 )
@@ -36,7 +36,7 @@ class Recorder(SessionAdapter):
     contexts (creating the head-of-line pile-up). Session B is fast.
 
     We disambiguate sessions by the ``A:`` / ``B:`` prefix on the first
-    VqlUserTextFrame's text — the adapter isn't told its session id directly for
+    UserMessageFrame's text — the adapter isn't told its session id directly for
     data frames."""
 
     instances: list[Recorder] = []
@@ -49,8 +49,10 @@ class Recorder(SessionAdapter):
         self.errors: list[ErrorFrame] = []
         self.gate = asyncio.Event()
 
-    async def handle_frame(self, frame: Frame) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+    async def handle_frame(self, env: Envelope) -> None:
+
+        frame = env.frame
+        if isinstance(frame, UserMessageFrame):
             if self.session_tag is None:
                 self.session_tag = frame.text.split(":", 1)[0]
             if self.session_tag == "A":
@@ -68,8 +70,10 @@ class Recorder(SessionAdapter):
         pass
 
 
-async def _send(wire: Wire, serializer: CortexFrameSerializer, frame: Frame) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame))
+async def _send(
+    wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
+) -> None:
+    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_slow_handler_does_not_block_other_sessions() -> None:
@@ -107,12 +111,12 @@ async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: CortexFrameSer
     await _send(
         wire_a,
         serializer,
-        VqlStartFrame(session_id="sA", agent_id="welcome", payload={}),
+        SessionStartFrame(session_id="sA", agent_id="welcome", payload={}),
     )
     await _send(
         wire_b,
         serializer,
-        VqlStartFrame(session_id="sB", agent_id="welcome", payload={}),
+        SessionStartFrame(session_id="sB", agent_id="welcome", payload={}),
     )
     await wait_for(lambda: len(Recorder.instances) == 2, timeout=3.0)
 
@@ -120,7 +124,8 @@ async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: CortexFrameSer
     await _send(
         wire_a,
         serializer,
-        VqlUserTextFrame(interaction_id=0, text="A:t0"),
+        UserMessageFrame(text="A:t0"),
+        epoch=0,
     )
 
     # `session_tag` is set the moment the first context enters handle_frame; the
@@ -137,14 +142,16 @@ async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: CortexFrameSer
         await _send(
             wire_a,
             serializer,
-            VqlUserTextFrame(interaction_id=i, text=f"A:t{i}"),
+            UserMessageFrame(text=f"A:t{i}"),
+            epoch=i,
         )
 
     # B keeps flowing while A is wedged.
     await _send(
         wire_b,
         serializer,
-        VqlUserTextFrame(interaction_id=0, text="B:t0"),
+        UserMessageFrame(text="B:t0"),
+        epoch=0,
     )
 
     rec_a = next(r for r in Recorder.instances if r.session_tag == "A")
