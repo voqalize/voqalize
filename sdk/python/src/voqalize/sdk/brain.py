@@ -445,7 +445,9 @@ class Brain:
         1 and wrap up at 3. Default: yield nothing and let the silence ride."""
         return _nothing()
 
-    def on_app_message(self, session: Session, msg: AppMessage) -> AsyncGenerator[Action, None]:
+    def on_app_message(
+        self, session: Session, msg: AppMessage
+    ) -> AsyncGenerator[Action | EndSession, None]:
         """The application said something — a tap, a keystroke, a state push::
 
             async def on_app_message(self, session, msg):
@@ -453,10 +455,13 @@ class Brain:
                     self.screen = msg.data
                 elif msg.type == "catalog_search":
                     yield ShowSearchResults(rows=self.search(msg.data["query"]))
+                elif msg.type == "hang_up":
+                    yield EndSession(reason="user tapped hang up")
 
-        It yields **actions only**, and that is a type the checker enforces rather
-        than a convention a reviewer has to catch: a click can update the screen,
-        but it cannot make the agent start talking over the person clicking.
+        It yields **actions, and `EndSession`** — never speech, and that is a type
+        the checker enforces rather than a convention a reviewer has to catch: a
+        click can update the screen or end the call, but it cannot make the agent
+        start talking over the person clicking.
         """
         return _nothing()
 
@@ -566,7 +571,13 @@ class _BrainAdapter:
         session = Session(self, frame.session_id, dict(frame.payload))
         self._session = session
         self._apply_declared_voice(session)
-        await self._brain.on_session_start(session)
+        try:
+            await self._brain.on_session_start(session)
+        except Exception:
+            # The call is already live and the caller is already listening. Setup
+            # that failed is the brain's to notice; dead air on the opening line
+            # is not a way to report it.
+            logger.exception("brain: on_session_start failed for session {}", session.id)
         opening = await self._brain.greet(session)
         if opening is None or opening == "":
             return
@@ -614,7 +625,7 @@ class _BrainAdapter:
                     session.end(event.reason)
                 elif not speech:
                     raise ProtocolError(
-                        f"on_app_message may only yield actions; got "
+                        f"on_app_message may only yield actions or EndSession; got "
                         f"{type(event).__name__}. An application message never "
                         f"takes the floor."
                     )

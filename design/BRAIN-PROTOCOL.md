@@ -117,16 +117,17 @@ class Brain:
 
     async def on_app_message(
         self, session: Session, msg: AppMessage
-    ) -> AsyncIterator[Action]: ...
+    ) -> AsyncIterator[Action | EndSession]: ...
 
     # ── what landed ──────────────────────────────────────────────────────
     async def on_finalize(self, session: Session, fin: Finalize) -> None: ...
 ```
 
 Eight methods. Note the return types: **`on_app_message` returns
-`AsyncIterator[Action]`.** The rule "an application event may not make the agent
-talk" is not a documented convention a reviewer has to catch — it is a type the
-checker rejects.
+`AsyncIterator[Action | EndSession]`.** The rule "an application event may not
+make the agent talk" is not a documented convention a reviewer has to catch — it
+is a type the checker rejects. Hanging up is not speech, so it is in: a tap on
+"end call" is the browser's to make, not a sentence the agent has to say first.
 
 ### `greet` is static by contract
 
@@ -170,10 +171,12 @@ async def on_app_message(self, session, msg):
         self.screen = msg.data          # update state, yield nothing
     elif msg.type == "catalog_search":
         yield ShowSearchResults(rows=self.search(msg.data["query"]))
+    elif msg.type == "hang_up":
+        yield EndSession(reason="user tapped hang up")
 ```
 
-A keystroke or a tap can update the screen. It cannot make the agent start
-talking over the person using it.
+A keystroke or a tap can update the screen, or end the call. It cannot make the
+agent start talking over the person using it.
 
 ### `on_finalize` is how you learn what happened
 
@@ -212,6 +215,11 @@ Voice dials {brain_url}/s/{session_id}          (or the brain dials Cortex)
 `on_session_start` runs **before** `greet`, which is what makes
 `session.configure_language(...)` land before the first word is spoken. That
 ordering is the contract, not an accident of implementation.
+
+**If `on_session_start` raises, `greet` still runs.** The call is already live
+and the caller is already listening; setup that failed is the brain's to notice,
+and permanent dead air on the opening line is not a way to report it — it is the
+one failure mode no monitor catches.
 
 ### 5.2 A turn
 
