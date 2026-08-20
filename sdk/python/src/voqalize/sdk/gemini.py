@@ -38,7 +38,7 @@ from google.genai import types
 from .brain import Brain, Session
 from .events import Chunk, Finalize, Speech, SpeechEnd, SpeechStart, UserMessage
 
-__all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain", "hello_for"]
+__all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain"]
 
 # Overridable because free-tier Gemini quotas are per model — when one model's
 # daily bucket is spent (an eval run, a long demo day), pointing the process at a
@@ -72,40 +72,6 @@ DEFAULT_MODEL = os.environ.get("VOQAL_GEMINI_MODEL", "gemini-3.5-flash")
 # understates a turn that carries history and screen grounding.
 VOICE_THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
 
-# Appended to a hybrid opening prompt so the model, having heard the fixed opener
-# already spoken, continues instead of greeting a second time.
-_CONTINUE_AFTER_OPENER = (
-    " You have JUST said a brief hello out loud, so do not open with another "
-    "greeting or say 'hello' again — continue straight into what you have to say."
-)
-
-# A one-word hello per language, for the instant half of a hybrid opening.
-#
-# THE TRAILING "…" IS LOAD-BEARING — do not tidy it away. The voice runtime's
-# sentence aggregator holds a sentence back after terminal punctuation until a
-# non-whitespace LOOKAHEAD character arrives (there is no unambiguous fast path,
-# not even for the danda), so a bare "Hi!" sits in the buffer until the LLM's
-# first chunk lands and the "instant" opener is not instant — measured at ~1.3 s
-# on a prod call, where the first synthesis was the glued "Hi!Evening, Rajesh.".
-# The ellipsis IS that lookahead char, and the segmenter then closes the sentence
-# over the whole string, so the opener flushes on its own. Verified inaudible
-# against a deployed host: same audio duration (±0.05 s) and an identical
-# TTS→STT round-trip transcript, in English and Devanagari.
-_HELLO_BY_LANGUAGE = {
-    "english": "Hi!…",
-    "hindi": "नमस्ते!…",
-    "telugu": "నమస్తే!…",
-    "tamil": "வணக்கம்!…",
-    "kannada": "ನಮಸ್ಕಾರ!…",
-    "marathi": "नमस्कार!…",
-    "bengali": "নমস্কার!…",
-}
-
-
-def hello_for(language_name: str) -> str:
-    """A short, language-appropriate opener for a hybrid opening; English default."""
-    return _HELLO_BY_LANGUAGE.get((language_name or "").strip().lower(), "Hi!…")
-
 
 @dataclass
 class _Unit:
@@ -117,12 +83,11 @@ class _Unit:
     """
 
     content: types.Content
-    queued: bool = False
 
 
 class GeminiBrain(Brain):
     """Base for a Gemini-backed brain. Override the prompt, the tools and the
-    opening line; the turn shape, the history and the tool loop come from here."""
+    greeting; the turn shape, the history and the tool loop come from here."""
 
     def __init__(
         self,
@@ -150,8 +115,11 @@ class GeminiBrain(Brain):
 
         #: The conversation, as Gemini contents. Yours to read, seed and persist.
         self.history: list[types.Content] = []
-        # Units that produced audio and are still awaiting their heard truth, in
-        # the order the runtime will report them.
+        # Units still awaiting their heard truth, in the order the runtime will
+        # report them. Every unit is here: the runtime finalizes each inference
+        # exactly once whether or not a word of it reached the caller, so a
+        # silent one — a bare function call — is reported as heard-nothing and
+        # leaves the transcript rather than never being mentioned.
         self._awaiting: deque[_Unit] = deque()
 
     # ─── The turn ───────────────────────────────────────────────────────
@@ -213,14 +181,12 @@ class GeminiBrain(Brain):
         """:attr:`history` as the contents for one call, with :meth:`grounding`
         inserted before the latest user turn.
 
-        Leading model turns — an opening line nobody prompted — are dropped,
-        because the API wants contents that start with a user turn.
+        A leading model turn — the greeting, which answers nothing — is kept.
+        Gemini accepts contents that open on `role="model"` and resolves the
+        first user turn against it, which is the whole point: "yes please" is
+        an answer to the question the agent opened with.
         """
-        out: list[types.Content] = []
-        for content in self.history:
-            if not out and content.role != "user":
-                continue
-            out.append(content)
+        out = list(self.history)
         note = self.grounding()
         if not note:
             return out
@@ -232,38 +198,21 @@ class GeminiBrain(Brain):
         out.insert(at, types.Content(role="user", parts=[types.Part(text=note)]))
         return out
 
-    # ─── The opening line ───────────────────────────────────────────────
-
-    async def opening(self, prompt: str, *, opener: str | None = None) -> AsyncIterator[str]:
-        """A generated opening line, for a :meth:`~voqalize.sdk.Brain.greet` that
-        cannot be a fixed string — it names the caller, or asks the first question::
-
-            async def greet(self, session):
-                return self.opening(f"Greet {name} and ask …", opener=hello_for("hindi"))
-
-        Pass ``opener`` and it is spoken **first**, instantly and with no LLM call,
-        with the generated remainder streaming into the *same* unit behind it. That
-        is the whole point: the model's first-token latency hides behind audio the
-        caller is already hearing, instead of being the silence that opens the
-        call. A standing instruction is appended so the model doesn't greet twice.
-        """
-        unit = self._open_unit()
-        if opener:
-            self._extend_unit(unit, types.Part(text=opener))
-            prompt += _CONTINUE_AFTER_OPENER
-            yield opener
-        contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
-        async for part in self._stream(contents):
-            self._extend_unit(unit, part)
-            if part.text:
-                yield part.text
-
     # ─── Heard truth ────────────────────────────────────────────────────
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         """Rewrite the unit the runtime just finished playing down to what the
-        caller actually heard."""
+        caller actually heard.
+
+        A unit this brain never opened is the greeting: `greet` returns a string
+        the SDK speaks, so the only record of it anywhere is what comes back
+        here — already heard-truth, already cut to the delivered prefix if the
+        caller talked over it. Without this the model does not know it greeted,
+        and asks its opening question a second time.
+        """
         if not self._awaiting:
+            if fin.heard:
+                self.history.append(types.Content(role="model", parts=[types.Part(text=fin.heard)]))
             return
         self._reconcile(self._awaiting.popleft(), fin.heard)
 
@@ -297,17 +246,13 @@ class GeminiBrain(Brain):
         landed, ready to be cut down to what was heard."""
         unit = _Unit(types.Content(role="model", parts=[]))
         self.history.append(unit.content)
+        self._awaiting.append(unit)
         return unit
 
     def _extend_unit(self, unit: _Unit, part: types.Part) -> None:
         if unit.content.parts is None:
             unit.content.parts = []
         unit.content.parts.append(part)
-        # A unit only earns a place in the finalize queue once it has produced
-        # audio: a silent one — a bare function call — is never reported back.
-        if part.text and not unit.queued:
-            unit.queued = True
-            self._awaiting.append(unit)
 
     async def _stream(self, contents: list[types.Content]) -> AsyncIterator[types.Part]:
         """One streaming call, flattened to parts. Parts are yielded verbatim so
