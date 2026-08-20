@@ -581,9 +581,9 @@ CATALOG: list[Scenario] = [
 ]
 
 
-# There was a `catalog(include_reference=…)` helper here that returned a filtered
-# copy. It was the old answer to "this brain can't run the deep tier" — hand back a
-# shorter list — and it is exactly how a run of four scenarios came to print a bare
-# CONFORMANT. Selection now happens inside `run_suite`, which records what it left
-# out. Nothing called this; a filtered catalog is the one shape that must not exist
-# next to a report that refuses to shrink silently.
+# There is deliberately no `catalog(include_reference=…)` that returns a filtered
+# copy. Answering "this brain can't run the deep tier" by handing back a shorter
+# list is how a run of four scenarios comes to print a bare CONFORMANT. Selection
+# belongs inside `run_suite`, which records what it left out: a filtered catalog
+# is the one shape that must not exist next to a report that refuses to shrink
+# silently.

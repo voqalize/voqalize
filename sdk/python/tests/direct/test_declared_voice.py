@@ -1,11 +1,10 @@
 """``Brain.voice`` / ``Brain.language`` — the brain declares how it sounds.
 
-An agent's voice and language used to live on the agent record in the control
-plane. They don't any more: the record holds one value for every caller, and the
-brain is the only thing that knows *this* one. What replaces it is a pair of
-class attributes the SDK applies at session start.
+Voice and language belong to the brain, not to the agent record: a record holds
+one value for every caller, and the brain is the only thing that knows *this*
+one. They are a pair of class attributes the SDK applies at session start.
 
-These pin the two properties that make the replacement trustworthy:
+These pin the two properties that make that trustworthy:
 
 1. **It reaches the wire, ahead of the greeting.** A settings frame that arrives
    after the first audio is worse than useless — the caller has already heard the

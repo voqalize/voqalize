@@ -1,10 +1,10 @@
 """``call`` / ``reply_and_call`` can script *any* tool argument, including ``name``.
 
-The keyword form (``call("open_itinerary", name="Poddar")``) reads best, but a tool
-argument called ``name`` or ``text`` used to collide with the helper's own parameters —
-the script silently changed the tool being called, or Python raised "got multiple values
-for argument". Both helpers now take those positionally-only, and accept an explicit
-``args=`` dict for the last ambiguous case.
+The keyword form (``call("open_itinerary", name="Poddar")``) reads best, and a tool
+argument called ``name`` or ``text`` would collide with the helper's own parameters —
+silently changing the tool being called, or raising "got multiple values for argument".
+So both helpers take those positionally-only, and accept an explicit ``args=`` dict for
+the last ambiguous case.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ def test_a_tool_argument_named_name_does_not_collide() -> None:
 
 
 def test_a_tool_argument_named_text_does_not_collide() -> None:
-    """Same for ``text=``, which the speech parameter used to shadow."""
+    """Same for ``text=``, which the speech parameter would otherwise shadow."""
     r = reply_and_call("Noting that.", "add_note", text="call back Monday")
     assert r.text == "Noting that."
     assert r.calls == (("add_note", {"text": "call back Monday"}),)

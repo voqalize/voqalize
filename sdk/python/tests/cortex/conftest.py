@@ -25,7 +25,7 @@ class RecordingAdapter(SessionAdapter):
     frames via ``self.emitter``.
 
     An optional async ``on_frame(frame, self)`` hook fires for each frame after
-    recording — the engine-level analogue of the old pipecat ``process_frame``
+    recording — the engine-level analogue of a pipecat ``process_frame``
     override.
     """
 

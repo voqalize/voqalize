@@ -145,8 +145,8 @@ def _enc_server_message(f: ServerMessageFrame, env: pb.Envelope) -> None:
     env.server_message.data = json.dumps(f.data)
 
 
-# The wire carries the legacy `settings` dict only. A typed delta is an
-# in-process object and does not travel; the receiver rebuilds the dict form.
+# The wire carries the `settings` dict only. A typed delta is an in-process
+# object and does not travel; the receiver rebuilds the dict form.
 def _enc_update_tts(f: UpdateTTSSettingsFrame, env: pb.Envelope) -> None:
     env.update_tts_settings.settings = json.dumps(dict(f.settings))
 

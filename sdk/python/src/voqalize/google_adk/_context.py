@@ -3,7 +3,7 @@
 The mechanism (a :class:`~contextvars.ContextVar` the adapter sets around
 ``Runner.run_async``, read by :func:`voice` inside a native tool) is framework-
 agnostic and lives in :mod:`voqalize._framework.context`; the same surface backs
-the raw-genai adapter. This module keeps the historical import path stable.
+the raw-genai adapter. ADK tools import it from here, beside the brain they belong to.
 """
 
 from __future__ import annotations

@@ -214,9 +214,9 @@ class Talkative(Brain):
 async def test_an_app_message_still_may_not_take_the_floor() -> None:
     """A click cannot talk over the person clicking.
 
-    The rule used to be a runtime check on what the callback yielded. Now the
-    callback is awaited, not driven, so a generator body cannot reach the wire at
-    all — it fails on the await and the floor stays where it was.
+    The callback is awaited, not driven, so a generator body cannot reach the
+    wire at all — it fails on the await and the floor stays where it was. No
+    runtime check on what was yielded is needed, or possible.
     """
     adapter, rec = await _open(Talkative())
     await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="anything", data={})))

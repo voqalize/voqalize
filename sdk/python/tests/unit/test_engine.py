@@ -1,14 +1,14 @@
 """Unit tests for the per-session engine (:class:`SessionRunner`).
 
 Drives a runner directly through a fake :class:`RunnerHost`, pinning the lane
-semantics that used to live in ``SessionBuffer``: system-lane priority (both
-directions), drop-newest on the normal lane with an edge-triggered congestion
-``ErrorFrame`` delivered to the adapter, ack emission at dequeue (never waiting on
-``handle_frame``), and EndFrame teardown notifying the host.
+semantics: system-lane priority (both directions), drop-newest on the normal lane
+with an edge-triggered congestion ``ErrorFrame`` delivered to the adapter, ack
+emission at dequeue (never waiting on ``handle_frame``), and EndFrame teardown
+notifying the host.
 
-(Cross-session fair-writer round-robin is now a CortexAgent concern and is
-covered by ``tests/cortex/test_agent_session_isolation.py``; single-session
-runner behavior is pinned here.)
+(Cross-session fair-writer round-robin is a CortexAgent concern, covered by
+``tests/cortex/test_agent_session_isolation.py``; single-session runner behaviour
+is pinned here.)
 """
 
 from __future__ import annotations

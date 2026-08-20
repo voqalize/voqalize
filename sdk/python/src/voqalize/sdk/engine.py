@@ -21,15 +21,14 @@ Design (identical to the previous pipecat-pipeline version, minus pipecat):
   is a single sequential consumer, so ordering into the adapter is already
   guaranteed at dequeue time.
 
-  Acking *after* the handler (what this did until 2026-08-13) made the ack mean
-  "handled", which quietly welded brain-side compute onto PyGato's pipeline: a
-  customer's ``on_inference_finalized`` doing a database write parked
-  ``__process_queue`` for the whole write, and the *next* user utterance — queued
-  behind it in the same direction-agnostic queue — went out late by exactly that
-  much. It cost a real call about two seconds a turn and was invisible, because the
-  delay landed on PyGato's transmit lane where no timer was watching. A slow
-  callback still delays the *callbacks* behind it (they are one ordered lane by
-  design); it no longer delays the wire.
+  Acking *after* the handler would make the ack mean "handled", which welds
+  brain-side compute onto PyGato's pipeline: an ``on_inference_finalized`` doing a
+  database write parks ``__process_queue`` for the whole write, and the *next* user
+  utterance — queued behind it in the same direction-agnostic queue — goes out late
+  by exactly that much. That costs a real call about two seconds a turn, and it is
+  invisible, because the delay lands on PyGato's transmit lane where no timer is
+  watching. A slow callback delays the *callbacks* behind it (they are one ordered
+  lane by design) and nothing else.
 - **Backpressure.** Normal-lane overflow drops the newest frame and delivers a
   non-fatal ``ErrorFrame`` to the adapter (edge-triggered: one per congestion
   episode per direction). The runner never kills a session.

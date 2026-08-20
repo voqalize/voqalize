@@ -185,9 +185,9 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   to the ordered lane"*, not *"handled"* — the feeder is a single sequential
   consumer, so ordering is already settled at dequeue, and that is all the
   runtime's flow control needs. **Do slow I/O off the callback lane.** The runtime
-  blocks its own pipeline on this ack; when the ack waited for your handler (the
-  shape until 2026-08-13), a `on_inference_finalized` that wrote a row to a
-  database delayed the *next* user utterance by exactly that write. Callbacks
+  blocks its own pipeline on this ack; if the ack waited for your handler, a
+  `on_inference_finalized` that wrote a row to a database would delay the *next*
+  user utterance by exactly that write. Callbacks
   behind a slow one still wait — one ordered lane is the contract, and it is what
   commits heard-truth before the next utterance arrives — so spawn your own
   background work, as the adapter already does for `on_interaction`.

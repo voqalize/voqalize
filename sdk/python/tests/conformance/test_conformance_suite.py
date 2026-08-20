@@ -133,10 +133,10 @@ class _PlainBrain(Brain):
 async def test_ordinary_brain_is_conformant_on_what_ran() -> None:
     """A brain that does not speak the reference grammar is *skipped*, not failed.
 
-    The regression this pins: pointed at an ordinary brain the suite used to report
-    a page of failures and NON-CONFORMANT — for not knowing a private vocabulary it
-    was never supposed to know. The probe now detects that up front, the deep tier
-    is skipped with its reason attached, and the verdict says how much it covered.
+    Without the probe, an ordinary brain draws a page of failures and a
+    NON-CONFORMANT verdict for not knowing a private vocabulary it was never
+    supposed to know. The probe detects that up front, the deep tier is skipped
+    with its reason attached, and the verdict says how much it covered.
     """
     keypair = generate_keypair()
     agent = DirectAgent(

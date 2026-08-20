@@ -2,7 +2,8 @@
 
 Write a :class:`Brain` of callbacks; capability arrives as the :class:`Session`
 passed into every one of them. Voice owns the floor and hands it to you by
-calling; you spend it by yielding speech and actions::
+calling; you spend it by yielding speech. Everything that is not speech — an
+action, a language switch, hanging up — is a method on the session::
 
     class Concierge(Brain):
         async def greet(self, session):

@@ -12,17 +12,16 @@ turns through `interaction.say()` / `speak(...)`. Installing the SDK pulls
 **no** `pipecat` dependency; the `Vql*` wire is plain protobuf and the Brain
 surface is plain dataclasses.
 
-**Why:** the brain only ever does text-in / text-out plus tool calls. An earlier
-SDK made the customer write a pipecat `FrameProcessor`, which dragged the entire
-pipecat framework into their process — a heavy dependency, a parallel mental model
-(frame direction, ack sentinels, aggregators, `push_frame` forwarding) that a brain
-author never needed, and a hard coupling to pipecat's release cadence. `Brain`
-exposes exactly the text/tool surface and nothing else. pipecat now lives **only**
-inside PyGato (the runtime), on the far side of the socket, so the customer installs
-a small pure-Python package and the same `Brain` runs identically inbound or over
-Cortex. This mirrored the pipecat-free Go SDK, which spoke the same wire; the Go
-SDK was removed (2026-08) while the platform surface moves fast on the
-Python/ADK track — the language-neutral wire (`proto/`) is what a future Go SDK
+**Why:** the brain only ever does text-in / text-out plus tool calls. Making the
+customer write a pipecat `FrameProcessor` would drag the entire pipecat framework
+into their process — a heavy dependency, a parallel mental model (frame direction,
+ack sentinels, aggregators, `push_frame` forwarding) that a brain author never
+needs, and a hard coupling to pipecat's release cadence. `Brain` exposes exactly the
+text/tool surface and nothing else. pipecat lives **only** inside PyGato (the
+runtime), on the far side of the socket, so the customer installs a small
+pure-Python package and the same `Brain` runs identically inbound or over Cortex.
+There is no Go SDK while the platform surface moves fast on the Python/ADK track —
+the language-neutral wire (`proto/`) is what a future Go SDK
 would build back against.
 
 **Rejected:** the pipecat `FrameProcessor` surface (the prior model). Forced every
@@ -93,11 +92,10 @@ credential (customer `sk_…` via controlplane lookup) to a pool key internally,
 its own agent-pool bookkeeping, unrelated to which URL the customer dials. Letting the
 operator pick the URL also makes single-Cortex local-dev trivial.
 
-**Rejected:** SDK computes a shard/hash from an `agent_id` (an earlier
-fixed-32-DNS-ring design considered this). The SDK doesn't know the agent's pool key —
-Cortex does, after authenticating the credential. Moot now that Cortex is
-single-process, but the reasoning still holds if multi-node HA is revisited: routing
-must never be the SDK's job.
+**Rejected:** SDK computes a shard/hash from an `agent_id` (what a fixed-32-DNS-ring
+design would need). The SDK doesn't know the agent's pool key — Cortex does, after
+authenticating the credential. Moot while Cortex is single-process, but the reasoning
+holds if multi-node HA is revisited: routing must never be the SDK's job.
 
 **Rejected:** a service-discovery layer (etcd, Consul, control-plane lookup).
 Reintroduces the operational tax we removed by killing Switchboard. The single URL is

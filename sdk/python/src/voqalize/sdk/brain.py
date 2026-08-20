@@ -471,8 +471,8 @@ class Brain:
 
         Not a generator, which is the whole point: a click can update the screen
         or end the call, but it cannot make the agent start talking over the
-        person clicking. That rule used to be a runtime check on what you yielded
-        — now there is nothing to yield, so it cannot be broken.
+        person clicking. There is nothing to yield here, so that rule needs no
+        runtime check and cannot be broken.
         """
 
     # ─── What landed ────────────────────────────────────────────────────
@@ -704,9 +704,9 @@ class _BrainAdapter:
         try:
             handled: Any = self._brain.on_app_message(session, msg)
             if isinstance(handled, AsyncGenerator):
-                # A `yield` anywhere in the body makes it a generator, which is the
-                # old shape. Say so, rather than let it surface as "object
-                # async_generator can't be used in 'await' expression".
+                # A `yield` anywhere in the body makes it a generator. Say so,
+                # rather than let it surface as "object async_generator can't be
+                # used in 'await' expression".
                 await handled.aclose()
                 raise ProtocolError(
                     "on_app_message must not be a generator: an application "
