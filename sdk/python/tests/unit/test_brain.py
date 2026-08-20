@@ -98,6 +98,61 @@ async def test_a_failed_on_session_start_fails_the_call() -> None:
     assert rec.names()[-1] == "EndFrame"
 
 
+class BrokenGreeting(Brain):
+    async def greet(self, session: Session) -> str:
+        raise RuntimeError("the model timed out")
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        yield SpeechStart()
+        yield Chunk("still here")
+        yield SpeechEnd()
+
+
+async def test_a_failed_greet_fails_the_call() -> None:
+    """The same rule for the other way a session opens. A greeting that never
+    arrives is dead air on the one turn nothing retries — the caller is listening
+    to a live line that will not speak first, and no check we have can see it."""
+    _adapter, rec = await _open(BrokenGreeting())
+    await asyncio.sleep(0)
+    errors = [f for f in rec.frames if isinstance(f, ErrorFrame)]
+    assert len(errors) == 1
+    assert errors[0].fatal
+    assert errors[0].error == "greet failed: the model timed out"
+    assert rec.names()[-1] == "EndFrame"
+
+
+class HalfGreeting(Brain):
+    async def greet(self, session: Session):
+        async def opener():
+            yield "Hi there, one moment"
+            raise RuntimeError("the model died mid-sentence")
+
+        return opener()
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        yield SpeechEnd()
+
+
+async def test_a_greeting_that_dies_mid_stream_closes_its_unit_then_fails() -> None:
+    """A streamed greeting can fail after audio is already going out. The open
+    unit still closes — an unclosed bracket is dead air for the rest of the call —
+    and only then does the session fail."""
+    _adapter, rec = await _open(HalfGreeting())
+    await asyncio.sleep(0)
+    assert rec.spoken() == "Hi there, one moment"
+    assert rec.names() == [
+        "LLMFullResponseStartFrame",
+        "LLMTextFrame",
+        "LLMFullResponseEndFrame",
+        "ErrorFrame",
+        "EndFrame",
+    ]
+
+
 # ─── on_app_message may hang up, but still may not speak ──────────────────────
 
 

@@ -574,17 +574,30 @@ class _BrainAdapter:
         try:
             await self._brain.on_session_start(session)
         except Exception as exc:
-            # Greeting anyway would be worse than saying nothing: the opening line
-            # promises a working agent, and the state behind it is not there. Fail
-            # the call where the failure happened.
-            logger.exception("brain: on_session_start failed for session {}", session.id)
-            self.emit(ErrorFrame(error=f"on_session_start failed: {exc}", fatal=True))
-            session.end(reason="on_session_start_failed")
+            self._abort(session, "on_session_start", exc)
             return
-        opening = await self._brain.greet(session)
-        if opening is None or opening == "":
-            return
-        await self._drive(session, NO_EPOCH, _one_unit(opening), speech=True)
+        try:
+            opening = await self._brain.greet(session)
+            if opening is None or opening == "":
+                return
+            await self._drive(session, NO_EPOCH, _one_unit(opening), speech=True)
+        except Exception as exc:
+            self._abort(session, "greet", exc)
+
+    def _abort(self, session: Session, hook: str, exc: Exception) -> None:
+        """Fail a session that could not be opened, rather than run it broken.
+
+        The two ways to open a session fail differently and both end here. A
+        greeting spoken over state that was never built promises a working agent
+        the caller then talks to; a session whose greeting never arrives is dead
+        air on the one turn nothing will retry. Neither is a state to keep a call
+        alive in, and both are invisible to every check we have — the transcript
+        is empty and no error surfaces. So the failure goes on the wire, fatal,
+        naming the hook that raised.
+        """
+        logger.exception("brain: {} failed for session {}", hook, session.id)
+        self.emit(ErrorFrame(error=f"{hook} failed: {exc}", fatal=True))
+        session.end(reason=f"{hook}_failed")
 
     def _apply_declared_voice(self, session: Session) -> None:
         """Apply the brain's declared :attr:`Brain.voice` / :attr:`Brain.language`.
