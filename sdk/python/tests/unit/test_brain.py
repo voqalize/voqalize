@@ -25,10 +25,10 @@ from voqalize.sdk import (
 from voqalize.sdk.engine import Envelope
 from voqalize.sdk.wire import (
     ClientMessageFrame,
+    ErrorFrame,
     Frame,
     LLMTextFrame,
     SessionStartFrame,
-    UserMessageFrame,
 )
 
 
@@ -59,7 +59,7 @@ async def _open(brain: Brain) -> tuple[object, Recorder]:
     return adapter, rec
 
 
-# ─── A failed on_session_start must not cost the greeting ─────────────────────
+# ─── A failed on_session_start fails the call ─────────────────────────────────
 
 
 class BrokenSetup(Brain):
@@ -77,20 +77,25 @@ class BrokenSetup(Brain):
         yield SpeechEnd()
 
 
-async def test_a_failed_on_session_start_still_greets() -> None:
-    """The call is already live and the caller is already listening. Setup that
-    failed is the brain's to notice; permanent dead air on the opening line is
-    not a way to report it — and it is the failure mode no monitor catches."""
+async def test_a_failed_on_session_start_never_greets() -> None:
+    """A greeting promises a working agent. If setup failed, the state behind that
+    promise is not there, and speaking it anyway is a worse failure than silence —
+    the caller believes the agent and talks to it."""
     _adapter, rec = await _open(BrokenSetup())
     await asyncio.sleep(0)
-    assert rec.spoken() == "Hi! How can I help?"
+    assert rec.spoken() == ""
 
 
-async def test_the_session_survives_a_failed_on_session_start() -> None:
-    adapter, rec = await _open(BrokenSetup())
-    await adapter.handle_frame(_env(UserMessageFrame(text="hello")))
-    await asyncio.sleep(0.02)
-    assert "still here" in rec.spoken()
+async def test_a_failed_on_session_start_fails_the_call() -> None:
+    """Fail where the failure happened: a fatal error on the wire, then the end.
+    Not a live session running on state that was never built."""
+    _adapter, rec = await _open(BrokenSetup())
+    await asyncio.sleep(0)
+    errors = [f for f in rec.frames if isinstance(f, ErrorFrame)]
+    assert len(errors) == 1
+    assert errors[0].fatal
+    assert "the CRM was down" in errors[0].error
+    assert rec.names()[-1] == "EndFrame"
 
 
 # ─── on_app_message may hang up, but still may not speak ──────────────────────

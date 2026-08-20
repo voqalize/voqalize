@@ -216,10 +216,11 @@ Voice dials {brain_url}/s/{session_id}          (or the brain dials Cortex)
 `session.configure_language(...)` land before the first word is spoken. That
 ordering is the contract, not an accident of implementation.
 
-**If `on_session_start` raises, `greet` still runs.** The call is already live
-and the caller is already listening; setup that failed is the brain's to notice,
-and permanent dead air on the opening line is not a way to report it — it is the
-one failure mode no monitor catches.
+**If `on_session_start` raises, the call fails — it does not greet.** A greeting
+promises a working agent, and after failed setup the state behind that promise is
+not there; the caller believes it and starts talking to something that cannot
+answer. The SDK puts a fatal `ErrorFrame` on the wire and ends the session, which
+fails where the failure happened rather than a turn later.
 
 ### 5.2 A turn
 

@@ -573,11 +573,14 @@ class _BrainAdapter:
         self._apply_declared_voice(session)
         try:
             await self._brain.on_session_start(session)
-        except Exception:
-            # The call is already live and the caller is already listening. Setup
-            # that failed is the brain's to notice; dead air on the opening line
-            # is not a way to report it.
+        except Exception as exc:
+            # Greeting anyway would be worse than saying nothing: the opening line
+            # promises a working agent, and the state behind it is not there. Fail
+            # the call where the failure happened.
             logger.exception("brain: on_session_start failed for session {}", session.id)
+            self.emit(ErrorFrame(error=f"on_session_start failed: {exc}", fatal=True))
+            session.end(reason="on_session_start_failed")
+            return
         opening = await self._brain.greet(session)
         if opening is None or opening == "":
             return
