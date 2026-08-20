@@ -1823,6 +1823,9 @@ examples = [
     { name = "python-dotenv" },
     { name = "uvicorn" },
 ]
+gemini = [
+    { name = "google-genai" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -1835,6 +1838,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'examples'", specifier = ">=0.115" },
     { name = "google-adk", marker = "extra == 'adk'", specifier = ">=2.3,<3" },
     { name = "google-genai", marker = "extra == 'examples'", specifier = ">=1.0" },
+    { name = "google-genai", marker = "extra == 'gemini'", specifier = ">=2.0" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "openai-agents", marker = "extra == 'examples'", specifier = ">=0.17" },
     { name = "protobuf", specifier = ">=5.29.3,<7" },
@@ -1844,7 +1848,7 @@ requires-dist = [
     { name = "uvicorn", marker = "extra == 'examples'", specifier = ">=0.30" },
     { name = "websockets", specifier = ">=13" },
 ]
-provides-extras = ["adk", "examples"]
+provides-extras = ["adk", "gemini", "examples"]
 
 [package.metadata.requires-dev]
 dev = [

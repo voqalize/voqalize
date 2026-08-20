@@ -51,6 +51,11 @@ dependencies = [
 # is silently walked backwards by installing this extra. 2.3 is the first release
 # that pins neither.
 adk = ["google-adk>=2.3,<3"]
+# `voqalize.sdk.gemini` — the Gemini-backed Brain base class. Optional for the
+# same reason `adk` is: `import voqalize.sdk` must pull no model vendor. Floor is
+# 2.x because `GeminiBrain` sets `thinking_config.thinking_level`, which the 1.x
+# releases do not model.
+gemini = ["google-genai>=2.0"]
 # Deps used only by the bundled examples/ — never imported by the SDK itself.
 # `examples/travel` (OpenAI Agents + Gemini), `examples/fastapi_inbound`
 # (FastAPI/uvicorn).

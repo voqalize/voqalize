@@ -3,8 +3,8 @@
 Pygato side (simulated by a Wire client): open a session with a SessionStartFrame,
 then drive a user turn + an inference-finalized frame.
 
-Agent side: a ``Brain`` recognises the interaction and speaks a full LLM
-response. The pygato client must see the LLM frames arrive back over the wire.
+Agent side: a ``Brain`` takes the turn and speaks a full unit of speech. The
+pygato client must see the LLM frames arrive back over the wire.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, make_agent
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart, make_agent
 from voqalize.sdk.wire import (
     FinalizeReason,
     InferenceFinalizedFrame,
@@ -27,11 +27,12 @@ from voqalize.sdk.wire import (
 
 
 class LLMResponder(Brain):
-    """On each interaction, speak a one-chunk LLM response."""
+    """On each turn, speak a one-chunk response."""
 
-    async def on_interaction(self, interaction) -> None:
-        async with interaction.say() as inf:
-            await inf.speak("hello")
+    async def on_user_message(self, session, msg):
+        yield SpeechStart()
+        yield Chunk("hello")
+        yield SpeechEnd()
 
 
 async def test_round_trip_every_frame() -> None:
@@ -57,7 +58,7 @@ async def test_round_trip_every_frame() -> None:
                 inference_id=1,
             )
 
-            # The Brain's inference bracket emits Start → Text → End.
+            # The Brain's unit of speech emits Start → Text → End.
             expected = {
                 "LLMFullResponseStartFrame",
                 "LLMTextFrame",

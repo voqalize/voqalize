@@ -1,12 +1,12 @@
 """A barge-in InterruptionFrame rides the system lane and preempts in-flight
 work even under a normal-lane backlog.
 
-In the pipecat-free engine, the Brain adapter spawns each ``on_interaction`` (so
-inbound data frames ack promptly and the feeder never blocks), and the runner
-dispatches the system-lane ``InterruptionFrame`` ahead of any queued normal
-frames. The net observable: after piling up many user turns whose responses are
-slow, a single interruption cancels the in-flight interaction(s) promptly —
-without first grinding through the whole backlog.
+The Brain adapter spawns each turn (so inbound data frames ack promptly and the
+feeder never blocks), and the runner dispatches the system-lane
+``InterruptionFrame`` ahead of any queued normal frames. The net observable:
+after piling up many user turns whose responses are slow, a single interruption
+cancels the in-flight turn(s) promptly — without first grinding through the whole
+backlog.
 
 (The pure lane-ordering guarantee — system frame popped before queued normal
 frames — is pinned deterministically in ``tests/unit/test_engine.py``.)"""
@@ -44,18 +44,19 @@ async def test_interruption_preempts_backlog() -> None:
     first_in_flight = asyncio.Event()
 
     class Slow(Brain):
-        async def on_interaction(self, interaction) -> None:
-            timeline.append(f"start:{interaction.id}")
-            if interaction.id == 0:
+        async def on_user_message(self, session, msg):
+            timeline.append(f"start:{msg.text}")
+            if msg.text == "hi-0":
                 first_in_flight.set()
             try:
                 # Each response takes 30s — without interruption, draining 16 of
                 # them serially would take minutes.
                 await asyncio.sleep(30.0)
-                timeline.append(f"done:{interaction.id}")
+                timeline.append(f"done:{msg.text}")
             except asyncio.CancelledError:
-                timeline.append(f"cancelled:{interaction.id}")
+                timeline.append(f"cancelled:{msg.text}")
                 raise
+            yield  # unreachable, but this is a speaking callback
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -76,7 +77,7 @@ async def test_interruption_preempts_backlog() -> None:
                 SessionStartFrame(session_id="s1", agent_id="welcome", payload={}),
             )
 
-            # Pile up 16 user turns. Each spawns a slow interaction task.
+            # Pile up 16 user turns. Each spawns a slow turn task.
             for i in range(16):
                 await _send(
                     wire,
@@ -85,19 +86,19 @@ async def test_interruption_preempts_backlog() -> None:
                     epoch=i,
                 )
 
-            # Wait until the first interaction is actually running.
+            # Wait until the first turn is actually running.
             await asyncio.wait_for(first_in_flight.wait(), timeout=3.0)
-            assert timeline[0] == "start:0", timeline
+            assert timeline[0] == "start:hi-0", timeline
 
             # Now interrupt. The interruption rides the system lane and must
             # cancel in-flight work well before the 30s/response backlog would.
             t0 = asyncio.get_event_loop().time()
             await _send(wire, serializer, InterruptionFrame())
-            await wait_for(lambda: "cancelled:0" in timeline, timeout=5.0)
+            await wait_for(lambda: "cancelled:hi-0" in timeline, timeout=5.0)
             elapsed = asyncio.get_event_loop().time() - t0
             assert elapsed < 5.0, f"interruption took {elapsed:.2f}s — system lane bypass failed"
 
-            # Sanity: no interaction completed before the cancellation arrived.
+            # Sanity: no turn completed before the cancellation arrived.
             done_count = sum(1 for e in timeline if e.startswith("done:"))
             assert done_count == 0, (
                 f"expected interruption to fire before any response completed; timeline={timeline}"

@@ -33,7 +33,6 @@ from dataclasses import dataclass, field
 from . import checks
 from .driver import VoiceDriver
 from .reference import (
-    APP_ACK_PREFIX,
     BARGE_SENTINEL,
     COUNT_SLOWLY,
     DO_PREFIX,
@@ -463,30 +462,21 @@ async def scn_user_idle(ctx: ScenarioContext) -> None:
     )
 
 
-async def scn_client_message_responds(ctx: ScenarioContext) -> None:
-    """The client-message trigger: Voice wraps a browser message in a
-    ``ClientMessage`` on a freshly minted epoch and delivers it
-    to ``on_client_message``; a responding brain takes the floor
-    (``message.interaction``) and answers, and it plays out like a spoken turn. Like
-    idle, no user turn is recorded — a client message is not speech — so the
-    committed conversation holds only the assistant's answer."""
+async def scn_client_message_never_speaks(ctx: ScenarioContext) -> None:
+    """A browser message never takes the floor. Voice delivers it to
+    ``on_app_message``, which may render but not speak — so no matter what the
+    brain does with it, the committed transcript gains nothing. Nothing about a
+    click means the human stopped talking, and a brain that answered one would be
+    talking over them."""
     driver = await ctx.connect()
     await driver.start_session()
-    turn = await driver.client_message("form_submitted", {"field": "email"})
-    checks.check_spoke(turn)
-    checks.check_completed(turn)
-    checks.check_brackets_closed(turn)
+    before = await driver.dump_conversation()
+    await driver.send_client_message("form_submitted", {"field": "email"})
+    after = await driver.dump_conversation()
     checks.require(
-        turn.text == f"{APP_ACK_PREFIX}form_submitted",
-        f"client-message reply {turn.text!r} != {f'{APP_ACK_PREFIX}form_submitted'!r}",
-    )
-    state = await driver.dump_conversation()
-    checks.check_conversation_sequence(
-        state,
-        expected=[
-            {"role": "assistant", "content": GREETING_TEXT},
-            {"role": "assistant", "content": f"{APP_ACK_PREFIX}form_submitted"},
-        ],
+        after.get("messages") == before.get("messages"),
+        f"a client message changed the transcript: {before.get('messages')} → "
+        f"{after.get('messages')}",
     )
 
 
@@ -582,10 +572,9 @@ CATALOG: list[Scenario] = [
         tags=("initiation",),
     ),
     Scenario(
-        "client_message_responds",
-        "A client message opens an interaction; the brain responds via "
-        "message.interaction, no user turn recorded.",
-        scn_client_message_responds,
+        "client_message_never_speaks",
+        "A client message is delivered but never takes the floor.",
+        scn_client_message_never_speaks,
         requires_reference=True,
         tags=("initiation",),
     ),

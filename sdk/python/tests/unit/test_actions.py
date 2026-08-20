@@ -2,10 +2,9 @@
 
 :class:`~voqalize.sdk.Action` is a *declaration* of a ui_command's args half. This
 file pins the three things a browser contract depends on — the wire **name** derived
-from the class, the wire **shape** produced by the fields, and the guarantee that
-those are byte-identical to what the legacy ``action(name, dict)`` form emits. The
-over-the-wire half (that this really rides an ``RTVIServerMessageFrame`` to the
-pygato leg) is ``tests/e2e_cortex/test_e2e_session_action.py``.
+from the class, the wire **shape** produced by the fields, and the line between
+payload and control. The over-the-wire half (that this really reaches the pygato
+leg) is ``tests/e2e_cortex/test_e2e_session_action.py``.
 """
 
 from __future__ import annotations
@@ -16,8 +15,7 @@ from enum import StrEnum
 import pytest
 from pydantic import BaseModel, Field, ValidationError
 
-from voqalize.sdk import Action
-from voqalize.sdk.actions import action_envelope
+from voqalize.sdk import Action, Result
 
 
 class OpenItinerary(Action):
@@ -51,41 +49,28 @@ def test_payload_is_the_declared_fields() -> None:
     assert OpenItinerary(name="Poddar Vietnam").to_payload() == {"name": "Poddar Vietnam"}
 
 
-# ─── the contract with the legacy form ─────────────────────────────────────────
+# ─── payload vs control ───────────────────────────────────────────────────────
 
 
-def test_typed_and_legacy_envelopes_are_identical() -> None:
-    """The whole compatibility claim in one assertion: the same command, declared or
-    hand-assembled, produces the same ``(name, args)`` — so the browser cannot tell
-    which form the brain used."""
-    typed = action_envelope(OpenItinerary(name="Poddar Vietnam"), None)
-    legacy = action_envelope("open_itinerary", {"name": "Poddar Vietnam"})
-    assert typed == legacy == ("open_itinerary", {"name": "Poddar Vietnam"})
+def test_control_fields_never_reach_the_payload() -> None:
+    """``on_result`` and ``timeout_s`` steer the SDK; they are not the browser's
+    business, and a callable could not be serialized anyway."""
+    action = OpenItinerary(name="x", on_result=lambda _r: None, timeout_s=5.0)
+    assert action.to_payload() == {"name": "x"}
+    assert action.timeout_s == 5.0
 
 
-def test_legacy_form_is_untouched() -> None:
-    """Non-pydantic brains (and other languages) keep the general surface: an
-    arbitrary name and an arbitrary dict, passed through verbatim."""
-    assert action_envelope("anything_at_all", {"a": 1, "b": [2, {"c": 3}]}) == (
-        "anything_at_all",
-        {"a": 1, "b": [2, {"c": 3}]},
-    )
-    # A bare name with no args is an empty payload, not None.
-    assert action_envelope("ping", None) == ("ping", {})
+def test_redeclaring_a_control_field_is_rejected_at_declaration() -> None:
+    """Redeclaring one silently drops the base class's ``exclude=True`` and puts it
+    straight onto the wire — so the class never gets built."""
+    with pytest.raises(TypeError, match="are control, not payload"):
+
+        class Bad(Action):
+            timeout_s: float | None = 3.0
 
 
-def test_legacy_args_dict_is_copied_not_aliased() -> None:
-    """The caller's dict must not become the envelope — mutating it after the call
-    can't retroactively change what was queued."""
-    args = {"qty": 1}
-    _, payload = action_envelope("add_to_cart", args)
-    args["qty"] = 99
-    assert payload == {"qty": 1}
-
-
-def test_passing_both_an_action_and_args_is_an_error() -> None:
-    with pytest.raises(TypeError, match="takes no separate args dict"):
-        action_envelope(OpenItinerary(name="x"), {"name": "y"})
+def test_a_result_carries_the_action_it_answers() -> None:
+    assert Result(action_id=7, status="timeout").data is None
 
 
 # ─── aliases ───────────────────────────────────────────────────────────────────

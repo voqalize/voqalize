@@ -15,12 +15,24 @@ impersonating PyGato, not a hand-rolled per-test client.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+
 import pytest
 
 from voqalize.conformance import generate_keypair, run_suite
 from voqalize.conformance.reference import ConformanceBrain
 from voqalize.conformance.scenarios import CATALOG
-from voqalize.sdk import Brain, DirectAgent, Interaction, Session, brain_factory
+from voqalize.sdk import (
+    Brain,
+    Chunk,
+    DirectAgent,
+    Emission,
+    Session,
+    SpeechEnd,
+    SpeechStart,
+    UserMessage,
+    brain_factory,
+)
 
 
 async def _host_verified() -> tuple[DirectAgent, int, bytes]:
@@ -107,13 +119,15 @@ class _PlainBrain(Brain):
     """An ordinary conformant brain: no reference command grammar, no LLM, one
     fixed line per turn. What a developer following the quickstart actually has."""
 
-    async def on_session_start(self, session: Session, start: object) -> None:
-        async with session.say() as speech:
-            await speech.speak("Hi, this is the plain brain.")
+    async def greet(self, session: Session) -> str:
+        return "Hi, this is the plain brain."
 
-    async def on_interaction(self, interaction: Interaction) -> None:
-        async with interaction.say() as speech:
-            await speech.speak("One. Two. Three. That is everything I have to say.")
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[Emission, None]:
+        yield SpeechStart()
+        yield Chunk("One. Two. Three. That is everything I have to say.")
+        yield SpeechEnd()
 
 
 async def test_ordinary_brain_is_conformant_on_what_ran() -> None:

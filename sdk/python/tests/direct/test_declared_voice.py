@@ -30,7 +30,7 @@ from voqalize.conformance import (
     generate_keypair,
     mint_pygato_token,
 )
-from voqalize.sdk import Brain, DirectAgent, brain_factory
+from voqalize.sdk import Brain, Chunk, DirectAgent, SpeechEnd, SpeechStart, brain_factory
 from voqalize.sdk.wire import (
     LLMTextFrame,
     UpdateSTTSettingsFrame,
@@ -46,13 +46,16 @@ class HindiBrain(Brain):
     language = "hi"
     voice = "omnivoice/gauri"
 
-    async def on_session_start(self, session, start) -> None:
-        async with session.say() as speech:
-            await speech.speak("नमस्ते!")
+    async def on_session_start(self, session) -> None:
+        self.started = True
 
-    async def on_interaction(self, interaction) -> None:
-        async with interaction.say() as speech:
-            await speech.speak("ठीक है।")
+    async def greet(self, session) -> str:
+        return "नमस्ते!"
+
+    async def on_user_message(self, session, msg):
+        yield SpeechStart()
+        yield Chunk("ठीक है।")
+        yield SpeechEnd()
 
 
 class VoiceOnlyBrain(HindiBrain):
@@ -72,9 +75,9 @@ class PlainBrain(HindiBrain):
 class OverridingBrain(HindiBrain):
     """Declares Hindi, then resolves a different language for *this* caller."""
 
-    async def on_session_start(self, session, start) -> None:
+    async def on_session_start(self, session) -> None:
         session.configure_language("ta", voice="omnivoice/gauri")
-        await super().on_session_start(session, start)
+        await super().on_session_start(session)
 
 
 async def _run(brain: Brain) -> list:

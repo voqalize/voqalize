@@ -1,10 +1,10 @@
 """Session-scoped actions reach the pygato leg over the wire.
 
-``action`` is floor-free and session-scoped: the Brain may fire one outside any
-interaction (``session.action``, e.g. a render from ``on_session_start``) as well
-as within one (``interaction.action``). Both serialize to the same ``ui_command``
-``ServerMessageFrame`` and must arrive at the pygato-side client, with
-session-monotonic ``action_id``s minted across both call sites.
+An action carries no audio, so it needs no floor: the Brain dispatches one from
+anywhere — ``on_session_start`` before a word has been said, or from inside a
+turn — and both serialize to the same ``ui_command`` ``ServerMessageFrame``.
+``action_id`` is minted session-monotonically across every call site, and it is
+what the browser's answer is correlated by.
 """
 
 from __future__ import annotations
@@ -16,23 +16,13 @@ from pydantic import BaseModel, Field
 
 from tests.e2e_cortex.conftest import connect_pygato
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Action, Brain, make_agent
+from voqalize.sdk import Action, Brain, Chunk, Result, SpeechEnd, SpeechStart, make_agent
 from voqalize.sdk.wire import (
     ClientMessageFrame,
+    LLMTextFrame,
     SessionStartFrame,
     UserMessageFrame,
 )
-
-
-class ActionBrain(Brain):
-    """Fires one out-of-interaction action at session start, then one
-    interaction-scoped action per user turn."""
-
-    async def on_session_start(self, session, start) -> None:
-        session.action("render_init", {"address": "Home"})
-
-    async def on_interaction(self, interaction) -> None:
-        interaction.action("render_turn", {"text": interaction.transcript})
 
 
 class Row(BaseModel):
@@ -45,38 +35,27 @@ class RenderInit(Action, name="render_init"):
     rows: list[Row] = []
 
 
-class TypedActionBrain(Brain):
-    """Fires the SAME two commands as :class:`ActionBrain`, declared instead of
-    hand-assembled — at both call sites (session- and interaction-scoped)."""
-
-    async def on_session_start(self, session, start) -> None:
-        session.action(RenderInit(address="Home", rows=[Row(label="l", **{"from": "BLR"})]))
-
-    async def on_interaction(self, interaction) -> None:
-        interaction.action(RenderTurn(text=interaction.transcript))
-
-
 class RenderTurn(Action, name="render_turn"):
     text: str
 
 
-async def _drive(brain: type[Brain], cortex: FakeCortex, key: str) -> list[dict]:
-    """Run one brain through a full session and return the ui_commands it emitted."""
-    agent = make_agent(brain, api_key=key, version="1.0.0", cortex_url=cortex.agent_url(key))
-    run_task = asyncio.create_task(agent.run())
-    client = await connect_pygato(cortex, f"s-{key}", key)
-    try:
-        await client.send(SessionStartFrame(session_id=f"s-{key}", agent_id=key, payload={}))
-        await client.send(UserMessageFrame(text="hi there"), epoch=1)
-        return await client.collect_ui_commands(2, timeout=5.0)
-    finally:
-        await client.close()
-        run_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError, Exception):
-            await run_task
+class ActionBrain(Brain):
+    """Dispatches one floor-free action at session start, then one per user turn."""
+
+    async def on_session_start(self, session) -> None:
+        session.dispatch(RenderInit(address="Home", rows=[Row(label="l", **{"from": "BLR"})]))
+
+    async def on_user_message(self, session, msg):
+        yield RenderTurn(text=msg.text)
 
 
 async def test_session_action_round_trip() -> None:
+    """Both call sites reach the wire, in the same envelope, with monotonic ids.
+
+    The nested aliased model is the load-bearing half: ``from_`` is the Python
+    spelling and ``from`` is the browser's, at every depth — a browser handler is
+    written against the second and never sees the first.
+    """
     async with FakeCortex() as cortex:
         agent = make_agent(
             ActionBrain,
@@ -88,76 +67,46 @@ async def test_session_action_round_trip() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            # Open the session — on_session_start fires a session.action before
-            # any interaction exists.
+            # Open the session — on_session_start dispatches before any turn exists.
             await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
-            # A user turn fires an interaction-scoped action.
+            # A user turn dispatches the second one.
             await client.send(UserMessageFrame(text="hi there"), epoch=1)
 
-            cmds_list = await client.collect_ui_commands(2, timeout=5.0)
-            cmds = {c["action"]: c for c in cmds_list}
-            assert cmds["render_init"]["address"] == "Home"
-            assert cmds["render_turn"]["text"] == "hi there"
-            # action_id is session-monotonic across both call sites.
-            ids = sorted(c["action_id"] for c in cmds.values())
-            assert ids == [1, 2], ids
+            cmds = {c["action"]: c for c in await client.collect_ui_commands(2, timeout=5.0)}
         finally:
             await client.close()
             run_task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await run_task
 
-
-async def test_typed_actions_ride_the_same_wire_envelope() -> None:
-    """A declared :class:`Action` produces the byte-identical envelope the legacy
-    ``action(name, dict)`` form produces — at both call sites, over the real socket.
-
-    This is the compatibility guarantee the whole typed-actions surface rests on: an
-    existing browser handler cannot tell which form the brain used, so a brain may be
-    migrated command-by-command with no coordinated UI release.
-    """
-    async with FakeCortex() as cortex:
-        legacy = await _drive(ActionBrain, cortex, "legacy")
-        typed = await _drive(TypedActionBrain, cortex, "typed")
-
-    by_action = ({c["action"]: c for c in legacy}, {c["action"]: c for c in typed})
-    legacy_cmds, typed_cmds = by_action
-
-    # The interaction-scoped one is a pure like-for-like: same name, same single arg.
-    assert typed_cmds["render_turn"] == legacy_cmds["render_turn"]
-    assert typed_cmds["render_turn"] == {
-        "type": "ui_command",
-        "action": "render_turn",
-        "action_id": 2,
-        "text": "hi there",
-    }
-
-    # The session-scoped one adds a nested aliased model — the envelope keys and the
-    # arg spread are unchanged; `from_` goes out as the browser's `from`.
-    assert typed_cmds["render_init"] == {
+    assert cmds["render_init"] == {
         "type": "ui_command",
         "action": "render_init",
         "action_id": 1,
         "address": "Home",
         "rows": [{"label": "l", "from": "BLR"}],
     }
-    # Envelope keys and action_ids are identical to the legacy run, field-for-field.
-    assert set(typed_cmds) == set(legacy_cmds)
-    for name, cmd in typed_cmds.items():
-        assert cmd["type"] == legacy_cmds[name]["type"] == "ui_command"
-        assert cmd["action_id"] == legacy_cmds[name]["action_id"]
+    assert cmds["render_turn"] == {
+        "type": "ui_command",
+        "action": "render_turn",
+        "action_id": 2,
+        "text": "hi there",
+    }
 
 
-async def test_typed_action_callback_still_fires() -> None:
-    """``callback=`` is orthogonal to which calling form was used — the outcome is
-    matched by the same session-scoped ``action_id`` the typed call returned."""
+async def test_action_result_reaches_on_result() -> None:
+    """The browser's answer rides the ordinary client-message lane and is matched
+    back to the dispatching call by ``action_id`` — session-scoped, so it settles
+    long after the turn that fired it would have ended."""
     seen: list[tuple[int, str]] = []
 
     class CallbackBrain(Brain):
-        async def on_session_start(self, session, start) -> None:
-            session.action(
-                RenderInit(address="Home"),
-                callback=lambda outcome: seen.append((outcome.action_id, outcome.status)),
+        async def on_session_start(self, session) -> None:
+            session.dispatch(
+                RenderInit(
+                    address="Home",
+                    on_result=lambda result: seen.append((result.action_id, result.status)),
+                )
             )
 
     async with FakeCortex() as cortex:
@@ -169,12 +118,11 @@ async def test_typed_action_callback_still_fires() -> None:
         try:
             await client.send(SessionStartFrame(session_id="s-cb", agent_id="cb", payload={}))
             (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
-            # The browser's echo, on the same frame any client message rides.
             await client.send(
                 ClientMessageFrame(
                     msg_id="m1",
                     type="action_outcome",
-                    data={"action_id": cmd["action_id"], "status": "done"},
+                    data={"action_id": cmd["action_id"], "status": "ok"},
                 ),
                 epoch=1,
             )
@@ -188,4 +136,51 @@ async def test_typed_action_callback_still_fires() -> None:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await run_task
 
-    assert seen == [(1, "done")]
+    assert seen == [(1, "ok")]
+
+
+async def test_awaiting_a_result_resolves_the_handle() -> None:
+    """``dispatch`` never blocks; the handle it returns is how a brain that *does*
+    need the answer waits for it — the same settle, surfaced as a future. The turn
+    is a generator, so awaiting inside it simply stops producing speech until the
+    browser answers."""
+    resolved: list[Result] = []
+
+    class AwaitingBrain(Brain):
+        async def on_user_message(self, session, msg):
+            result = await session.dispatch(RenderInit(address="Home")).result
+            resolved.append(result)
+            yield SpeechStart()
+            yield Chunk(f"got {result.status}")
+            yield SpeechEnd()
+
+    async with FakeCortex() as cortex:
+        agent = make_agent(
+            AwaitingBrain, api_key="aw", version="1.0.0", cortex_url=cortex.agent_url("aw")
+        )
+        run_task = asyncio.create_task(agent.run())
+        client = await connect_pygato(cortex, "s-aw", "aw")
+        try:
+            await client.send(SessionStartFrame(session_id="s-aw", agent_id="aw", payload={}))
+            await client.send(UserMessageFrame(text="go"), epoch=1)
+            (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
+            await client.send(
+                ClientMessageFrame(
+                    msg_id="m1",
+                    type="action_outcome",
+                    data={"action_id": cmd["action_id"], "status": "ok", "result": {"ok": True}},
+                ),
+                epoch=1,
+            )
+            frames, _ = await client.collect_until(
+                lambda fr, _ac: any(isinstance(f, LLMTextFrame) and "got ok" in f.text for f in fr),
+                timeout=5.0,
+            )
+        finally:
+            await client.close()
+            run_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await run_task
+
+    assert [(r.action_id, r.status, r.data) for r in resolved] == [(1, "ok", {"ok": True})]
+    assert any(isinstance(f, LLMTextFrame) and "got ok" in f.text for f in frames)

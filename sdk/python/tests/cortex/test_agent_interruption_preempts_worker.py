@@ -1,9 +1,8 @@
-"""An InterruptionFrame cancels the Brain's in-flight interaction task.
+"""An InterruptionFrame cancels the Brain's in-flight turn.
 
-In the pipecat-free engine, the Brain adapter SPAWNS ``on_interaction`` so the
-inbound frame acks promptly; a barge-in ``InterruptionFrame`` (system lane) then
-cancels the in-flight interaction coroutine. Verify that contract round-trips
-through CortexAgent + the multiplexed wire."""
+The Brain adapter SPAWNS the turn so the inbound frame acks promptly; a barge-in
+``InterruptionFrame`` (system lane) then cancels the in-flight generator. Verify
+that contract round-trips through CortexAgent + the multiplexed wire."""
 
 from __future__ import annotations
 
@@ -25,20 +24,21 @@ from voqalize.sdk.wire import (
 )
 
 
-async def test_interruption_cancels_in_flight_interaction() -> None:
+async def test_interruption_cancels_in_flight_turn() -> None:
     serializer = CortexFrameSerializer()
     timeline: list[str] = []
     started = asyncio.Event()
 
     class Blocking(Brain):
-        async def on_interaction(self, interaction) -> None:
-            timeline.append(f"start:{interaction.id}")
+        async def on_user_message(self, session, msg):
+            timeline.append(f"start:{msg.text}")
             started.set()
             try:
                 await asyncio.Event().wait()  # block forever
             except asyncio.CancelledError:
-                timeline.append(f"cancelled:{interaction.id}")
+                timeline.append(f"cancelled:{msg.text}")
                 raise
+            yield  # unreachable, but this is a speaking callback
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -63,15 +63,14 @@ async def test_interruption_cancels_in_flight_interaction() -> None:
             await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),
         )
         await asyncio.wait_for(started.wait(), timeout=3.0)
-        assert timeline == ["start:1"]
+        assert timeline == ["start:hi"]
 
-        # Send interruption — the Brain adapter must cancel the in-flight
-        # interaction task.
+        # Send interruption — the Brain adapter must cancel the in-flight turn.
         await pygato_wire.send(
             FrameDirection.DOWNSTREAM,
             await serializer.serialize(InterruptionFrame()),
         )
-        await wait_for(lambda: "cancelled:1" in timeline, timeout=3.0)
+        await wait_for(lambda: "cancelled:hi" in timeline, timeout=3.0)
 
         await pygato_wire.close()
         run_task.cancel()

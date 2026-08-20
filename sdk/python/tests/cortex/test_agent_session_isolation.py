@@ -11,7 +11,7 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, brain_factory
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart, brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
@@ -26,8 +26,8 @@ from voqalize.sdk.wire import (
 
 
 class Echo(Brain):
-    """On each interaction, speak a single echo of the input. Records the
-    transcripts it saw for the isolation assertions."""
+    """On each turn, speak a single echo of the input. Records the transcripts it
+    saw for the isolation assertions."""
 
     instances: list[Echo] = []
 
@@ -35,10 +35,11 @@ class Echo(Brain):
         Echo.instances.append(self)
         self.seen_contexts: list[str] = []
 
-    async def on_interaction(self, interaction) -> None:
-        self.seen_contexts.append(interaction.transcript)
-        async with interaction.say() as inf:
-            await inf.speak(f"echo:{interaction.transcript}")
+    async def on_user_message(self, session, msg):
+        self.seen_contexts.append(msg.text)
+        yield SpeechStart()
+        yield Chunk(f"echo:{msg.text}")
+        yield SpeechEnd()
 
 
 async def _drain_until(wire: Wire, serializer, predicate, timeout: float = 3.0):

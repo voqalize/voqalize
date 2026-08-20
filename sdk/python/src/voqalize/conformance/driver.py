@@ -439,29 +439,6 @@ class VoiceDriver:
         await self._send(UserIdleFrame(level=level, idle_ms=idle_ms), epoch=iid)
         return await self._play_out(iid, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
 
-    async def client_message(
-        self,
-        type: str,
-        data: dict | None = None,
-        *,
-        timeout: float | None = None,
-        finalize: bool = True,
-        quiet_for: float | None = None,
-    ) -> Turn:
-        """Drive a client message the brain *responds* to. Voice stamps every browser
-        message with a fresh epoch (one of the four triggers) and delivers it to the
-        brain's ``on_client_message`` — Voice never interprets it. A responding brain
-        takes the floor (``message.interaction``) and answers; play out its response
-        exactly like a spoken turn. (When the brain merely records the message and
-        does not respond, use :meth:`send_client_message`, which does not wait.)"""
-        timeout = self.default_timeout if timeout is None else timeout
-        iid = self.next_interaction_id()
-        await self._send(
-            ClientMessageFrame(msg_id=str(uuid.uuid4()), type=type, data=data or {}),
-            epoch=iid,
-        )
-        return await self._play_out(iid, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
-
     async def barge_in(
         self,
         text: str,

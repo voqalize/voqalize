@@ -21,7 +21,7 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from voqalize.sdk import Brain, DirectAgent, brain_factory
+from voqalize.sdk import Brain, Chunk, DirectAgent, SpeechEnd, SpeechStart, brain_factory
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
     FrameDirection,
@@ -38,24 +38,25 @@ from voqalize.sdk.wire import (
 
 
 class EchoBrain(Brain):
-    """Greets on session start; echoes each user turn back as one inference."""
+    """Greets on session start; echoes each user turn back as one unit."""
 
-    async def on_session_start(self, session, start) -> None:
-        async with session.say() as inf:
-            await inf.speak("hi there")
+    async def greet(self, session) -> str:
+        return "hi there"
 
-    async def on_interaction(self, interaction) -> None:
-        async with interaction.say() as inf:
-            await inf.speak(f"echo: {interaction.transcript}")
+    async def on_user_message(self, session, msg):
+        yield SpeechStart()
+        yield Chunk(f"echo: {msg.text}")
+        yield SpeechEnd()
 
 
 class SlowBrain(Brain):
     """Speaks after a delay — long enough to be barged in on."""
 
-    async def on_interaction(self, interaction) -> None:
-        async with interaction.say() as inf:
-            await asyncio.sleep(5.0)  # cancelled by the interruption before this
-            await inf.speak("you should never hear this")
+    async def on_user_message(self, session, msg):
+        yield SpeechStart()
+        await asyncio.sleep(5.0)  # cancelled by the interruption before this
+        yield Chunk("you should never hear this")
+        yield SpeechEnd()
 
 
 # ─── Harness ─────────────────────────────────────────────────────────────────
@@ -149,14 +150,14 @@ async def test_direct_round_trip_greeting_and_echo():
 
 
 async def test_direct_interruption_echoes_drain_barrier():
-    """A barge-in cancels the in-flight interaction and echoes the barrier."""
+    """A barge-in cancels the in-flight turn and echoes the barrier."""
     agent, port = await _serve(SlowBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
         await client.send(SessionStartFrame(session_id=session_id, agent_id="slow"))
-        # Kick off the slow interaction, then barge in before it can speak.
+        # Kick off the slow turn, then barge in before it can speak.
         await client.send(UserMessageFrame(text="hello"), epoch=1, request_id=1)
         await asyncio.sleep(0.1)
         await client.send(InterruptionFrame())
@@ -166,7 +167,7 @@ async def test_direct_interruption_echoes_drain_barrier():
             lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr)
         )
         assert any(isinstance(f, InterruptionFrame) for f in frames)
-        # The cancelled inference never produced its (post-sleep) text.
+        # The cancelled unit never produced its (post-sleep) text.
         assert not any(isinstance(f, LLMTextFrame) and "never hear" in f.text for f in frames)
     finally:
         await wire.close()
@@ -180,7 +181,7 @@ async def test_direct_idle_interruption_is_handled_and_session_survives():
     the drain barrier, and the session stays live for the next turn.
 
     The other interruption test barges a *running* turn; this pins the empty-pending
-    path (``_cancel_pending`` over zero interactions), which a regression could
+    path (``_cancel_turns`` over zero turns), which a regression could
     plausibly crash on or leave wedged so the next turn never answers."""
     agent, port = await _serve(EchoBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
@@ -192,7 +193,7 @@ async def test_direct_idle_interruption_is_handled_and_session_survives():
         # only be the idle barge-in's drain echo.
         await client.collect_until(_has_text("hi there"))
 
-        # Idle barge-in: interrupt with no interaction in flight.
+        # Idle barge-in: interrupt with no turn in flight.
         await client.send(InterruptionFrame())
         frames, _ = await client.collect_until(
             lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr)

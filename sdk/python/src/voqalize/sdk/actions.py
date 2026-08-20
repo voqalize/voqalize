@@ -1,80 +1,75 @@
-"""Typed actions — a UI command declared as a shape instead of assembled as a dict.
+"""Actions — a command to the browser, declared as a shape.
 
-A screen-driving brain fires ``ui_command``s at the browser
-(:meth:`~voqalize.sdk.brain.Session.action`). The wire shape is fixed —
-``{"type": "ui_command", "action": <name>, "action_id": <int>, **args}`` — but the
-*args* half has always been an untyped ``dict``, which means the contract between
-your brain and your UI lives in two hand-written places that drift: a dict literal
-in Python and a ``switch`` with ``String(cmd.foo)`` coercions in TypeScript.
+An action is the brain's second output channel. It renders; it never speaks. It
+carries no audio, holds no floor, and can therefore be sent from anywhere: from
+inside a turn (``yield ShowResults(...)``), from a callback, from work that
+finished long after the turn that started it (``session.dispatch(...)``).
 
-An :class:`Action` makes the Python half declared:
+Subclass :class:`Action` and your fields *are* the payload::
 
-    from voqalize.sdk import Action
+    class ShowResults(Action):
+        rows: list[Row]
+        highlight: str | None = None
 
-    class OpenItinerary(Action):
-        name: str
+    yield ShowResults(rows=rows, on_result=self.on_row_picked)
 
-    class SearchFlights(Action):
-        leg_id: str
-        options: list[FlightOption]
-
-    interaction.action(OpenItinerary(name="Poddar Vietnam"))
-
-The **wire is unchanged** — that call is byte-identical to the legacy
-``interaction.action("open_itinerary", {"name": "Poddar Vietnam"})``. What you gain
-is that the payload is now a type your editor, your linter and your tests all know,
-and that composes: an Action field may be another model (or a list of them), and
-nested aliases are respected all the way down.
-
-The legacy ``(name, args)`` form keeps working, unchanged and unhinted — it stays
-the general surface for non-pydantic brains and for other languages.
+Why pydantic rather than a dataclass — four properties the wire needs and a
+dataclass would hand-roll: validation at the call site (``extra="forbid"`` turns
+a typo into a loud error instead of a field that silently never reaches the
+screen), aliases (a wire key that is not a Python identifier stays expressible),
+JSON-mode dumping (``datetime`` / ``Enum`` / ``Decimal`` / ``UUID`` become JSON
+scalars *here*, where the failure is a clear Python error, rather than at the
+transport where it is an opaque crash), and JSON Schema export, which is what
+makes the TypeScript half generatable instead of hand-copied.
 
 ## The wire name
 
 Derived from the class name in ``snake_case`` — ``OpenItinerary`` →
-``open_itinerary``, ``SetTripStructure`` → ``set_trip_structure`` — which is the
-convention the demos and docs already use. **The class name is therefore part of
-your browser contract**; renaming the class renames the action. When you don't want
-that coupling (or the wire name isn't a valid identifier), pin it explicitly:
+``open_itinerary``. **The class name is therefore part of your browser
+contract**; renaming the class renames the action. Pin it when you don't want
+that coupling::
 
     class OpenItinerary(Action, name="open_itinerary"):
         ...
 
-## Serialization rules (the part the browser depends on)
+## Serialization
 
-``model_dump(by_alias=True, mode="json")``:
+``model_dump(by_alias=True, mode="json")``, spread onto the envelope:
 
-- **By alias.** A field declared ``from_: str = Field(alias="from")`` goes out as
-  ``from`` — the spelling the UI reads. Construction accepts *either* spelling
-  (``populate_by_name``), matching how the SDK builds tool arguments.
-- **JSON mode.** ``datetime``/``Enum``/``Decimal``/``UUID`` become JSON scalars here,
-  where the failure is a clear Python error, rather than at the transport where it
-  would be an opaque serialization crash.
-- **Every declared field is emitted — including ``None``, which goes as JSON
-  ``null``.** No ``exclude_none``. This is deliberate: the wire shape of an Action
-  must be a function of the *class*, not of which fields happened to be unset on one
-  instance. A stable shape is what lets the browser side declare one total
-  TypeScript interface instead of marking every field optional. If a key should be
-  absent rather than null, model it as a field the UI treats as empty (``""``,
-  ``[]``), or fall back to the legacy dict form for that one call.
-- **Unknown keyword arguments are rejected** (``extra="forbid"``), so a typo is a
-  loud ``ValidationError`` at the call site instead of a field that silently never
-  reaches the screen.
+    {"type": "ui_command", "action": "show_results", "action_id": 7, **payload}
+
+**Every declared field is emitted, including ``None``, which goes as JSON
+``null``.** No ``exclude_none``: the wire shape of an action must be a function
+of the *class*, not of which fields happened to be set on one instance, because a
+stable shape is what lets the browser declare one total interface instead of
+marking every field optional.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Any, ClassVar
+from collections.abc import Awaitable, Callable
+from typing import Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-__all__ = ["RESERVED_ACTION_KEYS", "Action"]
+__all__ = ["CONTROL_ACTION_FIELDS", "RESERVED_ACTION_KEYS", "Action", "Result"]
 
-#: Envelope keys the ``ui_command`` wire shape owns. An Action's fields are spread
-#: onto the top level of that envelope, so a field serializing to one of these would
-#: overwrite it — rejected at class-definition time rather than silently on the wire.
+#: Envelope keys the ``ui_command`` wire shape owns. An action's fields are
+#: spread onto the top level of that envelope, so a field serializing to one of
+#: these would overwrite it — rejected at class-definition time rather than
+#: silently on the wire.
 RESERVED_ACTION_KEYS = frozenset({"type", "action", "action_id"})
+
+#: Base-class fields that are control, not payload. They are ``exclude=True``, so
+#: a subclass that redeclares one silently puts it on the wire — also rejected at
+#: class-definition time.
+CONTROL_ACTION_FIELDS = ("on_result", "timeout_s")
+
+#: How long an unanswered action stays pending before its ``on_result`` fires
+#: with ``status="timeout"``. Long enough for a human to read a dialog, short
+#: enough that a forgotten action does not outlive the exchange it belonged to.
+DEFAULT_ACTION_TIMEOUT_S = 30.0
 
 _CAMEL_BOUNDARY = re.compile(r"(.)([A-Z][a-z]+)")
 _LOWER_UPPER = re.compile(r"([a-z0-9])([A-Z])")
@@ -85,29 +80,45 @@ def _snake_case(name: str) -> str:
     return _LOWER_UPPER.sub(r"\1_\2", _CAMEL_BOUNDARY.sub(r"\1_\2", name)).lower()
 
 
-class Action(BaseModel):
-    """Base class for a typed UI command. See the module docstring for the rules.
+class Result(BaseModel):
+    """The browser's answer to an action — or the fact that it never came.
 
-    Subclass it, declare the fields the browser reads, and hand an *instance* to
-    :meth:`~voqalize.sdk.brain.Session.action`,
-    :meth:`~voqalize.sdk.brain.Interaction.action` or
-    :meth:`voqalize.google_adk.voice().action <voqalize._framework.context.Voice.action>`.
-
-    The wire name is on the class as :attr:`__voqal_action__` — a dunder so it can
-    never collide with a field name (pydantic reserves no ordinary identifier).
+    ``status="timeout"`` is not an error path you handle separately: it is the
+    same callback with a different status, so "the answer came" and "it didn't"
+    are one piece of code.
     """
 
+    action_id: int
+    status: Literal["ok", "error", "timeout"]
+    data: Any = None
+    error: str | None = None
+
+
+class Action(BaseModel):
+    """Base class for a typed UI command. See the module docstring for the rules."""
+
     #: The ``action`` string this class serializes to. Set from the class name, or
-    #: from an explicit ``name=`` class keyword. Read it in tests to pin the
-    #: cross-language contract: ``assert OpenItinerary.__voqal_action__ ==
-    #: "open_itinerary"``.
+    #: from an explicit ``name=`` class keyword. A dunder because pydantic
+    #: reserves no ordinary identifier — a field called ``action`` must stay
+    #: something we can *reject*, not something that silently shadows this.
     __voqal_action__: ClassVar[str] = "action"
 
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
+    #: Fires when the browser answers, or when ``timeout_s`` elapses. It runs on
+    #: the session, not inside the turn that sent the action — the turn may be
+    #: long over — so it holds no floor and cannot speak. To change the screen,
+    #: call ``session.dispatch``; to say something, store it and let the next turn
+    #: pick it up.
+    on_result: Callable[[Result], Awaitable[None] | None] | None = Field(default=None, exclude=True)
+
+    #: Seconds before an unanswered action expires. ``None`` opts out, and those
+    #: handlers are reclaimed at session teardown instead.
+    timeout_s: float | None = Field(default=DEFAULT_ACTION_TIMEOUT_S, exclude=True)
+
     def __init_subclass__(cls, name: str | None = None, **kwargs: Any) -> None:
         # Runs during type creation, BEFORE pydantic collects `model_fields` — so
-        # only the name is settled here; the field-shape guard waits for
+        # only the name is settled here; the field-shape guards wait for
         # `__pydantic_init_subclass__`, which pydantic calls once the model is built.
         super().__init_subclass__(**kwargs)
         cls.__voqal_action__ = name if name is not None else _snake_case(cls.__name__)
@@ -123,34 +134,18 @@ class Action(BaseModel):
         if clashes:
             raise TypeError(
                 f"{cls.__name__}: field(s) {clashes} collide with the ui_command "
-                f"envelope ({sorted(RESERVED_ACTION_KEYS)}). An Action's fields are "
+                f"envelope ({sorted(RESERVED_ACTION_KEYS)}). An action's fields are "
                 f"spread onto the top level of the envelope, so these would overwrite "
                 f"it — rename the field, or give it an alias the envelope doesn't own."
             )
+        leaked = sorted(f for f in CONTROL_ACTION_FIELDS if not cls.model_fields[f].exclude)
+        if leaked:
+            raise TypeError(
+                f"{cls.__name__}: field(s) {leaked} are control, not payload. "
+                f"Redeclaring one drops the base class's exclude=True and puts it "
+                f"straight onto the wire — pick another name."
+            )
 
     def to_payload(self) -> dict[str, Any]:
-        """This action's args as the browser receives them (minus the envelope).
-
-        ``model_dump(by_alias=True, mode="json")`` — see the module docstring for
-        why those two flags and no ``exclude_none``.
-        """
+        """This action's args as the browser receives them (minus the envelope)."""
         return self.model_dump(by_alias=True, mode="json")
-
-
-def action_envelope(
-    name_or_action: str | Action, args: dict[str, Any] | None
-) -> tuple[str, dict[str, Any]]:
-    """Normalize either ``action(...)`` calling form to ``(wire_name, args)``.
-
-    The single place the typed and legacy forms converge, so both emit the exact
-    same envelope. Internal — the public surface is the ``action`` methods.
-    """
-    if isinstance(name_or_action, Action):
-        if args is not None:
-            raise TypeError(
-                f"action({type(name_or_action).__name__}(...)) takes no separate args "
-                f"dict — the action instance IS the args. Pass either a typed Action "
-                f"or the legacy (name, args) pair, not both."
-            )
-        return name_or_action.__voqal_action__, name_or_action.to_payload()
-    return name_or_action, dict(args or {})

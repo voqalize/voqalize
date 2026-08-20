@@ -1,8 +1,9 @@
-"""The browser→Brain client message, over the real stack.
+"""The browser→Brain application message, over the real stack.
 
-Voice delivers every client message unconditionally, stamped with the epoch it
-minted for it. The Brain decides whether to answer: reading ``message.interaction``
-takes the floor, ignoring it leaves the session silent.
+Voice delivers every one of them unconditionally and never interprets the type.
+Handling one cannot make the agent speak — nothing about a click means the human
+stopped talking — so ``on_app_message`` yields actions and nothing else, and a
+brain that tries to speak from it is contained rather than obeyed.
 
 Also covered here: an envelope body this build has never heard of must be skipped,
 not raised — a newer peer adding a frame cannot kill the read loop.
@@ -25,7 +26,6 @@ from voqalize.sdk.wire import (
 
 MSG_TYPE = "state_sync"
 MSG_DATA = {"screen": "cart", "items": [1, 2, 3]}
-EPOCH = 9
 
 
 async def test_unknown_envelope_body_is_skipped_not_raised() -> None:
@@ -52,27 +52,24 @@ class _Recorder:
         self.got = asyncio.Event()
 
 
-async def _run_client_message(*, respond: bool) -> tuple[_Recorder, list, list[int]]:
-    """Deliver one client message to a live Brain over a real socket.
+async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
+    """Deliver one application message to a live Brain over a real socket.
 
-    Returns the recorder, every frame the Brain emitted back, and the epoch each
-    of those frames was stamped with.
+    Returns the recorder and every frame the Brain emitted back.
     """
-    from voqalize.sdk import Brain, DirectAgent, brain_factory
+    from voqalize.sdk import Brain, Chunk, DirectAgent, SpeechEnd, SpeechStart, brain_factory
     from voqalize.sdk.wire import ClientMessageFrame
 
     rec = _Recorder()
 
     class Recording(Brain):
-        async def on_interaction(self, interaction) -> None:  # pragma: no cover - unused
-            pass
-
-        async def on_client_message(self, session, message) -> None:
-            rec.seen.append((message.type, message.data))
-            if respond:
-                async with message.interaction.say() as speech:
-                    await speech.speak("noted")
+        async def on_app_message(self, session, msg):
+            rec.seen.append((msg.type, msg.data))
             rec.got.set()
+            if speak:
+                yield SpeechStart()
+                yield Chunk("noted")
+                yield SpeechEnd()
 
     agent = DirectAgent(
         factory=brain_factory(Recording), host="127.0.0.1", port=0, allow_unverified=True
@@ -83,7 +80,6 @@ async def _run_client_message(*, respond: bool) -> tuple[_Recorder, list, list[i
     await wire.start()
     ser = CortexFrameSerializer()
     emitted: list = []
-    epochs: list[int] = []
     try:
         await wire.send(
             FrameDirection.DOWNSTREAM,
@@ -91,9 +87,7 @@ async def _run_client_message(*, respond: bool) -> tuple[_Recorder, list, list[i
         )
         await wire.send(
             FrameDirection.DOWNSTREAM,
-            await ser.serialize(
-                ClientMessageFrame(msg_id="m-7", type=MSG_TYPE, data=MSG_DATA), epoch=EPOCH
-            ),
+            await ser.serialize(ClientMessageFrame(msg_id="m-7", type=MSG_TYPE, data=MSG_DATA)),
         )
         await asyncio.wait_for(rec.got.wait(), timeout=3.0)
 
@@ -104,32 +98,31 @@ async def _run_client_message(*, respond: bool) -> tuple[_Recorder, list, list[i
                 msg = await ser.deserialize_message(data)
                 if msg.frame is not None:
                     emitted.append(msg.frame)
-                    epochs.append(msg.epoch)
 
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(_drain(), timeout=0.6)
     finally:
         await wire.close()
         await agent.aclose()
-    return rec, emitted, epochs
+    return rec, emitted
 
 
-async def test_client_message_reaches_on_client_message() -> None:
-    """The seam fires with the message as sent, and a Brain that ignores the
-    interaction says nothing."""
-    rec, emitted, _ = await _run_client_message(respond=False)
+async def test_client_message_reaches_on_app_message() -> None:
+    """The seam fires with the message exactly as sent, and the session stays silent."""
+    rec, emitted = await _run_client_message(speak=False)
 
     assert rec.seen == [(MSG_TYPE, MSG_DATA)]
     assert not [f for f in emitted if isinstance(f, LLMFullResponseStartFrame)]
 
 
-async def test_response_echoes_the_epoch_voice_minted() -> None:
-    """Answering means taking the floor on the interaction Voice opened — so the
-    reply rides that epoch, unread and echoed exactly."""
-    rec, emitted, epochs = await _run_client_message(respond=True)
+async def test_speaking_from_an_app_message_puts_nothing_on_the_wire() -> None:
+    """The type says actions only; the runtime enforces it rather than trusting it.
+
+    A tap that made the agent start talking would cut across whatever the human was
+    saying — so the attempt is contained to the callback, the message is still
+    delivered, and not a byte of speech reaches Voice.
+    """
+    rec, emitted = await _run_client_message(speak=True)
 
     assert rec.seen == [(MSG_TYPE, MSG_DATA)]
-    stamps = [
-        e for f, e in zip(emitted, epochs, strict=True) if isinstance(f, LLMFullResponseStartFrame)
-    ]
-    assert stamps == [EPOCH]
+    assert not [f for f in emitted if isinstance(f, LLMFullResponseStartFrame)]

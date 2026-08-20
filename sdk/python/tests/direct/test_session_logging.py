@@ -86,10 +86,11 @@ async def test_empty_identity_fields_are_omitted_not_blank():
 
 
 class _LoggingBrain(Brain):
-    async def on_session_start(self, session, start) -> None:
+    async def on_session_start(self, session) -> None:
         logger.info("brain: session started")
-        async with session.say() as inf:
-            await inf.speak("hi there")
+
+    async def greet(self, session) -> str:
+        return "hi there"
 
 
 class _Endpoint:

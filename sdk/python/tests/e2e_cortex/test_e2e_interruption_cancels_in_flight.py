@@ -1,7 +1,6 @@
-"""A barge-in InterruptionFrame cancels the in-flight interaction on the agent
-side. No further LLM frames from that inference cross the wire after the
-interruption, and the agent echoes an InterruptionFrame back as pygato's drain
-barrier."""
+"""A barge-in InterruptionFrame cancels the in-flight turn on the agent side. No
+further LLM frames from that unit cross the wire after the interruption, and the
+agent echoes an InterruptionFrame back as pygato's drain barrier."""
 
 from __future__ import annotations
 
@@ -10,7 +9,7 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, make_agent
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart, make_agent
 from voqalize.sdk.wire import (
     InterruptionFrame,
     LLMTextFrame,
@@ -24,16 +23,16 @@ class StreamingResponder(Brain):
 
     timeline: list[str] = []
 
-    async def on_interaction(self, interaction) -> None:
-        iid = interaction.id
-        StreamingResponder.timeline.append(f"start:{iid}")
-        async with interaction.say() as inf:
-            await inf.speak("chunk-1")
-            try:
-                await asyncio.Event().wait()  # block until cancelled
-            except asyncio.CancelledError:
-                StreamingResponder.timeline.append(f"cancelled:{iid}")
-                raise
+    async def on_user_message(self, session, msg):
+        StreamingResponder.timeline.append(f"start:{msg.text}")
+        yield SpeechStart()
+        yield Chunk("chunk-1")
+        try:
+            await asyncio.Event().wait()  # block until cancelled
+        except asyncio.CancelledError:
+            StreamingResponder.timeline.append(f"cancelled:{msg.text}")
+            raise
+        yield SpeechEnd()
 
 
 async def test_interruption_cancels_in_flight() -> None:
@@ -60,11 +59,11 @@ async def test_interruption_cancels_in_flight() -> None:
             )
             assert any(f.text == "chunk-1" for f in frames if isinstance(f, LLMTextFrame))
 
-            # Barge in. The agent cancels the interaction and echoes an
+            # Barge in. The agent cancels the turn and echoes an
             # InterruptionFrame back as the drain barrier — on the outbound
             # system lane, so it jumps ahead of any queued data.
             await client.send(InterruptionFrame())
-            await wait_until(lambda: "cancelled:1" in StreamingResponder.timeline, timeout=3.0)
+            await wait_until(lambda: "cancelled:say hi" in StreamingResponder.timeline, timeout=3.0)
 
             # Collect everything up to and including the InterruptionFrame echo.
             frames2, _ = await client.collect_until(
