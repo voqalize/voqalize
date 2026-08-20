@@ -592,10 +592,15 @@ yield SpeechEnd()
 session.end(reason="task_complete")
 ```
 
-It is **immediate** in the sense that it does not wait for queued *audio* to
-finish playing — the goodbye above is on the wire before it, but TTS may still be
-speaking. That is what you want for an abort, and for a goodbye it is the same
-trade every hang-up makes.
+The goodbye is **heard**, not cut off. `end()` puts pipecat's `EndFrame` on the
+wire, which is a *control* frame: it is delivered in the order it was sent, TTS
+finishes the contexts already open before it disconnects, and the output
+transport plays out its audio queue before it stops. So "after the last word" is
+what the code above literally says, and it is also what happens.
+
+To abandon a call rather than close it — an unrecoverable error, an abusive
+caller — call `end()` without speaking first. There is no separate kill; the
+difference between hanging up and giving up is whether you said anything.
 
 ---
 

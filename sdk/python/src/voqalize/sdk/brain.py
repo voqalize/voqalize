@@ -228,11 +228,15 @@ class Session:
     # ─── Ending the call ────────────────────────────────────────────────
 
     def end(self, reason: str = "agent_ended") -> None:
-        """Hang up **immediately** — it does not wait for queued audio.
+        """Hang up. Callable from anywhere — every callback is handed the session.
 
         To say goodbye first, speak it and then call this: the generator body
         resumes only after the SDK has consumed everything you yielded, so
-        writing it in that order *is* the ordering. Idempotent. ``reason`` is
+        writing it in that order *is* the ordering, and the goodbye is heard.
+        Voice ends on a *control* frame — delivered in order, TTS finishing the
+        contexts already open and the transport playing out its audio queue
+        before either stops — so nothing already spoken is cut off. To abandon a
+        call instead, call this without speaking first. Idempotent. ``reason`` is
         logged locally; Voice never needs the brain's rationale to hang up, so it
         does not cross the wire.
         """
