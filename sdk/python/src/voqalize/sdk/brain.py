@@ -59,7 +59,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import inspect
-from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -174,8 +174,9 @@ class Session:
         #: The opaque payload Voice was handed at connect. Read your own keys out
         #: of it — the SDK never interprets it.
         self.init = init
-        # One id per speech unit, session-monotonic, so a TTS context id is unique
-        # for the whole call.
+        # One id per speech unit, session-monotonic. Voice never reads it — it
+        # comes back on the Finalize naming the unit it belongs to, and nothing
+        # on that side compares, orders or formats it.
         self._inference_seq = 0
         self._action_seq = 0
         self._pending: dict[int, _PendingAction] = {}
@@ -415,20 +416,17 @@ class Brain:
 
     # ─── The opening line ───────────────────────────────────────────────
 
-    async def greet(self, session: Session) -> str | AsyncIterator[str] | None:
-        """The first thing the agent says. Return ``None`` (the default) to open
-        silently, which is right for an agent that waits to be addressed.
+    async def greet(self, session: Session) -> str | None:
+        """The first thing the agent says, as one line. Return ``None`` (the
+        default) to open silently, which is right for an agent that waits to be
+        addressed.
 
-        **Return a string.** It is ``async`` so you can look up a name, not so you
-        can run a model: this is the one moment where the caller is sitting on a
-        connected session hearing nothing, and a model round-trip here is the
-        single most expensive latency in the product.
-
-        When the opener genuinely must be generated, return an async iterator of
-        text instead and the SDK streams it as one unit. Say a fixed word first
-        and let the model's first-token latency hide behind audio the caller is
-        already hearing — a generated opener with nothing in front of it is dead
-        air by another name.
+        **No model call belongs here.** A fixed line, or at most a template over
+        ``session.init`` — ``f"Hi {name}, how can I help?"`` — and nothing else.
+        It is ``async`` so you can look up that name, not so you can generate the
+        sentence: this is the one moment where the caller is sitting on a
+        connected session hearing nothing, and a round-trip here is the single
+        most expensive latency in the product.
         """
         return None
 
@@ -595,7 +593,7 @@ class _BrainAdapter:
             return
         try:
             opening = await self._brain.greet(session)
-            if opening is None or opening == "":
+            if not opening:
                 return
             await self._drive(session, NO_EPOCH, _one_unit(opening))
         except Exception as exc:
@@ -772,14 +770,10 @@ def _speech(result: Any) -> AsyncGenerator[Any, None]:
     return _just_run(result)
 
 
-async def _one_unit(opening: str | AsyncIterator[str]) -> AsyncGenerator[Speech, None]:
-    """The opening line as one speech unit, whether it is a string or a stream."""
+async def _one_unit(opening: str) -> AsyncGenerator[Speech, None]:
+    """The opening line as one speech unit."""
     yield SpeechStart()
-    if isinstance(opening, str):
-        yield Chunk(opening)
-    else:
-        async for text in opening:
-            yield Chunk(text)
+    yield Chunk(opening)
     yield SpeechEnd()
 
 

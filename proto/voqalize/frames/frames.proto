@@ -69,7 +69,12 @@ message Envelope {
   // Session-monotonic, minted by the emitter of an inference bracket. Every
   // envelope belonging to one model call carries the same value: the bracket
   // (llm_start / llm_end), its llm_text, and the inference_finalized that
-  // reports what was heard. This is pipecat's per-turn TTS context id.
+  // reports what was heard.
+  //
+  // Opaque to the side that did not mint it. The voice runtime never mints,
+  // reads, formats, orders or compares one — it tags the TTS context the
+  // bracket opened, and the inference_finalized names the same value back
+  // unchanged. So the brain may number these however it likes.
   uint64 inference_id = 52;
 }
 

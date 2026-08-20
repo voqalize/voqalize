@@ -124,36 +124,6 @@ async def test_a_failed_greet_fails_the_call() -> None:
     assert rec.names()[-1] == "EndFrame"
 
 
-class HalfGreeting(Brain):
-    async def greet(self, session: Session):
-        async def opener():
-            yield "Hi there, one moment"
-            raise RuntimeError("the model died mid-sentence")
-
-        return opener()
-
-    async def on_user_message(
-        self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[object, None]:
-        yield SpeechEnd()
-
-
-async def test_a_greeting_that_dies_mid_stream_closes_its_unit_then_fails() -> None:
-    """A streamed greeting can fail after audio is already going out. The open
-    unit still closes — an unclosed bracket is dead air for the rest of the call —
-    and only then does the session fail."""
-    _adapter, rec = await _open(HalfGreeting())
-    await asyncio.sleep(0)
-    assert rec.spoken() == "Hi there, one moment"
-    assert rec.names() == [
-        "LLMFullResponseStartFrame",
-        "LLMTextFrame",
-        "LLMFullResponseEndFrame",
-        "ErrorFrame",
-        "EndFrame",
-    ]
-
-
 # ─── on_app_message acts, but never speaks ────────────────────────────────────
 
 

@@ -138,11 +138,13 @@ nothing to yield, so there is nothing to yield *speech* into.
 
 ### `greet` is static by contract
 
-`greet` returns a string, immediately, and the SDK speaks it. It is `async` so
-you can look up a name, not so you can run a model. You *may* call an LLM; you
-should not. The opening line is the one moment where the user is staring at a
-connected session hearing nothing, and a model round-trip there is the single
-most expensive latency in the product.
+`greet` returns a string — one line, whole — and the SDK speaks it as one unit.
+There is no streaming form, and **no model call belongs in it**: a fixed line, or
+at most a template over `session.init`, and nothing else. It is `async` so you can
+look up the name that template needs, not so you can generate the sentence. The
+opening line is the one moment where the user is staring at a connected session
+hearing nothing, and a round-trip there is the single most expensive latency in
+the product.
 
 Returning `None` or `""` opens silently — valid for an agent that waits to be
 addressed.
@@ -233,8 +235,7 @@ talks to; a greeting that never arrives at all is dead air on the one turn
 nothing retries. Both are invisible to every check we have — empty transcript, no
 error — so the SDK puts a fatal `ErrorFrame` on the wire naming the hook that
 raised, and ends the session. It fails where the failure happened rather than a
-turn later. A streamed greeting that dies mid-sentence still closes its open unit
-first; an unclosed bracket is dead air for the rest of the call.
+turn later.
 
 ### 5.2 A turn
 
@@ -697,10 +698,13 @@ Two ids, two owners, two jobs. The two-key model is already the documented desig
 (`platform/docs/voice-protocol.md`), so nothing here is new. Two things change:
 
 - **`inference_id` becomes session-unique instead of restarting at 1 per
-  interaction.** That is the only reason TTS pins a composite
-  `context_id = "{interaction_id}.{inference_id}"` — with a unique id the
-  composite collapses to the id, and the correlation stops depending on the
-  floor clock at all.
+  interaction**, so the correlation stops depending on the floor clock at all.
+  Voice used to carry it as its TTS context id — first as the composite
+  `"{interaction_id}.{inference_id}"`, then as the bare id — which is what made
+  a brain's private counter something Voice had to be able to parse. It no
+  longer is: Voice tags its own context with the id and hands it back unread, so
+  session-uniqueness is now the brain's requirement about its own bookkeeping
+  and nothing else's.
 - **The floor clock stops being developer-facing.** It reaches the brain author
   today as `Interaction.id`, which reads like a durable identity for a turn and
   is not one — the greeting doesn't get a real one, every browser message gets
@@ -779,10 +783,7 @@ Ordered by how much they block.
    *transport*), exact word open. Likewise the browser SDK's two send methods
    (`sendUserMessage` / `sendAppMessage`), which are what makes the split
    routable without the runtime interpreting payloads.
-3. **Generated greetings.** `greet -> str` is static by contract. Several
-   existing brains stream a generated opener behind a static lead-in. They need
-   either an escape hatch or an explicit decision to go static.
-4. **Async-generator finalization.** The one implementation risk, and it is
+3. **Async-generator finalization.** The one implementation risk, and it is
    narrower than it first looked — it splits by where the generator is suspended
    when the caller barges in:
    - **At an `await`** (an LLM call, an action result): ordinary `asyncio`
@@ -793,7 +794,7 @@ Ordered by how much they block.
      meets the sharpest corner of the async-generator protocol.
    Only the second case is uncertain. Prototype it against a real barge-in
    before committing to the shape.
-5. **Where the action codegen lives.** Blocks nothing — the protocol is complete
+4. **Where the action codegen lives.** Blocks nothing — the protocol is complete
    without it — but it is the piece that turns typed actions into a checked
    cross-language contract. Open: a `voqalize` CLI subcommand vs. a script each
    frontend runs; generated file committed or built; and whether the SDK's own
@@ -817,6 +818,16 @@ is the open case, and nothing above depends on it.
 
 - **`greet(session)`**, not `greet(init)` — consistent with every other callback;
   `session.init` is the same payload.
+- **`greet` returns a string or nothing — never a stream, never generated.** The
+  streaming form existed for one shape: a fixed word spoken instantly with a
+  generated remainder behind it, so the model's first token landed under audio the
+  caller was already hearing. It bought latency on the rare generated opener and
+  cost a union return type, an `isinstance` in the adapter, and a second thing
+  every brain author had to know about the one callback they write first. Removing
+  it left a generated opener paying its full round-trip in silence, which is a
+  price nothing justifies — so the greeting is now static or templated from
+  `session.init`, and `GeminiBrain.opening()` was deleted rather than kept as a
+  convenient way to do the thing the contract forbids.
 - **The generator is the mouth.** `Speech` is the only thing a callback yields.
   Actions, configuration and hang-up are methods on `Session`. The discriminator
   is not ordering — a yield and a method call written at the same point in a

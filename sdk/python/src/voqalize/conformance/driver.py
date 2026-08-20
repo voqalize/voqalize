@@ -347,9 +347,9 @@ class VoiceDriver:
         and finalize the greeting interaction (epoch 0). Returns the greeting turn,
         or ``None`` if the brain did not greet within the timeout.
 
-        The greeting is *agent-initiated speech* (``session.say()``): the driver
-        waits for a closed bracket plus a short quiescence, then finalizes each
-        greeting inference (heard-truth)."""
+        The greeting is *agent-initiated speech* — one unit, answering no
+        stimulus: the driver waits for a closed bracket plus a short quiescence,
+        then finalizes the greeting inference (heard-truth)."""
         await self._send(
             SessionStartFrame(
                 session_id=self.session_id,
@@ -366,7 +366,7 @@ class VoiceDriver:
         )
         if not got:
             return None
-        # A greeting may open more than one bracket; let them all land.
+        # Quiesce before finalizing, so nothing is still in flight.
         await self._quiesce(self._quiet(quiet_for), timeout=greeting_timeout)
         io = self.interactions.get(GREETING_INTERACTION_ID)
         if io is None or not io.inferences:
