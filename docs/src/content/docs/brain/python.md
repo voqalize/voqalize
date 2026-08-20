@@ -176,7 +176,7 @@ async def on_client_message(self, session: Session, message: ClientMessage) -> N
 Touching `message.interaction` is what takes the floor; it is lazy and idempotent.
 If you never touch it, no interaction is driven and the id simply goes unused.
 
-`type == "action_outcome"` never reaches this callback — it is routed to the
+`type == "action_result"` never reaches this callback — it is routed to the
 `callback=` you passed to the `action(...)` that fired it.
 
 ## The `Conversation` and `Message` objects

@@ -51,7 +51,7 @@ import asyncio
 import contextlib
 import inspect
 import os
-from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -62,7 +62,6 @@ from .engine import Emitter, Envelope, SessionAdapter, SessionFactory
 from .events import (
     AppMessage,
     Chunk,
-    EndSession,
     Error,
     Finalize,
     IdleTrigger,
@@ -109,10 +108,10 @@ __all__ = [
 ]
 
 #: What a speaking callback may yield.
-Emission = Speech | Action | EndSession
+Emission = Speech | Action
 
 # The browser echoes an action's answer as a client message of this type.
-ACTION_RESULT = "action_outcome"
+ACTION_RESULT = "action_result"
 
 # Agent-initiated speech answers no stimulus, so it echoes no epoch.
 NO_EPOCH = 0
@@ -231,10 +230,11 @@ class Session:
     def end(self, reason: str = "agent_ended") -> None:
         """Hang up **immediately** — it does not wait for queued audio.
 
-        That is what you want for an abort and not what you want for a goodbye:
-        to say something first, ``yield EndSession(reason)`` instead and let the
-        ordering do it. Idempotent. ``reason`` is logged locally; Voice never
-        needs the brain's rationale to hang up, so it does not cross the wire.
+        To say goodbye first, speak it and then call this: the generator body
+        resumes only after the SDK has consumed everything you yielded, so
+        writing it in that order *is* the ordering. Idempotent. ``reason`` is
+        logged locally; Voice never needs the brain's rationale to hang up, so it
+        does not cross the wire.
         """
         if self._ended:
             return
@@ -445,9 +445,7 @@ class Brain:
         1 and wrap up at 3. Default: yield nothing and let the silence ride."""
         return _nothing()
 
-    def on_app_message(
-        self, session: Session, msg: AppMessage
-    ) -> AsyncGenerator[Action | EndSession, None]:
+    def on_app_message(self, session: Session, msg: AppMessage) -> AsyncGenerator[Action, None]:
         """The application said something — a tap, a keystroke, a state push::
 
             async def on_app_message(self, session, msg):
@@ -456,12 +454,11 @@ class Brain:
                 elif msg.type == "catalog_search":
                     yield ShowSearchResults(rows=self.search(msg.data["query"]))
                 elif msg.type == "hang_up":
-                    yield EndSession(reason="user tapped hang up")
+                    session.end(reason="user tapped hang up")
 
-        It yields **actions, and `EndSession`** — never speech, and that is a type
-        the checker enforces rather than a convention a reviewer has to catch: a
-        click can update the screen or end the call, but it cannot make the agent
-        start talking over the person clicking.
+        It yields **actions only**, and that is a type the checker enforces rather
+        than a convention a reviewer has to catch: a click can update the screen,
+        but it cannot make the agent start talking over the person clicking.
         """
         return _nothing()
 
@@ -522,13 +519,17 @@ class _BrainAdapter:
 
         if isinstance(frame, UserMessageFrame):
             self._spawn_turn(
-                session, env.epoch, self._brain.on_user_message(session, UserMessage(frame.text))
+                session,
+                env.epoch,
+                _emissions(self._brain.on_user_message(session, UserMessage(frame.text))),
             )
         elif isinstance(frame, UserIdleFrame):
             self._spawn_turn(
                 session,
                 env.epoch,
-                self._brain.on_user_idle(session, IdleTrigger(frame.level, frame.idle_ms)),
+                _emissions(
+                    self._brain.on_user_idle(session, IdleTrigger(frame.level, frame.idle_ms))
+                ),
             )
         elif isinstance(frame, InterruptionFrame):
             # Cancel in flight first, then echo: the echo is Voice's drain
@@ -637,11 +638,9 @@ class _BrainAdapter:
             async for event in gen:
                 if isinstance(event, Action):
                     session.dispatch(event)
-                elif isinstance(event, EndSession):
-                    session.end(event.reason)
                 elif not speech:
                     raise ProtocolError(
-                        f"on_app_message may only yield actions or EndSession; got "
+                        f"on_app_message may only yield actions; got "
                         f"{type(event).__name__}. An application message never "
                         f"takes the floor."
                     )
@@ -710,7 +709,10 @@ class _BrainAdapter:
     async def _run_app_message(self, session: Session, msg: AppMessage) -> None:
         try:
             await self._drive(
-                session, NO_EPOCH, self._brain.on_app_message(session, msg), speech=False
+                session,
+                NO_EPOCH,
+                _emissions(self._brain.on_app_message(session, msg)),
+                speech=False,
             )
         except asyncio.CancelledError:
             raise
@@ -736,6 +738,27 @@ async def _nothing() -> AsyncGenerator[Any, None]:
     """Yields nothing — the default for a callback that declines the floor."""
     for _ in ():
         yield
+
+
+async def _just_run(coro: Awaitable[None]) -> AsyncGenerator[Any, None]:
+    """Run a callback that turned out not to be a generator, and yield nothing.
+
+    A callback whose body has no ``yield`` anywhere is an ordinary coroutine, not
+    an async generator — and that is the natural shape of one that only calls
+    ``session.dispatch()`` or ``session.end()``. Python decides this from the
+    source, not from the annotation, so the brain author gets no warning. Running
+    it is the only reading that is not a silent no-op.
+    """
+    await coro
+    for _ in ():
+        yield
+
+
+def _emissions(result: Any) -> AsyncGenerator[Any, None]:
+    """Whatever the brain's callback returned, as something to drive."""
+    if isinstance(result, AsyncGenerator):
+        return result
+    return _just_run(result)
 
 
 async def _one_unit(opening: str | AsyncIterator[str]) -> AsyncGenerator[Emission, None]:

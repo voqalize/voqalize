@@ -186,7 +186,7 @@ For agents that drive the screen (see
   args are spread onto the top level. Dispatch it with `useUiCommand`, below.
 - **Browser → brain.** `session.sendMessage(type, data)` reaches the brain's
   `on_client_message(session, ClientMessage(type=type, data=data))`. Reply to a UI
-  command's outcome with `sendMessage("action_outcome", { action_id, status, result })`.
+  command's outcome with `sendMessage("action_result", { action_id, status, result })`.
 
 ## Typed UI commands: `useUiCommand`
 

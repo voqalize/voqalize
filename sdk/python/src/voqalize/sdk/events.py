@@ -4,9 +4,9 @@ Three groups, and the split between them is the whole contract:
 
 * **Triggers** — :class:`UserMessage`, :class:`IdleTrigger`, :class:`AppMessage`.
   Voice hands one to a callback; that callback is where the floor lives.
-* **Emissions** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`,
-  :class:`EndSession`, and an :class:`~voqalize.sdk.actions.Action`. A speaking
-  callback yields these; the SDK puts them on the wire in the order they arrive.
+* **Emissions** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`
+  and an :class:`~voqalize.sdk.actions.Action`. A speaking callback yields these;
+  the SDK puts them on the wire in the order they arrive.
 * **Reports** — :class:`Finalize` and :class:`Error`. What happened, after it
   happened.
 
@@ -23,7 +23,6 @@ from typing import Any
 __all__ = [
     "AppMessage",
     "Chunk",
-    "EndSession",
     "Error",
     "Finalize",
     "IdleTrigger",
@@ -89,17 +88,6 @@ class Chunk:
 @dataclass(frozen=True)
 class SpeechEnd:
     """Close the open unit of speech."""
-
-
-@dataclass(frozen=True)
-class EndSession:
-    """Hang up, once everything queued ahead of this has been said.
-
-    Yield it after the goodbye and the ordering does the rest.
-    ``reason`` is for your logs; it does not cross the wire.
-    """
-
-    reason: str = "agent_ended"
 
 
 #: One unit of speech, delimited.

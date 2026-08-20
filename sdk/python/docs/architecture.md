@@ -140,7 +140,7 @@ callbacks, and the Brain's responses back onto the wire via the `Emitter`:
 | `InterruptionFrame` | cancel in-flight interaction(s); echo the drain barrier |
 | `VqlInferenceFinalizedFrame` | commit assistant **heard** text; `on_inference_finalized(inference)` |
 | `VqlUserIdleFrame` | open a floor-owning idle interaction; `on_user_idle(interaction)` |
-| `VqlRTVIClientMessageFrame` (`action_outcome`) | route to the pending `action` callback by `action_id` |
+| `VqlRTVIClientMessageFrame` (`action_result`) | route to the pending `action` callback by `action_id` |
 | `VqlRTVIClientMessageFrame` (other) | pre-mint an `interaction_id`; `on_client_message(session, message)` |
 | `ErrorFrame` | `on_error(session, error)` |
 

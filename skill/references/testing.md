@@ -59,7 +59,7 @@ the private half — **token verification is exercised for real**, not switched 
 | `client_message(type, data)` | A browser message the brain **answers** (via `message.interaction`); waits for the reply. | `Turn` |
 | `send_client_message(type, data)` | A browser message the brain **ingests silently**; does not wait. | `interaction_id` |
 | `user_idle(level=1, idle_ms=30000)` | An idle trigger; plays out `on_user_idle`. | `Turn` |
-| `send_action_outcome(action_id, status=, result=)` | The UI reporting back on an action; fires the brain's `callback=`. | — |
+| `send_action_result(action_id, status=, result=)` | The UI reporting back on an action; fires the brain's `callback=`. | — |
 | `collect_ui_commands(min_count=1)` | Waits for and returns the `ui_command` envelopes the brain fired. | `list[dict]` |
 | `end_session()` / `aclose()` | `End` frame + teardown. | — |
 

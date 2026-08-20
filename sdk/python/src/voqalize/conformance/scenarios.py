@@ -391,7 +391,7 @@ async def scn_heard_truth_barge_in_before_audio(ctx: ScenarioContext) -> None:
     )
 
 
-async def scn_action_outcome_roundtrip(ctx: ScenarioContext) -> None:
+async def scn_action_result_roundtrip(ctx: ScenarioContext) -> None:
     """The brain fires a UI action; the driver reports its outcome; the brain
     correlates it by action_id at session scope. (Reference grammar: ``do X``.)"""
     driver = await ctx.connect()
@@ -410,7 +410,7 @@ async def scn_action_outcome_roundtrip(ctx: ScenarioContext) -> None:
         f"ui_command action_id {action_id!r} is not an int",
     )
     assert isinstance(action_id, int)  # narrowed by the check above
-    await driver.send_action_outcome(action_id, status="ok", result={"done": True})
+    await driver.send_action_result(action_id, status="ok", result={"done": True})
     state = await driver.dump_conversation()
     outcomes = state.get("outcomes", [])
     matched = [o for o in outcomes if o.get("action_id") == action_id]
@@ -552,9 +552,9 @@ CATALOG: list[Scenario] = [
         tags=("interruption",),
     ),
     Scenario(
-        "action_outcome_roundtrip",
+        "action_result_roundtrip",
         "UI action fired by the brain; outcome correlated by action_id.",
-        scn_action_outcome_roundtrip,
+        scn_action_result_roundtrip,
         requires_reference=True,
     ),
     Scenario(

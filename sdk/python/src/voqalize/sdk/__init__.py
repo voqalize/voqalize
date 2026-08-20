@@ -46,7 +46,6 @@ from .brain import (
 from .events import (
     AppMessage,
     Chunk,
-    EndSession,
     Error,
     Finalize,
     IdleTrigger,
@@ -69,7 +68,6 @@ __all__ = [
     "CortexAgent",
     "DirectAgent",
     "Emission",
-    "EndSession",
     "Error",
     "Finalize",
     "IdleTrigger",

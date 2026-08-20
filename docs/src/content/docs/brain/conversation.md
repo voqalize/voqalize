@@ -69,7 +69,7 @@ interaction.action("add_to_cart", {"sku": "pixel-9"})
 On the browser side this arrives as a server message
 `{ type: "ui_command", action: "add_to_cart", action_id, sku: "pixel-9" }` — the
 args are spread onto the top level. See [React client SDK](/docs/client/react/)
-for rendering these and replying with `action_outcome`.
+for rendering these and replying with `action_result`.
 
 To act **outside** a turn — render something the moment the call connects, or in
 response to a browser event — use `session.action`:

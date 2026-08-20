@@ -121,7 +121,7 @@ async def test_action_result_reaches_on_result() -> None:
             await client.send(
                 ClientMessageFrame(
                     msg_id="m1",
-                    type="action_outcome",
+                    type="action_result",
                     data={"action_id": cmd["action_id"], "status": "ok"},
                 ),
                 epoch=1,
@@ -167,7 +167,7 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
             await client.send(
                 ClientMessageFrame(
                     msg_id="m1",
-                    type="action_outcome",
+                    type="action_result",
                     data={"action_id": cmd["action_id"], "status": "ok", "result": {"ok": True}},
                 ),
                 epoch=1,

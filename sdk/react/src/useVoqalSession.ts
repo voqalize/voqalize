@@ -138,7 +138,7 @@ export interface VoqalSessionHandle {
    * Send a custom app message from the browser to the brain. Arrives brain-side
    * as `on_client_message(session, ClientMessage(type=type, data=data))`. Use it to keep
    * the brain in sync with on-screen state or to report a tap the user made
-   * (e.g. `sendMessage("state_sync", { cart })`, `sendMessage("action_outcome",
+   * (e.g. `sendMessage("state_sync", { cart })`, `sendMessage("action_result",
    * { action_id, status: "done" })`). No-op before connect / after disconnect.
    */
   sendMessage: (type: string, data?: Record<string, unknown>) => void;

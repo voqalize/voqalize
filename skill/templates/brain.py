@@ -50,7 +50,7 @@ matching `useUiCommand` hook: references/ui-actions.md.
 
 Browser → brain:  the browser calls the SDK's `sendMessage(type, data)`; you
 receive it in `on_client_message` as `ClientMessage(type=type, data=data)`. The
-one special type is `"action_outcome"` (`{action_id, status, result}`) — if you
+one special type is `"action_result"` (`{action_id, status, result}`) — if you
 passed a `callback=` to `.action(...)`, it's routed there instead of
 `on_client_message`.
 

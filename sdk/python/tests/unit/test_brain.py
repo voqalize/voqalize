@@ -15,7 +15,6 @@ from voqalize.sdk import (
     AppMessage,
     Brain,
     Chunk,
-    EndSession,
     Session,
     SpeechEnd,
     SpeechStart,
@@ -156,6 +155,10 @@ async def test_a_greeting_that_dies_mid_stream_closes_its_unit_then_fails() -> N
 # ─── on_app_message may hang up, but still may not speak ──────────────────────
 
 
+class Refresh(Action):
+    pass
+
+
 class Hangup(Brain):
     async def on_user_message(
         self, session: Session, msg: UserMessage
@@ -164,17 +167,45 @@ class Hangup(Brain):
 
     async def on_app_message(
         self, session: Session, msg: AppMessage
-    ) -> AsyncGenerator[Action | EndSession, None]:
-        yield EndSession(reason="user tapped hang up")
+    ) -> AsyncGenerator[Action, None]:
+        if msg.type == "hang_up":
+            session.end(reason="user tapped hang up")
+        elif msg.type == "refresh":
+            yield Refresh()
 
 
 async def test_an_app_message_may_end_the_session() -> None:
-    """A tap on "hang up" is the browser's, not a sentence the agent has to say
-    first — so ``EndSession`` is on the app-message channel too, and typed."""
+    """Every callback is handed the session, so hanging up needs no yieldable of
+    its own — ``session.end()`` is reachable from all of them, and a tap on "end
+    call" is not a sentence the agent has to say first."""
     adapter, rec = await _open(Hangup())
     await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="hang_up", data={})))
     await asyncio.sleep(0.02)
-    assert "EndFrame" in rec.names()
+    assert rec.names() == ["EndFrame"]
+
+
+class PlainCoroutine(Brain):
+    """No ``yield`` anywhere in the callback — so it is a coroutine, not a
+    generator. Python decides that from the source, not the annotation."""
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        yield SpeechEnd()
+
+    async def on_app_message(self, session: Session, msg: AppMessage) -> None:  # type: ignore[override]
+        session.end(reason="tapped")
+
+
+async def test_a_callback_with_no_yield_still_runs() -> None:
+    """The natural body of a callback that only calls ``session.end()`` has no
+    ``yield`` in it, which quietly makes it a coroutine. Driving it as a generator
+    would fail at the first ``async for`` and log — a brain that does nothing, for
+    a reason invisible in the source."""
+    adapter, rec = await _open(PlainCoroutine())
+    await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="hang_up", data={})))
+    await asyncio.sleep(0.02)
+    assert rec.names() == ["EndFrame"]
 
 
 class Talkative(Brain):
@@ -192,8 +223,7 @@ class Talkative(Brain):
 
 
 async def test_an_app_message_still_may_not_take_the_floor() -> None:
-    """Widening the channel to ``EndSession`` must not widen it to speech: a click
-    can end the call or update the screen, never talk over the person clicking."""
+    """A click can update the screen; it cannot talk over the person clicking."""
     adapter, rec = await _open(Talkative())
     await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="anything", data={})))
     await asyncio.sleep(0.02)

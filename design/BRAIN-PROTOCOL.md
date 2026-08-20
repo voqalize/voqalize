@@ -55,13 +55,12 @@ should not exist.
 | `IdleTrigger` | How long the human has been quiet, and how many times we've noticed. |
 | `SpeechStart` / `Chunk` / `SpeechEnd` | One unit of speech, delimited, streamed. |
 | `Action` | Pydantic base class for commands to the browser. You subclass it; your fields are the payload. Carries no audio, never touches the floor. |
-| `EndSession` | Hang up — after everything queued ahead of it has been said. |
 | `Finalize` | What the user actually heard for one unit of speech. |
 | `Result` | The browser's answer to an `Action`. |
 
 That is the whole vocabulary. Notably absent, and deliberately: no
 `Interaction`, no `Conversation`, no `Inference`, no `SessionStart`, no
-`ClientMessage`, no `IdleInfo`, no speech context manager.
+`ClientMessage`, no `IdleInfo`, no `EndSession`, no speech context manager.
 
 ### `Session` — and the line that keeps it thin
 
@@ -75,7 +74,7 @@ class Session:
     def configure_tts(self, *, voice=None, language=None) -> None
     def configure_stt(self, **knobs) -> None
     def configure_idle(self, *, timeout_ms) -> None
-    def end(self, reason="agent_ended") -> None      # immediate; prefer yield EndSession()
+    def end(self, reason="agent_ended") -> None
 ```
 
 The rule that decides what may live here:
@@ -117,17 +116,16 @@ class Brain:
 
     async def on_app_message(
         self, session: Session, msg: AppMessage
-    ) -> AsyncIterator[Action | EndSession]: ...
+    ) -> AsyncIterator[Action]: ...
 
     # ── what landed ──────────────────────────────────────────────────────
     async def on_finalize(self, session: Session, fin: Finalize) -> None: ...
 ```
 
 Eight methods. Note the return types: **`on_app_message` returns
-`AsyncIterator[Action | EndSession]`.** The rule "an application event may not
-make the agent talk" is not a documented convention a reviewer has to catch — it
-is a type the checker rejects. Hanging up is not speech, so it is in: a tap on
-"end call" is the browser's to make, not a sentence the agent has to say first.
+`AsyncIterator[Action]`.** The rule "an application event may not make the agent
+talk" is not a documented convention a reviewer has to catch — it is a type the
+checker rejects.
 
 ### `greet` is static by contract
 
@@ -172,7 +170,7 @@ async def on_app_message(self, session, msg):
     elif msg.type == "catalog_search":
         yield ShowSearchResults(rows=self.search(msg.data["query"]))
     elif msg.type == "hang_up":
-        yield EndSession(reason="user tapped hang up")
+        session.end(reason="user tapped hang up")
 ```
 
 A keystroke or a tap can update the screen, or end the call. It cannot make the
@@ -581,21 +579,23 @@ updates are ambient; speech requires the floor.
 
 ### Hanging up
 
-`yield EndSession(reason=...)` is an event like any other, and that is the whole
-point: it takes its place in the queue behind the goodbye you just yielded, so
-"say it, *then* hang up" is expressed by writing it in that order rather than by
-relying on how a lane drains.
+`session.end(reason=...)`, from anywhere. Every callback is handed the session,
+so hanging up needs no yieldable of its own — and an `EndSession` event would buy
+nothing, because the generator body only resumes once the SDK has consumed
+everything you yielded. Speaking the goodbye and *then* calling `end()` puts the
+frames on the wire in that order; writing it in that order **is** the ordering.
 
 ```python
 yield SpeechStart()
 yield Chunk("All set — thanks for calling!")
 yield SpeechEnd()
-yield EndSession(reason="task_complete")
+session.end(reason="task_complete")
 ```
 
-`session.end()` remains, for the session channel where there is nothing to yield
-into. It is **immediate** — it does not wait for queued audio — which is what you
-want for an abort and not what you want for a goodbye.
+It is **immediate** in the sense that it does not wait for queued *audio* to
+finish playing — the goodbye above is on the wire before it, but TTS may still be
+speaking. That is what you want for an abort, and for a goodbye it is the same
+trade every hang-up makes.
 
 ---
 
@@ -791,9 +791,10 @@ is the open case, and nothing above depends on it.
 
 - **`greet(session)`**, not `greet(init)` — consistent with every other callback;
   `session.init` is the same payload.
-- **`yield EndSession(...)`** is the way a brain hangs up on the turn channel, so
-  the goodbye is spoken first by ordering rather than by lane behaviour.
-  `session.end()` survives for the session channel and is immediate.
+- **`session.end(...)` is the only way a brain hangs up.** An `EndSession`
+  yieldable was drafted and dropped: every callback already holds the session,
+  and the generator body resumes only after the SDK has consumed each yield, so
+  "speak, then end" is the same ordering either way. One door, not two.
 - **Actions are typed classes**, not a payload bag: `Action` is a base you
   subclass, and the subclass's fields *are* the payload. `on_result` is inherited
   from the base, so it works identically on both channels. §5.5.

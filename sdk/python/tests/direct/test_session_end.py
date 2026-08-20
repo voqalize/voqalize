@@ -4,7 +4,7 @@ Emits a bare ``End`` frame on the normal lane, so it drains behind any speech th
 Brain queued first. In production PyGato receives it and closes the socket; here the
 conformance driver just records the frame it received. These pin: (1) a goodbye
 followed by ``session.end()`` puts an ``End`` on the wire, ordered after the speech;
-(2) ``end()`` is idempotent — a second ``EndSession`` emits nothing.
+(2) ``end()`` is idempotent — a second call emits nothing.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from voqalize.sdk import (
     Brain,
     Chunk,
     DirectAgent,
-    EndSession,
     SpeechEnd,
     SpeechStart,
     brain_factory,
@@ -42,9 +41,9 @@ class GoodbyeBrain(Brain):
         yield SpeechStart()
         yield Chunk("Goodbye!")
         yield SpeechEnd()
-        yield EndSession(reason="user_said_bye")
+        session.end(reason="user_said_bye")
         if self._double_end:
-            yield EndSession(reason="user_said_bye")
+            session.end(reason="user_said_bye")
 
 
 async def _run(brain: Brain) -> list:
@@ -100,4 +99,4 @@ async def test_end_emits_end_frame_after_speech() -> None:
 async def test_end_is_idempotent() -> None:
     log = await _run(GoodbyeBrain(double_end=True))
     ends = [r for r in log if isinstance(r.frame, EndFrame)]
-    assert len(ends) == 1, "a second EndSession must be a no-op"
+    assert len(ends) == 1, "a second end() must be a no-op"

@@ -59,7 +59,7 @@ export interface UiCommand {
   type: "ui_command";
   /** The wire name, e.g. `"open_itinerary"`. */
   action: string;
-  /** Session-monotonic id. Echo it back with `sendMessage("action_outcome", …)`. */
+  /** Session-monotonic id. Echo it back with `sendMessage("action_result", …)`. */
   action_id: number;
   [arg: string]: unknown;
 }

@@ -46,7 +46,7 @@ def done(outcome):                      # sync or async
 interaction.action("checkout", {"total": 42}, callback=done)
 ```
 
-The browser replies with `sendMessage("action_outcome", {action_id, status, result})`.
+The browser replies with `sendMessage("action_result", {action_id, status, result})`.
 The SDK matches it by `action_id` **at session scope** and routes it to your callback
 — so a late outcome landing in a later interaction still fires the right one. Those
 messages never reach `on_client_message`.
@@ -172,7 +172,7 @@ wrong.
 - browser → brain, silent: `await driver.send_client_message("cart_edited", {...})`.
 - browser → brain, answered: `turn = await driver.client_message("help_tapped", {})`
   — waits for the reply and returns it.
-- outcome round-trip: `await driver.send_action_outcome(action_id, status="ok",
+- outcome round-trip: `await driver.send_action_result(action_id, status="ok",
   result={...})`.
 
 ## Read next

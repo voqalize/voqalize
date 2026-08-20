@@ -76,7 +76,7 @@ class ClientMessageFrame(Frame):
 
     ``client.sendClientMessage(type, data)`` in the browser arrives here. Every
     message is delivered — the runtime never interprets ``type``. UI-action
-    outcomes ride this frame too (``type == "action_outcome"``); the SDK routes
+    outcomes ride this frame too (``type == "action_result"``); the SDK routes
     those to their pending ``action`` callback rather than the generic handler.
     """
 

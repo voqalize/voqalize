@@ -98,7 +98,7 @@ async def test_drives_the_screen(driver: VoiceDriver) -> None:
     assert add["qty"] == 2
 
     # Report back what the UI did with it — the brain's `callback=` fires on this.
-    await driver.send_action_outcome(add["action_id"], status="ok", result={"lines": 1})
+    await driver.send_action_result(add["action_id"], status="ok", result={"lines": 1})
 
 
 async def test_client_message_is_ingested_silently(driver: VoiceDriver) -> None:

@@ -187,7 +187,7 @@ call site; `uiCommandArgs(command)` is the envelope-stripping on its own.
 ```
 
 If the brain passed a `callback=` to `.action(...)`, reply with
-`sendMessage("action_outcome", { action_id, status: "done", result })` and the SDK
+`sendMessage("action_result", { action_id, status: "ok", result })` and the SDK
 routes it back to that callback.
 
 ## The microphone

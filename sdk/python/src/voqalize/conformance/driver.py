@@ -67,7 +67,7 @@ GREETING_INTERACTION_ID = 0
 # Instead the driver reuses the generic, schema-free client-message lane the
 # protocol already has (browser→brain ``ClientMessage`` / brain→browser
 # ``ServerMessage``, the same lane real UIs use for ``ui_command`` /
-# ``action_outcome`` — opaque to Voice, which just relays it). A conformance-aware
+# ``action_result`` — opaque to Voice, which just relays it). A conformance-aware
 # brain opts in by answering one namespaced client message with its committed state.
 # Because the SDK *owns* ``session.conversation``, that answer can be produced by
 # the framework once (see ``reference.conformance_state``) and every brain built
@@ -577,7 +577,7 @@ class VoiceDriver:
         )
         return iid
 
-    async def send_action_outcome(
+    async def send_action_result(
         self,
         action_id: int,
         *,
@@ -587,14 +587,14 @@ class VoiceDriver:
         """Report the outcome of a UI action the brain requested (client→brain).
 
         Rides the same ``ClientMessage`` frame as any browser message, typed
-        ``action_outcome`` — the SDK routes those to the pending ``action`` callback
+        ``action_result`` — the SDK routes those to the pending ``action`` callback
         rather than ``on_client_message``. ``action_id`` is the integer the brain
         minted in its ``ui_command``; the adapter correlates the outcome by that int
         at session scope."""
         await self._send(
             ClientMessageFrame(
                 msg_id=str(uuid.uuid4()),
-                type="action_outcome",
+                type="action_result",
                 data={"action_id": action_id, "status": status, "result": result or {}},
             ),
             epoch=self.next_interaction_id(),
