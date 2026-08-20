@@ -57,7 +57,6 @@ Until you do this, the agent still points wherever it pointed before.
 ```bash
 export VOQAL_AGENT_SECRET=sk_...            # agent_secret
 export VOQAL_CORTEX_URL=wss://cortex.dev.voqalize.com/agent   # cortex_url, verbatim
-export VOQAL_AGENT_MODE=outbound
 python run_cortex.py
 ```
 
@@ -68,10 +67,11 @@ from voqalize.sdk import serve
 await serve(MyBrain, api_key=..., cortex_url=..., version="1.0.0")
 ```
 
-`serve_auto(MyBrain, api_key=..., cortex_url=..., version="1.0.0")` does the same
-but picks the transport from `$VOQAL_AGENT_MODE` (`outbound`/`cortex` vs
-`inbound`/`direct`) — the SDK reads *only* that variable itself; the other two are
-conventions your code passes through as kwargs.
+`serve` **blocks** until the relay closes permanently. Where that call lives —
+`asyncio.run` in a `__main__`, a task in your app's lifespan, a worker entrypoint —
+is your call; the SDK owns no process management, and it reads no environment
+variables of its own (both above are conventions your code passes through as
+kwargs).
 
 **4. Talk to it.** Open the agent's `test_url` (from `create_agent` / `get_agent`).
 
@@ -102,7 +102,7 @@ async def voice(ws: WebSocket, session_id: str) -> None:
     try:
         await run_session(
             _WsChannel(ws),                          # anything with send/recv bytes
-            brain=MyBrain,                           # or brain_builder=lambda: MyBrain(llm)
+            brain=MyBrain,                           # or brain=lambda: MyBrain(llm)
             session_id=session_id,                   # from your route param
             token=ws.headers.get("Authorization"),   # the SDK verifies it
         )
@@ -121,12 +121,12 @@ retry; 1011 = retriable**).
   sets it.
 - **`brain_url` is the route's base** — PyGato appends `/s/{session_id}`. Must be
   `wss://`; `ws://` is accepted only for `localhost`/`127.0.0.1`.
-- Use `brain_builder=` (not `brain=`) when the brain needs injected dependencies;
-  a fresh instance is still built per session either way.
+- Pass `brain=lambda: MyBrain(llm)` when the brain needs injected dependencies;
+  a fresh instance is built per session either way.
 
-`serve_direct(MyBrain, host=..., port=...)` / `DirectAgent` own a `websockets`
-server for you — handy for scripts and tests, but in production mount `run_session`
-in the framework you already run.
+**These two are the whole hosting surface.** The SDK ships no server — your app
+already runs one, and that is where the route belongs. To put a brain on a socket in
+a *test*, use `voqalize.conformance.brain_server` (see `references/testing.md`).
 
 ## Gotchas
 

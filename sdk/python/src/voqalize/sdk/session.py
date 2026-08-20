@@ -19,7 +19,7 @@ Starlette's ``WebSocket.send_bytes``/``receive_bytes`` via a 2-line shim, etc.).
         await ws.accept()
         await run_session(
             _StarletteChannel(ws),                       # send/recv bytes
-            brain=MyBrain,
+            brain=MyBrain,                               # or a () -> Brain factory
             session_id=session_id,                       # from your route param
             token=ws.headers.get("authorization"),       # SDK verifies it
         )
@@ -32,8 +32,8 @@ you can be layered on later — this primitive stays assumption-free.
 
 ``run_session`` runs until the session ends (``End`` drains) or the socket errors,
 then returns. It never closes the channel — the caller owns the socket's
-lifecycle. The localhost :class:`~voqalize.sdk.inbound.DirectAgent` is just a
-thin convenience that owns a ``websockets`` server and calls this per connection.
+lifecycle. When your process cannot accept an inbound connection at all, dial the
+Cortex relay instead with :func:`voqalize.sdk.serve`.
 """
 
 from __future__ import annotations
@@ -294,9 +294,9 @@ async def serve_channel(
 ) -> None:
     """Transport-neutral session loop over a connected channel — **no auth**.
 
-    Used by :func:`run_session` (after it verifies the token) and by
-    :class:`~voqalize.sdk.inbound.DirectAgent` (which verifies its own way).
-    Runs until the session ends or the socket errors; never closes the channel.
+    Used by :func:`run_session` after it verifies the token, and by the test host
+    :func:`voqalize.conformance.brain_server`, which verifies its own way. Runs
+    until the session ends or the socket errors; never closes the channel.
     """
     conn = _ChannelSession(
         channel,
@@ -311,8 +311,7 @@ async def serve_channel(
 async def run_session(
     channel: Channel,
     *,
-    brain: type[Brain] | None = None,
-    brain_builder: Callable[[], Brain] | None = None,
+    brain: type[Brain] | Callable[[], Brain],
     session_id: str,
     token: str | None = None,
     public_keys: str | list[str] | None = None,
@@ -327,10 +326,9 @@ async def run_session(
     ``Authorization`` header ``token``. A fresh brain runs this one session; the
     call returns when the session ends or the socket closes.
 
-    Pass **exactly one** of ``brain=`` (a zero-arg ``Brain`` subclass) or
-    ``brain_builder=`` (a ``() -> Brain`` factory). Use ``brain_builder`` when the
-    brain needs injected dependencies — e.g. ``brain_builder=lambda:
-    TravelBrain(llm=provider)`` — so a fresh instance is still built per session.
+    ``brain`` is a ``Brain`` subclass, or any zero-arg callable returning one when
+    the brain needs injected dependencies (``brain=lambda: TravelBrain(llm=provider)``).
+    Either way it runs once per session, so no state leaks between calls.
 
     Verification is on by default against the embedded Voqalize keys — PyGato's
     token must be ``iss=pygato``, ``aud=brain``, and ``sub == session_id`` (see
@@ -339,10 +337,6 @@ async def run_session(
     :class:`SessionRejected` if the token fails — the caller should close 4000.
     """
     from .brain import brain_factory  # local import breaks the brain↔transport cycle
-
-    if (brain is None) == (brain_builder is None):
-        raise ValueError("run_session: pass exactly one of brain= or brain_builder=")
-    build: Callable[[], Brain] = brain if brain is not None else brain_builder  # type: ignore[assignment]
 
     keys = (
         normalize_keys(public_keys) if public_keys is not None else list(VOQAL_PLATFORM_PUBLIC_KEYS)
@@ -366,7 +360,7 @@ async def run_session(
     ):
         await serve_channel(
             channel,
-            factory=brain_factory(build),
+            factory=brain_factory(brain),
             session_id=session_id,
             inbound_queue_maxsize=inbound_queue_maxsize,
         )

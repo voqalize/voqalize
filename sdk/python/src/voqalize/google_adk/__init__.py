@@ -5,7 +5,7 @@ heard-truth history, barge-in, the wire); the client writes a normal
 ``LlmAgent`` and native tools. See :func:`adk_brain`.
 
     from voqalize.google_adk import AdkBrain, adk_brain, voice
-    from voqalize.sdk import serve_direct
+    from voqalize.sdk import run_session
 
 Subclass :class:`AdkBrain` to react to Voice's other triggers (``on_user_idle`` /
 ``on_client_message``) or resume; :func:`adk_brain` is the no-override builder over

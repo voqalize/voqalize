@@ -14,35 +14,25 @@ action, a language switch, hanging up — is a method on the session::
             yield Chunk(await self.answer(msg.text))
             yield SpeechEnd()
 
-Then host it, one Brain instance per session:
+A brain lives inside a larger application, and there are exactly two ways that
+application hosts it:
 
-- **Inbound (primary):** ``serve_direct(Concierge, host=..., port=...)`` — the
-  Voqalize voice runtime dials your WebSocket route per session. Cloud Run or any
-  backend can expose it.
-- **Outbound (fallback, localhost / egress-only):** ``serve(Concierge,
-  api_key=..., cortex_url=...)`` — your process dials the Cortex relay.
+- **Your app owns a WebSocket route.** Accept the upgrade yourself and hand the
+  connected socket to :func:`run_session` — one connection is one session, and
+  Voice dials ``{brain_url}/s/{session_id}``. This is the primary path.
+- **Your app cannot accept an inbound connection** (a laptop, a strict egress-only
+  network). ``await serve(Concierge, api_key=..., cortex_url=...)`` dials the
+  Cortex relay instead and blocks; you decide where that call runs.
 
-The same Brain runs on either transport; a config change picks which. Installing
-this SDK pulls **no** ``pipecat`` dependency — the wire is plain protobuf and the
-Brain surface is plain dataclasses. ``voqalize.sdk.gemini`` (extra: ``gemini``)
-adds a Gemini-backed base class; nothing here imports it.
+The same Brain runs on either. Installing this SDK pulls **no** ``pipecat``
+dependency — the wire is plain protobuf and the Brain surface is plain
+dataclasses. ``voqalize.sdk.gemini`` (extra: ``gemini``) adds a Gemini-backed base
+class; nothing here imports it.
 """
 
 from ._logging import configure_logging, session_context
 from .actions import Action, Result
-from .brain import (
-    ActionHandle,
-    Brain,
-    ProtocolError,
-    Session,
-    adapter_for,
-    brain_factory,
-    make_agent,
-    make_direct_agent,
-    serve,
-    serve_auto,
-    serve_direct,
-)
+from .brain import ActionHandle, Brain, ProtocolError, Session, serve
 from .events import (
     AppMessage,
     Chunk,
@@ -54,8 +44,6 @@ from .events import (
     SpeechStart,
     UserMessage,
 )
-from .inbound import DirectAgent
-from .outbound import CortexAgent
 from .session import Channel, SessionRejected, run_session
 
 __all__ = [
@@ -65,8 +53,6 @@ __all__ = [
     "Brain",
     "Channel",
     "Chunk",
-    "CortexAgent",
-    "DirectAgent",
     "Error",
     "Finalize",
     "IdleTrigger",
@@ -78,14 +64,8 @@ __all__ = [
     "SpeechEnd",
     "SpeechStart",
     "UserMessage",
-    "adapter_for",
-    "brain_factory",
     "configure_logging",
-    "make_agent",
-    "make_direct_agent",
     "run_session",
     "serve",
-    "serve_auto",
-    "serve_direct",
     "session_context",
 ]

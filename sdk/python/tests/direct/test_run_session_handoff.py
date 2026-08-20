@@ -1,6 +1,6 @@
 """The framework-agnostic connection-handoff entrypoint (:func:`run_session`).
 
-Unlike ``tests/direct/test_direct_end_to_end.py`` (which drives the ``DirectAgent``
+Unlike ``tests/direct/test_direct_end_to_end.py`` (which drives the ``BrainServer``
 *server* over real TCP), this exercises ``run_session`` with **no server at all**:
 the "socket" is an in-memory :class:`Channel` pair. That is exactly the shape a
 customer's FastAPI/Django route hands the SDK — the SDK owns neither the listener
@@ -209,3 +209,12 @@ async def test_run_session_accepts_valid_token():
         await client_ch.close()
         with contextlib.suppress(*_TEARDOWN_ERRORS):
             await asyncio.wait_for(task, timeout=2.0)
+
+
+async def test_run_session_defaults_to_the_embedded_platform_keys():
+    """No ``public_keys`` and no ``allow_unverified`` ⇒ the embedded Voqalize keys
+    verify the token, so an unauthenticated peer is rejected. Verification is the
+    default on the production surface, not opt-in."""
+    server_ch, _client_ch = _pipe()
+    with pytest.raises(SessionRejected):
+        await run_session(server_ch, brain=EchoBrain, session_id=str(uuid.uuid4()))

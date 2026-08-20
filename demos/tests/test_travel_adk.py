@@ -4,7 +4,7 @@ The sibling ``test_conformance.py`` proves the demos are *wired* to the transpor
 (a fixed greeting rides the wire). This file goes one layer further for the one
 demo that runs on the Google ADK adapter: it hosts the **real**
 ``TravelBrain`` — the shipping ``demos/travel/backend/brain.py``, its real prompt,
-its real ten tools — on a real ``DirectAgent`` WebSocket, swaps only the *model*
+its real ten tools — on a real ``brain_server`` WebSocket, swaps only the *model*
 for a :class:`ScriptedLlm`, and drives it with the conformance ``VoiceDriver``
 (the exact PyGato-side leg).
 
@@ -57,6 +57,7 @@ from voqalize_demos._loaded.travel import brain as travel_brain  # noqa: E402
 from voqalize_demos._loaded.travel.brain import TravelBrain  # noqa: E402
 
 from voqalize.conformance import (  # noqa: E402
+    BrainServer,
     DirectConnection,
     VoiceDriver,
     checks,
@@ -64,7 +65,6 @@ from voqalize.conformance import (  # noqa: E402
     mint_pygato_token,
 )
 from voqalize.google_adk.testing import ScriptedLlm, reply, reply_and_call  # noqa: E402
-from voqalize.sdk import DirectAgent, brain_factory  # noqa: E402
 
 GREETING = "नमस्ते, मैं प्रिया हूँ ट्रैवल डेस्क से। हम किस ट्रिप पर काम करें?"
 SENTINEL = "NEVER_HEARD_AFTER_BARGE_IN"
@@ -148,17 +148,17 @@ def _script() -> dict[str, Any]:
     }
 
 
-async def _host(llm: ScriptedLlm) -> tuple[DirectAgent, VoiceDriver]:
+async def _host(llm: ScriptedLlm) -> tuple[BrainServer, VoiceDriver]:
     """Host the real TravelBrain (scripted model) on a real localhost socket and
     open a PyGato-side driver against it."""
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(lambda: TravelBrain(model=llm, answer_conformance_dump=True)),
+    server = BrainServer(
+        lambda: TravelBrain(model=llm, answer_conformance_dump=True),
         host="127.0.0.1",
         port=0,
         public_keys=keypair.public_pem,
     )
-    port = await agent.start()
+    port = await server.start()
     session_id = "travel-adk-test"
     token = mint_pygato_token(
         private_key_pem=keypair.private_pem,
@@ -173,7 +173,7 @@ async def _host(llm: ScriptedLlm) -> tuple[DirectAgent, VoiceDriver]:
         default_timeout=10.0,
     )
     await driver.open()
-    return agent, driver
+    return server, driver
 
 
 def _actions(driver: VoiceDriver) -> list[str]:
@@ -189,7 +189,7 @@ async def test_greeting_and_tool_roundtrip_drive_the_screen() -> None:
     """The fixed Hindi greeting, then two turns each spanning a tool round-trip:
     two inference brackets per turn, the exact ``ui_command`` payloads the
     ``/travel`` UI consumes, and a heard-truth conversation."""
-    agent, driver = await _host(ScriptedLlm(_script()))
+    server, driver = await _host(ScriptedLlm(_script()))
     try:
         greeting = await driver.start_session()
         checks.check_greeting(driver, greeting)
@@ -264,7 +264,7 @@ async def test_greeting_and_tool_roundtrip_drive_the_screen() -> None:
         )
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_trip_structure_rows_reach_the_browser_by_alias() -> None:
@@ -272,7 +272,7 @@ async def test_trip_structure_rows_reach_the_browser_by_alias() -> None:
     from the model's raw JSON — accepting the aliased ``from`` *and* the schema's
     ``from_`` — and the demo dumps them ``by_alias``, so the browser gets the ``from``
     key its store reads and an id-less leg still gets a stable one."""
-    agent, driver = await _host(ScriptedLlm(_script()))
+    server, driver = await _host(ScriptedLlm(_script()))
     try:
         await driver.start_session()
         turn = await driver.user_says("Set up the trip structure.")
@@ -309,7 +309,7 @@ async def test_trip_structure_rows_reach_the_browser_by_alias() -> None:
         assert cmd["hotel_cities"] == [{"city": "Phu Quoc", "nights": 3}]
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_typed_actions_pin_the_whole_ui_command_envelope() -> None:
@@ -325,7 +325,7 @@ async def test_typed_actions_pin_the_whole_ui_command_envelope() -> None:
     name, so renaming ``SearchFlights`` would silently rename the command the UI
     listens for.
     """
-    agent, driver = await _host(ScriptedLlm(_script()))
+    server, driver = await _host(ScriptedLlm(_script()))
     try:
         await driver.start_session()
         checks.check_completed(
@@ -406,7 +406,7 @@ async def test_typed_actions_pin_the_whole_ui_command_envelope() -> None:
         }
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_barge_in_commits_heard_and_corrects_next_prompt() -> None:
@@ -414,7 +414,7 @@ async def test_barge_in_commits_heard_and_corrects_next_prompt() -> None:
     the un-heard tail is neither spoken nor committed, and — the load-bearing
     assertion — the *next* model call sees the HEARD partial, not the tail."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session()
         await driver.user_says("Show me the outbound flights.")
@@ -444,7 +444,7 @@ async def test_barge_in_commits_heard_and_corrects_next_prompt() -> None:
         assert "The cheapest is IndiGo," in flat, f"heard partial missing from prompt: {flat!r}"
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_state_sync_grounds_the_next_prompt() -> None:
@@ -452,9 +452,9 @@ async def test_state_sync_grounds_the_next_prompt() -> None:
     instruction* on the next call — the SDK parks it on ``browser_state`` and
     ``TravelBrain.grounding()`` appends it, replacing the old
     ``get_active_itinerary`` tool. It is ingested silently: no interaction is
-    opened, so the agent never speaks because a screen changed."""
+    opened, so the server never speaks because a screen changed."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session()
         # Before any snapshot, the prompt says the dashboard is showing.
@@ -490,4 +490,4 @@ async def test_state_sync_grounds_the_next_prompt() -> None:
         )
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()

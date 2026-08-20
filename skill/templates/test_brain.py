@@ -21,10 +21,10 @@ import pytest_asyncio
 from voqalize.conformance import (
     DirectConnection,
     VoiceDriver,
+    brain_server,
     generate_keypair,
     mint_pygato_token,
 )
-from voqalize.sdk import DirectAgent, brain_factory
 
 from brain import MyBrain  # your Brain subclass
 
@@ -35,39 +35,34 @@ pytestmark = pytest.mark.asyncio
 async def driver():
     """Host MyBrain on an ephemeral port and hand back a connected VoiceDriver.
 
-    `port=0` binds anything free, so tests never collide. The keypair is minted
-    per test run: the brain verifies against `keypair.public_pem`, the driver signs
-    with `keypair.private_pem` — so token verification is exercised for real
+    `brain_server` binds anything free, so tests never collide. The keypair is
+    minted per test run: the brain verifies against `keypair.public_pem`, the driver
+    signs with `keypair.private_pem` — so token verification is exercised for real
     instead of being switched off.
+
+    `brain_server` is the **test** server. In production the customer's own web
+    framework owns the route and calls `run_session` there.
     """
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(MyBrain),
-        host="127.0.0.1",
-        port=0,
-        public_keys=keypair.public_pem,
-    )
-    port = await agent.start()
-
     session_id = "test-session"
-    token = mint_pygato_token(
-        private_key_pem=keypair.private_pem,
-        session_id=session_id,
-        agent_id="agent_test",
-        tenant_id="tenant_test",
-    )
-    drv = VoiceDriver(
-        DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
-        session_id=session_id,
-        agent_id="agent_test",
-        default_timeout=10.0,  # raise this when a real LLM is in the loop
-    )
-    await drv.open()
-    try:
-        yield drv
-    finally:
-        await drv.aclose()
-        await agent.aclose()
+    async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
+        token = mint_pygato_token(
+            private_key_pem=keypair.private_pem,
+            session_id=session_id,
+            agent_id="agent_test",
+            tenant_id="tenant_test",
+        )
+        drv = VoiceDriver(
+            DirectConnection(server.url, session_id, token=token),
+            session_id=session_id,
+            agent_id="agent_test",
+            default_timeout=10.0,  # raise this when a real LLM is in the loop
+        )
+        await drv.open()
+        try:
+            yield drv
+        finally:
+            await drv.aclose()
 
 
 async def test_greets_on_connect(driver: VoiceDriver) -> None:

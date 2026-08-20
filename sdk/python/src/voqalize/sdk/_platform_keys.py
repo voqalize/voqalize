@@ -2,8 +2,8 @@
 
 PyGato signs the short-lived RS256 token it presents on each direct brain
 connection (`/s/{session_id}`) with a **private** key held only by Voqalize. The
-matching **public** keys are shipped here, inside the SDK, so a customer running
-`serve_direct(MyBrain)` verifies our connection out of the box — no key to fetch,
+matching **public** keys are shipped here, inside the SDK, so a customer calling
+`run_session(...)` verifies our connection out of the box — no key to fetch,
 paste, or rotate by hand. Public keys are public by design; embedding them is
 safe and is what lets verification be the zero-config default.
 

@@ -11,7 +11,8 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart, brain_factory
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,

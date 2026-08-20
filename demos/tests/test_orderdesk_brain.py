@@ -3,13 +3,13 @@
 
 Same shape as ``test_travel_adk.py``: the *real* ``OrderDeskBrain`` — the shipping
 ``demos/orderdesk/backend/brain.py``, its real prompt, its real seven tools — hosted on
-a real ``DirectAgent`` WebSocket, driven by the conformance ``VoiceDriver``, with only
+a real ``brain_server`` WebSocket, driven by the conformance ``VoiceDriver``, with only
 the *model* swapped for a :class:`ScriptedLlm`. Two things are stubbed rather than
 real, for opposite reasons:
 
 * the **model**, because a scripted tool call carries the exact arguments we assert
   the browser receives — the ``ui_command`` contract becomes a test, not a hope;
-* the **catalog** (``backend/search.py``, ``catalog.db`` — the sibling agent's lane),
+* the **catalog** (``backend/search.py``, ``catalog.db`` — the sibling server's lane),
   because these tests must run on a fresh checkout before the 20k-SKU database has
   been built. The stub below answers the DESIGN.md §2 API exactly, with the four
   outcomes the brain must render: matched, multi_variant, multi_family, not_found.
@@ -66,6 +66,7 @@ from voqalize_demos._loaded.orderdesk import brain as od  # noqa: E402
 from voqalize_demos._loaded.orderdesk.brain import OrderDeskBrain  # noqa: E402
 
 from voqalize.conformance import (  # noqa: E402
+    BrainServer,
     DirectConnection,
     VoiceDriver,
     checks,
@@ -73,7 +74,6 @@ from voqalize.conformance import (  # noqa: E402
     mint_pygato_token,
 )
 from voqalize.google_adk.testing import ScriptedLlm, call, reply, reply_and_call  # noqa: E402
-from voqalize.sdk import DirectAgent, brain_factory  # noqa: E402
 from voqalize.sdk.wire import (  # noqa: E402
     LLMTextFrame,
     UpdateSTTSettingsFrame,
@@ -369,7 +369,7 @@ def _row(**over: Any) -> dict[str, Any]:
         "question": None,
         "differing_axes": [],
         "note": None,
-        "source": "agent",
+        "source": "server",
         **over,
     }
 
@@ -532,7 +532,7 @@ async def _host(
     llm: ScriptedLlm,
     catalog: StubCatalog | None = None,
     brains: list[OrderDeskBrain] | None = None,
-) -> tuple[DirectAgent, VoiceDriver]:
+) -> tuple[BrainServer, VoiceDriver]:
     """Host the real OrderDeskBrain (scripted model, stubbed catalog) on a real
     localhost socket and open a PyGato-side driver against it.
 
@@ -549,13 +549,13 @@ async def _host(
         return brain
 
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(_make),
+    server = BrainServer(
+        _make,
         host="127.0.0.1",
         port=0,
         public_keys=keypair.public_pem,
     )
-    port = await agent.start()
+    port = await server.start()
     session_id = "orderdesk-test"
     token = mint_pygato_token(
         private_key_pem=keypair.private_pem,
@@ -570,7 +570,7 @@ async def _host(
         default_timeout=10.0,
     )
     await driver.open()
-    return agent, driver
+    return server, driver
 
 
 def _actions(driver: VoiceDriver) -> list[str]:
@@ -604,7 +604,7 @@ async def test_greeting_is_an_instant_hello_plus_a_grounded_opener() -> None:
     payload is in the system instruction of that very first call, so even the opening
     sentence is grounded in who this pharmacy is."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         greeting = await driver.start_session(payload=PAYLOAD)
         checks.check_greeting(driver, greeting)
@@ -619,7 +619,7 @@ async def test_greeting_is_an_instant_hello_plus_a_grounded_opener() -> None:
         assert NUDGE in _stimulus()
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_add_items_lands_rows_then_resolves_them() -> None:
@@ -628,7 +628,7 @@ async def test_add_items_lands_rows_then_resolves_them() -> None:
     matched, one ambiguous — and the matched row's supplier scheme raises the banner."""
     catalog = StubCatalog()
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm, catalog)
+    server, driver = await _host(llm, catalog)
     try:
         await driver.start_session(payload=PAYLOAD)
         turn = await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन")
@@ -660,7 +660,7 @@ async def test_add_items_lands_rows_then_resolves_them() -> None:
         assert rows[3]["items"][0]["differing_axes"] == ["form"]
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_the_tool_return_is_a_minimal_question_briefing() -> None:
@@ -668,7 +668,7 @@ async def test_the_tool_return_is_a_minimal_question_briefing() -> None:
     actually differ, the short option labels already on screen, and one instruction —
     never a data dump it would be tempted to read aloud."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
@@ -709,7 +709,7 @@ async def test_the_tool_return_is_a_minimal_question_briefing() -> None:
         assert "which brand" in family_brief["guidance"]
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 CANDIDATE_TABLE = [
@@ -766,7 +766,7 @@ async def test_a_wide_family_becomes_a_candidate_table_not_pills() -> None:
     this mechanic exists to prevent — and hands the model a candidate *table*: the codes
     it must quote back, the axes it can split on, and one instruction to split them."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
@@ -801,7 +801,7 @@ async def test_a_wide_family_becomes_a_candidate_table_not_pills() -> None:
         }
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_four_or_fewer_candidates_stay_leaf_pills() -> None:
@@ -809,7 +809,7 @@ async def test_four_or_fewer_candidates_stay_leaf_pills() -> None:
     two pills and one five-word question. No candidate set, no question, no ask_choice —
     the machinery only appears when the screen would otherwise become a list."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
@@ -825,7 +825,7 @@ async def test_four_or_fewer_candidates_stay_leaf_pills() -> None:
         assert brief["options"] == ["EYE DROPS 5ML ₹160", "EYE OINTMENT 5GM ₹142"]
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_widening_never_undoes_a_narrowing_the_pharmacist_already_spoke() -> None:
@@ -852,7 +852,7 @@ async def test_ask_choice_puts_one_validated_question_on_the_row() -> None:
     and what comes back to the model is the group sizes — so it can see the split was
     even — plus one instruction to say the question out loud, and nothing to read."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
@@ -897,7 +897,7 @@ async def test_ask_choice_puts_one_validated_question_on_the_row() -> None:
         assert "li1 (telma): awaiting answer to: Which Telma line?" in grounded
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_ask_choice_rejects_a_choice_set_that_would_not_narrow() -> None:
@@ -1000,7 +1000,7 @@ async def test_a_bad_choice_set_is_a_retriable_tool_error_on_the_wire() -> None:
     that kills the turn — and the corrected second call renders. Nothing reached the
     screen in between."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
@@ -1015,7 +1015,7 @@ async def test_a_bad_choice_set_is_a_retriable_tool_error_on_the_wire() -> None:
         assert rows[-1]["items"][0]["question"] == WIRE_QUESTION
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_choose_accepts_any_code_from_the_candidate_set() -> None:
@@ -1023,7 +1023,7 @@ async def test_choose_accepts_any_code_from_the_candidate_set() -> None:
     ever existed inside the candidate set — and ``choose`` must still lock it, clearing
     the candidates and the question as the row goes green."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
@@ -1040,7 +1040,7 @@ async def test_choose_accepts_any_code_from_the_candidate_set() -> None:
         assert "PENDING" not in llm.captured_system_instructions[-1]
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_a_group_pill_tap_narrows_the_mirror_through_state_sync() -> None:
@@ -1050,7 +1050,7 @@ async def test_a_group_pill_tap_narrows_the_mirror_through_state_sync() -> None:
     question (he answered it with his thumb) and tells the next model call to ask the
     NEXT question over what is left — never to repeat the one already answered."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
@@ -1069,7 +1069,7 @@ async def test_a_group_pill_tap_narrows_the_mirror_through_state_sync() -> None:
                             "sku_name": None,
                             "pack_size": None,
                             "quantity": None,
-                            "source": "agent",
+                            "source": "server",
                             "candidate_codes": ["T2015", "T4015", "T8015"],
                         }
                     ],
@@ -1089,7 +1089,7 @@ async def test_a_group_pill_tap_narrows_the_mirror_through_state_sync() -> None:
         assert '"candidate_codes": ["T2015", "T4015", "T8015"]' in grounded
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_the_mirror_carries_candidate_codes_for_the_snapshot_shape() -> None:
@@ -1154,7 +1154,7 @@ async def test_change_variant_swaps_inside_the_family_and_keeps_the_quantity() -
     the row (quantity untouched); several hand it back to the ordinary question
     machinery; and the swap can never leave the brand already on the row."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
@@ -1193,7 +1193,7 @@ async def test_change_variant_swaps_inside_the_family_and_keeps_the_quantity() -
         assert _tool_results(llm)[-1]["ask_about"] == ["strength"]
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_change_variant_never_leaves_the_family_and_never_lies() -> None:
@@ -1240,7 +1240,7 @@ async def test_adjust_quantity_is_relative_and_clamps_at_one() -> None:
     It never reaches zero — a row on the order is a row he wants at least one of, and
     "take it off" is a removal he should hear confirmed as one."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
@@ -1264,7 +1264,7 @@ async def test_adjust_quantity_is_relative_and_clamps_at_one() -> None:
         assert row["items"][0]["quantity"] == 1
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_a_row_can_be_named_instead_of_numbered() -> None:
@@ -1272,7 +1272,7 @@ async def test_a_row_can_be_named_instead_of_numbered() -> None:
     too. The tolerance is a ladder — the exact id, then a whole-name match, then
     containment — and it stops at the first rung that answers."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
@@ -1283,7 +1283,7 @@ async def test_a_row_can_be_named_instead_of_numbered() -> None:
         assert row["items"][0]["id"] == "li1" and row["items"][0]["quantity"] == 12
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_an_ambiguous_reference_is_a_question_not_a_guess() -> None:
@@ -1369,12 +1369,12 @@ async def test_a_manual_sku_swap_reaches_the_next_model_call() -> None:
     own mirror has moved with it."""
     brains: list[OrderDeskBrain] = []
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm, brains=brains)
+    server, driver = await _host(llm, brains=brains)
     try:
         await driver.start_session(payload=PAYLOAD)
         first = await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन")
         desk = brains[0].desk
-        assert desk.items["li2"].sku is None  # the agent never resolved it
+        assert desk.items["li2"].sku is None  # the server never resolved it
         assert "li2 (4 quin): form" in llm.captured_system_instructions[-1]
 
         await driver.send_client_message(
@@ -1391,7 +1391,7 @@ async def test_a_manual_sku_swap_reaches_the_next_model_call() -> None:
                             "sku_name": "TELMA 40 TAB",
                             "pack_size": "15'S",
                             "quantity": 30,
-                            "source": "agent",
+                            "source": "server",
                             "candidate_codes": [],
                         },
                         {
@@ -1402,7 +1402,7 @@ async def test_a_manual_sku_swap_reaches_the_next_model_call() -> None:
                             "sku_name": "4 QUIN EYE OINTMENT 5GM",
                             "pack_size": "5GM",
                             "quantity": 7,
-                            "source": "agent",
+                            "source": "server",
                             "candidate_codes": [],
                         },
                     ],
@@ -1423,7 +1423,7 @@ async def test_a_manual_sku_swap_reaches_the_next_model_call() -> None:
         assert "PENDING" not in grounded, grounded[-400:]
 
         # …and the mirror followed, so the next change_variant starts from the ointment
-        # rather than from the row the agent last knew about.
+        # rather than from the row the server last knew about.
         assert desk.items["li2"].sku is not None
         assert desk.items["li2"].sku.code == "Q4O5"
         assert desk.items["li2"].status == "matched"
@@ -1433,18 +1433,18 @@ async def test_a_manual_sku_swap_reaches_the_next_model_call() -> None:
         )
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_list_variants_answers_the_change_variant_strip_without_speaking() -> None:
     """Change 2's brain half. The Change-variant control on a matched row asks for its
     siblings and gets them back **floor-free** — no inference, no speech, no interaction
-    — exactly like the search bar. A tap must never make the agent talk over him.
+    — exactly like the search bar. A tap must never make the server talk over him.
 
     An unknown family answers empty rather than raising: he tapped a control, and a
     control that throws is worse than one that says nothing is there."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         first = await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन")
@@ -1484,7 +1484,7 @@ async def test_list_variants_answers_the_change_variant_strip_without_speaking()
         }
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_devanagari_in_a_tool_argument_is_rejected_and_retried() -> None:
@@ -1494,7 +1494,7 @@ async def test_devanagari_in_a_tool_argument_is_rejected_and_retried() -> None:
     same item transliterated — goes through."""
     catalog = StubCatalog()
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm, catalog)
+    server, driver = await _host(llm, catalog)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("वोलिनी दे दो"))
@@ -1513,7 +1513,7 @@ async def test_devanagari_in_a_tool_argument_is_rejected_and_retried() -> None:
         assert rows[-1]["items"][0]["status"] == "not_found"
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_the_english_guard_covers_both_paths() -> None:
@@ -1550,7 +1550,7 @@ async def test_typed_actions_pin_the_whole_ui_command_envelope() -> None:
     class too: it is *derived* from the class name, so renaming ``UpsertItems`` would
     silently rename the command the UI listens for."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
@@ -1657,7 +1657,7 @@ async def test_typed_actions_pin_the_whole_ui_command_envelope() -> None:
         }
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_state_sync_grounds_the_next_prompt_with_the_pending_line() -> None:
@@ -1669,7 +1669,7 @@ async def test_state_sync_grounds_the_next_prompt_with_the_pending_line() -> Non
     matched on screen while the brain's own mirror still has it ambiguous. The screen
     wins, so the model is never told to ask about a row he already answered."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         first = await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन")
@@ -1695,7 +1695,7 @@ async def test_state_sync_grounds_the_next_prompt_with_the_pending_line() -> Non
                             "sku_name": "TELMA 40 TAB",
                             "pack_size": "15'S",
                             "quantity": 30,
-                            "source": "agent",
+                            "source": "server",
                         },
                         {
                             "id": "li2",
@@ -1705,7 +1705,7 @@ async def test_state_sync_grounds_the_next_prompt_with_the_pending_line() -> Non
                             "sku_name": "4 QUIN EYE DROPS 5ML",
                             "pack_size": "5ML",
                             "quantity": 10,
-                            "source": "agent",
+                            "source": "server",
                         },
                     ],
                     "total_mrp": 6250.0,
@@ -1733,7 +1733,7 @@ async def test_state_sync_grounds_the_next_prompt_with_the_pending_line() -> Non
         )
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_grounding_is_absent_until_there_is_a_screen() -> None:
@@ -1751,9 +1751,9 @@ async def test_grounding_is_absent_until_there_is_a_screen() -> None:
 async def test_catalog_search_answers_the_search_bar_without_speaking() -> None:
     """The manual search bar: ``catalog_search`` is answered with a **floor-free**
     ``show_search_results`` — no inference, no speech, no interaction. He is typing;
-    the agent must not start talking because of a keystroke."""
+    the server must not start talking because of a keystroke."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         before = len(llm.captured_contents)
@@ -1781,7 +1781,7 @@ async def test_catalog_search_answers_the_search_bar_without_speaking() -> None:
         }
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_corrections_by_voice_edit_the_row_in_place() -> None:
@@ -1790,7 +1790,7 @@ async def test_corrections_by_voice_edit_the_row_in_place() -> None:
     re-resolves the SAME row (keeping its id) when he clarifies a brand that sounds
     like another."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("अबेविया चाहिए"))
@@ -1817,7 +1817,7 @@ async def test_corrections_by_voice_edit_the_row_in_place() -> None:
         )
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_quantity_and_removal_keep_the_mirror_honest() -> None:
@@ -1825,7 +1825,7 @@ async def test_quantity_and_removal_keep_the_mirror_honest() -> None:
     brain's own mirror too — so the next prompt's grounding cannot describe a cart the
     pharmacist no longer has."""
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
@@ -1855,7 +1855,7 @@ async def test_quantity_and_removal_keep_the_mirror_honest() -> None:
         assert cart["item_count"] == 1
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 # ─── the language contract (Hindi audio, English screen) ──────────────────────
@@ -1868,7 +1868,7 @@ async def test_the_brain_puts_hindi_on_both_legs_before_it_greets() -> None:
 
     It used to be the browser's per-session pipeline instead, and this test used to
     read that pipeline out of ``config.ts`` as text. Both moved for the same reason:
-    a page and an agent record each held half the answer, and when one link dropped
+    a page and an server record each held half the answer, and when one link dropped
     the field the model still wrote Devanagari while an en-IN reference voice read
     it aloud. Nothing automated caught it — the transcript is word-perfect and
     accent is invisible to transcription-based scoring — so it shipped, and was
@@ -1885,7 +1885,7 @@ async def test_the_brain_puts_hindi_on_both_legs_before_it_greets() -> None:
       worse than useless — the caller has already heard the wrong voice say hello.
     """
     llm = ScriptedLlm(_script())
-    agent, driver = await _host(llm)
+    server, driver = await _host(llm)
     try:
         await driver.start_session(payload=PAYLOAD)
 
@@ -1907,4 +1907,4 @@ async def test_the_brain_puts_hindi_on_both_legs_before_it_greets() -> None:
         assert first_stt < greeting_at, "the Hindi recognizer landed after the greeting"
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()

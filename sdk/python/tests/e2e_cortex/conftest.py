@@ -1,7 +1,7 @@
 """Shared fixtures for the end-to-end cortex suite.
 
 Pipecat-free. The agent side is hosted via the SDK's own runtime
-(``make_agent`` / ``CortexAgent`` + a ``Brain`` or a test ``SessionAdapter``);
+(``CortexAgent`` + a ``Brain`` or a test ``SessionAdapter``);
 the pygato side is simulated by the SDK's single-session ``Wire`` client speaking
 the same bare ``[direction][protobuf]`` framing and frame vocabulary PyGato
 uses against Cortex. Both legs meet over a real TCP ``FakeCortex`` relay, so this

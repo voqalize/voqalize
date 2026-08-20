@@ -21,7 +21,6 @@ Run it:
 
     export VOQAL_AGENT_SECRET=sk_...
     export VOQAL_CORTEX_URL=wss://cortex.dev.voqalize.com/agent
-    export VOQAL_AGENT_MODE=outbound
     python run_cortex.py
 
 Finally open the agent's `test_url` (from `create_agent` / `get_agent`) and talk.
@@ -36,17 +35,15 @@ from __future__ import annotations
 import asyncio
 import os
 
-from voqalize.sdk import serve_auto
+from voqalize.sdk import serve
 
 from brain import MyBrain  # your Brain subclass
 
 
 async def main() -> None:
-    # `serve_auto` picks the transport from $VOQAL_AGENT_MODE — "outbound"/"cortex"
-    # dials the relay (this file), "inbound"/"direct" owns a local WS server. That is
-    # the ONLY env var the SDK reads itself; the other two are conventions this
-    # script passes through as kwargs.
-    await serve_auto(
+    # `serve` blocks until the relay closes permanently. The SDK reads no env vars of
+    # its own — both below are conventions this script passes through as kwargs.
+    await serve(
         MyBrain,
         api_key=os.environ["VOQAL_AGENT_SECRET"],  # sk_… for this agent
         cortex_url=os.environ["VOQAL_CORTEX_URL"],  # verbatim; it already ends in /agent

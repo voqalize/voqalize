@@ -10,23 +10,24 @@ the far side of the socket.) The `Vql*` wire is language-neutral — see
 [`proto/`](../../proto) for the contract.
 
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
-path. One Brain runs on either transport; a config flip picks which, with no
-brain-code change (`serve_auto`). The SDK **does not own a WebSocket server** — its
-production entrypoint is a *connected socket*:
+path. A brain is not a server: it sits inside an application you already run, and
+the SDK owns **no** WebSocket server and **no** process management. That leaves
+exactly two ways to host it, and the same `Brain` runs unchanged on either:
 
-- **`run_session()` (`src/voqalize/sdk/session.py`) — the primary inbound surface.**
-  Your web framework (FastAPI/Starlette, Django Channels, Flask, aiohttp) accepts
-  the upgrade and hands the connected socket (anything with `send(bytes)`/`recv()->bytes` —
+- **`run_session()` (`src/voqalize/sdk/session.py`) — your app owns the route.**
+  Your web framework (FastAPI/Starlette, Django Channels, aiohttp) accepts the
+  upgrade and hands the connected socket (anything with `send(bytes)`/`recv()->bytes` —
   the `Channel` protocol) to the SDK, along with the URL `session_id` and the
   `Authorization` header. The voice runtime dials `{brain_url}/s/{session_id}` per
-  session; one connection = one session. No Cortex relay, no server owned by the SDK.
-- **`DirectAgent` / `serve_direct()` (`src/voqalize/sdk/inbound.py`) — a localhost/dev convenience.**
-  Owns a `websockets` server and runs each connection through the *same* `run_session`
-  loop. For quick scripts and local dev only.
-- **`CortexAgent` / `serve()` (`src/voqalize/sdk/outbound.py`) — the optional fallback.**
+  session; one connection = one session. No relay in the path.
+- **`serve()` (`src/voqalize/sdk/outbound.py`) — your app can't accept inbound.**
   One outbound multiplexed WebSocket to a Cortex relay; many sessions demuxed by a
-  16-byte prefix. For brains that can't accept inbound (serverless/FaaS, laptops,
-  egress-only).
+  16-byte prefix. For serverless/FaaS, laptops and egress-only networks. It
+  **blocks** until the relay closes permanently — where that call lives is yours to
+  decide.
+
+For a socket in a *test*, `voqalize.conformance.brain_server` stands a brain on an
+ephemeral localhost port. It is a test bench, not a hosting option.
 
 ## Install
 
@@ -51,14 +52,14 @@ installing `[adk]` is what pulls in `google-adk`.
 ```python
 from google.adk.agents import LlmAgent
 from voqalize.google_adk import adk_brain
-from voqalize.sdk import serve_direct
+from voqalize.sdk import run_session
 
 def build_agent() -> LlmAgent:                 # your existing agent, unchanged
     return LlmAgent(name="desk", model="gemini-2.5-flash",
                     instruction="You are a travel desk.", tools=[book_flight])
 
 make = adk_brain(build_agent, greeting="Travel desk — where to?")
-await serve_direct(make)                       # or mount make() in your own route
+await run_session(channel, brain=make, session_id=session_id, token=token)
 ```
 
 Every default is overridable and your existing framework customizations survive:
@@ -110,8 +111,8 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   `on_user_idle`/`on_inference_finalized`/`on_client_message`/`on_error`) +
   `Session`/`Interaction`/`Inference`/`Conversation`/`Outcome`/`ClientMessage`/
   `IdleInfo`, the `_BrainAdapter` that maps `Vql*` frames ↔ callbacks, and the
-  entry points (`serve`/`serve_direct`/`make_agent`/`make_direct_agent`/
-  `brain_factory`).
+  entry points (`serve` for the Cortex leg, plus the internal `adapter_for` /
+  `brain_factory` seams).
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
   `SessionRunner` (two-lane in/out, system-first feeder, ack-on-dequeue,
   drop-newest + `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` /
@@ -119,14 +120,12 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - `src/voqalize/sdk/session.py` — the connection-handoff surface: the `Channel`
   protocol (`send`/`recv` bytes), `run_session()` (verify token → run one session
   over a caller-supplied channel), `serve_channel()` (the transport-neutral loop,
-  no auth — reused by `DirectAgent`), and `verify_token`. Owns no server.
-- `src/voqalize/sdk/inbound.py` — `DirectAgent` (localhost WS server) +
-  `_ServerChannel` (adapts a `websockets` `ServerConnection` to `Channel`);
-  verifies and delegates to `serve_channel`.
+  no auth — reused by the conformance `brain_server`), and `verify_token`. Owns no
+  server.
 - `src/voqalize/sdk/outbound.py` — `CortexAgent` (multiplexed demux + shared fair
   writer over one wire), implementing `RunnerHost`.
-- `src/voqalize/sdk/_platform_keys.py` — the embedded Voqalize public key(s) the
-  direct server verifies against by default.
+- `src/voqalize/sdk/_platform_keys.py` — the embedded Voqalize public key(s)
+  `run_session` verifies against by default.
 - `src/voqalize/sdk/wire/` — plain-dataclass `Vql*` + lifecycle/RTVI frames,
   `FrameDirection`, `is_system()`, `CortexFrameSerializer` (protobuf transcoder,
   no base class), `Wire`/`MultiplexedWire` transport, protobuf stubs.
@@ -140,15 +139,16 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   [Already have an ADK agent? Wrap it](#already-have-an-adk-agent-wrap-it).
 - `src/voqalize/conformance/` — the wire-level conformance harness: `VoiceDriver`
   (drives a brain over a real socket from the voice-runtime side, no runtime
-  needed), the scenario catalog, the MUST checks, and a `python -m
+  needed), `brain_server` (a brain on an ephemeral localhost port, for tests that
+  want the real wire), the scenario catalog, the MUST checks, and a `python -m
   voqalize.conformance` CLI. Point it at your brain to prove it speaks the
   protocol correctly.
 
 ## Core invariants
 
 - **Pipecat-free customer surface.** `import voqalize.sdk` loads zero pipecat
-  modules. `pyjwt` is a runtime dependency (the direct server verifies the
-  runtime's token).
+  modules. `pyjwt` is a runtime dependency (`run_session` verifies the runtime's
+  token).
 - **Connection-handoff, not a server.** The production inbound surface is
   `run_session(channel, *, brain, session_id, token=...)`: the customer's
   framework owns the listener + upgrade and hands the SDK a connected `Channel`.
@@ -159,13 +159,12 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   verified unconditionally alongside `iss="pygato"` and `exp` — there is no
   per-agent audience and no `audience=` parameter; override `public_keys=`, or
   `allow_unverified=True` (local dev). A bad token raises `SessionRejected`
-  (caller closes 4000). `serve_direct()` is the localhost wrapper that owns a
-  `websockets` server and calls the same loop. One socket = one session; framing
-  is bare `[1-byte direction][protobuf]`, session implicit in the URL.
-- **Config picks the transport, brain code doesn't change.**
-  `serve_auto(MyBrain, mode=…)` (default `$VOQAL_AGENT_MODE`) dispatches to `serve`
-  (outbound Cortex) or `serve_direct` (localhost inbound); production inbound
-  mounts `run_session` in the customer's framework. Same `Brain` either way.
+  (caller closes 4000). One socket = one session; framing is bare
+  `[1-byte direction][protobuf]`, session implicit in the URL.
+- **Two hosting paths, one `Brain`.** `run_session` in the route your app already
+  owns, or `await serve(...)` over a Cortex relay when it can't accept inbound. The
+  SDK reads no environment variables and owns no process management: which path you
+  are on is a property of your application, not a config flip.
 - **Cortex (fallback):** one `CortexAgent` process → one outbound WebSocket to a
   `wss://.../agent` URL. Auth is `Authorization: Bearer <api_key>` (or a
   per-connect JWT via `authorization_provider`) + `X-Agent-Version`. Many sessions
@@ -173,7 +172,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - **One `SessionRunner` per `session_id`.** `factory(emitter)` (a `SessionFactory`)
   runs once per session, building a fresh `_BrainAdapter(Brain(), emitter)`.
   Cross-session writes are structurally unreachable. Holds identically for both
-  transports — `direct` just has one session per connection.
+  transports — the inbound path just has one session per connection.
 - **Two lanes each way.** System frames (`VqlStart` / `Interruption` / `Cancel`,
   per `is_system()`) ride a priority lane that bypasses queued data; everything
   else rides a bounded normal lane (default 256) with **drop-newest**. `End` is

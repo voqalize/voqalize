@@ -195,7 +195,7 @@ async def test_travel_greeting_rides_the_wire():
     task = asyncio.create_task(
         run_session(
             server_ch,
-            brain_builder=lambda: build(llm),
+            brain=lambda: build(llm),
             session_id=sid,
             token=_mint_token(priv, sid),
             public_keys=pub,

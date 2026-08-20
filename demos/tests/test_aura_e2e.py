@@ -1,7 +1,7 @@
 """The Aura Bank support demo, end to end over the wire — no network, no LLM key.
 
 The real ``AuraBrain`` — the shipping ``demos/aura/backend/brain.py``, its real
-prompt, its real thirty-odd tools — hosted on a real ``DirectAgent`` socket and
+prompt, its real thirty-odd tools — hosted on a real ``brain_server`` socket and
 driven by the conformance ``VoiceDriver``, with only the *model* scripted. See
 ``tests/_harness.py`` for what every demo's e2e proves.
 

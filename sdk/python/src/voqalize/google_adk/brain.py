@@ -29,12 +29,13 @@ instruction, native tools) and hands the SDK a *factory* for it. The SDK then:
     straight through to the model.
 
     from voqalize.google_adk import adk_brain, voice
-    from voqalize.sdk import serve_direct
+    from voqalize.sdk import run_session
 
     def build_agent() -> LlmAgent:
         return LlmAgent(name="assistant", model="gemini-2.0-flash", tools=[...])
 
-    await serve_direct(adk_brain(build_agent, greeting="Hi! How can I help?"))
+    make = adk_brain(build_agent, greeting="Hi! How can I help?")
+    await run_session(channel, brain=make, session_id=sid, token=tok)
 
 What the client writes: the ``LlmAgent`` and its tools (tools call
 :func:`voice` for UI side-effects). What the SDK provides: everything else —
@@ -923,10 +924,9 @@ def adk_brain(
     plugs straight into every hosting entry point (all of which accept a
     ``Callable[[], Brain]``)::
 
-        await serve_direct(adk_brain(build_agent, greeting="Hi!"))
-        # or, in your own FastAPI route:
-        make = adk_brain(build_agent)
-        await run_session(channel, brain=make(), session_id=sid, token=tok)
+        make = adk_brain(build_agent, greeting="Hi!")
+        await run_session(channel, brain=make, session_id=sid, token=tok)   # your route
+        await serve(make, api_key=..., cortex_url=..., version="1.0.0")     # or Cortex
 
     * ``greeting`` — the opening line spoken on session start (interaction 0). Either
       a fixed string, or an ``async (session, start) -> str | None`` callable that

@@ -1,7 +1,7 @@
 """The browser→Brain application message, over the real stack.
 
 Voice delivers every one of them unconditionally and never interprets the type.
-Handling one cannot make the agent speak — nothing about a click means the human
+Handling one cannot make the server speak — nothing about a click means the human
 stopped talking — so ``on_app_message`` is a coroutine, not a generator, and a
 brain that writes one anyway is contained rather than obeyed.
 
@@ -57,7 +57,8 @@ async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
 
     Returns the recorder and every frame the Brain emitted back.
     """
-    from voqalize.sdk import Brain, Chunk, DirectAgent, SpeechEnd, SpeechStart, brain_factory
+    from voqalize.conformance import BrainServer
+    from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
     from voqalize.sdk.wire import ClientMessageFrame
 
     rec = _Recorder()
@@ -78,13 +79,13 @@ async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
             yield Chunk("noted")
             yield SpeechEnd()
 
-    agent = DirectAgent(
-        factory=brain_factory(Speaking if speak else Recording),
+    server = BrainServer(
+        Speaking if speak else Recording,
         host="127.0.0.1",
         port=0,
         allow_unverified=True,
     )
-    port = await agent.start()
+    port = await server.start()
     session_id = str(uuid.uuid4())
     wire = Wire(WireConfig(url=f"ws://127.0.0.1:{port}/s/{session_id}"))
     await wire.start()
@@ -116,7 +117,7 @@ async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
             await asyncio.wait_for(_drain(), timeout=0.6)
     finally:
         await wire.close()
-        await agent.aclose()
+        await server.aclose()
     return rec, emitted
 
 
@@ -131,7 +132,7 @@ async def test_client_message_reaches_on_app_message() -> None:
 async def test_speaking_from_an_app_message_puts_nothing_on_the_wire() -> None:
     """The signature says coroutine; the runtime enforces it rather than trusting it.
 
-    A tap that made the agent start talking would cut across whatever the human was
+    A tap that made the server start talking would cut across whatever the human was
     saying. The generator is closed unstarted, so not a byte of speech reaches
     Voice — and because it never runs, the body's own bookkeeping does not happen
     either. A contract violation is refused whole, not half-honoured.

@@ -2,7 +2,7 @@
 
 The real ``LeadQualBrain`` — the shipping ``demos/lead_qual/backend/brain.py``,
 its real prompt, its real three tools, its real eligibility rules — hosted on a
-real ``DirectAgent`` socket and driven by the conformance ``VoiceDriver``, with
+real ``brain_server`` socket and driven by the conformance ``VoiceDriver``, with
 only the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e
 proves.
 

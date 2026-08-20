@@ -60,22 +60,23 @@ The same `Brain` class runs over Cortex; only the entrypoint changes.
 ### Python
 
 ```python
-from voqalize.sdk import CortexAgent, brain_factory
+from voqalize.sdk import serve
 from mybrain import MyBrain
 
-agent = CortexAgent(
+await serve(
+    MyBrain,            # or a () -> Brain callable, if the brain takes dependencies
     version="1.0.0",
     cortex_url="wss://cortex.dev.voqalize.com/agent",   # verbatim, from the tool
-    factory=brain_factory(MyBrain),
     api_key="sk_…",     # OR authorization_provider=lambda: "Bearer <jwt>"
-)
-await agent.run()        # returns when the wire closes permanently
+)                       # returns when the wire closes permanently
 ```
 
 Pass **exactly one** credential: a static `api_key` (`sk_…`), or an
-`authorization_provider` that mints a `"Bearer <jwt>"` per connect. `serve(MyBrain,
-...)` is the sugar wrapper; `serve_auto(MyBrain, mode="cortex")` selects this
-transport from `$VOQAL_AGENT_MODE`.
+`authorization_provider` that mints a `"Bearer <jwt>"` per connect.
+
+`serve` **blocks** for the life of the relay connection. Where that call lives —
+`asyncio.run` in a `__main__`, a task in your app's lifespan, a worker entrypoint —
+is yours to decide; the SDK owns no process management.
 
 ## No tunnel needed
 
@@ -87,13 +88,11 @@ credentials and run:
 ```bash
 export VOQAL_AGENT_SECRET=sk_...                              # agent_secret
 export VOQAL_CORTEX_URL=wss://cortex.dev.voqalize.com/agent   # cortex_url, verbatim
-export VOQAL_AGENT_MODE=outbound
 python run_cortex.py
 ```
 
-`$VOQAL_AGENT_MODE` is the only one of the three the SDK reads itself — `serve_auto`
-uses it to pick the transport (`outbound`/`cortex` vs `inbound`/`direct`). The other
-two are conventions your code passes through as the kwargs above.
+Both are conventions your own code reads and passes through as the kwargs above —
+the SDK reads no environment variables of its own.
 
 ## Crash-only
 

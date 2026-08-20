@@ -24,7 +24,7 @@ from brain import TravelBrain  # same-dir import when run as a script
 from dotenv import load_dotenv
 from loguru import logger
 
-from voqalize.sdk import CortexAgent, brain_factory
+from voqalize.sdk import serve
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _PLATFORM_KEY = _REPO_ROOT / ".dev-keys" / "platform.pem"
@@ -52,13 +52,12 @@ async def main() -> None:
     if not os.environ.get("GEMINI_API_KEY"):
         raise SystemExit("GEMINI_API_KEY not set (repo-root .env)")
     logger.info("travel-cortex: connecting to {} as pool {}", _CORTEX_URL, _POOL_KEY)
-    agent = CortexAgent(
+    await serve(
+        TravelBrain,  # built fresh per session
         version="travel-cortex/0.1",
         cortex_url=_CORTEX_URL,
-        factory=brain_factory(TravelBrain),  # Brain → per-session adapter
         authorization_provider=_mint_token,
     )
-    await agent.run()
 
 
 if __name__ == "__main__":

@@ -2,13 +2,13 @@
 
 Runs the full scenario catalog (:mod:`voqalize.conformance`) against the
 bundled cooperating reference brain (:class:`ConformanceBrain`), hosted over a
-real ``DirectAgent`` WebSocket on an ephemeral port. Because the reference brain
+real ``BrainServer`` WebSocket on an ephemeral port. Because the reference brain
 is a *known-good* implementation of every protocol path, a green run proves the
 driver + checks are internally consistent — which is the precondition for
 pointing them at a real brain under test (the ADK / GenAI SDKs to come).
 
 This mirrors ``tests/direct/test_direct_end_to_end.py``: real server stack, real
-TCP, agent started inline in the async test (``asyncio_mode = auto``). The one
+TCP, server started inline in the async test (``asyncio_mode = auto``). The one
 difference is who drives the socket — here it is the conformance ``VoiceDriver``
 impersonating PyGato, not a hand-rolled per-test client.
 """
@@ -19,40 +19,38 @@ from collections.abc import AsyncGenerator
 
 import pytest
 
-from voqalize.conformance import generate_keypair, run_suite
+from voqalize.conformance import BrainServer, generate_keypair, run_suite
 from voqalize.conformance.reference import ConformanceBrain
 from voqalize.conformance.scenarios import CATALOG
 from voqalize.sdk import (
     Brain,
     Chunk,
-    DirectAgent,
     Session,
     Speech,
     SpeechEnd,
     SpeechStart,
     UserMessage,
-    brain_factory,
 )
 
 
-async def _host_verified() -> tuple[DirectAgent, int, bytes]:
+async def _host_verified() -> tuple[BrainServer, int, bytes]:
     """Host the reference brain verifying against a fresh keypair; return the
     private half so the driver can mint a matching pygato token."""
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(ConformanceBrain),
+    server = BrainServer(
+        ConformanceBrain,
         host="127.0.0.1",
         port=0,
         public_keys=keypair.public_pem,
     )
-    port = await agent.start()
-    return agent, port, keypair.private_pem
+    port = await server.start()
+    return server, port, keypair.private_pem
 
 
 @pytest.mark.parametrize("name", [s.name for s in CATALOG])
 async def test_scenario_conformant(name: str) -> None:
     """Each catalogued scenario passes against the reference brain."""
-    agent, port, private_key_pem = await _host_verified()
+    server, port, private_key_pem = await _host_verified()
     try:
         report = await run_suite(
             f"ws://127.0.0.1:{port}",
@@ -61,7 +59,7 @@ async def test_scenario_conformant(name: str) -> None:
             only=[name],
         )
     finally:
-        await agent.aclose()
+        await server.aclose()
     assert report.results, f"scenario {name!r} did not run"
     result = report.results[0]
     assert not result.skipped, result.skip_reason
@@ -70,14 +68,14 @@ async def test_scenario_conformant(name: str) -> None:
 
 async def test_full_suite_reports_conformant() -> None:
     """The whole catalog runs green and the report says CONFORMANT."""
-    agent, port, private_key_pem = await _host_verified()
+    server, port, private_key_pem = await _host_verified()
     try:
         report = await run_suite(
             f"ws://127.0.0.1:{port}",
             private_key_pem=private_key_pem,
         )
     finally:
-        await agent.aclose()
+        await server.aclose()
     assert report.ok, "\n" + report.summary()
     assert report.failed == 0
     # No `include_reference` passed, so the suite probed — and the reference brain
@@ -91,13 +89,13 @@ async def test_wire_level_subset_against_unverified_brain() -> None:
     """The wire-level tier (no reference grammar, no auth) passes against a brain
     running ``allow_unverified`` and no token — the surface a shipped brain like
     ``welcome`` would be pointed at."""
-    agent = DirectAgent(
-        factory=brain_factory(ConformanceBrain),
+    server = BrainServer(
+        ConformanceBrain,
         host="127.0.0.1",
         port=0,
         allow_unverified=True,
     )
-    port = await agent.start()
+    port = await server.start()
     try:
         report = await run_suite(
             f"ws://127.0.0.1:{port}",
@@ -106,7 +104,7 @@ async def test_wire_level_subset_against_unverified_brain() -> None:
             include_auth=False,
         )
     finally:
-        await agent.aclose()
+        await server.aclose()
     assert report.ok, "\n" + report.summary()
     # It really did run a subset, not the whole thing — and the part it could not
     # run is *in* the report as skips, not quietly missing from it.
@@ -139,20 +137,20 @@ async def test_ordinary_brain_is_conformant_on_what_ran() -> None:
     with its reason attached, and the verdict says how much it covered.
     """
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(_PlainBrain),
+    server = BrainServer(
+        _PlainBrain,
         host="127.0.0.1",
         port=0,
         public_keys=keypair.public_pem,
     )
-    port = await agent.start()
+    port = await server.start()
     try:
         report = await run_suite(
             f"ws://127.0.0.1:{port}",
             private_key_pem=keypair.private_pem,
         )
     finally:
-        await agent.aclose()
+        await server.aclose()
     assert report.ok, "\n" + report.summary()
     assert report.skipped > 0, "\n" + report.summary()
     assert report.passed + report.skipped == len(CATALOG)
@@ -168,13 +166,13 @@ async def test_wrong_key_is_rejected_directly() -> None:
 
     _agent_kp = generate_keypair()  # what the brain verifies against
     wrong_kp = generate_keypair()  # what the driver (wrongly) signs with
-    agent = DirectAgent(
-        factory=brain_factory(ConformanceBrain),
+    server = BrainServer(
+        ConformanceBrain,
         host="127.0.0.1",
         port=0,
         public_keys=_agent_kp.public_pem,
     )
-    port = await agent.start()
+    port = await server.start()
     session_id = "conf-wrongkey"
     token = mint_pygato_token(
         private_key_pem=wrong_kp.private_pem,
@@ -192,5 +190,5 @@ async def test_wrong_key_is_rejected_directly() -> None:
         code = await driver.wait_closed(timeout=3.0)
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
     assert code == 4000

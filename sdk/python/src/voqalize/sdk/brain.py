@@ -1,6 +1,6 @@
 """The Brain — callbacks in, speech and actions out.
 
-    from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart, serve_direct
+    from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 
     class Greeter(Brain):
         async def greet(self, session):
@@ -11,7 +11,8 @@
             yield Chunk(f"You said: {msg.text}")
             yield SpeechEnd()
 
-    serve_direct(Greeter, host="0.0.0.0", port=8787)
+Host it from your own WebSocket route with :func:`voqalize.sdk.run_session`, or
+over the Cortex relay with :func:`serve` when your process cannot accept one.
 
 **Voice owns the floor; the brain spends it.** Voice decides when the brain may
 speak, and it does that by calling one of the two speaking callbacks. There is no
@@ -58,7 +59,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import inspect
-import os
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -78,7 +78,6 @@ from .events import (
     SpeechStart,
     UserMessage,
 )
-from .inbound import DirectAgent
 from .outbound import CortexAgent
 from .wire import (
     ClientMessageFrame,
@@ -107,11 +106,7 @@ __all__ = [
     "Session",
     "adapter_for",
     "brain_factory",
-    "make_agent",
-    "make_direct_agent",
     "serve",
-    "serve_auto",
-    "serve_direct",
 ]
 
 # The browser echoes an action's answer as a client message of this type.
@@ -122,8 +117,18 @@ NO_EPOCH = 0
 
 
 class ProtocolError(RuntimeError):
-    """A brain broke one of its four obligations — almost always an unbalanced
-    speech bracket, or speech yielded from a callback that holds no floor."""
+    """A brain broke one of its four obligations:
+
+    1. **Balanced brackets.** Every ``SpeechStart`` is followed by a
+       ``SpeechEnd``; a ``Chunk`` outside a unit is a protocol error.
+    2. **You don't block.** A callback that stalls holds the floor open and the
+       caller hears nothing.
+    3. **You don't speak outside a speaking callback.**
+    4. **``greet`` is fast.** It runs before the caller has heard anything.
+
+    Almost always the first: an unbalanced bracket, or speech yielded from a
+    callback that holds no floor.
+    """
 
 
 # ─── The session ──────────────────────────────────────────────────────────────
@@ -782,9 +787,9 @@ async def _one_unit(opening: str | AsyncIterator[str]) -> AsyncGenerator[Speech,
 
 
 def adapter_for(brain: Brain, emitter: Emitter) -> SessionAdapter:
-    """Host an already-constructed ``Brain`` as a session adapter — for tests and
-    single-session hosting where you need a handle on the brain to inspect its
-    state. Production hosting uses :func:`brain_factory`."""
+    """Host an already-constructed ``Brain`` as a session adapter, with no socket
+    anywhere — the seam tests drive the brain through. Hosting uses
+    :func:`brain_factory`, which builds one per session."""
     return _BrainAdapter(brain, emitter)
 
 
@@ -800,51 +805,13 @@ def brain_factory(build: type[Brain] | Callable[[], Brain]) -> SessionFactory:
     return _factory
 
 
-def make_agent(brain_cls: type[Brain], **cortex_kwargs: Any) -> CortexAgent:
-    """Build a :class:`CortexAgent` hosting ``brain_cls``, one brain per session."""
-    return CortexAgent(factory=brain_factory(brain_cls), **cortex_kwargs)
+async def serve(brain_cls: type[Brain] | Callable[[], Brain], **cortex_kwargs: Any) -> None:
+    """Host ``brain_cls`` over the Cortex relay until the connection closes
+    permanently — for a process that cannot accept an inbound WebSocket.
 
-
-async def serve(brain_cls: type[Brain], **cortex_kwargs: Any) -> None:
-    """Host ``brain_cls`` over the Cortex relay until cancelled — the fallback for
-    a brain that cannot accept an inbound connection.
-
-    ``serve(MyBrain, api_key=..., version=..., cortex_url=...)``. The primary path
-    is :func:`serve_direct`, where Voice dials your brain.
+    ``await serve(MyBrain, api_key=..., version=..., cortex_url=...)``. Blocking by
+    design: it runs every session on this one connection, and the caller decides
+    where that call lives. When your application owns a WebSocket route, use
+    :func:`voqalize.sdk.run_session` there instead.
     """
-    await make_agent(brain_cls, **cortex_kwargs).run()
-
-
-def make_direct_agent(brain_cls: type[Brain], **direct_kwargs: Any) -> DirectAgent:
-    """Build a :class:`DirectAgent` (inbound server) hosting ``brain_cls``."""
-    return DirectAgent(factory=brain_factory(brain_cls), **direct_kwargs)
-
-
-async def serve_direct(brain_cls: type[Brain], **direct_kwargs: Any) -> None:
-    """Host ``brain_cls`` on a self-owned inbound WebSocket server.
-
-    Voice dials ``{brain_url}/s/{session_id}`` per session.
-    ``serve_direct(MyBrain, host="0.0.0.0", port=8787, public_keys=VOQAL_PUBKEY)``.
-    In production, mount :func:`voqalize.sdk.run_session` in your own web
-    framework instead of owning a server here.
-    """
-    await make_direct_agent(brain_cls, **direct_kwargs).run()
-
-
-async def serve_auto(brain_cls: type[Brain], *, mode: str | None = None, **kwargs: Any) -> None:
-    """Pick the transport from config and run the same brain either way.
-
-    ``mode`` defaults to ``$VOQAL_AGENT_MODE`` (else ``"outbound"``):
-
-    * ``"inbound"`` / ``"direct"`` → own a WebSocket server. Pass ``host=``,
-      ``port=``, and optional ``public_keys=`` / ``allow_unverified=``.
-    * ``"outbound"`` / ``"cortex"`` → dial the Cortex relay. Pass ``cortex_url=``,
-      ``api_key=`` (or ``authorization_provider=``), ``version=``.
-    """
-    mode = (mode or os.environ.get("VOQAL_AGENT_MODE") or "outbound").lower()
-    if mode in ("inbound", "direct"):
-        await serve_direct(brain_cls, **kwargs)
-    elif mode in ("outbound", "cortex"):
-        await serve(brain_cls, **kwargs)
-    else:
-        raise ValueError(f"unknown agent mode {mode!r}; expected inbound|outbound")
+    await CortexAgent(factory=brain_factory(brain_cls), **cortex_kwargs).run()

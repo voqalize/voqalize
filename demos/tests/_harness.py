@@ -4,7 +4,7 @@ the conformance ``VoiceDriver``, with only the *model* scripted.
 ``test_travel_adk.py`` established this shape for the one ADK demo; every other
 demo is a ``GeminiBrain``, so the only difference is which fake model goes in
 (:class:`voqalize_demos.testing.ScriptedGemini` instead of ADK's ``ScriptedLlm``).
-Everything else — the ``DirectAgent`` WebSocket, the minted PyGato token, the
+Everything else — the ``brain_server`` WebSocket, the minted PyGato token, the
 driver's playout/heard-truth model — is identical, which is the point: these tests
 exercise the same wire a production session runs on.
 
@@ -34,13 +34,14 @@ from voqalize_demos.discovery import build_for
 from voqalize_demos.testing import ScriptedGemini
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoiceDriver,
     checks,
     generate_keypair,
     mint_pygato_token,
 )
-from voqalize.sdk import Brain, DirectAgent, brain_factory
+from voqalize.sdk import Brain
 
 # The whole TTS catalog (``docs/reference/catalog.md``). A voice outside it is
 # rejected by vql-speech at connect — which is how two fossil agent records took
@@ -84,7 +85,7 @@ class DemoRig:
     """One hosted demo session: the brain under test, its socket, and the driver."""
 
     name: str
-    agent: DirectAgent
+    server: BrainServer
     driver: VoiceDriver
     _built: list[Brain]
 
@@ -92,7 +93,7 @@ class DemoRig:
     def brain(self) -> Brain:
         """The brain serving this session.
 
-        ``DirectAgent`` builds it on connect — *after* the rig is handed to the
+        The server builds it on connect — *after* the rig is handed to the
         test — so a read before ``driver.start_session()`` is a test bug, and says
         so rather than returning ``None``."""
         if not self._built:
@@ -146,13 +147,13 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
         built.append(brain)
         return brain
 
-    agent = DirectAgent(
-        factory=brain_factory(_build),
+    server = BrainServer(
+        _build,
         host="127.0.0.1",
         port=0,
         public_keys=keypair.public_pem,
     )
-    port = await agent.start()
+    port = await server.start()
     session_id = f"{name}-e2e"
     driver = VoiceDriver(
         DirectConnection(
@@ -171,10 +172,10 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
     )
     await driver.open()
     try:
-        yield DemoRig(name=name, agent=agent, driver=driver, _built=built)
+        yield DemoRig(name=name, server=server, driver=driver, _built=built)
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 # ─── The checks every demo shares ─────────────────────────────────────────────

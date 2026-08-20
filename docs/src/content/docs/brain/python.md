@@ -186,30 +186,33 @@ If you never touch it, no interaction is driven and the id simply goes unused.
 assistant message's `content` is the **heard** text (post-interruption truth). The
 brain never writes to it directly; rebuild your model context from it each turn.
 
-## Serving the brain
+## Hosting the brain
 
-You serve the same `Brain` class over one of two transports. Both build a **fresh
-brain per session** from a zero-arg `() -> Brain` builder (inject dependencies here):
+A brain is not a server. It sits inside your application, and there are exactly two
+ways that application reaches the runtime:
+
+1. **Your app owns a WebSocket route** — the runtime dials in. `run_session` drives
+   one session over the connection your framework hands you.
+2. **Your app cannot accept inbound** (serverless, a laptop, egress-only networks) —
+   `serve` dials *out* to a Cortex relay and blocks. Where that call lives is yours
+   to decide; the SDK owns no process management.
+
+Both build a **fresh brain per session**, so no state leaks between calls. Pass the
+class, or a zero-arg callable when the brain needs injected dependencies:
 
 ```python
-def build() -> MyBrain:            # a fresh instance per session
-    return MyBrain(llm=my_client)
+brain=MyBrain                       # constructed per session
+brain=lambda: MyBrain(llm=client)   # same, with dependencies
 ```
 
-`run_session` takes this builder directly as `brain_builder=`; the outbound agents
-(`CortexAgent` / `DirectAgent`) take it wrapped in `brain_factory(build)`.
-
 ### Inbound (primary)
-
-The runtime dials into your `wss://` route. The framework-agnostic primitive is
-`run_session`, which drives a session over any WebSocket you hand it:
 
 ```python
 from voqalize.sdk import run_session
 
 await run_session(
     channel,                       # anything with async send(bytes)/recv()->bytes
-    brain_builder=build,           # a () -> Brain builder; or brain=MyBrain
+    brain=build,                   # MyBrain, or a () -> Brain callable
     session_id=session_id,
     token=token,                   # the Authorization header value
     public_keys=None,              # None → embedded Voqalize platform keys
@@ -218,27 +221,25 @@ await run_session(
 ```
 
 Mount it on FastAPI/Starlette/aiohttp (see the [Quickstart](/docs/start/quickstart/)
-and [Inbound server](/docs/deploy/inbound/)). For a zero-boilerplate local server,
-`DirectAgent` / `serve_direct(MyBrain, ...)` own the socket for you.
+and [Inbound server](/docs/deploy/inbound/)).
 
 ### Cortex (fallback)
 
 Your brain dials *out* to a Cortex relay; many sessions multiplex over one socket:
 
 ```python
-from voqalize.sdk import CortexAgent, brain_factory
+from voqalize.sdk import serve
 
-agent = CortexAgent(
+await serve(
+    build,                                         # MyBrain, or a () -> Brain callable
     version="1.0.0",
     cortex_url="wss://cortex.voqalize.com/agent",  # verbatim from create_agent_credentials
-    factory=brain_factory(build),  # the () -> Brain builder, wrapped
-    api_key="sk_…",                # OR authorization_provider=lambda: "Bearer <jwt>"
+    api_key="sk_…",                                # OR authorization_provider=lambda: "Bearer <jwt>"
 )
-await agent.run()
 ```
 
-`serve(MyBrain, ...)` is the sugar wrapper. `serve_auto(MyBrain, mode=...)` picks
-inbound vs. Cortex from `$VOQAL_AGENT_MODE`. See [Cortex relay](/docs/deploy/cortex/).
+`serve` returns only when the relay closes permanently. See
+[Cortex relay](/docs/deploy/cortex/).
 
 ## Examples
 

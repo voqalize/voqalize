@@ -31,20 +31,22 @@ rename the assertions to their use case, wire it into CI. That is the deliverabl
 ### The shape
 
 ```python
-from voqalize.conformance import DirectConnection, VoiceDriver, generate_keypair, mint_pygato_token
-from voqalize.sdk import DirectAgent, brain_factory
+from voqalize.conformance import (
+    DirectConnection, VoiceDriver, brain_server, generate_keypair, mint_pygato_token,
+)
 
 keypair = generate_keypair()
-agent = DirectAgent(factory=brain_factory(MyBrain), host="127.0.0.1", port=0,
-                    public_keys=keypair.public_pem)
-port = await agent.start()                      # port=0 → ephemeral, never collides
-
-token = mint_pygato_token(private_key_pem=keypair.private_pem, session_id="s1",
-                          agent_id="agent_test", tenant_id="tenant_test")
-driver = VoiceDriver(DirectConnection(f"ws://127.0.0.1:{port}", "s1", token=token),
-                     session_id="s1", agent_id="agent_test", default_timeout=10.0)
-await driver.open()
+async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
+    token = mint_pygato_token(private_key_pem=keypair.private_pem, session_id="s1",
+                              agent_id="agent_test", tenant_id="tenant_test")
+    driver = VoiceDriver(DirectConnection(server.url, "s1", token=token),
+                         session_id="s1", agent_id="agent_test", default_timeout=10.0)
+    await driver.open()
 ```
+
+`brain_server` binds an ephemeral port, so tests never collide, and closes on the way
+out. It is a **test** server: production hosting is `run_session` in the customer's
+own route (`references/transport.md`).
 
 Note the keypair: the brain verifies against the public half, the driver signs with
 the private half — **token verification is exercised for real**, not switched off.
@@ -89,8 +91,8 @@ sleeping and hoping.
 
 If the brain calls a real LLM, tests are slow and flaky for the usual reasons — raise
 `default_timeout`, and prefer injecting a scripted fake:
-`brain_builder=lambda: MyBrain(llm=FakeLLM())` on `run_session`, or a factory closure
-on `brain_factory`. Keep one slow test that uses the real model as a smoke check.
+`brain_server(lambda: MyBrain(llm=FakeLLM()), ...)` — the same `() -> Brain` callable
+`run_session` takes. Keep one slow test that uses the real model as a smoke check.
 
 ### The built-in catalog
 

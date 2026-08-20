@@ -14,7 +14,9 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart, make_agent
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk.brain import brain_factory
+from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     FinalizeReason,
     InferenceFinalizedFrame,
@@ -37,8 +39,8 @@ class LLMResponder(Brain):
 
 async def test_round_trip_every_frame() -> None:
     async with FakeCortex() as cortex:
-        agent = make_agent(
-            LLMResponder,
+        agent = CortexAgent(
+            factory=brain_factory(LLMResponder),
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),

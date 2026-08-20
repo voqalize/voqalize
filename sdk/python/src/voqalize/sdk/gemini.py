@@ -1,7 +1,6 @@
 """A Gemini-backed Brain: history, streaming, and the tool loop.
 
     from google import genai
-    from voqalize.sdk import serve_direct
     from voqalize.sdk.gemini import GeminiBrain
 
     class Concierge(GeminiBrain):
@@ -11,7 +10,8 @@
         async def greet(self, session):
             return "Hi! What can I do for you?"
 
-    serve_direct(Concierge, host="0.0.0.0", port=8787)
+Host it the same way as any other brain — :func:`voqalize.sdk.run_session` from
+your own WebSocket route, or :func:`voqalize.sdk.serve` over the Cortex relay.
 
 Install with ``pip install voqalize-agent-sdk[gemini]``. Nothing in
 ``voqalize.sdk`` imports this module, so the core SDK stays free of

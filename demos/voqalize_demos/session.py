@@ -128,7 +128,7 @@ def make_brain_router(name: str, factory: BrainFactory) -> APIRouter:
         try:
             await run_session(
                 _WsChannel(websocket),
-                brain_builder=lambda: factory(rt.llm),
+                brain=lambda: factory(rt.llm),
                 session_id=session_id,
                 token=token,
                 # Verify Voqalize's RS256 brain token. Prefer configured pubkeys

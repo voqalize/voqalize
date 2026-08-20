@@ -16,7 +16,9 @@ from pydantic import BaseModel, Field
 
 from tests.e2e_cortex.conftest import connect_pygato
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Action, Brain, Chunk, Result, SpeechEnd, SpeechStart, make_agent
+from voqalize.sdk import Action, Brain, Chunk, Result, SpeechEnd, SpeechStart
+from voqalize.sdk.brain import brain_factory
+from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     ClientMessageFrame,
     LLMTextFrame,
@@ -57,8 +59,8 @@ async def test_session_action_round_trip() -> None:
     written against the second and never sees the first.
     """
     async with FakeCortex() as cortex:
-        agent = make_agent(
-            ActionBrain,
+        agent = CortexAgent(
+            factory=brain_factory(ActionBrain),
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),
@@ -110,8 +112,11 @@ async def test_action_result_reaches_on_result() -> None:
             )
 
     async with FakeCortex() as cortex:
-        agent = make_agent(
-            CallbackBrain, api_key="cb", version="1.0.0", cortex_url=cortex.agent_url("cb")
+        agent = CortexAgent(
+            factory=brain_factory(CallbackBrain),
+            api_key="cb",
+            version="1.0.0",
+            cortex_url=cortex.agent_url("cb"),
         )
         run_task = asyncio.create_task(agent.run())
         client = await connect_pygato(cortex, "s-cb", "cb")
@@ -155,8 +160,11 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
             yield SpeechEnd()
 
     async with FakeCortex() as cortex:
-        agent = make_agent(
-            AwaitingBrain, api_key="aw", version="1.0.0", cortex_url=cortex.agent_url("aw")
+        agent = CortexAgent(
+            factory=brain_factory(AwaitingBrain),
+            api_key="aw",
+            version="1.0.0",
+            cortex_url=cortex.agent_url("aw"),
         )
         run_task = asyncio.create_task(agent.run())
         client = await connect_pygato(cortex, "s-aw", "aw")

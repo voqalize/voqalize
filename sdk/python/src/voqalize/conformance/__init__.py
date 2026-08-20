@@ -28,6 +28,7 @@ from .driver import (
     Turn,
     VoiceDriver,
 )
+from .host import BrainServer, brain_server
 from .reference import ConformanceBrain, conformance_state
 from .report import Report, ScenarioResult, run_suite
 from .scenarios import CATALOG, Scenario, ScenarioContext
@@ -43,6 +44,7 @@ __all__ = [
     "CONFORMANCE_DUMP_EVENT",
     "CONFORMANCE_STATE_ACTION",
     "GREETING_INTERACTION_ID",
+    "BrainServer",
     "ConformanceBrain",
     "ConformanceError",
     "DirectConnection",
@@ -55,6 +57,7 @@ __all__ = [
     "ScenarioResult",
     "Turn",
     "VoiceDriver",
+    "brain_server",
     "conformance_state",
     "generate_keypair",
     "mint_pygato_token",

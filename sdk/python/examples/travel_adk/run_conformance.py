@@ -1,6 +1,6 @@
 """Drive the ADK travel agent end-to-end over the real wire, with real Gemini.
 
-Hosts ``build_travel_agent`` wrapped by ``adk_brain`` on a ``DirectAgent`` (a real
+Hosts ``build_travel_agent`` wrapped by ``adk_brain`` on a ``brain_server`` (a real
 localhost WebSocket), then drives it with the conformance ``VoiceDriver`` —
 exactly the PyGato-side leg, over real TCP, minting a real pygato token. This is
 the shape check: prove the SDK drives ADK, speaks per model call, fires the UI
@@ -23,11 +23,11 @@ import os
 from voqalize.conformance import (
     DirectConnection,
     VoiceDriver,
+    brain_server,
     generate_keypair,
     mint_pygato_token,
 )
 from voqalize.google_adk import adk_brain
-from voqalize.sdk import DirectAgent, brain_factory
 
 from .agent import GREETING, build_travel_agent
 
@@ -52,15 +52,6 @@ async def main() -> None:
         streaming=True,
         answer_conformance_dump=True,
     )
-    agent = DirectAgent(
-        factory=brain_factory(make_brain),
-        host="127.0.0.1",
-        port=0,
-        public_keys=keypair.public_pem,
-    )
-    port = await agent.start()
-    print(f"hosting ADK travel brain (model={MODEL}) on ws://127.0.0.1:{port}")
-
     session_id = "travel-adk-demo"
     token = mint_pygato_token(
         private_key_pem=keypair.private_pem,
@@ -68,44 +59,47 @@ async def main() -> None:
         agent_id="travel",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
-        DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
-        session_id=session_id,
-        agent_id="travel",
-        default_timeout=30.0,
-    )
-    try:
-        await driver.open()
-        greeting = await driver.start_session(greeting_timeout=30.0)
-        _print_turn("greeting (interaction 0)", greeting)
-
-        t1 = await driver.user_says(
-            "Start a new trip: Poddar family to Hanoi, 12th to 18th August 2026.",
-            timeout=45.0,
+    async with brain_server(make_brain, public_keys=keypair.public_pem) as server:
+        print(f"hosting ADK travel brain (model={MODEL}) on {server.url}")
+        driver = VoiceDriver(
+            DirectConnection(server.url, session_id, token=token),
+            session_id=session_id,
+            agent_id="travel",
+            default_timeout=30.0,
         )
-        _print_turn("user: start trip", t1)
+        try:
+            await driver.open()
+            greeting = await driver.start_session(greeting_timeout=30.0)
+            _print_turn("greeting (interaction 0)", greeting)
 
-        t2 = await driver.user_says("Now show me flights from Bangalore to Hanoi.", timeout=45.0)
-        _print_turn("user: show flights", t2)
+            t1 = await driver.user_says(
+                "Start a new trip: Poddar family to Hanoi, 12th to 18th August 2026.",
+                timeout=45.0,
+            )
+            _print_turn("user: start trip", t1)
 
-        t3 = await driver.user_says("Pick the cheapest one.", timeout=45.0)
-        _print_turn("user: pick cheapest", t3)
+            t2 = await driver.user_says(
+                "Now show me flights from Bangalore to Hanoi.", timeout=45.0
+            )
+            _print_turn("user: show flights", t2)
 
-        print("\n### UI commands the brain fired (ui_command lane)")
-        for cmd in driver.ui_commands:
-            action = cmd.get("action")
-            keys = [k for k in cmd if k not in ("type", "action", "action_id")]
-            print(f"  {action}  fields={keys}")
+            t3 = await driver.user_says("Pick the cheapest one.", timeout=45.0)
+            _print_turn("user: pick cheapest", t3)
 
-        print("\n### committed conversation (heard-truth backchannel)")
-        state = await driver.dump_conversation(timeout=10.0)
-        for m in state["messages"]:
-            print(f"  {m['role']:>9}: {m['content']!r}")
+            print("\n### UI commands the brain fired (ui_command lane)")
+            for cmd in driver.ui_commands:
+                action = cmd.get("action")
+                keys = [k for k in cmd if k not in ("type", "action", "action_id")]
+                print(f"  {action}  fields={keys}")
 
-        await driver.end_session()
-    finally:
-        await driver.aclose()
-        await agent.aclose()
+            print("\n### committed conversation (heard-truth backchannel)")
+            state = await driver.dump_conversation(timeout=10.0)
+            for m in state["messages"]:
+                print(f"  {m['role']:>9}: {m['content']!r}")
+
+            await driver.end_session()
+        finally:
+            await driver.aclose()
 
     print("\nraw ui_commands:")
     print(json.dumps(driver.ui_commands, indent=2)[:2000])

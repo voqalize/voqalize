@@ -3,9 +3,9 @@
 One agent process holds one **outbound** WebSocket to Cortex's ``/agent``
 endpoint. Many sessions ride that single connection, demuxed by a 16-byte raw
 UUID prefix on every message (see ``cortex/internal/protocol/protocol.go``).
-This is the fallback for brains that cannot accept an inbound connection
-(serverless/FaaS, laptops, strict egress-only networks); the **primary** path is
-:class:`voqalize.sdk.inbound.DirectAgent`.
+This is the path for brains that cannot accept an inbound connection (serverless,
+laptops, strict egress-only networks); when the application owns a WebSocket route
+it uses :func:`voqalize.sdk.run_session` there instead.
 
 The customer writes a :class:`~voqalize.sdk.brain.Brain`; the same Brain runs
 unchanged on either transport. Both hand a

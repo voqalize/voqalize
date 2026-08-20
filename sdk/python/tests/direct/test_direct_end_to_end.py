@@ -1,6 +1,6 @@
 """End-to-end tests for the direct (Cortex-less) brain path.
 
-Exercises the real server stack — ``DirectAgent`` → ``_ServerWire`` →
+Exercises the real server stack — ``BrainServer`` → ``_ServerChannel`` →
 ``SessionBuffer`` → ``_SessionRunner`` → the ergonomic ``Brain`` adapter — over
 a real TCP WebSocket, driven by the actual PyGato-leg ``Wire`` client speaking
 the same bare ``[direction][payload]`` framing and frame vocabulary PyGato
@@ -21,7 +21,8 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from voqalize.sdk import Brain, Chunk, DirectAgent, SpeechEnd, SpeechStart, brain_factory
+from voqalize.conformance import BrainServer
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
     FrameDirection,
@@ -98,15 +99,15 @@ class _Client:
         return frames, acks
 
 
-async def _serve(brain_cls, **kwargs) -> tuple[DirectAgent, int]:
-    agent = DirectAgent(
-        factory=brain_factory(brain_cls),
+async def _serve(brain_cls, **kwargs) -> tuple[BrainServer, int]:
+    server = BrainServer(
+        brain_cls,
         host="127.0.0.1",
         port=0,
         **kwargs,
     )
-    port = await agent.start()
-    return agent, port
+    port = await server.start()
+    return server, port
 
 
 async def _connect(port: int, session_id: str, *, headers: dict | None = None) -> Wire:
@@ -127,12 +128,12 @@ def _has_text(substr: str):
 
 async def test_direct_round_trip_greeting_and_echo():
     """Full loop with no Cortex: start → greeting → user turn → echo + ack."""
-    agent, port = await _serve(EchoBrain, allow_unverified=True)
+    server, port = await _serve(EchoBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        # Session start → the brain greets (agent-initiated inference 0).
+        # Session start → the brain greets (server-initiated inference 0).
         await client.send(SessionStartFrame(session_id=session_id, agent_id="echo"))
         frames, _ = await client.collect_until(_has_text("hi there"))
         assert any(isinstance(f, LLMTextFrame) and "hi there" in f.text for f in frames)
@@ -146,12 +147,12 @@ async def test_direct_round_trip_greeting_and_echo():
         assert 42 in acks, "the data frame must be acked after the brain consumes it"
     finally:
         await wire.close()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_direct_interruption_echoes_drain_barrier():
     """A barge-in cancels the in-flight turn and echoes the barrier."""
-    agent, port = await _serve(SlowBrain, allow_unverified=True)
+    server, port = await _serve(SlowBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
@@ -171,19 +172,19 @@ async def test_direct_interruption_echoes_drain_barrier():
         assert not any(isinstance(f, LLMTextFrame) and "never hear" in f.text for f in frames)
     finally:
         await wire.close()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_direct_idle_interruption_is_handled_and_session_survives():
     """An ``InterruptionFrame`` arriving with **no turn in flight** (an idle
-    barge-in — the user speaks while the agent is silent, e.g. just after the
+    barge-in — the user speaks while the server is silent, e.g. just after the
     greeting settles) is handled gracefully: the brain cancels nothing, still echoes
     the drain barrier, and the session stays live for the next turn.
 
     The other interruption test barges a *running* turn; this pins the empty-pending
     path (``_cancel_turns`` over zero turns), which a regression could
     plausibly crash on or leave wedged so the next turn never answers."""
-    agent, port = await _serve(EchoBrain, allow_unverified=True)
+    server, port = await _serve(EchoBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
@@ -211,7 +212,7 @@ async def test_direct_idle_interruption_is_handled_and_session_survives():
         assert 7 in acks, "the post-interruption turn must still be acked"
     finally:
         await wire.close()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_direct_auth_accepts_valid_token_rejects_bad():
@@ -249,7 +250,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
             algorithm="RS256",
         )
 
-    agent, port = await _serve(EchoBrain, public_keys=pub_pem)
+    server, port = await _serve(EchoBrain, public_keys=pub_pem)
     try:
         # Valid token → connects and works.
         good_sid = str(uuid.uuid4())
@@ -280,7 +281,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
             await bad_wire.start()
             await bad_wire.recv()
     finally:
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_embedded_platform_keys_present_and_valid():
@@ -295,37 +296,16 @@ async def test_embedded_platform_keys_present_and_valid():
         load_pem_public_key(pem.encode())  # raises if malformed
 
 
-async def test_direct_default_verifies_with_embedded_keys():
-    """Zero config: no ``public_keys`` and no ``allow_unverified`` ⇒ the embedded
-    Voqalize keys are used, so an unauthenticated peer is rejected (4000). Proves
-    verification is the default, not opt-in."""
-    agent, port = await _serve(EchoBrain)  # no keys, no allow_unverified
-    try:
-        sid = str(uuid.uuid4())
-        with pytest.raises(PermanentClose):
-            wire = Wire(WireConfig(url=f"ws://127.0.0.1:{port}/s/{sid}"))  # no bearer
-            await wire.start()
-            await wire.recv()
-    finally:
-        await agent.aclose()
+async def test_brain_server_demands_an_explicit_verification_choice():
+    """No keys and no ``allow_unverified`` fails at construction.
 
-
-async def test_direct_empty_keys_raises_without_allow_unverified():
-    """An explicitly empty key set with no ``allow_unverified`` must fail loudly at
-    construction rather than silently accept everything."""
-    with pytest.raises(ValueError, match="no verification keys"):
-        DirectAgent(
-            factory=brain_factory(EchoBrain),
-            host="127.0.0.1",
-            port=0,
-            public_keys=[],
-        )
+    ``BrainServer`` deliberately has no fallback to the embedded platform keys
+    (``run_session`` does): a test server trusting the *production* signer can only
+    ever reject every token a test mints, and that takes a while to see.
+    """
+    for kwargs in ({}, {"public_keys": []}):
+        with pytest.raises(ValueError, match="public_keys="):
+            BrainServer(EchoBrain, host="127.0.0.1", port=0, **kwargs)
     # allow_unverified is the explicit escape hatch — no raise even with no keys.
-    agent = DirectAgent(
-        factory=brain_factory(EchoBrain),
-        host="127.0.0.1",
-        port=0,
-        public_keys=[],
-        allow_unverified=True,
-    )
-    await agent.aclose()
+    server = BrainServer(EchoBrain, host="127.0.0.1", port=0, allow_unverified=True)
+    await server.aclose()

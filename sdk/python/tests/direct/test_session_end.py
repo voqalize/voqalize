@@ -10,6 +10,7 @@ followed by ``session.end()`` puts an ``End`` on the wire, ordered after the spe
 from __future__ import annotations
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoiceDriver,
     generate_keypair,
@@ -18,10 +19,8 @@ from voqalize.conformance import (
 from voqalize.sdk import (
     Brain,
     Chunk,
-    DirectAgent,
     SpeechEnd,
     SpeechStart,
-    brain_factory,
 )
 from voqalize.sdk.wire import EndFrame
 
@@ -48,13 +47,13 @@ class GoodbyeBrain(Brain):
 
 async def _run(brain: Brain) -> list:
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(lambda: brain),
+    server = BrainServer(
+        lambda: brain,
         host="127.0.0.1",
         port=0,
         public_keys=keypair.public_pem,
     )
-    port = await agent.start()
+    port = await server.start()
     token = mint_pygato_token(
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
@@ -76,7 +75,7 @@ async def _run(brain: Brain) -> list:
         return list(driver.log)
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_end_emits_end_frame_after_speech() -> None:

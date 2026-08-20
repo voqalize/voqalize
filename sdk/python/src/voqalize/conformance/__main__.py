@@ -52,29 +52,18 @@ async def _run(args: argparse.Namespace) -> Report:
 async def _self_test(args: argparse.Namespace) -> Report:
     """Host the bundled reference brain on an ephemeral port and run the full
     catalog against it — proves the driver + checks are internally consistent."""
-    from voqalize.sdk.brain import brain_factory
-    from voqalize.sdk.inbound import DirectAgent
-
+    from .host import brain_server
     from .reference import ConformanceBrain
     from .wire_pygato import generate_keypair
 
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(ConformanceBrain),
-        host="127.0.0.1",
-        port=0,
-        public_keys=keypair.public_pem,
-    )
-    port = await agent.start()
-    try:
+    async with brain_server(ConformanceBrain, public_keys=keypair.public_pem) as server:
         return await run_suite(
-            f"ws://127.0.0.1:{port}",
+            server.url,
             private_key_pem=keypair.private_pem,
             include_reference=True,
             default_timeout=args.timeout,
         )
-    finally:
-        await agent.aclose()
 
 
 def main(argv: list[str] | None = None) -> int:

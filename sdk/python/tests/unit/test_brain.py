@@ -20,8 +20,8 @@ from voqalize.sdk import (
     SpeechEnd,
     SpeechStart,
     UserMessage,
-    adapter_for,
 )
+from voqalize.sdk.brain import adapter_for
 from voqalize.sdk.engine import Envelope
 from voqalize.sdk.wire import (
     ClientMessageFrame,

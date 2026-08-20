@@ -29,26 +29,39 @@ from __future__ import annotations
 
 import contextlib
 import os
+from collections.abc import AsyncGenerator
 
 from fastapi import FastAPI, WebSocket
 from loguru import logger
 from starlette.websockets import WebSocketDisconnect
 
-from voqalize.sdk import Brain, Interaction, Session, SessionRejected, SessionStart, run_session
+from voqalize.sdk import (
+    Brain,
+    Chunk,
+    Session,
+    SessionRejected,
+    Speech,
+    SpeechEnd,
+    SpeechStart,
+    UserMessage,
+    run_session,
+)
 
 # ─── The brain (same shape as examples/echo) ──────────────────────────────────
 
 
 class EchoBrain(Brain):
-    """Greets on session start, echoes each user turn."""
+    """Greets, then echoes each user turn."""
 
-    async def on_session_start(self, session: Session, start: SessionStart) -> None:
-        async with session.say() as inf:
-            await inf.speak("Hi! I'm an echo bot. Say something and I'll repeat it back.")
+    async def greet(self, session: Session) -> str:
+        return "Hi! I'm an echo bot. Say something and I'll repeat it back."
 
-    async def on_interaction(self, interaction: Interaction) -> None:
-        async with interaction.say() as inf:
-            await inf.speak(f"You said: {interaction.transcript}")
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[Speech, None]:
+        yield SpeechStart()
+        yield Chunk(f"You said: {msg.text}")
+        yield SpeechEnd()
 
 
 # ─── Transport: FastAPI WebSocket → SDK Channel ───────────────────────────────

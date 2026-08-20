@@ -2,7 +2,7 @@
 
 The real ``ShoppingBrain`` — the shipping ``demos/shopping/backend/brain.py``, its
 real prompt, its real eleven tools, its real catalog — hosted on a real
-``DirectAgent`` socket and driven by the conformance ``VoiceDriver``, with only
+``brain_server`` socket and driven by the conformance ``VoiceDriver``, with only
 the *model* scripted. Same rig as ``test_travel_adk.py``; see ``tests/_harness.py``
 for what every demo's e2e is required to prove.
 

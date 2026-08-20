@@ -30,21 +30,25 @@ The `_BrainAdapter` implements the `SessionAdapter` protocol (`handle_frame` /
 `close`) and the `SessionRunner` implements the `Emitter` protocol (`send`) it was
 built with. The Brain never sees the wire; the runner never sees a Brain callback.
 
-## Three runners, one engine
+## Two runners, one engine
 
-The same `Brain` and the same `SessionRunner` drive **all three** hosting
-surfaces. They differ only in the small `RunnerHost` seam — who owns the socket
-and who dials whom.
+A brain is not a server. It sits inside an application, and that application either
+can accept an inbound connection or it can't — which is the entire choice. The same
+`Brain` and the same `SessionRunner` drive both; they differ only in the small
+`RunnerHost` seam — who owns the socket and who dials whom.
 
 | Runner | Who dials | Owns a server? | Use |
 |---|---|---|---|
-| **`run_session()`** ([`session.py`](../src/voqalize/sdk/session.py)) | PyGato dials **you** | No — you hand it a connected socket | **Primary production inbound path.** Mount in FastAPI/Starlette/Django/aiohttp. |
-| **`serve_direct()`** ([`inbound.py`](../src/voqalize/sdk/inbound.py)) | PyGato dials you | Yes — a `websockets` server | Localhost / dev convenience; wraps the same `run_session` loop. |
-| **`serve()`** ([`outbound.py`](../src/voqalize/sdk/outbound.py)) | **You** dial Cortex | Yes — one outbound multiplexed WS | Fallback for brains that can't accept inbound (FaaS, laptops, egress-only). |
+| **`run_session()`** ([`session.py`](../src/voqalize/sdk/session.py)) | PyGato dials **you** | No — you hand it a connected socket | **Primary path.** Mount in the route your app already owns (FastAPI/Starlette/Django/aiohttp). |
+| **`serve()`** ([`outbound.py`](../src/voqalize/sdk/outbound.py)) | **You** dial Cortex | One outbound multiplexed WS | Fallback for brains that can't accept inbound (FaaS, laptops, egress-only). Blocks until the relay closes. |
 
-`serve_auto()` picks `serve` vs `serve_direct` from `$VOQAL_AGENT_MODE` with no
-brain-code change. Production inbound mounts `run_session` in the customer's own
-framework, which owns the listener.
+The SDK owns no listener and no process management on either path. `serve` blocking
+is the interface, not an oversight: where that call lives — `asyncio.run`, an app
+lifespan task, a worker entrypoint — is the caller's decision, not ours.
+
+For a socket in a *test*, [`voqalize.conformance.brain_server`](../src/voqalize/conformance/host.py)
+stands a brain on an ephemeral localhost port. It is a test bench, not a third
+hosting surface.
 
 ### `run_session` — the primary inbound surface
 
@@ -66,9 +70,8 @@ async def voice(ws, session_id):
 
 PyGato dials `{brain_url}/s/{session_id}` — **one connection per session**, opened
 just-in-time, torn down when the call ends. Connection state *is* liveness; there
-is no pooled connection to manage. `serve_direct` is a thin wrapper that owns a
-`websockets` server and calls this same loop per connection. A runnable FastAPI
-version lives in [`../examples/fastapi_inbound/`](../examples/fastapi_inbound/).
+is no pooled connection to manage. A runnable FastAPI version lives in
+[`../examples/fastapi_inbound/`](../examples/fastapi_inbound/).
 
 ### Token verification
 

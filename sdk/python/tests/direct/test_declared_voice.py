@@ -1,6 +1,6 @@
 """``Brain.voice`` / ``Brain.language`` — the brain declares how it sounds.
 
-Voice and language belong to the brain, not to the agent record: a record holds
+Voice and language belong to the brain, not to the server record: a record holds
 one value for every caller, and the brain is the only thing that knows *this*
 one. They are a pair of class attributes the SDK applies at session start.
 
@@ -24,12 +24,13 @@ frames.
 from __future__ import annotations
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoiceDriver,
     generate_keypair,
     mint_pygato_token,
 )
-from voqalize.sdk import Brain, Chunk, DirectAgent, SpeechEnd, SpeechStart, brain_factory
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
     LLMTextFrame,
     UpdateSTTSettingsFrame,
@@ -81,13 +82,13 @@ class OverridingBrain(HindiBrain):
 
 async def _run(brain: Brain) -> list:
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(lambda: brain),
+    server = BrainServer(
+        lambda: brain,
         host="127.0.0.1",
         port=0,
         public_keys=keypair.public_pem,
     )
-    port = await agent.start()
+    port = await server.start()
     token = mint_pygato_token(
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
@@ -106,7 +107,7 @@ async def _run(brain: Brain) -> list:
         return list(driver.log)
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 def _settings(log, frame_type) -> list[dict]:

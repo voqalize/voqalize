@@ -114,7 +114,7 @@ unknown model is **HTTP 403 at connect**, an unknown voice prefix is
 ## Every demo has an e2e, and one of them is a sweep
 
 `demos/tests/test_<name>_e2e.py` — all eleven. The real brain on a real
-`DirectAgent` socket, driven by the conformance `VoiceDriver`, with only the
+`brain_server` socket, driven by the conformance `VoiceDriver`, with only the
 *model* faked: `ScriptedGemini` (`demos/voqalize_demos/testing.py`) for the nine
 `GeminiBrain` demos, ADK's `ScriptedLlm` for `travel` and `orderdesk`. No network,
 no API key, ~33 s for the whole suite.

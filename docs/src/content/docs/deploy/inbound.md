@@ -33,7 +33,7 @@ async def brain_socket(ws: WebSocket, session_id: str):
     try:
         await run_session(
             _WsChannel(ws),
-            brain=MyBrain,            # or brain_builder=lambda: MyBrain(llm=...)
+            brain=MyBrain,            # or brain=lambda: MyBrain(llm=...)
             session_id=session_id,
             token=ws.headers.get("authorization"),
         )
@@ -42,9 +42,10 @@ async def brain_socket(ws: WebSocket, session_id: str):
 ```
 
 `run_session` accepts any object with `async send(bytes)` / `async recv() ->
-bytes`, so it mounts on Starlette, aiohttp, or Django Channels the same way. For a
-standalone local server that owns the socket for you, use
-`serve_direct(MyBrain, host=..., port=...)`.
+bytes`, so it mounts on Starlette, aiohttp, or Django Channels the same way. The SDK
+ships no server of its own — your app already runs one, and that is the one the
+route belongs on. To drive a brain over a socket in a *test*, use
+[`brain_server`](/docs/brain/testing/).
 
 ## Authentication
 
