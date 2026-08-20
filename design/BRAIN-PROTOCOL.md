@@ -54,7 +54,7 @@ should not exist.
 | `AppMessage` | What the application said. |
 | `IdleTrigger` | How long the human has been quiet, and how many times we've noticed. |
 | `SpeechStart` / `Chunk` / `SpeechEnd` | One unit of speech, delimited, streamed. |
-| `Action` | Pydantic base class for commands to the browser. You subclass it; your fields are the payload. Carries no audio, never touches the floor. |
+| `Action` | Pydantic base class for commands to the browser. You subclass it; your fields are the payload. Carries no audio, never touches the floor — so it is `session.dispatch`ed, never yielded. |
 | `Finalize` | What the user actually heard for one unit of speech. |
 | `Result` | The browser's answer to an `Action`. |
 
@@ -108,24 +108,33 @@ class Brain:
     # ── the three triggers ───────────────────────────────────────────────
     async def on_user_message(
         self, session: Session, msg: UserMessage
-    ) -> AsyncIterator[Speech | Action]: ...
+    ) -> AsyncIterator[Speech]: ...
 
     async def on_user_idle(
         self, session: Session, idle: IdleTrigger
-    ) -> AsyncIterator[Speech | Action]: ...
+    ) -> AsyncIterator[Speech]: ...
 
     async def on_app_message(
         self, session: Session, msg: AppMessage
-    ) -> AsyncIterator[Action]: ...
+    ) -> None: ...
 
     # ── what landed ──────────────────────────────────────────────────────
     async def on_finalize(self, session: Session, fin: Finalize) -> None: ...
 ```
 
-Eight methods. Note the return types: **`on_app_message` returns
-`AsyncIterator[Action]`.** The rule "an application event may not make the agent
-talk" is not a documented convention a reviewer has to catch — it is a type the
-checker rejects.
+Eight methods, and the return types carry the contract.
+
+**The generator is the mouth.** The two speaking callbacks yield
+`AsyncIterator[Speech]` and nothing else, because speech is the only thing whose
+position on the audio timeline is its meaning — "say this, then look that up,
+then say the answer" is a *sequence in time*, and a yield is how you write a
+sequence in time. Everything else the brain can do — render, switch language,
+hang up — is a method on the `Session`, because none of it has a position on
+that timeline to express.
+
+**`on_app_message` returns `None`.** The rule "an application event may not make
+the agent talk" is not a documented convention a reviewer has to catch: there is
+nothing to yield, so there is nothing to yield *speech* into.
 
 ### `greet` is static by contract
 
@@ -141,8 +150,8 @@ addressed.
 ### The two speaking callbacks
 
 `on_user_message` and `on_user_idle` are the only places speech can originate.
-Both are async generators. They yield events; the SDK consumes them and puts
-them on the wire.
+Both are async generators. They yield speech; the SDK consumes it and puts it on
+the wire.
 
 ```python
 async def on_user_message(self, session, msg):
@@ -152,29 +161,33 @@ async def on_user_message(self, session, msg):
     yield SpeechEnd()
 
     rows = await self.catalog.search(msg.text)      # awaiting between units is fine
-    yield ShowResults(rows=rows)
+    session.dispatch(ShowResults(rows=rows))
 
     yield SpeechStart()
     yield Chunk(f"I found {len(rows)}.")
     yield SpeechEnd()
 ```
 
-Two speech units, one action, in that order, guaranteed.
+Two speech units and a render, in that order, guaranteed — the dispatch is
+ordered against the speech around it for free, because the generator body only
+resumes once the SDK has consumed everything yielded before it.
 
 ### `on_app_message` acts but never speaks
 
 ```python
 async def on_app_message(self, session, msg):
     if msg.type == "state_sync":
-        self.screen = msg.data          # update state, yield nothing
+        self.screen = msg.data
     elif msg.type == "catalog_search":
-        yield ShowSearchResults(rows=self.search(msg.data["query"]))
+        session.dispatch(ShowSearchResults(rows=self.search(msg.data["query"])))
     elif msg.type == "hang_up":
         session.end(reason="user tapped hang up")
 ```
 
 A keystroke or a tap can update the screen, or end the call. It cannot make the
-agent start talking over the person using it.
+agent start talking over the person using it — and it reads exactly like the
+body of a speaking callback minus the yields, because acting is the same call
+in both places.
 
 ### `on_finalize` is how you learn what happened
 
@@ -294,7 +307,7 @@ effect is that a generator stops being pulled and a `Finalize` arrives with
 An action is a command the brain sends to the browser. It may answer.
 
 ```
-yield ShowResults(rows=…, on_result=f)   ─or─   session.dispatch(same_thing)
+session.dispatch(ShowResults(rows=…, on_result=f))
         │
         ├─ SDK mints action_id, sends it, registers f on the session
         │
@@ -353,7 +366,7 @@ class ShowResults(Action):
     highlight: str | None = None
 
 
-yield ShowResults(rows=rows, on_result=self.on_row_picked)
+session.dispatch(ShowResults(rows=rows, on_result=self.on_row_picked))
 ```
 
 **Why pydantic and not a dataclass.** Four properties the wire needs, every one
@@ -442,25 +455,26 @@ Deferred rather than adopted, because no shipping action reads `result.data`
 structurally yet. Worth recording that the generic stays available and
 non-breaking if we later want the static half as well.
 
-#### Two ways to send it, one object
+#### One way to send it, from everywhere
 
 ```python
-# turn channel — ordered against the speech around it
-yield ShowResults(rows=rows, on_result=self.on_row_picked)
+# mid-turn, between two things you say
+session.dispatch(ShowResults(rows=rows, on_result=self.on_row_picked))
 
-# session channel — from a callback, from anywhere, no generator frame needed
+# from a callback, from background work — no generator frame needed
 session.dispatch(ShowToast(text="Saved"))
 ```
 
-The callback comes from the base class, so it is not a feature of one channel
-that the other has to reimplement — it is a field on the object, and both
-channels take the object.
+Those are the same line, and that is the point. A yieldable form was drafted and
+dropped: it would have been reachable from three of the eight callbacks and from
+none of the `on_result` handlers or background tasks, it discarded the
+`ActionHandle` so you could not await the answer through it, and it bought no
+ordering the method does not already have.
 
-**Both forms hit the wire in the same order they run.** By the time your code
-resumes past a `yield SpeechEnd()`, that speech is already sent — only the
-*audio* lags. So a `session.dispatch()` called mid-turn cannot jump ahead of
-speech you already yielded. The yielded form exists because it makes the
-ordering visible in the code, not because it behaves differently.
+**Dispatch hits the wire in the order it runs.** By the time your code resumes
+past a `yield SpeechEnd()`, that speech is already sent — only the *audio* lags.
+So a `session.dispatch()` written after it cannot jump ahead of it, and one
+written before it cannot fall behind. Writing the sequence *is* the sequence.
 
 #### Callbacks cannot speak
 
@@ -500,9 +514,9 @@ Two rules make this safe, and they are the reason it is worth having at all:
    cancellation, not the async-generator corner in the open list. The pending
    result is discarded with the turn.
 
-There is no awaitable form on the yielded channel. Getting a value back out of a
-`yield` means `asend`, which makes the generator protocol bidirectional for one
-feature — and it is unnecessary, because `session.dispatch()` is callable from
+This is one of the concrete reasons dispatch is a method. Getting a value back
+out of a `yield` means `asend`, which makes the generator protocol bidirectional
+for a single feature; a method just returns the handle, and it is callable from
 inside the generator body, which is exactly where you are when you want to wait.
 
 #### `timeout_s` exists so the registry cannot grow
@@ -558,16 +572,23 @@ difference is the floor.
 
 | | **Turn channel** | **Session channel** |
 |---|---|---|
-| How | `yield Speech… / an Action` | `session.dispatch(…)` |
-| Available from | the three trigger callbacks | anywhere, any time |
-| Ordered | yes, within the turn | no |
-| Can produce speech | yes (user message / idle only) | **never** |
-| Lifetime | the callback frame | the session |
+| How | `yield SpeechStart / Chunk / SpeechEnd` | `session.dispatch(…)`, `session.configure_*(…)`, `session.end(…)` |
+| Available from | the two speaking callbacks | anywhere, any time |
+| Ordered | yes, against the audio | against the code that ran it |
+| Can produce speech | that is all it does | **never** |
+| Lifetime | the generator frame | the session |
 
-The asymmetry is structural, not stylistic: yielding requires a generator frame,
-and code that isn't in one (a callback, background work) has nothing to yield
-into. What makes it safe is that **the session channel is floor-free by
-construction** — it carries actions only, and actions carry no audio.
+The asymmetry is structural, not stylistic. Yielding requires a generator frame,
+and five of the eight callbacks — plus every `on_result` handler and every
+background task — are not generators at all; the session channel is the only one
+they can reach. What makes that safe is that **the session channel is floor-free
+by construction**: it carries no audio, so nothing on it can talk over anyone.
+
+That is also the line that decides which door a new capability goes through:
+something belongs on the turn channel iff its position relative to the audio *is*
+its meaning. Speech qualifies. A future `Pause(ms=400)` would. A language switch
+never will — "switch language, then say this" is a fact about setup, not a
+position in a sentence.
 
 The runtime already agrees: a barge-in drain discards stale speech but
 deliberately exempts actions, so a render racing an interruption isn't silently
@@ -713,7 +734,7 @@ class OrderBrain(Brain):
             self.screen = msg.data
         elif msg.type == "catalog_search":
             rows = self.catalog.search(msg.data["query"])
-            yield ShowSearchResults(rows=rows)
+            session.dispatch(ShowSearchResults(rows=rows))
 
     async def on_user_message(self, session, msg):
         self.history.append(("user", msg.text))
@@ -723,7 +744,7 @@ class OrderBrain(Brain):
         yield SpeechEnd()
 
         rows = await self.catalog.search_for(msg.text, screen=self.screen)
-        yield ShowResults(rows=rows, on_result=self.on_row_picked)
+        session.dispatch(ShowResults(rows=rows, on_result=self.on_row_picked))
 
         yield SpeechStart()
         async for token in self.llm.stream(self.history, rows):
@@ -796,10 +817,22 @@ is the open case, and nothing above depends on it.
 
 - **`greet(session)`**, not `greet(init)` — consistent with every other callback;
   `session.init` is the same payload.
+- **The generator is the mouth.** `Speech` is the only thing a callback yields.
+  Actions, configuration and hang-up are methods on `Session`. The discriminator
+  is not ordering — a yield and a method call written at the same point in a
+  generator body reach the wire at the same point, because the SDK consumes each
+  yield before the body resumes — it is *reachability*: five of the eight
+  callbacks, every `on_result` handler and every background task have no
+  generator frame to yield from, and `session.configure_language(...)` in
+  `on_session_start` is the documented normal case. A vocabulary available in
+  three places out of eight is a second way to say the same thing, not a channel.
+  §6.
 - **`session.end(...)` is the only way a brain hangs up.** An `EndSession`
-  yieldable was drafted and dropped: every callback already holds the session,
-  and the generator body resumes only after the SDK has consumed each yield, so
-  "speak, then end" is the same ordering either way. One door, not two.
+  yieldable was drafted and dropped for the same reason, plus one of its own: the
+  goodbye is not cut off. `end()` is a *control* frame — delivered in order, TTS
+  finishing the contexts already open and the transport playing out its audio
+  queue before either stops — so "speak, then end" needs no ordering machinery to
+  work. One door, not two.
 - **Actions are typed classes**, not a payload bag: `Action` is a base you
   subclass, and the subclass's fields *are* the payload. `on_result` is inherited
   from the base, so it works identically on both channels. §5.5.

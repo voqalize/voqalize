@@ -1,9 +1,10 @@
 """Actions — a command to the browser, declared as a shape.
 
 An action is the brain's second output channel. It renders; it never speaks. It
-carries no audio, holds no floor, and can therefore be sent from anywhere: from
-inside a turn (``yield ShowResults(...)``), from a callback, from work that
-finished long after the turn that started it (``session.dispatch(...)``).
+carries no audio, holds no floor, and is therefore never yielded — it is
+``session.dispatch(...)``, from anywhere: from inside a turn, from a callback
+that is not a generator at all, from work that finished long after the turn that
+started it.
 
 Subclass :class:`Action` and your fields *are* the payload::
 
@@ -11,7 +12,7 @@ Subclass :class:`Action` and your fields *are* the payload::
         rows: list[Row]
         highlight: str | None = None
 
-    yield ShowResults(rows=rows, on_result=self.on_row_picked)
+    session.dispatch(ShowResults(rows=rows, on_result=self.on_row_picked))
 
 Why pydantic rather than a dataclass — four properties the wire needs and a
 dataclass would hand-roll: validation at the call site (``extra="forbid"`` turns

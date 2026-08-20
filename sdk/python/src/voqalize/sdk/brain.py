@@ -18,10 +18,18 @@ speak, and it does that by calling one of the two speaking callbacks. There is n
 ``request_floor`` and no way to interrupt the user — that absence is what makes
 the system predictable, and everything else here follows from it.
 
-A speaking callback is an async generator. It yields ``SpeechStart`` /
-``Chunk`` / ``SpeechEnd`` to talk and an :class:`~voqalize.sdk.actions.Action` to
-render, and the SDK puts them on the wire in the order they come out. Awaiting
-between them is fine — that is how a tool call sits between two things you say.
+A speaking callback is an async generator, and **the generator is the mouth**:
+``SpeechStart`` / ``Chunk`` / ``SpeechEnd`` are the only things it may yield,
+because speech is the only thing whose position on the audio timeline is its
+meaning. Awaiting between them is fine — that is how a tool call sits between two
+things you say.
+
+Everything else is a method on the :class:`Session` handed to every callback:
+``session.dispatch(action)`` to render, ``session.configure_language(...)`` to
+switch language, ``session.end()`` to hang up. Those are floor-free, so they read
+the same from inside a turn and from the five callbacks that are not generators
+at all — and, called at the same point in a generator body, they reach the wire
+at exactly the same point as a yield would.
 
 The turn is over when the generator returns. **It does not wait for the audio to
 finish playing**, which is the part that surprises people: what the user actually
@@ -95,7 +103,6 @@ from .wire import (
 __all__ = [
     "ActionHandle",
     "Brain",
-    "Emission",
     "ProtocolError",
     "Session",
     "adapter_for",
@@ -106,9 +113,6 @@ __all__ = [
     "serve_auto",
     "serve_direct",
 ]
-
-#: What a speaking callback may yield.
-Emission = Speech | Action
 
 # The browser echoes an action's answer as a client message of this type.
 ACTION_RESULT = "action_result"
@@ -425,9 +429,9 @@ class Brain:
 
     # ─── The three triggers ─────────────────────────────────────────────
 
-    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Emission, None]:
-        """The human finished speaking, so the floor is yours. Yield speech and
-        actions; return when you are done::
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        """The human finished speaking, so the floor is yours. Yield speech;
+        return when you are done::
 
             async def on_user_message(self, session, msg):
                 yield SpeechStart()
@@ -435,36 +439,41 @@ class Brain:
                 yield SpeechEnd()
 
                 rows = await self.catalog.search(msg.text)
-                yield ShowResults(rows=rows)
+                session.dispatch(ShowResults(rows=rows))
 
                 yield SpeechStart()
                 yield Chunk(f"I found {len(rows)}.")
                 yield SpeechEnd()
+
+        **The generator is the mouth.** Only speech is yieldable, because only
+        speech has a position on the audio timeline. Everything else — an action,
+        a language switch, hanging up — is a method on ``session``, callable from
+        here and from the five callbacks that are not generators at all.
         """
         raise NotImplementedError("Brain.on_user_message must be implemented")
 
-    def on_user_idle(self, session: Session, idle: IdleTrigger) -> AsyncGenerator[Emission, None]:
+    def on_user_idle(self, session: Session, idle: IdleTrigger) -> AsyncGenerator[Speech, None]:
         """The human went quiet past the idle timeout and the floor is yours if
         you want it. ``idle.level`` counts escalations, so you can nudge gently at
-        1 and wrap up at 3. Default: yield nothing and let the silence ride."""
+        1 and wrap up at 3. Default: say nothing and let the silence ride."""
         return _nothing()
 
-    def on_app_message(self, session: Session, msg: AppMessage) -> AsyncGenerator[Action, None]:
+    async def on_app_message(self, session: Session, msg: AppMessage) -> None:
         """The application said something — a tap, a keystroke, a state push::
 
             async def on_app_message(self, session, msg):
                 if msg.type == "state_sync":
                     self.screen = msg.data
                 elif msg.type == "catalog_search":
-                    yield ShowSearchResults(rows=self.search(msg.data["query"]))
+                    session.dispatch(ShowSearchResults(rows=self.search(msg.data["query"])))
                 elif msg.type == "hang_up":
                     session.end(reason="user tapped hang up")
 
-        It yields **actions only**, and that is a type the checker enforces rather
-        than a convention a reviewer has to catch: a click can update the screen,
-        but it cannot make the agent start talking over the person clicking.
+        Not a generator, which is the whole point: a click can update the screen
+        or end the call, but it cannot make the agent start talking over the
+        person clicking. That rule used to be a runtime check on what you yielded
+        — now there is nothing to yield, so it cannot be broken.
         """
-        return _nothing()
 
     # ─── What landed ────────────────────────────────────────────────────
 
@@ -525,15 +534,13 @@ class _BrainAdapter:
             self._spawn_turn(
                 session,
                 env.epoch,
-                _emissions(self._brain.on_user_message(session, UserMessage(frame.text))),
+                _speech(self._brain.on_user_message(session, UserMessage(frame.text))),
             )
         elif isinstance(frame, UserIdleFrame):
             self._spawn_turn(
                 session,
                 env.epoch,
-                _emissions(
-                    self._brain.on_user_idle(session, IdleTrigger(frame.level, frame.idle_ms))
-                ),
+                _speech(self._brain.on_user_idle(session, IdleTrigger(frame.level, frame.idle_ms))),
             )
         elif isinstance(frame, InterruptionFrame):
             # Cancel in flight first, then echo: the echo is Voice's drain
@@ -585,7 +592,7 @@ class _BrainAdapter:
             opening = await self._brain.greet(session)
             if opening is None or opening == "":
                 return
-            await self._drive(session, NO_EPOCH, _one_unit(opening), speech=True)
+            await self._drive(session, NO_EPOCH, _one_unit(opening))
         except Exception as exc:
             self._abort(session, "greet", exc)
 
@@ -623,15 +630,8 @@ class _BrainAdapter:
 
     # ─── Driving what the brain yields ──────────────────────────────────
 
-    async def _drive(
-        self,
-        session: Session,
-        epoch: int,
-        gen: AsyncGenerator[Any, None],
-        *,
-        speech: bool,
-    ) -> None:
-        """Pull one generator to exhaustion, putting each emission on the wire.
+    async def _drive(self, session: Session, epoch: int, gen: AsyncGenerator[Any, None]) -> None:
+        """Pull one generator to exhaustion, putting each unit of speech on the wire.
 
         On a barge-in the driving task is cancelled: the generator is *closed*,
         not abandoned, so the brain's ``finally`` blocks run, and any unit still
@@ -640,15 +640,7 @@ class _BrainAdapter:
         inference_id: int | None = None
         try:
             async for event in gen:
-                if isinstance(event, Action):
-                    session.dispatch(event)
-                elif not speech:
-                    raise ProtocolError(
-                        f"on_app_message may only yield actions; got "
-                        f"{type(event).__name__}. An application message never "
-                        f"takes the floor."
-                    )
-                elif isinstance(event, SpeechStart):
+                if isinstance(event, SpeechStart):
                     if inference_id is not None:
                         raise ProtocolError("SpeechStart inside an open speech unit")
                     inference_id = session._next_inference()
@@ -672,9 +664,7 @@ class _BrainAdapter:
                 self.emit(LLMFullResponseEndFrame(), epoch=epoch, inference_id=inference_id)
             await gen.aclose()
 
-    def _spawn_turn(
-        self, session: Session, epoch: int, gen: AsyncGenerator[Emission, None]
-    ) -> None:
+    def _spawn_turn(self, session: Session, epoch: int, gen: AsyncGenerator[Speech, None]) -> None:
         """Spawn, never await: ``handle_frame`` must return promptly so the runner
         keeps dispatching, and the response streams out of the spawned task."""
         task = asyncio.create_task(
@@ -684,10 +674,10 @@ class _BrainAdapter:
         task.add_done_callback(self._turns.discard)
 
     async def _run_turn(
-        self, session: Session, epoch: int, gen: AsyncGenerator[Emission, None]
+        self, session: Session, epoch: int, gen: AsyncGenerator[Speech, None]
     ) -> None:
         try:
-            await self._drive(session, epoch, gen, speech=True)
+            await self._drive(session, epoch, gen)
         except asyncio.CancelledError:
             raise  # a barge-in cut the turn; Voice finalizes the unit it cut
         except Exception:
@@ -712,12 +702,18 @@ class _BrainAdapter:
 
     async def _run_app_message(self, session: Session, msg: AppMessage) -> None:
         try:
-            await self._drive(
-                session,
-                NO_EPOCH,
-                _emissions(self._brain.on_app_message(session, msg)),
-                speech=False,
-            )
+            handled: Any = self._brain.on_app_message(session, msg)
+            if isinstance(handled, AsyncGenerator):
+                # A `yield` anywhere in the body makes it a generator, which is the
+                # old shape. Say so, rather than let it surface as "object
+                # async_generator can't be used in 'await' expression".
+                await handled.aclose()
+                raise ProtocolError(
+                    "on_app_message must not be a generator: an application "
+                    "message never takes the floor. Use session.dispatch(...) to "
+                    "render and session.end() to hang up."
+                )
+            await handled
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -745,27 +741,33 @@ async def _nothing() -> AsyncGenerator[Any, None]:
 
 
 async def _just_run(coro: Awaitable[None]) -> AsyncGenerator[Any, None]:
-    """Run a callback that turned out not to be a generator, and yield nothing.
+    """Run a speaking callback that turned out not to be a generator.
 
-    A callback whose body has no ``yield`` anywhere is an ordinary coroutine, not
-    an async generator — and that is the natural shape of one that only calls
-    ``session.dispatch()`` or ``session.end()``. Python decides this from the
-    source, not from the annotation, so the brain author gets no warning. Running
-    it is the only reading that is not a silent no-op.
+    A callback body with no ``yield`` anywhere is an ordinary coroutine, not an
+    async generator, and Python decides that from the source rather than the
+    annotation — so a turn that only ends the call or only updates the screen is
+    silently the wrong kind of object::
+
+        async def on_user_idle(self, session, idle):
+            if idle.level >= 3:
+                session.end(reason="idle")
+
+    That is the obvious way to write it and it never speaks. Running it is the
+    only reading that is not a silent no-op.
     """
     await coro
     for _ in ():
         yield
 
 
-def _emissions(result: Any) -> AsyncGenerator[Any, None]:
-    """Whatever the brain's callback returned, as something to drive."""
+def _speech(result: Any) -> AsyncGenerator[Any, None]:
+    """Whatever a speaking callback returned, as something to drive."""
     if isinstance(result, AsyncGenerator):
         return result
     return _just_run(result)
 
 
-async def _one_unit(opening: str | AsyncIterator[str]) -> AsyncGenerator[Emission, None]:
+async def _one_unit(opening: str | AsyncIterator[str]) -> AsyncGenerator[Speech, None]:
     """The opening line as one speech unit, whether it is a string or a stream."""
     yield SpeechStart()
     if isinstance(opening, str):

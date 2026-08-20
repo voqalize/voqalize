@@ -2,8 +2,8 @@
 
 Voice delivers every one of them unconditionally and never interprets the type.
 Handling one cannot make the agent speak — nothing about a click means the human
-stopped talking — so ``on_app_message`` yields actions and nothing else, and a
-brain that tries to speak from it is contained rather than obeyed.
+stopped talking — so ``on_app_message`` is a coroutine, not a generator, and a
+brain that writes one anyway is contained rather than obeyed.
 
 Also covered here: an envelope body this build has never heard of must be skipped,
 not raised — a newer peer adding a frame cannot kill the read loop.
@@ -66,13 +66,23 @@ async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
         async def on_app_message(self, session, msg):
             rec.seen.append((msg.type, msg.data))
             rec.got.set()
-            if speak:
-                yield SpeechStart()
-                yield Chunk("noted")
-                yield SpeechEnd()
+
+    class Speaking(Brain):
+        """The contract violation, written out: a generator body on the one
+        callback that is awaited rather than driven."""
+
+        async def on_app_message(self, session, msg):  # type: ignore[override]
+            rec.seen.append((msg.type, msg.data))
+            rec.got.set()
+            yield SpeechStart()
+            yield Chunk("noted")
+            yield SpeechEnd()
 
     agent = DirectAgent(
-        factory=brain_factory(Recording), host="127.0.0.1", port=0, allow_unverified=True
+        factory=brain_factory(Speaking if speak else Recording),
+        host="127.0.0.1",
+        port=0,
+        allow_unverified=True,
     )
     port = await agent.start()
     session_id = str(uuid.uuid4())
@@ -89,7 +99,10 @@ async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
             FrameDirection.DOWNSTREAM,
             await ser.serialize(ClientMessageFrame(msg_id="m-7", type=MSG_TYPE, data=MSG_DATA)),
         )
-        await asyncio.wait_for(rec.got.wait(), timeout=3.0)
+        # A violating brain never reaches its own body, so there is nothing to
+        # wait for — give it a short beat and let the assertions speak.
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(rec.got.wait(), timeout=0.3 if speak else 3.0)
 
         # Drain whatever the brain emitted; the socket goes quiet once it is done.
         async def _drain() -> None:
@@ -116,13 +129,14 @@ async def test_client_message_reaches_on_app_message() -> None:
 
 
 async def test_speaking_from_an_app_message_puts_nothing_on_the_wire() -> None:
-    """The type says actions only; the runtime enforces it rather than trusting it.
+    """The signature says coroutine; the runtime enforces it rather than trusting it.
 
     A tap that made the agent start talking would cut across whatever the human was
-    saying — so the attempt is contained to the callback, the message is still
-    delivered, and not a byte of speech reaches Voice.
+    saying. The generator is closed unstarted, so not a byte of speech reaches
+    Voice — and because it never runs, the body's own bookkeeping does not happen
+    either. A contract violation is refused whole, not half-honoured.
     """
     rec, emitted = await _run_client_message(speak=True)
 
-    assert rec.seen == [(MSG_TYPE, MSG_DATA)]
+    assert rec.seen == []
     assert not [f for f in emitted if isinstance(f, LLMFullResponseStartFrame)]

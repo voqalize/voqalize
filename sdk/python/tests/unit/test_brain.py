@@ -15,6 +15,7 @@ from voqalize.sdk import (
     AppMessage,
     Brain,
     Chunk,
+    IdleTrigger,
     Session,
     SpeechEnd,
     SpeechStart,
@@ -28,6 +29,7 @@ from voqalize.sdk.wire import (
     Frame,
     LLMTextFrame,
     SessionStartFrame,
+    UserIdleFrame,
 )
 
 
@@ -152,7 +154,7 @@ async def test_a_greeting_that_dies_mid_stream_closes_its_unit_then_fails() -> N
     ]
 
 
-# ─── on_app_message may hang up, but still may not speak ──────────────────────
+# ─── on_app_message acts, but never speaks ────────────────────────────────────
 
 
 class Refresh(Action):
@@ -165,13 +167,11 @@ class Hangup(Brain):
     ) -> AsyncGenerator[object, None]:
         yield SpeechEnd()
 
-    async def on_app_message(
-        self, session: Session, msg: AppMessage
-    ) -> AsyncGenerator[Action, None]:
+    async def on_app_message(self, session: Session, msg: AppMessage) -> None:
         if msg.type == "hang_up":
             session.end(reason="user tapped hang up")
         elif msg.type == "refresh":
-            yield Refresh()
+            session.dispatch(Refresh())
 
 
 async def test_an_app_message_may_end_the_session() -> None:
@@ -184,37 +184,26 @@ async def test_an_app_message_may_end_the_session() -> None:
     assert rec.names() == ["EndFrame"]
 
 
-class PlainCoroutine(Brain):
-    """No ``yield`` anywhere in the callback — so it is a coroutine, not a
-    generator. Python decides that from the source, not the annotation."""
-
-    async def on_user_message(
-        self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[object, None]:
-        yield SpeechEnd()
-
-    async def on_app_message(self, session: Session, msg: AppMessage) -> None:  # type: ignore[override]
-        session.end(reason="tapped")
-
-
-async def test_a_callback_with_no_yield_still_runs() -> None:
-    """The natural body of a callback that only calls ``session.end()`` has no
-    ``yield`` in it, which quietly makes it a coroutine. Driving it as a generator
-    would fail at the first ``async for`` and log — a brain that does nothing, for
-    a reason invisible in the source."""
-    adapter, rec = await _open(PlainCoroutine())
-    await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="hang_up", data={})))
+async def test_an_app_message_may_render() -> None:
+    """A click can update the screen. That is a ``session.dispatch``, not a yield —
+    an action carries no audio, so it has no position on the audio timeline to
+    express."""
+    adapter, rec = await _open(Hangup())
+    await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="refresh", data={})))
     await asyncio.sleep(0.02)
-    assert rec.names() == ["EndFrame"]
+    assert rec.names() == ["ServerMessageFrame"]
 
 
 class Talkative(Brain):
+    """Tries to speak from an app message — a generator body where the contract
+    says coroutine. There is no way to write this that type-checks."""
+
     async def on_user_message(
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[object, None]:
         yield SpeechEnd()
 
-    async def on_app_message(
+    async def on_app_message(  # type: ignore[override]
         self, session: Session, msg: AppMessage
     ) -> AsyncGenerator[object, None]:
         yield SpeechStart()
@@ -223,8 +212,45 @@ class Talkative(Brain):
 
 
 async def test_an_app_message_still_may_not_take_the_floor() -> None:
-    """A click can update the screen; it cannot talk over the person clicking."""
+    """A click cannot talk over the person clicking.
+
+    The rule used to be a runtime check on what the callback yielded. Now the
+    callback is awaited, not driven, so a generator body cannot reach the wire at
+    all — it fails on the await and the floor stays where it was.
+    """
     adapter, rec = await _open(Talkative())
     await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="anything", data={})))
     await asyncio.sleep(0.02)
     assert rec.spoken() == ""
+    assert rec.frames == []
+
+
+# ─── a speaking callback that never speaks ────────────────────────────────────
+
+
+class SilentIdle(Brain):
+    """``on_user_idle`` written the obvious way: no ``yield`` anywhere, so Python
+    makes it a coroutine rather than the generator its annotation claims."""
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        yield SpeechEnd()
+
+    async def on_user_idle(self, session: Session, idle: IdleTrigger) -> None:  # type: ignore[override]
+        if idle.level >= 3:
+            session.end(reason="idle")
+
+
+async def test_a_speaking_callback_that_never_speaks_still_runs() -> None:
+    """Deciding not to take the floor is a real answer, and the natural way to
+    write it has no ``yield`` in it. Driving that as a generator would fail at the
+    first ``async for`` — a brain that does nothing, for a reason invisible in the
+    source."""
+    adapter, rec = await _open(SilentIdle())
+    await adapter.handle_frame(_env(UserIdleFrame(level=1, idle_ms=5000)))
+    await asyncio.sleep(0.02)
+    assert rec.frames == []
+    await adapter.handle_frame(_env(UserIdleFrame(level=3, idle_ms=15000)))
+    await asyncio.sleep(0.02)
+    assert rec.names() == ["EndFrame"]

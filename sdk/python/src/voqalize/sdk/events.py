@@ -1,12 +1,13 @@
-"""What a Brain receives, and what it yields.
+"""What a Brain receives, and what it says.
 
 Three groups, and the split between them is the whole contract:
 
 * **Triggers** — :class:`UserMessage`, :class:`IdleTrigger`, :class:`AppMessage`.
   Voice hands one to a callback; that callback is where the floor lives.
-* **Emissions** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`
-  and an :class:`~voqalize.sdk.actions.Action`. A speaking callback yields these;
-  the SDK puts them on the wire in the order they arrive.
+* **Speech** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`. The
+  only thing a speaking callback may yield, because speech is the only thing
+  whose position on the audio timeline is its meaning. Everything else — an
+  action, a language switch, hanging up — is a method on the session.
 * **Reports** — :class:`Finalize` and :class:`Error`. What happened, after it
   happened.
 

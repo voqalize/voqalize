@@ -26,8 +26,8 @@ from voqalize.sdk import (
     Brain,
     Chunk,
     DirectAgent,
-    Emission,
     Session,
+    Speech,
     SpeechEnd,
     SpeechStart,
     UserMessage,
@@ -124,7 +124,7 @@ class _PlainBrain(Brain):
 
     async def on_user_message(
         self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[Emission, None]:
+    ) -> AsyncGenerator[Speech, None]:
         yield SpeechStart()
         yield Chunk("One. Two. Three. That is everything I have to say.")
         yield SpeechEnd()

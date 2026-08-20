@@ -47,11 +47,11 @@ from voqalize.sdk import (
     AppMessage,
     Brain,
     Chunk,
-    Emission,
     Finalize,
     IdleTrigger,
     Result,
     Session,
+    Speech,
     SpeechEnd,
     SpeechStart,
     UserMessage,
@@ -146,7 +146,7 @@ class ConformanceBrain(Brain):
 
     async def on_user_message(
         self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[Emission, None]:
+    ) -> AsyncGenerator[Speech, None]:
         text = msg.text
         self.messages.append({"role": "user", "content": text})
 
@@ -216,7 +216,7 @@ class ConformanceBrain(Brain):
             yield SpeechStart()
             yield Chunk("on it")
             yield SpeechEnd()
-            yield OpenPanel(on_result=self._record)
+            session.dispatch(OpenPanel(on_result=self._record))
             return
 
         yield SpeechStart()
@@ -225,7 +225,7 @@ class ConformanceBrain(Brain):
 
     async def on_user_idle(
         self, session: Session, idle: IdleTrigger
-    ) -> AsyncGenerator[Emission, None]:
+    ) -> AsyncGenerator[Speech, None]:
         # Voice handed over the floor because the user went quiet; re-engage with
         # a level-tagged nudge so the driver can assert both the heard text and
         # the escalation level. No user turn is recorded — nothing was said.
@@ -233,13 +233,11 @@ class ConformanceBrain(Brain):
         yield Chunk(f"{IDLE_NUDGE} {idle.level}")
         yield SpeechEnd()
 
-    async def on_app_message(
-        self, session: Session, msg: AppMessage
-    ) -> AsyncGenerator[Action, None]:
+    async def on_app_message(self, session: Session, msg: AppMessage) -> None:
         # Voice delivers every browser message here and never interprets it — the
         # brain decides what to do with each. It may render; it may not speak.
         if msg.type == CONFORMANCE_DUMP_EVENT:
-            yield ConformanceState(**conformance_state(self), timeout_s=None)
+            session.dispatch(ConformanceState(**conformance_state(self), timeout_s=None))
             return
         self.app_events.append({"name": msg.type, "data": msg.data})
 

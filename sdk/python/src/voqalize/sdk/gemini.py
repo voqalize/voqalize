@@ -35,8 +35,8 @@ from typing import Any
 from google import genai
 from google.genai import types
 
-from .brain import Brain, Emission, Session
-from .events import Chunk, Finalize, SpeechEnd, SpeechStart, UserMessage
+from .brain import Brain, Session
+from .events import Chunk, Finalize, Speech, SpeechEnd, SpeechStart, UserMessage
 
 __all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain", "hello_for"]
 
@@ -156,11 +156,11 @@ class GeminiBrain(Brain):
 
     # ─── The turn ───────────────────────────────────────────────────────
 
-    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Emission, None]:
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         self.history.append(types.Content(role="user", parts=[types.Part(text=msg.text)]))
         return self.respond(session)
 
-    async def respond(self, session: Session) -> AsyncGenerator[Emission, None]:
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """Stream the model over the transcript; if it calls tools, dispatch them
         and feed the results back, up to ``max_tool_hops``. One LLM call is one
         unit of speech, so an interruption cuts exactly one of them."""

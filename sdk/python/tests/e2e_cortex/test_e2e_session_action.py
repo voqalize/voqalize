@@ -46,7 +46,7 @@ class ActionBrain(Brain):
         session.dispatch(RenderInit(address="Home", rows=[Row(label="l", **{"from": "BLR"})]))
 
     async def on_user_message(self, session, msg):
-        yield RenderTurn(text=msg.text)
+        session.dispatch(RenderTurn(text=msg.text))
 
 
 async def test_session_action_round_trip() -> None:

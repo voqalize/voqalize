@@ -32,7 +32,6 @@ from .actions import Action, Result
 from .brain import (
     ActionHandle,
     Brain,
-    Emission,
     ProtocolError,
     Session,
     adapter_for,
@@ -67,7 +66,6 @@ __all__ = [
     "Chunk",
     "CortexAgent",
     "DirectAgent",
-    "Emission",
     "Error",
     "Finalize",
     "IdleTrigger",
