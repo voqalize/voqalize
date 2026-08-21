@@ -11,7 +11,7 @@ Say                     | What it proves
                         | by word, one ``Chunk`` each, inside one speech unit
 "look it up"            | Two units in one turn: a filler, a pause, an answer
 "open the dashboard"    | ``session.dispatch`` — a ui_command on the browser lane
-"ask me something"      | An action with ``on_result``, and the 30 s timeout that
+"ask me something"      | An action with ``on_result``, and the 15 s timeout that
                         | fires when nothing answers it
 "what did you hear"     | Heard-text reconciliation: what the caller actually
                         | received, which is not what was generated if you barged in
@@ -23,6 +23,13 @@ Barge in at any point: cut the bot off mid-sentence, then ask "what did you
 hear". The answer is the truncated prefix, because ``on_finalize`` is where the
 brain learns what was delivered and rewrites its own transcript to match. That
 reconciliation is the brain's job — the SDK keeps no history for you.
+
+**Walk the language lane last.** These triggers are English substring matches —
+a harness, not a design. A real brain routes on intent, and ends a call because
+its model called a tool, not because a string matched. The moment the recognizer
+moves to Hindi it returns Devanagari, and every English trigger here stops
+matching; ``_EXITS`` and ``_GOODBYE`` carry the surface forms of the two lanes
+that have to survive that, and nothing else does.
 
 Only ``on_user_message`` is required; everything else here is opt-in.
 """
@@ -71,6 +78,19 @@ class AskQuestion(Action):
 #: Language code → the voice that language should be read in. Moving one without
 #: the other is the silent bug configure_language exists to prevent.
 _VOICES = {"hi": "omnivoice/gauri", "ta": "omnivoice/gauri", "en": "omnivoice/gauri"}
+
+#: Language code → the phrases that switch to it, in every language the suite can
+#: already be speaking; the first is also what we call it out loud. A one-way door
+#: is an unwalkable lane: on 2026-08-21 a walk switched to Hindi, and "speak
+#: english" came back as ``इंग्लिश में बात करो``.
+_EXITS = {
+    "en": ("english", "इंग्लिश", "अंग्रेज़ी", "ஆங்கிலம்"),
+    "hi": ("hindi", "हिंदी", "हिन्दी", "இந்தி"),
+    "ta": ("tamil", "तमिल", "தமிழ்"),
+}
+
+#: Same reason: the hang-up has to be reachable from whatever the call switched to.
+_GOODBYE = ("goodbye", "hang up", "गुड बाय", "गुडबाय", "अलविदा", "பை", "விடைபெறுகிறேன்")
 
 
 class ReferenceBrain(Brain):
@@ -129,7 +149,7 @@ class ReferenceBrain(Brain):
             ):
                 yield speech
 
-        if "goodbye" in said or "hang up" in said:
+        if any(word in said for word in _GOODBYE):
             async for speech in self._say("Goodbye. Ending the call now."):
                 yield speech
             # The generator body resumes only once the SDK has consumed
@@ -182,10 +202,9 @@ class ReferenceBrain(Brain):
                 yield speech
             return
 
-        for code in ("hindi", "tamil", "english"):
-            if f"speak {code}" in said:
-                lang = {"hindi": "hi", "tamil": "ta", "english": "en"}[code]
-                async for speech in self._say(f"Switching to {code}."):
+        for lang, phrases in _EXITS.items():
+            if any(phrase in said for phrase in phrases):
+                async for speech in self._say(f"Switching to {phrases[0]}."):
                     yield speech
                 # One call moves BOTH legs — the recognizer and the voice.
                 session.configure_language(lang, voice=_VOICES[lang])
