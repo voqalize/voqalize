@@ -33,6 +33,7 @@ import {
   createSession,
   toConnectParams,
   VoqalSessionError,
+  type CreateSessionOptions,
   type VoqalConnectParams,
   type VoqalPipelineConfig,
 } from "./createSession";
@@ -85,6 +86,15 @@ export interface VoqalPublishableKeyOptions extends VoqalSessionOptionsBase {
   pipeline?: VoqalPipelineConfig;
   /** Optional app-level payload handed to the brain. */
   payload?: Record<string, unknown>;
+  /**
+   * Whether to record this call — see {@link CreateSessionOptions.record}.
+   * Omit it and the agent's stored default decides. `false` is honoured;
+   * `true` is refused on a publishable key and warns on the console.
+   *
+   * It lives on this arm of the union only. When your own backend mints the
+   * session, recording is decided there, where the credential is trusted.
+   */
+  record?: boolean;
 }
 
 /** Mint on your own backend, which returns the connection parameters. */
@@ -287,6 +297,7 @@ export function useVoqalSession(
             agentId: o.agentId,
             pipeline: o.pipeline,
             payload: o.payload,
+            record: o.record,
           });
       if (generation !== generationRef.current) return;
 

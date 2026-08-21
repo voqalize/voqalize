@@ -87,6 +87,25 @@ export interface CreateSessionOptions {
    * identifiers, not personal data.
    */
   payload?: Record<string, unknown>;
+  /**
+   * Whether to record this one call. Omit it and the agent's stored default
+   * decides — which is `false` unless someone turned it on.
+   *
+   * This is the per-call half of a two-part decision, and it is here because
+   * the page is the only party that knows whether *this* caller consented:
+   * `PreCallGate` is where you collect that, and this is where you report it.
+   * `false` is always honoured, so a caller who declines is never recorded even
+   * on an agent that records by default.
+   *
+   * **`true` is refused on this path.** A publishable (`pk_`) key ships in page
+   * source, so anyone holding it could otherwise write voice into your storage,
+   * on your bill, for an agent whose owner chose not to record. The call still
+   * runs — it connects, it greets, it answers, and nothing about it sounds
+   * wrong — so this function warns on the console when it happens. Turn
+   * recording on where its owner controls it: the agent's own default, over MCP
+   * (`update_agent(recording=true)`) or in the console.
+   */
+  record?: boolean;
   /** Optional `fetch` override (SSR / testing). Defaults to global `fetch`. */
   fetchImpl?: typeof fetch;
 }
@@ -194,6 +213,12 @@ interface CreateSessionResponse {
   connection_details?: {
     connect_params?: unknown;
   };
+  /**
+   * What the server decided about recording for this call — the resolved
+   * answer, not the request. Read to tell a refusal from a grant, since both
+   * arrive as a 2xx with working connection parameters.
+   */
+  recording_enabled?: boolean;
 }
 
 /**
@@ -211,6 +236,7 @@ export async function createSession(
     agentId,
     pipeline,
     payload,
+    record,
     fetchImpl = fetch,
   } = opts;
 
@@ -240,6 +266,14 @@ export async function createSession(
   if (pipeline) inner.pipeline = pipeline;
   if (payload) inner.payload = payload;
 
+  // `record` sits beside `agent_input`, not inside it: `agent_input` is what
+  // this page hands the *brain*, and recording is not the brain's business —
+  // it is a decision about what the service does with the audio. Omitted
+  // entirely when unset, because omission is what "use the agent's default"
+  // means on the server, and `null` is not the same word.
+  const body: Record<string, unknown> = { agent_id: agentId, agent_input: inner };
+  if (record !== undefined) body.record = record;
+
   let res: Response;
   try {
     res = await fetchImpl(url, {
@@ -249,7 +283,7 @@ export async function createSession(
         Authorization: `Bearer ${publishableKey}`,
       },
       credentials: "omit",
-      body: JSON.stringify({ agent_id: agentId, agent_input: inner }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     throw new VoqalSessionError(
@@ -271,9 +305,9 @@ export async function createSession(
     );
   }
 
-  let body: CreateSessionResponse;
+  let parsed: CreateSessionResponse;
   try {
-    body = (await res.json()) as CreateSessionResponse;
+    parsed = (await res.json()) as CreateSessionResponse;
   } catch (err) {
     throw new VoqalSessionError(
       `createSession: could not parse response — ${(err as Error).message}`,
@@ -281,7 +315,22 @@ export async function createSession(
     );
   }
 
-  const connectParams = body.connection_details?.connect_params;
+  // The one outcome of this call that is invisible from inside it. A `pk_` key
+  // may turn recording off but never on, so a page that asked for recording is
+  // answered with a working session that keeps no audio. Nothing later says so:
+  // the recording is simply not there, weeks after the calls it was wanted for.
+  if (record === true && parsed.recording_enabled === false) {
+    console.warn(
+      "createSession: this call is NOT being recorded. `record: true` was sent " +
+        "with a publishable (pk_) key, and a pk_ key may turn recording off but " +
+        "never on — it ships in page source. Turn recording on where its owner " +
+        "controls it: the agent's own default, via MCP `update_agent(recording=true)` " +
+        "or the console. `record: false` from here is still honoured, for a caller " +
+        "who declines."
+    );
+  }
+
+  const connectParams = parsed.connection_details?.connect_params;
   if (!connectParams) {
     throw new VoqalSessionError(
       "createSession: response missing connection_details.connect_params — is a voice runtime node configured for this environment?",

@@ -72,6 +72,7 @@ const session = useVoqalSession(opts: UseVoqalSessionOptions): VoqalSessionHandl
 | `agentId` | `string` (required) | The agent's id. |
 | `pipeline?` | `{ stt?, tts? }` | **Usually omit.** Voice and language are declared on the brain, not here — see the [catalog](/docs/reference/catalog/). Kept for a page that is genuinely the pipeline's authority (a voice-auditioning console, an A/B harness); a brain that declares or configures a voice overrides it. |
 | `payload?` | `Record<string,unknown>` | App payload handed to the brain; arrives as `start.init`. |
+| `record?` | `boolean` | Whether to record this call. Omit and the agent's default decides (off unless turned on). `false` is always honoured — this is where a caller who declines is respected. `true` is **refused** on a publishable key and warns on the console: a `pk_` ships in page source, so recording is turned on where its owner controls it, on the agent itself. |
 | `iceServers?` | `RTCIceServer[]` | Defaults to a public Google STUN server. |
 | `autoConnect?` | `boolean` | Default `false` (`<VoqalAgent/>` sets it `true`). |
 | `onServerMessage?` | `(msg) => void` | Every RTVI server message, unwrapped — the raw escape hatch. For UI commands prefer [`useUiCommand`](#typed-ui-commands-useuicommand). |
@@ -116,7 +117,9 @@ The hook runs a two-step flow:
    bearer token. The body is `{ agent_id, agent_input }`, where `agent_input`
    **wraps both** the `pipeline` override and your app `payload`:
    `{ agent_id, agent_input: { pipeline?, payload? } }` — so your app data nests
-   one level in, under `agent_input.payload`. The response carries
+   one level in, under `agent_input.payload`. `record` rides beside
+   `agent_input`, not inside it: `agent_input` is what the page hands the brain,
+   and recording is not the brain's business. The response carries
    `connection_details.connect_params` — the runtime node's offer endpoint and
    the session token to present on it. (A missing `connect_params` means no
    worker is running for that agent — a `VoqalSessionError` is thrown with that

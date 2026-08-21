@@ -269,10 +269,12 @@ Connecting is pipecat's two-step — ask something that holds a credential where
 the bot is, then negotiate WebRTC against the address you were given — and both
 halves are exported so you can drive a raw `PipecatClient` yourself:
 
-- `createSession({ apiBase, publishableKey, agentId, pipeline?, payload? })` —
+- `createSession({ apiBase, publishableKey, agentId, pipeline?, payload?, record? })` —
   step one against the Voqalize control plane. Returns parameters ready for
   `pc.connect(...)`. Throws `VoqalSessionError` on failure. (`pipeline` is the
-  escape hatch above; normal embeds pass `payload` only.)
+  escape hatch above; normal embeds pass `payload` only. `record` is the
+  per-call recording decision — `false` always wins, `true` is refused on a
+  publishable key and says so on the console.)
 - `toConnectParams(body)` — turn any minted session's `connect_params` into those
   same parameters. **Run every server response through this**, including your own
   backend's: pipecat builds each request with `headers.entries()`, so the plain

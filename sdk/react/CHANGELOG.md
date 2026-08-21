@@ -24,6 +24,30 @@ there is no longer a Meeting above it.
 > when the shape settles; until then this section is the record of what is
 > already true in the source.
 
+### Added
+
+- **`record` on `createSession`, `useVoqalSession` and `<VoqalAgent>`.** Whether
+  this one call is recorded. Omit it and the agent's stored default decides,
+  which is off unless someone turned it on. The page is the only party that
+  knows whether *this* caller consented — `PreCallGate` is where that is
+  collected — so this is where it is reported, and `false` is always honoured
+  even for an agent that records by default.
+
+  `true` is refused on a publishable key, and the refusal is the reason this
+  landed as more than a field. A `pk_` key ships in page source, so anything
+  holding it could otherwise write voice into your storage, on your bill, for an
+  agent whose owner chose not to record. The server has always refused it; what
+  it could not do is make the refusal audible, because the call it answers with
+  is a working one — it connects, it greets, and it keeps no audio. The response
+  carries `recording_enabled`, so `createSession` now compares what it asked for
+  against what it got and warns on the console when they differ. Turn recording
+  on where its owner controls it: the agent's own default, over MCP
+  (`update_agent(recording=true)`) or in the console.
+
+  It sits on the publishable-key arm of the options union only. When your own
+  backend mints the session, recording is decided there, on a credential that is
+  trusted to turn it on.
+
 ### Changed — requires a control plane deployed on or after 2026-08-20
 
 - **The bootstrap call is now `POST {apiBase}/sessions.create`.**
@@ -41,10 +65,11 @@ there is no longer a Meeting above it.
   silently dropped. A 404 is the better failure, which is part of why no alias
   exists.
 
-**No API change.** `createSession`, `useVoqalSession` and `<VoqalAgent>` take
-and return exactly what they did in `0.1.1`; `pipeline` and `payload` are still
-the prop names. An application that upgrades the package and redeploys against a
-current control plane needs no source edit.
+**Nothing existing changed shape.** `createSession`, `useVoqalSession` and
+`<VoqalAgent>` take and return what they did in `0.1.1` — `pipeline` and
+`payload` are still the prop names, and `record` above is additive and optional.
+An application that upgrades the package and redeploys against a current control
+plane needs no source edit.
 
 ### Documented
 
