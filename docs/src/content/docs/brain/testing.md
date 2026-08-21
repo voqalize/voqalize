@@ -40,7 +40,7 @@ async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
 `brain_server` binds an ephemeral port, so tests never collide, and closes on the
 way out whatever the test did. It is a *test* server — production hosting is
 `run_session` in your own web framework's route (see
-[Inbound](/deploy/inbound/)); the SDK owns no server.
+[Inbound](/docs/deploy/inbound/)); the SDK owns no server.
 
 The brain verifies against the public half of the keypair and the driver signs with
 the private half, so **token verification runs for real** rather than being switched

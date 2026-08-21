@@ -15,10 +15,11 @@ node_modules/
 .pnpm-store/
 *.tsbuildinfo
 .astro/
-# sdk/react is a pnpm workspace member — the root lockfile is authoritative. This
-# transient lockfile is only written when demos/build.mjs builds it standalone
-# (--ignore-workspace) and must not be committed.
+# sdk/react and docs are pnpm workspace members — the root lockfile is
+# authoritative. These transient lockfiles are only written when one of them is
+# installed standalone (--ignore-workspace) and must not be committed.
 sdk/react/pnpm-lock.yaml
+docs/pnpm-lock.yaml
 
 # Generated protobuf stubs (regenerated via `make proto`)
 proto/gen/
