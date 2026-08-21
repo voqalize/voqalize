@@ -1,12 +1,17 @@
 ---
-title: MCP server & Claude Code skill
+title: MCP server
 description: Create and manage agents, mint keys, set brain_urls, and read call logs from your editor's agent — over a hosted, OAuth-authenticated MCP endpoint.
 ---
 
 The Voqalize MCP server exposes the platform's management surface as tools your
-editor's agent (Claude Code, etc.) can call. Paired with the **`voqalize` skill**,
-it takes a developer from an empty project to a running voice agent without leaving
-the editor.
+editor's agent (Claude Code, etc.) can call: create an agent, mint its keys, point
+its `brain_url` at your route, and read back what a call did — without leaving the
+editor.
+
+The server hands your agent its own instructions on connect, and those link here.
+There is no skill to install and nothing to keep in sync: every page on this site
+is also served as raw markdown at the same URL plus `.md`, indexed at
+[`/docs/llms.txt`](/docs/llms.txt).
 
 It is a **hosted, remote MCP endpoint** — you don't install or run anything. Point
 your MCP client at the URL, authenticate once with Google in the browser, and the
@@ -20,8 +25,7 @@ Add the server to your MCP client. In Claude Code:
 claude mcp add --transport http voqalize https://app.voqalize.com/mcp
 ```
 
-Or, project-scoped, drop an `.mcp.json` at your repo root (this is the file the
-`voqalize` skill ships):
+Or, project-scoped, drop an `.mcp.json` at your repo root:
 
 ```json
 {
@@ -142,16 +146,16 @@ same fact as any of those.
 These are the **platform's** records. Your brain runs in your own environment and
 logs there; `session.id` is the same string on both sides, so it joins them.
 
-## The `voqalize` skill
+## The flow, end to end
 
-The skill (`skill/SKILL.md`) drives the end-to-end build on top of those tools. It is
-a short entry file plus references loaded on demand (`skill/references/`), and it
-walks the flow:
+An agent with these tools connected takes a project from empty to a running voice
+agent in this order:
 
-1. **Prereqs** — confirm the MCP server is connected (`whoami` → `list_tenants`);
-   Python 3.12+; a React app for the embed.
-2. **Draft the brain** — scaffold from `templates/brain.py`; implement
-   `on_session_start` / `on_interaction` / `on_client_message` / `on_user_idle`.
+1. **Confirm the connection** — `whoami`, then `list_tenants` for the `tenant` slug
+   every other tool requires.
+2. **Write the brain** — `on_session_start` / `on_interaction` /
+   `on_client_message` / `on_user_idle`. See
+   [Build a brain](/docs/brain/python/).
 3. **Create the agent** — `create_agent(tenant, name)` → `{agent, session_key}`.
 4. **Run it and point `brain_url` at it** — locally, `create_agent_credentials` and
    dial out over [Cortex](/docs/deploy/cortex/) (no tunnel); in production, an
@@ -160,15 +164,15 @@ walks the flow:
    the brain in text mode, with no audio and no human. Then talk to it live at the
    agent's `test_url`.
 6. **Embed in the browser** — `create_api_key(tenant, agent_id, label, kind="publishable", …)`
-   → `pk_…`, then `@voqalize/client-react`.
-7. **Instrument and observe** — `on_inference_finalized` / `on_error` brain-side,
-   `list_sessions` / `get_session_events` / `get_session_logs` platform-side.
-
-Templates ship alongside it: `brain.py`, `run_cortex.py`, `inbound_app.py`,
-`test_brain.py`, and `react_embed.tsx`.
+   → `pk_…`, then [`@voqalize/client-react`](/docs/client/react/).
+7. **Instrument it** — `on_inference_finalized` / `on_error` brain-side,
+   `list_sessions` / `get_session_events` / `get_session_logs` platform-side. See
+   [Instrumenting a brain](/docs/brain/instrumentation/).
 
 ## Next
 
 - **[Quickstart](/docs/start/quickstart/)** — the same flow, by hand.
 - **[Where the brain runs](/docs/deploy/brain-url/)** — inbound vs. Cortex.
 - **[Testing a brain](/docs/brain/testing/)** — the unattended test loop.
+- **[Instrumenting a brain](/docs/brain/instrumentation/)** — reading these tools
+  back against your own logs.

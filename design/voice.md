@@ -2,8 +2,7 @@
 
 The writing standard for every surface a developer reads: the documentation, the SDK
 docstrings, error messages, the wire contract's prose, the MCP server's instructions and
-tool descriptions, the Claude Code skill, the demo source, the blog, the changelog and
-commit messages. The marketing register is a second document, and it starts by pointing
+tool descriptions, the demo source, the blog, the changelog and commit messages. The marketing register is a second document, and it starts by pointing
 at this one.
 
 Internal engineering and strategy documents are outside this standard — design notes and

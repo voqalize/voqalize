@@ -25,6 +25,7 @@ export const sidebar = [
       { label: "Python SDK", slug: "brain/python" },
       { label: "Handling a conversation", slug: "brain/conversation" },
       { label: "Testing a brain", slug: "brain/testing" },
+      { label: "Instrumenting a brain", slug: "brain/instrumentation" },
     ],
   },
   {
@@ -44,7 +45,7 @@ export const sidebar = [
     items: [
       { label: "Voice protocol (Vql frames)", slug: "reference/voice-protocol" },
       { label: "Voice & language catalog", slug: "reference/catalog" },
-      { label: "MCP server & Claude Code skill", slug: "reference/mcp" },
+      { label: "MCP server", slug: "reference/mcp" },
     ],
   },
   {

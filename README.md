@@ -22,7 +22,6 @@ is a managed service — everything you need to build against it is here.
 | [`proto/`](proto/) | **The wire contract of record** — the `Vql*` frame set both sides speak. Everything else is generated from or written against this. |
 | [`sdk/python/`](sdk/python/) | Python brain SDK — subclass `Brain`, implement a couple of callbacks. Pipecat-free. |
 | [`sdk/react/`](sdk/react/) | React client SDK — embed a voice agent in a browser app. |
-| [`skill/`](skill/) | The **`voqalize` Claude Code skill** (`skill/SKILL.md`) — point your editor's agent at it and it builds an agent end-to-end over the hosted, Google-OAuth MCP server. |
 | [`demos/`](demos/) | Complete, runnable voice apps (a brain + a UI each). These are real example code, the live demos on our site, and our integration tests — all at once. |
 | [`docs/`](docs/) | The developer documentation site (`voqalize.com/docs`). |
 
@@ -33,10 +32,14 @@ is a managed service — everything you need to build against it is here.
 
 ## Getting started
 
-The fastest on-ramp is the **Claude Code skill** — point your editor's agent at
-[`skill/SKILL.md`](skill/SKILL.md) and it will walk you from an empty
-project to a running voice agent (write a brain → create an agent → get a
-`brain_url` → wire a browser UI). Prefer to read code first? Start from
+The fastest on-ramp is the **hosted MCP server**. Connect it
+(`claude mcp add --transport http voqalize https://app.voqalize.com/mcp`) and your
+editor's agent is handed the model on the first call plus links into
+[the docs](https://voqalize.com/docs), every page of which is also served as raw
+markdown at the same URL plus `.md`, indexed at
+[`/docs/llms.txt`](https://voqalize.com/docs/llms.txt). It walks from an empty
+project to a running voice agent: write a brain → create an agent → get a
+`brain_url` → wire a browser UI. Prefer to read code first? Start from
 [`sdk/python/examples/echo`](sdk/python/examples/echo) (the smallest complete
 brain) or [`sdk/python/examples/travel`](sdk/python/examples/travel) (a fuller
 one), and [`sdk/react`](sdk/react) for the browser side.

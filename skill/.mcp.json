@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "voqalize": {
-      "type": "http",
-      "url": "https://app.voqalize.com/mcp"
-    }
-  }
-}

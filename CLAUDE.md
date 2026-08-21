@@ -1,9 +1,16 @@
 # voqalize — Claude's map
 
 The **public developer surface** for Voqalize: the wire contract (`proto/`), the
-brain SDKs (`sdk/python`, `sdk/react`), the runnable demos (`demos/`), the docs
-site (`docs/`) and the Claude Code skill (`skill/`). The platform itself lives in
-the private `voqalcloud` repo; the speech stack lives in `vql-speech`.
+brain SDKs (`sdk/python`, `sdk/react`), the runnable demos (`demos/`) and the docs
+site (`docs/`). The platform itself lives in the private `voqalcloud` repo; the
+speech stack lives in `vql-speech`.
+
+There is no `skill/` any more — it was deleted on 2026-08-21. An agent is oriented
+by the MCP server's own `instructions` and then reads the docs site, every page of
+which is served as raw markdown at its URL plus `.md` and indexed at
+`/docs/llms.txt` (`docs/src/pages/`). Do not reintroduce a second, abridged copy
+of the documentation: keeping it honest is a job nobody does, and the last one
+drifted.
 
 Read `README.md` for what each directory is and `demos/README.md` for how a demo
 is built and deployed. This file is only the things that will bite you.
@@ -180,7 +187,7 @@ that path needs none of the above.
 ## Everything a developer reads is written to one standard
 
 `design/voice.md` is the writing standard for this repo: the docs site, the SDK
-docstrings, error messages, the wire contract's prose, the skill, the demo source, the
+docstrings, error messages, the wire contract's prose, the demo source, the
 changelog and commit messages. It carries the persona, five principles, four signature
 moves, a **closed lexicon** (a concept keeps one word across the proto, the SDK, the docs
 and the site), and a recognition test to run before publishing. Read it before writing

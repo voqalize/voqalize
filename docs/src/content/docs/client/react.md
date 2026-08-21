@@ -142,6 +142,10 @@ support ticket.
 develop. On plain `http://` the browser does not expose microphones at all, and
 `connect()` fails immediately.
 
+**The grant is per origin.** Allowing the microphone on the deployed site grants
+nothing to `localhost`, and the other way round, so the first call on each origin
+asks again — including the first call after you ship.
+
 **A permission prompt can stay open forever**, and a caller who missed the
 dialog has no reason to think the browser is waiting on them. While it is open
 `connectionState` is `"awaiting-microphone"` — its own state rather than a

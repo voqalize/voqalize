@@ -181,5 +181,7 @@ next scenario. Reproduce it offline first, then fix it.
 
 - **[Handling a conversation](/docs/brain/conversation/)** — heard-truth, barge-in,
   and what the framework commits for you.
-- **[MCP server & Claude Code skill](/docs/reference/mcp/)** — the observability
-  tools, and the skill that runs this loop for you.
+- **[Instrumenting a brain](/docs/brain/instrumentation/)** — what to log so a
+  live call is readable in the first place.
+- **[MCP server](/docs/reference/mcp/)** — the observability tools, and the agent
+  surface that runs this loop for you.
