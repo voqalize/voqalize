@@ -205,9 +205,9 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 
 ## Read next
 
-- [docs/architecture.md](docs/architecture.md) — connection model, per-session engine, ack-gated ordering, backpressure, reconnect.
-- [docs/decisions.md](docs/decisions.md) — why the SDK is pipecat-free, why the Brain is the sole surface, why routing stays out of the SDK, drop-newest, etc.
-- [docs/wire-protocol.md](docs/wire-protocol.md) — envelope shapes, frame vocabulary, close codes.
+- [`../../proto/voqalize/frames/frames.proto`](../../proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
+- [`../../design/BRAIN-PROTOCOL.md`](../../design/BRAIN-PROTOCOL.md) — why the Brain has the shape it has, from first principles.
+- The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
 - `examples/` — runnable brains: `echo` (smallest complete brain), `travel`
   (a hand-written `Brain` over Gemini with screen-driving tools), `travel_adk`
   (the same agent as a native ADK `LlmAgent`, wrapped with `adk_brain`),

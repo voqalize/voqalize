@@ -1,19 +1,20 @@
 # Voqalize
 
 **A voice operator that lives inside your app.** You write the *brain* — an agent
-that receives text and speaks text back — and Voqalize runs the voice stack: WebRTC,
-VAD, speech-to-text, text-to-speech, interruption handling, recording. Your code
-never touches audio.
+that receives the caller's words and drives two channels back, **speech** and
+**actions that drive the screen** — and Voqalize runs the voice stack: WebRTC, VAD,
+speech-to-text, text-to-speech, interruption handling, recording. Your code never
+touches audio.
 
 This repository is the **public developer surface** for Voqalize: the wire
 contract, the SDKs you build a brain with, runnable demo applications, and the
 developer documentation. The Voqalize platform itself (the hosted voice runtime)
 is a managed service — everything you need to build against it is here.
 
-> **Pre-release.** APIs and the wire protocol are still moving, and the packages
-> below are not yet published to PyPI / npm. For now, depend on them from a clone
-> of this repo (they are path-wired to resolve locally). Published packages will
-> follow at beta.
+> **Pre-release.** APIs and the wire protocol are still moving. `voqalize-agent-sdk`
+> (PyPI) and `@voqalize/client-react` (npm) are published, but the surface they
+> carry is the previous one — **pin the version you build against**, and expect the
+> next release to change the brain callbacks.
 
 ## What's here
 

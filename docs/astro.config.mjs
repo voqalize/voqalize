@@ -17,8 +17,8 @@ export default defineConfig({
     starlight({
       title: "Voqalize",
       description:
-        "A voice operator that lives inside your app. You write the brain; Voqalize runs the voice — WebRTC, STT, TTS, turn-taking, interruptions, and recording.",
-      tagline: "A voice operator that lives inside your app. You write the brain; Voqalize runs the voice.",
+        "A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice: WebRTC, STT, TTS, turn-taking, interruptions, and recording.",
+      tagline: "A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice.",
       customCss: ["./src/styles/theme.css"],
       social: [
         {

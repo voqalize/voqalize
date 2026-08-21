@@ -140,7 +140,7 @@ The runtime dials `{brain_url}/s/{session_id}`, one WebSocket per session. It
 presents a short-lived RS256 JWT (as a bare token or `Authorization: Bearer
 <jwt>`), verified against Voqalize's public key. Required claims: `iss="pygato"`,
 `aud="brain"`, `sub == session_id`, and `exp`; `tenant_id` / `agent_id` are
-informational. See [Core concepts → Authentication](/docs/start/concepts/#authentication).
+informational.
 
 Close-code contract: **4000** = no agent → permanent, never retry; **4001** = agent
 gone → transient, reconnect with backoff; anything else → transient; **1000** from

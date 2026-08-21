@@ -1,19 +1,19 @@
 ---
 title: Voqalize
-description: A voice operator that lives inside your app. You write the brain; Voqalize runs the voice — WebRTC, STT, TTS, turn-taking, recording.
+description: A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice.
 template: splash
 head:
   - tag: title
     content: Voqalize — a voice operator that lives inside your app
 hero:
-  tagline: A voice operator that lives inside your app. You write the brain; Voqalize runs the voice.
+  tagline: A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice.
   actions:
-    - text: Quickstart
-      link: /docs/start/quickstart/
+    - text: The Vql wire
+      link: /docs/reference/voice-protocol/
       icon: right-arrow
       variant: primary
-    - text: What is Voqalize?
-      link: /docs/start/overview/
+    - text: Put a voice in the browser
+      link: /docs/client/react/
       icon: open-book
       variant: minimal
     - text: View on GitHub
@@ -26,26 +26,35 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 Voqalize runs the voice stack — WebRTC, voice activity detection, speech-to-text,
 text-to-speech, interruption handling, recording. You write the **brain**: an
-agent that receives text and speaks text back. Your code never touches audio.
+agent that receives the caller's words and drives two channels back — **speech**,
+and **actions** that drive the screen the caller is looking at. Your code never
+touches audio.
+
+:::caution[The brain surface is being revised]
+The callback surface is moving to `on_user_message` / `session.dispatch`. The
+build-a-brain pages that documented the previous surface have been removed rather
+than left to teach code that no longer runs. Until they are rewritten, the SDK
+README and the runnable demos are the working reference.
+:::
 
 ## Start here
 
 <CardGrid stagger>
-  <Card title="Build your first brain" icon="rocket">
-    Go from an empty file to a talking agent in a few minutes.
-    [Quickstart →](/docs/start/quickstart/)
-  </Card>
-  <Card title="Understand the model" icon="puzzle">
-    One WebSocket per session, the `Vql*` frame set, and where the brain runs.
-    [Core concepts →](/docs/start/concepts/)
-  </Card>
-  <Card title="Pick your language" icon="seti:python">
-    A brain is a short subclass. Build it in
-    [Python](/docs/brain/python/).
+  <Card title="Test a brain without a microphone" icon="rocket">
+    Drive your real brain over the real wire in text mode.
+    [Testing a brain →](/docs/brain/testing/)
   </Card>
   <Card title="Put a voice in the browser" icon="laptop">
     Embed a live agent in a web app with the
     [React client SDK](/docs/client/react/).
+  </Card>
+  <Card title="The wire contract" icon="puzzle">
+    One WebSocket per session and the `Vql*` frame set.
+    [Voice protocol →](/docs/reference/voice-protocol/)
+  </Card>
+  <Card title="Where the brain runs" icon="seti:config">
+    Your own inbound server, or a relay when you can't accept inbound.
+    [Deploy →](/docs/deploy/brain-url/)
   </Card>
 </CardGrid>
 

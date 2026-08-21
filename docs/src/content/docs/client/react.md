@@ -193,7 +193,7 @@ rendering the outcome — before you mint a session at all.
 ## The two-way UI contract
 
 For agents that drive the screen (see
-[Handling a conversation](/docs/brain/conversation/)):
+the brain side):
 
 - **Brain → browser.** The brain's `interaction.action(name, { ...args })` arrives
   as a server message `{ type: "ui_command", action, action_id, ...args }` — the
@@ -283,7 +283,7 @@ TypeScript types (`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`,
 
 ## Next
 
-- **[Handling a conversation](/docs/brain/conversation/)** — the brain side of the
+- **The SDK README** (`sdk/python/README.md`) — the brain side of the
   UI contract.
 - **[Voice & language catalog](/docs/reference/catalog/)** — the voices and languages,
   and why the brain is the one place that sets them.

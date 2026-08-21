@@ -21,7 +21,7 @@ import { markdownPages, markdownUrl } from "../markdown-pages";
  */
 
 const TAGLINE =
-  "A voice operator that lives inside your app. You write the brain; Voqalize runs the voice — WebRTC, STT, TTS, turn-taking, interruptions, and recording.";
+  "A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice: WebRTC, STT, TTS, turn-taking, interruptions, and recording.";
 
 export const GET: APIRoute = async () => {
   const pages = await markdownPages();

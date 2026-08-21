@@ -92,4 +92,4 @@ drain. Scale horizontally with your LB; the runtime just dials whatever the
 
 - **[Cortex relay](/docs/deploy/cortex/)** — the fallback when you can't accept
   inbound.
-- **[Build a brain (Python)](/docs/brain/python/)** — the serving API in full.
+- **The SDK README** (`sdk/python/README.md`) — the serving API in full.

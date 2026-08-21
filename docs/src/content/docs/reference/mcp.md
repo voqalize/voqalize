@@ -155,7 +155,7 @@ agent in this order:
    every other tool requires.
 2. **Write the brain** — `on_session_start` / `on_interaction` /
    `on_client_message` / `on_user_idle`. See
-   [Build a brain](/docs/brain/python/).
+   the SDK README (`sdk/python/README.md`).
 3. **Create the agent** — `create_agent(tenant, name)` → `{agent, session_key}`.
 4. **Run it and point `brain_url` at it** — locally, `create_agent_credentials` and
    dial out over [Cortex](/docs/deploy/cortex/) (no tunnel); in production, an
@@ -167,12 +167,11 @@ agent in this order:
    → `pk_…`, then [`@voqalize/client-react`](/docs/client/react/).
 7. **Instrument it** — `on_inference_finalized` / `on_error` brain-side,
    `list_sessions` / `get_session_events` / `get_session_logs` platform-side. See
-   [Instrumenting a brain](/docs/brain/instrumentation/).
+   `on_finalize`.
 
 ## Next
 
-- **[Quickstart](/docs/start/quickstart/)** — the same flow, by hand.
 - **[Where the brain runs](/docs/deploy/brain-url/)** — inbound vs. Cortex.
 - **[Testing a brain](/docs/brain/testing/)** — the unattended test loop.
-- **[Instrumenting a brain](/docs/brain/instrumentation/)** — reading these tools
+- **[Testing a brain](/docs/brain/testing/)** — reading these tools
   back against your own logs.

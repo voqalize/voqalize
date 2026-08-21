@@ -179,9 +179,9 @@ next scenario. Reproduce it offline first, then fix it.
 
 ## Next
 
-- **[Handling a conversation](/docs/brain/conversation/)** — heard-truth, barge-in,
+- **The SDK README** (`sdk/python/README.md`) — heard-truth, barge-in,
   and what the framework commits for you.
-- **[Instrumenting a brain](/docs/brain/instrumentation/)** — what to log so a
+- **[MCP server](/docs/reference/mcp/)** — what to log so a
   live call is readable in the first place.
 - **[MCP server](/docs/reference/mcp/)** — the observability tools, and the agent
   surface that runs this loop for you.

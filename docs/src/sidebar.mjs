@@ -12,21 +12,8 @@
  */
 export const sidebar = [
   {
-    label: "Getting started",
-    items: [
-      { label: "What is Voqalize?", slug: "start/overview" },
-      { label: "Quickstart", slug: "start/quickstart" },
-      { label: "Core concepts", slug: "start/concepts" },
-    ],
-  },
-  {
     label: "Build a brain",
-    items: [
-      { label: "Python SDK", slug: "brain/python" },
-      { label: "Handling a conversation", slug: "brain/conversation" },
-      { label: "Testing a brain", slug: "brain/testing" },
-      { label: "Instrumenting a brain", slug: "brain/instrumentation" },
-    ],
+    items: [{ label: "Testing a brain", slug: "brain/testing" }],
   },
   {
     label: "Connect a client",
@@ -47,9 +34,5 @@ export const sidebar = [
       { label: "Voice & language catalog", slug: "reference/catalog" },
       { label: "MCP server", slug: "reference/mcp" },
     ],
-  },
-  {
-    label: "Demos",
-    items: [{ label: "Demo gallery", slug: "demos/gallery" }],
   },
 ];
