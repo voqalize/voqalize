@@ -210,7 +210,7 @@ class CortexAgent(RunnerHost):
                     frame=decoded.frame,
                     request_id=decoded.request_id,
                     epoch=decoded.epoch,
-                    inference_id=decoded.inference_id,
+                    speech_id=decoded.speech_id,
                 )
             )
 
@@ -229,7 +229,7 @@ class CortexAgent(RunnerHost):
                     payload = serialize_ack(item.ack_id)
                 else:
                     payload = await self._serializer.serialize(
-                        item.frame, epoch=item.epoch, inference_id=item.inference_id
+                        item.frame, epoch=item.epoch, speech_id=item.speech_id
                     )
             except Exception:
                 logger.exception("cortex: serialize failed for session {}", _sid_str(sid))

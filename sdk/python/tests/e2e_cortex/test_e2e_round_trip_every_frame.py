@@ -1,10 +1,10 @@
 """End-to-end round trip across the wire vocabulary, over a real FakeCortex.
 
 Pygato side (simulated by a Wire client): open a session with a SessionStartFrame,
-then drive a user turn + an inference-finalized frame.
+then drive a user turn + a finalize frame.
 
 Agent side: a ``Brain`` takes the turn and speaks a full unit of speech. The
-pygato client must see the LLM frames arrive back over the wire.
+pygato client must see the speech frames arrive back over the wire.
 """
 
 from __future__ import annotations
@@ -18,17 +18,17 @@ from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
+    FinalizeFrame,
     FinalizeReason,
-    InferenceFinalizedFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMTextFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
     UserMessageFrame,
 )
 
 
-class LLMResponder(Brain):
+class SpeechResponder(Brain):
     """On each turn, speak a one-chunk response."""
 
     async def on_user_message(self, session, msg):
@@ -40,7 +40,7 @@ class LLMResponder(Brain):
 async def test_round_trip_every_frame() -> None:
     async with FakeCortex() as cortex:
         agent = CortexAgent(
-            factory=brain_factory(LLMResponder),
+            factory=brain_factory(SpeechResponder),
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),
@@ -55,25 +55,25 @@ async def test_round_trip_every_frame() -> None:
             # Drive a user turn + a finalize.
             await client.send(UserMessageFrame(text="user said hi"), epoch=1)
             await client.send(
-                InferenceFinalizedFrame(heard_text="bot said hi", reason=FinalizeReason.COMPLETED),
+                FinalizeFrame(heard_text="bot said hi", reason=FinalizeReason.COMPLETED),
                 epoch=1,
-                inference_id=1,
+                speech_id=1,
             )
 
             # The Brain's unit of speech emits Start → Text → End.
             expected = {
-                "LLMFullResponseStartFrame",
-                "LLMTextFrame",
-                "LLMFullResponseEndFrame",
+                "SpeechStartFrame",
+                "SpeechChunkFrame",
+                "SpeechEndFrame",
             }
             frames, _ = await client.collect_until(
                 lambda fr, _ac: expected.issubset({type(f).__name__ for f in fr}),
                 timeout=5.0,
             )
-            texts = [f.text for f in frames if isinstance(f, LLMTextFrame)]
+            texts = [f.text for f in frames if isinstance(f, SpeechChunkFrame)]
             assert "hello" in texts
-            assert any(isinstance(f, LLMFullResponseStartFrame) for f in frames)
-            assert any(isinstance(f, LLMFullResponseEndFrame) for f in frames)
+            assert any(isinstance(f, SpeechStartFrame) for f in frames)
+            assert any(isinstance(f, SpeechEndFrame) for f in frames)
         finally:
             await client.close()
             run_task.cancel()

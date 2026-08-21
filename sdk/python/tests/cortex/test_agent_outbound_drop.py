@@ -21,8 +21,8 @@ from voqalize.sdk.wire import (
     ErrorFrame,
     Frame,
     FrameDirection,
-    LLMTextFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
@@ -33,7 +33,7 @@ _FLOOD = 64  # well above _QUEUE_MAX so drops are guaranteed
 
 
 class Flooder(SessionAdapter):
-    """On the first UserMessageFrame, emit ``_FLOOD`` LLMTextFrames in a tight
+    """On the first UserMessageFrame, emit ``_FLOOD`` SpeechChunkFrames in a tight
     synchronous loop (no await → the outbound lane can't drain between sends, so
     it overflows). Records any ErrorFrame the runner delivers back."""
 
@@ -54,7 +54,7 @@ class Flooder(SessionAdapter):
         if isinstance(frame, UserMessageFrame) and not self._fired:
             self._fired = True
             for i in range(_FLOOD):
-                self.emitter.send(LLMTextFrame(text=f"chunk-{i}"), epoch=env.epoch, inference_id=1)
+                self.emitter.send(SpeechChunkFrame(text=f"chunk-{i}"), epoch=env.epoch, speech_id=1)
 
     async def close(self) -> None:
         pass

@@ -32,7 +32,7 @@ from voqalize.sdk.wire import (
     ErrorFrame,
     Frame,
     InterruptionFrame,
-    LLMTextFrame,
+    SpeechChunkFrame,
     UserMessageFrame,
 )
 
@@ -162,7 +162,7 @@ async def test_a_slow_handler_does_not_hold_the_ack() -> None:
     """The ack must not wait for the brain's compute.
 
     PyGato blocks its own pipeline queue on this ack, so a handler that waits —
-    a customer writing a transcript row inside ``on_inference_finalized``, which
+    a customer writing a transcript row inside ``on_finalize``, which
     is the real case this pins — would otherwise delay the *next* user utterance
     by exactly its own cost, on a lane nothing times.
     """
@@ -197,7 +197,7 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
             # Tight synchronous burst; nobody pops the outbound lane in this
             # unit test, so it overflows past normal_max and drops newest.
             for i in range(64):
-                adapter.emitter.send(LLMTextFrame(text=f"c{i}"))
+                adapter.emitter.send(SpeechChunkFrame(text=f"c{i}"))
 
     runner, adapter, host = _build(normal_max=4, on_frame=flood)
     runner.enqueue_inbound(Envelope(UserMessageFrame(text="go")))
@@ -220,7 +220,7 @@ async def test_outbound_system_frame_pops_first() -> None:
     async def emit_mix(frame: Frame, adapter: Recorder) -> None:
         if isinstance(frame, UserMessageFrame):
             for i in range(3):
-                adapter.emitter.send(LLMTextFrame(text=f"n{i}"))
+                adapter.emitter.send(SpeechChunkFrame(text=f"n{i}"))
             adapter.emitter.send(CancelFrame())  # system lane
 
     runner, _adapter, _host = _build(normal_max=64, on_frame=emit_mix)

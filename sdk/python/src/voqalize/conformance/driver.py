@@ -3,7 +3,7 @@ from a brain's point of view.
 
 The driver *is* the "compliant voqalize": it dials a brain over the single
 session ``/s/{session_id}`` leg, speaks the shipped protobuf wire, and plays out
-the brain's responses the way real Voice does — auto-finalizing each inference
+the brain's responses the way real Voice does — auto-finalizing each speech unit
 with a *heard-truth* transcript, honouring the barge-in drain barrier, and
 acking nothing of its own (its outbound data frames carry ``request_id>0``; the
 brain's outbound frames carry ``request_id=0`` and are never blocked on the
@@ -11,11 +11,11 @@ driver). Everything the brain sends back is decoded, timestamped, and recorded
 so scenarios can assert the protocol MUSTs against a structured transcript.
 
 Turns end the way they end on a real call: the wire carries no "the brain is
-done" frame, so a turn is over when every inference bracket it opened has closed
+done" frame, so a turn is over when every speech unit it opened has closed
 and the brain has gone quiet. Real Voice has no more than that either.
 
 What the driver deliberately does *not* do: audio, VAD, STT/TTS, WebRTC. Playout
-is modelled as "the whole inference is heard unless barged in", which is all the
+is modelled as "the whole unit is heard unless barged in", which is all the
 protocol conformance surface needs.
 """
 
@@ -33,15 +33,15 @@ from voqalize.sdk.wire import (
     ClientMessageFrame,
     EndFrame,
     ErrorFrame,
+    FinalizeFrame,
     FinalizeReason,
     Frame,
-    InferenceFinalizedFrame,
     InterruptionFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMTextFrame,
     ServerMessageFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
     UpdateIdleSettingsFrame,
     UpdateSTTSettingsFrame,
     UpdateTTSSettingsFrame,
@@ -60,7 +60,7 @@ GREETING_INTERACTION_ID = 0
 # ─── the conformance backchannel ─────────────────────────────────────────────
 #
 # The wire deliberately never carries the brain's *committed* conversation — the
-# brain only ever sends inference *output* frames, so heard-truth (what the brain
+# brain only ever sends speech *output* frames, so heard-truth (what the brain
 # recorded for the LLM) is not observable from the wire alone. There is no
 # history-request frame, and we do not add one: the wire stays frozen.
 #
@@ -82,7 +82,7 @@ _ACK_GATED = (
     UserMessageFrame,
     UserIdleFrame,
     ClientMessageFrame,
-    InferenceFinalizedFrame,
+    FinalizeFrame,
 )
 
 
@@ -95,10 +95,10 @@ class Recorded:
 
 
 @dataclass
-class InferenceObs:
-    """The driver's observation of a single inference bracket (brain output)."""
+class SpeechObs:
+    """The driver's observation of a single speech unit (brain output)."""
 
-    inference_id: int
+    speech_id: int
     started_t: float
     ended: bool = False
     ended_t: float | None = None
@@ -119,19 +119,19 @@ class InteractionObs:
     """The driver's observation of one interaction (0 = greeting, else a user turn)."""
 
     interaction_id: int
-    inferences: list[InferenceObs] = field(default_factory=list)
+    units: list[SpeechObs] = field(default_factory=list)
     finalized: set[int] = field(default_factory=set)
 
     @property
     def completed(self) -> bool:
         """Every bracket the brain opened for this turn, it closed. The wire has
         no end-of-turn frame; this is what "the brain finished" means."""
-        return bool(self.inferences) and all(inf.ended for inf in self.inferences)
+        return bool(self.units) and all(unit.ended for unit in self.units)
 
-    def inference(self, inference_id: int) -> InferenceObs | None:
-        for inf in self.inferences:
-            if inf.inference_id == inference_id:
-                return inf
+    def unit(self, speech_id: int) -> SpeechObs | None:
+        for unit in self.units:
+            if unit.speech_id == speech_id:
+                return unit
         return None
 
 
@@ -140,18 +140,18 @@ class Turn:
     """The result of one driven turn (a ``user_says`` or ``barge_in``)."""
 
     interaction_id: int
-    inferences: list[InferenceObs]
+    units: list[SpeechObs]
     completed: bool
     interrupted: bool = False
     # For a barge-in: the partial heard-truth the driver finalized the cut
-    # inference with (what the user actually heard before the interruption).
+    # unit with (what the user actually heard before the interruption).
     # ``""`` means the barge landed before any audio played; ``None`` means the
-    # turn was not a barge-in (or no inference was open to cut).
+    # turn was not a barge-in (or no unit was open to cut).
     heard: str | None = None
 
     @property
     def text(self) -> str:
-        return " ".join(inf.text for inf in self.inferences if inf.spoke)
+        return " ".join(unit.text for unit in self.units if unit.spoke)
 
 
 class VoiceDriver:
@@ -251,19 +251,19 @@ class VoiceDriver:
         assert frame is not None
         self.log.append(Recorded(frame, t))
 
-        if isinstance(frame, LLMFullResponseStartFrame):
+        if isinstance(frame, SpeechStartFrame):
             io = self.interactions.setdefault(msg.epoch, InteractionObs(msg.epoch))
-            io.inferences.append(InferenceObs(msg.inference_id, started_t=t))
-        elif isinstance(frame, LLMTextFrame):
-            inf = self._inf(msg.epoch, msg.inference_id)
-            if inf is not None:
-                inf.texts.append(frame.text)
-                inf.text_times.append(t)
-        elif isinstance(frame, LLMFullResponseEndFrame):
-            inf = self._inf(msg.epoch, msg.inference_id)
-            if inf is not None:
-                inf.ended = True
-                inf.ended_t = t
+            io.units.append(SpeechObs(msg.speech_id, started_t=t))
+        elif isinstance(frame, SpeechChunkFrame):
+            unit = self._unit_obs(msg.epoch, msg.speech_id)
+            if unit is not None:
+                unit.texts.append(frame.text)
+                unit.text_times.append(t)
+        elif isinstance(frame, SpeechEndFrame):
+            unit = self._unit_obs(msg.epoch, msg.speech_id)
+            if unit is not None:
+                unit.ended = True
+                unit.ended_t = t
         elif isinstance(frame, InterruptionFrame):
             self._interruption_seen.set()
         elif isinstance(frame, ServerMessageFrame):
@@ -277,13 +277,13 @@ class VoiceDriver:
         elif isinstance(frame, UpdateIdleSettingsFrame):
             self.idle_settings.append(frame.settings)
 
-    def _inf(self, epoch: int, inference_id: int) -> InferenceObs | None:
+    def _unit_obs(self, epoch: int, speech_id: int) -> SpeechObs | None:
         io = self.interactions.get(epoch)
-        return io.inference(inference_id) if io is not None else None
+        return io.unit(speech_id) if io is not None else None
 
     # ─── sending ───────────────────────────────────────────────────────────────
 
-    async def _send(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> int:
+    async def _send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> int:
         """Serialize and send a pygato→brain frame; returns the request_id used
         (>0 for ack-gated data frames, 0 for system/control frames)."""
         if isinstance(frame, _ACK_GATED):
@@ -292,7 +292,7 @@ class VoiceDriver:
         else:
             request_id = 0
         payload = await self._ser.serialize(
-            frame, request_id=request_id, epoch=epoch, inference_id=inference_id
+            frame, request_id=request_id, epoch=epoch, speech_id=speech_id
         )
         await self._conn.send_payload(payload)
         return request_id
@@ -349,7 +349,7 @@ class VoiceDriver:
 
         The greeting is *agent-initiated speech* — one unit, answering no
         stimulus: the driver waits for a closed bracket plus a short quiescence,
-        then finalizes the greeting inference (heard-truth)."""
+        then finalizes the greeting unit (heard-truth)."""
         await self._send(
             SessionStartFrame(
                 session_id=self.session_id,
@@ -360,7 +360,7 @@ class VoiceDriver:
         got = await self._wait_for(
             lambda: (
                 (io := self.interactions.get(GREETING_INTERACTION_ID)) is not None
-                and any(inf.ended for inf in io.inferences)
+                and any(unit.ended for unit in io.units)
             ),
             timeout=greeting_timeout,
         )
@@ -369,13 +369,13 @@ class VoiceDriver:
         # Quiesce before finalizing, so nothing is still in flight.
         await self._quiesce(self._quiet(quiet_for), timeout=greeting_timeout)
         io = self.interactions.get(GREETING_INTERACTION_ID)
-        if io is None or not io.inferences:
+        if io is None or not io.units:
             return None
         if finalize_greeting:
             await self._finalize_completed(io, FinalizeReason.COMPLETED)
         return Turn(
             interaction_id=GREETING_INTERACTION_ID,
-            inferences=list(io.inferences),
+            units=list(io.units),
             completed=io.completed,
         )
 
@@ -388,7 +388,7 @@ class VoiceDriver:
         quiet_for: float | None = None,
     ) -> Turn:
         """Drive one user turn: send ``UserMessage``, play out the brain's response,
-        and finalize each spoken inference with a heard-truth transcript. Returns
+        and finalize each spoken unit with a heard-truth transcript. Returns
         the observed :class:`Turn`."""
         timeout = self.default_timeout if timeout is None else timeout
         iid = self.next_interaction_id()
@@ -402,13 +402,13 @@ class VoiceDriver:
         self, iid: int, *, timeout: float, finalize: bool, quiet_for: float | None = None
     ) -> Turn:
         """Play out the brain's response to an already-opened turn, then finalize
-        each spoken inference with a heard-truth transcript. Shared by ``user_says``
+        each spoken unit with a heard-truth transcript. Shared by ``user_says``
         / ``user_idle`` / ``client_message`` — every Voice-opened turn plays out
         identically.
 
         The wire carries no end-of-turn frame, so "the brain is done" is: every
         bracket it opened has closed, and it has then stayed quiet for ``quiet_for``
-        (a multi-inference turn opens the next bracket immediately after closing the
+        (a multi-unit turn opens the next bracket immediately after closing the
         last, so a closed bracket alone is not enough). A brain with a watchdog that
         speaks late needs a window longer than that watchdog."""
         await self._wait_for(
@@ -419,7 +419,7 @@ class VoiceDriver:
         io = self.interactions.setdefault(iid, InteractionObs(iid))
         if finalize:
             await self._finalize_completed(io, FinalizeReason.COMPLETED)
-        return Turn(iid, list(io.inferences), completed=io.completed)
+        return Turn(iid, list(io.units), completed=io.completed)
 
     async def user_idle(
         self,
@@ -452,7 +452,7 @@ class VoiceDriver:
     ) -> Turn:
         """Drive a user barge-in: start a turn, let the brain begin speaking, then
         send an ``InterruptionFrame`` and await the brain's drain echo. Finalize the
-        cut inference with ``interrupted=True`` / ``USER_BARGE_IN`` and a partial
+        cut unit with ``interrupted=True`` / ``USER_BARGE_IN`` and a partial
         heard-truth, and return it on :attr:`Turn.heard`.
 
         The driver *is* Voice here, so it dictates the finalized ``heard_text`` —
@@ -471,7 +471,7 @@ class VoiceDriver:
         * ``wait_for_speech=True`` (default) — wait for the brain to speak, then let
           it go quiet for ``speak_delay`` before barging, so the cut lands cleanly
           between a heard chunk and an un-heard tail (the mid-partial case).
-        * ``wait_for_complete=True`` — wait until the cut inference's bracket has
+        * ``wait_for_complete=True`` — wait until the cut unit's bracket has
           *closed* (the reply fully generated and, on the far side, persisted by the
           framework) before barging its playout. Models a barge during the playout of
           an already-complete reply: the framework has the whole generated turn, yet
@@ -480,7 +480,7 @@ class VoiceDriver:
         ``interrupts`` (default 1) sends that many ``InterruptionFrame``s back-to-back
         before awaiting the echo — a rapid multi-barge that stresses the brain's
         cancel path (each must cancel cleanly; the teardown of the open bracket must
-        still land its ``LLMFullResponseEnd``)."""
+        still land its ``SpeechEnd``)."""
         timeout = self.default_timeout if timeout is None else timeout
         iid = self.next_interaction_id()
         self._interruption_seen.clear()
@@ -492,7 +492,7 @@ class VoiceDriver:
             await self._wait_for(
                 lambda: (
                     (io := self.interactions.get(iid)) is not None
-                    and any(inf.ended for inf in io.inferences)
+                    and any(unit.ended for unit in io.units)
                 ),
                 timeout=timeout,
             )
@@ -501,7 +501,7 @@ class VoiceDriver:
             # Let the brain open a bracket and speak at least a little, then settle.
             await self._wait_for(
                 lambda: any(
-                    inf.spoke for inf in self.interactions.get(iid, InteractionObs(iid)).inferences
+                    unit.spoke for unit in self.interactions.get(iid, InteractionObs(iid)).units
                 ),
                 timeout=timeout,
             )
@@ -511,7 +511,7 @@ class VoiceDriver:
             # Barge before any audio can play: wait a fixed, short beat only.
             await asyncio.sleep(speak_delay)
 
-        cut = self._cut_inference(iid)
+        cut = self._cut_unit(iid)
 
         # Send the interruption(s) (system lane, request_id 0) and await the echo.
         # A rapid multi-barge sends several before the brain can echo the first.
@@ -524,42 +524,42 @@ class VoiceDriver:
         if cut is not None:
             heard = heard_prefix if heard_prefix is not None else cut.text
             await self._send(
-                InferenceFinalizedFrame(heard_text=heard, reason=FinalizeReason.USER_BARGE_IN),
+                FinalizeFrame(heard_text=heard, reason=FinalizeReason.USER_BARGE_IN),
                 epoch=iid,
-                inference_id=cut.inference_id,
+                speech_id=cut.speech_id,
             )
-            io.finalized.add(cut.inference_id)
+            io.finalized.add(cut.speech_id)
         return Turn(
             iid,
-            list(io.inferences),
+            list(io.units),
             completed=io.completed,
             interrupted=True,
             heard=heard,
         )
 
-    def _cut_inference(self, epoch: int) -> InferenceObs | None:
-        """The inference in flight when the barge-in lands: prefer the last one
+    def _cut_unit(self, epoch: int) -> SpeechObs | None:
+        """The unit in flight when the barge-in lands: prefer the last one
         still open (no end), else the last one observed."""
         io = self.interactions.get(epoch)
-        if io is None or not io.inferences:
+        if io is None or not io.units:
             return None
-        for inf in reversed(io.inferences):
-            if not inf.ended:
-                return inf
-        return io.inferences[-1]
+        for unit in reversed(io.units):
+            if not unit.ended:
+                return unit
+        return io.units[-1]
 
     async def _finalize_completed(self, io: InteractionObs, reason: FinalizeReason) -> None:
-        """Finalize every spoken, ended, not-yet-finalized inference in ``io`` with
+        """Finalize every spoken, ended, not-yet-finalized unit in ``io`` with
         heard-truth = exactly what the brain emitted (never generated)."""
-        for inf in io.inferences:
-            if inf.inference_id in io.finalized or not inf.spoke or not inf.ended:
+        for unit in io.units:
+            if unit.speech_id in io.finalized or not unit.spoke or not unit.ended:
                 continue
             await self._send(
-                InferenceFinalizedFrame(heard_text=inf.text, reason=reason),
+                FinalizeFrame(heard_text=unit.text, reason=reason),
                 epoch=io.interaction_id,
-                inference_id=inf.inference_id,
+                speech_id=unit.speech_id,
             )
-            io.finalized.add(inf.inference_id)
+            io.finalized.add(unit.speech_id)
 
     # ─── app / action lane ───────────────────────────────────────────────────
 

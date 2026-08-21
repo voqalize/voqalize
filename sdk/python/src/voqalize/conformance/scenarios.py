@@ -149,7 +149,7 @@ async def scn_single_turn(ctx: ScenarioContext) -> None:
     checks.check_spoke(turn)
     checks.check_completed(turn)
     checks.check_brackets_closed(turn)
-    checks.check_inference_ids_monotonic(turn)
+    checks.check_speech_ids_monotonic(turn)
     checks.check_stamped_with_interaction(driver, turn)
 
 
@@ -172,23 +172,23 @@ async def scn_multi_turn(ctx: ScenarioContext) -> None:
     )
 
 
-async def scn_two_inferences_one_turn(ctx: ScenarioContext) -> None:
-    """One interaction, two inference brackets — one-bracket-per-inference and
-    per-interaction monotone inference ids. (Reference grammar: ``two``.)"""
+async def scn_two_units_one_turn(ctx: ScenarioContext) -> None:
+    """One interaction, two speech units — one-bracket-per-unit and
+    per-interaction monotone speech ids. (Reference grammar: ``two``.)"""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.user_says(TWO)
     checks.check_completed(turn)
     checks.check_brackets_closed(turn)
-    checks.check_inference_ids_monotonic(turn)
+    checks.check_speech_ids_monotonic(turn)
     checks.require(
-        len(turn.inferences) == 2,
-        f"expected 2 inferences for a two-inference turn, saw {len(turn.inferences)}",
+        len(turn.units) == 2,
+        f"expected 2 units for a two-unit turn, saw {len(turn.units)}",
     )
-    texts = [inf.text for inf in turn.inferences]
+    texts = [unit.text for unit in turn.units]
     checks.require(
         texts == [TWO_FIRST, TWO_SECOND],
-        f"two-inference texts {texts} != {[TWO_FIRST, TWO_SECOND]}",
+        f"two-unit texts {texts} != {[TWO_FIRST, TWO_SECOND]}",
     )
 
 
@@ -297,7 +297,7 @@ async def scn_heard_truth_barge_in(ctx: ScenarioContext) -> None:
         f"barged-in assistant message committed the un-heard tail: {assistant[-1:]}",
     )
     # And the heard prefix the driver finalized is what got recorded.
-    heard = turn.inferences[-1].text if turn.inferences else ""
+    heard = turn.units[-1].text if turn.units else ""
     checks.require(
         assistant[-1].get("content", "") == heard,
         f"committed heard {assistant[-1].get('content')!r} != driver-finalized "
@@ -493,9 +493,9 @@ CATALOG: list[Scenario] = [
         scn_multi_turn,
     ),
     Scenario(
-        "two_inferences_one_turn",
-        "One turn, two inference brackets with monotone inference ids.",
-        scn_two_inferences_one_turn,
+        "two_units_one_turn",
+        "One turn, two speech units with monotone speech ids.",
+        scn_two_units_one_turn,
         requires_reference=True,
     ),
     Scenario(

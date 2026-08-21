@@ -10,6 +10,28 @@ version anyone can `pip install`, and starting the public series at the bottom
 says plainly that nothing here is promised yet. Those older entries stay,
 because the API they describe is the API `0.0.1` ships.
 
+## 0.0.4 (unreleased)
+
+**The wire's speech vocabulary is renamed; the encoding is not.** Every field
+number, type and cardinality is byte-identical — a capture from before this
+release decodes with the new stub and vice versa. What changed is what the bytes
+are *called*, because the old names described the brain's internals
+(`LLMFullResponseStart`, `inference_id`) when the wire only ever carried speech:
+a unit the voice will say, and the truth of what was heard of it.
+
+### Changed
+
+- **Proto messages:** `LLMFullResponseStart`/`LLMText`/`LLMFullResponseEnd` →
+  `SpeechStart`/`SpeechChunk`/`SpeechEnd`; `InferenceFinalized` → `Finalize`.
+  Envelope field 52 `inference_id` → `speech_id` (same field number, same type —
+  a name-only change, invisible on the wire).
+- **SDK surface, renamed with no aliases:** `Speech{Start,Chunk,End}Frame`,
+  `FinalizeFrame`, `Envelope.speech_id`, `Emitter.send(speech_id=)`,
+  `Session._next_speech_id()`. `fin.interrupted` remains as sugar over
+  `FinalizeReason.USER_BARGE_IN`.
+- **Conformance:** `InferenceObs` → `SpeechObs`, `.inferences` → `.units`,
+  scenario id `two_inferences_one_turn` → `two_units_one_turn`.
+
 ## 0.0.3
 
 **No wire change.** The ack below is sent at a different *moment*, not in a

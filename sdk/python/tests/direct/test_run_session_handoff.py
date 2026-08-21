@@ -23,8 +23,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from voqalize.sdk import Brain, Chunk, SessionRejected, SpeechEnd, SpeechStart, run_session
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
-    LLMTextFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
     UserMessageFrame,
 )
 
@@ -76,11 +76,9 @@ class _Client:
         self._ep = endpoint
         self._ser = CortexFrameSerializer()
 
-    async def send(
-        self, frame, *, request_id: int = 0, epoch: int = 0, inference_id: int = 0
-    ) -> None:
+    async def send(self, frame, *, request_id: int = 0, epoch: int = 0, speech_id: int = 0) -> None:
         payload = await self._ser.serialize(
-            frame, request_id=request_id, epoch=epoch, inference_id=inference_id
+            frame, request_id=request_id, epoch=epoch, speech_id=speech_id
         )
         await self._ep.send(b"\x01" + payload)  # DOWNSTREAM
 
@@ -103,7 +101,7 @@ class _Client:
 
 def _has_text(substr: str):
     return lambda frames, _acks: any(
-        isinstance(f, LLMTextFrame) and substr in f.text for f in frames
+        isinstance(f, SpeechChunkFrame) and substr in f.text for f in frames
     )
 
 
@@ -118,13 +116,13 @@ async def test_run_session_handoff_greeting_echo_and_ack():
     try:
         await client.send(SessionStartFrame(session_id=sid, agent_id="echo"))
         frames, _ = await client.collect_until(_has_text("hi there"))
-        assert any(isinstance(f, LLMTextFrame) and "hi there" in f.text for f in frames)
+        assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
         await client.send(UserMessageFrame(text="ping"), epoch=1, request_id=7)
         frames, acks = await client.collect_until(
             lambda fr, ac: _has_text("echo: ping")(fr, ac) and 7 in ac
         )
-        assert any(isinstance(f, LLMTextFrame) and "echo: ping" in f.text for f in frames)
+        assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
         assert 7 in acks, "the data frame must be acked after dispatch"
     finally:
         await client_ch.close()  # closes the server side's recv → run_session returns

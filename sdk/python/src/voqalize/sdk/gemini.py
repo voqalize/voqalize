@@ -116,7 +116,7 @@ class GeminiBrain(Brain):
         #: The conversation, as Gemini contents. Yours to read, seed and persist.
         self.history: list[types.Content] = []
         # Units still awaiting their heard truth, in the order the runtime will
-        # report them. Every unit is here: the runtime finalizes each inference
+        # report them. Every unit is here: the runtime finalizes each unit
         # exactly once whether or not a word of it reached the caller, so a
         # silent one — a bare function call — is reported as heard-nothing and
         # leaves the transcript rather than never being mentioned.

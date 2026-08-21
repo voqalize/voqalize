@@ -9,9 +9,9 @@ observation model and :class:`~voqalize.conformance.driver.Turn` results.
 
 The rules come straight from ``docs/voice-protocol.md``:
 
-* **one bracket per inference** — every inference the brain opens
-  (``LLMFullResponseStart``) must close (``…End``) exactly once, with a monotone
-  ``inference_id`` sequence;
+* **one bracket per speech unit** — every unit the brain opens
+  (``SpeechStart``) must close (``…End``) exactly once, with a monotone
+  ``speech_id`` sequence;
 * **heard-truth** — the assistant text committed to the conversation is what the
   driver *heard* (played out), never brain-generated tail past a barge-in;
 * **barge-in is a drain barrier** — the brain echoes the ``InterruptionFrame``
@@ -38,29 +38,28 @@ def require(cond: bool, msg: str) -> None:
 
 
 def check_brackets_closed(turn: Turn) -> None:
-    """Every opened inference bracket closed exactly once (one bracket per inference)."""
-    for inf in turn.inferences:
+    """Every opened speech unit closed exactly once (one bracket per unit)."""
+    for unit in turn.units:
         require(
-            inf.ended,
-            f"interaction {turn.interaction_id} inference {inf.inference_id}: "
-            "bracket opened (LLMFullResponseStart) but never closed "
-            "(LLMFullResponseEnd) — one-bracket-per-inference violated",
+            unit.ended,
+            f"interaction {turn.interaction_id} unit {unit.speech_id}: "
+            "bracket opened (SpeechStart) but never closed "
+            "(SpeechEnd) — one-bracket-per-unit violated",
         )
 
 
-def check_inference_ids_monotonic(turn: Turn, *, start: int = 1) -> None:
-    """Inference ids within a turn are strictly increasing from ``start``. Ids are
+def check_speech_ids_monotonic(turn: Turn, *, start: int = 1) -> None:
+    """Speech ids within a turn are strictly increasing from ``start``. Ids are
     session-monotonic, so a later turn legitimately starts well above 1."""
-    ids = [inf.inference_id for inf in turn.inferences]
+    ids = [unit.speech_id for unit in turn.units]
     require(
         ids == sorted(ids) and len(set(ids)) == len(ids),
-        f"interaction {turn.interaction_id}: inference ids {ids} are not strictly "
-        "increasing / unique",
+        f"interaction {turn.interaction_id}: speech ids {ids} are not strictly increasing / unique",
     )
     if ids:
         require(
             ids[0] >= start,
-            f"interaction {turn.interaction_id}: first inference id {ids[0]} < {start}",
+            f"interaction {turn.interaction_id}: first speech id {ids[0]} < {start}",
         )
 
 
@@ -88,7 +87,7 @@ def check_completed(turn: Turn) -> None:
 
 def check_spoke(turn: Turn) -> None:
     require(
-        any(inf.spoke for inf in turn.inferences),
+        any(unit.spoke for unit in turn.units),
         f"interaction {turn.interaction_id}: brain produced no LLM text",
     )
 
@@ -121,15 +120,15 @@ def check_interruption_echoed(driver: VoiceDriver) -> None:
 
 
 def check_no_speech_after_barge_in(driver: VoiceDriver, turn: Turn, *, forbidden: str) -> None:
-    """No inference in the cut interaction emitted the post-barge-in tail — the
+    """No unit in the cut interaction emitted the post-barge-in tail — the
     brain must stop generating once cancelled (heard-truth has no unheard tail)."""
     io = driver.interactions.get(turn.interaction_id)
     if io is None:
         return
-    for inf in io.inferences:
+    for unit in io.units:
         require(
-            forbidden not in inf.text,
-            f"interaction {turn.interaction_id} inference {inf.inference_id}: emitted "
+            forbidden not in unit.text,
+            f"interaction {turn.interaction_id} unit {unit.speech_id}: emitted "
             f"post-barge-in text {forbidden!r} — brain kept speaking after cancel",
         )
 
@@ -204,5 +203,5 @@ def check_conversation_heard(state: dict, *, expected_tail: list[dict]) -> None:
 
 
 def messages_of(io: InteractionObs) -> list[str]:
-    """Convenience: the per-inference heard text of an interaction, in order."""
-    return [inf.text for inf in io.inferences]
+    """Convenience: the per-unit heard text of an interaction, in order."""
+    return [unit.text for unit in io.units]

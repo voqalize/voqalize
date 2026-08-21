@@ -27,9 +27,9 @@ from voqalize.sdk.wire import (
     CortexFrameSerializer,
     FrameDirection,
     InterruptionFrame,
-    LLMTextFrame,
     PermanentClose,
     SessionStartFrame,
+    SpeechChunkFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
@@ -70,11 +70,9 @@ class _Client:
         self._wire = wire
         self._ser = CortexFrameSerializer()
 
-    async def send(
-        self, frame, *, request_id: int = 0, epoch: int = 0, inference_id: int = 0
-    ) -> None:
+    async def send(self, frame, *, request_id: int = 0, epoch: int = 0, speech_id: int = 0) -> None:
         payload = await self._ser.serialize(
-            frame, request_id=request_id, epoch=epoch, inference_id=inference_id
+            frame, request_id=request_id, epoch=epoch, speech_id=speech_id
         )
         await self._wire.send(FrameDirection.DOWNSTREAM, payload)
 
@@ -118,7 +116,7 @@ async def _connect(port: int, session_id: str, *, headers: dict | None = None) -
 
 def _has_text(substr: str):
     def _pred(frames, _acks) -> bool:
-        return any(isinstance(f, LLMTextFrame) and substr in f.text for f in frames)
+        return any(isinstance(f, SpeechChunkFrame) and substr in f.text for f in frames)
 
     return _pred
 
@@ -133,17 +131,17 @@ async def test_direct_round_trip_greeting_and_echo():
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        # Session start → the brain greets (server-initiated inference 0).
+        # Session start → the brain greets (agent-initiated, epoch 0).
         await client.send(SessionStartFrame(session_id=session_id, agent_id="echo"))
         frames, _ = await client.collect_until(_has_text("hi there"))
-        assert any(isinstance(f, LLMTextFrame) and "hi there" in f.text for f in frames)
+        assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
         # A user turn → the brain echoes, and the frame is acked after dispatch.
         await client.send(UserMessageFrame(text="ping"), epoch=1, request_id=42)
         frames, acks = await client.collect_until(
             lambda fr, ac: _has_text("echo: ping")(fr, ac) and 42 in ac
         )
-        assert any(isinstance(f, LLMTextFrame) and "echo: ping" in f.text for f in frames)
+        assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
         assert 42 in acks, "the data frame must be acked after the brain consumes it"
     finally:
         await wire.close()
@@ -169,7 +167,7 @@ async def test_direct_interruption_echoes_drain_barrier():
         )
         assert any(isinstance(f, InterruptionFrame) for f in frames)
         # The cancelled unit never produced its (post-sleep) text.
-        assert not any(isinstance(f, LLMTextFrame) and "never hear" in f.text for f in frames)
+        assert not any(isinstance(f, SpeechChunkFrame) and "never hear" in f.text for f in frames)
     finally:
         await wire.close()
         await server.aclose()
@@ -208,7 +206,7 @@ async def test_direct_idle_interruption_is_handled_and_session_survives():
         frames, acks = await client.collect_until(
             lambda fr, ac: _has_text("echo: ping")(fr, ac) and 7 in ac
         )
-        assert any(isinstance(f, LLMTextFrame) and "echo: ping" in f.text for f in frames)
+        assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
         assert 7 in acks, "the post-interruption turn must still be acked"
     finally:
         await wire.close()

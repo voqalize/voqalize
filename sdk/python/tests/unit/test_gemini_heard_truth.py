@@ -1,7 +1,7 @@
 """`GeminiBrain` reconciles its transcript from finalizes, one per unit it opened.
 
 The brain commits what the caller *heard*. It learns that only from the runtime,
-which reports every inference it minted exactly once — including the ones that
+which reports every speech unit it minted exactly once — including the ones that
 never reached a speaker, as heard-nothing. That guarantee is what lets the queue
 be a plain FIFO: the n-th finalize belongs to the n-th unit, so a unit that was
 generated and never delivered leaves the transcript instead of sitting in it as a
@@ -27,7 +27,7 @@ from voqalize.sdk.wire import Frame, SessionStartFrame
 class _Silent:
     """An emitter that keeps nothing: these tests read history, not the wire."""
 
-    def send(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> None:
+    def send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
         pass
 
 
@@ -41,7 +41,7 @@ async def _brain() -> tuple[GeminiBrain, Session]:
         Envelope(
             frame=SessionStartFrame(session_id="s", agent_id="a"),
             epoch=0,
-            inference_id=0,
+            speech_id=0,
             request_id=0,
         )
     )
@@ -70,8 +70,8 @@ def _tool_call(brain: GeminiBrain, name: str) -> None:
     )
 
 
-def _heard(text: str, *, inference_id: int = 0, interrupted: bool = False) -> Finalize:
-    return Finalize(inference_id=inference_id, heard=text, interrupted=interrupted)
+def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Finalize:
+    return Finalize(speech_id=speech_id, heard=text, interrupted=interrupted)
 
 
 async def test_a_unit_heard_in_full_stays_as_it_was() -> None:
@@ -132,8 +132,8 @@ async def test_finalizes_are_matched_to_units_in_order() -> None:
     _tool_call(brain, "search_flights")
     _speak(brain, "there are three options this morning")
 
-    await brain.on_finalize(session, _heard("", inference_id=1))
-    await brain.on_finalize(session, _heard("there are three", inference_id=2, interrupted=True))
+    await brain.on_finalize(session, _heard("", speech_id=1))
+    await brain.on_finalize(session, _heard("there are three", speech_id=2, interrupted=True))
 
     assert _texts(brain) == ["", "there are three"]
 

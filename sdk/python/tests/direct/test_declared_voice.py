@@ -32,7 +32,7 @@ from voqalize.conformance import (
 )
 from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
-    LLMTextFrame,
+    SpeechChunkFrame,
     UpdateSTTSettingsFrame,
     UpdateTTSSettingsFrame,
 )
@@ -129,7 +129,7 @@ async def test_declared_language_configures_both_halves_before_the_greeting() ->
     ]
     assert _settings(log, UpdateSTTSettingsFrame) == [{"language_hint": "hi"}]
 
-    greeting = _first_index(log, LLMTextFrame)
+    greeting = _first_index(log, SpeechChunkFrame)
     assert greeting is not None, "the brain must have greeted"
     tts_at = _first_index(log, UpdateTTSSettingsFrame)
     stt_at = _first_index(log, UpdateSTTSettingsFrame)
@@ -169,7 +169,7 @@ async def test_on_session_start_can_override_the_declaration() -> None:
         "the declaration must be applied first and the per-call override second, "
         "so the override wins"
     )
-    greeting = _first_index(log, LLMTextFrame)
+    greeting = _first_index(log, SpeechChunkFrame)
     assert greeting is not None
     last_tts = max(i for i, r in enumerate(log) if isinstance(r.frame, UpdateTTSSettingsFrame))
     assert last_tts < greeting

@@ -11,7 +11,7 @@ speaks the same set. The wire protocol itself is language-neutral — this proto
 is the contract a future Go (or any other language) SDK would regenerate stubs
 from.
 
-- Correlation (`request_id`, `epoch`, `inference_id`) lives on the envelope,
+- Correlation (`request_id`, `epoch`, `speech_id`) lives on the envelope,
   never inside a message body.
 - Opaque payloads are JSON-encoded strings (no `google.protobuf.Struct`
   dependency).

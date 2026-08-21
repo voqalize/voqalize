@@ -10,15 +10,15 @@ from voqalize.sdk.wire import (
     CortexFrameSerializer,
     EndFrame,
     ErrorFrame,
+    FinalizeFrame,
     FinalizeReason,
     Frame,
-    InferenceFinalizedFrame,
     InterruptionFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMTextFrame,
     ServerMessageFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
     UpdateIdleSettingsFrame,
     UpdateSTTSettingsFrame,
     UpdateTTSSettingsFrame,
@@ -38,12 +38,12 @@ def _frames() -> list[Frame]:
         UserIdleFrame(level=2, idle_ms=30000),
         ClientMessageFrame(msg_id="m-1", type="form_submitted", data={"field": "email"}),
         InterruptionFrame(),
-        InferenceFinalizedFrame(heard_text="ok, scheduled", reason=FinalizeReason.COMPLETED),
-        InferenceFinalizedFrame(heard_text="partial...", reason=FinalizeReason.USER_BARGE_IN),
-        LLMFullResponseStartFrame(),
-        LLMTextFrame(text="hi"),
-        LLMTextFrame(text=" world"),
-        LLMFullResponseEndFrame(),
+        FinalizeFrame(heard_text="ok, scheduled", reason=FinalizeReason.COMPLETED),
+        FinalizeFrame(heard_text="partial...", reason=FinalizeReason.USER_BARGE_IN),
+        SpeechStartFrame(),
+        SpeechChunkFrame(text="hi"),
+        SpeechChunkFrame(text=" world"),
+        SpeechEndFrame(),
         ServerMessageFrame(data={"ui": "open_panel", "args": {"id": 3}}),
         UpdateTTSSettingsFrame(settings={"voice": "omnivoice/gauri", "language": "hi"}),
         UpdateSTTSettingsFrame(settings={"language_hint": "hi"}),
@@ -61,8 +61,8 @@ _FIELDS: dict[type[Frame], tuple[str, ...]] = {
     UserMessageFrame: ("text",),
     UserIdleFrame: ("level", "idle_ms"),
     ClientMessageFrame: ("msg_id", "type", "data"),
-    InferenceFinalizedFrame: ("heard_text", "reason"),
-    LLMTextFrame: ("text",),
+    FinalizeFrame: ("heard_text", "reason"),
+    SpeechChunkFrame: ("text",),
     ServerMessageFrame: ("data",),
     UpdateTTSSettingsFrame: ("settings",),
     UpdateSTTSettingsFrame: ("settings",),
@@ -70,8 +70,8 @@ _FIELDS: dict[type[Frame], tuple[str, ...]] = {
     ErrorFrame: ("error", "fatal"),
     # Field-less frames round-trip to their own type and nothing more.
     InterruptionFrame: (),
-    LLMFullResponseStartFrame: (),
-    LLMFullResponseEndFrame: (),
+    SpeechStartFrame: (),
+    SpeechEndFrame: (),
     EndFrame: (),
 }
 
@@ -103,14 +103,14 @@ async def test_correlation_rides_the_envelope(frame: Frame) -> None:
     """Correlation is the envelope's, not the body's: any frame carries any
     triple, and it comes back beside the decoded frame."""
     ser = CortexFrameSerializer()
-    payload = await ser.serialize(frame, request_id=11, epoch=22, inference_id=33)
+    payload = await ser.serialize(frame, request_id=11, epoch=22, speech_id=33)
 
     msg = await ser.deserialize_message(payload)
     assert type(msg.frame) is type(frame)
-    assert (msg.request_id, msg.epoch, msg.inference_id) == (11, 22, 33)
+    assert (msg.request_id, msg.epoch, msg.speech_id) == (11, 22, 33)
 
 
 async def test_correlation_defaults_to_zero() -> None:
     ser = CortexFrameSerializer()
     msg = await ser.deserialize_message(await ser.serialize(UserMessageFrame(text="hi")))
-    assert (msg.request_id, msg.epoch, msg.inference_id) == (0, 0, 0)
+    assert (msg.request_id, msg.epoch, msg.speech_id) == (0, 0, 0)

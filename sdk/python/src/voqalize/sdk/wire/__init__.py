@@ -8,7 +8,7 @@ Public surface:
   enum) and ``is_system`` (the lane-routing predicate).
 - ``CortexFrameSerializer`` — the protobuf codec; ``DecodedMessage`` carries a
   decoded frame beside the envelope's ``request_id`` / ``epoch`` /
-  ``inference_id``.
+  ``speech_id``.
 - ``MultiplexedWire``, ``Wire``, ``WireConfig``, ``PermanentClose`` — websocket
   transport with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
   handshake-refused case: a credential cortex answers 401/403 to is never
@@ -22,16 +22,16 @@ from .frames import (
     ClientMessageFrame,
     EndFrame,
     ErrorFrame,
+    FinalizeFrame,
     FinalizeReason,
     Frame,
     FrameDirection,
-    InferenceFinalizedFrame,
     InterruptionFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMTextFrame,
     ServerMessageFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
     UpdateIdleSettingsFrame,
     UpdateSTTSettingsFrame,
     UpdateTTSSettingsFrame,
@@ -66,19 +66,19 @@ __all__ = [
     "DecodedMessage",
     "EndFrame",
     "ErrorFrame",
+    "FinalizeFrame",
     "FinalizeReason",
     "Frame",
     "FrameDirection",
-    "InferenceFinalizedFrame",
     "InterruptionFrame",
-    "LLMFullResponseEndFrame",
-    "LLMFullResponseStartFrame",
-    "LLMTextFrame",
     "MalformedFrameError",
     "MultiplexedWire",
     "PermanentClose",
     "ServerMessageFrame",
     "SessionStartFrame",
+    "SpeechChunkFrame",
+    "SpeechEndFrame",
+    "SpeechStartFrame",
     "UnsupportedFrameError",
     "UpdateIdleSettingsFrame",
     "UpdateSTTSettingsFrame",

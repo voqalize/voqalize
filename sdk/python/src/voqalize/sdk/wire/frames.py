@@ -9,7 +9,7 @@ dataclasses, never in protobuf objects.
 ``Envelope`` bytes cross the wire; Python class identity never does.
 
 Every frame here is payload and nothing else. Correlation — ``request_id``,
-``epoch``, ``inference_id`` — rides the envelope and is threaded alongside a
+``epoch``, ``speech_id`` — rides the envelope and is threaded alongside a
 frame by :mod:`.serializer`, never stored on it.
 """
 
@@ -34,7 +34,7 @@ class Frame:
 
 
 class FinalizeReason(StrEnum):
-    """Why an inference was finalized."""
+    """Why a speech unit was finalized."""
 
     COMPLETED = "completed"
     USER_BARGE_IN = "user_barge_in"
@@ -86,9 +86,9 @@ class ClientMessageFrame(Frame):
 
 
 @dataclass
-class InferenceFinalizedFrame(Frame):
-    """What the user actually heard of one inference — never a cross-inference
-    concatenation. The inference is the envelope's ``inference_id``."""
+class FinalizeFrame(Frame):
+    """What the user actually heard of one speech unit — never a cross-unit
+    concatenation. The unit is the envelope's ``speech_id``."""
 
     heard_text: str = ""
     reason: FinalizeReason = FinalizeReason.COMPLETED
@@ -98,20 +98,20 @@ class InferenceFinalizedFrame(Frame):
 
 
 @dataclass
-class LLMFullResponseStartFrame(Frame):
-    """Opens one inference."""
+class SpeechStartFrame(Frame):
+    """Opens one speech unit."""
 
 
 @dataclass
-class LLMTextFrame(Frame):
-    """One chunk of text within an inference."""
+class SpeechChunkFrame(Frame):
+    """One chunk of text within a speech unit."""
 
     text: str = ""
 
 
 @dataclass
-class LLMFullResponseEndFrame(Frame):
-    """Closes one inference."""
+class SpeechEndFrame(Frame):
+    """Closes one speech unit."""
 
 
 @dataclass
@@ -192,10 +192,10 @@ WIRE_FRAME_CLASSES: tuple[type[Frame], ...] = (
     UserIdleFrame,
     ClientMessageFrame,
     InterruptionFrame,
-    LLMFullResponseStartFrame,
-    LLMTextFrame,
-    LLMFullResponseEndFrame,
-    InferenceFinalizedFrame,
+    SpeechStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    FinalizeFrame,
     ServerMessageFrame,
     UpdateTTSSettingsFrame,
     UpdateSTTSettingsFrame,

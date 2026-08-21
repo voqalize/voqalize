@@ -18,8 +18,8 @@ from voqalize.sdk.wire import (
     CortexFrameSerializer,
     Frame,
     FrameDirection,
-    LLMTextFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
@@ -100,16 +100,16 @@ async def test_two_sessions_are_isolated() -> None:
         recv_a = await _drain_until(
             wire_a,
             serializer,
-            lambda r: any(isinstance(f, LLMTextFrame) for f in r),
+            lambda r: any(isinstance(f, SpeechChunkFrame) for f in r),
         )
         recv_b = await _drain_until(
             wire_b,
             serializer,
-            lambda r: any(isinstance(f, LLMTextFrame) for f in r),
+            lambda r: any(isinstance(f, SpeechChunkFrame) for f in r),
         )
 
-        text_a = next(f for f in recv_a if isinstance(f, LLMTextFrame))
-        text_b = next(f for f in recv_b if isinstance(f, LLMTextFrame))
+        text_a = next(f for f in recv_a if isinstance(f, SpeechChunkFrame))
+        text_b = next(f for f in recv_b if isinstance(f, SpeechChunkFrame))
         assert text_a.text == "echo:hello-A"
         assert text_b.text == "echo:hello-B"
 

@@ -84,12 +84,12 @@ async def test_end_emits_end_frame_after_speech() -> None:
     assert len(end_positions) == 1, "session.end() must emit exactly one End frame"
 
     # The End rides the normal lane, so it drains *after* the goodbye speech.
-    from voqalize.sdk.wire import LLMTextFrame
+    from voqalize.sdk.wire import SpeechChunkFrame
 
     goodbye_positions = [
         i
         for i, r in enumerate(log)
-        if isinstance(r.frame, LLMTextFrame) and "Goodbye" in r.frame.text
+        if isinstance(r.frame, SpeechChunkFrame) and "Goodbye" in r.frame.text
     ]
     assert goodbye_positions, "the goodbye must have been spoken"
     assert end_positions[0] > goodbye_positions[-1], "End must come after the goodbye speech"

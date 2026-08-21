@@ -99,13 +99,14 @@ class ReferenceBrain(Brain):
     voice = "omnivoice/gauri"
 
     def __init__(self) -> None:
-        #: inference_id → what the caller actually heard. Written in on_finalize.
+        #: speech_id → what the caller actually heard. Written in on_finalize.
         self.heard: dict[int, str] = {}
-        #: inference_id → what this brain generated for that unit.
+        #: speech_id → what this brain generated for that unit.
         self.generated: dict[int, str] = {}
         # Units finalize in the order they opened, so a queue is enough to pair
-        # each finalize with the text that produced it. The brain never mints
-        # inference ids — Voice does — so it cannot index by one before the fact.
+        # each finalize with the text that produced it. The SDK mints the id as
+        # the unit opens, inside the generator, so the brain does not see it
+        # until the finalize names it back.
         self._opened: list[str] = []
         #: The last action result, spoken on the next turn — a callback holds no
         #: floor, so it cannot speak for itself.
@@ -194,7 +195,7 @@ class ReferenceBrain(Brain):
 
         if "look it up" in said or "slowly" in said:
             # Two speech units in one turn — the tool-hop shape. The first closes
-            # before the second opens; each gets its own inference id.
+            # before the second opens; each gets its own speech id.
             async for speech in self._say("Let me look that up."):
                 yield speech
             await asyncio.sleep(2.0)
@@ -234,15 +235,15 @@ class ReferenceBrain(Brain):
         it said three sentences the caller never heard will answer the next turn
         as if they landed.
         """
-        self.heard[fin.inference_id] = fin.heard
+        self.heard[fin.speech_id] = fin.heard
         if self._opened:
-            self.generated[fin.inference_id] = self._opened.pop(0)
+            self.generated[fin.speech_id] = self._opened.pop(0)
         logger.info(
             "reference: finalized #{} interrupted={} heard={!r} (generated {!r})",
-            fin.inference_id,
+            fin.speech_id,
             fin.interrupted,
             fin.heard,
-            self.generated.get(fin.inference_id, ""),
+            self.generated.get(fin.speech_id, ""),
         )
 
     # ─── Helpers ─────────────────────────────────────────────────────────

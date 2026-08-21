@@ -1,5 +1,5 @@
 """A barge-in InterruptionFrame cancels the in-flight turn on the agent side. No
-further LLM frames from that unit cross the wire after the interruption, and the
+further speech frames from that unit cross the wire after the interruption, and the
 agent echoes an InterruptionFrame back as pygato's drain barrier."""
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     InterruptionFrame,
-    LLMTextFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
     UserMessageFrame,
 )
 
@@ -56,10 +56,10 @@ async def test_interruption_cancels_in_flight() -> None:
 
             # Wait for the first chunk to arrive over the wire.
             frames, _ = await client.collect_until(
-                lambda fr, _ac: any(isinstance(f, LLMTextFrame) for f in fr),
+                lambda fr, _ac: any(isinstance(f, SpeechChunkFrame) for f in fr),
                 timeout=3.0,
             )
-            assert any(f.text == "chunk-1" for f in frames if isinstance(f, LLMTextFrame))
+            assert any(f.text == "chunk-1" for f in frames if isinstance(f, SpeechChunkFrame))
 
             # Barge in. The agent cancels the turn and echoes an
             # InterruptionFrame back as the drain barrier — on the outbound
@@ -73,8 +73,8 @@ async def test_interruption_cancels_in_flight() -> None:
                 timeout=3.0,
             )
             assert any(isinstance(f, InterruptionFrame) for f in frames2)
-            # No further LLM text frames slipped through after the barge-in.
-            assert not any(isinstance(f, LLMTextFrame) for f in frames2), (
+            # No further speech chunks slipped through after the barge-in.
+            assert not any(isinstance(f, SpeechChunkFrame) for f in frames2), (
                 f"text frames slipped through after interruption: {frames2}"
             )
         finally:

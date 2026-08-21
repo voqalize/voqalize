@@ -108,7 +108,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
   `on_interaction`; the rest are optional — `on_session_start`/`on_session_end`/
-  `on_user_idle`/`on_inference_finalized`/`on_client_message`/`on_error`) +
+  `on_user_idle`/`on_finalize`/`on_client_message`/`on_error`) +
   `Session`/`Interaction`/`Inference`/`Conversation`/`Outcome`/`ClientMessage`/
   `IdleInfo`, the `_BrainAdapter` that maps `Vql*` frames ↔ callbacks, and the
   entry points (`serve` for the Cortex leg, plus the internal `adapter_for` /
@@ -185,7 +185,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   consumer, so ordering is already settled at dequeue, and that is all the
   runtime's flow control needs. **Do slow I/O off the callback lane.** The runtime
   blocks its own pipeline on this ack; if the ack waited for your handler, a
-  `on_inference_finalized` that wrote a row to a database would delay the *next*
+  `on_finalize` that wrote a row to a database would delay the *next*
   user utterance by exactly that write. Callbacks
   behind a slow one still wait — one ordered lane is the contract, and it is what
   commits heard-truth before the next utterance arrives — so spawn your own
@@ -193,7 +193,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - **Interruption is a drain barrier.** Barge-in rides the wire as a field-less
   `InterruptionFrame` (system lane); the adapter cancels the in-flight interaction
   task(s) and echoes an `InterruptionFrame` back on the outbound system lane — the
-  runtime's drain barrier. Correlation lives on `inference_id`, not on the interrupt.
+  runtime's drain barrier. Correlation lives on `speech_id`, not on the interrupt.
 - **Backpressure never kills a session.** On normal-lane overflow the runner drops
   the newest frame and delivers a non-fatal `ErrorFrame` to the adapter
   (edge-triggered: one per congestion episode per direction), surfaced to the Brain

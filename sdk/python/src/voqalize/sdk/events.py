@@ -106,9 +106,12 @@ class Finalize:
     unit returned. ``heard`` is the delivered prefix, not what you generated —
     on a barge-in the two differ, and recording the generated version is how a
     model ends up referencing sentences it never finished saying.
+
+    ``speech_id`` names the unit this reports on — the value the SDK minted when
+    the unit opened, echoed back unchanged. It correlates and does nothing else.
     """
 
-    inference_id: int
+    speech_id: int
     heard: str
     interrupted: bool
 

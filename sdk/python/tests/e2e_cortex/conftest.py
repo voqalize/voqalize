@@ -38,10 +38,10 @@ class PygatoClient:
         *,
         request_id: int = 0,
         epoch: int = 0,
-        inference_id: int = 0,
+        speech_id: int = 0,
     ) -> None:
         payload = await self._ser.serialize(
-            frame, request_id=request_id, epoch=epoch, inference_id=inference_id
+            frame, request_id=request_id, epoch=epoch, speech_id=speech_id
         )
         await self._wire.send(FrameDirection.DOWNSTREAM, payload)
 

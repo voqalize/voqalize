@@ -7,14 +7,14 @@
 // sdk/python/src/voqalize/sdk/wire/_frames_pb2.py.
 //
 // Correlation lives in the envelope, never in a message body. Two scalars carry
-// it — `epoch` and `inference_id` — and every body is then just its own payload.
+// it — `epoch` and `speech_id` — and every body is then just its own payload.
 //
 // Direction, where V = voice runtime and B = brain:
 //
 //   V→B  session_start  user_message  user_idle  client_message  interruption
-//        inference_finalized  end  cancel
-//   B→V  llm_start  llm_text  llm_end  server_message  update_tts_settings
-//        update_stt_settings  update_idle_settings  cancel
+//        finalize  end  cancel
+//   B→V  speech_start  speech_chunk  speech_end  server_message
+//        update_tts_settings  update_stt_settings  update_idle_settings  cancel
 //   both error  ack
 //
 // Opaque fields (`payload`, `data`, `settings`) are JSON-encoded strings,
@@ -35,10 +35,10 @@ message Envelope {
     UserIdle             user_idle            = 3;
     ClientMessage        client_message       = 4;
     Interruption         interruption         = 5;
-    LLMFullResponseStart llm_start            = 6;
-    LLMText              llm_text             = 7;
-    LLMFullResponseEnd   llm_end              = 8;
-    InferenceFinalized   inference_finalized  = 9;
+    SpeechStart          speech_start         = 6;
+    SpeechChunk          speech_chunk         = 7;
+    SpeechEnd            speech_end           = 8;
+    Finalize             finalize             = 9;
     ServerMessage        server_message       = 10;
     UpdateTTSSettings    update_tts_settings  = 11;
     UpdateSTTSettings    update_stt_settings  = 12;
@@ -66,16 +66,15 @@ message Envelope {
   // about. Nothing else reads it, and no brain-facing API names it.
   uint64 epoch = 51;
 
-  // Session-monotonic, minted by the emitter of an inference bracket. Every
-  // envelope belonging to one model call carries the same value: the bracket
-  // (llm_start / llm_end), its llm_text, and the inference_finalized that
-  // reports what was heard.
+  // Brain-minted, session-monotonic, one per speech unit. Every envelope of
+  // one unit carries the same value: the bracket (speech_start / speech_end),
+  // its speech_chunk, and the finalize that reports what was heard.
   //
-  // Opaque to the side that did not mint it. The voice runtime never mints,
-  // reads, formats, orders or compares one — it tags the TTS context the
-  // bracket opened, and the inference_finalized names the same value back
-  // unchanged. So the brain may number these however it likes.
-  uint64 inference_id = 52;
+  // A pure correlation token, and that is its entire job. The voice runtime
+  // never mints, reads, formats, orders or compares one; it echoes it back on
+  // finalize exactly as it arrived, so the brain may number these however it
+  // likes.
+  uint64 speech_id = 52;
 }
 
 // ─── Voice → Brain ────────────────────────────────────────────────────────────
@@ -118,22 +117,22 @@ enum FinalizeReason {
   FINALIZE_REASON_USER_BARGE_IN = 2;
 }
 
-// What the user actually heard of one inference — never a cross-inference
-// concatenation. The inference is identified by the envelope's inference_id.
-message InferenceFinalized {
+// What the user actually heard of one speech unit — never a cross-unit
+// concatenation. The unit is identified by the envelope's speech_id.
+message Finalize {
   string         heard_text = 1;
   FinalizeReason reason     = 2;
 }
 
 // ─── Brain → Voice ────────────────────────────────────────────────────────────
 
-message LLMFullResponseStart {}
+message SpeechStart {}
 
-message LLMText {
+message SpeechChunk {
   string text = 1;
 }
 
-message LLMFullResponseEnd {}
+message SpeechEnd {}
 
 // Pipecat's RTVIServerMessageFrame.data, bound for the browser.
 message ServerMessage {

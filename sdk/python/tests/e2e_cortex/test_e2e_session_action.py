@@ -21,8 +21,8 @@ from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     ClientMessageFrame,
-    LLMTextFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
     UserMessageFrame,
 )
 
@@ -181,7 +181,9 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
                 epoch=1,
             )
             frames, _ = await client.collect_until(
-                lambda fr, _ac: any(isinstance(f, LLMTextFrame) and "got ok" in f.text for f in fr),
+                lambda fr, _ac: any(
+                    isinstance(f, SpeechChunkFrame) and "got ok" in f.text for f in fr
+                ),
                 timeout=5.0,
             )
         finally:
@@ -191,4 +193,4 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
                 await run_task
 
     assert [(r.action_id, r.status, r.data) for r in resolved] == [(1, "ok", {"ok": True})]
-    assert any(isinstance(f, LLMTextFrame) and "got ok" in f.text for f in frames)
+    assert any(isinstance(f, SpeechChunkFrame) and "got ok" in f.text for f in frames)

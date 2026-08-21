@@ -22,7 +22,7 @@ Design (identical to the previous pipecat-pipeline version, minus pipecat):
   guaranteed at dequeue time.
 
   Acking *after* the handler would make the ack mean "handled", which welds
-  brain-side compute onto PyGato's pipeline: an ``on_inference_finalized`` doing a
+  brain-side compute onto PyGato's pipeline: an ``on_finalize`` doing a
   database write parks ``__process_queue`` for the whole write, and the *next* user
   utterance — queued behind it in the same direction-agnostic queue — goes out late
   by exactly that much. That costs a real call about two seconds a turn, and it is
@@ -67,14 +67,14 @@ class Envelope:
     """A frame plus the wire correlation that travels beside it.
 
     ``epoch`` is minted by the voice runtime and echoed back unread; the runner
-    and the adapter only carry it. ``inference_id`` is minted per model call by
-    whichever side opens the inference.
+    and the adapter only carry it. ``speech_id`` is minted by the brain, one per
+    speech unit, and echoed back unread on the finalize naming that unit.
     """
 
     frame: Frame
     request_id: int = 0
     epoch: int = 0
-    inference_id: int = 0
+    speech_id: int = 0
 
 
 # ─── Seams ────────────────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ class Emitter(Protocol):
     :class:`SessionRunner`.
     """
 
-    def send(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> None: ...
+    def send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None: ...
 
 
 class SessionAdapter(Protocol):
@@ -276,8 +276,8 @@ class SessionRunner:
 
     # ─── Outbound (Emitter, called by the adapter) ──────────────────────
 
-    def send(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> None:
-        env = Envelope(frame=frame, epoch=epoch, inference_id=inference_id)
+    def send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
+        env = Envelope(frame=frame, epoch=epoch, speech_id=speech_id)
         was_empty = self._out.empty()
         if is_system(frame):
             self._out.put_system(env)

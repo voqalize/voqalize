@@ -27,8 +27,8 @@ from voqalize.sdk.wire import (
     ClientMessageFrame,
     ErrorFrame,
     Frame,
-    LLMTextFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
     UserIdleFrame,
 )
 
@@ -39,18 +39,18 @@ class Recorder:
     def __init__(self) -> None:
         self.frames: list[Frame] = []
 
-    def send(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> None:
+    def send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
         self.frames.append(frame)
 
     def names(self) -> list[str]:
         return [type(f).__name__ for f in self.frames]
 
     def spoken(self) -> str:
-        return "".join(f.text for f in self.frames if isinstance(f, LLMTextFrame))
+        return "".join(f.text for f in self.frames if isinstance(f, SpeechChunkFrame))
 
 
 def _env(frame: Frame) -> Envelope:
-    return Envelope(frame=frame, epoch=0, inference_id=0, request_id=0)
+    return Envelope(frame=frame, epoch=0, speech_id=0, request_id=0)
 
 
 async def _open(brain: Brain) -> tuple[object, Recorder]:

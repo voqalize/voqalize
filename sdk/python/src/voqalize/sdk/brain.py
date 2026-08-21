@@ -41,9 +41,9 @@ Mapping onto the wire:
 - ``on_user_message``       ← ``UserMessageFrame``
 - ``on_user_idle``          ← ``UserIdleFrame``
 - ``on_app_message``        ← ``ClientMessageFrame``
-- ``SpeechStart``/``SpeechEnd`` → ``LLMFullResponse{Start,End}Frame`` (mints one ``inference_id``)
-- ``Chunk``                 → ``LLMTextFrame``
-- ``on_finalize``           ← ``InferenceFinalizedFrame``
+- ``SpeechStart``/``SpeechEnd`` → ``Speech{Start,End}Frame`` (mints one ``speech_id``)
+- ``Chunk``                 → ``SpeechChunkFrame``
+- ``on_finalize``           ← ``FinalizeFrame``
 - an ``Action``             → ``ServerMessageFrame`` (a ``ui_command`` to the browser)
 - barge-in                  ← ``InterruptionFrame`` → the turn is cancelled, then echoed back as the drain barrier
 
@@ -83,15 +83,15 @@ from .wire import (
     ClientMessageFrame,
     EndFrame,
     ErrorFrame,
+    FinalizeFrame,
     FinalizeReason,
     Frame,
-    InferenceFinalizedFrame,
     InterruptionFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMTextFrame,
     ServerMessageFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
     UpdateIdleSettingsFrame,
     UpdateSTTSettingsFrame,
     UpdateTTSSettingsFrame,
@@ -177,7 +177,7 @@ class Session:
         # One id per speech unit, session-monotonic. Voice never reads it — it
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.
-        self._inference_seq = 0
+        self._speech_seq = 0
         self._action_seq = 0
         self._pending: dict[int, _PendingAction] = {}
         self._ended = False
@@ -276,7 +276,7 @@ class Session:
         ``pipeline.tts.language`` at connect instead — same field, same value.
 
         Fire-and-forget, and inherits each half's timing: STT applies at the next
-        turn boundary, TTS at the next inference (never mid-utterance).
+        turn boundary, TTS at the next speech unit (never mid-utterance).
         """
         self.configure_tts(voice=voice, language=language)
         self.configure_stt(language_hint=language)
@@ -354,9 +354,9 @@ class Session:
 
     # ─── Internal ───────────────────────────────────────────────────────
 
-    def _next_inference(self) -> int:
-        self._inference_seq += 1
-        return self._inference_seq
+    def _next_speech_id(self) -> int:
+        self._speech_seq += 1
+        return self._speech_seq
 
 
 # ─── The Brain contract ───────────────────────────────────────────────────────
@@ -511,8 +511,8 @@ class _BrainAdapter:
 
     # ─── Adapter services used by Session ───────────────────────────────
 
-    def emit(self, frame: Frame, *, epoch: int = 0, inference_id: int = 0) -> None:
-        self._emitter.send(frame, epoch=epoch, inference_id=inference_id)
+    def emit(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
+        self._emitter.send(frame, epoch=epoch, speech_id=speech_id)
 
     def spawn(self, coro: Any) -> asyncio.Task[Any]:
         task = asyncio.ensure_future(coro)
@@ -551,11 +551,11 @@ class _BrainAdapter:
             # have stopped being produced.
             await self._cancel_turns()
             self.emit(InterruptionFrame())
-        elif isinstance(frame, InferenceFinalizedFrame):
+        elif isinstance(frame, FinalizeFrame):
             await self._brain.on_finalize(
                 session,
                 Finalize(
-                    inference_id=env.inference_id,
+                    speech_id=env.speech_id,
                     heard=frame.heard_text,
                     interrupted=frame.reason is FinalizeReason.USER_BARGE_IN,
                 ),
@@ -640,31 +640,31 @@ class _BrainAdapter:
         not abandoned, so the brain's ``finally`` blocks run, and any unit still
         open is closed on the wire before we unwind.
         """
-        inference_id: int | None = None
+        speech_id: int | None = None
         try:
             async for event in gen:
                 if isinstance(event, SpeechStart):
-                    if inference_id is not None:
+                    if speech_id is not None:
                         raise ProtocolError("SpeechStart inside an open speech unit")
-                    inference_id = session._next_inference()
-                    self.emit(LLMFullResponseStartFrame(), epoch=epoch, inference_id=inference_id)
+                    speech_id = session._next_speech_id()
+                    self.emit(SpeechStartFrame(), epoch=epoch, speech_id=speech_id)
                 elif isinstance(event, Chunk):
-                    if inference_id is None:
+                    if speech_id is None:
                         raise ProtocolError("Chunk outside a speech unit")
                     if event.text:
                         self.emit(
-                            LLMTextFrame(text=event.text), epoch=epoch, inference_id=inference_id
+                            SpeechChunkFrame(text=event.text), epoch=epoch, speech_id=speech_id
                         )
                 elif isinstance(event, SpeechEnd):
-                    if inference_id is None:
+                    if speech_id is None:
                         raise ProtocolError("SpeechEnd with no open speech unit")
-                    self.emit(LLMFullResponseEndFrame(), epoch=epoch, inference_id=inference_id)
-                    inference_id = None
+                    self.emit(SpeechEndFrame(), epoch=epoch, speech_id=speech_id)
+                    speech_id = None
                 else:
                     raise ProtocolError(f"a brain may not yield {type(event).__name__}")
         finally:
-            if inference_id is not None:
-                self.emit(LLMFullResponseEndFrame(), epoch=epoch, inference_id=inference_id)
+            if speech_id is not None:
+                self.emit(SpeechEndFrame(), epoch=epoch, speech_id=speech_id)
             await gen.aclose()
 
     def _spawn_turn(self, session: Session, epoch: int, gen: AsyncGenerator[Speech, None]) -> None:

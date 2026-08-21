@@ -18,8 +18,8 @@ import uuid
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
     FrameDirection,
-    LLMFullResponseStartFrame,
     SessionStartFrame,
+    SpeechStartFrame,
     Wire,
     WireConfig,
 )
@@ -126,7 +126,7 @@ async def test_client_message_reaches_on_app_message() -> None:
     rec, emitted = await _run_client_message(speak=False)
 
     assert rec.seen == [(MSG_TYPE, MSG_DATA)]
-    assert not [f for f in emitted if isinstance(f, LLMFullResponseStartFrame)]
+    assert not [f for f in emitted if isinstance(f, SpeechStartFrame)]
 
 
 async def test_speaking_from_an_app_message_puts_nothing_on_the_wire() -> None:
@@ -140,4 +140,4 @@ async def test_speaking_from_an_app_message_puts_nothing_on_the_wire() -> None:
     rec, emitted = await _run_client_message(speak=True)
 
     assert rec.seen == []
-    assert not [f for f in emitted if isinstance(f, LLMFullResponseStartFrame)]
+    assert not [f for f in emitted if isinstance(f, SpeechStartFrame)]

@@ -4,10 +4,10 @@ Transcodes between the plain dataclasses in :mod:`.frames` and ``Envelope``
 bytes. Pipecat-free, stateless, no base class.
 
 Correlation is not part of a frame. ``serialize`` takes ``request_id``,
-``epoch`` and ``inference_id`` as keywords and writes them onto the envelope;
+``epoch`` and ``speech_id`` as keywords and writes them onto the envelope;
 ``deserialize_message`` hands them back beside the decoded frame in a
 :class:`DecodedMessage`. Callers thread that trio explicitly — the emitting
-context (a turn, an inference) is what knows the values, not the payload.
+context (a turn, a speech unit) is what knows the values, not the payload.
 
 ``deserialize`` is strict and raises on anything it cannot decode.
 ``deserialize_message`` — the entry point the read loops use — is
@@ -32,15 +32,15 @@ from .frames import (
     ClientMessageFrame,
     EndFrame,
     ErrorFrame,
+    FinalizeFrame,
     FinalizeReason,
     Frame,
-    InferenceFinalizedFrame,
     InterruptionFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMTextFrame,
     ServerMessageFrame,
     SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
     UpdateIdleSettingsFrame,
     UpdateSTTSettingsFrame,
     UpdateTTSSettingsFrame,
@@ -89,7 +89,7 @@ class DecodedMessage:
     ack: int | None
     request_id: int = 0
     epoch: int = 0
-    inference_id: int = 0
+    speech_id: int = 0
 
 
 # ─── Encoders ─────────────────────────────────────────────────────────────────
@@ -123,20 +123,20 @@ def _enc_interruption(f: InterruptionFrame, env: pb.Envelope) -> None:
     env.interruption.SetInParent()
 
 
-def _enc_llm_start(f: LLMFullResponseStartFrame, env: pb.Envelope) -> None:
-    env.llm_start.SetInParent()
+def _enc_speech_start(f: SpeechStartFrame, env: pb.Envelope) -> None:
+    env.speech_start.SetInParent()
 
 
-def _enc_llm_text(f: LLMTextFrame, env: pb.Envelope) -> None:
-    env.llm_text.text = f.text
+def _enc_speech_chunk(f: SpeechChunkFrame, env: pb.Envelope) -> None:
+    env.speech_chunk.text = f.text
 
 
-def _enc_llm_end(f: LLMFullResponseEndFrame, env: pb.Envelope) -> None:
-    env.llm_end.SetInParent()
+def _enc_speech_end(f: SpeechEndFrame, env: pb.Envelope) -> None:
+    env.speech_end.SetInParent()
 
 
-def _enc_inference_finalized(f: InferenceFinalizedFrame, env: pb.Envelope) -> None:
-    m = env.inference_finalized
+def _enc_finalize(f: FinalizeFrame, env: pb.Envelope) -> None:
+    m = env.finalize
     m.heard_text = f.heard_text
     m.reason = _REASON_TO_PB[f.reason]
 
@@ -178,10 +178,10 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     UserIdleFrame: _enc_user_idle,
     ClientMessageFrame: _enc_client_message,
     InterruptionFrame: _enc_interruption,
-    LLMFullResponseStartFrame: _enc_llm_start,
-    LLMTextFrame: _enc_llm_text,
-    LLMFullResponseEndFrame: _enc_llm_end,
-    InferenceFinalizedFrame: _enc_inference_finalized,
+    SpeechStartFrame: _enc_speech_start,
+    SpeechChunkFrame: _enc_speech_chunk,
+    SpeechEndFrame: _enc_speech_end,
+    FinalizeFrame: _enc_finalize,
     ServerMessageFrame: _enc_server_message,
     UpdateTTSSettingsFrame: _enc_update_tts,
     UpdateSTTSettingsFrame: _enc_update_stt,
@@ -226,21 +226,21 @@ def _dec_interruption(env: pb.Envelope) -> InterruptionFrame:
     return InterruptionFrame()
 
 
-def _dec_llm_start(env: pb.Envelope) -> LLMFullResponseStartFrame:
-    return LLMFullResponseStartFrame()
+def _dec_speech_start(env: pb.Envelope) -> SpeechStartFrame:
+    return SpeechStartFrame()
 
 
-def _dec_llm_text(env: pb.Envelope) -> LLMTextFrame:
-    return LLMTextFrame(text=env.llm_text.text)
+def _dec_speech_chunk(env: pb.Envelope) -> SpeechChunkFrame:
+    return SpeechChunkFrame(text=env.speech_chunk.text)
 
 
-def _dec_llm_end(env: pb.Envelope) -> LLMFullResponseEndFrame:
-    return LLMFullResponseEndFrame()
+def _dec_speech_end(env: pb.Envelope) -> SpeechEndFrame:
+    return SpeechEndFrame()
 
 
-def _dec_inference_finalized(env: pb.Envelope) -> InferenceFinalizedFrame:
-    m = env.inference_finalized
-    return InferenceFinalizedFrame(
+def _dec_finalize(env: pb.Envelope) -> FinalizeFrame:
+    m = env.finalize
+    return FinalizeFrame(
         heard_text=m.heard_text,
         reason=_REASON_FROM_PB.get(m.reason, FinalizeReason.COMPLETED),
     )
@@ -285,10 +285,10 @@ _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
     "user_idle": _dec_user_idle,
     "client_message": _dec_client_message,
     "interruption": _dec_interruption,
-    "llm_start": _dec_llm_start,
-    "llm_text": _dec_llm_text,
-    "llm_end": _dec_llm_end,
-    "inference_finalized": _dec_inference_finalized,
+    "speech_start": _dec_speech_start,
+    "speech_chunk": _dec_speech_chunk,
+    "speech_end": _dec_speech_end,
+    "finalize": _dec_finalize,
     "server_message": _dec_server_message,
     "update_tts_settings": _dec_update_tts,
     "update_stt_settings": _dec_update_stt,
@@ -315,7 +315,7 @@ class CortexFrameSerializer:
         *,
         request_id: int = 0,
         epoch: int = 0,
-        inference_id: int = 0,
+        speech_id: int = 0,
     ) -> bytes:
         encoder = _ENCODERS.get(type(frame))
         if encoder is None:
@@ -329,8 +329,8 @@ class CortexFrameSerializer:
             env.request_id = request_id
         if epoch:
             env.epoch = epoch
-        if inference_id:
-            env.inference_id = inference_id
+        if speech_id:
+            env.speech_id = speech_id
         return env.SerializeToString()
 
     async def deserialize(self, data: str | bytes) -> Frame:
@@ -357,7 +357,7 @@ class CortexFrameSerializer:
         corr: dict[str, int] = {
             "request_id": env.request_id,
             "epoch": env.epoch,
-            "inference_id": env.inference_id,
+            "speech_id": env.speech_id,
         }
 
         which = env.WhichOneof("body")
