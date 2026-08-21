@@ -33,10 +33,10 @@ scoped tool takes a required `tenant`. No tenant? `create_tenant` makes one. **D
 proceed until `whoami` succeeds.** Also needed: Python ≥ 3.12; Node + React for the
 browser embed.
 
-The SDK is **not on PyPI yet.** Install it from a clone of
-[github.com/voqalize/voqalize](https://github.com/voqalize/voqalize):
-`uv pip install -e voqalize/sdk/python` (published name will be
-`voqalize-agent-sdk`).
+Install the SDK from PyPI: `uv pip install voqalize-agent-sdk` (Apache-2.0; source in
+[github.com/voqalize/voqalize](https://github.com/voqalize/voqalize) under `sdk/python/`).
+**Pin the version.** This skill documents the surface published at 0.0.3; the next release
+changes it, and an unpinned install will hand you an SDK these steps do not describe.
 
 ## The happy path
 

@@ -177,6 +177,20 @@ serves, so a demo mints its session same-origin exactly as it does in prod.
 Each demo also runs standalone with plain `pnpm dev` (see `demos/README.md`) —
 that path needs none of the above.
 
+## Everything a developer reads is written to one standard
+
+`design/voice.md` is the writing standard for this repo: the docs site, the SDK
+docstrings, error messages, the wire contract's prose, the skill, the demo source, the
+changelog and commit messages. It carries the persona, five principles, four signature
+moves, a **closed lexicon** (a concept keeps one word across the proto, the SDK, the docs
+and the site), and a recognition test to run before publishing. Read it before writing
+anything a customer will see — including an error string, which is our highest-traffic
+documentation and is read at the worst possible moment.
+
+Two consequences worth knowing without opening it: **no surface calls Voqalize a
+platform**, and **internal service or repository names never appear in customer-facing
+text** — the runtime is *Voice*.
+
 ## Hard rules
 
 - Python 3.12, uv, ruff, pyright, pytest. pnpm for the frontends.
