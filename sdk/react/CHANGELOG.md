@@ -14,6 +14,16 @@ series at the bottom says plainly that nothing here is promised yet.
 Follows the control plane's one-entity rename: a call is a **session**, and
 there is no longer a Meeting above it.
 
+> **Staged, not published.** The version is bumped and the code is on `wire-v2`,
+> but no `react-sdk-v0.2.0` tag has been cut, so npm still serves `0.1.1`. Held
+> deliberately: the brain SDK is still moving, and patterns are still being
+> lifted out of the demos into this package. Publishing now would freeze a
+> surface we expect to widen, and every prior publish is a compatibility
+> promise we would have to keep. The demos are unaffected — their build
+> overlays this working tree over whatever the registry gave them. Cut the tag
+> when the shape settles; until then this section is the record of what is
+> already true in the source.
+
 ### Changed — requires a control plane deployed on or after 2026-08-20
 
 - **The bootstrap call is now `POST {apiBase}/sessions.create`.**
