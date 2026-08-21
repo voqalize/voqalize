@@ -3,9 +3,9 @@
  *
  * Wraps the single public bootstrap call every embed makes:
  *
- *   POST {apiBase}/sessions.create_and_start
+ *   POST {apiBase}/sessions.create
  *   Authorization: Bearer <pk_...>
- *   { agent_id, payload: { pipeline, payload } }
+ *   { agent_id, agent_input: { pipeline, payload } }
  *
  * and normalizes the response into {@link VoqalConnectParams} — exactly what
  * `PipecatClient.connect()` hands pipecat's `SmallWebRTCTransport`.
@@ -78,7 +78,14 @@ export interface CreateSessionOptions {
    * language belong to the brain (see {@link VoqalPipelineConfig}).
    */
   pipeline?: VoqalPipelineConfig;
-  /** Optional app-level payload handed to the brain (surface, user info, …). */
+  /**
+   * Optional app-level context handed to the brain (surface, plan tier, cart id).
+   *
+   * The server both signs this into the session token and **stores it on the
+   * session**, so it is readable later by anyone who can read the session — it
+   * is there to answer "what did the page send?" when a call goes wrong. Send
+   * identifiers, not personal data.
+   */
   payload?: Record<string, unknown>;
   /** Optional `fetch` override (SSR / testing). Defaults to global `fetch`. */
   fetchImpl?: typeof fetch;
@@ -114,7 +121,7 @@ export interface VoqalConnectParams {
   sessionId?: string;
 }
 
-/** Thrown when `sessions.create_and_start` fails or returns an unusable body. */
+/** Thrown when `sessions.create` fails or returns an unusable body. */
 export class VoqalSessionError extends Error {
   /** HTTP status code, or 0 for network/parse failures. */
   readonly status: number;
@@ -183,7 +190,7 @@ export function toConnectParams(raw: unknown): VoqalConnectParams {
   return params;
 }
 
-interface CreateAndStartResponse {
+interface CreateSessionResponse {
   connection_details?: {
     connect_params?: unknown;
   };
@@ -217,8 +224,18 @@ export async function createSession(
   // No workspace anywhere in the URL. A `pk_` key belongs to exactly one, so
   // the server reads it off the credential; naming one here would be a second
   // answer to a question the key has already answered.
-  const url = `${apiBase.replace(/\/$/, "")}/sessions.create_and_start`;
+  const url = `${apiBase.replace(/\/$/, "")}/sessions.create`;
 
+  // `agent_input` is what this page hands the agent, and it has two
+  // destinations on the server: it is signed into the session token — which is
+  // how the runtime and then the brain receive it — and stored on the session,
+  // so "what did this page actually send?" survives the token expiring five
+  // minutes later. Stored means readable by anyone who can read the session, so
+  // keep PII out of it.
+  //
+  // The runtime splits it by key: `pipeline` is per-call media config, `payload`
+  // is opaque business context for the brain. Two keys, one field, because they
+  // travel together and arrive together.
   const inner: { pipeline?: VoqalPipelineConfig; payload?: Record<string, unknown> } = {};
   if (pipeline) inner.pipeline = pipeline;
   if (payload) inner.payload = payload;
@@ -232,7 +249,7 @@ export async function createSession(
         Authorization: `Bearer ${publishableKey}`,
       },
       credentials: "omit",
-      body: JSON.stringify({ agent_id: agentId, payload: inner }),
+      body: JSON.stringify({ agent_id: agentId, agent_input: inner }),
     });
   } catch (err) {
     throw new VoqalSessionError(
@@ -254,9 +271,9 @@ export async function createSession(
     );
   }
 
-  let body: CreateAndStartResponse;
+  let body: CreateSessionResponse;
   try {
-    body = (await res.json()) as CreateAndStartResponse;
+    body = (await res.json()) as CreateSessionResponse;
   } catch (err) {
     throw new VoqalSessionError(
       `createSession: could not parse response — ${(err as Error).message}`,

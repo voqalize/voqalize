@@ -9,6 +9,40 @@ into their own tree, which is exactly the problem this release exists to end.
 `0.0.1` is the first version anyone can `npm install`, and starting the public
 series at the bottom says plainly that nothing here is promised yet.
 
+## 0.2.0
+
+Follows the control plane's one-entity rename: a call is a **session**, and
+there is no longer a Meeting above it.
+
+### Changed — requires a control plane deployed on or after 2026-08-20
+
+- **The bootstrap call is now `POST {apiBase}/sessions.create`.**
+  `sessions.create_and_start` is gone from the server, not deprecated on it —
+  the two-step create-then-start it was named for had already collapsed into one
+  call, and the state between the steps was one nothing guarded. `0.1.1` and
+  earlier get a 404 from a current control plane; there is no version of this
+  package that talks to both.
+
+- **The request body sends `agent_input` where it sent `payload`.** Same
+  contents — `{ pipeline, payload }` — under the name the server now stores it
+  by. This one matters more than a rename usually would: unknown fields are
+  ignored rather than rejected, so an old client posting to a URL alias would
+  have been answered `200` with its pipeline overrides and its brain context
+  silently dropped. A 404 is the better failure, which is part of why no alias
+  exists.
+
+**No API change.** `createSession`, `useVoqalSession` and `<VoqalAgent>` take
+and return exactly what they did in `0.1.1`; `pipeline` and `payload` are still
+the prop names. An application that upgrades the package and redeploys against a
+current control plane needs no source edit.
+
+### Documented
+
+- `payload` is **persisted on the session**, not just signed into the session
+  token, so that "what did the page actually send?" is answerable after the
+  token expires. Anyone who can read the session can read it. Send identifiers,
+  not personal data.
+
 ## 0.1.1
 
 Widens the pipecat peer range. No source change; `dist` is byte-identical.

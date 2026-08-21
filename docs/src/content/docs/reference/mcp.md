@@ -107,19 +107,40 @@ old key. This is what makes local development tunnel-free; see
 | `list_api_keys` | `(tenant, include_revoked=False) -> dict` | List keys (prefixes only), each with the agent it names. |
 | `revoke_api_key` | `(tenant, key_id) -> dict` | Revoke by id (irreversible). |
 
-### Calls & logs (observability)
+### Calls (observability)
 
 | Tool | Signature | Does |
 |---|---|---|
-| `list_meetings` | `(tenant, agent_id="", state="", limit=20) -> dict` | List calls, most recent first; filter by agent/state. |
-| `get_meeting` | `(tenant, meeting_id) -> dict` | One call's detail. |
-| `list_meeting_events` | `(tenant, meeting_id) -> dict` | The event timeline for a call. |
-| `query_logs` | `(tenant, meeting_id, severity_min="INFO", component="", limit=100) -> dict` | Platform runtime log lines for one call. |
+| `list_sessions` | `(tenant, agent_id="", state="", limit=20, cursor="") -> dict` | List calls, most recent first; filter by agent/state. Page with `next_cursor`. |
+| `get_session` | `(tenant, session_id) -> dict` | One call in full: state, timing, `agent_input`, `metadata`, recordings summary. |
+| `get_session_events` | `(tenant, session_id, source="all", frame="", disposition="", limit=2000) -> dict` | What happened, merged: platform milestones **and** the wire between runtime and brain — transcripts, replies, actions, interruptions. |
+| `get_session_logs` | `(tenant, session_id, level="INFO", service="", limit=500) -> dict` | The voice runtime's own log lines for that call. |
+| `get_recordings` | `(tenant, session_id, ttl_seconds=900) -> dict` | Audio, one track per side, each with a short-lived signed `download_url`. |
+| `get_usage` | `(tenant, period="") -> dict` | Counters for one `YYYY-MM` billing period, broken down per agent. |
 
-These four are the inspect-a-call loop: find the call, read its transcript, check how
-far it got, then read the logs. `query_logs` returns the **platform's** logs — your
-brain runs in your own environment and logs there. The meeting's
-`active_session_id` is the brain's `session.id`, so that string joins the two sides.
+**A call is a session, and that is the only noun.** There is no Meeting above it:
+`list_meetings` / `get_meeting` / `list_meeting_events` / `query_logs` were removed
+on 2026-08-20 along with the entity, and the session id you already hold — the one
+in `connect_params`, in `{brain_url}/s/{session_id}`, in every log line — is the id
+every one of these tools takes.
+
+The inspect-a-call loop is **events first, logs second**:
+
+1. `get_session_events` — authoritative and versioned. Safe to assert on in tests.
+   Pass `source="platform"` for just the milestones (cheap: it skips the wire read),
+   or `disposition="dropped_in_drain"` to see exactly what a barge-in threw away —
+   the usual answer to "the agent replied but nothing happened".
+2. `get_session_logs` — evidence, not contract. Written in our vocabulary and free
+   to change; read them to understand a call, never to assert on one.
+
+Both halves arrive as one bundle **when the call ends**, so a call still in progress
+has neither. Check the `wire` / `logs_availability` field before concluding a call
+was silent: `found`, `missing` (no bundle — still running, or the upload failed),
+`unavailable` (the store could not be read) or `skipped`. An empty list is not the
+same fact as any of those.
+
+These are the **platform's** records. Your brain runs in your own environment and
+logs there; `session.id` is the same string on both sides, so it joins them.
 
 ## The `voqalize` skill
 
@@ -141,7 +162,7 @@ walks the flow:
 6. **Embed in the browser** — `create_api_key(tenant, agent_id, label, kind="publishable", …)`
    → `pk_…`, then `@voqalize/client-react`.
 7. **Instrument and observe** — `on_inference_finalized` / `on_error` brain-side,
-   `list_meetings` / `get_meeting` / `query_logs` platform-side.
+   `list_sessions` / `get_session_events` / `get_session_logs` platform-side.
 
 Templates ship alongside it: `brain.py`, `run_cortex.py`, `inbound_app.py`,
 `test_brain.py`, and `react_embed.tsx`.

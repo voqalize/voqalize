@@ -14,8 +14,8 @@ Two loops, in order:
 
 1. **Offline** — `voqalize.conformance` drives the brain deterministically. Fast,
    runs on every commit, no platform account needed.
-2. **Live** — after a real call, read it back with `list_meetings` / `get_meeting` /
-   `list_meeting_events` / `query_logs`.
+2. **Live** — after a real call, read it back with `list_sessions` /
+   `get_session_events` / `get_session_logs`.
 
 ---
 
@@ -136,27 +136,34 @@ where heard-truth across multiple interruptions gets proven.
 Once a human (or you, via `test_url`) has actually talked to it:
 
 ```
-list_meetings(tenant, agent_id=..., limit=20)   # find the call — most recent first
-get_meeting(tenant, meeting_id)                  # transcript: turn-by-turn speaker/text
-list_meeting_events(tenant, meeting_id)          # lifecycle: created/started/ended/errors
-query_logs(tenant, meeting_id, severity_min="WARNING")   # platform runtime log lines
+list_sessions(tenant, agent_id=..., limit=20)            # find the call — most recent first
+get_session_events(tenant, session_id, source="platform")  # how far did it get?
+get_session_events(tenant, session_id)                   # + the wire: what was said and done
+get_session_logs(tenant, session_id, level="WARNING")    # platform runtime log lines
 ```
 
-Order matters: **transcript first** (did it say the right thing?), **events next**
-(how far did the call get, and why did it end?), **logs last** (why not?).
-`query_logs` also takes `component=` when you know which side to look at, and
-`severity_min` ∈ `DEBUG|INFO|WARNING|ERROR|CRITICAL`.
+Order matters: **events first** (both halves are versioned contract — safe to assert
+on), **logs last** (evidence, in our vocabulary, free to change; never assert on
+their wording). `source="platform"` skips the wire read, which is what makes "did
+this call even connect" the cheap first question; `disposition="dropped_in_drain"`
+shows what a caller's barge-in threw away, the usual explanation for "the agent
+replied but nothing happened". `get_session_logs` also takes `service=` (`pygato` is
+the voice runtime) and `level` ∈ `DEBUG|INFO|WARNING|ERROR|CRITICAL`.
 
-`query_logs` returns the **platform's** logs, not the brain's — the brain runs in the
-customer's own environment. The meeting's `active_session_id` is the brain's
-`session.id`; use it to grep your own logs for the same call. See
-`references/instrumentation.md`.
+Both the wire events and the logs are uploaded as one bundle **when the call ends**,
+so a call still running has neither — check the `wire` / `logs_availability` field
+rather than reading an empty list as silence.
+
+These are the **platform's** records, not the brain's — the brain runs in the
+customer's own environment. `session.id` is the same string on both sides; grep your
+own logs for it. See `references/instrumentation.md`.
 
 If a live call misbehaves in a way the offline suite passed, that gap **is the next
 scenario** — reproduce it in `test_brain.py` first, then fix it.
 
 ## Read next
 
-- **`references/instrumentation.md`** — what to log so `query_logs` is worth reading.
+- **`references/instrumentation.md`** — what to log so `get_session_logs` is worth
+  reading.
 - **`references/ui-actions.md`** — the exact `ui_command` shape `collect_ui_commands`
   returns.

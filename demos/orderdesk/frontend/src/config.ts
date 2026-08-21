@@ -27,7 +27,7 @@
 export interface DemoConfig {
   /** Versioned API root the page calls (same-origin; proxied to the control plane). */
   apiBase: string;
-  /** Agent Firestore doc id passed to `sessions.create_and_start`. */
+  /** Agent Firestore doc id passed to `sessions.create`. */
   agentId: string;
   /** Publishable key for browser auth. Undefined until the demo is provisioned. */
   publishableKey: string | undefined;

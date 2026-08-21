@@ -26,7 +26,7 @@
  *   - PUBLISHABLE_KEY: the pk_… you minted
  *   - AGENT_ID:        agent.id from create_agent / list_agents
  *   - API_BASE:        control-plane root INCLUDING the version — the React SDK
- *                      appends `/sessions.create_and_start`.
+ *                      appends `/sessions.create`.
  *                      Prod: https://app.voqalize.com/api/v1
  *
  * There is no workspace to fill in: the pk_ key belongs to exactly one, so the

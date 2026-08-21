@@ -143,9 +143,8 @@ mute/end bar. Full options in [React client SDK](/docs/client/react/).
 
 :::caution[`apiBase` includes `/api/v1`]
 The React SDK's `apiBase` **includes** the `/api/v1` suffix
-(`https://app.voqalize.com/api/v1`) — the SDK appends
-`/sessions.create_and_start` to it. Point it at the bare host instead and the
-browser session mint fails.
+(`https://app.voqalize.com/api/v1`) — the SDK appends `/sessions.create` to it.
+Point it at the bare host instead and the browser session mint fails.
 :::
 
 :::note[No tenant in the embed]

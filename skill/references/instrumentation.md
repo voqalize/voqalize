@@ -2,7 +2,7 @@
 
 Two audiences, two jobs. **Debugging** asks "why did this call go wrong?" and is
 answered by brain logs correlated with platform logs. **Value** asks "is this agent
-worth keeping?" and is answered by aggregating across meetings. Instrument for both
+worth keeping?" and is answered by aggregating across sessions. Instrument for both
 from day one; retrofitting after a demo goes badly is too late.
 
 ---
@@ -59,9 +59,10 @@ the wire drains — usually a runaway loop.
 
 Log `session.id` at start with whatever business context `start.init` carried (user
 id, plan, cart value, ticket id). Log the outcome at end. **`session.id` is the join
-key** — it is the same string the platform reports as a meeting's
-`active_session_id` and as the `session_id` on every platform log entry, so your logs
-and the platform's line up with no extra plumbing.
+key** — it is the id the platform files the call under, the one in the URL the
+runtime dialled you on (`{brain_url}/s/{session_id}`) and the `session_id` stamped on
+every platform log line, so your logs and the platform's line up with no extra
+plumbing. There is no second identifier to map it to.
 
 ```python
 async def on_session_start(self, session, start):
@@ -79,7 +80,7 @@ Structure your own outcome field deliberately — `booked` / `abandoned` /
 ### What *not* to log
 
 Don't rebuild the transcript: `session.conversation` already holds the faithful,
-heard-truth record and the platform stores it per meeting. Don't log PII you wouldn't
+heard-truth record and the platform stores it per session. Don't log PII you wouldn't
 put in your own database — brain logs are your logs, in your environment, under your
 retention policy.
 
@@ -91,36 +92,41 @@ The MCP observability tools read the platform's side of the same call:
 
 | Tool | Answers |
 |---|---|
-| `list_meetings(tenant, agent_id="", state="", limit=20)` | Which calls happened; filter by agent or lifecycle state. |
-| `get_meeting(tenant, meeting_id)` | The transcript + recordings for one call. |
-| `list_meeting_events(tenant, meeting_id)` | Lifecycle milestones — created / started / ended / errors. How far it got and why it stopped. |
-| `query_logs(tenant, meeting_id, severity_min, component, limit)` | **Platform runtime** log lines for that call (voice runtime + control plane), each stamped with `session_id`. |
+| `list_sessions(tenant, agent_id="", state="", limit=20, cursor="")` | Which calls happened; filter by agent or state. |
+| `get_session(tenant, session_id)` | One call's envelope — state, timing, `agent_input`, `metadata`, which recordings exist. |
+| `get_session_events(tenant, session_id, source, frame, disposition, limit)` | What happened: platform milestones **and** the wire — transcripts, replies, actions, interruptions. Versioned contract. |
+| `get_session_logs(tenant, session_id, level, service, limit)` | **Platform runtime** log lines for that call. Evidence, not contract. |
+| `get_recordings(tenant, session_id, ttl_seconds)` | The audio, one track per side, with a short-lived signed URL each. |
 
 Debugging order, cheapest first:
 
-1. `get_meeting` — did it say the right thing? Most bugs are visible here.
-2. `list_meeting_events` — did the call end where you expected, or fail?
-3. `query_logs(..., severity_min="WARNING")` — narrow to what actually broke on the
+1. `get_session_events(..., source="platform")` — did the call even connect, and
+   where did it stop? Skipping the wire read makes this the cheap first question.
+2. `get_session_events(...)` in full — did it say the right thing? Most bugs are
+   visible here, and `disposition="dropped_in_drain"` explains the common "it replied
+   but nothing happened": the caller barged in and voice discarded the answer.
+3. `get_session_logs(..., level="WARNING")` — narrow to what actually broke on the
    platform side.
-4. Only then read `INFO`/`DEBUG` with a `component=` filter.
+4. Only then read `INFO`/`DEBUG` with a `service=` filter (`pygato` is the voice
+   runtime, and the one worth reading first).
 
-**Your brain's logs are not in `query_logs`** — the brain runs in the customer's own
-environment and logs wherever that environment logs. That is precisely why you log
-`session.id`: take `active_session_id` off the meeting (or `session_id` off a log
-line) and grep your own logs for the same string. One identifier, both sides.
+**Your brain's logs are not in `get_session_logs`** — the brain runs in the
+customer's own environment and logs wherever that environment logs. That is precisely
+why you log `session.id`: it is the same string the platform files the call under, so
+grep your own logs for it. One identifier, both sides.
 
 ---
 
 ## Demonstrating business value
 
-Aggregate over `list_meetings` + `list_meeting_events` and you have a report without
+Aggregate over `list_sessions` + `get_session_events` and you have a report without
 building an analytics pipeline:
 
 | Metric | Where it comes from |
 |---|---|
-| **Volume** | Count of meetings per agent per day (`list_meetings`, filter `agent_id`). |
-| **Completion rate** | Share of meetings reaching a `closed`/ended state vs. `failed` (meeting `state` + events). |
-| **Call length / turn count** | Event timestamps (start → end); turns from the transcript in `get_meeting`. |
+| **Volume** | Count of sessions per agent per day (`list_sessions`, filter `agent_id`). |
+| **Completion rate** | Share of sessions reaching `ended` vs. `failed` — and note `expired`, the token that died with nobody on it, which is a broken embed rather than a bad agent. |
+| **Call length / turn count** | `duration_secs` off the session — what the runtime measured, not two control-plane timestamps subtracted; turns from `get_session_events`. |
 | **Interruption rate** | Share of inferences with `interrupted=True` — from **your** `on_inference_finalized` logs. The conversational-quality number. |
 | **Task outcome** | Your own `outcome=` field logged at `on_session_end` — bookings made, tickets deflected, leads qualified. |
 | **Containment / escalation** | Share of sessions whose outcome was `escalated`. The number a support buyer actually asks for. |

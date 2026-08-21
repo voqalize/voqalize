@@ -74,16 +74,19 @@ don't preload them.
    `sendMessage(...)` → `on_client_message` back.
 9. **Instrument it and prove it works.** → **`references/instrumentation.md`**
    What to log from the brain (`on_inference_finalized`, `on_error`), how to
-   correlate with `query_logs` / meeting events, and the numbers that show business
-   value.
+   correlate with `get_session_events` / `get_session_logs`, and the numbers that
+   show business value.
 
-## MCP tools (16)
+## MCP tools (18)
 
 Identity: `whoami` · `list_tenants` · `create_tenant`. Agents: `create_agent` ·
 `create_agent_credentials` · `get_agent` · `list_agents` · `update_agent` ·
 `archive_agent`. Keys: `create_api_key` · `list_api_keys` · `revoke_api_key`.
-Observability: `list_meetings` · `get_meeting` · `list_meeting_events` ·
-`query_logs`. Every tool returns the control plane's raw JSON; every scoped tool
+Calls: `list_sessions` · `get_session` · `get_session_events` · `get_session_logs` ·
+`get_recordings` · `get_usage`. A call is a **session** and there is no entity above
+it — the id in `connect_params` is the id every one of these takes, and the same one
+the brain sees as `session.id`. Every tool returns the control plane's raw JSON;
+every scoped tool
 takes a required `tenant`. `not_authorized` = you're not a member of that tenant (or
 your role is too low); `validation_error` = bad input (e.g. a non-`wss://`
 `brain_url` on a non-loopback host).

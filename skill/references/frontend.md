@@ -30,7 +30,7 @@ code — `pk_` is the only key the browser ever sees.
 |---|---|
 | `publishableKey` | the `pk_…` above |
 | `agentId` | `agent.id` from `create_agent` / `list_agents` |
-| `apiBase` | the control-plane root **including the API version** — the SDK appends `/sessions.create_and_start`. Production: `https://app.voqalize.com/api/v1` |
+| `apiBase` | the control-plane root **including the API version** — the SDK appends `/sessions.create`. Production: `https://app.voqalize.com/api/v1` |
 
 There is no workspace prop. A `pk_` key belongs to exactly one workspace, so the
 control plane reads it off the key — naming it again in the call would just be a

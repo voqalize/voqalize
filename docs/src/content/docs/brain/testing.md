@@ -159,16 +159,20 @@ Once a human has actually talked to the agent, read the call back over the
 [MCP tools](/docs/reference/mcp/):
 
 ```
-list_meetings(tenant, agent_id=…, limit=20)   # find it — most recent first
-get_meeting(tenant, meeting_id)                # transcript, turn by turn
-list_meeting_events(tenant, meeting_id)        # lifecycle: created/started/ended/errors
-query_logs(tenant, meeting_id, severity_min="WARNING")
+list_sessions(tenant, agent_id=…, limit=20)              # find it — most recent first
+get_session_events(tenant, session_id)                   # what was said and done, in order
+get_session_logs(tenant, session_id, level="WARNING")    # why, when the above isn't enough
 ```
 
-Cheapest first: transcript (did it say the right thing?), then events (how far did it
-get, and why did it end?), then logs. `query_logs` returns the **platform's** log
-lines; your brain logs in your own environment — join the two on the meeting's
-`active_session_id`, which is the brain's `session.id`.
+Events first: they carry both the lifecycle (created / connected / ended) and the
+wire itself — each transcript, each piece of the reply, each action, each
+interruption — and they are versioned contract, so a test may assert on them. Logs
+are evidence, not contract: read them to understand a call, never to assert on one.
+
+A call still running has no wire bundle yet, so check the `wire` field before
+concluding it was silent — `missing` is a different fact from an empty list. And
+these are the **platform's** records; your brain logs in your own environment. The
+id joining the two sides is `session.id`, the same string in both.
 
 When a live call misbehaves in a way the offline suite passed, that gap **is** the
 next scenario. Reproduce it offline first, then fix it.

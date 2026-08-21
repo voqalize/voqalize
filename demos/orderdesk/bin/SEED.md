@@ -152,8 +152,8 @@ into the app's `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`.)
    step 4 rather than trusting the push-triggered one.
 3. Smoke: open the agent's `test_url` (from `get_agent`) for a bare brain check,
    then `https://voqalize.com/demos/orderdesk` for the full flow.
-4. If a call misbehaves: `list_meetings(tenant="aCxzYVYr")` → `get_meeting` →
-   `query_logs(tenant="aCxzYVYr", meeting_id=...)`.
+4. If a call misbehaves: `list_sessions(tenant="aCxzYVYr")` → `get_session_events` →
+   `get_session_logs(tenant="aCxzYVYr", session_id=...)`.
 
 ## Local dev
 

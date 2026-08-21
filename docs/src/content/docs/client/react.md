@@ -112,14 +112,21 @@ function CallButton() {
 
 The hook runs a two-step flow:
 
-1. **Mint** — one `POST {apiBase}/sessions.create_and_start` with the
-   publishable key as a bearer token. The body is `{ agent_id, payload }`, where the
-   outer `payload` **wraps both** the `pipeline` override and your app `payload`:
-   `{ agent_id, payload: { pipeline?, payload? } }` — so your app data nests one level
-   in, under `payload.payload`. The response carries `connection_details.connect_params`
-   — the runtime node's offer endpoint and the session token to present on it. (A
-   missing `connect_params` means no worker is running for that agent — a
-   `VoqalSessionError` is thrown with that hint.)
+1. **Mint** — one `POST {apiBase}/sessions.create` with the publishable key as a
+   bearer token. The body is `{ agent_id, agent_input }`, where `agent_input`
+   **wraps both** the `pipeline` override and your app `payload`:
+   `{ agent_id, agent_input: { pipeline?, payload? } }` — so your app data nests
+   one level in, under `agent_input.payload`. The response carries
+   `connection_details.connect_params` — the runtime node's offer endpoint and
+   the session token to present on it. (A missing `connect_params` means no
+   worker is running for that agent — a `VoqalSessionError` is thrown with that
+   hint.)
+
+   `agent_input` goes two places at once: it is signed into the session token,
+   which is how the runtime and then the brain receive it, and it is **stored on
+   the session**, so you can still answer "what did the page send?" after the
+   token has expired. Stored means readable by anyone who can read the session —
+   send identifiers, not personal data.
 2. **Connect** — it builds pipecat's own `SmallWebRTCTransport`, wraps it in a
    `PipecatClient` (mic on, camera off), and POSTs the SDP offer to that endpoint.
    Media is direct WebRTC; RTVI control messages ride a data channel. There is no

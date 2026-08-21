@@ -53,7 +53,7 @@ export function Support() {
 ### The three required props
 
 - `apiBase` — control-plane root **including the API version**; the SDK appends
-  `/sessions.create_and_start`. Production: `https://app.voqalize.com/api/v1`.
+  `/sessions.create`. Production: `https://app.voqalize.com/api/v1`.
   Behind a Vite/Next dev proxy, a relative `"/api/v1"` works too.
 - `publishableKey` — a `pk_…` key (origin-allowlisted; browser-safe).
 - `agentId` — `agent.id` from the MCP `create_agent` / `list_agents`.
