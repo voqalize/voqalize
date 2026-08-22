@@ -17,7 +17,6 @@ from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
     Frame,
-    FrameDirection,
     SessionStartFrame,
     SpeechChunkFrame,
     UserMessageFrame,
@@ -49,7 +48,7 @@ async def _drain_until(wire: Wire, serializer, predicate, timeout: float = 3.0):
 
     async def loop() -> None:
         while True:
-            _direction, payload = await wire.recv()
+            payload = await wire.recv()
             frame = await serializer.deserialize(payload)
             received.append(frame)
             if predicate(received):
@@ -80,7 +79,6 @@ async def test_two_sessions_are_isolated() -> None:
         # Open both sessions.
         for session_id, wire in (("sA", wire_a), ("sB", wire_b)):
             await wire.send(
-                FrameDirection.DOWNSTREAM,
                 await serializer.serialize(
                     SessionStartFrame(session_id=session_id, agent_id="welcome", payload={})
                 ),
@@ -88,11 +86,9 @@ async def test_two_sessions_are_isolated() -> None:
 
         # Send a context frame on each leg.
         await wire_a.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(UserMessageFrame(text="hello-A"), epoch=1),
         )
         await wire_b.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(UserMessageFrame(text="hello-B"), epoch=1),
         )
 

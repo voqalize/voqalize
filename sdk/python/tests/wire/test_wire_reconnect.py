@@ -7,7 +7,7 @@ import asyncio
 import pytest
 import websockets
 
-from voqalize.sdk.wire import FrameDirection, PermanentClose, Wire, WireConfig
+from voqalize.sdk.wire import PermanentClose, Wire, WireConfig
 from voqalize.sdk.wire.transport import CLOSE_AGENT_GONE, CLOSE_NO_AGENT
 
 
@@ -31,7 +31,7 @@ async def test_reconnect_on_transient_close_and_fires_callback() -> None:
         if connection_count == 1:
             # Push one frame, then close transient. Wire's recv will deliver
             # the frame, then see the close and reconnect.
-            await ws.send(b"\x01first-payload")
+            await ws.send(b"first-payload")
             await ws.close(code=CLOSE_AGENT_GONE, reason="agent_gone")
         else:
             # Reconnected socket: receive one frame, hold open until close.
@@ -56,16 +56,15 @@ async def test_reconnect_on_transient_close_and_fires_callback() -> None:
     try:
         await wire.start()
         # First recv delivers the payload from connection #1.
-        direction, payload = await wire.recv()
-        assert (direction, payload) == (FrameDirection.DOWNSTREAM, b"first-payload")
+        assert await wire.recv() == b"first-payload"
 
         # Send must succeed — wire will detect the closed socket, reconnect,
         # fire on_reconnect, then send on the new socket.
-        await wire.send(FrameDirection.DOWNSTREAM, b"second")
+        await wire.send(b"second")
         await asyncio.wait_for(reconnect_event.wait(), timeout=2.0)
         # Let the reconnected server drain the second frame.
         for _ in range(20):
-            if received == [b"\x01second"]:
+            if received == [b"second"]:
                 break
             await asyncio.sleep(0.05)
     finally:
@@ -74,7 +73,7 @@ async def test_reconnect_on_transient_close_and_fires_callback() -> None:
         await server.wait_closed()
 
     assert connection_count == 2
-    assert received == [b"\x01second"]
+    assert received == [b"second"]
 
 
 async def test_permanent_close_on_4000() -> None:
@@ -97,7 +96,7 @@ async def test_permanent_close_on_4000() -> None:
             await wire.recv()
         # And a subsequent send still raises PermanentClose — no retry.
         with pytest.raises(PermanentClose):
-            await wire.send(FrameDirection.DOWNSTREAM, b"x")
+            await wire.send(b"x")
         # Give any (forbidden) reconnect a chance to slip through.
         await asyncio.sleep(0.2)
     finally:

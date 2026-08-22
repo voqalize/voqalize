@@ -21,7 +21,6 @@ from voqalize.sdk.wire import (
     CortexFrameSerializer,
     ErrorFrame,
     Frame,
-    FrameDirection,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
@@ -73,7 +72,7 @@ class Recorder(SessionAdapter):
 async def _send(
     wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
 ) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame, epoch=epoch))
+    await wire.send(await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_slow_handler_does_not_block_other_sessions() -> None:

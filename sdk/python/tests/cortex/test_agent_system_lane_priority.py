@@ -24,7 +24,6 @@ from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
     Frame,
-    FrameDirection,
     InterruptionFrame,
     SessionStartFrame,
     UserMessageFrame,
@@ -36,7 +35,7 @@ from voqalize.sdk.wire import (
 async def _send(
     wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
 ) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame, epoch=epoch))
+    await wire.send(await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_interruption_preempts_backlog() -> None:

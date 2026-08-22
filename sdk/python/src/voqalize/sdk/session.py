@@ -51,7 +51,6 @@ from ._logging import session_context
 from ._platform_keys import VOQAL_PLATFORM_PUBLIC_KEYS
 from .engine import (
     DEFAULT_NORMAL_MAXSIZE,
-    OUT_DIRECTION,
     Envelope,
     RunnerHost,
     SessionFactory,
@@ -218,9 +217,9 @@ class _ChannelSession(RunnerHost):
             if isinstance(msg, str):
                 logger.warning("session: received TEXT frame; ignoring")
                 continue
-            if len(msg) < 1:
+            if not msg:
                 continue
-            payload = bytes(msg[1:])  # drop the 1-byte direction; inbound is DOWNSTREAM
+            payload = bytes(msg)
             try:
                 decoded = await self._serializer.deserialize_message(payload)
             except MalformedFrameError:
@@ -253,7 +252,7 @@ class _ChannelSession(RunnerHost):
                     logger.exception("session: serialize failed")
                     continue
                 try:
-                    await self._channel.send(bytes([OUT_DIRECTION.value]) + out)
+                    await self._channel.send(out)
                 except asyncio.CancelledError:
                     raise
                 except Exception:

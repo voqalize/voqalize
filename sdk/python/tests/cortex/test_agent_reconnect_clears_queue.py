@@ -14,7 +14,6 @@ from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
-    FrameDirection,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
@@ -65,13 +64,11 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
         await pygato_wire.start()
 
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(
                 SessionStartFrame(session_id="s1", agent_id="welcome", payload={"which": "first"})
             ),
         )
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),
         )
         await wait_for(lambda: "data#1:start:1" in timeline, timeout=3.0)
@@ -84,7 +81,6 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
 
         # Pygato re-sends SessionStart for the same session — fresh adapter.
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(
                 SessionStartFrame(session_id="s1", agent_id="welcome", payload={"which": "second"})
             ),

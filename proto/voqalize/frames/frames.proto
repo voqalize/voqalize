@@ -41,7 +41,9 @@ package voqalize.frames;
 // ─── Envelope ─────────────────────────────────────────────────────────────────
 
 // Top-level message in each websocket binary payload.
-// Wire layout: [1 byte direction] [Envelope bytes].
+//
+// One binary message carries one Envelope and nothing around it. On the Cortex
+// relay leg 16 raw session-id bytes precede it, and cortex strips them.
 message Envelope {
   oneof body {
     SessionStart  session_start  = 1;

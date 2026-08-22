@@ -17,7 +17,6 @@ import uuid
 
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
-    FrameDirection,
     SessionStartFrame,
     SpeechStartFrame,
     Wire,
@@ -92,11 +91,9 @@ async def _run_browser_message(*, speak: bool) -> tuple[_Recorder, list]:
     emitted: list = []
     try:
         await wire.send(
-            FrameDirection.DOWNSTREAM,
             await ser.serialize(SessionStartFrame(session_id=session_id, agent_id="compat")),
         )
         await wire.send(
-            FrameDirection.DOWNSTREAM,
             await ser.serialize(BrowserMessageFrame(type=MSG_TYPE, data=MSG_DATA)),
         )
         # A violating brain never reaches its own body, so there is nothing to
@@ -107,7 +104,7 @@ async def _run_browser_message(*, speak: bool) -> tuple[_Recorder, list]:
         # Drain whatever the brain emitted; the socket goes quiet once it is done.
         async def _drain() -> None:
             while True:
-                _direction, data = await wire.recv()
+                data = await wire.recv()
                 msg = await ser.deserialize_message(data)
                 if msg.frame is not None:
                     emitted.append(msg.frame)

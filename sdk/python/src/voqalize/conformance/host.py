@@ -14,7 +14,7 @@ the boilerplate drifts. :func:`brain_server` is that socket and nothing more::
         await driver.open()
 
 It speaks the exact leg Voice dials — ``{url}/s/{session_id}``, a bearer token in
-``Authorization``, ``[1-byte direction][protobuf payload]`` framing — so a brain
+``Authorization``, one protobuf envelope per binary message — so a brain
 that passes here has been exercised on the wire it will actually run on, not on a
 stand-in.
 

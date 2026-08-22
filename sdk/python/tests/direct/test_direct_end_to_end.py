@@ -25,7 +25,6 @@ from voqalize.conformance import BrainServer
 from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
-    FrameDirection,
     InterruptionFrame,
     PermanentClose,
     SessionStartFrame,
@@ -72,7 +71,7 @@ class _Client:
 
     async def send(self, frame, *, epoch: int = 0, speech_id: int = 0) -> None:
         payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
-        await self._wire.send(FrameDirection.DOWNSTREAM, payload)
+        await self._wire.send(payload)
 
     async def collect_until(self, predicate, timeout: float = 3.0) -> list:
         """Drain inbound messages until ``predicate(frames)`` is true."""
@@ -80,7 +79,7 @@ class _Client:
 
         async def _pump():
             while not predicate(frames):
-                _direction, payload = await self._wire.recv()
+                payload = await self._wire.recv()
                 msg = await self._ser.deserialize_message(payload)
                 if msg.frame is not None:
                     frames.append(msg.frame)

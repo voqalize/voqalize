@@ -17,7 +17,6 @@ from voqalize.sdk.wire import (
     BrowserCommandFrame,
     CortexFrameSerializer,
     Frame,
-    FrameDirection,
     MalformedFrameError,
     Wire,
     WireConfig,
@@ -40,7 +39,7 @@ class PygatoClient:
         speech_id: int = 0,
     ) -> None:
         payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
-        await self._wire.send(FrameDirection.DOWNSTREAM, payload)
+        await self._wire.send(payload)
 
     async def close(self) -> None:
         await self._wire.close()
@@ -51,7 +50,7 @@ class PygatoClient:
 
         async def pump() -> None:
             while not predicate(frames):
-                _direction, payload = await self._wire.recv()
+                payload = await self._wire.recv()
                 try:
                     msg = await self._ser.deserialize_message(payload)
                 except MalformedFrameError:
@@ -68,7 +67,7 @@ class PygatoClient:
 
         async def pump() -> None:
             while len(cmds) < min_count:
-                _direction, payload = await self._wire.recv()
+                payload = await self._wire.recv()
                 try:
                     msg = await self._ser.deserialize_message(payload)
                 except MalformedFrameError:

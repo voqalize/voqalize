@@ -16,7 +16,6 @@ from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
-    FrameDirection,
     InterruptionFrame,
     SessionStartFrame,
     UserMessageFrame,
@@ -54,13 +53,11 @@ async def test_interruption_cancels_in_flight_turn() -> None:
         await pygato_wire.start()
 
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(
                 SessionStartFrame(session_id="s1", agent_id="welcome", payload={})
             ),
         )
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),
         )
         await asyncio.wait_for(started.wait(), timeout=3.0)
@@ -68,7 +65,6 @@ async def test_interruption_cancels_in_flight_turn() -> None:
 
         # Send interruption — the Brain adapter must cancel the in-flight turn.
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(InterruptionFrame()),
         )
         await wait_for(lambda: "cancelled:hi" in timeline, timeout=3.0)

@@ -78,7 +78,7 @@ class _Client:
 
     async def send(self, frame, *, epoch: int = 0, speech_id: int = 0) -> None:
         payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
-        await self._ep.send(b"\x01" + payload)  # DOWNSTREAM
+        await self._ep.send(payload)
 
     async def collect_until(self, predicate, timeout: float = 3.0) -> list:
         frames: list = []
@@ -86,7 +86,7 @@ class _Client:
         async def _pump():
             while not predicate(frames):
                 raw = await self._ep.recv()
-                msg = await self._ser.deserialize_message(raw[1:])
+                msg = await self._ser.deserialize_message(raw)
                 if msg.frame is not None:
                     frames.append(msg.frame)
 

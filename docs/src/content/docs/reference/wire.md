@@ -52,12 +52,12 @@ Binary WebSocket messages only — a text message is an error.
 
 | Leg | Layout |
 |---|---|
-| Your inbound server, at `{brain_url}/s/{session_id}` | `[1-byte direction][Envelope]` |
-| The Cortex relay, at `/agent` | `[16-byte session_id][1-byte direction][Envelope]` |
+| Your inbound server, at `{brain_url}/s/{session_id}` | `[Envelope]` |
+| The Cortex relay, at `/agent` | `[16-byte session_id][Envelope]` |
 
-The direction byte is `1` toward the brain and `2` back. It is pipecat's own
-value, carried through because the runtime is pipecat internally; neither end
-routes on it.
+One message carries one envelope and nothing around it. Nothing frames it,
+lengths it, or tags it: the WebSocket already delimits messages, and the
+envelope already says what it is.
 
 The 16-byte prefix on the relay leg is how one socket carries many sessions.
 Cortex adds it inbound and strips it outbound, and it is the only difference

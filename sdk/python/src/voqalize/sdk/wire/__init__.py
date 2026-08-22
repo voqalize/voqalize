@@ -4,8 +4,8 @@ Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. Only protobuf
 ``Envelope`` bytes cross the socket; the frame classes here never do.
 
 Public surface:
-- The frame dataclasses plus ``Frame``, ``FrameDirection`` (the 1-byte direction
-  enum) and ``is_system`` (the lane-routing predicate).
+- The frame dataclasses plus ``Frame`` and ``is_system`` (the lane-routing
+  predicate).
 - ``CortexFrameSerializer`` — the protobuf codec; ``DecodedMessage`` carries a
   decoded frame beside the envelope's ``epoch`` / ``speech_id``.
 - ``WIRE_VERSION`` — the wire version this build speaks.
@@ -31,7 +31,6 @@ from .frames import (
     FinalizeFrame,
     FinalizeReason,
     Frame,
-    FrameDirection,
     InterruptionFrame,
     ResponseFrame,
     SessionStartFrame,
@@ -75,7 +74,6 @@ __all__ = [
     "FinalizeFrame",
     "FinalizeReason",
     "Frame",
-    "FrameDirection",
     "InterruptionFrame",
     "MalformedFrameError",
     "MultiplexedWire",

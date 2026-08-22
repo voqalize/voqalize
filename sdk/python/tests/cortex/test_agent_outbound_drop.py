@@ -20,7 +20,6 @@ from voqalize.sdk.wire import (
     CortexFrameSerializer,
     ErrorFrame,
     Frame,
-    FrameDirection,
     SessionStartFrame,
     SpeechChunkFrame,
     UserMessageFrame,
@@ -63,7 +62,7 @@ class Flooder(SessionAdapter):
 async def _send(
     wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
 ) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame, epoch=epoch))
+    await wire.send(await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_outbound_overflow_delivers_error_frame() -> None:

@@ -129,8 +129,8 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - `src/voqalize/sdk/_platform_keys.py` — the embedded Voqalize public key(s)
   `run_session` verifies against by default.
 - `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
-  `FrameDirection`, `is_system()`, `CortexFrameSerializer` (protobuf transcoder,
-  no base class), `Wire`/`MultiplexedWire` transport, protobuf stubs.
+  `is_system()`, `CortexFrameSerializer` (protobuf transcoder, no base class),
+  `Wire`/`MultiplexedWire` transport, protobuf stubs.
 - `src/voqalize/_framework/` — the shared, framework-agnostic core every framework
   integration is built on: `_FrameworkBrain` (owns `run_inference`, the one
   primitive that spends a floor on a model turn), `voice()` (the `ContextVar`
@@ -162,7 +162,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   per-agent audience and no `audience=` parameter; override `public_keys=`, or
   `allow_unverified=True` (local dev). A bad token raises `SessionRejected`
   (caller closes 4000). One socket = one session; framing is bare
-  `[1-byte direction][protobuf]`, session implicit in the URL.
+  `[protobuf]`, session implicit in the URL.
 - **Two hosting paths, one `Brain`.** `run_session` in the route your app already
   owns, or `await serve(...)` over a Cortex relay when it can't accept inbound. The
   SDK reads no environment variables and owns no process management: which path you

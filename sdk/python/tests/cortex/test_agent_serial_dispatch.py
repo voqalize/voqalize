@@ -15,7 +15,6 @@ from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     CortexFrameSerializer,
-    FrameDirection,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
@@ -58,7 +57,6 @@ async def test_two_data_frames_serial_dispatch() -> None:
 
         # Open the session with SessionStartFrame.
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(
                 SessionStartFrame(session_id="s1", agent_id="welcome", payload={})
             ),
@@ -66,11 +64,9 @@ async def test_two_data_frames_serial_dispatch() -> None:
 
         # Two data frames back-to-back.
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(UserMessageFrame(text="first"), epoch=1),
         )
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
             await serializer.serialize(UserMessageFrame(text="second"), epoch=2),
         )
 

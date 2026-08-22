@@ -2,10 +2,10 @@
 
 Mirrors the real cortex split:
 - Pygato leg: ``ws://host/s/{session_id}?agent_id={agent_id}``.
-  Wire format ``[1-byte direction][payload]``. One session per connection.
+  Wire format ``[payload]``. One session per connection.
 - Agent leg: ``ws://host/agent?agent_id={agent_id}``.
-  Wire format ``[16-byte session_id][1-byte direction][payload]``. One
-  connection per agent process; many sessions multiplex over it.
+  Wire format ``[16-byte session_id][payload]``. One connection per agent
+  process; many sessions multiplex over it.
 
 FakeCortex inserts the 16-byte session_id prefix on the pygato→agent path
 and strips it on the agent→pygato path. Test session ids are arbitrary
@@ -239,8 +239,8 @@ class FakeCortex:
     # ─── Routing ───────────────────────────────────────────────────────
 
     async def _route_pygato_to_agent(self, sess: _Session, msg: bytes) -> None:
-        """pygato sent `[direction][payload]`. Prepend the 16-byte session_id
-        and forward to the agent leg."""
+        """pygato sent `[payload]`. Prepend the 16-byte session_id and forward
+        to the agent leg."""
         if sess.drop_pygato_to_agent > 0:
             sess.drop_pygato_to_agent -= 1
             logger.debug(f"fake_cortex: drop pygato→agent ({len(msg)}B)")
@@ -267,10 +267,9 @@ class FakeCortex:
                 agent.buffered.append(prefixed)
 
     async def _route_agent_to_pygato(self, agent: _AgentLeg, msg: bytes) -> None:
-        """Agent sent `[16B session_id][direction][payload]`. Strip the
-        session_id and forward `[direction][payload]` to the corresponding
-        pygato leg."""
-        if len(msg) < SESSION_ID_LEN + 1:
+        """Agent sent `[16B session_id][payload]`. Strip the session_id and
+        forward `[payload]` to the corresponding pygato leg."""
+        if len(msg) < SESSION_ID_LEN:
             logger.warning(f"fake_cortex: short agent→pygato message ({len(msg)}B); dropping")
             return
         sid_bytes = msg[:SESSION_ID_LEN]

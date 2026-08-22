@@ -162,11 +162,11 @@ async def test_brain_lines_carry_the_identity_from_the_verified_token():
         )
         ser = CortexFrameSerializer()
         try:
-            await client_ch.send(b"\x01" + await ser.serialize(SessionStartFrame(session_id=sid)))
+            await client_ch.send(await ser.serialize(SessionStartFrame(session_id=sid)))
 
             async def _await_greeting() -> None:
                 while True:
-                    msg = await ser.deserialize_message((await client_ch.recv())[1:])
+                    msg = await ser.deserialize_message(await client_ch.recv())
                     if isinstance(msg.frame, SpeechChunkFrame) and "hi there" in msg.frame.text:
                         return
 

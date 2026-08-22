@@ -16,7 +16,7 @@ Every frame here is payload and nothing else. Correlation — ``epoch`` and
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import IntEnum, StrEnum
+from enum import StrEnum
 from typing import Any
 
 # The wire version this build speaks. The runtime stamps it on the session's first
@@ -24,15 +24,6 @@ from typing import Any
 # :meth:`voqalize.sdk.brain._BrainAdapter._start`. The rule for when it moves is
 # in frames.proto.
 WIRE_VERSION = 1
-
-
-class FrameDirection(IntEnum):
-    """Wire direction byte. Values match pipecat's ``FrameDirection`` (the voice
-    runtime is pipecat internally): ``DOWNSTREAM=1`` toward the brain / bot
-    output, ``UPSTREAM=2`` back."""
-
-    DOWNSTREAM = 1
-    UPSTREAM = 2
 
 
 class Frame:

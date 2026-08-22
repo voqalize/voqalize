@@ -5,8 +5,8 @@ Two pieces the driver builds on:
 
 1. :class:`DirectConnection` — a bare ``websockets`` client that dials
    ``{brain_url}/s/{session_id}`` exactly as PyGato does: one WS per session, an
-   ``Authorization: Bearer <token>`` header, and ``[1-byte direction][protobuf]``
-   framing (direction always ``DOWNSTREAM`` pygato→brain, per the wire).
+   ``Authorization: Bearer <token>`` header, and one protobuf envelope per
+   binary message.
 
 2. :func:`generate_keypair` / :func:`mint_pygato_token` — the RS256 brain token
    PyGato presents, byte-for-byte the claim shape of
@@ -15,7 +15,7 @@ Two pieces the driver builds on:
    with an ephemeral keypair and hands the public half to the brain under test.
 
 Decoding is not one of them: ``CortexFrameSerializer`` decodes every body in the
-schema, in either direction, so the driver uses it directly.
+schema, both ways, so the driver uses it directly.
 """
 
 from __future__ import annotations
@@ -28,8 +28,6 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from websockets.asyncio.client import ClientConnection, connect
 
-from voqalize.sdk.wire import FrameDirection
-
 # Same protocol constant every brain verifies (voqalize.sdk.session.BRAIN_AUDIENCE
 # / pygato._cortex_token.CortexTokenSigner.BRAIN_AUDIENCE). Not per-agent.
 BRAIN_AUDIENCE = "brain"
@@ -41,9 +39,9 @@ class DirectConnection:
     """A single-session PyGato→brain WebSocket, dialed the way PyGato dials it.
 
     URL is ``{brain_url}/s/{session_id}``; auth is an ``Authorization: Bearer``
-    header; framing is ``[1-byte direction][protobuf]`` with the direction byte
-    always ``DOWNSTREAM`` (1) pygato→brain. Does not own retry/backoff — the
-    conformance driver wants explicit control over the socket lifecycle.
+    header; framing is one protobuf envelope per binary message. Does not own
+    retry/backoff — the conformance driver wants explicit control over the
+    socket lifecycle.
     """
 
     def __init__(self, brain_url: str, session_id: str, *, token: str | None) -> None:
@@ -61,10 +59,10 @@ class DirectConnection:
 
     async def send_payload(self, payload: bytes) -> None:
         assert self._ws is not None, "connect() first"
-        await self._ws.send(bytes([FrameDirection.DOWNSTREAM.value]) + payload)
+        await self._ws.send(payload)
 
     async def recv_payload(self) -> bytes:
-        """Receive one frame's protobuf payload (direction byte stripped).
+        """Receive one frame's protobuf payload.
 
         Raises ``websockets.exceptions.ConnectionClosed`` when the socket closes
         (the driver's reader treats that as end-of-connection and records the
@@ -73,7 +71,7 @@ class DirectConnection:
         msg = await self._ws.recv()
         if isinstance(msg, str):
             return b""
-        return bytes(msg[1:])
+        return bytes(msg)
 
     async def close(self) -> None:
         if self._ws is not None:

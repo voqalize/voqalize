@@ -5,10 +5,10 @@ Two wire shapes, one connection class:
   `Wire`              — single-session connection. The voice runtime has its own
                         copy on its side of the wire; this one stays here for
                         symmetry and for in-SDK single-session uses.
-                        Message format: `[1-byte direction][protobuf payload]`.
+                        Message format: `[protobuf payload]`.
 
   `MultiplexedWire`   — used by the agent SDK (`/agent` endpoint).
-                        Message format: `[16-byte session_id][1-byte direction][protobuf payload]`.
+                        Message format: `[16-byte session_id][protobuf payload]`.
                         The 16-byte prefix matches cortex's `protocol.SessionIDLen`
                         spec (see `cortex/internal/protocol/protocol.go`).
 
@@ -45,8 +45,6 @@ import websockets
 from loguru import logger
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
-
-from .frames import FrameDirection
 
 CLOSE_NO_AGENT = 4000  # permanent
 CLOSE_AGENT_GONE = 4001  # transient
@@ -292,47 +290,43 @@ class _Connection:
 class Wire(_Connection):
     """Pygato leg of the cortex wire.
 
-    Message format: `[1-byte direction][payload bytes]`. No session prefix —
-    pygato connects to `/s/{session_id}` so the session is implicit in the URL.
+    Message format: `[payload bytes]`. No session prefix — pygato connects to
+    `/s/{session_id}` so the session is implicit in the URL.
     """
 
-    async def send(self, direction: FrameDirection, payload: bytes) -> None:
-        """Send one binary message: [direction_byte] + payload."""
-        await self._raw_send(bytes([direction.value]) + payload)
+    async def send(self, payload: bytes) -> None:
+        """Send one binary message."""
+        await self._raw_send(payload)
 
-    async def recv(self) -> tuple[FrameDirection, bytes]:
-        """Receive one binary message; return (direction, payload)."""
+    async def recv(self) -> bytes:
+        """Receive one binary message."""
         msg = await self._raw_recv()
-        if len(msg) < 1:
+        if not msg:
             raise ValueError("wire received empty websocket message")
-        return FrameDirection(int(msg[0])), bytes(msg[1:])
+        return bytes(msg)
 
 
 class MultiplexedWire(_Connection):
     """Agent leg of the cortex wire.
 
-    Message format: `[16-byte session_id][1-byte direction][payload bytes]`.
-    Mirrors `protocol.SessionIDLen` in cortex/internal/protocol — cortex itself
-    inserts the session-id prefix on this leg.
+    Message format: `[16-byte session_id][payload bytes]`. Cortex inserts the
+    session-id prefix on this leg.
     """
 
-    async def send(self, session_id: bytes, direction: FrameDirection, payload: bytes) -> None:
-        """Send `[session_id 16B][direction 1B][payload]`."""
+    async def send(self, session_id: bytes, payload: bytes) -> None:
+        """Send `[session_id 16B][payload]`."""
         if len(session_id) != SESSION_ID_LEN:
             raise ValueError(
                 f"session_id must be exactly {SESSION_ID_LEN} bytes, got {len(session_id)}"
             )
-        await self._raw_send(session_id + bytes([direction.value]) + payload)
+        await self._raw_send(session_id + payload)
 
-    async def recv(self) -> tuple[bytes, FrameDirection, bytes]:
-        """Receive `[session_id 16B][direction 1B][payload]`."""
+    async def recv(self) -> tuple[bytes, bytes]:
+        """Receive `[session_id 16B][payload]`."""
         msg = await self._raw_recv()
-        if len(msg) < SESSION_ID_LEN + 1:
+        if len(msg) < SESSION_ID_LEN:
             raise ValueError(
                 f"multiplexed wire received short message ({len(msg)} bytes); "
-                f"need at least {SESSION_ID_LEN + 1}"
+                f"need at least {SESSION_ID_LEN}"
             )
-        sid = bytes(msg[:SESSION_ID_LEN])
-        direction = FrameDirection(int(msg[SESSION_ID_LEN]))
-        payload = bytes(msg[SESSION_ID_LEN + 1 :])
-        return sid, direction, payload
+        return bytes(msg[:SESSION_ID_LEN]), bytes(msg[SESSION_ID_LEN:])

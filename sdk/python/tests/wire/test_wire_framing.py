@@ -1,13 +1,14 @@
-"""Wire framing test — 1-byte direction prefix over a real localhost websocket."""
+"""Wire framing — one binary websocket message carries one envelope, verbatim."""
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
 
+import pytest
 import websockets
 
-from voqalize.sdk.wire import FrameDirection, Wire, WireConfig
+from voqalize.sdk.wire import Wire, WireConfig
 
 
 @contextlib.asynccontextmanager
@@ -30,14 +31,12 @@ async def _echo_server(received: list[bytes]):
 
 
 @contextlib.asynccontextmanager
-async def _sending_server(items: list[tuple[int, bytes]]):
-    """Accepts one connection and sends a sequence of [direction_byte | payload]
-    messages, then closes normally.
-    """
+async def _sending_server(items: list[str | bytes]):
+    """Accepts one connection, sends a sequence of messages, then closes."""
 
     async def handler(ws):
-        for direction, payload in items:
-            await ws.send(bytes([direction]) + payload)
+        for msg in items:
+            await ws.send(msg)
         await ws.close()
 
     async with websockets.serve(handler, "127.0.0.1", 0) as server:
@@ -45,32 +44,33 @@ async def _sending_server(items: list[tuple[int, bytes]]):
         yield f"ws://127.0.0.1:{port}"
 
 
-async def test_send_writes_direction_byte_then_payload() -> None:
+async def test_send_writes_the_payload_and_nothing_else() -> None:
     received: list[bytes] = []
     async with _echo_server(received) as url:
         wire = Wire(WireConfig(url=url))
         await wire.start()
-        await wire.send(FrameDirection.DOWNSTREAM, b"abc")
-        await wire.send(FrameDirection.UPSTREAM, b"\x00\x01\x02")
+        await wire.send(b"abc")
+        await wire.send(b"\x00\x01\x02")
         # Give the server a beat to drain.
         await asyncio.sleep(0.05)
         await wire.close()
 
-    # FrameDirection: DOWNSTREAM=1, UPSTREAM=2.
-    assert received == [b"\x01abc", b"\x02\x00\x01\x02"]
+    assert received == [b"abc", b"\x00\x01\x02"]
 
 
-async def test_recv_parses_direction_and_payload() -> None:
-    items = [
-        (FrameDirection.DOWNSTREAM.value, b"hello"),
-        (FrameDirection.UPSTREAM.value, b"\xff\xfe"),
-    ]
-    async with _sending_server(items) as url:
+async def test_recv_returns_the_payload_verbatim() -> None:
+    async with _sending_server([b"hello", b"\xff\xfe"]) as url:
         wire = Wire(WireConfig(url=url))
         await wire.start()
-        d1, p1 = await wire.recv()
-        d2, p2 = await wire.recv()
+        assert await wire.recv() == b"hello"
+        assert await wire.recv() == b"\xff\xfe"
         await wire.close()
 
-    assert (d1, p1) == (FrameDirection.DOWNSTREAM, b"hello")
-    assert (d2, p2) == (FrameDirection.UPSTREAM, b"\xff\xfe")
+
+async def test_a_text_message_is_an_error() -> None:
+    async with _sending_server(["hello"]) as url:
+        wire = Wire(WireConfig(url=url))
+        await wire.start()
+        with pytest.raises(ValueError, match="TEXT"):
+            await wire.recv()
+        await wire.close()

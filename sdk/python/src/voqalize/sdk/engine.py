@@ -41,15 +41,11 @@ from typing import Protocol
 
 from loguru import logger
 
-from .wire import EndFrame, ErrorFrame, Frame, FrameDirection, ResponseFrame, is_system
+from .wire import EndFrame, ErrorFrame, Frame, ResponseFrame, is_system
 
 DEFAULT_NORMAL_MAXSIZE = 256
 DEFAULT_SYSTEM_MAXSIZE = 32  # tripwire; never expected to fill
 _LOW_WATERMARK_FRAC = 0.5
-
-# Every brain→wire frame is sent DOWNSTREAM (1); PyGato flips ui_command to
-# UPSTREAM on its own read.
-OUT_DIRECTION = FrameDirection.DOWNSTREAM
 
 
 # ─── The unit that moves ──────────────────────────────────────────────────────
@@ -224,7 +220,7 @@ class SessionRunner:
 
         self._feeder_task: asyncio.Task[None] | None = None
         self._error_pump_task: asyncio.Task[None] | None = None
-        self._error_events: asyncio.Queue[tuple[FrameDirection, str]] = asyncio.Queue()
+        self._error_events: asyncio.Queue[str] = asyncio.Queue()
 
         # Edge-triggered congestion flags (avoid ErrorFrame spam).
         self._inbound_congested = False
@@ -312,25 +308,19 @@ class SessionRunner:
         if not self._inbound_congested:
             self._inbound_congested = True
             self._error_events.put_nowait(
-                (
-                    FrameDirection.DOWNSTREAM,
-                    "voqalize: inbound queue full; dropping data frames until consumer catches up",
-                )
+                "voqalize: inbound queue full; dropping data frames until consumer catches up"
             )
 
     def _notify_outbound_drop(self) -> None:
         if not self._outbound_congested:
             self._outbound_congested = True
             self._error_events.put_nowait(
-                (
-                    FrameDirection.UPSTREAM,
-                    "voqalize: outbound queue full; dropping data frames until wire catches up",
-                )
+                "voqalize: outbound queue full; dropping data frames until wire catches up"
             )
 
     async def _error_pump(self) -> None:
         while True:
-            _direction, message = await self._error_events.get()
+            message = await self._error_events.get()
             try:
                 await self._adapter.handle_frame(
                     Envelope(frame=ErrorFrame(error=message, fatal=False))

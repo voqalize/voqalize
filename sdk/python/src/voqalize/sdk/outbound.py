@@ -41,7 +41,6 @@ from loguru import logger
 from ._logging import session_context
 from .engine import (
     DEFAULT_NORMAL_MAXSIZE,
-    OUT_DIRECTION,
     Envelope,
     RunnerHost,
     SessionFactory,
@@ -158,7 +157,7 @@ class CortexAgent(RunnerHost):
         assert self._wire is not None
         while not self._stopped.is_set():
             try:
-                sid, _direction, payload = await self._wire.recv()
+                sid, payload = await self._wire.recv()
             except PermanentClose as exc:
                 self._permanent = exc
                 return
@@ -231,7 +230,7 @@ class CortexAgent(RunnerHost):
                     self._ready.put_nowait(sid)
                 continue
             try:
-                await self._wire.send(sid, OUT_DIRECTION, payload)
+                await self._wire.send(sid, payload)
             except (WireClosed, PermanentClose):
                 return
             except asyncio.CancelledError:
