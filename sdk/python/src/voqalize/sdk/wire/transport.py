@@ -291,9 +291,9 @@ class Wire(_Connection):
     """The voice leg of the wire: one session per connection.
 
     Message format: `[payload bytes]`. No session prefix — Voice dials
-    `/s/{session_id}`, so the session is implicit in the URL. The SDK's own
-    harness dials a brain with this; a brain hosting `run_session` is handed an
-    already-accepted socket instead.
+    `/s/{session_id}`, so the session is implicit in the URL. A brain never dials
+    this leg: `run_session` is handed a socket its framework already accepted.
+    It is here because the SDK's own tests play the voice side with it.
     """
 
     async def send(self, payload: bytes) -> None:
