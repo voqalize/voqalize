@@ -1,8 +1,8 @@
 /**
  * useUiCommand — the browser half of a typed UI command.
  *
- * A screen-driving brain fires `ui_command`s at the page (`session.action(...)`
- * / `interaction.action(...)`). They arrive as RTVI server messages shaped
+ * A screen-driving brain fires `ui_command`s at the page
+ * (`session.dispatch(Action(...))`). They arrive as RTVI server messages shaped
  *
  *     { type: "ui_command", action: "open_itinerary", action_id: 7, ...args }
  *

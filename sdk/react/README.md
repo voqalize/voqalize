@@ -137,7 +137,7 @@ function Widget() {
 For agents that change the screen (a cart, a form, a map), brain and browser
 exchange JSON with **fixed shapes**.
 
-**Brain → browser.** The brain's `interaction.action(name, {...args})` arrives as a
+**Brain → browser.** The brain's `session.dispatch(Action(...))` arrives as a
 `ui_command` server message — `{ type, action, action_id }` plus the `args`
 **spread onto the top level**. `useUiCommand` subscribes, strips that envelope and
 dispatches by name, so a handler sees the args alone:
@@ -174,7 +174,8 @@ call site; `uiCommandArgs(command)` is the envelope-stripping on its own.
 `onServerMessage` remains the raw escape hatch for non-`ui_command` traffic.
 
 **Browser → brain.** Call `sendMessage(type, data)` (from the render-prop /
-`useVoqalSession`). The brain receives it as `on_client_message(message.type, message.data)`:
+`useVoqalSession`). The brain receives it as `on_browser_message(session, msg)`, with `msg.type` and
+`msg.data`:
 
 ```tsx
 <VoqalAgent {...props}>
