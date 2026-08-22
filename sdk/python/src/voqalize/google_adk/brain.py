@@ -330,7 +330,7 @@ class AdkBrain(_FrameworkBrain):
       Override ``on_client_message`` for other message types and call ``super()`` to keep
       it.
     * ``on_user_idle`` / ``on_resume`` / ``on_error`` / ``on_session_end`` — the
-      remaining Voice seams, inherited and overridable as ordinary methods.
+      remaining Voqalize seams, inherited and overridable as ordinary methods.
 
     **The agent is built lazily** — on session start, not in ``__init__`` — so state a
     subclass assigns *after* ``super().__init__(...)`` is already there when the factory,
@@ -916,7 +916,7 @@ def adk_brain(
     """Bundle a native ADK agent factory into a zero-arg :class:`AdkBrain` builder for
     the SDK to host — the no-override convenience over subclassing.
 
-    Prefer subclassing :class:`AdkBrain` when you want to react to Voice's other
+    Prefer subclassing :class:`AdkBrain` when you want to react to Voqalize's other
     triggers (``on_user_idle`` / ``on_client_message``) or to resume a conversation
     (``on_resume``). ``agent_factory`` is a zero-arg callable returning a fresh
     ``LlmAgent`` — the SDK calls it once per session (bind the model/tools inside, e.g.
@@ -960,7 +960,7 @@ def adk_brain(
       ``error_fallback`` so a stuck turn can't strand the caller in silence. ``None``
       disables it. Barge-in cancels far sooner and is unaffected.
 
-    To react to Voice's other triggers, resume a conversation, or handle client
+    To react to Voqalize's other triggers, resume a conversation, or handle client
     messages / runtime errors, subclass :class:`AdkBrain` and override
     ``on_user_idle`` / ``on_client_message`` / ``on_resume`` / ``on_error`` instead of
     calling this builder.

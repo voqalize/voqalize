@@ -3,7 +3,7 @@
 
 Same shape as ``test_travel_adk.py``: the *real* ``OrderDeskBrain`` — the shipping
 ``demos/orderdesk/backend/brain.py``, its real prompt, its real seven tools — hosted on
-a real ``brain_server`` WebSocket, driven by the conformance ``VoiceDriver``, with only
+a real ``brain_server`` WebSocket, driven by the conformance ``VoqalizeDriver``, with only
 the *model* swapped for a :class:`ScriptedLlm`. Two things are stubbed rather than
 real, for opposite reasons:
 
@@ -68,10 +68,10 @@ from voqalize_demos._loaded.orderdesk.brain import OrderDeskBrain  # noqa: E402
 from voqalize.conformance import (  # noqa: E402
     BrainServer,
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     checks,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.google_adk.testing import ScriptedLlm, call, reply, reply_and_call  # noqa: E402
 from voqalize.sdk.wire import (  # noqa: E402
@@ -532,7 +532,7 @@ async def _host(
     llm: ScriptedLlm,
     catalog: StubCatalog | None = None,
     brains: list[OrderDeskBrain] | None = None,
-) -> tuple[BrainServer, VoiceDriver]:
+) -> tuple[BrainServer, VoqalizeDriver]:
     """Host the real OrderDeskBrain (scripted model, stubbed catalog) on a real
     localhost socket and open a PyGato-side driver against it.
 
@@ -557,13 +557,13 @@ async def _host(
     )
     port = await server.start()
     session_id = "orderdesk-test"
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="orderdesk",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
         default_timeout=10.0,
@@ -572,7 +572,7 @@ async def _host(
     return server, driver
 
 
-def _actions(driver: VoiceDriver) -> list[str]:
+def _actions(driver: VoqalizeDriver) -> list[str]:
     """The ui_command actions the brain fired, minus the conformance backchannel."""
     return [
         str(c.get("action"))
@@ -1267,7 +1267,7 @@ async def test_adjust_quantity_is_relative_and_clamps_at_one() -> None:
 
 
 async def test_a_row_can_be_named_instead_of_numbered() -> None:
-    """Voice rarely has "li1" to hand, so every row-editing tool takes the product name
+    """Voqalize rarely has "li1" to hand, so every row-editing tool takes the product name
     too. The tolerance is a ladder — the exact id, then a whole-name match, then
     containment — and it stops at the first rung that answers."""
     llm = ScriptedLlm(_script())

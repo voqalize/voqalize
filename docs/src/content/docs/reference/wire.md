@@ -1,9 +1,9 @@
 ---
 title: The wire
-description: One WebSocket per session between Voice and your brain — the framing, the envelope, every message, and what each one obliges the other to do.
+description: One WebSocket per session between Voqalize and your brain — the framing, the envelope, every message, and what each one obliges the other to do.
 ---
 
-Voice runs the call. Your brain decides what it says and what it shows. Between
+Voqalize runs the call. Your brain decides what it says and what it shows. Between
 them is one WebSocket per session carrying protobuf envelopes in both
 directions, and this page is that contract in full.
 
@@ -29,11 +29,11 @@ one of these.
 
 ## The shape of a session
 
-Voice dials your brain, one socket per call, and speaks first: the session's
+Voqalize dials your brain, one socket per call, and speaks first: the session's
 opening envelope is `SessionStart`, and nothing crosses in the other direction
 until it has arrived.
 
-**Voice owns the floor.** It decides when the brain may speak by sending a
+**Voqalize owns the floor.** It decides when the brain may speak by sending a
 stimulus — a `UserMessage` or a `UserIdle` — and the brain answers with speech.
 There is no message a brain can send to ask for the floor, and none that
 interrupts the human. That absence is what makes a call predictable.
@@ -42,9 +42,9 @@ Everything the brain sends that is *not* speech is floor-free: a
 `BrowserCommand` to redraw the screen, a `Request` to change how the call
 behaves, an `End` to hang up. Those need no turn and are legal at any moment.
 
-If your brain reaches Voice through the [Cortex relay](/docs/deploy/cortex),
+If your brain reaches Voqalize through the [Cortex relay](/docs/deploy/cortex),
 Cortex relays these bytes without reading them. The two ends of the wire are the
-runtime and the brain; nothing in between interprets the schema.
+Voqalize and the brain; nothing in between interprets the schema.
 
 ## Framing
 
@@ -76,17 +76,17 @@ message Envelope {
 }
 ```
 
-**`epoch`** is Voice-minted and session-monotonic, incremented on every stimulus
-Voice commits. The brain echoes it, unread, on everything it emits while
+**`epoch`** is Voqalize-minted and session-monotonic, incremented on every stimulus
+Voqalize commits. The brain echoes it, unread, on everything it emits while
 handling that stimulus. It exists for one decision: when a barge-in opens a
-drain barrier, Voice must tell "emitted before the barrier" from "emitted after
-it, answering the new stimulus". Only a Voice-minted counter settles that. No
+drain barrier, Voqalize must tell "emitted before the barrier" from "emitted after
+it, answering the new stimulus". Only a Voqalize-minted counter settles that. No
 brain-facing API names it. Speech the brain starts on its own — the opening line
 — answers no stimulus and rides epoch `0`.
 
 **`speech_id`** is brain-minted and names one unit of speech. Every envelope of
 that unit carries it: the `SpeechStart`/`SpeechEnd` bracket, each `SpeechChunk`
-inside, and the `Finalize` that reports what was heard. Voice never mints, reads,
+inside, and the `Finalize` that reports what was heard. Voqalize never mints, reads,
 orders or compares one — it echoes it back on `Finalize` exactly as it arrived,
 so a brain may number units however it likes.
 
@@ -97,11 +97,11 @@ belongs to the pair.
 
 ## Version
 
-`SessionStart.wire_version` is the version the runtime speaks. **This is
+`SessionStart.wire_version` is the version Voqalize speaks. **This is
 version 2.**
 
 A brain whose build speaks a different version refuses the session outright: a
-fatal `Error`, then `End`, before it has greeted. Voice speaks first, so that is
+fatal `Error`, then `End`, before it has greeted. Voqalize speaks first, so that is
 the last moment either end can refuse and the only one where refusing is free —
 nothing has been synthesized and the caller has heard nothing.
 
@@ -113,14 +113,14 @@ The version gates behaviour, not parsing — protobuf ignores fields it does not
 know without help. What a version buys is the ability to refuse rather than
 guess.
 
-## Voice → brain
+## Voqalize → brain
 
 | Message | Fields | Meaning |
 |---|---|---|
 | `SessionStart` | `session_id`, `init` *(JSON)*, `wire_version` | First envelope of the session. `init` is your opaque init data, whatever the session was minted with, and reaches your brain as `session.init`. Who the agent is arrives on the connection's credential, verified, and never here. |
 | `UserMessage` | `text` | The human finished an utterance. A stimulus: the floor is the brain's. |
 | `UserIdle` | `level`, `idle_ms` | The human has been silent past the configured timeout. Also a stimulus. `level` counts consecutive escalations with no intervening speech (1 is the first nudge) and resets when they speak; `idle_ms` is the silence elapsed when it fired. |
-| `BrowserMessage` | `type`, `data` *(JSON)* | The browser said something — a tap, a keystroke, a state push. Every one is delivered; Voice never reads `type` and never decides whether it deserves a reply. |
+| `BrowserMessage` | `type`, `data` *(JSON)* | The browser said something — a tap, a keystroke, a state push. Every one is delivered; Voqalize never reads `type` and never decides whether it deserves a reply. |
 | `Interruption` | — | The human spoke over the bot. |
 | `Finalize` | `heard_text`, `reason` | What the human actually heard of the unit named by the envelope's `speech_id`. |
 | `Response` | `request_id`, `status`, `detail` | The answer to one `Request`. |
@@ -128,7 +128,7 @@ guess.
 | `Cancel` | `reason` | The call is being torn down abruptly. |
 | `Error` | `error`, `fatal` | Something went wrong. `fatal` means the session is ending. |
 
-## Brain → Voice
+## Brain → Voqalize
 
 | Message | Fields | Meaning |
 |---|---|---|
@@ -136,7 +136,7 @@ guess.
 | `SpeechChunk` | `text` | Text to speak, inside an open unit. Stream them as they are produced. |
 | `SpeechEnd` | — | Close the open unit. |
 | `BrowserCommand` | `data` *(JSON)* | Drive the screen. Relayed to the browser unread. |
-| `Interruption` | — | The drain barrier: sent back after an `Interruption` from Voice, once the brain has stopped producing for the turn it cut. |
+| `Interruption` | — | The drain barrier: sent back after an `Interruption` from Voqalize, once the brain has stopped producing for the turn it cut. |
 | `Request` | `request_id`, one `op` | Change how the call behaves. Answered by exactly one `Response`. |
 | `End` | — | Hang up. |
 | `Cancel` | `reason` | Tear down abruptly. |
@@ -164,15 +164,15 @@ audio finishes.**
 
 ### Barge-in
 
-The human speaks over the bot. Voice sends `Interruption`; the brain stops the
-turn in flight and echoes `Interruption` back. The echo is Voice's drain barrier
+The human speaks over the bot. Voqalize sends `Interruption`; the brain stops the
+turn in flight and echoes `Interruption` back. The echo is Voqalize's drain barrier
 — everything before it is discarded, everything after it belongs to the new
 stimulus — so it must not arrive until the frames it fences off have stopped
 being produced. That ordering is the brain's obligation, and the SDK holds it.
 
 ## The control leg
 
-The brain asks Voice to change how the call behaves, and learns whether the ask
+The brain asks Voqalize to change how the call behaves, and learns whether the ask
 was any good.
 
 ```proto
@@ -188,7 +188,7 @@ message Response { uint64 request_id = 1; Status status = 2; string detail = 3; 
 `Response`. **Exactly one `Response` comes back for every `Request`, on every op,
 always** — a brain awaiting one never has to know which ops answer.
 
-`status` is `ACCEPTED` or `REJECTED`, and it reports **whether Voice took the
+`status` is `ACCEPTED` or `REJECTED`, and it reports **whether Voqalize took the
 request, not whether the effect is audible yet**. `detail` says why on a
 rejection and is empty otherwise, and it is written to be shown.
 
@@ -197,15 +197,15 @@ none of its fields, thresholds included, so the call is still coherent
 afterwards and the previous settings are still in force.
 
 Every field of every op is `optional`, and that is load-bearing: these are
-deltas, so Voice changes only what the brain set. Without explicit presence, an
+deltas, so Voqalize changes only what the brain set. Without explicit presence, an
 unset field is indistinguishable from `0` or `""`, and a delta silently becomes a
 reset.
 
 ### `ConfigureTts` — `voice`, `language`, `model`, `speed`
 
 Takes effect at the next speech unit, never mid-utterance: the synthesizer locks
-these for the length of one synthesis context and Voice pins one context per
-unit. Accepting is therefore the most Voice can honestly report — there is no
+these for the length of one synthesis context and Voqalize pins one context per
+unit. Accepting is therefore the most Voqalize can honestly report — there is no
 ask-and-answer with the synthesizer, only the next unit. `speed` runs 0.5–2.0,
 where 1.0 is the voice's natural rate.
 
@@ -217,7 +217,7 @@ does not — a language change carries per-turn decoder state, so the recognizer
 queues it and applies it once the open turn commits. The turn being spoken when
 it arrives still transcribes as spoken; the change governs the next one.
 
-Acceptance here is the recognizer's own answer, not Voice's guess: a language it
+Acceptance here is the recognizer's own answer, not Voqalize's guess: a language it
 has no engine for rejects the request.
 
 Threshold names match the recognizer's own `Configure` message verbatim. See the
@@ -225,20 +225,20 @@ Threshold names match the recognizer's own `Configure` message verbatim. See the
 
 ### `ConfigureIdle` — `timeout_ms`
 
-Applied by Voice itself, immediately; a running idle timer restarts on the new
-duration. `timeout_ms` is the silence after Voice stops speaking before it opens
+Applied by Voqalize itself, immediately; a running idle timer restarts on the new
+duration. `timeout_ms` is the silence after Voqalize stops speaking before it opens
 an idle stimulus. `0` disables idle detection.
 
 ## Lifecycle
 
 `End` is a graceful close from either side. `Cancel` carries a `reason` and is
 the abrupt one; the SDK never sends it, so a brain that emits `Cancel` toward
-Voice is one written directly against the wire. `Error` carries a message and a `fatal` flag; a fatal error means
+Voqalize is one written directly against the wire. `Error` carries a message and a `fatal` flag; a fatal error means
 the session is ending, and a non-fatal one is a signal the brain may act on.
 
 ## Connection and auth
 
-Voice dials `{brain_url}/s/{session_id}`, presenting a short-lived RS256 JWT as a
+Voqalize dials `{brain_url}/s/{session_id}`, presenting a short-lived RS256 JWT as a
 bare token or as `Authorization: Bearer <jwt>`, verified against Voqalize's
 public key. Required claims: `iss="pygato"`, `aud="brain"`, `sub == session_id`,
 and `exp`. `agent_id` and `tenant_id` are informational — the recipient decides
@@ -302,8 +302,8 @@ payload as `{"type": "ui_command", "action": "show_results", "action_id": 7,
 …fields}`. The browser answers with a `BrowserMessage` of type `action_result`
 carrying that `action_id`, and the SDK settles it into the action's `on_result`.
 
-`configure_*` is awaited because Voice answers it. Awaiting is how a language
-Voice has no recognizer for becomes an exception the brain handles, rather than a
+`configure_*` is awaited because Voqalize answers it. Awaiting is how a language
+Voqalize has no recognizer for becomes an exception the brain handles, rather than a
 call that runs on sounding wrong and reports nothing.
 
 ## Invariants

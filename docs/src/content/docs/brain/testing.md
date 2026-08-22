@@ -6,10 +6,10 @@ description: Drive your brain over the real wire in text mode — no audio, no b
 The hard part of shipping a voice agent is usually not the voice. It's that every
 change appears to need a person with a microphone. It doesn't.
 
-The SDK ships **`voqalize.conformance`**: a fake Voice that speaks
+The SDK ships **`voqalize.conformance`**: a fake Voqalize that speaks
 [the wire](/docs/reference/wire/). It hosts your real `Brain` on a real WebSocket,
-mints a real runtime token, and models playout and heard-truth the way the runtime
-does — and lets you drive it in **text mode**. `user_says("…")` in, a `Turn` with
+mints a real brain-connection token, and models playout and heard-truth the way
+Voqalize does — and lets you drive it in **text mode**. `user_says("…")` in, a `Turn` with
 `.text` out.
 
 That makes a voice agent testable like any other service, and it is the eval
@@ -20,18 +20,18 @@ per use case in your repo and run it in CI.
 
 ```python
 from voqalize.conformance import (
-    DirectConnection, VoiceDriver, brain_server, generate_keypair, mint_voice_token,
+    DirectConnection, VoqalizeDriver, brain_server, generate_keypair, mint_voqalize_token,
 )
 from mybrain import MyBrain
 
 keypair = generate_keypair()
 
 async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id="s1", agent_id="agent_test", tenant_id="tenant_test",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(server.url, "s1", token=token),
         session_id="s1", default_timeout=10.0,
     )
@@ -85,11 +85,11 @@ async def test_answers(driver):
 The driver also accumulates `driver.ui_commands`, `driver.errors` and
 `driver.requests` — every `configure_*` the brain made, in wire order — so *"did the
 brain switch to Hindi when asked?"* is an assertion on `driver.requests`, not a
-listening exercise. Set `driver.reject[op] = "reason"` to make Voice refuse one, and
+listening exercise. Set `driver.reject[op] = "reason"` to make Voqalize refuse one, and
 `driver.withhold.add(op)` to make it never answer at all.
 
 :::tip[Determinism]
-The driver *is* the runtime, so it dictates the timing a real call can't reproduce:
+The driver *is* Voqalize, so it dictates the timing a real call can't reproduce:
 exactly when a barge-in lands (`speak_delay`, `wait_for_speech`, `wait_for_complete`)
 and exactly what heard-truth the brain is told (`heard_prefix=`). Use those instead
 of sleeping and hoping.

@@ -94,7 +94,7 @@ STORY_TAIL = "unfolds to its conclusion. "  # the un-heard tail (+ BARGE_SENTINE
 # any audio plays* (heard-truth empty ⇒ no assistant message committed).
 SILENT_PREFIX = "wait then "
 
-# The reference brain's deterministic reply to the one Voice-opened, non-spoken
+# The reference brain's deterministic reply to the one Voqalize-opened, non-spoken
 # trigger that may still take the floor, so the driver can assert on a known
 # string.
 IDLE_NUDGE = "still there"  # on_user_idle → f"{IDLE_NUDGE} {level}"
@@ -201,7 +201,7 @@ class ConformanceBrain(Brain):
 
         if text == RAISE:
             # Raise before speaking: no bracket, no text — the session must stay
-            # live so Voice unmutes for the next turn.
+            # live so Voqalize unmutes for the next turn.
             raise ReferenceBrainFault("deliberate fault before any speech")
 
         if text.startswith(SPEAK_RAISE_PREFIX):
@@ -224,7 +224,7 @@ class ConformanceBrain(Brain):
         yield SpeechEnd()
 
     async def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        # Voice handed over the floor because the user went quiet; re-engage with
+        # Voqalize handed over the floor because the user went quiet; re-engage with
         # a level-tagged nudge so the driver can assert both the heard text and
         # the escalation level. No user turn is recorded — nothing was said.
         yield SpeechStart()
@@ -232,7 +232,7 @@ class ConformanceBrain(Brain):
         yield SpeechEnd()
 
     async def on_browser_message(self, session: Session, msg: BrowserMessage) -> None:
-        # Voice delivers every browser message here and never interprets it — the
+        # Voqalize delivers every browser message here and never interprets it — the
         # brain decides what to do with each. It may render; it may not speak.
         if msg.type == CONFORMANCE_DUMP_EVENT:
             session.dispatch(ConformanceState(**conformance_state(self), timeout_s=None))

@@ -6,19 +6,19 @@ to dial, and writing the accept-verify-adapt boilerplate in every test file is h
 the boilerplate drifts. :func:`brain_server` is that socket and nothing more::
 
     async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
-        driver = VoiceDriver(
+        driver = VoqalizeDriver(
             DirectConnection(server.url, session_id, token=...),
             session_id=session_id,
         )
         await driver.open()
 
-It speaks the exact leg Voice dials — ``{url}/s/{session_id}``, a bearer token in
+It speaks the exact leg Voqalize dials — ``{url}/s/{session_id}``, a bearer token in
 ``Authorization``, one protobuf envelope per binary message — so a brain
 that passes here has been exercised on the wire it will actually run on, not on a
 stand-in.
 
 Verification is not optional and has no default: pass ``public_keys=`` (from
-:func:`~voqalize.conformance.wire_voice.generate_keypair`) or
+:func:`~voqalize.conformance.wire_voqalize.generate_keypair`) or
 ``allow_unverified=True``. There is deliberately no fallback to the embedded
 Voqalize keys — a test server that trusts the *production* signer can only ever
 reject every token a test mints, and it would take a while to see why.

@@ -12,9 +12,9 @@ from __future__ import annotations
 from voqalize.conformance import (
     BrainServer,
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.sdk import (
     Brain,
@@ -54,13 +54,13 @@ async def _run(brain: Brain) -> list:
         public_keys=keypair.public_pem,
     )
     port = await server.start()
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
         agent_id="bye",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
         default_timeout=10.0,

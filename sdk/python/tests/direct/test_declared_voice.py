@@ -1,6 +1,6 @@
 """``Brain.voice`` / ``Brain.language`` — the brain declares how it sounds.
 
-Voice and language belong to the brain, not to the server record: a record holds
+Voqalize and language belong to the brain, not to the server record: a record holds
 one value for every caller, and the brain is the only thing that knows *this*
 one. They are a pair of class attributes the SDK applies at session start.
 
@@ -14,7 +14,7 @@ These pin the three properties that make that trustworthy:
    on the way into ``on_session_start``, not by a base class's hook — so a brain
    that overrides that hook (every real one does) and forgets ``super()`` still
    gets its voice. ``HindiBrain`` below is exactly that brain.
-3. **A refusal fails the session.** A brain that declared a language Voice will
+3. **A refusal fails the session.** A brain that declared a language Voqalize will
    not serve has stated what the call is; running it in another one is a call
    nobody asked for.
 
@@ -29,9 +29,9 @@ from __future__ import annotations
 from voqalize.conformance import (
     BrainServer,
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
@@ -83,7 +83,7 @@ class OverridingBrain(HindiBrain):
         await super().on_session_start(session)
 
 
-async def _run(brain: Brain, *, reject: dict[str, str] | None = None) -> VoiceDriver:
+async def _run(brain: Brain, *, reject: dict[str, str] | None = None) -> VoqalizeDriver:
     keypair = generate_keypair()
     server = BrainServer(
         lambda: brain,
@@ -92,13 +92,13 @@ async def _run(brain: Brain, *, reject: dict[str, str] | None = None) -> VoiceDr
         public_keys=keypair.public_pem,
     )
     port = await server.start()
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
         agent_id="declared-voice",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
         default_timeout=10.0,
@@ -131,11 +131,11 @@ def _delta(frame: ConfigureTtsFrame | ConfigureSttFrame) -> dict:
     }
 
 
-def _deltas(driver: VoiceDriver, frame_type) -> list[dict]:
+def _deltas(driver: VoqalizeDriver, frame_type) -> list[dict]:
     return [_delta(f) for f in driver.requests if isinstance(f, frame_type)]
 
 
-def _first_index(driver: VoiceDriver, frame_type) -> int | None:
+def _first_index(driver: VoqalizeDriver, frame_type) -> int | None:
     for i, r in enumerate(driver.log):
         if isinstance(r.frame, frame_type):
             return i
@@ -197,7 +197,7 @@ async def test_on_session_start_can_override_the_declaration() -> None:
 
 
 async def test_a_refused_declaration_fails_the_session() -> None:
-    # Voice has no engine for the declared language. The brain asked for a call it
+    # Voqalize has no engine for the declared language. The brain asked for a call it
     # cannot have, so there is no greeting and the session ends fatally — rather
     # than a call that runs to its end in a language nobody chose.
     driver = await _run(HindiBrain(), reject={"configure_stt": "no recognizer for language 'hi'"})

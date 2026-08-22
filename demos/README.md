@@ -150,7 +150,7 @@ ships separately, onto the pygato node.
 The remaining demos follow this same shape.
 
 **Every demo has an end-to-end test** (`demos/tests/test_<name>_e2e.py`): the real
-brain on a real `brain_server` socket, driven by the conformance `VoiceDriver`, with
+brain on a real `brain_server` socket, driven by the conformance `VoqalizeDriver`, with
 only the *model* faked — `ScriptedGemini` for the `GeminiBrain` demos, ADK's
 `ScriptedLlm` for `travel` and `orderdesk`. No network, no API key. Plus
 `test_demo_voice_contract.py`, a cross-demo sweep that asserts every demo puts a

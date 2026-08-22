@@ -25,7 +25,7 @@ Starlette's ``WebSocket.send_bytes``/``receive_bytes`` via a 2-line shim, etc.).
         )
 
 Auth is the caller's request to extract and the SDK's to verify: you pass the URL
-``session_id`` and the ``Authorization`` header value; the SDK checks Voice's
+``session_id`` and the ``Authorization`` header value; the SDK checks Voqalize's
 RS256 token (signature + expiry + ``sub == session_id``) against the embedded
 Voqalize keys by default. Framework-specific wrappers that do the extraction for
 you can be layered on later — this primitive stays assumption-free.
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 BRAIN_AUDIENCE = "brain"
 
 # Namespace for hashing a non-UUID session id string to 16 bytes (a session id
-# Voice minted is already a UUID; this is only a robustness fallback).
+# Voqalize minted is already a UUID; this is only a robustness fallback).
 _SESSION_NAMESPACE = uuid.UUID("d1e83b8d-3a3b-4ab5-9c0c-9c8d6f5d8a01")
 
 
@@ -86,7 +86,7 @@ class Channel(Protocol):
 class SessionRejected(Exception):
     """Raised by :func:`run_session` when the connection's token fails verification.
 
-    The caller should close the socket: close code 4000 is what Voice reads as a
+    The caller should close the socket: close code 4000 is what Voqalize reads as a
     permanent, non-retriable rejection."""
 
 
@@ -114,7 +114,7 @@ def verify_token(
     public_keys: list[str],
     allow_unverified: bool,
 ) -> dict[str, Any] | None:
-    """Verify Voice's RS256 brain-connection token against ``public_keys``.
+    """Verify Voqalize's RS256 brain-connection token against ``public_keys``.
 
     Returns the verified claims on success and ``None`` on rejection — test
     ``is None``, not truthiness, because a verified token with no claims and an

@@ -37,7 +37,7 @@ class FinalizeReason(StrEnum):
     USER_BARGE_IN = "user_barge_in"
 
 
-# ─── Voice → Brain ────────────────────────────────────────────────────────────
+# ─── Voqalize → Brain ────────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -90,7 +90,7 @@ class FinalizeFrame(Frame):
     reason: FinalizeReason = FinalizeReason.COMPLETED
 
 
-# ─── Brain → Voice ────────────────────────────────────────────────────────────
+# ─── Brain → Voqalize ────────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -127,7 +127,7 @@ class BrowserCommandFrame(Frame):
 
 @dataclass
 class ConfigureTtsFrame(Frame):
-    """Retune the voice. Brain → Voice."""
+    """Retune the voice. Brain → Voqalize."""
 
     request_id: int = 0
     voice: str | None = None
@@ -138,7 +138,7 @@ class ConfigureTtsFrame(Frame):
 
 @dataclass
 class ConfigureSttFrame(Frame):
-    """Retune the recognizer. Brain → Voice.
+    """Retune the recognizer. Brain → Voqalize.
 
     ``thresholds`` keys are the schema's own field names, built from what the
     brain set; the serializer rejects a name the schema does not declare.
@@ -159,7 +159,7 @@ class ConfigureIdleFrame(Frame):
 
 @dataclass
 class ResponseFrame(Frame):
-    """Voice's answer to one request. ``detail`` is empty on acceptance."""
+    """Voqalize's answer to one request. ``detail`` is empty on acceptance."""
 
     request_id: int = 0
     accepted: bool = True

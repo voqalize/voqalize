@@ -4,7 +4,7 @@ Each check is a plain function that raises :class:`ConformanceError` (an
 ``AssertionError`` subclass, so it reads naturally under pytest *and* can be
 caught by the scenario runner to build a report) with a message that names the
 wire rule it enforces. Scenarios compose these; the checks themselves make
-no I/O and hold no state — they read the :class:`~voqalize.conformance.driver.VoiceDriver`
+no I/O and hold no state — they read the :class:`~voqalize.conformance.driver.VoqalizeDriver`
 observation model and :class:`~voqalize.conformance.driver.Turn` results.
 
 The rules come straight from the wire contract — `docs/reference/wire`, and
@@ -23,7 +23,7 @@ The rules come straight from the wire contract — `docs/reference/wire`, and
 
 from __future__ import annotations
 
-from .driver import GREETING_EPOCH, EpochObs, Turn, VoiceDriver
+from .driver import GREETING_EPOCH, EpochObs, Turn, VoqalizeDriver
 
 
 class ConformanceError(AssertionError):
@@ -64,7 +64,7 @@ def check_speech_ids_monotonic(turn: Turn, *, start: int = 1) -> None:
         )
 
 
-def check_stamped_with_epoch(driver: VoiceDriver, turn: Turn) -> None:
+def check_stamped_with_epoch(driver: VoqalizeDriver, turn: Turn) -> None:
     """Every recorded LLM frame for this turn carries the epoch the driver stamped
     the stimulus with — the brain must echo it, never invent one."""
     io = driver.epochs.get(turn.epoch)
@@ -93,7 +93,7 @@ def check_spoke(turn: Turn) -> None:
     )
 
 
-def check_greeting(driver: VoiceDriver, turn: Turn | None) -> None:
+def check_greeting(driver: VoqalizeDriver, turn: Turn | None) -> None:
     """The greeting is agent-initiated speech, and answers no stimulus — so it
     echoes epoch 0. The requirements are: it spoke, its bracket(s) closed, and it
     rode epoch 0."""
@@ -110,17 +110,17 @@ def check_greeting(driver: VoiceDriver, turn: Turn | None) -> None:
 # ─── barge-in / drain barrier ─────────────────────────────────────────────────
 
 
-def check_interruption_echoed(driver: VoiceDriver) -> None:
+def check_interruption_echoed(driver: VoqalizeDriver) -> None:
     """The brain echoed an ``InterruptionFrame`` — the drain barrier that lets
-    Voice resume forwarding brain output."""
+    Voqalize resume forwarding brain output."""
     require(
         driver._interruption_seen.is_set(),
         "brain did not echo InterruptionFrame after barge-in — no drain barrier, "
-        "Voice would stay muted until the fallback timeout",
+        "Voqalize would stay muted until the fallback timeout",
     )
 
 
-def check_no_speech_after_barge_in(driver: VoiceDriver, turn: Turn, *, forbidden: str) -> None:
+def check_no_speech_after_barge_in(driver: VoqalizeDriver, turn: Turn, *, forbidden: str) -> None:
     """No unit in the cut epoch emitted the post-barge-in tail — the
     brain must stop generating once cancelled (heard-truth has no unheard tail)."""
     io = driver.epochs.get(turn.epoch)
@@ -137,7 +137,7 @@ def check_no_speech_after_barge_in(driver: VoiceDriver, turn: Turn, *, forbidden
 # ─── no proactive speech ──────────────────────────────────────────────────────
 
 
-def check_no_unsolicited_epochs(driver: VoiceDriver, *, opened: set[int]) -> None:
+def check_no_unsolicited_epochs(driver: VoqalizeDriver, *, opened: set[int]) -> None:
     """The brain only ever stamped epochs the driver actually opened (plus the
     greeting) — no proactive/unsolicited brain-initiated speech."""
     allowed = opened | {GREETING_EPOCH}
@@ -145,7 +145,7 @@ def check_no_unsolicited_epochs(driver: VoiceDriver, *, opened: set[int]) -> Non
     extra = seen - allowed
     require(
         not extra,
-        f"brain produced output for epochs {sorted(extra)} that Voice never "
+        f"brain produced output for epochs {sorted(extra)} that Voqalize never "
         f"opened (opened={sorted(allowed)}) — no proactive brain speech allowed",
     )
 

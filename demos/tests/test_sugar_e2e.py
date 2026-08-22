@@ -2,7 +2,7 @@
 
 The real ``SugarBrain`` — the shipping ``demos/sugar/backend/brain.py``, its real
 prompt, its real fourteen tools — hosted on a real ``brain_server`` socket and
-driven by the conformance ``VoiceDriver``, with only the *model* scripted. See
+driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. See
 ``tests/_harness.py`` for what every demo's e2e proves.
 
 Sugar is the demo where the **language moves twice**: once from the patient's

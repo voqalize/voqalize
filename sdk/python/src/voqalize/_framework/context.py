@@ -1,7 +1,7 @@
 """The ``voice()`` accessor — how a native tool reaches the live turn.
 
 A native tool is the *framework's* object: a plain function the framework (ADK)
-calls. It has no Voqalize argument, and we do not want to force one — the whole
+calls. It has no :class:`Voice` argument, and we do not want to force one — the whole
 promise is "your tools stay native." So the SDK exposes the current interaction
 through a :class:`~contextvars.ContextVar` the adapter sets around the driven run:
 a tool that runs inside that call reads it with :func:`voice`.

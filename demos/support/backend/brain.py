@@ -9,7 +9,7 @@ browser via ``interaction.action(name, {...})`` — the RTVI ``ui_command`` the
 
 Two browser→brain feedback channels beyond the standard turn arrive on
 ``on_client_message``. Both respond, so each takes the floor via
-``message.interaction`` (the interaction Voice pre-minted for the client message):
+``message.interaction`` (the interaction Voqalize pre-minted for the client message):
 
   * ``photo_upload`` — a browser-captured product photo (data URL). We decode it,
     build a working context from the heard transcript, append the image plus a
@@ -380,7 +380,7 @@ class SupportBrain(GeminiBrain):
         """Run one turn triggered by a browser client message: build the working
         context from the heard transcript, append ``user_parts`` as a final user
         turn, and run the same tool loop as ``respond`` — over the client message's
-        floor-owning ``interaction`` (the id Voice minted for it)."""
+        floor-owning ``interaction`` (the id Voqalize minted for it)."""
         contents = self.working_context(interaction)
         contents.append(types.Content(role="user", parts=user_parts))
         for _ in range(self._max_tool_hops):

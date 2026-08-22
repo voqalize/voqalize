@@ -26,7 +26,7 @@ Per-session guarantees, by construction:
    lane), dispatched ahead of queued data; the adapter cancels in-flight work and
    echoes the drain barrier.
 5. **Reconnect** (via ``MultiplexedWire``): on reconnect all sessions are torn
-   down; the voice runtime re-sends each ``SessionStartFrame``, creating fresh runners.
+   down; Voqalize re-sends each ``SessionStartFrame``, creating fresh runners.
 """
 
 from __future__ import annotations

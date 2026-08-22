@@ -1,15 +1,15 @@
 """The voice side of the wire — what the conformance driver needs to stand in
-for Voice against a brain.
+for Voqalize against a brain.
 
 Two pieces the driver builds on:
 
 1. :class:`DirectConnection` — a bare ``websockets`` client that dials
-   ``{brain_url}/s/{session_id}`` exactly as Voice does: one WS per session, an
+   ``{brain_url}/s/{session_id}`` exactly as Voqalize does: one WS per session, an
    ``Authorization: Bearer <token>`` header, and one protobuf envelope per
    binary message.
 
-2. :func:`generate_keypair` / :func:`mint_voice_token` — the RS256 brain token
-   Voice presents, claim for claim (``iss=pygato``, ``aud=brain``,
+2. :func:`generate_keypair` / :func:`mint_voqalize_token` — the RS256 brain token
+   Voqalize presents, claim for claim (``iss=pygato``, ``aud=brain``,
    ``sub=session_id``, plus ``agent_id`` / ``tenant_id``). A conformance run mints
    with an ephemeral keypair and hands the public half to the brain under test.
 
@@ -35,7 +35,7 @@ BRAIN_AUDIENCE = "brain"
 
 
 class DirectConnection:
-    """A single-session voice→brain WebSocket, dialled the way Voice dials it.
+    """A single-session voice→brain WebSocket, dialled the way Voqalize dials it.
 
     URL is ``{brain_url}/s/{session_id}``; auth is an ``Authorization: Bearer``
     header; framing is one protobuf envelope per binary message. Does not own
@@ -81,7 +81,7 @@ class DirectConnection:
         return self._ws.close_code if self._ws is not None else None
 
 
-# ─── The RS256 brain token Voice presents ─────────────────────────────────────
+# ─── The RS256 brain token Voqalize presents ─────────────────────────────────────
 
 
 @dataclass(frozen=True)
@@ -111,7 +111,7 @@ def generate_keypair() -> Keypair:
     return Keypair(private_pem=private_pem, public_pem=public_pem)
 
 
-def mint_voice_token(
+def mint_voqalize_token(
     *,
     private_key_pem: bytes,
     session_id: str,
@@ -119,16 +119,14 @@ def mint_voice_token(
     tenant_id: str,
     ttl_seconds: int = 60,
 ) -> str:
-    """Mint the short-lived RS256 token the voice runtime presents on a brain
-    connection.
+    """Mint the short-lived RS256 token Voqalize presents on a brain connection.
 
-    ``pygato`` is Voqalize's internal name for that runtime — the process that holds
-    the call. It survives here because it is a **literal claim value** your brain
+    ``pygato`` is our internal name for the process that holds the call. It survives here because it is a **literal claim value** your brain
     verifies against, not because you have to know what it stands for.
 
     Claims: ``iss=pygato``, ``aud=brain`` (a wire constant),
     ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` / ``tenant_id`` for the
-    recipient to decide. Byte-identical to what the real runtime signs, so a brain
+    recipient to decide. Byte-identical to what Voqalize signs in production, so a brain
     that accepts this one accepts production.
     """
     now = datetime.now(UTC)

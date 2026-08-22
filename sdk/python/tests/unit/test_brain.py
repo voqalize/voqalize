@@ -253,7 +253,7 @@ async def test_a_session_that_speaks_our_wire_version_starts() -> None:
 
 
 async def test_a_session_that_speaks_another_wire_version_is_refused() -> None:
-    """Voice speaks first, so this is the last moment either end can refuse before
+    """Voqalize speaks first, so this is the last moment either end can refuse before
     a call is running and the only one where refusing is free — nothing has been
     synthesized and the caller has heard nothing. The brain never greets, and the
     error is fatal so the runtime ends the call rather than sitting mute."""

@@ -2,7 +2,7 @@
 
 The real ``InterviewBrain`` — the shipping ``demos/interview_bot/backend/brain.py``,
 its real prompt, its real two tools — hosted on a real ``brain_server`` socket and
-driven by the conformance ``VoiceDriver``, with only the *model* scripted. See
+driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. See
 ``tests/_harness.py`` for what every demo's e2e proves.
 
 The interviewer is the demo whose whole shape comes from ``init_payload``: the

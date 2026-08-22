@@ -18,7 +18,7 @@
  * through the `children` render-prop, so `pages.tsx` keeps owning its own chrome.
  *
  * Mounted once at the route level; navigation is React state, so the call
- * survives screen changes. Voice runs English STT with OmniVoice English TTS
+ * survives screen changes. Voqalize runs English STT with OmniVoice English TTS
  * (pipeline declared in this demo's src/config.ts).
  */
 

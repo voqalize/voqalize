@@ -139,7 +139,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - `src/voqalize/google_adk/` — the **Google ADK** integration (`[adk]` extra):
   `AdkBrain` / `adk_brain(...)` plus `ScriptedLlm` for tests. See
   [Already have an ADK agent? Wrap it](#already-have-an-adk-agent-wrap-it).
-- `src/voqalize/conformance/` — the wire-level conformance harness: `VoiceDriver`
+- `src/voqalize/conformance/` — the wire-level conformance harness: `VoqalizeDriver`
   (drives a brain over a real socket from the voice-runtime side, no runtime
   needed), `brain_server` (a brain on an ephemeral localhost port, for tests that
   want the real wire), the scenario catalog, the MUST checks, and a `python -m

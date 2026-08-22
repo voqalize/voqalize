@@ -115,8 +115,8 @@ class GeminiBrain(Brain):
 
         #: The conversation, as Gemini contents. Yours to read, seed and persist.
         self.history: list[types.Content] = []
-        # Units still awaiting their heard truth, in the order the runtime will
-        # report them. Every unit is here: the runtime finalizes each unit
+        # Units still awaiting their heard truth, in the order Voqalize will
+        # report them. Every unit is here: Voqalize finalizes each unit
         # exactly once whether or not a word of it reached the caller, so a
         # silent one — a bare function call — is reported as heard-nothing and
         # leaves the transcript rather than never being mentioned.
@@ -201,7 +201,7 @@ class GeminiBrain(Brain):
     # ─── Heard truth ────────────────────────────────────────────────────
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
-        """Rewrite the unit the runtime just finished playing down to what the
+        """Rewrite the unit Voqalize just finished playing down to what the
         caller actually heard.
 
         A unit this brain never opened is the greeting: `greet` returns a string

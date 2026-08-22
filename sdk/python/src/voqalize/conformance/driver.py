@@ -1,16 +1,16 @@
-"""``VoiceDriver`` — a wire-compliant stand-in for Voice, seen from a brain's
+"""``VoqalizeDriver`` — a wire-compliant stand-in for Voqalize, seen from a brain's
 point of view.
 
 The driver *is* the "compliant voqalize": it dials a brain over the single
 session ``/s/{session_id}`` leg, speaks the shipped protobuf wire, and plays out
-the brain's responses the way real Voice does — auto-finalizing each speech unit
+the brain's responses the way real Voqalize does — auto-finalizing each speech unit
 with a *heard-truth* transcript and honouring the barge-in drain barrier.
 Everything the brain sends back is decoded, timestamped, and recorded so
 scenarios can assert the wire's MUSTs against a structured transcript.
 
 Turns end the way they end on a real call: the wire carries no "the brain is
 done" frame, so a turn is over when every speech unit it opened has closed
-and the brain has gone quiet. Real Voice has no more than that either.
+and the brain has gone quiet. Real Voqalize has no more than that either.
 
 What the driver deliberately does *not* do: audio, VAD, STT/TTS, WebRTC. Playout
 is modelled as "the whole unit is heard unless barged in", which is all the
@@ -50,7 +50,7 @@ from voqalize.sdk.wire import (
 )
 from voqalize.sdk.wire.serializer import DecodedMessage, WireSerializer
 
-from .wire_voice import DirectConnection
+from .wire_voqalize import DirectConnection
 
 # The greeting epoch: the brain speaks first on session start, with no
 # user turn to attribute it to. Agent-initiated speech echoes no epoch, so it
@@ -58,7 +58,7 @@ from .wire_voice import DirectConnection
 GREETING_EPOCH = 0
 
 # The control leg's ops, by the frame that carries each. The driver answers every
-# one, because Voice does — a brain awaiting an answer that never comes is the
+# one, because Voqalize does — a brain awaiting an answer that never comes is the
 # one failure the wire promises cannot happen.
 REQUEST_OPS: dict[type[Frame], str] = {
     ConfigureTtsFrame: "configure_tts",
@@ -76,7 +76,7 @@ REQUEST_OPS: dict[type[Frame], str] = {
 # Instead the driver reuses the generic, schema-free browser lane the wire
 # already has (browser→brain ``BrowserMessage`` / brain→browser
 # ``BrowserCommand``, the same lane real UIs use for ``ui_command`` /
-# ``action_result`` — opaque to Voice, which just relays it). A conformance-aware
+# ``action_result`` — opaque to Voqalize, which just relays it). A conformance-aware
 # brain opts in by answering one namespaced browser message with its committed state.
 # Because the SDK *owns* ``session.conversation``, that answer can be produced by
 # the framework once (see ``reference.conformance_state``) and every brain built
@@ -153,12 +153,12 @@ class Turn:
         return " ".join(unit.text for unit in self.units if unit.spoke)
 
 
-class VoiceDriver:
-    """Drives a brain over one direct session, standing in for Voice.
+class VoqalizeDriver:
+    """Drives a brain over one direct session, standing in for Voqalize.
 
     Typical lifecycle::
 
-        driver = VoiceDriver(conn, session_id=sid)
+        driver = VoqalizeDriver(conn, session_id=sid)
         await driver.open()
         await driver.start_session()          # brain greets
         turn = await driver.user_says("hi")   # a user turn, auto-finalized
@@ -188,11 +188,11 @@ class VoiceDriver:
         self.errors: list[ErrorFrame] = []
         # Every configure request the brain made, in wire order.
         self.requests: list[ConfigureRequest] = []
-        # Ops to refuse, op name → the reason Voice gives. A scenario sets one to
-        # exercise the path where a brain asks for something Voice will not do.
+        # Ops to refuse, op name → the reason Voqalize gives. A scenario sets one to
+        # exercise the path where a brain asks for something Voqalize will not do.
         self.reject: dict[str, str] = {}
         # Ops to leave unanswered, for the one case the wire cannot promise
-        # away: a Voice that stopped answering mid-call.
+        # away: a Voqalize that stopped answering mid-call.
         self.withhold: set[str] = set()
         self.epochs: dict[int, EpochObs] = {}
 
@@ -290,7 +290,7 @@ class VoiceDriver:
         await self._conn.send_payload(payload)
 
     def next_epoch(self) -> int:
-        """Mint the next epoch — Voice stamps every stimulus it commits."""
+        """Mint the next epoch — Voqalize stamps every stimulus it commits."""
         self._epoch_seq += 1
         return self._epoch_seq
 
@@ -395,7 +395,7 @@ class VoiceDriver:
     ) -> Turn:
         """Play out the brain's response to an already-opened turn, then finalize
         each spoken unit with a heard-truth transcript. Shared by ``user_says``
-        / ``user_idle`` / ``barge_in`` — every Voice-opened turn plays out
+        / ``user_idle`` / ``barge_in`` — every Voqalize-opened turn plays out
         identically.
 
         The wire carries no end-of-turn frame, so "the brain is done" is: every
@@ -422,7 +422,7 @@ class VoiceDriver:
         finalize: bool = True,
         quiet_for: float | None = None,
     ) -> Turn:
-        """Drive an idle trigger: Voice opened a fresh epoch because the user
+        """Drive an idle trigger: Voqalize opened a fresh epoch because the user
         went silent past the idle timeout (``UserIdle``). The brain's
         ``on_user_idle`` may re-engage; play out its response exactly like a spoken
         turn (or observe an empty epoch if it chose to stay silent)."""
@@ -447,7 +447,7 @@ class VoiceDriver:
         cut unit with ``interrupted=True`` / ``USER_BARGE_IN`` and a partial
         heard-truth, and return it on :attr:`Turn.heard`.
 
-        The driver *is* Voice here, so it dictates the finalized ``heard_text`` —
+        The driver *is* Voqalize here, so it dictates the finalized ``heard_text`` —
         which is exactly what removes the timing nondeterminism of a real barge-in
         and lets scenarios assert the recorded transcript against a known string.
         By default the heard-truth is *what actually arrived before the cut*
@@ -554,9 +554,9 @@ class VoiceDriver:
     # ─── app / action lane ───────────────────────────────────────────────────
 
     async def send_browser_message(self, type: str, data: dict | None = None) -> int:
-        """Send a browser message and return the epoch Voice stamped it with.
+        """Send a browser message and return the epoch Voqalize stamped it with.
 
-        Voice delivers **every** browser message to the brain's
+        Voqalize delivers **every** browser message to the brain's
         ``on_browser_message`` without interpreting it, and that callback cannot
         speak — so there is nothing to wait for here."""
         epoch = self.next_epoch()

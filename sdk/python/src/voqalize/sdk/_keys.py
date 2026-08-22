@@ -1,6 +1,6 @@
 """The Voqalize public keys the SDK verifies a connection with.
 
-Voice signs the short-lived RS256 token it presents on each brain connection
+Voqalize signs the short-lived RS256 token it presents on each brain connection
 (`/s/{session_id}`) with a **private** key held only by Voqalize. The matching
 **public** keys ship here, inside the SDK, so a customer calling
 `run_session(...)` verifies that connection out of the box — no key to fetch,

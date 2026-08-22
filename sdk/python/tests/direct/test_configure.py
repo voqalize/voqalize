@@ -1,14 +1,14 @@
 """``session.configure_*`` — one request out, exactly one answer back.
 
-The four methods are awaitable, and what they wait for is Voice's *validation*:
-accepted means Voice took the change whole, rejected means it applied none of it.
+The four methods are awaitable, and what they wait for is Voqalize's *validation*:
+accepted means Voqalize took the change whole, rejected means it applied none of it.
 That is only useful if it holds from the place a brain actually retunes — inside
 a turn, inside the hook that is itself being fed by the same socket the answer
 arrives on. So these drive real sessions over a real websocket rather than
 poking at the plumbing.
 
 Three outcomes, and a brain has to survive all three: accepted, refused, and the
-one the protocol cannot promise away — a Voice that stopped answering.
+one the protocol cannot promise away — a Voqalize that stopped answering.
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ import pytest
 from voqalize.conformance import (
     BrainServer,
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.sdk import Brain, Chunk, RequestRejected, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import ConfigureIdleFrame, ConfigureSttFrame, ConfigureTtsFrame
@@ -61,17 +61,17 @@ class ThreeWayBrain(TuningBrain):
         await session.configure_idle(timeout_ms=0)
 
 
-async def _open(brain: Brain) -> tuple[VoiceDriver, BrainServer]:
+async def _open(brain: Brain) -> tuple[VoqalizeDriver, BrainServer]:
     keypair = generate_keypair()
     server = BrainServer(lambda: brain, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
     port = await server.start()
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
         agent_id="configure",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
         default_timeout=10.0,
@@ -109,7 +109,7 @@ async def test_a_refusal_raises_and_names_what_voice_said() -> None:
         await driver.aclose()
         await server.aclose()
 
-    # Voice's own reason reaches the brain verbatim, and the turn still finishes:
+    # Voqalize's own reason reaches the brain verbatim, and the turn still finishes:
     # a refused request is an answer, not a broken session.
     assert _spoken(turn) == "rejected configure_stt: eot_threshold must be 0.0 to 1.0"
 
@@ -129,7 +129,7 @@ async def test_an_unanswered_request_times_out_and_the_session_lives(
 
     # The state is genuinely unknown here, and the message says so rather than
     # implying the change was dropped.
-    assert _spoken(turn).startswith("unanswered: configure_stt: Voice did not answer")
+    assert _spoken(turn).startswith("unanswered: configure_stt: Voqalize did not answer")
     assert "unknown" in _spoken(turn)
 
 

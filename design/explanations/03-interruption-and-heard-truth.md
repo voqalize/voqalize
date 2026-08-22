@@ -32,7 +32,7 @@
 - **Every unit is awaiting a finalize, silent ones included** (commit `22b1fce`).
   A turn that yields no speech still resolves — so the bookkeeping has no hole
   where a silent turn used to be.
-- **Barge-in mechanics.** Voice sends an interruption; the SDK runs
+- **Barge-in mechanics.** Voqalize sends an interruption; the SDK runs
   `_cancel_turns()` and then **echoes** it back. The echo is the drain barrier:
   everything before it on the wire is discarded, everything after is live. Without
   a barrier there is no way to tell a chunk that was in flight from a chunk
@@ -52,10 +52,10 @@
 ## Proof
 
 - The conformance harness "models playout/heard-truth finalization the way real
-  Voice does" (`sdk/python/src/voqalize/conformance/__init__.py`). Heard-truth is
+  Voqalize does" (`sdk/python/src/voqalize/conformance/__init__.py`). Heard-truth is
   not documentation about a behaviour; it is an assertion in the suite a brain
   must pass to be called wire-compatible.
-- `VoiceDriver` records `InferenceObs` / `InteractionObs` per unit, so a test can
+- `VoqalizeDriver` records `InferenceObs` / `InteractionObs` per unit, so a test can
   assert on the *heard* text rather than the generated text.
 - `interrupted` as a rate is the cheapest quality signal we have — see
   [2](02-the-turn-budget.md).

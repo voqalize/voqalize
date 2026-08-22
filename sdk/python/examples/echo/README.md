@@ -40,7 +40,7 @@ VOQAL_ALLOW_UNVERIFIED=true \
   uv run uvicorn examples.fastapi_inbound.app:app --host 0.0.0.0 --port 8080
 ```
 
-Then point a **local** demo agent's `brain_url` at `ws://127.0.0.1:8080` (Voice
+Then point a **local** demo agent's `brain_url` at `ws://127.0.0.1:8080` (Voqalize
 appends `/s/{session_id}` itself), open the console, and start a call. You should
 hear the greeting, then your own words echoed back.
 
@@ -50,7 +50,7 @@ api_key=..., cortex_url=...)` dials the Cortex relay instead — see
 
 ## Why `VOQAL_ALLOW_UNVERIFIED`
 
-Every Voice→brain connection carries a short-lived RS256 token; the SDK verifies it
+Every Voqalize→brain connection carries a short-lived RS256 token; the SDK verifies it
 by default against the **production** Voqalize public keys embedded in the package.
 Your **local** runtime signs with a dev key, so a real check would reject every
 local session with close code **4000** (permanent, non-retriable) — and you'd hear

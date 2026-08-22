@@ -1,6 +1,6 @@
 """The browser→brain message, over the real stack.
 
-Voice delivers every one of them unconditionally and never interprets the type.
+Voqalize delivers every one of them unconditionally and never interprets the type.
 Handling one cannot make the server speak — nothing about a click means the human
 stopped talking — so ``on_browser_message`` is a coroutine, not a generator, and a
 brain that writes one anyway is contained rather than obeyed.
@@ -130,7 +130,7 @@ async def test_speaking_from_a_browser_message_puts_nothing_on_the_wire() -> Non
 
     A tap that made the server start talking would cut across whatever the human was
     saying. The generator is closed unstarted, so not a byte of speech reaches
-    Voice — and because it never runs, the body's own bookkeeping does not happen
+    Voqalize — and because it never runs, the body's own bookkeeping does not happen
     either. A contract violation is refused whole, not half-honoured.
     """
     rec, emitted = await _run_browser_message(speak=True)

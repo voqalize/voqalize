@@ -290,7 +290,7 @@ class _Connection:
 class Wire(_Connection):
     """The voice leg of the wire: one session per connection.
 
-    Message format: `[payload bytes]`. No session prefix — Voice dials
+    Message format: `[payload bytes]`. No session prefix — Voqalize dials
     `/s/{session_id}`, so the session is implicit in the URL. A brain never dials
     this leg: `run_session` is handed a socket its framework already accepted.
     It is here because the SDK's own tests play the voice side with it.

@@ -5,7 +5,7 @@ The sibling ``test_conformance.py`` proves the demos are *wired* to the transpor
 demo that runs on the Google ADK adapter: it hosts the **real**
 ``TravelBrain`` — the shipping ``demos/travel/backend/brain.py``, its real prompt,
 its real ten tools — on a real ``brain_server`` WebSocket, swaps only the *model*
-for a :class:`ScriptedLlm`, and drives it with the conformance ``VoiceDriver``
+for a :class:`ScriptedLlm`, and drives it with the conformance ``VoqalizeDriver``
 (the exact PyGato-side leg).
 
 Swapping just the model is what makes this deterministic: a scripted tool call
@@ -59,10 +59,10 @@ from voqalize_demos._loaded.travel.brain import TravelBrain  # noqa: E402
 from voqalize.conformance import (  # noqa: E402
     BrainServer,
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     checks,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.google_adk.testing import ScriptedLlm, reply, reply_and_call  # noqa: E402
 
@@ -148,7 +148,7 @@ def _script() -> dict[str, Any]:
     }
 
 
-async def _host(llm: ScriptedLlm) -> tuple[BrainServer, VoiceDriver]:
+async def _host(llm: ScriptedLlm) -> tuple[BrainServer, VoqalizeDriver]:
     """Host the real TravelBrain (scripted model) on a real localhost socket and
     open a PyGato-side driver against it."""
     keypair = generate_keypair()
@@ -160,13 +160,13 @@ async def _host(llm: ScriptedLlm) -> tuple[BrainServer, VoiceDriver]:
     )
     port = await server.start()
     session_id = "travel-adk-test"
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="travel",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
         default_timeout=10.0,
@@ -175,7 +175,7 @@ async def _host(llm: ScriptedLlm) -> tuple[BrainServer, VoiceDriver]:
     return server, driver
 
 
-def _actions(driver: VoiceDriver) -> list[str]:
+def _actions(driver: VoqalizeDriver) -> list[str]:
     """The ui_command actions the brain fired, minus the conformance backchannel."""
     return [
         str(c.get("action"))

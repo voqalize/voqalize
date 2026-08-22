@@ -31,7 +31,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from . import checks
-from .driver import VoiceDriver
+from .driver import VoqalizeDriver
 from .reference import (
     BARGE_SENTINEL,
     COUNT_SLOWLY,
@@ -48,7 +48,7 @@ from .reference import (
     TWO_SECOND,
     story_opening,
 )
-from .wire_voice import DirectConnection, mint_voice_token
+from .wire_voqalize import DirectConnection, mint_voqalize_token
 
 
 class ScenarioContext:
@@ -71,7 +71,7 @@ class ScenarioContext:
         self.agent_id = agent_id
         self.tenant_id = tenant_id
         self.default_timeout = default_timeout
-        self._drivers: list[VoiceDriver] = []
+        self._drivers: list[VoqalizeDriver] = []
 
     def new_session_id(self) -> str:
         return f"conf-{uuid.uuid4().hex[:12]}"
@@ -82,7 +82,7 @@ class ScenarioContext:
         auth: str = "valid",
         session_id: str | None = None,
         sign_with: bytes | None = None,
-    ) -> VoiceDriver:
+    ) -> VoqalizeDriver:
         """Open a driver against the brain.
 
         ``auth``: ``"valid"`` mints a well-formed token signed by ``sign_with`` (or
@@ -95,7 +95,7 @@ class ScenarioContext:
             if key is None:
                 token: str | None = None
             else:
-                token = mint_voice_token(
+                token = mint_voqalize_token(
                     private_key_pem=key,
                     session_id=sid,
                     agent_id=self.agent_id,
@@ -106,7 +106,7 @@ class ScenarioContext:
         else:
             token = auth
         conn = DirectConnection(self.brain_url, sid, token=token)
-        driver = VoiceDriver(
+        driver = VoqalizeDriver(
             conn,
             session_id=sid,
             default_timeout=self.default_timeout,
@@ -245,7 +245,7 @@ async def scn_brain_error_after_speech_keeps_heard(ctx: ScenarioContext) -> None
 async def scn_reject_bad_token(ctx: ScenarioContext) -> None:
     """A token signed by the wrong key is rejected with close code 4000, before
     any session work — the brain verifies ``aud=brain`` against its configured key."""
-    from .wire_voice import generate_keypair
+    from .wire_voqalize import generate_keypair
 
     wrong = generate_keypair()
     driver = await ctx.connect(auth="valid", sign_with=wrong.private_pem)
@@ -431,7 +431,7 @@ async def scn_browser_message_delivery(ctx: ScenarioContext) -> None:
 
 
 async def scn_user_idle(ctx: ScenarioContext) -> None:
-    """The idle trigger: Voice opens an epoch because the user went silent
+    """The idle trigger: Voqalize opens an epoch because the user went silent
     (``UserIdle``), the brain's ``on_user_idle`` re-engages, and the epoch
     plays out and completes exactly like a spoken turn — with the escalation level
     carried through. Crucially, the committed conversation records the assistant
@@ -458,7 +458,7 @@ async def scn_user_idle(ctx: ScenarioContext) -> None:
 
 
 async def scn_browser_message_never_speaks(ctx: ScenarioContext) -> None:
-    """A browser message never takes the floor. Voice delivers it to
+    """A browser message never takes the floor. Voqalize delivers it to
     ``on_browser_message``, which may render but not speak — so no matter what the
     brain does with it, the committed transcript gains nothing. Nothing about a
     click means the human stopped talking, and a brain that answered one would be

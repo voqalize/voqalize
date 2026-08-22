@@ -2,12 +2,12 @@
 
 The real ``SupportBrain`` — the shipping ``demos/support/backend/brain.py``, its
 real prompt, its real eleven tools, its real order catalog — hosted on a real
-``brain_server`` socket and driven by the conformance ``VoiceDriver``, with only
+``brain_server`` socket and driven by the conformance ``VoqalizeDriver``, with only
 the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e proves.
 
 Support is the demo that also earns a **browser→brain** test: the photo the
 shopper captures arrives as an RTVI client message, and the brain answers it on
-the interaction Voice minted for that message. That path has no spoken turn to
+the interaction Voqalize minted for that message. That path has no spoken turn to
 hang an assertion on, so nothing else in the suite covers it.
 
 Run: ``cd demos && uv run pytest tests/test_support_e2e.py``
@@ -147,7 +147,7 @@ async def test_an_uploaded_photo_takes_the_floor_and_answers() -> None:
 
 async def test_the_photo_turn_is_prompted_over_the_heard_transcript() -> None:
     """The verification turn is not a fresh conversation: the brain rebuilds the
-    working context from what Voice heard, then appends the image. So the model
+    working context from what Voqalize heard, then appends the image. So the model
     sees the spoken turn that started the return, and the photo lands last."""
     llm = _llm()
     async with demo("support", llm) as rig:

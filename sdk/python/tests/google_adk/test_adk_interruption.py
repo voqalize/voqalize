@@ -8,7 +8,7 @@ straight from the pygato/wire trace:
 * ``heard_text`` is computed by PyGato from the audio playout clock — the words that
   physically played — and shipped to the brain in ``InferenceFinalized`` keyed by
   ``(epoch, inference_id)``, ``interrupted=True``. The brain commits that
-  prefix; it never derives heard-truth itself. In the harness the driver *is* Voice
+  prefix; it never derives heard-truth itself. In the harness the driver *is* Voqalize
   and dictates the prefix, which is what makes these deterministic.
 * Wire order to the brain on a barge is ``Interruption`` first (cancel the
   in-flight run), ``InferenceFinalized{interrupted}`` second (commit the prefix).
@@ -36,10 +36,10 @@ from google.adk.models.base_llm import BaseLlm
 
 from voqalize.conformance import (
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     checks,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, call, reply
@@ -117,7 +117,7 @@ def _tool_pairs(contents: list) -> tuple[list[str], list[str]]:
     return calls, resps
 
 
-async def _host(llm: ScriptedLlm, *, session_id: str) -> tuple[DirectAgent, VoiceDriver]:
+async def _host(llm: ScriptedLlm, *, session_id: str) -> tuple[DirectAgent, VoqalizeDriver]:
     keypair = generate_keypair()
     make = adk_brain(
         lambda: build_agent(llm),
@@ -129,13 +129,13 @@ async def _host(llm: ScriptedLlm, *, session_id: str) -> tuple[DirectAgent, Voic
         factory=brain_factory(make), host="127.0.0.1", port=0, public_keys=keypair.public_pem
     )
     port = await agent.start()
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="desk",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
         default_timeout=10.0,
@@ -170,7 +170,7 @@ async def test_barge_in_before_any_audio_leaves_no_assistant_turn() -> None:
 
         t = await driver.barge_in("Tell me about Kyoto.", wait_for_speech=False, speak_delay=0.1)
         assert t.interrupted
-        # Nothing was heard → the driver (as Voice) finalized no inference.
+        # Nothing was heard → the driver (as Voqalize) finalized no inference.
         assert t.heard is None, t.heard
         checks.check_interruption_echoed(driver)
 

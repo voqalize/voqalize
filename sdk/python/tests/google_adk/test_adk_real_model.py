@@ -31,9 +31,9 @@ from google.adk.agents import LlmAgent
 
 from voqalize.conformance import (
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.google_adk.brain import AdkBrain
 from voqalize.sdk import DirectAgent, brain_factory
@@ -118,7 +118,7 @@ class _SpyAdkBrain(AdkBrain):
         self._agent.before_model_callback = [_spy]
 
 
-async def _host(session_id: str) -> tuple[DirectAgent, VoiceDriver, _SpyAdkBrain]:
+async def _host(session_id: str) -> tuple[DirectAgent, VoqalizeDriver, _SpyAdkBrain]:
     keypair = generate_keypair()
     brain = _SpyAdkBrain()
     agent = DirectAgent(
@@ -128,13 +128,13 @@ async def _host(session_id: str) -> tuple[DirectAgent, VoiceDriver, _SpyAdkBrain
         public_keys=keypair.public_pem,
     )
     port = await agent.start()
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="desk",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
         default_timeout=45.0,  # a live model call is slower than the fake

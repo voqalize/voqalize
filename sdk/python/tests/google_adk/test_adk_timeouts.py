@@ -4,7 +4,7 @@ The ADK ``Runner`` owns tool execution, so there is no per-tool timeout here —
 shared ``turn_timeout`` watchdog is the backstop. A tool that hangs forever blocks
 the runner's event stream; the watchdog cancels the whole run (tearing down the ADK
 generator) and speaks the fallback, so the turn completes instead of stranding the
-caller in silence. Asserted through the conformance :class:`VoiceDriver`.
+caller in silence. Asserted through the conformance :class:`VoqalizeDriver`.
 """
 
 from __future__ import annotations
@@ -20,10 +20,10 @@ from google.adk.models.base_llm import BaseLlm
 
 from voqalize.conformance import (
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     checks,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, call
@@ -51,7 +51,9 @@ def build_agent(model: str | BaseLlm) -> LlmAgent:
     return LlmAgent(name="assistant", model=model, instruction=INSTRUCTION, tools=[slow_tool])
 
 
-async def _host(llm: ScriptedLlm, *, turn_timeout: float | None) -> tuple[DirectAgent, VoiceDriver]:
+async def _host(
+    llm: ScriptedLlm, *, turn_timeout: float | None
+) -> tuple[DirectAgent, VoqalizeDriver]:
     keypair = generate_keypair()
     make = adk_brain(
         lambda: build_agent(llm),
@@ -68,13 +70,13 @@ async def _host(llm: ScriptedLlm, *, turn_timeout: float | None) -> tuple[Direct
     )
     port = await agent.start()
     session_id = "adk-timeouts-test"
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="assistant",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
         default_timeout=10.0,

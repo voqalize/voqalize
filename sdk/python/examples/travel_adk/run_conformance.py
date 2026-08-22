@@ -1,7 +1,7 @@
 """Drive the ADK travel agent end-to-end over the real wire, with real Gemini.
 
 Hosts ``build_travel_agent`` wrapped by ``adk_brain`` on a ``brain_server`` (a real
-localhost WebSocket), then drives it with the conformance ``VoiceDriver`` —
+localhost WebSocket), then drives it with the conformance ``VoqalizeDriver`` —
 exactly the PyGato-side leg, over real TCP, minting a real pygato token. This is
 the shape check: prove the SDK drives ADK, speaks per model call, fires the UI
 actions, and commits heard-truth history — before we swap Gemini for a scripted
@@ -22,10 +22,10 @@ import os
 
 from voqalize.conformance import (
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     brain_server,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.google_adk import adk_brain
 
@@ -53,7 +53,7 @@ async def main() -> None:
         answer_conformance_dump=True,
     )
     session_id = "travel-adk-demo"
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="travel",
@@ -61,7 +61,7 @@ async def main() -> None:
     )
     async with brain_server(make_brain, public_keys=keypair.public_pem) as server:
         print(f"hosting ADK travel brain (model={MODEL}) on {server.url}")
-        driver = VoiceDriver(
+        driver = VoqalizeDriver(
             DirectConnection(server.url, session_id, token=token),
             session_id=session_id,
             default_timeout=30.0,

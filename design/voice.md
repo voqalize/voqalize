@@ -102,7 +102,7 @@ stop defending against.
 > the agent knows, move the screen, or end the call. There is nothing to yield there, so
 > the rule needs no runtime check, and an agent cannot talk over the person who clicked.
 
-> Voice owns the floor and the brain spends it. There is no `request_floor` and no way to
+> Voqalize owns the floor and the brain spends it. There is no `request_floor` and no way to
 > interrupt the user; that absence is what makes turn order predictable, and the rest of
 > the Brain surface follows from it.
 
@@ -312,7 +312,7 @@ A new term is added to this table first and to the SDK second.
 | The developer's WebSocket agent | **brain** | agent backend, bot, handler |
 | One call, one socket | **session** | meeting, conversation, call, room |
 | What Voqalize runs below text | **the voice tier** | the platform, the runtime, voice infrastructure |
-| The runtime that dials the brain | **Voice** | our server, the bot, the runtime |
+| The runtime that dials the brain | **Voqalize** | Voice, our server, the bot, the runtime |
 | Typed message, brain → screen | **action** | UI command, event, tool |
 | Screen state, screen → brain | **state sync** | context push, screen capture |
 | The published protocol | **the wire** | the protocol, our API |
@@ -323,8 +323,8 @@ A new term is added to this table first and to the SDK second.
 **We never describe Voqalize as a platform.** Our argument is that intelligence should not
 live on a platform, and the word contradicts the product in the reader's ear. Internal
 engineering documents still use it; nothing a customer reads does. **Internal service and
-repository names never appear in customer-facing text either** — the runtime is **Voice**,
-whatever the process is called in our own logs.
+repository names never appear in customer-facing text either** — the end that dials the
+brain is **Voqalize**, whatever the process is called in our own logs.
 
 ## The recognition test
 

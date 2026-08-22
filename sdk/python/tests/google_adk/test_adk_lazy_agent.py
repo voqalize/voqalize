@@ -26,10 +26,10 @@ from google.adk.models.base_llm import BaseLlm
 
 from voqalize.conformance import (
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     checks,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.google_adk import AdkBrain
 from voqalize.google_adk.testing import ScriptedLlm, call, reply
@@ -119,13 +119,13 @@ async def test_the_lazily_built_agent_drives_a_real_turn() -> None:
         factory=brain_factory(make), host="127.0.0.1", port=0, public_keys=keypair.public_pem
     )
     port = await agent.start()
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
         agent_id="desk",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
         default_timeout=10.0,

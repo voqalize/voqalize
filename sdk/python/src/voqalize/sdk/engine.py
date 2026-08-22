@@ -56,7 +56,7 @@ _LOW_WATERMARK_FRAC = 0.5
 class Envelope:
     """A frame plus the wire correlation that travels beside it.
 
-    ``epoch`` is minted by the voice runtime and echoed back unread; the runner
+    ``epoch`` is minted by Voqalize and echoed back unread; the runner
     and the adapter only carry it. ``speech_id`` is minted by the brain, one per
     speech unit, and echoed back unread on the finalize naming that unit.
     """

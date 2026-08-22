@@ -1,6 +1,6 @@
 // Voqalize wire frames.
 //
-// The wire vocabulary between a voice runtime and a brain. Cortex relays these
+// The wire vocabulary between Voqalize and a brain. Cortex relays these
 // bytes without reading them; the schema is consumed only at the two ends.
 //
 // Regenerate with `make proto`; stubs are committed at
@@ -12,7 +12,7 @@
 // session but the identity of a single request/response pair, and so belongs to
 // the pair rather than to every envelope that passes.
 //
-// Direction, where V = voice runtime and B = brain:
+// Direction, where V = Voqalize and B = brain:
 //
 //   V→B  session_start  user_message  user_idle  browser_message  finalize
 //        response  end  cancel
@@ -38,7 +38,7 @@ syntax = "proto3";
 
 package voqalize.frames;
 
-// ─── Envelope ─────────────────────────────────────────────────────────────────
+// ─── Envelope ────────────────────────────────────────────────────────────────
 
 // Top-level message in each websocket binary payload.
 //
@@ -63,13 +63,13 @@ message Envelope {
     Error         error          = 15;
   }
 
-  // Voice-minted, session-monotonic, incremented on every stimulus the voice
-  // runtime commits. The brain echoes it, unread, on the speech it emits while
+  // Voqalize-minted, session-monotonic, incremented on every stimulus
+  // Voqalize commits. The brain echoes it, unread, on the speech it emits while
   // handling that stimulus; a floor-free message rides 0 whenever it is sent.
   //
   // It exists for exactly one decision: when a barge-in opens a drain barrier,
   // the runtime must tell "emitted before the barrier" from "emitted after it,
-  // in response to the new stimulus". Only a voice-minted counter can settle
+  // in response to the new stimulus". Only a Voqalize-minted counter can settle
   // that — a brain-minted one proves an ordering the barrier does not care
   // about. Nothing else reads it, and no brain-facing API names it.
   uint64 epoch = 51;
@@ -78,14 +78,14 @@ message Envelope {
   // one unit carries the same value: the bracket (speech_start / speech_end),
   // its speech_chunk, and the finalize that reports what was heard.
   //
-  // A pure correlation token, and that is its entire job. The voice runtime
+  // A pure correlation token, and that is its entire job. Voqalize
   // never mints, reads, formats, orders or compares one; it echoes it back on
   // finalize exactly as it arrived, so the brain may number these however it
   // likes.
   uint64 speech_id = 52;
 }
 
-// ─── Voice → Brain ────────────────────────────────────────────────────────────
+// ─── Voqalize → Brain ────────────────────────────────────────────────────────
 
 // First envelope on a session. `init` is opaque customer init data; the brain
 // reads it as `session.init`.
@@ -140,7 +140,7 @@ message Finalize {
   FinalizeReason reason     = 2;
 }
 
-// ─── Brain → Voice ────────────────────────────────────────────────────────────
+// ─── Brain → Voqalize ────────────────────────────────────────────────────────
 
 message SpeechStart {}
 
@@ -156,7 +156,7 @@ message BrowserCommand {
   string data = 1;  // JSON-encoded
 }
 
-// ─── The control leg ──────────────────────────────────────────────────────────
+// ─── The control leg ─────────────────────────────────────────────────────────
 //
 // The brain asks the runtime to change how the call behaves, and learns whether
 // the ask was any good. Exactly one `Response` comes back for every `Request`,
@@ -245,7 +245,7 @@ message ConfigureIdle {
   optional uint32 timeout_ms = 1;
 }
 
-// ─── Lifecycle ────────────────────────────────────────────────────────────────
+// ─── Lifecycle ───────────────────────────────────────────────────────────────
 
 message End {}
 

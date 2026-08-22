@@ -9,7 +9,7 @@ pointing them at a real brain under test (the ADK / GenAI SDKs to come).
 
 This mirrors ``tests/direct/test_direct_end_to_end.py``: real server stack, real
 TCP, server started inline in the async test (``asyncio_mode = auto``). The one
-difference is who drives the socket — here it is the conformance ``VoiceDriver``
+difference is who drives the socket — here it is the conformance ``VoqalizeDriver``
 impersonating PyGato, not a hand-rolled per-test client.
 """
 
@@ -162,7 +162,7 @@ async def test_ordinary_brain_is_conformant_on_what_ran() -> None:
 async def test_wrong_key_is_rejected_directly() -> None:
     """A token signed by the wrong key is rejected with close code 4000 — the
     auth MUST, asserted at the connection level (not just via the scenario)."""
-    from voqalize.conformance import DirectConnection, VoiceDriver, mint_voice_token
+    from voqalize.conformance import DirectConnection, VoqalizeDriver, mint_voqalize_token
 
     _agent_kp = generate_keypair()  # what the brain verifies against
     wrong_kp = generate_keypair()  # what the driver (wrongly) signs with
@@ -174,13 +174,13 @@ async def test_wrong_key_is_rejected_directly() -> None:
     )
     port = await server.start()
     session_id = "conf-wrongkey"
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=wrong_kp.private_pem,
         session_id=session_id,
         agent_id="a",
         tenant_id="t",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
     )

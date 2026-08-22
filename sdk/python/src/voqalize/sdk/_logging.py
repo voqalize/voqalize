@@ -1,6 +1,6 @@
 """Session-scoped logging for your brain.
 
-A voice call touches several processes — Voqalize's voice runtime, the relay, the
+A voice call touches several processes — Voqalize, the relay, the
 control plane, and *your* brain — and every process on our side already puts the same
 ``session_id`` on every line it writes. Your brain is where your own code runs, so
 it is where the interesting logs are, and without the same tag they are the only
@@ -63,7 +63,7 @@ def session_context(
     spawns — with the call's identity.
 
     Ids are carried whole. A truncated id reads better in a terminal and is
-    useless as a join key: Voice and the session's own records carry the full
+    useless as a join key: Voqalize and the session's own records carry the full
     UUID, so a prefix matches nothing on the other side of the query.
     """
     fields: dict[str, str] = {"service": SERVICE_NAME, "session_id": session_id}

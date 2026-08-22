@@ -5,16 +5,16 @@ A framework adapter (``google_adk``) wraps a
 so the integrations can't drift and a customer subclasses one concrete adapter and
 overrides ordinary methods:
 
-* **``run_inference`` — the one primitive that invokes the underlying model.** Voice
+* **``run_inference`` — the one primitive that invokes the underlying model.** Voqalize
   is the sole initiator: it opens an interaction and hands the brain the floor via a
   callback. ``run_inference`` is how a brain *spends* that floor — it drives one real
   model turn, bracketed under the interaction, with the no-dead-air guarantee and the
   turn watchdog (see :func:`~voqalize._framework.turn.run_turn`). It **requires** a
   live, floor-owning interaction, which is the whole discipline: you invoke the model
-  only when Voice has handed you the floor, never out of turn.
+  only when Voqalize has handed you the floor, never out of turn.
 * **``on_interaction`` = ``run_inference`` over the user's utterance.** The user
   stopped speaking, so the default response is to run the model on what they said.
-* **``on_user_idle`` / ``on_client_message`` default to nothing.** Voice mints an
+* **``on_user_idle`` / ``on_client_message`` default to nothing.** Voqalize mints an
   interaction, hands over the idle escalation as *data* (idle) or delivers the raw
   client message with a pre-minted id (client message), and the brain decides — at
   its own discretion — whether to respond. Doing nothing is a valid choice; to
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 __all__ = ["STATE_SYNC", "_FrameworkBrain"]
 
 # The client-message type a browser uses to push its own state to the brain. A
-# convention, not protocol: Voice never interprets a client message, and a UI is free to
+# convention, not protocol: Voqalize never interprets a client message, and a UI is free to
 # use another name (handle it in your own ``on_client_message``). Every Voqalize
 # screen-driving demo sends this one, so the adapters handle it out of the box.
 STATE_SYNC = "state_sync"
@@ -182,7 +182,7 @@ class _FrameworkBrain(Brain):
     # ─── the two adapter-internal seams (overridable) ──────────────────────────
 
     async def on_client_message(self, session: Session, message: ClientMessage) -> None:
-        """A browser-originated client message (Voice never interprets it).
+        """A browser-originated client message (Voqalize never interprets it).
 
         Two things are handled by default:
 

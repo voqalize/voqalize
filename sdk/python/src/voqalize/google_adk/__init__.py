@@ -7,7 +7,7 @@ heard-truth history, barge-in, the wire); the client writes a normal
     from voqalize.google_adk import AdkBrain, adk_brain, voice
     from voqalize.sdk import run_session
 
-Subclass :class:`AdkBrain` to react to Voice's other triggers (``on_user_idle`` /
+Subclass :class:`AdkBrain` to react to Voqalize's other triggers (``on_user_idle`` /
 ``on_client_message``) or resume; :func:`adk_brain` is the no-override builder over
 the same constructor.
 

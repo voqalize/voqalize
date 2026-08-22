@@ -1,7 +1,7 @@
 """Robust error handling for the ADK integration — the no-dead-air guarantee.
 
 A real ADK ``Runner`` runs the loop. Asserted through the conformance
-:class:`VoiceDriver` so it pins observable behaviour:
+:class:`VoqalizeDriver` so it pins observable behaviour:
 
 * **A model error speaks a fallback.** When the model raises, the turn still
   completes and the user hears a spoken apology instead of dead air.
@@ -21,10 +21,10 @@ from google.adk.models.base_llm import BaseLlm
 
 from voqalize.conformance import (
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     checks,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, call, fail, finish, reply
@@ -51,7 +51,9 @@ def build_agent(model: str | BaseLlm, *, tools: list | None = None) -> LlmAgent:
     return LlmAgent(name="assistant", model=model, instruction=INSTRUCTION, tools=tools or [])
 
 
-async def _host(llm: ScriptedLlm, *, tools: list | None = None) -> tuple[DirectAgent, VoiceDriver]:
+async def _host(
+    llm: ScriptedLlm, *, tools: list | None = None
+) -> tuple[DirectAgent, VoqalizeDriver]:
     keypair = generate_keypair()
     make = adk_brain(
         lambda: build_agent(llm, tools=tools),
@@ -67,13 +69,13 @@ async def _host(llm: ScriptedLlm, *, tools: list | None = None) -> tuple[DirectA
     )
     port = await agent.start()
     session_id = "adk-errors-test"
-    token = mint_voice_token(
+    token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="assistant",
         tenant_id="demo",
     )
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
         default_timeout=10.0,

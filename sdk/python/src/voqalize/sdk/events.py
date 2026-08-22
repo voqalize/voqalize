@@ -3,7 +3,7 @@
 Three groups, and the split between them is the whole contract:
 
 * **Triggers** — :class:`UserMessage`, :class:`UserIdle`, :class:`BrowserMessage`.
-  Voice hands one to a callback; that callback is where the floor lives.
+  Voqalize hands one to a callback; that callback is where the floor lives.
 * **Speech** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`. The
   only thing a speaking callback may yield, because speech is the only thing
   whose position on the audio timeline is its meaning. Everything else — an
@@ -12,7 +12,7 @@ Three groups, and the split between them is the whole contract:
   happened.
 
 Speech is bracketed because it can be cut mid-word: one ``SpeechStart`` …
-``SpeechEnd`` pair is one *unit*, and a unit is the granularity at which Voice
+``SpeechEnd`` pair is one *unit*, and a unit is the granularity at which Voqalize
 reports back what the user actually heard.
 """
 
@@ -51,7 +51,7 @@ class UserIdle:
     ``level`` counts consecutive escalations with no intervening speech (1 is the
     first nudge, and it resets the moment they say something), so a brain can
     escalate — "still there?" at 1, wrap up at 3. ``idle_ms`` is the silence that
-    had elapsed when Voice noticed.
+    had elapsed when Voqalize noticed.
     """
 
     level: int
@@ -62,7 +62,7 @@ class UserIdle:
 class BrowserMessage:
     """The browser said something — a tap, a keystroke, a state push.
 
-    Delivered unconditionally: Voice never interprets ``type`` and never decides
+    Delivered unconditionally: Voqalize never interprets ``type`` and never decides
     whether it deserves a reply. Handling it cannot make the agent speak, because
     nothing about a click means the human stopped talking.
     """
@@ -118,7 +118,7 @@ class Finalize:
 
 @dataclass(frozen=True)
 class Error:
-    """A runtime signal. Today: the wire dropped data under congestion."""
+    """A signal from Voqalize. Today: the wire dropped data under congestion."""
 
     message: str
     fatal: bool = False

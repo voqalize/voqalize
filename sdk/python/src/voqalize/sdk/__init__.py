@@ -1,7 +1,7 @@
 """Voqalize Python Agent SDK — **pipecat-free**.
 
 Write a :class:`Brain` of callbacks; capability arrives as the :class:`Session`
-passed into every one of them. Voice owns the floor and hands it to you by
+passed into every one of them. Voqalize owns the floor and hands it to you by
 calling; you spend it by yielding speech. Everything that is not speech — an
 action, a language switch, hanging up — is a method on the session::
 
@@ -19,7 +19,7 @@ application hosts it:
 
 - **Your app owns a WebSocket route.** Accept the upgrade yourself and hand the
   connected socket to :func:`run_session` — one connection is one session, and
-  Voice dials ``{brain_url}/s/{session_id}``. This is the primary path.
+  Voqalize dials ``{brain_url}/s/{session_id}``. This is the primary path.
 - **Your app cannot accept an inbound connection** (a laptop, a strict egress-only
   network). ``await serve(Concierge, api_key=..., cortex_url=...)`` dials the
   Cortex relay instead and blocks; you decide where that call runs.

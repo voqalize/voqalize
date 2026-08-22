@@ -1,5 +1,5 @@
 """The shared per-demo e2e rig: one real demo brain on a real socket, driven by
-the conformance ``VoiceDriver``, with only the *model* scripted.
+the conformance ``VoqalizeDriver``, with only the *model* scripted.
 
 ``test_travel_adk.py`` established this shape for the one ADK demo; every other
 demo is a ``GeminiBrain``, so the only difference is which fake model goes in
@@ -36,10 +36,10 @@ from voqalize_demos.testing import ScriptedGemini
 from voqalize.conformance import (
     BrainServer,
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     checks,
     generate_keypair,
-    mint_voice_token,
+    mint_voqalize_token,
 )
 from voqalize.sdk import Brain
 
@@ -86,7 +86,7 @@ class DemoRig:
 
     name: str
     server: BrainServer
-    driver: VoiceDriver
+    driver: VoqalizeDriver
     _built: list[Brain]
 
     @property
@@ -155,11 +155,11 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
     )
     port = await server.start()
     session_id = f"{name}-e2e"
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(
             f"ws://127.0.0.1:{port}",
             session_id,
-            token=mint_voice_token(
+            token=mint_voqalize_token(
                 private_key_pem=keypair.private_pem,
                 session_id=session_id,
                 tenant_id="demo",
@@ -271,7 +271,7 @@ def check_greeting(rig: DemoRig, turn: Any) -> None:
 
 def check_turn(rig: DemoRig, turn: Any, *, inferences: int | None = None) -> None:
     """A clean user turn: it spoke, every bracket closed, ids are monotone, and the
-    interaction completed (without which Voice stays muted for the rest of the call)."""
+    interaction completed (without which Voqalize stays muted for the rest of the call)."""
     checks.check_brackets_closed(turn)
     checks.check_inference_ids_monotonic(turn)
     checks.check_completed(turn)

@@ -14,7 +14,7 @@
 Host it from your own WebSocket route with :func:`voqalize.sdk.run_session`, or
 over the Cortex relay with :func:`serve` when your process cannot accept one.
 
-**Voice owns the floor; the brain spends it.** Voice decides when the brain may
+**Voqalize owns the floor; the brain spends it.** Voqalize decides when the brain may
 speak, and it does that by calling one of the two speaking callbacks. There is no
 ``request_floor`` and no way to interrupt the user — that absence is what makes
 the system predictable, and everything else here follows from it.
@@ -32,7 +32,7 @@ read the same from inside a turn and from the five callbacks that are not
 generators at all — and, called at the same point in a generator body, they reach
 the wire at exactly the same point as a yield would.
 
-The ``configure_*`` methods are awaited, because Voice answers them. Awaiting is
+The ``configure_*`` methods are awaited, because Voqalize answers them. Awaiting is
 how a language it has no recognizer for becomes a :class:`RequestRejected` you
 handle, rather than a call that runs on sounding wrong and reports nothing. They
 are safe to await from anywhere a brain runs, including from inside a turn.
@@ -53,9 +53,9 @@ Mapping onto the wire:
 - ``configure_*``           → a ``Configure*Frame``, answered by one ``ResponseFrame``
 - barge-in                  ← ``InterruptionFrame`` → the turn is cancelled, then echoed back as the drain barrier
 
-Correlation never appears in this surface. Voice stamps each stimulus with an
+Correlation never appears in this surface. Voqalize stamps each stimulus with an
 ``epoch`` and the SDK echoes it, unread, on everything the brain emits while
-handling that stimulus, so Voice's drain barrier can place a frame after an
+handling that stimulus, so Voqalize's drain barrier can place a frame after an
 interruption. Agent-initiated speech — the opening line — answers no stimulus and
 rides epoch 0.
 """
@@ -125,8 +125,8 @@ ACTION_RESULT = "action_result"
 # Agent-initiated speech answers no stimulus, so it echoes no epoch.
 NO_EPOCH = 0
 
-#: How long a `session.configure_*` call waits for Voice's answer. Comfortably
-#: past the runtime's own wait on the recognizer, so a rejection in flight
+#: How long a `session.configure_*` call waits for Voqalize's answer. Comfortably
+#: past Voqalize's own wait on the recognizer, so a rejection in flight
 #: arrives as a rejection rather than as a timeout.
 REQUEST_TIMEOUT_S = 10.0
 
@@ -147,12 +147,12 @@ class WireError(RuntimeError):
 
 
 class RequestRejected(RuntimeError):
-    """Voice refused a ``session.configure_*`` call and applied none of it.
+    """Voqalize refused a ``session.configure_*`` call and applied none of it.
 
     A request is accepted or rejected whole, so on this exception the previous
     setting is still in force and the call is still coherent — an unsupported
     language leaves both legs where they were rather than moving one of them.
-    ``detail`` is Voice's own reason, written to be shown.
+    ``detail`` is Voqalize's own reason, written to be shown.
     """
 
     def __init__(self, op: str, detail: str) -> None:
@@ -199,12 +199,12 @@ class Session:
 
     def __init__(self, adapter: _BrainAdapter, session_id: str, init: dict[str, Any]) -> None:
         self._adapter = adapter
-        #: The session id Voice assigned.
+        #: The session id Voqalize assigned.
         self.id = session_id
-        #: The opaque init data Voice was handed at connect. Read your own keys
+        #: The opaque init data Voqalize was handed at connect. Read your own keys
         #: out of it — the SDK never interprets it.
         self.init = init
-        # One id per speech unit, session-monotonic. Voice never reads it — it
+        # One id per speech unit, session-monotonic. Voqalize never reads it — it
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.
         self._speech_seq = 0
@@ -280,11 +280,11 @@ class Session:
         To say goodbye first, speak it and then call this: the generator body
         resumes only after the SDK has consumed everything you yielded, so
         writing it in that order *is* the ordering, and the goodbye is heard.
-        Voice ends on a *control* frame — delivered in order, TTS finishing the
+        Voqalize ends on a *control* frame — delivered in order, TTS finishing the
         contexts already open and the transport playing out its audio queue
         before either stops — so nothing already spoken is cut off. To abandon a
         call instead, call this without speaking first. Idempotent. ``reason`` is
-        logged locally; Voice never needs the brain's rationale to hang up, so it
+        logged locally; Voqalize never needs the brain's rationale to hang up, so it
         does not cross the wire.
         """
         if self._ended:
@@ -296,10 +296,10 @@ class Session:
     # ─── Configuration ──────────────────────────────────────────────────
     #
     # Every one of these is a request, and every request is answered. Awaiting
-    # the answer is how a setting Voice cannot honour becomes an exception here
+    # the answer is how a setting Voqalize cannot honour becomes an exception here
     # instead of a call that sounds wrong and reports nothing.
     #
-    # Accepted means Voice took the change, not that you can hear it yet: each
+    # Accepted means Voqalize took the change, not that you can hear it yet: each
     # method says below where its boundary is.
 
     async def configure_language(self, language: str, *, voice: str | None = None) -> None:
@@ -339,7 +339,7 @@ class Session:
 
         Accepted here means the next speech unit will use it. The synthesizer
         locks voice, model, language and speed for the length of one synthesis
-        context and Voice pins one context per unit, so a change never lands
+        context and Voqalize pins one context per unit, so a change never lands
         mid-utterance — the sentence being spoken finishes in the old voice.
 
         ``speed`` is 0.5 to 2.0, where 1.0 is the voice's natural rate; outside that
@@ -403,11 +403,11 @@ class Session:
         )
 
     async def configure_idle(self, *, timeout_ms: int | None = None) -> None:
-        """Retune idle detection — the silence after Voice stops speaking before
+        """Retune idle detection — the silence after Voqalize stops speaking before
         it calls :meth:`Brain.on_user_idle`. ``0`` disables it until you set one
         again.
 
-        Voice owns this timer itself, so accepted means applied: a timer already
+        Voqalize owns this timer itself, so accepted means applied: a timer already
         running restarts on the new duration before the answer comes back.
         """
         await self._request("configure_idle", ConfigureIdleFrame(timeout_ms=timeout_ms))
@@ -415,7 +415,7 @@ class Session:
     async def _request(self, op: str, frame: ConfigureRequest) -> None:
         """Send one request and block on its answer.
 
-        Safe from anywhere a brain runs — Voice's answer bypasses the frame lanes
+        Safe from anywhere a brain runs — Voqalize's answer bypasses the frame lanes
         entirely, so awaiting one inside a callback cannot stall the delivery of
         the answer it is waiting for.
         """
@@ -428,7 +428,7 @@ class Session:
             response = await asyncio.wait_for(future, REQUEST_TIMEOUT_S)
         except TimeoutError:
             raise TimeoutError(
-                f"{op}: Voice did not answer within {REQUEST_TIMEOUT_S:g}s, so whether "
+                f"{op}: Voqalize did not answer within {REQUEST_TIMEOUT_S:g}s, so whether "
                 f"it applied is unknown"
             ) from None
         finally:
@@ -507,8 +507,8 @@ class Brain:
         and it never blocks the socket from closing."""
 
     async def on_error(self, session: Session, error: Error) -> None:
-        """A runtime signal — today, that the wire dropped data under congestion.
-        The session is never killed by the runtime. Default: ignore."""
+        """A signal from Voqalize — today, that the wire dropped data under
+        congestion. The session is never killed by it. Default: ignore."""
 
     # ─── The opening line ───────────────────────────────────────────────
 
@@ -611,7 +611,7 @@ class _BrainAdapter:
         self._emitter.send(frame, epoch=epoch, speech_id=speech_id)
 
     def settle_response(self, frame: ResponseFrame) -> None:
-        """Hand Voice's answer to whoever is blocked on it.
+        """Hand Voqalize's answer to whoever is blocked on it.
 
         Called straight off the reader rather than through the feeder, so it must
         stay synchronous and never block — see :mod:`.engine`.
@@ -651,7 +651,7 @@ class _BrainAdapter:
                 _speech(self._brain.on_user_idle(session, UserIdle(frame.level, frame.idle_ms))),
             )
         elif isinstance(frame, InterruptionFrame):
-            # Cancel in flight first, then echo: the echo is Voice's drain
+            # Cancel in flight first, then echo: the echo is Voqalize's drain
             # barrier, and it must not arrive before the frames it fences off
             # have stopped being produced.
             await self._cancel_turns()
@@ -712,9 +712,9 @@ class _BrainAdapter:
             self._abort(session, "greet", exc)
 
     def _refuse_version(self, session: Session, spoken: int) -> None:
-        """Refuse a session whose runtime speaks a different wire version.
+        """Refuse a session whose wire version is not this SDK's.
 
-        Voice speaks first, so this is the last moment either end can refuse
+        Voqalize speaks first, so this is the last moment either end can refuse
         before a call is running, and it is the only one where refusing costs
         nothing: no audio has been synthesized and the caller has heard nothing.
         A version that differs in either direction means the two ends do not
@@ -722,7 +722,7 @@ class _BrainAdapter:
         to prevent.
         """
         logger.error(
-            "brain: refusing session {} — Voice speaks wire {}, this SDK speaks {}",
+            "brain: refusing session {} — Voqalize speaks wire {}, this SDK speaks {}",
             session.id,
             spoken,
             WIRE_VERSION,
@@ -730,7 +730,7 @@ class _BrainAdapter:
         self.emit(
             ErrorFrame(
                 error=(
-                    f"wire version mismatch: Voice speaks {spoken}, this SDK speaks {WIRE_VERSION}"
+                    f"wire version mismatch: Voqalize speaks {spoken}, this SDK speaks {WIRE_VERSION}"
                 ),
                 fatal=True,
             )
@@ -764,7 +764,7 @@ class _BrainAdapter:
         land before the greeting audio.
 
         A refusal fails the session. A brain that declared a voice or a language
-        Voice will not serve has stated what the call is; running it in some other
+        Voqalize will not serve has stated what the call is; running it in some other
         one is a call nobody asked for.
         """
         language, voice = self._brain.language, self._brain.voice
@@ -824,7 +824,7 @@ class _BrainAdapter:
         try:
             await self._drive(session, epoch, gen)
         except asyncio.CancelledError:
-            raise  # a barge-in cut the turn; Voice finalizes the unit it cut
+            raise  # a barge-in cut the turn; Voqalize finalizes the unit it cut
         except Exception:
             logger.exception("brain: turn failed (session {}, epoch {})", session.id, epoch)
 

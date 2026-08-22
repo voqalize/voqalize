@@ -139,7 +139,7 @@ def test_four_quin_surfaces_the_drops_ointment_family():
 
 
 def test_axes_are_reported_in_question_priority():
-    """Voice can ask "drops or ointment?" and "40 or 80?" crisply. It cannot ask
+    """Voqalize can ask "drops or ointment?" and "40 or 80?" crisply. It cannot ask
     "10s or 15s?" — that is what the pill row is for. So the order is fixed."""
     assert search_mod.AXES == ("form", "strength", "variant_label", "pack_size")
     mixed = [
