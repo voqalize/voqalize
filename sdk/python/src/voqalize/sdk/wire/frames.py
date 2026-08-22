@@ -1,4 +1,4 @@
-"""The frame vocabulary carried over the cortex wire.
+"""The frame vocabulary carried over the wire.
 
 These are the Python representations; the protobuf encoding lives next door in
 ``_frames_pb2.py`` and is plumbed by ``serializer.py``. Brains deal in these

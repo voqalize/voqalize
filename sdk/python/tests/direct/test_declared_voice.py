@@ -31,7 +31,7 @@ from voqalize.conformance import (
     DirectConnection,
     VoiceDriver,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
@@ -92,7 +92,7 @@ async def _run(brain: Brain, *, reject: dict[str, str] | None = None) -> VoiceDr
         public_keys=keypair.public_pem,
     )
     port = await server.start()
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
         agent_id="declared-voice",

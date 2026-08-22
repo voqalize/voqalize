@@ -20,14 +20,14 @@ per use case in your repo and run it in CI.
 
 ```python
 from voqalize.conformance import (
-    DirectConnection, VoiceDriver, brain_server, generate_keypair, mint_pygato_token,
+    DirectConnection, VoiceDriver, brain_server, generate_keypair, mint_voice_token,
 )
 from mybrain import MyBrain
 
 keypair = generate_keypair()
 
 async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id="s1", agent_id="agent_test", tenant_id="tenant_test",
     )

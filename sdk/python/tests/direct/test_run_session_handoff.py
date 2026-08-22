@@ -199,7 +199,7 @@ async def test_run_session_accepts_valid_token():
             await asyncio.wait_for(task, timeout=2.0)
 
 
-async def test_run_session_defaults_to_the_embedded_platform_keys():
+async def test_run_session_defaults_to_the_embedded_voqalize_keys():
     """No ``public_keys`` and no ``allow_unverified`` ⇒ the embedded Voqalize keys
     verify the token, so an unauthenticated peer is rejected. Verification is the
     default on the production surface, not opt-in."""

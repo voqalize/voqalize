@@ -1,4 +1,4 @@
-"""The scenario catalog — named protocol exercises the driver runs against a brain.
+"""The scenario catalog — named wire exercises the driver runs against a brain.
 
 Each :class:`Scenario` drives a fresh session (or two) via a
 :class:`ScenarioContext` and asserts the relevant MUSTs from :mod:`.checks`. A
@@ -48,7 +48,7 @@ from .reference import (
     TWO_SECOND,
     story_opening,
 )
-from .wire_pygato import DirectConnection, mint_pygato_token
+from .wire_voice import DirectConnection, mint_voice_token
 
 
 class ScenarioContext:
@@ -95,7 +95,7 @@ class ScenarioContext:
             if key is None:
                 token: str | None = None
             else:
-                token = mint_pygato_token(
+                token = mint_voice_token(
                     private_key_pem=key,
                     session_id=sid,
                     agent_id=self.agent_id,
@@ -123,7 +123,7 @@ class ScenarioContext:
 
 @dataclass
 class Scenario:
-    """One named protocol exercise."""
+    """One named wire exercise."""
 
     name: str
     description: str
@@ -245,7 +245,7 @@ async def scn_brain_error_after_speech_keeps_heard(ctx: ScenarioContext) -> None
 async def scn_reject_bad_token(ctx: ScenarioContext) -> None:
     """A token signed by the wrong key is rejected with close code 4000, before
     any session work — the brain verifies ``aud=brain`` against its configured key."""
-    from .wire_pygato import generate_keypair
+    from .wire_voice import generate_keypair
 
     wrong = generate_keypair()
     driver = await ctx.connect(auth="valid", sign_with=wrong.private_pem)

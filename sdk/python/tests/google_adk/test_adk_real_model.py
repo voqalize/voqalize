@@ -33,7 +33,7 @@ from voqalize.conformance import (
     DirectConnection,
     VoiceDriver,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.google_adk.brain import AdkBrain
 from voqalize.sdk import DirectAgent, brain_factory
@@ -128,7 +128,7 @@ async def _host(session_id: str) -> tuple[DirectAgent, VoiceDriver, _SpyAdkBrain
         public_keys=keypair.public_pem,
     )
     port = await agent.start()
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="desk",

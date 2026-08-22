@@ -71,7 +71,7 @@ from voqalize.conformance import (  # noqa: E402
     VoiceDriver,
     checks,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.google_adk.testing import ScriptedLlm, call, reply, reply_and_call  # noqa: E402
 from voqalize.sdk.wire import (  # noqa: E402
@@ -557,7 +557,7 @@ async def _host(
     )
     port = await server.start()
     session_id = "orderdesk-test"
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="orderdesk",

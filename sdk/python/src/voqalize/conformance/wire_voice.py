@@ -1,16 +1,15 @@
-"""The pygato/Voice side of the wire — what the conformance driver needs to
-impersonate PyGato against a brain.
+"""The voice side of the wire — what the conformance driver needs to stand in
+for Voice against a brain.
 
 Two pieces the driver builds on:
 
 1. :class:`DirectConnection` — a bare ``websockets`` client that dials
-   ``{brain_url}/s/{session_id}`` exactly as PyGato does: one WS per session, an
+   ``{brain_url}/s/{session_id}`` exactly as Voice does: one WS per session, an
    ``Authorization: Bearer <token>`` header, and one protobuf envelope per
    binary message.
 
-2. :func:`generate_keypair` / :func:`mint_pygato_token` — the RS256 brain token
-   PyGato presents, byte-for-byte the claim shape of
-   ``pygato._cortex_token.CortexTokenSigner`` (``iss=pygato``, ``aud=brain``,
+2. :func:`generate_keypair` / :func:`mint_voice_token` — the RS256 brain token
+   Voice presents, claim for claim (``iss=pygato``, ``aud=brain``,
    ``sub=session_id``, plus ``agent_id`` / ``tenant_id``). A conformance run mints
    with an ephemeral keypair and hands the public half to the brain under test.
 
@@ -28,15 +27,15 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from websockets.asyncio.client import ClientConnection, connect
 
-# Same protocol constant every brain verifies (voqalize.sdk.session.BRAIN_AUDIENCE
-# / pygato._cortex_token.CortexTokenSigner.BRAIN_AUDIENCE). Not per-agent.
+# Same wire constant every brain verifies (voqalize.sdk.session.BRAIN_AUDIENCE).
+# Not per-agent.
 BRAIN_AUDIENCE = "brain"
 
 # ─── The direct-path connection (bare websockets client) ──────────────────────
 
 
 class DirectConnection:
-    """A single-session PyGato→brain WebSocket, dialed the way PyGato dials it.
+    """A single-session voice→brain WebSocket, dialled the way Voice dials it.
 
     URL is ``{brain_url}/s/{session_id}``; auth is an ``Authorization: Bearer``
     header; framing is one protobuf envelope per binary message. Does not own
@@ -82,7 +81,7 @@ class DirectConnection:
         return self._ws.close_code if self._ws is not None else None
 
 
-# ─── The RS256 brain token PyGato presents ────────────────────────────────────
+# ─── The RS256 brain token Voice presents ─────────────────────────────────────
 
 
 @dataclass(frozen=True)
@@ -112,7 +111,7 @@ def generate_keypair() -> Keypair:
     return Keypair(private_pem=private_pem, public_pem=public_pem)
 
 
-def mint_pygato_token(
+def mint_voice_token(
     *,
     private_key_pem: bytes,
     session_id: str,
@@ -127,7 +126,7 @@ def mint_pygato_token(
     the call. It survives here because it is a **literal claim value** your brain
     verifies against, not because you have to know what it stands for.
 
-    Claims: ``iss=pygato``, ``aud=brain`` (the protocol constant),
+    Claims: ``iss=pygato``, ``aud=brain`` (a wire constant),
     ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` / ``tenant_id`` for the
     recipient to decide. Byte-identical to what the real runtime signs, so a brain
     that accepts this one accepts production.

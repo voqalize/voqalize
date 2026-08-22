@@ -126,7 +126,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   server.
 - `src/voqalize/sdk/outbound.py` — `CortexAgent` (multiplexed demux + shared fair
   writer over one wire), implementing `RunnerHost`.
-- `src/voqalize/sdk/_platform_keys.py` — the embedded Voqalize public key(s)
+- `src/voqalize/sdk/_keys.py` — the embedded Voqalize public key(s)
   `run_session` verifies against by default.
 - `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
   `is_system()`, `CortexFrameSerializer` (protobuf transcoder, no base class),
@@ -155,7 +155,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   `run_session(channel, *, brain, session_id, token=...)`: the customer's
   framework owns the listener + upgrade and hands the SDK a connected `Channel`.
   The SDK **verifies by default** against the embedded Voqalize public keys
-  (`_platform_keys.py`) — the token shape is uniform for every brain
+  (`_keys.py`) — the token shape is uniform for every brain
   (`iss=pygato, aud=brain, sub=session_id`), and `sub` must equal the passed
   `session_id`. The audience is a wire constant (`BRAIN_AUDIENCE = "brain"`),
   verified unconditionally alongside `iss="pygato"` and `exp` — there is no

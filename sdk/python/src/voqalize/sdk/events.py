@@ -26,6 +26,7 @@ __all__ = [
     "Chunk",
     "Error",
     "Finalize",
+    "Speech",
     "SpeechEnd",
     "SpeechStart",
     "UserIdle",

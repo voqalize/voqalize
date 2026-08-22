@@ -20,7 +20,7 @@ from voqalize.conformance import (
     DirectConnection,
     VoiceDriver,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.sdk import Brain, Chunk, RequestRejected, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import ConfigureIdleFrame, ConfigureSttFrame, ConfigureTtsFrame
@@ -65,7 +65,7 @@ async def _open(brain: Brain) -> tuple[VoiceDriver, BrainServer]:
     keypair = generate_keypair()
     server = BrainServer(lambda: brain, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
     port = await server.start()
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
         agent_id="configure",

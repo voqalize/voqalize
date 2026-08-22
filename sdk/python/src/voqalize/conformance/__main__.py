@@ -3,10 +3,10 @@ running brain and print a pass/fail report.
 
 Examples::
 
-    # A brain that verifies pygato tokens against a public key: sign with the
-    # matching private key.
+    # A brain that verifies Voice's brain-connection token against a public
+    # key: sign with the matching private key.
     python -m voqalize.conformance \\
-        --brain-url ws://127.0.0.1:8787 --private-key ./pygato_priv.pem
+        --brain-url ws://127.0.0.1:8787 --private-key ./voice_priv.pem
 
     # A brain running allow_unverified (local dev): no token.
     python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --no-auth
@@ -54,7 +54,7 @@ async def _self_test(args: argparse.Namespace) -> Report:
     catalog against it — proves the driver + checks are internally consistent."""
     from .host import brain_server
     from .reference import ConformanceBrain
-    from .wire_pygato import generate_keypair
+    from .wire_voice import generate_keypair
 
     keypair = generate_keypair()
     async with brain_server(ConformanceBrain, public_keys=keypair.public_pem) as server:

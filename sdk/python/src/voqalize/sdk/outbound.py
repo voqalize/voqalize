@@ -2,7 +2,7 @@
 
 One agent process holds one **outbound** WebSocket to Cortex's ``/agent``
 endpoint. Many sessions ride that single connection, demuxed by a 16-byte raw
-UUID prefix on every message (see ``cortex/internal/protocol/protocol.go``).
+UUID prefix on every message, which the relay inserts and strips.
 This is the path for brains that cannot accept an inbound connection (serverless,
 laptops, strict egress-only networks); when the application owns a WebSocket route
 it uses :func:`voqalize.sdk.run_session` there instead.
@@ -72,7 +72,7 @@ class CortexAgent(RunnerHost):
         inbound_queue_maxsize: int | None = None,
     ) -> None:
         # Exactly one auth source: a static sk_… (customer agents) OR a callable
-        # that mints a fresh ``"Bearer <jwt>"`` per connect (platform agents).
+        # that mints a fresh ``"Bearer <jwt>"`` per connect (our own agents).
         if (api_key is None) == (authorization_provider is None):
             raise ValueError("CortexAgent: pass exactly one of api_key= or authorization_provider=")
         self._api_key = api_key

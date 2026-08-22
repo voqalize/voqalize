@@ -22,7 +22,7 @@ from voqalize.conformance import (
     VoiceDriver,
     checks,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.google_adk import AdkBrain
 from voqalize.google_adk.testing import ScriptedLlm, reply
@@ -65,7 +65,7 @@ async def _host(llm: ScriptedLlm, *, on_resume) -> tuple[DirectAgent, VoiceDrive
     )
     port = await agent.start()
     session_id = "adk-resume-test"
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="assistant",

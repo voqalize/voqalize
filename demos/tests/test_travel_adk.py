@@ -62,7 +62,7 @@ from voqalize.conformance import (  # noqa: E402
     VoiceDriver,
     checks,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.google_adk.testing import ScriptedLlm, reply, reply_and_call  # noqa: E402
 
@@ -160,7 +160,7 @@ async def _host(llm: ScriptedLlm) -> tuple[BrainServer, VoiceDriver]:
     )
     port = await server.start()
     session_id = "travel-adk-test"
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="travel",

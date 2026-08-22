@@ -1,12 +1,12 @@
-"""Voice-protocol conformance harness — a protocol-compliant "voqalize" that
-drives a brain over the wire and checks it against the MUSTs.
+"""Conformance harness — a wire-compliant stand-in for Voice that drives a
+brain and checks it against the MUSTs.
 
-This package *is* the compatibility test bench: :class:`VoiceDriver` impersonates
-PyGato/Voice on the single-session ``/s/{session_id}`` direct leg, speaks the
+This package *is* the compatibility test bench: :class:`VoiceDriver` stands in
+for Voice on the single-session ``/s/{session_id}`` direct leg, speaks the
 shipped protobuf wire, models playout/heard-truth finalization the way
 real Voice does, and records everything the brain sends back. On top of it sit a
 named :data:`~voqalize.conformance.scenarios.CATALOG` of scenarios and the
-:mod:`~voqalize.conformance.checks` library of protocol assertions. Run the
+:mod:`~voqalize.conformance.checks` library of wire assertions. Run the
 whole thing with :func:`~voqalize.conformance.report.run_suite`, or point the
 CLI (``python -m voqalize.conformance``) at a running brain.
 
@@ -32,11 +32,11 @@ from .host import BrainServer, brain_server
 from .reference import ConformanceBrain, conformance_state
 from .report import Report, ScenarioResult, run_suite
 from .scenarios import CATALOG, Scenario, ScenarioContext
-from .wire_pygato import (
+from .wire_voice import (
     DirectConnection,
     Keypair,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 
 __all__ = [
@@ -60,6 +60,6 @@ __all__ = [
     "brain_server",
     "conformance_state",
     "generate_keypair",
-    "mint_pygato_token",
+    "mint_voice_token",
     "run_suite",
 ]

@@ -9,7 +9,7 @@ seam (who signals the writer and who tears the session down).
 Design:
 
 - **Two lanes each way.** System frames (``SessionStart`` / ``Interruption`` / ``Cancel``
-  — see :func:`~voqalize.sdk.wire.is_system`) ride a priority lane that bypasses
+  — see :func:`~voqalize.sdk.wire.frames.is_system`) ride a priority lane that bypasses
   queued data; everything else rides a bounded normal lane with **drop-newest**
   semantics. ``End`` is *not* system — it rides the normal lane so a session tears
   down only after its queued data drains.
@@ -41,7 +41,8 @@ from typing import Protocol
 
 from loguru import logger
 
-from .wire import EndFrame, ErrorFrame, Frame, ResponseFrame, is_system
+from .wire import CancelFrame, EndFrame, ErrorFrame, Frame, ResponseFrame
+from .wire.frames import is_system
 
 DEFAULT_NORMAL_MAXSIZE = 256
 DEFAULT_SYSTEM_MAXSIZE = 32  # tripwire; never expected to fill
@@ -83,7 +84,7 @@ class SessionAdapter(Protocol):
 
     ``handle_frame`` is dispatched sequentially by the feeder, system-lane first.
     It may emit frames synchronously via the :class:`Emitter` it was built with,
-    and it may spawn its own tasks (e.g. ``on_interaction``). ``settle_response``
+    and it may spawn its own tasks (e.g. ``on_user_message``). ``settle_response``
     is called straight off the reader instead, and must not block. ``close`` runs
     session teardown (``on_session_end``).
     """
@@ -293,7 +294,10 @@ class SessionRunner:
                     )
                 if self._inbound_congested and self._in.depth() <= self._low_watermark:
                     self._inbound_congested = False
-                if isinstance(env.frame, EndFrame):
+                # Both are terminal. The difference is the lane they rode in
+                # on: `Cancel` bypassed whatever was queued, `End` drained
+                # behind it.
+                if isinstance(env.frame, EndFrame | CancelFrame):
                     ended = True
                     break
         except asyncio.CancelledError:

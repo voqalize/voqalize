@@ -3,7 +3,7 @@
 Each check is a plain function that raises :class:`ConformanceError` (an
 ``AssertionError`` subclass, so it reads naturally under pytest *and* can be
 caught by the scenario runner to build a report) with a message that names the
-protocol rule it enforces. Scenarios compose these; the checks themselves make
+wire rule it enforces. Scenarios compose these; the checks themselves make
 no I/O and hold no state — they read the :class:`~voqalize.conformance.driver.VoiceDriver`
 observation model and :class:`~voqalize.conformance.driver.Turn` results.
 
@@ -27,7 +27,7 @@ from .driver import GREETING_EPOCH, EpochObs, Turn, VoiceDriver
 
 
 class ConformanceError(AssertionError):
-    """A protocol MUST was violated by the brain under test."""
+    """A MUST of the wire was violated by the brain under test."""
 
 
 def require(cond: bool, msg: str) -> None:

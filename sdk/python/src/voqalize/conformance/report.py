@@ -183,7 +183,7 @@ async def run_suite(
 ) -> Report:
     """Run the catalog against ``brain_url`` and return a :class:`Report`.
 
-    ``private_key_pem`` signs the pygato token the driver presents (``None`` ⇒ no
+    ``private_key_pem`` signs the brain-connection token the driver presents (``None`` ⇒ no
     auth header, for a brain running ``allow_unverified``).
 
     ``include_reference`` decides the deep-semantics tier: ``None`` (the default)

@@ -1,11 +1,11 @@
-"""Voqalize's embedded platform public keys.
+"""The Voqalize public keys the SDK verifies a connection with.
 
-PyGato signs the short-lived RS256 token it presents on each direct brain
-connection (`/s/{session_id}`) with a **private** key held only by Voqalize. The
-matching **public** keys are shipped here, inside the SDK, so a customer calling
-`run_session(...)` verifies our connection out of the box — no key to fetch,
+Voice signs the short-lived RS256 token it presents on each brain connection
+(`/s/{session_id}`) with a **private** key held only by Voqalize. The matching
+**public** keys ship here, inside the SDK, so a customer calling
+`run_session(...)` verifies that connection out of the box — no key to fetch,
 paste, or rotate by hand. Public keys are public by design; embedding them is
-safe and is what lets verification be the zero-config default.
+what lets verification be the zero-config default.
 
 Multiple keys are a **trust bundle**: the SDK accepts a token signed by *any* of
 them. That is what makes key rotation seamless (publish a new SDK carrying both
@@ -18,14 +18,12 @@ remove a key until every signer that used it is retired.
 
 from __future__ import annotations
 
-# ── Voqalize PyGato brain-token signing public keys (RS256, SPKI PEM) ──────────
+# ── Brain-token signing public keys (RS256, SPKI PEM) ─────────────────────────
 #
-# Order is irrelevant; each is tried in turn. Keep the human-readable label in the
-# comment so ops knows which signer/environment a key belongs to. These must stay
-# in sync with the production PyGato signer — the same key the production control
-# plane and Cortex already verify against.
-VOQAL_PLATFORM_PUBLIC_KEYS: list[str] = [
-    # production PyGato brain-token signer.
+# Order is irrelevant; each is tried in turn. Keep the human-readable label in
+# the comment so ops knows which signer and environment a key belongs to.
+VOQALIZE_PUBLIC_KEYS: list[str] = [
+    # production brain-token signer.
     """-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnZqkG9xDlyjo9ONJruEt
 assF7hCeNeS42hGs4U1Z6mht/hWFQoCgK6/DlsRTo1aXvrpFvw7K0WlGZgVXgwm2

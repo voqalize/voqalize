@@ -1,12 +1,12 @@
-"""``VoiceDriver`` — a protocol-compliant impersonation of PyGato/Voice, seen
-from a brain's point of view.
+"""``VoiceDriver`` — a wire-compliant stand-in for Voice, seen from a brain's
+point of view.
 
 The driver *is* the "compliant voqalize": it dials a brain over the single
 session ``/s/{session_id}`` leg, speaks the shipped protobuf wire, and plays out
 the brain's responses the way real Voice does — auto-finalizing each speech unit
 with a *heard-truth* transcript and honouring the barge-in drain barrier.
 Everything the brain sends back is decoded, timestamped, and recorded so
-scenarios can assert the protocol MUSTs against a structured transcript.
+scenarios can assert the wire's MUSTs against a structured transcript.
 
 Turns end the way they end on a real call: the wire carries no "the brain is
 done" frame, so a turn is over when every speech unit it opened has closed
@@ -14,7 +14,7 @@ and the brain has gone quiet. Real Voice has no more than that either.
 
 What the driver deliberately does *not* do: audio, VAD, STT/TTS, WebRTC. Playout
 is modelled as "the whole unit is heard unless barged in", which is all the
-protocol conformance surface needs.
+conformance surface of the wire needs.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ from voqalize.sdk.wire import (
 )
 from voqalize.sdk.wire.serializer import CortexFrameSerializer, DecodedMessage
 
-from .wire_pygato import DirectConnection
+from .wire_voice import DirectConnection
 
 # The greeting epoch: the brain speaks first on session start, with no
 # user turn to attribute it to. Agent-initiated speech echoes no epoch, so it
@@ -59,7 +59,7 @@ GREETING_EPOCH = 0
 
 # The control leg's ops, by the frame that carries each. The driver answers every
 # one, because Voice does — a brain awaiting an answer that never comes is the
-# one failure the protocol promises cannot happen.
+# one failure the wire promises cannot happen.
 REQUEST_OPS: dict[type[Frame], str] = {
     ConfigureTtsFrame: "configure_tts",
     ConfigureSttFrame: "configure_stt",
@@ -73,7 +73,7 @@ REQUEST_OPS: dict[type[Frame], str] = {
 # recorded for the LLM) is not observable from the wire alone. There is no
 # history-request frame, and we do not add one: the wire stays frozen.
 #
-# Instead the driver reuses the generic, schema-free browser lane the protocol
+# Instead the driver reuses the generic, schema-free browser lane the wire
 # already has (browser→brain ``BrowserMessage`` / brain→browser
 # ``BrowserCommand``, the same lane real UIs use for ``ui_command`` /
 # ``action_result`` — opaque to Voice, which just relays it). A conformance-aware
@@ -87,7 +87,7 @@ CONFORMANCE_STATE_ACTION = "__voqal.conformance.state"
 
 @dataclass
 class Recorded:
-    """One brain→pygato frame, timestamped on the driver's monotonic clock."""
+    """One brain→voice frame, timestamped on the driver's monotonic clock."""
 
     frame: Frame
     t: float
@@ -154,7 +154,7 @@ class Turn:
 
 
 class VoiceDriver:
-    """Drives a brain over one direct session, impersonating PyGato/Voice.
+    """Drives a brain over one direct session, standing in for Voice.
 
     Typical lifecycle::
 
@@ -191,7 +191,7 @@ class VoiceDriver:
         # Ops to refuse, op name → the reason Voice gives. A scenario sets one to
         # exercise the path where a brain asks for something Voice will not do.
         self.reject: dict[str, str] = {}
-        # Ops to leave unanswered, for the one case the protocol cannot promise
+        # Ops to leave unanswered, for the one case the wire cannot promise
         # away: a Voice that stopped answering mid-call.
         self.withhold: set[str] = set()
         self.epochs: dict[int, EpochObs] = {}
@@ -285,7 +285,7 @@ class VoiceDriver:
     # ─── sending ───────────────────────────────────────────────────────────────
 
     async def _send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
-        """Serialize and send one pygato→brain frame."""
+        """Serialize and send one voice→brain frame."""
         payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
         await self._conn.send_payload(payload)
 
@@ -607,7 +607,7 @@ class VoiceDriver:
         :data:`CONFORMANCE_DUMP_EVENT`). The driver sends the namespaced
         ``__voqal.conformance.dump`` client message; a conformance-aware brain answers
         with a ``__voqal.conformance.state`` action carrying its committed
-        ``session.conversation``. No protocol change — just a cooperation
+        ``session.conversation``. No change to the wire — just a cooperation
         convention on the existing client-message lane."""
         before = len(self.ui_commands)
         await self.send_browser_message(CONFORMANCE_DUMP_EVENT)

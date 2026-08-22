@@ -1,5 +1,5 @@
 """``ConformanceBrain`` — a cooperating reference brain the conformance driver
-drives to exercise, and *observe*, every protocol path.
+drives to exercise, and *observe*, every path of the wire.
 
 Two reasons it lives in the harness rather than the tests:
 
@@ -7,11 +7,11 @@ Two reasons it lives in the harness rather than the tests:
    see the brain's *output* frames, but never what the brain *committed* — the
    heard transcript, the app messages it received, the action results it
    correlated. Those are the MUSTs a black-box driver cannot assert, because the
-   protocol has no history-request frame and we add none. Instead the brain
+   wire has no history-request frame and we add none. Instead the brain
    echoes its committed state back over the ordinary application-message lane
    (a ``ui_command``) in response to the namespaced
-   ``__voqal.conformance.dump`` client message. No protocol change — just
-   cooperation on a lane the protocol already has.
+   ``__voqal.conformance.dump`` client message. No change to the wire — just
+   cooperation on a lane it already has.
 
    The echo is brain-side bookkeeping, and it has to be: **history belongs to the
    brain.** The SDK maintains no transcript, so what this brain records from

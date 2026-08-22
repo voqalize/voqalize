@@ -1,7 +1,7 @@
 """Session-scoped logging for your brain.
 
 A voice call touches several processes — Voqalize's voice runtime, the relay, the
-control plane, and *your* brain — and the platform side already puts the same
+control plane, and *your* brain — and every process on our side already puts the same
 ``session_id`` on every line it writes. Your brain is where your own code runs, so
 it is where the interesting logs are, and without the same tag they are the only
 ones that cannot be joined to the rest of the call.
@@ -28,9 +28,9 @@ That distinction is worth stating because getting it backwards is a real failure
 mode — binding fields onto a handler whose format never prints them looks exactly
 like working, and every one of those fields is computed and thrown away.
 
-Field names match what the platform writes — ``service``, ``session_id``,
-``tenant_id``, ``agent_id``, ``meeting_id`` — because being joinable across the
-whole call is the entire point.
+Field names match what Voqalize writes — ``service``, ``session_id``,
+``tenant_id``, ``agent_id`` — because being joinable across the whole call is
+the entire point.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ SERVICE_NAME = "brain"
 # The identity fields that make a line joinable to the same call elsewhere. Kept
 # as an explicit tuple so the JSON sink promotes exactly these and leaves your
 # own bound fields in `extra`.
-IDENTITY_FIELDS = ("session_id", "tenant_id", "agent_id", "meeting_id")
+IDENTITY_FIELDS = ("session_id", "tenant_id", "agent_id")
 
 
 @contextmanager
@@ -58,19 +58,15 @@ def session_context(
     *,
     tenant_id: str = "",
     agent_id: str = "",
-    meeting_id: str = "",
 ) -> Generator[None]:
     """Tag every log line emitted inside this block — and inside any task it
     spawns — with the call's identity.
 
     Ids are carried whole. A truncated id reads better in a terminal and is
-    useless as a join key: the voice runtime, the control plane and the meeting
-    token all carry the full UUID, so a prefix matches nothing on the other side
-    of the query.
+    useless as a join key: Voice and the session's own records carry the full
+    UUID, so a prefix matches nothing on the other side of the query.
     """
     fields: dict[str, str] = {"service": SERVICE_NAME, "session_id": session_id}
-    if meeting_id:
-        fields["meeting_id"] = meeting_id
     if tenant_id:
         fields["tenant_id"] = tenant_id
     if agent_id:
@@ -120,7 +116,7 @@ def configure_logging(*, level: str = "INFO", json_logs: bool = False) -> None:
 
     ``json_logs=True`` writes one JSON object per line with the identity fields
     promoted to top level — the shape a log shipper can index on, and the same
-    shape the platform writes.
+    shape Voqalize writes.
     """
     logger.remove()
     if json_logs:

@@ -162,7 +162,7 @@ async def test_ordinary_brain_is_conformant_on_what_ran() -> None:
 async def test_wrong_key_is_rejected_directly() -> None:
     """A token signed by the wrong key is rejected with close code 4000 — the
     auth MUST, asserted at the connection level (not just via the scenario)."""
-    from voqalize.conformance import DirectConnection, VoiceDriver, mint_pygato_token
+    from voqalize.conformance import DirectConnection, VoiceDriver, mint_voice_token
 
     _agent_kp = generate_keypair()  # what the brain verifies against
     wrong_kp = generate_keypair()  # what the driver (wrongly) signs with
@@ -174,7 +174,7 @@ async def test_wrong_key_is_rejected_directly() -> None:
     )
     port = await server.start()
     session_id = "conf-wrongkey"
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=wrong_kp.private_pem,
         session_id=session_id,
         agent_id="a",

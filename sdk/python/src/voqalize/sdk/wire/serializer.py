@@ -1,4 +1,4 @@
-"""Protobuf codec for the cortex wire.
+"""Protobuf codec for the wire.
 
 Transcodes between the plain dataclasses in :mod:`.frames` and ``Envelope``
 bytes. Pipecat-free, stateless, no base class.
@@ -354,7 +354,7 @@ _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
 
 
 class CortexFrameSerializer:
-    """Binary protobuf codec for the cortex wire.
+    """Binary protobuf codec for the wire.
 
     Stateless. ``serialize`` / ``deserialize`` stay ``async`` for call-site
     symmetry, though nothing awaits.

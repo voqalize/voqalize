@@ -39,7 +39,7 @@ from voqalize.conformance import (
     VoiceDriver,
     checks,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.sdk import Brain
 
@@ -159,7 +159,7 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
         DirectConnection(
             f"ws://127.0.0.1:{port}",
             session_id,
-            token=mint_pygato_token(
+            token=mint_voice_token(
                 private_key_pem=keypair.private_pem,
                 session_id=session_id,
                 tenant_id="demo",

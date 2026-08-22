@@ -267,22 +267,22 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
         await server.aclose()
 
 
-async def test_embedded_platform_keys_present_and_valid():
+async def test_embedded_voqalize_keys_present_and_valid():
     """The shipped SDK must carry at least one parseable Voqalize public key, or
     the zero-config default silently has nothing to verify against."""
     from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
-    from voqalize.sdk._platform_keys import VOQAL_PLATFORM_PUBLIC_KEYS
+    from voqalize.sdk._keys import VOQALIZE_PUBLIC_KEYS
 
-    assert VOQAL_PLATFORM_PUBLIC_KEYS, "no embedded platform keys"
-    for pem in VOQAL_PLATFORM_PUBLIC_KEYS:
+    assert VOQALIZE_PUBLIC_KEYS, "no embedded Voqalize keys"
+    for pem in VOQALIZE_PUBLIC_KEYS:
         load_pem_public_key(pem.encode())  # raises if malformed
 
 
 async def test_brain_server_demands_an_explicit_verification_choice():
     """No keys and no ``allow_unverified`` fails at construction.
 
-    ``BrainServer`` deliberately has no fallback to the embedded platform keys
+    ``BrainServer`` deliberately has no fallback to the embedded Voqalize keys
     (``run_session`` does): a test server trusting the *production* signer can only
     ever reject every token a test mints, and that takes a while to see.
     """

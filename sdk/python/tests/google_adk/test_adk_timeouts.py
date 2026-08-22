@@ -23,7 +23,7 @@ from voqalize.conformance import (
     VoiceDriver,
     checks,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, call
@@ -68,7 +68,7 @@ async def _host(llm: ScriptedLlm, *, turn_timeout: float | None) -> tuple[Direct
     )
     port = await agent.start()
     session_id = "adk-timeouts-test"
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="assistant",

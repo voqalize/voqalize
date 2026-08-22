@@ -18,9 +18,9 @@ that passes here has been exercised on the wire it will actually run on, not on 
 stand-in.
 
 Verification is not optional and has no default: pass ``public_keys=`` (from
-:func:`~voqalize.conformance.wire_pygato.generate_keypair`) or
+:func:`~voqalize.conformance.wire_voice.generate_keypair`) or
 ``allow_unverified=True``. There is deliberately no fallback to the embedded
-platform keys — a test server that trusts the *production* signer can only ever
+Voqalize keys — a test server that trusts the *production* signer can only ever
 reject every token a test mints, and it would take a while to see why.
 """
 

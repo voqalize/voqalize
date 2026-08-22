@@ -25,7 +25,7 @@ Starlette's ``WebSocket.send_bytes``/``receive_bytes`` via a 2-line shim, etc.).
         )
 
 Auth is the caller's request to extract and the SDK's to verify: you pass the URL
-``session_id`` and the ``Authorization`` header value; the SDK checks PyGato's
+``session_id`` and the ``Authorization`` header value; the SDK checks Voice's
 RS256 token (signature + expiry + ``sub == session_id``) against the embedded
 Voqalize keys by default. Framework-specific wrappers that do the extraction for
 you can be layered on later — this primitive stays assumption-free.
@@ -47,8 +47,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 import jwt
 from loguru import logger
 
+from ._keys import VOQALIZE_PUBLIC_KEYS
 from ._logging import session_context
-from ._platform_keys import VOQAL_PLATFORM_PUBLIC_KEYS
 from .engine import (
     DEFAULT_NORMAL_MAXSIZE,
     Envelope,
@@ -61,12 +61,12 @@ from .wire import CortexFrameSerializer, MalformedFrameError
 if TYPE_CHECKING:
     from .brain import Brain
 
-# The audience every PyGato brain-connection token carries — a protocol constant
-# (not per-agent). Any brain verifies aud == this; nothing configures it.
+# The audience every brain-connection token carries — a wire constant, not a
+# per-agent one. Any brain verifies aud == this; nothing configures it.
 BRAIN_AUDIENCE = "brain"
 
-# Namespace for hashing a non-UUID session id string to 16 bytes (a real PyGato
-# session_id is already a UUID; this is only a robustness fallback).
+# Namespace for hashing a non-UUID session id string to 16 bytes (a session id
+# Voice minted is already a UUID; this is only a robustness fallback).
 _SESSION_NAMESPACE = uuid.UUID("d1e83b8d-3a3b-4ab5-9c0c-9c8d6f5d8a01")
 
 
@@ -84,15 +84,15 @@ class Channel(Protocol):
 
 
 class SessionRejected(Exception):
-    """Raised by :func:`run_session` when the PyGato token fails verification.
+    """Raised by :func:`run_session` when the connection's token fails verification.
 
-    The caller should close the socket (PyGato treats close code 4000 as a
-    permanent, non-retriable rejection — mirroring Cortex's ``NoAgent``)."""
+    The caller should close the socket: close code 4000 is what Voice reads as a
+    permanent, non-retriable rejection."""
 
 
 def session_id_bytes(session_id: str) -> bytes:
-    """16-byte key for the session. Raw UUID bytes when the id is a real UUID
-    (the PyGato case), else a stable uuid5 hash."""
+    """16-byte key for the session. Raw UUID bytes when the id is a real UUID,
+    else a stable uuid5 hash."""
     try:
         return uuid.UUID(session_id).bytes
     except ValueError:
@@ -114,19 +114,18 @@ def verify_token(
     public_keys: list[str],
     allow_unverified: bool,
 ) -> dict[str, Any] | None:
-    """Verify PyGato's RS256 brain-connection token against ``public_keys``.
+    """Verify Voice's RS256 brain-connection token against ``public_keys``.
 
-    Returns the verified claims on success and ``None`` on rejection — so it is
-    still usable as a boolean guard, but the caller can also read the identity
-    the token asserts. That matters because ``tenant_id`` / ``agent_id`` /
-    ``meeting_id`` are what tag the session's log lines (`_logging`), and the
-    only trustworthy source for them is the signature that was just checked.
-    An unverified session yields ``{}``, which is truthy-negative in the same
-    way: verified-with-no-claims and not-verified stay distinguishable.
+    Returns the verified claims on success and ``None`` on rejection — test
+    ``is None``, not truthiness, because a verified token with no claims and an
+    ``allow_unverified`` session both yield ``{}``. The claims matter because
+    ``tenant_id`` and ``agent_id`` are what tag the session's log lines
+    (`_logging`), and the only trustworthy source for them is the signature that
+    was just checked.
 
     Every brain — a customer's WebSocket, a Cortex relay, or one of Voqalize's own
     hosted demo brains — verifies the *same* token the *same* way: signature, plus
-    ``iss="pygato"``, ``aud="brain"`` (a protocol constant — all brain connections
+    ``iss="pygato"``, ``aud="brain"`` (a wire constant — all brain connections
     share it), and ``sub == session_id`` (scoped to exactly one session). The
     recipient then decides from the token's ``tenant_id`` / ``agent_id`` whether it
     serves that agent. ``token`` may be a bare JWT or an
@@ -317,7 +316,7 @@ async def run_session(
     the brain needs injected dependencies (``brain=lambda: TravelBrain(llm=provider)``).
     Either way it runs once per session, so no state leaks between calls.
 
-    Verification is on by default against the embedded Voqalize keys — PyGato's
+    Verification is on by default against the embedded Voqalize keys — the
     token must be ``iss=pygato``, ``aud=brain``, and ``sub == session_id`` (see
     :func:`verify_token`). Override the keys with ``public_keys=`` (e.g. a
     self-hosted deployment), or ``allow_unverified=True`` for local dev. Raises
@@ -325,13 +324,12 @@ async def run_session(
     """
     from .brain import brain_factory  # local import breaks the brain↔transport cycle
 
-    keys = (
-        normalize_keys(public_keys) if public_keys is not None else list(VOQAL_PLATFORM_PUBLIC_KEYS)
-    )
+    keys = normalize_keys(public_keys) if public_keys is not None else list(VOQALIZE_PUBLIC_KEYS)
     if not allow_unverified and not keys:
         raise ValueError(
-            "run_session: no verification keys (embedded platform keys empty and "
-            "public_keys= not passed). Pass public_keys= or allow_unverified=True."
+            "run_session: no verification keys (the embedded Voqalize keys are "
+            "empty and public_keys= was not passed). Pass public_keys= or "
+            "allow_unverified=True."
         )
     claims = verify_token(token, session_id, public_keys=keys, allow_unverified=allow_unverified)
     if claims is None:
@@ -343,7 +341,6 @@ async def run_session(
         session_id,
         tenant_id=str(claims.get("tenant_id", "")),
         agent_id=str(claims.get("agent_id", "")),
-        meeting_id=str(claims.get("meeting_id", "")),
     ):
         await serve_channel(
             channel,

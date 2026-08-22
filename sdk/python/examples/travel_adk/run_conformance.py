@@ -25,7 +25,7 @@ from voqalize.conformance import (
     VoiceDriver,
     brain_server,
     generate_keypair,
-    mint_pygato_token,
+    mint_voice_token,
 )
 from voqalize.google_adk import adk_brain
 
@@ -53,7 +53,7 @@ async def main() -> None:
         answer_conformance_dump=True,
     )
     session_id = "travel-adk-demo"
-    token = mint_pygato_token(
+    token = mint_voice_token(
         private_key_pem=keypair.private_pem,
         session_id=session_id,
         agent_id="travel",

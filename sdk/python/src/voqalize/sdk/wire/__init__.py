@@ -1,23 +1,21 @@
-"""Cortex wire layer — plain-dataclass frames, protobuf codec, transport.
+"""The wire — plain-dataclass frames, protobuf codec, transport.
 
 Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. Only protobuf
 ``Envelope`` bytes cross the socket; the frame classes here never do.
 
 Public surface:
-- The frame dataclasses plus ``Frame`` and ``is_system`` (the lane-routing
-  predicate).
+- The frame dataclasses plus ``Frame``.
 - ``CortexFrameSerializer`` — the protobuf codec; ``DecodedMessage`` carries a
   decoded frame beside the envelope's ``epoch`` / ``speech_id``.
 - ``WIRE_VERSION`` — the wire version this build speaks.
-- ``MultiplexedWire``, ``Wire``, ``WireConfig``, ``PermanentClose`` — websocket
-  transport with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
-  handshake-refused case: a credential cortex answers 401/403 to is never
+- ``MultiplexedWire``, ``WireConfig``, ``PermanentClose`` — websocket transport
+  with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
+  handshake-refused case: a credential Cortex answers 401/403 to is never
   retried.
 - ``UnsupportedFrameError``, ``MalformedFrameError`` — fail-loud signaling.
 """
 
 from .frames import (
-    WIRE_FRAME_CLASSES,
     WIRE_VERSION,
     BrowserCommandFrame,
     BrowserMessageFrame,
@@ -39,7 +37,6 @@ from .frames import (
     SpeechStartFrame,
     UserIdleFrame,
     UserMessageFrame,
-    is_system,
 )
 from .serializer import (
     CortexFrameSerializer,
@@ -57,7 +54,6 @@ from .transport import (
 )
 
 __all__ = [
-    "WIRE_FRAME_CLASSES",
     "WIRE_VERSION",
     "AuthRejected",
     "BrowserCommandFrame",
@@ -89,5 +85,4 @@ __all__ = [
     "Wire",
     "WireClosed",
     "WireConfig",
-    "is_system",
 ]
