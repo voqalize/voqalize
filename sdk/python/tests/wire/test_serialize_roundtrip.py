@@ -101,16 +101,16 @@ async def test_roundtrip(frame: Frame) -> None:
 @pytest.mark.parametrize("frame", _frames(), ids=lambda f: type(f).__name__)
 async def test_correlation_rides_the_envelope(frame: Frame) -> None:
     """Correlation is the envelope's, not the body's: any frame carries any
-    triple, and it comes back beside the decoded frame."""
+    pair, and it comes back beside the decoded frame."""
     ser = CortexFrameSerializer()
-    payload = await ser.serialize(frame, request_id=11, epoch=22, speech_id=33)
+    payload = await ser.serialize(frame, epoch=22, speech_id=33)
 
     msg = await ser.deserialize_message(payload)
     assert type(msg.frame) is type(frame)
-    assert (msg.request_id, msg.epoch, msg.speech_id) == (11, 22, 33)
+    assert (msg.epoch, msg.speech_id) == (22, 33)
 
 
 async def test_correlation_defaults_to_zero() -> None:
     ser = CortexFrameSerializer()
     msg = await ser.deserialize_message(await ser.serialize(UserMessageFrame(text="hi")))
-    assert (msg.request_id, msg.epoch, msg.speech_id) == (0, 0, 0)
+    assert (msg.epoch, msg.speech_id) == (0, 0)

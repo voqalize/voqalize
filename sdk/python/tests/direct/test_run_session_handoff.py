@@ -76,36 +76,29 @@ class _Client:
         self._ep = endpoint
         self._ser = CortexFrameSerializer()
 
-    async def send(self, frame, *, request_id: int = 0, epoch: int = 0, speech_id: int = 0) -> None:
-        payload = await self._ser.serialize(
-            frame, request_id=request_id, epoch=epoch, speech_id=speech_id
-        )
+    async def send(self, frame, *, epoch: int = 0, speech_id: int = 0) -> None:
+        payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
         await self._ep.send(b"\x01" + payload)  # DOWNSTREAM
 
-    async def collect_until(self, predicate, timeout: float = 3.0):
+    async def collect_until(self, predicate, timeout: float = 3.0) -> list:
         frames: list = []
-        acks: list[int] = []
 
         async def _pump():
-            while not predicate(frames, acks):
+            while not predicate(frames):
                 raw = await self._ep.recv()
                 msg = await self._ser.deserialize_message(raw[1:])
-                if msg.ack is not None:
-                    acks.append(msg.ack)
-                elif msg.frame is not None:
+                if msg.frame is not None:
                     frames.append(msg.frame)
 
         await asyncio.wait_for(_pump(), timeout=timeout)
-        return frames, acks
+        return frames
 
 
 def _has_text(substr: str):
-    return lambda frames, _acks: any(
-        isinstance(f, SpeechChunkFrame) and substr in f.text for f in frames
-    )
+    return lambda frames: any(isinstance(f, SpeechChunkFrame) and substr in f.text for f in frames)
 
 
-async def test_run_session_handoff_greeting_echo_and_ack():
+async def test_run_session_handoff_greeting_and_echo():
     """No server: run_session over an in-memory channel does the full loop."""
     server_ch, client_ch = _pipe()
     sid = str(uuid.uuid4())
@@ -115,15 +108,12 @@ async def test_run_session_handoff_greeting_echo_and_ack():
     client = _Client(client_ch)
     try:
         await client.send(SessionStartFrame(session_id=sid, agent_id="echo"))
-        frames, _ = await client.collect_until(_has_text("hi there"))
+        frames = await client.collect_until(_has_text("hi there"))
         assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
-        await client.send(UserMessageFrame(text="ping"), epoch=1, request_id=7)
-        frames, acks = await client.collect_until(
-            lambda fr, ac: _has_text("echo: ping")(fr, ac) and 7 in ac
-        )
+        await client.send(UserMessageFrame(text="ping"), epoch=1)
+        frames = await client.collect_until(_has_text("echo: ping"))
         assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
-        assert 7 in acks, "the data frame must be acked after dispatch"
     finally:
         await client_ch.close()  # closes the server side's recv → run_session returns
         with contextlib.suppress(*_TEARDOWN_ERRORS):
@@ -201,7 +191,7 @@ async def test_run_session_accepts_valid_token():
     client = _Client(client_ch)
     try:
         await client.send(SessionStartFrame(session_id=sid, agent_id="echo"))
-        frames, _ = await client.collect_until(_has_text("hi there"))
+        frames = await client.collect_until(_has_text("hi there"))
         assert frames
     finally:
         await client_ch.close()

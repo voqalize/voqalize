@@ -50,7 +50,7 @@ class Recorder:
 
 
 def _env(frame: Frame) -> Envelope:
-    return Envelope(frame=frame, epoch=0, speech_id=0, request_id=0)
+    return Envelope(frame=frame, epoch=0, speech_id=0)
 
 
 async def _open(brain: Brain) -> tuple[object, Recorder]:

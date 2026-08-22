@@ -4,11 +4,9 @@ from a brain's point of view.
 The driver *is* the "compliant voqalize": it dials a brain over the single
 session ``/s/{session_id}`` leg, speaks the shipped protobuf wire, and plays out
 the brain's responses the way real Voice does — auto-finalizing each speech unit
-with a *heard-truth* transcript, honouring the barge-in drain barrier, and
-acking nothing of its own (its outbound data frames carry ``request_id>0``; the
-brain's outbound frames carry ``request_id=0`` and are never blocked on the
-driver). Everything the brain sends back is decoded, timestamped, and recorded
-so scenarios can assert the protocol MUSTs against a structured transcript.
+with a *heard-truth* transcript and honouring the barge-in drain barrier.
+Everything the brain sends back is decoded, timestamped, and recorded so
+scenarios can assert the protocol MUSTs against a structured transcript.
 
 Turns end the way they end on a real call: the wire carries no "the brain is
 done" frame, so a turn is over when every speech unit it opened has closed
@@ -74,16 +72,6 @@ GREETING_INTERACTION_ID = 0
 # on the SDK inherits it — the customer's brain code writes nothing.
 CONFORMANCE_DUMP_EVENT = "__voqal.conformance.dump"
 CONFORMANCE_STATE_ACTION = "__voqal.conformance.state"
-
-# Frames the driver sends that carry request_id>0 (ack-gated data frames), vs.
-# system/control frames it sends with request_id=0 (urgent, never ack-gated) —
-# mirroring PyGato: only wire-vocab *data* frames are ack-gated.
-_ACK_GATED = (
-    UserMessageFrame,
-    UserIdleFrame,
-    ClientMessageFrame,
-    FinalizeFrame,
-)
 
 
 @dataclass
@@ -183,12 +171,10 @@ class VoiceDriver:
         self.quiet_for = quiet_for
         self._ser = CortexFrameSerializer()
 
-        self._req = 0
         self._interaction_seq = 0
 
         # Recorded / decoded brain output.
         self.log: list[Recorded] = []
-        self.acks: list[int] = []
         self.ui_commands: list[dict] = []
         self.errors: list[ErrorFrame] = []
         self.stt_settings: list[dict] = []
@@ -236,8 +222,6 @@ class VoiceDriver:
             if not payload:
                 continue
             decoded = await self._ser.deserialize_message(payload)
-            if decoded.ack is not None:
-                self.acks.append(decoded.ack)
             if decoded.frame is not None:
                 self._route(decoded, self._now())
             self._wake()
@@ -283,19 +267,10 @@ class VoiceDriver:
 
     # ─── sending ───────────────────────────────────────────────────────────────
 
-    async def _send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> int:
-        """Serialize and send a pygato→brain frame; returns the request_id used
-        (>0 for ack-gated data frames, 0 for system/control frames)."""
-        if isinstance(frame, _ACK_GATED):
-            self._req += 1
-            request_id = self._req
-        else:
-            request_id = 0
-        payload = await self._ser.serialize(
-            frame, request_id=request_id, epoch=epoch, speech_id=speech_id
-        )
+    async def _send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
+        """Serialize and send one pygato→brain frame."""
+        payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
         await self._conn.send_payload(payload)
-        return request_id
 
     def next_interaction_id(self) -> int:
         """Mint the next epoch — Voice stamps every stimulus it commits."""
@@ -513,8 +488,8 @@ class VoiceDriver:
 
         cut = self._cut_unit(iid)
 
-        # Send the interruption(s) (system lane, request_id 0) and await the echo.
-        # A rapid multi-barge sends several before the brain can echo the first.
+        # Send the interruption(s) and await the echo. A rapid multi-barge sends
+        # several before the brain can echo the first.
         for _ in range(max(1, interrupts)):
             await self._send(InterruptionFrame())
         await self._wait_for(self._interruption_seen.is_set, timeout=timeout)

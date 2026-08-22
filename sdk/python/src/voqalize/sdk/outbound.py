@@ -46,7 +46,6 @@ from .engine import (
     RunnerHost,
     SessionFactory,
     SessionRunner,
-    _Ack,
 )
 from .wire import (
     CortexFrameSerializer,
@@ -57,7 +56,6 @@ from .wire import (
     WireClosed,
     WireConfig,
 )
-from .wire.serializer import serialize_ack
 
 
 class CortexAgent(RunnerHost):
@@ -178,7 +176,7 @@ class CortexAgent(RunnerHost):
                 logger.exception("cortex: malformed payload, skipping")
                 continue
             if decoded.frame is None:
-                # The SDK sends acks; it never expects to receive them.
+                # A body this build does not know.
                 continue
 
             runner = self._sessions.get(sid)
@@ -208,7 +206,6 @@ class CortexAgent(RunnerHost):
             runner.enqueue_inbound(
                 Envelope(
                     frame=decoded.frame,
-                    request_id=decoded.request_id,
                     epoch=decoded.epoch,
                     speech_id=decoded.speech_id,
                 )
@@ -225,12 +222,9 @@ class CortexAgent(RunnerHost):
             if item is None:
                 continue
             try:
-                if isinstance(item, _Ack):
-                    payload = serialize_ack(item.ack_id)
-                else:
-                    payload = await self._serializer.serialize(
-                        item.frame, epoch=item.epoch, speech_id=item.speech_id
-                    )
+                payload = await self._serializer.serialize(
+                    item.frame, epoch=item.epoch, speech_id=item.speech_id
+                )
             except Exception:
                 logger.exception("cortex: serialize failed for session {}", _sid_str(sid))
                 if not runner.out_empty():

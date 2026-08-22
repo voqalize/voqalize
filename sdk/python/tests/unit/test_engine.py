@@ -2,9 +2,8 @@
 
 Drives a runner directly through a fake :class:`RunnerHost`, pinning the lane
 semantics: system-lane priority (both directions), drop-newest on the normal lane
-with an edge-triggered congestion ``ErrorFrame`` delivered to the adapter, ack
-emission at dequeue (never waiting on ``handle_frame``), and EndFrame teardown
-notifying the host.
+with an edge-triggered congestion ``ErrorFrame`` delivered to the adapter, and
+EndFrame teardown notifying the host.
 
 (Cross-session fair-writer round-robin is a CortexAgent concern, covered by
 ``tests/cortex/test_agent_session_isolation.py``; single-session runner behaviour
@@ -24,7 +23,6 @@ from voqalize.sdk.engine import (
     RunnerHost,
     SessionAdapter,
     SessionRunner,
-    _Ack,
 )
 from voqalize.sdk.wire import (
     CancelFrame,
@@ -138,53 +136,6 @@ async def test_inbound_normal_lane_drops_newest_and_signals_error() -> None:
         assert not errs[0].fatal
         assert "inbound queue full" in errs[0].error
     finally:
-        await runner.cancel()
-
-
-# ─── Ack emitted on dequeue, NOT after handle_frame ──────────────────────────
-
-
-async def test_ack_enqueued_when_the_frame_is_taken_off_the_lane() -> None:
-    runner, adapter, host = _build()
-    runner.enqueue_inbound(Envelope(UserMessageFrame(text="x"), request_id=42))
-    runner.start()
-    try:
-        await _until(lambda: adapter.received and not runner.out_empty())
-        item = runner.pop_out()
-        assert isinstance(item, _Ack)
-        assert item.ack_id == 42
-        assert host.ready_signals >= 1
-    finally:
-        await runner.cancel()
-
-
-async def test_a_slow_handler_does_not_hold_the_ack() -> None:
-    """The ack must not wait for the brain's compute.
-
-    PyGato blocks its own pipeline queue on this ack, so a handler that waits —
-    a customer writing a transcript row inside ``on_finalize``, which
-    is the real case this pins — would otherwise delay the *next* user utterance
-    by exactly its own cost, on a lane nothing times.
-    """
-    gate = asyncio.Event()
-
-    async def block(frame: Frame, _adapter: Recorder) -> None:
-        if isinstance(frame, UserMessageFrame):
-            await gate.wait()
-
-    runner, adapter, _host = _build(on_frame=block)
-    runner.enqueue_inbound(Envelope(UserMessageFrame(text="x"), request_id=7))
-    runner.start()
-    try:
-        # The handler is parked on the gate and has NOT returned.
-        await _until(lambda: bool(adapter.received))
-        await _until(lambda: not runner.out_empty())
-        item = runner.pop_out()
-        assert isinstance(item, _Ack) and item.ack_id == 7, (
-            "the ack must be out while the handler is still running"
-        )
-    finally:
-        gate.set()
         await runner.cancel()
 
 

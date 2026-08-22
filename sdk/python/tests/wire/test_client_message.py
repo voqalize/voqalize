@@ -43,7 +43,6 @@ async def test_unknown_envelope_body_is_skipped_not_raised() -> None:
     decoded = await CortexFrameSerializer().deserialize_message(unknown)
 
     assert decoded.frame is None
-    assert decoded.ack is None
 
 
 class _Recorder:

@@ -15,7 +15,7 @@
 //        finalize  end  cancel
 //   B→V  speech_start  speech_chunk  speech_end  server_message
 //        update_tts_settings  update_stt_settings  update_idle_settings  cancel
-//   both error  ack
+//   both error
 //
 // Opaque fields (`payload`, `data`, `settings`) are JSON-encoded strings,
 // matching pipecat's MessageFrame.data pattern. No Struct dependency.
@@ -46,14 +46,7 @@ message Envelope {
     End                  end                  = 14;
     Cancel               cancel               = 15;
     Error                error                = 16;
-    Ack                  ack                  = 17;
   }
-
-  // Non-zero means the sender is blocked on this envelope and expects an Ack
-  // echoing the value. The receiver acks on taking it onto its ordered inbound
-  // lane — not after handling it. Zero means fire-and-forget: the envelope is
-  // ambient and must never stall the ordered lane.
-  uint64 request_id = 50;
 
   // Voice-minted, session-monotonic, incremented on every stimulus the voice
   // runtime commits. The brain echoes it, unread, on everything it emits while
@@ -152,7 +145,7 @@ message UpdateIdleSettings {
   string settings = 1;  // JSON-encoded
 }
 
-// ─── Lifecycle and acks ───────────────────────────────────────────────────────
+// ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 message End {}
 
@@ -165,7 +158,3 @@ message Error {
   bool   fatal = 2;
 }
 
-// Echoes the request_id of the envelope being acknowledged.
-message Ack {
-  uint64 ack_id = 1;
-}

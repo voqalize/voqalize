@@ -1,6 +1,6 @@
 """An InterruptionFrame cancels the Brain's in-flight turn.
 
-The Brain adapter SPAWNS the turn so the inbound frame acks promptly; a barge-in
+The Brain adapter SPAWNS the turn so the feeder stays free; a barge-in
 ``InterruptionFrame`` (system lane) then cancels the in-flight generator. Verify
 that contract round-trips through CortexAgent + the multiplexed wire."""
 

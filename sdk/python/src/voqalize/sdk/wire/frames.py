@@ -8,9 +8,9 @@ dataclasses, never in protobuf objects.
 :class:`Frame` marker, so the SDK carries no pipecat dependency. Only protobuf
 ``Envelope`` bytes cross the wire; Python class identity never does.
 
-Every frame here is payload and nothing else. Correlation — ``request_id``,
-``epoch``, ``speech_id`` — rides the envelope and is threaded alongside a
-frame by :mod:`.serializer`, never stored on it.
+Every frame here is payload and nothing else. Correlation — ``epoch`` and
+``speech_id`` — rides the envelope and is threaded alongside a frame by
+:mod:`.serializer`, never stored on it.
 """
 
 from __future__ import annotations

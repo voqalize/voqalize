@@ -24,49 +24,47 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1cvoqalize/frames/frames.proto\x12\x0fvoqalize.frames\"\xb6\t\n\x08\x45nvelope\x12\x44\n\rsession_start\x18\x01 \x01(\x0b\x32\x1d.voqalize.frames.SessionStartH\x00R\x0csessionStart\x12\x41\n\x0cuser_message\x18\x02 \x01(\x0b\x32\x1c.voqalize.frames.UserMessageH\x00R\x0buserMessage\x12\x38\n\tuser_idle\x18\x03 \x01(\x0b\x32\x19.voqalize.frames.UserIdleH\x00R\x08userIdle\x12G\n\x0e\x63lient_message\x18\x04 \x01(\x0b\x32\x1e.voqalize.frames.ClientMessageH\x00R\rclientMessage\x12\x43\n\x0cinterruption\x18\x05 \x01(\x0b\x32\x1d.voqalize.frames.InterruptionH\x00R\x0cinterruption\x12\x41\n\x0cspeech_start\x18\x06 \x01(\x0b\x32\x1c.voqalize.frames.SpeechStartH\x00R\x0bspeechStart\x12\x41\n\x0cspeech_chunk\x18\x07 \x01(\x0b\x32\x1c.voqalize.frames.SpeechChunkH\x00R\x0bspeechChunk\x12;\n\nspeech_end\x18\x08 \x01(\x0b\x32\x1a.voqalize.frames.SpeechEndH\x00R\tspeechEnd\x12\x37\n\x08\x66inalize\x18\t \x01(\x0b\x32\x19.voqalize.frames.FinalizeH\x00R\x08\x66inalize\x12G\n\x0eserver_message\x18\n \x01(\x0b\x32\x1e.voqalize.frames.ServerMessageH\x00R\rserverMessage\x12T\n\x13update_tts_settings\x18\x0b \x01(\x0b\x32\".voqalize.frames.UpdateTTSSettingsH\x00R\x11updateTtsSettings\x12T\n\x13update_stt_settings\x18\x0c \x01(\x0b\x32\".voqalize.frames.UpdateSTTSettingsH\x00R\x11updateSttSettings\x12W\n\x14update_idle_settings\x18\r \x01(\x0b\x32#.voqalize.frames.UpdateIdleSettingsH\x00R\x12updateIdleSettings\x12(\n\x03\x65nd\x18\x0e \x01(\x0b\x32\x14.voqalize.frames.EndH\x00R\x03\x65nd\x12\x31\n\x06\x63\x61ncel\x18\x0f \x01(\x0b\x32\x17.voqalize.frames.CancelH\x00R\x06\x63\x61ncel\x12.\n\x05\x65rror\x18\x10 \x01(\x0b\x32\x16.voqalize.frames.ErrorH\x00R\x05\x65rror\x12(\n\x03\x61\x63k\x18\x11 \x01(\x0b\x32\x14.voqalize.frames.AckH\x00R\x03\x61\x63k\x12\x1d\n\nrequest_id\x18\x32 \x01(\x04R\trequestId\x12\x14\n\x05\x65poch\x18\x33 \x01(\x04R\x05\x65poch\x12\x1b\n\tspeech_id\x18\x34 \x01(\x04R\x08speechIdB\x06\n\x04\x62ody\"b\n\x0cSessionStart\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n\x08\x61gent_id\x18\x02 \x01(\tR\x07\x61gentId\x12\x18\n\x07payload\x18\x03 \x01(\tR\x07payload\"!\n\x0bUserMessage\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\"9\n\x08UserIdle\x12\x14\n\x05level\x18\x01 \x01(\rR\x05level\x12\x17\n\x07idle_ms\x18\x02 \x01(\rR\x06idleMs\"N\n\rClientMessage\x12\x15\n\x06msg_id\x18\x01 \x01(\tR\x05msgId\x12\x12\n\x04type\x18\x02 \x01(\tR\x04type\x12\x12\n\x04\x64\x61ta\x18\x03 \x01(\tR\x04\x64\x61ta\"\x0e\n\x0cInterruption\"b\n\x08\x46inalize\x12\x1d\n\nheard_text\x18\x01 \x01(\tR\theardText\x12\x37\n\x06reason\x18\x02 \x01(\x0e\x32\x1f.voqalize.frames.FinalizeReasonR\x06reason\"\r\n\x0bSpeechStart\"!\n\x0bSpeechChunk\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\"\x0b\n\tSpeechEnd\"#\n\rServerMessage\x12\x12\n\x04\x64\x61ta\x18\x01 \x01(\tR\x04\x64\x61ta\"/\n\x11UpdateTTSSettings\x12\x1a\n\x08settings\x18\x01 \x01(\tR\x08settings\"/\n\x11UpdateSTTSettings\x12\x1a\n\x08settings\x18\x01 \x01(\tR\x08settings\"0\n\x12UpdateIdleSettings\x12\x1a\n\x08settings\x18\x01 \x01(\tR\x08settings\"\x05\n\x03\x45nd\" \n\x06\x43\x61ncel\x12\x16\n\x06reason\x18\x01 \x01(\tR\x06reason\"3\n\x05\x45rror\x12\x14\n\x05\x65rror\x18\x01 \x01(\tR\x05\x65rror\x12\x14\n\x05\x66\x61tal\x18\x02 \x01(\x08R\x05\x66\x61tal\"\x1c\n\x03\x41\x63k\x12\x15\n\x06\x61\x63k_id\x18\x01 \x01(\x04R\x05\x61\x63kId*s\n\x0e\x46inalizeReason\x12\x1f\n\x1b\x46INALIZE_REASON_UNSPECIFIED\x10\x00\x12\x1d\n\x19\x46INALIZE_REASON_COMPLETED\x10\x01\x12!\n\x1d\x46INALIZE_REASON_USER_BARGE_IN\x10\x02\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1cvoqalize/frames/frames.proto\x12\x0fvoqalize.frames\"\xed\x08\n\x08\x45nvelope\x12\x44\n\rsession_start\x18\x01 \x01(\x0b\x32\x1d.voqalize.frames.SessionStartH\x00R\x0csessionStart\x12\x41\n\x0cuser_message\x18\x02 \x01(\x0b\x32\x1c.voqalize.frames.UserMessageH\x00R\x0buserMessage\x12\x38\n\tuser_idle\x18\x03 \x01(\x0b\x32\x19.voqalize.frames.UserIdleH\x00R\x08userIdle\x12G\n\x0e\x63lient_message\x18\x04 \x01(\x0b\x32\x1e.voqalize.frames.ClientMessageH\x00R\rclientMessage\x12\x43\n\x0cinterruption\x18\x05 \x01(\x0b\x32\x1d.voqalize.frames.InterruptionH\x00R\x0cinterruption\x12\x41\n\x0cspeech_start\x18\x06 \x01(\x0b\x32\x1c.voqalize.frames.SpeechStartH\x00R\x0bspeechStart\x12\x41\n\x0cspeech_chunk\x18\x07 \x01(\x0b\x32\x1c.voqalize.frames.SpeechChunkH\x00R\x0bspeechChunk\x12;\n\nspeech_end\x18\x08 \x01(\x0b\x32\x1a.voqalize.frames.SpeechEndH\x00R\tspeechEnd\x12\x37\n\x08\x66inalize\x18\t \x01(\x0b\x32\x19.voqalize.frames.FinalizeH\x00R\x08\x66inalize\x12G\n\x0eserver_message\x18\n \x01(\x0b\x32\x1e.voqalize.frames.ServerMessageH\x00R\rserverMessage\x12T\n\x13update_tts_settings\x18\x0b \x01(\x0b\x32\".voqalize.frames.UpdateTTSSettingsH\x00R\x11updateTtsSettings\x12T\n\x13update_stt_settings\x18\x0c \x01(\x0b\x32\".voqalize.frames.UpdateSTTSettingsH\x00R\x11updateSttSettings\x12W\n\x14update_idle_settings\x18\r \x01(\x0b\x32#.voqalize.frames.UpdateIdleSettingsH\x00R\x12updateIdleSettings\x12(\n\x03\x65nd\x18\x0e \x01(\x0b\x32\x14.voqalize.frames.EndH\x00R\x03\x65nd\x12\x31\n\x06\x63\x61ncel\x18\x0f \x01(\x0b\x32\x17.voqalize.frames.CancelH\x00R\x06\x63\x61ncel\x12.\n\x05\x65rror\x18\x10 \x01(\x0b\x32\x16.voqalize.frames.ErrorH\x00R\x05\x65rror\x12\x14\n\x05\x65poch\x18\x33 \x01(\x04R\x05\x65poch\x12\x1b\n\tspeech_id\x18\x34 \x01(\x04R\x08speechIdB\x06\n\x04\x62ody\"b\n\x0cSessionStart\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n\x08\x61gent_id\x18\x02 \x01(\tR\x07\x61gentId\x12\x18\n\x07payload\x18\x03 \x01(\tR\x07payload\"!\n\x0bUserMessage\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\"9\n\x08UserIdle\x12\x14\n\x05level\x18\x01 \x01(\rR\x05level\x12\x17\n\x07idle_ms\x18\x02 \x01(\rR\x06idleMs\"N\n\rClientMessage\x12\x15\n\x06msg_id\x18\x01 \x01(\tR\x05msgId\x12\x12\n\x04type\x18\x02 \x01(\tR\x04type\x12\x12\n\x04\x64\x61ta\x18\x03 \x01(\tR\x04\x64\x61ta\"\x0e\n\x0cInterruption\"b\n\x08\x46inalize\x12\x1d\n\nheard_text\x18\x01 \x01(\tR\theardText\x12\x37\n\x06reason\x18\x02 \x01(\x0e\x32\x1f.voqalize.frames.FinalizeReasonR\x06reason\"\r\n\x0bSpeechStart\"!\n\x0bSpeechChunk\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\"\x0b\n\tSpeechEnd\"#\n\rServerMessage\x12\x12\n\x04\x64\x61ta\x18\x01 \x01(\tR\x04\x64\x61ta\"/\n\x11UpdateTTSSettings\x12\x1a\n\x08settings\x18\x01 \x01(\tR\x08settings\"/\n\x11UpdateSTTSettings\x12\x1a\n\x08settings\x18\x01 \x01(\tR\x08settings\"0\n\x12UpdateIdleSettings\x12\x1a\n\x08settings\x18\x01 \x01(\tR\x08settings\"\x05\n\x03\x45nd\" \n\x06\x43\x61ncel\x12\x16\n\x06reason\x18\x01 \x01(\tR\x06reason\"3\n\x05\x45rror\x12\x14\n\x05\x65rror\x18\x01 \x01(\tR\x05\x65rror\x12\x14\n\x05\x66\x61tal\x18\x02 \x01(\x08R\x05\x66\x61tal*s\n\x0e\x46inalizeReason\x12\x1f\n\x1b\x46INALIZE_REASON_UNSPECIFIED\x10\x00\x12\x1d\n\x19\x46INALIZE_REASON_COMPLETED\x10\x01\x12!\n\x1d\x46INALIZE_REASON_USER_BARGE_IN\x10\x02\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'voqalize.frames.frames_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_FINALIZEREASON']._serialized_start=2020
-  _globals['_FINALIZEREASON']._serialized_end=2135
+  _globals['_FINALIZEREASON']._serialized_start=1917
+  _globals['_FINALIZEREASON']._serialized_end=2032
   _globals['_ENVELOPE']._serialized_start=50
-  _globals['_ENVELOPE']._serialized_end=1256
-  _globals['_SESSIONSTART']._serialized_start=1258
-  _globals['_SESSIONSTART']._serialized_end=1356
-  _globals['_USERMESSAGE']._serialized_start=1358
-  _globals['_USERMESSAGE']._serialized_end=1391
-  _globals['_USERIDLE']._serialized_start=1393
-  _globals['_USERIDLE']._serialized_end=1450
-  _globals['_CLIENTMESSAGE']._serialized_start=1452
-  _globals['_CLIENTMESSAGE']._serialized_end=1530
-  _globals['_INTERRUPTION']._serialized_start=1532
-  _globals['_INTERRUPTION']._serialized_end=1546
-  _globals['_FINALIZE']._serialized_start=1548
-  _globals['_FINALIZE']._serialized_end=1646
-  _globals['_SPEECHSTART']._serialized_start=1648
-  _globals['_SPEECHSTART']._serialized_end=1661
-  _globals['_SPEECHCHUNK']._serialized_start=1663
-  _globals['_SPEECHCHUNK']._serialized_end=1696
-  _globals['_SPEECHEND']._serialized_start=1698
-  _globals['_SPEECHEND']._serialized_end=1709
-  _globals['_SERVERMESSAGE']._serialized_start=1711
-  _globals['_SERVERMESSAGE']._serialized_end=1746
-  _globals['_UPDATETTSSETTINGS']._serialized_start=1748
-  _globals['_UPDATETTSSETTINGS']._serialized_end=1795
-  _globals['_UPDATESTTSETTINGS']._serialized_start=1797
-  _globals['_UPDATESTTSETTINGS']._serialized_end=1844
-  _globals['_UPDATEIDLESETTINGS']._serialized_start=1846
-  _globals['_UPDATEIDLESETTINGS']._serialized_end=1894
-  _globals['_END']._serialized_start=1896
-  _globals['_END']._serialized_end=1901
-  _globals['_CANCEL']._serialized_start=1903
-  _globals['_CANCEL']._serialized_end=1935
-  _globals['_ERROR']._serialized_start=1937
-  _globals['_ERROR']._serialized_end=1988
-  _globals['_ACK']._serialized_start=1990
-  _globals['_ACK']._serialized_end=2018
+  _globals['_ENVELOPE']._serialized_end=1183
+  _globals['_SESSIONSTART']._serialized_start=1185
+  _globals['_SESSIONSTART']._serialized_end=1283
+  _globals['_USERMESSAGE']._serialized_start=1285
+  _globals['_USERMESSAGE']._serialized_end=1318
+  _globals['_USERIDLE']._serialized_start=1320
+  _globals['_USERIDLE']._serialized_end=1377
+  _globals['_CLIENTMESSAGE']._serialized_start=1379
+  _globals['_CLIENTMESSAGE']._serialized_end=1457
+  _globals['_INTERRUPTION']._serialized_start=1459
+  _globals['_INTERRUPTION']._serialized_end=1473
+  _globals['_FINALIZE']._serialized_start=1475
+  _globals['_FINALIZE']._serialized_end=1573
+  _globals['_SPEECHSTART']._serialized_start=1575
+  _globals['_SPEECHSTART']._serialized_end=1588
+  _globals['_SPEECHCHUNK']._serialized_start=1590
+  _globals['_SPEECHCHUNK']._serialized_end=1623
+  _globals['_SPEECHEND']._serialized_start=1625
+  _globals['_SPEECHEND']._serialized_end=1636
+  _globals['_SERVERMESSAGE']._serialized_start=1638
+  _globals['_SERVERMESSAGE']._serialized_end=1673
+  _globals['_UPDATETTSSETTINGS']._serialized_start=1675
+  _globals['_UPDATETTSSETTINGS']._serialized_end=1722
+  _globals['_UPDATESTTSETTINGS']._serialized_start=1724
+  _globals['_UPDATESTTSETTINGS']._serialized_end=1771
+  _globals['_UPDATEIDLESETTINGS']._serialized_start=1773
+  _globals['_UPDATEIDLESETTINGS']._serialized_end=1821
+  _globals['_END']._serialized_start=1823
+  _globals['_END']._serialized_end=1828
+  _globals['_CANCEL']._serialized_start=1830
+  _globals['_CANCEL']._serialized_end=1862
+  _globals['_ERROR']._serialized_start=1864
+  _globals['_ERROR']._serialized_end=1915
 # @@protoc_insertion_point(module_scope)

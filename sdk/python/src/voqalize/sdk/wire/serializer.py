@@ -3,10 +3,10 @@
 Transcodes between the plain dataclasses in :mod:`.frames` and ``Envelope``
 bytes. Pipecat-free, stateless, no base class.
 
-Correlation is not part of a frame. ``serialize`` takes ``request_id``,
-``epoch`` and ``speech_id`` as keywords and writes them onto the envelope;
+Correlation is not part of a frame. ``serialize`` takes ``epoch`` and
+``speech_id`` as keywords and writes them onto the envelope;
 ``deserialize_message`` hands them back beside the decoded frame in a
-:class:`DecodedMessage`. Callers thread that trio explicitly — the emitting
+:class:`DecodedMessage`. Callers thread the pair explicitly — the emitting
 context (a turn, a speech unit) is what knows the values, not the payload.
 
 ``deserialize`` is strict and raises on anything it cannot decode.
@@ -64,30 +64,13 @@ class MalformedFrameError(Exception):
 
 
 @dataclass(frozen=True)
-class Ack:
-    """Wire-level ordering ack. Not a frame.
+class DecodedMessage:
+    """One envelope: its frame plus the envelope's correlation.
 
-    Sent on taking an envelope onto the ordered inbound lane, which releases the
-    peer's blocked send. Explicitly not "the brain has handled this".
+    ``frame`` is None for a body this build does not know.
     """
 
-    ack_id: int
-
-
-def serialize_ack(ack_id: int) -> bytes:
-    """Encode a bare Ack envelope."""
-    env = pb.Envelope()
-    env.ack.ack_id = ack_id
-    return env.SerializeToString()
-
-
-@dataclass(frozen=True)
-class DecodedMessage:
-    """One envelope: its frame (or ack) plus the envelope's correlation."""
-
     frame: Frame | None
-    ack: int | None
-    request_id: int = 0
     epoch: int = 0
     speech_id: int = 0
 
@@ -313,7 +296,6 @@ class CortexFrameSerializer:
         self,
         frame: Frame,
         *,
-        request_id: int = 0,
         epoch: int = 0,
         speech_id: int = 0,
     ) -> bytes:
@@ -325,8 +307,6 @@ class CortexFrameSerializer:
             )
         env = pb.Envelope()
         encoder(frame, env)
-        if request_id:
-            env.request_id = request_id
         if epoch:
             env.epoch = epoch
         if speech_id:
@@ -334,12 +314,10 @@ class CortexFrameSerializer:
         return env.SerializeToString()
 
     async def deserialize(self, data: str | bytes) -> Frame:
-        decoded = self._decode_envelope(data)
-        if decoded.frame is None:
-            raise MalformedFrameError(
-                "Received Ack-only envelope via deserialize(); call deserialize_message() instead."
-            )
-        return decoded.frame
+        frame = self._decode_envelope(data).frame
+        if frame is None:  # unreachable: strict decoding raises on a bodyless envelope
+            raise MalformedFrameError("Envelope has no body set.")
+        return frame
 
     async def deserialize_message(self, data: str | bytes) -> DecodedMessage:
         """Decode an envelope, skipping a body this build does not know."""
@@ -354,11 +332,7 @@ class CortexFrameSerializer:
         except Exception as exc:
             raise MalformedFrameError(f"Envelope parse failed: {exc}") from exc
 
-        corr: dict[str, int] = {
-            "request_id": env.request_id,
-            "epoch": env.epoch,
-            "speech_id": env.speech_id,
-        }
+        corr: dict[str, int] = {"epoch": env.epoch, "speech_id": env.speech_id}
 
         which = env.WhichOneof("body")
         if which is None:
@@ -368,10 +342,7 @@ class CortexFrameSerializer:
             if strict:
                 raise MalformedFrameError("Envelope has no body set.")
             logger.warning("wire: envelope with no known body (newer peer?); skipping")
-            return DecodedMessage(frame=None, ack=None, **corr)
-
-        if which == "ack":
-            return DecodedMessage(frame=None, ack=env.ack.ack_id, **corr)
+            return DecodedMessage(frame=None, **corr)
 
         decoder = _DECODERS.get(which)
         if decoder is None:
@@ -380,9 +351,9 @@ class CortexFrameSerializer:
                     f"Envelope body {which!r} has no decoder. Schema and serializer drift?"
                 )
             logger.warning("wire: envelope body {!r} has no decoder; skipping", which)
-            return DecodedMessage(frame=None, ack=None, **corr)
+            return DecodedMessage(frame=None, **corr)
         try:
-            return DecodedMessage(frame=decoder(env), ack=None, **corr)
+            return DecodedMessage(frame=decoder(env), **corr)
         except Exception as exc:
             raise MalformedFrameError(f"Decoder for {which!r} failed: {exc}") from exc
 

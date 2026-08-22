@@ -70,31 +70,23 @@ class _Client:
         self._wire = wire
         self._ser = CortexFrameSerializer()
 
-    async def send(self, frame, *, request_id: int = 0, epoch: int = 0, speech_id: int = 0) -> None:
-        payload = await self._ser.serialize(
-            frame, request_id=request_id, epoch=epoch, speech_id=speech_id
-        )
+    async def send(self, frame, *, epoch: int = 0, speech_id: int = 0) -> None:
+        payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
         await self._wire.send(FrameDirection.DOWNSTREAM, payload)
 
-    async def collect_until(self, predicate, timeout: float = 3.0):
-        """Drain inbound messages until ``predicate(frames, acks)`` is true.
-
-        Returns ``(frames, acks)`` where ``frames`` is the list of decoded
-        Frames and ``acks`` the list of ack ids seen."""
+    async def collect_until(self, predicate, timeout: float = 3.0) -> list:
+        """Drain inbound messages until ``predicate(frames)`` is true."""
         frames: list = []
-        acks: list[int] = []
 
         async def _pump():
-            while not predicate(frames, acks):
+            while not predicate(frames):
                 _direction, payload = await self._wire.recv()
                 msg = await self._ser.deserialize_message(payload)
-                if msg.ack is not None:
-                    acks.append(msg.ack)
-                elif msg.frame is not None:
+                if msg.frame is not None:
                     frames.append(msg.frame)
 
         await asyncio.wait_for(_pump(), timeout=timeout)
-        return frames, acks
+        return frames
 
 
 async def _serve(brain_cls, **kwargs) -> tuple[BrainServer, int]:
@@ -115,7 +107,7 @@ async def _connect(port: int, session_id: str, *, headers: dict | None = None) -
 
 
 def _has_text(substr: str):
-    def _pred(frames, _acks) -> bool:
+    def _pred(frames) -> bool:
         return any(isinstance(f, SpeechChunkFrame) and substr in f.text for f in frames)
 
     return _pred
@@ -125,7 +117,7 @@ def _has_text(substr: str):
 
 
 async def test_direct_round_trip_greeting_and_echo():
-    """Full loop with no Cortex: start → greeting → user turn → echo + ack."""
+    """Full loop with no Cortex: start → greeting → user turn → echo."""
     server, port = await _serve(EchoBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
@@ -133,16 +125,13 @@ async def test_direct_round_trip_greeting_and_echo():
     try:
         # Session start → the brain greets (agent-initiated, epoch 0).
         await client.send(SessionStartFrame(session_id=session_id, agent_id="echo"))
-        frames, _ = await client.collect_until(_has_text("hi there"))
+        frames = await client.collect_until(_has_text("hi there"))
         assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
-        # A user turn → the brain echoes, and the frame is acked after dispatch.
-        await client.send(UserMessageFrame(text="ping"), epoch=1, request_id=42)
-        frames, acks = await client.collect_until(
-            lambda fr, ac: _has_text("echo: ping")(fr, ac) and 42 in ac
-        )
+        # A user turn → the brain echoes.
+        await client.send(UserMessageFrame(text="ping"), epoch=1)
+        frames = await client.collect_until(_has_text("echo: ping"))
         assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
-        assert 42 in acks, "the data frame must be acked after the brain consumes it"
     finally:
         await wire.close()
         await server.aclose()
@@ -157,13 +146,13 @@ async def test_direct_interruption_echoes_drain_barrier():
     try:
         await client.send(SessionStartFrame(session_id=session_id, agent_id="slow"))
         # Kick off the slow turn, then barge in before it can speak.
-        await client.send(UserMessageFrame(text="hello"), epoch=1, request_id=1)
+        await client.send(UserMessageFrame(text="hello"), epoch=1)
         await asyncio.sleep(0.1)
         await client.send(InterruptionFrame())
 
         # The brain echoes an InterruptionFrame back — PyGato's drain barrier.
-        frames, _ = await client.collect_until(
-            lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr)
+        frames = await client.collect_until(
+            lambda fr: any(isinstance(f, InterruptionFrame) for f in fr)
         )
         assert any(isinstance(f, InterruptionFrame) for f in frames)
         # The cancelled unit never produced its (post-sleep) text.
@@ -194,20 +183,17 @@ async def test_direct_idle_interruption_is_handled_and_session_survives():
 
         # Idle barge-in: interrupt with no turn in flight.
         await client.send(InterruptionFrame())
-        frames, _ = await client.collect_until(
-            lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr)
+        frames = await client.collect_until(
+            lambda fr: any(isinstance(f, InterruptionFrame) for f in fr)
         )
         assert any(isinstance(f, InterruptionFrame) for f in frames), (
             "an idle interruption must still echo the drain barrier"
         )
 
-        # The session survived: a subsequent user turn is served normally + acked.
-        await client.send(UserMessageFrame(text="ping"), epoch=1, request_id=7)
-        frames, acks = await client.collect_until(
-            lambda fr, ac: _has_text("echo: ping")(fr, ac) and 7 in ac
-        )
+        # The session survived: a subsequent user turn is served normally.
+        await client.send(UserMessageFrame(text="ping"), epoch=1)
+        frames = await client.collect_until(_has_text("echo: ping"))
         assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
-        assert 7 in acks, "the post-interruption turn must still be acked"
     finally:
         await wire.close()
         await server.aclose()
@@ -255,7 +241,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
         wire = await _connect(port, good_sid, headers={"Authorization": f"Bearer {mint(good_sid)}"})
         client = _Client(wire)
         await client.send(SessionStartFrame(session_id=good_sid, agent_id="echo"))
-        frames, _ = await client.collect_until(_has_text("hi there"))
+        frames = await client.collect_until(_has_text("hi there"))
         assert frames
         await wire.close()
 

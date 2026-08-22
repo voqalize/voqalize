@@ -2,33 +2,21 @@
 
 One :class:`SessionRunner` per session. It owns the two-lane inbound buffer, the
 two-lane outbound buffer, the feeder loop that dispatches frames to the session
-adapter, and ack-gating. The *same* runner drives both transports (the outbound
-Cortex relay and the inbound direct server), which differ only in the small
-:class:`RunnerHost` seam (who signals the writer and who tears the session down).
+adapter. The *same* runner drives both transports (the outbound Cortex relay and
+the inbound direct server), which differ only in the small :class:`RunnerHost`
+seam (who signals the writer and who tears the session down).
 
-Design (identical to the previous pipecat-pipeline version, minus pipecat):
+Design:
 
 - **Two lanes each way.** System frames (``SessionStart`` / ``Interruption`` / ``Cancel``
   — see :func:`~voqalize.sdk.wire.is_system`) ride a priority lane that bypasses
   queued data; everything else rides a bounded normal lane with **drop-newest**
   semantics. ``End`` is *not* system — it rides the normal lane so a session tears
   down only after its queued data drains.
-- **Ack-gating.** For any inbound envelope carrying ``request_id > 0``, the runner
-  emits an ``Ack`` envelope the moment the frame is **taken off the inbound lane**,
-  before ``adapter.handle_frame`` runs. The ack answers "this frame is committed to
-  the ordered lane", not "the brain finished thinking about it" — and that is
-  exactly the fact PyGato's ``_send_and_await_ack`` needs, because the feeder below
-  is a single sequential consumer, so ordering into the adapter is already
-  guaranteed at dequeue time.
-
-  Acking *after* the handler would make the ack mean "handled", which welds
-  brain-side compute onto PyGato's pipeline: an ``on_finalize`` doing a
-  database write parks ``__process_queue`` for the whole write, and the *next* user
-  utterance — queued behind it in the same direction-agnostic queue — goes out late
-  by exactly that much. That costs a real call about two seconds a turn, and it is
-  invisible, because the delay lands on PyGato's transmit lane where no timer is
-  watching. A slow callback delays the *callbacks* behind it (they are one ordered
-  lane by design) and nothing else.
+- **One sequential consumer.** The feeder below takes envelopes off the inbound
+  lane one at a time and awaits ``adapter.handle_frame`` on each, so the adapter
+  sees frames in wire order. A slow callback delays the *callbacks* behind it and
+  nothing else — it never reaches back across the wire.
 - **Backpressure.** Normal-lane overflow drops the newest frame and delivers a
   non-fatal ``ErrorFrame`` to the adapter (edge-triggered: one per congestion
   episode per direction). The runner never kills a session.
@@ -72,7 +60,6 @@ class Envelope:
     """
 
     frame: Frame
-    request_id: int = 0
     epoch: int = 0
     speech_id: int = 0
 
@@ -125,16 +112,6 @@ class RunnerHost(Protocol):
     def close_session(self, runner: SessionRunner) -> None: ...
 
 
-@dataclass
-class _Ack:
-    """Outbound marker: emit an ``Ack(ack_id)`` envelope. Never dropped."""
-
-    ack_id: int
-
-
-OutItem = Envelope | _Ack
-
-
 # ─── Lane containers ──────────────────────────────────────────────────────────
 
 
@@ -181,31 +158,25 @@ class _InLanes:
 
 @dataclass
 class _OutLanes:
-    """Outbound: system (Interruption echo) + normal (Envelope | _Ack)."""
+    """Outbound: system (Interruption echo) + normal (everything else)."""
 
     system_max: int
     normal_max: int
-    system: deque[OutItem] = field(default_factory=deque)
-    normal: deque[OutItem] = field(default_factory=deque)
+    system: deque[Envelope] = field(default_factory=deque)
+    normal: deque[Envelope] = field(default_factory=deque)
 
-    def put_system(self, item: OutItem) -> None:
+    def put_system(self, item: Envelope) -> None:
         if len(self.system) >= self.system_max:
             raise RuntimeError(f"outbound system lane overflow at {self.system_max} — bug")
         self.system.append(item)
 
-    def put_normal(self, item: OutItem) -> bool:
+    def put_normal(self, item: Envelope) -> bool:
         if len(self.normal) >= self.normal_max:
             return False
         self.normal.append(item)
         return True
 
-    def append_ack(self, item: _Ack) -> None:
-        # Acks bypass the bound: a dropped ack hangs the bridge. They stay in the
-        # normal lane so they FIFO with the session's own frames rather than
-        # overtaking them on the system lane.
-        self.normal.append(item)
-
-    def pop(self) -> OutItem | None:
+    def pop(self) -> Envelope | None:
         if self.system:
             return self.system.popleft()
         if self.normal:
@@ -287,13 +258,7 @@ class SessionRunner:
         if was_empty:
             self._host.signal_ready(self)
 
-    def _enqueue_ack(self, ack_id: int) -> None:
-        was_empty = self._out.empty()
-        self._out.append_ack(_Ack(ack_id))
-        if was_empty:
-            self._host.signal_ready(self)
-
-    def pop_out(self) -> OutItem | None:
+    def pop_out(self) -> Envelope | None:
         item = self._out.pop()
         # Outbound drained: re-check the edge-triggered flag so an outbound-heavy
         # session with no inbound traffic can still clear.
@@ -311,12 +276,6 @@ class SessionRunner:
         try:
             while True:
                 env = await self._in.get()
-                # Ack first: the frame is now committed to this single sequential
-                # consumer, which is the whole of what the ack promises. Waiting
-                # until `handle_frame` returns would put the customer's callback
-                # on PyGato's critical path — see the module docstring.
-                if env.request_id:
-                    self._enqueue_ack(env.request_id)
                 try:
                     await self._adapter.handle_frame(env)
                 except asyncio.CancelledError:

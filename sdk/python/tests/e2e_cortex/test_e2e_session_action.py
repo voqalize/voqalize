@@ -180,10 +180,8 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
                 ),
                 epoch=1,
             )
-            frames, _ = await client.collect_until(
-                lambda fr, _ac: any(
-                    isinstance(f, SpeechChunkFrame) and "got ok" in f.text for f in fr
-                ),
+            frames = await client.collect_until(
+                lambda fr: any(isinstance(f, SpeechChunkFrame) and "got ok" in f.text for f in fr),
                 timeout=5.0,
             )
         finally:

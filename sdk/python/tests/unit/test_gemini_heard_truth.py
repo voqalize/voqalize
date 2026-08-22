@@ -42,7 +42,6 @@ async def _brain() -> tuple[GeminiBrain, Session]:
             frame=SessionStartFrame(session_id="s", agent_id="a"),
             epoch=0,
             speech_id=0,
-            request_id=0,
         )
     )
     session = adapter._session  # pyright: ignore[reportPrivateUsage]

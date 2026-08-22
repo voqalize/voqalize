@@ -56,7 +56,6 @@ from .engine import (
     RunnerHost,
     SessionFactory,
     SessionRunner,
-    _Ack,
 )
 from .wire import CortexFrameSerializer, MalformedFrameError
 
@@ -228,11 +227,10 @@ class _ChannelSession(RunnerHost):
                 logger.exception("session: malformed payload; skipping")
                 continue
             if decoded.frame is None:
-                continue  # SDK is the ack sender, never the receiver
+                continue  # a body this build does not know
             self._runner.enqueue_inbound(
                 Envelope(
                     frame=decoded.frame,
-                    request_id=decoded.request_id,
                     epoch=decoded.epoch,
                     speech_id=decoded.speech_id,
                 )
@@ -248,12 +246,9 @@ class _ChannelSession(RunnerHost):
                 if item is None:
                     break
                 try:
-                    if isinstance(item, _Ack):
-                        out = serialize_ack_bytes(item.ack_id)
-                    else:
-                        out = await self._serializer.serialize(
-                            item.frame, epoch=item.epoch, speech_id=item.speech_id
-                        )
+                    out = await self._serializer.serialize(
+                        item.frame, epoch=item.epoch, speech_id=item.speech_id
+                    )
                 except Exception:
                     logger.exception("session: serialize failed")
                     continue
@@ -276,13 +271,6 @@ class _ChannelSession(RunnerHost):
             with contextlib.suppress(Exception):
                 await self._runner.cancel()
             self._runner = None
-
-
-def serialize_ack_bytes(ack_id: int) -> bytes:
-    # Local re-export so _ChannelSession doesn't reach into wire.serializer.
-    from .wire.serializer import serialize_ack
-
-    return serialize_ack(ack_id)
 
 
 async def serve_channel(

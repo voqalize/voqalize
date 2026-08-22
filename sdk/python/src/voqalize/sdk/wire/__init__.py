@@ -7,8 +7,7 @@ Public surface:
 - The frame dataclasses plus ``Frame``, ``FrameDirection`` (the 1-byte direction
   enum) and ``is_system`` (the lane-routing predicate).
 - ``CortexFrameSerializer`` — the protobuf codec; ``DecodedMessage`` carries a
-  decoded frame beside the envelope's ``request_id`` / ``epoch`` /
-  ``speech_id``.
+  decoded frame beside the envelope's ``epoch`` / ``speech_id``.
 - ``MultiplexedWire``, ``Wire``, ``WireConfig``, ``PermanentClose`` — websocket
   transport with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
   handshake-refused case: a credential cortex answers 401/403 to is never
@@ -40,12 +39,10 @@ from .frames import (
     is_system,
 )
 from .serializer import (
-    Ack,
     CortexFrameSerializer,
     DecodedMessage,
     MalformedFrameError,
     UnsupportedFrameError,
-    serialize_ack,
 )
 from .transport import (
     AuthRejected,
@@ -58,7 +55,6 @@ from .transport import (
 
 __all__ = [
     "WIRE_FRAME_CLASSES",
-    "Ack",
     "AuthRejected",
     "CancelFrame",
     "ClientMessageFrame",
@@ -89,5 +85,4 @@ __all__ = [
     "WireClosed",
     "WireConfig",
     "is_system",
-    "serialize_ack",
 ]

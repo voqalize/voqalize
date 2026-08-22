@@ -55,8 +55,8 @@ async def test_interruption_cancels_in_flight() -> None:
             await client.send(UserMessageFrame(text="say hi"), epoch=1)
 
             # Wait for the first chunk to arrive over the wire.
-            frames, _ = await client.collect_until(
-                lambda fr, _ac: any(isinstance(f, SpeechChunkFrame) for f in fr),
+            frames = await client.collect_until(
+                lambda fr: any(isinstance(f, SpeechChunkFrame) for f in fr),
                 timeout=3.0,
             )
             assert any(f.text == "chunk-1" for f in frames if isinstance(f, SpeechChunkFrame))
@@ -68,8 +68,8 @@ async def test_interruption_cancels_in_flight() -> None:
             await wait_until(lambda: "cancelled:say hi" in StreamingResponder.timeline, timeout=3.0)
 
             # Collect everything up to and including the InterruptionFrame echo.
-            frames2, _ = await client.collect_until(
-                lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr),
+            frames2 = await client.collect_until(
+                lambda fr: any(isinstance(f, InterruptionFrame) for f in fr),
                 timeout=3.0,
             )
             assert any(isinstance(f, InterruptionFrame) for f in frames2)

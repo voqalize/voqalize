@@ -66,8 +66,8 @@ async def test_round_trip_every_frame() -> None:
                 "SpeechChunkFrame",
                 "SpeechEndFrame",
             }
-            frames, _ = await client.collect_until(
-                lambda fr, _ac: expected.issubset({type(f).__name__ for f in fr}),
+            frames = await client.collect_until(
+                lambda fr: expected.issubset({type(f).__name__ for f in fr}),
                 timeout=5.0,
             )
             texts = [f.text for f in frames if isinstance(f, SpeechChunkFrame)]

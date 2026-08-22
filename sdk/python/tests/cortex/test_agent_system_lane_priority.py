@@ -1,8 +1,8 @@
 """A barge-in InterruptionFrame rides the system lane and preempts in-flight
 work even under a normal-lane backlog.
 
-The Brain adapter spawns each turn (so inbound data frames ack promptly and the
-feeder never blocks), and the runner dispatches the system-lane
+The Brain adapter spawns each turn (so the feeder never blocks), and the runner
+dispatches the system-lane
 ``InterruptionFrame`` ahead of any queued normal frames. The net observable:
 after piling up many user turns whose responses are slow, a single interruption
 cancels the in-flight turn(s) promptly — without first grinding through the whole

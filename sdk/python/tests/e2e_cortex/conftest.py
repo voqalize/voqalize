@@ -36,37 +36,31 @@ class PygatoClient:
         self,
         frame: Frame,
         *,
-        request_id: int = 0,
         epoch: int = 0,
         speech_id: int = 0,
     ) -> None:
-        payload = await self._ser.serialize(
-            frame, request_id=request_id, epoch=epoch, speech_id=speech_id
-        )
+        payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
         await self._wire.send(FrameDirection.DOWNSTREAM, payload)
 
     async def close(self) -> None:
         await self._wire.close()
 
-    async def collect_until(self, predicate, timeout: float = 5.0):
-        """Drain inbound messages until ``predicate(frames, acks)`` is true."""
+    async def collect_until(self, predicate, timeout: float = 5.0) -> list[Frame]:
+        """Drain inbound messages until ``predicate(frames)`` is true."""
         frames: list[Frame] = []
-        acks: list[int] = []
 
         async def pump() -> None:
-            while not predicate(frames, acks):
+            while not predicate(frames):
                 _direction, payload = await self._wire.recv()
                 try:
                     msg = await self._ser.deserialize_message(payload)
                 except MalformedFrameError:
                     continue
-                if msg.ack is not None:
-                    acks.append(msg.ack)
-                elif msg.frame is not None:
+                if msg.frame is not None:
                     frames.append(msg.frame)
 
         await asyncio.wait_for(pump(), timeout=timeout)
-        return frames, acks
+        return frames
 
     async def collect_ui_commands(self, min_count: int, timeout: float = 5.0) -> list[dict]:
         """Drain inbound messages until at least ``min_count`` ui_commands seen."""
