@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from websockets.exceptions import ConnectionClosed
 
 from voqalize.sdk.wire import (
-    PROTOCOL_VERSION,
+    WIRE_VERSION,
     BrowserCommandFrame,
     BrowserMessageFrame,
     CancelFrame,
@@ -349,7 +349,7 @@ class VoiceDriver:
                 session_id=self.session_id,
                 agent_id=self.agent_id,
                 payload=payload or {},
-                protocol_version=PROTOCOL_VERSION,
+                wire_version=WIRE_VERSION,
             )
         )
         got = await self._wait_for(

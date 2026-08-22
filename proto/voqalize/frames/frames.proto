@@ -23,7 +23,7 @@
 // Opaque fields (`payload`, `data`) are JSON-encoded strings, matching
 // pipecat's MessageFrame.data pattern. No Struct dependency.
 //
-// This is version 1. The runtime stamps `SessionStart.protocol_version` and a
+// This is version 1. The runtime stamps `SessionStart.wire_version` and a
 // brain that speaks a different one refuses the session outright. The version
 // gates behaviour, not parsing: protobuf ignores unknown fields by itself, so
 // what a version buys is the ability to refuse rather than guess.
@@ -31,7 +31,7 @@
 // The schema is append-only from v1. Field numbers are never reused — a retired
 // one is `reserved`. Envelope arms are never renumbered. A message is reserved
 // rather than removed. Adding a field or an arm does not bump the version; a
-// bump means the two ends no longer speak the same protocol, and that is meant
+// bump means the two ends no longer speak the same wire, and that is meant
 // to be rare.
 
 syntax = "proto3";
@@ -87,10 +87,10 @@ message Envelope {
 
 // First envelope on a session. `payload` is opaque customer init data.
 message SessionStart {
-  string session_id       = 1;
-  string agent_id         = 2;
-  string payload          = 3;  // JSON-encoded
-  uint32 protocol_version = 4;
+  string session_id   = 1;
+  string agent_id     = 2;
+  string payload      = 3;  // JSON-encoded
+  uint32 wire_version = 4;
 }
 
 // Committed user stimulus. Text-only today; richer content gets new fields.

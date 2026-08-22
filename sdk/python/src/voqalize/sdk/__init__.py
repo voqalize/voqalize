@@ -32,7 +32,7 @@ class; nothing here imports it.
 
 from ._logging import configure_logging, session_context
 from .actions import Action, Result
-from .brain import ActionHandle, Brain, ProtocolError, RequestRejected, Session, serve
+from .brain import ActionHandle, Brain, RequestRejected, Session, WireError, serve
 from .events import (
     BrowserMessage,
     Chunk,
@@ -55,7 +55,6 @@ __all__ = [
     "Chunk",
     "Error",
     "Finalize",
-    "ProtocolError",
     "RequestRejected",
     "Result",
     "Session",
@@ -65,6 +64,7 @@ __all__ = [
     "SpeechStart",
     "UserIdle",
     "UserMessage",
+    "WireError",
     "configure_logging",
     "run_session",
     "serve",

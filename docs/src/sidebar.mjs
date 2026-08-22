@@ -30,7 +30,7 @@ export const sidebar = [
   {
     label: "Reference",
     items: [
-      { label: "Voice protocol (Vql frames)", slug: "reference/voice-protocol" },
+      { label: "The wire", slug: "reference/wire" },
       { label: "Voice & language catalog", slug: "reference/catalog" },
       { label: "MCP server", slug: "reference/mcp" },
     ],

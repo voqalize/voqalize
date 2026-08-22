@@ -53,10 +53,9 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
   `on_user_message` — a *speaking* callback — so a tier-1 injection produces a turn
   by the same path a spoken sentence does. Nothing special-cases it.
 - **The browser chooses the tier by choosing a method.** `sendUserMessage` (tier 1,
-  drives a turn) versus `sendAppMessage` (tier 2/3, mute). `design/BRAIN-PROTOCOL.md`
-  §10 calls the pair "what makes the split routable without the runtime
-  interpreting payloads" — the runtime never has to guess whether a payload is
-  worth speaking about, because the sender already said.
+  drives a turn) versus a browser message (tier 2/3, mute). That is what makes the
+  split routable without the runtime interpreting payloads — it never has to guess
+  whether a payload is worth speaking about, because the sender already said.
 - **`None` appends nothing** — no header, no empty block. A conditional tier-2 fact
   is genuinely absent when it does not apply.
 - **Tier 3's structure is kept current by `state_sync`.** Incoming app messages
@@ -110,9 +109,8 @@ Tier choice is the concrete form of the 80/10/10 split in
 - **Tier 1's browser half is not plumbed.** The wire frame exists, `on_user_message`
   receives it, and the name is chosen — but `sdk/react` today exposes only
   `sendMessage(type, data)` (`useVoqalSession.ts:154`), which is the app-message
-  leg. `sendUserMessage` is named in `BRAIN-PROTOCOL.md` §10 with the naming still
-  open. So the tier is designed, wire-supported and unfinished — say that plainly
-  rather than describing it as if a customer could use it today.
+  leg. So the tier is wire-supported and unfinished on the browser side — say that
+  plainly rather than describing it as if a customer could use it today.
 - **The `UserMessage` frame is text-only.** The motivating cases (an uploaded
   photo, a picked item) are not text, and the proto says so: "richer content gets
   new fields." The tier-1 story is honest only if the page says the frame will

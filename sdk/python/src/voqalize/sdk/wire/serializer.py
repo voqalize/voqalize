@@ -84,7 +84,7 @@ def _enc_session_start(f: SessionStartFrame, env: pb.Envelope) -> None:
     m.session_id = f.session_id
     m.agent_id = f.agent_id
     m.payload = json.dumps(f.payload)
-    m.protocol_version = f.protocol_version
+    m.wire_version = f.wire_version
 
 
 def _enc_user_message(f: UserMessageFrame, env: pb.Envelope) -> None:
@@ -216,7 +216,7 @@ def _dec_session_start(env: pb.Envelope) -> SessionStartFrame:
         session_id=m.session_id,
         agent_id=m.agent_id,
         payload=json.loads(m.payload) if m.payload else {},
-        protocol_version=m.protocol_version,
+        wire_version=m.wire_version,
     )
 
 

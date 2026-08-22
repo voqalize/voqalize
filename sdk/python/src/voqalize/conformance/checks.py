@@ -7,7 +7,8 @@ protocol rule it enforces. Scenarios compose these; the checks themselves make
 no I/O and hold no state — they read the :class:`~voqalize.conformance.driver.VoiceDriver`
 observation model and :class:`~voqalize.conformance.driver.Turn` results.
 
-The rules come straight from ``docs/voice-protocol.md``:
+The rules come straight from the wire contract — `docs/reference/wire`, and
+`proto/voqalize/frames/frames.proto` under it:
 
 * **one bracket per speech unit** — every unit the brain opens
   (``SpeechStart``) must close (``…End``) exactly once, with a monotone
@@ -16,8 +17,8 @@ The rules come straight from ``docs/voice-protocol.md``:
   driver *heard* (played out), never brain-generated tail past a barge-in;
 * **barge-in is a drain barrier** — the brain echoes the ``InterruptionFrame``
   and stops generating the cut tail;
-* **greeting rides interaction 0**; **no proactive brain speech** outside an
-  interaction the driver opened.
+* **the greeting rides epoch 0**; **no proactive brain speech** outside a
+  stimulus the driver opened.
 """
 
 from __future__ import annotations

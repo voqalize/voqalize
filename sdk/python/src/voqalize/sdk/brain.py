@@ -86,7 +86,7 @@ from .events import (
 )
 from .outbound import CortexAgent
 from .wire import (
-    PROTOCOL_VERSION,
+    WIRE_VERSION,
     BrowserCommandFrame,
     BrowserMessageFrame,
     ConfigureIdleFrame,
@@ -111,9 +111,9 @@ from .wire import (
 __all__ = [
     "ActionHandle",
     "Brain",
-    "ProtocolError",
     "RequestRejected",
     "Session",
+    "WireError",
     "adapter_for",
     "brain_factory",
     "serve",
@@ -131,11 +131,11 @@ NO_EPOCH = 0
 REQUEST_TIMEOUT_S = 10.0
 
 
-class ProtocolError(RuntimeError):
+class WireError(RuntimeError):
     """A brain broke one of its four obligations:
 
     1. **Balanced brackets.** Every ``SpeechStart`` is followed by a
-       ``SpeechEnd``; a ``Chunk`` outside a unit is a protocol error.
+       ``SpeechEnd``; a ``Chunk`` outside a unit is a wire error.
     2. **You don't block.** A callback that stalls holds the floor open and the
        caller hears nothing.
     3. **You don't speak outside a speaking callback.**
@@ -690,8 +690,8 @@ class _BrainAdapter:
     async def _start(self, frame: SessionStartFrame) -> None:
         session = Session(self, frame.session_id, dict(frame.payload))
         self._session = session
-        if frame.protocol_version != PROTOCOL_VERSION:
-            self._refuse_version(session, frame.protocol_version)
+        if frame.wire_version != WIRE_VERSION:
+            self._refuse_version(session, frame.wire_version)
             return
         try:
             await self._apply_declared_voice(session)
@@ -712,7 +712,7 @@ class _BrainAdapter:
             self._abort(session, "greet", exc)
 
     def _refuse_version(self, session: Session, spoken: int) -> None:
-        """Refuse a session whose runtime speaks a different protocol.
+        """Refuse a session whose runtime speaks a different wire version.
 
         Voice speaks first, so this is the last moment either end can refuse
         before a call is running, and it is the only one where refusing costs
@@ -722,20 +722,20 @@ class _BrainAdapter:
         to prevent.
         """
         logger.error(
-            "brain: refusing session {} — Voice speaks protocol {}, this SDK speaks {}",
+            "brain: refusing session {} — Voice speaks wire {}, this SDK speaks {}",
             session.id,
             spoken,
-            PROTOCOL_VERSION,
+            WIRE_VERSION,
         )
         self.emit(
             ErrorFrame(
                 error=(
-                    f"protocol mismatch: Voice speaks {spoken}, this SDK speaks {PROTOCOL_VERSION}"
+                    f"wire version mismatch: Voice speaks {spoken}, this SDK speaks {WIRE_VERSION}"
                 ),
                 fatal=True,
             )
         )
-        session.end(reason="protocol_mismatch")
+        session.end(reason="wire_version_mismatch")
 
     def _abort(self, session: Session, hook: str, exc: Exception) -> None:
         """Fail a session that could not be opened, rather than run it broken.
@@ -787,23 +787,23 @@ class _BrainAdapter:
             async for event in gen:
                 if isinstance(event, SpeechStart):
                     if speech_id is not None:
-                        raise ProtocolError("SpeechStart inside an open speech unit")
+                        raise WireError("SpeechStart inside an open speech unit")
                     speech_id = session._next_speech_id()
                     self.emit(SpeechStartFrame(), epoch=epoch, speech_id=speech_id)
                 elif isinstance(event, Chunk):
                     if speech_id is None:
-                        raise ProtocolError("Chunk outside a speech unit")
+                        raise WireError("Chunk outside a speech unit")
                     if event.text:
                         self.emit(
                             SpeechChunkFrame(text=event.text), epoch=epoch, speech_id=speech_id
                         )
                 elif isinstance(event, SpeechEnd):
                     if speech_id is None:
-                        raise ProtocolError("SpeechEnd with no open speech unit")
+                        raise WireError("SpeechEnd with no open speech unit")
                     self.emit(SpeechEndFrame(), epoch=epoch, speech_id=speech_id)
                     speech_id = None
                 else:
-                    raise ProtocolError(f"a brain may not yield {type(event).__name__}")
+                    raise WireError(f"a brain may not yield {type(event).__name__}")
         finally:
             if speech_id is not None:
                 self.emit(SpeechEndFrame(), epoch=epoch, speech_id=speech_id)
@@ -854,7 +854,7 @@ class _BrainAdapter:
                 # rather than let it surface as "object async_generator can't be
                 # used in 'await' expression".
                 await handled.aclose()
-                raise ProtocolError(
+                raise WireError(
                     "on_browser_message must not be a generator: a browser "
                     "message never takes the floor. Use session.dispatch(...) to "
                     "render and session.end() to hang up."

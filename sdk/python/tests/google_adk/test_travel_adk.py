@@ -4,7 +4,7 @@ Hosts the **client-authored** travel agent (``examples/travel_adk/agent.py``)
 wrapped by the SDK's :func:`voqalize.google_adk.adk_brain`, backed by a
 :class:`ScriptedLlm` fake model, over a real ``DirectAgent`` WebSocket. Drives it
 with the conformance :class:`VoiceDriver` — the exact PyGato-side leg — and
-asserts the protocol MUSTs from ``docs/voice-protocol.md`` via the shared
+asserts the wire MUSTs from ``docs/reference/wire`` via the shared
 ``conformance.checks`` library.
 
 Two things are proven here that the live-Gemini shape check could not assert

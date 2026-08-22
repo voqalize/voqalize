@@ -8,7 +8,7 @@ Public surface:
   enum) and ``is_system`` (the lane-routing predicate).
 - ``CortexFrameSerializer`` — the protobuf codec; ``DecodedMessage`` carries a
   decoded frame beside the envelope's ``epoch`` / ``speech_id``.
-- ``PROTOCOL_VERSION`` — the wire version this build speaks.
+- ``WIRE_VERSION`` — the wire version this build speaks.
 - ``MultiplexedWire``, ``Wire``, ``WireConfig``, ``PermanentClose`` — websocket
   transport with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
   handshake-refused case: a credential cortex answers 401/403 to is never
@@ -17,8 +17,8 @@ Public surface:
 """
 
 from .frames import (
-    PROTOCOL_VERSION,
     WIRE_FRAME_CLASSES,
+    WIRE_VERSION,
     BrowserCommandFrame,
     BrowserMessageFrame,
     CancelFrame,
@@ -58,8 +58,8 @@ from .transport import (
 )
 
 __all__ = [
-    "PROTOCOL_VERSION",
     "WIRE_FRAME_CLASSES",
+    "WIRE_VERSION",
     "AuthRejected",
     "BrowserCommandFrame",
     "BrowserMessageFrame",

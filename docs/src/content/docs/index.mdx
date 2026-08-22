@@ -8,8 +8,8 @@ head:
 hero:
   tagline: A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice.
   actions:
-    - text: The Vql wire
-      link: /docs/reference/voice-protocol/
+    - text: The wire
+      link: /docs/reference/wire/
       icon: right-arrow
       variant: primary
     - text: Put a voice in the browser
@@ -49,8 +49,8 @@ README and the runnable demos are the working reference.
     [React client SDK](/docs/client/react/).
   </Card>
   <Card title="The wire contract" icon="puzzle">
-    One WebSocket per session and the `Vql*` frame set.
-    [Voice protocol →](/docs/reference/voice-protocol/)
+    One WebSocket per session, protobuf envelopes both ways.
+    [The wire →](/docs/reference/wire/)
   </Card>
   <Card title="Where the brain runs" icon="seti:config">
     Your own inbound server, or a relay when you can't accept inbound.

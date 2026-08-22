@@ -63,4 +63,4 @@ created agent still greets while you build the real one.
 However the connection is made, the runtime presents the same short-lived RS256
 JWT: `iss=pygato`, `aud="brain"`, `sub=session_id`, plus `tenant_id` / `agent_id`.
 Both SDKs verify it against Voqalize's public key for you. Details in
-[Voice protocol](/docs/reference/voice-protocol/).
+[The wire](/docs/reference/wire/).

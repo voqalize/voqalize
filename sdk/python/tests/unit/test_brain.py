@@ -24,7 +24,7 @@ from voqalize.sdk import (
 from voqalize.sdk.brain import adapter_for
 from voqalize.sdk.engine import Envelope
 from voqalize.sdk.wire import (
-    PROTOCOL_VERSION,
+    WIRE_VERSION,
     BrowserMessageFrame,
     ErrorFrame,
     Frame,
@@ -227,7 +227,7 @@ async def test_a_speaking_callback_that_never_speaks_still_runs() -> None:
     assert rec.names() == ["EndFrame"]
 
 
-# ─── the protocol version gate ────────────────────────────────────────────────
+# ─── the wire version gate ────────────────────────────────────────────────
 
 
 class Greeter(Brain):
@@ -242,19 +242,19 @@ class Greeter(Brain):
         yield SpeechEnd()
 
 
-async def test_a_session_that_speaks_our_protocol_version_starts() -> None:
+async def test_a_session_that_speaks_our_wire_version_starts() -> None:
     """The gate is `!=`, so the happy path has to be pinned alongside the refusal:
     a version check that refuses everything would pass the test below."""
     rec = Recorder()
     adapter = adapter_for(Greeter(), rec)
     await adapter.handle_frame(
-        _env(SessionStartFrame(session_id="s", agent_id="a", protocol_version=PROTOCOL_VERSION))
+        _env(SessionStartFrame(session_id="s", agent_id="a", wire_version=WIRE_VERSION))
     )
     await asyncio.sleep(0.02)
     assert rec.spoken() == "hello"
 
 
-async def test_a_session_that_speaks_another_protocol_version_is_refused() -> None:
+async def test_a_session_that_speaks_another_wire_version_is_refused() -> None:
     """Voice speaks first, so this is the last moment either end can refuse before
     a call is running and the only one where refusing is free — nothing has been
     synthesized and the caller has heard nothing. The brain never greets, and the
@@ -262,7 +262,7 @@ async def test_a_session_that_speaks_another_protocol_version_is_refused() -> No
     rec = Recorder()
     adapter = adapter_for(Greeter(), rec)
     await adapter.handle_frame(
-        _env(SessionStartFrame(session_id="s", agent_id="a", protocol_version=PROTOCOL_VERSION + 1))
+        _env(SessionStartFrame(session_id="s", agent_id="a", wire_version=WIRE_VERSION + 1))
     )
     await asyncio.sleep(0.02)
     assert rec.names() == ["ErrorFrame", "EndFrame"]
@@ -271,14 +271,14 @@ async def test_a_session_that_speaks_another_protocol_version_is_refused() -> No
     assert err.fatal
 
 
-async def test_an_older_protocol_version_is_refused_too() -> None:
+async def test_an_older_wire_version_is_refused_too() -> None:
     """A lower version is not a subset of a higher one: the arms it names may have
     been renumbered or reused underneath it. Refusing in both directions is what
     keeps that from being a guess."""
     rec = Recorder()
     adapter = adapter_for(Greeter(), rec)
     await adapter.handle_frame(
-        _env(SessionStartFrame(session_id="s", agent_id="a", protocol_version=PROTOCOL_VERSION - 1))
+        _env(SessionStartFrame(session_id="s", agent_id="a", wire_version=WIRE_VERSION - 1))
     )
     await asyncio.sleep(0.02)
     assert rec.names() == ["ErrorFrame", "EndFrame"]

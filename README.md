@@ -8,10 +8,10 @@ touches audio.
 
 This repository is the **public developer surface** for Voqalize: the wire
 contract, the SDKs you build a brain with, runnable demo applications, and the
-developer documentation. The Voqalize platform itself (the hosted voice runtime)
-is a managed service — everything you need to build against it is here.
+developer documentation. Voqalize itself — the hosted voice runtime — is a
+managed service, and everything you need to build against it is here.
 
-> **Pre-release.** APIs and the wire protocol are still moving. `voqalize-agent-sdk`
+> **Pre-release.** The SDK surfaces and the wire are still moving. `voqalize-agent-sdk`
 > (PyPI) and `@voqalize/client-react` (npm) are published, but the surface they
 > carry is the previous one — **pin the version you build against**, and expect the
 > next release to change the brain callbacks.
@@ -20,16 +20,17 @@ is a managed service — everything you need to build against it is here.
 
 | Path | What it is |
 |---|---|
-| [`proto/`](proto/) | **The wire contract of record** — the `Vql*` frame set both sides speak. Everything else is generated from or written against this. |
+| [`proto/`](proto/) | **The wire contract of record** — the message set both sides speak. Everything else is generated from or written against this. |
 | [`sdk/python/`](sdk/python/) | Python brain SDK — subclass `Brain`, implement a couple of callbacks. Pipecat-free. |
 | [`sdk/react/`](sdk/react/) | React client SDK — embed a voice agent in a browser app. |
 | [`demos/`](demos/) | Complete, runnable voice apps (a brain + a UI each). These are real example code, the live demos on our site, and our integration tests — all at once. |
 | [`docs/`](docs/) | The developer documentation site (`voqalize.com/docs`). |
 
-> The Go SDK was removed while the platform surface is moving fast on the
-> Python/ADK track, and will return once that surface stabilizes. The wire
-> protocol itself stays language-neutral — [`proto/`](proto/) is the contract
-> a future Go (or any other language) SDK would build against.
+> The Go SDK was removed while the Python/ADK surface is moving fast, and will
+> return once it stabilizes. The wire itself stays language-neutral —
+> [`proto/`](proto/) is the contract a future Go (or any other language) SDK
+> would build against, and [the wire](docs/src/content/docs/reference/wire.md)
+> documents it in full.
 
 ## Getting started
 

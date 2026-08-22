@@ -1,13 +1,13 @@
 # Voqalize Agent SDK (Python)
 
-Part of the Voqalize voice AI platform: **you bring the brain, we bring the voice.**
+**You bring the brain, we bring the voice.**
 
 **Pipecat-free.** Installing this SDK pulls **no** `pipecat` dependency — the
 promise is "bring the brain, not the voice infra." The customer writes a
 `Brain` of callbacks; the wire is plain protobuf and the Brain surface is
 plain dataclasses. (Pipecat lives only inside the Voqalize voice runtime, on
-the far side of the socket.) The `Vql*` wire is language-neutral — see
-[`proto/`](../../proto) for the contract.
+the far side of the socket.) The wire is language-neutral — see
+[the wire](../../docs/src/content/docs/reference/wire.md) for the contract.
 
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
 path. A brain is not a server: it sits inside an application you already run, and
@@ -109,16 +109,16 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
   `on_user_message`; the rest are optional — `greet`/`on_session_start`/
   `on_session_end`/`on_user_idle`/`on_browser_message`/`on_finalize`/`on_error`) +
-  `Session`/`ActionHandle`, the `_BrainAdapter` that maps `Vql*` frames ↔
+  `Session`/`ActionHandle`, the `_BrainAdapter` that maps wire frames ↔
   callbacks, and the entry points (`serve` for the Cortex leg, plus the internal
   `adapter_for` / `brain_factory` seams).
 - `src/voqalize/sdk/events.py` — what a callback is handed and what it yields:
   `UserMessage`/`UserIdle`/`BrowserMessage`, `SpeechStart`/`Chunk`/`SpeechEnd`,
   `Finalize`, `Error`.
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
-  `SessionRunner` (two-lane in/out, system-first feeder, ack-on-dequeue,
-  drop-newest + `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` /
-  `SessionFactory` / `RunnerHost` seams. **One runner drives both transports.**
+  `SessionRunner` (two-lane in/out, system-first feeder, drop-newest +
+  `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` / `SessionFactory` /
+  `RunnerHost` seams. **One runner drives both transports.**
 - `src/voqalize/sdk/session.py` — the connection-handoff surface: the `Channel`
   protocol (`send`/`recv` bytes), `run_session()` (verify token → run one session
   over a caller-supplied channel), `serve_channel()` (the transport-neutral loop,
@@ -128,7 +128,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   writer over one wire), implementing `RunnerHost`.
 - `src/voqalize/sdk/_platform_keys.py` — the embedded Voqalize public key(s)
   `run_session` verifies against by default.
-- `src/voqalize/sdk/wire/` — plain-dataclass `Vql*` + lifecycle/RTVI frames,
+- `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
   `FrameDirection`, `is_system()`, `CortexFrameSerializer` (protobuf transcoder,
   no base class), `Wire`/`MultiplexedWire` transport, protobuf stubs.
 - `src/voqalize/_framework/` — the shared, framework-agnostic core every framework
@@ -144,7 +144,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   needed), `brain_server` (a brain on an ephemeral localhost port, for tests that
   want the real wire), the scenario catalog, the MUST checks, and a `python -m
   voqalize.conformance` CLI. Point it at your brain to prove it speaks the
-  protocol correctly.
+  wire correctly.
 
 ## Core invariants
 
@@ -157,7 +157,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   The SDK **verifies by default** against the embedded Voqalize public keys
   (`_platform_keys.py`) — the token shape is uniform for every brain
   (`iss=pygato, aud=brain, sub=session_id`), and `sub` must equal the passed
-  `session_id`. The audience is a protocol constant (`BRAIN_AUDIENCE = "brain"`),
+  `session_id`. The audience is a wire constant (`BRAIN_AUDIENCE = "brain"`),
   verified unconditionally alongside `iss="pygato"` and `exp` — there is no
   per-agent audience and no `audience=` parameter; override `public_keys=`, or
   `allow_unverified=True` (local dev). A bad token raises `SessionRejected`
@@ -175,40 +175,39 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   runs once per session, building a fresh `_BrainAdapter(Brain(), emitter)`.
   Cross-session writes are structurally unreachable. Holds identically for both
   transports — the inbound path just has one session per connection.
-- **Two lanes each way.** System frames (`VqlStart` / `Interruption` / `Cancel`,
-  per `is_system()`) ride a priority lane that bypasses queued data; everything
-  else rides a bounded normal lane (default 256) with **drop-newest**. `End` is
-  *not* system — it rides the normal lane so a session tears down only after its
-  queued data drains.
-- **Ack-gated ordering.** Every wire-vocab data frame carries `request_id > 0`.
-  The runner emits an `Ack(request_id)` envelope the moment the frame comes **off
-  the inbound lane**, before `adapter.handle_frame` runs. The ack means *"committed
-  to the ordered lane"*, not *"handled"* — the feeder is a single sequential
-  consumer, so ordering is already settled at dequeue, and that is all the
-  runtime's flow control needs. **Do slow I/O off the callback lane.** The runtime
-  blocks its own pipeline on this ack; if the ack waited for your handler, a
-  `on_finalize` that wrote a row to a database would delay the *next*
-  user utterance by exactly that write. Callbacks
-  behind a slow one still wait — one ordered lane is the contract, and it is what
-  commits heard-truth before the next utterance arrives — so spawn your own
-  background work, as the adapter already does for `on_interaction`.
+- **Two lanes each way.** System frames (`SessionStart` / `Interruption` /
+  `Cancel`, per `is_system()`) ride a priority lane that bypasses queued data;
+  everything else rides a bounded normal lane (default 256) with **drop-newest**.
+  `End` is *not* system — it rides the normal lane so a session tears down only
+  after its queued data drains.
+- **One sequential consumer.** The feeder takes envelopes off the inbound lane
+  one at a time and awaits `adapter.handle_frame` on each, so callbacks see frames
+  in wire order. A slow callback delays the callbacks behind it and nothing else —
+  it never reaches back across the wire. Still, **do slow I/O off the callback
+  lane**: an `on_finalize` that writes a database row delays the next callback by
+  exactly that write. Spawn your own background work, as the adapter already does
+  for a browser message.
+- **A `Response` bypasses the lanes.** It is an answer, not a stimulus: exactly
+  one consumer — the caller blocked on it — and no ordering against speech or user
+  messages. Queueing it behind the feeder would deadlock every `configure_*` made
+  from inside a callback, because the feeder is inside that very callback.
 - **Interruption is a drain barrier.** Barge-in rides the wire as a field-less
-  `InterruptionFrame` (system lane); the adapter cancels the in-flight interaction
-  task(s) and echoes an `InterruptionFrame` back on the outbound system lane — the
-  runtime's drain barrier. Correlation lives on `speech_id`, not on the interrupt.
+  `InterruptionFrame` (system lane); the adapter cancels the in-flight turn and
+  echoes an `InterruptionFrame` back on the outbound system lane — the runtime's
+  drain barrier. Correlation lives on the envelope, never on the interrupt.
 - **Backpressure never kills a session.** On normal-lane overflow the runner drops
   the newest frame and delivers a non-fatal `ErrorFrame` to the adapter
   (edge-triggered: one per congestion episode per direction), surfaced to the Brain
   via optional `on_error`.
-- **Framework-owned `Conversation` (heard-text contract).** The SDK commits the
-  user utterance at interaction start and one assistant message per inference from
-  its HEARD text at finalize; the Brain keeps no parallel history and cannot commit
-  generated text.
+- **Heard truth, not generated text.** A framework integration commits the user
+  utterance when the stimulus arrives and one assistant message per speech unit
+  from its *heard* text at finalize. The Brain keeps no parallel history and
+  cannot commit what it generated.
 
 ## Read next
 
 - [`../../proto/voqalize/frames/frames.proto`](../../proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
-- [`../../design/BRAIN-PROTOCOL.md`](../../design/BRAIN-PROTOCOL.md) — why the Brain has the shape it has, from first principles.
+- [`../../docs/src/content/docs/reference/wire.md`](../../docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
 - The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
 - `examples/` — runnable brains: `echo` (smallest complete brain), `travel`
   (a hand-written `Brain` over Gemini with screen-driving tools), `travel_adk`

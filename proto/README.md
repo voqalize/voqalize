@@ -1,6 +1,6 @@
 # proto — the Voqalize wire contract
 
-The canonical protobuf schema for the Voqalize voice protocol lives in
+The canonical protobuf schema for the Voqalize wire lives in
 [`voqalize/frames/frames.proto`](voqalize/frames/frames.proto). Everything a
 brain sends or receives is one envelope from that file. The proto package is
 `voqalize.frames`.

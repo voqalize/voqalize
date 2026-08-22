@@ -23,7 +23,7 @@ from typing import Any
 # envelope and a brain that speaks a different one refuses the session — see
 # :meth:`voqalize.sdk.brain._BrainAdapter._start`. The rule for when it moves is
 # in frames.proto.
-PROTOCOL_VERSION = 1
+WIRE_VERSION = 1
 
 
 class FrameDirection(IntEnum):
@@ -56,7 +56,7 @@ class SessionStartFrame(Frame):
     session_id: str = ""
     agent_id: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
-    protocol_version: int = PROTOCOL_VERSION
+    wire_version: int = WIRE_VERSION
 
 
 @dataclass
