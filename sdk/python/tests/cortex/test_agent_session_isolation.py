@@ -15,13 +15,13 @@ from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     Frame,
     SessionStartFrame,
     SpeechChunkFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
@@ -60,7 +60,7 @@ async def _drain_until(wire: Wire, serializer, predicate, timeout: float = 3.0):
 
 async def test_two_sessions_are_isolated() -> None:
     Echo.instances.clear()
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(

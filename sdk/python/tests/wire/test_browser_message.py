@@ -16,11 +16,11 @@ import contextlib
 import uuid
 
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     SessionStartFrame,
     SpeechStartFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 MSG_TYPE = "state_sync"
@@ -39,7 +39,7 @@ async def test_unknown_envelope_body_is_skipped_not_raised() -> None:
     # this build has never heard of.
     unknown = b"\x9a\x06\x00"
 
-    decoded = await CortexFrameSerializer().deserialize_message(unknown)
+    decoded = await WireSerializer().deserialize_message(unknown)
 
     assert decoded.frame is None
 
@@ -87,7 +87,7 @@ async def _run_browser_message(*, speak: bool) -> tuple[_Recorder, list]:
     session_id = str(uuid.uuid4())
     wire = Wire(WireConfig(url=f"ws://127.0.0.1:{port}/s/{session_id}"))
     await wire.start()
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     emitted: list = []
     try:
         await wire.send(

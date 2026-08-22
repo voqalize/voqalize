@@ -13,7 +13,7 @@ Two pieces the driver builds on:
    ``sub=session_id``, plus ``agent_id`` / ``tenant_id``). A conformance run mints
    with an ephemeral keypair and hands the public half to the brain under test.
 
-Decoding is not one of them: ``CortexFrameSerializer`` decodes every body in the
+Decoding is not one of them: ``WireSerializer`` decodes every body in the
 schema, both ways, so the driver uses it directly.
 """
 

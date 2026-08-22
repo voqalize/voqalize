@@ -19,13 +19,13 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     EndFrame,
     Frame,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
@@ -50,15 +50,13 @@ class Recorder(SessionAdapter):
         pass
 
 
-async def _send(
-    wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
-) -> None:
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame, *, epoch: int = 0) -> None:
     await wire.send(await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_endframe_tears_down_session_cleanly() -> None:
     Recorder.instances.clear()
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(

@@ -17,7 +17,6 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     ErrorFrame,
     Frame,
     SessionStartFrame,
@@ -25,6 +24,7 @@ from voqalize.sdk.wire import (
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 _QUEUE_MAX = 4
@@ -59,9 +59,7 @@ class Flooder(SessionAdapter):
         pass
 
 
-async def _send(
-    wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
-) -> None:
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame, *, epoch: int = 0) -> None:
     await wire.send(await serializer.serialize(frame, epoch=epoch))
 
 
@@ -71,7 +69,7 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
     ErrorFrames per congestion episode."""
 
     Flooder.instances.clear()
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(

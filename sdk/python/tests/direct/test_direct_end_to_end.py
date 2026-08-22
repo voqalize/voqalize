@@ -24,7 +24,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from voqalize.conformance import BrainServer
 from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     InterruptionFrame,
     PermanentClose,
     SessionStartFrame,
@@ -32,6 +31,7 @@ from voqalize.sdk.wire import (
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 # ─── A tiny brain ────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ class _Client:
 
     def __init__(self, wire: Wire) -> None:
         self._wire = wire
-        self._ser = CortexFrameSerializer()
+        self._ser = WireSerializer()
 
     async def send(self, frame, *, epoch: int = 0, speech_id: int = 0) -> None:
         payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)

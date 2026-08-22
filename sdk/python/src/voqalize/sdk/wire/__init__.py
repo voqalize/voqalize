@@ -1,11 +1,11 @@
-"""The wire — plain-dataclass frames, protobuf codec, transport.
+"""The wire — plain-dataclass frames, protobuf serializer, transport.
 
 Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. Only protobuf
 ``Envelope`` bytes cross the socket; the frame classes here never do.
 
 Public surface:
 - The frame dataclasses plus ``Frame``.
-- ``CortexFrameSerializer`` — the protobuf codec; ``DecodedMessage`` carries a
+- ``WireSerializer`` — the protobuf serializer; ``DecodedMessage`` carries a
   decoded frame beside the envelope's ``epoch`` / ``speech_id``.
 - ``WIRE_VERSION`` — the wire version this build speaks.
 - ``MultiplexedWire``, ``WireConfig``, ``PermanentClose`` — websocket transport
@@ -39,10 +39,10 @@ from .frames import (
     UserMessageFrame,
 )
 from .serializer import (
-    CortexFrameSerializer,
     DecodedMessage,
     MalformedFrameError,
     UnsupportedFrameError,
+    WireSerializer,
 )
 from .transport import (
     AuthRejected,
@@ -63,7 +63,6 @@ __all__ = [
     "ConfigureRequest",
     "ConfigureSttFrame",
     "ConfigureTtsFrame",
-    "CortexFrameSerializer",
     "DecodedMessage",
     "EndFrame",
     "ErrorFrame",
@@ -85,4 +84,5 @@ __all__ = [
     "Wire",
     "WireClosed",
     "WireConfig",
+    "WireSerializer",
 ]

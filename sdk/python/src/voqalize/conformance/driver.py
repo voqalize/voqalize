@@ -48,7 +48,7 @@ from voqalize.sdk.wire import (
     UserIdleFrame,
     UserMessageFrame,
 )
-from voqalize.sdk.wire.serializer import CortexFrameSerializer, DecodedMessage
+from voqalize.sdk.wire.serializer import DecodedMessage, WireSerializer
 
 from .wire_voice import DirectConnection
 
@@ -178,7 +178,7 @@ class VoiceDriver:
         self.session_id = session_id
         self.default_timeout = default_timeout
         self.quiet_for = quiet_for
-        self._ser = CortexFrameSerializer()
+        self._ser = WireSerializer()
 
         self._epoch_seq = 0
 

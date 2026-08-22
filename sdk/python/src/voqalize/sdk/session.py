@@ -56,7 +56,7 @@ from .engine import (
     SessionFactory,
     SessionRunner,
 )
-from .wire import CortexFrameSerializer, MalformedFrameError
+from .wire import MalformedFrameError, WireSerializer
 
 if TYPE_CHECKING:
     from .brain import Brain
@@ -169,7 +169,7 @@ class _ChannelSession(RunnerHost):
         *,
         session_id_raw: bytes,
         factory: SessionFactory,
-        serializer: CortexFrameSerializer,
+        serializer: WireSerializer,
         normal_max: int,
     ) -> None:
         self._channel = channel
@@ -288,7 +288,7 @@ async def serve_channel(
         channel,
         session_id_raw=session_id_bytes(session_id),
         factory=factory,
-        serializer=CortexFrameSerializer(),
+        serializer=WireSerializer(),
         normal_max=inbound_queue_maxsize or DEFAULT_NORMAL_MAXSIZE,
     )
     await conn.run()

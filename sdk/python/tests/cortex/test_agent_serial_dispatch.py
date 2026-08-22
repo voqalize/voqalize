@@ -14,16 +14,16 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
 async def test_two_data_frames_serial_dispatch() -> None:
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
     arrivals: list[str] = []
     can_finish = asyncio.Event()
 

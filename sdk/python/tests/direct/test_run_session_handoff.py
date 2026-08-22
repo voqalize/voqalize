@@ -22,10 +22,10 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from voqalize.sdk import Brain, Chunk, SessionRejected, SpeechEnd, SpeechStart, run_session
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     SessionStartFrame,
     SpeechChunkFrame,
     UserMessageFrame,
+    WireSerializer,
 )
 
 _TEARDOWN_ERRORS = (TimeoutError, asyncio.CancelledError, ConnectionError)
@@ -74,7 +74,7 @@ class _Client:
 
     def __init__(self, endpoint: _Endpoint) -> None:
         self._ep = endpoint
-        self._ser = CortexFrameSerializer()
+        self._ser = WireSerializer()
 
     async def send(self, frame, *, epoch: int = 0, speech_id: int = 0) -> None:
         payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)

@@ -29,7 +29,7 @@ from voqalize_demos.llm import GeminiProvider
 from voqalize_demos.umbrella import create_app
 
 from voqalize.sdk import run_session
-from voqalize.sdk.wire import CortexFrameSerializer, LLMTextFrame, SessionStartFrame
+from voqalize.sdk.wire import LLMTextFrame, SessionStartFrame, WireSerializer
 
 _TEARDOWN_ERRORS = (TimeoutError, asyncio.CancelledError, ConnectionError)
 
@@ -66,7 +66,7 @@ class _Client:
 
     def __init__(self, endpoint: _Endpoint) -> None:
         self._ep = endpoint
-        self._ser = CortexFrameSerializer()
+        self._ser = WireSerializer()
 
     async def send(self, frame, *, request_id: int = 0) -> None:
         payload = await self._ser.serialize(frame, request_id=request_id)

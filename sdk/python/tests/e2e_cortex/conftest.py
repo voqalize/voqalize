@@ -15,11 +15,11 @@ import asyncio
 
 from voqalize.sdk.wire import (
     BrowserCommandFrame,
-    CortexFrameSerializer,
     Frame,
     MalformedFrameError,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
@@ -29,7 +29,7 @@ class PygatoClient:
 
     def __init__(self, wire: Wire) -> None:
         self._wire = wire
-        self._ser = CortexFrameSerializer()
+        self._ser = WireSerializer()
 
     async def send(
         self,

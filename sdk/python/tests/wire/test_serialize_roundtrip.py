@@ -11,7 +11,6 @@ from voqalize.sdk.wire import (
     ConfigureIdleFrame,
     ConfigureSttFrame,
     ConfigureTtsFrame,
-    CortexFrameSerializer,
     EndFrame,
     ErrorFrame,
     FinalizeFrame,
@@ -25,6 +24,7 @@ from voqalize.sdk.wire import (
     SpeechStartFrame,
     UserIdleFrame,
     UserMessageFrame,
+    WireSerializer,
 )
 
 
@@ -85,7 +85,7 @@ _FIELDS: dict[type[Frame], tuple[str, ...]] = {
 
 @pytest.mark.parametrize("frame", _frames(), ids=lambda f: type(f).__name__)
 async def test_roundtrip(frame: Frame) -> None:
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     payload = await ser.serialize(frame)
     assert isinstance(payload, bytes)
 
@@ -109,7 +109,7 @@ async def test_roundtrip(frame: Frame) -> None:
 async def test_correlation_rides_the_envelope(frame: Frame) -> None:
     """Correlation is the envelope's, not the body's: any frame carries any
     pair, and it comes back beside the decoded frame."""
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     payload = await ser.serialize(frame, epoch=22, speech_id=33)
 
     msg = await ser.deserialize_message(payload)
@@ -118,7 +118,7 @@ async def test_correlation_rides_the_envelope(frame: Frame) -> None:
 
 
 async def test_correlation_defaults_to_zero() -> None:
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     msg = await ser.deserialize_message(await ser.serialize(UserMessageFrame(text="hi")))
     assert (msg.epoch, msg.speech_id) == (0, 0)
 
@@ -136,7 +136,7 @@ async def test_an_empty_delta_still_names_its_op(frame: Frame) -> None:
     """A request that changes nothing is a legal no-op the far side answers — so
     the op must survive the trip even when no field is set. Encode it as a bare
     envelope and it would arrive as an unknown operation instead."""
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     out = await ser.deserialize(await ser.serialize(frame))
     assert type(out) is type(frame)
 
@@ -144,6 +144,6 @@ async def test_an_empty_delta_still_names_its_op(frame: Frame) -> None:
 async def test_an_undeclared_threshold_is_refused_at_the_sender() -> None:
     """The thresholds dict is the schema's own field names. A name the schema does
     not declare fails here rather than travelling as a key nothing will read."""
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     with pytest.raises(AttributeError):
         await ser.serialize(ConfigureSttFrame(request_id=1, thresholds={"patience": 3}))

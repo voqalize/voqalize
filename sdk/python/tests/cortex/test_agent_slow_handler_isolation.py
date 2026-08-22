@@ -18,13 +18,13 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     ErrorFrame,
     Frame,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 _INBOUND_MAX = 4  # tiny so it's easy to overflow
@@ -69,15 +69,13 @@ class Recorder(SessionAdapter):
         pass
 
 
-async def _send(
-    wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
-) -> None:
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame, *, epoch: int = 0) -> None:
     await wire.send(await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_slow_handler_does_not_block_other_sessions() -> None:
     Recorder.instances.clear()
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -105,7 +103,7 @@ async def test_slow_handler_does_not_block_other_sessions() -> None:
                 await run_task
 
 
-async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: CortexFrameSerializer) -> None:
+async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: WireSerializer) -> None:
     # Open both sessions and wait for both Recorder instances.
     await _send(
         wire_a,

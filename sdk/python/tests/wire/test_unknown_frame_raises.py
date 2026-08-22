@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from voqalize.sdk.wire import CortexFrameSerializer, Frame, UnsupportedFrameError
+from voqalize.sdk.wire import Frame, UnsupportedFrameError, WireSerializer
 
 
 @dataclass
@@ -13,6 +13,6 @@ class NotInDispatchFrame(Frame):
 
 
 async def test_unsupported_frame_raises() -> None:
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     with pytest.raises(UnsupportedFrameError):
         await ser.serialize(NotInDispatchFrame(blah="x"))

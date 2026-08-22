@@ -15,10 +15,10 @@ import pytest
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     SessionStartFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
@@ -31,7 +31,7 @@ def _broken_factory(_host):
 
 
 async def test_factory_crash_raises_out_of_run() -> None:
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(

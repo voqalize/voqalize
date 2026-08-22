@@ -1,4 +1,4 @@
-"""Protobuf codec for the wire.
+"""Protobuf serializer for the wire.
 
 Transcodes between the plain dataclasses in :mod:`.frames` and ``Envelope``
 bytes. Pipecat-free, stateless, no base class.
@@ -353,8 +353,8 @@ _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
 # ─── Serializer ───────────────────────────────────────────────────────────────
 
 
-class CortexFrameSerializer:
-    """Binary protobuf codec for the wire.
+class WireSerializer:
+    """Binary protobuf serializer for the wire.
 
     Stateless. ``serialize`` / ``deserialize`` stay ``async`` for call-site
     symmetry, though nothing awaits.
@@ -393,7 +393,7 @@ class CortexFrameSerializer:
 
     def _decode_envelope(self, data: str | bytes, *, strict: bool = True) -> DecodedMessage:
         if isinstance(data, str):
-            raise MalformedFrameError("CortexFrameSerializer is binary; got str input.")
+            raise MalformedFrameError("WireSerializer is binary; got str input.")
         env = pb.Envelope()
         try:
             env.ParseFromString(data)

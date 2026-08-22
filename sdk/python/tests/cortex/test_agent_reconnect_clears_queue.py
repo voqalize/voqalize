@@ -13,16 +13,16 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
 async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter() -> None:
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
     timeline: list[str] = []
     block = asyncio.Event()
 

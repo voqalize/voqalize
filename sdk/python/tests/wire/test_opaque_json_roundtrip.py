@@ -9,13 +9,13 @@ a declared field.
 from voqalize.sdk.wire import (
     BrowserCommandFrame,
     BrowserMessageFrame,
-    CortexFrameSerializer,
     SessionStartFrame,
+    WireSerializer,
 )
 
 
 async def test_nested_init_roundtrip() -> None:
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     frame = SessionStartFrame(
         session_id="s",
         init={
@@ -31,7 +31,7 @@ async def test_nested_init_roundtrip() -> None:
 
 
 async def test_browser_message_data_roundtrip() -> None:
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     frame = BrowserMessageFrame(
         type="form_submitted",
         data={"rows": [{"id": 1}, {"id": 2}], "total": 2, "meta": {"ms": 12.5}},
@@ -42,7 +42,7 @@ async def test_browser_message_data_roundtrip() -> None:
 
 
 async def test_browser_command_data_roundtrip() -> None:
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     frame = BrowserCommandFrame(data={"ui": "open_panel", "args": [1, {"deep": True}]})
     out = await ser.deserialize(await ser.serialize(frame))
     assert isinstance(out, BrowserCommandFrame)

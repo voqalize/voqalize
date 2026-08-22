@@ -129,7 +129,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - `src/voqalize/sdk/_keys.py` — the embedded Voqalize public key(s)
   `run_session` verifies against by default.
 - `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
-  `is_system()`, `CortexFrameSerializer` (protobuf transcoder, no base class),
+  `is_system()`, `WireSerializer` (the protobuf serializer, no base class),
   `Wire`/`MultiplexedWire` transport, protobuf stubs.
 - `src/voqalize/_framework/` — the shared, framework-agnostic core every framework
   integration is built on: `_FrameworkBrain` (owns `run_inference`, the one

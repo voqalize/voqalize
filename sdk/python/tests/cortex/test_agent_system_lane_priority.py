@@ -22,24 +22,22 @@ from voqalize.sdk import Brain
 from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     Frame,
     InterruptionFrame,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
-async def _send(
-    wire: Wire, serializer: CortexFrameSerializer, frame: Frame, *, epoch: int = 0
-) -> None:
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame, *, epoch: int = 0) -> None:
     await wire.send(await serializer.serialize(frame, epoch=epoch))
 
 
 async def test_interruption_preempts_backlog() -> None:
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
     timeline: list[str] = []
     first_in_flight = asyncio.Event()
 

@@ -15,17 +15,17 @@ from voqalize.sdk import Brain
 from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     InterruptionFrame,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
 async def test_interruption_cancels_in_flight_turn() -> None:
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
     timeline: list[str] = []
     started = asyncio.Event()
 

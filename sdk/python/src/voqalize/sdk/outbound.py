@@ -47,13 +47,13 @@ from .engine import (
     SessionRunner,
 )
 from .wire import (
-    CortexFrameSerializer,
     MalformedFrameError,
     MultiplexedWire,
     PermanentClose,
     SessionStartFrame,
     WireClosed,
     WireConfig,
+    WireSerializer,
 )
 
 
@@ -80,7 +80,7 @@ class CortexAgent(RunnerHost):
         self._version = version
         self._cortex_url = cortex_url
         self._factory = factory
-        self._serializer = CortexFrameSerializer()
+        self._serializer = WireSerializer()
         self._normal_maxsize = inbound_queue_maxsize or DEFAULT_NORMAL_MAXSIZE
 
         self._wire: MultiplexedWire | None = None

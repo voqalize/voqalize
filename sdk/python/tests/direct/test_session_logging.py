@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from loguru import logger
 
 from voqalize.sdk import Brain, configure_logging, run_session, session_context
-from voqalize.sdk.wire import CortexFrameSerializer, SessionStartFrame, SpeechChunkFrame
+from voqalize.sdk.wire import SessionStartFrame, SpeechChunkFrame, WireSerializer
 
 _TEARDOWN_ERRORS = (TimeoutError, asyncio.CancelledError, ConnectionError)
 
@@ -160,7 +160,7 @@ async def test_brain_lines_carry_the_identity_from_the_verified_token():
                 public_keys=pub,
             )
         )
-        ser = CortexFrameSerializer()
+        ser = WireSerializer()
         try:
             await client_ch.send(await ser.serialize(SessionStartFrame(session_id=sid)))
 
