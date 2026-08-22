@@ -44,16 +44,16 @@ from typing import Any
 
 from voqalize.sdk import (
     Action,
-    AppMessage,
     Brain,
+    BrowserMessage,
     Chunk,
     Finalize,
-    IdleTrigger,
     Result,
     Session,
     Speech,
     SpeechEnd,
     SpeechStart,
+    UserIdle,
     UserMessage,
 )
 
@@ -114,7 +114,7 @@ class ConformanceState(Action, name=CONFORMANCE_STATE_ACTION):
     """The backchannel echo: committed state over the ordinary action lane."""
 
     messages: list[dict[str, Any]]
-    app_events: list[dict[str, Any]]
+    browser_messages: list[dict[str, Any]]
     outcomes: list[dict[str, Any]]
 
 
@@ -128,7 +128,7 @@ def conformance_state(brain: ConformanceBrain) -> dict[str, Any]:
     """The backchannel state payload: heard transcript, app messages, results."""
     return {
         "messages": list(brain.messages),
-        "app_events": list(brain.app_events),
+        "browser_messages": list(brain.browser_messages),
         "outcomes": list(brain.outcomes),
     }
 
@@ -138,7 +138,7 @@ class ConformanceBrain(Brain):
 
     def __init__(self) -> None:
         self.messages: list[dict[str, Any]] = []
-        self.app_events: list[dict[str, Any]] = []
+        self.browser_messages: list[dict[str, Any]] = []
         self.outcomes: list[dict[str, Any]] = []
 
     async def greet(self, session: Session) -> str:
@@ -223,9 +223,7 @@ class ConformanceBrain(Brain):
         yield Chunk(f"you said {text}")
         yield SpeechEnd()
 
-    async def on_user_idle(
-        self, session: Session, idle: IdleTrigger
-    ) -> AsyncGenerator[Speech, None]:
+    async def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         # Voice handed over the floor because the user went quiet; re-engage with
         # a level-tagged nudge so the driver can assert both the heard text and
         # the escalation level. No user turn is recorded — nothing was said.
@@ -233,13 +231,13 @@ class ConformanceBrain(Brain):
         yield Chunk(f"{IDLE_NUDGE} {idle.level}")
         yield SpeechEnd()
 
-    async def on_app_message(self, session: Session, msg: AppMessage) -> None:
+    async def on_browser_message(self, session: Session, msg: BrowserMessage) -> None:
         # Voice delivers every browser message here and never interprets it — the
         # brain decides what to do with each. It may render; it may not speak.
         if msg.type == CONFORMANCE_DUMP_EVENT:
             session.dispatch(ConformanceState(**conformance_state(self), timeout_s=None))
             return
-        self.app_events.append({"name": msg.type, "data": msg.data})
+        self.browser_messages.append({"name": msg.type, "data": msg.data})
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         # The heard prefix, not what was generated. An interrupted unit that

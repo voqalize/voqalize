@@ -1,14 +1,16 @@
-"""Opaque dict fields (SessionStart.payload, ClientMessage.data,
-ServerMessage.data, the *Settings frames) survive round-trip with nested
-structure intact.
+"""The three opaque dict fields — ``SessionStart.payload``, ``ClientMessage.data``
+and ``ServerMessage.data`` — survive round-trip with nested structure intact.
+
+They are the only untyped things on the wire, and they are untyped because each
+carries an application's own shape. Everything else, the control leg included, is
+a declared field.
 """
 
 from voqalize.sdk.wire import (
-    ClientMessageFrame,
+    BrowserCommandFrame,
+    BrowserMessageFrame,
     CortexFrameSerializer,
-    ServerMessageFrame,
     SessionStartFrame,
-    UpdateTTSSettingsFrame,
 )
 
 
@@ -29,29 +31,20 @@ async def test_nested_payload_roundtrip() -> None:
     assert out.payload == frame.payload
 
 
-async def test_client_message_data_roundtrip() -> None:
+async def test_browser_message_data_roundtrip() -> None:
     ser = CortexFrameSerializer()
-    frame = ClientMessageFrame(
-        msg_id="m-1",
+    frame = BrowserMessageFrame(
         type="form_submitted",
         data={"rows": [{"id": 1}, {"id": 2}], "total": 2, "meta": {"ms": 12.5}},
     )
     out = await ser.deserialize(await ser.serialize(frame))
-    assert isinstance(out, ClientMessageFrame)
+    assert isinstance(out, BrowserMessageFrame)
     assert out.data == frame.data
 
 
-async def test_server_message_data_roundtrip() -> None:
+async def test_browser_command_data_roundtrip() -> None:
     ser = CortexFrameSerializer()
-    frame = ServerMessageFrame(data={"ui": "open_panel", "args": [1, {"deep": True}]})
+    frame = BrowserCommandFrame(data={"ui": "open_panel", "args": [1, {"deep": True}]})
     out = await ser.deserialize(await ser.serialize(frame))
-    assert isinstance(out, ServerMessageFrame)
+    assert isinstance(out, BrowserCommandFrame)
     assert out.data == frame.data
-
-
-async def test_settings_roundtrip() -> None:
-    ser = CortexFrameSerializer()
-    frame = UpdateTTSSettingsFrame(settings={"voice": "omnivoice/gauri", "speed": 1.05})
-    out = await ser.deserialize(await ser.serialize(frame))
-    assert isinstance(out, UpdateTTSSettingsFrame)
-    assert out.settings == frame.settings

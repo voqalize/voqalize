@@ -8,6 +8,7 @@ Public surface:
   enum) and ``is_system`` (the lane-routing predicate).
 - ``CortexFrameSerializer`` — the protobuf codec; ``DecodedMessage`` carries a
   decoded frame beside the envelope's ``epoch`` / ``speech_id``.
+- ``PROTOCOL_VERSION`` — the wire version this build speaks.
 - ``MultiplexedWire``, ``Wire``, ``WireConfig``, ``PermanentClose`` — websocket
   transport with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
   handshake-refused case: a credential cortex answers 401/403 to is never
@@ -16,9 +17,15 @@ Public surface:
 """
 
 from .frames import (
+    PROTOCOL_VERSION,
     WIRE_FRAME_CLASSES,
+    BrowserCommandFrame,
+    BrowserMessageFrame,
     CancelFrame,
-    ClientMessageFrame,
+    ConfigureIdleFrame,
+    ConfigureRequest,
+    ConfigureSttFrame,
+    ConfigureTtsFrame,
     EndFrame,
     ErrorFrame,
     FinalizeFrame,
@@ -26,14 +33,11 @@ from .frames import (
     Frame,
     FrameDirection,
     InterruptionFrame,
-    ServerMessageFrame,
+    ResponseFrame,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
-    UpdateIdleSettingsFrame,
-    UpdateSTTSettingsFrame,
-    UpdateTTSSettingsFrame,
     UserIdleFrame,
     UserMessageFrame,
     is_system,
@@ -54,10 +58,16 @@ from .transport import (
 )
 
 __all__ = [
+    "PROTOCOL_VERSION",
     "WIRE_FRAME_CLASSES",
     "AuthRejected",
+    "BrowserCommandFrame",
+    "BrowserMessageFrame",
     "CancelFrame",
-    "ClientMessageFrame",
+    "ConfigureIdleFrame",
+    "ConfigureRequest",
+    "ConfigureSttFrame",
+    "ConfigureTtsFrame",
     "CortexFrameSerializer",
     "DecodedMessage",
     "EndFrame",
@@ -70,15 +80,12 @@ __all__ = [
     "MalformedFrameError",
     "MultiplexedWire",
     "PermanentClose",
-    "ServerMessageFrame",
+    "ResponseFrame",
     "SessionStartFrame",
     "SpeechChunkFrame",
     "SpeechEndFrame",
     "SpeechStartFrame",
     "UnsupportedFrameError",
-    "UpdateIdleSettingsFrame",
-    "UpdateSTTSettingsFrame",
-    "UpdateTTSSettingsFrame",
     "UserIdleFrame",
     "UserMessageFrame",
     "Wire",

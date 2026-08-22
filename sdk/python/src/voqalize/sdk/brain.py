@@ -26,11 +26,16 @@ meaning. Awaiting between them is fine — that is how a tool call sits between 
 things you say.
 
 Everything else is a method on the :class:`Session` handed to every callback:
-``session.dispatch(action)`` to render, ``session.configure_language(...)`` to
-switch language, ``session.end()`` to hang up. Those are floor-free, so they read
-the same from inside a turn and from the five callbacks that are not generators
-at all — and, called at the same point in a generator body, they reach the wire
-at exactly the same point as a yield would.
+``session.dispatch(action)`` to render, ``await session.configure_language(...)``
+to switch language, ``session.end()`` to hang up. Those are floor-free, so they
+read the same from inside a turn and from the five callbacks that are not
+generators at all — and, called at the same point in a generator body, they reach
+the wire at exactly the same point as a yield would.
+
+The ``configure_*`` methods are awaited, because Voice answers them. Awaiting is
+how a language it has no recognizer for becomes a :class:`RequestRejected` you
+handle, rather than a call that runs on sounding wrong and reports nothing. They
+are safe to await from anywhere a brain runs, including from inside a turn.
 
 The turn is over when the generator returns. **It does not wait for the audio to
 finish playing**, which is the part that surprises people: what the user actually
@@ -40,11 +45,12 @@ Mapping onto the wire:
 
 - ``on_user_message``       ← ``UserMessageFrame``
 - ``on_user_idle``          ← ``UserIdleFrame``
-- ``on_app_message``        ← ``ClientMessageFrame``
+- ``on_browser_message``    ← ``BrowserMessageFrame``
 - ``SpeechStart``/``SpeechEnd`` → ``Speech{Start,End}Frame`` (mints one ``speech_id``)
 - ``Chunk``                 → ``SpeechChunkFrame``
 - ``on_finalize``           ← ``FinalizeFrame``
-- an ``Action``             → ``ServerMessageFrame`` (a ``ui_command`` to the browser)
+- an ``Action``             → ``BrowserCommandFrame`` (a ``ui_command`` to the browser)
+- ``configure_*``           → a ``Configure*Frame``, answered by one ``ResponseFrame``
 - barge-in                  ← ``InterruptionFrame`` → the turn is cancelled, then echoed back as the drain barrier
 
 Correlation never appears in this surface. Voice stamps each stimulus with an
@@ -68,33 +74,36 @@ from loguru import logger
 from .actions import Action, Result
 from .engine import Emitter, Envelope, SessionAdapter, SessionFactory
 from .events import (
-    AppMessage,
+    BrowserMessage,
     Chunk,
     Error,
     Finalize,
-    IdleTrigger,
     Speech,
     SpeechEnd,
     SpeechStart,
+    UserIdle,
     UserMessage,
 )
 from .outbound import CortexAgent
 from .wire import (
-    ClientMessageFrame,
+    PROTOCOL_VERSION,
+    BrowserCommandFrame,
+    BrowserMessageFrame,
+    ConfigureIdleFrame,
+    ConfigureRequest,
+    ConfigureSttFrame,
+    ConfigureTtsFrame,
     EndFrame,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
     InterruptionFrame,
-    ServerMessageFrame,
+    ResponseFrame,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
-    UpdateIdleSettingsFrame,
-    UpdateSTTSettingsFrame,
-    UpdateTTSSettingsFrame,
     UserIdleFrame,
     UserMessageFrame,
 )
@@ -103,6 +112,7 @@ __all__ = [
     "ActionHandle",
     "Brain",
     "ProtocolError",
+    "RequestRejected",
     "Session",
     "adapter_for",
     "brain_factory",
@@ -114,6 +124,11 @@ ACTION_RESULT = "action_result"
 
 # Agent-initiated speech answers no stimulus, so it echoes no epoch.
 NO_EPOCH = 0
+
+#: How long a `session.configure_*` call waits for Voice's answer. Comfortably
+#: past the runtime's own wait on the recognizer, so a rejection in flight
+#: arrives as a rejection rather than as a timeout.
+REQUEST_TIMEOUT_S = 10.0
 
 
 class ProtocolError(RuntimeError):
@@ -129,6 +144,21 @@ class ProtocolError(RuntimeError):
     Almost always the first: an unbalanced bracket, or speech yielded from a
     callback that holds no floor.
     """
+
+
+class RequestRejected(RuntimeError):
+    """Voice refused a ``session.configure_*`` call and applied none of it.
+
+    A request is accepted or rejected whole, so on this exception the previous
+    setting is still in force and the call is still coherent — an unsupported
+    language leaves both legs where they were rather than moving one of them.
+    ``detail`` is Voice's own reason, written to be shown.
+    """
+
+    def __init__(self, op: str, detail: str) -> None:
+        super().__init__(f"{op} rejected: {detail}")
+        self.op = op
+        self.detail = detail
 
 
 # ─── The session ──────────────────────────────────────────────────────────────
@@ -180,6 +210,10 @@ class Session:
         self._speech_seq = 0
         self._action_seq = 0
         self._pending: dict[int, _PendingAction] = {}
+        # One id per configure request, session-monotonic. Its whole job is to
+        # name the answer that comes back.
+        self._request_seq = 0
+        self._awaiting: dict[int, asyncio.Future[ResponseFrame]] = {}
         self._ended = False
 
     # ─── Actions ────────────────────────────────────────────────────────
@@ -200,7 +234,7 @@ class Session:
         if action.timeout_s is not None:
             pending.expiry = self._adapter.spawn(self._expire(action_id, action.timeout_s))
         self._adapter.emit(
-            ServerMessageFrame(
+            BrowserCommandFrame(
                 data={
                     "type": "ui_command",
                     "action": type(action).__voqal_action__,
@@ -234,6 +268,9 @@ class Session:
             if pending.expiry is not None:
                 pending.expiry.cancel()
         self._pending.clear()
+        for future in self._awaiting.values():
+            future.cancel()
+        self._awaiting.clear()
 
     # ─── Ending the call ────────────────────────────────────────────────
 
@@ -257,8 +294,15 @@ class Session:
         self._adapter.emit(EndFrame())
 
     # ─── Configuration ──────────────────────────────────────────────────
+    #
+    # Every one of these is a request, and every request is answered. Awaiting
+    # the answer is how a setting Voice cannot honour becomes an exception here
+    # instead of a call that sounds wrong and reports nothing.
+    #
+    # Accepted means Voice took the change, not that you can hear it yet: each
+    # method says below where its boundary is.
 
-    def configure_language(self, language: str, *, voice: str | None = None) -> None:
+    async def configure_language(self, language: str, *, voice: str | None = None) -> None:
         """Switch the whole call to another language — **the only way to do this.**
 
         One call moves both halves. Do not reach for :meth:`configure_tts` and
@@ -272,40 +316,41 @@ class Session:
 
         ``language`` is an ISO code (``"hi"``, ``"ta"``, ``"en"``). Pass ``voice``
         too when the target language needs a different catalog voice. To open a
-        session in a language, set ``pipeline.stt.language`` and
-        ``pipeline.tts.language`` at connect instead — same field, same value.
+        session in a language, declare :attr:`Brain.language` and
+        :attr:`Brain.voice` instead — same values, applied before the greeting.
 
-        Fire-and-forget, and inherits each half's timing: STT applies at the next
-        turn boundary, TTS at the next speech unit (never mid-utterance).
+        The recognizer goes first, because it is the leg that can refuse: it
+        either has an engine for the language or it does not, and a refusal there
+        leaves the voice untouched. So :class:`RequestRejected` from here means
+        the call is still wholly in the language it was in.
         """
-        self.configure_tts(voice=voice, language=language)
-        self.configure_stt(language_hint=language)
+        await self.configure_stt(language_hint=language)
+        await self.configure_tts(voice=voice, language=language)
 
-    def configure_tts(
+    async def configure_tts(
         self,
         *,
         voice: str | None = None,
         language: str | None = None,
         model: str | None = None,
+        speed: float | None = None,
     ) -> None:
-        """Change TTS voice/language/model for the **next** speech unit.
+        """Retune the voice. Only pass what you want to change.
 
-        Not instantaneous: vql-speech locks voice/model/language per synthesis
-        context and Voice pins one context per unit, so a change here takes effect
-        once the current unit (if any) finishes — never mid-utterance. Only pass
-        what you want to change.
+        Accepted here means the next speech unit will use it. The synthesizer
+        locks voice, model, language and speed for the length of one synthesis
+        context and Voice pins one context per unit, so a change never lands
+        mid-utterance — the sentence being spoken finishes in the old voice.
+
+        ``speed`` is 0.5 to 2.0, where 1.0 is the voice's natural rate; outside that
+        the request is rejected and nothing changes.
         """
-        settings: dict[str, Any] = {}
-        if voice is not None:
-            settings["voice"] = voice
-        if language is not None:
-            settings["language"] = language
-        if model is not None:
-            settings["model"] = model
-        if settings:
-            self._adapter.emit(UpdateTTSSettingsFrame(settings=settings))
+        await self._request(
+            "configure_tts",
+            ConfigureTtsFrame(voice=voice, language=language, model=model, speed=speed),
+        )
 
-    def configure_stt(
+    async def configure_stt(
         self,
         *,
         language_hint: str | None = None,
@@ -318,39 +363,90 @@ class Session:
         resume_frames: int | None = None,
         min_segment_speech_frames: int | None = None,
         confidence_tail_ms: int | None = None,
+        eot_threshold: float | None = None,
+        eot_timeout_ms: int | None = None,
     ) -> None:
-        """Change STT VAD / turn-detection knobs mid-call.
+        """Retune the recognizer — turn detection, and what language it decodes.
 
-        Unlike :meth:`configure_tts` these apply live with no queuing — vql-speech
-        treats them as comparison bounds against self-resetting counters, safe to
-        change mid-utterance. Field names match its ``Configure`` thresholds
-        verbatim. Use it to widen the pause window for a slow or stammering
-        talker, tighten it for a fast-turnaround flow, or adapt to a noisy line.
+        The thresholds apply live: the recognizer treats them as bounds against
+        counters that reset themselves, so changing one mid-utterance is safe.
+        Use them to widen the pause window for a slow or stammering talker,
+        tighten it for a fast-turnaround flow, or adapt to a noisy line.
+        ``language_hint`` is the exception — it carries per-turn decoder state, so
+        the turn being spoken when it arrives still transcribes as spoken and the
+        change governs the next one.
+
+        The answer is the recognizer's own, and it is all-or-nothing: a language
+        it has no engine for rejects the whole request, thresholds included, with
+        nothing applied.
         """
-        settings: dict[str, Any] = {}
-        for key, value in (
-            ("language_hint", language_hint),
-            ("vad_confidence", vad_confidence),
-            ("vad_min_volume", vad_min_volume),
-            ("vad_start_frames", vad_start_frames),
-            ("vad_stop_frames_to_trigger_update", vad_stop_frames_to_trigger_update),
-            ("vad_eager_frames", vad_eager_frames),
-            ("vad_barge_in_ms", vad_barge_in_ms),
-            ("resume_frames", resume_frames),
-            ("min_segment_speech_frames", min_segment_speech_frames),
-            ("confidence_tail_ms", confidence_tail_ms),
-        ):
-            if value is not None:
-                settings[key] = value
-        if settings:
-            self._adapter.emit(UpdateSTTSettingsFrame(settings=settings))
+        thresholds = {
+            name: value
+            for name, value in (
+                ("vad_confidence", vad_confidence),
+                ("vad_min_volume", vad_min_volume),
+                ("vad_start_frames", vad_start_frames),
+                ("vad_stop_frames_to_trigger_update", vad_stop_frames_to_trigger_update),
+                ("vad_eager_frames", vad_eager_frames),
+                ("vad_barge_in_ms", vad_barge_in_ms),
+                ("resume_frames", resume_frames),
+                ("min_segment_speech_frames", min_segment_speech_frames),
+                ("confidence_tail_ms", confidence_tail_ms),
+                ("eot_threshold", eot_threshold),
+                ("eot_timeout_ms", eot_timeout_ms),
+            )
+            if value is not None
+        }
+        await self._request(
+            "configure_stt",
+            ConfigureSttFrame(language_hint=language_hint, thresholds=thresholds),
+        )
 
-    def configure_idle(self, *, timeout_ms: int | None = None) -> None:
-        """(Re)configure idle detection. ``timeout_ms`` is the silence after Voice
-        stops speaking before it calls :meth:`Brain.on_user_idle`; ``0`` disables
-        idle detection until you re-enable it."""
-        if timeout_ms is not None:
-            self._adapter.emit(UpdateIdleSettingsFrame(settings={"timeout_ms": timeout_ms}))
+    async def configure_idle(self, *, timeout_ms: int | None = None) -> None:
+        """Retune idle detection — the silence after Voice stops speaking before
+        it calls :meth:`Brain.on_user_idle`. ``0`` disables it until you set one
+        again.
+
+        Voice owns this timer itself, so accepted means applied: a timer already
+        running restarts on the new duration before the answer comes back.
+        """
+        await self._request("configure_idle", ConfigureIdleFrame(timeout_ms=timeout_ms))
+
+    async def _request(self, op: str, frame: ConfigureRequest) -> None:
+        """Send one request and block on its answer.
+
+        Safe from anywhere a brain runs — Voice's answer bypasses the frame lanes
+        entirely, so awaiting one inside a callback cannot stall the delivery of
+        the answer it is waiting for.
+        """
+        self._request_seq += 1
+        frame.request_id = self._request_seq
+        future: asyncio.Future[ResponseFrame] = asyncio.get_running_loop().create_future()
+        self._awaiting[frame.request_id] = future
+        self._adapter.emit(frame)
+        try:
+            response = await asyncio.wait_for(future, REQUEST_TIMEOUT_S)
+        except TimeoutError:
+            raise TimeoutError(
+                f"{op}: Voice did not answer within {REQUEST_TIMEOUT_S:g}s, so whether "
+                f"it applied is unknown"
+            ) from None
+        finally:
+            self._awaiting.pop(frame.request_id, None)
+        if not response.accepted:
+            raise RequestRejected(op, response.detail)
+
+    def _settle_request(self, frame: ResponseFrame) -> None:
+        future = self._awaiting.pop(frame.request_id, None)
+        if future is None:
+            logger.warning(
+                "session {}: answer to request {} arrived with nobody waiting",
+                self.id,
+                frame.request_id,
+            )
+            return
+        if not future.done():
+            future.set_result(frame)
 
     # ─── Internal ───────────────────────────────────────────────────────
 
@@ -455,16 +551,16 @@ class Brain:
         """
         raise NotImplementedError("Brain.on_user_message must be implemented")
 
-    def on_user_idle(self, session: Session, idle: IdleTrigger) -> AsyncGenerator[Speech, None]:
+    def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         """The human went quiet past the idle timeout and the floor is yours if
         you want it. ``idle.level`` counts escalations, so you can nudge gently at
         1 and wrap up at 3. Default: say nothing and let the silence ride."""
         return _nothing()
 
-    async def on_app_message(self, session: Session, msg: AppMessage) -> None:
-        """The application said something — a tap, a keystroke, a state push::
+    async def on_browser_message(self, session: Session, msg: BrowserMessage) -> None:
+        """The browser said something — a tap, a keystroke, a state push::
 
-            async def on_app_message(self, session, msg):
+            async def on_browser_message(self, session, msg):
                 if msg.type == "state_sync":
                     self.screen = msg.data
                 elif msg.type == "catalog_search":
@@ -514,6 +610,15 @@ class _BrainAdapter:
     def emit(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
         self._emitter.send(frame, epoch=epoch, speech_id=speech_id)
 
+    def settle_response(self, frame: ResponseFrame) -> None:
+        """Hand Voice's answer to whoever is blocked on it.
+
+        Called straight off the reader rather than through the feeder, so it must
+        stay synchronous and never block — see :mod:`.engine`.
+        """
+        if self._session is not None:
+            self._session._settle_request(frame)
+
     def spawn(self, coro: Any) -> asyncio.Task[Any]:
         task = asyncio.ensure_future(coro)
         self._ambient.add(task)
@@ -543,7 +648,7 @@ class _BrainAdapter:
             self._spawn_turn(
                 session,
                 env.epoch,
-                _speech(self._brain.on_user_idle(session, IdleTrigger(frame.level, frame.idle_ms))),
+                _speech(self._brain.on_user_idle(session, UserIdle(frame.level, frame.idle_ms))),
             )
         elif isinstance(frame, InterruptionFrame):
             # Cancel in flight first, then echo: the echo is Voice's drain
@@ -560,8 +665,8 @@ class _BrainAdapter:
                     interrupted=frame.reason is FinalizeReason.USER_BARGE_IN,
                 ),
             )
-        elif isinstance(frame, ClientMessageFrame):
-            self._deliver_app_message(session, frame)
+        elif isinstance(frame, BrowserMessageFrame):
+            self._deliver_browser_message(session, frame)
         elif isinstance(frame, ErrorFrame):
             await self._brain.on_error(session, Error(message=frame.error, fatal=frame.fatal))
 
@@ -585,7 +690,14 @@ class _BrainAdapter:
     async def _start(self, frame: SessionStartFrame) -> None:
         session = Session(self, frame.session_id, dict(frame.payload))
         self._session = session
-        self._apply_declared_voice(session)
+        if frame.protocol_version != PROTOCOL_VERSION:
+            self._refuse_version(session, frame.protocol_version)
+            return
+        try:
+            await self._apply_declared_voice(session)
+        except Exception as exc:
+            self._abort(session, "voice", exc)
+            return
         try:
             await self._brain.on_session_start(session)
         except Exception as exc:
@@ -598,6 +710,32 @@ class _BrainAdapter:
             await self._drive(session, NO_EPOCH, _one_unit(opening))
         except Exception as exc:
             self._abort(session, "greet", exc)
+
+    def _refuse_version(self, session: Session, spoken: int) -> None:
+        """Refuse a session whose runtime speaks a different protocol.
+
+        Voice speaks first, so this is the last moment either end can refuse
+        before a call is running, and it is the only one where refusing costs
+        nothing: no audio has been synthesized and the caller has heard nothing.
+        A version that differs in either direction means the two ends do not
+        agree on what the bytes mean, and guessing is the thing a version exists
+        to prevent.
+        """
+        logger.error(
+            "brain: refusing session {} — Voice speaks protocol {}, this SDK speaks {}",
+            session.id,
+            spoken,
+            PROTOCOL_VERSION,
+        )
+        self.emit(
+            ErrorFrame(
+                error=(
+                    f"protocol mismatch: Voice speaks {spoken}, this SDK speaks {PROTOCOL_VERSION}"
+                ),
+                fatal=True,
+            )
+        )
+        session.end(reason="protocol_mismatch")
 
     def _abort(self, session: Session, hook: str, exc: Exception) -> None:
         """Fail a session that could not be opened, rather than run it broken.
@@ -614,22 +752,26 @@ class _BrainAdapter:
         self.emit(ErrorFrame(error=f"{hook} failed: {exc}", fatal=True))
         session.end(reason=f"{hook}_failed")
 
-    def _apply_declared_voice(self, session: Session) -> None:
+    async def _apply_declared_voice(self, session: Session) -> None:
         """Apply the brain's declared :attr:`Brain.voice` / :attr:`Brain.language`.
 
         Here, on the way into the session, rather than in a base class's
         ``on_session_start`` — a subclass that overrides that hook and forgets
         ``super()`` would silently lose its voice, and a wrong voice is inaudible
         to every automated check we have (accent and speaker identity do not show
-        up in a transcript). Emitted before the brain's own hook, so a brain that
-        resolves the language per caller can still override it there: later frame
-        on the same ordered lane wins, and both land before the greeting audio.
+        up in a transcript). Applied before the brain's own hook, so a brain that
+        resolves the language per caller can still override it there, and both
+        land before the greeting audio.
+
+        A refusal fails the session. A brain that declared a voice or a language
+        Voice will not serve has stated what the call is; running it in some other
+        one is a call nobody asked for.
         """
         language, voice = self._brain.language, self._brain.voice
         if language is not None:
-            session.configure_language(language, voice=voice)
+            await session.configure_language(language, voice=voice)
         elif voice is not None:
-            session.configure_tts(voice=voice)
+            await session.configure_tts(voice=voice)
 
     # ─── Driving what the brain yields ──────────────────────────────────
 
@@ -694,25 +836,26 @@ class _BrainAdapter:
                     await task
         self._turns.clear()
 
-    # ─── App messages ───────────────────────────────────────────────────
+    # ─── Browser messages ───────────────────────────────────────────────
 
-    def _deliver_app_message(self, session: Session, frame: ClientMessageFrame) -> None:
+    def _deliver_browser_message(self, session: Session, frame: BrowserMessageFrame) -> None:
         if frame.type == ACTION_RESULT:
             self._settle_action(session, frame.data)
             return
-        msg = AppMessage(type=frame.type, data=frame.data, id=frame.msg_id)
-        self.spawn(self._run_app_message(session, msg))
+        self.spawn(
+            self._run_browser_message(session, BrowserMessage(type=frame.type, data=frame.data))
+        )
 
-    async def _run_app_message(self, session: Session, msg: AppMessage) -> None:
+    async def _run_browser_message(self, session: Session, msg: BrowserMessage) -> None:
         try:
-            handled: Any = self._brain.on_app_message(session, msg)
+            handled: Any = self._brain.on_browser_message(session, msg)
             if isinstance(handled, AsyncGenerator):
                 # A `yield` anywhere in the body makes it a generator. Say so,
                 # rather than let it surface as "object async_generator can't be
                 # used in 'await' expression".
                 await handled.aclose()
                 raise ProtocolError(
-                    "on_app_message must not be a generator: an application "
+                    "on_browser_message must not be a generator: a browser "
                     "message never takes the floor. Use session.dispatch(...) to "
                     "render and session.end() to hang up."
                 )
@@ -720,7 +863,7 @@ class _BrainAdapter:
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception("brain: on_app_message failed for {!r}", msg.type)
+            logger.exception("brain: on_browser_message failed for {!r}", msg.type)
 
     def _settle_action(self, session: Session, data: dict[str, Any]) -> None:
         action_id = data.get("action_id")

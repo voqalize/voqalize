@@ -5,8 +5,12 @@ from __future__ import annotations
 import pytest
 
 from voqalize.sdk.wire import (
+    BrowserCommandFrame,
+    BrowserMessageFrame,
     CancelFrame,
-    ClientMessageFrame,
+    ConfigureIdleFrame,
+    ConfigureSttFrame,
+    ConfigureTtsFrame,
     CortexFrameSerializer,
     EndFrame,
     ErrorFrame,
@@ -14,14 +18,11 @@ from voqalize.sdk.wire import (
     FinalizeReason,
     Frame,
     InterruptionFrame,
-    ServerMessageFrame,
+    ResponseFrame,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
-    UpdateIdleSettingsFrame,
-    UpdateSTTSettingsFrame,
-    UpdateTTSSettingsFrame,
     UserIdleFrame,
     UserMessageFrame,
 )
@@ -36,7 +37,7 @@ def _frames() -> list[Frame]:
         ),
         UserMessageFrame(text="hello there"),
         UserIdleFrame(level=2, idle_ms=30000),
-        ClientMessageFrame(msg_id="m-1", type="form_submitted", data={"field": "email"}),
+        BrowserMessageFrame(type="form_submitted", data={"field": "email"}),
         InterruptionFrame(),
         FinalizeFrame(heard_text="ok, scheduled", reason=FinalizeReason.COMPLETED),
         FinalizeFrame(heard_text="partial...", reason=FinalizeReason.USER_BARGE_IN),
@@ -44,10 +45,16 @@ def _frames() -> list[Frame]:
         SpeechChunkFrame(text="hi"),
         SpeechChunkFrame(text=" world"),
         SpeechEndFrame(),
-        ServerMessageFrame(data={"ui": "open_panel", "args": {"id": 3}}),
-        UpdateTTSSettingsFrame(settings={"voice": "omnivoice/gauri", "language": "hi"}),
-        UpdateSTTSettingsFrame(settings={"language_hint": "hi"}),
-        UpdateIdleSettingsFrame(settings={"timeout_ms": 0}),
+        BrowserCommandFrame(data={"ui": "open_panel", "args": {"id": 3}}),
+        ConfigureTtsFrame(request_id=1, voice="omnivoice/gauri", language="hi", speed=1.25),
+        ConfigureSttFrame(
+            request_id=2,
+            language_hint="hi",
+            thresholds={"eot_threshold": 0.75, "eot_timeout_ms": 4000},
+        ),
+        ConfigureIdleFrame(request_id=3, timeout_ms=0),
+        ResponseFrame(request_id=3, accepted=True),
+        ResponseFrame(request_id=4, accepted=False, detail="speed must be 0.5 to 2.0"),
         EndFrame(),
         CancelFrame(reason="user_left"),
         CancelFrame(),  # reason=None → empty string on wire
@@ -60,13 +67,14 @@ _FIELDS: dict[type[Frame], tuple[str, ...]] = {
     SessionStartFrame: ("session_id", "agent_id", "payload"),
     UserMessageFrame: ("text",),
     UserIdleFrame: ("level", "idle_ms"),
-    ClientMessageFrame: ("msg_id", "type", "data"),
+    BrowserMessageFrame: ("type", "data"),
     FinalizeFrame: ("heard_text", "reason"),
     SpeechChunkFrame: ("text",),
-    ServerMessageFrame: ("data",),
-    UpdateTTSSettingsFrame: ("settings",),
-    UpdateSTTSettingsFrame: ("settings",),
-    UpdateIdleSettingsFrame: ("settings",),
+    BrowserCommandFrame: ("data",),
+    ConfigureTtsFrame: ("request_id", "voice", "language", "model", "speed"),
+    ConfigureSttFrame: ("request_id", "language_hint", "thresholds"),
+    ConfigureIdleFrame: ("request_id", "timeout_ms"),
+    ResponseFrame: ("request_id", "accepted", "detail"),
     ErrorFrame: ("error", "fatal"),
     # Field-less frames round-trip to their own type and nothing more.
     InterruptionFrame: (),
@@ -114,3 +122,29 @@ async def test_correlation_defaults_to_zero() -> None:
     ser = CortexFrameSerializer()
     msg = await ser.deserialize_message(await ser.serialize(UserMessageFrame(text="hi")))
     assert (msg.epoch, msg.speech_id) == (0, 0)
+
+
+@pytest.mark.parametrize(
+    "frame",
+    [
+        ConfigureTtsFrame(request_id=9),
+        ConfigureSttFrame(request_id=9),
+        ConfigureIdleFrame(request_id=9),
+    ],
+    ids=lambda f: type(f).__name__,
+)
+async def test_an_empty_delta_still_names_its_op(frame: Frame) -> None:
+    """A request that changes nothing is a legal no-op the far side answers — so
+    the op must survive the trip even when no field is set. Encode it as a bare
+    envelope and it would arrive as an unknown operation instead."""
+    ser = CortexFrameSerializer()
+    out = await ser.deserialize(await ser.serialize(frame))
+    assert type(out) is type(frame)
+
+
+async def test_an_undeclared_threshold_is_refused_at_the_sender() -> None:
+    """The thresholds dict is the schema's own field names. A name the schema does
+    not declare fails here rather than travelling as a key nothing will read."""
+    ser = CortexFrameSerializer()
+    with pytest.raises(AttributeError):
+        await ser.serialize(ConfigureSttFrame(request_id=1, thresholds={"patience": 3}))

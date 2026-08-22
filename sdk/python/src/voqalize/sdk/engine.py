@@ -17,6 +17,11 @@ Design:
   lane one at a time and awaits ``adapter.handle_frame`` on each, so the adapter
   sees frames in wire order. A slow callback delays the *callbacks* behind it and
   nothing else — it never reaches back across the wire.
+- **A ``Response`` bypasses the lanes entirely.** It is an answer, not a
+  stimulus: it has exactly one consumer — the caller blocked on it — and no
+  ordering against speech or user messages. Queueing it behind the feeder would
+  deadlock every request made from a callback, because the feeder is inside the
+  very callback that is awaiting it.
 - **Backpressure.** Normal-lane overflow drops the newest frame and delivers a
   non-fatal ``ErrorFrame`` to the adapter (edge-triggered: one per congestion
   episode per direction). The runner never kills a session.
@@ -36,7 +41,7 @@ from typing import Protocol
 
 from loguru import logger
 
-from .wire import EndFrame, ErrorFrame, Frame, FrameDirection, is_system
+from .wire import EndFrame, ErrorFrame, Frame, FrameDirection, ResponseFrame, is_system
 
 DEFAULT_NORMAL_MAXSIZE = 256
 DEFAULT_SYSTEM_MAXSIZE = 32  # tripwire; never expected to fill
@@ -82,11 +87,14 @@ class SessionAdapter(Protocol):
 
     ``handle_frame`` is dispatched sequentially by the feeder, system-lane first.
     It may emit frames synchronously via the :class:`Emitter` it was built with,
-    and it may spawn its own tasks (e.g. ``on_interaction``). ``close`` runs
+    and it may spawn its own tasks (e.g. ``on_interaction``). ``settle_response``
+    is called straight off the reader instead, and must not block. ``close`` runs
     session teardown (``on_session_end``).
     """
 
     async def handle_frame(self, env: Envelope) -> None: ...
+
+    def settle_response(self, frame: ResponseFrame) -> None: ...
 
     async def close(self) -> None: ...
 
@@ -240,6 +248,9 @@ class SessionRunner:
     # ─── Inbound (called by the transport reader) ───────────────────────
 
     def enqueue_inbound(self, env: Envelope) -> None:
+        if isinstance(env.frame, ResponseFrame):
+            self._adapter.settle_response(env.frame)
+            return
         if is_system(env.frame):
             self._in.put_system(env)
         elif not self._in.put_normal(env):

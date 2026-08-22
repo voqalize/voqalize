@@ -420,18 +420,18 @@ async def scn_action_result_roundtrip(ctx: ScenarioContext) -> None:
     )
 
 
-async def scn_client_message_delivery(ctx: ScenarioContext) -> None:
-    """A browser client message the brain does not respond to still reaches
-    ``on_client_message`` (the update-internal-state path)."""
+async def scn_browser_message_delivery(ctx: ScenarioContext) -> None:
+    """A browser message the brain does not respond to still reaches
+    ``on_browser_message`` (the update-internal-state path)."""
     driver = await ctx.connect()
     await driver.start_session()
-    await driver.send_client_message("state_sync", {"page": "checkout"})
+    await driver.send_browser_message("state_sync", {"page": "checkout"})
     state = await driver.dump_conversation()
-    events = state.get("app_events", [])
+    events = state.get("browser_messages", [])
     matched = [e for e in events if e.get("name") == "state_sync"]
     checks.require(
         len(matched) == 1 and matched[0].get("data") == {"page": "checkout"},
-        f"client message 'state_sync' not delivered to the brain: {events}",
+        f"browser message 'state_sync' not delivered to the brain: {events}",
     )
 
 
@@ -462,20 +462,20 @@ async def scn_user_idle(ctx: ScenarioContext) -> None:
     )
 
 
-async def scn_client_message_never_speaks(ctx: ScenarioContext) -> None:
+async def scn_browser_message_never_speaks(ctx: ScenarioContext) -> None:
     """A browser message never takes the floor. Voice delivers it to
-    ``on_app_message``, which may render but not speak — so no matter what the
+    ``on_browser_message``, which may render but not speak — so no matter what the
     brain does with it, the committed transcript gains nothing. Nothing about a
     click means the human stopped talking, and a brain that answered one would be
     talking over them."""
     driver = await ctx.connect()
     await driver.start_session()
     before = await driver.dump_conversation()
-    await driver.send_client_message("form_submitted", {"field": "email"})
+    await driver.send_browser_message("form_submitted", {"field": "email"})
     after = await driver.dump_conversation()
     checks.require(
         after.get("messages") == before.get("messages"),
-        f"a client message changed the transcript: {before.get('messages')} → "
+        f"a browser message changed the transcript: {before.get('messages')} → "
         f"{after.get('messages')}",
     )
 
@@ -558,9 +558,9 @@ CATALOG: list[Scenario] = [
         requires_reference=True,
     ),
     Scenario(
-        "client_message_delivery",
-        "A non-responding browser client message reaches on_client_message.",
-        scn_client_message_delivery,
+        "browser_message_delivery",
+        "A non-responding browser message reaches on_browser_message.",
+        scn_browser_message_delivery,
         requires_reference=True,
     ),
     Scenario(
@@ -572,9 +572,9 @@ CATALOG: list[Scenario] = [
         tags=("initiation",),
     ),
     Scenario(
-        "client_message_never_speaks",
-        "A client message is delivered but never takes the floor.",
-        scn_client_message_never_speaks,
+        "browser_message_never_speaks",
+        "A browser message is delivered but never takes the floor.",
+        scn_browser_message_never_speaks,
         requires_reference=True,
         tags=("initiation",),
     ),

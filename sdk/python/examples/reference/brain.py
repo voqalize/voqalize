@@ -43,17 +43,17 @@ from loguru import logger
 
 from voqalize.sdk import (
     Action,
-    AppMessage,
     Brain,
+    BrowserMessage,
     Chunk,
     Error,
     Finalize,
-    IdleTrigger,
     Result,
     Session,
     Speech,
     SpeechEnd,
     SpeechStart,
+    UserIdle,
     UserMessage,
 )
 
@@ -216,14 +216,12 @@ class ReferenceBrain(Brain):
 
     # ─── Optional callbacks ──────────────────────────────────────────────
 
-    async def on_user_idle(
-        self, session: Session, idle: IdleTrigger
-    ) -> AsyncGenerator[Speech, None]:
+    async def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         logger.info("reference: idle level={} after {}ms", idle.level, idle.idle_ms)
         async for speech in self._say("Still here whenever you are ready."):
             yield speech
 
-    async def on_app_message(self, session: Session, msg: AppMessage) -> None:
+    async def on_browser_message(self, session: Session, msg: BrowserMessage) -> None:
         # Not a generator: an application message never takes the floor.
         logger.info("reference: app message {!r} id={} {}", msg.type, msg.id, msg.data)
 

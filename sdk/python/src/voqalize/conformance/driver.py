@@ -21,28 +21,30 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import uuid
 from dataclasses import dataclass, field
 
 from websockets.exceptions import ConnectionClosed
 
 from voqalize.sdk.wire import (
+    PROTOCOL_VERSION,
+    BrowserCommandFrame,
+    BrowserMessageFrame,
     CancelFrame,
-    ClientMessageFrame,
+    ConfigureIdleFrame,
+    ConfigureRequest,
+    ConfigureSttFrame,
+    ConfigureTtsFrame,
     EndFrame,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
     InterruptionFrame,
-    ServerMessageFrame,
+    ResponseFrame,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
-    UpdateIdleSettingsFrame,
-    UpdateSTTSettingsFrame,
-    UpdateTTSSettingsFrame,
     UserIdleFrame,
     UserMessageFrame,
 )
@@ -55,6 +57,15 @@ from .wire_pygato import DirectConnection
 # lands on 0.
 GREETING_INTERACTION_ID = 0
 
+# The control leg's ops, by the frame that carries each. The driver answers every
+# one, because Voice does — a brain awaiting an answer that never comes is the
+# one failure the protocol promises cannot happen.
+REQUEST_OPS: dict[type[Frame], str] = {
+    ConfigureTtsFrame: "configure_tts",
+    ConfigureSttFrame: "configure_stt",
+    ConfigureIdleFrame: "configure_idle",
+}
+
 # ─── the conformance backchannel ─────────────────────────────────────────────
 #
 # The wire deliberately never carries the brain's *committed* conversation — the
@@ -62,11 +73,11 @@ GREETING_INTERACTION_ID = 0
 # recorded for the LLM) is not observable from the wire alone. There is no
 # history-request frame, and we do not add one: the wire stays frozen.
 #
-# Instead the driver reuses the generic, schema-free client-message lane the
-# protocol already has (browser→brain ``ClientMessage`` / brain→browser
-# ``ServerMessage``, the same lane real UIs use for ``ui_command`` /
+# Instead the driver reuses the generic, schema-free browser lane the protocol
+# already has (browser→brain ``BrowserMessage`` / brain→browser
+# ``BrowserCommand``, the same lane real UIs use for ``ui_command`` /
 # ``action_result`` — opaque to Voice, which just relays it). A conformance-aware
-# brain opts in by answering one namespaced client message with its committed state.
+# brain opts in by answering one namespaced browser message with its committed state.
 # Because the SDK *owns* ``session.conversation``, that answer can be produced by
 # the framework once (see ``reference.conformance_state``) and every brain built
 # on the SDK inherits it — the customer's brain code writes nothing.
@@ -177,9 +188,14 @@ class VoiceDriver:
         self.log: list[Recorded] = []
         self.ui_commands: list[dict] = []
         self.errors: list[ErrorFrame] = []
-        self.stt_settings: list[dict] = []
-        self.tts_settings: list[dict] = []
-        self.idle_settings: list[dict] = []
+        # Every configure request the brain made, in wire order.
+        self.requests: list[ConfigureRequest] = []
+        # Ops to refuse, op name → the reason Voice gives. A scenario sets one to
+        # exercise the path where a brain asks for something Voice will not do.
+        self.reject: dict[str, str] = {}
+        # Ops to leave unanswered, for the one case the protocol cannot promise
+        # away: a Voice that stopped answering mid-call.
+        self.withhold: set[str] = set()
         self.interactions: dict[int, InteractionObs] = {}
 
         # Wakeups and lifecycle signalling.
@@ -223,14 +239,14 @@ class VoiceDriver:
                 continue
             decoded = await self._ser.deserialize_message(payload)
             if decoded.frame is not None:
-                self._route(decoded, self._now())
+                await self._route(decoded, self._now())
             self._wake()
 
     def _wake(self) -> None:
         self._tick.set()
         self._tick.clear()
 
-    def _route(self, msg: DecodedMessage, t: float) -> None:
+    async def _route(self, msg: DecodedMessage, t: float) -> None:
         frame = msg.frame
         assert frame is not None
         self.log.append(Recorded(frame, t))
@@ -250,16 +266,19 @@ class VoiceDriver:
                 unit.ended_t = t
         elif isinstance(frame, InterruptionFrame):
             self._interruption_seen.set()
-        elif isinstance(frame, ServerMessageFrame):
+        elif isinstance(frame, BrowserCommandFrame):
             self.ui_commands.append(frame.data)
         elif isinstance(frame, ErrorFrame):
             self.errors.append(frame)
-        elif isinstance(frame, UpdateSTTSettingsFrame):
-            self.stt_settings.append(frame.settings)
-        elif isinstance(frame, UpdateTTSSettingsFrame):
-            self.tts_settings.append(frame.settings)
-        elif isinstance(frame, UpdateIdleSettingsFrame):
-            self.idle_settings.append(frame.settings)
+        elif isinstance(frame, ConfigureTtsFrame | ConfigureSttFrame | ConfigureIdleFrame):
+            self.requests.append(frame)
+            op = REQUEST_OPS[type(frame)]
+            if op in self.withhold:
+                return
+            detail = self.reject.get(op, "")
+            await self._send(
+                ResponseFrame(request_id=frame.request_id, accepted=not detail, detail=detail)
+            )
 
     def _unit_obs(self, epoch: int, speech_id: int) -> SpeechObs | None:
         io = self.interactions.get(epoch)
@@ -330,6 +349,7 @@ class VoiceDriver:
                 session_id=self.session_id,
                 agent_id=self.agent_id,
                 payload=payload or {},
+                protocol_version=PROTOCOL_VERSION,
             )
         )
         got = await self._wait_for(
@@ -378,7 +398,7 @@ class VoiceDriver:
     ) -> Turn:
         """Play out the brain's response to an already-opened turn, then finalize
         each spoken unit with a heard-truth transcript. Shared by ``user_says``
-        / ``user_idle`` / ``client_message`` — every Voice-opened turn plays out
+        / ``user_idle`` / ``barge_in`` — every Voice-opened turn plays out
         identically.
 
         The wire carries no end-of-turn frame, so "the brain is done" is: every
@@ -538,18 +558,14 @@ class VoiceDriver:
 
     # ─── app / action lane ───────────────────────────────────────────────────
 
-    async def send_client_message(self, type: str, data: dict | None = None) -> int:
-        """Send a browser client message the brain is *not* expected to answer, and
-        return the epoch Voice stamped it with.
+    async def send_browser_message(self, type: str, data: dict | None = None) -> int:
+        """Send a browser message and return the epoch Voice stamped it with.
 
         Voice delivers **every** browser message to the brain's
-        ``on_client_message`` without interpreting it. This method does not wait for
-        a reply; the responding case is :meth:`client_message`."""
+        ``on_browser_message`` without interpreting it, and that callback cannot
+        speak — so there is nothing to wait for here."""
         iid = self.next_interaction_id()
-        await self._send(
-            ClientMessageFrame(msg_id=str(uuid.uuid4()), type=type, data=data or {}),
-            epoch=iid,
-        )
+        await self._send(BrowserMessageFrame(type=type, data=data or {}), epoch=iid)
         return iid
 
     async def send_action_result(
@@ -561,14 +577,13 @@ class VoiceDriver:
     ) -> None:
         """Report the outcome of a UI action the brain requested (client→brain).
 
-        Rides the same ``ClientMessage`` frame as any browser message, typed
+        Rides the same ``BrowserMessage`` frame as any browser message, typed
         ``action_result`` — the SDK routes those to the pending ``action`` callback
-        rather than ``on_client_message``. ``action_id`` is the integer the brain
+        rather than ``on_browser_message``. ``action_id`` is the integer the brain
         minted in its ``ui_command``; the adapter correlates the outcome by that int
         at session scope."""
         await self._send(
-            ClientMessageFrame(
-                msg_id=str(uuid.uuid4()),
+            BrowserMessageFrame(
                 type="action_result",
                 data={"action_id": action_id, "status": status, "result": result or {}},
             ),
@@ -600,7 +615,7 @@ class VoiceDriver:
         ``session.conversation``. No protocol change — just a cooperation
         convention on the existing client-message lane."""
         before = len(self.ui_commands)
-        await self.send_client_message(CONFORMANCE_DUMP_EVENT)
+        await self.send_browser_message(CONFORMANCE_DUMP_EVENT)
         await self._wait_for(
             lambda: any(
                 c.get("action") == CONFORMANCE_STATE_ACTION for c in self.ui_commands[before:]

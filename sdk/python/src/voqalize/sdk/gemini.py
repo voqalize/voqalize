@@ -172,7 +172,7 @@ class GeminiBrain(Brain):
     def grounding(self) -> str | None:
         """Authoritative context folded into every turn — typically the live
         on-screen state the browser pushes to
-        :meth:`~voqalize.sdk.Brain.on_app_message`. Return a text note and it is
+        :meth:`~voqalize.sdk.Brain.on_browser_message`. Return a text note and it is
         inserted **just before the latest user turn**, so an ambiguous question is
         grounded in what the caller is looking at. Default: none."""
         return None

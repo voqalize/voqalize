@@ -107,12 +107,14 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 ## Layout
 
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
-  `on_interaction`; the rest are optional — `on_session_start`/`on_session_end`/
-  `on_user_idle`/`on_finalize`/`on_client_message`/`on_error`) +
-  `Session`/`Interaction`/`Inference`/`Conversation`/`Outcome`/`ClientMessage`/
-  `IdleInfo`, the `_BrainAdapter` that maps `Vql*` frames ↔ callbacks, and the
-  entry points (`serve` for the Cortex leg, plus the internal `adapter_for` /
-  `brain_factory` seams).
+  `on_user_message`; the rest are optional — `greet`/`on_session_start`/
+  `on_session_end`/`on_user_idle`/`on_browser_message`/`on_finalize`/`on_error`) +
+  `Session`/`ActionHandle`, the `_BrainAdapter` that maps `Vql*` frames ↔
+  callbacks, and the entry points (`serve` for the Cortex leg, plus the internal
+  `adapter_for` / `brain_factory` seams).
+- `src/voqalize/sdk/events.py` — what a callback is handed and what it yields:
+  `UserMessage`/`UserIdle`/`BrowserMessage`, `SpeechStart`/`Chunk`/`SpeechEnd`,
+  `Finalize`, `Error`.
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
   `SessionRunner` (two-lane in/out, system-first feeder, ack-on-dequeue,
   drop-newest + `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` /

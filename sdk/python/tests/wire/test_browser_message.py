@@ -1,8 +1,8 @@
-"""The browser→Brain application message, over the real stack.
+"""The browser→brain message, over the real stack.
 
 Voice delivers every one of them unconditionally and never interprets the type.
 Handling one cannot make the server speak — nothing about a click means the human
-stopped talking — so ``on_app_message`` is a coroutine, not a generator, and a
+stopped talking — so ``on_browser_message`` is a coroutine, not a generator, and a
 brain that writes one anyway is contained rather than obeyed.
 
 Also covered here: an envelope body this build has never heard of must be skipped,
@@ -51,19 +51,19 @@ class _Recorder:
         self.got = asyncio.Event()
 
 
-async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
+async def _run_browser_message(*, speak: bool) -> tuple[_Recorder, list]:
     """Deliver one application message to a live Brain over a real socket.
 
     Returns the recorder and every frame the Brain emitted back.
     """
     from voqalize.conformance import BrainServer
     from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
-    from voqalize.sdk.wire import ClientMessageFrame
+    from voqalize.sdk.wire import BrowserMessageFrame
 
     rec = _Recorder()
 
     class Recording(Brain):
-        async def on_app_message(self, session, msg):
+        async def on_browser_message(self, session, msg):
             rec.seen.append((msg.type, msg.data))
             rec.got.set()
 
@@ -71,7 +71,7 @@ async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
         """The contract violation, written out: a generator body on the one
         callback that is awaited rather than driven."""
 
-        async def on_app_message(self, session, msg):  # type: ignore[override]
+        async def on_browser_message(self, session, msg):  # type: ignore[override]
             rec.seen.append((msg.type, msg.data))
             rec.got.set()
             yield SpeechStart()
@@ -97,7 +97,7 @@ async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
         )
         await wire.send(
             FrameDirection.DOWNSTREAM,
-            await ser.serialize(ClientMessageFrame(msg_id="m-7", type=MSG_TYPE, data=MSG_DATA)),
+            await ser.serialize(BrowserMessageFrame(type=MSG_TYPE, data=MSG_DATA)),
         )
         # A violating brain never reaches its own body, so there is nothing to
         # wait for — give it a short beat and let the assertions speak.
@@ -120,15 +120,15 @@ async def _run_client_message(*, speak: bool) -> tuple[_Recorder, list]:
     return rec, emitted
 
 
-async def test_client_message_reaches_on_app_message() -> None:
+async def test_browser_message_reaches_the_seam() -> None:
     """The seam fires with the message exactly as sent, and the session stays silent."""
-    rec, emitted = await _run_client_message(speak=False)
+    rec, emitted = await _run_browser_message(speak=False)
 
     assert rec.seen == [(MSG_TYPE, MSG_DATA)]
     assert not [f for f in emitted if isinstance(f, SpeechStartFrame)]
 
 
-async def test_speaking_from_an_app_message_puts_nothing_on_the_wire() -> None:
+async def test_speaking_from_a_browser_message_puts_nothing_on_the_wire() -> None:
     """The signature says coroutine; the runtime enforces it rather than trusting it.
 
     A tap that made the server start talking would cut across whatever the human was
@@ -136,7 +136,7 @@ async def test_speaking_from_an_app_message_puts_nothing_on_the_wire() -> None:
     Voice — and because it never runs, the body's own bookkeeping does not happen
     either. A contract violation is refused whole, not half-honoured.
     """
-    rec, emitted = await _run_client_message(speak=True)
+    rec, emitted = await _run_browser_message(speak=True)
 
     assert rec.seen == []
     assert not [f for f in emitted if isinstance(f, SpeechStartFrame)]

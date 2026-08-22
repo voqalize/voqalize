@@ -14,11 +14,11 @@ from __future__ import annotations
 import asyncio
 
 from voqalize.sdk.wire import (
+    BrowserCommandFrame,
     CortexFrameSerializer,
     Frame,
     FrameDirection,
     MalformedFrameError,
-    ServerMessageFrame,
     Wire,
     WireConfig,
 )
@@ -73,7 +73,7 @@ class PygatoClient:
                     msg = await self._ser.deserialize_message(payload)
                 except MalformedFrameError:
                     continue
-                if isinstance(msg.frame, ServerMessageFrame):
+                if isinstance(msg.frame, BrowserCommandFrame):
                     cmds.append(msg.frame.data)
 
         await asyncio.wait_for(pump(), timeout=timeout)

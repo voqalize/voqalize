@@ -32,16 +32,16 @@ class; nothing here imports it.
 
 from ._logging import configure_logging, session_context
 from .actions import Action, Result
-from .brain import ActionHandle, Brain, ProtocolError, Session, serve
+from .brain import ActionHandle, Brain, ProtocolError, RequestRejected, Session, serve
 from .events import (
-    AppMessage,
+    BrowserMessage,
     Chunk,
     Error,
     Finalize,
-    IdleTrigger,
     Speech,
     SpeechEnd,
     SpeechStart,
+    UserIdle,
     UserMessage,
 )
 from .session import Channel, SessionRejected, run_session
@@ -49,20 +49,21 @@ from .session import Channel, SessionRejected, run_session
 __all__ = [
     "Action",
     "ActionHandle",
-    "AppMessage",
     "Brain",
+    "BrowserMessage",
     "Channel",
     "Chunk",
     "Error",
     "Finalize",
-    "IdleTrigger",
     "ProtocolError",
+    "RequestRejected",
     "Result",
     "Session",
     "SessionRejected",
     "Speech",
     "SpeechEnd",
     "SpeechStart",
+    "UserIdle",
     "UserMessage",
     "configure_logging",
     "run_session",

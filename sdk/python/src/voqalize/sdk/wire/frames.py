@@ -19,6 +19,12 @@ from dataclasses import dataclass, field
 from enum import IntEnum, StrEnum
 from typing import Any
 
+# The wire version this build speaks. The runtime stamps it on the session's first
+# envelope and a brain that speaks a different one refuses the session — see
+# :meth:`voqalize.sdk.brain._BrainAdapter._start`. The rule for when it moves is
+# in frames.proto.
+PROTOCOL_VERSION = 1
+
 
 class FrameDirection(IntEnum):
     """Wire direction byte. Values match pipecat's ``FrameDirection`` (the voice
@@ -50,6 +56,7 @@ class SessionStartFrame(Frame):
     session_id: str = ""
     agent_id: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
+    protocol_version: int = PROTOCOL_VERSION
 
 
 @dataclass
@@ -71,7 +78,7 @@ class UserIdleFrame(Frame):
 
 
 @dataclass
-class ClientMessageFrame(Frame):
+class BrowserMessageFrame(Frame):
     """A browser-originated message relayed to the brain.
 
     ``client.sendClientMessage(type, data)`` in the browser arrives here. Every
@@ -80,7 +87,6 @@ class ClientMessageFrame(Frame):
     those to their pending ``action`` callback rather than the generic handler.
     """
 
-    msg_id: str = ""
     type: str = ""
     data: dict[str, Any] = field(default_factory=dict)
 
@@ -115,31 +121,64 @@ class SpeechEndFrame(Frame):
 
 
 @dataclass
-class ServerMessageFrame(Frame):
-    """A brain-originated message pushed to the browser (a "UI command")."""
+class BrowserCommandFrame(Frame):
+    """A brain-originated command pushed to the browser. The brain drives the
+    screen; the runtime relays ``data`` unread."""
 
     data: Any = None
 
 
-@dataclass
-class UpdateTTSSettingsFrame(Frame):
-    """Mid-session TTS reconfigure (voice / language / model)."""
-
-    settings: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class UpdateSTTSettingsFrame(Frame):
-    """Mid-session STT reconfigure (VAD / turn-detection / model)."""
-
-    settings: dict[str, Any] = field(default_factory=dict)
+# ─── The control leg ──────────────────────────────────────────────────────────
+#
+# One request out, exactly one response back, on every op. ``request_id`` names
+# that pair and nothing else. Every other field is optional and means "leave this
+# alone" when unset, so a request carries only what the brain asked to change.
 
 
 @dataclass
-class UpdateIdleSettingsFrame(Frame):
-    """Mid-session idle-detection reconfigure. ``timeout_ms == 0`` disables it."""
+class ConfigureTtsFrame(Frame):
+    """Retune the voice. Brain → Voice."""
 
-    settings: dict[str, Any] = field(default_factory=dict)
+    request_id: int = 0
+    voice: str | None = None
+    language: str | None = None
+    model: str | None = None
+    speed: float | None = None
+
+
+@dataclass
+class ConfigureSttFrame(Frame):
+    """Retune the recognizer. Brain → Voice.
+
+    ``thresholds`` keys are the schema's own field names, built from what the
+    brain set; the serializer rejects a name the schema does not declare.
+    """
+
+    request_id: int = 0
+    language_hint: str | None = None
+    thresholds: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ConfigureIdleFrame(Frame):
+    """Retune idle detection. ``timeout_ms == 0`` disables it."""
+
+    request_id: int = 0
+    timeout_ms: int | None = None
+
+
+@dataclass
+class ResponseFrame(Frame):
+    """Voice's answer to one request. ``detail`` is empty on acceptance."""
+
+    request_id: int = 0
+    accepted: bool = True
+    detail: str = ""
+
+
+#: Every frame that carries a request. Each has a ``request_id``, and exactly one
+#: :class:`ResponseFrame` names it back.
+ConfigureRequest = ConfigureTtsFrame | ConfigureSttFrame | ConfigureIdleFrame
 
 
 # ─── Both directions ──────────────────────────────────────────────────────────
@@ -190,16 +229,17 @@ WIRE_FRAME_CLASSES: tuple[type[Frame], ...] = (
     SessionStartFrame,
     UserMessageFrame,
     UserIdleFrame,
-    ClientMessageFrame,
+    BrowserMessageFrame,
     InterruptionFrame,
     SpeechStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     FinalizeFrame,
-    ServerMessageFrame,
-    UpdateTTSSettingsFrame,
-    UpdateSTTSettingsFrame,
-    UpdateIdleSettingsFrame,
+    BrowserCommandFrame,
+    ConfigureTtsFrame,
+    ConfigureSttFrame,
+    ConfigureIdleFrame,
+    ResponseFrame,
     EndFrame,
     CancelFrame,
     ErrorFrame,

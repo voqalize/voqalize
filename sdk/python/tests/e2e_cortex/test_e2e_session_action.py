@@ -2,7 +2,7 @@
 
 An action carries no audio, so it needs no floor: the Brain dispatches one from
 anywhere — ``on_session_start`` before a word has been said, or from inside a
-turn — and both serialize to the same ``ui_command`` ``ServerMessageFrame``.
+turn — and both serialize to the same ``ui_command`` ``BrowserCommandFrame``.
 ``action_id`` is minted session-monotonically across every call site, and it is
 what the browser's answer is correlated by.
 """
@@ -20,7 +20,7 @@ from voqalize.sdk import Action, Brain, Chunk, Result, SpeechEnd, SpeechStart
 from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    ClientMessageFrame,
+    BrowserMessageFrame,
     SessionStartFrame,
     SpeechChunkFrame,
     UserMessageFrame,
@@ -124,8 +124,7 @@ async def test_action_result_reaches_on_result() -> None:
             await client.send(SessionStartFrame(session_id="s-cb", agent_id="cb", payload={}))
             (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
             await client.send(
-                ClientMessageFrame(
-                    msg_id="m1",
+                BrowserMessageFrame(
                     type="action_result",
                     data={"action_id": cmd["action_id"], "status": "ok"},
                 ),
@@ -173,8 +172,7 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
             await client.send(UserMessageFrame(text="go"), epoch=1)
             (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
             await client.send(
-                ClientMessageFrame(
-                    msg_id="m1",
+                BrowserMessageFrame(
                     type="action_result",
                     data={"action_id": cmd["action_id"], "status": "ok", "result": {"ok": True}},
                 ),

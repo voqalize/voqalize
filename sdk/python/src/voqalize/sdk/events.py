@@ -2,7 +2,7 @@
 
 Three groups, and the split between them is the whole contract:
 
-* **Triggers** — :class:`UserMessage`, :class:`IdleTrigger`, :class:`AppMessage`.
+* **Triggers** — :class:`UserMessage`, :class:`UserIdle`, :class:`BrowserMessage`.
   Voice hands one to a callback; that callback is where the floor lives.
 * **Speech** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`. The
   only thing a speaking callback may yield, because speech is the only thing
@@ -22,13 +22,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 __all__ = [
-    "AppMessage",
+    "BrowserMessage",
     "Chunk",
     "Error",
     "Finalize",
-    "IdleTrigger",
     "SpeechEnd",
     "SpeechStart",
+    "UserIdle",
     "UserMessage",
 ]
 
@@ -44,7 +44,7 @@ class UserMessage:
 
 
 @dataclass(frozen=True)
-class IdleTrigger:
+class UserIdle:
     """The human has gone quiet, and the floor is yours if you want it.
 
     ``level`` counts consecutive escalations with no intervening speech (1 is the
@@ -58,8 +58,8 @@ class IdleTrigger:
 
 
 @dataclass(frozen=True)
-class AppMessage:
-    """The application said something — a tap, a keystroke, a state push.
+class BrowserMessage:
+    """The browser said something — a tap, a keystroke, a state push.
 
     Delivered unconditionally: Voice never interprets ``type`` and never decides
     whether it deserves a reply. Handling it cannot make the agent speak, because
@@ -68,7 +68,6 @@ class AppMessage:
 
     type: str
     data: dict[str, Any] = field(default_factory=dict)
-    id: str = ""
 
 
 # ─── Emissions ────────────────────────────────────────────────────────────────

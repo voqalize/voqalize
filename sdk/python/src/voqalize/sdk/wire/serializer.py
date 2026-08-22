@@ -28,22 +28,23 @@ from loguru import logger
 from . import _frames_pb2 as pb
 from .frames import (
     WIRE_FRAME_CLASSES,
+    BrowserCommandFrame,
+    BrowserMessageFrame,
     CancelFrame,
-    ClientMessageFrame,
+    ConfigureIdleFrame,
+    ConfigureSttFrame,
+    ConfigureTtsFrame,
     EndFrame,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
     InterruptionFrame,
-    ServerMessageFrame,
+    ResponseFrame,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
-    UpdateIdleSettingsFrame,
-    UpdateSTTSettingsFrame,
-    UpdateTTSSettingsFrame,
     UserIdleFrame,
     UserMessageFrame,
 )
@@ -83,6 +84,7 @@ def _enc_session_start(f: SessionStartFrame, env: pb.Envelope) -> None:
     m.session_id = f.session_id
     m.agent_id = f.agent_id
     m.payload = json.dumps(f.payload)
+    m.protocol_version = f.protocol_version
 
 
 def _enc_user_message(f: UserMessageFrame, env: pb.Envelope) -> None:
@@ -95,9 +97,8 @@ def _enc_user_idle(f: UserIdleFrame, env: pb.Envelope) -> None:
     m.idle_ms = f.idle_ms
 
 
-def _enc_client_message(f: ClientMessageFrame, env: pb.Envelope) -> None:
-    m = env.client_message
-    m.msg_id = f.msg_id
+def _enc_browser_message(f: BrowserMessageFrame, env: pb.Envelope) -> None:
+    m = env.browser_message
     m.type = f.type
     m.data = json.dumps(f.data)
 
@@ -124,22 +125,52 @@ def _enc_finalize(f: FinalizeFrame, env: pb.Envelope) -> None:
     m.reason = _REASON_TO_PB[f.reason]
 
 
-def _enc_server_message(f: ServerMessageFrame, env: pb.Envelope) -> None:
-    env.server_message.data = json.dumps(f.data)
+def _enc_browser_command(f: BrowserCommandFrame, env: pb.Envelope) -> None:
+    env.browser_command.data = json.dumps(f.data)
 
 
-# The wire carries the `settings` dict only. A typed delta is an in-process
-# object and does not travel; the receiver rebuilds the dict form.
-def _enc_update_tts(f: UpdateTTSSettingsFrame, env: pb.Envelope) -> None:
-    env.update_tts_settings.settings = json.dumps(dict(f.settings))
+# Each op sets its arm of the `op` oneof explicitly, so a request carrying no
+# delta at all still names the op it is — an empty delta is a legal no-op the
+# runtime answers, not a body the far side cannot identify.
+def _enc_configure_tts(f: ConfigureTtsFrame, env: pb.Envelope) -> None:
+    env.request.request_id = f.request_id
+    m = env.request.configure_tts
+    m.SetInParent()
+    if f.voice is not None:
+        m.voice = f.voice
+    if f.language is not None:
+        m.language = f.language
+    if f.model is not None:
+        m.model = f.model
+    if f.speed is not None:
+        m.speed = f.speed
 
 
-def _enc_update_stt(f: UpdateSTTSettingsFrame, env: pb.Envelope) -> None:
-    env.update_stt_settings.settings = json.dumps(dict(f.settings))
+def _enc_configure_stt(f: ConfigureSttFrame, env: pb.Envelope) -> None:
+    env.request.request_id = f.request_id
+    m = env.request.configure_stt
+    m.SetInParent()
+    if f.language_hint is not None:
+        m.language_hint = f.language_hint
+    for name, value in f.thresholds.items():
+        # A name the schema does not declare raises AttributeError here rather
+        # than travelling as a key nothing on the far side will ever look at.
+        setattr(m, name, value)
 
 
-def _enc_update_idle(f: UpdateIdleSettingsFrame, env: pb.Envelope) -> None:
-    env.update_idle_settings.settings = json.dumps(dict(f.settings))
+def _enc_configure_idle(f: ConfigureIdleFrame, env: pb.Envelope) -> None:
+    env.request.request_id = f.request_id
+    m = env.request.configure_idle
+    m.SetInParent()
+    if f.timeout_ms is not None:
+        m.timeout_ms = f.timeout_ms
+
+
+def _enc_response(f: ResponseFrame, env: pb.Envelope) -> None:
+    m = env.response
+    m.request_id = f.request_id
+    m.status = pb.STATUS_ACCEPTED if f.accepted else pb.STATUS_REJECTED
+    m.detail = f.detail
 
 
 def _enc_end(f: EndFrame, env: pb.Envelope) -> None:
@@ -159,16 +190,17 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     SessionStartFrame: _enc_session_start,
     UserMessageFrame: _enc_user_message,
     UserIdleFrame: _enc_user_idle,
-    ClientMessageFrame: _enc_client_message,
+    BrowserMessageFrame: _enc_browser_message,
     InterruptionFrame: _enc_interruption,
     SpeechStartFrame: _enc_speech_start,
     SpeechChunkFrame: _enc_speech_chunk,
     SpeechEndFrame: _enc_speech_end,
     FinalizeFrame: _enc_finalize,
-    ServerMessageFrame: _enc_server_message,
-    UpdateTTSSettingsFrame: _enc_update_tts,
-    UpdateSTTSettingsFrame: _enc_update_stt,
-    UpdateIdleSettingsFrame: _enc_update_idle,
+    BrowserCommandFrame: _enc_browser_command,
+    ConfigureTtsFrame: _enc_configure_tts,
+    ConfigureSttFrame: _enc_configure_stt,
+    ConfigureIdleFrame: _enc_configure_idle,
+    ResponseFrame: _enc_response,
     EndFrame: _enc_end,
     CancelFrame: _enc_cancel,
     ErrorFrame: _enc_error,
@@ -184,6 +216,7 @@ def _dec_session_start(env: pb.Envelope) -> SessionStartFrame:
         session_id=m.session_id,
         agent_id=m.agent_id,
         payload=json.loads(m.payload) if m.payload else {},
+        protocol_version=m.protocol_version,
     )
 
 
@@ -196,10 +229,9 @@ def _dec_user_idle(env: pb.Envelope) -> UserIdleFrame:
     return UserIdleFrame(level=m.level, idle_ms=m.idle_ms)
 
 
-def _dec_client_message(env: pb.Envelope) -> ClientMessageFrame:
-    m = env.client_message
-    return ClientMessageFrame(
-        msg_id=m.msg_id,
+def _dec_browser_message(env: pb.Envelope) -> BrowserMessageFrame:
+    m = env.browser_message
+    return BrowserMessageFrame(
         type=m.type,
         data=json.loads(m.data) if m.data else {},
     )
@@ -229,24 +261,63 @@ def _dec_finalize(env: pb.Envelope) -> FinalizeFrame:
     )
 
 
-def _dec_server_message(env: pb.Envelope) -> ServerMessageFrame:
-    d = env.server_message.data
-    return ServerMessageFrame(data=json.loads(d) if d else None)
+def _dec_browser_command(env: pb.Envelope) -> BrowserCommandFrame:
+    d = env.browser_command.data
+    return BrowserCommandFrame(data=json.loads(d) if d else None)
 
 
-def _dec_update_tts(env: pb.Envelope) -> UpdateTTSSettingsFrame:
-    s = env.update_tts_settings.settings
-    return UpdateTTSSettingsFrame(settings=json.loads(s) if s else {})
+def _dec_configure_tts(req: pb.Request) -> ConfigureTtsFrame:
+    m = req.configure_tts
+    return ConfigureTtsFrame(
+        request_id=req.request_id,
+        voice=m.voice if m.HasField("voice") else None,
+        language=m.language if m.HasField("language") else None,
+        model=m.model if m.HasField("model") else None,
+        speed=m.speed if m.HasField("speed") else None,
+    )
 
 
-def _dec_update_stt(env: pb.Envelope) -> UpdateSTTSettingsFrame:
-    s = env.update_stt_settings.settings
-    return UpdateSTTSettingsFrame(settings=json.loads(s) if s else {})
+def _dec_configure_stt(req: pb.Request) -> ConfigureSttFrame:
+    m = req.configure_stt
+    # ListFields() is exactly the set the sender set, so the thresholds dict
+    # needs no allowlist here to drift from the schema.
+    return ConfigureSttFrame(
+        request_id=req.request_id,
+        language_hint=m.language_hint if m.HasField("language_hint") else None,
+        thresholds={f.name: v for f, v in m.ListFields() if f.name != "language_hint"},
+    )
 
 
-def _dec_update_idle(env: pb.Envelope) -> UpdateIdleSettingsFrame:
-    s = env.update_idle_settings.settings
-    return UpdateIdleSettingsFrame(settings=json.loads(s) if s else {})
+def _dec_configure_idle(req: pb.Request) -> ConfigureIdleFrame:
+    m = req.configure_idle
+    return ConfigureIdleFrame(
+        request_id=req.request_id,
+        timeout_ms=m.timeout_ms if m.HasField("timeout_ms") else None,
+    )
+
+
+_OP_DECODERS: dict[str, Callable[[pb.Request], Frame]] = {
+    "configure_tts": _dec_configure_tts,
+    "configure_stt": _dec_configure_stt,
+    "configure_idle": _dec_configure_idle,
+}
+
+
+def _dec_request(env: pb.Envelope) -> Frame:
+    op = env.request.WhichOneof("op")
+    decoder = _OP_DECODERS.get(op or "")
+    if decoder is None:
+        raise MalformedFrameError(f"Request names op {op!r}, which this build has no decoder for.")
+    return decoder(env.request)
+
+
+def _dec_response(env: pb.Envelope) -> ResponseFrame:
+    m = env.response
+    return ResponseFrame(
+        request_id=m.request_id,
+        accepted=m.status == pb.STATUS_ACCEPTED,
+        detail=m.detail,
+    )
 
 
 def _dec_end(env: pb.Envelope) -> EndFrame:
@@ -266,16 +337,15 @@ _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
     "session_start": _dec_session_start,
     "user_message": _dec_user_message,
     "user_idle": _dec_user_idle,
-    "client_message": _dec_client_message,
+    "browser_message": _dec_browser_message,
     "interruption": _dec_interruption,
     "speech_start": _dec_speech_start,
     "speech_chunk": _dec_speech_chunk,
     "speech_end": _dec_speech_end,
     "finalize": _dec_finalize,
-    "server_message": _dec_server_message,
-    "update_tts_settings": _dec_update_tts,
-    "update_stt_settings": _dec_update_stt,
-    "update_idle_settings": _dec_update_idle,
+    "browser_command": _dec_browser_command,
+    "request": _dec_request,
+    "response": _dec_response,
     "end": _dec_end,
     "cancel": _dec_cancel,
     "error": _dec_error,

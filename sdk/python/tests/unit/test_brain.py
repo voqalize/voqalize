@@ -12,19 +12,20 @@ from collections.abc import AsyncGenerator
 
 from voqalize.sdk import (
     Action,
-    AppMessage,
     Brain,
+    BrowserMessage,
     Chunk,
-    IdleTrigger,
     Session,
     SpeechEnd,
     SpeechStart,
+    UserIdle,
     UserMessage,
 )
 from voqalize.sdk.brain import adapter_for
 from voqalize.sdk.engine import Envelope
 from voqalize.sdk.wire import (
-    ClientMessageFrame,
+    PROTOCOL_VERSION,
+    BrowserMessageFrame,
     ErrorFrame,
     Frame,
     SessionStartFrame,
@@ -124,7 +125,7 @@ async def test_a_failed_greet_fails_the_call() -> None:
     assert rec.names()[-1] == "EndFrame"
 
 
-# ─── on_app_message acts, but never speaks ────────────────────────────────────
+# ─── on_browser_message acts, but never speaks ────────────────────────────────────
 
 
 class Refresh(Action):
@@ -137,7 +138,7 @@ class Hangup(Brain):
     ) -> AsyncGenerator[object, None]:
         yield SpeechEnd()
 
-    async def on_app_message(self, session: Session, msg: AppMessage) -> None:
+    async def on_browser_message(self, session: Session, msg: BrowserMessage) -> None:
         if msg.type == "hang_up":
             session.end(reason="user tapped hang up")
         elif msg.type == "refresh":
@@ -149,7 +150,7 @@ async def test_an_app_message_may_end_the_session() -> None:
     its own — ``session.end()`` is reachable from all of them, and a tap on "end
     call" is not a sentence the agent has to say first."""
     adapter, rec = await _open(Hangup())
-    await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="hang_up", data={})))
+    await adapter.handle_frame(_env(BrowserMessageFrame(type="hang_up", data={})))
     await asyncio.sleep(0.02)
     assert rec.names() == ["EndFrame"]
 
@@ -159,9 +160,9 @@ async def test_an_app_message_may_render() -> None:
     an action carries no audio, so it has no position on the audio timeline to
     express."""
     adapter, rec = await _open(Hangup())
-    await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="refresh", data={})))
+    await adapter.handle_frame(_env(BrowserMessageFrame(type="refresh", data={})))
     await asyncio.sleep(0.02)
-    assert rec.names() == ["ServerMessageFrame"]
+    assert rec.names() == ["BrowserCommandFrame"]
 
 
 class Talkative(Brain):
@@ -173,8 +174,8 @@ class Talkative(Brain):
     ) -> AsyncGenerator[object, None]:
         yield SpeechEnd()
 
-    async def on_app_message(  # type: ignore[override]
-        self, session: Session, msg: AppMessage
+    async def on_browser_message(  # type: ignore[override]
+        self, session: Session, msg: BrowserMessage
     ) -> AsyncGenerator[object, None]:
         yield SpeechStart()
         yield Chunk("I saw you click that")
@@ -189,7 +190,7 @@ async def test_an_app_message_still_may_not_take_the_floor() -> None:
     runtime check on what was yielded is needed, or possible.
     """
     adapter, rec = await _open(Talkative())
-    await adapter.handle_frame(_env(ClientMessageFrame(msg_id="m1", type="anything", data={})))
+    await adapter.handle_frame(_env(BrowserMessageFrame(type="anything", data={})))
     await asyncio.sleep(0.02)
     assert rec.spoken() == ""
     assert rec.frames == []
@@ -207,7 +208,7 @@ class SilentIdle(Brain):
     ) -> AsyncGenerator[object, None]:
         yield SpeechEnd()
 
-    async def on_user_idle(self, session: Session, idle: IdleTrigger) -> None:  # type: ignore[override]
+    async def on_user_idle(self, session: Session, idle: UserIdle) -> None:  # type: ignore[override]
         if idle.level >= 3:
             session.end(reason="idle")
 
@@ -224,3 +225,60 @@ async def test_a_speaking_callback_that_never_speaks_still_runs() -> None:
     await adapter.handle_frame(_env(UserIdleFrame(level=3, idle_ms=15000)))
     await asyncio.sleep(0.02)
     assert rec.names() == ["EndFrame"]
+
+
+# ─── the protocol version gate ────────────────────────────────────────────────
+
+
+class Greeter(Brain):
+    async def greet(self, session: Session) -> str | None:
+        return "hello"
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        yield SpeechStart()
+        yield Chunk("hi")
+        yield SpeechEnd()
+
+
+async def test_a_session_that_speaks_our_protocol_version_starts() -> None:
+    """The gate is `!=`, so the happy path has to be pinned alongside the refusal:
+    a version check that refuses everything would pass the test below."""
+    rec = Recorder()
+    adapter = adapter_for(Greeter(), rec)
+    await adapter.handle_frame(
+        _env(SessionStartFrame(session_id="s", agent_id="a", protocol_version=PROTOCOL_VERSION))
+    )
+    await asyncio.sleep(0.02)
+    assert rec.spoken() == "hello"
+
+
+async def test_a_session_that_speaks_another_protocol_version_is_refused() -> None:
+    """Voice speaks first, so this is the last moment either end can refuse before
+    a call is running and the only one where refusing is free — nothing has been
+    synthesized and the caller has heard nothing. The brain never greets, and the
+    error is fatal so the runtime ends the call rather than sitting mute."""
+    rec = Recorder()
+    adapter = adapter_for(Greeter(), rec)
+    await adapter.handle_frame(
+        _env(SessionStartFrame(session_id="s", agent_id="a", protocol_version=PROTOCOL_VERSION + 1))
+    )
+    await asyncio.sleep(0.02)
+    assert rec.names() == ["ErrorFrame", "EndFrame"]
+    err = rec.frames[0]
+    assert isinstance(err, ErrorFrame)
+    assert err.fatal
+
+
+async def test_an_older_protocol_version_is_refused_too() -> None:
+    """A lower version is not a subset of a higher one: the arms it names may have
+    been renumbered or reused underneath it. Refusing in both directions is what
+    keeps that from being a guess."""
+    rec = Recorder()
+    adapter = adapter_for(Greeter(), rec)
+    await adapter.handle_frame(
+        _env(SessionStartFrame(session_id="s", agent_id="a", protocol_version=PROTOCOL_VERSION - 1))
+    )
+    await asyncio.sleep(0.02)
+    assert rec.names() == ["ErrorFrame", "EndFrame"]

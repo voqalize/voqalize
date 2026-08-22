@@ -8,17 +8,31 @@
 //
 // Correlation lives in the envelope, never in a message body. Two scalars carry
 // it — `epoch` and `speech_id` — and every body is then just its own payload.
+// The one exception is `request_id`, which is not correlation across the
+// session but the identity of a single request/response pair, and so belongs to
+// the pair rather than to every envelope that passes.
 //
 // Direction, where V = voice runtime and B = brain:
 //
-//   V→B  session_start  user_message  user_idle  client_message  interruption
-//        finalize  end  cancel
-//   B→V  speech_start  speech_chunk  speech_end  server_message
-//        update_tts_settings  update_stt_settings  update_idle_settings  cancel
+//   V→B  session_start  user_message  user_idle  browser_message  interruption
+//        finalize  response  end  cancel
+//   B→V  speech_start  speech_chunk  speech_end  browser_command  request
+//        cancel
 //   both error
 //
-// Opaque fields (`payload`, `data`, `settings`) are JSON-encoded strings,
-// matching pipecat's MessageFrame.data pattern. No Struct dependency.
+// Opaque fields (`payload`, `data`) are JSON-encoded strings, matching
+// pipecat's MessageFrame.data pattern. No Struct dependency.
+//
+// This is version 1. The runtime stamps `SessionStart.protocol_version` and a
+// brain that speaks a different one refuses the session outright. The version
+// gates behaviour, not parsing: protobuf ignores unknown fields by itself, so
+// what a version buys is the ability to refuse rather than guess.
+//
+// The schema is append-only from v1. Field numbers are never reused — a retired
+// one is `reserved`. Envelope arms are never renumbered. A message is reserved
+// rather than removed. Adding a field or an arm does not bump the version; a
+// bump means the two ends no longer speak the same protocol, and that is meant
+// to be rare.
 
 syntax = "proto3";
 
@@ -30,22 +44,21 @@ package voqalize.frames;
 // Wire layout: [1 byte direction] [Envelope bytes].
 message Envelope {
   oneof body {
-    SessionStart         session_start        = 1;
-    UserMessage          user_message         = 2;
-    UserIdle             user_idle            = 3;
-    ClientMessage        client_message       = 4;
-    Interruption         interruption         = 5;
-    SpeechStart          speech_start         = 6;
-    SpeechChunk          speech_chunk         = 7;
-    SpeechEnd            speech_end           = 8;
-    Finalize             finalize             = 9;
-    ServerMessage        server_message       = 10;
-    UpdateTTSSettings    update_tts_settings  = 11;
-    UpdateSTTSettings    update_stt_settings  = 12;
-    UpdateIdleSettings   update_idle_settings = 13;
-    End                  end                  = 14;
-    Cancel               cancel               = 15;
-    Error                error                = 16;
+    SessionStart  session_start  = 1;
+    UserMessage   user_message   = 2;
+    UserIdle      user_idle      = 3;
+    BrowserMessage browser_message = 4;
+    Interruption  interruption   = 5;
+    SpeechStart   speech_start   = 6;
+    SpeechChunk   speech_chunk   = 7;
+    SpeechEnd     speech_end     = 8;
+    Finalize      finalize       = 9;
+    BrowserCommand browser_command = 10;
+    Request       request        = 11;
+    Response      response       = 12;
+    End           end            = 13;
+    Cancel        cancel         = 14;
+    Error         error          = 15;
   }
 
   // Voice-minted, session-monotonic, incremented on every stimulus the voice
@@ -74,9 +87,10 @@ message Envelope {
 
 // First envelope on a session. `payload` is opaque customer init data.
 message SessionStart {
-  string session_id = 1;
-  string agent_id   = 2;
-  string payload    = 3;  // JSON-encoded
+  string session_id       = 1;
+  string agent_id         = 2;
+  string payload          = 3;  // JSON-encoded
+  uint32 protocol_version = 4;
 }
 
 // Committed user stimulus. Text-only today; richer content gets new fields.
@@ -95,10 +109,11 @@ message UserIdle {
 
 // A browser→brain message. Every one is delivered — the runtime never reads
 // `type` and there is no respond flag. `data` is the message payload.
-message ClientMessage {
-  string msg_id = 1;
-  string type   = 2;
-  string data   = 3;  // JSON-encoded
+message BrowserMessage {
+  reserved 1;  // msg_id: minted by the browser transport, read by neither end.
+
+  string type = 2;
+  string data = 3;  // JSON-encoded
 }
 
 // The user spoke over the bot. Pipecat's InterruptionFrame.
@@ -127,22 +142,99 @@ message SpeechChunk {
 
 message SpeechEnd {}
 
-// Pipecat's RTVIServerMessageFrame.data, bound for the browser.
-message ServerMessage {
+// A brain→browser command. The brain drives the screen; `data` is whatever it
+// tells the browser, relayed unread.
+message BrowserCommand {
   string data = 1;  // JSON-encoded
 }
 
-message UpdateTTSSettings {
-  string settings = 1;  // JSON-encoded
+// ─── The control leg ──────────────────────────────────────────────────────────
+//
+// The brain asks the runtime to change how the call behaves, and learns whether
+// the ask was any good. Exactly one `Response` comes back for every `Request`,
+// on every op, always — a brain awaiting one never has to know which ops answer.
+//
+// Every field of every op is `optional`, and that is load-bearing: these are
+// deltas, so the runtime changes only what the brain set. Without explicit
+// presence an unset field is indistinguishable from 0 or "", and a delta would
+// silently become a reset.
+
+message Request {
+  // Brain-minted, session-monotonic. Its whole job is to name the `Response`.
+  uint64 request_id = 1;
+
+  oneof op {
+    ConfigureTts  configure_tts  = 2;
+    ConfigureStt  configure_stt  = 3;
+    ConfigureIdle configure_idle = 4;
+  }
 }
 
-message UpdateSTTSettings {
-  string settings = 1;  // JSON-encoded
+// Whether the runtime took the request, NOT whether the effect is audible yet.
+// The two differ for every op whose target applies changes on a boundary, and
+// the boundary is a documented property of the op (see `ConfigureTts` and
+// `ConfigureStt.language_hint`), not something the brain has to discover.
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACCEPTED    = 1;
+  STATUS_REJECTED    = 2;
 }
 
-// Idle detection config; a timeout of 0 disables it.
-message UpdateIdleSettings {
-  string settings = 1;  // JSON-encoded
+message Response {
+  uint64 request_id = 1;
+  Status status     = 2;
+  // Why it was rejected. Empty on acceptance.
+  string detail     = 3;
+}
+
+// Takes effect at the next speech unit, never mid-utterance: the synthesizer
+// locks voice, model, language and speed for the length of one synthesis
+// context, and the runtime pins one context per unit. Accepting one of these is
+// therefore the most the runtime can honestly report — there is no ask-and-
+// answer with the synthesizer, only the next unit.
+message ConfigureTts {
+  optional string voice    = 1;
+  optional string language = 2;
+  optional string model    = 3;
+  // 0.5 – 2.0, where 1.0 is the voice's natural rate.
+  optional double speed    = 4;
+}
+
+// The thresholds apply live — the recognizer treats them as comparison bounds
+// against counters that reset themselves, so changing one mid-utterance is
+// safe. `language_hint` does not: a language change carries per-turn decoder
+// state, so the recognizer queues it and applies it once the open turn commits.
+// The turn being spoken when this arrives still transcribes as spoken; the
+// change governs the next one.
+//
+// Acceptance here is the recognizer's own answer, not the runtime's guess, and
+// it is all-or-nothing: a language the recognizer has no engine for rejects the
+// whole request, thresholds included, with nothing applied.
+//
+// Field names match the recognizer's `Configure` message verbatim. That is the
+// point of naming them here at all — this schema is the single place the
+// vocabulary is written down.
+message ConfigureStt {
+  optional string language_hint = 1;
+
+  optional double vad_confidence                    = 2;
+  optional double vad_min_volume                    = 3;
+  optional uint32 vad_start_frames                  = 4;
+  optional uint32 vad_stop_frames_to_trigger_update = 5;
+  optional uint32 vad_eager_frames                  = 6;
+  optional uint32 vad_barge_in_ms                   = 7;
+  optional uint32 resume_frames                     = 8;
+  optional uint32 min_segment_speech_frames         = 9;
+  optional uint32 confidence_tail_ms                = 10;
+  optional double eot_threshold                     = 11;
+  optional uint32 eot_timeout_ms                    = 12;
+}
+
+// Applied by the runtime itself, immediately: a running idle timer restarts on
+// the new duration. `timeout_ms` is the silence after the runtime stops
+// speaking before it opens an idle stimulus; 0 disables idle detection.
+message ConfigureIdle {
+  optional uint32 timeout_ms = 1;
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -157,4 +249,3 @@ message Error {
   string error = 1;
   bool   fatal = 2;
 }
-
