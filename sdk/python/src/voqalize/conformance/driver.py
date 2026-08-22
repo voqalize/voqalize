@@ -52,10 +52,10 @@ from voqalize.sdk.wire.serializer import CortexFrameSerializer, DecodedMessage
 
 from .wire_pygato import DirectConnection
 
-# The greeting interaction: the brain speaks first on session start, with no
+# The greeting epoch: the brain speaks first on session start, with no
 # user turn to attribute it to. Agent-initiated speech echoes no epoch, so it
 # lands on 0.
-GREETING_INTERACTION_ID = 0
+GREETING_EPOCH = 0
 
 # The control leg's ops, by the frame that carries each. The driver answers every
 # one, because Voice does — a brain awaiting an answer that never comes is the
@@ -114,10 +114,10 @@ class SpeechObs:
 
 
 @dataclass
-class InteractionObs:
-    """The driver's observation of one interaction (0 = greeting, else a user turn)."""
+class EpochObs:
+    """The driver's observation of one epoch (0 = greeting, else a user turn)."""
 
-    interaction_id: int
+    epoch: int
     units: list[SpeechObs] = field(default_factory=list)
     finalized: set[int] = field(default_factory=set)
 
@@ -138,7 +138,7 @@ class InteractionObs:
 class Turn:
     """The result of one driven turn (a ``user_says`` or ``barge_in``)."""
 
-    interaction_id: int
+    epoch: int
     units: list[SpeechObs]
     completed: bool
     interrupted: bool = False
@@ -182,7 +182,7 @@ class VoiceDriver:
         self.quiet_for = quiet_for
         self._ser = CortexFrameSerializer()
 
-        self._interaction_seq = 0
+        self._epoch_seq = 0
 
         # Recorded / decoded brain output.
         self.log: list[Recorded] = []
@@ -196,7 +196,7 @@ class VoiceDriver:
         # Ops to leave unanswered, for the one case the protocol cannot promise
         # away: a Voice that stopped answering mid-call.
         self.withhold: set[str] = set()
-        self.interactions: dict[int, InteractionObs] = {}
+        self.epochs: dict[int, EpochObs] = {}
 
         # Wakeups and lifecycle signalling.
         self._tick = asyncio.Event()
@@ -252,7 +252,7 @@ class VoiceDriver:
         self.log.append(Recorded(frame, t))
 
         if isinstance(frame, SpeechStartFrame):
-            io = self.interactions.setdefault(msg.epoch, InteractionObs(msg.epoch))
+            io = self.epochs.setdefault(msg.epoch, EpochObs(msg.epoch))
             io.units.append(SpeechObs(msg.speech_id, started_t=t))
         elif isinstance(frame, SpeechChunkFrame):
             unit = self._unit_obs(msg.epoch, msg.speech_id)
@@ -281,7 +281,7 @@ class VoiceDriver:
             )
 
     def _unit_obs(self, epoch: int, speech_id: int) -> SpeechObs | None:
-        io = self.interactions.get(epoch)
+        io = self.epochs.get(epoch)
         return io.unit(speech_id) if io is not None else None
 
     # ─── sending ───────────────────────────────────────────────────────────────
@@ -291,10 +291,10 @@ class VoiceDriver:
         payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
         await self._conn.send_payload(payload)
 
-    def next_interaction_id(self) -> int:
+    def next_epoch(self) -> int:
         """Mint the next epoch — Voice stamps every stimulus it commits."""
-        self._interaction_seq += 1
-        return self._interaction_seq
+        self._epoch_seq += 1
+        return self._epoch_seq
 
     # ─── waiting ─────────────────────────────────────────────────────────────
 
@@ -338,7 +338,7 @@ class VoiceDriver:
         quiet_for: float | None = None,
     ) -> Turn | None:
         """Send ``SessionStart`` (system lane) and, if the brain greets, play out
-        and finalize the greeting interaction (epoch 0). Returns the greeting turn,
+        and finalize the greeting epoch (0). Returns the greeting turn,
         or ``None`` if the brain did not greet within the timeout.
 
         The greeting is *agent-initiated speech* — one unit, answering no
@@ -354,7 +354,7 @@ class VoiceDriver:
         )
         got = await self._wait_for(
             lambda: (
-                (io := self.interactions.get(GREETING_INTERACTION_ID)) is not None
+                (io := self.epochs.get(GREETING_EPOCH)) is not None
                 and any(unit.ended for unit in io.units)
             ),
             timeout=greeting_timeout,
@@ -363,13 +363,13 @@ class VoiceDriver:
             return None
         # Quiesce before finalizing, so nothing is still in flight.
         await self._quiesce(self._quiet(quiet_for), timeout=greeting_timeout)
-        io = self.interactions.get(GREETING_INTERACTION_ID)
+        io = self.epochs.get(GREETING_EPOCH)
         if io is None or not io.units:
             return None
         if finalize_greeting:
             await self._finalize_completed(io, FinalizeReason.COMPLETED)
         return Turn(
-            interaction_id=GREETING_INTERACTION_ID,
+            epoch=GREETING_EPOCH,
             units=list(io.units),
             completed=io.completed,
         )
@@ -386,15 +386,15 @@ class VoiceDriver:
         and finalize each spoken unit with a heard-truth transcript. Returns
         the observed :class:`Turn`."""
         timeout = self.default_timeout if timeout is None else timeout
-        iid = self.next_interaction_id()
-        await self._send(UserMessageFrame(text=text), epoch=iid)
-        return await self._play_out(iid, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
+        epoch = self.next_epoch()
+        await self._send(UserMessageFrame(text=text), epoch=epoch)
+        return await self._play_out(epoch, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
 
     def _quiet(self, quiet_for: float | None) -> float:
         return self.quiet_for if quiet_for is None else quiet_for
 
     async def _play_out(
-        self, iid: int, *, timeout: float, finalize: bool, quiet_for: float | None = None
+        self, epoch: int, *, timeout: float, finalize: bool, quiet_for: float | None = None
     ) -> Turn:
         """Play out the brain's response to an already-opened turn, then finalize
         each spoken unit with a heard-truth transcript. Shared by ``user_says``
@@ -407,14 +407,14 @@ class VoiceDriver:
         last, so a closed bracket alone is not enough). A brain with a watchdog that
         speaks late needs a window longer than that watchdog."""
         await self._wait_for(
-            lambda: (io := self.interactions.get(iid)) is not None and io.completed,
+            lambda: (io := self.epochs.get(epoch)) is not None and io.completed,
             timeout=timeout,
         )
         await self._quiesce(self._quiet(quiet_for), timeout=timeout)
-        io = self.interactions.setdefault(iid, InteractionObs(iid))
+        io = self.epochs.setdefault(epoch, EpochObs(epoch))
         if finalize:
             await self._finalize_completed(io, FinalizeReason.COMPLETED)
-        return Turn(iid, list(io.units), completed=io.completed)
+        return Turn(epoch, list(io.units), completed=io.completed)
 
     async def user_idle(
         self,
@@ -425,14 +425,14 @@ class VoiceDriver:
         finalize: bool = True,
         quiet_for: float | None = None,
     ) -> Turn:
-        """Drive an idle trigger: Voice opened a fresh interaction because the user
+        """Drive an idle trigger: Voice opened a fresh epoch because the user
         went silent past the idle timeout (``UserIdle``). The brain's
         ``on_user_idle`` may re-engage; play out its response exactly like a spoken
-        turn (or observe an empty interaction if it chose to stay silent)."""
+        turn (or observe an empty epoch if it chose to stay silent)."""
         timeout = self.default_timeout if timeout is None else timeout
-        iid = self.next_interaction_id()
-        await self._send(UserIdleFrame(level=level, idle_ms=idle_ms), epoch=iid)
-        return await self._play_out(iid, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
+        epoch = self.next_epoch()
+        await self._send(UserIdleFrame(level=level, idle_ms=idle_ms), epoch=epoch)
+        return await self._play_out(epoch, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
 
     async def barge_in(
         self,
@@ -477,16 +477,16 @@ class VoiceDriver:
         cancel path (each must cancel cleanly; the teardown of the open bracket must
         still land its ``SpeechEnd``)."""
         timeout = self.default_timeout if timeout is None else timeout
-        iid = self.next_interaction_id()
+        epoch = self.next_epoch()
         self._interruption_seen.clear()
-        await self._send(UserMessageFrame(text=text), epoch=iid)
+        await self._send(UserMessageFrame(text=text), epoch=epoch)
 
         if wait_for_complete:
             # Let the reply fully generate — the bracket closes — then barge its
             # playout with a known heard prefix.
             await self._wait_for(
                 lambda: (
-                    (io := self.interactions.get(iid)) is not None
+                    (io := self.epochs.get(epoch)) is not None
                     and any(unit.ended for unit in io.units)
                 ),
                 timeout=timeout,
@@ -495,9 +495,7 @@ class VoiceDriver:
         elif wait_for_speech:
             # Let the brain open a bracket and speak at least a little, then settle.
             await self._wait_for(
-                lambda: any(
-                    unit.spoke for unit in self.interactions.get(iid, InteractionObs(iid)).units
-                ),
+                lambda: any(unit.spoke for unit in self.epochs.get(epoch, EpochObs(epoch)).units),
                 timeout=timeout,
             )
             if speak_delay > 0:
@@ -506,7 +504,7 @@ class VoiceDriver:
             # Barge before any audio can play: wait a fixed, short beat only.
             await asyncio.sleep(speak_delay)
 
-        cut = self._cut_unit(iid)
+        cut = self._cut_unit(epoch)
 
         # Send the interruption(s) and await the echo. A rapid multi-barge sends
         # several before the brain can echo the first.
@@ -514,18 +512,18 @@ class VoiceDriver:
             await self._send(InterruptionFrame())
         await self._wait_for(self._interruption_seen.is_set, timeout=timeout)
 
-        io = self.interactions.setdefault(iid, InteractionObs(iid))
+        io = self.epochs.setdefault(epoch, EpochObs(epoch))
         heard: str | None = None
         if cut is not None:
             heard = heard_prefix if heard_prefix is not None else cut.text
             await self._send(
                 FinalizeFrame(heard_text=heard, reason=FinalizeReason.USER_BARGE_IN),
-                epoch=iid,
+                epoch=epoch,
                 speech_id=cut.speech_id,
             )
             io.finalized.add(cut.speech_id)
         return Turn(
-            iid,
+            epoch,
             list(io.units),
             completed=io.completed,
             interrupted=True,
@@ -535,7 +533,7 @@ class VoiceDriver:
     def _cut_unit(self, epoch: int) -> SpeechObs | None:
         """The unit in flight when the barge-in lands: prefer the last one
         still open (no end), else the last one observed."""
-        io = self.interactions.get(epoch)
+        io = self.epochs.get(epoch)
         if io is None or not io.units:
             return None
         for unit in reversed(io.units):
@@ -543,7 +541,7 @@ class VoiceDriver:
                 return unit
         return io.units[-1]
 
-    async def _finalize_completed(self, io: InteractionObs, reason: FinalizeReason) -> None:
+    async def _finalize_completed(self, io: EpochObs, reason: FinalizeReason) -> None:
         """Finalize every spoken, ended, not-yet-finalized unit in ``io`` with
         heard-truth = exactly what the brain emitted (never generated)."""
         for unit in io.units:
@@ -551,7 +549,7 @@ class VoiceDriver:
                 continue
             await self._send(
                 FinalizeFrame(heard_text=unit.text, reason=reason),
-                epoch=io.interaction_id,
+                epoch=io.epoch,
                 speech_id=unit.speech_id,
             )
             io.finalized.add(unit.speech_id)
@@ -564,9 +562,9 @@ class VoiceDriver:
         Voice delivers **every** browser message to the brain's
         ``on_browser_message`` without interpreting it, and that callback cannot
         speak — so there is nothing to wait for here."""
-        iid = self.next_interaction_id()
-        await self._send(BrowserMessageFrame(type=type, data=data or {}), epoch=iid)
-        return iid
+        epoch = self.next_epoch()
+        await self._send(BrowserMessageFrame(type=type, data=data or {}), epoch=epoch)
+        return epoch
 
     async def send_action_result(
         self,
@@ -587,7 +585,7 @@ class VoiceDriver:
                 type="action_result",
                 data={"action_id": action_id, "status": status, "result": result or {}},
             ),
-            epoch=self.next_interaction_id(),
+            epoch=self.next_epoch(),
         )
 
     async def wait_closed(self, *, timeout: float | None = None) -> int | None:

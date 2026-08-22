@@ -237,9 +237,7 @@ async def test_greeting_and_tool_roundtrip_drive_the_screen() -> None:
             {**_OMITTED, **_FLIGHTS[1], "id": "f2"},
         ]
 
-        checks.check_no_unsolicited_interactions(
-            driver, opened={t1.interaction_id, t2.interaction_id}
-        )
+        checks.check_no_unsolicited_epochs(driver, opened={t1.epoch, t2.epoch})
         state = await driver.dump_conversation()
         checks.check_conversation_sequence(
             state,
@@ -485,9 +483,7 @@ async def test_state_sync_grounds_the_next_prompt() -> None:
         assert "No itinerary is open yet" not in grounded
 
         # A client message the brain only records must not open an interaction.
-        checks.check_no_unsolicited_interactions(
-            driver, opened={first.interaction_id, turn.interaction_id}
-        )
+        checks.check_no_unsolicited_epochs(driver, opened={first.epoch, turn.epoch})
     finally:
         await driver.aclose()
         await server.aclose()

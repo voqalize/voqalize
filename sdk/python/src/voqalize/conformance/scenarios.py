@@ -150,7 +150,7 @@ async def scn_single_turn(ctx: ScenarioContext) -> None:
     checks.check_completed(turn)
     checks.check_brackets_closed(turn)
     checks.check_speech_ids_monotonic(turn)
-    checks.check_stamped_with_interaction(driver, turn)
+    checks.check_stamped_with_epoch(driver, turn)
 
 
 async def scn_multi_turn(ctx: ScenarioContext) -> None:
@@ -161,20 +161,18 @@ async def scn_multi_turn(ctx: ScenarioContext) -> None:
     for turn in (first, second):
         checks.check_completed(turn)
         checks.check_brackets_closed(turn)
-    # Interaction ids are session-monotonic and distinct across turns.
+    # Epochs are session-monotonic and distinct across turns.
     checks.require(
-        second.interaction_id > first.interaction_id,
-        f"second interaction id {second.interaction_id} not greater than first "
-        f"{first.interaction_id} — interaction ids must be session-monotonic",
+        second.epoch > first.epoch,
+        f"second epoch {second.epoch} not greater than first "
+        f"{first.epoch} — epochs must be session-monotonic",
     )
-    checks.check_no_unsolicited_interactions(
-        driver, opened={first.interaction_id, second.interaction_id}
-    )
+    checks.check_no_unsolicited_epochs(driver, opened={first.epoch, second.epoch})
 
 
 async def scn_two_units_one_turn(ctx: ScenarioContext) -> None:
-    """One interaction, two speech units — one-bracket-per-unit and
-    per-interaction monotone speech ids. (Reference grammar: ``two``.)"""
+    """One epoch, two speech units — one-bracket-per-unit and
+    per-epoch monotone speech ids. (Reference grammar: ``two``.)"""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.user_says(TWO)
@@ -204,7 +202,7 @@ async def scn_barge_in(ctx: ScenarioContext) -> None:
 
 
 async def scn_brain_error_isolated(ctx: ScenarioContext) -> None:
-    """A brain fault costs exactly one turn. ``on_interaction`` raises before
+    """A brain fault costs exactly one turn. ``on_user_message`` raises before
     speaking a word: that turn is silent — the honest outcome, nothing was
     generated — but it MUST leave no bracket open and MUST NOT take the session
     with it, so the very next user turn answers normally. (Reference grammar:
@@ -221,9 +219,7 @@ async def scn_brain_error_isolated(ctx: ScenarioContext) -> None:
     checks.check_spoke(recovered)
     checks.check_completed(recovered)
     checks.check_brackets_closed(recovered)
-    checks.check_no_unsolicited_interactions(
-        driver, opened={faulted.interaction_id, recovered.interaction_id}
-    )
+    checks.check_no_unsolicited_epochs(driver, opened={faulted.epoch, recovered.epoch})
 
 
 async def scn_brain_error_after_speech_keeps_heard(ctx: ScenarioContext) -> None:
@@ -369,7 +365,7 @@ async def scn_heard_truth_multi_interruption(ctx: ScenarioContext) -> None:
 
 async def scn_heard_truth_barge_in_before_audio(ctx: ScenarioContext) -> None:
     """Barge-in *before any audio plays*: nothing was heard, so a conformant brain
-    commits NO assistant message for that interaction — not an empty one, not the
+    commits NO assistant message for that epoch — not an empty one, not the
     generated text. The user turn is still recorded. (A brain that records an
     empty or generated assistant turn here corrupts the transcript just as badly
     as the mid-story case.)"""
@@ -436,8 +432,8 @@ async def scn_browser_message_delivery(ctx: ScenarioContext) -> None:
 
 
 async def scn_user_idle(ctx: ScenarioContext) -> None:
-    """The idle trigger: Voice opens an interaction because the user went silent
-    (``UserIdle``), the brain's ``on_user_idle`` re-engages, and the interaction
+    """The idle trigger: Voice opens an epoch because the user went silent
+    (``UserIdle``), the brain's ``on_user_idle`` re-engages, and the epoch
     plays out and completes exactly like a spoken turn — with the escalation level
     carried through. Crucially, the committed conversation records the assistant
     nudge but **no user turn** (nothing was said), so idle re-engagement never
@@ -483,13 +479,13 @@ async def scn_browser_message_never_speaks(ctx: ScenarioContext) -> None:
 # ─── the catalog ──────────────────────────────────────────────────────────────
 
 CATALOG: list[Scenario] = [
-    Scenario("greeting", "Brain greets on session start (interaction 0).", scn_greeting),
+    Scenario("greeting", "Brain greets on session start (epoch 0).", scn_greeting),
     Scenario(
         "single_turn", "One user turn: spoken, completed, one closed bracket.", scn_single_turn
     ),
     Scenario(
         "multi_turn",
-        "Two turns with monotone interaction ids, no proactive speech.",
+        "Two turns with monotone epochs, no proactive speech.",
         scn_multi_turn,
     ),
     Scenario(
@@ -565,8 +561,7 @@ CATALOG: list[Scenario] = [
     ),
     Scenario(
         "user_idle",
-        "Idle trigger opens an interaction; on_user_idle re-engages, no phantom "
-        "user turn recorded.",
+        "Idle trigger opens an epoch; on_user_idle re-engages, no phantom user turn recorded.",
         scn_user_idle,
         requires_reference=True,
         tags=("initiation",),

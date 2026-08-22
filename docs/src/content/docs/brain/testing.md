@@ -6,10 +6,11 @@ description: Drive your brain over the real wire in text mode — no audio, no b
 The hard part of shipping a voice agent is usually not the voice. It's that every
 change appears to need a person with a microphone. It doesn't.
 
-The SDK ships **`voqalize.conformance`**: a protocol-compliant *fake Voqalize*. It
-hosts your real `Brain` on a real WebSocket, mints a real runtime token, speaks the
-real `Vql*` wire, models playout and heard-truth the way the runtime does — and lets
-you drive it in **text mode**. `user_says("…")` in, a `Turn` with `.text` out.
+The SDK ships **`voqalize.conformance`**: a fake Voice that speaks
+[the wire](/docs/reference/wire/). It hosts your real `Brain` on a real WebSocket,
+mints a real runtime token, and models playout and heard-truth the way the runtime
+does — and lets you drive it in **text mode**. `user_says("…")` in, a `Turn` with
+`.text` out.
 
 That makes a voice agent testable like any other service, and it is the eval
 primitive: a scenario is a conversation script plus assertions. Keep a scenario file
@@ -50,21 +51,21 @@ off.
 
 | Call | Drives | Returns |
 |---|---|---|
-| `start_session(payload={…})` | `VqlStart`; plays out the greeting (interaction 0). `payload` arrives brain-side as `start.init`. | `Turn \| None` |
+| `start_session(payload={…})` | `SessionStart`; plays out the greeting (epoch 0). `payload` reaches the brain as `session.init`. | `Turn \| None` |
 | `user_says("…")` | One user turn, played out and finalized. | `Turn` |
 | `barge_in("…")` | Start a turn, let the brain speak, interrupt, finalize the cut with partial heard-truth. | `Turn` |
-| `client_message(type, data)` | A browser message the brain **answers** via `message.interaction`; waits for the reply. | `Turn` |
-| `send_client_message(type, data)` | A browser message the brain **ingests silently**. | `interaction_id` |
 | `user_idle(level=1, idle_ms=30000)` | An idle trigger; plays out `on_user_idle`. | `Turn` |
+| `send_browser_message(type, data)` | A browser message, delivered to `on_browser_message`. That callback cannot speak, so there is nothing to wait for. | `epoch` |
 | `send_action_result(action_id, status=, result=)` | The UI reporting back; fires the brain's `callback=`. | — |
-| `collect_ui_commands(min_count=1)` | Waits for and returns the `ui_command` envelopes the brain fired. | `list[dict]` |
-| `end_session()` / `aclose()` | `End` frame + teardown. | — |
+| `collect_ui_commands(min_count=1)` | Waits for and returns the `ui_command` payloads the brain fired. | `list[dict]` |
+| `end_session()` / `send_cancel()` / `aclose()` | `End`, `Cancel`, teardown. | — |
 
 ## Assert on it
 
-A `Turn` carries `.text` (everything spoken this turn), `.completed`, `.interrupted`,
-`.heard` (for a barge-in: the partial the user actually heard), and `.inferences`
-(per-LLM-call `.text` / `.spoke` / `.tool_calls` / `.inference_id`).
+A `Turn` carries `.epoch`, `.text` (everything spoken this turn), `.completed`,
+`.interrupted`, `.heard` (for a barge-in: the partial the user actually heard), and
+`.units` — one entry per speech unit, each with `.speech_id`, `.text`, `.spoke` and
+`.ended`.
 
 `.completed` is the most valuable single assertion — a false there usually means the
 brain hung or raised.
@@ -81,10 +82,11 @@ async def test_answers(driver):
     assert add["sku"] == "oat-milk" and add["qty"] == 2
 ```
 
-The driver also accumulates `driver.ui_commands`, `driver.errors`,
-`driver.tts_settings`, `driver.stt_settings` and `driver.idle_settings` — so *"did
-the brain switch to Hindi when asked?"* is an assertion on `tts_settings`, not a
-listening exercise.
+The driver also accumulates `driver.ui_commands`, `driver.errors` and
+`driver.requests` — every `configure_*` the brain made, in wire order — so *"did the
+brain switch to Hindi when asked?"* is an assertion on `driver.requests`, not a
+listening exercise. Set `driver.reject[op] = "reason"` to make Voice refuse one, and
+`driver.withhold.add(op)` to make it never answer at all.
 
 :::tip[Determinism]
 The driver *is* the runtime, so it dictates the timing a real call can't reproduce:
@@ -97,12 +99,12 @@ If the brain calls a real LLM, tests get slow and flaky for the usual reasons. I
 a scripted fake (`brain=lambda: MyBrain(llm=FakeLLM())`) and keep one slow
 test against the real model as a smoke check.
 
-## The built-in protocol suite
+## The built-in conformance suite
 
 Beyond your own scenarios, the harness ships a sixteen-scenario catalog — the bar a
-brain must clear to be wire-compatible: greeting, interaction/inference id
-monotonicity, bracket integrity, barge-in drain, heard-truth reconciliation across
-multiple interruptions, action-outcome correlation, client-message delivery, idle
+brain must clear to be wire-compatible: greeting, epoch and speech-id monotonicity,
+bracket integrity, barge-in drain, heard-truth reconciliation across multiple
+interruptions, action-outcome correlation, browser-message delivery, idle
 re-engagement, and bad-token rejection.
 
 ```bash
@@ -127,7 +129,7 @@ what can't apply, naming the reason and qualifying the verdict:
   [PASS] greeting                     (299 ms)
   [PASS] single_turn                  (299 ms)
   [PASS] multi_turn                   (300 ms)
-  [SKIP] two_inferences_one_turn
+  [SKIP] two_units_one_turn
   [SKIP] barge_in
   …
   [PASS] reject_bad_token             (83 ms)
@@ -171,7 +173,7 @@ are evidence, not contract: read them to understand a call, never to assert on o
 
 A call still running has no wire bundle yet, so check the `wire` field before
 concluding it was silent — `missing` is a different fact from an empty list. And
-these are the **platform's** records; your brain logs in your own environment. The
+these are **Voqalize's** records; your brain logs in your own environment. The
 id joining the two sides is `session.id`, the same string in both.
 
 When a live call misbehaves in a way the offline suite passed, that gap **is** the

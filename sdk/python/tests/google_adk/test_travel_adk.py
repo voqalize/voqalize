@@ -144,9 +144,7 @@ async def test_scripted_multi_turn_with_tool_calls() -> None:
         assert search["options"] == _FLIGHTS
 
         # No proactive speech, and heard-truth is the exact committed sequence.
-        checks.check_no_unsolicited_interactions(
-            driver, opened={t1.interaction_id, t2.interaction_id}
-        )
+        checks.check_no_unsolicited_epochs(driver, opened={t1.epoch, t2.epoch})
         state = await driver.dump_conversation()
         checks.check_conversation_sequence(
             state,

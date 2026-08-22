@@ -1428,9 +1428,7 @@ async def test_a_manual_sku_swap_reaches_the_next_model_call() -> None:
         assert desk.items["li2"].sku.code == "Q4O5"
         assert desk.items["li2"].status == "matched"
         assert desk.items["li2"].quantity == 7
-        checks.check_no_unsolicited_interactions(
-            driver, opened={first.interaction_id, turn.interaction_id}
-        )
+        checks.check_no_unsolicited_epochs(driver, opened={first.epoch, turn.epoch})
     finally:
         await driver.aclose()
         await server.aclose()
@@ -1468,7 +1466,7 @@ async def test_list_variants_answers_the_change_variant_strip_without_speaking()
         }
         # No model call, no interaction: the strip is silent by construction.
         assert len(llm.captured_contents) == before
-        checks.check_no_unsolicited_interactions(driver, opened={first.interaction_id})
+        checks.check_no_unsolicited_epochs(driver, opened={first.epoch})
 
         await driver.send_client_message("list_variants", {"item_id": "li1", "family": "NOPE"})
         await asyncio.sleep(0.2)
@@ -1728,9 +1726,7 @@ async def test_state_sync_grounds_the_next_prompt_with_the_pending_line() -> Non
         assert "PENDING" not in grounded, grounded[-800:]
 
         # A client message the brain only records must not open an interaction.
-        checks.check_no_unsolicited_interactions(
-            driver, opened={first.interaction_id, turn.interaction_id}
-        )
+        checks.check_no_unsolicited_epochs(driver, opened={first.epoch, turn.epoch})
     finally:
         await driver.aclose()
         await server.aclose()
@@ -1766,7 +1762,7 @@ async def test_catalog_search_answers_the_search_bar_without_speaking() -> None:
         assert cmd["results"] == [W_COLD]
         # No model call, no interaction: the search bar is silent by construction.
         assert len(llm.captured_contents) == before
-        checks.check_no_unsolicited_interactions(driver, opened=set())
+        checks.check_no_unsolicited_epochs(driver, opened=set())
 
         # A one-character query is below the search floor and answers empty.
         await driver.send_client_message("catalog_search", {"query": "c"})

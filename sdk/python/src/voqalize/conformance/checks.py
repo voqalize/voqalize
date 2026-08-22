@@ -23,7 +23,7 @@ The rules come straight from the wire contract — `docs/reference/wire`, and
 
 from __future__ import annotations
 
-from .driver import GREETING_INTERACTION_ID, InteractionObs, Turn, VoiceDriver
+from .driver import GREETING_EPOCH, EpochObs, Turn, VoiceDriver
 
 
 class ConformanceError(AssertionError):
@@ -43,7 +43,7 @@ def check_brackets_closed(turn: Turn) -> None:
     for unit in turn.units:
         require(
             unit.ended,
-            f"interaction {turn.interaction_id} unit {unit.speech_id}: "
+            f"epoch {turn.epoch} unit {unit.speech_id}: "
             "bracket opened (SpeechStart) but never closed "
             "(SpeechEnd) — one-bracket-per-unit violated",
         )
@@ -55,22 +55,22 @@ def check_speech_ids_monotonic(turn: Turn, *, start: int = 1) -> None:
     ids = [unit.speech_id for unit in turn.units]
     require(
         ids == sorted(ids) and len(set(ids)) == len(ids),
-        f"interaction {turn.interaction_id}: speech ids {ids} are not strictly increasing / unique",
+        f"epoch {turn.epoch}: speech ids {ids} are not strictly increasing / unique",
     )
     if ids:
         require(
             ids[0] >= start,
-            f"interaction {turn.interaction_id}: first speech id {ids[0]} < {start}",
+            f"epoch {turn.epoch}: first speech id {ids[0]} < {start}",
         )
 
 
-def check_stamped_with_interaction(driver: VoiceDriver, turn: Turn) -> None:
+def check_stamped_with_epoch(driver: VoiceDriver, turn: Turn) -> None:
     """Every recorded LLM frame for this turn carries the epoch the driver stamped
     the stimulus with — the brain must echo it, never invent one."""
-    io = driver.interactions.get(turn.interaction_id)
+    io = driver.epochs.get(turn.epoch)
     require(
         io is not None,
-        f"no frames observed stamped with interaction {turn.interaction_id}",
+        f"no frames observed stamped with epoch {turn.epoch}",
     )
 
 
@@ -81,7 +81,7 @@ def check_completed(turn: Turn) -> None:
     """A clean turn answered and closed every bracket it opened."""
     require(
         turn.completed,
-        f"interaction {turn.interaction_id}: the brain opened no bracket, or left "
+        f"epoch {turn.epoch}: the brain opened no bracket, or left "
         "one open — a clean turn answers and closes what it opened",
     )
 
@@ -89,19 +89,19 @@ def check_completed(turn: Turn) -> None:
 def check_spoke(turn: Turn) -> None:
     require(
         any(unit.spoke for unit in turn.units),
-        f"interaction {turn.interaction_id}: brain produced no LLM text",
+        f"epoch {turn.epoch}: brain produced no LLM text",
     )
 
 
 def check_greeting(driver: VoiceDriver, turn: Turn | None) -> None:
     """The greeting is agent-initiated speech, and answers no stimulus — so it
     echoes epoch 0. The requirements are: it spoke, its bracket(s) closed, and it
-    rode interaction 0."""
+    rode epoch 0."""
     require(turn is not None, "brain did not greet on session start")
     assert turn is not None
     require(
-        turn.interaction_id == GREETING_INTERACTION_ID,
-        f"greeting used interaction id {turn.interaction_id}, must be {GREETING_INTERACTION_ID}",
+        turn.epoch == GREETING_EPOCH,
+        f"greeting used epoch {turn.epoch}, must be {GREETING_EPOCH}",
     )
     check_spoke(turn)
     check_brackets_closed(turn)
@@ -121,15 +121,15 @@ def check_interruption_echoed(driver: VoiceDriver) -> None:
 
 
 def check_no_speech_after_barge_in(driver: VoiceDriver, turn: Turn, *, forbidden: str) -> None:
-    """No unit in the cut interaction emitted the post-barge-in tail — the
+    """No unit in the cut epoch emitted the post-barge-in tail — the
     brain must stop generating once cancelled (heard-truth has no unheard tail)."""
-    io = driver.interactions.get(turn.interaction_id)
+    io = driver.epochs.get(turn.epoch)
     if io is None:
         return
     for unit in io.units:
         require(
             forbidden not in unit.text,
-            f"interaction {turn.interaction_id} unit {unit.speech_id}: emitted "
+            f"epoch {turn.epoch} unit {unit.speech_id}: emitted "
             f"post-barge-in text {forbidden!r} — brain kept speaking after cancel",
         )
 
@@ -137,15 +137,15 @@ def check_no_speech_after_barge_in(driver: VoiceDriver, turn: Turn, *, forbidden
 # ─── no proactive speech ──────────────────────────────────────────────────────
 
 
-def check_no_unsolicited_interactions(driver: VoiceDriver, *, opened: set[int]) -> None:
-    """The brain only ever stamped interactions the driver actually opened (plus the
-    greeting) — no proactive/unsolicited brain-initiated interaction."""
-    allowed = opened | {GREETING_INTERACTION_ID}
-    seen = set(driver.interactions)
+def check_no_unsolicited_epochs(driver: VoiceDriver, *, opened: set[int]) -> None:
+    """The brain only ever stamped epochs the driver actually opened (plus the
+    greeting) — no proactive/unsolicited brain-initiated speech."""
+    allowed = opened | {GREETING_EPOCH}
+    seen = set(driver.epochs)
     extra = seen - allowed
     require(
         not extra,
-        f"brain produced output for interaction ids {sorted(extra)} that Voice never "
+        f"brain produced output for epochs {sorted(extra)} that Voice never "
         f"opened (opened={sorted(allowed)}) — no proactive brain speech allowed",
     )
 
@@ -203,6 +203,6 @@ def check_conversation_heard(state: dict, *, expected_tail: list[dict]) -> None:
     )
 
 
-def messages_of(io: InteractionObs) -> list[str]:
-    """Convenience: the per-unit heard text of an interaction, in order."""
+def messages_of(io: EpochObs) -> list[str]:
+    """Convenience: the per-unit heard text of one epoch, in order."""
     return [unit.text for unit in io.units]

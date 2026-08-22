@@ -7,7 +7,7 @@ straight from the pygato/wire trace:
 
 * ``heard_text`` is computed by PyGato from the audio playout clock — the words that
   physically played — and shipped to the brain in ``InferenceFinalized`` keyed by
-  ``(interaction_id, inference_id)``, ``interrupted=True``. The brain commits that
+  ``(epoch, inference_id)``, ``interrupted=True``. The brain commits that
   prefix; it never derives heard-truth itself. In the harness the driver *is* Voice
   and dictates the prefix, which is what makes these deterministic.
 * Wire order to the brain on a barge is ``Interruption`` first (cancel the

@@ -39,7 +39,7 @@ def _print_turn(label: str, turn) -> None:
     if turn is None:
         print("  (no turn)")
         return
-    print(f"  interaction {turn.interaction_id}  completed={turn.completed}")
+    print(f"  interaction {turn.epoch}  completed={turn.completed}")
     for inf in turn.inferences:
         print(f"    inference {inf.inference_id}: heard={inf.text!r}")
 

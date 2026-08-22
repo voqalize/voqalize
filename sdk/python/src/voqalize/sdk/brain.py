@@ -481,12 +481,12 @@ class Brain:
     """
 
     #: TTS voice for every session this brain serves, e.g. ``"omnivoice/gauri"``.
-    #: ``None`` leaves the platform default in place.
+    #: ``None`` leaves the agent's configured voice in place.
     voice: ClassVar[str | None] = None
 
     #: ISO language code for both halves of the call — the recognizer *and* the
     #: voice — applied through :meth:`Session.configure_language` so the two can
-    #: never half-apply. ``None`` leaves the platform default (English).
+    #: never half-apply. ``None`` leaves the recognizer and voice on English.
     language: ClassVar[str | None] = None
 
     # ─── Lifecycle ──────────────────────────────────────────────────────
