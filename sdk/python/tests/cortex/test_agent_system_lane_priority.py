@@ -74,7 +74,7 @@ async def test_interruption_preempts_backlog() -> None:
             await _send(
                 wire,
                 serializer,
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(session_id="s1", init={}),
             )
 
             # Pile up 16 user turns. Each spawns a slow turn task.

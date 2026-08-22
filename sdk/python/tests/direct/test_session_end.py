@@ -63,7 +63,6 @@ async def _run(brain: Brain) -> list:
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
-        agent_id="bye",
         default_timeout=10.0,
     )
     await driver.open()

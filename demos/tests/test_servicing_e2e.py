@@ -83,7 +83,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     """The desk greets the advisor by name from the init payload — no model call on
     the start path — and its declared voice lands on **both** legs first."""
     async with demo("servicing", _llm()) as rig:
-        greeting = await rig.driver.start_session(payload=PAYLOAD)
+        greeting = await rig.driver.start_session(init=PAYLOAD)
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text.startswith("Hi Kavita — Servicing Desk here.")
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
@@ -99,7 +99,7 @@ async def test_the_desk_normalizes_what_the_model_wrote() -> None:
     both failures the assistant's spoken reply is perfectly correct, so only the
     ``ui_command`` shows it."""
     async with demo("servicing", _llm()) as rig:
-        await rig.driver.start_session(payload=PAYLOAD)
+        await rig.driver.start_session(init=PAYLOAD)
 
         t1 = await rig.driver.user_says("Pull up the Sharma escalation.")
         check_turn(rig, t1, inferences=2)
@@ -130,7 +130,7 @@ async def test_the_console_snapshot_is_ingested_silently_and_answers_where_am_i(
     is only visible in what the snapshot made available."""
     llm = _llm()
     async with demo("servicing", llm) as rig:
-        await rig.driver.start_session(payload=PAYLOAD)
+        await rig.driver.start_session(init=PAYLOAD)
         before = len(rig.driver.ui_commands)
 
         await rig.driver.send_client_message("state_sync", {"workspace": WORKSPACE})

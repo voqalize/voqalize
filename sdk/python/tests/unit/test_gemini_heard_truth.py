@@ -39,7 +39,7 @@ async def _brain() -> tuple[GeminiBrain, Session]:
     adapter = adapter_for(brain, _Silent())
     await adapter.handle_frame(
         Envelope(
-            frame=SessionStartFrame(session_id="s", agent_id="a"),
+            frame=SessionStartFrame(session_id="s"),
             epoch=0,
             speech_id=0,
         )

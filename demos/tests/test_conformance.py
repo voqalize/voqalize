@@ -203,7 +203,7 @@ async def test_travel_greeting_rides_the_wire():
     )
     client = _Client(client_ch)
     try:
-        await client.send(SessionStartFrame(session_id=sid, agent_id="travel"))
+        await client.send(SessionStartFrame(session_id=sid))
         frames, _ = await client.collect_until(
             lambda fr, _ac: any(isinstance(f, LLMTextFrame) and "प्रिया" in f.text for f in fr)
         )

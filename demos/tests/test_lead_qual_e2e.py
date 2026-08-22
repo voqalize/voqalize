@@ -76,7 +76,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     """A caller with no state match gets the Hindi default — hello, voice and
     recognizer hint all landing before the greeting audio."""
     async with demo("lead_qual", _llm()) as rig:
-        greeting = await rig.driver.start_session(payload=HINDI_LEAD)
+        greeting = await rig.driver.start_session(init=HINDI_LEAD)
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text.startswith("नमस्ते!")
         check_voice_pair(rig, voice=VOICE, language="hi")
@@ -91,7 +91,7 @@ async def test_the_enquiry_state_picks_the_language_for_the_greeting() -> None:
     customer got a Tamil hello read by the Hindi voice and transcribed by the Hindi
     recognizer — on every single call, invisibly."""
     async with demo("lead_qual", _llm()) as rig:
-        greeting = await rig.driver.start_session(payload=TAMIL_LEAD)
+        greeting = await rig.driver.start_session(init=TAMIL_LEAD)
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text.startswith("வணக்கம்!")
         check_voice_pair(rig, voice=VOICE, language="ta")
@@ -101,7 +101,7 @@ async def test_an_explicit_language_beats_the_state() -> None:
     """The caller's own selection wins over the state's default — a Tamil Nadu
     customer who asked for Hindi is answered in Hindi."""
     async with demo("lead_qual", _llm()) as rig:
-        await rig.driver.start_session(payload={**TAMIL_LEAD, "language": "Hindi"})
+        await rig.driver.start_session(init={**TAMIL_LEAD, "language": "Hindi"})
         check_voice_pair(rig, voice=VOICE, language="hi")
 
 
@@ -111,7 +111,7 @@ async def test_switching_language_mid_call_moves_both_halves() -> None:
     for the rest of the call, and every later reply is generated from that wrong
     transcript."""
     async with demo("lead_qual", _llm()) as rig:
-        await rig.driver.start_session(payload=HINDI_LEAD)
+        await rig.driver.start_session(init=HINDI_LEAD)
         check_voice_pair(rig, voice=VOICE, language="hi")
 
         turn = await rig.driver.user_says("Can we speak in Tamil?")
@@ -124,7 +124,7 @@ async def test_eligibility_and_the_end_screen() -> None:
     brain's own rules (not the model's arithmetic), and ``end_call`` hands the
     browser the lead it will render."""
     async with demo("lead_qual", _llm()) as rig:
-        await rig.driver.start_session(payload=HINDI_LEAD)
+        await rig.driver.start_session(init=HINDI_LEAD)
 
         t1 = await rig.driver.user_says("Forty grams of jewellery, I need two lakhs.")
         check_turn(rig, t1, inferences=2)

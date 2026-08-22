@@ -32,8 +32,7 @@ def _frames() -> list[Frame]:
     return [
         SessionStartFrame(
             session_id="sess-123",
-            agent_id="welcome",
-            payload={"greet": "hello", "n": 7, "deep": {"k": [1, 2, 3]}},
+            init={"greet": "hello", "n": 7, "deep": {"k": [1, 2, 3]}},
         ),
         UserMessageFrame(text="hello there"),
         UserIdleFrame(level=2, idle_ms=30000),
@@ -64,7 +63,7 @@ def _frames() -> list[Frame]:
 
 
 _FIELDS: dict[type[Frame], tuple[str, ...]] = {
-    SessionStartFrame: ("session_id", "agent_id", "payload"),
+    SessionStartFrame: ("session_id", "init"),
     UserMessageFrame: ("text",),
     UserIdleFrame: ("level", "idle_ms"),
     BrowserMessageFrame: ("type", "data"),

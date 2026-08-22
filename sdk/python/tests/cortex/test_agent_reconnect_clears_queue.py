@@ -38,7 +38,7 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
 
             frame = env.frame
             if isinstance(frame, SessionStartFrame):
-                timeline.append(f"start#{self._mine}:{frame.payload.get('which', '?')}")
+                timeline.append(f"start#{self._mine}:{frame.init.get('which', '?')}")
             elif isinstance(frame, UserMessageFrame):
                 timeline.append(f"data#{self._mine}:start:{env.epoch}")
                 try:
@@ -64,9 +64,7 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
         await pygato_wire.start()
 
         await pygato_wire.send(
-            await serializer.serialize(
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={"which": "first"})
-            ),
+            await serializer.serialize(SessionStartFrame(session_id="s1", init={"which": "first"})),
         )
         await pygato_wire.send(
             await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),
@@ -82,7 +80,7 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
         # Pygato re-sends SessionStart for the same session — fresh adapter.
         await pygato_wire.send(
             await serializer.serialize(
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={"which": "second"})
+                SessionStartFrame(session_id="s1", init={"which": "second"})
             ),
         )
         await wait_for(

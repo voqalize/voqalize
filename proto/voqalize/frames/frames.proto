@@ -17,18 +17,18 @@
 //   V→B  session_start  user_message  user_idle  browser_message  interruption
 //        finalize  response  end  cancel
 //   B→V  speech_start  speech_chunk  speech_end  browser_command  request
-//        cancel
+//        end  cancel
 //   both error
 //
-// Opaque fields (`payload`, `data`) are JSON-encoded strings, matching
+// Opaque fields (`init`, `data`) are JSON-encoded strings, matching
 // pipecat's MessageFrame.data pattern. No Struct dependency.
 //
-// This is version 1. The runtime stamps `SessionStart.wire_version` and a
+// This is version 2. The runtime stamps `SessionStart.wire_version` and a
 // brain that speaks a different one refuses the session outright. The version
 // gates behaviour, not parsing: protobuf ignores unknown fields by itself, so
 // what a version buys is the ability to refuse rather than guess.
 //
-// The schema is append-only from v1. Field numbers are never reused — a retired
+// The schema is append-only. Field numbers are never reused — a retired
 // one is `reserved`. Envelope arms are never renumbered. A message is reserved
 // rather than removed. Adding a field or an arm does not bump the version; a
 // bump means the two ends no longer speak the same wire, and that is meant
@@ -87,11 +87,17 @@ message Envelope {
 
 // ─── Voice → Brain ────────────────────────────────────────────────────────────
 
-// First envelope on a session. `payload` is opaque customer init data.
+// First envelope on a session. `init` is opaque customer init data; the brain
+// reads it as `session.init`.
+//
+// Who the agent is arrives on the connection's own credential, verified, and
+// never here: a second unsigned copy is one a brain could be tempted to trust.
 message SessionStart {
+  reserved 2;
+  reserved "agent_id";
+
   string session_id   = 1;
-  string agent_id     = 2;
-  string payload      = 3;  // JSON-encoded
+  string init         = 3;  // JSON-encoded
   uint32 wire_version = 4;
 }
 

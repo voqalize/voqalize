@@ -566,7 +566,6 @@ async def _host(
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
-        agent_id="orderdesk",
         default_timeout=10.0,
     )
     await driver.open()
@@ -606,7 +605,7 @@ async def test_greeting_is_an_instant_hello_plus_a_grounded_opener() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        greeting = await driver.start_session(payload=PAYLOAD)
+        greeting = await driver.start_session(init=PAYLOAD)
         checks.check_greeting(driver, greeting)
         assert greeting is not None
         assert greeting.text == HELLO + OPENER, repr(greeting.text)
@@ -630,7 +629,7 @@ async def test_add_items_lands_rows_then_resolves_them() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm, catalog)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         turn = await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन")
         # Tool round-trip ⇒ two model calls ⇒ two inference brackets.
         assert len(turn.inferences) == 2, [i.text for i in turn.inferences]
@@ -670,7 +669,7 @@ async def test_the_tool_return_is_a_minimal_question_briefing() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
 
         result = _tool_results(llm)[0]
@@ -768,7 +767,7 @@ async def test_a_wide_family_becomes_a_candidate_table_not_pills() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
 
         rows = [c for c in driver.ui_commands if c.get("action") == "upsert_items"]
@@ -811,7 +810,7 @@ async def test_four_or_fewer_candidates_stay_leaf_pills() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
 
         rows = [c for c in driver.ui_commands if c.get("action") == "upsert_items"]
@@ -854,7 +853,7 @@ async def test_ask_choice_puts_one_validated_question_on_the_row() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
 
         asked = [c for c in driver.ui_commands if c.get("action") == "upsert_items"][-1]
@@ -1002,7 +1001,7 @@ async def test_a_bad_choice_set_is_a_retriable_tool_error_on_the_wire() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
         before = len([c for c in driver.ui_commands if c.get("action") == "upsert_items"])
         checks.check_completed(await driver.user_says("टेल्मा वाला फिर से"))
@@ -1025,7 +1024,7 @@ async def test_choose_accepts_any_code_from_the_candidate_set() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
         checks.check_completed(await driver.user_says("एच वाली अस्सी"))
 
@@ -1052,7 +1051,7 @@ async def test_a_group_pill_tap_narrows_the_mirror_through_state_sync() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा दे दो"))
 
         await driver.send_client_message(
@@ -1156,7 +1155,7 @@ async def test_change_variant_swaps_inside_the_family_and_keeps_the_quantity() -
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
         checks.check_completed(await driver.user_says("ड्रॉप्स वाला, दस"))
         checks.check_completed(await driver.user_says("ऑइंटमेंट वाला कर दो"))
@@ -1242,7 +1241,7 @@ async def test_adjust_quantity_is_relative_and_clamps_at_one() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
 
         checks.check_completed(await driver.user_says("दस और डाल दो"))
@@ -1274,7 +1273,7 @@ async def test_a_row_can_be_named_instead_of_numbered() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी बारह कर दो"))
 
@@ -1371,7 +1370,7 @@ async def test_a_manual_sku_swap_reaches_the_next_model_call() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm, brains=brains)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         first = await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन")
         desk = brains[0].desk
         assert desk.items["li2"].sku is None  # the server never resolved it
@@ -1444,7 +1443,7 @@ async def test_list_variants_answers_the_change_variant_strip_without_speaking()
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         first = await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन")
         before = len(llm.captured_contents)
 
@@ -1494,7 +1493,7 @@ async def test_devanagari_in_a_tool_argument_is_rejected_and_retried() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm, catalog)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("वोलिनी दे दो"))
 
         errors = [r for r in _tool_results(llm) if "error" in r]
@@ -1550,7 +1549,7 @@ async def test_typed_actions_pin_the_whole_ui_command_envelope() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
         checks.check_completed(await driver.user_says("ड्रॉप्स वाला, दस"))
         checks.check_completed(await driver.user_says("वो वाली दवा"))
@@ -1669,7 +1668,7 @@ async def test_state_sync_grounds_the_next_prompt_with_the_pending_line() -> Non
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         first = await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन")
         # Before any snapshot the brain's own mirror grounds the call, and li2 is
         # pending on the axis the tool reported.
@@ -1751,7 +1750,7 @@ async def test_catalog_search_answers_the_search_bar_without_speaking() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         before = len(llm.captured_contents)
 
         await driver.send_client_message("catalog_search", {"query": "cold"})
@@ -1788,7 +1787,7 @@ async def test_corrections_by_voice_edit_the_row_in_place() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("अबेविया चाहिए"))
         checks.check_completed(await driver.user_says("अबीवेज़ वाला"))
 
@@ -1823,7 +1822,7 @@ async def test_quantity_and_removal_keep_the_mirror_honest() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
         checks.check_completed(await driver.user_says("टेल्मा फोर्टी तीस स्ट्रिप और चार क्विन"))
         checks.check_completed(await driver.user_says("टेल्मा बारह कर दो"))
         checks.check_completed(await driver.user_says("चार क्विन हटा दो"))
@@ -1883,7 +1882,7 @@ async def test_the_brain_puts_hindi_on_both_legs_before_it_greets() -> None:
     llm = ScriptedLlm(_script())
     server, driver = await _host(llm)
     try:
-        await driver.start_session(payload=PAYLOAD)
+        await driver.start_session(init=PAYLOAD)
 
         tts = [r for r in driver.log if isinstance(r.frame, UpdateTTSSettingsFrame)]
         stt = [r for r in driver.log if isinstance(r.frame, UpdateSTTSettingsFrame)]

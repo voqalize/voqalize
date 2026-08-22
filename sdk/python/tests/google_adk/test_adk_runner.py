@@ -74,7 +74,6 @@ async def test_custom_runner_factory_is_driven_and_keeps_its_session_service() -
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
-        agent_id="desk",
         default_timeout=10.0,
     )
     await driver.open()

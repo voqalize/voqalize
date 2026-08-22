@@ -33,7 +33,7 @@ async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
     )
     driver = VoiceDriver(
         DirectConnection(server.url, "s1", token=token),
-        session_id="s1", agent_id="agent_test", default_timeout=10.0,
+        session_id="s1", default_timeout=10.0,
     )
     await driver.open()
 ```
@@ -51,7 +51,7 @@ off.
 
 | Call | Drives | Returns |
 |---|---|---|
-| `start_session(payload={…})` | `SessionStart`; plays out the greeting (epoch 0). `payload` reaches the brain as `session.init`. | `Turn \| None` |
+| `start_session(init={…})` | `SessionStart`; plays out the greeting (epoch 0). `init` reaches the brain as `session.init`. | `Turn \| None` |
 | `user_says("…")` | One user turn, played out and finalized. | `Turn` |
 | `barge_in("…")` | Start a turn, let the brain speak, interrupt, finalize the cut with partial heard-truth. | `Turn` |
 | `user_idle(level=1, idle_ms=30000)` | An idle trigger; plays out `on_user_idle`. | `Turn` |

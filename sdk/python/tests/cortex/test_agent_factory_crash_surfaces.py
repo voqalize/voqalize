@@ -45,9 +45,7 @@ async def test_factory_crash_raises_out_of_run() -> None:
         wire = Wire(WireConfig(url=cortex.pygato_url("s1", "welcome")))
         await wire.start()
         await wire.send(
-            await serializer.serialize(
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={})
-            ),
+            await serializer.serialize(SessionStartFrame(session_id="s1", init={})),
         )
 
         with pytest.raises(_Boom):

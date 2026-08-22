@@ -23,7 +23,7 @@ from typing import Any
 # envelope and a brain that speaks a different one refuses the session — see
 # :meth:`voqalize.sdk.brain._BrainAdapter._start`. The rule for when it moves is
 # in frames.proto.
-WIRE_VERSION = 1
+WIRE_VERSION = 2
 
 
 class Frame:
@@ -42,11 +42,10 @@ class FinalizeReason(StrEnum):
 
 @dataclass
 class SessionStartFrame(Frame):
-    """First frame of a session. ``payload`` is opaque customer init data."""
+    """First frame of a session. ``init`` is opaque customer init data."""
 
     session_id: str = ""
-    agent_id: str = ""
-    payload: dict[str, Any] = field(default_factory=dict)
+    init: dict[str, Any] = field(default_factory=dict)
     wire_version: int = WIRE_VERSION
 
 

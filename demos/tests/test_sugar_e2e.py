@@ -65,7 +65,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     """The coach opens with the instant hello plus the model's grounded remainder,
     and its default English voice lands on **both** legs before that audio."""
     async with demo("sugar", _llm()) as rig:
-        greeting = await rig.driver.start_session(payload={"scenario": SCENARIO})
+        greeting = await rig.driver.start_session(init={"scenario": SCENARIO})
         check_greeting(rig, greeting)
         assert greeting is not None
         # Hybrid greeting: the fixed hello is spoken instantly, the model's line
@@ -83,9 +83,7 @@ async def test_the_patients_chosen_language_is_on_the_wire_before_the_hello() ->
     after — or only reached the prompt — the Devanagari hello came out in an en-IN
     voice, which is right on paper and foreign in the ear."""
     async with demo("sugar", _llm()) as rig:
-        greeting = await rig.driver.start_session(
-            payload={"language": "Hindi", "scenario": SCENARIO}
-        )
+        greeting = await rig.driver.start_session(init={"language": "Hindi", "scenario": SCENARIO})
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text.startswith("नमस्ते!")
         check_voice_pair(rig, voice=VOICE, language="hi")
@@ -96,7 +94,7 @@ async def test_logging_a_meal_drives_the_screen() -> None:
     screen renders — including the calorie total, which the brain sums rather than
     trusting the model to add up."""
     async with demo("sugar", _llm()) as rig:
-        await rig.driver.start_session(payload={"scenario": SCENARIO})
+        await rig.driver.start_session(init={"scenario": SCENARIO})
 
         turn = await rig.driver.user_says("I had two rotis and dal at eight.")
         check_turn(rig, turn, inferences=2)
@@ -117,7 +115,7 @@ async def test_switching_language_mid_call_moves_both_halves() -> None:
     reply, generated from that wrong transcript, is merely *odd* rather than
     obviously broken. Assert the pair, on the frames."""
     async with demo("sugar", _llm()) as rig:
-        await rig.driver.start_session(payload={"scenario": SCENARIO})
+        await rig.driver.start_session(init={"scenario": SCENARIO})
         check_voice_pair(rig, voice=VOICE, language="en")
 
         turn = await rig.driver.user_says("Can we talk in Hindi?")

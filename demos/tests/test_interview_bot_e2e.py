@@ -85,7 +85,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     """The interviewer opens with the instant "Hi!" plus the model's personalised
     remainder, and its declared female English voice lands on **both** legs first."""
     async with demo("interview_bot", _llm()) as rig:
-        greeting = await rig.driver.start_session(payload=PAYLOAD)
+        greeting = await rig.driver.start_session(init=PAYLOAD)
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text.startswith("Hi!")
         assert "Priya" in greeting.text
@@ -102,7 +102,7 @@ async def test_the_seeded_plan_reaches_the_model() -> None:
     prompt and not on the words."""
     llm = _llm()
     async with demo("interview_bot", llm) as rig:
-        await rig.driver.start_session(payload=PAYLOAD)
+        await rig.driver.start_session(init=PAYLOAD)
 
     first = llm.captured_system_instructions[0]
     assert "Backend Engineer" in first
@@ -119,7 +119,7 @@ async def test_the_sections_advance_in_order_and_close() -> None:
     and the index is the brain's pointer, not the model's count, so a model that
     calls ``advance`` twice in one turn cannot skip a section."""
     async with demo("interview_bot", _llm()) as rig:
-        await rig.driver.start_session(payload=PAYLOAD)
+        await rig.driver.start_session(init=PAYLOAD)
 
         t1 = await rig.driver.user_says("Six years, mostly payments.")
         check_turn(rig, t1, inferences=2)

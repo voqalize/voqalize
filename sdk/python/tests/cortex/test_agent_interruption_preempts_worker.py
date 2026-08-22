@@ -53,9 +53,7 @@ async def test_interruption_cancels_in_flight_turn() -> None:
         await pygato_wire.start()
 
         await pygato_wire.send(
-            await serializer.serialize(
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={})
-            ),
+            await serializer.serialize(SessionStartFrame(session_id="s1", init={})),
         )
         await pygato_wire.send(
             await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),

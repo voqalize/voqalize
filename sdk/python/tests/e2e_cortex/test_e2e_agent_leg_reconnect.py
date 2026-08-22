@@ -43,7 +43,7 @@ async def test_agent_leg_transient_close_does_not_kill_run() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(session_id="s1", init={}))
             await wait_until(lambda: StartRecorder.starts >= 1, timeout=3.0)
 
             await cortex.kill_agent_leg("welcome", code=4001)

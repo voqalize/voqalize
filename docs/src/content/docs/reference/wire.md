@@ -98,7 +98,7 @@ belongs to the pair.
 ## Version
 
 `SessionStart.wire_version` is the version the runtime speaks. **This is
-version 1.**
+version 2.**
 
 A brain whose build speaks a different version refuses the session outright: a
 fatal `Error`, then `End`, before it has greeted. Voice speaks first, so that is
@@ -117,7 +117,7 @@ guess.
 
 | Message | Fields | Meaning |
 |---|---|---|
-| `SessionStart` | `session_id`, `agent_id`, `payload` *(JSON)*, `wire_version` | First envelope of the session. `payload` is your opaque init data, whatever the session was minted with. |
+| `SessionStart` | `session_id`, `init` *(JSON)*, `wire_version` | First envelope of the session. `init` is your opaque init data, whatever the session was minted with, and reaches your brain as `session.init`. Who the agent is arrives on the connection's credential, verified, and never here. |
 | `UserMessage` | `text` | The human finished an utterance. A stimulus: the floor is the brain's. |
 | `UserIdle` | `level`, `idle_ms` | The human has been silent past the configured timeout. Also a stimulus. `level` counts consecutive escalations with no intervening speech (1 is the first nudge) and resets when they speak; `idle_ms` is the silence elapsed when it fired. |
 | `BrowserMessage` | `type`, `data` *(JSON)* | The browser said something — a tap, a keystroke, a state push. Every one is delivered; Voice never reads `type` and never decides whether it deserves a reply. |

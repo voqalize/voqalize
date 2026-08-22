@@ -70,7 +70,7 @@ async def test_session_action_round_trip() -> None:
         client = await connect_pygato(cortex, "s1")
         try:
             # Open the session — on_session_start dispatches before any turn exists.
-            await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(session_id="s1", init={}))
             # A user turn dispatches the second one.
             await client.send(UserMessageFrame(text="hi there"), epoch=1)
 
@@ -121,7 +121,7 @@ async def test_action_result_reaches_on_result() -> None:
         run_task = asyncio.create_task(agent.run())
         client = await connect_pygato(cortex, "s-cb", "cb")
         try:
-            await client.send(SessionStartFrame(session_id="s-cb", agent_id="cb", payload={}))
+            await client.send(SessionStartFrame(session_id="s-cb", init={}))
             (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
             await client.send(
                 BrowserMessageFrame(
@@ -168,7 +168,7 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
         run_task = asyncio.create_task(agent.run())
         client = await connect_pygato(cortex, "s-aw", "aw")
         try:
-            await client.send(SessionStartFrame(session_id="s-aw", agent_id="aw", payload={}))
+            await client.send(SessionStartFrame(session_id="s-aw", init={}))
             await client.send(UserMessageFrame(text="go"), epoch=1)
             (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
             await client.send(

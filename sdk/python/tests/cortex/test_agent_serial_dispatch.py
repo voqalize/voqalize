@@ -57,9 +57,7 @@ async def test_two_data_frames_serial_dispatch() -> None:
 
         # Open the session with SessionStartFrame.
         await pygato_wire.send(
-            await serializer.serialize(
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={})
-            ),
+            await serializer.serialize(SessionStartFrame(session_id="s1", init={})),
         )
 
         # Two data frames back-to-back.

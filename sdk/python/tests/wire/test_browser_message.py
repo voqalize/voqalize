@@ -91,7 +91,7 @@ async def _run_browser_message(*, speak: bool) -> tuple[_Recorder, list]:
     emitted: list = []
     try:
         await wire.send(
-            await ser.serialize(SessionStartFrame(session_id=session_id, agent_id="compat")),
+            await ser.serialize(SessionStartFrame(session_id=session_id)),
         )
         await wire.send(
             await ser.serialize(BrowserMessageFrame(type=MSG_TYPE, data=MSG_DATA)),

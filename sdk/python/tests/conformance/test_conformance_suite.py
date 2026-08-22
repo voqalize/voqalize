@@ -183,7 +183,6 @@ async def test_wrong_key_is_rejected_directly() -> None:
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
-        agent_id="a",
     )
     try:
         await driver.open()

@@ -162,12 +162,10 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
             token=mint_pygato_token(
                 private_key_pem=keypair.private_pem,
                 session_id=session_id,
-                agent_id=name,
                 tenant_id="demo",
             ),
         ),
         session_id=session_id,
-        agent_id=name,
         default_timeout=10.0,
     )
     await driver.open()

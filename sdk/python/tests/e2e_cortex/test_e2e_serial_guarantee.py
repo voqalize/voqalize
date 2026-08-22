@@ -53,7 +53,7 @@ async def test_serial_dispatch_under_burst() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(session_id="s1", init={}))
             for i in range(10):
                 await client.send(UserMessageFrame(text=f"msg-{i}"), epoch=i)
 

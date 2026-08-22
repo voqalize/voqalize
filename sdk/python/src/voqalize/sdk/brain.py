@@ -201,8 +201,8 @@ class Session:
         self._adapter = adapter
         #: The session id Voice assigned.
         self.id = session_id
-        #: The opaque payload Voice was handed at connect. Read your own keys out
-        #: of it — the SDK never interprets it.
+        #: The opaque init data Voice was handed at connect. Read your own keys
+        #: out of it — the SDK never interprets it.
         self.init = init
         # One id per speech unit, session-monotonic. Voice never reads it — it
         # comes back on the Finalize naming the unit it belongs to, and nothing
@@ -688,7 +688,7 @@ class _BrainAdapter:
     # ─── Session start, then the opening line ───────────────────────────
 
     async def _start(self, frame: SessionStartFrame) -> None:
-        session = Session(self, frame.session_id, dict(frame.payload))
+        session = Session(self, frame.session_id, dict(frame.init))
         self._session = session
         if frame.wire_version != WIRE_VERSION:
             self._refuse_version(session, frame.wire_version)

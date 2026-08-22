@@ -128,7 +128,6 @@ async def test_the_lazily_built_agent_drives_a_real_turn() -> None:
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
-        agent_id="desk",
         default_timeout=10.0,
     )
     await driver.open()

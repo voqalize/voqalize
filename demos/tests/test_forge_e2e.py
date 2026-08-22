@@ -70,7 +70,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     """Ada greets the admin by name from the init payload — no model call on the
     start path — and her declared voice lands on **both** legs before that audio."""
     async with demo("forge", _llm()) as rig:
-        greeting = await rig.driver.start_session(payload=PAYLOAD)
+        greeting = await rig.driver.start_session(init=PAYLOAD)
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text.startswith("Hi Nadia — Ada here.")
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
@@ -84,7 +84,7 @@ async def test_edits_reach_the_studio_with_their_arguments_intact() -> None:
     the model still calls the tool, Ada still says "added", and the block never
     appears. So assert the payload key by key rather than just the action."""
     async with demo("forge", _llm()) as rig:
-        await rig.driver.start_session(payload=PAYLOAD)
+        await rig.driver.start_session(init=PAYLOAD)
 
         t1 = await rig.driver.user_says("Open the guest wifi workflow.")
         check_turn(rig, t1, inferences=2)
@@ -111,7 +111,7 @@ async def test_the_workspace_snapshot_grounds_the_next_turn_silently() -> None:
     absence is what stops the brain inventing block ids on the first turn."""
     llm = _llm()
     async with demo("forge", llm) as rig:
-        await rig.driver.start_session(payload=PAYLOAD)
+        await rig.driver.start_session(init=PAYLOAD)
 
         first = await rig.driver.user_says("What's on screen?")
         check_turn(rig, first, inferences=1)

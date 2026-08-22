@@ -1,4 +1,4 @@
-"""The three opaque dict fields — ``SessionStart.payload``, ``ClientMessage.data``
+"""The three opaque dict fields — ``SessionStart.init``, ``ClientMessage.data``
 and ``ServerMessage.data`` — survive round-trip with nested structure intact.
 
 They are the only untyped things on the wire, and they are untyped because each
@@ -14,12 +14,11 @@ from voqalize.sdk.wire import (
 )
 
 
-async def test_nested_payload_roundtrip() -> None:
+async def test_nested_init_roundtrip() -> None:
     ser = CortexFrameSerializer()
     frame = SessionStartFrame(
         session_id="s",
-        agent_id="a",
-        payload={
+        init={
             "k1": "v1",
             "n": 42,
             "flag": True,
@@ -28,7 +27,7 @@ async def test_nested_payload_roundtrip() -> None:
     )
     out = await ser.deserialize(await ser.serialize(frame))
     assert isinstance(out, SessionStartFrame)
-    assert out.payload == frame.payload
+    assert out.init == frame.init
 
 
 async def test_browser_message_data_roundtrip() -> None:

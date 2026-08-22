@@ -94,7 +94,6 @@ async def _host(
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
-        agent_id="desk",
         default_timeout=10.0,
     )
     await driver.open()

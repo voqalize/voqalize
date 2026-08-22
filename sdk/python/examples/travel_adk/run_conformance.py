@@ -64,7 +64,6 @@ async def main() -> None:
         driver = VoiceDriver(
             DirectConnection(server.url, session_id, token=token),
             session_id=session_id,
-            agent_id="travel",
             default_timeout=30.0,
         )
         try:

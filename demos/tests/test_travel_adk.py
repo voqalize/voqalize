@@ -169,7 +169,6 @@ async def _host(llm: ScriptedLlm) -> tuple[BrainServer, VoiceDriver]:
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
-        agent_id="travel",
         default_timeout=10.0,
     )
     await driver.open()

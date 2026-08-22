@@ -110,12 +110,12 @@ async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: CortexFrameSer
     await _send(
         wire_a,
         serializer,
-        SessionStartFrame(session_id="sA", agent_id="welcome", payload={}),
+        SessionStartFrame(session_id="sA", init={}),
     )
     await _send(
         wire_b,
         serializer,
-        SessionStartFrame(session_id="sB", agent_id="welcome", payload={}),
+        SessionStartFrame(session_id="sB", init={}),
     )
     await wait_for(lambda: len(Recorder.instances) == 2, timeout=3.0)
 

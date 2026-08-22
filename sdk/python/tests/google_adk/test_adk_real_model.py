@@ -137,7 +137,6 @@ async def _host(session_id: str) -> tuple[DirectAgent, VoiceDriver, _SpyAdkBrain
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
-        agent_id="desk",
         default_timeout=45.0,  # a live model call is slower than the fake
     )
     await driver.open()

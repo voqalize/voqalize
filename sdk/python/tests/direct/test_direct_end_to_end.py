@@ -3,8 +3,8 @@
 Exercises the real server stack — ``BrainServer`` → ``_ServerChannel`` →
 ``SessionBuffer`` → ``_SessionRunner`` → the ergonomic ``Brain`` adapter — over
 a real TCP WebSocket, driven by the actual PyGato-leg ``Wire`` client speaking
-the same bare ``[direction][payload]`` framing and frame vocabulary PyGato
-uses against Cortex today. No Cortex relay is involved.
+the same one-envelope-per-message framing and frame vocabulary PyGato uses
+against Cortex today. No Cortex relay is involved.
 
 This is the proof that "PyGato dials the customer's brain directly, one socket
 per session" works with the existing per-session machinery unchanged.
@@ -123,7 +123,7 @@ async def test_direct_round_trip_greeting_and_echo():
     client = _Client(wire)
     try:
         # Session start → the brain greets (agent-initiated, epoch 0).
-        await client.send(SessionStartFrame(session_id=session_id, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=session_id))
         frames = await client.collect_until(_has_text("hi there"))
         assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
@@ -143,7 +143,7 @@ async def test_direct_interruption_echoes_drain_barrier():
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        await client.send(SessionStartFrame(session_id=session_id, agent_id="slow"))
+        await client.send(SessionStartFrame(session_id=session_id))
         # Kick off the slow turn, then barge in before it can speak.
         await client.send(UserMessageFrame(text="hello"), epoch=1)
         await asyncio.sleep(0.1)
@@ -175,7 +175,7 @@ async def test_direct_idle_interruption_is_handled_and_session_survives():
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        await client.send(SessionStartFrame(session_id=session_id, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=session_id))
         # Drain the greeting first, so the InterruptionFrame we look for next can
         # only be the idle barge-in's drain echo.
         await client.collect_until(_has_text("hi there"))
@@ -239,7 +239,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
         good_sid = str(uuid.uuid4())
         wire = await _connect(port, good_sid, headers={"Authorization": f"Bearer {mint(good_sid)}"})
         client = _Client(wire)
-        await client.send(SessionStartFrame(session_id=good_sid, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=good_sid))
         frames = await client.collect_until(_has_text("hi there"))
         assert frames
         await wire.close()

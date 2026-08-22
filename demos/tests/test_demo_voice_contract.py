@@ -114,7 +114,7 @@ async def test_demo_puts_a_complete_voice_pair_on_the_wire(name: str) -> None:
     and the reference clip were told the same language before they did."""
     expected = DEMOS[name]
     async with _open(name, expected) as rig:
-        greeting = await rig.driver.start_session(payload=expected.payload)
+        greeting = await rig.driver.start_session(init=expected.payload)
         check_greeting(rig, greeting)
         check_voice_pair(rig, voice=expected.voice, language=expected.language)
 
@@ -126,7 +126,7 @@ async def test_a_per_caller_language_moves_both_halves() -> None:
     reached the prompt: the coach wrote Devanagari and an en-IN voice read it out,
     correct on paper and foreign in the ear."""
     async with demo("sugar", ScriptedGemini()) as rig:
-        await rig.driver.start_session(payload={"language": "Hindi", "scenario": {}})
+        await rig.driver.start_session(init={"language": "Hindi", "scenario": {}})
         check_voice_pair(rig, voice="omnivoice/gauri", language="hi")
 
 
@@ -134,7 +134,7 @@ async def test_a_per_caller_language_follows_the_enquiry_state() -> None:
     """Auric resolves the caller's language from the enquiry form's state — one
     agent, nine languages, which no single agent-record field could hold."""
     async with demo("lead_qual", ScriptedGemini()) as rig:
-        await rig.driver.start_session(payload={"name": "Meera", "state": "Tamil Nadu"})
+        await rig.driver.start_session(init={"name": "Meera", "state": "Tamil Nadu"})
         check_voice_pair(rig, voice="omnivoice/gauri", language="ta")
 
 

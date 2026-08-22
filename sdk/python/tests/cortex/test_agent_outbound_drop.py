@@ -93,7 +93,7 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
             await _send(
                 wire,
                 serializer,
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(session_id="s1", init={}),
             )
             await _send(
                 wire,

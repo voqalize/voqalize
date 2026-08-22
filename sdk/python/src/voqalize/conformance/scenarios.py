@@ -109,7 +109,6 @@ class ScenarioContext:
         driver = VoiceDriver(
             conn,
             session_id=sid,
-            agent_id=self.agent_id,
             default_timeout=self.default_timeout,
         )
         await driver.open()

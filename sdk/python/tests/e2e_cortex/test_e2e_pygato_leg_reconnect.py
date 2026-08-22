@@ -46,9 +46,7 @@ async def test_pygato_leg_reconnect_does_not_resend_start() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={"k": "v"})
-            )
+            await client.send(SessionStartFrame(session_id="s1", init={"k": "v"}))
             await wait_until(lambda: len(StartCounter.starts) >= 1, timeout=3.0)
             assert len(StartCounter.starts) == 1
 

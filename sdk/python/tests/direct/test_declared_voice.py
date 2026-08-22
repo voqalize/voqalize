@@ -101,7 +101,6 @@ async def _run(brain: Brain, *, reject: dict[str, str] | None = None) -> VoiceDr
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
-        agent_id="declared-voice",
         default_timeout=10.0,
     )
     driver.reject.update(reject or {})
@@ -185,7 +184,7 @@ async def test_declaring_nothing_emits_nothing() -> None:
 
 async def test_on_session_start_can_override_the_declaration() -> None:
     # The per-caller escape hatch: a brain that resolves the language from this
-    # session's payload speaks last, and both still precede the greeting.
+    # session's init data speaks last, and both still precede the greeting.
     driver = await _run(OverridingBrain())
     assert [d["language"] for d in _deltas(driver, ConfigureTtsFrame)] == ["hi", "ta"], (
         "the declaration must be applied first and the per-call override second, "

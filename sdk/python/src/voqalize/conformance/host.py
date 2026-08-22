@@ -9,7 +9,6 @@ the boilerplate drifts. :func:`brain_server` is that socket and nothing more::
         driver = VoiceDriver(
             DirectConnection(server.url, session_id, token=...),
             session_id=session_id,
-            agent_id="mine",
         )
         await driver.open()
 

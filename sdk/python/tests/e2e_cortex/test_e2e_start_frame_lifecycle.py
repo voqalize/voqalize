@@ -1,8 +1,8 @@
-"""Pygato side (Wire client): send a SessionStartFrame carrying session_id,
-agent_id, and an init payload.
+"""Pygato side (Wire client): send a SessionStartFrame carrying a session_id and
+opaque init data.
 
 Agent side: a test SessionAdapter observes the SessionStartFrame verbatim — proving
-the session identity and init payload survive the multiplexed wire."""
+the session id and its init data survive the multiplexed wire."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ class StartCapture(SessionAdapter):
         pass
 
 
-async def test_start_frame_carries_identity_and_payload() -> None:
+async def test_start_frame_carries_session_id_and_init() -> None:
     StartCapture.seen = []
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -45,15 +45,12 @@ async def test_start_frame_carries_identity_and_payload() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={"greeting": "hi"})
-            )
+            await client.send(SessionStartFrame(session_id="s1", init={"greeting": "hi"}))
 
             await wait_until(lambda: bool(StartCapture.seen), timeout=3.0)
             vql_start = StartCapture.seen[0]
             assert vql_start.session_id == "s1"
-            assert vql_start.agent_id == "welcome"
-            assert vql_start.payload == {"greeting": "hi"}
+            assert vql_start.init == {"greeting": "hi"}
         finally:
             await client.close()
             run_task.cancel()

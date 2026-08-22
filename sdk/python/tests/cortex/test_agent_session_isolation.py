@@ -79,9 +79,7 @@ async def test_two_sessions_are_isolated() -> None:
         # Open both sessions.
         for session_id, wire in (("sA", wire_a), ("sB", wire_b)):
             await wire.send(
-                await serializer.serialize(
-                    SessionStartFrame(session_id=session_id, agent_id="welcome", payload={})
-                ),
+                await serializer.serialize(SessionStartFrame(session_id=session_id, init={})),
             )
 
         # Send a context frame on each leg.

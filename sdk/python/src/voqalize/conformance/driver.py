@@ -158,7 +158,7 @@ class VoiceDriver:
 
     Typical lifecycle::
 
-        driver = VoiceDriver(conn, session_id=sid, agent_id=aid)
+        driver = VoiceDriver(conn, session_id=sid)
         await driver.open()
         await driver.start_session()          # brain greets
         turn = await driver.user_says("hi")   # a user turn, auto-finalized
@@ -171,13 +171,11 @@ class VoiceDriver:
         conn: DirectConnection,
         *,
         session_id: str,
-        agent_id: str,
         default_timeout: float = 5.0,
         quiet_for: float = 0.25,
     ) -> None:
         self._conn = conn
         self.session_id = session_id
-        self.agent_id = agent_id
         self.default_timeout = default_timeout
         self.quiet_for = quiet_for
         self._ser = CortexFrameSerializer()
@@ -332,7 +330,7 @@ class VoiceDriver:
     async def start_session(
         self,
         *,
-        payload: dict | None = None,
+        init: dict | None = None,
         finalize_greeting: bool = True,
         greeting_timeout: float = 3.0,
         quiet_for: float | None = None,
@@ -347,8 +345,7 @@ class VoiceDriver:
         await self._send(
             SessionStartFrame(
                 session_id=self.session_id,
-                agent_id=self.agent_id,
-                payload=payload or {},
+                init=init or {},
                 wire_version=WIRE_VERSION,
             )
         )

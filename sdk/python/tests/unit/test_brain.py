@@ -57,7 +57,7 @@ def _env(frame: Frame) -> Envelope:
 async def _open(brain: Brain) -> tuple[object, Recorder]:
     rec = Recorder()
     adapter = adapter_for(brain, rec)
-    await adapter.handle_frame(_env(SessionStartFrame(session_id="s", agent_id="a")))
+    await adapter.handle_frame(_env(SessionStartFrame(session_id="s")))
     return adapter, rec
 
 
@@ -247,9 +247,7 @@ async def test_a_session_that_speaks_our_wire_version_starts() -> None:
     a version check that refuses everything would pass the test below."""
     rec = Recorder()
     adapter = adapter_for(Greeter(), rec)
-    await adapter.handle_frame(
-        _env(SessionStartFrame(session_id="s", agent_id="a", wire_version=WIRE_VERSION))
-    )
+    await adapter.handle_frame(_env(SessionStartFrame(session_id="s", wire_version=WIRE_VERSION)))
     await asyncio.sleep(0.02)
     assert rec.spoken() == "hello"
 
@@ -262,7 +260,7 @@ async def test_a_session_that_speaks_another_wire_version_is_refused() -> None:
     rec = Recorder()
     adapter = adapter_for(Greeter(), rec)
     await adapter.handle_frame(
-        _env(SessionStartFrame(session_id="s", agent_id="a", wire_version=WIRE_VERSION + 1))
+        _env(SessionStartFrame(session_id="s", wire_version=WIRE_VERSION + 1))
     )
     await asyncio.sleep(0.02)
     assert rec.names() == ["ErrorFrame", "EndFrame"]
@@ -278,7 +276,7 @@ async def test_an_older_wire_version_is_refused_too() -> None:
     rec = Recorder()
     adapter = adapter_for(Greeter(), rec)
     await adapter.handle_frame(
-        _env(SessionStartFrame(session_id="s", agent_id="a", wire_version=WIRE_VERSION - 1))
+        _env(SessionStartFrame(session_id="s", wire_version=WIRE_VERSION - 1))
     )
     await asyncio.sleep(0.02)
     assert rec.names() == ["ErrorFrame", "EndFrame"]

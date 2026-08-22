@@ -51,7 +51,7 @@ async def test_interruption_cancels_in_flight() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(session_id="s1", init={}))
             await client.send(UserMessageFrame(text="say hi"), epoch=1)
 
             # Wait for the first chunk to arrive over the wire.

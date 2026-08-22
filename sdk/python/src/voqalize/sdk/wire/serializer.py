@@ -82,8 +82,7 @@ class DecodedMessage:
 def _enc_session_start(f: SessionStartFrame, env: pb.Envelope) -> None:
     m = env.session_start
     m.session_id = f.session_id
-    m.agent_id = f.agent_id
-    m.payload = json.dumps(f.payload)
+    m.init = json.dumps(f.init)
     m.wire_version = f.wire_version
 
 
@@ -214,8 +213,7 @@ def _dec_session_start(env: pb.Envelope) -> SessionStartFrame:
     m = env.session_start
     return SessionStartFrame(
         session_id=m.session_id,
-        agent_id=m.agent_id,
-        payload=json.loads(m.payload) if m.payload else {},
+        init=json.loads(m.init) if m.init else {},
         wire_version=m.wire_version,
     )
 

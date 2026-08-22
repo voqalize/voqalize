@@ -50,7 +50,7 @@ async def test_round_trip_every_frame() -> None:
         client = await connect_pygato(cortex, "s1")
         try:
             # Open the session.
-            await client.send(SessionStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(session_id="s1", init={}))
 
             # Drive a user turn + a finalize.
             await client.send(UserMessageFrame(text="user said hi"), epoch=1)

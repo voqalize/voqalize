@@ -74,7 +74,6 @@ async def _host(llm: ScriptedLlm, *, on_resume) -> tuple[DirectAgent, VoiceDrive
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
         session_id=session_id,
-        agent_id="assistant",
         default_timeout=10.0,
     )
     await driver.open()
@@ -95,7 +94,7 @@ async def test_resume_seeds_prior_history_and_skips_greeting() -> None:
     agent, driver = await _host(llm, on_resume=on_resume)
     try:
         greeting = await driver.start_session(
-            payload={"conversation_id": CONV_KEY}, greeting_timeout=1.0
+            init={"conversation_id": CONV_KEY}, greeting_timeout=1.0
         )
         assert greeting is None  # resumed call: the cold greeting is skipped
         t = await driver.user_says("And what about hotels?")

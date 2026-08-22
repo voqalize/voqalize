@@ -70,7 +70,7 @@ def _pipe() -> tuple[_Endpoint, _Endpoint]:
 
 
 class _Client:
-    """PyGato-side driver over the in-memory channel: bare [dir][payload] framing."""
+    """PyGato-side driver over the in-memory channel: one envelope per message."""
 
     def __init__(self, endpoint: _Endpoint) -> None:
         self._ep = endpoint
@@ -107,7 +107,7 @@ async def test_run_session_handoff_greeting_and_echo():
     )
     client = _Client(client_ch)
     try:
-        await client.send(SessionStartFrame(session_id=sid, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=sid))
         frames = await client.collect_until(_has_text("hi there"))
         assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
@@ -190,7 +190,7 @@ async def test_run_session_accepts_valid_token():
     )
     client = _Client(client_ch)
     try:
-        await client.send(SessionStartFrame(session_id=sid, agent_id="echo"))
+        await client.send(SessionStartFrame(session_id=sid))
         frames = await client.collect_until(_has_text("hi there"))
         assert frames
     finally:

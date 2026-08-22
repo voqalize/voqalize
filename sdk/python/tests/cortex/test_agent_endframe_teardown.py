@@ -76,7 +76,7 @@ async def test_endframe_tears_down_session_cleanly() -> None:
             await _send(
                 wire,
                 serializer,
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(session_id="s1", init={}),
             )
             await _send(wire, serializer, UserMessageFrame(text="hi"), epoch=1)
 
@@ -99,7 +99,7 @@ async def test_endframe_tears_down_session_cleanly() -> None:
             await _send(
                 wire,
                 serializer,
-                SessionStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(session_id="s1", init={}),
             )
             await wait_for(lambda: len(Recorder.instances) == 2, timeout=3.0)
             assert Recorder.instances[1] is not Recorder.instances[0]

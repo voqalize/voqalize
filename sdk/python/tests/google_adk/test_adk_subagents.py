@@ -105,7 +105,6 @@ async def test_handoff_corrects_the_subagent_and_hides_the_transfer() -> None:
     driver = VoiceDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
         session_id=SESSION_ID,
-        agent_id="triage",
         default_timeout=10.0,
     )
     await driver.open()
