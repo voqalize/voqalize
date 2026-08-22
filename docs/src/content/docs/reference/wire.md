@@ -232,7 +232,8 @@ an idle stimulus. `0` disables idle detection.
 ## Lifecycle
 
 `End` is a graceful close from either side. `Cancel` carries a `reason` and is
-the abrupt one. `Error` carries a message and a `fatal` flag; a fatal error means
+the abrupt one; the SDK never sends it, so a brain that emits `Cancel` toward
+Voice is one written directly against the wire. `Error` carries a message and a `fatal` flag; a fatal error means
 the session is ending, and a non-fatal one is a signal the brain may act on.
 
 ## Connection and auth
@@ -244,7 +245,9 @@ and `exp`. `agent_id` and `tenant_id` are informational — the recipient decide
 from them whether it serves this agent.
 
 `aud` is the constant `"brain"` for every brain, whatever kind it is. Routing
-lives in the `brain_url`, never in the token.
+lives in the `brain_url`, never in the token. `iss` is the literal string
+`pygato` — our internal name for the process that holds the call, here because it
+is a value you compare against, not a name you need.
 
 Close codes: **4000** — no agent, permanent, never retry. **4001** — agent gone,
 transient, reconnect with backoff. Anything else is transient. **1000** from your
@@ -256,7 +259,8 @@ missing, revoked, or for another agent will not start working on attempt twelve.
 
 The [Python SDK](https://github.com/voqalize/voqalize/tree/main/sdk/python) is
 the wire with the correlation removed. A brain implements callbacks and yields
-speech; nothing in its surface names an `epoch` or a `speech_id`.
+speech; nothing in its surface names an `epoch`. The one `speech_id` it sees is
+on `Finalize`, which reports what a unit was heard as and needs to say which.
 
 ```python
 class Greeter(Brain):
@@ -311,13 +315,15 @@ Both ends rely on these, and a brain that implements the wire directly owes them
    `SpeechChunk` outside an open unit is an error.
 3. **One `speech_id` per unit**, on every envelope of that unit, brain-minted and
    never reused.
-4. **The epoch is echoed unread** on everything emitted while handling a
-   stimulus.
+4. **The epoch is echoed unread** on speech: every envelope of a unit carries
+   the epoch of the stimulus that prompted it. Floor-free messages ride epoch
+   `0`, whenever they are sent.
 5. **The interruption echo comes last** — after the cut turn has stopped
    producing.
 6. **Exactly one `Response` per `Request`**, matching on `request_id`.
 7. **Nothing is emitted outside a stimulus except floor-free messages** —
-   `BrowserCommand`, `Request`, `End`, `Cancel`, `Error`.
+   `BrowserCommand`, `Request`, `End`, `Cancel`, `Error` — and the greeting,
+   the one speech unit that answers no stimulus.
 8. **`heard_text` is the delivered prefix**, per unit, never a concatenation.
 
 ## Changing the wire

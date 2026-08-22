@@ -1,4 +1,4 @@
-// Voqalize cortex wire frames.
+// Voqalize wire frames.
 //
 // The wire vocabulary between a voice runtime and a brain. Cortex relays these
 // bytes without reading them; the schema is consumed only at the two ends.
@@ -14,11 +14,11 @@
 //
 // Direction, where V = voice runtime and B = brain:
 //
-//   V→B  session_start  user_message  user_idle  browser_message  interruption
-//        finalize  response  end  cancel
+//   V→B  session_start  user_message  user_idle  browser_message  finalize
+//        response  end  cancel
 //   B→V  speech_start  speech_chunk  speech_end  browser_command  request
 //        end  cancel
-//   both error
+//   both interruption  error
 //
 // Opaque fields (`init`, `data`) are JSON-encoded strings, matching
 // pipecat's MessageFrame.data pattern. No Struct dependency.
@@ -64,8 +64,8 @@ message Envelope {
   }
 
   // Voice-minted, session-monotonic, incremented on every stimulus the voice
-  // runtime commits. The brain echoes it, unread, on everything it emits while
-  // handling that stimulus.
+  // runtime commits. The brain echoes it, unread, on the speech it emits while
+  // handling that stimulus; a floor-free message rides 0 whenever it is sent.
   //
   // It exists for exactly one decision: when a barge-in opens a drain barrier,
   // the runtime must tell "emitted before the barrier" from "emitted after it,
