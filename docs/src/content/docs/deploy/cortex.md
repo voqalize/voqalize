@@ -82,7 +82,7 @@ is yours to decide; the SDK owns no process management.
 
 Because the brain dials out, Cortex needs no public inbound route and no tunnel —
 which is why it fits serverless and egress-only environments, and why it is the
-fastest way to develop against the hosted platform from a laptop. Export the
+fastest way to develop against hosted Voqalize from a laptop. Export the
 credentials and run:
 
 ```bash

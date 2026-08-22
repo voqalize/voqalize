@@ -3,7 +3,7 @@ title: MCP server
 description: Create and manage agents, mint keys, set brain_urls, and read call logs from your editor's agent — over a hosted, OAuth-authenticated MCP endpoint.
 ---
 
-The Voqalize MCP server exposes the platform's management surface as tools your
+The Voqalize MCP server exposes Voqalize's management surface as tools your
 editor's agent (Claude Code, etc.) can call: create an agent, mint its keys, point
 its `brain_url` at your route, and read back what a call did — without leaving the
 editor.
@@ -65,7 +65,7 @@ the Voqalize control plane behind Google OAuth. Nothing to `pip`/`uvx`-install.
 ## Tools
 
 Sixteen tools. Every tool returns the control plane's raw JSON. Errors surface with
-a platform code — `not_authorized` (you're not a member of that tenant, or your role
+one of two codes — `not_authorized` (you're not a member of that tenant, or your role
 is too low) or `validation_error` (bad input, e.g. a non-`wss://` `brain_url` on a
 non-loopback host).
 
@@ -117,7 +117,7 @@ old key. This is what makes local development tunnel-free; see
 |---|---|---|
 | `list_sessions` | `(tenant, agent_id="", state="", limit=20, cursor="") -> dict` | List calls, most recent first; filter by agent/state. Page with `next_cursor`. |
 | `get_session` | `(tenant, session_id) -> dict` | One call in full: state, timing, `agent_input`, `metadata`, recordings summary. |
-| `get_session_events` | `(tenant, session_id, source="all", frame="", disposition="", limit=2000) -> dict` | What happened, merged: platform milestones **and** the wire between runtime and brain — transcripts, replies, actions, interruptions. |
+| `get_session_events` | `(tenant, session_id, source="all", frame="", disposition="", limit=2000) -> dict` | What happened, merged: lifecycle milestones **and** the wire between runtime and brain — transcripts, replies, actions, interruptions. |
 | `get_session_logs` | `(tenant, session_id, level="INFO", service="", limit=500) -> dict` | The voice runtime's own log lines for that call. |
 | `get_recordings` | `(tenant, session_id, ttl_seconds=900) -> dict` | Audio, one track per side, each with a short-lived signed `download_url`. |
 | `get_usage` | `(tenant, period="") -> dict` | Counters for one `YYYY-MM` billing period, broken down per agent. |
@@ -131,8 +131,8 @@ every one of these tools takes.
 The inspect-a-call loop is **events first, logs second**:
 
 1. `get_session_events` — authoritative and versioned. Safe to assert on in tests.
-   Pass `source="platform"` for just the milestones (cheap: it skips the wire read),
-   or `disposition="dropped_in_drain"` to see exactly what a barge-in threw away —
+   Pass `source="platform"` for the lifecycle milestones alone (cheap: it skips
+   the wire read), or `disposition="dropped_in_drain"` to see exactly what a barge-in threw away —
    the usual answer to "the agent replied but nothing happened".
 2. `get_session_logs` — evidence, not contract. Written in our vocabulary and free
    to change; read them to understand a call, never to assert on one.
@@ -143,7 +143,7 @@ was silent: `found`, `missing` (no bundle — still running, or the upload faile
 `unavailable` (the store could not be read) or `skipped`. An empty list is not the
 same fact as any of those.
 
-These are the **platform's** records. Your brain runs in your own environment and
+These are **Voqalize's** records. Your brain runs in your own environment and
 logs there; `session.id` is the same string on both sides, so it joins them.
 
 ## The flow, end to end
@@ -153,8 +153,8 @@ agent in this order:
 
 1. **Confirm the connection** — `whoami`, then `list_tenants` for the `tenant` slug
    every other tool requires.
-2. **Write the brain** — `on_session_start` / `on_interaction` /
-   `on_client_message` / `on_user_idle`. See
+2. **Write the brain** — `on_session_start` / `on_user_message` /
+   `on_browser_message` / `on_user_idle`. See
    the SDK README (`sdk/python/README.md`).
 3. **Create the agent** — `create_agent(tenant, name)` → `{agent, session_key}`.
 4. **Run it and point `brain_url` at it** — locally, `create_agent_credentials` and
@@ -165,9 +165,8 @@ agent in this order:
    agent's `test_url`.
 6. **Embed in the browser** — `create_api_key(tenant, agent_id, label, kind="publishable", …)`
    → `pk_…`, then [`@voqalize/client-react`](/docs/client/react/).
-7. **Instrument it** — `on_inference_finalized` / `on_error` brain-side,
-   `list_sessions` / `get_session_events` / `get_session_logs` platform-side. See
-   `on_finalize`.
+7. **Instrument it** — `on_finalize` / `on_error` brain-side, `list_sessions` /
+   `get_session_events` / `get_session_logs` on ours.
 
 ## Next
 

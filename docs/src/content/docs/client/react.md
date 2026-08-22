@@ -195,11 +195,11 @@ rendering the outcome — before you mint a session at all.
 For agents that drive the screen (see
 the brain side):
 
-- **Brain → browser.** The brain's `interaction.action(name, { ...args })` arrives
+- **Brain → browser.** The brain's `session.dispatch(Action(...))` arrives
   as a server message `{ type: "ui_command", action, action_id, ...args }` — the
   args are spread onto the top level. Dispatch it with `useUiCommand`, below.
 - **Browser → brain.** `session.sendMessage(type, data)` reaches the brain's
-  `on_client_message(session, ClientMessage(type=type, data=data))`. Reply to a UI
+  `on_browser_message(session, BrowserMessage(type=type, data=data))`. Reply to a UI
   command's outcome with `sendMessage("action_result", { action_id, status, result })`.
 
 ## Typed UI commands: `useUiCommand`

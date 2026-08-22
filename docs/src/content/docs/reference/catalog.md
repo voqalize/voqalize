@@ -144,7 +144,7 @@ voice included — lives in the brain, in your version control.
   that overrides that hook cannot accidentally drop them.
 - **Per caller, or mid-call:** `session.configure_language("hi")`, optionally with
   `voice=` when the target language wants a different persona. STT applies at the
-  next turn boundary; TTS at the next inference, never mid-utterance. See
+  next turn boundary; TTS at the next speech unit, never mid-utterance. See
   `Session.configure_language(language, voice=...)`.
 - **From the client:** the React SDK's `pipeline` prop still exists for a page
   that is genuinely the authority — a console auditioning voices, an A/B harness.
