@@ -9,9 +9,9 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
+from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
-from voqalize.sdk.wire import SessionStartFrame, UserMessageFrame
+from voqalize.sdk.wire import Frame, ResponseFrame, SessionStartFrame, UserMessageFrame
 
 
 class SerialChecker(SessionAdapter):
@@ -22,16 +22,17 @@ class SerialChecker(SessionAdapter):
     def __init__(self, emitter: Emitter) -> None:
         self.emitter = emitter
 
-    async def handle_frame(self, env: Envelope) -> None:
-
-        frame = env.frame
+    async def handle_frame(self, frame: Frame) -> None:
         if isinstance(frame, UserMessageFrame):
             SerialChecker.in_flight += 1
             SerialChecker.max_in_flight = max(SerialChecker.max_in_flight, SerialChecker.in_flight)
-            SerialChecker.timeline.append(("start", env.epoch))
+            SerialChecker.timeline.append(("start", frame.turn_id))
             await asyncio.sleep(0.01)
-            SerialChecker.timeline.append(("end", env.epoch))
+            SerialChecker.timeline.append(("end", frame.turn_id))
             SerialChecker.in_flight -= 1
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
 
     async def close(self) -> None:
         pass
@@ -53,9 +54,9 @@ async def test_serial_dispatch_under_burst() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(SessionStartFrame(session_id="s1", init={}))
+            await client.send(SessionStartFrame(turn_id=1, session_id="s1"))
             for i in range(10):
-                await client.send(UserMessageFrame(text=f"msg-{i}"), epoch=i)
+                await client.send(UserMessageFrame(turn_id=2 + i, text=f"msg-{i}"))
 
             await wait_until(
                 lambda: sum(1 for kind, _ in SerialChecker.timeline if kind == "end") == 10,
@@ -64,11 +65,11 @@ async def test_serial_dispatch_under_burst() -> None:
             assert SerialChecker.max_in_flight == 1, (
                 f"concurrency observed: max_in_flight={SerialChecker.max_in_flight}"
             )
-            for i in range(10):
+            for i in range(2, 12):
                 start_idx = SerialChecker.timeline.index(("start", i))
                 end_idx = SerialChecker.timeline.index(("end", i))
                 assert end_idx == start_idx + 1, (
-                    f"interaction {i} start/end not adjacent: {SerialChecker.timeline}"
+                    f"turn {i} start/end not adjacent: {SerialChecker.timeline}"
                 )
         finally:
             await client.close()

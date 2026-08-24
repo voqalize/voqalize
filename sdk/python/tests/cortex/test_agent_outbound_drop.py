@@ -1,5 +1,5 @@
 """Outbound congestion: when the adapter emits frames faster than the wire
-drains, the normal-lane bound kicks in. The runner drops newest and delivers a
+drains, the bulk-lane bound kicks in. The runner drops newest and delivers a
 single non-fatal ``ErrorFrame`` back to the adapter (via ``handle_frame``) —
 edge-triggered, so the adapter isn't spammed with one ErrorFrame per drop.
 
@@ -14,11 +14,12 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
+from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     ErrorFrame,
     Frame,
+    ResponseFrame,
     SessionStartFrame,
     SpeechChunkFrame,
     UserMessageFrame,
@@ -44,23 +45,24 @@ class Flooder(SessionAdapter):
         self.errors: list[ErrorFrame] = []
         self._fired = False
 
-    async def handle_frame(self, env: Envelope) -> None:
-
-        frame = env.frame
+    async def handle_frame(self, frame: Frame) -> None:
         if isinstance(frame, ErrorFrame):
             self.errors.append(frame)
             return
         if isinstance(frame, UserMessageFrame) and not self._fired:
             self._fired = True
             for i in range(_FLOOD):
-                self.emitter.send(SpeechChunkFrame(text=f"chunk-{i}"), epoch=env.epoch, speech_id=1)
+                self.emitter.send(SpeechChunkFrame(speech_id=1, text=f"chunk-{i}"))
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
 
     async def close(self) -> None:
         pass
 
 
-async def _send(wire: Wire, serializer: WireSerializer, frame: Frame, *, epoch: int = 0) -> None:
-    await wire.send(await serializer.serialize(frame, epoch=epoch))
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame) -> None:
+    await wire.send(await serializer.serialize(frame))
 
 
 async def test_outbound_overflow_delivers_error_frame() -> None:
@@ -91,14 +93,9 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
             await _send(
                 wire,
                 serializer,
-                SessionStartFrame(session_id="s1", init={}),
+                SessionStartFrame(turn_id=1, session_id="s1"),
             )
-            await _send(
-                wire,
-                serializer,
-                UserMessageFrame(text="go"),
-                epoch=1,
-            )
+            await _send(wire, serializer, UserMessageFrame(turn_id=2, text="go"))
 
             await wait_for(lambda: len(Flooder.instances) == 1, timeout=3.0)
             flooder = Flooder.instances[0]
@@ -111,8 +108,8 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
             assert all(not e.fatal for e in flooder.errors), (
                 "outbound drops must be non-fatal — the runner never kills a session"
             )
-            assert any("outbound queue full" in (e.error or "") for e in flooder.errors), (
-                f"expected an outbound-drop ErrorFrame; got {[e.error for e in flooder.errors]}"
+            assert any("outbound queue full" in e.message for e in flooder.errors), (
+                f"expected an outbound-drop ErrorFrame; got {[e.message for e in flooder.errors]}"
             )
 
             # Edge-triggered: a single congestion episode produces one ErrorFrame

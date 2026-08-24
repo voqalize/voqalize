@@ -27,6 +27,7 @@ from google.adk.agents import LlmAgent
 
 from voqalize._framework.heard import text_of
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     checks,
@@ -35,7 +36,6 @@ from voqalize.conformance import (
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, call, reply
-from voqalize.sdk import DirectAgent, brain_factory
 
 GREETING = "Front desk, how can I help?"
 SESSION_ID = "adk-subagents-test"
@@ -92,9 +92,7 @@ async def test_handoff_corrects_the_subagent_and_hides_the_transfer() -> None:
 
     keypair = generate_keypair()
     make = adk_brain(build_agent, greeting=GREETING, streaming=True, answer_conformance_dump=True)
-    agent = DirectAgent(
-        factory=brain_factory(make), host="127.0.0.1", port=0, public_keys=keypair.public_pem
-    )
+    agent = BrainServer(make, public_keys=keypair.public_pem)
     port = await agent.start()
     token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,

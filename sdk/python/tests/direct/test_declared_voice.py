@@ -207,6 +207,6 @@ async def test_a_refused_declaration_fails_the_session() -> None:
         "the refusal left the voice untouched, so the call is still wholly in one language"
     )
     assert _first_index(driver, SpeechChunkFrame) is None, "it must not have greeted"
-    assert [(e.fatal, e.error) for e in driver.errors] == [
+    assert [(e.fatal, e.message) for e in driver.errors] == [
         (True, "voice failed: configure_stt rejected: no recognizer for language 'hi'")
     ]

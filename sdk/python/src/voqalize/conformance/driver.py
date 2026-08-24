@@ -1,12 +1,13 @@
 """``VoqalizeDriver`` — a wire-compliant stand-in for Voqalize, seen from a brain's
 point of view.
 
-The driver *is* the "compliant voqalize": it dials a brain over the single
-session ``/s/{session_id}`` leg, speaks the shipped protobuf wire, and plays out
-the brain's responses the way real Voqalize does — auto-finalizing each speech unit
-with a *heard-truth* transcript and honouring the barge-in drain barrier.
-Everything the brain sends back is decoded, timestamped, and recorded so
-scenarios can assert the wire's MUSTs against a structured transcript.
+The driver *is* the "compliant voqalize": it dials a brain over one session leg,
+speaks the shipped protobuf wire, and plays out the brain's responses the way
+real Voqalize does — minting a turn id per stimulus, auto-finalizing each speech
+unit with a *heard-truth* transcript, and cutting a barge-in with the
+interruption watermark. Everything the brain sends back is decoded, timestamped,
+and recorded so scenarios can assert the wire's MUSTs against a structured
+transcript.
 
 Turns end the way they end on a real call: the wire carries no "the brain is
 done" frame, so a turn is over when every speech unit it opened has closed
@@ -27,8 +28,6 @@ from websockets.exceptions import ConnectionClosed
 
 from voqalize.sdk.wire import (
     WIRE_VERSION,
-    BrowserCommandFrame,
-    BrowserMessageFrame,
     CancelFrame,
     ConfigureIdleFrame,
     ConfigureRequest,
@@ -41,6 +40,8 @@ from voqalize.sdk.wire import (
     Frame,
     InterruptionFrame,
     ResponseFrame,
+    RTVIFrame,
+    RTVIType,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
@@ -48,14 +49,13 @@ from voqalize.sdk.wire import (
     UserIdleFrame,
     UserMessageFrame,
 )
-from voqalize.sdk.wire.serializer import DecodedMessage, WireSerializer
+from voqalize.sdk.wire.serializer import WireSerializer
 
 from .wire_voqalize import DirectConnection
 
-# The greeting epoch: the brain speaks first on session start, with no
-# user turn to attribute it to. Agent-initiated speech echoes no epoch, so it
-# lands on 0.
-GREETING_EPOCH = 0
+# ``SessionStart`` is turn 1 — the brain's opening line answers it like any
+# other stimulus, so there is no sentinel turn and no unbound speech.
+GREETING_TURN = 1
 
 # The control leg's ops, by the frame that carries each. The driver answers every
 # one, because Voqalize does — a brain awaiting an answer that never comes is the
@@ -73,11 +73,11 @@ REQUEST_OPS: dict[type[Frame], str] = {
 # recorded for the LLM) is not observable from the wire alone. There is no
 # history-request frame, and we do not add one: the wire stays frozen.
 #
-# Instead the driver reuses the generic, schema-free browser lane the wire
-# already has (browser→brain ``BrowserMessage`` / brain→browser
-# ``BrowserCommand``, the same lane real UIs use for ``ui_command`` /
-# ``action_result`` — opaque to Voqalize, which just relays it). A conformance-aware
-# brain opts in by answering one namespaced browser message with its committed state.
+# Instead the driver reuses the RTVI tunnel the wire already has (``client-message``
+# app→brain, ``server-message`` brain→app, the same lane real UIs use for
+# ``ui_command`` / ``action_result`` — opaque to Voqalize, which just relays it). A
+# conformance-aware brain opts in by answering one namespaced client message with
+# its committed state.
 # Because the SDK *owns* ``session.conversation``, that answer can be produced by
 # the framework once (see ``reference.conformance_state``) and every brain built
 # on the SDK inherits it — the customer's brain code writes nothing.
@@ -114,10 +114,10 @@ class SpeechObs:
 
 
 @dataclass
-class EpochObs:
-    """The driver's observation of one epoch (0 = greeting, else a user turn)."""
+class TurnObs:
+    """The driver's observation of one turn (1 = the session's opening line)."""
 
-    epoch: int
+    turn_id: int
     units: list[SpeechObs] = field(default_factory=list)
     finalized: set[int] = field(default_factory=set)
 
@@ -138,7 +138,7 @@ class EpochObs:
 class Turn:
     """The result of one driven turn (a ``user_says`` or ``barge_in``)."""
 
-    epoch: int
+    turn_id: int
     units: list[SpeechObs]
     completed: bool
     interrupted: bool = False
@@ -180,10 +180,12 @@ class VoqalizeDriver:
         self.quiet_for = quiet_for
         self._ser = WireSerializer()
 
-        self._epoch_seq = 0
+        # SessionStart is turn 1, so the first stimulus after it is turn 2.
+        self._turn_seq = GREETING_TURN
 
         # Recorded / decoded brain output.
         self.log: list[Recorded] = []
+        self.rtvi: list[RTVIFrame] = []
         self.ui_commands: list[dict] = []
         self.errors: list[ErrorFrame] = []
         # Every configure request the brain made, in wire order.
@@ -194,11 +196,13 @@ class VoqalizeDriver:
         # Ops to leave unanswered, for the one case the wire cannot promise
         # away: a Voqalize that stopped answering mid-call.
         self.withhold: set[str] = set()
-        self.epochs: dict[int, EpochObs] = {}
+        self.turns: dict[int, TurnObs] = {}
+        # Which turn each open speech unit belongs to: only ``SpeechStart``
+        # names the turn, chunks and ends name the unit.
+        self._speech_turn: dict[int, int] = {}
 
         # Wakeups and lifecycle signalling.
         self._tick = asyncio.Event()
-        self._interruption_seen = asyncio.Event()
         self._closed = asyncio.Event()
         self.close_code: int | None = None
         self._reader: asyncio.Task[None] | None = None
@@ -235,37 +239,36 @@ class VoqalizeDriver:
                 return
             if not payload:
                 continue
-            decoded = await self._ser.deserialize_message(payload)
-            if decoded.frame is not None:
-                await self._route(decoded, self._now())
+            frame = await self._ser.deserialize_message(payload)
+            if frame is not None:
+                await self._route(frame, self._now())
             self._wake()
 
     def _wake(self) -> None:
         self._tick.set()
         self._tick.clear()
 
-    async def _route(self, msg: DecodedMessage, t: float) -> None:
-        frame = msg.frame
-        assert frame is not None
+    async def _route(self, frame: Frame, t: float) -> None:
         self.log.append(Recorded(frame, t))
 
         if isinstance(frame, SpeechStartFrame):
-            io = self.epochs.setdefault(msg.epoch, EpochObs(msg.epoch))
-            io.units.append(SpeechObs(msg.speech_id, started_t=t))
+            io = self.turns.setdefault(frame.turn_id, TurnObs(frame.turn_id))
+            io.units.append(SpeechObs(frame.speech_id, started_t=t))
+            self._speech_turn[frame.speech_id] = frame.turn_id
         elif isinstance(frame, SpeechChunkFrame):
-            unit = self._unit_obs(msg.epoch, msg.speech_id)
+            unit = self._unit_obs(frame.speech_id)
             if unit is not None:
                 unit.texts.append(frame.text)
                 unit.text_times.append(t)
         elif isinstance(frame, SpeechEndFrame):
-            unit = self._unit_obs(msg.epoch, msg.speech_id)
+            unit = self._unit_obs(frame.speech_id)
             if unit is not None:
                 unit.ended = True
                 unit.ended_t = t
-        elif isinstance(frame, InterruptionFrame):
-            self._interruption_seen.set()
-        elif isinstance(frame, BrowserCommandFrame):
-            self.ui_commands.append(frame.data)
+        elif isinstance(frame, RTVIFrame):
+            self.rtvi.append(frame)
+            if isinstance(frame.data, dict) and frame.data.get("type") == "ui_command":
+                self.ui_commands.append(frame.data)
         elif isinstance(frame, ErrorFrame):
             self.errors.append(frame)
         elif isinstance(frame, ConfigureTtsFrame | ConfigureSttFrame | ConfigureIdleFrame):
@@ -278,21 +281,20 @@ class VoqalizeDriver:
                 ResponseFrame(request_id=frame.request_id, accepted=not detail, detail=detail)
             )
 
-    def _unit_obs(self, epoch: int, speech_id: int) -> SpeechObs | None:
-        io = self.epochs.get(epoch)
+    def _unit_obs(self, speech_id: int) -> SpeechObs | None:
+        io = self.turns.get(self._speech_turn.get(speech_id, -1))
         return io.unit(speech_id) if io is not None else None
 
     # ─── sending ───────────────────────────────────────────────────────────────
 
-    async def _send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
+    async def _send(self, frame: Frame) -> None:
         """Serialize and send one voice→brain frame."""
-        payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
-        await self._conn.send_payload(payload)
+        await self._conn.send_payload(await self._ser.serialize(frame))
 
-    def next_epoch(self) -> int:
-        """Mint the next epoch — Voqalize stamps every stimulus it commits."""
-        self._epoch_seq += 1
-        return self._epoch_seq
+    def next_turn(self) -> int:
+        """Mint the next turn id — Voqalize stamps every stimulus it commits."""
+        self._turn_seq += 1
+        return self._turn_seq
 
     # ─── waiting ─────────────────────────────────────────────────────────────
 
@@ -335,15 +337,16 @@ class VoqalizeDriver:
         greeting_timeout: float = 3.0,
         quiet_for: float | None = None,
     ) -> Turn | None:
-        """Send ``SessionStart`` (system lane) and, if the brain greets, play out
-        and finalize the greeting epoch (0). Returns the greeting turn,
-        or ``None`` if the brain did not greet within the timeout.
+        """Send ``SessionStart`` (turn 1) and, if the brain greets, play out and
+        finalize that turn. Returns the greeting turn, or ``None`` if the brain
+        did not greet within the timeout.
 
-        The greeting is *agent-initiated speech* — one unit, answering no
+        The opening line answers ``SessionStart`` the way any turn answers its
         stimulus: the driver waits for a closed bracket plus a short quiescence,
-        then finalizes the greeting unit (heard-truth)."""
+        then finalizes the unit (heard-truth)."""
         await self._send(
             SessionStartFrame(
+                turn_id=GREETING_TURN,
                 session_id=self.session_id,
                 init=init or {},
                 wire_version=WIRE_VERSION,
@@ -351,7 +354,7 @@ class VoqalizeDriver:
         )
         got = await self._wait_for(
             lambda: (
-                (io := self.epochs.get(GREETING_EPOCH)) is not None
+                (io := self.turns.get(GREETING_TURN)) is not None
                 and any(unit.ended for unit in io.units)
             ),
             timeout=greeting_timeout,
@@ -360,13 +363,13 @@ class VoqalizeDriver:
             return None
         # Quiesce before finalizing, so nothing is still in flight.
         await self._quiesce(self._quiet(quiet_for), timeout=greeting_timeout)
-        io = self.epochs.get(GREETING_EPOCH)
+        io = self.turns.get(GREETING_TURN)
         if io is None or not io.units:
             return None
         if finalize_greeting:
             await self._finalize_completed(io, FinalizeReason.COMPLETED)
         return Turn(
-            epoch=GREETING_EPOCH,
+            turn_id=GREETING_TURN,
             units=list(io.units),
             completed=io.completed,
         )
@@ -383,15 +386,17 @@ class VoqalizeDriver:
         and finalize each spoken unit with a heard-truth transcript. Returns
         the observed :class:`Turn`."""
         timeout = self.default_timeout if timeout is None else timeout
-        epoch = self.next_epoch()
-        await self._send(UserMessageFrame(text=text), epoch=epoch)
-        return await self._play_out(epoch, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
+        turn_id = self.next_turn()
+        await self._send(UserMessageFrame(turn_id=turn_id, text=text))
+        return await self._play_out(
+            turn_id, timeout=timeout, finalize=finalize, quiet_for=quiet_for
+        )
 
     def _quiet(self, quiet_for: float | None) -> float:
         return self.quiet_for if quiet_for is None else quiet_for
 
     async def _play_out(
-        self, epoch: int, *, timeout: float, finalize: bool, quiet_for: float | None = None
+        self, turn_id: int, *, timeout: float, finalize: bool, quiet_for: float | None = None
     ) -> Turn:
         """Play out the brain's response to an already-opened turn, then finalize
         each spoken unit with a heard-truth transcript. Shared by ``user_says``
@@ -404,14 +409,14 @@ class VoqalizeDriver:
         last, so a closed bracket alone is not enough). A brain with a watchdog that
         speaks late needs a window longer than that watchdog."""
         await self._wait_for(
-            lambda: (io := self.epochs.get(epoch)) is not None and io.completed,
+            lambda: (io := self.turns.get(turn_id)) is not None and io.completed,
             timeout=timeout,
         )
         await self._quiesce(self._quiet(quiet_for), timeout=timeout)
-        io = self.epochs.setdefault(epoch, EpochObs(epoch))
+        io = self.turns.setdefault(turn_id, TurnObs(turn_id))
         if finalize:
             await self._finalize_completed(io, FinalizeReason.COMPLETED)
-        return Turn(epoch, list(io.units), completed=io.completed)
+        return Turn(turn_id, list(io.units), completed=io.completed)
 
     async def user_idle(
         self,
@@ -422,14 +427,16 @@ class VoqalizeDriver:
         finalize: bool = True,
         quiet_for: float | None = None,
     ) -> Turn:
-        """Drive an idle trigger: Voqalize opened a fresh epoch because the user
+        """Drive an idle trigger: Voqalize opened a fresh turn because the user
         went silent past the idle timeout (``UserIdle``). The brain's
         ``on_user_idle`` may re-engage; play out its response exactly like a spoken
-        turn (or observe an empty epoch if it chose to stay silent)."""
+        turn (or observe an empty turn if it chose to stay silent)."""
         timeout = self.default_timeout if timeout is None else timeout
-        epoch = self.next_epoch()
-        await self._send(UserIdleFrame(level=level, idle_ms=idle_ms), epoch=epoch)
-        return await self._play_out(epoch, timeout=timeout, finalize=finalize, quiet_for=quiet_for)
+        turn_id = self.next_turn()
+        await self._send(UserIdleFrame(turn_id=turn_id, level=level, idle_ms=idle_ms))
+        return await self._play_out(
+            turn_id, timeout=timeout, finalize=finalize, quiet_for=quiet_for
+        )
 
     async def barge_in(
         self,
@@ -443,9 +450,12 @@ class VoqalizeDriver:
         timeout: float | None = None,
     ) -> Turn:
         """Drive a user barge-in: start a turn, let the brain begin speaking, then
-        send an ``InterruptionFrame`` and await the brain's drain echo. Finalize the
-        cut unit with ``interrupted=True`` / ``USER_BARGE_IN`` and a partial
-        heard-truth, and return it on :attr:`Turn.heard`.
+        raise the interruption watermark through that turn. Finalize the cut unit
+        with ``interrupted=True`` / ``USER_BARGE_IN`` and a partial heard-truth,
+        and return it on :attr:`Turn.heard`.
+
+        Nothing comes back: the watermark is state, not an event, so the driver
+        waits for the brain to go quiet rather than for an acknowledgement.
 
         The driver *is* Voqalize here, so it dictates the finalized ``heard_text`` —
         which is exactly what removes the timing nondeterminism of a real barge-in
@@ -469,21 +479,20 @@ class VoqalizeDriver:
           an already-complete reply: the framework has the whole generated turn, yet
           the user heard only ``heard_prefix``. Implies waiting past ``wait_for_speech``.
 
-        ``interrupts`` (default 1) sends that many ``InterruptionFrame``s back-to-back
-        before awaiting the echo — a rapid multi-barge that stresses the brain's
-        cancel path (each must cancel cleanly; the teardown of the open bracket must
-        still land its ``SpeechEnd``)."""
+        ``interrupts`` (default 1) sends that many ``InterruptionFrame``s back-to-back —
+        a rapid multi-barge that stresses the brain's cancel path. The watermark is
+        idempotent, so the repeats must change nothing; the teardown of the open
+        bracket must still land its ``SpeechEnd``."""
         timeout = self.default_timeout if timeout is None else timeout
-        epoch = self.next_epoch()
-        self._interruption_seen.clear()
-        await self._send(UserMessageFrame(text=text), epoch=epoch)
+        turn_id = self.next_turn()
+        await self._send(UserMessageFrame(turn_id=turn_id, text=text))
 
         if wait_for_complete:
             # Let the reply fully generate — the bracket closes — then barge its
             # playout with a known heard prefix.
             await self._wait_for(
                 lambda: (
-                    (io := self.epochs.get(epoch)) is not None
+                    (io := self.turns.get(turn_id)) is not None
                     and any(unit.ended for unit in io.units)
                 ),
                 timeout=timeout,
@@ -492,7 +501,7 @@ class VoqalizeDriver:
         elif wait_for_speech:
             # Let the brain open a bracket and speak at least a little, then settle.
             await self._wait_for(
-                lambda: any(unit.spoke for unit in self.epochs.get(epoch, EpochObs(epoch)).units),
+                lambda: any(unit.spoke for unit in self.turns.get(turn_id, TurnObs(turn_id)).units),
                 timeout=timeout,
             )
             if speak_delay > 0:
@@ -501,36 +510,38 @@ class VoqalizeDriver:
             # Barge before any audio can play: wait a fixed, short beat only.
             await asyncio.sleep(speak_delay)
 
-        cut = self._cut_unit(epoch)
+        cut = self._cut_unit(turn_id)
 
-        # Send the interruption(s) and await the echo. A rapid multi-barge sends
-        # several before the brain can echo the first.
         for _ in range(max(1, interrupts)):
-            await self._send(InterruptionFrame())
-        await self._wait_for(self._interruption_seen.is_set, timeout=timeout)
+            await self._send(InterruptionFrame(through_turn=turn_id))
+        # The watermark is not acknowledged, so "the brain stopped" is the brain
+        # going quiet — including the ``SpeechEnd`` that closes the cut bracket.
+        await self._quiesce(self._quiet(None), timeout=timeout)
 
-        io = self.epochs.setdefault(epoch, EpochObs(epoch))
+        io = self.turns.setdefault(turn_id, TurnObs(turn_id))
         heard: str | None = None
         if cut is not None:
             heard = heard_prefix if heard_prefix is not None else cut.text
             await self._send(
-                FinalizeFrame(heard_text=heard, reason=FinalizeReason.USER_BARGE_IN),
-                epoch=epoch,
-                speech_id=cut.speech_id,
+                FinalizeFrame(
+                    speech_id=cut.speech_id,
+                    heard_text=heard,
+                    reason=FinalizeReason.USER_BARGE_IN,
+                )
             )
             io.finalized.add(cut.speech_id)
         return Turn(
-            epoch,
+            turn_id,
             list(io.units),
             completed=io.completed,
             interrupted=True,
             heard=heard,
         )
 
-    def _cut_unit(self, epoch: int) -> SpeechObs | None:
+    def _cut_unit(self, turn_id: int) -> SpeechObs | None:
         """The unit in flight when the barge-in lands: prefer the last one
         still open (no end), else the last one observed."""
-        io = self.epochs.get(epoch)
+        io = self.turns.get(turn_id)
         if io is None or not io.units:
             return None
         for unit in reversed(io.units):
@@ -538,30 +549,33 @@ class VoqalizeDriver:
                 return unit
         return io.units[-1]
 
-    async def _finalize_completed(self, io: EpochObs, reason: FinalizeReason) -> None:
+    async def _finalize_completed(self, io: TurnObs, reason: FinalizeReason) -> None:
         """Finalize every spoken, ended, not-yet-finalized unit in ``io`` with
         heard-truth = exactly what the brain emitted (never generated)."""
         for unit in io.units:
             if unit.speech_id in io.finalized or not unit.spoke or not unit.ended:
                 continue
             await self._send(
-                FinalizeFrame(heard_text=unit.text, reason=reason),
-                epoch=io.epoch,
-                speech_id=unit.speech_id,
+                FinalizeFrame(speech_id=unit.speech_id, heard_text=unit.text, reason=reason)
             )
             io.finalized.add(unit.speech_id)
 
-    # ─── app / action lane ───────────────────────────────────────────────────
+    # ─── the RTVI tunnel ─────────────────────────────────────────────────────
 
-    async def send_browser_message(self, type: str, data: dict | None = None) -> int:
-        """Send a browser message and return the epoch Voqalize stamped it with.
+    async def send_rtvi(
+        self, type: RTVIType, data: object = None, *, id: str | None = None
+    ) -> None:
+        """Send one app→brain RTVI message.
 
-        Voqalize delivers **every** browser message to the brain's
-        ``on_browser_message`` without interpreting it, and that callback cannot
-        speak — so there is nothing to wait for here."""
-        epoch = self.next_epoch()
-        await self._send(BrowserMessageFrame(type=type, data=data or {}), epoch=epoch)
-        return epoch
+        Voqalize forwards every whitelisted type to ``on_rtvi`` without
+        interpreting it, and that callback cannot speak — so there is nothing to
+        wait for here. No ``turn_id``: an app message opens no turn."""
+        await self._send(RTVIFrame(type=type, data=data, id=id))
+
+    async def send_client_message(self, t: str, d: dict | None = None) -> None:
+        """Send an RTVI ``client-message`` in the ``{"t": ..., "d": ...}`` shape a
+        stock pipecat client sends."""
+        await self.send_rtvi(RTVIType.CLIENT_MESSAGE, {"t": t, "d": d or {}})
 
     async def send_action_result(
         self,
@@ -570,19 +584,15 @@ class VoqalizeDriver:
         status: str = "ok",
         result: dict | None = None,
     ) -> None:
-        """Report the outcome of a UI action the brain requested (client→brain).
+        """Report the outcome of a UI action the brain requested (app→brain).
 
-        Rides the same ``BrowserMessage`` frame as any browser message, typed
-        ``action_result`` — the SDK routes those to the pending ``action`` callback
-        rather than ``on_browser_message``. ``action_id`` is the integer the brain
-        minted in its ``ui_command``; the adapter correlates the outcome by that int
-        at session scope."""
-        await self._send(
-            BrowserMessageFrame(
-                type="action_result",
-                data={"action_id": action_id, "status": status, "result": result or {}},
-            ),
-            epoch=self.next_epoch(),
+        Rides an ordinary ``client-message`` typed ``action_result`` — the SDK
+        routes those to the pending action callback rather than ``on_rtvi``.
+        ``action_id`` is the integer the brain minted in its ``ui_command``; the
+        adapter correlates the outcome by that int at session scope."""
+        await self.send_client_message(
+            "action_result",
+            {"action_id": action_id, "status": status, "result": result or {}},
         )
 
     async def wait_closed(self, *, timeout: float | None = None) -> int | None:
@@ -608,9 +618,9 @@ class VoqalizeDriver:
         ``__voqal.conformance.dump`` client message; a conformance-aware brain answers
         with a ``__voqal.conformance.state`` action carrying its committed
         ``session.conversation``. No change to the wire — just a cooperation
-        convention on the existing client-message lane."""
+        convention on the existing RTVI tunnel."""
         before = len(self.ui_commands)
-        await self.send_browser_message(CONFORMANCE_DUMP_EVENT)
+        await self.send_client_message(CONFORMANCE_DUMP_EVENT)
         await self._wait_for(
             lambda: any(
                 c.get("action") == CONFORMANCE_STATE_ACTION for c in self.ui_commands[before:]

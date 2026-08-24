@@ -1,4 +1,4 @@
-"""Actions — a command to the browser, declared as a shape.
+"""Actions — a command to the app, declared as a shape.
 
 An action is the brain's second output channel. It renders; it never speaks. It
 carries no audio, holds no floor, and is therefore never yielded — it is
@@ -26,7 +26,7 @@ makes the TypeScript half generatable instead of hand-copied.
 ## The wire name
 
 Derived from the class name in ``snake_case`` — ``OpenItinerary`` →
-``open_itinerary``. **The class name is therefore part of your browser
+``open_itinerary``. **The class name is therefore part of your app
 contract**; renaming the class renames the action. Pin it when you don't want
 that coupling::
 
@@ -35,14 +35,15 @@ that coupling::
 
 ## Serialization
 
-``model_dump(by_alias=True, mode="json")``, spread onto the envelope:
+``model_dump(by_alias=True, mode="json")``, spread onto the envelope, which
+travels as the data of an RTVI ``server-message``:
 
     {"type": "ui_command", "action": "show_results", "action_id": 7, **payload}
 
 **Every declared field is emitted, including ``None``, which goes as JSON
 ``null``.** No ``exclude_none``: the wire shape of an action must be a function
 of the *class*, not of which fields happened to be set on one instance, because a
-stable shape is what lets the browser declare one total interface instead of
+stable shape is what lets the app declare one total interface instead of
 marking every field optional.
 """
 
@@ -82,7 +83,7 @@ def _snake_case(name: str) -> str:
 
 
 class Result(BaseModel):
-    """The browser's answer to an action — or the fact that it never came.
+    """The app's answer to an action — or the fact that it never came.
 
     ``status="timeout"`` is not an error path you handle separately: it is the
     same callback with a different status, so "the answer came" and "it didn't"
@@ -106,7 +107,7 @@ class Action(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
-    #: Fires when the browser answers, or when ``timeout_s`` elapses. It runs on
+    #: Fires when the app answers, or when ``timeout_s`` elapses. It runs on
     #: the session, not inside the turn that sent the action — the turn may be
     #: long over — so it holds no floor and cannot speak. To change the screen,
     #: call ``session.dispatch``; to say something, store it and let the next turn
@@ -148,5 +149,5 @@ class Action(BaseModel):
             )
 
     def to_payload(self) -> dict[str, Any]:
-        """This action's args as the browser receives them (minus the envelope)."""
+        """This action's args as the app receives them (minus the envelope)."""
         return self.model_dump(by_alias=True, mode="json")

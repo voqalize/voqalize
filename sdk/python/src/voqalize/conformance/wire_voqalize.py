@@ -4,7 +4,7 @@ for Voqalize against a brain.
 Two pieces the driver builds on:
 
 1. :class:`DirectConnection` — a bare ``websockets`` client that dials
-   ``{brain_url}/s/{session_id}`` exactly as Voqalize does: one WS per session, an
+   ``{brain_url}?session_id=`` exactly as Voqalize does: one WS per session, an
    ``Authorization: Bearer <token>`` header, and one protobuf envelope per
    binary message.
 
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -31,20 +32,29 @@ from websockets.asyncio.client import ClientConnection, connect
 # Not per-agent.
 BRAIN_AUDIENCE = "brain"
 
+
+def with_session_id(brain_url: str, session_id: str) -> str:
+    """The brain's URL with ``session_id`` appended, the way Voqalize dials it."""
+    parts = urlsplit(brain_url)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "session_id"]
+    query.append(("session_id", session_id))
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
 # ─── The direct-path connection (bare websockets client) ──────────────────────
 
 
 class DirectConnection:
     """A single-session voice→brain WebSocket, dialled the way Voqalize dials it.
 
-    URL is ``{brain_url}/s/{session_id}``; auth is an ``Authorization: Bearer``
-    header; framing is one protobuf envelope per binary message. Does not own
-    retry/backoff — the conformance driver wants explicit control over the
-    socket lifecycle.
+    The brain's own path is used verbatim and the session rides as a query
+    parameter; auth is an ``Authorization: Bearer`` header; framing is one
+    protobuf envelope per binary message. Does not own retry/backoff — the
+    conformance driver wants explicit control over the socket lifecycle.
     """
 
     def __init__(self, brain_url: str, session_id: str, *, token: str | None) -> None:
-        self._url = f"{brain_url.rstrip('/')}/s/{session_id}"
+        self._url = with_session_id(brain_url, session_id)
         self._token = token
         self._ws: ClientConnection | None = None
 

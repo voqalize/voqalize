@@ -15,15 +15,17 @@ The rules come straight from the wire contract — `docs/reference/wire`, and
   ``speech_id`` sequence;
 * **heard-truth** — the assistant text committed to the conversation is what the
   driver *heard* (played out), never brain-generated tail past a barge-in;
-* **barge-in is a drain barrier** — the brain echoes the ``InterruptionFrame``
-  and stops generating the cut tail;
-* **the greeting rides epoch 0**; **no proactive brain speech** outside a
+* **barge-in is a watermark** — every turn through ``through_turn`` is dead, and
+  the brain stops generating the cut tail without answering back;
+* **the greeting rides turn 1**; **no proactive brain speech** outside a
   stimulus the driver opened.
 """
 
 from __future__ import annotations
 
-from .driver import GREETING_EPOCH, EpochObs, Turn, VoqalizeDriver
+from voqalize.sdk.wire import InterruptionFrame
+
+from .driver import GREETING_TURN, Turn, TurnObs, VoqalizeDriver
 
 
 class ConformanceError(AssertionError):
@@ -43,7 +45,7 @@ def check_brackets_closed(turn: Turn) -> None:
     for unit in turn.units:
         require(
             unit.ended,
-            f"epoch {turn.epoch} unit {unit.speech_id}: "
+            f"turn {turn.turn_id} unit {unit.speech_id}: "
             "bracket opened (SpeechStart) but never closed "
             "(SpeechEnd) — one-bracket-per-unit violated",
         )
@@ -55,22 +57,21 @@ def check_speech_ids_monotonic(turn: Turn, *, start: int = 1) -> None:
     ids = [unit.speech_id for unit in turn.units]
     require(
         ids == sorted(ids) and len(set(ids)) == len(ids),
-        f"epoch {turn.epoch}: speech ids {ids} are not strictly increasing / unique",
+        f"turn {turn.turn_id}: speech ids {ids} are not strictly increasing / unique",
     )
     if ids:
         require(
             ids[0] >= start,
-            f"epoch {turn.epoch}: first speech id {ids[0]} < {start}",
+            f"turn {turn.turn_id}: first speech id {ids[0]} < {start}",
         )
 
 
-def check_stamped_with_epoch(driver: VoqalizeDriver, turn: Turn) -> None:
-    """Every recorded LLM frame for this turn carries the epoch the driver stamped
-    the stimulus with — the brain must echo it, never invent one."""
-    io = driver.epochs.get(turn.epoch)
+def check_bound_to_turn(driver: VoqalizeDriver, turn: Turn) -> None:
+    """The brain's speech named the turn the driver opened — every ``SpeechStart``
+    binds to the stimulus it answers, and the brain never invents a turn."""
     require(
-        io is not None,
-        f"no frames observed stamped with epoch {turn.epoch}",
+        driver.turns.get(turn.turn_id) is not None,
+        f"no speech observed bound to turn {turn.turn_id}",
     )
 
 
@@ -81,7 +82,7 @@ def check_completed(turn: Turn) -> None:
     """A clean turn answered and closed every bracket it opened."""
     require(
         turn.completed,
-        f"epoch {turn.epoch}: the brain opened no bracket, or left "
+        f"turn {turn.turn_id}: the brain opened no bracket, or left "
         "one open — a clean turn answers and closes what it opened",
     )
 
@@ -89,47 +90,48 @@ def check_completed(turn: Turn) -> None:
 def check_spoke(turn: Turn) -> None:
     require(
         any(unit.spoke for unit in turn.units),
-        f"epoch {turn.epoch}: brain produced no LLM text",
+        f"turn {turn.turn_id}: brain produced no LLM text",
     )
 
 
 def check_greeting(driver: VoqalizeDriver, turn: Turn | None) -> None:
-    """The greeting is agent-initiated speech, and answers no stimulus — so it
-    echoes epoch 0. The requirements are: it spoke, its bracket(s) closed, and it
-    rode epoch 0."""
+    """``SessionStart`` is turn 1, and the opening line answers it. The
+    requirements are: it spoke, its bracket(s) closed, and it bound to turn 1."""
     require(turn is not None, "brain did not greet on session start")
     assert turn is not None
     require(
-        turn.epoch == GREETING_EPOCH,
-        f"greeting used epoch {turn.epoch}, must be {GREETING_EPOCH}",
+        turn.turn_id == GREETING_TURN,
+        f"greeting bound to turn {turn.turn_id}, must be {GREETING_TURN}",
     )
     check_spoke(turn)
     check_brackets_closed(turn)
 
 
-# ─── barge-in / drain barrier ─────────────────────────────────────────────────
+# ─── barge-in / the watermark ─────────────────────────────────────────────────
 
 
-def check_interruption_echoed(driver: VoqalizeDriver) -> None:
-    """The brain echoed an ``InterruptionFrame`` — the drain barrier that lets
-    Voqalize resume forwarding brain output."""
+def check_watermark_not_echoed(driver: VoqalizeDriver) -> None:
+    """The brain answered the watermark with nothing.
+
+    ``Interruption`` is V→B state, not a request: an echo would be a second
+    ordering constraint on a lane that already has one, and the brain has nothing
+    to add that Voqalize does not already know."""
     require(
-        driver._interruption_seen.is_set(),
-        "brain did not echo InterruptionFrame after barge-in — no drain barrier, "
-        "Voqalize would stay muted until the fallback timeout",
+        not any(isinstance(record.frame, InterruptionFrame) for record in driver.log),
+        "brain echoed InterruptionFrame — the watermark is V→B only",
     )
 
 
 def check_no_speech_after_barge_in(driver: VoqalizeDriver, turn: Turn, *, forbidden: str) -> None:
-    """No unit in the cut epoch emitted the post-barge-in tail — the
+    """No unit in the cut turn emitted the post-barge-in tail — the
     brain must stop generating once cancelled (heard-truth has no unheard tail)."""
-    io = driver.epochs.get(turn.epoch)
+    io = driver.turns.get(turn.turn_id)
     if io is None:
         return
     for unit in io.units:
         require(
             forbidden not in unit.text,
-            f"epoch {turn.epoch} unit {unit.speech_id}: emitted "
+            f"turn {turn.turn_id} unit {unit.speech_id}: emitted "
             f"post-barge-in text {forbidden!r} — brain kept speaking after cancel",
         )
 
@@ -137,15 +139,14 @@ def check_no_speech_after_barge_in(driver: VoqalizeDriver, turn: Turn, *, forbid
 # ─── no proactive speech ──────────────────────────────────────────────────────
 
 
-def check_no_unsolicited_epochs(driver: VoqalizeDriver, *, opened: set[int]) -> None:
-    """The brain only ever stamped epochs the driver actually opened (plus the
-    greeting) — no proactive/unsolicited brain-initiated speech."""
-    allowed = opened | {GREETING_EPOCH}
-    seen = set(driver.epochs)
-    extra = seen - allowed
+def check_no_unsolicited_turns(driver: VoqalizeDriver, *, opened: set[int]) -> None:
+    """The brain only ever bound speech to turns the driver actually opened (plus
+    turn 1) — no proactive/unsolicited brain-initiated speech."""
+    allowed = opened | {GREETING_TURN}
+    extra = set(driver.turns) - allowed
     require(
         not extra,
-        f"brain produced output for epochs {sorted(extra)} that Voqalize never "
+        f"brain produced output for turns {sorted(extra)} that Voqalize never "
         f"opened (opened={sorted(allowed)}) — no proactive brain speech allowed",
     )
 
@@ -203,6 +204,6 @@ def check_conversation_heard(state: dict, *, expected_tail: list[dict]) -> None:
     )
 
 
-def messages_of(io: EpochObs) -> list[str]:
-    """Convenience: the per-unit heard text of one epoch, in order."""
+def messages_of(io: TurnObs) -> list[str]:
+    """Convenience: the per-unit heard text of one turn, in order."""
     return [unit.text for unit in io.units]

@@ -50,14 +50,14 @@ async def test_round_trip_every_frame() -> None:
         client = await connect_pygato(cortex, "s1")
         try:
             # Open the session.
-            await client.send(SessionStartFrame(session_id="s1", init={}))
+            await client.send(SessionStartFrame(turn_id=1, session_id="s1"))
 
             # Drive a user turn + a finalize.
-            await client.send(UserMessageFrame(text="user said hi"), epoch=1)
+            await client.send(UserMessageFrame(turn_id=2, text="user said hi"))
             await client.send(
-                FinalizeFrame(heard_text="bot said hi", reason=FinalizeReason.COMPLETED),
-                epoch=1,
-                speech_id=1,
+                FinalizeFrame(
+                    speech_id=1, heard_text="bot said hi", reason=FinalizeReason.COMPLETED
+                ),
             )
 
             # The Brain's unit of speech emits Start → Text → End.

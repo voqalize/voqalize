@@ -1,7 +1,7 @@
 """FakeCortex — a session-id-aware TCP relay that stands in for cortex.
 
 Mirrors the real cortex split:
-- Pygato leg: ``ws://host/s/{session_id}?agent_id={agent_id}``.
+- Pygato leg: ``ws://host?session_id={session_id}&agent_id={agent_id}``.
   Wire format ``[payload]``. One session per connection.
 - Agent leg: ``ws://host/agent?agent_id={agent_id}``.
   Wire format ``[16-byte session_id][payload]``. One connection per agent
@@ -123,12 +123,12 @@ class FakeCortex:
     # ─── URL helpers ────────────────────────────────────────────────────
 
     def base_url(self) -> str:
-        """Root URL — `ws://host:port`. Pygato's CortexLLMService
-        appends `/s/{session_id}` itself."""
+        """Root URL — `ws://host:port`. The brain bridge appends
+        `?session_id=` itself."""
         return f"ws://{self._host}:{self._port}"
 
     def pygato_url(self, session_id: str, agent_id: str) -> str:
-        return f"ws://{self._host}:{self._port}/s/{session_id}?agent_id={agent_id}"
+        return f"ws://{self._host}:{self._port}?session_id={session_id}&agent_id={agent_id}"
 
     def agent_url(self, agent_id: str) -> str:
         return f"ws://{self._host}:{self._port}/agent?agent_id={agent_id}"
@@ -175,19 +175,21 @@ class FakeCortex:
         params = self._parse_query(ws)
         agent_id = self._agent_id_from_bearer(ws) or params.get("agent_id")
 
-        if path.startswith("/s/"):
-            session_id = path[len("/s/") :]
-            if not session_id or not agent_id:
-                await ws.close(code=1003, reason="missing session_id/agent_id")
-                return
-            await self._serve_pygato(ws, session_id=session_id, agent_id=agent_id)
-        elif path == "/agent":
+        if path == "/agent":
             if not agent_id:
                 await ws.close(code=1003, reason="missing agent_id")
                 return
             await self._serve_agent(ws, agent_id=agent_id)
-        else:
-            await ws.close(code=1003, reason=f"unknown path {path!r}")
+            return
+
+        # Everything else is the pygato leg. The session rides the query, not
+        # the path, so a brain is one ordinary WebSocket route mounted wherever
+        # the customer already mounts routes.
+        session_id = params.get("session_id")
+        if not session_id or not agent_id:
+            await ws.close(code=1003, reason="missing session_id/agent_id")
+            return
+        await self._serve_pygato(ws, session_id=session_id, agent_id=agent_id)
 
     async def _serve_pygato(self, ws: ServerConnection, *, session_id: str, agent_id: str) -> None:
         async with self._lock:

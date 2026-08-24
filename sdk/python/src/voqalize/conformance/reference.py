@@ -45,10 +45,11 @@ from typing import Any
 from voqalize.sdk import (
     Action,
     Brain,
-    BrowserMessage,
     Chunk,
     Finalize,
     Result,
+    RTVIMessage,
+    RTVIType,
     Session,
     Speech,
     SpeechEnd,
@@ -114,7 +115,7 @@ class ConformanceState(Action, name=CONFORMANCE_STATE_ACTION):
     """The backchannel echo: committed state over the ordinary action lane."""
 
     messages: list[dict[str, Any]]
-    browser_messages: list[dict[str, Any]]
+    app_messages: list[dict[str, Any]]
     outcomes: list[dict[str, Any]]
 
 
@@ -128,7 +129,7 @@ def conformance_state(brain: ConformanceBrain) -> dict[str, Any]:
     """The backchannel state payload: heard transcript, app messages, results."""
     return {
         "messages": list(brain.messages),
-        "browser_messages": list(brain.browser_messages),
+        "app_messages": list(brain.app_messages),
         "outcomes": list(brain.outcomes),
     }
 
@@ -138,7 +139,7 @@ class ConformanceBrain(Brain):
 
     def __init__(self) -> None:
         self.messages: list[dict[str, Any]] = []
-        self.browser_messages: list[dict[str, Any]] = []
+        self.app_messages: list[dict[str, Any]] = []
         self.outcomes: list[dict[str, Any]] = []
 
     async def greet(self, session: Session) -> str:
@@ -231,13 +232,17 @@ class ConformanceBrain(Brain):
         yield Chunk(f"{IDLE_NUDGE} {idle.level}")
         yield SpeechEnd()
 
-    async def on_browser_message(self, session: Session, msg: BrowserMessage) -> None:
-        # Voqalize delivers every browser message here and never interprets it — the
-        # brain decides what to do with each. It may render; it may not speak.
-        if msg.type == CONFORMANCE_DUMP_EVENT:
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        # Voqalize forwards every whitelisted RTVI message here and interprets
+        # none of it — the brain decides what to do with each. It may render; it
+        # may not speak.
+        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+            return
+        name, payload = msg.data.get("t"), msg.data.get("d") or {}
+        if name == CONFORMANCE_DUMP_EVENT:
             session.dispatch(ConformanceState(**conformance_state(self), timeout_s=None))
             return
-        self.browser_messages.append({"name": msg.type, "data": msg.data})
+        self.app_messages.append({"name": name, "data": payload})
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         # The heard prefix, not what was generated. An interrupted unit that

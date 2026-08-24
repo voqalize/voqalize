@@ -19,7 +19,8 @@ application hosts it:
 
 - **Your app owns a WebSocket route.** Accept the upgrade yourself and hand the
   connected socket to :func:`run_session` — one connection is one session, and
-  Voqalize dials ``{brain_url}/s/{session_id}``. This is the primary path.
+  Voqalize dials your ``brain_url`` with ``?session_id=`` appended. This is the
+  primary path.
 - **Your app cannot accept an inbound connection** (a laptop, a strict egress-only
   network). ``await serve(Concierge, api_key=..., cortex_url=...)`` dials the
   Cortex relay instead and blocks; you decide where that call runs.
@@ -34,10 +35,10 @@ from ._logging import configure_logging, session_context
 from .actions import Action, Result
 from .brain import ActionHandle, Brain, RequestRejected, Session, WireError, serve
 from .events import (
-    BrowserMessage,
     Chunk,
     Error,
     Finalize,
+    RTVIMessage,
     Speech,
     SpeechEnd,
     SpeechStart,
@@ -45,16 +46,19 @@ from .events import (
     UserMessage,
 )
 from .session import Channel, SessionRejected, run_session
+from .wire import ErrorCode, RTVIType
 
 __all__ = [
     "Action",
     "ActionHandle",
     "Brain",
-    "BrowserMessage",
     "Channel",
     "Chunk",
     "Error",
+    "ErrorCode",
     "Finalize",
+    "RTVIMessage",
+    "RTVIType",
     "RequestRejected",
     "Result",
     "Session",

@@ -18,7 +18,6 @@ from google.genai import types
 
 from voqalize.sdk import Session
 from voqalize.sdk.brain import adapter_for
-from voqalize.sdk.engine import Envelope
 from voqalize.sdk.events import Finalize
 from voqalize.sdk.gemini import GeminiBrain
 from voqalize.sdk.wire import Frame, SessionStartFrame
@@ -27,7 +26,7 @@ from voqalize.sdk.wire import Frame, SessionStartFrame
 class _Silent:
     """An emitter that keeps nothing: these tests read history, not the wire."""
 
-    def send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
+    def send(self, frame: Frame) -> None:
         pass
 
 
@@ -37,13 +36,7 @@ async def _brain() -> tuple[GeminiBrain, Session]:
         system_instruction="be brief",
     )
     adapter = adapter_for(brain, _Silent())
-    await adapter.handle_frame(
-        Envelope(
-            frame=SessionStartFrame(session_id="s"),
-            epoch=0,
-            speech_id=0,
-        )
-    )
+    await adapter.handle_frame(SessionStartFrame(turn_id=1, session_id="s"))
     session = adapter._session  # pyright: ignore[reportPrivateUsage]
     assert session is not None
     return brain, session

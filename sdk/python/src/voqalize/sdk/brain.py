@@ -45,19 +45,18 @@ Mapping onto the wire:
 
 - ``on_user_message``       ← ``UserMessageFrame``
 - ``on_user_idle``          ← ``UserIdleFrame``
-- ``on_browser_message``    ← ``BrowserMessageFrame``
+- ``on_rtvi``               ← ``RTVIFrame``
 - ``SpeechStart``/``SpeechEnd`` → ``Speech{Start,End}Frame`` (mints one ``speech_id``)
 - ``Chunk``                 → ``SpeechChunkFrame``
 - ``on_finalize``           ← ``FinalizeFrame``
-- an ``Action``             → ``BrowserCommandFrame`` (a ``ui_command`` to the browser)
+- ``session.send_rtvi``     → ``RTVIFrame``
+- an ``Action``             → an RTVI ``server-message`` carrying a ``ui_command``
 - ``configure_*``           → a ``Configure*Frame``, answered by one ``ResponseFrame``
-- barge-in                  ← ``InterruptionFrame`` → the turn is cancelled, then echoed back as the drain barrier
+- barge-in                  ← ``InterruptionFrame`` → every turn through the watermark is cancelled
 
-Correlation never appears in this surface. Voqalize stamps each stimulus with an
-``epoch`` and the SDK echoes it, unread, on everything the brain emits while
-handling that stimulus, so Voqalize's drain barrier can place a frame after an
-interruption. Agent-initiated speech — the opening line — answers no stimulus and
-rides epoch 0.
+Correlation never appears in this surface. Voqalize mints a ``turn_id`` for each
+stimulus and the SDK binds the speech it produces to that turn, so a barge-in can
+name exactly what is dead.
 """
 
 from __future__ import annotations
@@ -66,18 +65,19 @@ import asyncio
 import contextlib
 import inspect
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from loguru import logger
 
 from .actions import Action, Result
-from .engine import Emitter, Envelope, SessionAdapter, SessionFactory
+from .engine import Emitter, SessionAdapter, SessionFactory
 from .events import (
-    BrowserMessage,
     Chunk,
     Error,
     Finalize,
+    RTVIMessage,
     Speech,
     SpeechEnd,
     SpeechStart,
@@ -87,19 +87,20 @@ from .events import (
 from .outbound import CortexAgent
 from .wire import (
     WIRE_VERSION,
-    BrowserCommandFrame,
-    BrowserMessageFrame,
     ConfigureIdleFrame,
     ConfigureRequest,
     ConfigureSttFrame,
     ConfigureTtsFrame,
     EndFrame,
+    ErrorCode,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
     InterruptionFrame,
     ResponseFrame,
+    RTVIFrame,
+    RTVIType,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
@@ -107,6 +108,7 @@ from .wire import (
     UserIdleFrame,
     UserMessageFrame,
 )
+from .wire.frames import RTVI_TO_APP
 
 __all__ = [
     "ActionHandle",
@@ -119,11 +121,14 @@ __all__ = [
     "serve",
 ]
 
-# The browser echoes an action's answer as a client message of this type.
+# The app echoes an action's answer as an RTVI client message of this type, and
+# receives an action as a server message of this one.
 ACTION_RESULT = "action_result"
+UI_COMMAND = "ui_command"
 
-# Agent-initiated speech answers no stimulus, so it echoes no epoch.
-NO_EPOCH = 0
+# The turn a brain callback is running for, so floor-free calls made from inside
+# one can annotate what they send without the brain threading it through.
+_current_turn: ContextVar[int | None] = ContextVar("voqalize_turn", default=None)
 
 #: How long a `session.configure_*` call waits for Voqalize's answer. Comfortably
 #: past Voqalize's own wait on the recognizer, so a rejection in flight
@@ -216,15 +221,34 @@ class Session:
         self._awaiting: dict[int, asyncio.Future[ResponseFrame]] = {}
         self._ended = False
 
-    # ─── Actions ────────────────────────────────────────────────────────
+    # ─── The app ────────────────────────────────────────────────────────
 
-    def dispatch(self, action: Action) -> ActionHandle:
-        """Send an action to the browser. Never blocks.
+    def send_rtvi(self, type: RTVIType, data: Any = None, *, id: str | None = None) -> None:
+        """Send one RTVI message to the app. Never blocks.
 
         Callable from anywhere — inside a turn, from an ``on_result`` callback,
-        from work that finished after the turn that started it — because an action
+        from work that finished after the turn that started it — because a message
         carries no audio and so needs no floor. Inside a turn it hits the wire in
-        the order it runs, so it cannot jump ahead of speech you already yielded.
+        the order it runs, so it cannot jump ahead of speech you already yielded,
+        and it is annotated with that turn for traces.
+
+        Quote ``id`` back from the message you are answering when RTVI gave it
+        one. Only the five types in
+        :data:`~voqalize.sdk.wire.frames.RTVI_TO_APP` may be sent; the app
+        originates the rest, and Voqalize refuses one arriving from a brain.
+        """
+        if type not in RTVI_TO_APP:
+            raise WireError(
+                f"a brain may not send RTVI {type.value!r}: the app originates it. "
+                f"Sendable types are {sorted(t.value for t in RTVI_TO_APP)}."
+            )
+        self._adapter.emit(RTVIFrame(type=type, data=data, id=id, turn_id=_current_turn.get()))
+
+    def dispatch(self, action: Action) -> ActionHandle:
+        """Send an action to the app. Never blocks.
+
+        Sugar over :meth:`send_rtvi`: it rides one ``server-message`` and the app
+        answers with a ``client-message`` naming the ``action_id``.
         """
         self._action_seq += 1
         action_id = self._action_seq
@@ -233,15 +257,14 @@ class Session:
         self._pending[action_id] = pending
         if action.timeout_s is not None:
             pending.expiry = self._adapter.spawn(self._expire(action_id, action.timeout_s))
-        self._adapter.emit(
-            BrowserCommandFrame(
-                data={
-                    "type": "ui_command",
-                    "action": type(action).__voqal_action__,
-                    "action_id": action_id,
-                    **action.to_payload(),
-                }
-            )
+        self.send_rtvi(
+            RTVIType.SERVER_MESSAGE,
+            {
+                "type": UI_COMMAND,
+                "action": type(action).__voqal_action__,
+                "action_id": action_id,
+                **action.to_payload(),
+            },
         )
         return handle
 
@@ -557,21 +580,25 @@ class Brain:
         1 and wrap up at 3. Default: say nothing and let the silence ride."""
         return _nothing()
 
-    async def on_browser_message(self, session: Session, msg: BrowserMessage) -> None:
-        """The browser said something — a tap, a keystroke, a state push::
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """The app said something — a tap, a keystroke, a state push::
 
-            async def on_browser_message(self, session, msg):
-                if msg.type == "state_sync":
-                    self.screen = msg.data
-                elif msg.type == "catalog_search":
-                    session.dispatch(ShowSearchResults(rows=self.search(msg.data["query"])))
-                elif msg.type == "hang_up":
+            async def on_rtvi(self, session, msg):
+                if msg.type is not RTVIType.CLIENT_MESSAGE:
+                    return
+                kind, payload = msg.data["t"], msg.data.get("d") or {}
+                if kind == "state_sync":
+                    self.screen = payload
+                elif kind == "catalog_search":
+                    session.dispatch(ShowSearchResults(rows=self.search(payload["query"])))
+                elif kind == "hang_up":
                     session.end(reason="user tapped hang up")
 
         Not a generator, which is the whole point: a click can update the screen
         or end the call, but it cannot make the agent start talking over the
         person clicking. There is nothing to yield here, so that rule needs no
-        runtime check and cannot be broken.
+        runtime check and cannot be broken. To speak to the app, call
+        :meth:`Session.send_rtvi`.
         """
 
     # ─── What landed ────────────────────────────────────────────────────
@@ -599,16 +626,18 @@ class _BrainAdapter:
         self._brain = brain
         self._emitter = emitter
         self._session: Session | None = None
-        # Speech-capable work, cancelled by a barge-in.
-        self._turns: set[asyncio.Task[None]] = set()
+        # Speech-capable work, by the turn it answers; a barge-in cancels every
+        # turn through the watermark.
+        self._turns: dict[asyncio.Task[None], int] = {}
+        self._watermark = 0
         # Floor-free work — app messages, result callbacks — which a barge-in has
         # no reason to touch. Cancelled only at teardown.
         self._ambient: set[asyncio.Task[Any]] = set()
 
     # ─── Adapter services used by Session ───────────────────────────────
 
-    def emit(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
-        self._emitter.send(frame, epoch=epoch, speech_id=speech_id)
+    def emit(self, frame: Frame) -> None:
+        self._emitter.send(frame)
 
     def settle_response(self, frame: ResponseFrame) -> None:
         """Hand Voqalize's answer to whoever is blocked on it.
@@ -627,9 +656,7 @@ class _BrainAdapter:
 
     # ─── Inbound ────────────────────────────────────────────────────────
 
-    async def handle_frame(self, env: Envelope) -> None:
-        frame = env.frame
-
+    async def handle_frame(self, frame: Frame) -> None:
         if isinstance(frame, SessionStartFrame):
             await self._start(frame)
             return
@@ -641,34 +668,32 @@ class _BrainAdapter:
         if isinstance(frame, UserMessageFrame):
             self._spawn_turn(
                 session,
-                env.epoch,
+                frame.turn_id,
                 _speech(self._brain.on_user_message(session, UserMessage(frame.text))),
             )
         elif isinstance(frame, UserIdleFrame):
             self._spawn_turn(
                 session,
-                env.epoch,
+                frame.turn_id,
                 _speech(self._brain.on_user_idle(session, UserIdle(frame.level, frame.idle_ms))),
             )
         elif isinstance(frame, InterruptionFrame):
-            # Cancel in flight first, then echo: the echo is Voqalize's drain
-            # barrier, and it must not arrive before the frames it fences off
-            # have stopped being produced.
-            await self._cancel_turns()
-            self.emit(InterruptionFrame())
+            await self._raise_watermark(frame.through_turn)
         elif isinstance(frame, FinalizeFrame):
             await self._brain.on_finalize(
                 session,
                 Finalize(
-                    speech_id=env.speech_id,
+                    speech_id=frame.speech_id,
                     heard=frame.heard_text,
                     interrupted=frame.reason is FinalizeReason.USER_BARGE_IN,
                 ),
             )
-        elif isinstance(frame, BrowserMessageFrame):
-            self._deliver_browser_message(session, frame)
+        elif isinstance(frame, RTVIFrame):
+            self._deliver_rtvi(session, frame)
         elif isinstance(frame, ErrorFrame):
-            await self._brain.on_error(session, Error(message=frame.error, fatal=frame.fatal))
+            await self._brain.on_error(
+                session, Error(code=frame.code, message=frame.message, fatal=frame.fatal)
+            )
 
         # Anything else (End / Cancel / …) is a lifecycle frame the runner acts
         # on; the brain has no handler for it.
@@ -705,11 +730,13 @@ class _BrainAdapter:
             return
         try:
             opening = await self._brain.greet(session)
-            if not opening:
-                return
-            await self._drive(session, NO_EPOCH, _one_unit(opening))
         except Exception as exc:
             self._abort(session, "greet", exc)
+            return
+        if opening:
+            # A turn like any other: `SessionStart` is turn 1, and a caller who
+            # talks over the greeting interrupts it through that turn.
+            self._spawn_turn(session, frame.turn_id, _one_unit(opening))
 
     def _refuse_version(self, session: Session, spoken: int) -> None:
         """Refuse a session whose wire version is not this SDK's.
@@ -729,7 +756,8 @@ class _BrainAdapter:
         )
         self.emit(
             ErrorFrame(
-                error=(
+                code=ErrorCode.WIRE_VERSION,
+                message=(
                     f"wire version mismatch: Voqalize speaks {spoken}, this SDK speaks {WIRE_VERSION}"
                 ),
                 fatal=True,
@@ -749,7 +777,7 @@ class _BrainAdapter:
         naming the hook that raised.
         """
         logger.exception("brain: {} failed for session {}", hook, session.id)
-        self.emit(ErrorFrame(error=f"{hook} failed: {exc}", fatal=True))
+        self.emit(ErrorFrame(code=ErrorCode.INTERNAL, message=f"{hook} failed: {exc}", fatal=True))
         session.end(reason=f"{hook}_failed")
 
     async def _apply_declared_voice(self, session: Session) -> None:
@@ -775,97 +803,123 @@ class _BrainAdapter:
 
     # ─── Driving what the brain yields ──────────────────────────────────
 
-    async def _drive(self, session: Session, epoch: int, gen: AsyncGenerator[Any, None]) -> None:
+    async def _drive(self, session: Session, turn_id: int, gen: AsyncGenerator[Any, None]) -> None:
         """Pull one generator to exhaustion, putting each unit of speech on the wire.
 
         On a barge-in the driving task is cancelled: the generator is *closed*,
-        not abandoned, so the brain's ``finally`` blocks run, and any unit still
-        open is closed on the wire before we unwind.
+        not abandoned, so the brain's ``finally`` blocks run. A unit left open by
+        anything *else* is closed on the wire, so a brain that crashes mid-speech
+        does not leave the runtime waiting for a chunk that will never come.
         """
         speech_id: int | None = None
+        cut = False
         try:
             async for event in gen:
                 if isinstance(event, SpeechStart):
                     if speech_id is not None:
                         raise WireError("SpeechStart inside an open speech unit")
                     speech_id = session._next_speech_id()
-                    self.emit(SpeechStartFrame(), epoch=epoch, speech_id=speech_id)
+                    self.emit(SpeechStartFrame(speech_id=speech_id, turn_id=turn_id))
                 elif isinstance(event, Chunk):
                     if speech_id is None:
                         raise WireError("Chunk outside a speech unit")
                     if event.text:
-                        self.emit(
-                            SpeechChunkFrame(text=event.text), epoch=epoch, speech_id=speech_id
-                        )
+                        self.emit(SpeechChunkFrame(speech_id=speech_id, text=event.text))
                 elif isinstance(event, SpeechEnd):
                     if speech_id is None:
                         raise WireError("SpeechEnd with no open speech unit")
-                    self.emit(SpeechEndFrame(), epoch=epoch, speech_id=speech_id)
+                    self.emit(SpeechEndFrame(speech_id=speech_id))
                     speech_id = None
                 else:
                     raise WireError(f"a brain may not yield {type(event).__name__}")
+        except asyncio.CancelledError:
+            cut = True
+            raise
         finally:
-            if speech_id is not None:
-                self.emit(SpeechEndFrame(), epoch=epoch, speech_id=speech_id)
+            if speech_id is not None and not cut:
+                self.emit(SpeechEndFrame(speech_id=speech_id))
             await gen.aclose()
 
-    def _spawn_turn(self, session: Session, epoch: int, gen: AsyncGenerator[Speech, None]) -> None:
+    def _spawn_turn(
+        self, session: Session, turn_id: int, gen: AsyncGenerator[Speech, None]
+    ) -> None:
         """Spawn, never await: ``handle_frame`` must return promptly so the runner
         keeps dispatching, and the response streams out of the spawned task."""
+        if turn_id <= self._watermark:
+            # Already interrupted before it started. Close the generator so the
+            # brain's `finally` blocks still run.
+            self.spawn(gen.aclose())
+            return
         task = asyncio.create_task(
-            self._run_turn(session, epoch, gen), name=f"turn-{session.id}-{epoch}"
+            self._run_turn(session, turn_id, gen), name=f"turn-{session.id}-{turn_id}"
         )
-        self._turns.add(task)
-        task.add_done_callback(self._turns.discard)
+        self._turns[task] = turn_id
+        task.add_done_callback(lambda t: self._turns.pop(t, None))
 
     async def _run_turn(
-        self, session: Session, epoch: int, gen: AsyncGenerator[Speech, None]
+        self, session: Session, turn_id: int, gen: AsyncGenerator[Speech, None]
     ) -> None:
+        token = _current_turn.set(turn_id)
         try:
-            await self._drive(session, epoch, gen)
+            await self._drive(session, turn_id, gen)
         except asyncio.CancelledError:
             raise  # a barge-in cut the turn; Voqalize finalizes the unit it cut
         except Exception:
-            logger.exception("brain: turn failed (session {}, epoch {})", session.id, epoch)
+            logger.exception("brain: turn failed (session {}, turn {})", session.id, turn_id)
+        finally:
+            _current_turn.reset(token)
+
+    async def _raise_watermark(self, through_turn: int) -> None:
+        """Every turn at or through ``through_turn`` is dead.
+
+        Nothing goes back on the wire: Voqalize set the watermark, so it already
+        knows. A turn opened above it keeps the floor.
+        """
+        self._watermark = max(self._watermark, through_turn)
+        for task, turn_id in list(self._turns.items()):
+            if turn_id <= self._watermark:
+                await _cancel(task)
 
     async def _cancel_turns(self) -> None:
         for task in list(self._turns):
-            if not task.done():
-                task.cancel()
-                with contextlib.suppress(asyncio.CancelledError, Exception):
-                    await task
+            await _cancel(task)
         self._turns.clear()
 
-    # ─── Browser messages ───────────────────────────────────────────────
+    # ─── The app ────────────────────────────────────────────────────────
 
-    def _deliver_browser_message(self, session: Session, frame: BrowserMessageFrame) -> None:
-        if frame.type == ACTION_RESULT:
-            self._settle_action(session, frame.data)
+    def _deliver_rtvi(self, session: Session, frame: RTVIFrame) -> None:
+        data = frame.data
+        if (
+            frame.type is RTVIType.CLIENT_MESSAGE
+            and isinstance(data, dict)
+            and data.get("t") == ACTION_RESULT
+        ):
+            self._settle_action(session, data.get("d"))
             return
-        self.spawn(
-            self._run_browser_message(session, BrowserMessage(type=frame.type, data=frame.data))
-        )
+        self.spawn(self._run_rtvi(session, RTVIMessage(type=frame.type, data=data, id=frame.id)))
 
-    async def _run_browser_message(self, session: Session, msg: BrowserMessage) -> None:
+    async def _run_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         try:
-            handled: Any = self._brain.on_browser_message(session, msg)
+            handled: Any = self._brain.on_rtvi(session, msg)
             if isinstance(handled, AsyncGenerator):
                 # A `yield` anywhere in the body makes it a generator. Say so,
                 # rather than let it surface as "object async_generator can't be
                 # used in 'await' expression".
                 await handled.aclose()
                 raise WireError(
-                    "on_browser_message must not be a generator: a browser "
-                    "message never takes the floor. Use session.dispatch(...) to "
-                    "render and session.end() to hang up."
+                    "on_rtvi must not be a generator: an app message never takes "
+                    "the floor. Use session.dispatch(...) to render, "
+                    "session.send_rtvi(...) to answer and session.end() to hang up."
                 )
             await handled
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception("brain: on_browser_message failed for {!r}", msg.type)
+            logger.exception("brain: on_rtvi failed for {!r}", msg.type)
 
-    def _settle_action(self, session: Session, data: dict[str, Any]) -> None:
+    def _settle_action(self, session: Session, data: Any) -> None:
+        if not isinstance(data, dict):
+            return
         action_id = data.get("action_id")
         if not isinstance(action_id, int):
             return
@@ -878,6 +932,14 @@ class _BrainAdapter:
                 error=data.get("error"),
             )
         )
+
+
+async def _cancel(task: asyncio.Task[Any]) -> None:
+    if task.done():
+        return
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError, Exception):
+        await task
 
 
 async def _nothing() -> AsyncGenerator[Any, None]:

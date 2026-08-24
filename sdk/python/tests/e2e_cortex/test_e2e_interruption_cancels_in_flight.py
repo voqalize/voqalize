@@ -1,6 +1,6 @@
 """A barge-in InterruptionFrame cancels the in-flight turn on the agent side. No
-further speech frames from that unit cross the wire after the interruption, and the
-agent echoes an InterruptionFrame back as pygato's drain barrier."""
+further speech frames from that unit cross the wire after the watermark, and
+nothing is echoed back — Voqalize set the watermark, so it already knows."""
 
 from __future__ import annotations
 
@@ -51,8 +51,8 @@ async def test_interruption_cancels_in_flight() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(SessionStartFrame(session_id="s1", init={}))
-            await client.send(UserMessageFrame(text="say hi"), epoch=1)
+            await client.send(SessionStartFrame(turn_id=1, session_id="s1"))
+            await client.send(UserMessageFrame(turn_id=2, text="say hi"))
 
             # Wait for the first chunk to arrive over the wire.
             frames = await client.collect_until(
@@ -61,22 +61,16 @@ async def test_interruption_cancels_in_flight() -> None:
             )
             assert any(f.text == "chunk-1" for f in frames if isinstance(f, SpeechChunkFrame))
 
-            # Barge in. The agent cancels the turn and echoes an
-            # InterruptionFrame back as the drain barrier — on the outbound
-            # system lane, so it jumps ahead of any queued data.
-            await client.send(InterruptionFrame())
+            # Barge in: raise the watermark over that turn.
+            await client.send(InterruptionFrame(through_turn=2))
             await wait_until(lambda: "cancelled:say hi" in StreamingResponder.timeline, timeout=3.0)
 
-            # Collect everything up to and including the InterruptionFrame echo.
-            frames2 = await client.collect_until(
-                lambda fr: any(isinstance(f, InterruptionFrame) for f in fr),
-                timeout=3.0,
-            )
-            assert any(isinstance(f, InterruptionFrame) for f in frames2)
-            # No further speech chunks slipped through after the barge-in.
-            assert not any(isinstance(f, SpeechChunkFrame) for f in frames2), (
-                f"text frames slipped through after interruption: {frames2}"
-            )
+            # Nothing more crosses the wire — no further speech, and no echo of
+            # the watermark. An echo would be a priority frame overtaking the
+            # very speech Voqalize is still waiting to see land.
+            with contextlib.suppress(TimeoutError):
+                await client.collect_until(lambda fr: bool(fr), timeout=1.0)
+                raise AssertionError("the brain kept talking after the watermark")
         finally:
             await client.close()
             run_task.cancel()

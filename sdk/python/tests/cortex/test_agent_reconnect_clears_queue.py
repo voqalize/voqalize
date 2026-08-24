@@ -10,9 +10,11 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
+from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
+    Frame,
+    ResponseFrame,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
@@ -34,19 +36,20 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
             Probe.instances.append(self)
             self._mine = len(Probe.instances)
 
-        async def handle_frame(self, env: Envelope) -> None:
-
-            frame = env.frame
+        async def handle_frame(self, frame: Frame) -> None:
             if isinstance(frame, SessionStartFrame):
                 timeline.append(f"start#{self._mine}:{frame.init.get('which', '?')}")
             elif isinstance(frame, UserMessageFrame):
-                timeline.append(f"data#{self._mine}:start:{env.epoch}")
+                timeline.append(f"data#{self._mine}:start:{frame.turn_id}")
                 try:
                     await block.wait()
                 except asyncio.CancelledError:
-                    timeline.append(f"data#{self._mine}:cancelled:{env.epoch}")
+                    timeline.append(f"data#{self._mine}:cancelled:{frame.turn_id}")
                     raise
-                timeline.append(f"data#{self._mine}:end:{env.epoch}")
+                timeline.append(f"data#{self._mine}:end:{frame.turn_id}")
+
+        def settle_response(self, frame: ResponseFrame) -> None:
+            pass
 
         async def close(self) -> None:
             pass
@@ -64,23 +67,25 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
         await pygato_wire.start()
 
         await pygato_wire.send(
-            await serializer.serialize(SessionStartFrame(session_id="s1", init={"which": "first"})),
+            await serializer.serialize(
+                SessionStartFrame(turn_id=1, session_id="s1", init={"which": "first"})
+            ),
         )
         await pygato_wire.send(
-            await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),
+            await serializer.serialize(UserMessageFrame(turn_id=2, text="hi")),
         )
-        await wait_for(lambda: "data#1:start:1" in timeline, timeout=3.0)
+        await wait_for(lambda: "data#1:start:2" in timeline, timeout=3.0)
 
         # Kill the agent leg with a transient code; SDK reconnects.
         await cortex.kill_agent_leg("welcome", code=4001)
 
         # The in-flight handle_frame on the first session must be cancelled.
-        await wait_for(lambda: "data#1:cancelled:1" in timeline, timeout=3.0)
+        await wait_for(lambda: "data#1:cancelled:2" in timeline, timeout=3.0)
 
         # Pygato re-sends SessionStart for the same session — fresh adapter.
         await pygato_wire.send(
             await serializer.serialize(
-                SessionStartFrame(session_id="s1", init={"which": "second"})
+                SessionStartFrame(turn_id=1, session_id="s1", init={"which": "second"})
             ),
         )
         await wait_for(

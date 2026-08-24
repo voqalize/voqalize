@@ -11,9 +11,9 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
+from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
-from voqalize.sdk.wire import SessionStartFrame
+from voqalize.sdk.wire import Frame, ResponseFrame, SessionStartFrame
 
 
 class StartCapture(SessionAdapter):
@@ -22,11 +22,12 @@ class StartCapture(SessionAdapter):
     def __init__(self, emitter: Emitter) -> None:
         self.emitter = emitter
 
-    async def handle_frame(self, env: Envelope) -> None:
-
-        frame = env.frame
+    async def handle_frame(self, frame: Frame) -> None:
         if isinstance(frame, SessionStartFrame):
             StartCapture.seen.append(frame)
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
 
     async def close(self) -> None:
         pass
@@ -45,7 +46,9 @@ async def test_start_frame_carries_session_id_and_init() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(SessionStartFrame(session_id="s1", init={"greeting": "hi"}))
+            await client.send(
+                SessionStartFrame(turn_id=1, session_id="s1", init={"greeting": "hi"})
+            )
 
             await wait_until(lambda: bool(StartCapture.seen), timeout=3.0)
             vql_start = StartCapture.seen[0]

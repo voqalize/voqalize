@@ -28,6 +28,7 @@ from voqalize.sdk.wire import (
     PermanentClose,
     SessionStartFrame,
     SpeechChunkFrame,
+    SpeechStartFrame,
     UserMessageFrame,
     Wire,
     WireConfig,
@@ -69,9 +70,8 @@ class _Client:
         self._wire = wire
         self._ser = WireSerializer()
 
-    async def send(self, frame, *, epoch: int = 0, speech_id: int = 0) -> None:
-        payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
-        await self._wire.send(payload)
+    async def send(self, frame) -> None:
+        await self._wire.send(await self._ser.serialize(frame))
 
     async def collect_until(self, predicate, timeout: float = 3.0) -> list:
         """Drain inbound messages until ``predicate(frames)`` is true."""
@@ -79,10 +79,9 @@ class _Client:
 
         async def _pump():
             while not predicate(frames):
-                payload = await self._wire.recv()
-                msg = await self._ser.deserialize_message(payload)
-                if msg.frame is not None:
-                    frames.append(msg.frame)
+                frame = await self._ser.deserialize_message(await self._wire.recv())
+                if frame is not None:
+                    frames.append(frame)
 
         await asyncio.wait_for(_pump(), timeout=timeout)
         return frames
@@ -100,7 +99,7 @@ async def _serve(brain_cls, **kwargs) -> tuple[BrainServer, int]:
 
 
 async def _connect(port: int, session_id: str, *, headers: dict | None = None) -> Wire:
-    wire = Wire(WireConfig(url=f"ws://127.0.0.1:{port}/s/{session_id}", headers=headers))
+    wire = Wire(WireConfig(url=f"ws://127.0.0.1:{port}?session_id={session_id}", headers=headers))
     await wire.start()
     return wire
 
@@ -122,13 +121,13 @@ async def test_direct_round_trip_greeting_and_echo():
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        # Session start → the brain greets (agent-initiated, epoch 0).
-        await client.send(SessionStartFrame(session_id=session_id))
+        # Session start is turn 1 → the brain greets on it.
+        await client.send(SessionStartFrame(turn_id=1, session_id=session_id))
         frames = await client.collect_until(_has_text("hi there"))
         assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
         # A user turn → the brain echoes.
-        await client.send(UserMessageFrame(text="ping"), epoch=1)
+        await client.send(UserMessageFrame(turn_id=2, text="ping"))
         frames = await client.collect_until(_has_text("echo: ping"))
         assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
     finally:
@@ -136,61 +135,54 @@ async def test_direct_round_trip_greeting_and_echo():
         await server.aclose()
 
 
-async def test_direct_interruption_echoes_drain_barrier():
-    """A barge-in cancels the in-flight turn and echoes the barrier."""
+async def test_direct_interruption_cancels_the_turn_it_names():
+    """A barge-in raises the watermark, and the turn under it stops generating."""
     server, port = await _serve(SlowBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        await client.send(SessionStartFrame(session_id=session_id))
+        await client.send(SessionStartFrame(turn_id=1, session_id=session_id))
         # Kick off the slow turn, then barge in before it can speak.
-        await client.send(UserMessageFrame(text="hello"), epoch=1)
-        await asyncio.sleep(0.1)
-        await client.send(InterruptionFrame())
-
-        # The brain echoes an InterruptionFrame back — PyGato's drain barrier.
+        await client.send(UserMessageFrame(turn_id=2, text="hello"))
         frames = await client.collect_until(
-            lambda fr: any(isinstance(f, InterruptionFrame) for f in fr)
+            lambda fr: any(isinstance(f, SpeechStartFrame) for f in fr)
         )
-        assert any(isinstance(f, InterruptionFrame) for f in frames)
-        # The cancelled unit never produced its (post-sleep) text.
-        assert not any(isinstance(f, SpeechChunkFrame) and "never hear" in f.text for f in frames)
+        await client.send(InterruptionFrame(through_turn=2))
+
+        # Nothing comes back: the watermark is Voqalize's own, so there is no
+        # acknowledgement to wait for — only the silence that proves the turn died.
+        with pytest.raises(TimeoutError):
+            await client.collect_until(
+                lambda fr: any(isinstance(f, SpeechChunkFrame) for f in fr), timeout=1.0
+            )
+        assert not any(isinstance(f, InterruptionFrame) for f in frames), (
+            "the watermark is V→B only; a brain that echoes it overtakes its own speech"
+        )
     finally:
         await wire.close()
         await server.aclose()
 
 
-async def test_direct_idle_interruption_is_handled_and_session_survives():
-    """An ``InterruptionFrame`` arriving with **no turn in flight** (an idle
-    barge-in — the user speaks while the server is silent, e.g. just after the
-    greeting settles) is handled gracefully: the brain cancels nothing, still echoes
-    the drain barrier, and the session stays live for the next turn.
+async def test_direct_idle_interruption_leaves_the_session_live():
+    """An ``InterruptionFrame`` arriving with **no turn in flight** — the user
+    speaks while the agent is silent, just after the greeting settles — raises the
+    watermark over nothing and the session serves the next turn normally.
 
-    The other interruption test barges a *running* turn; this pins the empty-pending
-    path (``_cancel_turns`` over zero turns), which a regression could
-    plausibly crash on or leave wedged so the next turn never answers."""
+    The other interruption test barges a *running* turn; this pins the empty case,
+    which a regression could plausibly crash on or leave wedged."""
     server, port = await _serve(EchoBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        await client.send(SessionStartFrame(session_id=session_id))
-        # Drain the greeting first, so the InterruptionFrame we look for next can
-        # only be the idle barge-in's drain echo.
+        await client.send(SessionStartFrame(turn_id=1, session_id=session_id))
         await client.collect_until(_has_text("hi there"))
 
-        # Idle barge-in: interrupt with no turn in flight.
-        await client.send(InterruptionFrame())
-        frames = await client.collect_until(
-            lambda fr: any(isinstance(f, InterruptionFrame) for f in fr)
-        )
-        assert any(isinstance(f, InterruptionFrame) for f in frames), (
-            "an idle interruption must still echo the drain barrier"
-        )
+        await client.send(InterruptionFrame(through_turn=1))
 
         # The session survived: a subsequent user turn is served normally.
-        await client.send(UserMessageFrame(text="ping"), epoch=1)
+        await client.send(UserMessageFrame(turn_id=2, text="ping"))
         frames = await client.collect_until(_has_text("echo: ping"))
         assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
     finally:
@@ -239,7 +231,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
         good_sid = str(uuid.uuid4())
         wire = await _connect(port, good_sid, headers={"Authorization": f"Bearer {mint(good_sid)}"})
         client = _Client(wire)
-        await client.send(SessionStartFrame(session_id=good_sid))
+        await client.send(SessionStartFrame(turn_id=1, session_id=good_sid))
         frames = await client.collect_until(_has_text("hi there"))
         assert frames
         await wire.close()
@@ -255,7 +247,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
         with pytest.raises(PermanentClose):
             bad_wire = Wire(
                 WireConfig(
-                    url=f"ws://127.0.0.1:{port}/s/{bad_sid}",
+                    url=f"ws://127.0.0.1:{port}?session_id={bad_sid}",
                     headers={"Authorization": f"Bearer {mint(bad_sid, priv=other_pem)}"},
                 )
             )

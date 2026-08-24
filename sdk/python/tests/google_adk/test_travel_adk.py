@@ -2,7 +2,7 @@
 
 Hosts the **client-authored** travel agent (``examples/travel_adk/agent.py``)
 wrapped by the SDK's :func:`voqalize.google_adk.adk_brain`, backed by a
-:class:`ScriptedLlm` fake model, over a real ``DirectAgent`` WebSocket. Drives it
+:class:`ScriptedLlm` fake model, over a real ``BrainServer`` WebSocket. Drives it
 with the conformance :class:`VoqalizeDriver` — the exact PyGato-side leg — and
 asserts the wire MUSTs from ``docs/reference/wire`` via the shared
 ``conformance.checks`` library.
@@ -30,6 +30,7 @@ pytest.importorskip("google.adk")
 from examples.travel_adk.agent import GREETING, build_travel_agent
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     checks,
@@ -38,7 +39,6 @@ from voqalize.conformance import (
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, reply, reply_and_call
-from voqalize.sdk import DirectAgent, brain_factory
 
 SENTINEL = "NEVER_HEARD_AFTER_BARGE_IN"
 
@@ -78,7 +78,7 @@ def _script() -> dict:
     }
 
 
-async def _host(llm: ScriptedLlm) -> tuple[DirectAgent, VoqalizeDriver]:
+async def _host(llm: ScriptedLlm) -> tuple[BrainServer, VoqalizeDriver]:
     keypair = generate_keypair()
     make = adk_brain(
         lambda: build_travel_agent(llm),
@@ -86,12 +86,7 @@ async def _host(llm: ScriptedLlm) -> tuple[DirectAgent, VoqalizeDriver]:
         streaming=True,
         answer_conformance_dump=True,
     )
-    agent = DirectAgent(
-        factory=brain_factory(make),
-        host="127.0.0.1",
-        port=0,
-        public_keys=keypair.public_pem,
-    )
+    agent = BrainServer(make, public_keys=keypair.public_pem)
     port = await agent.start()
     session_id = "adk-travel-test"
     token = mint_voqalize_token(

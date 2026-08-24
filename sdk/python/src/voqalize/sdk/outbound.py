@@ -22,9 +22,9 @@ Per-session guarantees, by construction:
    (per-session lanes); a talkative session can't starve quiet ones outbound
    (the shared writer round-robins via the ready queue). On overflow: drop newest
    + a non-fatal ``ErrorFrame`` to the affected session — never a kill.
-4. **Interruption** rides the wire as a field-less ``InterruptionFrame`` (system
-   lane), dispatched ahead of queued data; the adapter cancels in-flight work and
-   echoes the drain barrier.
+4. **Interruption** rides the wire as an ``InterruptionFrame`` naming the turn it
+   condemns (system lane), dispatched ahead of queued data; the adapter raises
+   the session's watermark and cancels in-flight work. Nothing goes back.
 5. **Reconnect** (via ``MultiplexedWire``): on reconnect all sessions are torn
    down; Voqalize re-sends each ``SessionStartFrame``, creating fresh runners.
 """
@@ -40,8 +40,7 @@ from loguru import logger
 
 from ._logging import session_context
 from .engine import (
-    DEFAULT_NORMAL_MAXSIZE,
-    Envelope,
+    DEFAULT_BULK_MAXSIZE,
     RunnerHost,
     SessionFactory,
     SessionRunner,
@@ -81,7 +80,7 @@ class CortexAgent(RunnerHost):
         self._cortex_url = cortex_url
         self._factory = factory
         self._serializer = WireSerializer()
-        self._normal_maxsize = inbound_queue_maxsize or DEFAULT_NORMAL_MAXSIZE
+        self._bulk_maxsize = inbound_queue_maxsize or DEFAULT_BULK_MAXSIZE
 
         self._wire: MultiplexedWire | None = None
         self._sessions: dict[bytes, SessionRunner] = {}
@@ -170,20 +169,20 @@ class CortexAgent(RunnerHost):
                 return
 
             try:
-                decoded = await self._serializer.deserialize_message(payload)
+                frame = await self._serializer.deserialize_message(payload)
             except MalformedFrameError:
                 logger.exception("cortex: malformed payload, skipping")
                 continue
-            if decoded.frame is None:
+            if frame is None:
                 # A body this build does not know.
                 continue
 
             runner = self._sessions.get(sid)
             if runner is None:
-                if not isinstance(decoded.frame, SessionStartFrame):
+                if not isinstance(frame, SessionStartFrame):
                     logger.warning(
                         "cortex: dropping {} for unknown session {}",
-                        type(decoded.frame).__name__,
+                        type(frame).__name__,
                         _sid_str(sid),
                     )
                     continue
@@ -191,7 +190,7 @@ class CortexAgent(RunnerHost):
                     session_id=sid,
                     factory=self._factory,
                     host=self,
-                    normal_max=self._normal_maxsize,
+                    bulk_max=self._bulk_maxsize,
                 )
                 # `start()` inside the context, not merely the log line: the
                 # tasks it creates copy the ambient context, so the brain's own
@@ -202,13 +201,7 @@ class CortexAgent(RunnerHost):
                     runner.start()
                     logger.info("cortex: opened session {}", _sid_str(sid))
                 self._sessions[sid] = runner
-            runner.enqueue_inbound(
-                Envelope(
-                    frame=decoded.frame,
-                    epoch=decoded.epoch,
-                    speech_id=decoded.speech_id,
-                )
-            )
+            runner.enqueue_inbound(frame)
 
     async def _writer_loop(self) -> None:
         assert self._wire is not None
@@ -217,13 +210,11 @@ class CortexAgent(RunnerHost):
             runner = self._sessions.get(sid)
             if runner is None:
                 continue  # closed between signal and now
-            item = runner.pop_out()
-            if item is None:
+            out = runner.pop_out()
+            if out is None:
                 continue
             try:
-                payload = await self._serializer.serialize(
-                    item.frame, epoch=item.epoch, speech_id=item.speech_id
-                )
+                payload = await self._serializer.serialize(out)
             except Exception:
                 logger.exception("cortex: serialize failed for session {}", _sid_str(sid))
                 if not runner.out_empty():

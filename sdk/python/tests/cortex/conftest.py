@@ -13,8 +13,8 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 
-from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
-from voqalize.sdk.wire import Frame
+from voqalize.sdk.engine import Emitter, SessionAdapter
+from voqalize.sdk.wire import Frame, ResponseFrame
 
 FrameHook = Callable[[Frame, "RecordingAdapter"], Awaitable[None]]
 
@@ -35,12 +35,15 @@ class RecordingAdapter(SessionAdapter):
         self.closed = False
         self._on_frame = on_frame
 
-    async def handle_frame(self, env: Envelope) -> None:
-
-        frame = env.frame
+    async def handle_frame(self, frame: Frame) -> None:
         self.received.append(frame)
         if self._on_frame is not None:
             await self._on_frame(frame, self)
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        # No request ever leaves a recording adapter, so an answer to one is
+        # just another frame to record.
+        self.received.append(frame)
 
     async def close(self) -> None:
         self.closed = True

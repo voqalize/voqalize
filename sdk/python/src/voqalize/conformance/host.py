@@ -12,7 +12,7 @@ the boilerplate drifts. :func:`brain_server` is that socket and nothing more::
         )
         await driver.open()
 
-It speaks the exact leg Voqalize dials — ``{url}/s/{session_id}``, a bearer token in
+It speaks the exact leg Voqalize dials — ``{url}?session_id=``, a bearer token in
 ``Authorization``, one protobuf envelope per binary message — so a brain
 that passes here has been exercised on the wire it will actually run on, not on a
 stand-in.
@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import AsyncGenerator, Callable
+from urllib.parse import parse_qsl, urlsplit
 
 import websockets
 from loguru import logger
@@ -88,7 +89,7 @@ class BrainServer:
 
     @property
     def url(self) -> str:
-        """The base a driver dials — it appends ``/s/{session_id}``."""
+        """The URL a driver dials — it appends ``?session_id=``."""
         return f"ws://{self._host}:{self.port}"
 
     async def aclose(self) -> None:
@@ -99,9 +100,9 @@ class BrainServer:
             self._server = None
 
     async def _handle(self, ws: ServerConnection) -> None:
-        session_id = _session_id_from_path(ws)
+        session_id = _session_id_from_query(ws)
         if not session_id:
-            await ws.close(code=1008, reason="expected /s/{session_id}")
+            await ws.close(code=1008, reason="expected ?session_id=")
             return
         claims = verify_token(
             _bearer(ws),
@@ -164,15 +165,13 @@ class _ServerChannel:
         return msg if isinstance(msg, bytes) else b""
 
 
-def _session_id_from_path(ws: ServerConnection) -> str | None:
-    from urllib.parse import urlparse
-
+def _session_id_from_query(ws: ServerConnection) -> str | None:
     request = ws.request
-    path = urlparse(request.path if request is not None else "").path
-    idx = path.rfind("/s/")
-    if idx < 0:
-        return None
-    return path[idx + 3 :].strip("/") or None
+    query = urlsplit(request.path if request is not None else "").query
+    for key, value in parse_qsl(query):
+        if key == "session_id":
+            return value or None
+    return None
 
 
 def _bearer(ws: ServerConnection) -> str | None:

@@ -162,12 +162,12 @@ async def test_brain_lines_carry_the_identity_from_the_verified_token():
         )
         ser = WireSerializer()
         try:
-            await client_ch.send(await ser.serialize(SessionStartFrame(session_id=sid)))
+            await client_ch.send(await ser.serialize(SessionStartFrame(turn_id=1, session_id=sid)))
 
             async def _await_greeting() -> None:
                 while True:
-                    msg = await ser.deserialize_message(await client_ch.recv())
-                    if isinstance(msg.frame, SpeechChunkFrame) and "hi there" in msg.frame.text:
+                    frame = await ser.deserialize_message(await client_ch.recv())
+                    if isinstance(frame, SpeechChunkFrame) and "hi there" in frame.text:
                         return
 
             await asyncio.wait_for(_await_greeting(), timeout=3.0)

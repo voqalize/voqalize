@@ -31,6 +31,7 @@ from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.models.base_llm import BaseLlm
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     checks,
@@ -39,7 +40,6 @@ from voqalize.conformance import (
 )
 from voqalize.google_adk import AdkBrain
 from voqalize.google_adk.testing import ScriptedLlm, reply
-from voqalize.sdk import DirectAgent, brain_factory
 
 GREETING = "Travel desk, how can I help?"
 INSTRUCTION = "You are a travel desk. Speak in short sentences."
@@ -50,11 +50,9 @@ def build_agent(model: str | BaseLlm, *, instruction=INSTRUCTION) -> LlmAgent:
     return LlmAgent(name="desk", model=model, instruction=instruction, tools=[])
 
 
-async def _host(make) -> tuple[DirectAgent, VoqalizeDriver]:
+async def _host(make) -> tuple[BrainServer, VoqalizeDriver]:
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(make), host="127.0.0.1", port=0, public_keys=keypair.public_pem
-    )
+    agent = BrainServer(make, public_keys=keypair.public_pem)
     port = await agent.start()
     token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,

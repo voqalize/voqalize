@@ -31,6 +31,7 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     generate_keypair,
@@ -38,7 +39,6 @@ from voqalize.conformance import (
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, reply
-from voqalize.sdk import DirectAgent, brain_factory
 
 APP_NAME = "voqalize"
 INSTRUCTION = "You are a travel desk."
@@ -72,7 +72,7 @@ class _RunnerHolder:
 
 async def _host(
     llm: ScriptedLlm, *, session_id: str, holder: _RunnerHolder
-) -> tuple[DirectAgent, VoqalizeDriver]:
+) -> tuple[BrainServer, VoqalizeDriver]:
     keypair = generate_keypair()
     make = adk_brain(
         lambda: build_agent(llm),
@@ -81,9 +81,7 @@ async def _host(
         answer_conformance_dump=True,
         runner_factory=holder.factory,
     )
-    agent = DirectAgent(
-        factory=brain_factory(make), host="127.0.0.1", port=0, public_keys=keypair.public_pem
-    )
+    agent = BrainServer(make, public_keys=keypair.public_pem)
     port = await agent.start()
     token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,

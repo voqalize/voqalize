@@ -30,13 +30,13 @@ pytest.importorskip("google.adk")
 from google.adk.agents import LlmAgent
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     generate_keypair,
     mint_voqalize_token,
 )
 from voqalize.google_adk.brain import AdkBrain
-from voqalize.sdk import DirectAgent, brain_factory
 
 _HAS_KEY = bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"))
 pytestmark = pytest.mark.skipif(_HAS_KEY is False, reason="no Gemini API key in env")
@@ -118,15 +118,10 @@ class _SpyAdkBrain(AdkBrain):
         self._agent.before_model_callback = [_spy]
 
 
-async def _host(session_id: str) -> tuple[DirectAgent, VoqalizeDriver, _SpyAdkBrain]:
+async def _host(session_id: str) -> tuple[BrainServer, VoqalizeDriver, _SpyAdkBrain]:
     keypair = generate_keypair()
     brain = _SpyAdkBrain()
-    agent = DirectAgent(
-        factory=brain_factory(lambda: brain),
-        host="127.0.0.1",
-        port=0,
-        public_keys=keypair.public_pem,
-    )
+    agent = BrainServer(lambda: brain, public_keys=keypair.public_pem)
     port = await agent.start()
     token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,

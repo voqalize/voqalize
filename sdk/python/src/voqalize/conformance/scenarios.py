@@ -149,7 +149,7 @@ async def scn_single_turn(ctx: ScenarioContext) -> None:
     checks.check_completed(turn)
     checks.check_brackets_closed(turn)
     checks.check_speech_ids_monotonic(turn)
-    checks.check_stamped_with_epoch(driver, turn)
+    checks.check_bound_to_turn(driver, turn)
 
 
 async def scn_multi_turn(ctx: ScenarioContext) -> None:
@@ -160,18 +160,18 @@ async def scn_multi_turn(ctx: ScenarioContext) -> None:
     for turn in (first, second):
         checks.check_completed(turn)
         checks.check_brackets_closed(turn)
-    # Epochs are session-monotonic and distinct across turns.
+    # Turn ids are session-monotonic and distinct across turns.
     checks.require(
-        second.epoch > first.epoch,
-        f"second epoch {second.epoch} not greater than first "
-        f"{first.epoch} — epochs must be session-monotonic",
+        second.turn_id > first.turn_id,
+        f"second turn {second.turn_id} not greater than first "
+        f"{first.turn_id} — turn ids must be session-monotonic",
     )
-    checks.check_no_unsolicited_epochs(driver, opened={first.epoch, second.epoch})
+    checks.check_no_unsolicited_turns(driver, opened={first.turn_id, second.turn_id})
 
 
 async def scn_two_units_one_turn(ctx: ScenarioContext) -> None:
-    """One epoch, two speech units — one-bracket-per-unit and
-    per-epoch monotone speech ids. (Reference grammar: ``two``.)"""
+    """One turn, two speech units — one-bracket-per-unit and
+    per-turn monotone speech ids. (Reference grammar: ``two``.)"""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.user_says(TWO)
@@ -190,13 +190,13 @@ async def scn_two_units_one_turn(ctx: ScenarioContext) -> None:
 
 
 async def scn_barge_in(ctx: ScenarioContext) -> None:
-    """Barge-in mid-response: the brain echoes the InterruptionFrame drain barrier
-    and stops emitting the cut tail.
+    """Barge-in mid-response: the watermark cuts the turn, the brain stops emitting
+    the tail, and it answers nothing back.
     (Reference grammar: ``count slowly`` — a long response with a cuttable tail.)"""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.barge_in(COUNT_SLOWLY)
-    checks.check_interruption_echoed(driver)
+    checks.check_watermark_not_echoed(driver)
     checks.check_no_speech_after_barge_in(driver, turn, forbidden=BARGE_SENTINEL)
 
 
@@ -218,7 +218,7 @@ async def scn_brain_error_isolated(ctx: ScenarioContext) -> None:
     checks.check_spoke(recovered)
     checks.check_completed(recovered)
     checks.check_brackets_closed(recovered)
-    checks.check_no_unsolicited_epochs(driver, opened={faulted.epoch, recovered.epoch})
+    checks.check_no_unsolicited_turns(driver, opened={faulted.turn_id, recovered.turn_id})
 
 
 async def scn_brain_error_after_speech_keeps_heard(ctx: ScenarioContext) -> None:
@@ -283,7 +283,7 @@ async def scn_heard_truth_barge_in(ctx: ScenarioContext) -> None:
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.barge_in(COUNT_SLOWLY)
-    checks.check_interruption_echoed(driver)
+    checks.check_watermark_not_echoed(driver)
     state = await driver.dump_conversation()
     messages = state.get("messages", [])
     assistant = [m for m in messages if m.get("role") == "assistant"]
@@ -322,8 +322,8 @@ async def scn_heard_truth_multi_interruption(ctx: ScenarioContext) -> None:
     b = await driver.barge_in(f"{STORY_PREFIX}jack and jill")
     c = await driver.user_says(f"{STORY_PREFIX}giant killer")
 
-    # Each interruption was a proper drain barrier: echoed by the brain.
-    checks.check_interruption_echoed(driver)
+    # The watermark travels one way: the brain never sends one back.
+    checks.check_watermark_not_echoed(driver)
 
     # The two cut turns committed exactly the deterministic heard opening — the
     # driver dictated the heard-truth, so this is an exact-string assertion.
@@ -364,14 +364,14 @@ async def scn_heard_truth_multi_interruption(ctx: ScenarioContext) -> None:
 
 async def scn_heard_truth_barge_in_before_audio(ctx: ScenarioContext) -> None:
     """Barge-in *before any audio plays*: nothing was heard, so a conformant brain
-    commits NO assistant message for that epoch — not an empty one, not the
+    commits NO assistant message for that turn — not an empty one, not the
     generated text. The user turn is still recorded. (A brain that records an
     empty or generated assistant turn here corrupts the transcript just as badly
     as the mid-story case.)"""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.barge_in(f"{SILENT_PREFIX}nothing", wait_for_speech=False, speak_delay=0.15)
-    checks.check_interruption_echoed(driver)
+    checks.check_watermark_not_echoed(driver)
     checks.require(
         turn.heard in (None, ""),
         f"expected empty heard-truth for a pre-audio barge-in, got {turn.heard!r}",
@@ -415,24 +415,24 @@ async def scn_action_result_roundtrip(ctx: ScenarioContext) -> None:
     )
 
 
-async def scn_browser_message_delivery(ctx: ScenarioContext) -> None:
-    """A browser message the brain does not respond to still reaches
-    ``on_browser_message`` (the update-internal-state path)."""
+async def scn_app_message_delivery(ctx: ScenarioContext) -> None:
+    """An app message the brain does not respond to still reaches ``on_rtvi``
+    (the update-internal-state path)."""
     driver = await ctx.connect()
     await driver.start_session()
-    await driver.send_browser_message("state_sync", {"page": "checkout"})
+    await driver.send_client_message("state_sync", {"page": "checkout"})
     state = await driver.dump_conversation()
-    events = state.get("browser_messages", [])
+    events = state.get("app_messages", [])
     matched = [e for e in events if e.get("name") == "state_sync"]
     checks.require(
         len(matched) == 1 and matched[0].get("data") == {"page": "checkout"},
-        f"browser message 'state_sync' not delivered to the brain: {events}",
+        f"client message 'state_sync' not delivered to the brain: {events}",
     )
 
 
 async def scn_user_idle(ctx: ScenarioContext) -> None:
-    """The idle trigger: Voqalize opens an epoch because the user went silent
-    (``UserIdle``), the brain's ``on_user_idle`` re-engages, and the epoch
+    """The idle trigger: Voqalize opens a turn because the user went silent
+    (``UserIdle``), the brain's ``on_user_idle`` re-engages, and the turn
     plays out and completes exactly like a spoken turn — with the escalation level
     carried through. Crucially, the committed conversation records the assistant
     nudge but **no user turn** (nothing was said), so idle re-engagement never
@@ -457,20 +457,19 @@ async def scn_user_idle(ctx: ScenarioContext) -> None:
     )
 
 
-async def scn_browser_message_never_speaks(ctx: ScenarioContext) -> None:
-    """A browser message never takes the floor. Voqalize delivers it to
-    ``on_browser_message``, which may render but not speak — so no matter what the
-    brain does with it, the committed transcript gains nothing. Nothing about a
-    click means the human stopped talking, and a brain that answered one would be
-    talking over them."""
+async def scn_app_message_never_speaks(ctx: ScenarioContext) -> None:
+    """An app message never takes the floor. Voqalize forwards it to ``on_rtvi``,
+    which may render but not speak — so no matter what the brain does with it, the
+    committed transcript gains nothing. Nothing about a click means the human
+    stopped talking, and a brain that answered one would be talking over them."""
     driver = await ctx.connect()
     await driver.start_session()
     before = await driver.dump_conversation()
-    await driver.send_browser_message("form_submitted", {"field": "email"})
+    await driver.send_client_message("form_submitted", {"field": "email"})
     after = await driver.dump_conversation()
     checks.require(
         after.get("messages") == before.get("messages"),
-        f"a browser message changed the transcript: {before.get('messages')} → "
+        f"an app message changed the transcript: {before.get('messages')} → "
         f"{after.get('messages')}",
     )
 
@@ -478,13 +477,13 @@ async def scn_browser_message_never_speaks(ctx: ScenarioContext) -> None:
 # ─── the catalog ──────────────────────────────────────────────────────────────
 
 CATALOG: list[Scenario] = [
-    Scenario("greeting", "Brain greets on session start (epoch 0).", scn_greeting),
+    Scenario("greeting", "Brain greets on session start (turn 1).", scn_greeting),
     Scenario(
         "single_turn", "One user turn: spoken, completed, one closed bracket.", scn_single_turn
     ),
     Scenario(
         "multi_turn",
-        "Two turns with monotone epochs, no proactive speech.",
+        "Two turns with monotone turn ids, no proactive speech.",
         scn_multi_turn,
     ),
     Scenario(
@@ -495,7 +494,7 @@ CATALOG: list[Scenario] = [
     ),
     Scenario(
         "barge_in",
-        "Barge-in drain barrier: echo, skip completion, cut the tail.",
+        "Barge-in watermark: cut the tail, answer nothing back.",
         scn_barge_in,
         requires_reference=True,
     ),
@@ -553,22 +552,22 @@ CATALOG: list[Scenario] = [
         requires_reference=True,
     ),
     Scenario(
-        "browser_message_delivery",
-        "A non-responding browser message reaches on_browser_message.",
-        scn_browser_message_delivery,
+        "app_message_delivery",
+        "A non-responding app message reaches on_rtvi.",
+        scn_app_message_delivery,
         requires_reference=True,
     ),
     Scenario(
         "user_idle",
-        "Idle trigger opens an epoch; on_user_idle re-engages, no phantom user turn recorded.",
+        "Idle trigger opens a turn; on_user_idle re-engages, no phantom user turn recorded.",
         scn_user_idle,
         requires_reference=True,
         tags=("initiation",),
     ),
     Scenario(
-        "browser_message_never_speaks",
-        "A browser message is delivered but never takes the floor.",
-        scn_browser_message_never_speaks,
+        "app_message_never_speaks",
+        "An app message is delivered but never takes the floor.",
+        scn_app_message_never_speaks,
         requires_reference=True,
         tags=("initiation",),
     ),

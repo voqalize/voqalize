@@ -11,9 +11,11 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk.engine import Emitter, Envelope, SessionAdapter
+from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
+    Frame,
+    ResponseFrame,
     SessionStartFrame,
     UserMessageFrame,
     Wire,
@@ -31,14 +33,15 @@ async def test_two_data_frames_serial_dispatch() -> None:
         def __init__(self, emitter: Emitter) -> None:
             self.emitter = emitter
 
-        async def handle_frame(self, env: Envelope) -> None:
-
-            frame = env.frame
+        async def handle_frame(self, frame: Frame) -> None:
             if isinstance(frame, UserMessageFrame):
                 arrivals.append(f"start:{frame.text}")
                 if frame.text == "first":
                     await can_finish.wait()
                 arrivals.append(f"end:{frame.text}")
+
+        def settle_response(self, frame: ResponseFrame) -> None:
+            pass
 
         async def close(self) -> None:
             pass
@@ -57,15 +60,15 @@ async def test_two_data_frames_serial_dispatch() -> None:
 
         # Open the session with SessionStartFrame.
         await pygato_wire.send(
-            await serializer.serialize(SessionStartFrame(session_id="s1", init={})),
+            await serializer.serialize(SessionStartFrame(turn_id=1, session_id="s1")),
         )
 
         # Two data frames back-to-back.
         await pygato_wire.send(
-            await serializer.serialize(UserMessageFrame(text="first"), epoch=1),
+            await serializer.serialize(UserMessageFrame(turn_id=2, text="first")),
         )
         await pygato_wire.send(
-            await serializer.serialize(UserMessageFrame(text="second"), epoch=2),
+            await serializer.serialize(UserMessageFrame(turn_id=3, text="second")),
         )
 
         # First handler invocation starts; second must wait.

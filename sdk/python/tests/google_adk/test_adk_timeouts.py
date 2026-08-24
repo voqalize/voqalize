@@ -19,6 +19,7 @@ from google.adk.agents import LlmAgent
 from google.adk.models.base_llm import BaseLlm
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     checks,
@@ -27,7 +28,6 @@ from voqalize.conformance import (
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, call
-from voqalize.sdk import DirectAgent, brain_factory
 
 GREETING = "Hi there!"
 INSTRUCTION = "You are a helpful assistant."
@@ -53,7 +53,7 @@ def build_agent(model: str | BaseLlm) -> LlmAgent:
 
 async def _host(
     llm: ScriptedLlm, *, turn_timeout: float | None
-) -> tuple[DirectAgent, VoqalizeDriver]:
+) -> tuple[BrainServer, VoqalizeDriver]:
     keypair = generate_keypair()
     make = adk_brain(
         lambda: build_agent(llm),
@@ -62,12 +62,7 @@ async def _host(
         turn_timeout=turn_timeout,
         answer_conformance_dump=True,
     )
-    agent = DirectAgent(
-        factory=brain_factory(make),
-        host="127.0.0.1",
-        port=0,
-        public_keys=keypair.public_pem,
-    )
+    agent = BrainServer(make, public_keys=keypair.public_pem)
     port = await agent.start()
     session_id = "adk-timeouts-test"
     token = mint_voqalize_token(

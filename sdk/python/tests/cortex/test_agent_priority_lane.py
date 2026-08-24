@@ -1,14 +1,13 @@
-"""A barge-in InterruptionFrame rides the system lane and preempts in-flight
-work even under a normal-lane backlog.
+"""A barge-in InterruptionFrame rides the priority lane and preempts in-flight
+work even under a bulk-lane backlog.
 
 The Brain adapter spawns each turn (so the feeder never blocks), and the runner
-dispatches the system-lane
-``InterruptionFrame`` ahead of any queued normal frames. The net observable:
-after piling up many user turns whose responses are slow, a single interruption
-cancels the in-flight turn(s) promptly — without first grinding through the whole
-backlog.
+dispatches the priority-lane ``InterruptionFrame`` ahead of any queued bulk
+frames. The net observable: after piling up many user turns whose responses are
+slow, a single watermark cancels the in-flight turn(s) promptly — without first
+grinding through the whole backlog.
 
-(The pure lane-ordering guarantee — system frame popped before queued normal
+(The pure lane-ordering guarantee — a priority frame popped before queued bulk
 frames — is pinned deterministically in ``tests/unit/test_engine.py``.)"""
 
 from __future__ import annotations
@@ -32,8 +31,8 @@ from voqalize.sdk.wire import (
 )
 
 
-async def _send(wire: Wire, serializer: WireSerializer, frame: Frame, *, epoch: int = 0) -> None:
-    await wire.send(await serializer.serialize(frame, epoch=epoch))
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame) -> None:
+    await wire.send(await serializer.serialize(frame))
 
 
 async def test_interruption_preempts_backlog() -> None:
@@ -72,17 +71,12 @@ async def test_interruption_preempts_backlog() -> None:
             await _send(
                 wire,
                 serializer,
-                SessionStartFrame(session_id="s1", init={}),
+                SessionStartFrame(turn_id=1, session_id="s1"),
             )
 
             # Pile up 16 user turns. Each spawns a slow turn task.
             for i in range(16):
-                await _send(
-                    wire,
-                    serializer,
-                    UserMessageFrame(text=f"hi-{i}"),
-                    epoch=i,
-                )
+                await _send(wire, serializer, UserMessageFrame(turn_id=2 + i, text=f"hi-{i}"))
 
             # Wait until the first turn is actually running.
             await asyncio.wait_for(first_in_flight.wait(), timeout=3.0)
@@ -91,10 +85,10 @@ async def test_interruption_preempts_backlog() -> None:
             # Now interrupt. The interruption rides the system lane and must
             # cancel in-flight work well before the 30s/response backlog would.
             t0 = asyncio.get_event_loop().time()
-            await _send(wire, serializer, InterruptionFrame())
+            await _send(wire, serializer, InterruptionFrame(through_turn=17))
             await wait_for(lambda: "cancelled:hi-0" in timeline, timeout=5.0)
             elapsed = asyncio.get_event_loop().time() - t0
-            assert elapsed < 5.0, f"interruption took {elapsed:.2f}s — system lane bypass failed"
+            assert elapsed < 5.0, f"interruption took {elapsed:.2f}s — priority lane bypass failed"
 
             # Sanity: no turn completed before the cancellation arrived.
             done_count = sum(1 for e in timeline if e.startswith("done:"))

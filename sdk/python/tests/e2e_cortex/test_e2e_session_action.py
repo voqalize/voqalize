@@ -2,9 +2,9 @@
 
 An action carries no audio, so it needs no floor: the Brain dispatches one from
 anywhere — ``on_session_start`` before a word has been said, or from inside a
-turn — and both serialize to the same ``ui_command`` ``BrowserCommandFrame``.
+turn — and both ride one RTVI ``server-message`` carrying a ``ui_command``.
 ``action_id`` is minted session-monotonically across every call site, and it is
-what the browser's answer is correlated by.
+what the app's answer is correlated by.
 """
 
 from __future__ import annotations
@@ -20,11 +20,19 @@ from voqalize.sdk import Action, Brain, Chunk, Result, SpeechEnd, SpeechStart
 from voqalize.sdk.brain import brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    BrowserMessageFrame,
+    RTVIFrame,
+    RTVIType,
     SessionStartFrame,
     SpeechChunkFrame,
     UserMessageFrame,
 )
+
+
+def _action_result(action_id: int, status: str, result: dict | None = None) -> RTVIFrame:
+    d: dict = {"action_id": action_id, "status": status}
+    if result is not None:
+        d["result"] = result
+    return RTVIFrame(type=RTVIType.CLIENT_MESSAGE, data={"t": "action_result", "d": d})
 
 
 class Row(BaseModel):
@@ -55,7 +63,7 @@ async def test_session_action_round_trip() -> None:
     """Both call sites reach the wire, in the same envelope, with monotonic ids.
 
     The nested aliased model is the load-bearing half: ``from_`` is the Python
-    spelling and ``from`` is the browser's, at every depth — a browser handler is
+    spelling and ``from`` is the app's, at every depth — an app handler is
     written against the second and never sees the first.
     """
     async with FakeCortex() as cortex:
@@ -70,9 +78,9 @@ async def test_session_action_round_trip() -> None:
         client = await connect_pygato(cortex, "s1")
         try:
             # Open the session — on_session_start dispatches before any turn exists.
-            await client.send(SessionStartFrame(session_id="s1", init={}))
+            await client.send(SessionStartFrame(turn_id=1, session_id="s1"))
             # A user turn dispatches the second one.
-            await client.send(UserMessageFrame(text="hi there"), epoch=1)
+            await client.send(UserMessageFrame(turn_id=2, text="hi there"))
 
             cmds = {c["action"]: c for c in await client.collect_ui_commands(2, timeout=5.0)}
         finally:
@@ -97,7 +105,7 @@ async def test_session_action_round_trip() -> None:
 
 
 async def test_action_result_reaches_on_result() -> None:
-    """The browser's answer rides the ordinary client-message lane and is matched
+    """The app's answer rides the ordinary client-message lane and is matched
     back to the dispatching call by ``action_id`` — session-scoped, so it settles
     long after the turn that fired it would have ended."""
     seen: list[tuple[int, str]] = []
@@ -121,15 +129,9 @@ async def test_action_result_reaches_on_result() -> None:
         run_task = asyncio.create_task(agent.run())
         client = await connect_pygato(cortex, "s-cb", "cb")
         try:
-            await client.send(SessionStartFrame(session_id="s-cb", init={}))
+            await client.send(SessionStartFrame(turn_id=1, session_id="s-cb"))
             (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
-            await client.send(
-                BrowserMessageFrame(
-                    type="action_result",
-                    data={"action_id": cmd["action_id"], "status": "ok"},
-                ),
-                epoch=1,
-            )
+            await client.send(_action_result(cmd["action_id"], "ok"))
             for _ in range(50):
                 if seen:
                     break
@@ -147,7 +149,7 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
     """``dispatch`` never blocks; the handle it returns is how a brain that *does*
     need the answer waits for it — the same settle, surfaced as a future. The turn
     is a generator, so awaiting inside it simply stops producing speech until the
-    browser answers."""
+    app answers."""
     resolved: list[Result] = []
 
     class AwaitingBrain(Brain):
@@ -168,16 +170,10 @@ async def test_awaiting_a_result_resolves_the_handle() -> None:
         run_task = asyncio.create_task(agent.run())
         client = await connect_pygato(cortex, "s-aw", "aw")
         try:
-            await client.send(SessionStartFrame(session_id="s-aw", init={}))
-            await client.send(UserMessageFrame(text="go"), epoch=1)
+            await client.send(SessionStartFrame(turn_id=1, session_id="s-aw"))
+            await client.send(UserMessageFrame(turn_id=2, text="go"))
             (cmd,) = await client.collect_ui_commands(1, timeout=5.0)
-            await client.send(
-                BrowserMessageFrame(
-                    type="action_result",
-                    data={"action_id": cmd["action_id"], "status": "ok", "result": {"ok": True}},
-                ),
-                epoch=1,
-            )
+            await client.send(_action_result(cmd["action_id"], "ok", {"ok": True}))
             frames = await client.collect_until(
                 lambda fr: any(isinstance(f, SpeechChunkFrame) and "got ok" in f.text for f in fr),
                 timeout=5.0,

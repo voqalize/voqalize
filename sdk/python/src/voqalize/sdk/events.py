@@ -2,7 +2,7 @@
 
 Three groups, and the split between them is the whole contract:
 
-* **Triggers** — :class:`UserMessage`, :class:`UserIdle`, :class:`BrowserMessage`.
+* **Triggers** — :class:`UserMessage`, :class:`UserIdle`, :class:`RTVIMessage`.
   Voqalize hands one to a callback; that callback is where the floor lives.
 * **Speech** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`. The
   only thing a speaking callback may yield, because speech is the only thing
@@ -18,14 +18,16 @@ reports back what the user actually heard.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
+from .wire import ErrorCode, RTVIType
+
 __all__ = [
-    "BrowserMessage",
     "Chunk",
     "Error",
     "Finalize",
+    "RTVIMessage",
     "Speech",
     "SpeechEnd",
     "SpeechStart",
@@ -59,16 +61,20 @@ class UserIdle:
 
 
 @dataclass(frozen=True)
-class BrowserMessage:
-    """The browser said something — a tap, a keystroke, a state push.
+class RTVIMessage:
+    """One RTVI message from the app — a tap, a keystroke, a state push.
 
-    Delivered unconditionally: Voqalize never interprets ``type`` and never decides
-    whether it deserves a reply. Handling it cannot make the agent speak, because
-    nothing about a click means the human stopped talking.
+    Voqalize forwards the whitelisted types verbatim and interprets nothing about
+    them. Handling one cannot make the agent speak, because nothing about a click
+    means the human stopped talking.
+
+    ``id`` is RTVI's own correlation id when the message carries one; answer such
+    a message with :meth:`Session.send_rtvi` quoting it back.
     """
 
-    type: str
-    data: dict[str, Any] = field(default_factory=dict)
+    type: RTVIType
+    data: Any = None
+    id: str | None = None
 
 
 # ─── Emissions ────────────────────────────────────────────────────────────────
@@ -120,5 +126,6 @@ class Finalize:
 class Error:
     """A signal from Voqalize. Today: the wire dropped data under congestion."""
 
+    code: ErrorCode
     message: str
     fatal: bool = False

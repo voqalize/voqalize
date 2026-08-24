@@ -25,6 +25,7 @@ from google.adk.agents import LlmAgent
 from google.adk.models.base_llm import BaseLlm
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     checks,
@@ -33,7 +34,6 @@ from voqalize.conformance import (
 )
 from voqalize.google_adk import AdkBrain
 from voqalize.google_adk.testing import ScriptedLlm, call, reply
-from voqalize.sdk import DirectAgent, brain_factory
 
 GREETING = "Front desk, how can I help?"
 SESSION_ID = "adk-lazy-test"
@@ -115,9 +115,7 @@ async def test_the_lazily_built_agent_drives_a_real_turn() -> None:
         return brain
 
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(make), host="127.0.0.1", port=0, public_keys=keypair.public_pem
-    )
+    agent = BrainServer(make, public_keys=keypair.public_pem)
     port = await agent.start()
     token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,

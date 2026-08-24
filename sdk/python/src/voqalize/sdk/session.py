@@ -14,18 +14,18 @@ which is the natural shape of every WebSocket object (the ``websockets`` library
 Starlette's ``WebSocket.send_bytes``/``receive_bytes`` via a 2-line shim, etc.).
 
     # FastAPI — your route, your upgrade; the SDK just runs the session.
-    @app.websocket("/s/{session_id}")
+    @app.websocket("/voice")
     async def voice(ws: WebSocket, session_id: str):
         await ws.accept()
         await run_session(
             _StarletteChannel(ws),                       # send/recv bytes
             brain=MyBrain,                               # or a () -> Brain factory
-            session_id=session_id,                       # from your route param
+            session_id=session_id,                       # from ?session_id=
             token=ws.headers.get("authorization"),       # SDK verifies it
         )
 
-Auth is the caller's request to extract and the SDK's to verify: you pass the URL
-``session_id`` and the ``Authorization`` header value; the SDK checks Voqalize's
+Auth is the caller's request to extract and the SDK's to verify: you pass the
+``session_id`` query parameter and the ``Authorization`` header value; the SDK checks Voqalize's
 RS256 token (signature + expiry + ``sub == session_id``) against the embedded
 Voqalize keys by default. Framework-specific wrappers that do the extraction for
 you can be layered on later — this primitive stays assumption-free.
@@ -50,8 +50,7 @@ from loguru import logger
 from ._keys import VOQALIZE_PUBLIC_KEYS
 from ._logging import session_context
 from .engine import (
-    DEFAULT_NORMAL_MAXSIZE,
-    Envelope,
+    DEFAULT_BULK_MAXSIZE,
     RunnerHost,
     SessionFactory,
     SessionRunner,
@@ -170,13 +169,13 @@ class _ChannelSession(RunnerHost):
         session_id_raw: bytes,
         factory: SessionFactory,
         serializer: WireSerializer,
-        normal_max: int,
+        bulk_max: int,
     ) -> None:
         self._channel = channel
         self._sid = session_id_raw
         self._factory = factory
         self._serializer = serializer
-        self._normal_max = normal_max
+        self._bulk_max = bulk_max
         self._runner: SessionRunner | None = None
         self._writer_task: asyncio.Task[None] | None = None
         self._ready = asyncio.Event()
@@ -184,7 +183,7 @@ class _ChannelSession(RunnerHost):
 
     async def run(self) -> None:
         runner = SessionRunner(
-            session_id=self._sid, factory=self._factory, host=self, normal_max=self._normal_max
+            session_id=self._sid, factory=self._factory, host=self, bulk_max=self._bulk_max
         )
         self._runner = runner
         runner.start()
@@ -220,19 +219,13 @@ class _ChannelSession(RunnerHost):
                 continue
             payload = bytes(msg)
             try:
-                decoded = await self._serializer.deserialize_message(payload)
+                frame = await self._serializer.deserialize_message(payload)
             except MalformedFrameError:
                 logger.exception("session: malformed payload; skipping")
                 continue
-            if decoded.frame is None:
+            if frame is None:
                 continue  # a body this build does not know
-            self._runner.enqueue_inbound(
-                Envelope(
-                    frame=decoded.frame,
-                    epoch=decoded.epoch,
-                    speech_id=decoded.speech_id,
-                )
-            )
+            self._runner.enqueue_inbound(frame)
 
     async def _writer_loop(self) -> None:
         assert self._runner is not None
@@ -240,13 +233,11 @@ class _ChannelSession(RunnerHost):
         while True:
             await self._ready.wait()
             while True:
-                item = runner.pop_out()
-                if item is None:
+                frame = runner.pop_out()
+                if frame is None:
                     break
                 try:
-                    out = await self._serializer.serialize(
-                        item.frame, epoch=item.epoch, speech_id=item.speech_id
-                    )
+                    out = await self._serializer.serialize(frame)
                 except Exception:
                     logger.exception("session: serialize failed")
                     continue
@@ -289,7 +280,7 @@ async def serve_channel(
         session_id_raw=session_id_bytes(session_id),
         factory=factory,
         serializer=WireSerializer(),
-        normal_max=inbound_queue_maxsize or DEFAULT_NORMAL_MAXSIZE,
+        bulk_max=inbound_queue_maxsize or DEFAULT_BULK_MAXSIZE,
     )
     await conn.run()
 

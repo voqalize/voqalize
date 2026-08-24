@@ -79,15 +79,15 @@ async def test_two_sessions_are_isolated() -> None:
         # Open both sessions.
         for session_id, wire in (("sA", wire_a), ("sB", wire_b)):
             await wire.send(
-                await serializer.serialize(SessionStartFrame(session_id=session_id, init={})),
+                await serializer.serialize(SessionStartFrame(turn_id=1, session_id=session_id)),
             )
 
         # Send a context frame on each leg.
         await wire_a.send(
-            await serializer.serialize(UserMessageFrame(text="hello-A"), epoch=1),
+            await serializer.serialize(UserMessageFrame(turn_id=2, text="hello-A")),
         )
         await wire_b.send(
-            await serializer.serialize(UserMessageFrame(text="hello-B"), epoch=1),
+            await serializer.serialize(UserMessageFrame(turn_id=2, text="hello-B")),
         )
 
         # Each pygato wire must receive only its own session's response.

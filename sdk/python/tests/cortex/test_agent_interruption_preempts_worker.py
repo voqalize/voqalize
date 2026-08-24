@@ -1,8 +1,9 @@
 """An InterruptionFrame cancels the Brain's in-flight turn.
 
 The Brain adapter SPAWNS the turn so the feeder stays free; a barge-in
-``InterruptionFrame`` (system lane) then cancels the in-flight generator. Verify
-that contract round-trips through CortexAgent + the multiplexed wire."""
+``InterruptionFrame`` (priority lane) then raises the watermark over the turn
+and cancels its generator. Verify that contract round-trips through CortexAgent
++ the multiplexed wire."""
 
 from __future__ import annotations
 
@@ -53,17 +54,17 @@ async def test_interruption_cancels_in_flight_turn() -> None:
         await pygato_wire.start()
 
         await pygato_wire.send(
-            await serializer.serialize(SessionStartFrame(session_id="s1", init={})),
+            await serializer.serialize(SessionStartFrame(turn_id=1, session_id="s1")),
         )
         await pygato_wire.send(
-            await serializer.serialize(UserMessageFrame(text="hi"), epoch=1),
+            await serializer.serialize(UserMessageFrame(turn_id=2, text="hi")),
         )
         await asyncio.wait_for(started.wait(), timeout=3.0)
         assert timeline == ["start:hi"]
 
-        # Send interruption — the Brain adapter must cancel the in-flight turn.
+        # Raise the watermark over that turn — the adapter must cancel it.
         await pygato_wire.send(
-            await serializer.serialize(InterruptionFrame()),
+            await serializer.serialize(InterruptionFrame(through_turn=2)),
         )
         await wait_for(lambda: "cancelled:hi" in timeline, timeout=3.0)
 

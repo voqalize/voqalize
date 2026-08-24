@@ -18,6 +18,7 @@ from google.adk.models.base_llm import BaseLlm
 
 from voqalize._framework.heard import text_of
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     checks,
@@ -26,7 +27,7 @@ from voqalize.conformance import (
 )
 from voqalize.google_adk import AdkBrain
 from voqalize.google_adk.testing import ScriptedLlm, reply
-from voqalize.sdk import DirectAgent, Message, brain_factory
+from voqalize.sdk import BrainServer, Message, brain_factory
 
 GREETING = "Hi! Which trip are we working on?"
 INSTRUCTION = "You are a travel desk."
@@ -44,7 +45,7 @@ def build_agent(model: str | BaseLlm) -> LlmAgent:
     return LlmAgent(name="assistant", model=model, instruction=INSTRUCTION)
 
 
-async def _host(llm: ScriptedLlm, *, on_resume) -> tuple[DirectAgent, VoqalizeDriver]:
+async def _host(llm: ScriptedLlm, *, on_resume) -> tuple[BrainServer, VoqalizeDriver]:
     keypair = generate_keypair()
     resume_fn = on_resume
 
@@ -57,12 +58,7 @@ async def _host(llm: ScriptedLlm, *, on_resume) -> tuple[DirectAgent, VoqalizeDr
         async def on_resume(self, session, start):
             return await resume_fn(session, start)
 
-    agent = DirectAgent(
-        factory=brain_factory(ResumingBrain),
-        host="127.0.0.1",
-        port=0,
-        public_keys=keypair.public_pem,
-    )
+    agent = BrainServer(ResumingBrain, public_keys=keypair.public_pem)
     port = await agent.start()
     session_id = "adk-resume-test"
     token = mint_voqalize_token(

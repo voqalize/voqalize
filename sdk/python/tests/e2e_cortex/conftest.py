@@ -14,9 +14,9 @@ from __future__ import annotations
 import asyncio
 
 from voqalize.sdk.wire import (
-    BrowserCommandFrame,
     Frame,
     MalformedFrameError,
+    RTVIFrame,
     Wire,
     WireConfig,
     WireSerializer,
@@ -25,21 +25,14 @@ from voqalize.sdk.wire import (
 
 class PygatoClient:
     """PyGato-side driver: a single-session ``Wire`` + the shared serializer,
-    connected to FakeCortex's ``/s/{session_id}`` leg."""
+    connected to FakeCortex's ``?session_id=`` leg."""
 
     def __init__(self, wire: Wire) -> None:
         self._wire = wire
         self._ser = WireSerializer()
 
-    async def send(
-        self,
-        frame: Frame,
-        *,
-        epoch: int = 0,
-        speech_id: int = 0,
-    ) -> None:
-        payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
-        await self._wire.send(payload)
+    async def send(self, frame: Frame) -> None:
+        await self._wire.send(await self._ser.serialize(frame))
 
     async def close(self) -> None:
         await self._wire.close()
@@ -52,11 +45,11 @@ class PygatoClient:
             while not predicate(frames):
                 payload = await self._wire.recv()
                 try:
-                    msg = await self._ser.deserialize_message(payload)
+                    frame = await self._ser.deserialize_message(payload)
                 except MalformedFrameError:
                     continue
-                if msg.frame is not None:
-                    frames.append(msg.frame)
+                if frame is not None:
+                    frames.append(frame)
 
         await asyncio.wait_for(pump(), timeout=timeout)
         return frames
@@ -69,11 +62,15 @@ class PygatoClient:
             while len(cmds) < min_count:
                 payload = await self._wire.recv()
                 try:
-                    msg = await self._ser.deserialize_message(payload)
+                    frame = await self._ser.deserialize_message(payload)
                 except MalformedFrameError:
                     continue
-                if isinstance(msg.frame, BrowserCommandFrame):
-                    cmds.append(msg.frame.data)
+                if (
+                    isinstance(frame, RTVIFrame)
+                    and isinstance(frame.data, dict)
+                    and frame.data.get("type") == "ui_command"
+                ):
+                    cmds.append(frame.data)
 
         await asyncio.wait_for(pump(), timeout=timeout)
         return cmds

@@ -76,8 +76,8 @@ class _Client:
         self._ep = endpoint
         self._ser = WireSerializer()
 
-    async def send(self, frame, *, epoch: int = 0, speech_id: int = 0) -> None:
-        payload = await self._ser.serialize(frame, epoch=epoch, speech_id=speech_id)
+    async def send(self, frame) -> None:
+        payload = await self._ser.serialize(frame)
         await self._ep.send(payload)
 
     async def collect_until(self, predicate, timeout: float = 3.0) -> list:
@@ -87,8 +87,8 @@ class _Client:
             while not predicate(frames):
                 raw = await self._ep.recv()
                 msg = await self._ser.deserialize_message(raw)
-                if msg.frame is not None:
-                    frames.append(msg.frame)
+                if msg is not None:
+                    frames.append(msg)
 
         await asyncio.wait_for(_pump(), timeout=timeout)
         return frames
@@ -107,11 +107,11 @@ async def test_run_session_handoff_greeting_and_echo():
     )
     client = _Client(client_ch)
     try:
-        await client.send(SessionStartFrame(session_id=sid))
+        await client.send(SessionStartFrame(turn_id=1, session_id=sid))
         frames = await client.collect_until(_has_text("hi there"))
         assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
-        await client.send(UserMessageFrame(text="ping"), epoch=1)
+        await client.send(UserMessageFrame(turn_id=2, text="ping"))
         frames = await client.collect_until(_has_text("echo: ping"))
         assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
     finally:
@@ -190,7 +190,7 @@ async def test_run_session_accepts_valid_token():
     )
     client = _Client(client_ch)
     try:
-        await client.send(SessionStartFrame(session_id=sid))
+        await client.send(SessionStartFrame(turn_id=1, session_id=sid))
         frames = await client.collect_until(_has_text("hi there"))
         assert frames
     finally:

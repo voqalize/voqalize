@@ -2,7 +2,7 @@
 brain and checks it against the MUSTs.
 
 This package *is* the compatibility test bench: :class:`VoqalizeDriver` stands in
-for Voqalize on the single-session ``/s/{session_id}`` direct leg, speaks the
+for Voqalize on the single-session ``?session_id=`` direct leg, speaks the
 shipped protobuf wire, models playout/heard-truth finalization the way
 real Voqalize does, and records everything the brain sends back. On top of it sit a
 named :data:`~voqalize.conformance.scenarios.CATALOG` of scenarios and the
@@ -22,10 +22,10 @@ from .checks import ConformanceError
 from .driver import (
     CONFORMANCE_DUMP_EVENT,
     CONFORMANCE_STATE_ACTION,
-    GREETING_EPOCH,
-    EpochObs,
+    GREETING_TURN,
     SpeechObs,
     Turn,
+    TurnObs,
     VoqalizeDriver,
 )
 from .host import BrainServer, brain_server
@@ -43,12 +43,11 @@ __all__ = [
     "CATALOG",
     "CONFORMANCE_DUMP_EVENT",
     "CONFORMANCE_STATE_ACTION",
-    "GREETING_EPOCH",
+    "GREETING_TURN",
     "BrainServer",
     "ConformanceBrain",
     "ConformanceError",
     "DirectConnection",
-    "EpochObs",
     "Keypair",
     "Report",
     "Scenario",
@@ -56,6 +55,7 @@ __all__ = [
     "ScenarioResult",
     "SpeechObs",
     "Turn",
+    "TurnObs",
     "VoqalizeDriver",
     "brain_server",
     "conformance_state",

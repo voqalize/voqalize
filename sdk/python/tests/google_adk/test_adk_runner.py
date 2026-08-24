@@ -21,6 +21,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
     VoqalizeDriver,
     checks,
@@ -29,7 +30,6 @@ from voqalize.conformance import (
 )
 from voqalize.google_adk import adk_brain
 from voqalize.google_adk.testing import ScriptedLlm, reply
-from voqalize.sdk import DirectAgent, brain_factory
 
 GREETING = "Front desk, how can I help?"
 INSTRUCTION = "You are a front desk agent."
@@ -61,9 +61,7 @@ async def test_custom_runner_factory_is_driven_and_keeps_its_session_service() -
         runner_factory=runner_factory,
         answer_conformance_dump=True,
     )
-    agent = DirectAgent(
-        factory=brain_factory(make), host="127.0.0.1", port=0, public_keys=keypair.public_pem
-    )
+    agent = BrainServer(make, public_keys=keypair.public_pem)
     port = await agent.start()
     token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,

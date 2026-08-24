@@ -8,13 +8,19 @@ seam (who signals the writer and who tears the session down).
 
 Design:
 
-- **Two lanes each way.** System frames (``SessionStart`` / ``Interruption`` / ``Cancel``
-  — see :func:`~voqalize.sdk.wire.frames.is_system`) ride a priority lane that bypasses
-  queued data; everything else rides a bounded normal lane with **drop-newest**
-  semantics. ``End`` is *not* system — it rides the normal lane so a session tears
-  down only after its queued data drains.
-- **One sequential consumer.** The feeder below takes envelopes off the inbound
-  lane one at a time and awaits ``adapter.handle_frame`` on each, so the adapter
+- **Two lanes each way.** Session control — ``SessionStart`` / ``Interruption`` /
+  ``Cancel``, see :func:`~voqalize.sdk.wire.frames.is_priority` — rides a priority
+  lane that bypasses queued data. Nothing on it has an ordering relationship with
+  what it overtakes. ``End`` is *not* priority: it rides the bulk lane so a
+  session tears down only after its queued data drains.
+- **Backpressure sheds only the unbounded flows.** The bulk lane is bounded, and
+  a full lane drops a newly arriving speech chunk or RTVI message — see
+  :func:`~voqalize.sdk.wire.frames.is_droppable`. Everything else is bounded by
+  turns taken and units spoken, so it queues however deep the backlog runs. A
+  drop delivers a non-fatal ``ErrorFrame`` to the adapter, edge-triggered: one
+  per congestion episode per direction. The runner never kills a session.
+- **One sequential consumer.** The feeder below takes frames off the inbound
+  lanes one at a time and awaits ``adapter.handle_frame`` on each, so the adapter
   sees frames in wire order. A slow callback delays the *callbacks* behind it and
   nothing else — it never reaches back across the wire.
 - **A ``Response`` bypasses the lanes entirely.** It is an answer, not a
@@ -22,12 +28,8 @@ Design:
   ordering against speech or user messages. Queueing it behind the feeder would
   deadlock every request made from a callback, because the feeder is inside the
   very callback that is awaiting it.
-- **Backpressure.** Normal-lane overflow drops the newest frame and delivers a
-  non-fatal ``ErrorFrame`` to the adapter (edge-triggered: one per congestion
-  episode per direction). The runner never kills a session.
-- **Interruption** is handled in the *adapter* (cancel in-flight + echo the drain
-  barrier); the runner only guarantees the ``Interruption`` is dispatched ahead of
-  queued data via the system lane.
+- **Interruption** is handled in the *adapter*, which holds the watermark; the
+  runner only guarantees it is dispatched ahead of queued data.
 """
 
 from __future__ import annotations
@@ -41,29 +43,12 @@ from typing import Protocol
 
 from loguru import logger
 
-from .wire import CancelFrame, EndFrame, ErrorFrame, Frame, ResponseFrame
-from .wire.frames import is_system
+from .wire import CancelFrame, EndFrame, ErrorCode, ErrorFrame, Frame, ResponseFrame
+from .wire.frames import is_droppable, is_priority
 
-DEFAULT_NORMAL_MAXSIZE = 256
-DEFAULT_SYSTEM_MAXSIZE = 32  # tripwire; never expected to fill
+DEFAULT_BULK_MAXSIZE = 256
+DEFAULT_PRIORITY_MAXSIZE = 32  # tripwire; never expected to fill
 _LOW_WATERMARK_FRAC = 0.5
-
-
-# ─── The unit that moves ──────────────────────────────────────────────────────
-
-
-@dataclass(frozen=True)
-class Envelope:
-    """A frame plus the wire correlation that travels beside it.
-
-    ``epoch`` is minted by Voqalize and echoed back unread; the runner
-    and the adapter only carry it. ``speech_id`` is minted by the brain, one per
-    speech unit, and echoed back unread on the finalize naming that unit.
-    """
-
-    frame: Frame
-    epoch: int = 0
-    speech_id: int = 0
 
 
 # ─── Seams ────────────────────────────────────────────────────────────────────
@@ -76,20 +61,20 @@ class Emitter(Protocol):
     :class:`SessionRunner`.
     """
 
-    def send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None: ...
+    def send(self, frame: Frame) -> None: ...
 
 
 class SessionAdapter(Protocol):
     """The brain-side of one session (implemented by ``brain._BrainAdapter``).
 
-    ``handle_frame`` is dispatched sequentially by the feeder, system-lane first.
-    It may emit frames synchronously via the :class:`Emitter` it was built with,
-    and it may spawn its own tasks (e.g. ``on_user_message``). ``settle_response``
-    is called straight off the reader instead, and must not block. ``close`` runs
-    session teardown (``on_session_end``).
+    ``handle_frame`` is dispatched sequentially by the feeder, priority lane
+    first. It may emit frames synchronously via the :class:`Emitter` it was built
+    with, and it may spawn its own tasks (e.g. ``on_user_message``).
+    ``settle_response`` is called straight off the reader instead, and must not
+    block. ``close`` runs session teardown (``on_session_end``).
     """
 
-    async def handle_frame(self, env: Envelope) -> None: ...
+    async def handle_frame(self, frame: Frame) -> None: ...
 
     def settle_response(self, frame: ResponseFrame) -> None: ...
 
@@ -117,82 +102,69 @@ class RunnerHost(Protocol):
     def close_session(self, runner: SessionRunner) -> None: ...
 
 
-# ─── Lane containers ──────────────────────────────────────────────────────────
+# ─── Lane container ───────────────────────────────────────────────────────────
 
 
 @dataclass
-class _InLanes:
-    """Inbound: system (priority) + normal (bounded, drop-newest), one consumer."""
+class _Lanes:
+    """Priority (bypasses queued data) + bulk (bounded, sheds droppable frames)."""
 
-    system_max: int
-    normal_max: int
-    system: deque[Envelope] = field(default_factory=deque)
-    normal: deque[Envelope] = field(default_factory=deque)
-    ready: asyncio.Event = field(default_factory=asyncio.Event)
+    priority_max: int
+    bulk_max: int
+    label: str
+    priority: deque[Frame] = field(default_factory=deque)
+    bulk: deque[Frame] = field(default_factory=deque)
 
-    def put_system(self, item: Envelope) -> None:
-        if len(self.system) >= self.system_max:
-            raise RuntimeError(f"inbound system lane overflow at {self.system_max} — bug")
-        self.system.append(item)
-        self.ready.set()
-
-    def put_normal(self, item: Envelope) -> bool:
-        if len(self.normal) >= self.normal_max:
+    def put(self, frame: Frame) -> bool:
+        """Queue a frame. False means it was shed under backpressure."""
+        if is_priority(frame):
+            if len(self.priority) >= self.priority_max:
+                raise RuntimeError(
+                    f"{self.label} priority lane overflow at {self.priority_max} — bug"
+                )
+            self.priority.append(frame)
+            return True
+        if len(self.bulk) >= self.bulk_max and is_droppable(frame):
             return False
-        self.normal.append(item)
-        self.ready.set()
+        self.bulk.append(frame)
         return True
 
-    async def get(self) -> Envelope:
-        while True:
-            if self.system:
-                item = self.system.popleft()
-            elif self.normal:
-                item = self.normal.popleft()
-            else:
-                self.ready.clear()
-                await self.ready.wait()
-                continue
-            if not self.system and not self.normal:
-                self.ready.clear()
-            return item
-
-    def depth(self) -> int:
-        return len(self.system) + len(self.normal)
-
-
-@dataclass
-class _OutLanes:
-    """Outbound: system (Interruption echo) + normal (everything else)."""
-
-    system_max: int
-    normal_max: int
-    system: deque[Envelope] = field(default_factory=deque)
-    normal: deque[Envelope] = field(default_factory=deque)
-
-    def put_system(self, item: Envelope) -> None:
-        if len(self.system) >= self.system_max:
-            raise RuntimeError(f"outbound system lane overflow at {self.system_max} — bug")
-        self.system.append(item)
-
-    def put_normal(self, item: Envelope) -> bool:
-        if len(self.normal) >= self.normal_max:
-            return False
-        self.normal.append(item)
-        return True
-
-    def pop(self) -> Envelope | None:
-        if self.system:
-            return self.system.popleft()
-        if self.normal:
-            return self.normal.popleft()
+    def pop(self) -> Frame | None:
+        if self.priority:
+            return self.priority.popleft()
+        if self.bulk:
+            return self.bulk.popleft()
         return None
 
     def empty(self) -> bool:
-        return not self.system and not self.normal
+        return not self.priority and not self.bulk
 
     def depth(self) -> int:
-        return len(self.system) + len(self.normal)
+        return len(self.priority) + len(self.bulk)
+
+
+@dataclass
+class _InLanes(_Lanes):
+    """Inbound lanes, with the single consumer's readiness event."""
+
+    ready: asyncio.Event = field(default_factory=asyncio.Event)
+
+    def put(self, frame: Frame) -> bool:
+        queued = super().put(frame)
+        if queued:
+            self.ready.set()
+        return queued
+
+    async def get(self) -> Frame:
+        while True:
+            frame = self.pop()
+            if frame is None:
+                self.ready.clear()
+                await self.ready.wait()
+                continue
+            if self.empty():
+                self.ready.clear()
+            return frame
 
 
 # ─── SessionRunner ────────────────────────────────────────────────────────────
@@ -207,14 +179,14 @@ class SessionRunner:
         session_id: bytes,
         factory: SessionFactory,
         host: RunnerHost,
-        normal_max: int = DEFAULT_NORMAL_MAXSIZE,
-        system_max: int = DEFAULT_SYSTEM_MAXSIZE,
+        bulk_max: int = DEFAULT_BULK_MAXSIZE,
+        priority_max: int = DEFAULT_PRIORITY_MAXSIZE,
     ) -> None:
         self.session_id = session_id
         self._host = host
-        self._in = _InLanes(system_max=system_max, normal_max=normal_max)
-        self._out = _OutLanes(system_max=system_max, normal_max=normal_max)
-        self._low_watermark = max(1, int(normal_max * _LOW_WATERMARK_FRAC))
+        self._in = _InLanes(priority_max=priority_max, bulk_max=bulk_max, label="inbound")
+        self._out = _Lanes(priority_max=priority_max, bulk_max=bulk_max, label="outbound")
+        self._low_watermark = max(1, int(bulk_max * _LOW_WATERMARK_FRAC))
 
         # Build the adapter last — it captures ``self`` as its Emitter.
         self._adapter: SessionAdapter = factory(self)
@@ -244,35 +216,30 @@ class SessionRunner:
 
     # ─── Inbound (called by the transport reader) ───────────────────────
 
-    def enqueue_inbound(self, env: Envelope) -> None:
-        if isinstance(env.frame, ResponseFrame):
-            self._adapter.settle_response(env.frame)
+    def enqueue_inbound(self, frame: Frame) -> None:
+        if isinstance(frame, ResponseFrame):
+            self._adapter.settle_response(frame)
             return
-        if is_system(env.frame):
-            self._in.put_system(env)
-        elif not self._in.put_normal(env):
+        if not self._in.put(frame):
             self._notify_inbound_drop()
 
     # ─── Outbound (Emitter, called by the adapter) ──────────────────────
 
-    def send(self, frame: Frame, *, epoch: int = 0, speech_id: int = 0) -> None:
-        env = Envelope(frame=frame, epoch=epoch, speech_id=speech_id)
+    def send(self, frame: Frame) -> None:
         was_empty = self._out.empty()
-        if is_system(frame):
-            self._out.put_system(env)
-        elif not self._out.put_normal(env):
+        if not self._out.put(frame):
             self._notify_outbound_drop()
             return
         if was_empty:
             self._host.signal_ready(self)
 
-    def pop_out(self) -> Envelope | None:
-        item = self._out.pop()
+    def pop_out(self) -> Frame | None:
+        frame = self._out.pop()
         # Outbound drained: re-check the edge-triggered flag so an outbound-heavy
         # session with no inbound traffic can still clear.
         if self._outbound_congested and self._out.depth() <= self._low_watermark:
             self._outbound_congested = False
-        return item
+        return frame
 
     def out_empty(self) -> bool:
         return self._out.empty()
@@ -283,21 +250,21 @@ class SessionRunner:
         ended = False
         try:
             while True:
-                env = await self._in.get()
+                frame = await self._in.get()
                 try:
-                    await self._adapter.handle_frame(env)
+                    await self._adapter.handle_frame(frame)
                 except asyncio.CancelledError:
                     raise
                 except Exception:
                     logger.exception(
-                        "session: adapter.handle_frame failed for {}", type(env.frame).__name__
+                        "session: adapter.handle_frame failed for {}", type(frame).__name__
                     )
                 if self._inbound_congested and self._in.depth() <= self._low_watermark:
                     self._inbound_congested = False
                 # Both are terminal. The difference is the lane they rode in
                 # on: `Cancel` bypassed whatever was queued, `End` drained
                 # behind it.
-                if isinstance(env.frame, EndFrame | CancelFrame):
+                if isinstance(frame, EndFrame | CancelFrame):
                     ended = True
                     break
         except asyncio.CancelledError:
@@ -327,7 +294,7 @@ class SessionRunner:
             message = await self._error_events.get()
             try:
                 await self._adapter.handle_frame(
-                    Envelope(frame=ErrorFrame(error=message, fatal=False))
+                    ErrorFrame(code=ErrorCode.OVERLOAD, message=message, fatal=False)
                 )
             except asyncio.CancelledError:
                 raise

@@ -160,7 +160,7 @@ class GeminiBrain(Brain):
                 )
 
     def dispatch_tool(self, session: Session, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: mutate your state, drive the browser with
+        """Run one tool call: mutate your state, drive the app with
         ``session.dispatch(...)``, and return a short string fed back to the model.
         Override in any brain that declares ``tools``."""
         raise NotImplementedError(
@@ -171,8 +171,8 @@ class GeminiBrain(Brain):
 
     def grounding(self) -> str | None:
         """Authoritative context folded into every turn — typically the live
-        on-screen state the browser pushes to
-        :meth:`~voqalize.sdk.Brain.on_browser_message`. Return a text note and it is
+        on-screen state the app pushes to
+        :meth:`~voqalize.sdk.Brain.on_rtvi`. Return a text note and it is
         inserted **just before the latest user turn**, so an ambiguous question is
         grounded in what the caller is looking at. Default: none."""
         return None
