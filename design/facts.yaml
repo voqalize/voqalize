@@ -229,6 +229,21 @@ facts:
       eleven were re-earned on 1.7.0. The changelog's "pipecat 1.2.1 -> 1.5.0" is
       a dated entry about 2026-07-07 and stays true as a record.
 
+  pipecat.client.floor:
+    value: '>=1.5.0 <2'
+    source: demos/shared/package.json:27
+    verified: 2026-08-25
+    derive:
+      file: demos/shared/package.json
+      pattern: '"@pipecat-ai/client-js": "(>=[0-9.]+ <[0-9]+)"'
+    note: >-
+      The browser half, and a different number from pipecat.version above, which
+      is the voice tier's Python floor. This one is a peer dependency of
+      @voqalize/demo-kit, so every demo in the repo is built against it and the
+      floor is exercised rather than asserted. The demos themselves resolve
+      ^1.13.0 as a dev dependency; the floor is what a customer's page must
+      clear, and it is the number docs/start/pipecat.md is allowed to print.
+
   speech.stt.model:
     value: vql-stt
     source: docs/src/content/docs/reference/catalog.md:39
@@ -288,18 +303,20 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 9
+    value: 11
     source: docs/src/content/docs/
-    verified: 2026-08-24
+    verified: 2026-08-25
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
-      Nine pages plus their .md twins, llms.txt and 404.html. It went 9 -> 10
-      -> 9 on 2026-08-24: `client/handshake` was added (the browser handshake on
-      stock pipecat, both credential paths) and `client/react` was deleted with
-      the package it documented, leaving a redirect from the old URL. There is
-      still no page teaching Brain, greet, on_user_message, Session, dispatch or
-      Action — the hole is board row B1, and no surface may imply otherwise.
+      Eleven pages plus their .md twins, llms.txt and 404.html. 9 -> 10 -> 9 on
+      2026-08-24 (`client/handshake` added, `client/react` deleted with the
+      package it documented, redirect left behind), then 9 -> 11 on 2026-08-25
+      when the eight-section information architecture landed with `start/
+      what-voqalize-is` and `start/pipecat`. There is still no page teaching
+      Brain, greet, on_user_message, Session, dispatch or Action — the hole is
+      board row B1, and no surface may imply otherwise. The sidebar now names the
+      sections that hole belongs to, which is a promise rather than a claim.
 
   # ---- commercial -----------------------------------------------------------
 

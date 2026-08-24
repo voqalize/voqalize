@@ -8,12 +8,12 @@ head:
 hero:
   tagline: A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice.
   actions:
-    - text: The wire
-      link: /docs/reference/wire/
+    - text: What Voqalize is
+      link: /docs/start/what-voqalize-is/
       icon: right-arrow
       variant: primary
-    - text: Put a voice in the browser
-      link: /docs/client/react/
+    - text: The wire
+      link: /docs/reference/wire/
       icon: open-book
       variant: minimal
     - text: View on GitHub
@@ -30,27 +30,29 @@ agent that receives the caller's words and drives two channels back — **speech
 and **actions** that drive the screen the caller is looking at. Your code never
 touches audio.
 
-:::caution[The brain surface is being revised]
-The callback surface is moving to `on_user_message` / `session.dispatch`. The
-build-a-brain pages that documented the previous surface have been removed rather
-than left to teach code that no longer runs. Until they are rewritten, the SDK
-README and the runnable demos are the working reference.
+:::caution[The pages that teach the brain surface are not written yet]
+The Python callback surface is being revised, and no page here documents it. The
+[SDK README](https://github.com/voqalize/voqalize/tree/main/sdk/python) and the
+runnable brains under
+[`sdk/python/examples/`](https://github.com/voqalize/voqalize/tree/main/sdk/python/examples)
+are the working reference until it settles. Everything else on this site
+describes surfaces that have shipped.
 :::
 
 ## Start here
 
 <CardGrid stagger>
-  <Card title="Test a brain without a microphone" icon="rocket">
-    Drive your real brain over the real wire in text mode.
-    [Testing a brain →](/docs/brain/testing/)
+  <Card title="What Voqalize is" icon="rocket">
+    The brain, the session, and the two halves of your app.
+    [Start here →](/docs/start/what-voqalize-is/)
   </Card>
   <Card title="Put a voice in the browser" icon="laptop">
-    Embed a live agent in a web app with the
-    [React client SDK](/docs/client/react/).
+    One HTTP request, then stock pipecat.
+    [The handshake →](/docs/client/handshake/)
   </Card>
-  <Card title="The wire contract" icon="puzzle">
-    One WebSocket per session, protobuf envelopes both ways.
-    [The wire →](/docs/reference/wire/)
+  <Card title="Test a brain without a microphone" icon="puzzle">
+    Drive your real brain over the real wire in text mode.
+    [Testing a brain →](/docs/brain/testing/)
   </Card>
   <Card title="Where the brain runs" icon="seti:config">
     Your own inbound server, or a relay when you can't accept inbound.
