@@ -2,7 +2,7 @@
   "name": "@voqalize/demo-kit",
   "version": "0.1.0",
   "private": true,
-  "description": "Shared chrome for the Voqalize demo gallery — the one place the demos' notice-and-consent wording lives.",
+  "description": "Shared chrome for the Voqalize demo gallery — the pre-call gate, the ambient ring, and the one place the demos' notice-and-consent wording lives.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -24,12 +24,12 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@voqalize/client-react": "*",
+    "@pipecat-ai/client-js": ">=1.5.0 <2",
     "react": "^19.0.0"
   },
   "devDependencies": {
+    "@pipecat-ai/client-js": "^1.13.0",
     "@types/react": "^19.1.8",
-    "@voqalize/client-react": "^0.0.1",
     "react": "^19.1.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"

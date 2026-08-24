@@ -9,6 +9,41 @@ into their own tree, which is exactly the problem this release exists to end.
 `0.0.1` is the first version anyone can `npm install`, and starting the public
 series at the bottom says plainly that nothing here is promised yet.
 
+## 0.3.0
+
+**This package is now one function.** Everything that wrapped pipecat is gone,
+and nothing replaced it — a Voqalize call is a pipecat call, so the pipecat
+client is the client.
+
+> **Staged, not published**, like `0.2.0` before it. npm still serves `0.1.1`.
+
+### Removed
+
+- **`useVoqalSession` and `<VoqalAgent>`.** A `PipecatClient` plus
+  `PipecatClientProvider` is the same thing without a translation layer between
+  you and every event pipecat adds. Our `VoqalConnectionState` and `VoqalBotState`
+  were a lossy retelling of pipecat's own `TransportState` and RTVI events; the
+  hook that produced them had to grow a case for each one, and lagged.
+- **`useUiCommand`, `createUiCommandHandlers`, `uiCommandArgs`.** Pipecat ships
+  `useUICommandHandler(command, handler)` and dispatches RTVI's own `ui-command`
+  to it. The brain now sends exactly that frame (see the Python SDK's `0.3.0`),
+  so there is nothing left to adapt. The typed `Action`/`Result` correlation this
+  gave up — `action_id`, a compile-time-checked handler map — is a real loss,
+  taken deliberately: stock compatibility is worth more. An answer is an ordinary
+  `sendClientMessage` correlated by whatever your app puts in it.
+- **`requestMicrophone` and `MicrophoneError`.** Pipecat's `DeviceErrorType`
+  covers the same six failures one-for-one, and its transport already asks for
+  the device.
+- **`AmbientPresence` and `PreCallGate`.** Demo chrome, not SDK. They moved into
+  this repo's private `@voqalize/demo-kit`, where the gallery's own wording
+  already lived.
+
+### Changed
+
+- **No dependencies and no peers.** The package imports nothing: it is `fetch`
+  and JSON. React, pipecat and the transport are yours to install and yours to
+  version.
+
 ## 0.2.0
 
 Follows the control plane's one-entity rename: a call is a **session**, and

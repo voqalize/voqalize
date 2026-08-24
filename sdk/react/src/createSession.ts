@@ -92,8 +92,8 @@ export interface CreateSessionOptions {
    * decides — which is `false` unless someone turned it on.
    *
    * This is the per-call half of a two-part decision, and it is here because
-   * the page is the only party that knows whether *this* caller consented:
-   * `PreCallGate` is where you collect that, and this is where you report it.
+   * the page is the only party that knows whether *this* caller consented —
+   * you collect that in your own pre-call notice, and report it here.
    * `false` is always honoured, so a caller who declines is never recorded even
    * on an agent that records by default.
    *

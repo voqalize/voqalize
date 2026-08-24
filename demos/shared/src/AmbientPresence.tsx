@@ -20,8 +20,8 @@
  * short travelling line from the screen edge to an element the agent just acted
  * on — the visual tell that the agent, not the user, moved the screen.
  *
- * The component is deliberately self-contained: no CSS import, no dependencies
- * beyond React. It ships its own `<style>` block and plumbs the palette through
+ * The component is deliberately self-contained: no CSS import, and nothing at
+ * runtime beyond React. It ships its own `<style>` block and plumbs the palette through
  * CSS custom properties, so it drops into any app — Tailwind, CSS-in-JS, or plain
  * stylesheets — without a build step or a stylesheet side effect (the package
  * declares `sideEffects: false`).
@@ -29,8 +29,15 @@
  * `prefers-reduced-motion` collapses all of it to a static, low-opacity ring.
  */
 
+import type { TransportState } from "@pipecat-ai/client-js";
 import { useEffect, useRef, useState } from "react";
-import type { VoqalBotState, VoqalConnectionState } from "./useVoqalSession";
+
+/**
+ * What the agent is doing, in the four states the ring can tell apart. Derive it
+ * from pipecat's own events — `onUserStartedSpeaking` → `listening`,
+ * `onBotLlmStarted` → `thinking`, `onBotStartedSpeaking` → `speaking`.
+ */
+export type AmbientPresenceActivity = "idle" | "listening" | "thinking" | "speaking";
 
 /** One hue per agent state, plus the offline seam and the beam. */
 export interface AmbientPresencePalette {
@@ -61,13 +68,13 @@ export interface AmbientPresenceBeam {
 }
 
 export interface AmbientPresenceProps {
-  /** The agent's conversational state — pass `botState` from `useVoqalSession`. */
-  botState?: VoqalBotState;
+  /** What the agent is doing. */
+  activity?: AmbientPresenceActivity;
   /**
-   * Transport state — pass `connectionState` from `useVoqalSession`. Anything
-   * other than `"connected"` renders the offline seam.
+   * Pipecat's transport state, straight from `usePipecatClientTransportState`.
+   * Anything short of a live call renders the offline seam.
    */
-  connectionState?: VoqalConnectionState;
+  transportState?: TransportState;
   /** Per-state hues. Any subset; the rest fall back to the Voqalize default. */
   palette?: Partial<AmbientPresencePalette>;
   /** Breathing-period multiplier. `1` is the default cadence; `2` is half speed. */
@@ -137,8 +144,8 @@ interface DrawnBeam {
 }
 
 export function AmbientPresence({
-  botState = "idle",
-  connectionState = "idle",
+  activity = "idle",
+  transportState = "disconnected",
   palette,
   tempo = 1,
   weight = 1,
@@ -168,7 +175,8 @@ export function AmbientPresence({
   }, [beamId, beamTarget]);
 
   const p = { ...DEFAULT_PALETTE, ...palette };
-  const state = connectionState === "connected" ? botState : "offline";
+  const live = transportState === "connected" || transportState === "ready";
+  const state = live ? activity : "offline";
 
   const vars = {
     "--vz-presence-idle": rgbTriple(p.idle, DEFAULT_PALETTE.idle),

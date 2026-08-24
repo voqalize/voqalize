@@ -108,7 +108,7 @@ Tier choice is the concrete form of the 80/10/10 split in
   true — it costs no round-trip and a full cache miss.
 - **Tier 1's browser half is not plumbed.** The wire frame exists, `on_user_message`
   receives it, and the name is chosen — but `sdk/react` today exposes only
-  `sendMessage(type, data)` (`useVoqalSession.ts:154`), which is the app-message
+  pipecat's own `sendClientMessage(type, data)`, which is the app-message
   leg. So the tier is wire-supported and unfinished on the browser side — say that
   plainly rather than describing it as if a customer could use it today.
 - **The `UserMessage` frame is text-only.** The motivating cases (an uploaded

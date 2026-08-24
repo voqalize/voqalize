@@ -1,8 +1,8 @@
 {
   "name": "@voqalize/client-react",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
-  "description": "React SDK to embed a Voqalize voice agent — WebRTC transport, session bootstrap, and hooks/components.",
+  "description": "Mint a Voqalize session for a pipecat client — the connection step, and nothing else.",
   "license": "Apache-2.0",
   "author": "Voqalize",
   "homepage": "https://voqalize.com",
@@ -20,7 +20,6 @@
     "realtime",
     "webrtc",
     "speech",
-    "react",
     "pipecat"
   ],
   "type": "module",
@@ -49,21 +48,7 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"
   },
-  "peerDependencies": {
-    "@pipecat-ai/client-js": ">=1.5.0 <2",
-    "@pipecat-ai/client-react": ">=1.1.0 <2",
-    "@pipecat-ai/small-webrtc-transport": ">=1.8.0 <2",
-    "react": "^18.2.0 || ^19.0.0",
-    "react-dom": "^18.2.0 || ^19.0.0"
-  },
   "devDependencies": {
-    "@pipecat-ai/client-js": "^1.13.0",
-    "@pipecat-ai/client-react": "^1.8.1",
-    "@pipecat-ai/small-webrtc-transport": "^1.10.6",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
   }

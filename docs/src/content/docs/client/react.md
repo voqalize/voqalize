@@ -1,291 +1,222 @@
 ---
 title: React client SDK
-description: Embed a live voice agent in a browser app — mint a session, connect the WebRTC transport, drive and read your UI.
+description: Embed a live voice agent in a browser app — mint a session with Voqalize, then run the call on stock pipecat.
 ---
 
-`@voqalize/client-react` puts a voice agent in a web app. It mints a session
-against the control plane, opens the WebRTC transport to the voice runtime, plays
-the agent's audio, and exposes the two-way UI channel for screen-driving agents.
+`@voqalize/client-react` is one function. It mints a session against the control
+plane and hands back the offer endpoint and token a pipecat transport dials.
+Everything after that — the WebRTC connection, the audio, the transcript, the
+agent's UI commands — is [pipecat](https://docs.pipecat.ai)'s own client, used
+directly, with nothing of ours in between.
+
+That is the whole design. A Voqalize call **is** a pipecat call: the transport is
+`SmallWebRTCTransport`, the control messages are RTVI, and a brain's
+`session.dispatch(...)` arrives at pipecat's `useUICommandHandler`. A wrapper
+around any of it would be a second surface to learn, a lag behind every pipecat
+release, and one more place a frame can be dropped in translation. So there
+isn't one.
 
 :::note[Pre-release]
 Not yet on npm. Install from a clone of
-[`voqalize/voqalize`](https://github.com/voqalize/voqalize) via the pnpm workspace.
-Peer deps: `@pipecat-ai/client-js`, `@pipecat-ai/client-react`, `react`,
-`react-dom`.
+[`voqalize/voqalize`](https://github.com/voqalize/voqalize) via the pnpm
+workspace. The package itself has no dependencies; you install pipecat.
 :::
 
-## The quick way: `<VoqalAgent/>`
+## Install
 
-The smallest real embed is one component. It auto-connects, plays bot audio, and
-renders a status + mute/end bar:
+```bash
+pnpm add @voqalize/client-react @pipecat-ai/client-js @pipecat-ai/client-react @pipecat-ai/small-webrtc-transport
+```
+
+## Connect
+
+Connecting is pipecat's two-step: ask something that holds a credential where the
+bot is, then negotiate WebRTC against the address you were given.
+`createSession` is step one.
 
 ```tsx
-import { VoqalAgent } from "@voqalize/client-react";
+import { PipecatClient } from "@pipecat-ai/client-js";
+import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
+import { PipecatClientProvider, PipecatClientAudio } from "@pipecat-ai/client-react";
+import { createSession } from "@voqalize/client-react";
 
-export function Support() {
-  return (
-    <VoqalAgent
-      apiBase="https://app.voqalize.com/api/v1"
-      publishableKey={import.meta.env.VITE_VOQAL_PK}
-      agentId="06a2…"
-    />
-  );
-}
+const client = new PipecatClient({
+  transport: new SmallWebRTCTransport(),
+  enableMic: true,
+});
+
+await client.connect(
+  await createSession({
+    apiBase: "https://api.voqalize.com/api/v1",
+    publishableKey: "pk_live_…",
+    agentId: "…",
+    payload: { orderId },
+  }),
+);
 ```
-
-:::caution[`apiBase` includes `/api/v1`]
-The React SDK's `apiBase` is the **versioned** root
-(`https://app.voqalize.com/api/v1`). Point it at the bare host and the browser
-session mint fails — this is the most common wiring mistake.
-:::
-
-Note what is *not* in that embed: the workspace, the voice, and the language.
-
-There is no tenant prop — a `pk_` key belongs to exactly one workspace, so the
-control plane reads it off the key; naming it again in the call would be a second
-answer to a question the credential has already answered, and the only interesting
-case is the two disagreeing. (MCP tools do still take a `tenant`, because stateless
-RPC holds no credential that names one.)
-
-Nor is the voice or the language. Those belong to the
-brain — `voice` / `language` class attributes on your `Brain`, or
-`session.configure_language(...)` when they depend on *this* caller — and the
-agent record has no `stt`/`tts` fields either. One owner, because `language`
-picks both the recognizer and the voice-cloning reference clip, and a page that
-sets only half of that pair fails silently in the right words with the wrong
-accent. See the [voice & language catalog](/docs/reference/catalog/).
-
-## The hook: `useVoqalSession`
-
-For full control over the UI, use the hook directly:
-
-```ts
-const session = useVoqalSession(opts: UseVoqalSessionOptions): VoqalSessionHandle
-```
-
-### Options
-
-| Field | Type | Notes |
-|---|---|---|
-| `apiBase` | `string` (required) | Control-plane root incl. version, e.g. `"/api/v1"` or `"https://app.voqalize.com/api/v1"`. |
-| `publishableKey` | `string` (required) | `pk_…` key (origin-allowlisted, browser-safe). |
-| `agentId` | `string` (required) | The agent's id. |
-| `pipeline?` | `{ stt?, tts? }` | **Usually omit.** Voice and language are declared on the brain, not here — see the [catalog](/docs/reference/catalog/). Kept for a page that is genuinely the pipeline's authority (a voice-auditioning console, an A/B harness); a brain that declares or configures a voice overrides it. |
-| `payload?` | `Record<string,unknown>` | App payload handed to the brain; arrives as `start.init`. |
-| `record?` | `boolean` | Whether to record this call. Omit and the agent's default decides (off unless turned on). `false` is always honoured — this is where a caller who declines is respected. `true` is **refused** on a publishable key and warns on the console: a `pk_` ships in page source, so recording is turned on where its owner controls it, on the agent itself. |
-| `iceServers?` | `RTCIceServer[]` | Defaults to a public Google STUN server. |
-| `autoConnect?` | `boolean` | Default `false` (`<VoqalAgent/>` sets it `true`). |
-| `onServerMessage?` | `(msg) => void` | Every RTVI server message, unwrapped — the raw escape hatch. For UI commands prefer [`useUiCommand`](#typed-ui-commands-useuicommand). |
-
-### Return value
-
-| Field | Type | Meaning |
-|---|---|---|
-| `connectionState` | `"idle" \| "connecting" \| "awaiting-microphone" \| "connected" \| "disconnected" \| "error"` | Transport state. `awaiting-microphone` is [its own state on purpose](#the-microphone). |
-| `botState` | `"idle" \| "listening" \| "thinking" \| "speaking"` | Derived from runtime events. |
-| `isUserSpeaking` | `boolean` | Local voice activity. |
-| `error` | `string \| null` | Last error. |
-| `connect` | `() => Promise<void>` | Mint + connect (no-op if active). |
-| `disconnect` | `() => Promise<void>` | Tear down (idempotent). |
-| `enableMic` | `(enable: boolean) => void` | Mute / unmute the mic. |
-| `sendMessage` | `(type, data?) => void` | Browser → brain app event. |
-| `client` | `PipecatClient \| null` | The live client, or `null`. |
-
-### Example
 
 ```tsx
-function CallButton() {
-  const s = useVoqalSession({
-    apiBase: "/api/v1",
-    publishableKey: import.meta.env.VITE_VOQAL_PK,
-    agentId: "06a2…",
-  });
-
-  return s.connectionState === "connected" ? (
-    <button onClick={s.disconnect}>End · {s.botState}</button>
-  ) : (
-    <button onClick={s.connect}>Talk</button>
-  );
-}
+<PipecatClientProvider client={client}>
+  <YourApp />
+  <PipecatClientAudio />
+</PipecatClientProvider>
 ```
 
-## How connecting works
+`PipecatClientAudio` is what plays the agent. Everything your UI needs to read
+the call comes off pipecat's hooks — `usePipecatClientTransportState`,
+`usePipecatClientMicControl`, `usePipecatConversation`, `useRTVIClientEvent`.
 
-The hook runs a two-step flow:
+### What the mint call does
 
-1. **Mint** — one `POST {apiBase}/sessions.create` with the publishable key as a
-   bearer token. The body is `{ agent_id, agent_input }`, where `agent_input`
-   **wraps both** the `pipeline` override and your app `payload`:
-   `{ agent_id, agent_input: { pipeline?, payload? } }` — so your app data nests
-   one level in, under `agent_input.payload`. `record` rides beside
-   `agent_input`, not inside it: `agent_input` is what the page hands the brain,
-   and recording is not the brain's business. The response carries
-   `connection_details.connect_params` — the runtime node's offer endpoint and
-   the session token to present on it. (A missing `connect_params` means no
-   worker is running for that agent — a `VoqalSessionError` is thrown with that
-   hint.)
+One `POST {apiBase}/sessions.create`, with the publishable key as a bearer token
+and a body of `{ agent_id, agent_input: { pipeline?, payload? }, record? }`.
 
-   `agent_input` goes two places at once: it is signed into the session token,
-   which is how the runtime and then the brain receive it, and it is **stored on
-   the session**, so you can still answer "what did the page send?" after the
-   token has expired. Stored means readable by anyone who can read the session —
-   send identifiers, not personal data.
-2. **Connect** — it builds pipecat's own `SmallWebRTCTransport`, wraps it in a
-   `PipecatClient` (mic on, camera off), and POSTs the SDP offer to that endpoint.
-   Media is direct WebRTC; RTVI control messages ride a data channel. There is no
-   transport of ours in the path — `toConnectParams` is the whole adaptation.
+Your app data nests one level in, under `agent_input.payload`. `record` rides
+*beside* `agent_input`, not inside it — `agent_input` is what the page hands the
+brain, and recording is not the brain's business.
+
+`agent_input` goes two places at once: it is signed into the session token, which
+is how the runtime and then the brain receive it, and it is **stored on the
+session**, so you can still answer "what did the page send?" after the token has
+expired. Stored means readable by anyone who can read the session — send
+identifiers, not personal data.
+
+The response carries `connection_details.connect_params`: the runtime node's
+offer endpoint and the session token to present on it. A missing `connect_params`
+means no worker is running for that agent, and `createSession` throws a
+`VoqalSessionError` saying so. Every failure is a `VoqalSessionError` carrying
+the HTTP `status`.
+
+## Driving the screen
+
+An agent that only talks needs nothing on this page. An agent that moves the UI
+uses two channels, and both are RTVI's.
+
+**Brain → browser.** The brain's `session.dispatch(ShowResults(...))` arrives as
+an RTVI `ui-command`:
+
+```json
+{ "command": "show_results", "payload": { "rows": [] } }
+```
+
+`command` is the action class's wire name; `payload` is its fields, nested rather
+than spread — so no field of yours can ever collide with the envelope. Pipecat
+routes it for you:
+
+```tsx
+import { useUICommandHandler } from "@pipecat-ai/client-react";
+
+useUICommandHandler<{ rows: Row[] }>("show_results", ({ rows }) => setRows(rows));
+```
+
+A command with no handler is not an error. The brain and the page ship
+separately, and a new command reaching an old build must not break it.
+
+**Browser → brain.** `client.sendClientMessage(type, data)` reaches the brain's
+`on_rtvi(session, msg)` as `msg.data == { t: type, d: data }`.
+
+Dispatch is **one-way**: nothing comes back from it and it never blocks. If the
+brain needs an answer — which flight did they pick, did the form validate — the
+page sends an ordinary client message and correlates it with whatever the two
+halves agree on. There is no reply channel to learn, because there is no reply
+channel: it is the same message lane in the other direction.
 
 ## The microphone
 
-Every session needs one, and the browser will not hand one over quietly. The SDK
-makes each way that can fail visible, rather than leaving you to find it in a
-support ticket.
+Every session needs one, and the browser will not hand one over quietly. Pipecat
+owns this — it asks for the device and reports what happened on `onDeviceError`
+with a `DeviceError` whose `type` you branch on (`"permissions"`, `"not-found"`,
+`"in-use"`, `"undefined-mediadevices"`, `"constraints"`, `"unknown"`).
+
+Three things about it are worth knowing before you ship, none of them
+Voqalize-specific and all of them found the hard way:
 
 **The page must be a secure context** — `https://`, or `localhost` while you
 develop. On plain `http://` the browser does not expose microphones at all, and
-`connect()` fails immediately.
+the connect fails immediately (`undefined-mediadevices`).
 
 **The grant is per origin.** Allowing the microphone on the deployed site grants
-nothing to `localhost`, and the other way round, so the first call on each origin
+nothing to `localhost`, and the other way round. The first call on each origin
 asks again — including the first call after you ship.
 
-**A permission prompt can stay open forever**, and a caller who missed the
-dialog has no reason to think the browser is waiting on them. While it is open
-`connectionState` is `"awaiting-microphone"` — its own state rather than a
-flavour of `connecting`, because the two ask the user for opposite things:
-`connecting` means wait, this one means *go look for the dialog*. Render
-something that says so. If nothing comes back within 30 s the connect fails.
+**A permission prompt can stay open forever**, and a caller who missed the dialog
+has no reason to think the browser is waiting on them. Render something that
+says *go look for the dialog*, not a spinner: "connecting" tells the user to
+wait, which is the opposite of what they need to do.
 
-**No microphone means no call.** Blocked, missing, or already held by another
-app — `connect()` rejects rather than joining a call the user cannot speak into.
-Before this was true, a denied prompt produced the worst outcome available: the
-call connected with no audio track, the agent greeted, the caller talked, and
-nothing left the page while the UI said "Listening…".
+## Minting on your own backend
 
-The rejection is a `MicrophoneError`. Its `message` is written for the person in
-front of the browser and is what `session.error` already carries; `problem` is
-what you branch on:
+`publishableKey` puts the decision to start a call in the page. That is right for
+a public demo and wrong the moment starting a call depends on something the
+browser must not be trusted with — who the caller is, whether they still have
+credit, which agent they are entitled to.
 
-| `problem` | What happened |
-|---|---|
-| `"denied"` | The user (or a policy) blocked microphone access. |
-| `"no-response"` | The prompt was never answered. |
-| `"no-microphone"` | No input device exists. |
-| `"in-use"` | Another application holds the device. |
-| `"insecure-context"` | The page is not `https://` or `localhost`. |
-| `"unknown"` | Anything else the browser reported. |
+For that, mint on a route of your own holding a secret (`sk_…`) key, return the
+API's `connect_params` verbatim, and run them through `toConnectParams`:
 
 ```tsx
-import { MicrophoneError } from "@voqalize/client-react";
+import { toConnectParams } from "@voqalize/client-react";
 
-try {
-  await session.connect();
-} catch (err) {
-  if (err instanceof MicrophoneError && err.problem === "denied") {
-    showHowToUnblockMic();
-  }
-}
+const body = await fetch("/api/voice/start", {
+  method: "POST",
+  credentials: "include",
+}).then((r) => r.json());
+
+await client.connect(toConnectParams(body.connect_params));
 ```
 
-`requestMicrophone()` is exported on its own, for asking permission — and
-rendering the outcome — before you mint a session at all.
+**Run every server response through `toConnectParams`, including your own
+backend's.** Pipecat builds the offer request with `headers.entries()`, so the
+plain object a JSON body gives you throws a `TypeError` at the offer POST rather
+than failing anywhere legible. Turning it into a real `Headers` is what this
+function is for.
 
-## The two-way UI contract
+## Voice and language belong to the brain
 
-For agents that drive the screen (see
-the brain side):
+`createSession` accepts a `pipeline` override, and **most pages should not set
+it**. How an agent sounds is declared in Python, on the brain:
 
-- **Brain → browser.** The brain's `session.dispatch(Action(...))` arrives
-  as a server message `{ type: "ui_command", action, action_id, ...args }` — the
-  args are spread onto the top level. Dispatch it with `useUiCommand`, below.
-- **Browser → brain.** `session.sendMessage(type, data)` rides an RTVI
-  `client-message` and reaches the brain's `on_rtvi(session, msg)` as
-  `msg.data == { t: type, d: data }`. Reply to a UI command's outcome with
-  `sendMessage("action_result", { action_id, status, result })` — the SDK routes
-  those straight to the action's `on_result` instead.
-
-## Typed UI commands: `useUiCommand`
-
-Handling commands by hand is the same three lines in every app — subscribe to
-server messages, filter on `type`, `switch` on `action` — followed by re-coercing
-every argument out of an untyped bag. The hook is those lines, once:
-
-```tsx
-import { useUiCommand } from "@voqalize/client-react";
-
-const { client } = useVoqalSession({ /* … */ });
-
-useUiCommand(client, {
-  open_itinerary: ({ name }) => open(name),
-  select_flight: ({ leg_id, option_id }) => choose(leg_id, option_id),
-});
+```python
+class ConciergeBrain(GeminiBrain):
+    voice = "omnivoice/gauri"
+    language = "hi"          # the recognizer AND the TTS voice, together
 ```
 
-```ts
-useUiCommand<T>(client: PipecatClient | null, handlers: UiCommandHandlers<T>): void
-```
+and, when it depends on *this* caller, `session.configure_language(...)` inside
+`on_session_start`.
 
-A handler receives **only the arguments** — `type`, `action` and `action_id` are
-stripped, since they're the transport's — plus the whole command as a second
-argument when you need the `action_id` to reply with an outcome. `client` may be
-`null` before connect; the hook subscribes once one exists. Handlers are read
-through a ref, so an inline object literal is fine: re-rendering never
-re-subscribes.
+The two legs move together or the call is silently wrong. `tts.language` picks
+the voice-cloning reference clip and `stt.language_hint` picks the recognizer;
+move one without the other and the words stay correct while an English voice
+reads Devanagari. No transcript, log, metric or WER score can see that. It is
+found by ear, weeks later, and it was found by ear here. Set it in one place, and
+let that place be the one that sees the caller — see the
+[Voice & language catalog](/docs/reference/catalog/).
 
-An action with no handler is **not** an error — the brain and the page ship
-separately, and a new command reaching an old build must not break it. It goes to
-an optional `"*"` wildcard, else to `console.debug`.
+## Recording is a per-call decision
 
-### Typing it against the brain
+`record: false` is always honoured, so a caller who declines is never recorded
+even on an agent that records by default.
 
-Declare the command map — wire name → argument shape — and pass it as the type
-argument. Each handler's parameter is then that action's args, so a field renamed
-in Python is a compile error instead of an `undefined` that reaches the screen:
-
-```ts
-// Shapes mirror the brain's `voqalize.sdk.Action` subclasses — Python is the
-// source of truth.
-export interface TravelCommands {
-  open_itinerary: { name: string };
-  select_flight: { leg_id: string; option_id: string };
-}
-
-useUiCommand<TravelCommands>(client, {
-  open_itinerary: ({ name }) => open(name),               // name: string
-  select_flight: ({ leg_id, option_id }) => pick(leg_id, option_id),
-});
-```
-
-Write the type argument explicitly — an inline handler map gives TypeScript
-nothing to infer it from. The map is checked both ways: an action you didn't
-declare is rejected, and every declared handler is optional (a page may handle a
-subset). If the map lives away from the call site, `createUiCommandHandlers<T>(…)`
-pins it there instead:
-
-```ts
-const handlers = createUiCommandHandlers<TravelCommands>({ /* … */ });
-useUiCommand(client, handlers);
-```
-
-`uiCommandArgs(command)` is the same envelope-stripping used internally, exported
-for the rare place you hold a whole `UiCommand` and want just its args.
-
-The `travel` demo (`demos/travel`) runs this end to end: `Action` subclasses in
-`backend/brain.py`, the mirrored `TravelCommands` in `frontend/src/uiCommands.ts`.
+`record: true` is **refused** on a publishable key. A `pk_` key ships in page
+source, so anyone holding it could otherwise write voice into your storage, on
+your bill, for an agent whose owner chose not to record. The call still runs and
+nothing about it sounds wrong, so `createSession` warns on the console when it
+happens. Turn recording on where its owner controls it: the agent's own default,
+over MCP or in the console.
 
 ## Exports
 
-`VoqalAgent`, `useVoqalSession`, `useUiCommand`, `createUiCommandHandlers`,
-`uiCommandArgs`, `createSession`, `toConnectParams`, `VoqalSessionError`,
-`MicrophoneError`, `requestMicrophone`, `AmbientPresence`, `PreCallGate`, plus the
-TypeScript types (`UiCommand`, `UiCommandArgs`, `UiCommandHandlers`,
-`UseVoqalSessionOptions`, `VoqalSessionHandle`, `VoqalConnectionState`,
-`VoqalBotState`, `MicrophoneProblem`, `VoqalConnectParams`,
-`VoqalPipelineConfig`, and more).
+`createSession`, `toConnectParams`, `VoqalSessionError`, and the types
+`CreateSessionOptions`, `VoqalConnectParams`, `VoqalPipelineConfig`.
+
+That is the entire package. Everything else you reach for is pipecat's.
 
 ## Next
 
-- **The SDK README** (`sdk/python/README.md`) — the brain side of the
-  UI contract.
-- **[Voice & language catalog](/docs/reference/catalog/)** — the voices and languages,
-  and why the brain is the one place that sets them.
+- **[The wire](/docs/reference/wire/)** — the frames underneath all of this,
+  and the contract they keep.
+- **[Testing a brain](/docs/brain/testing/)** — the other end of the UI
+  contract, asserted on the frames.
+- **[Voice & language catalog](/docs/reference/catalog/)** — the voices and
+  languages, and why the brain is the one place that sets them.
