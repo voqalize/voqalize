@@ -13,7 +13,7 @@ dependencies = [
     "voqalize-agent-sdk[adk]",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "google-genai>=1.0",
+    "google-genai>=2.19",
     "loguru>=0.7",
     # RS256 verification of Voqalize's brain token needs a crypto backend. pyjwt
     # alone can't verify RS256; the brain host is the party that verifies, so the

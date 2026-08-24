@@ -55,7 +55,7 @@ adk = ["google-adk>=2.3,<3"]
 # same reason `adk` is: `import voqalize.sdk` must pull no model vendor. Floor is
 # 2.x because `GeminiBrain` sets `thinking_config.thinking_level`, which the 1.x
 # releases do not model.
-gemini = ["google-genai>=2.0"]
+gemini = ["google-genai>=2.19"]
 # Deps used only by the bundled examples/ — never imported by the SDK itself.
 # `examples/travel` (OpenAI Agents + Gemini), `examples/fastapi_inbound`
 # (FastAPI/uvicorn).
@@ -64,7 +64,7 @@ examples = [
     "python-dotenv>=1.0",
     "fastapi>=0.115",
     "uvicorn>=0.30",
-    "google-genai>=1.0",
+    "google-genai>=2.19",
 ]
 
 [project.urls]
