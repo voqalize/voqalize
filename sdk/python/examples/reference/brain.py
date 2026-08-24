@@ -10,7 +10,7 @@ Say                     | What it proves
 (anything)              | ``on_user_message`` streams — the reply arrives word
                         | by word, one ``Chunk`` each, inside one speech unit
 "look it up"            | Two units in one turn: a filler, a pause, an answer
-"open the dashboard"    | ``session.dispatch`` — a ui_command on the browser lane
+"open the dashboard"    | ``session.dispatch`` — a ui_command on the RTVI lane
 "ask me something"      | An action with ``on_result``, and the 15 s timeout that
                         | fires when nothing answers it
 "what did you hear"     | Heard-text reconciliation: what the caller actually
@@ -44,11 +44,11 @@ from loguru import logger
 from voqalize.sdk import (
     Action,
     Brain,
-    BrowserMessage,
     Chunk,
     Error,
     Finalize,
     Result,
+    RTVIMessage,
     Session,
     Speech,
     SpeechEnd,
@@ -57,7 +57,7 @@ from voqalize.sdk import (
     UserMessage,
 )
 
-# ─── Actions: a class per browser command, fields are the payload ─────────────
+# ─── Actions: a class per app command, fields are the payload ────────────────
 
 
 class OpenDashboard(Action):
@@ -67,7 +67,7 @@ class OpenDashboard(Action):
 
 
 class AskQuestion(Action):
-    """Dispatched with an ``on_result``; the browser answers, or it times out."""
+    """Dispatched with an ``on_result``; the app answers, or it times out."""
 
     prompt: str
     choices: list[str]
@@ -117,7 +117,7 @@ class ReferenceBrain(Brain):
     async def on_session_start(self, session: Session) -> None:
         logger.info("reference: session {} init={}", session.id, session.init)
         # Nudge after 20 s of silence rather than the default.
-        session.configure_idle(timeout_ms=20_000)
+        await session.configure_idle(timeout_ms=20_000)
 
     async def greet(self, session: Session) -> str:
         line = (
@@ -145,7 +145,7 @@ class ReferenceBrain(Brain):
         if self._pending_result is not None:
             result, self._pending_result = self._pending_result, None
             async for speech in self._say(
-                f"By the way, the browser answered action {result.action_id} "
+                f"By the way, the app answered action {result.action_id} "
                 f"with status {result.status}."
             ):
                 yield speech
@@ -208,7 +208,7 @@ class ReferenceBrain(Brain):
                 async for speech in self._say(f"Switching to {phrases[0]}."):
                     yield speech
                 # One call moves BOTH legs — the recognizer and the voice.
-                session.configure_language(lang, voice=_VOICES[lang])
+                await session.configure_language(lang, voice=_VOICES[lang])
                 return
 
         async for speech in self._say(f"You said: {msg.text}"):
@@ -221,9 +221,9 @@ class ReferenceBrain(Brain):
         async for speech in self._say("Still here whenever you are ready."):
             yield speech
 
-    async def on_browser_message(self, session: Session, msg: BrowserMessage) -> None:
-        # Not a generator: an application message never takes the floor.
-        logger.info("reference: app message {!r} id={} {}", msg.type, msg.id, msg.data)
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        # Not a generator: an app message never takes the floor.
+        logger.info("reference: rtvi {} id={} {}", msg.type.value, msg.id, msg.data)
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         """What the caller actually heard — the only place the brain learns it.

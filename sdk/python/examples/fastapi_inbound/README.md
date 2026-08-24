@@ -3,11 +3,11 @@
 A standalone FastAPI app that hosts a `Brain` on an inbound WebSocket route.
 **This is how you deploy a brain in production**: your framework owns the listener
 and the upgrade; the SDK just runs the session over the connected socket. PyGato
-dials `{brain_url}/s/{session_id}` — one connection per session, opened
-just-in-time, no relay.
+dials your `brain_url` verbatim with `?session_id=` appended — one connection per
+session, opened just-in-time, no relay.
 
 ```
-app.py             # FastAPI app: _WsChannel adapter + @app.websocket("/s/{session_id}") → run_session
+app.py             # FastAPI app: _WsChannel adapter + @app.websocket("/voice") → run_session
 requirements.txt   # voqalize-agent-sdk + fastapi + uvicorn
 Dockerfile         # container for Cloud Run / Fly / ECS
 ```
@@ -26,13 +26,13 @@ class _WsChannel:                       # FastAPI WebSocket → SDK Channel
     async def send(self, data): await self._ws.send_bytes(data)
     async def recv(self): return await self._ws.receive_bytes()
 
-@app.websocket("/s/{session_id}")
+@app.websocket("/voice")
 async def voice(websocket, session_id):
     await websocket.accept()
     await run_session(
         _WsChannel(websocket),
         brain=EchoBrain,
-        session_id=session_id,                          # from the URL path
+        session_id=session_id,                          # from ?session_id=
         token=websocket.headers.get("Authorization"),   # SDK verifies it
     )
 ```
@@ -54,8 +54,8 @@ VOQAL_ALLOW_UNVERIFIED=true \
   uv run uvicorn examples.fastapi_inbound.app:app --host 0.0.0.0 --port 8080
 ```
 
-Then point a **local** demo agent's `brain_url` at `ws://127.0.0.1:8080` (PyGato
-appends `/s/{session_id}`), open the console, and start a call.
+Then point a **local** demo agent's `brain_url` at `ws://127.0.0.1:8080/voice`
+(PyGato appends `?session_id=`), open the console, and start a call.
 
 ### Local-dev auth: `VOQAL_ALLOW_UNVERIFIED`
 
@@ -81,8 +81,8 @@ gcloud run deploy echo-brain \
 
 Cloud Run returns an HTTPS URL like `https://echo-brain-xxxx.run.app`. Set the
 agent's `brain_url` to its **WebSocket** form —
-`wss://echo-brain-xxxx.run.app` — and PyGato will dial
-`wss://echo-brain-xxxx.run.app/s/{session_id}` per session. No `allow_unverified`
+`wss://echo-brain-xxxx.run.app/voice` — and PyGato will dial
+`wss://echo-brain-xxxx.run.app/voice?session_id=…` per session. No `allow_unverified`
 in the deployed image: production PyGato signs with the prod key the SDK already
 trusts.
 

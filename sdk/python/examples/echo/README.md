@@ -40,8 +40,8 @@ VOQAL_ALLOW_UNVERIFIED=true \
   uv run uvicorn examples.fastapi_inbound.app:app --host 0.0.0.0 --port 8080
 ```
 
-Then point a **local** demo agent's `brain_url` at `ws://127.0.0.1:8080` (Voqalize
-appends `/s/{session_id}` itself), open the console, and start a call. You should
+Then point a **local** demo agent's `brain_url` at `ws://127.0.0.1:8080/voice`
+(Voqalize appends `?session_id=` itself), open the console, and start a call. You should
 hear the greeting, then your own words echoed back.
 
 If your process cannot accept an inbound connection at all, `await serve(EchoBrain,

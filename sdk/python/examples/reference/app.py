@@ -4,11 +4,11 @@
     VOQALIZE_BRAIN_PUBKEYS="$(cat pygato.pub.pem)" \
       uv run uvicorn examples.reference.app:app --host 0.0.0.0 --port 8290
 
-Your web framework owns the route; the SDK owns the session. PyGato dials
-``{brain_url}/s/{session_id}`` — one connection per session, opened just-in-time,
-torn down when the call ends. Mounted at ``/reference/s/{session_id}`` so one
-host can serve several brains under one origin, which is what
-``brain_url = wss://host/reference`` means.
+Your web framework owns the route; the SDK owns the session. PyGato dials your
+``brain_url`` verbatim with ``?session_id=`` appended — one connection per
+session, opened just-in-time, torn down when the call ends. Mounted at
+``/reference`` so one host can serve several brains under one origin, which is
+what ``brain_url = wss://host/reference`` means.
 
 Verification is on by default against the embedded Voqalize platform keys. A
 self-hosted or local runtime signs with its own key, so pass that key's PEM in
@@ -53,7 +53,7 @@ class _WsChannel:
         return await self._ws.receive_bytes()
 
 
-@app.websocket("/reference/s/{session_id}")
+@app.websocket("/reference")
 async def voice(websocket: WebSocket, session_id: str) -> None:
     await websocket.accept()
     logger.info("reference: session {} connected", session_id)
