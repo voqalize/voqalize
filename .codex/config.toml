@@ -1,0 +1,5 @@
+[mcp_servers.voqalize]
+url = "https://app.voqalize.com/mcp/"
+
+[mcp_servers.voqalize-dev]
+url = "https://app.dev.voqalize.com/mcp/"
