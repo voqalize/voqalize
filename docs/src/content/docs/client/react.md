@@ -16,6 +16,15 @@ around any of it would be a second surface to learn, a lag behind every pipecat
 release, and one more place a frame can be dropped in translation. So there
 isn't one.
 
+:::note[You do not have to install anything]
+The same call runs on stock pipecat with no package of ours in the browser — one
+`fetch`, one line that builds a `Headers`, and `client.connect`. If you are
+authenticating callers on your own backend, or you would rather not carry a
+dependency, read **[Connections and the
+handshake](/docs/client/handshake/)** instead; this page is that handshake with
+the helper.
+:::
+
 ## Install
 
 :::caution[npm serves an older surface than this page describes]
@@ -157,7 +166,10 @@ browser must not be trusted with — who the caller is, whether they still have
 credit, which agent they are entitled to.
 
 For that, mint on a route of your own holding a secret (`sk_…`) key, return the
-API's `connect_params` verbatim, and run them through `toConnectParams`:
+API's `connect_params` verbatim, and run them through `toConnectParams`. The
+server side of that — what your backend posts, what it relays, and why the trust
+boundary is yours rather than ours — is
+[Path B in the handshake notes](/docs/client/handshake/#path-b--your-backend-decides-who-may-call):
 
 ```tsx
 import { toConnectParams } from "@voqalize/client-react";
@@ -219,6 +231,8 @@ That is the entire package. Everything else you reach for is pipecat's.
 
 ## Next
 
+- **[Connections and the handshake](/docs/client/handshake/)** — the same call
+  without this package, and the two ways to hold the credential.
 - **[The wire](/docs/reference/wire/)** — the frames underneath all of this,
   and the contract they keep.
 - **[Testing a brain](/docs/brain/testing/)** — the other end of the UI
