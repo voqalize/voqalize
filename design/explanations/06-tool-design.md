@@ -37,11 +37,12 @@
   class name in snake_case (`__voqal_action__` to pin it); serialised
   `model_dump(by_alias=True, mode="json")`; JSON Schema export makes the
   TypeScript half generatable rather than hand-copied.
-- **The coercion layer is the "errors from the model's POV" mechanism.**
-  `voqalize/_framework/coerce.py`: `coerce_arguments` / `coerce_result`, and a
-  `CoercionError` becomes a **tool error result the model can see and retry** —
-  the code comment's phrase is "**never a dead turn.**" It is framework-agnostic,
-  so it holds for Gemini and ADK alike.
+- **A failed tool call is a result, not an exception** — the "errors from the
+  model's POV" mechanism. `sdk/gemini_interactions.py`: `_failed(...)` returns a
+  `FunctionResultStep` carrying `is_error=True`, so the model reads what went
+  wrong and calls again. The code comment's phrase is "**never a dead turn.**"
+  `is_error` is the half the automatic path has no room for: there a failure
+  reaches the model as an ordinary payload and gets narrated as success.
 - Interruption cancels the *turn* (`_cancel_turns()`, generator `aclose()`), not
   dispatched actions or in-flight work — see [3](03-interruption-and-heard-truth.md).
 

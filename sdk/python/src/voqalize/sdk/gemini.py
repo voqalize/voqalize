@@ -460,8 +460,10 @@ def _ready(fn: Callable[..., Any]) -> Callable[..., Any]:
     """
     if not inspect.iscoroutinefunction(fn):
         raise TypeError(
-            f"tool {getattr(fn, '__name__', fn)!r} must be `async def`: a sync tool runs on a "
-            "worker thread, where self.session and self.turn are not set"
+            f"tool {getattr(fn, '__name__', fn)!r} must be `async def`. A sync tool runs on a "
+            "worker thread, where self.session and self.turn are unset, so the first "
+            "self.session.dispatch(...) raises mid-call. Make it `async def` — the body needs "
+            "no other change."
         )
 
     @functools.wraps(fn)

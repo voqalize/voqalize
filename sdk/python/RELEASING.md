@@ -102,6 +102,6 @@ started compiling, and `pip install` would go quiet on every platform that did
 not get a wheel.
 
 `pip install voqalize-agent-sdk` pulls `websockets`, `loguru`, `protobuf`,
-`pyjwt[crypto]` and `pydantic` — deliberately **not** pipecat and **not** ADK.
-The Google ADK integration is the `[adk]` extra, so `import voqalize.sdk` costs a
-host application nothing it did not ask for.
+`pyjwt[crypto]`, `cryptography` and `pydantic` — deliberately **not** pipecat and
+**not** a model vendor. `GeminiBrain` lives behind the `[gemini]` extra, so
+`import voqalize.sdk` costs a host application nothing it did not ask for.

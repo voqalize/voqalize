@@ -44,7 +44,13 @@ become; it does not govern this file.
 13. **Undo is a compensating call, not a rollback.** If a tool is expensive enough
     that you want to cancel it, it should have been split. — *agreed.*
 14. **Typed arguments; errors from the model's point of view.** A bad call returns
-    an error result the model can read and retry. **Never a dead turn.** — *agreed, implemented in `_framework/coerce.py`.*
+    an error result the model can read and retry. **Never a dead turn.** — *agreed;
+    the error half is implemented (`sdk/gemini_interactions.py`, `_failed`), the
+    typed half only partly. The richer coercion — `list[Model]` arguments,
+    `Field(alias=…)` honoured both ways, a returned model dumped by alias — lived
+    in `_framework/coerce.py` and went out with the ADK adapter on 2026-08-24. The
+    hand-rolled `_coerce` that replaced it builds a single pydantic parameter and
+    passes everything else through.*
 15. **Validate the shape, let the model write the words.** `ask_choice` guarantees
     2–4 covering choices; the phrasing stays the model's. — *agreed, and generalisable.*
 16. **A correction preserves identity.** A quantity tweak is never a re-add; a

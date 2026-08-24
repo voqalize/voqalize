@@ -34,9 +34,9 @@
   distinguishable from the agent's own work.
 - **Every action carries the whole row**, so a correction is a re-render of one
   row and not a diff that can half-apply ([7](07-who-owns-which-state.md)).
-- **Coercion errors are retriable** rather than fatal — a malformed tool call
-  becomes an error result the model can read and fix, "never a dead turn"
-  (`_framework/coerce.py`) ([6](06-tool-design.md)).
+- **A malformed tool call is retriable** rather than fatal — it comes back as an
+  error result the model can read and fix, "never a dead turn"
+  (`sdk/gemini_interactions.py`, `_failed`) ([6](06-tool-design.md)).
 
 ## Proof — the correction taxonomy
 

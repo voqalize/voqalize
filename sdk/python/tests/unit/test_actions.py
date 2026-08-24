@@ -83,7 +83,7 @@ def test_aliases_are_emitted_by_alias_at_every_depth() -> None:
 
 def test_either_spelling_constructs() -> None:
     """``populate_by_name`` — the field name and the alias both validate, matching how
-    the SDK builds tool *arguments* (``_framework.coerce``)."""
+    the SDK builds tool *arguments* (``sdk.gemini_interactions._coerce``)."""
     by_alias = SearchFlights(leg_id="l", **{"from": "BLR"})
     by_name = SearchFlights(leg_id="l", from_="BLR")
     assert (

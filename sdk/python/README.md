@@ -34,76 +34,75 @@ ephemeral localhost port. It is a test bench, not a hosting option.
 
 ```bash
 pip install voqalize-agent-sdk               # core, pipecat-free
-pip install "voqalize-agent-sdk[adk]"        # + the Google ADK integration
+pip install "voqalize-agent-sdk[gemini]"     # + `GeminiBrain` (google-genai)
 pip install "voqalize-agent-sdk[examples]"   # + deps used only by examples/
 ```
 
-## Already have an ADK agent? Wrap it
+## The smallest complete brain
 
-If your brain is already a **Google ADK** agent, you don't port it to the `Brain`
-API. You hand the SDK a factory for the agent you already have, and it drives your
-agent's own run loop — adding only the voice concerns: one speech bracket per model
-call, barge-in, heard-truth history (what the user *actually heard*, truncated on
-interruption), and the wire. Your agent, tools, model, and prompt stay exactly as
-they are.
-
-The integration is an **optional extra** — `import voqalize.sdk` pulls none of it;
-installing `[adk]` is what pulls in `google-adk`.
+One method is required. It is handed what the caller said and yields speech; the
+brackets are what let the runtime start and stop audio without waiting for the
+sentence to finish.
 
 ```python
-from google.adk.agents import LlmAgent
-from voqalize.google_adk import adk_brain
-from voqalize.sdk import run_session
+from collections.abc import AsyncGenerator
+from voqalize.sdk import Brain, Chunk, Session, Speech, SpeechEnd, SpeechStart, UserMessage
 
-def build_agent() -> LlmAgent:                 # your existing agent, unchanged
-    return LlmAgent(name="desk", model="gemini-2.5-flash",
-                    instruction="You are a travel desk.", tools=[book_flight])
+class EchoBrain(Brain):
+    async def greet(self, session: Session) -> str:
+        return "Hi! I'm an echo bot. Say something and I'll repeat it back."
 
-make = adk_brain(build_agent, greeting="Travel desk — where to?")
-await run_session(channel, brain=make, session_id=session_id, token=token)
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[Speech, None]:
+        yield SpeechStart()
+        yield Chunk(f"You said: {msg.text}")
+        yield SpeechEnd()
 ```
 
-Every default is overridable and your existing framework customizations survive:
-a dynamic `greeting=` callback, your own ADK `Runner` / `SessionService` via
-`runner_factory=`, multi-agent trees, `on_resume=` to rehydrate a conversation that
-spanned an earlier call, `turn_timeout` / `error_fallback`, and `voice().action(...)`
-from inside a tool to drive the browser. For the full knob list, read the
-`adk_brain` docstring. ADK is the one shipped framework integration today.
+`greet` returns a **string, not a model call** — the caller is already on the line
+and the first word has to arrive now. A template is as clever as it gets.
 
-### Subclass `AdkBrain` when the agent needs the screen
+## Let a model do the talking: `GeminiBrain`
 
-A screen-driving agent extends `AdkBrain` instead of calling `adk_brain(...)`, and
-gets four things the raw framework doesn't give you:
+`GeminiBrain` (`[gemini]` extra) fills in the parts every model-backed brain
+writes the same way: the history, the streaming, the tool hops, and the rewrite at
+the end that makes the transcript say what the caller *heard*. You bring the
+system instruction and the tools.
 
 ```python
-class TravelBrain(AdkBrain):
+from google import genai
+from voqalize.sdk.gemini import GeminiBrain
+
+class Concierge(GeminiBrain):
     def __init__(self) -> None:
-        super().__init__(lambda: build_agent(self.desk), greeting="Where to?")
-        self.desk = TravelDesk()          # the agent is built lazily — this is in time
+        super().__init__(client=genai.Client(), system_instruction="You are a travel desk.")
 
-    def grounding(self) -> str:           # appended to the system instruction, every call
-        return "ON SCREEN NOW: " + json.dumps(self.browser_state or {})
+    async def greet(self, session):
+        return "Travel desk — where to?"
+
+    @property
+    def tools(self):
+        return [self.open_booking]
+
+    async def open_booking(self, args: OpenBooking) -> str:
+        """Put the booking form on screen."""      # the model reads this
+        self.session.dispatch(args)
+        return "ok"
 ```
 
-- **`grounding()`** is appended to the *fully assembled* system instruction on every
-  model call — the root agent's and each sub-agent's. It composes with your own
-  `instruction` rather than replacing it, is re-read per call (so `return None`
-  omits the block turn by turn), and costs no round-trip. Use it for anything the
-  model must not answer from a stale turn.
-- **`self.browser_state`** is the last `state_sync` client message your UI pushed,
-  parsed and kept for you. It takes **no floor** — a screen change never makes the
-  agent talk — and replaces rather than merges. Override `on_client_message` for
-  your own message types and call `super()` to keep it.
-- **Tool arguments arrive as the models you annotated.** A parameter typed `Leg` or
-  `list[Leg]` is constructed before your tool runs, `Field(alias=...)` honored both
-  ways; an argument the model shaped wrong comes back to it as a retryable tool
-  error, not an exception. No defensive `isinstance(raw, dict)` in the body.
-- **Tools must be `async`.** A sync tool is rejected when the agent is built, naming
-  it — ADK would dispatch it on a thread pool where `voice()` is unset, and you'd
-  find out mid-call. `allow_sync_tools=True` opts out.
+**The method is the declaration.** A tool is a bound `async def`: its docstring is
+the description the model reads, its single pydantic parameter is the schema. There
+is no registry and no decorator to forget.
 
-The [`travel` demo](https://github.com/voqalize/voqalize/blob/main/demos/travel/backend/brain.py)
-is the worked example: a prompt, ten async tools, and one `grounding()` override.
+Two overrides carry most of what a real agent needs. `grounding()` returns a note
+appended to the system instruction on every call — use it for the screen state, so
+the model never answers from a stale turn. `system_instruction` is settable, so
+facts known only once the session opens (who called, which tenant) go in from
+`on_session_start`.
+
+`import voqalize.sdk` pulls no model vendor: nothing in the core SDK imports this
+module.
 
 ## Layout
 
@@ -132,14 +131,10 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
   `is_system()`, `WireSerializer` (the protobuf serializer, no base class),
   `Wire`/`MultiplexedWire` transport, protobuf stubs.
-- `src/voqalize/_framework/` — the shared, framework-agnostic core every framework
-  integration is built on: `_FrameworkBrain` (owns `run_inference`, the one
-  primitive that spends a floor on a model turn), `voice()` (the `ContextVar`
-  accessor a native tool uses for UI side-effects), heard-truth readers, the
-  greeting/resume resolver, and the no-dead-air turn runner. Internal.
-- `src/voqalize/google_adk/` — the **Google ADK** integration (`[adk]` extra):
-  `AdkBrain` / `adk_brain(...)` plus `ScriptedLlm` for tests. See
-  [Already have an ADK agent? Wrap it](#already-have-an-adk-agent-wrap-it).
+- `src/voqalize/sdk/gemini.py` — `GeminiBrain` (`[gemini]` extra): history, the
+  streamed turn, the tool hops google-genai runs for us, and the finalize that
+  rewrites the transcript to what was heard. `gemini_interactions.py` is the same
+  turn against the Interactions API.
 - `src/voqalize/conformance/` — the wire-level conformance harness: `VoqalizeDriver`
   (drives a brain over a real socket from the voice-runtime side, no runtime
   needed), `brain_server` (a brain on an ephemeral localhost port, for tests that
@@ -201,19 +196,19 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   the newest frame and delivers a non-fatal `ErrorFrame` to the adapter
   (edge-triggered: one per congestion episode per direction), surfaced to the Brain
   via optional `on_error`.
-- **Heard truth, not generated text.** A framework integration commits the user
-  utterance when the stimulus arrives and one assistant message per speech unit
-  from its *heard* text at finalize. The Brain keeps no parallel history and
-  cannot commit what it generated.
+- **Heard truth, not generated text.** A brain that keeps a transcript commits the
+  user utterance when the stimulus arrives, and one assistant message per speech
+  unit — from its *heard* text, at finalize. `GeminiBrain` does this for you. A
+  reply that generated three sentences and was cut after one is remembered as one,
+  which is the only version the caller and the model can both agree on.
 
 ## Read next
 
 - [`../../proto/voqalize/frames/frames.proto`](../../proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
 - [`../../docs/src/content/docs/reference/wire.md`](../../docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
 - The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
-- `examples/` — runnable brains: `echo` (smallest complete brain), `travel`
-  (a hand-written `Brain` over Gemini with screen-driving tools), `travel_adk`
-  (the same agent as a native ADK `LlmAgent`, wrapped with `adk_brain`),
+- `examples/` — runnable brains: `echo` (the smallest complete brain),
+  `reference` (the one every conformance scenario is run against),
   `fastapi_inbound` (mount a brain in your own FastAPI app).
 
 ## Development

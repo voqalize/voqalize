@@ -52,11 +52,32 @@ before it has greeted — and the same in reverse, so neither end ever guesses.
   `.inferences` → `.units`, `.epoch` → `.turn_id`; `send_browser_message` →
   `send_rtvi` / `send_client_message`; scenario ids `two_inferences_one_turn` →
   `two_units_one_turn` and `browser_message_*` → `app_message_*`.
+- **`cryptography` is a declared dependency** rather than one borrowed from
+  `pyjwt[crypto]`: `voqalize.conformance` imports it directly to mint the keypair
+  a scenario signs with. A package you import is a package you declare.
+- **The `examples` extra is now `fastapi` + `uvicorn`.** `openai-agents`,
+  `python-dotenv` and `google-genai` left with the examples that used them.
+- **`py.typed` moved.** `voqalize` is a namespace package, so the marker at its
+  root was never read; it now sits in `voqalize/conformance/`, beside the one
+  `voqalize/sdk/` already had. Both packages are typed to consumers, which is what
+  the root marker was meant to do and did not.
 
-### Known gaps
+### Removed
 
-- `voqalize.google_adk` does not speak version 3 yet; its test suite is not
-  collected.
+- **`voqalize.google_adk` is gone**, along with `voqalize._framework` and the
+  `[adk]` extra. The adapter never learned version 3 — turns, the RTVI plane and
+  the heard-truth write-back all still assumed version 2 — and its suite had been
+  switched off at collection since that break, so what shipped was 2,100 lines
+  that nothing ran. A test file that is not collected is not a skip: the suite
+  reported green the whole time.
+
+  It comes back as a port once the `Brain` surface has settled. The shape it ports
+  *to* already exists: `tests/contract/` states the nine clauses once and runs them
+  against every engine, so adding an integration is writing an `Engine` and reading
+  the failures — not another twenty-two files of its own.
+- **`examples/travel` and `examples/travel_adk`.** Both were written against the
+  retired `on_interaction` surface. `echo`, `reference` and `fastapi_inbound` are
+  on the current one and stay.
 
 ## 0.0.3
 

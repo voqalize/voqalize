@@ -75,7 +75,7 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.0.3'
+    value: '0.0.4'
     source: sdk/python/pyproject.toml:3
     verified: 2026-08-24
     derive:

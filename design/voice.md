@@ -243,11 +243,10 @@ moment. What happened, the mechanism that makes it wrong, the exact edit that fi
 apology, and never the word "unexpected".
 
 ```
-AdkBrain: tool(s) book_flight on agent 'concierge' are not `async def`.
-Voice tools must be async: ADK dispatches a sync tool on a thread pool, where
-the SDK's voice() context var is unset and voice().action(...) raises
-NoActiveVoice mid-call. Make them `async def` — the body needs no other
-change — or pass allow_sync_tools=True if these tools never call voice().
+tool 'book_flight' must be `async def`. A sync tool runs on a worker thread,
+where self.session and self.turn are unset, so the first
+self.session.dispatch(...) raises mid-call. Make it `async def` — the body
+needs no other change.
 ```
 
 **SDK docstrings** are where the point of view becomes enforceable, because the reader is
