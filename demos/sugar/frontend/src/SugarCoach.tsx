@@ -19,7 +19,10 @@
  * `PipecatClient`: `usePipecatClientTransportState`/`usePipecatConnectionState`
  * report the call, RTVI events say who is speaking, `PipecatAppBase`'s own
  * `BotAudioOutput` plays the coach, and the brain's `session.dispatch(...)`
- * arrives on `RTVIEvent.UICommand` as `{ command, payload }`.
+ * arrives on `RTVIEvent.UICommand` as `{ command, payload }`. The only
+ * Voqalize-specific code on the page is the request that starts the call and
+ * the one line over its answer, both in `src/config.ts` — there is no client
+ * library to install.
  *
  * Two bridges tie the call to the screen:
  *   - every `ui-command` replays onto the shared sugar store, so the coach drives
@@ -33,16 +36,11 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import { usePipecatClient, usePipecatClientMicControl, usePipecatClientTransportState, useRTVIClientEvent } from "@pipecat-ai/client-react";
 import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
-import { fromSessionResponse, startBotParams } from "@voqalize/client-react";
 import { AmbientPresence, type AmbientPresenceActivity, type AmbientPresencePalette } from "@voqalize/demo-kit";
 import { Mic, MicOff } from "lucide-react";
-import { config } from "./config";
+import { connectRequest, withRealHeaders } from "./config";
 import { COACH_NAME } from "./data";
 import { useSugar } from "./store";
-
-// Tenant + agent + pk resolve per-environment from this demo's local config
-// (src/config.ts), driven by Vite env vars.
-const SUGAR = config;
 
 const GREEN = "#0E7A5F";
 const RED = "#D6453D";
@@ -113,15 +111,7 @@ export function SugarCallSession() {
   // effect, so an unmemoized object literal would re-fire that effect (and
   // re-mint a session) on every render.
   const params = useMemo(
-    () =>
-      startBotParams({
-        apiBase: SUGAR.apiBase,
-        // Empty when unprovisioned — the control plane rejects with a clear
-        // 401, shown in the bar's error state via PipecatAppBase's `error`.
-        publishableKey: SUGAR.publishableKey ?? "",
-        agentId: SUGAR.agentId,
-        payload: { surface: "sugar-web", ...(brainPayload() as Record<string, unknown>) },
-      }),
+    () => connectRequest({ surface: "sugar-web", ...(brainPayload() as Record<string, unknown>) }),
     [brainPayload],
   );
 
@@ -131,7 +121,7 @@ export function SugarCallSession() {
       connectOnMount
       noThemeProvider
       startBotParams={params}
-      startBotResponseTransformer={fromSessionResponse}
+      startBotResponseTransformer={withRealHeaders}
     >
       {({ error, handleConnect }) => <CallBar error={error ?? null} onRetry={handleConnect} />}
     </PipecatAppBase>

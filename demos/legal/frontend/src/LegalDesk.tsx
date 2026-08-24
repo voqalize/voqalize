@@ -4,44 +4,52 @@
  * prominent presence control (not a bottom chat-widget dock — this is meant
  * to read as part of the product's own chrome, not a bolted-on assistant).
  * Left rail is matter detail + clause outline only. Main = DocumentViewer, ringed
- * by the shared `AmbientPresence` glow from `@voqalize/client-react` — the
- * catalog-wide voice treatment, in Docket's oxblood. TaskTray docked, quiet.
- * When the assistant points at a clause, the ring's beam layer travels from the
- * screen edge to it. Once connected the mic stays
- * open — no push-to-talk — the presence control doubles as a mute toggle,
- * with a small secondary "end" control beside it.
+ * by the shared `AmbientPresence` glow — the catalog-wide voice treatment, in
+ * Docket's oxblood. TaskTray docked, quiet. When the assistant points at a
+ * clause, the ring's beam layer travels from the screen edge to it. Once
+ * connected the mic stays open — no push-to-talk — the presence control doubles
+ * as a mute toggle, with a small secondary "end" control beside it.
  *
- * The whole session lifecycle — mint against the control plane, WebRTC
- * transport, mic control, bot-state — is the public SDK's {@link useVoqalSession};
- * this file is just the desk chrome plus two bridges that tie the call to the
- * shared store: the agent's `ui_command` server-messages replay onto the store
- * (so it drives the document), and the store's silent `clause_focus` reading
- * position is echoed back to the agent. This is exactly the surface an external
- * developer embeds: `useVoqalSession` from `@voqalize/client-react`, driven by a
- * publishable (`pk_`) key. Mounted once inside the `LegalProvider`.
+ * **This is exactly the surface an external developer embeds, and it is almost
+ * entirely pipecat's.** Voice-ui-kit's `PipecatAppBase` does pipecat's whole
+ * two-step connect (`startBot` against the control plane, then `connect` the
+ * transport) and owns the client's lifecycle; everything below it is a stock
+ * `PipecatClient`: `usePipecatClientTransportState`/`usePipecatConnectionState`
+ * report the call, RTVI events say who is speaking, `PipecatAppBase`'s own
+ * `BotAudioOutput` plays counsel, and the brain's `session.dispatch(...)`
+ * arrives on `RTVIEvent.UICommand` as `{ command, payload }`. The only
+ * Voqalize-specific code on the page is the request that starts the call and
+ * the one line over its answer, both in `src/config.ts` — there is no client
+ * library to install.
+ *
+ * Two bridges tie the call to the shared store: every `ui-command` replays onto
+ * it (so the assistant drives the document), and the store's silent
+ * `clause_focus` reading position goes back the other way as an RTVI
+ * `client-message`. Mounted once inside the `LegalProvider`.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/client-react';
-import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { RTVIEvent, type UICommandData } from '@pipecat-ai/client-js';
+import {
+  usePipecatClient,
+  usePipecatClientMicControl,
+  usePipecatClientTransportState,
+  useRTVIClientEvent,
+} from '@pipecat-ai/client-react';
+import { PipecatAppBase, usePipecatConnectionState } from '@pipecat-ai/voice-ui-kit';
 import { Mic, MicOff, PhoneOff, Loader2 } from 'lucide-react';
 import {
   AmbientPresence,
-  useVoqalSession,
+  DemoGate,
+  type AmbientPresenceActivity,
   type AmbientPresencePalette,
-  type VoqalConnectionState,
-} from '@voqalize/client-react';
-import { DemoGate } from '@voqalize/demo-kit';
+} from '@voqalize/demo-kit';
 import { useLegal } from './store';
 import { CLAUSES, DATA_ROOM, MATTER } from './content';
 import { DocumentViewer } from './DocumentViewer';
 import { TaskTray } from './TaskTray';
 import { ObligationsPanel } from './ObligationsPanel';
-import { config } from './config';
-
-// Tenant + agent + pk resolve per-environment from this demo's local config
-// (src/config.ts), driven by Vite env vars.
-const LEGAL = config;
+import { connectRequest, withRealHeaders } from './config';
 
 type Status = 'idle' | 'connecting' | 'live' | 'error';
 
@@ -57,18 +65,11 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
   beam: '#9A3324',
 };
 
-// The store's ConnectionState vocabulary uses `live`; the SDK hook reports
-// `connected`/`disconnected`. Map the transport state onto the store's.
-const CONNECTION_STATUS: Record<VoqalConnectionState, Status> = {
-  idle: 'idle',
-  connecting: 'connecting',
-  // `awaiting-microphone` folds into `connecting`: the browser's own permission
-  // prompt is on screen at that moment and is the thing to answer, so the chrome
-  // should keep saying "wait" rather than invent a state of its own.
-  'awaiting-microphone': 'connecting',
-  connected: 'live',
-  disconnected: 'idle',
-  error: 'error',
+const ACTIVITY_LABEL: Record<AmbientPresenceActivity, string> = {
+  idle: 'Live',
+  listening: 'Listening',
+  thinking: 'Thinking',
+  speaking: 'Speaking',
 };
 
 function ClauseNav() {
@@ -115,15 +116,13 @@ function BeginControl({ status, error, onBegin }: { status: Status; error: strin
   );
 }
 
-function LiveControls({ onEnd }: { onEnd: () => void }) {
+function LiveControls({ activity, onEnd }: { activity: AmbientPresenceActivity; onEnd: () => void }) {
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
-  const { botState } = useLegal();
-  const label = { idle: 'Live', listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking' }[botState];
   return (
     <div className="desk-presence">
-      <span className="desk-presence-label">{isMicEnabled ? label : 'Muted'}</span>
+      <span className="desk-presence-label">{isMicEnabled ? ACTIVITY_LABEL[activity] : 'Muted'}</span>
       <button
-        className={`desk-presence-btn is-live glow-${botState} ${isMicEnabled ? '' : 'is-muted'}`}
+        className={`desk-presence-btn is-live glow-${activity} ${isMicEnabled ? '' : 'is-muted'}`}
         onClick={() => enableMic(!isMicEnabled)}
         title={isMicEnabled ? 'Mute' : 'Unmute'}
       >
@@ -434,61 +433,101 @@ function LeftRail() {
   );
 }
 
+/**
+ * Mints the session and owns the client. `PipecatAppBase` builds the
+ * `PipecatClient`, does pipecat's two-step connect (`startBot` against the
+ * control plane, then `connect` the transport it returns) and mounts
+ * `PipecatClientProvider` — with its own `BotAudioOutput` — as soon as the
+ * client exists, **not** when the call goes live: counsel's audio track is
+ * announced once, from the remote track's `unmute` a few hundred milliseconds
+ * after the peer connection is up, and a listener that subscribes late finds
+ * nothing to read. `connectOnMount` is off: nothing opens a microphone until
+ * the visitor has read the notice and joined.
+ */
 function LiveLayer() {
-  const { setBotState, setConnectionState, handleUiCommand, registerAgentSend, pointer } =
-    useLegal();
+  // Memoized: a fresh object every render would re-fire the connect effect and
+  // re-mint a session. No pipeline override — this agent's voice and language
+  // are declared on its brain (backend/brain.py), the only place they belong.
+  const params = useMemo(() => connectRequest({ surface: 'legal-web' }), []);
 
-  // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
-  // (past the `{ data }` quirk), so we read `type` directly.
-  const session = useVoqalSession({
-    apiBase: LEGAL.apiBase,
-    // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the presence control's error state.
-    publishableKey: LEGAL.publishableKey ?? '',
-    agentId: LEGAL.agentId,
-    // No pipeline override: this agent's voice and language are declared on
-    // its brain (backend/brain.py), which is the only place they belong.
-    payload: { surface: 'legal-web' },
-    onServerMessage: useCallback(
-      (msg: Record<string, unknown>) => {
-        if (msg.type === 'ui_command') handleUiCommand(msg);
-      },
+  return (
+    <PipecatAppBase
+      transportType="smallwebrtc"
+      noThemeProvider
+      startBotParams={params}
+      startBotResponseTransformer={withRealHeaders}
+    >
+      {({ error, handleConnect, handleDisconnect }) => (
+        <Desk error={error ?? null} onBegin={handleConnect} onEnd={handleDisconnect} />
+      )}
+    </PipecatAppBase>
+  );
+}
+
+/** The desk chrome, the presence ring, and the two bridges to the store. */
+function Desk({
+  error,
+  onBegin,
+  onEnd,
+}: {
+  error: string | null;
+  onBegin?: () => void | Promise<void>;
+  onEnd?: () => void | Promise<void>;
+}) {
+  const client = usePipecatClient();
+  const transportState = usePipecatClientTransportState();
+  const { isConnected: isLive, isConnecting } = usePipecatConnectionState();
+  const { handleUiCommand, registerAgentSend, pointer } = useLegal();
+  const [activity, setActivity] = useState<AmbientPresenceActivity>('idle');
+
+  const status: Status =
+    error || transportState === 'error' ? 'error' : isLive ? 'live' : isConnecting ? 'connecting' : 'idle';
+
+  // Screen ← assistant. The brain's `session.dispatch(PointToClause(...))` lands
+  // here as `{ command: "point_to_clause", payload: {...} }`. Subscribing to the
+  // event rather than registering eight `useUICommandHandler`s: the store is one
+  // reducer, and an unknown command is a no-op there by design.
+  useRTVIClientEvent(
+    RTVIEvent.UICommand,
+    useCallback(
+      ({ command, payload }: UICommandData) =>
+        handleUiCommand(command, (payload ?? {}) as Record<string, unknown>),
       [handleUiCommand],
     ),
-  });
+  );
 
-  const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } =
-    session;
+  // Presence is derived from pipecat's own events, never stored twice.
+  useRTVIClientEvent(RTVIEvent.UserStartedSpeaking, useCallback(() => setActivity('listening'), []));
+  useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity('thinking'), []));
+  useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity('speaking'), []));
+  useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity('idle'), []));
 
-  const status = CONNECTION_STATUS[connectionState];
-
-  // Mirror the SDK's bot/connection state into the shared store — the live
-  // presence control reads them from `useLegal()`. (The ambient ring itself takes
-  // them as props, straight off the session.)
+  // Assistant ← screen. The store's silent `clause_focus` rides an RTVI
+  // client-message once the call is live.
   useEffect(() => {
-    setBotState(botState);
-  }, [botState, setBotState]);
-  useEffect(() => {
-    setConnectionState(status);
-  }, [status, setConnectionState]);
-
-  // Register the store's agent-send channel (silent `clause_focus`) and open the
-  // mic once the session is live.
-  useEffect(() => {
-    if (connectionState !== 'connected') return;
-    enableMic(true);
-    registerAgentSend((type, data) => sendMessage(type, data as Record<string, unknown>));
+    if (!isLive || !client) return;
+    registerAgentSend((type, data) => client.sendClientMessage(type, data));
     return () => registerAgentSend(null);
-  }, [connectionState, enableMic, registerAgentSend, sendMessage]);
+  }, [isLive, client, registerAgentSend]);
 
-  const begin = () => {
-    connect();
-  };
+  // Dev-only: drive the review without a mic.
+  //   window.__legal.sendText('what is risky about the liability cap?')
+  //   window.__legal.ui('point_to_clause', { clause_id: 'c8' })
+  useEffect(() => {
+    if (!import.meta.env.DEV || !client) return;
+    (window as unknown as { __legal?: unknown }).__legal = {
+      client,
+      ui: handleUiCommand,
+      sendText: (t: string) => client.sendText(t),
+    };
+    return () => {
+      delete (window as unknown as { __legal?: unknown }).__legal;
+    };
+  }, [client, handleUiCommand]);
 
-  // Nothing opens a microphone until the visitor has read the notice and joined.
   const [joined, setJoined] = useState(false);
 
-  const shell = (
+  return (
     <>
       <DemoGate
         open={!joined}
@@ -498,18 +537,22 @@ function LiveLayer() {
         busy={status === 'connecting'}
         error={status === 'error' ? error || 'Connection issue' : null}
         onJoin={async () => {
-          await connect();
+          await onBegin?.();
           setJoined(true);
         }}
       />
       <AmbientPresence
-        botState={botState}
-        connectionState={connectionState}
+        activity={activity}
+        transportState={transportState}
         palette={PRESENCE}
         beam={pointer ? { id: pointer.nonce, targetId: `clause-${pointer.clauseId}` } : null}
       />
       <TopBar status={status}>
-        {client ? <LiveControls onEnd={disconnect} /> : <BeginControl status={status} error={error ?? ''} onBegin={begin} />}
+        {isLive ? (
+          <LiveControls activity={activity} onEnd={() => void onEnd?.()} />
+        ) : (
+          <BeginControl status={status} error={error ?? ''} onBegin={() => void onBegin?.()} />
+        )}
       </TopBar>
       <LeftRail />
       <TaskTray />
@@ -534,15 +577,6 @@ function LiveLayer() {
         }
       `}</style>
     </>
-  );
-
-  if (!client) return shell;
-
-  return (
-    <PipecatClientProvider client={client}>
-      <BotAudioOutput />
-      {shell}
-    </PipecatClientProvider>
   );
 }
 

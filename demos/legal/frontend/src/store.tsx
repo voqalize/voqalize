@@ -3,13 +3,23 @@
  *
  * One React context drives the document view and the ambient voice layer, so
  * the assistant and the lawyer work the same screen. The assistant mutates
- * state via `ui_command` RTVI messages (handleUiCommand): `point_to_clause`
- * scrolls/highlights a clause, `add_comment`/`propose_redline` anchor content
- * to a clause, and `run_diligence` drops fully-resolved background-task cards
- * that animate queued -> running -> done on their own (no real backend
- * concurrency — the model generates each result up front, the browser just
- * paces the reveal). The browser silently tells the assistant which clause is
- * in view via `clause_focus`, so it always knows where the lawyer is reading.
+ * state through RTVI's own `ui-command` — the brain's `session.dispatch(...)`
+ * arrives as `{ command, payload }` and {@link LegalStore.handleUiCommand} is
+ * the one reducer over it: `point_to_clause` scrolls/highlights a clause,
+ * `add_comment`/`propose_redline` anchor content to a clause, and
+ * `run_diligence` drops fully-resolved background-task cards that animate
+ * queued -> running -> done on their own (no real backend concurrency — the
+ * model generates each result up front, the browser just paces the reveal). An
+ * unknown command is a no-op by design: the brain and this page ship separately.
+ *
+ * The browser silently tells the assistant which clause is in view by sending
+ * `clause_focus` as an RTVI `client-message`, so it always knows where the
+ * lawyer is reading.
+ *
+ * What this store deliberately does **not** hold is what the assistant is
+ * doing. Presence is a rendering of pipecat's own state, never a second copy of
+ * it kept here — the call component derives it from RTVI events and hands it
+ * to the ring as a prop.
  */
 
 import {
@@ -23,8 +33,6 @@ import {
 } from 'react';
 import { CLAUSES, CLAUSES_BY_ID, type Clause } from './content';
 
-export type BotState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type ConnectionState = 'idle' | 'connecting' | 'live' | 'error';
 export type TaskStatus = 'queued' | 'running' | 'done';
 export type TaskKind =
   | 'finding'
@@ -129,15 +137,12 @@ export interface LegalStore {
   obligations: Obligation[];
   sessionSummary: SessionSummary | null;
   pointer: PointerEvent_ | null;
-  botState: BotState;
-  connectionState: ConnectionState;
 
   setFocusedClause: (clauseId: string | null) => void;
-  setBotState: (s: BotState) => void;
-  setConnectionState: (s: ConnectionState) => void;
   setApprovalStatus: (id: string, status: ApprovalStatus) => void;
 
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  /** Replay one `ui-command` onto the screen. Unknown commands are ignored. */
+  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
   registerAgentSend: (fn: AgentSend | null) => void;
   sendClauseFocus: (clauseId: string) => void;
 }
@@ -183,8 +188,6 @@ export function LegalProvider({ children }: { children: ReactNode }) {
   const [obligations, setObligations] = useState<Obligation[]>([]);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [pointer, setPointer] = useState<PointerEvent_ | null>(null);
-  const [botState, setBotState] = useState<BotState>('idle');
-  const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
 
   const agentSendRef = useRef<AgentSend | null>(null);
   const timersRef = useRef<number[]>([]);
@@ -341,51 +344,51 @@ export function LegalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      const action = String(cmd.action ?? '');
-      switch (action) {
+    (command: string, payload: Record<string, unknown>) => {
+      const p = payload;
+      switch (command) {
         case 'point_to_clause':
-          if (str(cmd.clause_id)) pointToClause(str(cmd.clause_id)!, str(cmd.reason));
+          if (str(p.clause_id)) pointToClause(str(p.clause_id)!, str(p.reason));
           break;
         case 'add_comment':
-          if (str(cmd.clause_id) && str(cmd.text))
-            addComment(str(cmd.clause_id)!, str(cmd.text)!, str(cmd.id));
+          if (str(p.clause_id) && str(p.text))
+            addComment(str(p.clause_id)!, str(p.text)!, str(p.id));
           break;
         case 'propose_redline':
-          if (str(cmd.clause_id) && str(cmd.original_excerpt) && str(cmd.proposed_text))
+          if (str(p.clause_id) && str(p.original_excerpt) && str(p.proposed_text))
             addRedline(
-              str(cmd.clause_id)!,
-              str(cmd.original_excerpt)!,
-              str(cmd.proposed_text)!,
-              str(cmd.rationale) ?? '',
-              str(cmd.id),
+              str(p.clause_id)!,
+              str(p.original_excerpt)!,
+              str(p.proposed_text)!,
+              str(p.rationale) ?? '',
+              str(p.id),
             );
           break;
         case 'insert_clause':
-          if (str(cmd.after_clause_id) && str(cmd.heading) && str(cmd.proposed_text))
+          if (str(p.after_clause_id) && str(p.heading) && str(p.proposed_text))
             addInsertion(
-              str(cmd.after_clause_id)!,
-              str(cmd.heading)!,
-              str(cmd.proposed_text)!,
-              str(cmd.rationale) ?? '',
-              str(cmd.id),
+              str(p.after_clause_id)!,
+              str(p.heading)!,
+              str(p.proposed_text)!,
+              str(p.rationale) ?? '',
+              str(p.id),
             );
           break;
         case 'run_diligence':
-          runDiligence(arr<Record<string, unknown>>(cmd.jobs));
+          runDiligence(arr<Record<string, unknown>>(p.jobs));
           break;
         case 'route_for_approval':
-          routeForApproval(cmd);
+          routeForApproval(p);
           break;
         case 'extract_obligations':
-          extractObligations(arr<Record<string, unknown>>(cmd.obligations));
+          extractObligations(arr<Record<string, unknown>>(p.obligations));
           break;
         case 'summarize_session':
-          if (str(cmd.headline))
+          if (str(p.headline))
             setSessionSummary({
-              headline: str(cmd.headline)!,
-              highlights: strArr(cmd.highlights),
-              openItems: strArr(cmd.open_items),
+              headline: str(p.headline)!,
+              highlights: strArr(p.highlights),
+              openItems: strArr(p.open_items),
             });
           break;
         default:
@@ -403,16 +406,6 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  // Dev-only: drive the flow from the browser console without a live mic, e.g.
-  //   __legal.handleUiCommand({ action: 'point_to_clause', clause_id: 'c8' })
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    (window as unknown as { __legal?: unknown }).__legal = { handleUiCommand };
-    return () => {
-      delete (window as unknown as { __legal?: unknown }).__legal;
-    };
-  }, [handleUiCommand]);
-
   const value: LegalStore = {
     clauses: CLAUSES,
     focusedClauseId,
@@ -424,11 +417,7 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     obligations,
     sessionSummary,
     pointer,
-    botState,
-    connectionState,
     setFocusedClause,
-    setBotState,
-    setConnectionState,
     setApprovalStatus,
     handleUiCommand,
     registerAgentSend,
