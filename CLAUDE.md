@@ -94,37 +94,71 @@ differ between a `main` push and its promotion:
 for h in brain.dev.voqalize.com brain.voqalize.com; do curl -fsS https://$h/_healthz; echo; done
 ```
 
-## Voice and language belong to the brain — never to the page
+## Voice and language: the record holds the default, the brain overrides
 
-`tts.language` selects the **voice-cloning reference clip**; `stt.language_hint`
-selects the **recognizer**. They are one setting with two legs, and moving only one
-is *silent*: the words stay right, only the speaker is wrong. No transcript, log,
-metric or WER score can see it — a Hindi call read by an English reference clip
-scores identically and sounds like a foreigner reading Devanagari. That was a real
-production bug on `/demos/orderdesk`.
+`tts.language` selects the **voice-cloning reference clip**; `stt.language`
+selects the **recognizer**. They are one setting with two legs, and moving only
+one is *silent*: the words stay right, only the speaker is wrong. No transcript,
+log, metric or WER score can see it — a Hindi call read by an English reference
+clip scores identically and sounds like a foreigner reading Devanagari. That was a
+real production bug on `/demos/orderdesk`, and it is the reason every rule below
+exists.
 
-So there is exactly **one** sanctioned way to move a language, and it is server-side:
+**This section was rewritten on 2026-08-24 and describes where the work is
+going.** The old rule — *"the agent record deliberately carries no stt/tts blocks"*
+— cut too far, and the ClassVars it forced are what this stream is removing. The
+analysis and the board are `skill-rewrite/BRAIN-SIMPLIFICATION.md`; read it before
+touching any of this. What is *shipping* today is the last subsection.
 
-```python
-class MyBrain(GeminiBrain):
-    voice = "omnivoice/gauri"     # applied before on_session_start, so before greeting audio
-    language = "hi"
+**The agent record carries the configuration, and it is the default.** It is what
+shapes the pipeline, which the runtime builds before it ever dials the brain. The
+brain overrides at runtime, and an override then means what it says: a condition
+changed during this call. The record's value is not a lesser thing the brain
+routinely replaces — it is where a default belongs, because a default is not a
+runtime event.
 
-    async def on_session_start(self, session):
-        # Per-caller override, still both legs, still before the first word:
-        await session.configure_language("ta", voice="omnivoice/gauri")
-```
+The record stores the **same protobuf messages** the wire carries, as canonical
+proto3 JSON. One definition, so the record and the wire cannot drift. Enums spell
+by value name there (`"language": "LANGUAGE_HI"`, not `"hi"`) — that is proto3's
+JSON mapping, not a choice we made.
 
-`Session.configure_language(language, *, voice=None)` is `configure_tts(...)` **and**
-`configure_stt(...)` in one call. That is the entire point of it — do not call the
-two halves separately, and do not put a language anywhere a page or a database
-record can set it. The agent record deliberately carries **no** stt/tts blocks; a
-brain is version-controlled and a Firestore field is not.
+**Two rules keep the silent bug dead, and both are enforced in the record on write
+and on the wire at runtime:**
+
+- **The pairing rule.** Both legs keep their own `language` field, because
+  `omnivoice` has reference clips for ten of the 23 languages `vql-stt` serves —
+  so understanding Odia while speaking with the Hindi clip is a real, legitimate
+  configuration. The guard is therefore not equality but **statedness**: naming a
+  language on one leg and not the other is **rejected**. Changing only the voice
+  touches no language field and is unaffected.
+- **No silent substitution.** A `tts.language` outside the ten with clips (`hi,
+  en, bn, gu, kn, ml, mr, pa, ta, te`) is **rejected**, not quietly served with
+  the Hindi clip. To run an Odia call you write `stt.language = OR,
+  tts.language = HI` — which is what is actually going to happen.
+
+**A page still never sets either.** That part of the old rule was right and stays.
+
+The surface is **deliberately narrow: voice and language only.** Voices and
+languages are protobuf enums, so an unserved value is unrepresentable rather than
+silently falling back to the English recognizer. The eleven VAD knobs left the
+wire entirely and keep their internal PyGato defaults; we widen as we learn.
 
 The catalog is small and closed: voices are `omnivoice/gauri` (female) and
 `omnivoice/gaurav` (male); `vql-stt` serves `en` plus the 22 Indic codes. An
 unknown model is **HTTP 403 at connect**, an unknown voice prefix is
 `voice not found` — both fail the session, not the sentence.
+
+### Until that lands, this is what is in the tree
+
+`Brain.voice` / `Brain.language` ClassVars, applied by `_apply_declared_voice`
+before `on_session_start`, plus `Session.configure_language(language, *,
+voice=None)` which is `configure_tts` **and** `configure_stt` in one call. Do not
+call those two halves separately — that is the half-application path. All four go
+away together; nothing new should be built on them.
+
+The guard that actually catches a half-applied language is not the ClassVar. It is
+`demos/tests/test_demo_voice_contract.py`, the cross-demo sweep below, and it
+survives all of this.
 
 ## Every demo has an e2e, and one of them is a sweep
 
