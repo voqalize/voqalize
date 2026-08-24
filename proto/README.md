@@ -11,8 +11,13 @@ speaks the same set. The wire protocol itself is language-neutral — this proto
 is the contract a future Go (or any other language) SDK would regenerate stubs
 from.
 
-- Correlation (`request_id`, `epoch`, `speech_id`) lives on the envelope,
-  never inside a message body.
+The wire has two planes. The **voice plane** — turns, speech units, heard truth,
+the control leg — is Voqalize's own vocabulary. The **RTVI plane** is a tunnel:
+one `RTVIFrame` carries one pipecat RTVI message, and Voqalize forwards the
+whitelisted types verbatim in both directions.
+
+- Every identifier lives in the body that mints or references it. The envelope
+  is the `oneof` and nothing else.
 - Opaque payloads are JSON-encoded strings (no `google.protobuf.Struct`
   dependency).
 

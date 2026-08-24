@@ -8,9 +8,12 @@ dataclasses, never in protobuf objects.
 :class:`Frame` marker, so the SDK carries no pipecat dependency. Only protobuf
 ``Envelope`` bytes cross the wire; Python class identity never does.
 
-Every frame here is payload and nothing else. Correlation — ``epoch`` and
-``speech_id`` — rides the envelope and is threaded alongside a frame by
-:mod:`.serializer`, never stored on it.
+The wire has two planes. The voice plane — turns, speech units, what the caller
+heard, the control leg — is Voqalize's own. The RTVI plane is a tunnel:
+:class:`RTVIFrame` carries one whitelisted pipecat RTVI message verbatim.
+
+Every identifier lives on the frame that mints or names it. Nothing rides
+alongside.
 """
 
 from __future__ import annotations
@@ -20,10 +23,10 @@ from enum import StrEnum
 from typing import Any
 
 # The wire version this build speaks. The runtime stamps it on the session's first
-# envelope and a brain that speaks a different one refuses the session — see
+# frame and a brain that speaks a different one refuses the session — see
 # :meth:`voqalize.sdk.brain._BrainAdapter._start`. The rule for when it moves is
 # in frames.proto.
-WIRE_VERSION = 2
+WIRE_VERSION = 3
 
 
 class Frame:
@@ -37,13 +40,70 @@ class FinalizeReason(StrEnum):
     USER_BARGE_IN = "user_barge_in"
 
 
+class ErrorCode(StrEnum):
+    """What kind of error an :class:`ErrorFrame` reports."""
+
+    PROTOCOL = "protocol"
+    WIRE_VERSION = "wire_version"
+    REJECTED = "rejected"
+    OVERLOAD = "overload"
+    INTERNAL = "internal"
+
+
+class RTVIType(StrEnum):
+    """The RTVI message types that cross the wire, by their RTVI names.
+
+    A type absent here does not cross in either direction. ``bot-*`` and
+    ``llm-*`` are the runtime's own assertions about the media and the model,
+    and a brain must not be able to forge them.
+    """
+
+    SERVER_MESSAGE = "server-message"
+    SERVER_RESPONSE = "server-response"
+    ERROR_RESPONSE = "error-response"
+    UI_COMMAND = "ui-command"
+    UI_JOB_GROUP = "ui-job-group"
+
+    CLIENT_MESSAGE = "client-message"
+    SEND_TEXT = "send-text"
+    UI_EVENT = "ui-event"
+    UI_SNAPSHOT = "ui-snapshot"
+    UI_CANCEL_JOB_GROUP = "ui-cancel-job-group"
+
+
+#: RTVI types a brain may send. The app is the only end that originates the
+#: others, and the runtime rejects one arriving from a brain.
+RTVI_TO_APP = frozenset(
+    {
+        RTVIType.SERVER_MESSAGE,
+        RTVIType.SERVER_RESPONSE,
+        RTVIType.ERROR_RESPONSE,
+        RTVIType.UI_COMMAND,
+        RTVIType.UI_JOB_GROUP,
+    }
+)
+
+#: RTVI types a brain may receive.
+RTVI_TO_BRAIN = frozenset(
+    {
+        RTVIType.CLIENT_MESSAGE,
+        RTVIType.SEND_TEXT,
+        RTVIType.UI_EVENT,
+        RTVIType.UI_SNAPSHOT,
+        RTVIType.UI_CANCEL_JOB_GROUP,
+    }
+)
+
+
 # ─── Voqalize → Brain ────────────────────────────────────────────────────────────
 
 
 @dataclass
 class SessionStartFrame(Frame):
-    """First frame of a session. ``init`` is opaque customer init data."""
+    """First frame of a session, and the session's first turn. ``init`` is
+    opaque customer init data."""
 
+    turn_id: int = 0
     session_id: str = ""
     init: dict[str, Any] = field(default_factory=dict)
     wire_version: int = WIRE_VERSION
@@ -51,8 +111,9 @@ class SessionStartFrame(Frame):
 
 @dataclass
 class UserMessageFrame(Frame):
-    """A committed user stimulus. Text-only today."""
+    """A committed user stimulus, on a turn of its own. Text-only today."""
 
+    turn_id: int = 0
     text: str = ""
 
 
@@ -63,29 +124,26 @@ class UserIdleFrame(Frame):
     without intervening speech (1 = first nudge); ``idle_ms`` is the silence
     elapsed when it fired."""
 
+    turn_id: int = 0
     level: int = 1
     idle_ms: int = 0
 
 
 @dataclass
-class BrowserMessageFrame(Frame):
-    """A browser-originated message relayed to the brain.
+class InterruptionFrame(Frame):
+    """The barge-in watermark: everything through ``through_turn`` is dead, so
+    the brain stops generating for it. Monotone and unacknowledged — a brain
+    that misses one is corrected by the next."""
 
-    ``client.sendClientMessage(type, data)`` in the browser arrives here. Every
-    message is delivered — the runtime never interprets ``type``. UI-action
-    outcomes ride this frame too (``type == "action_result"``); the SDK routes
-    those to their pending ``action`` callback rather than the generic handler.
-    """
-
-    type: str = ""
-    data: dict[str, Any] = field(default_factory=dict)
+    through_turn: int = 0
 
 
 @dataclass
 class FinalizeFrame(Frame):
     """What the user actually heard of one speech unit — never a cross-unit
-    concatenation. The unit is the envelope's ``speech_id``."""
+    concatenation."""
 
+    speech_id: int = 0
     heard_text: str = ""
     reason: FinalizeReason = FinalizeReason.COMPLETED
 
@@ -95,13 +153,17 @@ class FinalizeFrame(Frame):
 
 @dataclass
 class SpeechStartFrame(Frame):
-    """Opens one speech unit."""
+    """Opens one speech unit and binds it to the turn it answers."""
+
+    speech_id: int = 0
+    turn_id: int = 0
 
 
 @dataclass
 class SpeechChunkFrame(Frame):
     """One chunk of text within a speech unit."""
 
+    speech_id: int = 0
     text: str = ""
 
 
@@ -109,13 +171,7 @@ class SpeechChunkFrame(Frame):
 class SpeechEndFrame(Frame):
     """Closes one speech unit."""
 
-
-@dataclass
-class BrowserCommandFrame(Frame):
-    """A brain-originated command pushed to the browser. The brain drives the
-    screen; the runtime relays ``data`` unread."""
-
-    data: Any = None
+    speech_id: int = 0
 
 
 # ─── The control leg ──────────────────────────────────────────────────────────
@@ -171,22 +227,36 @@ class ResponseFrame(Frame):
 ConfigureRequest = ConfigureTtsFrame | ConfigureSttFrame | ConfigureIdleFrame
 
 
-# ─── Both directions ──────────────────────────────────────────────────────────
+# ─── The RTVI plane ───────────────────────────────────────────────────────────
 
 
 @dataclass
-class InterruptionFrame(Frame):
-    """Field-less barge-in / drain-barrier signal. System lane."""
+class RTVIFrame(Frame):
+    """One RTVI message, tunnelled. ``data`` is the RTVI payload and travels
+    opaque; ``id`` is RTVI's own correlation id, present on requests and the
+    responses that name them.
+
+    ``turn_id`` annotates traces only. The brain may set it on what it sends;
+    the runtime never sets it inbound and never passes it on to the app.
+    """
+
+    type: RTVIType = RTVIType.SERVER_MESSAGE
+    data: Any = None
+    id: str | None = None
+    turn_id: int | None = None
+
+
+# ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 
 @dataclass
 class EndFrame(Frame):
-    """Graceful end-of-session. Rides the normal lane, draining behind data."""
+    """Graceful end-of-session. Rides the bulk lane, draining behind data."""
 
 
 @dataclass
 class CancelFrame(Frame):
-    """Abrupt session cancel. System lane."""
+    """Abrupt session cancel."""
 
     reason: str | None = None
 
@@ -194,23 +264,38 @@ class CancelFrame(Frame):
 @dataclass
 class ErrorFrame(Frame):
     """Non-fatal or fatal error surfaced to the peer. The SDK emits this on
-    normal-lane overflow as a drop-newest congestion signal."""
+    bulk-lane overflow as a drop-newest congestion signal."""
 
-    error: str = ""
+    code: ErrorCode = ErrorCode.INTERNAL
+    message: str = ""
     fatal: bool = False
 
 
 # ─── Lane routing ─────────────────────────────────────────────────────────────
+#
+# Two orthogonal questions. **Priority** is about ordering: the priority lane
+# carries session control that must bypass queued data, and nothing on it has an
+# ordering relationship with what it overtakes. **Droppability** is about
+# backpressure: only the two unbounded flows — speech chunks and the RTVI
+# tunnel — are shed when a lane fills. Everything else is bounded by turns taken
+# and units spoken, so it is queued however deep the backlog runs.
+#
+# ``End`` is on neither list: it rides the bulk lane in order, so a session tears
+# down only after its queued data drains.
 
-# The priority lane carries session-control signals that must bypass queued
-# data. ``End`` is deliberately not here — it rides the normal lane so a session
-# tears down only after its queued data has drained.
-_SYSTEM_FRAMES: tuple[type, ...] = (SessionStartFrame, InterruptionFrame, CancelFrame)
+_PRIORITY_FRAMES: tuple[type, ...] = (SessionStartFrame, InterruptionFrame, CancelFrame)
+
+_DROPPABLE_FRAMES: tuple[type, ...] = (SpeechChunkFrame, RTVIFrame)
 
 
-def is_system(frame: Frame) -> bool:
-    """True for frames that ride the priority lane."""
-    return isinstance(frame, _SYSTEM_FRAMES)
+def is_priority(frame: Frame) -> bool:
+    """True for frames that ride the priority lane, ahead of queued data."""
+    return isinstance(frame, _PRIORITY_FRAMES)
+
+
+def is_droppable(frame: Frame) -> bool:
+    """True for frames a full bulk lane may shed."""
+    return isinstance(frame, _DROPPABLE_FRAMES)
 
 
 # ─── Registry (used by the serializer's completeness check) ───────────────────
@@ -219,17 +304,16 @@ WIRE_FRAME_CLASSES: tuple[type[Frame], ...] = (
     SessionStartFrame,
     UserMessageFrame,
     UserIdleFrame,
-    BrowserMessageFrame,
     InterruptionFrame,
+    FinalizeFrame,
     SpeechStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
-    FinalizeFrame,
-    BrowserCommandFrame,
     ConfigureTtsFrame,
     ConfigureSttFrame,
     ConfigureIdleFrame,
     ResponseFrame,
+    RTVIFrame,
     EndFrame,
     CancelFrame,
     ErrorFrame,

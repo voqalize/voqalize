@@ -5,19 +5,21 @@ from __future__ import annotations
 import pytest
 
 from voqalize.sdk.wire import (
-    BrowserCommandFrame,
-    BrowserMessageFrame,
+    WIRE_VERSION,
     CancelFrame,
     ConfigureIdleFrame,
     ConfigureSttFrame,
     ConfigureTtsFrame,
     EndFrame,
+    ErrorCode,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
     InterruptionFrame,
     ResponseFrame,
+    RTVIFrame,
+    RTVIType,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
@@ -31,20 +33,25 @@ from voqalize.sdk.wire import (
 def _frames() -> list[Frame]:
     return [
         SessionStartFrame(
+            turn_id=1,
             session_id="sess-123",
             init={"greet": "hello", "n": 7, "deep": {"k": [1, 2, 3]}},
         ),
-        UserMessageFrame(text="hello there"),
-        UserIdleFrame(level=2, idle_ms=30000),
-        BrowserMessageFrame(type="form_submitted", data={"field": "email"}),
-        InterruptionFrame(),
-        FinalizeFrame(heard_text="ok, scheduled", reason=FinalizeReason.COMPLETED),
-        FinalizeFrame(heard_text="partial...", reason=FinalizeReason.USER_BARGE_IN),
-        SpeechStartFrame(),
-        SpeechChunkFrame(text="hi"),
-        SpeechChunkFrame(text=" world"),
-        SpeechEndFrame(),
-        BrowserCommandFrame(data={"ui": "open_panel", "args": {"id": 3}}),
+        UserMessageFrame(turn_id=4, text="hello there"),
+        UserIdleFrame(turn_id=5, level=2, idle_ms=30000),
+        InterruptionFrame(through_turn=9),
+        FinalizeFrame(speech_id=3, heard_text="ok, scheduled", reason=FinalizeReason.COMPLETED),
+        FinalizeFrame(speech_id=4, heard_text="partial...", reason=FinalizeReason.USER_BARGE_IN),
+        SpeechStartFrame(speech_id=7, turn_id=4),
+        SpeechChunkFrame(speech_id=7, text="hi"),
+        SpeechChunkFrame(speech_id=7, text=" world"),
+        SpeechEndFrame(speech_id=7),
+        RTVIFrame(
+            type=RTVIType.SERVER_MESSAGE,
+            data={"type": "ui_command", "action": "open_panel", "action_id": "a1"},
+            turn_id=4,
+        ),
+        RTVIFrame(type=RTVIType.CLIENT_MESSAGE, data={"t": "tap", "d": {"id": 3}}, id="req-1"),
         ConfigureTtsFrame(request_id=1, voice="omnivoice/gauri", language="hi", speed=1.25),
         ConfigureSttFrame(
             request_id=2,
@@ -57,28 +64,27 @@ def _frames() -> list[Frame]:
         EndFrame(),
         CancelFrame(reason="user_left"),
         CancelFrame(),  # reason=None → empty string on wire
-        ErrorFrame(error="upstream timeout", fatal=False),
-        ErrorFrame(error="bad config", fatal=True),
+        ErrorFrame(code=ErrorCode.OVERLOAD, message="upstream timeout", fatal=False),
+        ErrorFrame(code=ErrorCode.WIRE_VERSION, message="bad wire", fatal=True),
     ]
 
 
 _FIELDS: dict[type[Frame], tuple[str, ...]] = {
-    SessionStartFrame: ("session_id", "init"),
-    UserMessageFrame: ("text",),
-    UserIdleFrame: ("level", "idle_ms"),
-    BrowserMessageFrame: ("type", "data"),
-    FinalizeFrame: ("heard_text", "reason"),
-    SpeechChunkFrame: ("text",),
-    BrowserCommandFrame: ("data",),
+    SessionStartFrame: ("turn_id", "session_id", "init", "wire_version"),
+    UserMessageFrame: ("turn_id", "text"),
+    UserIdleFrame: ("turn_id", "level", "idle_ms"),
+    InterruptionFrame: ("through_turn",),
+    FinalizeFrame: ("speech_id", "heard_text", "reason"),
+    SpeechStartFrame: ("speech_id", "turn_id"),
+    SpeechChunkFrame: ("speech_id", "text"),
+    SpeechEndFrame: ("speech_id",),
+    RTVIFrame: ("type", "data", "id", "turn_id"),
     ConfigureTtsFrame: ("request_id", "voice", "language", "model", "speed"),
     ConfigureSttFrame: ("request_id", "language_hint", "thresholds"),
     ConfigureIdleFrame: ("request_id", "timeout_ms"),
     ResponseFrame: ("request_id", "accepted", "detail"),
-    ErrorFrame: ("error", "fatal"),
+    ErrorFrame: ("code", "message", "fatal"),
     # Field-less frames round-trip to their own type and nothing more.
-    InterruptionFrame: (),
-    SpeechStartFrame: (),
-    SpeechEndFrame: (),
     EndFrame: (),
 }
 
@@ -105,22 +111,24 @@ async def test_roundtrip(frame: Frame) -> None:
         )
 
 
-@pytest.mark.parametrize("frame", _frames(), ids=lambda f: type(f).__name__)
-async def test_correlation_rides_the_envelope(frame: Frame) -> None:
-    """Correlation is the envelope's, not the body's: any frame carries any
-    pair, and it comes back beside the decoded frame."""
+async def test_session_start_carries_the_wire_version() -> None:
+    """The version is stamped on the session's first frame and nowhere else."""
     ser = WireSerializer()
-    payload = await ser.serialize(frame, epoch=22, speech_id=33)
-
-    msg = await ser.deserialize_message(payload)
-    assert type(msg.frame) is type(frame)
-    assert (msg.epoch, msg.speech_id) == (22, 33)
+    out = await ser.deserialize(await ser.serialize(SessionStartFrame(turn_id=1, session_id="s")))
+    assert isinstance(out, SessionStartFrame)
+    assert out.wire_version == WIRE_VERSION
 
 
-async def test_correlation_defaults_to_zero() -> None:
+async def test_rtvi_turn_id_is_absent_when_unset() -> None:
+    """``turn_id`` on the RTVI plane annotates traces. Unset means unset — it
+    must not decode as turn 0, which is a turn nobody minted."""
     ser = WireSerializer()
-    msg = await ser.deserialize_message(await ser.serialize(UserMessageFrame(text="hi")))
-    assert (msg.epoch, msg.speech_id) == (0, 0)
+    out = await ser.deserialize(
+        await ser.serialize(RTVIFrame(type=RTVIType.SERVER_MESSAGE, data={"a": 1}))
+    )
+    assert isinstance(out, RTVIFrame)
+    assert out.turn_id is None
+    assert out.id is None
 
 
 @pytest.mark.parametrize(

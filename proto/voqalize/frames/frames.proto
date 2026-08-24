@@ -1,131 +1,83 @@
-// Voqalize wire frames.
+// The Voqalize wire.
 //
-// The wire vocabulary between Voqalize and a brain. Cortex relays these
-// bytes without reading them; the schema is consumed only at the two ends.
+// One Envelope per websocket binary message, between the Voqalize runtime (V)
+// and a brain (B). Cortex relays the bytes without reading them.
 //
-// Regenerate with `make proto`; stubs are committed at
-// sdk/python/src/voqalize/sdk/wire/_frames_pb2.py.
+// The wire has two planes.
 //
-// Correlation lives in the envelope, never in a message body. Two scalars carry
-// it — `epoch` and `speech_id` — and every body is then just its own payload.
-// The one exception is `request_id`, which is not correlation across the
-// session but the identity of a single request/response pair, and so belongs to
-// the pair rather than to every envelope that passes.
+// The voice plane is ours: turns, speech units, what the caller actually heard,
+// and the control leg. Voqalize mints `turn_id` because Voqalize decides when a
+// turn commits. Speech must name the turn it answers.
 //
-// Direction, where V = Voqalize and B = brain:
+// The RTVI plane is a tunnel. An RTVIFrame is one pipecat RTVI message
+// `{id, label: "rtvi-ai", type, data}`, minus the constant label. Voqalize
+// forwards the whitelisted types verbatim in both directions and interprets
+// nothing else about them.
 //
-//   V→B  session_start  user_message  user_idle  browser_message  finalize
-//        response  end  cancel
-//   B→V  speech_start  speech_chunk  speech_end  browser_command  request
-//        end  cancel
-//   both interruption  error
-//
-// Opaque fields (`init`, `data`) are JSON-encoded strings, matching
-// pipecat's MessageFrame.data pattern. No Struct dependency.
-//
-// This is version 2. The runtime stamps `SessionStart.wire_version` and a
-// brain that speaks a different one refuses the session outright. The version
-// gates behaviour, not parsing: protobuf ignores unknown fields by itself, so
-// what a version buys is the ability to refuse rather than guess.
-//
-// The schema is append-only. Field numbers are never reused — a retired
-// one is `reserved`. Envelope arms are never renumbered. A message is reserved
-// rather than removed. Adding a field or an arm does not bump the version; a
-// bump means the two ends no longer speak the same wire, and that is meant
-// to be rare.
+// Regenerate with `make proto`.
 
 syntax = "proto3";
 
 package voqalize.frames;
 
-// ─── Envelope ────────────────────────────────────────────────────────────────
-
-// Top-level message in each websocket binary payload.
-//
-// One binary message carries one Envelope and nothing around it. On the Cortex
-// relay leg 16 raw session-id bytes precede it, and cortex strips them.
 message Envelope {
   oneof body {
-    SessionStart  session_start  = 1;
-    UserMessage   user_message   = 2;
-    UserIdle      user_idle      = 3;
-    BrowserMessage browser_message = 4;
-    Interruption  interruption   = 5;
-    SpeechStart   speech_start   = 6;
-    SpeechChunk   speech_chunk   = 7;
-    SpeechEnd     speech_end     = 8;
-    Finalize      finalize       = 9;
-    BrowserCommand browser_command = 10;
-    Request       request        = 11;
-    Response      response       = 12;
-    End           end            = 13;
-    Cancel        cancel         = 14;
-    Error         error          = 15;
+    // Voice plane, V→B.
+    SessionStart session_start = 1;
+    UserMessage  user_message  = 2;
+    UserIdle     user_idle     = 3;
+    Interruption interruption  = 4;
+    Finalize     finalize      = 5;
+    Response     response      = 6;
+
+    // Voice plane, B→V.
+    SpeechStart speech_start = 7;
+    SpeechChunk speech_chunk = 8;
+    SpeechEnd   speech_end   = 9;
+    Request     request      = 10;
+
+    // RTVI plane, both directions.
+    RTVIFrame rtvi = 11;
+
+    // Lifecycle, both directions.
+    End    end    = 12;
+    Cancel cancel = 13;
+    Error  error  = 14;
   }
-
-  // Voqalize-minted, session-monotonic, incremented on every stimulus
-  // Voqalize commits. The brain echoes it, unread, on the speech it emits while
-  // handling that stimulus; a floor-free message rides 0 whenever it is sent.
-  //
-  // It exists for exactly one decision: when a barge-in opens a drain barrier,
-  // the runtime must tell "emitted before the barrier" from "emitted after it,
-  // in response to the new stimulus". Only a Voqalize-minted counter can settle
-  // that — a brain-minted one proves an ordering the barrier does not care
-  // about. Nothing else reads it, and no brain-facing API names it.
-  uint64 epoch = 51;
-
-  // Brain-minted, session-monotonic, one per speech unit. Every envelope of
-  // one unit carries the same value: the bracket (speech_start / speech_end),
-  // its speech_chunk, and the finalize that reports what was heard.
-  //
-  // A pure correlation token, and that is its entire job. Voqalize
-  // never mints, reads, formats, orders or compares one; it echoes it back on
-  // finalize exactly as it arrived, so the brain may number these however it
-  // likes.
-  uint64 speech_id = 52;
 }
 
-// ─── Voqalize → Brain ────────────────────────────────────────────────────────
+// ─── Voice plane: V→B ────────────────────────────────────────────────────────
 
-// First envelope on a session. `init` is opaque customer init data; the brain
-// reads it as `session.init`.
-//
-// Who the agent is arrives on the connection's own credential, verified, and
-// never here: a second unsigned copy is one a brain could be tempted to trust.
+// First envelope of a session, and the session's first turn. A brain that does
+// not speak `wire_version` refuses the session.
 message SessionStart {
-  reserved 2;
-  reserved "agent_id";
-
-  string session_id   = 1;
+  uint64 turn_id      = 1;
+  string session_id   = 2;
   string init         = 3;  // JSON-encoded
   uint32 wire_version = 4;
 }
 
-// Committed user stimulus. Text-only today; richer content gets new fields.
+// A committed user utterance, on a turn of its own.
 message UserMessage {
-  string text = 1;
+  uint64 turn_id = 1;
+  string text    = 2;
 }
 
-// The user has been silent past the configured timeout and the runtime has
-// opened a stimulus so the brain can re-engage. `level` counts consecutive
-// escalations without intervening speech (1 = first nudge) and resets when the
-// user speaks; `idle_ms` is the silence elapsed when it fired.
+// The caller has been silent past the idle timeout and the brain has the floor
+// to re-engage. `level` counts consecutive escalations without intervening
+// speech and resets when the caller speaks; `idle_ms` is the silence elapsed.
 message UserIdle {
-  uint32 level   = 1;
-  uint32 idle_ms = 2;
+  uint64 turn_id = 1;
+  uint32 level   = 2;
+  uint32 idle_ms = 3;
 }
 
-// A browser→brain message. Every one is delivered — the runtime never reads
-// `type` and there is no respond flag. `data` is the message payload.
-message BrowserMessage {
-  reserved 1;  // msg_id: minted by the browser transport, read by neither end.
-
-  string type = 2;
-  string data = 3;  // JSON-encoded
+// Everything up to and including `through_turn` is dead: the caller will not
+// hear it, so the brain stops generating for it. Monotone, unacknowledged, and
+// self-correcting — a brain that misses one is corrected by the next.
+message Interruption {
+  uint64 through_turn = 1;
 }
-
-// The user spoke over the bot. Pipecat's InterruptionFrame.
-message Interruption {}
 
 enum FinalizeReason {
   FINALIZE_REASON_UNSPECIFIED   = 0;
@@ -133,42 +85,37 @@ enum FinalizeReason {
   FINALIZE_REASON_USER_BARGE_IN = 2;
 }
 
-// What the user actually heard of one speech unit — never a cross-unit
-// concatenation. The unit is identified by the envelope's speech_id.
+// What the caller actually heard of one speech unit. Bounded by that unit's own
+// text, never a cross-unit concatenation.
 message Finalize {
-  string         heard_text = 1;
-  FinalizeReason reason     = 2;
+  uint64         speech_id  = 1;
+  string         heard_text = 2;
+  FinalizeReason reason     = 3;
 }
 
-// ─── Brain → Voqalize ────────────────────────────────────────────────────────
+// ─── Voice plane: B→V ────────────────────────────────────────────────────────
 
-message SpeechStart {}
+// Opens one speech unit and binds it to the turn it answers.
+message SpeechStart {
+  uint64 speech_id = 1;
+  uint64 turn_id   = 2;
+}
 
 message SpeechChunk {
-  string text = 1;
+  uint64 speech_id = 1;
+  string text      = 2;
 }
 
-message SpeechEnd {}
-
-// A brain→browser command. The brain drives the screen; `data` is whatever it
-// tells the browser, relayed unread.
-message BrowserCommand {
-  string data = 1;  // JSON-encoded
+message SpeechEnd {
+  uint64 speech_id = 1;
 }
 
 // ─── The control leg ─────────────────────────────────────────────────────────
 //
-// The brain asks the runtime to change how the call behaves, and learns whether
-// the ask was any good. Exactly one `Response` comes back for every `Request`,
-// on every op, always — a brain awaiting one never has to know which ops answer.
-//
-// Every field of every op is `optional`, and that is load-bearing: these are
-// deltas, so the runtime changes only what the brain set. Without explicit
-// presence an unset field is indistinguishable from 0 or "", and a delta would
-// silently become a reset.
+// Exactly one Response comes back for every Request, on every op. Op fields are
+// deltas: an unset field means leave it alone, which is why each is `optional`.
 
 message Request {
-  // Brain-minted, session-monotonic. Its whole job is to name the `Response`.
   uint64 request_id = 1;
 
   oneof op {
@@ -178,50 +125,31 @@ message Request {
   }
 }
 
-// Whether the runtime took the request, NOT whether the effect is audible yet.
-// The two differ for every op whose target applies changes on a boundary, and
-// the boundary is a documented property of the op (see `ConfigureTts` and
-// `ConfigureStt.language_hint`), not something the brain has to discover.
 enum Status {
   STATUS_UNSPECIFIED = 0;
   STATUS_ACCEPTED    = 1;
   STATUS_REJECTED    = 2;
 }
 
+// Whether the runtime took the request, not whether the effect is audible yet.
 message Response {
   uint64 request_id = 1;
   Status status     = 2;
-  // Why it was rejected. Empty on acceptance.
-  string detail     = 3;
+  string detail     = 3;  // Why it was rejected. Empty on acceptance.
 }
 
-// Takes effect at the next speech unit, never mid-utterance: the synthesizer
-// locks voice, model, language and speed for the length of one synthesis
-// context, and the runtime pins one context per unit. Accepting one of these is
-// therefore the most the runtime can honestly report — there is no ask-and-
-// answer with the synthesizer, only the next unit.
+// Applies to the next speech unit, never mid-utterance.
 message ConfigureTts {
   optional string voice    = 1;
   optional string language = 2;
   optional string model    = 3;
-  // 0.5 – 2.0, where 1.0 is the voice's natural rate.
-  optional double speed    = 4;
+  optional double speed    = 4;  // 0.5 – 2.0, where 1.0 is the voice's natural rate.
 }
 
-// The thresholds apply live — the recognizer treats them as comparison bounds
-// against counters that reset themselves, so changing one mid-utterance is
-// safe. `language_hint` does not: a language change carries per-turn decoder
-// state, so the recognizer queues it and applies it once the open turn commits.
-// The turn being spoken when this arrives still transcribes as spoken; the
-// change governs the next one.
+// Thresholds apply live. `language_hint` applies once the open turn commits.
+// Acceptance is the recognizer's own answer and is all-or-nothing.
 //
-// Acceptance here is the recognizer's own answer, not the runtime's guess, and
-// it is all-or-nothing: a language the recognizer has no engine for rejects the
-// whole request, thresholds included, with nothing applied.
-//
-// Field names match the recognizer's `Configure` message verbatim. That is the
-// point of naming them here at all — this schema is the single place the
-// vocabulary is written down.
+// Field names match the recognizer's `Configure` message verbatim.
 message ConfigureStt {
   optional string language_hint = 1;
 
@@ -238,11 +166,44 @@ message ConfigureStt {
   optional uint32 eot_timeout_ms                    = 12;
 }
 
-// Applied by the runtime itself, immediately: a running idle timer restarts on
-// the new duration. `timeout_ms` is the silence after the runtime stops
-// speaking before it opens an idle stimulus; 0 disables idle detection.
+// `timeout_ms` is the silence after the runtime stops speaking before the brain
+// gets the floor. 0 disables idle detection.
 message ConfigureIdle {
   optional uint32 timeout_ms = 1;
+}
+
+// ─── RTVI plane ──────────────────────────────────────────────────────────────
+
+// The whitelist. A type absent here does not cross the wire in either
+// direction: `bot-*` and `llm-*` are the runtime's own assertions about the
+// media and the model, and a brain must not be able to forge them.
+enum RTVIType {
+  RTVI_TYPE_UNSPECIFIED = 0;
+
+  // B→V→app.
+  RTVI_TYPE_SERVER_MESSAGE  = 1;  // "server-message"
+  RTVI_TYPE_SERVER_RESPONSE = 2;  // "server-response"
+  RTVI_TYPE_ERROR_RESPONSE  = 3;  // "error-response"
+  RTVI_TYPE_UI_COMMAND      = 4;  // "ui-command"
+  RTVI_TYPE_UI_JOB_GROUP    = 5;  // "ui-job-group"
+
+  // app→V→B.
+  RTVI_TYPE_CLIENT_MESSAGE      = 6;   // "client-message"
+  RTVI_TYPE_SEND_TEXT           = 7;   // "send-text"
+  RTVI_TYPE_UI_EVENT            = 8;   // "ui-event"
+  RTVI_TYPE_UI_SNAPSHOT         = 9;   // "ui-snapshot"
+  RTVI_TYPE_UI_CANCEL_JOB_GROUP = 10;  // "ui-cancel-job-group"
+}
+
+// One RTVI message. `data` is the RTVI payload, JSON-encoded and opaque; it is
+// bounded by the client's 64 KiB message limit. `id` is RTVI's own correlation
+// id, present on requests and the responses that name them. `turn_id` annotates
+// control-plane traces, is set only B→V, and never reaches the app.
+message RTVIFrame {
+  RTVIType        type    = 1;
+  string          data    = 2;
+  optional string id      = 3;
+  optional uint64 turn_id = 4;
 }
 
 // ─── Lifecycle ───────────────────────────────────────────────────────────────
@@ -253,7 +214,17 @@ message Cancel {
   string reason = 1;
 }
 
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED  = 0;
+  ERROR_CODE_PROTOCOL     = 1;  // Malformed or unexpected frame.
+  ERROR_CODE_WIRE_VERSION = 2;  // The two ends do not speak the same wire.
+  ERROR_CODE_REJECTED     = 3;  // Not permitted on the RTVI plane, or oversized.
+  ERROR_CODE_OVERLOAD     = 4;  // Dropped under congestion.
+  ERROR_CODE_INTERNAL     = 5;
+}
+
 message Error {
-  string error = 1;
-  bool   fatal = 2;
+  ErrorCode code    = 1;
+  string    message = 2;
+  bool      fatal   = 3;
 }

@@ -1,14 +1,14 @@
-"""The three opaque dict fields — ``SessionStart.init``, ``ClientMessage.data``
-and ``ServerMessage.data`` — survive round-trip with nested structure intact.
+"""The two opaque fields — ``SessionStart.init`` and ``RTVI.data`` — survive
+round-trip with nested structure intact.
 
 They are the only untyped things on the wire, and they are untyped because each
-carries an application's own shape. Everything else, the control leg included, is
-a declared field.
+carries an application's own shape: ``init`` is the customer's, ``data`` is
+RTVI's. Everything else, the control leg included, is a declared field.
 """
 
 from voqalize.sdk.wire import (
-    BrowserCommandFrame,
-    BrowserMessageFrame,
+    RTVIFrame,
+    RTVIType,
     SessionStartFrame,
     WireSerializer,
 )
@@ -17,6 +17,7 @@ from voqalize.sdk.wire import (
 async def test_nested_init_roundtrip() -> None:
     ser = WireSerializer()
     frame = SessionStartFrame(
+        turn_id=1,
         session_id="s",
         init={
             "k1": "v1",
@@ -30,20 +31,25 @@ async def test_nested_init_roundtrip() -> None:
     assert out.init == frame.init
 
 
-async def test_browser_message_data_roundtrip() -> None:
+async def test_rtvi_data_roundtrip() -> None:
     ser = WireSerializer()
-    frame = BrowserMessageFrame(
-        type="form_submitted",
-        data={"rows": [{"id": 1}, {"id": 2}], "total": 2, "meta": {"ms": 12.5}},
+    frame = RTVIFrame(
+        type=RTVIType.CLIENT_MESSAGE,
+        data={"t": "form_submitted", "d": {"rows": [{"id": 1}], "meta": {"ms": 12.5}}},
+        id="req-7",
     )
     out = await ser.deserialize(await ser.serialize(frame))
-    assert isinstance(out, BrowserMessageFrame)
+    assert isinstance(out, RTVIFrame)
     assert out.data == frame.data
+    assert out.id == frame.id
 
 
-async def test_browser_command_data_roundtrip() -> None:
+async def test_rtvi_data_need_not_be_a_dict() -> None:
+    """RTVI owns the payload's shape, and RTVI does not promise an object."""
     ser = WireSerializer()
-    frame = BrowserCommandFrame(data={"ui": "open_panel", "args": [1, {"deep": True}]})
-    out = await ser.deserialize(await ser.serialize(frame))
-    assert isinstance(out, BrowserCommandFrame)
-    assert out.data == frame.data
+    for payload in ([1, 2, 3], "plain", 7, True):
+        out = await ser.deserialize(
+            await ser.serialize(RTVIFrame(type=RTVIType.UI_EVENT, data=payload))
+        )
+        assert isinstance(out, RTVIFrame)
+        assert out.data == payload

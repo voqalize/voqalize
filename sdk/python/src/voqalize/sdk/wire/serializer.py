@@ -3,11 +3,8 @@
 Transcodes between the plain dataclasses in :mod:`.frames` and ``Envelope``
 bytes. Pipecat-free, stateless, no base class.
 
-Correlation is not part of a frame. ``serialize`` takes ``epoch`` and
-``speech_id`` as keywords and writes them onto the envelope;
-``deserialize_message`` hands them back beside the decoded frame in a
-:class:`DecodedMessage`. Callers thread the pair explicitly — the emitting
-context (a turn, a speech unit) is what knows the values, not the payload.
+The envelope is the ``oneof`` and nothing else, so a frame carries everything it
+needs and nothing travels beside it.
 
 ``deserialize`` is strict and raises on anything it cannot decode.
 ``deserialize_message`` — the entry point the read loops use — is
@@ -20,7 +17,6 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any
 
 from loguru import logger
@@ -28,19 +24,20 @@ from loguru import logger
 from . import _frames_pb2 as pb
 from .frames import (
     WIRE_FRAME_CLASSES,
-    BrowserCommandFrame,
-    BrowserMessageFrame,
     CancelFrame,
     ConfigureIdleFrame,
     ConfigureSttFrame,
     ConfigureTtsFrame,
     EndFrame,
+    ErrorCode,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
     InterruptionFrame,
     ResponseFrame,
+    RTVIFrame,
+    RTVIType,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
@@ -55,6 +52,29 @@ _REASON_TO_PB: dict[FinalizeReason, int] = {
 }
 _REASON_FROM_PB: dict[int, FinalizeReason] = {v: k for k, v in _REASON_TO_PB.items()}
 
+_CODE_TO_PB: dict[ErrorCode, int] = {
+    ErrorCode.PROTOCOL: pb.ERROR_CODE_PROTOCOL,
+    ErrorCode.WIRE_VERSION: pb.ERROR_CODE_WIRE_VERSION,
+    ErrorCode.REJECTED: pb.ERROR_CODE_REJECTED,
+    ErrorCode.OVERLOAD: pb.ERROR_CODE_OVERLOAD,
+    ErrorCode.INTERNAL: pb.ERROR_CODE_INTERNAL,
+}
+_CODE_FROM_PB: dict[int, ErrorCode] = {v: k for k, v in _CODE_TO_PB.items()}
+
+_RTVI_TO_PB: dict[RTVIType, int] = {
+    RTVIType.SERVER_MESSAGE: pb.RTVI_TYPE_SERVER_MESSAGE,
+    RTVIType.SERVER_RESPONSE: pb.RTVI_TYPE_SERVER_RESPONSE,
+    RTVIType.ERROR_RESPONSE: pb.RTVI_TYPE_ERROR_RESPONSE,
+    RTVIType.UI_COMMAND: pb.RTVI_TYPE_UI_COMMAND,
+    RTVIType.UI_JOB_GROUP: pb.RTVI_TYPE_UI_JOB_GROUP,
+    RTVIType.CLIENT_MESSAGE: pb.RTVI_TYPE_CLIENT_MESSAGE,
+    RTVIType.SEND_TEXT: pb.RTVI_TYPE_SEND_TEXT,
+    RTVIType.UI_EVENT: pb.RTVI_TYPE_UI_EVENT,
+    RTVIType.UI_SNAPSHOT: pb.RTVI_TYPE_UI_SNAPSHOT,
+    RTVIType.UI_CANCEL_JOB_GROUP: pb.RTVI_TYPE_UI_CANCEL_JOB_GROUP,
+}
+_RTVI_FROM_PB: dict[int, RTVIType] = {v: k for k, v in _RTVI_TO_PB.items()}
+
 
 class UnsupportedFrameError(Exception):
     """serialize() was called with a frame type not in the dispatch table."""
@@ -64,68 +84,55 @@ class MalformedFrameError(Exception):
     """Bytes that don't parse into a known frame."""
 
 
-@dataclass(frozen=True)
-class DecodedMessage:
-    """One envelope: its frame plus the envelope's correlation.
-
-    ``frame`` is None for a body this build does not know.
-    """
-
-    frame: Frame | None
-    epoch: int = 0
-    speech_id: int = 0
-
-
 # ─── Encoders ─────────────────────────────────────────────────────────────────
 
 
 def _enc_session_start(f: SessionStartFrame, env: pb.Envelope) -> None:
     m = env.session_start
+    m.turn_id = f.turn_id
     m.session_id = f.session_id
     m.init = json.dumps(f.init)
     m.wire_version = f.wire_version
 
 
 def _enc_user_message(f: UserMessageFrame, env: pb.Envelope) -> None:
-    env.user_message.text = f.text
+    m = env.user_message
+    m.turn_id = f.turn_id
+    m.text = f.text
 
 
 def _enc_user_idle(f: UserIdleFrame, env: pb.Envelope) -> None:
     m = env.user_idle
+    m.turn_id = f.turn_id
     m.level = f.level
     m.idle_ms = f.idle_ms
 
 
-def _enc_browser_message(f: BrowserMessageFrame, env: pb.Envelope) -> None:
-    m = env.browser_message
-    m.type = f.type
-    m.data = json.dumps(f.data)
-
-
 def _enc_interruption(f: InterruptionFrame, env: pb.Envelope) -> None:
-    env.interruption.SetInParent()
-
-
-def _enc_speech_start(f: SpeechStartFrame, env: pb.Envelope) -> None:
-    env.speech_start.SetInParent()
-
-
-def _enc_speech_chunk(f: SpeechChunkFrame, env: pb.Envelope) -> None:
-    env.speech_chunk.text = f.text
-
-
-def _enc_speech_end(f: SpeechEndFrame, env: pb.Envelope) -> None:
-    env.speech_end.SetInParent()
+    env.interruption.through_turn = f.through_turn
 
 
 def _enc_finalize(f: FinalizeFrame, env: pb.Envelope) -> None:
     m = env.finalize
+    m.speech_id = f.speech_id
     m.heard_text = f.heard_text
     m.reason = _REASON_TO_PB[f.reason]
 
 
-def _enc_browser_command(f: BrowserCommandFrame, env: pb.Envelope) -> None:
-    env.browser_command.data = json.dumps(f.data)
+def _enc_speech_start(f: SpeechStartFrame, env: pb.Envelope) -> None:
+    m = env.speech_start
+    m.speech_id = f.speech_id
+    m.turn_id = f.turn_id
+
+
+def _enc_speech_chunk(f: SpeechChunkFrame, env: pb.Envelope) -> None:
+    m = env.speech_chunk
+    m.speech_id = f.speech_id
+    m.text = f.text
+
+
+def _enc_speech_end(f: SpeechEndFrame, env: pb.Envelope) -> None:
+    env.speech_end.speech_id = f.speech_id
 
 
 # Each op sets its arm of the `op` oneof explicitly, so a request carrying no
@@ -172,6 +179,16 @@ def _enc_response(f: ResponseFrame, env: pb.Envelope) -> None:
     m.detail = f.detail
 
 
+def _enc_rtvi(f: RTVIFrame, env: pb.Envelope) -> None:
+    m = env.rtvi
+    m.type = _RTVI_TO_PB[f.type]
+    m.data = json.dumps(f.data)
+    if f.id is not None:
+        m.id = f.id
+    if f.turn_id is not None:
+        m.turn_id = f.turn_id
+
+
 def _enc_end(f: EndFrame, env: pb.Envelope) -> None:
     env.end.SetInParent()
 
@@ -181,25 +198,26 @@ def _enc_cancel(f: CancelFrame, env: pb.Envelope) -> None:
 
 
 def _enc_error(f: ErrorFrame, env: pb.Envelope) -> None:
-    env.error.error = f.error
-    env.error.fatal = f.fatal
+    m = env.error
+    m.code = _CODE_TO_PB[f.code]
+    m.message = f.message
+    m.fatal = f.fatal
 
 
 _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     SessionStartFrame: _enc_session_start,
     UserMessageFrame: _enc_user_message,
     UserIdleFrame: _enc_user_idle,
-    BrowserMessageFrame: _enc_browser_message,
     InterruptionFrame: _enc_interruption,
+    FinalizeFrame: _enc_finalize,
     SpeechStartFrame: _enc_speech_start,
     SpeechChunkFrame: _enc_speech_chunk,
     SpeechEndFrame: _enc_speech_end,
-    FinalizeFrame: _enc_finalize,
-    BrowserCommandFrame: _enc_browser_command,
     ConfigureTtsFrame: _enc_configure_tts,
     ConfigureSttFrame: _enc_configure_stt,
     ConfigureIdleFrame: _enc_configure_idle,
     ResponseFrame: _enc_response,
+    RTVIFrame: _enc_rtvi,
     EndFrame: _enc_end,
     CancelFrame: _enc_cancel,
     ErrorFrame: _enc_error,
@@ -212,6 +230,7 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
 def _dec_session_start(env: pb.Envelope) -> SessionStartFrame:
     m = env.session_start
     return SessionStartFrame(
+        turn_id=m.turn_id,
         session_id=m.session_id,
         init=json.loads(m.init) if m.init else {},
         wire_version=m.wire_version,
@@ -219,49 +238,40 @@ def _dec_session_start(env: pb.Envelope) -> SessionStartFrame:
 
 
 def _dec_user_message(env: pb.Envelope) -> UserMessageFrame:
-    return UserMessageFrame(text=env.user_message.text)
+    m = env.user_message
+    return UserMessageFrame(turn_id=m.turn_id, text=m.text)
 
 
 def _dec_user_idle(env: pb.Envelope) -> UserIdleFrame:
     m = env.user_idle
-    return UserIdleFrame(level=m.level, idle_ms=m.idle_ms)
-
-
-def _dec_browser_message(env: pb.Envelope) -> BrowserMessageFrame:
-    m = env.browser_message
-    return BrowserMessageFrame(
-        type=m.type,
-        data=json.loads(m.data) if m.data else {},
-    )
+    return UserIdleFrame(turn_id=m.turn_id, level=m.level, idle_ms=m.idle_ms)
 
 
 def _dec_interruption(env: pb.Envelope) -> InterruptionFrame:
-    return InterruptionFrame()
-
-
-def _dec_speech_start(env: pb.Envelope) -> SpeechStartFrame:
-    return SpeechStartFrame()
-
-
-def _dec_speech_chunk(env: pb.Envelope) -> SpeechChunkFrame:
-    return SpeechChunkFrame(text=env.speech_chunk.text)
-
-
-def _dec_speech_end(env: pb.Envelope) -> SpeechEndFrame:
-    return SpeechEndFrame()
+    return InterruptionFrame(through_turn=env.interruption.through_turn)
 
 
 def _dec_finalize(env: pb.Envelope) -> FinalizeFrame:
     m = env.finalize
     return FinalizeFrame(
+        speech_id=m.speech_id,
         heard_text=m.heard_text,
         reason=_REASON_FROM_PB.get(m.reason, FinalizeReason.COMPLETED),
     )
 
 
-def _dec_browser_command(env: pb.Envelope) -> BrowserCommandFrame:
-    d = env.browser_command.data
-    return BrowserCommandFrame(data=json.loads(d) if d else None)
+def _dec_speech_start(env: pb.Envelope) -> SpeechStartFrame:
+    m = env.speech_start
+    return SpeechStartFrame(speech_id=m.speech_id, turn_id=m.turn_id)
+
+
+def _dec_speech_chunk(env: pb.Envelope) -> SpeechChunkFrame:
+    m = env.speech_chunk
+    return SpeechChunkFrame(speech_id=m.speech_id, text=m.text)
+
+
+def _dec_speech_end(env: pb.Envelope) -> SpeechEndFrame:
+    return SpeechEndFrame(speech_id=env.speech_end.speech_id)
 
 
 def _dec_configure_tts(req: pb.Request) -> ConfigureTtsFrame:
@@ -318,6 +328,19 @@ def _dec_response(env: pb.Envelope) -> ResponseFrame:
     )
 
 
+def _dec_rtvi(env: pb.Envelope) -> RTVIFrame:
+    m = env.rtvi
+    rtvi_type = _RTVI_FROM_PB.get(m.type)
+    if rtvi_type is None:
+        raise MalformedFrameError(f"RTVI type {m.type} is not one this build carries.")
+    return RTVIFrame(
+        type=rtvi_type,
+        data=json.loads(m.data) if m.data else None,
+        id=m.id if m.HasField("id") else None,
+        turn_id=m.turn_id if m.HasField("turn_id") else None,
+    )
+
+
 def _dec_end(env: pb.Envelope) -> EndFrame:
     return EndFrame()
 
@@ -328,22 +351,26 @@ def _dec_cancel(env: pb.Envelope) -> CancelFrame:
 
 
 def _dec_error(env: pb.Envelope) -> ErrorFrame:
-    return ErrorFrame(error=env.error.error, fatal=env.error.fatal)
+    m = env.error
+    return ErrorFrame(
+        code=_CODE_FROM_PB.get(m.code, ErrorCode.INTERNAL),
+        message=m.message,
+        fatal=m.fatal,
+    )
 
 
 _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
     "session_start": _dec_session_start,
     "user_message": _dec_user_message,
     "user_idle": _dec_user_idle,
-    "browser_message": _dec_browser_message,
     "interruption": _dec_interruption,
+    "finalize": _dec_finalize,
     "speech_start": _dec_speech_start,
     "speech_chunk": _dec_speech_chunk,
     "speech_end": _dec_speech_end,
-    "finalize": _dec_finalize,
-    "browser_command": _dec_browser_command,
     "request": _dec_request,
     "response": _dec_response,
+    "rtvi": _dec_rtvi,
     "end": _dec_end,
     "cancel": _dec_cancel,
     "error": _dec_error,
@@ -360,13 +387,7 @@ class WireSerializer:
     symmetry, though nothing awaits.
     """
 
-    async def serialize(
-        self,
-        frame: Frame,
-        *,
-        epoch: int = 0,
-        speech_id: int = 0,
-    ) -> bytes:
+    async def serialize(self, frame: Frame) -> bytes:
         encoder = _ENCODERS.get(type(frame))
         if encoder is None:
             raise UnsupportedFrameError(
@@ -375,23 +396,19 @@ class WireSerializer:
             )
         env = pb.Envelope()
         encoder(frame, env)
-        if epoch:
-            env.epoch = epoch
-        if speech_id:
-            env.speech_id = speech_id
         return env.SerializeToString()
 
     async def deserialize(self, data: str | bytes) -> Frame:
-        frame = self._decode_envelope(data).frame
+        frame = self._decode(data)
         if frame is None:  # unreachable: strict decoding raises on a bodyless envelope
             raise MalformedFrameError("Envelope has no body set.")
         return frame
 
-    async def deserialize_message(self, data: str | bytes) -> DecodedMessage:
+    async def deserialize_message(self, data: str | bytes) -> Frame | None:
         """Decode an envelope, skipping a body this build does not know."""
-        return self._decode_envelope(data, strict=False)
+        return self._decode(data, strict=False)
 
-    def _decode_envelope(self, data: str | bytes, *, strict: bool = True) -> DecodedMessage:
+    def _decode(self, data: str | bytes, *, strict: bool = True) -> Frame | None:
         if isinstance(data, str):
             raise MalformedFrameError("WireSerializer is binary; got str input.")
         env = pb.Envelope()
@@ -399,8 +416,6 @@ class WireSerializer:
             env.ParseFromString(data)
         except Exception as exc:
             raise MalformedFrameError(f"Envelope parse failed: {exc}") from exc
-
-        corr: dict[str, int] = {"epoch": env.epoch, "speech_id": env.speech_id}
 
         which = env.WhichOneof("body")
         if which is None:
@@ -410,7 +425,7 @@ class WireSerializer:
             if strict:
                 raise MalformedFrameError("Envelope has no body set.")
             logger.warning("wire: envelope with no known body (newer peer?); skipping")
-            return DecodedMessage(frame=None, **corr)
+            return None
 
         decoder = _DECODERS.get(which)
         if decoder is None:
@@ -419,9 +434,9 @@ class WireSerializer:
                     f"Envelope body {which!r} has no decoder. Schema and serializer drift?"
                 )
             logger.warning("wire: envelope body {!r} has no decoder; skipping", which)
-            return DecodedMessage(frame=None, **corr)
+            return None
         try:
-            return DecodedMessage(frame=decoder(env), **corr)
+            return decoder(env)
         except Exception as exc:
             raise MalformedFrameError(f"Decoder for {which!r} failed: {exc}") from exc
 
