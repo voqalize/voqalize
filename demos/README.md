@@ -95,9 +95,9 @@ discovers backends and each frontend declares its own connection wiring. To add
    existing demo's `package.json` / `vite.config.ts` (set `base: "/demos/<name>/"`
    and a unique dev `port`) / `tsconfig.json` / `index.html` / `.env.example`, and
    a `src/config.ts` declaring only the connection wiring. **Voice and language do
-   not live here** — the brain declares them (`Brain.voice` / `Brain.language`, or
-   `session.configure_language(...)` per caller), because that is the only place
-   the STT and TTS legs move together. Setting one leg from the page is the
+   not live here** — the agent record carries the default and the brain overrides
+   it per caller (`await session.configure(Config(stt=…, tts=…))`), because that is
+   the only place the STT and TTS legs move together. Setting one leg from the page is the
    half-applied-pair bug, and it is silent: the words stay right and only the
    speaker is wrong.
 3. **Env** — `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY` (this app's

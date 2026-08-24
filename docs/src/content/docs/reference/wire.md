@@ -241,7 +241,7 @@ message IdleConfig { optional uint32 timeout_ms = 1; }
 The same message is the agent record's stored configuration and this op's
 payload. That is the point: a record cannot drift from the wire if there is only
 one definition of what a configuration is. "Unset" reads differently at each end
-— in the record it means *take the platform default*, so a section added later
+— in the record it means *take Voqalize's default*, so a section added later
 does not invalidate every stored record; on the wire it means *leave it alone*,
 because a `Request` carries a delta and the runtime is already running.
 

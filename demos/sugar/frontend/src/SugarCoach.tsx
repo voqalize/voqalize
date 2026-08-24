@@ -102,10 +102,10 @@ export function SugarCallSession() {
 
   // No pipeline override. The patient's LanguageToggle choice rides the
   // payload below (`language`), and the brain applies it with one
-  // configure_language call at session start — so the recognizer and the TTS
-  // voice can't drift apart, which is what happens when the browser sets one
-  // half of the pair. The scenario's PATIENT CONTEXT rides the payload too,
-  // reaching the brain as its init payload.
+  // session.configure call at session start — both legs in one request, so the
+  // recognizer and the TTS voice can't drift apart, which is what happens when
+  // the browser sets one half of the pair. The scenario's PATIENT CONTEXT rides
+  // the payload too, reaching the brain as its init payload.
   //
   // Memoized: this is a dependency of PipecatAppBase's connect-on-mount
   // effect, so an unmemoized object literal would re-fire that effect (and

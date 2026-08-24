@@ -42,43 +42,14 @@ from voqalize.conformance import (
     mint_voqalize_token,
 )
 from voqalize.sdk import Brain
-from voqalize.sdk.wire import ConfigureSttFrame, ConfigureTtsFrame
+from voqalize.sdk.wire import SPEAKABLE, Config, ConfigureFrame, Language
 
-# The whole TTS catalog (``docs/reference/catalog.md``). A voice outside it is
-# rejected by vql-speech at connect — which is how two fossil agent records took
-# production down: the values named engines deleted a release earlier, and nothing
-# between the record and the wire had an opinion.
-VOICES = frozenset({"omnivoice/gauri", "omnivoice/gaurav"})
-
-# What ``vql-stt`` serves: English plus the 22 Indic languages. Anything else
-# silently falls back to the English recognizer.
-LANGUAGES = frozenset(
-    {
-        "en",
-        "as",
-        "bn",
-        "brx",
-        "doi",
-        "gu",
-        "hi",
-        "kn",
-        "kok",
-        "ks",
-        "mai",
-        "ml",
-        "mni",
-        "mr",
-        "ne",
-        "or",
-        "pa",
-        "sa",
-        "sat",
-        "sd",
-        "ta",
-        "te",
-        "ur",
-    }
-)
+# There is no catalog constant here any more. ``Voice`` and ``Language`` are
+# protobuf enums, so a value vql-speech does not serve cannot be constructed,
+# let alone put on the wire — which is what used to take production down, from
+# fossil agent records naming engines deleted a release earlier. What is left
+# to check is that the demo configured at all, and configured the pair it meant
+# to.
 
 
 @dataclass
@@ -181,86 +152,82 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
 # ─── The checks every demo shares ─────────────────────────────────────────────
 
 
-def _tts(rig: DemoRig) -> list[ConfigureTtsFrame]:
-    """Every ``configure_tts`` the brain sent, in wire order."""
-    return [r for r in rig.driver.requests if isinstance(r, ConfigureTtsFrame)]
+def _configs(rig: DemoRig) -> list[Config]:
+    """Every configuration the brain put on the wire, in order."""
+    return [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
 
 
-def _stt(rig: DemoRig) -> list[ConfigureSttFrame]:
-    """Every ``configure_stt`` the brain sent, in wire order."""
-    return [r for r in rig.driver.requests if isinstance(r, ConfigureSttFrame)]
+def _last(configs: list[Config], read: Callable[[Config], Any]) -> Any:
+    """The last value any request actually set for one field.
+
+    Requests are deltas, so the session's state is the newest *stated* value —
+    a later request that left a section out did not reset it."""
+    for config in reversed(configs):
+        value = read(config)
+        if value is not None:
+            return value
+    return None
 
 
 def check_voice_pair(rig: DemoRig, *, voice: str, language: str) -> None:
-    """Both halves of the language reached the wire, agreeing, before the greeting.
+    """Both halves of the language reached the wire, as one request, before the
+    greeting.
 
-    ``language`` sets the recognizer **and** the voice-cloning reference clip, and
-    the two are named differently on the two legs (TTS ``language``, STT
-    ``language_hint``). Half-applying it is silent: the words stay right and only
-    the speaker is wrong, so WER, logs and every automated score are blind to it —
-    which is exactly how a demo shipped Devanagari read in an English voice for
-    weeks. The only place it is visible is here, on the frames themselves."""
-    tts_requests = _tts(rig)
-    stt_requests = _stt(rig)
+    ``language`` sets the recognizer **and** the voice-cloning reference clip.
+    Half-applying it is silent: the words stay right and only the speaker is
+    wrong, so WER, logs and every automated score are blind to it — which is
+    exactly how a demo shipped Devanagari read in an English voice for weeks. The
+    only place it is visible is here, on the frames themselves.
+
+    The SDK now refuses to build a half-stated ``Config`` at all, so this is no
+    longer the last line of defence. It is still the only check that the pair the
+    demo chose is the pair it meant."""
+    configs = _configs(rig)
     checks.require(
-        bool(tts_requests),
-        f"{rig.name}: no configure_tts on the wire — the brain declared no voice "
-        "and set none, so the session runs on whatever the platform default happens "
+        bool(configs),
+        f"{rig.name}: nothing configured on the wire — the brain declared no voice "
+        "and set none, so the session runs on whatever the record's default happens "
         "to be",
     )
+    got_voice = _last(configs, lambda c: c.tts.voice if c.tts else None)
+    got_spoken = _last(configs, lambda c: c.tts.language if c.tts else None)
+    got_heard = _last(configs, lambda c: c.stt.language if c.stt else None)
     checks.require(
-        bool(stt_requests),
-        f"{rig.name}: no configure_stt on the wire — the recognizer never got a "
-        "language hint, so the caller is transcribed as English",
-    )
-    tts = tts_requests[-1]
-    stt = stt_requests[-1]
-    checks.require(
-        tts.voice == voice,
-        f"{rig.name}: TTS voice is {tts.voice!r}, expected {voice!r}",
+        got_voice == voice,
+        f"{rig.name}: TTS voice is {got_voice!r}, expected {voice!r}",
     )
     checks.require(
-        tts.language == language,
-        f"{rig.name}: TTS language is {tts.language!r}, expected {language!r} — "
+        got_spoken == language,
+        f"{rig.name}: TTS language is {got_spoken!r}, expected {language!r} — "
         "the reference clip, i.e. which recorded speaker reads the text",
     )
     checks.require(
-        stt.language_hint == language,
-        f"{rig.name}: STT language_hint is {stt.language_hint!r}, expected "
-        f"{language!r} — the two halves have drifted apart",
+        got_heard == language,
+        f"{rig.name}: STT language is {got_heard!r}, expected {language!r} — "
+        "the two halves have drifted apart",
     )
-    check_catalog(rig)
 
 
 def check_catalog(rig: DemoRig) -> None:
-    """Every voice/language the brain ever put on the wire is one vql-speech serves.
+    """Every language the brain named on the speaking leg has a recorded clip.
 
-    A value outside the catalog is not a soft failure: an unknown voice prefix is
-    rejected at connect (``voice not found``), and an unknown ``?model=`` is an
-    HTTP 403 before a single frame flows. Both have happened in production, from
-    values that were valid when they were written and were never revisited."""
-    for tts in _tts(rig):
-        if tts.voice is not None:
+    Both this and the catalog itself are now unrepresentable failures — ``Voice``
+    and ``Language`` are enums and ``Config`` rejects a clip-less ``tts.language``
+    on construction — so this asserts the guard is still wired rather than
+    re-deriving it. It stays because the failures it names both happened: an
+    unknown voice prefix is rejected at connect (``voice not found``), and a
+    clip-less language was quietly served by the Hindi clip."""
+    for config in _configs(rig):
+        if config.tts is not None and config.tts.language is not None:
             checks.require(
-                tts.voice in VOICES,
-                f"{rig.name}: voice {tts.voice!r} is not in the catalog {sorted(VOICES)} — "
-                "vql-speech rejects it at connect",
+                config.tts.language in SPEAKABLE,
+                f"{rig.name}: TTS language {config.tts.language!r} has no recorded "
+                "clip, so it would be read by the Hindi speaker",
             )
-        if tts.language is not None:
+        if config.stt is not None and config.stt.language is not None:
             checks.require(
-                tts.language in LANGUAGES,
-                f"{rig.name}: TTS language {tts.language!r} is not served by vql-stt",
-            )
-        checks.require(
-            tts.model is None or tts.model == "sonic-2",
-            f"{rig.name}: TTS model {tts.model!r} — the engine is chosen by the voice "
-            "prefix; naming a deleted engine here is how prod broke",
-        )
-    for stt in _stt(rig):
-        if stt.language_hint is not None:
-            checks.require(
-                stt.language_hint in LANGUAGES,
-                f"{rig.name}: STT language_hint {stt.language_hint!r} is not served by vql-stt",
+                config.stt.language in Language,
+                f"{rig.name}: STT language {config.stt.language!r} is not served by vql-stt",
             )
 
 

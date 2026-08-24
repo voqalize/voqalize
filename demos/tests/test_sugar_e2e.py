@@ -81,7 +81,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
 async def test_the_patients_chosen_language_is_on_the_wire_before_the_hello() -> None:
     """A Hindi patient hears a Hindi hello **in a Hindi voice**.
 
-    The ordering is the point: ``configure_language`` runs before the greeting, so
+    The ordering is the point: ``session.configure`` runs before the greeting, so
     the first audio of the call is already in the right reference clip. When it ran
     after — or only reached the prompt — the Devanagari hello came out in an en-IN
     voice, which is right on paper and foreign in the ear."""
@@ -112,7 +112,7 @@ async def test_logging_a_meal_drives_the_screen() -> None:
 async def test_switching_language_mid_call_moves_both_halves() -> None:
     """The patient asks to switch, and the recognizer follows the voice.
 
-    ``switch_language`` is one ``configure_language`` call precisely so it cannot
+    ``switch_language`` is one ``session.configure`` call precisely so it cannot
     half-apply. Moving only the TTS leg leaves the recognizer hearing Hindi as
     English — the caller is then mis-transcribed for the rest of the call, and the
     reply, generated from that wrong transcript, is merely *odd* rather than

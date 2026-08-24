@@ -231,7 +231,7 @@ facts:
 
   speech.stt.model:
     value: vql-stt
-    source: docs/src/content/docs/reference/catalog.md:42
+    source: docs/src/content/docs/reference/catalog.md:39
     verified: 2026-08-24
     note: >-
       A composite router, the default, and the only one. Language selects the

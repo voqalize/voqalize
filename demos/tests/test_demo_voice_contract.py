@@ -122,7 +122,7 @@ async def test_demo_puts_a_complete_voice_pair_on_the_wire(name: str) -> None:
 async def test_a_per_caller_language_moves_both_halves() -> None:
     """Sugar's patient picks the language, so it is resolved in the brain from the
     payload rather than declared — and it must move the recognizer *and* the
-    reference clip together. Until ``configure_language`` existed, the choice only
+    reference clip together. Until one atomic ``configure`` existed, the choice only
     reached the prompt: the coach wrote Devanagari and an en-IN voice read it out,
     correct on paper and foreign in the ear."""
     async with demo("sugar", ScriptedGemini()) as rig:

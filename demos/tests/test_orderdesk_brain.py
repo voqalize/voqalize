@@ -1871,11 +1871,11 @@ async def test_the_brain_puts_hindi_on_both_legs_before_it_greets() -> None:
 
     Two properties, both load-bearing:
 
-    * **Both halves.** ``configure_language`` moves the recognizer and the voice
-      together. PyGato picks the recognition engine from ``language_hint``, which it
-      derives from the TTS-side language; a config that sets only one of the pair
-      transcribes Hindi with the English model, and the failure then reads as bad
-      recognition rather than bad config.
+    * **Both halves.** One ``Config`` moves the recognizer and the voice
+      together, and the SDK refuses to build one that names a language on a single
+      leg; a config that set only one of the pair would transcribe Hindi with the
+      English model, and the failure then reads as bad recognition rather than
+      bad config.
     * **Before the greeting.** A settings frame that lands after the first audio is
       worse than useless — the caller has already heard the wrong voice say hello.
     """

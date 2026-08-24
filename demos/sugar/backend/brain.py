@@ -34,14 +34,24 @@ from pydantic import BaseModel, Field, computed_field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 COACH_NAME = "Sugar Coach"
 
-# (stt language_hint, tts_voice, tts_language) per conversation language.
-# Same voice both ways; only the language hint moves (vql-speech applies it live).
-_LANG: dict[str, tuple[str, str, str]] = {
-    "English": ("en", "omnivoice/gauri", "en"),
-    "Hindi": ("hi", "omnivoice/gauri", "hi"),
+
+def _config(language: Language) -> Config:
+    """Both legs, same language, same voice — one request. Both of these have a
+    recorded clip, so the legs never have to differ here."""
+    return Config(
+        stt=SttConfig(language=language),
+        tts=TtsConfig(language=language, voice=Voice.OMNIVOICE_GAURI),
+    )
+
+
+# The conversation language, by the name the screen calls it.
+_LANG: dict[str, Language] = {
+    "English": Language.EN,
+    "Hindi": Language.HI,
 }
 
 # The opener, per language. A greeting is the one line spoken before any model
@@ -280,7 +290,7 @@ class SugarBrain(GeminiBrain):
     # No declared ``voice``/``language``. This coach's language depends on the
     # caller — the patient's own LanguageToggle choice rides
     # ``session.init["language"]`` — so on_session_start resolves it and moves
-    # both legs with one ``configure_language`` before the greeting. A declared
+    # both legs with one ``session.configure`` before the greeting. A declared
     # default here would only mean configuring the language twice.
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
@@ -319,8 +329,7 @@ class SugarBrain(GeminiBrain):
         # conversation right on paper and foreign-accented in the ear. It only
         # sounded correct because the browser happened to send a matching
         # per-session override; the brain must not depend on that.
-        _, tts_voice, tts_lang = _LANG[self.language_name]
-        await session.configure_language(tts_lang, voice=tts_voice)
+        await session.configure(_config(_LANG[self.language_name]))
         # How much the coach leads vs. listens. "quiet" = the patient narrates
         # and we log silently; "guided" = we walk them through beat by beat.
         # Either way the two-or-three-sentence ceiling holds. Default quiet.
@@ -509,12 +518,11 @@ class SugarBrain(GeminiBrain):
     async def switch_language(self, to: SwitchLanguage) -> str:
         """Switch the conversation language when the patient asks. Acknowledge their
         request in one short sentence in the target language first."""
-        stt_hint, tts_voice, tts_lang = _LANG[to.language]
+        language = _LANG[to.language]
         self.language_name = to.language
-        logger.info("sugar: switch_language → {} (hint={})", to.language, stt_hint)
-        # One call moves both halves — recognizer and voice. This is the only
-        # supported way to change language mid-call; the configure_tts +
-        # configure_stt pair can drift, and either half missing is silent. Awaited
-        # because the model gets the answer Voqalize gave, not the one we hoped for.
-        await self.session.configure_language(tts_lang, voice=tts_voice)
+        logger.info("sugar: switch_language → {} ({})", to.language, language.value)
+        # One request moves both halves — recognizer and voice — so there is no
+        # moment where the call is half in each. Awaited because the model gets
+        # the answer Voqalize gave, not the one we hoped for.
+        await self.session.configure(_config(language))
         return "ok"

@@ -129,9 +129,9 @@ export function GoldLoanAdvisor() {
     publishableKey: LEAD.publishableKey ?? '',
     agentId: LEAD.agentId,
     // No pipeline override. The caller's language selection rides the payload
-    // below and the brain applies it with one configure_language call at session
-    // start — the brain is the only thing that sees this caller, and one call
-    // keeps the recognizer and the TTS voice from drifting apart.
+    // below and the brain applies it with one session.configure call at session
+    // start — the brain is the only thing that sees this caller, and one request
+    // carrying both legs keeps the recognizer and the TTS voice from drifting apart.
     payload: {
       name: formData.name,
       phone: formData.phone,

@@ -106,7 +106,7 @@ async def test_an_explicit_language_beats_the_state() -> None:
 
 
 async def test_switching_language_mid_call_moves_both_halves() -> None:
-    """``switch_language`` is one ``configure_language`` call so it cannot
+    """``switch_language`` is one ``session.configure`` call so it cannot
     half-apply: moving only the voice leaves the recognizer hearing Tamil as Hindi
     for the rest of the call, and every later reply is generated from that wrong
     transcript."""

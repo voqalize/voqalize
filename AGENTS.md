@@ -94,37 +94,62 @@ differ between a `main` push and its promotion:
 for h in brain.dev.voqalize.com brain.voqalize.com; do curl -fsS https://$h/_healthz; echo; done
 ```
 
-## Voice and language belong to the brain — never to the page
+## Voice and language: the record holds the default, the brain overrides
 
-`tts.language` selects the **voice-cloning reference clip**; `stt.language_hint`
-selects the **recognizer**. They are one setting with two legs, and moving only one
-is *silent*: the words stay right, only the speaker is wrong. No transcript, log,
-metric or WER score can see it — a Hindi call read by an English reference clip
-scores identically and sounds like a foreigner reading Devanagari. That was a real
-production bug on `/demos/orderdesk`.
+`tts.language` selects the **voice-cloning reference clip**; `stt.language`
+selects the **recognizer**. They are one setting with two legs, and moving only
+one is *silent*: the words stay right, only the speaker is wrong. No transcript,
+log, metric or WER score can see it — a Hindi call read by an English reference
+clip scores identically and sounds like a foreigner reading Devanagari. That was
+a real production bug on `/demos/orderdesk`.
 
-So there is exactly **one** sanctioned way to move a language, and it is server-side:
+The agent record carries the session's default configuration, and the brain
+overrides it at runtime when the language depends on *this* caller:
 
 ```python
 class MyBrain(GeminiBrain):
-    voice = "omnivoice/gauri"     # applied before on_session_start, so before greeting audio
-    language = "hi"
-
     async def on_session_start(self, session):
-        # Per-caller override, still both legs, still before the first word:
-        await session.configure_language("ta", voice="omnivoice/gauri")
+        # The enquiry form said Tamil Nadu. Both legs, before the first word:
+        await session.configure(
+            Config(
+                stt=SttConfig(language=Language.TA),
+                tts=TtsConfig(language=Language.TA, voice=Voice.OMNIVOICE_GAURI),
+            )
+        )
 ```
 
-`Session.configure_language(language, *, voice=None)` is `configure_tts(...)` **and**
-`configure_stt(...)` in one call. That is the entire point of it — do not call the
-two halves separately, and do not put a language anywhere a page or a database
-record can set it. The agent record deliberately carries **no** stt/tts blocks; a
-brain is version-controlled and a Firestore field is not.
+One request, three optional sections — `tts`, `stt`, `idle`. Not three requests:
+a language change has to move both legs at once, and splitting it would put a
+turn boundary and a possible refusal between the halves.
 
-The catalog is small and closed: voices are `omnivoice/gauri` (female) and
-`omnivoice/gaurav` (male); `vql-stt` serves `en` plus the 22 Indic codes. An
-unknown model is **HTTP 403 at connect**, an unknown voice prefix is
-`voice not found` — both fail the session, not the sentence.
+**Both legs carry their own `language`, and that is not duplication.** `vql-stt`
+serves 23 languages; `omnivoice` has reference clips for ten (`hi, en, bn, gu,
+kn, ml, mr, pa, ta, te`). So understanding Odia while speaking with the Hindi
+clip is a real configuration that one field could not express. Two rules follow,
+both raised as `ConfigError` by `Config` itself before anything reaches the
+socket:
+
+- **The pairing rule.** Name a language on one leg and you must name it on the
+  other. Not that they agree — that you *stated* both. Changing only the voice
+  touches no language field and is unaffected.
+- **No silent substitution.** A `tts.language` outside the ten with clips is
+  rejected rather than quietly served by the Hindi clip. To run an Odia call you
+  write `stt.language = OR, tts.language = HI` — which is what is actually going
+  to happen.
+
+**A page still never sets either.** That part of the old rule was right and stays.
+
+The surface is deliberately narrow: voice and language only. `Voice` and
+`Language` are protobuf enums, so a value we do not serve is unrepresentable
+rather than silently falling back to the English recognizer; the eleven VAD knobs
+left the wire entirely and keep PyGato's own defaults. The catalog is small and
+closed: `omnivoice/gauri` (female) and `omnivoice/gaurav` (male), and `en` plus
+the 22 Indic codes. An unknown model is **HTTP 403 at connect**, an unknown voice
+prefix is `voice not found` — both fail the session, not the sentence.
+
+Still in the tree and still going away: the `Brain.voice` / `Brain.language`
+ClassVars, applied before `on_session_start`. They stay until the agent records
+carry the defaults; nothing new should be built on them.
 
 ## Every demo has an e2e, and one of them is a sweep
 

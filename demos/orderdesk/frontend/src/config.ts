@@ -17,10 +17,10 @@
  * publishable key's `allowed_origins` only needs the domain the UI is served on.
  *
  * OrderDesk is a Hindi call end to end — the pharmacist speaks Hindi, the screen
- * stays English. That language is **not** set here: the brain declares it
- * (`Brain.language` / `session.configure_language`), which is the only place both
- * the STT and the TTS leg can be moved together. A page that set one of them from
- * the browser would be setting exactly half of a pair.
+ * stays English. That language is **not** set here: it is the agent record's
+ * default, and a brain overrides it with one `session.configure(...)` — the only
+ * place both the STT and the TTS leg move together. A page that set one of them
+ * from the browser would be setting exactly half of a pair.
  */
 
 /** Resolved wiring for this demo agent. */
