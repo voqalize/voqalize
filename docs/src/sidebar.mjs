@@ -40,9 +40,14 @@
  *   Run and operate       keys and authentication · logs and session events ·
  *                         recordings · usage and limits
  *   Reference             the brain API · the RTVI plane · errors
- *   Designing for voice   the nine explanation pages in `design/explanations/`
  *
- * Two of those are held rather than merely unwritten, and both are held on the
+ * "Designing for voice" is the durable quadrant and it is written from the
+ * outlines in `design/explanations/`. Seven of the eleven are published. Two
+ * more are held on the same work as the sections above; one — the browser is
+ * pipecat's — was promoted into Start when the React client was deleted; and
+ * "the framework boundary" waits for a second engine to exist.
+ *
+ * Two sections are held rather than merely unwritten, and both are held on the
  * same work: the brain section and the voice-and-language section describe
  * surfaces being changed right now by `skill-rewrite/BRAIN-SIMPLIFICATION.md`
  * — the configuration ops are collapsing into one, voices and languages are
@@ -80,6 +85,18 @@ export const sidebar = [
       { label: "The wire", slug: "reference/wire" },
       { label: "Voice and language catalog", slug: "reference/catalog" },
       { label: "MCP server", slug: "reference/mcp" },
+    ],
+  },
+  {
+    label: "Designing for voice",
+    items: [
+      { label: "Voice points, the screen holds", slug: "design/voice-points-screen-holds" },
+      { label: "The turn budget", slug: "design/the-turn-budget" },
+      { label: "Interruption and heard truth", slug: "design/interruption-and-heard-truth" },
+      { label: "Parallel workstreams", slug: "design/parallel-workstreams" },
+      { label: "Prompt design for voice", slug: "design/prompt-design" },
+      { label: "Tool design for voice", slug: "design/tool-design" },
+      { label: "Misunderstanding and reversal", slug: "design/misunderstanding-and-reversal" },
     ],
   },
 ];
