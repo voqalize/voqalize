@@ -104,7 +104,7 @@ class MyBrain(GeminiBrain):
 
     async def on_session_start(self, session):
         # Per-caller override, still both legs, still before the first word:
-        session.configure_language("ta", voice="omnivoice/gauri")
+        await session.configure_language("ta", voice="omnivoice/gauri")
 ```
 
 `Session.configure_language(language, *, voice=None)` is `configure_tts(...)` **and**

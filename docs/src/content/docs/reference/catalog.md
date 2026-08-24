@@ -19,8 +19,8 @@ or, when the language depends on *this* caller, with one call inside
 `on_session_start`:
 
 ```python
-async def on_session_start(self, session, start):
-    session.configure_language("ta", voice="omnivoice/gauri")
+async def on_session_start(self, session):
+    await session.configure_language("ta", voice="omnivoice/gauri")
 ```
 
 The same call switches language mid-call.

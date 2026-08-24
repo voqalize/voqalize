@@ -12,25 +12,51 @@ because the API they describe is the API `0.0.1` ships.
 
 ## 0.0.4 (unreleased)
 
-**The wire's speech vocabulary is renamed; the encoding is not.** Every field
-number, type and cardinality is byte-identical — a capture from before this
-release decodes with the new stub and vice versa. What changed is what the bytes
-are *called*, because the old names described the brain's internals
-(`LLMFullResponseStart`, `inference_id`) when the wire only ever carried speech:
-a unit the voice will say, and the truth of what was heard of it.
+**Wire version 3, and it is a break.** The envelope carries no fields, barge-in
+is a one-way watermark, and the browser plane is RTVI. A brain built against
+version 2 refuses a version 3 session outright — a fatal `Error` then `End`,
+before it has greeted — and the same in reverse, so neither end ever guesses.
 
 ### Changed
 
-- **Proto messages:** `LLMFullResponseStart`/`LLMText`/`LLMFullResponseEnd` →
-  `SpeechStart`/`SpeechChunk`/`SpeechEnd`; `InferenceFinalized` → `Finalize`.
-  Envelope field 52 `inference_id` → `speech_id` (same field number, same type —
-  a name-only change, invisible on the wire).
-- **SDK surface, renamed with no aliases:** `Speech{Start,Chunk,End}Frame`,
-  `FinalizeFrame`, `Envelope.speech_id`, `Emitter.send(speech_id=)`,
-  `Session._next_speech_id()`. `fin.interrupted` remains as sugar over
-  `FinalizeReason.USER_BARGE_IN`.
-- **Conformance:** `InferenceObs` → `SpeechObs`, `.inferences` → `.units`,
-  scenario id `two_inferences_one_turn` → `two_units_one_turn`.
+- **The envelope is one `oneof body` and nothing else.** The two correlation
+  scalars are gone from it; every identifier is a field of the message it
+  belongs to — `turn_id` on `SessionStart`/`UserMessage`/`UserIdle`/`SpeechStart`,
+  `speech_id` on the speech frames and `Finalize`, `request_id` on the
+  request/response pair. `WireSerializer.serialize(frame)` takes the frame and
+  nothing else; `deserialize_message(payload)` returns one.
+- **`epoch` → `turn_id`, and `SessionStart` is turn 1.** Only `UserMessage` and
+  `UserIdle` mint further turns, so the first thing the caller says is turn 2.
+  The greeting rides the turn `SessionStart` itself minted; there is no turn `0`.
+- **Interruption is a watermark, not a reply.** `Interruption` carries
+  `through_turn` and travels voice→brain only. Record
+  `max(watermark, through_turn)` and stop generating for anything at or below it;
+  send nothing back. The echo, the drain barrier and its timeout are gone — a
+  repeat is harmless, a missed one is covered by the next, and a newer turn
+  simply outranks the watermark.
+- **The browser plane is RTVI.** `BrowserMessage`/`BrowserCommand` →
+  one `RTVIFrame(type, data, id, turn_id)` in both directions, carrying a pipecat
+  RTVI message minus its constant label. `on_browser_message` → `on_rtvi`;
+  `session.dispatch(action)` is now sugar over `session.send_rtvi(...)`. `type`
+  is a closed whitelist of ten values and which side may originate each is part
+  of the type: a brain cannot forge `bot-*` or `llm-*`.
+- **The brain leg is dialled at `{brain_url}?session_id={session_id}`.** Your
+  path is used verbatim, so a brain is one ordinary WebSocket route rather than a
+  wildcard path segment carved out for us.
+- **`Error` carries an `ErrorCode`** — `PROTOCOL`, `WIRE_VERSION`, `REJECTED`,
+  `OVERLOAD`, `INTERNAL` — alongside the message and `fatal` flag.
+- **The inbound socket is the session and is not reconnected.** The runtime
+  retries the *first* connect under a short deadline; once you have answered, any
+  close ends the call.
+- **Conformance:** `InferenceObs` → `SpeechObs`, `EpochObs` → `TurnObs`,
+  `.inferences` → `.units`, `.epoch` → `.turn_id`; `send_browser_message` →
+  `send_rtvi` / `send_client_message`; scenario ids `two_inferences_one_turn` →
+  `two_units_one_turn` and `browser_message_*` → `app_message_*`.
+
+### Known gaps
+
+- `voqalize.google_adk` does not speak version 3 yet; its test suite is not
+  collected.
 
 ## 0.0.3
 

@@ -88,8 +88,9 @@ become; it does not govern this file.
 28. **Grounding beats a tool for anything on screen.** A tool is only as fresh as
     the model's decision to call it. — *agreed; the argument is already written in
     the ADK docstring.*
-29. **An app message may never take the floor.** Enforced by `on_app_message`
-    returning `None` — nothing to yield speech into. — *agreed, enforced by the type.*
+29. **An app message may never take the floor.** Enforced by `on_rtvi` returning
+    `None` — nothing to yield speech into, and no turn minted. — *agreed, enforced
+    by the type.*
 30. **An application-triggered turn is a *user message*, not a new frame type.**
     The user uploaded a photo, pressed a button, picked from a list: still the user
     acting, only the modality differs. `sendUserMessage` versus `sendAppMessage` is

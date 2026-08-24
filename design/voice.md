@@ -226,7 +226,7 @@ cannot act on.
 > sendMessage("state_sync", { workspace: snapshot() })
 > ```
 >
-> The brain receives it in `on_app_message`. This callback is not a generator: it can
+> The brain receives it in `on_rtvi`. This callback is not a generator: it can
 > update state, dispatch an action, or end the session, and it cannot speak. A click
 > arrives while the user is still talking, and an agent that answers a click talks over
 > the person making it.
@@ -278,7 +278,7 @@ says what breaks before it says what replaces it.
 
 **Commit messages** say what is, rather than how it got here: `area: the state after the
 change, present tense`. This is already the house style and should stay it — *"sdk: greet
-is one line, and an inference_id is the brain's alone"*, *"sdk/gemini: every unit is
+is one line, and a speech_id is the brain's alone"*, *"sdk/gemini: every unit is
 awaiting a finalize, silent ones included"*. Someone scanning `git log` gets the state of the
 system, in order.
 

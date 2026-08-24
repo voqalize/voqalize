@@ -1,6 +1,6 @@
 ---
 title: The wire
-description: One WebSocket per session between Voqalize and your brain — the framing, the envelope, every message, and what each one obliges the other to do.
+description: One WebSocket per session between Voqalize and your brain — the framing, both planes, every message, and what each one obliges the other to do.
 ---
 
 Voqalize runs the call. Your brain decides what it says and what it shows. Between
@@ -27,23 +27,39 @@ one of these.
 | Silence reads as failure. | The opening line is a plain string, sent before anything else. Nothing waits on a model there. |
 | Output is a stream, not a value. | Speech arrives as chunks inside an open unit, not as one finished message. |
 
+## Two planes on one socket
+
+**The voice plane is ours**: turns, speech units, what the caller actually heard,
+and the control leg. Voqalize mints the turn because Voqalize decides when a turn
+commits, and speech names the turn it answers.
+
+**The RTVI plane is a tunnel.** An `RTVIFrame` is one pipecat RTVI message —
+`{id, label: "rtvi-ai", type, data}` minus the constant label — forwarded
+verbatim in both directions between the app and the brain. Voqalize moves the
+whitelisted types and interprets nothing else about them.
+
+The two planes share the socket and nothing else. A message on the RTVI plane
+never mints a turn, never takes the floor, and never changes what the caller
+hears.
+
 ## The shape of a session
 
 Voqalize dials your brain, one socket per call, and speaks first: the session's
 opening envelope is `SessionStart`, and nothing crosses in the other direction
 until it has arrived.
 
-**Voqalize owns the floor.** It decides when the brain may speak by sending a
-stimulus — a `UserMessage` or a `UserIdle` — and the brain answers with speech.
-There is no message a brain can send to ask for the floor, and none that
-interrupts the human. That absence is what makes a call predictable.
+**Voqalize owns the floor.** It decides when the brain may speak by minting a turn
+— a `SessionStart`, a `UserMessage` or a `UserIdle` — and the brain answers with
+speech that names that turn. There is no message a brain can send to ask for the
+floor, and none that interrupts the human. That absence is what makes a call
+predictable.
 
-Everything the brain sends that is *not* speech is floor-free: a
-`BrowserCommand` to redraw the screen, a `Request` to change how the call
-behaves, an `End` to hang up. Those need no turn and are legal at any moment.
+Everything the brain sends that is *not* speech is floor-free: an `RTVIFrame` to
+redraw the screen, a `Request` to change how the call behaves, an `End` to hang
+up. Those need no turn and are legal at any moment.
 
 If your brain reaches Voqalize through the [Cortex relay](/docs/deploy/cortex),
-Cortex relays these bytes without reading them. The two ends of the wire are the
+Cortex relays these bytes without reading them. The two ends of the wire are
 Voqalize and the brain; nothing in between interprets the schema.
 
 ## Framing
@@ -52,7 +68,7 @@ Binary WebSocket messages only — a text message is an error.
 
 | Leg | Layout |
 |---|---|
-| Your inbound server, at `{brain_url}/s/{session_id}` | `[Envelope]` |
+| Your inbound server, at `{brain_url}?session_id={session_id}` | `[Envelope]` |
 | The Cortex relay, at `/agent` | `[16-byte session_id][Envelope]` |
 
 One message carries one envelope and nothing around it. Nothing frames it,
@@ -65,40 +81,48 @@ between the two legs — the same brain code serves both.
 
 ## The envelope
 
-Every message is an `Envelope`: one message in a `oneof body`, plus two
-correlation scalars that belong to the envelope and never to a body.
+The envelope is one `oneof body` and nothing else.
 
 ```proto
 message Envelope {
   oneof body { SessionStart session_start = 1; /* … */ }
-  uint64 epoch     = 51;
-  uint64 speech_id = 52;
 }
 ```
 
-**`epoch`** is Voqalize-minted and session-monotonic, incremented on every stimulus
-Voqalize commits. The brain echoes it, unread, on everything it emits while
-handling that stimulus. It exists for one decision: when a barge-in opens a
-drain barrier, Voqalize must tell "emitted before the barrier" from "emitted after
-it, answering the new stimulus". Only a Voqalize-minted counter settles that. No
-brain-facing API names it. Speech the brain starts on its own — the opening line
-— answers no stimulus and rides epoch `0`.
+Every identifier is a field of the message it belongs to: `turn_id` on the
+frames that mint or answer a turn, `speech_id` on the frames of one speech unit,
+`request_id` on the request/response pair. A reader that has parsed the body has
+everything, and there is no second place to look.
 
-**`speech_id`** is brain-minted and names one unit of speech. Every envelope of
-that unit carries it: the `SpeechStart`/`SpeechEnd` bracket, each `SpeechChunk`
-inside, and the `Finalize` that reports what was heard. Voqalize never mints, reads,
-orders or compares one — it echoes it back on `Finalize` exactly as it arrived,
-so a brain may number units however it likes.
+## Turns
 
-Correlation lives here so that every body is only its own payload. The one
-identifier that is *not* in the envelope is `Request.request_id`, which names a
-single request/response pair rather than anything about the session, and so
-belongs to the pair.
+**`turn_id` is Voqalize-minted and session-monotonic.** `SessionStart` *is* turn
+1, and after it exactly two messages mint a turn: `UserMessage` and `UserIdle`.
+So the first thing the caller says is turn 2.
+
+A turn is a permission to speak. The brain names it on every `SpeechStart`, and
+that is what lets Voqalize tell speech that answers the current stimulus from
+speech still arriving for one the caller has already talked over.
+
+Nothing else mints a turn. An `RTVIFrame` from the app does not — the app tapping
+a button is not the app taking the floor.
+
+## Speech units
+
+**`speech_id` is brain-minted and names one unit of speech.** `SpeechStart`
+opens it and binds it to a turn; each `SpeechChunk` carries it; `SpeechEnd`
+closes it; the `Finalize` that reports what was heard names it back. Voqalize never
+mints, orders or compares one — it quotes it back exactly as it arrived, so a
+brain may number units however it likes.
+
+One turn may hold several units: a filler, a pause while a tool runs, then the
+answer. The unit is the granularity of everything downstream, because the unit
+is what can be cut mid-word.
 
 ## Version
 
 `SessionStart.wire_version` is the version Voqalize speaks. **This is
-version 2.**
+version 3.**
 
 A brain whose build speaks a different version refuses the session outright: a
 fatal `Error`, then `End`, before it has greeted. Voqalize speaks first, so that is
@@ -117,42 +141,39 @@ guess.
 
 | Message | Fields | Meaning |
 |---|---|---|
-| `SessionStart` | `session_id`, `init` *(JSON)*, `wire_version` | First envelope of the session. `init` is your opaque init data, whatever the session was minted with, and reaches your brain as `session.init`. Who the agent is arrives on the connection's credential, verified, and never here. |
-| `UserMessage` | `text` | The human finished an utterance. A stimulus: the floor is the brain's. |
-| `UserIdle` | `level`, `idle_ms` | The human has been silent past the configured timeout. Also a stimulus. `level` counts consecutive escalations with no intervening speech (1 is the first nudge) and resets when they speak; `idle_ms` is the silence elapsed when it fired. |
-| `BrowserMessage` | `type`, `data` *(JSON)* | The browser said something — a tap, a keystroke, a state push. Every one is delivered; Voqalize never reads `type` and never decides whether it deserves a reply. |
-| `Interruption` | — | The human spoke over the bot. |
-| `Finalize` | `heard_text`, `reason` | What the human actually heard of the unit named by the envelope's `speech_id`. |
+| `SessionStart` | `turn_id`, `session_id`, `init` *(JSON)*, `wire_version` | First envelope of the session, and its first turn. `init` is your opaque init data, whatever the session was minted with, and reaches your brain as `session.init`. Who the agent is arrives on the connection's credential, verified, and never here. |
+| `UserMessage` | `turn_id`, `text` | The human finished an utterance. A new turn: the floor is the brain's. |
+| `UserIdle` | `turn_id`, `level`, `idle_ms` | The human has been silent past the configured timeout. Also a new turn. `level` counts consecutive escalations with no intervening speech (1 is the first nudge) and resets when they speak; `idle_ms` is the silence elapsed when it fired. |
+| `Interruption` | `through_turn` | Everything up to and including `through_turn` is dead — the caller will not hear it. Stop generating for it. |
+| `Finalize` | `speech_id`, `heard_text`, `reason` | What the human actually heard of one speech unit. |
 | `Response` | `request_id`, `status`, `detail` | The answer to one `Request`. |
+| `RTVIFrame` | `type`, `data` *(JSON)*, `id` | The app said something. Delivered verbatim; Voqalize never decides whether it deserves a reply. |
 | `End` | — | The call is over. |
 | `Cancel` | `reason` | The call is being torn down abruptly. |
-| `Error` | `error`, `fatal` | Something went wrong. `fatal` means the session is ending. |
+| `Error` | `code`, `message`, `fatal` | Something went wrong. `fatal` means the session is ending. |
 
 ## Brain → Voqalize
 
 | Message | Fields | Meaning |
 |---|---|---|
-| `SpeechStart` | — | Open a unit of speech. |
-| `SpeechChunk` | `text` | Text to speak, inside an open unit. Stream them as they are produced. |
-| `SpeechEnd` | — | Close the open unit. |
-| `BrowserCommand` | `data` *(JSON)* | Drive the screen. Relayed to the browser unread. |
-| `Interruption` | — | The drain barrier: sent back after an `Interruption` from Voqalize, once the brain has stopped producing for the turn it cut. |
+| `SpeechStart` | `speech_id`, `turn_id` | Open a unit of speech, on the turn it answers. |
+| `SpeechChunk` | `speech_id`, `text` | Text to speak, inside an open unit. Stream them as they are produced. |
+| `SpeechEnd` | `speech_id` | Close the open unit. |
+| `RTVIFrame` | `type`, `data` *(JSON)*, `id`, `turn_id` | Drive the screen. Relayed to the app unread. |
 | `Request` | `request_id`, one `op` | Change how the call behaves. Answered by exactly one `Response`. |
 | `End` | — | Hang up. |
 | `Cancel` | `reason` | Tear down abruptly. |
-| `Error` | `error`, `fatal` | Something went wrong on this side. |
+| `Error` | `code`, `message`, `fatal` | Something went wrong on this side. |
 
 Fields marked *(JSON)* travel as a JSON-encoded string and arrive as a dict in
 the SDK. The wire has no `Struct` dependency; opaque payloads stay opaque.
 
-### Speech units, and what the human heard
-
-A unit is one `SpeechStart` … `SpeechEnd` bracket, and it is the granularity of
-everything downstream. It is bracketed because it can be cut mid-word.
+### What the human heard
 
 `Finalize.heard_text` is the **delivered prefix** — what was actually played,
-not what was generated. On a barge-in the two differ, and it is never a
-concatenation across units. `reason` is `COMPLETED` or `USER_BARGE_IN`.
+not what was generated. On a barge-in the two differ, and it is bounded by that
+unit's own text, never a concatenation across units. `reason` is `COMPLETED` or
+`USER_BARGE_IN`.
 
 Feed `heard_text` back into your model's history rather than what you generated.
 A model that remembers the sentence it started is a model that references a
@@ -164,11 +185,19 @@ audio finishes.**
 
 ### Barge-in
 
-The human speaks over the bot. Voqalize sends `Interruption`; the brain stops the
-turn in flight and echoes `Interruption` back. The echo is Voqalize's drain barrier
-— everything before it is discarded, everything after it belongs to the new
-stimulus — so it must not arrive until the frames it fences off have stopped
-being produced. That ordering is the brain's obligation, and the SDK holds it.
+The human speaks over the bot. Voqalize sends `Interruption(through_turn)`, and
+that is a **watermark**: everything up to and including that turn is dead, and
+the brain stops generating for it.
+
+The watermark travels one way. Nothing is sent back, nothing is acknowledged,
+and Voqalize waits for nothing — it has already stopped the audio. Recording it is
+`watermark = max(watermark, through_turn)`, which makes a repeat harmless and a
+missed one self-correcting: the next watermark carries a higher number and
+covers it.
+
+Nothing lowers a watermark. A turn above it simply outranks it, so the brain
+never has to reopen anything — the next `UserMessage` mints a higher turn, and
+speech on that turn is live by construction.
 
 ## The control leg
 
@@ -226,40 +255,80 @@ Threshold names match the recognizer's own `Configure` message verbatim. See the
 ### `ConfigureIdle` — `timeout_ms`
 
 Applied by Voqalize itself, immediately; a running idle timer restarts on the new
-duration. `timeout_ms` is the silence after Voqalize stops speaking before it opens
-an idle stimulus. `0` disables idle detection.
+duration. `timeout_ms` is the silence after Voqalize stops speaking before it mints
+an idle turn. `0` disables idle detection.
+
+## The RTVI plane
+
+One message, both directions:
+
+```proto
+message RTVIFrame {
+  RTVIType        type    = 1;
+  string          data    = 2;  // JSON-encoded, opaque
+  optional string id      = 3;
+  optional uint64 turn_id = 4;
+}
+```
+
+`data` is the RTVI payload, opaque and bounded by the client's 64 KiB message
+limit. `id` is RTVI's own correlation id, quoted back on the message that answers
+one. `turn_id` annotates traces, is set only brain→Voqalize, and never reaches the
+app.
+
+**`type` is a closed whitelist**, and which side may originate it is part of the
+type:
+
+| Direction | Types |
+|---|---|
+| Brain → Voqalize → app | `server-message`, `server-response`, `error-response`, `ui-command`, `ui-job-group` |
+| App → Voqalize → brain | `client-message`, `send-text`, `ui-event`, `ui-snapshot`, `ui-cancel-job-group` |
+
+A type absent from the list does not cross in either direction. `bot-*` and
+`llm-*` are the runtime's own assertions about the media and the model, and a
+brain must not be able to forge them; a brain that sends one gets a `REJECTED`
+`Error` and the frame is dropped.
 
 ## Lifecycle
 
 `End` is a graceful close from either side. `Cancel` carries a `reason` and is
 the abrupt one; the SDK never sends it, so a brain that emits `Cancel` toward
-Voqalize is one written directly against the wire. `Error` carries a message and a `fatal` flag; a fatal error means
-the session is ending, and a non-fatal one is a signal the brain may act on.
+Voqalize is one written directly against the wire. `Error` carries a `code`, a
+message and a `fatal` flag; a fatal error means the session is ending, and a
+non-fatal one is a signal the brain may act on.
 
 ## Connection and auth
 
-Voqalize dials `{brain_url}/s/{session_id}`, presenting a short-lived RS256 JWT as a
-bare token or as `Authorization: Bearer <jwt>`, verified against Voqalize's
-public key. Required claims: `iss="pygato"`, `aud="brain"`, `sub == session_id`,
-and `exp`. `agent_id` and `tenant_id` are informational — the recipient decides
-from them whether it serves this agent.
+Voqalize dials `{brain_url}?session_id={session_id}`, presenting a short-lived
+RS256 JWT as a bare token or as `Authorization: Bearer <jwt>`, verified against
+Voqalize's public key. Required claims: `iss="pygato"`, `aud="brain"`,
+`sub == session_id`, and `exp`. `agent_id` and `tenant_id` are informational —
+the recipient decides from them whether it serves this agent.
+
+The path is yours and is used verbatim; the session rides as a query parameter.
+A brain is therefore one ordinary WebSocket route rather than a wildcard path
+segment you have to carve out for us.
 
 `aud` is the constant `"brain"` for every brain, whatever kind it is. Routing
 lives in the `brain_url`, never in the token. `iss` is the literal string
 `pygato` — our internal name for the process that holds the call, here because it
 is a value you compare against, not a name you need.
 
-Close codes: **4000** — no agent, permanent, never retry. **4001** — agent gone,
-transient, reconnect with backoff. Anything else is transient. **1000** from your
-own side means you closed it and no reconnect follows. A `401` or `403` at the
-HTTP handshake is not a close code at all and is terminal: a credential that is
-missing, revoked, or for another agent will not start working on attempt twelve.
+**The socket is the session, and it is not reconnected.** Voqalize retries the
+first connect for a few seconds, and once you have answered, any close ends the
+call. A close code of **4000** — no agent — is permanent even during that
+window. A `401` or `403` at the HTTP handshake is not a close code at all and is
+equally terminal: a credential that is missing, revoked, or for another agent
+will not start working on attempt twelve.
+
+There is nothing to resume, because there is no state to carry: a second
+connection would reach a fresh session with none of the first one's history.
 
 ## What the SDK makes of it
 
 The [Python SDK](https://github.com/voqalize/voqalize/tree/main/sdk/python) is
-the wire with the correlation removed. A brain implements callbacks and yields
-speech; nothing in its surface names an `epoch`. The one `speech_id` it sees is
+the wire with the bookkeeping removed. A brain implements callbacks and yields
+speech; nothing in its surface names a `turn_id`. The one `speech_id` it sees is
 on `Finalize`, which reports what a unit was heard as and needs to say which.
 
 ```python
@@ -278,17 +347,17 @@ class Greeter(Brain):
 | `on_session_start` / `greet` | ← `SessionStart` |
 | `on_user_message` | ← `UserMessage` |
 | `on_user_idle` | ← `UserIdle` |
-| `on_browser_message` | ← `BrowserMessage` |
+| `on_rtvi` | ← `RTVIFrame` |
 | `on_finalize` | ← `Finalize` |
 | `on_error` | ← `Error` |
 | `yield SpeechStart()` / `Chunk` / `SpeechEnd()` | → `SpeechStart` / `SpeechChunk` / `SpeechEnd`, one minted `speech_id` per unit |
-| `session.dispatch(action)` | → `BrowserCommand` |
+| `session.send_rtvi(type, data)` / `session.dispatch(action)` | → `RTVIFrame` |
 | `await session.configure_tts / _stt / _idle / _language` | → `Request`, awaited until its `Response` |
 | `session.end()` | → `End` |
 
-`greet` returns a string or `None` — one unit of speech, sent before any
-stimulus, on epoch `0`. It is a static line: no model call sits on the one turn
-that has nothing to retry it.
+`greet` returns a string or `None` — one unit of speech, on the turn
+`SessionStart` itself minted. It is a static line: no model call sits on the one
+turn that has nothing to retry it.
 
 The speaking callbacks are async generators, and **the generator is the mouth**:
 `SpeechStart`, `Chunk` and `SpeechEnd` are the only things they may yield,
@@ -297,10 +366,10 @@ meaning. Awaiting between yields is how a tool call sits between two things the
 brain says. Everything else is a method on the session, callable from anywhere —
 including from the callbacks that are not generators at all.
 
-`session.dispatch(action)` serializes an action onto the `BrowserCommand`
-payload as `{"type": "ui_command", "action": "show_results", "action_id": 7,
-…fields}`. The browser answers with a `BrowserMessage` of type `action_result`
-carrying that `action_id`, and the SDK settles it into the action's `on_result`.
+`session.dispatch(action)` is sugar over `send_rtvi`: it serializes an action
+onto one `server-message` as `{"type": "ui_command", "action": "show_results",
+"action_id": 7, …fields}`. The app answers with a `client-message` carrying that
+`action_id`, and the SDK settles it into the action's `on_result`.
 
 `configure_*` is awaited because Voqalize answers it. Awaiting is how a language
 Voqalize has no recognizer for becomes an exception the brain handles, rather than a
@@ -313,22 +382,20 @@ Both ends rely on these, and a brain that implements the wire directly owes them
 1. **`SessionStart` is first**, and nothing goes the other way before it.
 2. **Brackets balance.** Every `SpeechStart` is closed by a `SpeechEnd`; a
    `SpeechChunk` outside an open unit is an error.
-3. **One `speech_id` per unit**, on every envelope of that unit, brain-minted and
+3. **One `speech_id` per unit**, on every frame of that unit, brain-minted and
    never reused.
-4. **The epoch is echoed unread** on speech: every envelope of a unit carries
-   the epoch of the stimulus that prompted it. Floor-free messages ride epoch
-   `0`, whenever they are sent.
-5. **The interruption echo comes last** — after the cut turn has stopped
-   producing.
+4. **Speech names its turn.** Every `SpeechStart` carries the `turn_id` of the
+   stimulus it answers, and only Voqalize mints one.
+5. **The interruption watermark is one-way** — never acknowledged, never
+   echoed, never lowered.
 6. **Exactly one `Response` per `Request`**, matching on `request_id`.
-7. **Nothing is emitted outside a stimulus except floor-free messages** —
-   `BrowserCommand`, `Request`, `End`, `Cancel`, `Error` — and the greeting,
-   the one speech unit that answers no stimulus.
+7. **Nothing is emitted outside a turn except floor-free messages** —
+   `RTVIFrame`, `Request`, `End`, `Cancel`, `Error`.
 8. **`heard_text` is the delivered prefix**, per unit, never a concatenation.
 
 ## Changing the wire
 
-The schema is append-only from v1.
+The schema is append-only within a version.
 
 - Field numbers are never reused; a retired one is `reserved`.
 - `Envelope` arms are never renumbered.

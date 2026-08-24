@@ -51,18 +51,18 @@ off.
 
 | Call | Drives | Returns |
 |---|---|---|
-| `start_session(init={…})` | `SessionStart`; plays out the greeting (epoch 0). `init` reaches the brain as `session.init`. | `Turn \| None` |
+| `start_session(init={…})` | `SessionStart`, which *is* turn 1; plays out the greeting. `init` reaches the brain as `session.init`. | `Turn \| None` |
 | `user_says("…")` | One user turn, played out and finalized. | `Turn` |
 | `barge_in("…")` | Start a turn, let the brain speak, interrupt, finalize the cut with partial heard-truth. | `Turn` |
 | `user_idle(level=1, idle_ms=30000)` | An idle trigger; plays out `on_user_idle`. | `Turn` |
-| `send_browser_message(type, data)` | A browser message, delivered to `on_browser_message`. That callback cannot speak, so there is nothing to wait for. | `epoch` |
+| `send_rtvi(type, data)` / `send_client_message(t, d)` | One app→brain RTVI message, delivered to `on_rtvi`. That callback cannot speak and opens no turn, so there is nothing to wait for. | — |
 | `send_action_result(action_id, status=, result=)` | The UI reporting back; fires the brain's `callback=`. | — |
 | `collect_ui_commands(min_count=1)` | Waits for and returns the `ui_command` payloads the brain fired. | `list[dict]` |
 | `end_session()` / `send_cancel()` / `aclose()` | `End`, `Cancel`, teardown. | — |
 
 ## Assert on it
 
-A `Turn` carries `.epoch`, `.text` (everything spoken this turn), `.completed`,
+A `Turn` carries `.turn_id`, `.text` (everything spoken this turn), `.completed`,
 `.interrupted`, `.heard` (for a barge-in: the partial the user actually heard), and
 `.units` — one entry per speech unit, each with `.speech_id`, `.text`, `.spoke` and
 `.ended`.
@@ -102,9 +102,9 @@ test against the real model as a smoke check.
 ## The built-in conformance suite
 
 Beyond your own scenarios, the harness ships a sixteen-scenario catalog — the bar a
-brain must clear to be wire-compatible: greeting, epoch and speech-id monotonicity,
-bracket integrity, barge-in drain, heard-truth reconciliation across multiple
-interruptions, action-outcome correlation, browser-message delivery, idle
+brain must clear to be wire-compatible: greeting, turn- and speech-id monotonicity,
+bracket integrity, the barge-in watermark, heard-truth reconciliation across
+multiple interruptions, action-outcome correlation, RTVI delivery, idle
 re-engagement, and bad-token rejection.
 
 ```bash

@@ -4,8 +4,9 @@ description: The brain_url is a single WebSocket URL. Choose between an inbound 
 ---
 
 An agent's brain is one setting: `deployment.brain_url`, a single WebSocket URL.
-When a call starts, the voice runtime dials `{brain_url}/s/{session_id}` — one
-connection per session, opened just-in-time and torn down when the call ends.
+When a call starts, the voice runtime dials `{brain_url}?session_id={session_id}`
+— one connection per session, opened just-in-time and torn down when the call
+ends.
 
 Neither the runtime nor the control plane interprets where that URL points. Your
 brain code is identical regardless. The only choice is **who dials whom**.
@@ -50,9 +51,9 @@ There is no `set_brain_url` tool — `brain_url` is a field on the agent, set wi
 Rules:
 
 - It must be `wss://` (plain `ws://` is allowed only for `localhost`).
-- Give the **base** URL — the runtime appends `/s/{session_id}` itself. For
-  inbound, that's the base of your route; for Cortex, it's the Cortex origin
-  exactly as `create_agent_credentials` returned it, with nothing appended.
+- Give the URL of your route, path and all — the runtime uses it verbatim and
+  appends only `?session_id=`. For Cortex, it's the Cortex origin exactly as
+  `create_agent_credentials` returned it.
 - Changing `brain_url` never touches the agent's STT/TTS config.
 
 An **empty** `brain_url` falls back to a hosted `welcome` brain, so a freshly

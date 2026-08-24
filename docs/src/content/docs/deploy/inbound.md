@@ -9,9 +9,11 @@ path. If you already run a REST API or webhooks, this is the same shape.
 
 ## The route
 
-The runtime dials `{brain_url}/s/{session_id}`, so your route matches `/s/{id}`.
-Accept the socket, then hand it to the SDK's `run_session`, which drives the whole
-session and returns when the call ends.
+The runtime dials `{brain_url}?session_id={session_id}` — your path, verbatim,
+with the session as a query parameter. Mount **one ordinary WebSocket route**
+wherever you like, read `session_id` off the query string, then hand the socket to
+the SDK's `run_session`, which drives the whole session and returns when the call
+ends.
 
 ### Python (FastAPI)
 
@@ -27,8 +29,8 @@ class _WsChannel:
     async def send(self, data: bytes) -> None: await self._ws.send_bytes(data)
     async def recv(self) -> bytes: return await self._ws.receive_bytes()
 
-@app.websocket("/s/{session_id}")
-async def brain_socket(ws: WebSocket, session_id: str):
+@app.websocket("/voice")
+async def brain_socket(ws: WebSocket, session_id: str):   # session_id from ?session_id=
     await ws.accept()
     try:
         await run_session(
@@ -52,14 +54,14 @@ route belongs on. To drive a brain over a socket in a *test*, use
 The runtime presents an RS256 JWT (`iss=pygato`, `aud="brain"`,
 `sub=session_id`). The SDK verifies it against Voqalize's embedded public keys by
 default — you just pass the `Authorization` header value through. A verification
-failure raises `SessionRejected`; close the socket with code **4000**
-(permanent — the runtime won't retry).
+failure raises `SessionRejected`; close the socket with code **4000**, which
+the runtime treats as permanent.
 
-Close-code discipline:
-
-- **4000** — reject permanently (bad token, unknown agent). No retry.
-- **1011** / other — transient. The runtime reconnects with backoff.
-- **1000** from you — normal close, no reconnect.
+**The socket is the session, and it is not reconnected.** The runtime retries
+the *first* connect for a few seconds — a **4000** during that window stops it
+early — and once you have answered, any close ends the call. There is nothing to
+resume: a second connection would reach a fresh session with none of the first
+one's history.
 
 ## Local testing
 
@@ -78,15 +80,15 @@ pass `allow_unverified=True` to `run_session` (or set
 Then point the agent at the tunnel:
 
 ```text
-update_agent(tenant="acme", agent_id="06a2…", brain_url="wss://<id>.ngrok.app")
+update_agent(tenant="acme", agent_id="06a2…", brain_url="wss://<id>.ngrok.app/voice")
 ```
 
 ## Production
 
 Run the route like any other service: behind your own load balancer, one socket
 per session per user. Connection state *is* liveness — there's nothing to pool or
-drain. Scale horizontally with your LB; the runtime just dials whatever the
-`brain_url` resolves to.
+drain, and dropping a socket drops that call. Scale horizontally with your LB;
+the runtime just dials whatever the `brain_url` resolves to.
 
 ## Next
 

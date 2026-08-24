@@ -29,13 +29,12 @@
 
 ## Facts
 
-- **Conversation state is ours, delivered as events.** `Finalize(inference_id,
+- **Conversation state is ours, delivered as events.** `Finalize(speech_id,
   heard, interrupted)` after playout ([3](03-interruption-and-heard-truth.md)) —
   and `heard` is a fact you cannot compute.
 - **Screen state is yours, delivered as `state_sync`.** It lands on
-  `on_app_message`, which is deliberately **not a generator**: the browser
-  pushing state must not be able to take the floor. The default handler parks it
-  on `browser_state`.
+  `on_rtvi`, which is deliberately **not a generator**: the app pushing state
+  must not be able to take the floor, and an app message mints no turn.
 - **The merge point is `grounding()`** — the seam that folds your state into the
   model's next call with no tool round trip ([5](05-prompt-design.md)). It goes in
   at the **tail**, just before the latest user turn, never into the system prompt:
@@ -45,8 +44,8 @@
   over the MCP server returns our side of the same session.
 - **An action carries the whole row, not a patch** — so a re-render is idempotent
   and a dropped message does not leave the screen holding a half-applied diff.
-- `inference_id` is the brain's alone (commit `aa6754e`) — a stable handle for
-  joining what was generated to what was heard.
+- `speech_id` is the brain's alone — a stable handle for joining what was
+  generated to what was heard. Voqalize quotes it back and never reads it.
 
 ## Proof — the shadow order book
 

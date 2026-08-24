@@ -61,8 +61,8 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
 - **Tier 3's structure is kept current by `state_sync`.** Incoming app messages
   update an in-memory object; the tool reads that object synchronously. The tool is
   a *read of local memory*, which is why it belongs in tier 3 and not tier 4.
-- **`on_app_message` is not a generator** — a state push cannot become a turn by
-  accident. Tier 1 is therefore an explicit act, never a side effect.
+- **`on_rtvi` is not a generator** — a state push cannot become a turn by
+  accident, and an app message mints no turn. Tier 1 is therefore an explicit act, never a side effect.
 - Conversation history is the third home for a fact, and what goes in it must be
   the **heard** text ([3](03-interruption-and-heard-truth.md)).
 

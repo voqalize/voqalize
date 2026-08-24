@@ -18,14 +18,14 @@ Cortex only when inbound genuinely isn't possible.
 
 Cortex is a stateless, schema-free WebSocket relay with exactly two routes:
 
-- The voice runtime lands on `/s/{session_id}`.
+- The voice runtime lands on `/?session_id={session_id}`.
 - Your brain dials *out* to `/agent`.
 
 Both legs authenticate to the same tenant-and-agent **rendezvous scope**, and Cortex
 matches them on that — derived from the credentials, not from the URL. There is
-nothing to encode in a path and nothing to configure. Cortex holds no state; kill it
-any time and both sides reconnect. Many sessions multiplex over your one outbound
-socket, demuxed by a 16-byte session prefix.
+nothing to encode in a path and nothing to configure. Cortex holds no state. Many
+sessions multiplex over your one outbound socket, demuxed by a 16-byte session
+prefix.
 
 ## Get the credentials
 
@@ -97,8 +97,9 @@ the SDK reads no environment variables of its own.
 ## Crash-only
 
 Cortex keeps no session state — that lives in the endpoints (the runtime's session
-and your brain). There's no drain protocol and no graceful-shutdown contract: if
-Cortex dies, both sides reconnect and carry on.
+and your brain). There's no drain protocol and no graceful-shutdown contract.
+Your agent leg reconnects and carries on; the calls that were in flight when it
+died do not survive, because a voice session is its socket.
 
 ## Next
 

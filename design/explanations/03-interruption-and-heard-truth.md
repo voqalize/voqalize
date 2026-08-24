@@ -23,7 +23,7 @@
 
 ## Facts — the mechanism
 
-- **`Finalize(inference_id, heard, interrupted)`** arrives after playout, once per
+- **`Finalize(speech_id, heard, interrupted)`** arrives after playout, once per
   unit. `heard` is **the delivered prefix** — what actually reached the caller's
   ear, not what you yielded. `interrupted` says whether the caller cut in.
 - `on_finalize(session, fin)` is the callback. Its docstring is blunt about the
@@ -32,11 +32,11 @@
 - **Every unit is awaiting a finalize, silent ones included** (commit `22b1fce`).
   A turn that yields no speech still resolves — so the bookkeeping has no hole
   where a silent turn used to be.
-- **Barge-in mechanics.** Voqalize sends an interruption; the SDK runs
-  `_cancel_turns()` and then **echoes** it back. The echo is the drain barrier:
-  everything before it on the wire is discarded, everything after is live. Without
-  a barrier there is no way to tell a chunk that was in flight from a chunk
-  produced after the cut.
+- **Barge-in mechanics.** Voqalize sends `Interruption(through_turn)`; the SDK
+  records `max(watermark, through_turn)` and runs `_cancel_turns()`. Nothing goes
+  back. The watermark is what tells a chunk that was in flight from a chunk
+  produced after the cut — a chunk names its turn, and a turn at or below the
+  watermark is dead.
 - **The generator is closed, not abandoned.** `_drive()` calls `aclose()` so
   `finally` blocks run — your cleanup, your span exit, your "release the lock" all
   execute on an interrupted turn exactly as on a completed one.
@@ -44,8 +44,9 @@
   `SpeechStart` and `SpeechEnd`, the SDK emits the close. The four obligations in
   `ProtocolError` lead with **balanced brackets** — and this is the framework
   keeping that promise on your behalf when you cannot.
-- **Epochs fence turns.** Work belonging to a cancelled turn cannot leak speech
-  into the turn that replaced it.
+- **Turn ids fence turns.** Work belonging to a cancelled turn cannot leak speech
+  into the turn that replaced it: the replacement turn is a higher number, and a
+  watermark never rises above it.
 - Interruption does **not** cancel dispatched actions or in-flight tool work. See
   [6](06-tool-design.md) — this is deliberate, not an oversight.
 
@@ -55,7 +56,7 @@
   Voqalize does" (`sdk/python/src/voqalize/conformance/__init__.py`). Heard-truth is
   not documentation about a behaviour; it is an assertion in the suite a brain
   must pass to be called wire-compatible.
-- `VoqalizeDriver` records `InferenceObs` / `InteractionObs` per unit, so a test can
+- `VoqalizeDriver` records `SpeechObs` / `TurnObs` per unit, so a test can
   assert on the *heard* text rather than the generated text.
 - `interrupted` as a rate is the cheapest quality signal we have — see
   [2](02-the-turn-budget.md).

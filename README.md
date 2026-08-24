@@ -48,7 +48,7 @@ one), and [`sdk/react`](sdk/react) for the browser side.
 
 ## The shape of a Voqalize app
 
-A brain is a single WebSocket URL. Voqalize dials `{brain_url}/s/{session_id}`,
+A brain is a single WebSocket URL. Voqalize dials `{brain_url}?session_id={session_id}`,
 one connection per session, opened when a call starts and torn down when it ends.
 Where that URL points is up to you:
 

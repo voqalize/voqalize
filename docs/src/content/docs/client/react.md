@@ -198,9 +198,11 @@ the brain side):
 - **Brain → browser.** The brain's `session.dispatch(Action(...))` arrives
   as a server message `{ type: "ui_command", action, action_id, ...args }` — the
   args are spread onto the top level. Dispatch it with `useUiCommand`, below.
-- **Browser → brain.** `session.sendMessage(type, data)` reaches the brain's
-  `on_browser_message(session, BrowserMessage(type=type, data=data))`. Reply to a UI
-  command's outcome with `sendMessage("action_result", { action_id, status, result })`.
+- **Browser → brain.** `session.sendMessage(type, data)` rides an RTVI
+  `client-message` and reaches the brain's `on_rtvi(session, msg)` as
+  `msg.data == { t: type, d: data }`. Reply to a UI command's outcome with
+  `sendMessage("action_result", { action_id, status, result })` — the SDK routes
+  those straight to the action's `on_result` instead.
 
 ## Typed UI commands: `useUiCommand`
 

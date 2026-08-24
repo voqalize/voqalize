@@ -36,8 +36,8 @@
   field.
 - `on_result` is a control field on the action, not a payload field: the resolution
   path is declared at dispatch.
-- `on_app_message` is deliberately **not** a generator (`brain.py`). The browser
-  pushing state must not be able to seize the floor. Background completion
+- `on_rtvi` is deliberately **not** a generator (`brain.py`). The app pushing
+  state must not be able to seize the floor, and it mints no turn. Background completion
   reports through actions and history, not through the mouth.
 
 ## Proof

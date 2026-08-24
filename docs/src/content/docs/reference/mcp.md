@@ -125,14 +125,14 @@ old key. This is what makes local development tunnel-free; see
 **A call is a session, and that is the only noun.** There is no Meeting above it:
 `list_meetings` / `get_meeting` / `list_meeting_events` / `query_logs` were removed
 on 2026-08-20 along with the entity, and the session id you already hold — the one
-in `connect_params`, in `{brain_url}/s/{session_id}`, in every log line — is the id
+in `connect_params`, in `{brain_url}?session_id={session_id}`, in every log line — is the id
 every one of these tools takes.
 
 The inspect-a-call loop is **events first, logs second**:
 
 1. `get_session_events` — authoritative and versioned. Safe to assert on in tests.
    Pass `source="platform"` for the lifecycle milestones alone (cheap: it skips
-   the wire read), or `disposition="dropped_in_drain"` to see exactly what a barge-in threw away —
+   the wire read), or `disposition="dropped_after_watermark"` to see exactly what a barge-in threw away —
    the usual answer to "the agent replied but nothing happened".
 2. `get_session_logs` — evidence, not contract. Written in our vocabulary and free
    to change; read them to understand a call, never to assert on one.
@@ -154,7 +154,7 @@ agent in this order:
 1. **Confirm the connection** — `whoami`, then `list_tenants` for the `tenant` slug
    every other tool requires.
 2. **Write the brain** — `on_session_start` / `on_user_message` /
-   `on_browser_message` / `on_user_idle`. See
+   `on_rtvi` / `on_user_idle`. See
    the SDK README (`sdk/python/README.md`).
 3. **Create the agent** — `create_agent(tenant, name)` → `{agent, session_key}`.
 4. **Run it and point `brain_url` at it** — locally, `create_agent_credentials` and

@@ -18,8 +18,9 @@ exactly two ways to host it, and the same `Brain` runs unchanged on either:
   Your web framework (FastAPI/Starlette, Django Channels, aiohttp) accepts the
   upgrade and hands the connected socket (anything with `send(bytes)`/`recv()->bytes` —
   the `Channel` protocol) to the SDK, along with the URL `session_id` and the
-  `Authorization` header. The voice runtime dials `{brain_url}/s/{session_id}` per
-  session; one connection = one session. No relay in the path.
+  `Authorization` header. The voice runtime dials `{brain_url}?session_id={session_id}`
+  per session — your path, verbatim — so one ordinary route is enough; one
+  connection = one session. No relay in the path.
 - **`serve()` (`src/voqalize/sdk/outbound.py`) — your app can't accept inbound.**
   One outbound multiplexed WebSocket to a Cortex relay; many sessions demuxed by a
   16-byte prefix. For serverless/FaaS, laptops and egress-only networks. It
@@ -108,12 +109,12 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
   `on_user_message`; the rest are optional — `greet`/`on_session_start`/
-  `on_session_end`/`on_user_idle`/`on_browser_message`/`on_finalize`/`on_error`) +
+  `on_session_end`/`on_user_idle`/`on_rtvi`/`on_finalize`/`on_error`) +
   `Session`/`ActionHandle`, the `_BrainAdapter` that maps wire frames ↔
   callbacks, and the entry points (`serve` for the Cortex leg, plus the internal
   `adapter_for` / `brain_factory` seams).
 - `src/voqalize/sdk/events.py` — what a callback is handed and what it yields:
-  `UserMessage`/`UserIdle`/`BrowserMessage`, `SpeechStart`/`Chunk`/`SpeechEnd`,
+  `UserMessage`/`UserIdle`/`RTVIMessage`, `SpeechStart`/`Chunk`/`SpeechEnd`,
   `Finalize`, `Error`.
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
   `SessionRunner` (two-lane in/out, system-first feeder, drop-newest +
@@ -186,15 +187,16 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
   it never reaches back across the wire. Still, **do slow I/O off the callback
   lane**: an `on_finalize` that writes a database row delays the next callback by
   exactly that write. Spawn your own background work, as the adapter already does
-  for a browser message.
+  for an RTVI message.
 - **A `Response` bypasses the lanes.** It is an answer, not a stimulus: exactly
   one consumer — the caller blocked on it — and no ordering against speech or user
   messages. Queueing it behind the feeder would deadlock every `configure_*` made
   from inside a callback, because the feeder is inside that very callback.
-- **Interruption is a drain barrier.** Barge-in rides the wire as a field-less
-  `InterruptionFrame` (system lane); the adapter cancels the in-flight turn and
-  echoes an `InterruptionFrame` back on the outbound system lane — the runtime's
-  drain barrier. Correlation lives on the envelope, never on the interrupt.
+- **Interruption is a watermark.** Barge-in rides the wire as an
+  `InterruptionFrame` naming the turn it condemns (system lane); the adapter
+  raises `max(watermark, through_turn)` and cancels the in-flight turn. Nothing
+  goes back, so there is no barrier to hold and nothing to time out — a newer
+  turn simply outranks the watermark.
 - **Backpressure never kills a session.** On normal-lane overflow the runner drops
   the newest frame and delivers a non-fatal `ErrorFrame` to the adapter
   (edge-triggered: one per congestion episode per direction), surfaced to the Brain
