@@ -96,7 +96,9 @@ become; it does not govern this file.
     acting, only the modality differs. `sendUserMessage` versus `sendAppMessage` is
     the application declaring which. — *agreed;* ***unfinished***: *wire frame exists
     (`UserMessage`, text-only, "richer content gets new fields"), `on_user_message`
-    receives it, browser half not plumbed — `sdk/react` exposes only `sendMessage`.*
+    receives it, browser half not plumbed — the browser has only pipecat's
+    `sendClientMessage`, and since `sdk/react` was deleted there is no wrapper of
+    ours to put `sendUserMessage` on.*
 
 ## The framework boundary
 
@@ -210,13 +212,14 @@ become; it does not govern this file.
 
 - No demo asserts history-equals-`heard`.
 - No demo exercises `status="timeout"`.
-- **Every demo declares `@voqalize/client-react` at `^0.1.0`** — a package that
-  is now deprecated, and whose 0.1.x surface (`useVoqalSession`,
-  `AmbientPresence`, `useUiCommand`) the 0.3.0 tree no longer exports at all.
-  `build.mjs` overlays the local build, so the assembled site and a checked-out
-  tree both work while the documented standalone install does not. The eleven
-  demos are the last consumers and the only thing between the package and
-  deletion; presence (below) is the piece that needs a new home first.
+- **Ten demos still declare `@voqalize/client-react` at `^0.1.0`**, and the
+  package was deprecated and its source deleted on 2026-08-24. They keep building:
+  deprecating does not unpublish, so `^0.1.0` still resolves 0.1.1 from the
+  registry — which is also why the overlay in `build.mjs` can go. What that
+  0.1.x surface carries and nothing else now does is **presence**
+  (`AmbientPresence`, `useVoqalSession`, `useUiCommand`); the last two are thin
+  over pipecat, the first is not, and it needs a home before those ten pages can
+  be ported. Sugar and legal are ported already and are the shape to copy.
 - **A failed tool never reaches the caller.** google-genai hands the model
   `{'error': …}` and the model says it did the thing; our side can only log.
 - No fan-out example has a failing branch.

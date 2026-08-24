@@ -16,11 +16,12 @@ managed service, and everything you need to build against it is here.
 > previous one — **pin the version you build against**, and expect the next
 > release to change the brain callbacks.
 >
-> **`@voqalize/client-react` is deprecated (2026-08-24) and takes no
-> replacement.** The browser half of a call is stock
+> **`@voqalize/client-react` is deprecated (2026-08-24), takes no replacement,
+> and its source is no longer in this repo.** The browser half of a call is stock
 > [pipecat](https://docs.pipecat.ai) plus one `fetch`, and the server now answers
 > in the shape pipecat's transport connects with — so there is nothing left for a
-> package of ours to do. See
+> package of ours to do. The published 0.1.x remains installable for anything
+> already built against it. See
 > [Connections and the handshake](https://voqalize.com/docs/client/handshake/).
 
 ## What's here
@@ -29,7 +30,6 @@ managed service, and everything you need to build against it is here.
 |---|---|
 | [`proto/`](proto/) | **The wire contract of record** — the message set both sides speak. Everything else is generated from or written against this. |
 | [`sdk/python/`](sdk/python/) | Python brain SDK — subclass `Brain`, implement a couple of callbacks. Pipecat-free. |
-| [`sdk/react/`](sdk/react/) | React client SDK — embed a voice agent in a browser app. |
 | [`demos/`](demos/) | Complete, runnable voice apps (a brain + a UI each). These are real example code, the live demos on our site, and our integration tests — all at once. |
 | [`docs/`](docs/) | The developer documentation site (`voqalize.com/docs`). |
 
@@ -51,7 +51,8 @@ project to a running voice agent: write a brain → create an agent → get a
 `brain_url` → wire a browser UI. Prefer to read code first? Start from
 [`sdk/python/examples/echo`](sdk/python/examples/echo) (the smallest complete
 brain) or [`sdk/python/examples/travel`](sdk/python/examples/travel) (a fuller
-one), and [`sdk/react`](sdk/react) for the browser side.
+one), and [Connections and the handshake](docs/src/content/docs/client/handshake.md)
+for the browser side.
 
 ## The shape of a Voqalize app
 
@@ -72,9 +73,9 @@ A polyglot monorepo, split by toolchain:
 
 - **Python** (`sdk/python`, `demos`) — one `uv` workspace; the demos'
   shared backend depends on the SDK by path.
-- **JS/TS** (`sdk/react`, `docs`) — one `pnpm` workspace. Each demo UI
+- **JS/TS** (`docs`) — one `pnpm` workspace, one member. Each demo UI
   (`demos/<name>/frontend`) is a self-contained app *outside* the workspace, built
-  standalone and linking the client SDK by path.
+  standalone.
 - **proto** (`proto/`) — `buf`; regenerates the Python stub the SDK consumes.
 
 ## License

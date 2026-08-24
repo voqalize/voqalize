@@ -1,9 +1,15 @@
 # voqalize — Claude's map
 
 The **public developer surface** for Voqalize: the wire contract (`proto/`), the
-brain SDKs (`sdk/python`, `sdk/react`), the runnable demos (`demos/`) and the docs
-site (`docs/`). The platform itself lives in the private `voqalcloud` repo; the
-speech stack lives in `vql-speech`.
+brain SDK (`sdk/python`), the runnable demos (`demos/`) and the docs site
+(`docs/`). The platform itself lives in the private `voqalcloud` repo; the speech
+stack lives in `vql-speech`.
+
+There is no `sdk/react` any more — the React client package was deprecated and
+deleted on 2026-08-24. The browser half of a call is stock pipecat plus one
+`fetch`, written down in `docs/src/content/docs/client/handshake.md`. Do not
+reintroduce a client wrapper: it is a second surface to learn and a lag behind
+every pipecat release, which is what retired the last one.
 
 There is no `skill/` any more — it was deleted on 2026-08-21. An agent is oriented
 by the MCP server's own `instructions` and then reads the docs site, every page of
@@ -65,7 +71,9 @@ Consequences to internalize:
     `demos/pyproject.toml`, `demos/Dockerfile`, `demos/docker-entrypoint.sh`,
     `demos/bin/brains-node-deploy.sh`, `demos/cloudbuild.brains-vm.yaml`, `uv.lock`
   - web ← `demos/**/frontend/**`, `demos/build.mjs`, `demos/manifest.json`,
-    `sdk/react/**`, `docs/**`
+    `sdk/react/**`, `docs/**` — that fourth entry is now dead, and only someone
+    with access to the trigger can remove it; it matches nothing since the React
+    SDK was deleted.
   Note what that means: **`demos/voqalize_demos/**` is on the brains list**, and
   that is where the test fakes live (`testing.py`). A commit that adds nothing but
   tests still rolls the brains if it touches the shared spine — `e2cc025` did

@@ -107,10 +107,13 @@ Tier choice is the concrete form of the 80/10/10 split in
   docstring's own argument for grounding ("costs no round-trip") is only half
   true — it costs no round-trip and a full cache miss.
 - **Tier 1's browser half is not plumbed.** The wire frame exists, `on_user_message`
-  receives it, and the name is chosen — but `sdk/react` today exposes only
-  pipecat's own `sendClientMessage(type, data)`, which is the app-message
-  leg. So the tier is wire-supported and unfinished on the browser side — say that
-  plainly rather than describing it as if a customer could use it today.
+  receives it, and the name is chosen — but the browser has only pipecat's own
+  `sendClientMessage(type, data)`, which is the app-message leg. Nothing sends a
+  `UserMessage`. There is no wrapper of ours left to add one either: `sdk/react`
+  was deleted on 2026-08-24, so plumbing this tier means either a pipecat-side
+  call or a documented `sendClientMessage` convention the brain unpacks. So the
+  tier is wire-supported and unfinished on the browser side — say that plainly
+  rather than describing it as if a customer could use it today.
 - **The `UserMessage` frame is text-only.** The motivating cases (an uploaded
   photo, a picked item) are not text, and the proto says so: "richer content gets
   new fields." The tier-1 story is honest only if the page says the frame will

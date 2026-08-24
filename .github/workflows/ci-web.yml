@@ -23,7 +23,6 @@ on:
       - 'demos/**/frontend/**'
       - 'demos/build.mjs'
       - 'demos/manifest.json'
-      - 'sdk/react/**'
       - 'docs/**'
       - '.github/workflows/ci-web.yml'
   pull_request:
@@ -31,12 +30,8 @@ on:
       - 'demos/**/frontend/**'
       - 'demos/build.mjs'
       - 'demos/manifest.json'
-      - 'sdk/react/**'
       - 'docs/**'
       - '.github/workflows/ci-web.yml'
-  # release-react-sdk.yml runs this build before it publishes, so a release is
-  # gated on exactly the checks a merge is — not on a copy of them that can drift.
-  workflow_call:
 
 jobs:
   build:
@@ -66,16 +61,6 @@ jobs:
           corepack enable
           corepack prepare "pnpm@$pinned" --activate
           pnpm --version
-
-      # The SDK on its own, before anything that consumes it. A demo build only
-      # exercises the parts of the package its own screens import, and a break in
-      # the rest would surface for the first time in someone else's `npm install`.
-      - name: Typecheck and build the React SDK
-        working-directory: sdk/react
-        run: |
-          pnpm install --ignore-workspace
-          pnpm typecheck
-          pnpm build
 
       # Every demo UI, built standalone and assembled exactly as the deploy does.
       # No VITE_* wiring is passed: the per-demo tenant/agent/publishable key are

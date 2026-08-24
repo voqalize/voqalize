@@ -258,8 +258,6 @@ agreed.
 
 ## Next
 
-- **[React client SDK](/docs/client/react/)** — the same handshake with our
-  helper package, if you'd rather install one thing than write the line above.
 - **[The wire](/docs/reference/wire/)** — the frames underneath the call, and the
   contract they keep.
 - **[Voice & language catalog](/docs/reference/catalog/)** — why the brain, and

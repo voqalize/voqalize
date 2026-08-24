@@ -121,23 +121,24 @@ facts:
       than a version: installing the brain SDK must not pull pipecat. The
       version below belongs to the voice tier, which the customer never installs.
 
-  # ---- the React client SDK -------------------------------------------------
+  # ---- the React client SDK (retired) ---------------------------------------
+  #
+  # The source left this tree on 2026-08-24. What remains here is what a customer
+  # can still observe from outside it: a name on npm, a last version, and a
+  # deprecation notice. Every fact below is therefore registry-sourced and
+  # attested by a command, not derived from a file — there is no file left.
 
   sdk.react.package:
     value: '@voqalize/client-react'
-    source: sdk/react/package.json:2
+    source: https://registry.npmjs.org/@voqalize/client-react
     verified: 2026-08-24
-    derive:
-      file: sdk/react/package.json
-      pattern: '"name": "(.+)"'
-
-  sdk.react.version.tree:
-    value: '0.3.0'
-    source: sdk/react/package.json:3
-    verified: 2026-08-24
-    derive:
-      file: sdk/react/package.json
-      pattern: '"version": "(.+)"'
+    reproduce: >-
+      curl -s https://registry.npmjs.org/@voqalize%2Fclient-react
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['name'])"
+    note: >-
+      The name is claimed and stays claimed. Deprecating does not unpublish, and
+      unpublishing would break the ten demo UIs still resolving ^0.1.0 — and
+      anyone else who built against it.
 
   sdk.react.version.published:
     value: '0.1.1'
@@ -148,7 +149,9 @@ facts:
       | python3 -c "import sys,json;print(json.load(sys.stdin)['dist-tags']['latest'])"
     note: >-
       Published 2026-08-13; versions are 0.0.1, 0.1.0, 0.1.1. Frozen there — see
-      sdk.react.deprecated. Nothing further publishes.
+      sdk.react.deprecated. Nothing further publishes: the release workflow was
+      deleted with the source. There was a 0.3.0 staged in-tree that never
+      published; it is gone, and this is the only version a customer ever saw.
 
   sdk.react.deprecated:
     value: deprecated 2026-08-24, no replacement package
@@ -166,7 +169,8 @@ facts:
       successor package and there must not be one — the browser half of a call is
       pipecat's, and a wrapper is a second surface to learn and a lag behind
       every pipecat release. No page may carry an install line for it, and no
-      page may promise a replacement.
+      page may promise a replacement. The source was deleted from this repo the
+      same day, so there is nothing left to point a reader at either.
     forbid:
       - 'not yet on npm'
       - 'Not yet on npm'
@@ -176,14 +180,6 @@ facts:
     except:
       - '**/CHANGELOG.md'
       - '**/changelog.astro'
-
-  sdk.react.licence:
-    value: Apache-2.0
-    source: sdk/react/package.json:6
-    verified: 2026-08-24
-    derive:
-      file: sdk/react/package.json
-      pattern: '"license": "(.+)"'
 
   repo.voqalize.licence:
     value: Apache-2.0
