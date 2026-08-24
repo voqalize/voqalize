@@ -37,8 +37,6 @@
  *                         authoring a face
  *   Voice and language    choosing a voice · choosing a language · defaults and
  *                         overrides · why there is no provider slot
- *   Run and operate       keys and authentication · logs and session events ·
- *                         recordings · usage and limits
  *   Reference             the brain API · the RTVI plane · errors
  *
  * "Designing for voice" is the durable quadrant and it is written from the
@@ -77,6 +75,10 @@ export const sidebar = [
       { label: "Where the brain runs", slug: "deploy/brain-url" },
       { label: "Inbound server", slug: "deploy/inbound" },
       { label: "Cortex relay", slug: "deploy/cortex" },
+      { label: "Keys and authentication", slug: "operate/keys" },
+      { label: "Reading a call back", slug: "operate/logs" },
+      { label: "Recordings", slug: "operate/recordings" },
+      { label: "Usage and limits", slug: "operate/usage" },
     ],
   },
   {

@@ -172,5 +172,5 @@ agent in this order:
 
 - **[Where the brain runs](/docs/deploy/brain-url/)** — inbound vs. Cortex.
 - **[Testing a brain](/docs/brain/testing/)** — the unattended test loop.
-- **[Testing a brain](/docs/brain/testing/)** — reading these tools
-  back against your own logs.
+- **[Reading a call back](/docs/operate/logs/)** — events first, logs second, and
+  what an empty list does not mean.
