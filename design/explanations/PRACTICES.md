@@ -98,6 +98,44 @@ become; it does not govern this file.
     (`UserMessage`, text-only, "richer content gets new fields"), `on_user_message`
     receives it, browser half not plumbed — `sdk/react` exposes only `sendMessage`.*
 
+## The framework boundary
+
+34. **The agentic framework owns its tools; we own the voice.** Give the agent a
+    voice, cut its output into speech units, tell it what was heard. Everything
+    else is theirs. — *agreed, and it deleted more code than it added.* → [10](10-the-framework-boundary.md)
+35. **No annotation of ours where the framework takes bare callables.** `tools` is
+    a property returning bound `async def` methods; the method is the declaration.
+    — *agreed; `@tool` and its registry are deleted.*
+36. **Anything that exists because of an upstream bug dies when the bug does.**
+    Ship the bug report, not the workaround. — *agreed;* ***violated*** *by the
+    "wrap flat parameters in a model" rule, which is a google-genai execution bug
+    we document instead of fix.*
+37. **Ask why the wrapper exists, then ask again one layer up.** A hack you would
+    not defend out loud means the answer is higher: what does the vendor recommend,
+    and why is this not biting everyone else? — *agreed; this is what replaced a
+    `__deepcopy__` that returned `self`.*
+38. **Trade compile-time comfort for stock compatibility, and name the loss.**
+    Typed action ids and typed action results went so a page runs on an unmodified
+    pipecat client. — *agreed, deliberately.*
+39. **Take the standard's core, not its newest objects.** RTVI 1.0's message set,
+    not last month's additions. — *agreed.*
+40. **Declared once.** One pydantic model is the tool's parameter *and* the
+    dispatched action; the prompt describes how to use tools, never what they are.
+    — *agreed;* the one admitted exception is pydantic → TypeScript, which carries
+    a comment saying both halves move together.
+41. **A tool must be able to reach the session.** Non-negotiable, and it decides
+    the shape: bound methods, `self.session`, never a parameter — a parameter would
+    be in the schema and the model would try to fill it. — *agreed.*
+42. **Two clocks.** Generation and playout. **Speech is reconciled against heard
+    truth; tool calls are not.** AFC's record says what was generated, never what
+    was heard, so handing the tool loop to the framework retires none of the
+    reconciliation. — *agreed, and it survived the argument that tried to kill it.*
+    → [3](03-interruption-and-heard-truth.md)
+43. **A wrapper's failure mode is silence.** Tools running on a deep-copied clone
+    of the brain would have dispatched to nothing and told the model `ok`. It
+    crashed only because our client holds an uncopyable lock. — *agreed, and the
+    reason 172 passing tests do not close a question like this.*
+
 ## Correction and authority
 
 31. **The agent holds no authority over anything irreversible.** No confirm tool,
@@ -120,6 +158,12 @@ become; it does not govern this file.
   writing the tool. Today it is invisible to a reviewer.
 - **Conflict semantics** when a `state_sync` and an action cross on the wire.
   Convention today: diff by id, last write wins per row. Unstated, untested.
+- Whether the framework boundary **generalises past one framework**. Everything in
+  [10](10-the-framework-boundary.md) is proven on `GeminiBrain` and `sugar` alone;
+  the ADK path has not been through it and ten demos are unported.
+- Whether `_ready` is **residue or an unadmitted wrapper**. A second client from
+  the same vendor (the `interactions` API, stateless + streaming + AFC) is the
+  cheapest test we have of which.
 - Whether there is a **fifth tier** — facts the screen may show and the model may
   not see. (Prices the agent must not read out are exactly this, and today they
   *are* in the grounding.)
@@ -130,6 +174,8 @@ become; it does not govern this file.
 
 - No demo asserts history-equals-`heard`.
 - No demo exercises `status="timeout"`.
+- **A failed tool never reaches the caller.** google-genai hands the model
+  `{'error': …}` and the model says it did the thing; our side can only log.
 - No fan-out example has a failing branch.
 - No example of correcting something already **committed**.
 - No example of a **server-owned** third state in the merge — every demo's other
