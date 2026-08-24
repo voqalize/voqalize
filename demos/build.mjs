@@ -99,8 +99,9 @@ function readSource(appDir) {
 
 /**
  * The one voice-ui-kit export that renders no DOM of its own — it just attaches
- * the bot's audio track to a hidden `<audio>`. Every demo keeps it; none of them
- * needs the kit's stylesheet for it.
+ * the bot's audio track to a hidden `<audio>`. Demos still on the kit keep it —
+ * sugar plays the coach with pipecat's own `PipecatClientAudio` — and none of
+ * them needs the kit's stylesheet for it.
  */
 const HEADLESS_KIT_EXPORTS = new Set(["BotAudioOutput"]);
 
@@ -123,7 +124,7 @@ function kitImports(src) {
  * as raw browser defaults.
  *
  * Since the catalog moved to the shared `AmbientPresence` ring (Release 3), the
- * demos render *no* styled kit component: they import only the headless
+ * demos render *no* styled kit component: they import at most the headless
  * `BotAudioOutput`, so none of them imports a kit stylesheet and none of them
  * needs to. The old trigger (`UserAudioControl` in the source) therefore matches
  * nothing and would silently pass a demo that reintroduced, say, a
@@ -174,11 +175,10 @@ function assertStylesheetShipped(name, appDir, outDir) {
 run("pnpm install --ignore-workspace", sdkDir);
 run("pnpm build", sdkDir);
 
-// 1b. Then the gallery's own shared chrome, which consumes the SDK the same way
-// the demos do and holds the notice-and-consent wording every demo shows before
-// it opens a microphone.
+// 1b. Then the gallery's own shared chrome — the ambient presence ring and the
+// notice-and-consent wording every demo shows before it opens a microphone. It
+// needs no SDK: it reads pipecat's transport state and nothing else.
 run("pnpm install --ignore-workspace", join(demosDir, "shared"));
-overlayLocalSdk(join(demosDir, "shared"));
 run("pnpm build", join(demosDir, "shared"));
 
 // Fresh output tree.

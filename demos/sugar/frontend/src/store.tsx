@@ -3,8 +3,9 @@
  * call drive one store, so the agent and the patient see the same screen.
  *
  * Same two-way pattern as travel/servicing:
- *   - `handleUiCommand(cmd)` replays the brain's `ui_command` RTVI messages
- *     onto this store (meals appear, meds tick, the chart zooms, videos play);
+ *   - `handleUiCommand(command, payload)` replays the brain's RTVI `ui-command`
+ *     frames onto this store (meals appear, meds tick, the chart zooms, videos
+ *     play);
  *   - `snapshot()` is echoed back as `state_sync` (`{ screen: ... }`) so the
  *     brain always knows what's on screen — including taps the patient makes
  *     by hand (confirming the sensor order).
@@ -37,7 +38,6 @@ import type {
   Scenario,
   SensorOrderState,
   TalkMode,
-  UiCommand,
   VideoCommand,
 } from './types';
 
@@ -91,7 +91,7 @@ interface SugarStore {
   closeVideo: () => void;
 
   // ── Bridges ───────────────────────────────────────────────────────────────
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
   snapshot: () => Record<string, unknown>;
   registerAgentSend: (fn: AgentSend) => void;
   /** Patient taps the sensor-renewal card by hand; the agent sees it via state_sync. */
@@ -183,9 +183,9 @@ export function SugarProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleUiCommand = useCallback(
-    (raw: Record<string, unknown>) => {
-      const cmd = raw as UiCommand;
-      switch (cmd.action) {
+    (command: string, payload: Record<string, unknown>) => {
+      const cmd = payload;
+      switch (command) {
         case 'log_meal': {
           const items = Array.isArray(cmd.items) ? (cmd.items as MealEntry['items']) : [];
           const entry: MealEntry = {

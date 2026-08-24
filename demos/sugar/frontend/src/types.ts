@@ -143,13 +143,7 @@ export interface Scenario {
   app: AppDay;
 }
 
-// ── Agent → screen (ui_command payloads) ─────────────────────────────────────
-
-export interface UiCommand {
-  type: 'ui_command';
-  action: string;
-  [key: string]: unknown;
-}
+// ── Agent → screen (ui-command payloads) ─────────────────────────────────────
 
 /** A queued imperative command for the YouTube player (re-fires via `nonce`). */
 export interface VideoCommand {

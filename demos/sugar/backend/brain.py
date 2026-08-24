@@ -616,7 +616,7 @@ class SugarBrain(GeminiBrain):
 
     async def dispatch_tool(self, session: Session, name: str, args: dict[str, Any]) -> str:
         """Run one tool call: normalize args, drive the browser with
-        ``session.dispatch(...)`` (the ``ui_command`` the /sugar UI renders), and
+        ``session.dispatch(...)`` (the ``ui-command`` the /sugar UI renders), and
         return the short guidance string fed back to the model.
         ``switch_language`` reconfigures STT/TTS instead of the screen."""
         if name == "log_meal":
