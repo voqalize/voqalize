@@ -148,13 +148,18 @@ The catalog is small and closed: voices are `omnivoice/gauri` (female) and
 unknown model is **HTTP 403 at connect**, an unknown voice prefix is
 `voice not found` — both fail the session, not the sentence.
 
-### Until that lands, this is what is in the tree
+### The runtime half, as it stands in the tree
 
-`Brain.voice` / `Brain.language` ClassVars, applied by `_apply_declared_voice`
-before `on_session_start`, plus `Session.configure_language(language, *,
-voice=None)` which is `configure_tts` **and** `configure_stt` in one call. Do not
-call those two halves separately — that is the half-application path. All four go
-away together; nothing new should be built on them.
+`await session.configure(Config(tts=…, stt=…, idle=…))` — one method, one wire
+op, three optional sections. `Config.__post_init__` raises `ConfigError` on both
+rules above, at the call site, before anything reaches the socket. Voice and
+language are the `Voice` / `Language` enums from `voqalize.sdk.wire`, whose
+members are read out of the proto descriptor rather than written down twice;
+`tests/wire/test_catalog_matches_proto.py` fails if they drift.
+
+Still in the tree and still going away: the `Brain.voice` / `Brain.language`
+ClassVars, applied by `_apply_declared_voice` before `on_session_start`. They stay
+until the agent records carry the defaults. Nothing new should be built on them.
 
 The guard that actually catches a half-applied language is not the ClassVar. It is
 `demos/tests/test_demo_voice_contract.py`, the cross-demo sweep below, and it

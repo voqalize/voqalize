@@ -15,7 +15,7 @@ Say                     | What it proves
                         | ``on_rtvi`` and is voiced on the next turn
 "what did you hear"     | Heard-text reconciliation: what the caller actually
                         | received, which is not what was generated if you barged in
-"speak hindi"           | ``configure_language`` — both legs, TTS and STT
+"speak hindi"           | ``session.configure`` — both legs, TTS and STT
 "speak english"         | back again
 "goodbye"               | Speak, then ``session.end()`` — the goodbye is heard
 
@@ -55,6 +55,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 # ─── Actions: a class per app command, fields are the payload ────────────────
 
@@ -75,18 +76,22 @@ class AskQuestion(Action):
 
 # ─── The brain ────────────────────────────────────────────────────────────────
 
-#: Language code → the voice that language should be read in. Moving one without
-#: the other is the silent bug configure_language exists to prevent.
-_VOICES = {"hi": "omnivoice/gauri", "ta": "omnivoice/gauri", "en": "omnivoice/gauri"}
+#: Language → the voice that language should be read in. Moving one without the
+#: other is the silent bug ``Config`` refuses to let you write.
+_VOICES = {
+    Language.HI: Voice.OMNIVOICE_GAURI,
+    Language.TA: Voice.OMNIVOICE_GAURI,
+    Language.EN: Voice.OMNIVOICE_GAURI,
+}
 
-#: Language code → the phrases that switch to it, in every language the suite can
+#: Language → the phrases that switch to it, in every language the suite can
 #: already be speaking; the first is also what we call it out loud. A one-way door
 #: is an unwalkable lane: on 2026-08-21 a walk switched to Hindi, and "speak
 #: english" came back as ``इंग्लिश में बात करो``.
 _EXITS = {
-    "en": ("english", "इंग्लिश", "अंग्रेज़ी", "ஆங்கிலம்"),
-    "hi": ("hindi", "हिंदी", "हिन्दी", "இந்தி"),
-    "ta": ("tamil", "तमिल", "தமிழ்"),
+    Language.EN: ("english", "इंग्लिश", "अंग्रेज़ी", "ஆங்கிலம்"),
+    Language.HI: ("hindi", "हिंदी", "हिन्दी", "இந்தி"),
+    Language.TA: ("tamil", "तमिल", "தமிழ்"),
 }
 
 #: Same reason: the hang-up has to be reachable from whatever the call switched to.
@@ -96,7 +101,7 @@ _GOODBYE = ("goodbye", "hang up", "गुड बाय", "गुडबाय", "
 class ReferenceBrain(Brain):
     """Holds only its own state. Capability arrives on the ``session``."""
 
-    voice = "omnivoice/gauri"
+    voice = Voice.OMNIVOICE_GAURI
 
     def __init__(self) -> None:
         #: speech_id → what the caller actually heard. Written in on_finalize.
@@ -116,8 +121,8 @@ class ReferenceBrain(Brain):
 
     async def on_session_start(self, session: Session) -> None:
         logger.info("reference: session {} init={}", session.id, session.init)
-        # Nudge after 20 s of silence rather than the default.
-        await session.configure_idle(timeout_ms=20_000)
+        # Nudge after 20 s of silence rather than the record's default.
+        await session.configure(Config(idle=IdleConfig(timeout_ms=20_000)))
 
     async def greet(self, session: Session) -> str:
         line = (
@@ -197,8 +202,14 @@ class ReferenceBrain(Brain):
             if any(phrase in said for phrase in phrases):
                 async for speech in self._say(f"Switching to {phrases[0]}."):
                     yield speech
-                # One call moves BOTH legs — the recognizer and the voice.
-                await session.configure_language(lang, voice=_VOICES[lang])
+                # One request moves BOTH legs — the recognizer and the voice —
+                # so there is no moment where the call is half in each.
+                await session.configure(
+                    Config(
+                        stt=SttConfig(language=lang),
+                        tts=TtsConfig(language=lang, voice=_VOICES[lang]),
+                    )
+                )
                 return
 
         async for speech in self._say(f"You said: {msg.text}"):

@@ -1,10 +1,10 @@
-"""``session.configure_*`` — one request out, exactly one answer back.
+"""``session.configure`` — one request out, exactly one answer back.
 
-The four methods are awaitable, and what they wait for is Voqalize's *validation*:
-accepted means Voqalize took the change whole, rejected means it applied none of it.
-That is only useful if it holds from the place a brain actually retunes — inside
-a turn, inside the hook that is itself being fed by the same socket the answer
-arrives on. So these drive real sessions over a real websocket rather than
+The method is awaitable, and what it waits for is Voqalize's *validation*:
+accepted means Voqalize took the change whole, rejected means it applied none of
+it. That is only useful if it holds from the place a brain actually retunes —
+inside a turn, inside the hook that is itself being fed by the same socket the
+answer arrives on. So these drive real sessions over a real websocket rather than
 poking at the plumbing.
 
 Three outcomes, and a brain has to survive all three: accepted, refused, and the
@@ -23,7 +23,15 @@ from voqalize.conformance import (
     mint_voqalize_token,
 )
 from voqalize.sdk import Brain, Chunk, RequestRejected, SpeechEnd, SpeechStart
-from voqalize.sdk.wire import ConfigureIdleFrame, ConfigureSttFrame, ConfigureTtsFrame
+from voqalize.sdk.wire import (
+    Config,
+    ConfigureFrame,
+    IdleConfig,
+    Language,
+    SttConfig,
+    TtsConfig,
+    Voice,
+)
 
 SESSION_ID = "configure-test"
 
@@ -41,7 +49,12 @@ class TuningBrain(Brain):
 
     async def on_user_message(self, session, msg):
         try:
-            await session.configure_stt(eot_threshold=0.75, eot_timeout_ms=4000)
+            await session.configure(
+                Config(
+                    stt=SttConfig(language=Language.TA),
+                    tts=TtsConfig(language=Language.TA),
+                )
+            )
             outcome = "accepted"
         except RequestRejected as exc:
             outcome = f"rejected {exc.op}: {exc.detail}"
@@ -52,13 +65,13 @@ class TuningBrain(Brain):
         yield SpeechEnd()
 
 
-class ThreeWayBrain(TuningBrain):
-    """Makes one of each request before the greeting."""
+class TwiceBrain(TuningBrain):
+    """Configures once before the greeting, and once more inside the turn."""
 
     async def on_session_start(self, session) -> None:
-        await session.configure_tts(speed=1.1)
-        await session.configure_stt(vad_confidence=0.6)
-        await session.configure_idle(timeout_ms=0)
+        await session.configure(
+            Config(tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV), idle=IdleConfig(timeout_ms=0))
+        )
 
 
 async def _open(brain: Brain) -> tuple[VoqalizeDriver, BrainServer]:
@@ -88,30 +101,30 @@ async def test_an_accepted_request_returns_and_the_turn_completes() -> None:
     driver, server = await _open(TuningBrain())
     try:
         await driver.start_session()
-        turn = await driver.user_says("slow down a little")
+        turn = await driver.user_says("switch to tamil")
     finally:
         await driver.aclose()
         await server.aclose()
 
     assert _spoken(turn) == "accepted"
-    assert [f.thresholds for f in driver.requests if isinstance(f, ConfigureSttFrame)] == [
-        {"eot_threshold": 0.75, "eot_timeout_ms": 4000}
+    assert [f.config for f in driver.requests] == [
+        Config(stt=SttConfig(language=Language.TA), tts=TtsConfig(language=Language.TA))
     ]
 
 
 async def test_a_refusal_raises_and_names_what_voice_said() -> None:
     driver, server = await _open(TuningBrain())
-    driver.reject["configure_stt"] = "eot_threshold must be 0.0 to 1.0"
+    driver.reject["configure"] = "no recognizer for language 'ta'"
     try:
         await driver.start_session()
-        turn = await driver.user_says("slow down a little")
+        turn = await driver.user_says("switch to tamil")
     finally:
         await driver.aclose()
         await server.aclose()
 
     # Voqalize's own reason reaches the brain verbatim, and the turn still finishes:
     # a refused request is an answer, not a broken session.
-    assert _spoken(turn) == "rejected configure_stt: eot_threshold must be 0.0 to 1.0"
+    assert _spoken(turn) == "rejected configure: no recognizer for language 'ta'"
 
 
 async def test_an_unanswered_request_times_out_and_the_session_lives(
@@ -119,35 +132,50 @@ async def test_an_unanswered_request_times_out_and_the_session_lives(
 ) -> None:
     monkeypatch.setattr("voqalize.sdk.brain.REQUEST_TIMEOUT_S", 0.3)
     driver, server = await _open(TuningBrain())
-    driver.withhold.add("configure_stt")
+    driver.withhold.add("configure")
     try:
         await driver.start_session()
-        turn = await driver.user_says("slow down a little")
+        turn = await driver.user_says("switch to tamil")
     finally:
         await driver.aclose()
         await server.aclose()
 
     # The state is genuinely unknown here, and the message says so rather than
     # implying the change was dropped.
-    assert _spoken(turn).startswith("unanswered: configure_stt: Voqalize did not answer")
+    assert _spoken(turn).startswith("unanswered: configure: Voqalize did not answer")
     assert "unknown" in _spoken(turn)
 
 
 async def test_every_request_carries_its_own_id() -> None:
-    driver, server = await _open(ThreeWayBrain())
+    driver, server = await _open(TwiceBrain())
     try:
         await driver.start_session()
-        await driver.user_says("hi")
+        await driver.user_says("switch to tamil")
     finally:
         await driver.aclose()
         await server.aclose()
 
-    assert [type(f) for f in driver.requests] == [
-        ConfigureTtsFrame,
-        ConfigureSttFrame,
-        ConfigureIdleFrame,
-        ConfigureSttFrame,
-    ]
+    assert [type(f) for f in driver.requests] == [ConfigureFrame, ConfigureFrame]
     # The id's whole job is to name the answer, so it is per session and never
     # reused — including across the greeting and the turn that follows it.
-    assert [f.request_id for f in driver.requests] == [1, 2, 3, 4]
+    assert [f.request_id for f in driver.requests] == [1, 2]
+
+
+async def test_the_three_sections_travel_as_one_request() -> None:
+    # The point of one op over three: a language change has to touch both legs,
+    # and two requests would put a turn boundary — and a refusal — between the
+    # halves, leaving the call heard in one language and spoken in another.
+    driver, server = await _open(TwiceBrain())
+    try:
+        await driver.start_session()
+        await driver.user_says("switch to tamil")
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert driver.requests[0].config == Config(
+        tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV), idle=IdleConfig(timeout_ms=0)
+    )
+    assert driver.requests[1].config == Config(
+        stt=SttConfig(language=Language.TA), tts=TtsConfig(language=Language.TA)
+    )

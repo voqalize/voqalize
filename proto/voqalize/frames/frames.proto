@@ -20,6 +20,8 @@ syntax = "proto3";
 
 package voqalize.frames;
 
+import "google/protobuf/descriptor.proto";
+
 message Envelope {
   oneof body {
     // Voice plane, V→B.
@@ -112,16 +114,20 @@ message SpeechEnd {
 
 // ─── The control leg ─────────────────────────────────────────────────────────
 //
-// Exactly one Response comes back for every Request, on every op. Op fields are
-// deltas: an unset field means leave it alone, which is why each is `optional`.
+// Exactly one Response comes back for every Request.
+//
+// The surface is deliberately narrow: voice and language, and nothing else. The
+// recognizer's thresholds are not settable from here — they keep the runtime's
+// own defaults. We widen this as we learn what is worth naming, and a knob is
+// far easier to add than to take back.
 
 message Request {
   uint64 request_id = 1;
 
+  reserved 2, 3, 4;  // configure_tts, configure_stt, configure_idle — one op now.
+
   oneof op {
-    ConfigureTts  configure_tts  = 2;
-    ConfigureStt  configure_stt  = 3;
-    ConfigureIdle configure_idle = 4;
+    Config configure = 5;
   }
 }
 
@@ -138,38 +144,111 @@ message Response {
   string detail     = 3;  // Why it was rejected. Empty on acceptance.
 }
 
-// Applies to the next speech unit, never mid-utterance.
-message ConfigureTts {
-  optional string voice    = 1;
-  optional string language = 2;
-  optional string model    = 3;
-  optional double speed    = 4;  // 0.5 – 2.0, where 1.0 is the voice's natural rate.
+// ─── Configuration ───────────────────────────────────────────────────────────
+//
+// One message, three sections, used in two places: the agent record stores it as
+// the session's defaults, and this op overrides them while the call is running.
+// The same type in both places is the point — a record cannot drift from the
+// wire if there is only one definition of what a configuration is.
+//
+// "Unset" reads differently at each end. In the record it means *take the
+// platform default*, so a section added later does not invalidate every stored
+// record. On the wire it means *leave it alone*: a Request carries a delta, and
+// the runtime is already running.
+//
+// One op carries all three sections rather than three ops carrying one each,
+// because a language change has to touch both legs at once. Three ops would put
+// a turn boundary between the halves.
+
+message Config {
+  TtsConfig  tts  = 1;
+  SttConfig  stt  = 2;
+  IdleConfig idle = 3;
 }
 
-// Thresholds apply live. `language_hint` applies once the open turn commits.
-// Acceptance is the recognizer's own answer and is all-or-nothing.
-//
-// Field names match the recognizer's `Configure` message verbatim.
-message ConfigureStt {
-  optional string language_hint = 1;
+// Applies to the next speech unit, never mid-utterance.
+message TtsConfig {
+  optional Voice    voice    = 1;
+  optional Language language = 2;
+}
 
-  optional double vad_confidence                    = 2;
-  optional double vad_min_volume                    = 3;
-  optional uint32 vad_start_frames                  = 4;
-  optional uint32 vad_stop_frames_to_trigger_update = 5;
-  optional uint32 vad_eager_frames                  = 6;
-  optional uint32 vad_barge_in_ms                   = 7;
-  optional uint32 resume_frames                     = 8;
-  optional uint32 min_segment_speech_frames         = 9;
-  optional uint32 confidence_tail_ms                = 10;
-  optional double eot_threshold                     = 11;
-  optional uint32 eot_timeout_ms                    = 12;
+// Applies once the open turn commits, never mid-utterance. Acceptance is the
+// recognizer's own answer and is all-or-nothing.
+message SttConfig {
+  optional Language language = 1;
 }
 
 // `timeout_ms` is the silence after the runtime stops speaking before the brain
 // gets the floor. 0 disables idle detection.
-message ConfigureIdle {
+message IdleConfig {
   optional uint32 timeout_ms = 1;
+}
+
+// ─── The catalog ─────────────────────────────────────────────────────────────
+//
+// Voices and languages are enumerated rather than free strings so that a value
+// we do not serve cannot be sent at all. It used to be sendable: an unserved
+// language fell back to the English recognizer instead of failing, which is the
+// quietest way there is to get a call wrong.
+
+extend google.protobuf.EnumValueOptions {
+  // The code the speech tier wants for this language. Not derivable from the
+  // enum name: the catalog mixes ISO 639-1 two-letter codes with 639-3
+  // three-letter ones, because six of these languages have no two-letter code.
+  // The name is the language; this is only its spelling.
+  optional string iso_code = 50001;
+
+  // Whether omnivoice has a reference clip recorded in this language.
+  //
+  // `TtsConfig.language` selects a *recorded speaker*, not a text tag, so a
+  // language without a clip cannot be spoken — it would be served by the Hindi
+  // clip instead, which is the right words in the wrong voice and is audible to
+  // nobody but the caller. Naming one is rejected. Say what you are actually
+  // getting: `stt.language = LANGUAGE_OR, tts.language = LANGUAGE_HI`.
+  //
+  // This is a capability of the speech tier and moves when it does. It lives
+  // here because it is the one file the runtime and the control plane share, and
+  // a rule the control plane cannot check is a rule that fails at connect time
+  // instead of at write time.
+  optional bool has_tts_clip = 50002;
+}
+
+// The two omnivoice personas. The engine is chosen by the voice, not by a model
+// field; there has never been a second engine to name.
+enum Voice {
+  VOICE_UNSPECIFIED      = 0;
+  VOICE_OMNIVOICE_GAURI  = 1;  // Female.
+  VOICE_OMNIVOICE_GAURAV = 2;  // Male.
+}
+
+// English plus the 22 Indic languages `vql-stt` serves. Ten of them can also be
+// spoken — see `has_tts_clip`.
+enum Language {
+  LANGUAGE_UNSPECIFIED = 0;
+
+  LANGUAGE_EN  = 1  [(iso_code) = "en",  (has_tts_clip) = true];   // English
+  LANGUAGE_AS  = 2  [(iso_code) = "as"];                           // Assamese
+  LANGUAGE_BN  = 3  [(iso_code) = "bn",  (has_tts_clip) = true];   // Bengali
+  LANGUAGE_BRX = 4  [(iso_code) = "brx"];                          // Bodo
+  LANGUAGE_DOI = 5  [(iso_code) = "doi"];                          // Dogri
+  LANGUAGE_GU  = 6  [(iso_code) = "gu",  (has_tts_clip) = true];   // Gujarati
+  LANGUAGE_HI  = 7  [(iso_code) = "hi",  (has_tts_clip) = true];   // Hindi
+  LANGUAGE_KN  = 8  [(iso_code) = "kn",  (has_tts_clip) = true];   // Kannada
+  LANGUAGE_KOK = 9  [(iso_code) = "kok"];                          // Konkani
+  LANGUAGE_KS  = 10 [(iso_code) = "ks"];                           // Kashmiri
+  LANGUAGE_MAI = 11 [(iso_code) = "mai"];                          // Maithili
+  LANGUAGE_ML  = 12 [(iso_code) = "ml",  (has_tts_clip) = true];   // Malayalam
+  LANGUAGE_MNI = 13 [(iso_code) = "mni"];                          // Manipuri
+  LANGUAGE_MR  = 14 [(iso_code) = "mr",  (has_tts_clip) = true];   // Marathi
+  LANGUAGE_NE  = 15 [(iso_code) = "ne"];                           // Nepali
+  LANGUAGE_OR  = 16 [(iso_code) = "or"];                           // Odia
+  LANGUAGE_PA  = 17 [(iso_code) = "pa",  (has_tts_clip) = true];   // Punjabi
+  LANGUAGE_SA  = 18 [(iso_code) = "sa"];                           // Sanskrit
+  LANGUAGE_SAT = 19 [(iso_code) = "sat"];                          // Santali
+  LANGUAGE_SD  = 20 [(iso_code) = "sd"];                           // Sindhi
+  LANGUAGE_TA  = 21 [(iso_code) = "ta",  (has_tts_clip) = true];   // Tamil
+  LANGUAGE_TE  = 22 [(iso_code) = "te",  (has_tts_clip) = true];   // Telugu
+  LANGUAGE_UR  = 23 [(iso_code) = "ur"];                           // Urdu
 }
 
 // ─── RTVI plane ──────────────────────────────────────────────────────────────

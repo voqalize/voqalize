@@ -26,16 +26,16 @@ meaning. Awaiting between them is fine — that is how a tool call sits between 
 things you say.
 
 Everything else is a method on the :class:`Session` handed to every callback:
-``session.dispatch(action)`` to render, ``await session.configure_language(...)``
+``session.dispatch(action)`` to render, ``await session.configure(...)``
 to switch language, ``session.end()`` to hang up. Those are floor-free, so they
 read the same from inside a turn and from the five callbacks that are not
 generators at all — and, called at the same point in a generator body, they reach
 the wire at exactly the same point as a yield would.
 
-The ``configure_*`` methods are awaited, because Voqalize answers them. Awaiting is
-how a language it has no recognizer for becomes a :class:`RequestRejected` you
-handle, rather than a call that runs on sounding wrong and reports nothing. They
-are safe to await from anywhere a brain runs, including from inside a turn.
+``configure`` is awaited, because Voqalize answers it. Awaiting is how a language
+it has no recognizer for becomes a :class:`RequestRejected` you handle, rather
+than a call that runs on sounding wrong and reports nothing. It is safe to await
+from anywhere a brain runs, including from inside a turn.
 
 The turn is over when the generator returns. **It does not wait for the audio to
 finish playing**, which is the part that surprises people: what the user actually
@@ -85,10 +85,9 @@ from .events import (
 from .outbound import CortexAgent
 from .wire import (
     WIRE_VERSION,
-    ConfigureIdleFrame,
+    Config,
+    ConfigureFrame,
     ConfigureRequest,
-    ConfigureSttFrame,
-    ConfigureTtsFrame,
     EndFrame,
     ErrorCode,
     ErrorFrame,
@@ -96,6 +95,7 @@ from .wire import (
     FinalizeReason,
     Frame,
     InterruptionFrame,
+    Language,
     ResponseFrame,
     RTVIFrame,
     RTVIType,
@@ -103,8 +103,11 @@ from .wire import (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
+    SttConfig,
+    TtsConfig,
     UserIdleFrame,
     UserMessageFrame,
+    Voice,
 )
 from .wire.frames import RTVI_TO_APP
 
@@ -144,7 +147,7 @@ class WireError(RuntimeError):
 
 
 class RequestRejected(RuntimeError):
-    """Voqalize refused a ``session.configure_*`` call and applied none of it.
+    """Voqalize refused a ``session.configure`` call and applied none of it.
 
     A request is accepted or rejected whole, so on this exception the previous
     setting is still in force and the call is still coherent — an unsupported
@@ -259,115 +262,44 @@ class Session:
     # Accepted means Voqalize took the change, not that you can hear it yet: each
     # method says below where its boundary is.
 
-    async def configure_language(self, language: str, *, voice: str | None = None) -> None:
-        """Switch the whole call to another language — **the only way to do this.**
+    async def configure(self, config: Config) -> None:
+        """Override the session's configuration. Brain → Voqalize.
 
-        One call moves both halves. Do not reach for :meth:`configure_tts` and
-        :meth:`configure_stt` to change a language: the two sides name the field
-        differently (TTS ``language``, STT ``language_hint``), so doing it by hand
-        is two calls that can drift, and half-applying it is silent. A session
-        that speaks Hindi through the English recognizer transcribes badly with no
-        error; one that recognises Hindi in an English voice sounds like a
-        non-native speaker and passes every automated check we have — accent is
-        invisible to WER.
+        The session already opened on the agent record's defaults, so this is for
+        a condition that changed *during* the call — the caller switched
+        language, the line got noisy, this one needs longer to think. It is not
+        how a session is initialized; by the time a brain runs, the pipeline is
+        built and speaking::
 
-        ``language`` is an ISO code (``"hi"``, ``"ta"``, ``"en"``). Pass ``voice``
-        too when the target language needs a different catalog voice. To open a
-        session in a language, declare :attr:`Brain.language` and
-        :attr:`Brain.voice` instead — same values, applied before the greeting.
-
-        The recognizer goes first, because it is the leg that can refuse: it
-        either has an engine for the language or it does not, and a refusal there
-        leaves the voice untouched. So :class:`RequestRejected` from here means
-        the call is still wholly in the language it was in.
-        """
-        await self.configure_stt(language_hint=language)
-        await self.configure_tts(voice=voice, language=language)
-
-    async def configure_tts(
-        self,
-        *,
-        voice: str | None = None,
-        language: str | None = None,
-        model: str | None = None,
-        speed: float | None = None,
-    ) -> None:
-        """Retune the voice. Only pass what you want to change.
-
-        Accepted here means the next speech unit will use it. The synthesizer
-        locks voice, model, language and speed for the length of one synthesis
-        context and Voqalize pins one context per unit, so a change never lands
-        mid-utterance — the sentence being spoken finishes in the old voice.
-
-        ``speed`` is 0.5 to 2.0, where 1.0 is the voice's natural rate; outside that
-        the request is rejected and nothing changes.
-        """
-        await self._request(
-            "configure_tts",
-            ConfigureTtsFrame(voice=voice, language=language, model=model, speed=speed),
-        )
-
-    async def configure_stt(
-        self,
-        *,
-        language_hint: str | None = None,
-        vad_confidence: float | None = None,
-        vad_min_volume: float | None = None,
-        vad_start_frames: int | None = None,
-        vad_stop_frames_to_trigger_update: int | None = None,
-        vad_eager_frames: int | None = None,
-        vad_barge_in_ms: int | None = None,
-        resume_frames: int | None = None,
-        min_segment_speech_frames: int | None = None,
-        confidence_tail_ms: int | None = None,
-        eot_threshold: float | None = None,
-        eot_timeout_ms: int | None = None,
-    ) -> None:
-        """Retune the recognizer — turn detection, and what language it decodes.
-
-        The thresholds apply live: the recognizer treats them as bounds against
-        counters that reset themselves, so changing one mid-utterance is safe.
-        Use them to widen the pause window for a slow or stammering talker,
-        tighten it for a fast-turnaround flow, or adapt to a noisy line.
-        ``language_hint`` is the exception — it carries per-turn decoder state, so
-        the turn being spoken when it arrives still transcribes as spoken and the
-        change governs the next one.
-
-        The answer is the recognizer's own, and it is all-or-nothing: a language
-        it has no engine for rejects the whole request, thresholds included, with
-        nothing applied.
-        """
-        thresholds = {
-            name: value
-            for name, value in (
-                ("vad_confidence", vad_confidence),
-                ("vad_min_volume", vad_min_volume),
-                ("vad_start_frames", vad_start_frames),
-                ("vad_stop_frames_to_trigger_update", vad_stop_frames_to_trigger_update),
-                ("vad_eager_frames", vad_eager_frames),
-                ("vad_barge_in_ms", vad_barge_in_ms),
-                ("resume_frames", resume_frames),
-                ("min_segment_speech_frames", min_segment_speech_frames),
-                ("confidence_tail_ms", confidence_tail_ms),
-                ("eot_threshold", eot_threshold),
-                ("eot_timeout_ms", eot_timeout_ms),
+            await session.configure(
+                Config(
+                    stt=SttConfig(language=Language.TA),
+                    tts=TtsConfig(language=Language.TA, voice=Voice.OMNIVOICE_GAURI),
+                )
             )
-            if value is not None
-        }
-        await self._request(
-            "configure_stt",
-            ConfigureSttFrame(language_hint=language_hint, thresholds=thresholds),
-        )
 
-    async def configure_idle(self, *, timeout_ms: int | None = None) -> None:
-        """Retune idle detection — the silence after Voqalize stops speaking before
-        it calls :meth:`Brain.on_user_idle`. ``0`` disables it until you set one
-        again.
+        Both language legs, always — :class:`Config` refuses to be built with one
+        and not the other, because half a language change is silent. They may
+        differ: ten of the twenty-three languages can be spoken, so a call heard
+        in Odia is spoken with the Hindi clip, said out loud rather than
+        substituted behind your back.
 
-        Voqalize owns this timer itself, so accepted means applied: a timer already
-        running restarts on the new duration before the answer comes back.
+        Where each section lands, since none of them is instant:
+
+        - **tts** — the next speech unit. The synthesizer locks the voice for one
+          synthesis context and Voqalize pins one context per unit, so the
+          sentence being spoken finishes in the old voice.
+        - **stt** — once the open turn commits. The recognizer carries per-turn
+          decoder state, so the turn being spoken still transcribes as spoken.
+        - **idle** — immediately. Voqalize owns that timer, and one already
+          running restarts on the new duration before the answer comes back.
+
+        Accepted means Voqalize took the change, not that you can hear it yet.
+        Rejection is all-or-nothing and raises :class:`RequestRejected` with the
+        reason: nothing in the request applied, and the call is still wholly in
+        the state it was in.
         """
-        await self._request("configure_idle", ConfigureIdleFrame(timeout_ms=timeout_ms))
+        await self._request("configure", ConfigureFrame(config=config))
 
     async def _request(self, op: str, frame: ConfigureRequest) -> None:
         """Send one request and block on its answer.
@@ -433,8 +365,8 @@ class Brain:
     They live on the brain because the brain is the only thing that knows the
     caller — an agent record holds one language for everyone, which is wrong the
     moment a customer speaks a different one. When the language depends on *this*
-    call, leave the attribute unset and call :meth:`Session.configure_language`
-    from :meth:`on_session_start` instead; it lands before the first word.
+    call, leave the attribute unset and call :meth:`Session.configure` from
+    :meth:`on_session_start` instead; it lands before the first word.
     """
 
     #: TTS voice for every session this brain serves, e.g. ``"omnivoice/gauri"``.
@@ -442,8 +374,8 @@ class Brain:
     voice: ClassVar[str | None] = None
 
     #: ISO language code for both halves of the call — the recognizer *and* the
-    #: voice — applied through :meth:`Session.configure_language` so the two can
-    #: never half-apply. ``None`` leaves the recognizer and voice on English.
+    #: voice — applied through :meth:`Session.configure` so the two can never
+    #: half-apply. ``None`` leaves the recognizer and voice on English.
     language: ClassVar[str | None] = None
 
     # Set by the adapter the moment the session exists — before
@@ -487,7 +419,7 @@ class Brain:
 
     async def on_session_start(self, session: Session) -> None:
         """Setup. Runs before :meth:`greet`, which is what makes a
-        :meth:`Session.configure_language` call here land before the first word is
+        :meth:`Session.configure` call here land before the first word is
         spoken — that ordering is the contract, not an accident.
 
         This is also where a logical conversation spanning several sockets picks
@@ -768,10 +700,18 @@ class _BrainAdapter:
         one is a call nobody asked for.
         """
         language, voice = self._brain.language, self._brain.voice
-        if language is not None:
-            await session.configure_language(language, voice=voice)
-        elif voice is not None:
-            await session.configure_tts(voice=voice)
+        if language is None and voice is None:
+            return
+        lang = None if language is None else Language(language)
+        await session.configure(
+            Config(
+                stt=None if lang is None else SttConfig(language=lang),
+                tts=TtsConfig(
+                    voice=None if voice is None else Voice(voice),
+                    language=lang,
+                ),
+            )
+        )
 
     # ─── Driving what the brain yields ──────────────────────────────────
 

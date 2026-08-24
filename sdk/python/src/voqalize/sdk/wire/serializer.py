@@ -25,16 +25,17 @@ from . import _frames_pb2 as pb
 from .frames import (
     WIRE_FRAME_CLASSES,
     CancelFrame,
-    ConfigureIdleFrame,
-    ConfigureSttFrame,
-    ConfigureTtsFrame,
+    Config,
+    ConfigureFrame,
     EndFrame,
     ErrorCode,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
+    IdleConfig,
     InterruptionFrame,
+    Language,
     ResponseFrame,
     RTVIFrame,
     RTVIType,
@@ -42,8 +43,11 @@ from .frames import (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
+    SttConfig,
+    TtsConfig,
     UserIdleFrame,
     UserMessageFrame,
+    Voice,
 )
 
 _REASON_TO_PB: dict[FinalizeReason, int] = {
@@ -74,6 +78,24 @@ _RTVI_TO_PB: dict[RTVIType, int] = {
     RTVIType.UI_CANCEL_JOB_GROUP: pb.RTVI_TYPE_UI_CANCEL_JOB_GROUP,
 }
 _RTVI_FROM_PB: dict[int, RTVIType] = {v: k for k, v in _RTVI_TO_PB.items()}
+
+_VOICE_TO_PB: dict[Voice, int] = {
+    Voice.OMNIVOICE_GAURI: pb.VOICE_OMNIVOICE_GAURI,
+    Voice.OMNIVOICE_GAURAV: pb.VOICE_OMNIVOICE_GAURAV,
+}
+_PB_TO_VOICE: dict[int, Voice] = {v: k for k, v in _VOICE_TO_PB.items()}
+
+# Read out of the descriptor rather than written down again. `Language`'s values
+# *are* the `iso_code` option — a hand-kept table of twenty-three rows is the
+# drift the option exists to prevent, and this raises at import if the two ever
+# disagree rather than mistranslating one language at runtime.
+_ISO_CODE = pb.DESCRIPTOR.extensions_by_name["iso_code"]
+_PB_TO_LANG: dict[int, Language] = {
+    value.number: Language(value.GetOptions().Extensions[_ISO_CODE])
+    for value in pb.Language.DESCRIPTOR.values
+    if value.number != 0
+}
+_LANG_TO_PB: dict[Language, int] = {v: k for k, v in _PB_TO_LANG.items()}
 
 
 class UnsupportedFrameError(Exception):
@@ -135,41 +157,28 @@ def _enc_speech_end(f: SpeechEndFrame, env: pb.Envelope) -> None:
     env.speech_end.speech_id = f.speech_id
 
 
-# Each op sets its arm of the `op` oneof explicitly, so a request carrying no
-# delta at all still names the op it is — an empty delta is a legal no-op the
-# runtime answers, not a body the far side cannot identify.
-def _enc_configure_tts(f: ConfigureTtsFrame, env: pb.Envelope) -> None:
+# The op arm is set explicitly, so a request carrying no delta at all still names
+# the op it is — an empty delta is a legal no-op the runtime answers, not a body
+# the far side cannot identify.
+def _enc_configure(f: ConfigureFrame, env: pb.Envelope) -> None:
     env.request.request_id = f.request_id
-    m = env.request.configure_tts
+    m = env.request.configure
     m.SetInParent()
-    if f.voice is not None:
-        m.voice = f.voice
-    if f.language is not None:
-        m.language = f.language
-    if f.model is not None:
-        m.model = f.model
-    if f.speed is not None:
-        m.speed = f.speed
-
-
-def _enc_configure_stt(f: ConfigureSttFrame, env: pb.Envelope) -> None:
-    env.request.request_id = f.request_id
-    m = env.request.configure_stt
-    m.SetInParent()
-    if f.language_hint is not None:
-        m.language_hint = f.language_hint
-    for name, value in f.thresholds.items():
-        # A name the schema does not declare raises AttributeError here rather
-        # than travelling as a key nothing on the far side will ever look at.
-        setattr(m, name, value)
-
-
-def _enc_configure_idle(f: ConfigureIdleFrame, env: pb.Envelope) -> None:
-    env.request.request_id = f.request_id
-    m = env.request.configure_idle
-    m.SetInParent()
-    if f.timeout_ms is not None:
-        m.timeout_ms = f.timeout_ms
+    c = f.config
+    if c.tts is not None:
+        m.tts.SetInParent()
+        if c.tts.voice is not None:
+            m.tts.voice = _VOICE_TO_PB[c.tts.voice]
+        if c.tts.language is not None:
+            m.tts.language = _LANG_TO_PB[c.tts.language]
+    if c.stt is not None:
+        m.stt.SetInParent()
+        if c.stt.language is not None:
+            m.stt.language = _LANG_TO_PB[c.stt.language]
+    if c.idle is not None:
+        m.idle.SetInParent()
+        if c.idle.timeout_ms is not None:
+            m.idle.timeout_ms = c.idle.timeout_ms
 
 
 def _enc_response(f: ResponseFrame, env: pb.Envelope) -> None:
@@ -213,9 +222,7 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     SpeechStartFrame: _enc_speech_start,
     SpeechChunkFrame: _enc_speech_chunk,
     SpeechEndFrame: _enc_speech_end,
-    ConfigureTtsFrame: _enc_configure_tts,
-    ConfigureSttFrame: _enc_configure_stt,
-    ConfigureIdleFrame: _enc_configure_idle,
+    ConfigureFrame: _enc_configure,
     ResponseFrame: _enc_response,
     RTVIFrame: _enc_rtvi,
     EndFrame: _enc_end,
@@ -274,40 +281,27 @@ def _dec_speech_end(env: pb.Envelope) -> SpeechEndFrame:
     return SpeechEndFrame(speech_id=env.speech_end.speech_id)
 
 
-def _dec_configure_tts(req: pb.Request) -> ConfigureTtsFrame:
-    m = req.configure_tts
-    return ConfigureTtsFrame(
-        request_id=req.request_id,
-        voice=m.voice if m.HasField("voice") else None,
-        language=m.language if m.HasField("language") else None,
-        model=m.model if m.HasField("model") else None,
-        speed=m.speed if m.HasField("speed") else None,
-    )
-
-
-def _dec_configure_stt(req: pb.Request) -> ConfigureSttFrame:
-    m = req.configure_stt
-    # ListFields() is exactly the set the sender set, so the thresholds dict
-    # needs no allowlist here to drift from the schema.
-    return ConfigureSttFrame(
-        request_id=req.request_id,
-        language_hint=m.language_hint if m.HasField("language_hint") else None,
-        thresholds={f.name: v for f, v in m.ListFields() if f.name != "language_hint"},
-    )
-
-
-def _dec_configure_idle(req: pb.Request) -> ConfigureIdleFrame:
-    m = req.configure_idle
-    return ConfigureIdleFrame(
-        request_id=req.request_id,
-        timeout_ms=m.timeout_ms if m.HasField("timeout_ms") else None,
-    )
+def _dec_configure(req: pb.Request) -> ConfigureFrame:
+    m = req.configure
+    tts = stt = idle = None
+    if m.HasField("tts"):
+        tts = TtsConfig(
+            voice=_PB_TO_VOICE[m.tts.voice] if m.tts.HasField("voice") else None,
+            language=_PB_TO_LANG[m.tts.language] if m.tts.HasField("language") else None,
+        )
+    if m.HasField("stt"):
+        stt = SttConfig(
+            language=_PB_TO_LANG[m.stt.language] if m.stt.HasField("language") else None,
+        )
+    if m.HasField("idle"):
+        idle = IdleConfig(
+            timeout_ms=m.idle.timeout_ms if m.idle.HasField("timeout_ms") else None,
+        )
+    return ConfigureFrame(request_id=req.request_id, config=Config(tts=tts, stt=stt, idle=idle))
 
 
 _OP_DECODERS: dict[str, Callable[[pb.Request], Frame]] = {
-    "configure_tts": _dec_configure_tts,
-    "configure_stt": _dec_configure_stt,
-    "configure_idle": _dec_configure_idle,
+    "configure": _dec_configure,
 }
 
 

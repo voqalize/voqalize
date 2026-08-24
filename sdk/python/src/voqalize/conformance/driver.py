@@ -29,10 +29,8 @@ from websockets.exceptions import ConnectionClosed
 from voqalize.sdk.wire import (
     WIRE_VERSION,
     CancelFrame,
-    ConfigureIdleFrame,
+    ConfigureFrame,
     ConfigureRequest,
-    ConfigureSttFrame,
-    ConfigureTtsFrame,
     EndFrame,
     ErrorFrame,
     FinalizeFrame,
@@ -61,9 +59,7 @@ GREETING_TURN = 1
 # one, because Voqalize does — a brain awaiting an answer that never comes is the
 # one failure the wire promises cannot happen.
 REQUEST_OPS: dict[type[Frame], str] = {
-    ConfigureTtsFrame: "configure_tts",
-    ConfigureSttFrame: "configure_stt",
-    ConfigureIdleFrame: "configure_idle",
+    ConfigureFrame: "configure",
 }
 
 # ─── the conformance backchannel ─────────────────────────────────────────────
@@ -270,7 +266,7 @@ class VoqalizeDriver:
                 self.ui_commands.append(frame.data)
         elif isinstance(frame, ErrorFrame):
             self.errors.append(frame)
-        elif isinstance(frame, ConfigureTtsFrame | ConfigureSttFrame | ConfigureIdleFrame):
+        elif isinstance(frame, ConfigureFrame):
             self.requests.append(frame)
             op = REQUEST_OPS[type(frame)]
             if op in self.withhold:

@@ -6,6 +6,9 @@ Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. Only protobuf
 Public surface:
 - The frame dataclasses plus ``Frame``, and the enums they carry —
   ``FinalizeReason``, ``ErrorCode``, ``RTVIType``.
+- ``Config`` and its three sections, the ``Voice`` and ``Language`` catalogs,
+  ``SPEAKABLE``, and ``ConfigError`` — one configuration type, shared with the
+  agent record that stores a session's defaults.
 - ``WireSerializer`` — the protobuf serializer.
 - ``WIRE_VERSION`` — the wire version this build speaks.
 - ``MultiplexedWire``, ``WireConfig``, ``PermanentClose`` — websocket transport
@@ -16,19 +19,22 @@ Public surface:
 """
 
 from .frames import (
+    SPEAKABLE,
     WIRE_VERSION,
     CancelFrame,
-    ConfigureIdleFrame,
+    Config,
+    ConfigError,
+    ConfigureFrame,
     ConfigureRequest,
-    ConfigureSttFrame,
-    ConfigureTtsFrame,
     EndFrame,
     ErrorCode,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
+    IdleConfig,
     InterruptionFrame,
+    Language,
     ResponseFrame,
     RTVIFrame,
     RTVIType,
@@ -36,8 +42,11 @@ from .frames import (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
+    SttConfig,
+    TtsConfig,
     UserIdleFrame,
     UserMessageFrame,
+    Voice,
 )
 from .serializer import (
     MalformedFrameError,
@@ -54,20 +63,23 @@ from .transport import (
 )
 
 __all__ = [
+    "SPEAKABLE",
     "WIRE_VERSION",
     "AuthRejected",
     "CancelFrame",
-    "ConfigureIdleFrame",
+    "Config",
+    "ConfigError",
+    "ConfigureFrame",
     "ConfigureRequest",
-    "ConfigureSttFrame",
-    "ConfigureTtsFrame",
     "EndFrame",
     "ErrorCode",
     "ErrorFrame",
     "FinalizeFrame",
     "FinalizeReason",
     "Frame",
+    "IdleConfig",
     "InterruptionFrame",
+    "Language",
     "MalformedFrameError",
     "MultiplexedWire",
     "PermanentClose",
@@ -78,9 +90,12 @@ __all__ = [
     "SpeechChunkFrame",
     "SpeechEndFrame",
     "SpeechStartFrame",
+    "SttConfig",
+    "TtsConfig",
     "UnsupportedFrameError",
     "UserIdleFrame",
     "UserMessageFrame",
+    "Voice",
     "Wire",
     "WireClosed",
     "WireConfig",

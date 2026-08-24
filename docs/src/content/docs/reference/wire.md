@@ -160,7 +160,7 @@ guess.
 | `SpeechChunk` | `speech_id`, `text` | Text to speak, inside an open unit. Stream them as they are produced. |
 | `SpeechEnd` | `speech_id` | Close the open unit. |
 | `RTVIFrame` | `type`, `data` *(JSON)*, `id`, `turn_id` | Drive the screen. Relayed to the app unread. |
-| `Request` | `request_id`, one `op` | Change how the call behaves. Answered by exactly one `Response`. |
+| `Request` | `request_id`, one `op` | Change how the call behaves — today `configure`. Answered by exactly one `Response`. |
 | `End` | — | Hang up. |
 | `Cancel` | `reason` | Tear down abruptly. |
 | `Error` | `code`, `message`, `fatal` | Something went wrong on this side. |
@@ -207,8 +207,7 @@ was any good.
 ```proto
 message Request {
   uint64 request_id = 1;
-  oneof op { ConfigureTts configure_tts = 2; ConfigureStt configure_stt = 3;
-             ConfigureIdle configure_idle = 4; }
+  oneof op { Config configure = 5; }
 }
 message Response { uint64 request_id = 1; Status status = 2; string detail = 3; }
 ```
@@ -221,42 +220,103 @@ always** — a brain awaiting one never has to know which ops answer.
 request, not whether the effect is audible yet**. `detail` says why on a
 rejection and is empty otherwise, and it is written to be shown.
 
-A request is accepted or rejected **whole**. A rejected `ConfigureStt` applies
-none of its fields, thresholds included, so the call is still coherent
-afterwards and the previous settings are still in force.
+A request is accepted or rejected **whole**. A rejected `Config` applies none of
+its sections, so the call is still coherent afterwards and the previous settings
+are still in force.
 
-Every field of every op is `optional`, and that is load-bearing: these are
-deltas, so Voqalize changes only what the brain set. Without explicit presence, an
-unset field is indistinguishable from `0` or `""`, and a delta silently becomes a
-reset.
+### `Config` — one message, three sections
 
-### `ConfigureTts` — `voice`, `language`, `model`, `speed`
+```proto
+message Config {
+  TtsConfig  tts  = 1;
+  SttConfig  stt  = 2;
+  IdleConfig idle = 3;
+}
 
-Takes effect at the next speech unit, never mid-utterance: the synthesizer locks
-these for the length of one synthesis context and Voqalize pins one context per
-unit. Accepting is therefore the most Voqalize can honestly report — there is no
-ask-and-answer with the synthesizer, only the next unit. `speed` runs 0.5–2.0,
-where 1.0 is the voice's natural rate.
+message TtsConfig  { optional Voice voice = 1; optional Language language = 2; }
+message SttConfig  { optional Language language = 1; }
+message IdleConfig { optional uint32 timeout_ms = 1; }
+```
 
-### `ConfigureStt` — `language_hint`, plus the recognizer's thresholds
+The same message is the agent record's stored configuration and this op's
+payload. That is the point: a record cannot drift from the wire if there is only
+one definition of what a configuration is. "Unset" reads differently at each end
+— in the record it means *take the platform default*, so a section added later
+does not invalidate every stored record; on the wire it means *leave it alone*,
+because a `Request` carries a delta and the runtime is already running.
 
-The thresholds apply live: the recognizer treats them as bounds against counters
-that reset themselves, so changing one mid-utterance is safe. `language_hint`
-does not — a language change carries per-turn decoder state, so the recognizer
-queues it and applies it once the open turn commits. The turn being spoken when
-it arrives still transcribes as spoken; the change governs the next one.
+Explicit presence is load-bearing on both. Without it an unset `timeout_ms` is
+indistinguishable from `0`, and a delta that never mentioned idle detection would
+silently disable it.
 
-Acceptance here is the recognizer's own answer, not Voqalize's guess: a language it
-has no engine for rejects the request.
+**One op, not three.** A language change has to move both legs at once. Three ops
+would put a turn boundary — and a possible refusal — between the halves, leaving
+the call heard in one language and spoken in another.
 
-Threshold names match the recognizer's own `Configure` message verbatim. See the
-[voice & language catalog](/docs/reference/catalog) for what is available.
+The surface is deliberately narrow: voice and language, and nothing else. The
+recognizer's thresholds are not settable from here; they keep the runtime's own
+defaults. This widens as we learn what is worth naming, and a knob is far easier
+to add than to take back.
 
-### `ConfigureIdle` — `timeout_ms`
+### When each section lands
 
-Applied by Voqalize itself, immediately; a running idle timer restarts on the new
-duration. `timeout_ms` is the silence after Voqalize stops speaking before it mints
-an idle turn. `0` disables idle detection.
+| Section | Effective | Why not sooner |
+|---|---|---|
+| `tts` | the next speech unit | The synthesizer locks the voice for one synthesis context and Voqalize pins one context per unit, so the sentence being spoken finishes in the old voice. |
+| `stt` | once the open turn commits | The recognizer carries per-turn decoder state, so the turn being spoken when the change arrives still transcribes as spoken. |
+| `idle` | immediately | Voqalize owns that timer; one already running restarts on the new duration. `timeout_ms` is the silence after Voqalize stops speaking before it mints an idle turn, and `0` disables idle detection. |
+
+### Both legs carry a language, and both must be set
+
+`Language` appears on `TtsConfig` and on `SttConfig`, and that is not
+duplication. The recognizer serves twenty-three languages; the synthesizer has a
+reference clip recorded in ten of them. So the legs genuinely differ — a call
+understood in Odia is spoken with the Hindi clip — and one field could not say
+so.
+
+Two rules follow, and both are enforced before the request leaves the SDK:
+
+1. **Name a language on one leg and you must name it on the other.** Not that
+   they agree — that you stated both. Moving one alone is the silent failure:
+   the words stay right and only the voice is wrong, which no transcript, no WER
+   number and no automated check will ever show you.
+2. **A `tts.language` with no recorded clip is rejected.** It would be served by
+   the Hindi clip, and being handed that substitution quietly is how a call ends
+   up in a voice nobody chose. Write what you are actually getting:
+
+```proto
+stt { language: LANGUAGE_OR }   // listen in Odia
+tts { language: LANGUAGE_HI }   // speak with the Hindi clip
+```
+
+Changing only the voice touches no language field and is unaffected by either
+rule.
+
+### The catalog
+
+`Voice` and `Language` are enumerations, not free strings, so a value we do not
+serve cannot be sent at all. Each `Language` value carries its speech-tier code
+and whether a clip exists as proto options, which is what makes the SDKs' own
+tables derived rather than copied:
+
+```proto
+extend google.protobuf.EnumValueOptions {
+  optional string iso_code     = 50001;
+  optional bool   has_tts_clip = 50002;
+}
+
+enum Language {
+  LANGUAGE_UNSPECIFIED = 0;
+  LANGUAGE_EN = 1 [(iso_code) = "en", (has_tts_clip) = true];  // English
+  LANGUAGE_OR = 16 [(iso_code) = "or"];                        // Odia, understood only
+  // …
+}
+```
+
+`iso_code` is not derivable from the name: the catalog mixes ISO 639-1
+two-letter codes with 639-3 three-letter ones, because six of these languages
+have no two-letter code. See the
+[voice & language catalog](/docs/reference/catalog) for the full list.
 
 ## The RTVI plane
 
@@ -352,7 +412,7 @@ class Greeter(Brain):
 | `on_error` | ← `Error` |
 | `yield SpeechStart()` / `Chunk` / `SpeechEnd()` | → `SpeechStart` / `SpeechChunk` / `SpeechEnd`, one minted `speech_id` per unit |
 | `session.send_rtvi(type, data)` / `session.dispatch(action)` | → `RTVIFrame` |
-| `await session.configure_tts / _stt / _idle / _language` | → `Request`, awaited until its `Response` |
+| `await session.configure(Config(...))` | → `Request`, awaited until its `Response` |
 | `session.end()` | → `End` |
 
 `greet` returns a string or `None` — one unit of speech, on the turn
@@ -372,9 +432,12 @@ which a pipecat client reads with `useUICommandHandler`. Nothing comes back — 
 the app has an answer it sends an ordinary `client-message`, correlated by
 whatever the app puts in it.
 
-`configure_*` is awaited because Voqalize answers it. Awaiting is how a language
+`configure` is awaited because Voqalize answers it. Awaiting is how a language
 Voqalize has no recognizer for becomes an exception the brain handles, rather than a
-call that runs on sounding wrong and reports nothing.
+call that runs on sounding wrong and reports nothing. The two language rules are
+checked before the request leaves the SDK, so a half-stated language change and a
+clip-less voice are both a `ConfigError` at the call site rather than a rejection
+a turn later.
 
 ## Invariants
 

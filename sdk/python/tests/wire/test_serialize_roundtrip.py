@@ -7,16 +7,17 @@ import pytest
 from voqalize.sdk.wire import (
     WIRE_VERSION,
     CancelFrame,
-    ConfigureIdleFrame,
-    ConfigureSttFrame,
-    ConfigureTtsFrame,
+    Config,
+    ConfigureFrame,
     EndFrame,
     ErrorCode,
     ErrorFrame,
     FinalizeFrame,
     FinalizeReason,
     Frame,
+    IdleConfig,
     InterruptionFrame,
+    Language,
     ResponseFrame,
     RTVIFrame,
     RTVIType,
@@ -24,8 +25,11 @@ from voqalize.sdk.wire import (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
+    SttConfig,
+    TtsConfig,
     UserIdleFrame,
     UserMessageFrame,
+    Voice,
     WireSerializer,
 )
 
@@ -52,15 +56,23 @@ def _frames() -> list[Frame]:
             turn_id=4,
         ),
         RTVIFrame(type=RTVIType.CLIENT_MESSAGE, data={"t": "tap", "d": {"id": 3}}, id="req-1"),
-        ConfigureTtsFrame(request_id=1, voice="omnivoice/gauri", language="hi", speed=1.25),
-        ConfigureSttFrame(
-            request_id=2,
-            language_hint="hi",
-            thresholds={"eot_threshold": 0.75, "eot_timeout_ms": 4000},
+        ConfigureFrame(
+            request_id=1,
+            config=Config(
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.HI),
+                stt=SttConfig(language=Language.HI),
+                idle=IdleConfig(timeout_ms=0),
+            ),
         ),
-        ConfigureIdleFrame(request_id=3, timeout_ms=0),
+        # The legs differ on purpose: Odia is understood, and there is no Odia
+        # clip to speak it with, so the call is spoken with the Hindi one.
+        ConfigureFrame(
+            request_id=2,
+            config=Config(stt=SttConfig(language=Language.OR), tts=TtsConfig(language=Language.HI)),
+        ),
+        ConfigureFrame(request_id=3, config=Config(tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV))),
         ResponseFrame(request_id=3, accepted=True),
-        ResponseFrame(request_id=4, accepted=False, detail="speed must be 0.5 to 2.0"),
+        ResponseFrame(request_id=4, accepted=False, detail="no recognizer for language 'sat'"),
         EndFrame(),
         CancelFrame(reason="user_left"),
         CancelFrame(),  # reason=None → empty string on wire
@@ -79,9 +91,7 @@ _FIELDS: dict[type[Frame], tuple[str, ...]] = {
     SpeechChunkFrame: ("speech_id", "text"),
     SpeechEndFrame: ("speech_id",),
     RTVIFrame: ("type", "data", "id", "turn_id"),
-    ConfigureTtsFrame: ("request_id", "voice", "language", "model", "speed"),
-    ConfigureSttFrame: ("request_id", "language_hint", "thresholds"),
-    ConfigureIdleFrame: ("request_id", "timeout_ms"),
+    ConfigureFrame: ("request_id", "config"),
     ResponseFrame: ("request_id", "accepted", "detail"),
     ErrorFrame: ("code", "message", "fatal"),
     # Field-less frames round-trip to their own type and nothing more.
@@ -131,27 +141,28 @@ async def test_rtvi_turn_id_is_absent_when_unset() -> None:
     assert out.id is None
 
 
-@pytest.mark.parametrize(
-    "frame",
-    [
-        ConfigureTtsFrame(request_id=9),
-        ConfigureSttFrame(request_id=9),
-        ConfigureIdleFrame(request_id=9),
-    ],
-    ids=lambda f: type(f).__name__,
-)
-async def test_an_empty_delta_still_names_its_op(frame: Frame) -> None:
+async def test_an_empty_delta_still_names_its_op() -> None:
     """A request that changes nothing is a legal no-op the far side answers — so
-    the op must survive the trip even when no field is set. Encode it as a bare
+    the op must survive the trip even when no section is set. Encode it as a bare
     envelope and it would arrive as an unknown operation instead."""
     ser = WireSerializer()
-    out = await ser.deserialize(await ser.serialize(frame))
-    assert type(out) is type(frame)
+    out = await ser.deserialize(await ser.serialize(ConfigureFrame(request_id=9)))
+    assert isinstance(out, ConfigureFrame)
+    assert out.config == Config()
 
 
-async def test_an_undeclared_threshold_is_refused_at_the_sender() -> None:
-    """The thresholds dict is the schema's own field names. A name the schema does
-    not declare fails here rather than travelling as a key nothing will read."""
+async def test_an_unset_section_stays_unset() -> None:
+    """Unset means *leave it alone*, and there is no value that says so — an
+    IdleConfig that decoded as ``timeout_ms=0`` would disable idle detection on
+    every request that never mentioned it."""
     ser = WireSerializer()
-    with pytest.raises(AttributeError):
-        await ser.serialize(ConfigureSttFrame(request_id=1, thresholds={"patience": 3}))
+    out = await ser.deserialize(
+        await ser.serialize(
+            ConfigureFrame(request_id=9, config=Config(tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI)))
+        )
+    )
+    assert isinstance(out, ConfigureFrame)
+    assert out.config.idle is None
+    assert out.config.stt is None
+    assert out.config.tts is not None
+    assert out.config.tts.language is None

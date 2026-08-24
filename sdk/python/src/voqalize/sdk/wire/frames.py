@@ -176,41 +176,184 @@ class SpeechEndFrame(Frame):
 
 # ─── The control leg ──────────────────────────────────────────────────────────
 #
-# One request out, exactly one response back, on every op. ``request_id`` names
-# that pair and nothing else. Every other field is optional and means "leave this
-# alone" when unset, so a request carries only what the brain asked to change.
+# One request out, exactly one response back. ``request_id`` names that pair and
+# nothing else.
+#
+# The surface is deliberately narrow — voice and language, and nothing else. The
+# recognizer's thresholds are not settable from here; they keep the runtime's own
+# defaults. A knob is far easier to add than to take back.
+
+
+class Voice(StrEnum):
+    """The voices a session can speak in.
+
+    The value is the voice id the speech tier knows. The engine is chosen by the
+    voice, not by a separate model field.
+    """
+
+    OMNIVOICE_GAURI = "omnivoice/gauri"
+    OMNIVOICE_GAURAV = "omnivoice/gaurav"
+
+
+class Language(StrEnum):
+    """The languages a session can be conducted in.
+
+    The value is the code the speech tier wants. It is ISO 639-1 where a
+    two-letter code exists and 639-3 where none does — six of these have no
+    two-letter code, so the set is not uniform and the *name* is the language,
+    not the code.
+
+    Enumerated rather than free strings so a language we do not serve cannot be
+    named at all. It used to be nameable, and an unserved one fell back to the
+    English recognizer instead of failing.
+    """
+
+    EN = "en"
+    AS = "as"
+    BN = "bn"
+    BRX = "brx"
+    DOI = "doi"
+    GU = "gu"
+    HI = "hi"
+    KN = "kn"
+    KOK = "kok"
+    KS = "ks"
+    MAI = "mai"
+    ML = "ml"
+    MNI = "mni"
+    MR = "mr"
+    NE = "ne"
+    OR = "or"
+    PA = "pa"
+    SA = "sa"
+    SAT = "sat"
+    SD = "sd"
+    TA = "ta"
+    TE = "te"
+    UR = "ur"
+
+
+#: The languages that can be *spoken*, as opposed to only understood.
+#:
+#: :attr:`TtsConfig.language` selects a recorded speaker, not a text tag, so a
+#: language with no reference clip cannot be spoken — it would be served by the
+#: Hindi clip, which is the right words in the wrong voice and is audible to
+#: nobody but the caller.
+#:
+#: A capability of the speech tier, mirrored from ``has_tts_clip`` in
+#: ``frames.proto``. ``tests/wire/test_catalog_matches_proto.py`` fails if this
+#: drifts from it.
+SPEAKABLE: frozenset[Language] = frozenset(
+    {
+        Language.EN,
+        Language.BN,
+        Language.GU,
+        Language.HI,
+        Language.KN,
+        Language.ML,
+        Language.MR,
+        Language.PA,
+        Language.TA,
+        Language.TE,
+    }
+)
+
+
+@dataclass(frozen=True)
+class TtsConfig:
+    """How the session speaks. Applies to the next speech unit, never
+    mid-utterance."""
+
+    voice: Voice | None = None
+    language: Language | None = None
+
+
+@dataclass(frozen=True)
+class SttConfig:
+    """How the session listens. Applies once the open turn commits, never
+    mid-utterance."""
+
+    language: Language | None = None
+
+
+@dataclass(frozen=True)
+class IdleConfig:
+    """When the brain gets the floor back. ``timeout_ms == 0`` disables idle
+    detection."""
+
+    timeout_ms: int | None = None
+
+
+class ConfigError(ValueError):
+    """A configuration the runtime would refuse, refused here instead.
+
+    Raised where the brain wrote it rather than one round trip later, because a
+    rejected request costs a turn to find out about.
+    """
+
+
+@dataclass(frozen=True)
+class Config:
+    """One configuration, three sections.
+
+    The same shape the agent record stores as the session's defaults, which is
+    why there is one type rather than two — a record cannot drift from the wire
+    if there is only one definition of what a configuration is.
+
+    "Unset" means *leave it alone* here, and *take the platform default* in the
+    record. A section left ``None`` is untouched; a field left ``None`` inside a
+    section it is present in is untouched too.
+
+    Both legs carry their own language, and that is not duplication. Ten of the
+    twenty-three languages can be spoken; understanding Odia while speaking with
+    the Hindi clip is a real configuration and needs two fields to say. So the
+    guard is not that they agree, it is that you **stated both**::
+
+        Config(
+            stt=SttConfig(language=Language.OR),   # listen in Odia
+            tts=TtsConfig(language=Language.HI),   # speak with the Hindi clip
+        )
+
+    Naming a language on one leg and not the other raises :class:`ConfigError`.
+    Changing only the voice touches no language field and is unaffected.
+    """
+
+    tts: TtsConfig | None = None
+    stt: SttConfig | None = None
+    idle: IdleConfig | None = None
+
+    def __post_init__(self) -> None:
+        spoken = self.tts.language if self.tts is not None else None
+        heard = self.stt.language if self.stt is not None else None
+        if (spoken is None) != (heard is None):
+            named, missing = ("tts", "stt") if spoken is not None else ("stt", "tts")
+            raise ConfigError(
+                f"This configuration sets {named}.language but not {missing}.language. "
+                f"A language has two legs — the recognizer and the recorded speaker — "
+                f"and moving one without the other is silent: the words stay right and "
+                f"only the voice is wrong. Set both, even when they differ."
+            )
+        if spoken is not None and spoken not in SPEAKABLE:
+            catalog = ", ".join(sorted(lang.value for lang in SPEAKABLE))
+            raise ConfigError(
+                f"There is no reference clip recorded in {spoken.value!r}, so it cannot "
+                f"be spoken — only understood. Set tts.language to one that can "
+                f"({catalog}) and say which: a call heard in {spoken.value!r} and spoken "
+                f"with the Hindi clip is a real configuration, but it has to be "
+                f"written down."
+            )
 
 
 @dataclass
-class ConfigureTtsFrame(Frame):
-    """Retune the voice. Brain → Voqalize."""
+class ConfigureFrame(Frame):
+    """Override the session's configuration mid-call. Brain → Voqalize.
 
-    request_id: int = 0
-    voice: str | None = None
-    language: str | None = None
-    model: str | None = None
-    speed: float | None = None
-
-
-@dataclass
-class ConfigureSttFrame(Frame):
-    """Retune the recognizer. Brain → Voqalize.
-
-    ``thresholds`` keys are the schema's own field names, built from what the
-    brain set; the serializer rejects a name the schema does not declare.
+    The session already starts from the agent record's defaults, so this is for
+    a condition that changed during the call — not for initialization.
     """
 
     request_id: int = 0
-    language_hint: str | None = None
-    thresholds: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class ConfigureIdleFrame(Frame):
-    """Retune idle detection. ``timeout_ms == 0`` disables it."""
-
-    request_id: int = 0
-    timeout_ms: int | None = None
+    config: Config = field(default_factory=Config)
 
 
 @dataclass
@@ -224,7 +367,7 @@ class ResponseFrame(Frame):
 
 #: Every frame that carries a request. Each has a ``request_id``, and exactly one
 #: :class:`ResponseFrame` names it back.
-ConfigureRequest = ConfigureTtsFrame | ConfigureSttFrame | ConfigureIdleFrame
+ConfigureRequest = ConfigureFrame
 
 
 # ─── The RTVI plane ───────────────────────────────────────────────────────────
@@ -309,9 +452,7 @@ WIRE_FRAME_CLASSES: tuple[type[Frame], ...] = (
     SpeechStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
-    ConfigureTtsFrame,
-    ConfigureSttFrame,
-    ConfigureIdleFrame,
+    ConfigureFrame,
     ResponseFrame,
     RTVIFrame,
     EndFrame,
