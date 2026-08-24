@@ -303,21 +303,21 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 24
+    value: 25
     source: docs/src/content/docs/
     verified: 2026-08-25
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
-      Twenty-four pages plus their .md twins, llms.txt and 404.html. 9 -> 10 -> 9 on
+      Twenty-five pages plus their .md twins, llms.txt and 404.html. 9 -> 10 -> 9 on
       2026-08-24 (`client/handshake` added, `client/react` deleted with the
       package it documented, redirect left behind), 9 -> 11 on 2026-08-25 when the
       eight-section information architecture landed with `start/what-voqalize-is`
       and `start/pipecat`, then 11 -> 18 the same day when the "Designing for
       voice" section published seven of the eleven outlines in
       `design/explanations/`, 18 -> 22 when "Run and operate" gained keys, logs,
-      recordings and usage, and 22 -> 24 when Reference gained the RTVI plane and the
-      no-provider-slot explanation. There is still no page teaching Brain, greet,
+      recordings and usage, 22 -> 24 when Reference gained the RTVI plane and the
+      no-provider-slot explanation, and 24 -> 25 for the avatar. There is still no page teaching Brain, greet,
       on_user_message, Session, dispatch or Action — the hole is board row B1, and
       no surface may imply otherwise. The sidebar now names the sections that hole
       belongs to, which is a promise rather than a claim. Count this number the

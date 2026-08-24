@@ -33,8 +33,7 @@
  *                         models and tools · context and history · transcripts
  *   The client            receiving actions · sending context · transcript and
  *                         presence · framework notes
- *   The avatar            what it is · in your pipeline · in the browser ·
- *                         authoring a face
+ *   The avatar            the browser surface · the faces · authoring a face
  *   Voice and language    choosing a voice · choosing a language · defaults and
  *                         overrides
  *   Reference             the brain API · errors
@@ -45,13 +44,20 @@
  * pipecat's — was promoted into Start when the React client was deleted; and
  * "the framework boundary" waits for a second engine to exist.
  *
- * Two sections are held rather than merely unwritten, and both are held on the
- * same work: the brain section and the voice-and-language section describe
- * surfaces being changed right now by `skill-rewrite/BRAIN-SIMPLIFICATION.md`
- * — the configuration ops are collapsing into one, voices and languages are
- * becoming protobuf enumerations, and the agent record is becoming where a
- * default lives. Writing either against today's tree would publish a page with
- * a known expiry date. The board is `skill-rewrite/SURFACE-BOARD.md`.
+ * The avatar's Voqalize half — the processor already running in every session,
+ * and what a brain may send the face — is published under The client. The pages
+ * about the browser surface itself wait on `@voqalize/avatar` 0.3.0: the
+ * published 0.2.2 is one React component taking a face by name, 0.3.0 is
+ * `createAvatar` taking a face value, and writing three pages against the one
+ * about to be replaced is work done twice.
+ *
+ * Two more sections are held rather than merely unwritten, and both are held on
+ * the same work: the brain section and the voice-and-language section describe
+ * surfaces being changed right now by `skill-rewrite/BRAIN-SIMPLIFICATION.md` —
+ * the configuration ops are collapsing into one and voices and languages are
+ * becoming protobuf enumerations. Writing either against today's tree would
+ * publish a page with a known expiry date. The board is
+ * `skill-rewrite/SURFACE-BOARD.md`.
  */
 export const sidebar = [
   {
@@ -67,7 +73,10 @@ export const sidebar = [
   },
   {
     label: "The client — your page",
-    items: [{ label: "Connections and the handshake", slug: "client/handshake" }],
+    items: [
+      { label: "Connections and the handshake", slug: "client/handshake" },
+      { label: "The avatar", slug: "client/avatar" },
+    ],
   },
   {
     label: "Run and operate",
