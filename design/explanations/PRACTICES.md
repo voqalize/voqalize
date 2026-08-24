@@ -136,6 +136,33 @@ become; it does not govern this file.
     crashed only because our client holds an uncopyable lock. — *agreed, and the
     reason 172 passing tests do not close a question like this.*
 
+## The browser
+
+44. **We ship no client library.** The Voqalize-specific surface is the call
+    initialisation and nothing else; everything after it is stock pipecat —
+    client-js, client-react, voice-ui-kit. — *agreed, and the package is already
+    down to four facts.* → [11](11-the-browser-is-pipecats.md)
+45. **All server communication is over stock pipecat.** RTVI `client-message`,
+    `server-message` and `ui-command`, on the data channel the transport already
+    has. No second channel and no envelope of ours. — *agreed, and sugar has no
+    Voqalize channel in it.*
+46. **A library is a promise to version something; the connection step is a
+    schema.** Four facts — path, header, body, response shape — belong in a
+    snippet a reader cannot skip, not in a package they must resolve. — *agreed;*
+    ***unfinished***: *two things in the package are not connection glue (the real
+    `Headers` requirement, the silent `record: true` refusal) and need somewhere
+    else to live first.*
+47. **Presence renders state, it never sources it.** Take pipecat's transport
+    state and RTVI events; do not accumulate a state machine the app then asks
+    "what is happening?" — *agreed;* ***violated in spirit***: *the component is
+    right, the derivation is copied into eleven pages.*
+48. **An addon earns its package by adding a capability, not by adapting an
+    interface.** The avatar draws a face and aligns phonemes, so it is a package;
+    the client SDK renamed things, so it was not. — *agreed.*
+49. **The failure mode of a client wrapper is lag, not breakage.** Ours never
+    crashed; it described a smaller pipecat than the one installed, and had to
+    grow a case for every event pipecat added. — *agreed.*
+
 ## Correction and authority
 
 31. **The agent holds no authority over anything irreversible.** No confirm tool,
@@ -161,6 +188,13 @@ become; it does not govern this file.
 - Whether the framework boundary **generalises past one framework**. Everything in
   [10](10-the-framework-boundary.md) is proven on `GeminiBrain` and `sugar` alone;
   the ADK path has not been through it and ten demos are unported.
+- Whether `@voqalize/client-react` is **deleted or kept at four facts**. Deleting
+  it leaves the `Headers` footgun homeless and the `record: true` refusal
+  unwarned. *(Position: move the refusal into the server's response, put the
+  `Headers` line in the docs snippet, and then the package holds nothing.)*
+- **Who owns presence** — a hook in `demo-kit` beside the component, or the avatar
+  addon, which already derives the same states from the `PipecatClient` by itself.
+  Two answers to one problem, in two repositories.
 - Whether `_ready` is **residue or an unadmitted wrapper**. A second client from
   the same vendor (the `interactions` API, stateless + streaming + AFC) is the
   cheapest test we have of which.
@@ -174,6 +208,9 @@ become; it does not govern this file.
 
 - No demo asserts history-equals-`heard`.
 - No demo exercises `status="timeout"`.
+- **Every demo declares `@voqalize/client-react` at `^0.1.0` and imports 0.3.0's
+  exports.** `build.mjs` overlays the local build, so the assembled site and a
+  checked-out tree both work while the documented standalone install does not.
 - **A failed tool never reaches the caller.** google-genai hands the model
   `{'error': …}` and the model says it did the thing; our side can only log.
 - No fan-out example has a failing branch.

@@ -1,6 +1,6 @@
 # `/docs/design/` — the outlines
 
-Ten explanation pages, one conviction each. These are **reference outlines, not
+Eleven explanation pages, one conviction each. These are **reference outlines, not
 drafts**: facts, proof points and the top-down belief, gathered so the narrative
 can be shaped once. Prose comes later.
 
@@ -10,7 +10,7 @@ can be shaped once. Prose comes later.
 reason to exist. Each outline states its surprise in one sentence at the top; if
 that sentence reads as obvious, the page is wrong, not the sentence.
 
-## The ten
+## The eleven
 
 | # | Page | The surprise |
 |---|---|---|
@@ -24,10 +24,12 @@ that sentence reads as obvious, the page is wrong, not the sentence.
 | 8 | [Getting information to the model](08-getting-information-to-the-model.md) | There are four places a fact can live, and choosing wrong costs either latency or accuracy on every turn. |
 | 9 | [Misunderstanding and reversal](09-misunderstanding-and-reversal.md) | The caller will be misheard and will correct themselves mid-sentence. Irreversible actions are committed by a click, never by the agent. |
 | 10 | [The framework boundary](10-the-framework-boundary.md) | The best thing we can do for your tools is nothing. Whatever agentic framework you brought already runs them. |
+| 11 | [The browser is pipecat's](11-the-browser-is-pipecats.md) | We ship no client library. The only Voqalize-specific code in your page is one HTTP request. |
 
-Pages 1–9 are written to the developer holding the brain. **Page 10 is written to
-us**, about the line we hold — but it is on the same list because every rule on it
-is visible from the other side as a shape they do not have to learn.
+Pages 1–9 are written to the developer holding the brain. **Pages 10 and 11 are
+written to us**, about the line we hold — one on the server, one in the browser —
+but they are on the same list because every rule on them is visible from the other
+side as a shape the developer does not have to learn.
 
 ## Conventions in these outlines
 
