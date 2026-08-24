@@ -44,7 +44,7 @@ async def _brain() -> tuple[GeminiBrain, Session]:
 
 def _texts(brain: GeminiBrain) -> list[str]:
     return [
-        "".join(p.text or "" for p in (c.parts or [])) for c in brain.history if c.role == "model"
+        "".join(p.text or "" for p in (c.parts or [])) for c in brain._history if c.role == "model"
     ]
 
 
@@ -103,7 +103,7 @@ async def test_a_unit_nobody_heard_leaves_the_transcript() -> None:
     await brain.on_finalize(session, _heard("", interrupted=True))
 
     assert _texts(brain) == [], "no trace of it anywhere"
-    assert not brain.history
+    assert not brain._history
 
 
 async def test_a_silent_tool_hop_is_never_reconciled() -> None:
@@ -118,7 +118,7 @@ async def test_a_silent_tool_hop_is_never_reconciled() -> None:
 
     await brain.on_finalize(session, _heard("there are three", interrupted=True))
 
-    calls = [p.function_call for c in brain.history for p in (c.parts or []) if p.function_call]
+    calls = [p.function_call for c in brain._history for p in (c.parts or []) if p.function_call]
     assert [c.name for c in calls if c] == ["search_flights"]
     assert _texts(brain) == ["", "there are three"]
 

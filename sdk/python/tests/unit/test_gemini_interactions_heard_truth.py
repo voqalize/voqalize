@@ -51,7 +51,7 @@ async def _brain() -> tuple[GeminiInteractionsBrain, Session]:
 def _texts(brain: GeminiInteractionsBrain) -> list[str]:
     return [
         "".join(c.text for c in (s.content or []) if isinstance(c, gi.TextContent))
-        for s in brain.history
+        for s in brain._history
         if isinstance(s, gi.ModelOutputStep)
     ]
 
@@ -61,7 +61,7 @@ def _speak(brain: GeminiInteractionsBrain, text: str) -> None:
     step goes into history, and it joins the queue because it opened a speech
     unit on the wire and one finalize is therefore coming back for it."""
     step = gi.ModelOutputStep(content=[gi.TextContent(text=text)])
-    brain.history.append(step)
+    brain._history.append(step)
     brain._awaiting.append(step)  # pyright: ignore[reportPrivateUsage]
 
 
@@ -69,7 +69,7 @@ def _tool_call(brain: GeminiInteractionsBrain, name: str) -> None:
     """A hop that says nothing: the model called a tool and spoke no words. It is
     history and nothing else — no speech unit was ever opened, so no finalize is
     coming, so it never joins the queue."""
-    brain.history.append(gi.FunctionCallStep(id=f"call_{name}", name=name, arguments={}))
+    brain._history.append(gi.FunctionCallStep(id=f"call_{name}", name=name, arguments={}))
 
 
 def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Finalize:
@@ -108,7 +108,7 @@ async def test_a_unit_nobody_heard_leaves_the_transcript() -> None:
     await brain.on_finalize(session, _heard("", interrupted=True))
 
     assert _texts(brain) == [], "no trace of it anywhere"
-    assert not brain.history
+    assert not brain._history
 
 
 async def test_a_silent_tool_hop_is_never_reconciled() -> None:
@@ -123,7 +123,7 @@ async def test_a_silent_tool_hop_is_never_reconciled() -> None:
 
     await brain.on_finalize(session, _heard("there are three", interrupted=True))
 
-    calls = [s for s in brain.history if isinstance(s, gi.FunctionCallStep)]
+    calls = [s for s in brain._history if isinstance(s, gi.FunctionCallStep)]
     assert [s.name for s in calls] == ["search_flights"]
     assert _texts(brain) == ["there are three"]
 
@@ -140,7 +140,7 @@ async def test_a_dropped_unit_leaves_the_steps_around_it_untouched() -> None:
     await brain.on_finalize(session, _heard("", speech_id=1, interrupted=True))
     await brain.on_finalize(session, _heard("", speech_id=2, interrupted=True))
 
-    assert [type(s).__name__ for s in brain.history] == ["FunctionCallStep"]
+    assert [type(s).__name__ for s in brain._history] == ["FunctionCallStep"]
 
 
 async def test_finalizes_are_matched_to_units_in_order() -> None:

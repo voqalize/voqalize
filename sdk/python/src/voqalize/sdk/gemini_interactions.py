@@ -46,7 +46,7 @@ Three things are better for having done it ourselves:
   contents are handed over once and a hop cannot refresh them.
 
 **The brain owns the transcript, and the transcript is what was heard.** Each
-``model_output`` step goes into :attr:`~GeminiInteractionsBrain.history` as it
+``model_output`` step goes into the transcript as it
 streams, then :meth:`~voqalize.sdk.Brain.on_finalize` rewrites it to the
 delivered prefix — same rule, same reason, as every other brain here.
 
@@ -100,25 +100,27 @@ class GeminiInteractionsBrain(Brain):
         self._system_instruction = system_instruction
         self._max_tool_hops = max_tool_hops
 
-        #: The conversation, as interaction steps. Yours to read, seed and persist.
-        #:
-        #: A step is typed by what it is — ``user_input``, ``thought``,
-        #: ``model_output``, ``function_call``, ``function_result`` — rather than
-        #: by a role shared between a person and a tool's answer.
-        self.history: list[gi.Step] = []
+        # The conversation, as interaction steps — typed by what each one is
+        # (``user_input``, ``thought``, ``model_output``, ``function_call``,
+        # ``function_result``) rather than by a role shared between a person and a
+        # tool's answer. **Private**, and see the same note on
+        # :class:`~voqalize.sdk.gemini.GeminiBrain`: this list is a provider's
+        # vocabulary, and a brain author reading it would be reading the one thing
+        # that differs between two adapters that are otherwise the same.
+        self._history: list[gi.Step] = []
         # Steps still awaiting their heard truth, in the order Voqalize will
         # report them. Only steps that opened speech are here: Voqalize finalizes
         # what it played, and a hop that only called a tool played nothing.
         #
         # Tracked by identity throughout — two freshly opened, still-empty steps
         # are equal as pydantic models, so `remove`, `index` and `in` are all
-        # wrong on this queue and on `history`.
+        # wrong on this queue and on the transcript.
         self._awaiting: deque[gi.ModelOutputStep] = deque()
 
     # ─── The turn ───────────────────────────────────────────────────────
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
-        self.history.append(gi.UserInputStep(content=[gi.TextContent(text=msg.text)]))
+        self._history.append(gi.UserInputStep(content=[gi.TextContent(text=msg.text)]))
         return self.respond(session)
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
@@ -184,7 +186,7 @@ class GeminiInteractionsBrain(Brain):
                 steps[event.index] = event.step
                 buffered[event.index] = ""
                 produced.append(event.step)
-                self.history.append(event.step)
+                self._history.append(event.step)
             elif isinstance(event, gi.StepDelta):
                 step, delta = steps.get(event.index), event.delta
                 if isinstance(delta, gi.TextDelta):
@@ -224,7 +226,7 @@ class GeminiInteractionsBrain(Brain):
         """One streamed, stateless interaction carrying the whole transcript.
 
         ``store=False`` and no ``previous_interaction_id``: the conversation lives
-        here, in :attr:`history`, and never on Google's side. That is the same
+        here, in the brain, and never on Google's side. That is the same
         bargain every other brain in this SDK makes, and it is what lets
         :meth:`~voqalize.sdk.Brain.on_finalize` rewrite a turn after the fact —
         server-side state cannot be told that the caller only heard half of it.
@@ -288,16 +290,16 @@ class GeminiInteractionsBrain(Brain):
         for call in calls:
             fn = table.get(call.name)
             if fn is None:
-                self.history.append(_failed(call, f"no tool named {call.name!r}"))
+                self._history.append(_failed(call, f"no tool named {call.name!r}"))
                 logger.warning("model called unknown tool {}", call.name)
                 continue
             try:
                 result = await fn(**_coerce(fn, call.arguments))
             except Exception as exc:
-                self.history.append(_failed(call, str(exc)))
+                self._history.append(_failed(call, str(exc)))
                 logger.warning("tool {} failed: {}", call.name, exc)
             else:
-                self.history.append(
+                self._history.append(
                     gi.FunctionResultStep(
                         call_id=call.id,
                         name=call.name,
@@ -316,11 +318,11 @@ class GeminiInteractionsBrain(Brain):
         effect stands either way.
         """
         answered = {
-            s.call_id for s in self.history if isinstance(s, gi.FunctionResultStep) and s.call_id
+            s.call_id for s in self._history if isinstance(s, gi.FunctionResultStep) and s.call_id
         }
-        self.history = [
+        self._history = [
             s
-            for s in self.history
+            for s in self._history
             if not (isinstance(s, gi.FunctionCallStep) and s.id not in answered)
         ]
 
@@ -336,7 +338,7 @@ class GeminiInteractionsBrain(Brain):
         return None
 
     def working_context(self) -> list[gi.Step]:
-        """:attr:`history` as the input for one hop, with :meth:`grounding`
+        """The transcript as the input for one hop, with :meth:`grounding`
         inserted before the latest user step.
 
         A transcript that opens on a ``model_output`` — the greeting, which
@@ -344,7 +346,7 @@ class GeminiInteractionsBrain(Brain):
         it, which is the whole point: "yes please" is an answer to the question
         the agent opened with.
         """
-        out = list(self.history)
+        out = list(self._history)
         note = self.grounding()
         if not note:
             return out
@@ -385,7 +387,7 @@ class GeminiInteractionsBrain(Brain):
         """
         if not self._awaiting:
             if fin.heard:
-                self.history.append(gi.ModelOutputStep(content=[gi.TextContent(text=fin.heard)]))
+                self._history.append(gi.ModelOutputStep(content=[gi.TextContent(text=fin.heard)]))
             return
         self._reconcile(self._awaiting.popleft(), fin.heard)
 
@@ -408,7 +410,7 @@ class GeminiInteractionsBrain(Brain):
                 placed = True
         step.content = kept
         if not kept:
-            self.history = [s for s in self.history if s is not step]
+            self._history = [s for s in self._history if s is not step]
 
 
 # ─── Plumbing ───────────────────────────────────────────────────────────

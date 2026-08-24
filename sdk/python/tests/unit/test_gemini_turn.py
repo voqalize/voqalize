@@ -248,7 +248,7 @@ def _shape(events: list[Speech]) -> list[str]:
 def _history(brain: _Coach) -> list[str]:
     """History as ``role: what-is-in-it``, enough to read the shape at a glance."""
     out = []
-    for content in brain.history:
+    for content in brain._history:
         bits = []
         for part in content.parts or []:
             if part.text:
@@ -352,7 +352,7 @@ async def test_a_tool_that_raises_reaches_the_model_as_an_error() -> None:
     await _drain(brain, session)
 
     responses = [
-        p.function_response for c in brain.history for p in (c.parts or []) if p.function_response
+        p.function_response for c in brain._history for p in (c.parts or []) if p.function_response
     ]
     assert [r.response for r in responses if r] == [{"error": "kaboom"}]
 

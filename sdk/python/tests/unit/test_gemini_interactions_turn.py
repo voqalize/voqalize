@@ -212,7 +212,7 @@ def _shape(events: list[Speech]) -> list[str]:
 
 def _history(brain: GeminiInteractionsBrain) -> list[str]:
     """History as ``kind: what-is-in-it``, enough to read the shape at a glance."""
-    return [_one(step) for step in brain.history]
+    return [_one(step) for step in brain._history]
 
 
 def _one(step: gi.Step) -> str:
@@ -319,8 +319,8 @@ async def test_a_result_answers_its_call_by_id() -> None:
 
     await _drain(brain, session)
 
-    call = next(s for s in brain.history if isinstance(s, gi.FunctionCallStep))
-    result = next(s for s in brain.history if isinstance(s, gi.FunctionResultStep))
+    call = next(s for s in brain._history if isinstance(s, gi.FunctionCallStep))
+    result = next(s for s in brain._history if isinstance(s, gi.FunctionResultStep))
     assert result.call_id == call.id
     assert result.is_error is None, "unset, as the API leaves it — the flag is for failures"
     assert _history(brain) == [
@@ -340,7 +340,7 @@ async def test_a_tool_that_raises_is_answered_and_marked_as_an_error() -> None:
 
     await _drain(brain, session)
 
-    result = next(s for s in brain.history if isinstance(s, gi.FunctionResultStep))
+    result = next(s for s in brain._history if isinstance(s, gi.FunctionResultStep))
     assert result.is_error is True
     assert json.loads(str(result.result)) == {"error": "kaboom"}
 
@@ -352,7 +352,7 @@ async def test_a_tool_the_brain_does_not_have_is_answered_not_dropped() -> None:
 
     await _drain(brain, session)
 
-    result = next(s for s in brain.history if isinstance(s, gi.FunctionResultStep))
+    result = next(s for s in brain._history if isinstance(s, gi.FunctionResultStep))
     assert result.is_error is True
     assert "teleport" in str(result.result)
     assert brain.ran == []

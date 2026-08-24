@@ -35,7 +35,7 @@ result is one call from here, not a loop. We take the record it kept
 (``automatic_function_calling_history``) rather than interposing to make our own.
 
 **The brain owns the transcript, and the transcript is what was heard.** Each
-unit of speech goes into :attr:`GeminiBrain.history` as it streams, then
+unit of speech goes into the transcript as it streams, then
 :meth:`~voqalize.sdk.Brain.on_finalize` rewrites it to the delivered prefix. A
 reply that generated three sentences and was cut after one is remembered as one —
 which is the only version the caller and the model can both agree on.
@@ -129,8 +129,13 @@ class GeminiBrain(Brain):
         # is what lets us stay out of the tool loop entirely.
         self._afc = types.AutomaticFunctionCallingConfig(maximum_remote_calls=max_tool_hops)
 
-        #: The conversation, as Gemini contents. Yours to read, seed and persist.
-        self.history: list[types.Content] = []
+        # The conversation, as Gemini contents. **Private.** A brain adapts one
+        # provider's vocabulary to Voqalize's, and the shape of that vocabulary is
+        # the one thing about the provider a brain author must never have to see —
+        # it is what makes two adapters interchangeable. Persisting a transcript
+        # is a real requirement and will get a lifecycle of its own, in terms that
+        # are ours; it will not be this list, whatever it holds that day.
+        self._history: list[types.Content] = []
         # Units still awaiting their heard truth, in the order Voqalize will
         # report them. Only units that opened a *speech* unit are here: Voqalize
         # finalizes what it played, and a hop that only called a tool played
@@ -140,7 +145,7 @@ class GeminiBrain(Brain):
     # ─── The turn ───────────────────────────────────────────────────────
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
-        self.history.append(types.Content(role="user", parts=[types.Part(text=msg.text)]))
+        self._history.append(types.Content(role="user", parts=[types.Part(text=msg.text)]))
         return self.respond(session)
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
@@ -272,7 +277,7 @@ class GeminiBrain(Brain):
             parts = [p for p in (content.parts or []) if p.function_response]
             if not parts:
                 continue
-            self.history.append(types.Content(role="user", parts=parts))
+            self._history.append(types.Content(role="user", parts=parts))
             taken += len(parts)
             for part in parts:
                 response = part.function_response
@@ -301,7 +306,7 @@ class GeminiBrain(Brain):
             kept = [p for p in (unit.content.parts or []) if p is not part]
             unit.content.parts = kept
             if not kept:
-                self.history = [c for c in self.history if c is not unit.content]
+                self._history = [c for c in self._history if c is not unit.content]
 
     # ─── Context ────────────────────────────────────────────────────────
 
@@ -314,7 +319,7 @@ class GeminiBrain(Brain):
         return None
 
     def working_context(self) -> list[types.Content]:
-        """:attr:`history` as the contents for one call, with :meth:`grounding`
+        """The transcript as the contents for one call, with :meth:`grounding`
         inserted before the latest user turn.
 
         A leading model turn — the greeting, which answers nothing — is kept.
@@ -322,7 +327,7 @@ class GeminiBrain(Brain):
         first user turn against it, which is the whole point: "yes please" is
         an answer to the question the agent opened with.
         """
-        out = list(self.history)
+        out = list(self._history)
         note = self.grounding()
         if not note:
             return out
@@ -363,7 +368,9 @@ class GeminiBrain(Brain):
         """
         if not self._awaiting:
             if fin.heard:
-                self.history.append(types.Content(role="model", parts=[types.Part(text=fin.heard)]))
+                self._history.append(
+                    types.Content(role="model", parts=[types.Part(text=fin.heard)])
+                )
             return
         self._reconcile(self._awaiting.popleft(), fin.heard)
 
@@ -387,7 +394,7 @@ class GeminiBrain(Brain):
                 placed = True
         unit.content.parts = kept
         if not kept:
-            self.history = [c for c in self.history if c is not unit.content]
+            self._history = [c for c in self._history if c is not unit.content]
 
     # ─── Plumbing ───────────────────────────────────────────────────────
 
@@ -401,7 +408,7 @@ class GeminiBrain(Brain):
         :meth:`respond` enqueues the unit when it opens speech.
         """
         unit = _Unit(types.Content(role="model", parts=[]))
-        self.history.append(unit.content)
+        self._history.append(unit.content)
         return unit
 
     def _extend_unit(self, unit: _Unit, part: types.Part) -> None:
