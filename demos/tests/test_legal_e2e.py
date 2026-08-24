@@ -28,8 +28,9 @@ from voqalize_demos._loaded.legal.brain import _GREETING  # noqa: E402
 VOICE = "omnivoice/gauri"
 LANGUAGE = "en"
 
-# c2 is Term & Termination in the shipped MSA; the brain rejects a clause id that
-# is not in the document, so this test fails if the contract is re-cut.
+# c2 is Term & Termination in the shipped MSA. ``ClauseId`` is a Literal over the
+# real contract, so a clause id that is not in the document cannot reach a tool
+# body at all — this test fails at validation if the contract is re-cut.
 CLAUSE = "c2"
 
 
@@ -40,8 +41,11 @@ def _llm() -> ScriptedGemini:
                 reply_and_call(
                     "Here it is.",
                     "point_to_clause",
-                    clause_id=CLAUSE,
-                    reason="Termination and wind-down fee",
+                    # One tool, one model, one parameter — the argument is the
+                    # ``PointToClause`` the browser renders, nested under the name
+                    # the method gives it. That name is part of the schema Gemini
+                    # reads, so a script writes what the model would write.
+                    target={"clause_id": CLAUSE, "reason": "Termination and wind-down fee"},
                 ),
                 reply("Clause two — thirty-six months, with a twenty-five percent wind-down fee."),
             ],
@@ -49,10 +53,12 @@ def _llm() -> ScriptedGemini:
                 reply_and_call(
                     "Drafting the redline.",
                     "propose_redline",
-                    clause_id=CLAUSE,
-                    original_excerpt="twenty-five percent (25%)",
-                    proposed_text="ten percent (10%)",
-                    rationale="Market for a 36-month term is 10%.",
+                    redline={
+                        "clause_id": CLAUSE,
+                        "original_excerpt": "twenty-five percent (25%)",
+                        "proposed_text": "ten percent (10%)",
+                        "rationale": "Market for a 36-month term is 10%.",
+                    },
                 ),
                 reply("Redline is in — twenty-five percent down to ten."),
             ],
@@ -78,10 +84,10 @@ async def test_pointing_and_redlining_drive_the_document() -> None:
         await rig.driver.start_session()
 
         t1 = await rig.driver.user_says("Take me to the termination clause.")
-        check_turn(rig, t1, inferences=2)
+        check_turn(rig, t1, units=2)
 
         t2 = await rig.driver.user_says("That wind-down fee is too rich. Push back.")
-        check_turn(rig, t2, inferences=2)
+        check_turn(rig, t2, units=2)
 
         assert rig.actions() == ["point_to_clause", "propose_redline"], rig.actions()
         assert rig.command("point_to_clause")["clause_id"] == CLAUSE
@@ -90,9 +96,9 @@ async def test_pointing_and_redlining_drive_the_document() -> None:
         assert redline["clause_id"] == CLAUSE
         assert redline["original_excerpt"] == "twenty-five percent (25%)"
         assert redline["proposed_text"] == "ten percent (10%)"
-        # The browser keys the redline card by id; the brain mints it, the model
-        # does not, so a missing id is a blank card rather than a visible error.
-        assert redline["id"], "redline reached the UI with no id"
+        # Every declared field crosses, including the rationale the card prints
+        # under the diff — the payload is the validated call, not a subset of it.
+        assert redline["rationale"] == "Market for a 36-month term is 10%."
 
 
 async def test_the_reading_position_lands_silently_and_grounds_the_next_answer() -> None:
@@ -116,7 +122,7 @@ async def test_the_reading_position_lands_silently_and_grounds_the_next_answer()
         # connection are ordered, so the focus is already ingested by the time the
         # next turn is served — which is what the assertion below proves.
         turn = await rig.driver.user_says("What does this mean?")
-        check_turn(rig, turn, inferences=1)
+        check_turn(rig, turn, units=1)
         assert len(rig.driver.ui_commands) == before, "clause_focus drove the screen"
 
     grounded = "".join(
