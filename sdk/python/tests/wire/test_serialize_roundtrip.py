@@ -47,8 +47,8 @@ def _frames() -> list[Frame]:
         SpeechChunkFrame(speech_id=7, text=" world"),
         SpeechEndFrame(speech_id=7),
         RTVIFrame(
-            type=RTVIType.SERVER_MESSAGE,
-            data={"type": "ui_command", "action": "open_panel", "action_id": "a1"},
+            type=RTVIType.UI_COMMAND,
+            data={"command": "open_panel", "payload": {"panel": "orders"}},
             turn_id=4,
         ),
         RTVIFrame(type=RTVIType.CLIENT_MESSAGE, data={"t": "tap", "d": {"id": 3}}, id="req-1"),
