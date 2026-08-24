@@ -1,0 +1,286 @@
+# Every number, version, licence and date a Voqalize surface is allowed to claim.
+#
+# This file exists because prose cannot be trusted with a number. Four claims on
+# live pages disagreed with the code on the day it was written, and none of them
+# was caught by any build: the docs said the React client was "not yet on npm"
+# while npm served 0.1.1; the marketing site counted ten demos against a manifest
+# of eleven; a page once advertised sixty-plus languages against a roster of
+# twenty-three. Every one of those was written true and went stale in place.
+#
+# So a number lives here, once, next to the file it was read out of — and a
+# writer cites it rather than remembering it. `design/check_facts.py` re-derives
+# every fact carrying a `derive:` rule straight from that source and fails when
+# the two disagree, which is what stops THIS file becoming the next stale page.
+#
+# Its companion is `lexicon.yaml`, which does the same job for words.
+#
+# Adding a fact: give it a `source` precise enough to open, a `verified` date,
+# and a `derive:` rule if the source is a file in this repo. If it is not — a
+# registry, or another of the four repos — give it `reproduce:`, the command
+# that re-earns the stamp by hand.
+#
+# Fields
+#   value      what may be claimed
+#   source     path:line, or a URL, precise enough to open
+#   verified   the day a human or the checker last saw value == source
+#   derive     a machine rule against a file in this repo. One of:
+#                {file, pattern}  regex, group 1 is the value
+#                {file, json_len} length of that key's list in a JSON file
+#                {glob}           number of paths matching
+#   reproduce  a command, for sources no local file can settle
+#   note       why the fact is sharper than it looks; read before writing prose
+#   forbid     regexes that contradict this fact and must not reach a reader
+#   except     path globs where a forbid hit is legitimate (dated records)
+
+version: 1
+harvested: 2026-08-24
+
+facts:
+
+  # ---- the wire -------------------------------------------------------------
+
+  wire.version:
+    value: 3
+    source: sdk/python/src/voqalize/sdk/wire/frames.py:29
+    verified: 2026-08-24
+    derive:
+      file: sdk/python/src/voqalize/sdk/wire/frames.py
+      pattern: '^WIRE_VERSION = (\d+)$'
+    note: >-
+      Both ends carry their own constant and refuse a mismatch
+      (ERROR_CODE_WIRE_VERSION). PyGato's copy is
+      platform/backend/pygato/src/pygato/wire/frames.py:30 and must equal this.
+
+  wire.dial:
+    value: '{brain_url}?session_id={session_id}'
+    source: proto/voqalize/frames/frames.proto
+    verified: 2026-08-24
+    note: >-
+      Wire v3 moved the session id out of the path. The retired shape is
+      {brain_url}/s/{session_id}; a brain that mounts a route there is never
+      dialled, and the empty-brain_url welcome brain still answers, so the call
+      greets and nobody learns.
+    forbid:
+      - '/s/\{session_id\}'
+      - '/s/\{sid\}'
+
+  # ---- the Python brain SDK -------------------------------------------------
+
+  sdk.python.package:
+    value: voqalize-agent-sdk
+    source: sdk/python/pyproject.toml:2
+    verified: 2026-08-24
+    derive:
+      file: sdk/python/pyproject.toml
+      pattern: '^name = "(.+)"$'
+
+  sdk.python.version.tree:
+    value: '0.0.3'
+    source: sdk/python/pyproject.toml:3
+    verified: 2026-08-24
+    derive:
+      file: sdk/python/pyproject.toml
+      pattern: '^version = "(.+)"$'
+
+  sdk.python.version.published:
+    value: '0.0.3'
+    source: https://pypi.org/pypi/voqalize-agent-sdk/json
+    verified: 2026-08-24
+    reproduce: >-
+      curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
+    note: >-
+      THE SHARPEST FACT ON THIS PAGE. The published version and the tree version
+      are the same string over two incompatible surfaces. PyPI 0.0.3 exports
+      Interaction, Conversation, serve_direct, serve_auto; this tree exports
+      Brain, UserMessage, Chunk, Finalize, run_session, serve. A reader who pip
+      installs at the version a page names gets code the page does not describe,
+      and the version number gives them no way to tell. Until C3 publishes, every
+      page carrying an install line owes the reader that sentence.
+
+  sdk.python.surface.published:
+    value: [Interaction, Conversation, serve_direct, serve_auto]
+    source: https://pypi.org/pypi/voqalize-agent-sdk/0.0.3/json
+    verified: 2026-08-24
+
+  sdk.python.surface.tree:
+    value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage, RTVIType]
+    source: sdk/python/src/voqalize/sdk/__init__.py:51
+    verified: 2026-08-24
+    note: >-
+      The hardening agent holds brain.py and gemini.py. This roster is 🔴 by the
+      board's staleness rule — it names symbols. Re-verify before any page quotes
+      it; do not build prose on it while C3 is blocked.
+
+  sdk.python.pipecat:
+    value: none
+    source: sdk/python/pyproject.toml:20
+    verified: 2026-08-24
+    note: >-
+      Pipecat-free by design, and the claim is about the dependency tree rather
+      than a version: installing the brain SDK must not pull pipecat. The
+      version below belongs to the voice tier, which the customer never installs.
+
+  # ---- the React client SDK -------------------------------------------------
+
+  sdk.react.package:
+    value: '@voqalize/client-react'
+    source: sdk/react/package.json:2
+    verified: 2026-08-24
+    derive:
+      file: sdk/react/package.json
+      pattern: '"name": "(.+)"'
+
+  sdk.react.version.tree:
+    value: '0.3.0'
+    source: sdk/react/package.json:3
+    verified: 2026-08-24
+    derive:
+      file: sdk/react/package.json
+      pattern: '"version": "(.+)"'
+
+  sdk.react.version.published:
+    value: '0.1.1'
+    source: https://registry.npmjs.org/@voqalize/client-react
+    verified: 2026-08-24
+    reproduce: >-
+      curl -s https://registry.npmjs.org/@voqalize%2Fclient-react
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['dist-tags']['latest'])"
+    note: >-
+      Published 2026-08-13; versions are 0.0.1, 0.1.0, 0.1.1. It IS on npm, and
+      docs/src/content/docs/client/react.md:20 still says "Not yet on npm" — B3.
+      Two versions behind the tree, which is a different surface again.
+    forbid:
+      - 'not yet on npm'
+      - 'Not yet on npm'
+
+  sdk.react.licence:
+    value: Apache-2.0
+    source: sdk/react/package.json:6
+    verified: 2026-08-24
+    derive:
+      file: sdk/react/package.json
+      pattern: '"license": "(.+)"'
+
+  repo.voqalize.licence:
+    value: Apache-2.0
+    source: LICENSE
+    verified: 2026-08-24
+
+  # ---- the avatar library (sibling repo, MIT, published in lockstep) ---------
+
+  avatar.npm.package:
+    value: '@voqalize/avatar'
+    source: avatar/packages/avatar-js/package.json
+    verified: 2026-08-24
+    reproduce: grep '"name"' ../avatar/packages/*/package.json
+
+  avatar.pypi.package:
+    value: voqalize-avatar
+    source: avatar/packages/avatar-py/pyproject.toml:2
+    verified: 2026-08-24
+
+  avatar.version:
+    value: '0.3.0'
+    source: avatar/packages/avatar-py/pyproject.toml:3
+    verified: 2026-08-24
+    note: >-
+      The npm and PyPI packages publish in lockstep, so one number covers both.
+      A different repo, so no derive rule reaches it.
+
+  avatar.licence:
+    value: MIT
+    source: avatar/LICENSE
+    verified: 2026-08-24
+    note: >-
+      MIT, and deliberately not Apache-2.0 like this repo. A page that states one
+      licence for "our open source" is wrong about one of the two.
+
+  # ---- the voice tier -------------------------------------------------------
+
+  pipecat.version:
+    value: '1.7.0'
+    source: platform/backend/pygato/pyproject.toml:15
+    verified: 2026-08-24
+    reproduce: grep pipecat-ai ../platform/backend/pygato/pyproject.toml
+    note: >-
+      A floor (>=1.7.0), not a pin, and it is the voice tier's dependency rather
+      than the customer's. 1.7.0 is load-bearing history: every conformance lane
+      that passed before it had passed on 1.5.0, the version carrying L7, so all
+      eleven were re-earned on 1.7.0. The changelog's "pipecat 1.2.1 -> 1.5.0" is
+      a dated entry about 2026-07-07 and stays true as a record.
+
+  speech.stt.model:
+    value: vql-stt
+    source: docs/src/content/docs/reference/catalog.md:42
+    verified: 2026-08-24
+    note: >-
+      A composite router, the default, and the only one. Language selects the
+      engine underneath; a brain never names an engine.
+
+  speech.stt.languages.indic:
+    value: 22
+    source: speech/src/vql_speech/stt/engines/indic_conformer.py SUPPORTED_LANGUAGES
+    verified: 2026-08-24
+    reproduce: >-
+      python3 -c "import re;print(len(re.findall(r'\"[a-z]{2,3}\",',
+      open('../speech/src/vql_speech/stt/engines/indic_conformer.py').read())))"
+
+  speech.stt.languages.total:
+    value: 23
+    source: speech/src/vql_speech/stt/engines/indic_conformer.py + English
+    verified: 2026-08-24
+    note: >-
+      English plus 22 Indic languages. Say twenty-three, or say "English plus 22
+      Indic languages"; the roster is in docs reference/catalog.md and nowhere
+      else. The retired claim is "sixty-plus languages", which was never true of
+      any model we host.
+    forbid:
+      - '\b(sixty|60)\+? languages'
+      - '\b100\+? languages'
+
+  # ---- what we ship ---------------------------------------------------------
+
+  demos.count:
+    value: 11
+    source: demos/manifest.json
+    verified: 2026-08-24
+    derive:
+      file: demos/manifest.json
+      json_len: demos
+    note: >-
+      manifest.json is the registry the gallery renders from, so it is the count
+      of record. Four marketing strings still say ten. The changelog entry dated
+      2026-07-31 says ten and is right — it was ten that day.
+    forbid:
+      - '\b[Tt]en (?:demos|agents)\b'
+      - 'all ten demos'
+    except:
+      - '**/changelog.astro'
+
+  docs.pages:
+    value: 9
+    source: docs/src/content/docs/
+    verified: 2026-08-24
+    derive:
+      glob: docs/src/content/docs/**/*.md*
+    note: >-
+      Nine pages plus their .md twins, llms.txt and 404.html. There is no page
+      teaching Brain, greet, on_user_message, Session, dispatch or Action — the
+      hole is board row B1, and no surface may imply otherwise.
+
+  # ---- commercial -----------------------------------------------------------
+
+  pricing.state:
+    value: free during developer preview
+    source: platform/frontend/apps/marketing/src/pages/pricing.astro
+    verified: 2026-08-24
+    note: >-
+      The only number on that page is $0 and it is the whole statement. There are
+      no tiers, so no surface may name one. When pricing arrives the meter is
+      session time — the seconds a session is live on the voice tier — never
+      seats, agents, requests or tokens. We never resell tokens, because the
+      brain runs in the reader's building and bills them directly.
+    forbid:
+      - '\bper[- ]seat\b'
+      - '\bfree trial\b'

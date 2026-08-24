@@ -16,13 +16,18 @@ around any of it would be a second surface to learn, a lag behind every pipecat
 release, and one more place a frame can be dropped in translation. So there
 isn't one.
 
-:::note[Pre-release]
-Not yet on npm. Install from a clone of
-[`voqalize/voqalize`](https://github.com/voqalize/voqalize) via the pnpm
+## Install
+
+:::caution[npm serves an older surface than this page describes]
+npm has `@voqalize/client-react` at **0.1.1**, published 2026-08-13. This page
+describes **0.3.0**, which is in the repository and not published yet, and the
+two do not export the same functions. Run the line below today and your editor
+will disagree with this page.
+
+Until 0.3.0 publishes, take it from a clone of
+[`voqalize/voqalize`](https://github.com/voqalize/voqalize) through the pnpm
 workspace. The package itself has no dependencies; you install pipecat.
 :::
-
-## Install
 
 ```bash
 pnpm add @voqalize/client-react @pipecat-ai/client-js @pipecat-ai/client-react @pipecat-ai/small-webrtc-transport

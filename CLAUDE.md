@@ -151,6 +151,7 @@ uv run ruff format --check . && uv run ruff check .
 uv run pyright                       # whole repo, and it is clean — keep it that way
 cd sdk/python && uv run pytest -q
 cd demos && uv run pytest tests/     # every demo's brain over the real wire, ~33 s
+uv run --with pyyaml python3 design/check_facts.py   # numbers and words, below
 ```
 
 These are exactly what `.github/workflows/ci.yml` runs, in the same order, on the
@@ -197,6 +198,21 @@ documentation and is read at the worst possible moment.
 Two consequences worth knowing without opening it: **no surface calls Voqalize a
 platform**, and **internal service or repository names never appear in customer-facing
 text** — the end that dials your brain is *Voqalize*.
+
+**A number goes in `design/facts.yaml` before it goes in a sentence.** Every
+claimable version, count, licence and date lives there once, next to the file it
+was read out of, and `design/check_facts.py` re-reads each one straight from that
+source — so the facts file cannot quietly become the next stale page. Prose is
+checked the other way round: a fact may declare the sentences that are wrong
+*because* of it, which is how the docs site stopped saying the React client was
+"not yet on npm" three weeks after it published. `design/lexicon.yaml` is the
+same file for words, and holds `voice.md`'s table to itself row by row.
+
+Facts whose source is a registry or one of the three sibling repos cannot be
+derived from this tree; they carry the command that re-earns the stamp, and
+`--attested` lists them with the age of the last check. Run `--sweep` when you
+want the retired synonyms too — mostly ordinary English, so it is advisory and a
+person reads it.
 
 ## Hard rules
 

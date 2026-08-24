@@ -17,6 +17,19 @@ ends.
 
 ### Python (FastAPI)
 
+:::caution[PyPI serves a different SDK under the same version number]
+`pip install voqalize-agent-sdk` gets you **0.0.3**, which exports `Interaction`,
+`Conversation`, `serve_direct` and `serve_auto`. This page describes the SDK in
+the repository, which exports `Brain`, `UserMessage`, `Chunk`, `Finalize`,
+`run_session` and `serve`. Both call themselves 0.0.3, so the version number
+gives you nothing to check against: the import below fails, and the error names
+`run_session` rather than the mismatch.
+
+Take the SDK from a clone of
+[`voqalize/voqalize`](https://github.com/voqalize/voqalize) until the published
+one catches up.
+:::
+
 ```python
 from fastapi import FastAPI, WebSocket
 from voqalize.sdk import run_session
