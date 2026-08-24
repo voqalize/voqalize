@@ -37,7 +37,7 @@
  *                         authoring a face
  *   Voice and language    choosing a voice · choosing a language · defaults and
  *                         overrides · why there is no provider slot
- *   Reference             the brain API · the RTVI plane · errors
+ *   Reference             the brain API · errors
  *
  * "Designing for voice" is the durable quadrant and it is written from the
  * outlines in `design/explanations/`. Seven of the eleven are published. Two
@@ -85,6 +85,7 @@ export const sidebar = [
     label: "Reference",
     items: [
       { label: "The wire", slug: "reference/wire" },
+      { label: "The RTVI plane", slug: "reference/rtvi" },
       { label: "Voice and language catalog", slug: "reference/catalog" },
       { label: "MCP server", slug: "reference/mcp" },
     ],
