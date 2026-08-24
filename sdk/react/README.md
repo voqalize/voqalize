@@ -174,8 +174,8 @@ call site; `uiCommandArgs(command)` is the envelope-stripping on its own.
 `onServerMessage` remains the raw escape hatch for non-`ui_command` traffic.
 
 **Browser → brain.** Call `sendMessage(type, data)` (from the render-prop /
-`useVoqalSession`). The brain receives it as `on_browser_message(session, msg)`, with `msg.type` and
-`msg.data`:
+`useVoqalSession`). It rides an RTVI `client-message`, and the brain receives it as
+`on_rtvi(session, msg)` with `msg.data == { t: type, d: data }`:
 
 ```tsx
 <VoqalAgent {...props}>
