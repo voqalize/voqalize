@@ -3,7 +3,7 @@ name = "voqalize-demos"
 version = "0.1.0"
 requires-python = ">=3.12"
 # The demos backend: one umbrella FastAPI app that hosts every demo brain (dialed
-# by Voqalize at /{name}/s/{session_id}). Brains only — the demo UIs are built and
+# by Voqalize at /{name}?session_id=…). Brains only — the demo UIs are built and
 # served elsewhere (under the apex domain). It depends on the public brain SDK **by
 # path** (workspace source) — this is the deployable dogfooding of the public
 # contract: the demos build against the same SDK a customer would.

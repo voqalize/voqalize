@@ -2,7 +2,7 @@
 #
 # The demos brains runtime — one image, every demo brain. This image is **brains
 # only**: it runs the umbrella FastAPI app that hosts each demo's inbound brain
-# WebSocket (dialed by Voqalize at /{name}/s/{session_id}). The demo UIs, docs, and
+# WebSocket (dialed by Voqalize at /{name}?session_id=…). The demo UIs, docs, and
 # marketing are built and served separately under the apex domain — no static files
 # or Node toolchain here. Build context is the **repo root** (the backend depends on
 # in-repo sdk/python by path):
