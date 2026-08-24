@@ -42,6 +42,7 @@ from voqalize.conformance import (
     mint_voqalize_token,
 )
 from voqalize.sdk import Brain
+from voqalize.sdk.wire import ConfigureSttFrame, ConfigureTtsFrame
 
 # The whole TTS catalog (``docs/reference/catalog.md``). A voice outside it is
 # rejected by vql-speech at connect — which is how two fossil agent records took
@@ -162,6 +163,7 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
             token=mint_voqalize_token(
                 private_key_pem=keypair.private_pem,
                 session_id=session_id,
+                agent_id=name,
                 tenant_id="demo",
             ),
         ),
@@ -179,6 +181,16 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
 # ─── The checks every demo shares ─────────────────────────────────────────────
 
 
+def _tts(rig: DemoRig) -> list[ConfigureTtsFrame]:
+    """Every ``configure_tts`` the brain sent, in wire order."""
+    return [r for r in rig.driver.requests if isinstance(r, ConfigureTtsFrame)]
+
+
+def _stt(rig: DemoRig) -> list[ConfigureSttFrame]:
+    """Every ``configure_stt`` the brain sent, in wire order."""
+    return [r for r in rig.driver.requests if isinstance(r, ConfigureSttFrame)]
+
+
 def check_voice_pair(rig: DemoRig, *, voice: str, language: str) -> None:
     """Both halves of the language reached the wire, agreeing, before the greeting.
 
@@ -188,32 +200,33 @@ def check_voice_pair(rig: DemoRig, *, voice: str, language: str) -> None:
     the speaker is wrong, so WER, logs and every automated score are blind to it —
     which is exactly how a demo shipped Devanagari read in an English voice for
     weeks. The only place it is visible is here, on the frames themselves."""
-    driver = rig.driver
+    tts_requests = _tts(rig)
+    stt_requests = _stt(rig)
     checks.require(
-        bool(driver.tts_settings),
-        f"{rig.name}: no TTSUpdateSettings on the wire — the brain declared no voice "
+        bool(tts_requests),
+        f"{rig.name}: no configure_tts on the wire — the brain declared no voice "
         "and set none, so the session runs on whatever the platform default happens "
         "to be",
     )
     checks.require(
-        bool(driver.stt_settings),
-        f"{rig.name}: no STTUpdateSettings on the wire — the recognizer never got a "
+        bool(stt_requests),
+        f"{rig.name}: no configure_stt on the wire — the recognizer never got a "
         "language hint, so the caller is transcribed as English",
     )
-    tts = driver.tts_settings[-1]
-    stt = driver.stt_settings[-1]
+    tts = tts_requests[-1]
+    stt = stt_requests[-1]
     checks.require(
-        tts.get("voice") == voice,
-        f"{rig.name}: TTS voice is {tts.get('voice')!r}, expected {voice!r}",
+        tts.voice == voice,
+        f"{rig.name}: TTS voice is {tts.voice!r}, expected {voice!r}",
     )
     checks.require(
-        tts.get("language") == language,
-        f"{rig.name}: TTS language is {tts.get('language')!r}, expected {language!r} — "
+        tts.language == language,
+        f"{rig.name}: TTS language is {tts.language!r}, expected {language!r} — "
         "the reference clip, i.e. which recorded speaker reads the text",
     )
     checks.require(
-        stt.get("language_hint") == language,
-        f"{rig.name}: STT language_hint is {stt.get('language_hint')!r}, expected "
+        stt.language_hint == language,
+        f"{rig.name}: STT language_hint is {stt.language_hint!r}, expected "
         f"{language!r} — the two halves have drifted apart",
     )
     check_catalog(rig)
@@ -226,38 +239,29 @@ def check_catalog(rig: DemoRig) -> None:
     rejected at connect (``voice not found``), and an unknown ``?model=`` is an
     HTTP 403 before a single frame flows. Both have happened in production, from
     values that were valid when they were written and were never revisited."""
-    for tts in rig.driver.tts_settings:
-        voice = tts.get("voice")
-        if voice is not None:
+    for tts in _tts(rig):
+        if tts.voice is not None:
             checks.require(
-                voice in VOICES,
-                f"{rig.name}: voice {voice!r} is not in the catalog {sorted(VOICES)} — "
+                tts.voice in VOICES,
+                f"{rig.name}: voice {tts.voice!r} is not in the catalog {sorted(VOICES)} — "
                 "vql-speech rejects it at connect",
             )
-        language = tts.get("language")
-        if language is not None:
+        if tts.language is not None:
             checks.require(
-                language in LANGUAGES,
-                f"{rig.name}: TTS language {language!r} is not served by vql-stt",
+                tts.language in LANGUAGES,
+                f"{rig.name}: TTS language {tts.language!r} is not served by vql-stt",
             )
-        model = tts.get("model")
         checks.require(
-            model is None or model == "sonic-2",
-            f"{rig.name}: TTS model {model!r} — the engine is chosen by the voice "
+            tts.model is None or tts.model == "sonic-2",
+            f"{rig.name}: TTS model {tts.model!r} — the engine is chosen by the voice "
             "prefix; naming a deleted engine here is how prod broke",
         )
-    for stt in rig.driver.stt_settings:
-        hint = stt.get("language_hint")
-        if hint is not None:
+    for stt in _stt(rig):
+        if stt.language_hint is not None:
             checks.require(
-                hint in LANGUAGES,
-                f"{rig.name}: STT language_hint {hint!r} is not served by vql-stt",
+                stt.language_hint in LANGUAGES,
+                f"{rig.name}: STT language_hint {stt.language_hint!r} is not served by vql-stt",
             )
-        model = stt.get("model")
-        checks.require(
-            model in (None, "vql-stt", "flux-general-en", "flux-general-multi"),
-            f"{rig.name}: STT model {model!r} is rejected by vql-speech with HTTP 403",
-        )
 
 
 def check_greeting(rig: DemoRig, turn: Any) -> None:
@@ -269,16 +273,16 @@ def check_greeting(rig: DemoRig, turn: Any) -> None:
     )
 
 
-def check_turn(rig: DemoRig, turn: Any, *, inferences: int | None = None) -> None:
+def check_turn(rig: DemoRig, turn: Any, *, units: int | None = None) -> None:
     """A clean user turn: it spoke, every bracket closed, ids are monotone, and the
-    interaction completed (without which Voqalize stays muted for the rest of the call)."""
+    turn completed (without which Voqalize stays muted for the rest of the call)."""
     checks.check_brackets_closed(turn)
-    checks.check_inference_ids_monotonic(turn)
+    checks.check_speech_ids_monotonic(turn)
     checks.check_completed(turn)
     checks.check_spoke(turn)
-    if inferences is not None:
+    if units is not None:
         checks.require(
-            len(turn.inferences) == inferences,
-            f"{rig.name}: expected {inferences} inference bracket(s), got "
-            f"{len(turn.inferences)}: {[i.text for i in turn.inferences]}",
+            len(turn.units) == units,
+            f"{rig.name}: expected {units} unit(s) of speech, got "
+            f"{len(turn.units)}: {[u.text for u in turn.units]}",
         )

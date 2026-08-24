@@ -4,8 +4,9 @@ A demo backend never writes WebSocket boilerplate. Its ``routes.py`` is one line
 
     router = make_brain_router("travel", lambda llm: TravelBrain(llm=llm))
 
-which returns a FastAPI ``APIRouter`` exposing ``/{name}/s/{session_id}`` — the
-**inbound** brain socket Voqalize dials once per session. This module owns the
+which returns a FastAPI ``APIRouter`` exposing ``/{name}`` — the **inbound**
+brain socket Voqalize dials once per session, with the session as a query
+parameter, exactly as it dials a customer's own server. This module owns the
 socket lifecycle: accept, adapt it to the SDK ``Channel``, verify Voqalize's RS256
 brain token inside ``run_session``, and map the outcome to the right close code.
 
@@ -21,7 +22,7 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from fastapi import APIRouter, WebSocket
+from fastapi import APIRouter, Query, WebSocket
 from loguru import logger
 from starlette.websockets import WebSocketDisconnect
 
@@ -113,15 +114,17 @@ def _runtime() -> _Runtime:
 
 
 def make_brain_router(name: str, factory: BrainFactory) -> APIRouter:
-    """Build the ``/{name}/s/{session_id}`` inbound brain route for one demo.
+    """Build the ``/{name}`` inbound brain route for one demo.
 
     ``factory(llm)`` builds a fresh brain per session from the shared provider.
-    ``name`` is the URL segment Voqalize dials — kept at the root (``/travel/s/…``)
-    independent of where the UI is served (``/demos/travel``)."""
+    ``name`` is the whole path Voqalize dials — kept at the root (``/travel``)
+    independent of where the UI is served (``/demos/travel``). The session rides
+    as ``?session_id=``, so a demo brain is one ordinary WebSocket route and not
+    a shape only our own brains have."""
     router = APIRouter()
 
-    @router.websocket("/" + name + "/s/{session_id}")
-    async def brain_socket(websocket: WebSocket, session_id: str) -> None:
+    @router.websocket("/" + name)
+    async def brain_socket(websocket: WebSocket, session_id: str = Query(...)) -> None:
         rt = _runtime()
         await websocket.accept()
         token = websocket.headers.get("Authorization")

@@ -2,7 +2,7 @@
 
 This image is **brains only**. It exposes one thing:
 
-- ``/{name}/s/{session_id}`` — a demo's brain WebSocket, contributed by its own
+- ``/{name}?session_id=…`` — a demo's brain WebSocket, contributed by its own
   ``demos/{name}/backend/routes.py`` and discovered at startup. Voqalize dials
   this per session; the SDK verifies Voqalize's RS256 brain token itself.
 

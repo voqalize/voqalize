@@ -1,34 +1,27 @@
 """SugarBrain — the Sugar Coach daily diabetes check-in.
 
-A :class:`~voqalize_demos.brains._gemini.GeminiBrain` that runs the ``/sugar``
-demo: a diabetes-management program places a scheduled evening in-app call and the
+A :class:`voqalize.sdk.gemini.GeminiBrain` that runs the ``/sugar`` demo: a
+diabetes-management program places a scheduled evening in-app call and the
 assistant runs the daily habit check-in — logging meals by voice, confirming
 exercise and medications, reviewing the glucose curve, nudging toward the care
-plan, and ending with a summary card. Voqalize dials this brain's WebSocket per
-session and the inherited tool-loop ``on_interaction`` drives each turn.
+plan, and ending with a summary card.
 
 Two things worth calling out about how per-session state flows in:
 
-  * **init_payload** — the whole per-scenario patient picture (patient, care
-    plan, recent logs, CGM status, prior-call summaries, TODAY'S CALL OBJECTIVE)
-    arrives per session. The brain is built before the session, so the payload
-    arrives in :meth:`on_session_start` as ``start.init``. We fold the PATIENT
-    CONTEXT into the system instruction per session (interview_bot pattern) so
-    every turn — greeting included — is grounded in it, then speak an
-    LLM-generated greeting.
+  * **init** — the whole per-scenario patient picture (patient, care plan, recent
+    logs, CGM status, prior-call summaries, TODAY'S CALL OBJECTIVE) arrives per
+    session as ``session.init``. :meth:`SugarBrain.on_session_start` folds the
+    PATIENT CONTEXT into the system instruction so every turn is grounded in it.
   * **state_sync** — the browser echoes a compact ``state_sync`` snapshot of the
     patient's screen (what's logged, med ticks, taps the patient made by hand).
-    :meth:`on_client_message` folds it into the context *silently* (no inference,
-    no floor taken): it stores the latest snapshot and :meth:`working_context`
-    appends it as a trailing user turn so the assistant always reasons from the
-    live screen — silently, no turn is triggered by a state_sync.
+    :meth:`SugarBrain.on_rtvi` folds it in *silently* — no floor taken, no turn —
+    and :meth:`SugarBrain.grounding` carries it into the next turn.
 
-Like the travel/support brains, **the LLM generates the substantive data** (meal
-items, calorie estimates, summary lines) as nested function-call arguments; the
-handlers are thin pass-throughs that normalize and drive the browser via
-``interaction.action(name, {...})`` — the RTVI ``ui_command`` the ``/sugar`` UI
-renders. ``switch_language`` swaps the voice mid-call via the public
-``session.configure_stt`` / ``session.configure_tts`` API.
+**The LLM generates the substantive data** (meal items, calorie estimates,
+summary lines) as nested function-call arguments; the handlers are thin
+pass-throughs that normalize and drive the browser with ``session.dispatch(...)``
+— the typed actions below, which the ``/sugar`` UI renders. ``switch_language``
+moves both legs of the language instead of the screen.
 """
 
 from __future__ import annotations
@@ -38,7 +31,9 @@ from typing import Any
 
 from google.genai import types
 from loguru import logger
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider, hello_for
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 
 COACH_NAME = "Sugar Coach"
 
@@ -47,6 +42,15 @@ COACH_NAME = "Sugar Coach"
 _LANG: dict[str, tuple[str, str, str]] = {
     "English": ("en", "omnivoice/gauri", "en"),
     "Hindi": ("hi", "omnivoice/gauri", "hi"),
+}
+
+# The opener, per language. A greeting is the one line spoken before any model
+# has run, so it is written here and filled with the patient's name — nothing
+# else about the call is known yet, and a caller waiting on a first token hears
+# the wait.
+_GREETING = {
+    "English": "Hi {name}! Your evening check-in — how did today go?",
+    "Hindi": "नमस्ते {name}! आपकी शाम की चेक-इन — आज का दिन कैसा रहा?",
 }
 
 # Screen sections the assistant can highlight / that exist on the patient's
@@ -413,19 +417,84 @@ def _tools() -> types.ToolListUnion:
     return tools
 
 
+class LogMeal(Action):
+    meal_type: str
+    time_label: str
+    items: list[dict[str, Any]]
+    total_calories: int
+    note: str
+
+
+class LogActivity(Action):
+    kind: str
+    duration_min: int
+    time_label: str
+    note: str
+
+
+class MarkMedication(Action):
+    name: str
+    status: str
+    time_label: str
+
+
+class ShowGlucose(Action):
+    focus_time_label: str
+    note: str
+
+
+class PlayVideo(Action):
+    video_id: str
+    start_sec: int
+
+
+class PauseVideo(Action):
+    pass
+
+
+class ResumeVideo(Action):
+    pass
+
+
+class SetCommitment(Action):
+    text: str
+    when: str
+
+
+class FlagForCareTeam(Action):
+    topic: str
+    detail: str
+
+
+class ShowSensorRenewal(Action):
+    pass
+
+
+class ConfirmSensorOrder(Action):
+    pass
+
+
+class ShowSummary(Action):
+    lines: list[str]
+    flagged: str
+
+
+class Highlight(Action):
+    section: str
+
+
 class SugarBrain(GeminiBrain):
     """One per session. The Sugar Coach daily check-in: LLM + habit-logging tools
-    + this session's patient/screen state. ``on_interaction`` is the inherited
-    tool-loop ``respond``; :meth:`dispatch_tool` runs each call and drives the
-    ``/sugar`` UI via ``interaction.action(...)``.
+    + this session's patient/screen state. :meth:`dispatch_tool` runs each call
+    and drives the ``/sugar`` UI with ``session.dispatch(...)``.
 
-    The per-scenario patient picture arrives via ``init_payload`` and is folded
+    The per-scenario patient picture arrives as ``session.init`` and is folded
     into the system instruction in :meth:`on_session_start`. The browser echoes a
-    ``state_sync`` snapshot on :meth:`on_client_message`; :meth:`working_context`
-    appends it so every turn reasons from the live screen."""
+    ``state_sync`` snapshot to :meth:`on_rtvi`; :meth:`grounding` carries it into
+    every turn so the coach reasons from the live screen."""
 
     # The default this coach opens in. The patient's own LanguageToggle choice
-    # rides ``init_payload["language"]`` and overrides it in on_session_start —
+    # rides ``session.init["language"]`` and overrides it in on_session_start —
     # which is where a per-caller language belongs, since only the brain sees
     # the caller. `language` sets both the recognizer's hint and the TTS
     # reference clip (the accent), so the two can never drift apart.
@@ -434,11 +503,14 @@ class SugarBrain(GeminiBrain):
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         # The base system instruction only; the PATIENT CONTEXT is folded in per
-        # session in on_session_start once init_payload has arrived.
+        # session in on_session_start once session.init has arrived.
         super().__init__(
-            llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model
+            client=llm.client,
+            system_instruction=_SYSTEM_INSTRUCTION,
+            tools=_tools(),
+            model=model,
         )
-        # Per-session state (populated on_session_start from init_payload).
+        # Per-session state (populated on_session_start from session.init).
         # Ephemeral in memory — no resume across disconnects, by design.
         self.patient_name = "there"
         self.language_name = "English"
@@ -452,11 +524,11 @@ class SugarBrain(GeminiBrain):
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
-    async def on_session_start(self, session, start) -> None:
-        """Read the seeded scenario (``start.init``), fold the PATIENT CONTEXT
-        into the system instruction so every turn is grounded in it, then speak
-        the greeting."""
-        payload = dict(start.init or {})
+    async def on_session_start(self, session: Session) -> None:
+        """Read the seeded scenario (``session.init``), move the language on both
+        legs, and fold the PATIENT CONTEXT into the system instruction so every
+        turn is grounded in it."""
+        payload = dict(session.init or {})
         raw_scenario = payload.get("scenario")
         scenario: dict[str, Any] = raw_scenario if isinstance(raw_scenario, dict) else {}
         raw_patient = scenario.get("patient")
@@ -471,7 +543,7 @@ class SugarBrain(GeminiBrain):
         # sounded correct because the browser happened to send a matching
         # per-session override; the brain must not depend on that.
         _, tts_voice, tts_lang = _LANG[self.language_name]
-        session.configure_language(tts_lang, voice=tts_voice)
+        await session.configure_language(tts_lang, voice=tts_voice)
         # How much the coach leads vs. listens. "quiet" = the patient narrates
         # and we log silently; "guided" = we walk them through beat by beat.
         # Either way the two-or-three-sentence ceiling holds. Default quiet.
@@ -482,16 +554,15 @@ class SugarBrain(GeminiBrain):
         self.nudge = str(scenario.get("joined_from_nudge", "")).strip()
 
         # Fold the whole per-scenario picture into the system instruction so every
-        # turn (greeting included) is grounded in it — the base rebuilds
-        # working_context from the transcript each turn, so the per-scenario
-        # picture belongs in the system prompt instead.
+        # turn is grounded in it — the base rebuilds working_context from the
+        # transcript each turn, so the per-scenario picture belongs in the system
+        # prompt instead.
         context_block = (
             "PATIENT CONTEXT (authoritative — everything you know about this patient and "
             f"today's call; the conversation language is {self.language_name}): "
             + json.dumps(scenario, ensure_ascii=False)
         )
-        instruction = f"{_SYSTEM_INSTRUCTION}\n\n{context_block}"
-        self._config = self._config.model_copy(update={"system_instruction": instruction})
+        self.system_instruction = f"{_SYSTEM_INSTRUCTION}\n\n{context_block}"
         logger.info(
             "sugar: session start — patient={!r}, language={}, talk_mode={}",
             self.patient_name,
@@ -499,45 +570,22 @@ class SugarBrain(GeminiBrain):
             self.talk_mode,
         )
 
-        # Hybrid greeting: a language-appropriate hello is spoken instantly (no LLM
-        # call), then the tuned, patient-grounded remainder streams in behind it so
-        # the model's first-token latency is off the perceived start path.
-        await self.say_then_generate(
-            session, hello_for(self.language_name), self._greeting_instruction()
-        )
+    async def greet(self, session: Session) -> str:
+        """The opener, written not generated: the patient tapped Join on a nudge
+        that already told them what to do, so the coach says hello by name and
+        hands them the floor."""
+        return _GREETING[self.language_name].format(name=self.patient_name)
 
-    async def on_client_message(self, session, message) -> None:
-        """Browser→Brain client message. ``state_sync`` carries a compact snapshot
-        of the patient's screen — what's logged, med ticks, video position, and taps
-        the patient made by hand. Ingested *silently* (no floor taken, no inference);
-        the next turn's :meth:`working_context` surfaces it so the assistant reasons
-        from the live screen."""
-        if message.type == "state_sync":
-            self._ingest_state(message.data or {})
-
-    def _greeting_instruction(self) -> str:
-        """A one-shot prompt for the LLM-generated opening line (grounded in the
-        patient + talk_mode)."""
-        common = (
-            f"The patient ({self.patient_name}) just tapped Join on your evening check-in "
-            f"nudge — the nudge already told them to walk you through their day, so do NOT "
-            f"re-explain the ask. Greet them by first name as their {COACH_NAME}, in "
-            f"{self.language_name}. Do NOT call any tool on this first turn — just speak; "
-            f"the screen work starts once they answer."
-        )
-        if self.talk_mode == "quiet":
-            return common + (
-                " QUIET check-in: a warm hello plus a tiny 'go ahead' and nothing else — "
-                "ONE short sentence, two at the very most, aim for fourteen words or fewer "
-                "total. No streak talk, no praise, no filler. Then stop and let them talk. "
-                'Feel: "Evening, Rajesh — go on, I\'m listening." or "Evening, Rajesh. '
-                "How'd today go?\""
-            )
-        return common + (
-            " GUIDED check-in: one warm, grounded line, then your first specific question — "
-            "no more than two short sentences before the question, and skip the meet-and-greet "
-            "padding even on a first call."
-        )
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """Browser→brain message. ``state_sync`` carries a compact snapshot of the
+        patient's screen — what's logged, med ticks, video position, and taps the
+        patient made by hand. Ingested *silently* (no floor taken, no turn); the
+        next turn's :meth:`grounding` surfaces it so the coach reasons from the
+        live screen."""
+        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+            return
+        if msg.data.get("t") == "state_sync":
+            self._ingest_state(msg.data.get("d") or {})
 
     # ─── Browser → brain: screen state sync (silent awareness) ──────────
 
@@ -559,43 +607,43 @@ class SugarBrain(GeminiBrain):
             )
         logger.info("sugar: state_sync ingested (active={})", bool(self.current_state))
 
-    def grounding(self, interaction) -> str | None:
+    def grounding(self) -> str | None:
         """The latest screen snapshot, folded into every turn so the assistant
         always reasons from the live screen."""
         return self._state_message
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
-    def dispatch_tool(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: normalize args, drive the browser via
-        ``interaction.action(...)`` (the RTVI ui_command the /sugar UI renders),
-        and return the short guidance string fed back to the model.
+    async def dispatch_tool(self, session: Session, name: str, args: dict[str, Any]) -> str:
+        """Run one tool call: normalize args, drive the browser with
+        ``session.dispatch(...)`` (the ``ui_command`` the /sugar UI renders), and
+        return the short guidance string fed back to the model.
         ``switch_language`` reconfigures STT/TTS instead of the screen."""
         if name == "log_meal":
-            return self._log_meal(interaction, args)
+            return self._log_meal(session, args)
         if name == "log_activity":
-            return self._log_activity(interaction, args)
+            return self._log_activity(session, args)
         if name == "mark_medication":
-            return self._mark_medication(interaction, args)
+            return self._mark_medication(session, args)
         if name == "show_glucose":
-            return self._show_glucose(interaction, args)
+            return self._show_glucose(session, args)
         if name == "play_video":
-            return self._play_video(interaction, args)
+            return self._play_video(session, args)
         if name == "pause_video":
             logger.info("sugar: pause_video")
-            interaction.action("pause_video")
+            session.dispatch(PauseVideo())
             return str({"status": "paused"})
         if name == "resume_video":
             logger.info("sugar: resume_video")
-            interaction.action("resume_video")
+            session.dispatch(ResumeVideo())
             return str({"status": "resumed"})
         if name == "set_commitment":
-            return self._set_commitment(interaction, args)
+            return self._set_commitment(session, args)
         if name == "flag_for_care_team":
-            return self._flag_for_care_team(interaction, args)
+            return self._flag_for_care_team(session, args)
         if name == "show_sensor_renewal":
             logger.info("sugar: show_sensor_renewal")
-            interaction.action("show_sensor_renewal")
+            session.dispatch(ShowSensorRenewal())
             return str(
                 {
                     "status": "shown",
@@ -604,20 +652,20 @@ class SugarBrain(GeminiBrain):
             )
         if name == "confirm_sensor_order":
             logger.info("sugar: confirm_sensor_order")
-            interaction.action("confirm_sensor_order")
+            session.dispatch(ConfirmSensorOrder())
             return str({"status": "ordered"})
         if name == "show_summary":
-            return self._show_summary(interaction, args)
+            return self._show_summary(session, args)
         if name == "highlight":
             section = str(args.get("section", ""))
             logger.info("sugar: highlight {}", section)
-            interaction.action("highlight", {"section": section})
+            session.dispatch(Highlight(section=section))
             return str({"status": "highlighted", "section": section})
         if name == "switch_language":
-            return self._switch_language(interaction, args)
+            return await self._switch_language(session, args)
         return "unknown tool"
 
-    def _log_meal(self, interaction, args: dict[str, Any]) -> str:
+    def _log_meal(self, session: Session, args: dict[str, Any]) -> str:
         meal_type = str(args.get("meal_type", "other")).strip().lower()
         time_label = str(args.get("time_label", "")).strip()
         note = str(args.get("note", "")).strip()
@@ -632,19 +680,18 @@ class SugarBrain(GeminiBrain):
         logger.info(
             "sugar: log_meal {} @{} ({} items, {} kcal)", meal_type, time_label, len(items), total
         )
-        interaction.action(
-            "log_meal",
-            {
-                "meal_type": meal_type,
-                "time_label": time_label,
-                "items": items,
-                "total_calories": total,
-                "note": note,
-            },
+        session.dispatch(
+            LogMeal(
+                meal_type=meal_type,
+                time_label=time_label,
+                items=items,
+                total_calories=total,
+                note=note,
+            )
         )
         return str({"status": "logged", "meal_type": meal_type, "total_calories": total})
 
-    def _log_activity(self, interaction, args: dict[str, Any]) -> str:
+    def _log_activity(self, session: Session, args: dict[str, Any]) -> str:
         kind = str(args.get("kind", "")).strip()
         duration = int(args.get("duration_min") or 0)
         time_label = str(args.get("time_label", "")).strip()
@@ -652,56 +699,53 @@ class SugarBrain(GeminiBrain):
         if not kind:
             return str({"error": "need an activity kind"})
         logger.info("sugar: log_activity {} {}min @{}", kind, duration, time_label)
-        interaction.action(
-            "log_activity",
-            {"kind": kind, "duration_min": duration, "time_label": time_label, "note": note},
+        session.dispatch(
+            LogActivity(kind=kind, duration_min=duration, time_label=time_label, note=note)
         )
         return str({"status": "logged", "kind": kind, "duration_min": duration})
 
-    def _mark_medication(self, interaction, args: dict[str, Any]) -> str:
+    def _mark_medication(self, session: Session, args: dict[str, Any]) -> str:
         name = str(args.get("name", "")).strip()
         status = str(args.get("status", "")).strip()
         time_label = str(args.get("time_label", "")).strip()
         if not name or status not in ("taken", "missed", "skipped"):
             return str({"error": "need a medication name and a valid status"})
         logger.info("sugar: mark_medication {!r} -> {}", name, status)
-        interaction.action(
-            "mark_medication", {"name": name, "status": status, "time_label": time_label}
-        )
+        session.dispatch(MarkMedication(name=name, status=status, time_label=time_label))
         return str({"status": "marked", "name": name, "state": status})
 
-    def _show_glucose(self, interaction, args: dict[str, Any]) -> str:
+    def _show_glucose(self, session: Session, args: dict[str, Any]) -> str:
         focus = str(args.get("focus_time_label", "")).strip()
         note = str(args.get("note", "")).strip()
         logger.info("sugar: show_glucose focus={!r}", focus or None)
-        interaction.action("show_glucose", {"focus_time_label": focus, "note": note})
+        session.dispatch(ShowGlucose(focus_time_label=focus, note=note))
         return str({"status": "shown", "focus": focus or "full_day"})
 
-    def _play_video(self, interaction, args: dict[str, Any]) -> str:
+    def _play_video(self, session: Session, args: dict[str, Any]) -> str:
         video_id = str(args.get("video_id", "")).strip()
         start_sec = int(args.get("start_sec") or 0)
         if not video_id:
             return str({"error": "need a video_id from the library"})
         logger.info("sugar: play_video {} @{}s", video_id, start_sec)
-        interaction.action("play_video", {"video_id": video_id, "start_sec": start_sec})
+        session.dispatch(PlayVideo(video_id=video_id, start_sec=start_sec))
         return str({"status": "playing", "video_id": video_id})
 
-    def _set_commitment(self, interaction, args: dict[str, Any]) -> str:
+    def _set_commitment(self, session: Session, args: dict[str, Any]) -> str:
         text = str(args.get("text", "")).strip()
         when = str(args.get("when", "")).strip()
         if not text:
             return str({"error": "need the commitment text"})
         logger.info("sugar: set_commitment {!r} ({})", text, when or "unspecified")
-        interaction.action("set_commitment", {"text": text, "when": when})
+        session.dispatch(SetCommitment(text=text, when=when))
         return str({"status": "saved", "text": text})
 
-    def _flag_for_care_team(self, interaction, args: dict[str, Any]) -> str:
+    def _flag_for_care_team(self, session: Session, args: dict[str, Any]) -> str:
         topic = str(args.get("topic", "")).strip()
         detail = str(args.get("detail", "")).strip()
         if not topic:
             return str({"error": "need a topic"})
         logger.info("sugar: flag_for_care_team {!r}", topic)
-        interaction.action("flag_for_care_team", {"topic": topic, "detail": detail})
+        session.dispatch(FlagForCareTeam(topic=topic, detail=detail))
         return str(
             {
                 "status": "flagged",
@@ -710,16 +754,16 @@ class SugarBrain(GeminiBrain):
             }
         )
 
-    def _show_summary(self, interaction, args: dict[str, Any]) -> str:
+    def _show_summary(self, session: Session, args: dict[str, Any]) -> str:
         lines = [str(line).strip() for line in list(args.get("lines") or []) if str(line).strip()]
         flagged = str(args.get("flagged", "")).strip()
         if not lines:
             return str({"error": "need at least one summary line"})
         logger.info("sugar: show_summary ({} lines)", len(lines))
-        interaction.action("show_summary", {"lines": lines, "flagged": flagged})
+        session.dispatch(ShowSummary(lines=lines, flagged=flagged))
         return str({"status": "shown"})
 
-    def _switch_language(self, interaction, args: dict[str, Any]) -> str:
+    async def _switch_language(self, session: Session, args: dict[str, Any]) -> str:
         language = str(args.get("language", ""))
         cfg = _LANG.get(language)
         if not cfg:
@@ -729,6 +773,7 @@ class SugarBrain(GeminiBrain):
         logger.info("sugar: switch_language → {} (hint={} voice={})", language, stt_hint, tts_voice)
         # One call moves both halves — recognizer and voice. This is the only
         # supported way to change language mid-call; the configure_tts +
-        # configure_stt pair can drift, and either half missing is silent.
-        interaction.session.configure_language(tts_lang, voice=tts_voice)
+        # configure_stt pair can drift, and either half missing is silent. Awaited
+        # because the model gets the answer Voqalize gave, not the one we hoped for.
+        await session.configure_language(tts_lang, voice=tts_voice)
         return str({"switched_to": language})

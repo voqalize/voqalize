@@ -1,6 +1,6 @@
 """AI Interviewer — the demo's own FastAPI brain route.
 
-Voqalize dials `/interview_bot/s/{session_id}` once per session (the inbound path); the
+Voqalize dials `/interview_bot?session_id=…` once per session (the inbound path); the
 shared `make_brain_router` owns the socket lifecycle and token verification, so
 this file only names the demo and its per-session brain factory. This is the whole
 backend surface a demo contributes — discovered and mounted by the umbrella.

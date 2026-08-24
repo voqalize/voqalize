@@ -1,49 +1,33 @@
 """The Gemini client seam — a horizontal dependency the demo brains run on.
 
 One instance per process, constructed from ``GEMINI_API_KEY`` and injected into
-every brain (see :mod:`voqalize_demos.brains._gemini`). Brains depend on this
-concrete provider, not on ``google-genai`` directly, so the LLM is
-dependency-injected exactly like it is in the platform's own hosted brains — the
-same shape a customer would use to wrap their model of choice.
-
-(There is deliberately no abstraction layer; if a demo ever needed multi-provider
-routing, a differently-backed provider can be swapped in behind the same
-``stream``.)
+every demo's ``build(llm)``. A brain hands :attr:`GeminiProvider.client` to
+:class:`voqalize.sdk.gemini.GeminiBrain`, so the model is dependency-injected
+rather than reached for — the same shape a customer would use to hold one client
+for a process and hand it to each session's brain.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from typing import Any
-
 from google import genai
-from google.genai import types
 
 
 class GeminiProvider:
-    """Wraps one ``genai.Client``. Brains call :meth:`stream` per inference.
+    """Holds one ``genai.Client``, built on first use.
 
-    The client is created lazily on first use so an empty ``api_key`` doesn't fail
-    process startup — the app graph is built in every environment, but the key is
-    only needed once a brain is actually dialed."""
+    Laziness is the whole job: the umbrella builds its app graph in every
+    environment — tests, CI, a container that has not been given a key yet — and
+    ``genai.Client(api_key="")`` raises at construction. The key is only needed
+    once a session is actually dialed, which is when a brain first reads
+    :attr:`client`.
+    """
 
     def __init__(self, *, api_key: str) -> None:
         self._api_key = api_key
         self._client: genai.Client | None = None
 
-    def _client_or_build(self) -> genai.Client:
+    @property
+    def client(self) -> genai.Client:
         if self._client is None:
             self._client = genai.Client(api_key=self._api_key)
         return self._client
-
-    async def stream(
-        self,
-        *,
-        model: str,
-        contents: Any,
-        config: types.GenerateContentConfig,
-    ) -> AsyncIterator[types.GenerateContentResponse]:
-        """Run one streaming ``generate_content`` call and yield its chunks."""
-        return await self._client_or_build().aio.models.generate_content_stream(
-            model=model, contents=contents, config=config
-        )

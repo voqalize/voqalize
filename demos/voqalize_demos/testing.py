@@ -1,10 +1,10 @@
 """``ScriptedGemini`` — a fake :class:`~voqalize_demos.llm.GeminiProvider` driven by
 a dictionary, no network, no API key.
 
-The demo brains take the concrete provider by injection (see
-:mod:`voqalize_demos.llm`), so the whole model is one seam wide: ``stream(model=,
-contents=, config=)`` returning an async iterator of
-``types.GenerateContentResponse``. This is that seam, answering from a script::
+The demo brains take the provider by injection (see :mod:`voqalize_demos.llm`)
+and hand its ``client`` to :class:`voqalize.sdk.gemini.GeminiBrain`, so the whole
+model is one seam wide: ``client.aio.models.generate_content_stream(model=,
+contents=, config=)``. This answers on that seam, from a script::
 
     from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
 
@@ -30,11 +30,10 @@ This is the ``GeminiBrain`` twin of
   aggregate — so a barge-in can land mid-reply.
 
 Keys match the **last user text** exactly; failing that, any key that is a
-*substring* of it, in insertion order. The substring form is for greeting prompts:
-a brain that opens with ``say_then_generate`` passes a whole paragraph of
-instruction as the user turn, and a test should key on the distinctive phrase in
-it, not paste the paragraph. Anything unmatched gets :attr:`default`, so a
-mis-keyed test fails on the assertion it wrote rather than deep in the brain.
+*substring* of it, in insertion order — so a test keys on the distinctive phrase
+in a long turn rather than pasting the whole of it. Anything unmatched gets
+:attr:`default`, so a mis-keyed test fails on the assertion it wrote rather than
+deep in the brain.
 """
 
 from __future__ import annotations
@@ -151,11 +150,37 @@ class _Call:
     system_instruction: str
 
 
+class _Models:
+    """The ``client.aio.models`` half of the seam."""
+
+    def __init__(self, owner: ScriptedGemini) -> None:
+        self._owner = owner
+
+    async def generate_content_stream(
+        self,
+        *,
+        model: str,
+        contents: Any,
+        config: types.GenerateContentConfig,
+    ) -> AsyncIterator[types.GenerateContentResponse]:
+        """One scripted inference. Async like the real one, which awaits the call
+        before iterating what it returns."""
+        return self._owner.answer(model=model, contents=contents, config=config)
+
+
+class _Aio:
+    """The ``client.aio`` half of the seam."""
+
+    def __init__(self, owner: ScriptedGemini) -> None:
+        self.models = _Models(owner)
+
+
 class ScriptedGemini:
     """A ``GeminiProvider``-shaped fake answering from ``{user_text: [Reply, ...]}``.
 
-    Structural, not nominal: the brains only ever call :meth:`stream`, so this does
-    not subclass ``GeminiProvider`` (which would drag in a real ``genai.Client``)."""
+    Structural, not nominal: a brain reads ``llm.client`` and calls
+    ``client.aio.models.generate_content_stream(...)``, so this answers on both
+    halves of that shape and never constructs a real ``genai.Client``."""
 
     def __init__(
         self,
@@ -168,6 +193,12 @@ class ScriptedGemini:
             self._cursors[key] = _Cursor(value if isinstance(value, list) else [value])
         self._default = default if default is not None else reply("Right.")
         self.calls: list[_Call] = []
+        self.aio = _Aio(self)
+
+    @property
+    def client(self) -> ScriptedGemini:
+        """What a brain is handed. This object is its own client."""
+        return self
 
     # ─── What the brain asked ────────────────────────────────────────────
 
@@ -185,15 +216,14 @@ class ScriptedGemini:
 
     # ─── The seam ────────────────────────────────────────────────────────
 
-    async def stream(
+    def answer(
         self,
         *,
         model: str,
         contents: Any,
         config: types.GenerateContentConfig,
     ) -> AsyncIterator[types.GenerateContentResponse]:
-        """One scripted inference. Async like the real one (which awaits the
-        client's ``generate_content_stream`` before iterating it)."""
+        """Record the request and return the scripted chunk stream."""
         items = list(contents)
         self.calls.append(
             _Call(

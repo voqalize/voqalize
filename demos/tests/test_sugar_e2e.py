@@ -25,10 +25,6 @@ discover()
 
 VOICE = "omnivoice/gauri"
 
-# The distinctive phrase in `_greeting_instruction()` — the hybrid greeting sends
-# a whole paragraph of instruction as the user turn, so key on a fragment.
-GREETING_PROMPT = "just tapped Join"
-
 SCENARIO = {
     "patient": {"name": "Rajesh"},
     "talk_mode": "quiet",
@@ -39,7 +35,6 @@ SCENARIO = {
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
-            GREETING_PROMPT: reply("Evening, Rajesh — go on, I'm listening."),
             "I had two rotis and dal at eight.": [
                 reply_and_call(
                     "Logging that.",
@@ -62,16 +57,18 @@ def _llm() -> ScriptedGemini:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """The coach opens with the instant hello plus the model's grounded remainder,
-    and its default English voice lands on **both** legs before that audio."""
-    async with demo("sugar", _llm()) as rig:
+    """The coach opens with its written line, by name, and its default English
+    voice lands on **both** legs before that audio.
+
+    The greeting runs no model: ``ScriptedGemini`` records every call it is asked
+    for, and the opening turn makes none."""
+    llm = _llm()
+    async with demo("sugar", llm) as rig:
         greeting = await rig.driver.start_session(init={"scenario": SCENARIO})
         check_greeting(rig, greeting)
         assert greeting is not None
-        # Hybrid greeting: the fixed hello is spoken instantly, the model's line
-        # streams in behind it — so both are in one interaction's text.
-        assert greeting.text.startswith("Hi!")
-        assert "Evening, Rajesh" in greeting.text
+        assert greeting.text == "Hi Rajesh! Your evening check-in — how did today go?"
+        assert llm.calls == []
         check_voice_pair(rig, voice=VOICE, language="en")
 
 
@@ -85,7 +82,7 @@ async def test_the_patients_chosen_language_is_on_the_wire_before_the_hello() ->
     async with demo("sugar", _llm()) as rig:
         greeting = await rig.driver.start_session(init={"language": "Hindi", "scenario": SCENARIO})
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text.startswith("नमस्ते!")
+        assert greeting is not None and greeting.text.startswith("नमस्ते Rajesh!")
         check_voice_pair(rig, voice=VOICE, language="hi")
 
 
@@ -97,7 +94,7 @@ async def test_logging_a_meal_drives_the_screen() -> None:
         await rig.driver.start_session(init={"scenario": SCENARIO})
 
         turn = await rig.driver.user_says("I had two rotis and dal at eight.")
-        check_turn(rig, turn, inferences=2)
+        check_turn(rig, turn, units=2)
 
         assert rig.actions() == ["log_meal"], rig.actions()
         meal = rig.command("log_meal")
@@ -119,7 +116,7 @@ async def test_switching_language_mid_call_moves_both_halves() -> None:
         check_voice_pair(rig, voice=VOICE, language="en")
 
         turn = await rig.driver.user_says("Can we talk in Hindi?")
-        check_turn(rig, turn, inferences=2)
+        check_turn(rig, turn, units=2)
 
         # No ui_command: switching language is a wire change, not a screen change.
         assert rig.actions() == [], rig.actions()

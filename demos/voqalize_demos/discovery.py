@@ -6,7 +6,7 @@ Each demo is a folder ``demos/<name>/`` with its ``backend/`` beside its
 
 - ``NAME``    — the URL segment (``travel``), which must equal the folder name.
 - ``build``   — ``(GeminiProvider) -> Brain``, the per-session brain factory.
-- ``router``  — the FastAPI ``APIRouter`` for ``/{NAME}/s/{session_id}``.
+- ``router``  — the FastAPI ``APIRouter`` for ``/{NAME}?session_id=…``.
 
 There is no central registry to keep in sync (the old ``manifest.py`` +
 ``check_wiring`` is gone): dropping a ``demos/<name>/backend/`` folder in *is* the

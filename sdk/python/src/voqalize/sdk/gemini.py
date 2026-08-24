@@ -147,7 +147,7 @@ class GeminiBrain(Brain):
             if not calls:
                 return
             for call in calls:
-                result = self.dispatch_tool(session, call.name or "", dict(call.args or {}))
+                result = await self.dispatch_tool(session, call.name or "", dict(call.args or {}))
                 self.history.append(
                     types.Content(
                         role="tool",
@@ -159,10 +159,16 @@ class GeminiBrain(Brain):
                     )
                 )
 
-    def dispatch_tool(self, session: Session, name: str, args: dict[str, Any]) -> str:
+    async def dispatch_tool(self, session: Session, name: str, args: dict[str, Any]) -> str:
         """Run one tool call: mutate your state, drive the app with
         ``session.dispatch(...)``, and return a short string fed back to the model.
-        Override in any brain that declares ``tools``."""
+        Override in any brain that declares ``tools``.
+
+        Async because a tool does work — a lookup, a write, a
+        :meth:`~voqalize.sdk.Session.configure_language` that waits to hear the
+        change was accepted. The turn is suspended while it runs, which is
+        correct: the model cannot continue until it has the result.
+        """
         raise NotImplementedError(
             f"{type(self).__name__} declared no tools but the model called {name!r}"
         )
@@ -197,6 +203,21 @@ class GeminiBrain(Brain):
                 break
         out.insert(at, types.Content(role="user", parts=[types.Part(text=note)]))
         return out
+
+    @property
+    def system_instruction(self) -> str:
+        """The prompt every call carries. Settable from
+        :meth:`~voqalize.sdk.Brain.on_session_start`, where the facts that are
+        true for this caller and no other — who they are, what they are calling
+        about, what your system already knows — are finally in hand. Setting it
+        replaces the prompt for the rest of the session; the tools and the model
+        stay as constructed.
+        """
+        return str(self._config.system_instruction or "")
+
+    @system_instruction.setter
+    def system_instruction(self, text: str) -> None:
+        self._config = self._config.model_copy(update={"system_instruction": text})
 
     # ─── Heard truth ────────────────────────────────────────────────────
 

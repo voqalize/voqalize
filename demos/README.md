@@ -22,7 +22,7 @@ architecture:
   **pygato node**, fronted by Caddy at `brain.voqalize.com`
   (`brain.dev.voqalize.com` for dev). A single umbrella FastAPI app
   (`voqalize_demos/umbrella.py`) discovers every co-located backend and hosts
-  its brain WebSocket at `/{name}/s/{session_id}`. That's *all* this container
+  its brain WebSocket at `/{name}?session_id=…`. That's *all* this container
   does — it's brains only. See `Dockerfile` + `cloudbuild.brains-vm.yaml`.
 - **The frontend UIs** (plus the docs) build into a versioned **web artifact**
   (`cloudbuild.web.yaml`) that the private marketing repo downloads and lays under
@@ -32,7 +32,7 @@ architecture:
   touches the brain container.
 
 The **UI path** (`{apex}/demos/{name}`) and the **brain path**
-(`wss://brain.voqalize.com/{name}/s/{id}`) are independent: the brain socket lives
+(`wss://brain.voqalize.com/{name}`) are independent: the brain socket lives
 on the pygato node because Voqalize dials it **server-side**, regardless of where
 the browser loads the UI. So a demo's `brain_url` is `wss://brain.voqalize.com/{name}`
 — and moving the UI to the apex needed no agent re-provisioning at all.
@@ -41,7 +41,7 @@ the browser loads the UI. So a demo's `brain_url` is `wss://brain.voqalize.com/{
 |---|---|---|
 | `{apex}/demos/{name}` | the demo's UI (its own independent Vite build) | apex (Firebase Hosting) |
 | `{apex}/api/*` | session bootstrap → control plane (Hosting rewrite) | apex |
-| `wss://brain.<env>.voqalize.com/{name}/s/{id}` | the brain WebSocket (Voqalize dials here) | pygato node (brains container, behind Caddy) |
+| `wss://brain.<env>.voqalize.com/{name}` | the brain WebSocket (Voqalize dials here) | pygato node (brains container, behind Caddy) |
 
 ## Structure
 
