@@ -36,7 +36,7 @@
  *   The avatar            what it is · in your pipeline · in the browser ·
  *                         authoring a face
  *   Voice and language    choosing a voice · choosing a language · defaults and
- *                         overrides · why there is no provider slot
+ *                         overrides
  *   Reference             the brain API · errors
  *
  * "Designing for voice" is the durable quadrant and it is written from the
@@ -87,6 +87,7 @@ export const sidebar = [
       { label: "The wire", slug: "reference/wire" },
       { label: "The RTVI plane", slug: "reference/rtvi" },
       { label: "Voice and language catalog", slug: "reference/catalog" },
+      { label: "Why there is no provider slot", slug: "reference/no-provider-slot" },
       { label: "MCP server", slug: "reference/mcp" },
     ],
   },

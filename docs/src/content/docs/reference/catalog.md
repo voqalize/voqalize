@@ -3,9 +3,10 @@ title: Voice & language catalog
 description: The recognizer languages and TTS voices a session can select, and how a brain moves them.
 ---
 
-A session's recognizer language and text-to-speech voice come from **the agent
-record**, and a brain overrides them for *this* caller. This page is the catalog
-of allowed values, and the one rule that makes them safe to change.
+Every session starts on the runtime's defaults — English on both legs — and
+**the brain** sets the recognizer language and the speaking voice for *this*
+caller. This page is the catalog of allowed values, and the one rule that makes
+them safe to change.
 
 :::caution[A language has two legs, and you set both]
 `stt.language` picks the **recognizer**. `tts.language` picks the **reference
@@ -135,9 +136,11 @@ Two rules kill it, and they are checked in two different places:
 
 ## Where it is set
 
-- **For every session:** the agent record, which is also what shapes the
-  pipeline the runtime builds before it dials your brain. A default is not a
-  runtime event, and this is where a default belongs.
+- **For every session:** the runtime's own defaults, English on both legs. The
+  agent record holds `brain_url` and nothing about voice or language — an
+  agent-level language cannot depend on the caller, and `lead_qual` is the proof:
+  it resolves a language from an enquiry form that does not exist until the
+  session starts.
 - **Per caller, or mid-call:** `await session.configure(Config(...))` from the
   brain — the only thing in the call that sees *this* caller. STT applies at the
   next turn boundary, TTS at the next speech unit, never mid-utterance.

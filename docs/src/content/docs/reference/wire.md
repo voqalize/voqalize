@@ -238,16 +238,16 @@ message SttConfig  { optional Language language = 1; }
 message IdleConfig { optional uint32 timeout_ms = 1; }
 ```
 
-The same message is the agent record's stored configuration and this op's
-payload. That is the point: a record cannot drift from the wire if there is only
-one definition of what a configuration is. "Unset" reads differently at each end
-— in the record it means *take Voqalize's default*, so a section added later
-does not invalidate every stored record; on the wire it means *leave it alone*,
-because a `Request` carries a delta and the runtime is already running.
+This message is the payload of this op and of nothing else. The agent record
+holds `brain_url` and carries no voice or language of its own, so there is one
+place a session's configuration comes from and it is the brain. A session starts
+on the runtime's defaults and moves from there — see
+[the catalog](/docs/reference/catalog/#where-it-is-set).
 
-Explicit presence is load-bearing on both. Without it an unset `timeout_ms` is
-indistinguishable from `0`, and a delta that never mentioned idle detection would
-silently disable it.
+Unset means *leave it alone*: a `Request` carries a delta and the runtime is
+already running. Explicit presence is what makes that readable — without it an
+unset `timeout_ms` is indistinguishable from `0`, and a delta that never
+mentioned idle detection would silently disable it.
 
 **One op, not three.** A language change has to move both legs at once. Three ops
 would put a turn boundary — and a possible refusal — between the halves, leaving
