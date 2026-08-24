@@ -9,15 +9,17 @@
  * Presence is ambient, not docked: the {@link AmbientPresence} ring glows around
  * the whole screen and carries the coach's state (listening / thinking /
  * speaking) peripherally, so the bar itself is left with only the identity bits —
- * the coach's name, the state label + call timer, and the end-call button.
+ * the coach's name, the state label + call timer, a mute toggle and the end-call
+ * button.
  *
  * **This is exactly the surface an external developer embeds, and it is almost
- * entirely pipecat's.** `createSession` mints against the control plane and
- * everything after it is a stock `PipecatClient`: `SmallWebRTCTransport` carries
- * the media, `usePipecatClientTransportState` reports the call, RTVI events say
- * who is speaking, `PipecatClientAudio` plays the coach, and the brain's
- * `session.dispatch(...)` arrives on `RTVIEvent.UICommand` as
- * `{ command, payload }`.
+ * entirely pipecat's.** Voice-ui-kit's `PipecatAppBase` does pipecat's whole
+ * two-step connect (`startBot` against the control plane, then `connect` the
+ * transport) and owns the client's lifecycle; everything below it is a stock
+ * `PipecatClient`: `usePipecatClientTransportState`/`usePipecatConnectionState`
+ * report the call, RTVI events say who is speaking, `PipecatAppBase`'s own
+ * `BotAudioOutput` plays the coach, and the brain's `session.dispatch(...)`
+ * arrives on `RTVIEvent.UICommand` as `{ command, payload }`.
  *
  * Two bridges tie the call to the screen:
  *   - every `ui-command` replays onto the shared sugar store, so the coach drives
@@ -27,18 +29,13 @@
  *     what's logged, including taps the patient makes by hand.
  */
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { PipecatClient, RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
-import {
-  PipecatClientAudio,
-  PipecatClientProvider,
-  usePipecatClient,
-  usePipecatClientTransportState,
-  useRTVIClientEvent,
-} from "@pipecat-ai/client-react";
-import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
-import { createSession } from "@voqalize/client-react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
+import { usePipecatClient, usePipecatClientMicControl, usePipecatClientTransportState, useRTVIClientEvent } from "@pipecat-ai/client-react";
+import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
+import { fromSessionResponse, startBotParams } from "@voqalize/client-react";
 import { AmbientPresence, type AmbientPresenceActivity, type AmbientPresencePalette } from "@voqalize/demo-kit";
+import { Mic, MicOff } from "lucide-react";
 import { config } from "./config";
 import { COACH_NAME } from "./data";
 import { useSugar } from "./store";
@@ -90,68 +87,65 @@ function CallTimer() {
 }
 
 /**
- * Mints the session and owns the client. The provider — and with it
- * `PipecatClientAudio` — mounts as soon as the client exists, **not** when the
- * call goes live: the bot's audio track is announced once, from the remote
- * track's `unmute` a few hundred milliseconds after the peer connection is up,
- * and `client.tracks()` only ever reports the local ones. A listener that
- * subscribes late finds nothing to read, and the call plays silently — RTP
- * arriving, decoded by nobody. Only the bar chrome may depend on the state.
+ * Mints the session and owns the client. `PipecatAppBase` builds the
+ * `PipecatClient`, does pipecat's two-step connect (`startBot` against the
+ * control plane, then `connect` the transport it returns) and mounts
+ * `PipecatClientProvider` — with its own `BotAudioOutput` in place of a
+ * hand-mounted `PipecatClientAudio` — as soon as the client exists, **not**
+ * when the call goes live: the bot's audio track is announced once, from the
+ * remote track's `unmute` a few hundred milliseconds after the peer
+ * connection is up, and `client.tracks()` only ever reports the local ones. A
+ * listener that subscribes late finds nothing to read, and the call plays
+ * silently — RTP arriving, decoded by nobody. Only the bar chrome may depend
+ * on the state.
  */
 export function SugarCallSession() {
   const { brainPayload } = useSugar();
-  const [client] = useState(
-    () => new PipecatClient({ transport: new SmallWebRTCTransport(), enableMic: true }),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const startedRef = useRef(false);
 
-  const connect = useCallback(async () => {
-    setError(null);
-    try {
-      // No pipeline override. The patient's LanguageToggle choice rides the
-      // payload below (`language`), and the brain applies it with one
-      // configure_language call at session start — so the recognizer and the TTS
-      // voice can't drift apart, which is what happens when the browser sets one
-      // half of the pair. The scenario's PATIENT CONTEXT rides the payload too,
-      // reaching the brain as its init payload.
-      const params = await createSession({
+  // No pipeline override. The patient's LanguageToggle choice rides the
+  // payload below (`language`), and the brain applies it with one
+  // configure_language call at session start — so the recognizer and the TTS
+  // voice can't drift apart, which is what happens when the browser sets one
+  // half of the pair. The scenario's PATIENT CONTEXT rides the payload too,
+  // reaching the brain as its init payload.
+  //
+  // Memoized: this is a dependency of PipecatAppBase's connect-on-mount
+  // effect, so an unmemoized object literal would re-fire that effect (and
+  // re-mint a session) on every render.
+  const params = useMemo(
+    () =>
+      startBotParams({
         apiBase: SUGAR.apiBase,
-        // Empty when unprovisioned — createSession throws a clear
-        // "publishableKey is required", shown in the bar's error state.
+        // Empty when unprovisioned — the control plane rejects with a clear
+        // 401, shown in the bar's error state via PipecatAppBase's `error`.
         publishableKey: SUGAR.publishableKey ?? "",
         agentId: SUGAR.agentId,
         payload: { surface: "sugar-web", ...(brainPayload() as Record<string, unknown>) },
-      });
-      await client.connect(params);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Call failed.");
-    }
-  }, [client, brainPayload]);
-
-  // The call IS the UX: connect on mount, once.
-  useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    void connect();
-  }, [connect]);
+      }),
+    [brainPayload],
+  );
 
   return (
-    <PipecatClientProvider client={client}>
-      <PipecatClientAudio />
-      <CallBar error={error} onRetry={connect} />
-    </PipecatClientProvider>
+    <PipecatAppBase
+      transportType="smallwebrtc"
+      connectOnMount
+      noThemeProvider
+      startBotParams={params}
+      startBotResponseTransformer={fromSessionResponse}
+    >
+      {({ error, handleConnect }) => <CallBar error={error ?? null} onRetry={handleConnect} />}
+    </PipecatAppBase>
   );
 }
 
 /** The in-call bar, the presence ring, and the two bridges to the store. */
-function CallBar({ error, onRetry }: { error: string | null; onRetry: () => void }) {
+function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => void | Promise<void> }) {
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
+  const { isConnected: isLive } = usePipecatConnectionState();
+  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
   const { endCall, handleUiCommand, registerAgentSend, rev, snapshot } = useSugar();
   const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
-
-  const isLive = transportState === "connected" || transportState === "ready";
 
   // Screen ← coach. The brain's `session.dispatch(LogMeal(...))` lands here as
   // `{ command: "log_meal", payload: {...} }`. Subscribing to the event rather
@@ -264,6 +258,21 @@ function CallBar({ error, onRetry }: { error: string | null; onRetry: () => void
           {STATE_LABEL[activity]} · <CallTimer />
         </div>
       </div>
+      <button
+        onClick={() => enableMic(!isMicEnabled)}
+        style={{
+          ...pillBtn(isMicEnabled ? "rgba(255,255,255,.14)" : AMBER),
+          width: 34,
+          height: 34,
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        title={isMicEnabled ? "Mute" : "Unmute"}
+      >
+        {isMicEnabled ? <Mic size={15} /> : <MicOff size={15} />}
+      </button>
       <button onClick={hangUp} style={{ ...pillBtn(RED), width: 34, height: 34, borderRadius: "50%", fontSize: 13 }} title="End call">
         ⏻
       </button>
