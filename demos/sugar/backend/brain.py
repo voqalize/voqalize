@@ -18,19 +18,21 @@ Two things worth calling out about how per-session state flows in:
     and :meth:`SugarBrain.grounding` carries it into the next turn.
 
 **The LLM generates the substantive data** (meal items, calorie estimates,
-summary lines) as nested function-call arguments; the handlers are thin
-pass-throughs that normalize and drive the browser with ``session.dispatch(...)``
-— the typed actions below, which the ``/sugar`` UI renders. ``switch_language``
-moves both legs of the language instead of the screen.
+summary lines) as nested function-call arguments. Each tool is one pydantic model
+— the schema Gemini is given *is* that model, and for all but ``log_meal`` the
+validated call *is* the ``Action`` the ``/sugar`` UI renders, so
+:meth:`SugarBrain.dispatch_tool` hands it straight to ``session.dispatch(...)``.
+``switch_language`` moves both legs of the language instead of the screen.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from google.genai import types
 from loguru import logger
+from pydantic import BaseModel, Field, ValidationError
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
@@ -55,9 +57,12 @@ _GREETING = {
 
 # Screen sections the assistant can highlight / that exist on the patient's
 # "Today" screen (mirror frontend src/sugar/pages.tsx).
-_SECTIONS = ["glucose", "meals", "activity", "meds", "plan", "summary"]
+Section = Literal["glucose", "meals", "activity", "meds", "plan", "summary"]
 
-_MEAL_TYPES = ["breakfast", "lunch", "snack", "dinner", "other"]
+MealType = Literal["breakfast", "lunch", "snack", "dinner", "other"]
+
+# The two languages this coach speaks — the keys of ``_LANG`` above, as a type.
+LanguageName = Literal["English", "Hindi"]
 
 
 _SYSTEM_INSTRUCTION = f"""You are {COACH_NAME}, the daily check-in companion inside a diabetes-care program's mobile app. Each evening the app sends the patient a check-in nudge, and this patient just tapped Join. You are their habit coach — warm, familiar, unhurried — and YOU DRIVE THEIR SCREEN while you talk: what they tell you becomes structured logs they can see appearing live.
@@ -141,346 +146,199 @@ STAY GROUNDED: the app tells you the current screen state (what's logged, what's
 Open per TODAY'S CALL OBJECTIVE: greet by first name as their {COACH_NAME} — familiar, one or two short sentences, in the context's language, grounded in something real from their recent days."""
 
 
-# ── Nested JSON-schema fragment (the LLM-generated meal-item data shape) ────────
+# ── The tool surface: one pydantic model per function ──────────────────────────
 
-_MEAL_ITEM_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "name": {
-            "type": "string",
-            "description": "Food item in clean English, e.g. 'Roti' or 'Dal (katori)'.",
-        },
-        "quantity": {
-            "type": "string",
-            "description": "Quantity in the patient's units, e.g. '2', '1 katori', '1 bowl'.",
-        },
-        "calories": {
-            "type": "integer",
-            "description": "Your calorie estimate for that quantity, rounded to a friendly number.",
-        },
-    },
-    "required": ["name", "quantity", "calories"],
-}
+# Each tool is declared straight from the model that validates it —
+# ``model_json_schema()`` goes to Gemini as ``parameters_json_schema``, ``$defs``
+# and all, so nothing converts anything and every ``Field(description=...)``
+# reaches the model verbatim. Twelve of the fourteen are also the ``Action`` the
+# /sugar UI renders: one class, one schema, one place to change the shape.
 
 
-# ─── Tool schemas (JSON-schema dicts → google-genai Schema) ─────────────────────
+class MealItem(BaseModel):
+    """One food item in a logged meal."""
 
-# (tool_name, description, properties, required)
-_TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
-    (
-        "log_meal",
-        "Log a meal the patient just described — it appears in their food log with your "
-        "calorie estimates. Call it the moment they finish describing; call again with "
-        "corrected items if they amend. Item names in English.",
-        {
-            "meal_type": {
-                "type": "string",
-                "enum": _MEAL_TYPES,
-                "description": "Which meal of the day this is.",
-            },
-            "time_label": {
-                "type": "string",
-                "description": "When they ate, as shown on screen, e.g. '1:30 PM' or 'around 2 PM'.",
-            },
-            "items": {
-                "type": "array",
-                "items": _MEAL_ITEM_SCHEMA,
-                "description": "The foods with quantities and your calorie estimates.",
-            },
-            "note": {
-                "type": "string",
-                "description": "Optional one-line note, e.g. 'ate out — office canteen'.",
-            },
-        },
-        ["meal_type", "time_label", "items"],
-    ),
-    (
-        "log_activity",
-        "Log physical activity the patient did (or commits to doing right now) — it "
-        "appears in their activity log.",
-        {
-            "kind": {
-                "type": "string",
-                "description": "Activity in English, e.g. 'Walk', 'Yoga', 'Desk stretches'.",
-            },
-            "duration_min": {
-                "type": "integer",
-                "description": "Duration in minutes.",
-            },
-            "time_label": {
-                "type": "string",
-                "description": "When, e.g. '7:00 AM' or 'now'.",
-            },
-            "note": {"type": "string", "description": "Optional one-line note."},
-        },
-        ["kind", "duration_min", "time_label"],
-    ),
-    (
-        "mark_medication",
-        "Mark one of today's planned medications as taken, missed, or skipped, as the "
-        "patient confirms. Use the medication name exactly as it appears in the care plan. "
-        "Call once per medication.",
-        {
-            "name": {
-                "type": "string",
-                "description": "Medication name from the care plan, e.g. 'Metformin 500mg'.",
-            },
-            "status": {
-                "type": "string",
-                "enum": ["taken", "missed", "skipped"],
-                "description": "What the patient reported.",
-            },
-            "time_label": {
-                "type": "string",
-                "description": "When they took it, if they said, e.g. 'after breakfast'.",
-            },
-        },
-        ["name", "status"],
-    ),
-    (
-        "show_glucose",
-        "Bring the day's glucose chart on screen, optionally zoomed to one event. Call this "
-        "BEFORE asking about a reading ('what did you have around two?') so the patient is "
-        "looking at the moment you mean. Stay observational — never attach medical meaning.",
-        {
-            "focus_time_label": {
-                "type": "string",
-                "description": "Event time to zoom/highlight, e.g. '2:15 PM'. Omit for the whole day.",
-            },
-            "note": {
-                "type": "string",
-                "description": "Optional short on-screen label for the highlight, e.g. 'Rise after lunch'.",
-            },
-        },
-        [],
-    ),
-    (
-        "play_video",
-        "Play a video from the in-app library (ids in the PATIENT CONTEXT) inside the app, "
-        "with sound. Introduce it in a few words first. The patient follows along.",
-        {
-            "video_id": {
-                "type": "string",
-                "description": "Library video id from the PATIENT CONTEXT.",
-            },
-            "start_sec": {
-                "type": "integer",
-                "description": "Second to start from. Omit to start at the beginning.",
-            },
-        },
-        ["video_id"],
-    ),
-    (
-        "pause_video",
-        "Pause the playing video (e.g. when the patient wants to talk).",
-        {},
-        [],
-    ),
-    (
-        "resume_video",
-        "Resume the paused video.",
-        {},
-        [],
-    ),
-    (
-        "set_commitment",
-        "Save the ONE small commitment the patient makes for tomorrow — it appears on their "
-        "summary and you will see it in the next call's context. Their words, in English.",
-        {
-            "text": {
-                "type": "string",
-                "description": "The commitment, short and specific, e.g. 'Fifteen-minute walk after dinner'.",
-            },
-            "when": {
-                "type": "string",
-                "description": "When they'll do it, e.g. 'tomorrow evening'.",
-            },
-        },
-        ["text"],
-    ),
-    (
-        "flag_for_care_team",
-        "Flag a medical question or concern to the patient's care team — anything you must "
-        "not answer yourself (doses, symptoms, interpreting readings, diet changes beyond "
-        "the plan). A 'flagged for your care team' chip appears on screen. Tell the patient "
-        "it's been flagged.",
-        {
-            "topic": {
-                "type": "string",
-                "description": "Short topic in English, e.g. 'Metformin dose question'.",
-            },
-            "detail": {
-                "type": "string",
-                "description": "One or two lines of what the patient asked or reported, in English.",
-            },
-        },
-        ["topic", "detail"],
-    ),
-    (
-        "show_sensor_renewal",
-        "Put the glucose-sensor replacement card on screen (only when the context says the "
-        "sensor has expired). The patient can confirm by voice or by tapping the card.",
-        {},
-        [],
-    ),
-    (
-        "confirm_sensor_order",
-        "Place the sensor replacement order after the patient clearly agrees BY VOICE. If "
-        "they tapped the card themselves, the screen state shows it — do not call this too.",
-        {},
-        [],
-    ),
-    (
-        "show_summary",
-        "Show the end-of-call summary card as you wrap up: the day in a few lines, plus the "
-        "commitment. Call this right before your goodbye. Lines in English.",
-        {
-            "lines": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": (
-                    "Three to five short lines capturing the day, e.g. 'Lunch and dinner logged "
-                    "— about 1,400 kcal', 'Evening walk: 20 minutes', 'All medications taken'."
-                ),
-            },
-            "flagged": {
-                "type": "string",
-                "description": "If anything was flagged to the care team, one short line naming it.",
-            },
-        },
-        ["lines"],
-    ),
-    (
-        "highlight",
-        "Scroll to and briefly highlight one section of the patient's screen so their eye follows you.",
-        {
-            "section": {
-                "type": "string",
-                "enum": _SECTIONS,
-                "description": "Which section to highlight.",
-            },
-        },
-        ["section"],
-    ),
-    (
-        "switch_language",
-        "Switch the conversation language when the patient asks. Acknowledge their request "
-        "in one short sentence in the target language first.",
-        {
-            "language": {
-                "type": "string",
-                "enum": list(_LANG.keys()),
-                "description": "Target language.",
-            },
-        },
-        ["language"],
-    ),
-]
-
-_JSON_TO_GENAI = {
-    "string": types.Type.STRING,
-    "integer": types.Type.INTEGER,
-    "number": types.Type.NUMBER,
-    "boolean": types.Type.BOOLEAN,
-    "object": types.Type.OBJECT,
-    "array": types.Type.ARRAY,
-}
+    name: str = Field(description="Food item in clean English, e.g. 'Roti' or 'Dal (katori)'.")
+    quantity: str = Field(
+        description="Quantity in the patient's units, e.g. '2', '1 katori', '1 bowl'."
+    )
+    calories: int = Field(
+        description="Your calorie estimate for that quantity, rounded to a friendly number."
+    )
 
 
-def _to_schema(d: dict[str, Any]) -> types.Schema:
-    """Convert a JSON-schema dict to a google-genai Schema (recursive)."""
-    kw: dict[str, Any] = {"type": _JSON_TO_GENAI[d["type"]]}
-    if d.get("description"):
-        kw["description"] = d["description"]
-    if d.get("enum"):
-        kw["enum"] = d["enum"]
-    if d["type"] == "object":
-        props = d.get("properties") or {}
-        kw["properties"] = {k: _to_schema(v) for k, v in props.items()}
-        if d.get("required"):
-            kw["required"] = d["required"]
-    if d["type"] == "array":
-        kw["items"] = _to_schema(d["items"])
-    return types.Schema(**kw)
+class LogMealArgs(BaseModel):
+    """Log a meal the patient just described — it appears in their food log with your
+    calorie estimates. Call it the moment they finish describing; call again with
+    corrected items if they amend. Item names in English."""
+
+    meal_type: MealType = Field(description="Which meal of the day this is.")
+    time_label: str = Field(
+        description="When they ate, as shown on screen, e.g. '1:30 PM' or 'around 2 PM'."
+    )
+    items: list[MealItem] = Field(
+        min_length=1, description="The foods with quantities and your calorie estimates."
+    )
+    note: str = Field("", description="Optional one-line note, e.g. 'ate out — office canteen'.")
 
 
-def _tools() -> types.ToolListUnion:
-    decls = [
-        types.FunctionDeclaration(
-            name=name,
-            description=desc,
-            parameters=_to_schema({"type": "object", "properties": props, "required": req}),
-        )
-        for name, desc, props, req in _TOOLSPECS
-    ]
-    tools: types.ToolListUnion = [types.Tool(function_declarations=decls)]
-    return tools
+class LogMeal(LogMealArgs, Action):
+    """What the browser renders: the call's own arguments plus the calorie total,
+    which the brain sums from the items rather than trusting the model to add up.
+    The one tool whose input and output differ — hence the only one declared twice."""
 
-
-class LogMeal(Action):
-    meal_type: str
-    time_label: str
-    items: list[dict[str, Any]]
     total_calories: int
-    note: str
 
 
 class LogActivity(Action):
-    kind: str
-    duration_min: int
-    time_label: str
-    note: str
+    """Log physical activity the patient did (or commits to doing right now) — it
+    appears in their activity log."""
+
+    kind: str = Field(description="Activity in English, e.g. 'Walk', 'Yoga', 'Desk stretches'.")
+    duration_min: int = Field(description="Duration in minutes.")
+    time_label: str = Field(description="When, e.g. '7:00 AM' or 'now'.")
+    note: str = Field("", description="Optional one-line note.")
 
 
 class MarkMedication(Action):
-    name: str
-    status: str
-    time_label: str
+    """Mark one of today's planned medications as taken, missed, or skipped, as the
+    patient confirms. Use the medication name exactly as it appears in the care plan.
+    Call once per medication."""
+
+    name: str = Field(description="Medication name from the care plan, e.g. 'Metformin 500mg'.")
+    status: Literal["taken", "missed", "skipped"] = Field(description="What the patient reported.")
+    time_label: str = Field(
+        "", description="When they took it, if they said, e.g. 'after breakfast'."
+    )
 
 
 class ShowGlucose(Action):
-    focus_time_label: str
-    note: str
+    """Bring the day's glucose chart on screen, optionally zoomed to one event. Call this
+    BEFORE asking about a reading ('what did you have around two?') so the patient is
+    looking at the moment you mean. Stay observational — never attach medical meaning."""
+
+    focus_time_label: str = Field(
+        "", description="Event time to zoom/highlight, e.g. '2:15 PM'. Omit for the whole day."
+    )
+    note: str = Field(
+        "",
+        description="Optional short on-screen label for the highlight, e.g. 'Rise after lunch'.",
+    )
 
 
 class PlayVideo(Action):
-    video_id: str
-    start_sec: int
+    """Play a video from the in-app library (ids in the PATIENT CONTEXT) inside the app,
+    with sound. Introduce it in a few words first. The patient follows along."""
+
+    video_id: str = Field(description="Library video id from the PATIENT CONTEXT.")
+    start_sec: int = Field(0, description="Second to start from. Omit to start at the beginning.")
 
 
 class PauseVideo(Action):
-    pass
+    """Pause the playing video (e.g. when the patient wants to talk)."""
 
 
 class ResumeVideo(Action):
-    pass
+    """Resume the paused video."""
 
 
 class SetCommitment(Action):
-    text: str
-    when: str
+    """Save the ONE small commitment the patient makes for tomorrow — it appears on their
+    summary and you will see it in the next call's context. Their words, in English."""
+
+    text: str = Field(
+        description="The commitment, short and specific, e.g. 'Fifteen-minute walk after dinner'."
+    )
+    when: str = Field("", description="When they'll do it, e.g. 'tomorrow evening'.")
 
 
 class FlagForCareTeam(Action):
-    topic: str
-    detail: str
+    """Flag a medical question or concern to the patient's care team — anything you must
+    not answer yourself (doses, symptoms, interpreting readings, diet changes beyond the
+    plan). A 'flagged for your care team' chip appears on screen. Tell the patient it's
+    been flagged."""
+
+    topic: str = Field(description="Short topic in English, e.g. 'Metformin dose question'.")
+    detail: str = Field(
+        description="One or two lines of what the patient asked or reported, in English."
+    )
 
 
 class ShowSensorRenewal(Action):
-    pass
+    """Put the glucose-sensor replacement card on screen (only when the context says the
+    sensor has expired). The patient can confirm by voice or by tapping the card."""
 
 
 class ConfirmSensorOrder(Action):
-    pass
+    """Place the sensor replacement order after the patient clearly agrees BY VOICE. If
+    they tapped the card themselves, the screen state shows it — do not call this too."""
 
 
 class ShowSummary(Action):
-    lines: list[str]
-    flagged: str
+    """Show the end-of-call summary card as you wrap up: the day in a few lines, plus the
+    commitment. Call this right before your goodbye. Lines in English."""
+
+    lines: list[str] = Field(
+        min_length=1,
+        description=(
+            "Three to five short lines capturing the day, e.g. 'Lunch and dinner logged "
+            "— about 1,400 kcal', 'Evening walk: 20 minutes', 'All medications taken'."
+        ),
+    )
+    flagged: str = Field(
+        "", description="If anything was flagged to the care team, one short line naming it."
+    )
 
 
 class Highlight(Action):
-    section: str
+    """Scroll to and briefly highlight one section of the patient's screen so their eye
+    follows you."""
+
+    section: Section = Field(description="Which section to highlight.")
+
+
+class SwitchLanguage(BaseModel):
+    """Switch the conversation language when the patient asks. Acknowledge their request
+    in one short sentence in the target language first."""
+
+    language: LanguageName = Field(description="Target language.")
+
+
+# The declared surface. The key is the name the model calls; the value validates
+# that call — and, for all but ``log_meal`` and ``switch_language``, *is* the
+# action the browser renders.
+_TOOLS: dict[str, type[BaseModel]] = {
+    "log_meal": LogMealArgs,
+    "log_activity": LogActivity,
+    "mark_medication": MarkMedication,
+    "show_glucose": ShowGlucose,
+    "play_video": PlayVideo,
+    "pause_video": PauseVideo,
+    "resume_video": ResumeVideo,
+    "set_commitment": SetCommitment,
+    "flag_for_care_team": FlagForCareTeam,
+    "show_sensor_renewal": ShowSensorRenewal,
+    "confirm_sensor_order": ConfirmSensorOrder,
+    "show_summary": ShowSummary,
+    "highlight": Highlight,
+    "switch_language": SwitchLanguage,
+}
+
+
+def _declare(name: str, model: type[BaseModel]) -> types.FunctionDeclaration:
+    """One function declaration from one model: the docstring is the description the
+    model reads, the fields are the parameters. The schema's own title and
+    description come off so the prompt carries each of them once."""
+    schema = model.model_json_schema()
+    description = schema.pop("description", None)
+    schema.pop("title", None)
+    return types.FunctionDeclaration(
+        name=name, description=description, parameters_json_schema=schema
+    )
+
+
+def _tools() -> types.ToolListUnion:
+    return [types.Tool(function_declarations=[_declare(n, m) for n, m in _TOOLS.items()])]
 
 
 class SugarBrain(GeminiBrain):
@@ -493,13 +351,11 @@ class SugarBrain(GeminiBrain):
     ``state_sync`` snapshot to :meth:`on_rtvi`; :meth:`grounding` carries it into
     every turn so the coach reasons from the live screen."""
 
-    # The default this coach opens in. The patient's own LanguageToggle choice
-    # rides ``session.init["language"]`` and overrides it in on_session_start —
-    # which is where a per-caller language belongs, since only the brain sees
-    # the caller. `language` sets both the recognizer's hint and the TTS
-    # reference clip (the accent), so the two can never drift apart.
-    voice = "omnivoice/gauri"
-    language = "en"
+    # No declared ``voice``/``language``. This coach's language depends on the
+    # caller — the patient's own LanguageToggle choice rides
+    # ``session.init["language"]`` — so on_session_start resolves it and moves
+    # both legs with one ``configure_language`` before the greeting. A declared
+    # default here would only mean configuring the language twice.
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         # The base system instruction only; the PATIENT CONTEXT is folded in per
@@ -615,165 +471,83 @@ class SugarBrain(GeminiBrain):
     # ─── Tools ──────────────────────────────────────────────────────────
 
     async def dispatch_tool(self, session: Session, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: normalize args, drive the browser with
-        ``session.dispatch(...)`` (the ``ui-command`` the /sugar UI renders), and
-        return the short guidance string fed back to the model.
-        ``switch_language`` reconfigures STT/TTS instead of the screen."""
-        if name == "log_meal":
-            return self._log_meal(session, args)
-        if name == "log_activity":
-            return self._log_activity(session, args)
-        if name == "mark_medication":
-            return self._mark_medication(session, args)
-        if name == "show_glucose":
-            return self._show_glucose(session, args)
-        if name == "play_video":
-            return self._play_video(session, args)
-        if name == "pause_video":
-            logger.info("sugar: pause_video")
-            session.dispatch(PauseVideo())
-            return str({"status": "paused"})
-        if name == "resume_video":
-            logger.info("sugar: resume_video")
-            session.dispatch(ResumeVideo())
-            return str({"status": "resumed"})
-        if name == "set_commitment":
-            return self._set_commitment(session, args)
-        if name == "flag_for_care_team":
-            return self._flag_for_care_team(session, args)
-        if name == "show_sensor_renewal":
-            logger.info("sugar: show_sensor_renewal")
-            session.dispatch(ShowSensorRenewal())
-            return str(
-                {
-                    "status": "shown",
-                    "note": "The patient can confirm by voice (confirm_sensor_order) or by tapping the card.",
-                }
-            )
-        if name == "confirm_sensor_order":
-            logger.info("sugar: confirm_sensor_order")
-            session.dispatch(ConfirmSensorOrder())
-            return str({"status": "ordered"})
-        if name == "show_summary":
-            return self._show_summary(session, args)
-        if name == "highlight":
-            section = str(args.get("section", ""))
-            logger.info("sugar: highlight {}", section)
-            session.dispatch(Highlight(section=section))
-            return str({"status": "highlighted", "section": section})
-        if name == "switch_language":
-            return await self._switch_language(session, args)
-        return "unknown tool"
+        """Run one tool call: validate the arguments against the model that declared
+        the tool, drive the browser with ``session.dispatch(...)`` (the ``ui-command``
+        the /sugar UI renders), and return the short guidance string fed back to the
+        model. ``switch_language`` reconfigures STT/TTS instead of the screen."""
+        model = _TOOLS.get(name)
+        if model is None:
+            return "unknown tool"
+        try:
+            call = model.model_validate(args)
+        except ValidationError as exc:
+            # Hand the model its own mistake — it has hops left to correct it.
+            return str({"error": "invalid arguments", "detail": exc.errors(include_url=False)})
+        logger.info("sugar: {} {}", name, call.model_dump(mode="json"))
 
-    def _log_meal(self, session: Session, args: dict[str, Any]) -> str:
-        meal_type = str(args.get("meal_type", "other")).strip().lower()
-        time_label = str(args.get("time_label", "")).strip()
-        note = str(args.get("note", "")).strip()
-        items: list[dict[str, Any]] = []
-        for raw in list(args.get("items") or []):
-            item = dict(raw) if isinstance(raw, dict) else {}
-            if str(item.get("name") or "").strip():
-                items.append(item)
-        if not items:
-            return str({"error": "need at least one food item"})
-        total = sum(int(i.get("calories") or 0) for i in items)
-        logger.info(
-            "sugar: log_meal {} @{} ({} items, {} kcal)", meal_type, time_label, len(items), total
-        )
-        session.dispatch(
-            LogMeal(
-                meal_type=meal_type,
-                time_label=time_label,
-                items=items,
-                total_calories=total,
-                note=note,
-            )
-        )
-        return str({"status": "logged", "meal_type": meal_type, "total_calories": total})
+        # Twelve of the fourteen declare the very payload the browser renders, so
+        # the validated call *is* the action.
+        if isinstance(call, Action):
+            session.dispatch(call)
 
-    def _log_activity(self, session: Session, args: dict[str, Any]) -> str:
-        kind = str(args.get("kind", "")).strip()
-        duration = int(args.get("duration_min") or 0)
-        time_label = str(args.get("time_label", "")).strip()
-        note = str(args.get("note", "")).strip()
-        if not kind:
-            return str({"error": "need an activity kind"})
-        logger.info("sugar: log_activity {} {}min @{}", kind, duration, time_label)
-        session.dispatch(
-            LogActivity(kind=kind, duration_min=duration, time_label=time_label, note=note)
-        )
-        return str({"status": "logged", "kind": kind, "duration_min": duration})
+        match call:
+            case LogMealArgs():
+                # The total is summed here, not asked of the model: the number on
+                # screen is then always the sum of the items shown under it.
+                total = sum(item.calories for item in call.items)
+                session.dispatch(LogMeal(**call.model_dump(), total_calories=total))
+                return str(
+                    {"status": "logged", "meal_type": call.meal_type, "total_calories": total}
+                )
+            case SwitchLanguage():
+                return await self._switch_language(session, call)
+            case LogActivity():
+                return str(
+                    {"status": "logged", "kind": call.kind, "duration_min": call.duration_min}
+                )
+            case MarkMedication():
+                return str({"status": "marked", "name": call.name, "state": call.status})
+            case ShowGlucose():
+                return str({"status": "shown", "focus": call.focus_time_label or "full_day"})
+            case PlayVideo():
+                return str({"status": "playing", "video_id": call.video_id})
+            case PauseVideo():
+                return str({"status": "paused"})
+            case ResumeVideo():
+                return str({"status": "resumed"})
+            case SetCommitment():
+                return str({"status": "saved", "text": call.text})
+            case FlagForCareTeam():
+                return str(
+                    {
+                        "status": "flagged",
+                        "topic": call.topic,
+                        "note": "The care team will see this. Tell the patient it's been flagged, in one sentence.",
+                    }
+                )
+            case ShowSensorRenewal():
+                return str(
+                    {
+                        "status": "shown",
+                        "note": "The patient can confirm by voice (confirm_sensor_order) or by tapping the card.",
+                    }
+                )
+            case ConfirmSensorOrder():
+                return str({"status": "ordered"})
+            case ShowSummary():
+                return str({"status": "shown"})
+            case Highlight():
+                return str({"status": "highlighted", "section": call.section})
+            case _:
+                return str({"status": "done"})
 
-    def _mark_medication(self, session: Session, args: dict[str, Any]) -> str:
-        name = str(args.get("name", "")).strip()
-        status = str(args.get("status", "")).strip()
-        time_label = str(args.get("time_label", "")).strip()
-        if not name or status not in ("taken", "missed", "skipped"):
-            return str({"error": "need a medication name and a valid status"})
-        logger.info("sugar: mark_medication {!r} -> {}", name, status)
-        session.dispatch(MarkMedication(name=name, status=status, time_label=time_label))
-        return str({"status": "marked", "name": name, "state": status})
-
-    def _show_glucose(self, session: Session, args: dict[str, Any]) -> str:
-        focus = str(args.get("focus_time_label", "")).strip()
-        note = str(args.get("note", "")).strip()
-        logger.info("sugar: show_glucose focus={!r}", focus or None)
-        session.dispatch(ShowGlucose(focus_time_label=focus, note=note))
-        return str({"status": "shown", "focus": focus or "full_day"})
-
-    def _play_video(self, session: Session, args: dict[str, Any]) -> str:
-        video_id = str(args.get("video_id", "")).strip()
-        start_sec = int(args.get("start_sec") or 0)
-        if not video_id:
-            return str({"error": "need a video_id from the library"})
-        logger.info("sugar: play_video {} @{}s", video_id, start_sec)
-        session.dispatch(PlayVideo(video_id=video_id, start_sec=start_sec))
-        return str({"status": "playing", "video_id": video_id})
-
-    def _set_commitment(self, session: Session, args: dict[str, Any]) -> str:
-        text = str(args.get("text", "")).strip()
-        when = str(args.get("when", "")).strip()
-        if not text:
-            return str({"error": "need the commitment text"})
-        logger.info("sugar: set_commitment {!r} ({})", text, when or "unspecified")
-        session.dispatch(SetCommitment(text=text, when=when))
-        return str({"status": "saved", "text": text})
-
-    def _flag_for_care_team(self, session: Session, args: dict[str, Any]) -> str:
-        topic = str(args.get("topic", "")).strip()
-        detail = str(args.get("detail", "")).strip()
-        if not topic:
-            return str({"error": "need a topic"})
-        logger.info("sugar: flag_for_care_team {!r}", topic)
-        session.dispatch(FlagForCareTeam(topic=topic, detail=detail))
-        return str(
-            {
-                "status": "flagged",
-                "topic": topic,
-                "note": "The care team will see this. Tell the patient it's been flagged, in one sentence.",
-            }
-        )
-
-    def _show_summary(self, session: Session, args: dict[str, Any]) -> str:
-        lines = [str(line).strip() for line in list(args.get("lines") or []) if str(line).strip()]
-        flagged = str(args.get("flagged", "")).strip()
-        if not lines:
-            return str({"error": "need at least one summary line"})
-        logger.info("sugar: show_summary ({} lines)", len(lines))
-        session.dispatch(ShowSummary(lines=lines, flagged=flagged))
-        return str({"status": "shown"})
-
-    async def _switch_language(self, session: Session, args: dict[str, Any]) -> str:
-        language = str(args.get("language", ""))
-        cfg = _LANG.get(language)
-        if not cfg:
-            return str({"switched_to": self.language_name, "error": "unknown language"})
-        stt_hint, tts_voice, tts_lang = cfg
-        self.language_name = language
-        logger.info("sugar: switch_language → {} (hint={} voice={})", language, stt_hint, tts_voice)
+    async def _switch_language(self, session: Session, call: SwitchLanguage) -> str:
+        stt_hint, tts_voice, tts_lang = _LANG[call.language]
+        self.language_name = call.language
+        logger.info("sugar: switch_language → {} (hint={})", call.language, stt_hint)
         # One call moves both halves — recognizer and voice. This is the only
         # supported way to change language mid-call; the configure_tts +
         # configure_stt pair can drift, and either half missing is silent. Awaited
         # because the model gets the answer Voqalize gave, not the one we hoped for.
         await session.configure_language(tts_lang, voice=tts_voice)
-        return str({"switched_to": language})
+        return str({"switched_to": call.language})
