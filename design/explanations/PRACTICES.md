@@ -188,10 +188,12 @@ become; it does not govern this file.
 - Whether the framework boundary **generalises past one framework**. Everything in
   [10](10-the-framework-boundary.md) is proven on `GeminiBrain` and `sugar` alone;
   the ADK path has not been through it and ten demos are unported.
-- Whether `@voqalize/client-react` is **deleted or kept at four facts**. Deleting
-  it leaves the `Headers` footgun homeless and the `record: true` refusal
-  unwarned. *(Position: move the refusal into the server's response, put the
-  `Headers` line in the docs snippet, and then the package holds nothing.)*
+- ~~Whether `@voqalize/client-react` is **deleted or kept at four facts**.~~
+  **Settled 2026-08-24, the way the position said.** The refusal is a 400 from
+  the server (`recording_not_permitted`, and it starts no call), the `Headers`
+  line is in `docs/client/handshake`, and `sessions.connect` answers in the shape
+  pipecat's transport takes so there is nothing left to lift out of a session
+  record. The package is deprecated on npm and takes no successor.
 - **Who owns presence** — a hook in `demo-kit` beside the component, or the avatar
   addon, which already derives the same states from the `PipecatClient` by itself.
   Two answers to one problem, in two repositories.
@@ -208,9 +210,13 @@ become; it does not govern this file.
 
 - No demo asserts history-equals-`heard`.
 - No demo exercises `status="timeout"`.
-- **Every demo declares `@voqalize/client-react` at `^0.1.0` and imports 0.3.0's
-  exports.** `build.mjs` overlays the local build, so the assembled site and a
-  checked-out tree both work while the documented standalone install does not.
+- **Every demo declares `@voqalize/client-react` at `^0.1.0`** — a package that
+  is now deprecated, and whose 0.1.x surface (`useVoqalSession`,
+  `AmbientPresence`, `useUiCommand`) the 0.3.0 tree no longer exports at all.
+  `build.mjs` overlays the local build, so the assembled site and a checked-out
+  tree both work while the documented standalone install does not. The eleven
+  demos are the last consumers and the only thing between the package and
+  deletion; presence (below) is the piece that needs a new home first.
 - **A failed tool never reaches the caller.** google-genai hands the model
   `{'error': …}` and the model says it did the thing; our side can only log.
 - No fan-out example has a failing branch.

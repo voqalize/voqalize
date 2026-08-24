@@ -17,10 +17,7 @@ export const sidebar = [
   },
   {
     label: "Connect a client",
-    items: [
-      { label: "Connections and the handshake", slug: "client/handshake" },
-      { label: "React client SDK", slug: "client/react" },
-    ],
+    items: [{ label: "Connections and the handshake", slug: "client/handshake" }],
   },
   {
     label: "Deploy your brain",

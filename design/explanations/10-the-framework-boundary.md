@@ -92,8 +92,11 @@ written.
 - **Reconciliation is untouched by any of this.** The `_awaiting` FIFO
   (`gemini.py:138`), one `Finalize` per speech unit, truncate-and-drop: all still
   there. See [3](03-interruption-and-heard-truth.md).
-- **The client SDK is the connection step and nothing else.**
-  `@voqalize/client-react` exports `createSession`, `startBotParams`,
+- **The client SDK is the connection step and nothing else.** *(And on
+  2026-08-24 it stopped being even that: deprecated, no successor — the server
+  answers in the transport's own shape now. See
+  [11](11-the-browser-is-pipecats.md) and `docs/client/handshake`.)*
+  `@voqalize/client-react` exported `createSession`, `startBotParams`,
   `toConnectParams`, `fromSessionResponse` and one error type — step one of
   pipecat's own two-step connect. `VoqalAgent.tsx`, `microphone.ts`,
   `useUiCommand.ts` and `useVoqalSession.ts` are gone. The media transport is

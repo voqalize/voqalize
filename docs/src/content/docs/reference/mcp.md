@@ -164,7 +164,7 @@ agent in this order:
    the brain in text mode, with no audio and no human. Then talk to it live at the
    agent's `test_url`.
 6. **Embed in the browser** — `create_api_key(tenant, agent_id, label, kind="publishable", …)`
-   → `pk_…`, then [`@voqalize/client-react`](/docs/client/react/).
+   → `pk_…`, then [the handshake](/docs/client/handshake/) — no package to install.
 7. **Instrument it** — `on_finalize` / `on_error` brain-side, `list_sessions` /
    `get_session_events` / `get_session_logs` on ours.
 

@@ -2,10 +2,10 @@
 #
 #   git tag python-sdk-v0.0.1 && git push origin main --follow-tags
 #
-# The tag is package-prefixed because this repo holds two publishable SDKs that
-# do NOT version in lockstep — the Python brain SDK and `@voqalize/client-react`.
-# A bare `v0.0.1` would be ambiguous the first time the React SDK ships, and the
-# ambiguity would surface as a release publishing the wrong half.
+# The tag is package-prefixed because this repo used to hold a second publishable
+# SDK on its own series — `@voqalize/client-react`, deprecated 2026-08-24 with
+# nothing further to publish. The prefix stays: it costs nothing, and a bare
+# `v0.0.1` would be ambiguous again the first time a second package ships.
 #
 # No long-lived credential lives here. PyPI accepts an OIDC token this workflow
 # mints for this repository and this environment; see sdk/python/RELEASING.md for

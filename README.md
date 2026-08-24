@@ -11,10 +11,17 @@ contract, the SDKs you build a brain with, runnable demo applications, and the
 developer documentation. Voqalize itself — the hosted voice runtime — is a
 managed service, and everything you need to build against it is here.
 
-> **Pre-release.** The SDK surfaces and the wire are still moving. `voqalize-agent-sdk`
-> (PyPI) and `@voqalize/client-react` (npm) are published, but the surface they
-> carry is the previous one — **pin the version you build against**, and expect the
-> next release to change the brain callbacks.
+> **Pre-release.** The SDK surfaces and the wire are still moving.
+> `voqalize-agent-sdk` (PyPI) is published, but the surface it carries is the
+> previous one — **pin the version you build against**, and expect the next
+> release to change the brain callbacks.
+>
+> **`@voqalize/client-react` is deprecated (2026-08-24) and takes no
+> replacement.** The browser half of a call is stock
+> [pipecat](https://docs.pipecat.ai) plus one `fetch`, and the server now answers
+> in the shape pipecat's transport connects with — so there is nothing left for a
+> package of ours to do. See
+> [Connections and the handshake](https://voqalize.com/docs/client/handshake/).
 
 ## What's here
 

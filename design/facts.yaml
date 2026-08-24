@@ -147,12 +147,35 @@ facts:
       curl -s https://registry.npmjs.org/@voqalize%2Fclient-react
       | python3 -c "import sys,json;print(json.load(sys.stdin)['dist-tags']['latest'])"
     note: >-
-      Published 2026-08-13; versions are 0.0.1, 0.1.0, 0.1.1. It IS on npm, and
-      docs/src/content/docs/client/react.md:20 still says "Not yet on npm" — B3.
-      Two versions behind the tree, which is a different surface again.
+      Published 2026-08-13; versions are 0.0.1, 0.1.0, 0.1.1. Frozen there — see
+      sdk.react.deprecated. Nothing further publishes.
+
+  sdk.react.deprecated:
+    value: deprecated 2026-08-24, no replacement package
+    source: docs/src/content/docs/client/handshake.md
+    verified: 2026-08-24
+    reproduce: >-
+      curl -s https://registry.npmjs.org/@voqalize%2Fclient-react
+      | python3 -c "import sys,json;d=json.load(sys.stdin);v=d['dist-tags']['latest'];print(d['versions'][v].get('deprecated','NOT DEPRECATED'))"
+    note: >-
+      THE FACT THAT RETIRES A SURFACE. The package existed to do two things a
+      page could not do for itself: lift connect params out of a SessionDetail,
+      and rebuild `headers` as a real `Headers`. `sessions.connect` (2026-08-24)
+      answers in the shape pipecat's transport takes, so the first is gone; the
+      second is one line, written down in `client/handshake`. There is no
+      successor package and there must not be one — the browser half of a call is
+      pipecat's, and a wrapper is a second surface to learn and a lag behind
+      every pipecat release. No page may carry an install line for it, and no
+      page may promise a replacement.
     forbid:
       - 'not yet on npm'
       - 'Not yet on npm'
+      - 'pnpm add @voqalize/client-react'
+      - 'npm install @voqalize/client-react'
+      - 'yarn add @voqalize/client-react'
+    except:
+      - '**/CHANGELOG.md'
+      - '**/changelog.astro'
 
   sdk.react.licence:
     value: Apache-2.0
@@ -269,18 +292,18 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 10
+    value: 9
     source: docs/src/content/docs/
     verified: 2026-08-24
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
-      Ten pages plus their .md twins, llms.txt and 404.html. The tenth is
-      `client/handshake`, added 2026-08-24: the browser handshake on stock
-      pipecat, with the publishable-key path and the customer's-own-backend path
-      side by side. There is still no page teaching Brain, greet,
-      on_user_message, Session, dispatch or Action — the hole is board row B1,
-      and no surface may imply otherwise.
+      Nine pages plus their .md twins, llms.txt and 404.html. It went 9 -> 10
+      -> 9 on 2026-08-24: `client/handshake` was added (the browser handshake on
+      stock pipecat, both credential paths) and `client/react` was deleted with
+      the package it documented, leaving a redirect from the old URL. There is
+      still no page teaching Brain, greet, on_user_message, Session, dispatch or
+      Action — the hole is board row B1, and no surface may imply otherwise.
 
   # ---- commercial -----------------------------------------------------------
 

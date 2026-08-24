@@ -5,6 +5,15 @@
 > because a package is a thing to version, and what it holds is a schema that
 > never changes.
 
+> **Outcome, 2026-08-24.** Carried out. `sessions.connect` answers in the shape
+> pipecat's transport connects with, the `record` refusal became a 400 from the
+> server, the `Headers` line moved into `docs/client/handshake`, and
+> `@voqalize/client-react` is deprecated on npm with no successor. Everything
+> below is the analysis as it stood before that — including the gaps, two of
+> which (presence, the demo dependency declaration) are what the eleven demos
+> still need before the package's source can be removed. Read it as the record of
+> an argument, not as a description of the tree.
+
 [10](10-the-framework-boundary.md) drew this line on the server: the agentic
 framework owns its tools, we own the voice. This is the same line drawn in the
 browser, and it lands harder, because on this side there is nothing left for us to

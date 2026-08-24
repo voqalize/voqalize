@@ -12,6 +12,15 @@ export default defineConfig({
   site: "https://voqalize.com",
   base: "/docs",
   trailingSlash: "ignore",
+  // `client/react` documented `@voqalize/client-react`, deprecated 2026-08-24.
+  // The page is gone rather than rewritten — a page recommending a deprecated
+  // package is worse than a 404 — but the URL is linked from the MCP server's
+  // instructions, from llms.txt copies already fetched, and from anywhere a
+  // reader bookmarked it, so it lands on the page that replaced it.
+  // The key is base-relative; the value is emitted verbatim, so it carries the
+  // `/docs` base itself. Without it the meta-refresh points at voqalize.com/client/…,
+  // which is the marketing site and a 404.
+  redirects: { "/client/react": "/docs/client/handshake" },
   vite: { server: { allowedHosts: [".local.voqalize.com"] } },
   integrations: [
     starlight({

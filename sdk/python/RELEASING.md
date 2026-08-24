@@ -6,10 +6,11 @@ runs the full CI gate, builds the sdist and wheel, installs the wheel against
 the oldest protobuf we claim to support, publishes to
 [PyPI](https://pypi.org/project/voqalize-agent-sdk/) and opens a GitHub release.
 
-The tag is package-prefixed. This repo holds two publishable SDKs — the Python
-brain SDK and `@voqalize/client-react` — and they do **not** version in lockstep,
-so `python-sdk-v*` and `react-sdk-v*` are separate series (see
-[`sdk/react/RELEASING.md`](../react/RELEASING.md)).
+The tag is package-prefixed: `python-sdk-v*`. It is prefixed because this repo
+used to hold a second publishable SDK, `@voqalize/client-react`, on its own
+`react-sdk-v*` series — deprecated 2026-08-24, nothing further publishes. The
+prefix stays: it costs nothing and it is the shape to keep if a second package
+ever earns its way back.
 
 ## Cutting a release
 
