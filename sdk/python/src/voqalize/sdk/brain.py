@@ -446,6 +446,43 @@ class Brain:
     #: never half-apply. ``None`` leaves the recognizer and voice on English.
     language: ClassVar[str | None] = None
 
+    # Set by the adapter the moment the session exists — before
+    # `_apply_declared_voice`, before `on_session_start`, before anything a
+    # subclass can override. A class-level default so a subclass that defines
+    # `__init__` without calling super still has it.
+    _session: Session | None = None
+
+    @property
+    def session(self) -> Session:
+        """The session this brain serves, reachable from anywhere on the instance.
+
+        Every hook is also *handed* the session, and inside a hook that parameter
+        is the one to use — it is the same object, and it cannot be unset. This
+        property exists for the code that cannot be handed anything: a tool's
+        signature is the schema Gemini is given, so a `session` parameter would be
+        something the model tries to fill. Tools read `self.session`; hooks take
+        the parameter. The line between them is whether we call it or the model does.
+        """
+        if self._session is None:
+            raise RuntimeError(
+                f"{type(self).__name__}.session was read before the session started. "
+                "It is set by the SDK when Voqalize opens the call, so it is available "
+                "in every hook and every tool — but not in __init__."
+            )
+        return self._session
+
+    @property
+    def turn(self) -> int | None:
+        """The turn being generated right now, or ``None`` outside one.
+
+        The same value `Session.rtvi` stamps on outbound frames, so a tool that
+        calls `self.session.dispatch(...)` is already correlated to the right turn
+        with nothing to pass. Read it when a tool needs to know *which* turn it is
+        answering — logging, or a side effect that wants to know it may be racing
+        a barge-in.
+        """
+        return _current_turn.get()
+
     # ─── Lifecycle ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
@@ -649,6 +686,7 @@ class _BrainAdapter:
     async def _start(self, frame: SessionStartFrame) -> None:
         session = Session(self, frame.session_id, dict(frame.init))
         self._session = session
+        self._brain._session = session
         if frame.wire_version != WIRE_VERSION:
             self._refuse_version(session, frame.wire_version)
             return

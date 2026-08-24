@@ -21,4 +21,10 @@ from voqalize.sdk.gemini import DEFAULT_MODEL, VOICE_THINKING, GeminiBrain
 from voqalize_demos.greeting import hello_for
 from voqalize_demos.llm import GeminiProvider
 
-__all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain", "GeminiProvider", "hello_for"]
+__all__ = [
+    "DEFAULT_MODEL",
+    "VOICE_THINKING",
+    "GeminiBrain",
+    "GeminiProvider",
+    "hello_for",
+]

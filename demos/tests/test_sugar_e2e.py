@@ -39,17 +39,23 @@ def _llm() -> ScriptedGemini:
                 reply_and_call(
                     "Logging that.",
                     "log_meal",
-                    meal_type="dinner",
-                    time_label="8:00 PM",
-                    items=[
-                        {"name": "Roti", "quantity": "2", "calories": 240},
-                        {"name": "Dal", "quantity": "1 bowl", "calories": 180},
-                    ],
+                    # One tool, one model, one parameter — the argument is the
+                    # ``LogMeal`` the browser renders, nested under the name the
+                    # method gives it. That name is part of the schema Gemini
+                    # reads, so a script writes what the model would write.
+                    meal={
+                        "meal_type": "dinner",
+                        "time_label": "8:00 PM",
+                        "items": [
+                            {"name": "Roti", "quantity": "2", "calories": 240},
+                            {"name": "Dal", "quantity": "1 bowl", "calories": 180},
+                        ],
+                    },
                 ),
                 reply("Logged — about four hundred and twenty calories."),
             ],
             "Can we talk in Hindi?": [
-                reply_and_call("Sure.", "switch_language", args={"language": "Hindi"}),
+                reply_and_call("Sure.", "switch_language", to={"language": "Hindi"}),
                 reply("ठीक है, अब हिंदी में बात करते हैं।"),
             ],
         }

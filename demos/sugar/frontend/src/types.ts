@@ -5,6 +5,15 @@
  * the patient's phone (Screen 2). `Scenario.app` is the phone's prefilled state
  * for that day; the brain-facing payload is derived from the same objects in
  * `data.ts` (`buildBrainPayload`) so the screen and the agent can never drift.
+ *
+ * **The action payloads below are declared twice and kept in sync BY HAND.** The
+ * brain's `Action` classes in `backend/brain.py` are the source — they generate
+ * the JSON Schema Gemini fills in and the payload that arrives here — and these
+ * interfaces are the TypeScript half, typed out again. `MealItem`, `MealEntry`,
+ * `ActivityEntry`, `MedStatus`, `Commitment`, `CareFlag` and `CallSummary` all
+ * mirror a class over there; change one and change the other in the same commit.
+ * Generating this file from `model_json_schema()` is the obvious fix and is the
+ * one duplication in this demo we are living with until it is built.
  */
 
 export interface MealItem {

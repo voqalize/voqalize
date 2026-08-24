@@ -1,4 +1,4 @@
-"""A Gemini-backed Brain: history, streaming, and the tool loop.
+"""A Gemini-backed Brain: history, streaming, and the tools the model calls.
 
     from google import genai
     from voqalize.sdk.gemini import GeminiBrain
@@ -10,12 +10,29 @@
         async def greet(self, session):
             return "Hi! What can I do for you?"
 
+        @property
+        def tools(self):
+            return [self.open_booking]
+
+        async def open_booking(self, args: OpenBooking) -> str:
+            "Put the booking form on screen."
+            self.session.dispatch(args)
+            return "ok"
+
 Host it the same way as any other brain — :func:`voqalize.sdk.run_session` from
 your own WebSocket route, or :func:`voqalize.sdk.serve` over the Cortex relay.
 
 Install with ``pip install voqalize-agent-sdk[gemini]``. Nothing in
 ``voqalize.sdk`` imports this module, so the core SDK stays free of
 ``google-genai``.
+
+**The model owns its tools; we own the voice.** :attr:`~GeminiBrain.tools` is a
+plain list of bound ``async def`` methods, and the method is the declaration — its
+docstring is the description the model reads, its single pydantic parameter is the
+schema. From there google-genai is on its own: it runs the tools, feeds itself the
+responses and hops again, so a turn that calls a tool and then speaks about the
+result is one call from here, not a loop. We take the record it kept
+(``automatic_function_calling_history``) rather than interposing to make our own.
 
 **The brain owns the transcript, and the transcript is what was heard.** Each
 unit of speech goes into :attr:`GeminiBrain.history` as it streams, then
@@ -26,14 +43,17 @@ which is the only version the caller and the model can both agree on.
 
 from __future__ import annotations
 
+import functools
+import inspect
 import os
 from collections import deque
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, get_type_hints
 
 from google import genai
 from google.genai import types
+from loguru import logger
 
 from .brain import Brain, Session
 from .events import Chunk, Finalize, Speech, SpeechEnd, SpeechStart, UserMessage
@@ -86,40 +106,35 @@ class _Unit:
 
 
 class GeminiBrain(Brain):
-    """Base for a Gemini-backed brain. Override the prompt, the tools and the
-    greeting; the turn shape, the history and the tool loop come from here."""
+    """Base for a Gemini-backed brain. Override the prompt, the greeting and
+    :attr:`tools`; the turn shape and the transcript come from here. The tools
+    themselves are run by google-genai, not by us."""
 
     def __init__(
         self,
         *,
         client: genai.Client,
         system_instruction: str,
-        tools: types.ToolListUnion | None = None,
         model: str = DEFAULT_MODEL,
         max_tool_hops: int = 6,
     ) -> None:
         self._client = client
         self._model = model
-        self._max_tool_hops = max_tool_hops
-        config: dict[str, Any] = {
-            "system_instruction": system_instruction,
-            "thinking_config": VOICE_THINKING,
-        }
-        if tools is not None:
-            config["tools"] = tools
-            # We drive the tool loop ourselves, one unit of speech per LLM call.
-            config["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(
-                disable=True
-            )
-        self._config = types.GenerateContentConfig(**config)
+        self._config = types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            thinking_config=VOICE_THINKING,
+        )
+        # `ignore_call_history` is left at its default, off: that history is the
+        # record of what the model called and what it was told back, and taking it
+        # is what lets us stay out of the tool loop entirely.
+        self._afc = types.AutomaticFunctionCallingConfig(maximum_remote_calls=max_tool_hops)
 
         #: The conversation, as Gemini contents. Yours to read, seed and persist.
         self.history: list[types.Content] = []
         # Units still awaiting their heard truth, in the order Voqalize will
-        # report them. Every unit is here: Voqalize finalizes each unit
-        # exactly once whether or not a word of it reached the caller, so a
-        # silent one — a bare function call — is reported as heard-nothing and
-        # leaves the transcript rather than never being mentioned.
+        # report them. Only units that opened a *speech* unit are here: Voqalize
+        # finalizes what it played, and a hop that only called a tool played
+        # nothing.
         self._awaiting: deque[_Unit] = deque()
 
     # ─── The turn ───────────────────────────────────────────────────────
@@ -129,49 +144,164 @@ class GeminiBrain(Brain):
         return self.respond(session)
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """Stream the model over the transcript; if it calls tools, dispatch them
-        and feed the results back, up to ``max_tool_hops``. One LLM call is one
-        unit of speech, so an interruption cuts exactly one of them."""
-        for _ in range(self._max_tool_hops):
-            calls: list[types.FunctionCall] = []
-            yield SpeechStart()
-            unit = self._open_unit()
-            async for part in self._stream(self.working_context()):
-                self._extend_unit(unit, part)
-                if part.text:
-                    yield Chunk(part.text)
-                if part.function_call:
-                    calls.append(part.function_call)
-            yield SpeechEnd()
+        """Stream one turn, however many tool hops it takes.
 
-            if not calls:
-                return
-            for call in calls:
-                result = await self.dispatch_tool(session, call.name or "", dict(call.args or {}))
-                self.history.append(
-                    types.Content(
-                        role="tool",
-                        parts=[
-                            types.Part.from_function_response(
-                                name=call.name or "", response={"result": result}
-                            )
-                        ],
-                    )
-                )
+        google-genai runs the tools and loops for us, so this is a single call
+        whose stream spans every hop. Two rules turn that stream into speech:
 
-    async def dispatch_tool(self, session: Session, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: mutate your state, drive the app with
-        ``session.dispatch(...)``, and return a short string fed back to the model.
-        Override in any brain that declares ``tools``.
+        * a unit **closes** on ``finish_reason``, which arrives on the last chunk
+          of every hop, and on the stream ending;
+        * a unit **opens** on the first spoken text after a close — lazily, so a
+          hop that only calls a tool never opens one at all. Opening a unit
+          eagerly per hop is what used to emit an empty ``SpeechStart`` /
+          ``SpeechEnd`` pair around a silent tool call.
 
-        Async because a tool does work — a lookup, a write, a
-        :meth:`~voqalize.sdk.Session.configure_language` that waits to hear the
-        change was accepted. The turn is suspended while it runs, which is
-        correct: the model cannot continue until it has the result.
+        The transcript is written from both sides of the seam and neither alone:
+        the **order** comes from the stream, where every part arrives in the order
+        the model produced it, and the tool **responses** come from AFC's own
+        record, which is the only place they exist.
+
+        The catch, and it is inherent: the contents are handed over once, so
+        :meth:`grounding` and heard truth apply per *turn*, not per hop. A turn is
+        a couple of seconds, and a unit's heard truth is not known until it has
+        finished playing anyway — which is usually after the whole turn generated.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} declared no tools but the model called {name!r}"
+        contents = self.working_context()
+        # The head of AFC's record is what we just handed it, so folding starts
+        # past our own contents.
+        folded = len(contents)
+        calls: list[tuple[_Unit, types.Part]] = []
+        answered = 0
+        unit: _Unit | None = None
+        speaking = False
+        try:
+            async for chunk in await self._client.aio.models.generate_content_stream(
+                model=self._model, contents=contents, config=self._turn_config()
+            ):
+                folded, taken = self._fold_results(chunk, folded)
+                answered += taken
+                for part in _parts(chunk):
+                    if unit is None:
+                        unit = self._open_unit()
+                    self._extend_unit(unit, part)
+                    if part.function_call:
+                        calls.append((unit, part))
+                    # `thought` parts carry text that is reasoning, not speech.
+                    if part.text and not part.thought:
+                        if not speaking:
+                            yield SpeechStart()
+                            self._awaiting.append(unit)
+                            speaking = True
+                        yield Chunk(part.text)
+                if _finished(chunk):
+                    if speaking:
+                        yield SpeechEnd()
+                    unit, speaking = None, False
+            if speaking:
+                # The stream ended without a finish_reason. Close the unit anyway:
+                # a SpeechStart with no SpeechEnd is a wire violation.
+                yield SpeechEnd()
+        finally:
+            # Never yield here — a barge-in closes this generator by throwing
+            # GeneratorExit at the yield above, and an async generator that
+            # yields while closing raises instead of tearing down.
+            self._drop_unanswered(calls[answered:])
+
+    # ─── Tools ──────────────────────────────────────────────────────────
+
+    @property
+    def tools(self) -> list[Callable[..., Any]]:
+        """The tools the model may call, read once per turn.
+
+        Bound ``async def`` methods, listed by hand::
+
+            @property
+            def tools(self):
+                return [self.log_meal, self.show_glucose]
+
+        A plain list of callables is what google-genai takes — and ADK, and every
+        other agentic framework — so a brain's tools go where the brain goes and
+        there is no decorator to learn. It is read per turn, so the list can
+        depend on the caller.
+
+        **The method is the declaration.** Its name is the name the model calls,
+        its docstring is the description the model reads, and its single pydantic
+        parameter is the schema. Nothing is declared twice.
+
+        Take one model, or nothing at all. Flat parameters are not supported:
+        google-genai builds a correct schema for a bare ``Literal`` and then fails
+        to *execute* the call, handing the model an error it will cheerfully paper
+        over. A model wraps the same field safely.
+
+        The session is not a parameter, because the signature is the schema and
+        the model would try to fill it. Read
+        :attr:`~voqalize.sdk.Brain.session` instead.
+        """
+        return []
+
+    def _turn_config(self) -> types.GenerateContentConfig:
+        """This turn's config, carrying this turn's tools."""
+        tools = self.tools
+        if not tools:
+            return self._config
+        return self._config.model_copy(
+            update={
+                "tools": [_ready(fn) for fn in tools],
+                "automatic_function_calling": self._afc,
+            }
         )
+
+    def _fold_results(self, chunk: types.GenerateContentResponse, folded: int) -> tuple[int, int]:
+        """Move AFC's own function responses into the transcript as they appear.
+
+        ``automatic_function_calling_history`` is the record google-genai keeps of
+        the turn it is running: the contents we handed it, then each hop's calls
+        and the responses it fed itself. It grows *between* hops, so a hop's
+        responses reach us on the first chunk of the next one — which is exactly
+        where they belong in history, after the unit that called them and before
+        the unit that answers.
+
+        Only the responses are taken. The calls are already in the transcript,
+        verbatim from the stream, thought signatures and all.
+        """
+        record = chunk.automatic_function_calling_history or []
+        if len(record) <= folded:
+            return folded, 0
+        taken = 0
+        for content in record[folded:]:
+            parts = [p for p in (content.parts or []) if p.function_response]
+            if not parts:
+                continue
+            self.history.append(types.Content(role="user", parts=parts))
+            taken += len(parts)
+            for part in parts:
+                response = part.function_response
+                if (
+                    response
+                    and isinstance(response.response, dict)
+                    and "error" in response.response
+                ):
+                    # google-genai hands the model `{'error': ...}` and the model
+                    # will tell the caller it did the thing. This is the only
+                    # place that failure is visible on our side of the seam.
+                    logger.warning("tool {} failed: {}", response.name, response.response["error"])
+        return len(record), taken
+
+    def _drop_unanswered(self, calls: list[tuple[_Unit, types.Part]]) -> None:
+        """Take out calls whose response never came back.
+
+        A barge-in cuts the stream, and a hop's responses only reach us on the
+        chunk after it — so a call at the cut may have no response and never will.
+        A ``function_call`` with no ``function_response`` beside it is not a
+        conversation Gemini will accept on the next turn, so it leaves. Whether
+        the tool actually ran is not ours to know: the transcript records what
+        completed, and the side effect stands either way.
+        """
+        for unit, part in calls:
+            kept = [p for p in (unit.content.parts or []) if p is not part]
+            unit.content.parts = kept
+            if not kept:
+                self.history = [c for c in self.history if c is not unit.content]
 
     # ─── Context ────────────────────────────────────────────────────────
 
@@ -264,10 +394,14 @@ class GeminiBrain(Brain):
     def _open_unit(self) -> _Unit:
         """A model turn appended to history now, filled as the stream arrives —
         so an interruption leaves behind exactly what had been generated when it
-        landed, ready to be cut down to what was heard."""
+        landed, ready to be cut down to what was heard.
+
+        Not yet awaiting a finalize: a hop that only calls a tool belongs in the
+        transcript but was never played, so nothing will be reported for it.
+        :meth:`respond` enqueues the unit when it opens speech.
+        """
         unit = _Unit(types.Content(role="model", parts=[]))
         self.history.append(unit.content)
-        self._awaiting.append(unit)
         return unit
 
     def _extend_unit(self, unit: _Unit, part: types.Part) -> None:
@@ -275,14 +409,64 @@ class GeminiBrain(Brain):
             unit.content.parts = []
         unit.content.parts.append(part)
 
-    async def _stream(self, contents: list[types.Content]) -> AsyncIterator[types.Part]:
-        """One streaming call, flattened to parts. Parts are yielded verbatim so
-        thought signatures survive the round-trip into history."""
-        stream = await self._client.aio.models.generate_content_stream(
-            model=self._model, contents=contents, config=self._config
+
+def _parts(chunk: types.GenerateContentResponse) -> list[types.Part]:
+    """Every part of one chunk, verbatim so thought signatures survive the
+    round-trip into history."""
+    out: list[types.Part] = []
+    for candidate in chunk.candidates or []:
+        content = candidate.content
+        out.extend((content.parts or []) if content else [])
+    return out
+
+
+def _ready(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """One tool, as google-genai needs to receive it: a plain function, with its
+    annotations resolved.
+
+    ``async def`` is required. AFC runs a synchronous tool on a worker thread, off
+    the loop and outside the turn's context — where :attr:`~voqalize.sdk.Brain.turn`
+    is unset, and where the first ``await`` a tool grows is a rewrite.
+
+    **A bound method must not cross this line.** google-genai deep-copies the
+    config it is handed — once on entry and again on every AFC hop — and
+    ``copy.deepcopy`` of a bound method copies ``__self__`` with it, by definition
+    (``copy._deepcopy_method``). The tools it then calls belong to a *clone* of the
+    brain: ``self.session.dispatch`` reaching nothing, the transcript written to an
+    object no one reads, the model told ``ok``, and not one thing on the wire to
+    say so. Ours happens to hold a ``genai.Client``, whose lock cannot be copied at
+    all, so we got a crash instead of that silence — the only luck in it. A plain
+    function is atomic to ``deepcopy``, so this closure is what we hand over and
+    the brain stays here.
+
+    That is the whole job. The wrapper does not run a loop, collect a result or
+    catch an exception; AFC still owns the turn.
+
+    Resolving the annotations onto the wrapper is the second half. Brain modules
+    use ``from __future__ import annotations``, so a method's annotations are
+    strings, and google-genai reads two different things: ``get_type_hints`` to
+    build the *declaration*, which resolves them, and ``inspect.signature`` to
+    build the *call*, which does not. Left alone, a tool declares a perfect schema
+    and then raises on every call — and the error goes to the model, which narrates
+    it as success. Both go on the closure, so the method the developer wrote is
+    handed over unread and comes back unchanged.
+    """
+    if not inspect.iscoroutinefunction(fn):
+        raise TypeError(
+            f"tool {getattr(fn, '__name__', fn)!r} must be `async def`: a sync tool runs on a "
+            "worker thread, where self.session and self.turn are not set"
         )
-        async for chunk in stream:
-            for candidate in chunk.candidates or []:
-                content = candidate.content
-                for part in (content.parts or []) if content else []:
-                    yield part
+
+    @functools.wraps(fn)
+    async def tool(*args: Any, **kwargs: Any) -> Any:
+        return await fn(*args, **kwargs)
+
+    tool.__annotations__ = get_type_hints(fn)
+    tool.__signature__ = inspect.signature(fn, eval_str=True)  # pyright: ignore[reportFunctionMemberAccess]
+    return tool
+
+
+def _finished(chunk: types.GenerateContentResponse) -> bool:
+    """True on the last chunk of a hop. google-genai yields every chunk of every
+    hop through one iterator, so this is the only boundary between them."""
+    return any(c.finish_reason is not None for c in chunk.candidates or [])

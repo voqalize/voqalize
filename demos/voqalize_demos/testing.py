@@ -17,14 +17,22 @@ contents=, config=)``. This answers on that seam, from a script::
 
 This is the ``GeminiBrain`` twin of
 :class:`voqalize.google_adk.testing.ScriptedLlm` (which serves the two ADK demos,
-``travel`` and ``orderdesk``) and follows the same two rules, because
-:meth:`GeminiBrain.respond` calls a model the same way ADK does:
+``travel`` and ``orderdesk``), and it stands in for the whole of google-genai —
+including the automatic function calling the brain now leans on:
 
-* **Multi-step per key.** One tool round-trip is *two* model calls for one user
-  turn — emit the ``function_call``, then answer given the tool result. Each key
-  maps to an ordered list consumed across those calls. The cursor is keyed by the
-  user text, which is stable across the round-trip: the tool result is appended as
-  a ``role="tool"`` content, so the *last user text* does not move.
+* **Multi-hop per call.** One user turn is ONE ``generate_content_stream`` call,
+  however many tools it takes. google-genai runs the tool, appends the response,
+  and calls the model again, all inside that one stream; so does this. Each key
+  maps to an ordered list of replies, one per hop, played until a hop asks for no
+  tools. A hop ends with a ``finish_reason``, which is the only boundary the
+  brain can see and therefore the only thing that closes a unit of speech.
+* **It runs the tools, and keeps AFC's record.** A scripted ``call("log_meal",
+  ...)`` invokes the brain's own bound method — building the declared pydantic
+  model out of the JSON on the way in, exactly as google-genai does — so a test
+  drives the real tool body and the real ``session.dispatch``. What the tool
+  returned goes into ``automatic_function_calling_history``, never into the
+  stream, because that is the only place the real one puts it: the brain reads
+  its transcript off that record.
 * **Streaming.** ``reply(chunks=[...])`` yields one response per chunk, which is
   what real ``generate_content_stream`` does — incremental parts, never a repeated
   aggregate — so a barge-in can land mid-reply.
@@ -39,11 +47,13 @@ deep in the brain.
 from __future__ import annotations
 
 import asyncio
+import inspect
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
 from google.genai import types
+from pydantic import BaseModel
 
 
 @dataclass
@@ -125,9 +135,8 @@ def replies(*items: Reply) -> list[Reply]:
 def _last_user_text(contents: list[types.Content]) -> str:
     """The most recent ``role="user"`` text in a Gemini request (``""`` if none).
 
-    Mirrors what the model itself keys on. Tool results ride ``role="tool"``, so
-    this stays put across a round-trip — which is what makes one key hold both
-    steps of it."""
+    Mirrors what the model itself keys on. Read once per turn now that the hops
+    happen inside one call, so one key holds every step of it."""
     for content in reversed(contents):
         if content.role != "user":
             continue
@@ -163,8 +172,8 @@ class _Models:
         contents: Any,
         config: types.GenerateContentConfig,
     ) -> AsyncIterator[types.GenerateContentResponse]:
-        """One scripted inference. Async like the real one, which awaits the call
-        before iterating what it returns."""
+        """One scripted turn, however many hops it takes. Async like the real one,
+        which awaits the call before iterating what it returns."""
         return self._owner.answer(model=model, contents=contents, config=config)
 
 
@@ -223,7 +232,7 @@ class ScriptedGemini:
         contents: Any,
         config: types.GenerateContentConfig,
     ) -> AsyncIterator[types.GenerateContentResponse]:
-        """Record the request and return the scripted chunk stream."""
+        """Record the request and return the whole turn as one chunk stream."""
         items = list(contents)
         self.calls.append(
             _Call(
@@ -232,10 +241,38 @@ class ScriptedGemini:
                 system_instruction=_system_text(config),
             )
         )
-        step = self._next(_last_user_text(items))
-        if step.error is not None:
-            raise RuntimeError(step.error)
-        return _emit(step)
+        return self._turn(_last_user_text(items), config, items)
+
+    async def _turn(
+        self,
+        key: str,
+        config: types.GenerateContentConfig,
+        contents: list[types.Content],
+    ) -> AsyncIterator[types.GenerateContentResponse]:
+        """Play hops until one asks for no tools, running each tool as it goes.
+
+        ``automatic_function_calling_history`` is stamped on every chunk and grows
+        the way the real one does, which is what decides where the brain files a
+        tool response. It opens as the contents it was handed, verbatim, and a
+        hop's calls and responses are appended only once that hop is over — so
+        they are first visible on the *next* hop's first chunk.
+        """
+        # Deep-copied first, because google-genai does — on entry and again on
+        # every hop. A bound method copied this way brings ``__self__`` with it,
+        # and the tool then runs on a clone of the brain. Copying here is what
+        # makes a fake that would notice.
+        config = config.model_copy(deep=True)
+        tools = {fn.__name__: fn for fn in (config.tools or [])}
+        afc = config.automatic_function_calling
+        record = list(contents)
+        for _ in range((afc.maximum_remote_calls if afc else None) or 10):
+            step = self._next(key)
+            if step.error is not None:
+                raise RuntimeError(step.error)
+            async for chunk in _emit(step, tools, record):
+                yield chunk
+            if not step.calls:
+                return
 
     def _next(self, key: str) -> Reply:
         cursor = self._cursors.get(key)
@@ -262,30 +299,94 @@ def _system_text(config: types.GenerateContentConfig) -> str:
     return "".join(p.text for p in parts if getattr(p, "text", None))
 
 
-async def _emit(step: Reply) -> AsyncIterator[types.GenerateContentResponse]:
-    """The scripted reply as the chunk sequence a real stream would produce."""
+async def _emit(
+    step: Reply, tools: dict[str, Any], record: list[types.Content]
+) -> AsyncIterator[types.GenerateContentResponse]:
+    """One hop as the chunk sequence a real stream would produce, ending on the
+    ``finish_reason`` that closes it.
+
+    The tools run before that last chunk, which is where google-genai runs them
+    too. Their responses go into ``record`` and never into the stream — one
+    ``role="user"`` content holding the lot, behind a model content per chunk,
+    which is the shape the live API returns.
+    """
     call_parts = [
         types.Part(function_call=types.FunctionCall(name=n, args=dict(a))) for n, a in step.calls
     ]
+    # What this hop's chunks carry: the record as it stood before this hop.
+    seen = list(record)
+    emitted: list[list[types.Part]] = []
+
+    def out(parts: list[types.Part], *, finish: bool = False) -> types.GenerateContentResponse:
+        emitted.append(parts)
+        return _response(parts, finish=finish, record=seen)
+
     if step.chunks:
         for chunk in step.chunks:
             if step.chunk_delay:
                 await asyncio.sleep(step.chunk_delay)
-            yield _response([types.Part(text=chunk)])
+            yield out([types.Part(text=chunk)])
         if call_parts:
-            yield _response(call_parts)
-        return
-    parts: list[types.Part] = []
-    if step.text:
-        parts.append(types.Part(text=step.text))
-    parts.extend(call_parts)
-    if parts:
-        yield _response(parts)
+            yield out(call_parts)
+    else:
+        parts: list[types.Part] = []
+        if step.text:
+            parts.append(types.Part(text=step.text))
+        parts.extend(call_parts)
+        if parts:
+            yield out(parts)
+    responses: list[types.Part] = []
+    for name, args in step.calls:
+        fn = tools.get(name)
+        if fn is None:
+            raise AssertionError(f"scripted call to {name!r}, which this brain does not declare")
+        try:
+            result = await fn(**_coerce(fn, args))
+        except Exception as exc:  # what google-genai does with a raising tool
+            response: dict[str, Any] = {"error": str(exc)}
+        else:
+            response = {"result": result}
+        responses.append(types.Part.from_function_response(name=name, response=response))
+    yield out([], finish=True)
+    if responses:
+        record.extend(types.Content(role="model", parts=parts) for parts in emitted)
+        record.append(types.Content(role="user", parts=responses))
 
 
-def _response(parts: list[types.Part]) -> types.GenerateContentResponse:
+def _coerce(fn: Any, args: dict[str, Any]) -> dict[str, Any]:
+    """The JSON as the declared pydantic models, which is what a tool body is
+    written against — google-genai builds them on the way in and so does this.
+
+    Read off ``inspect.signature``, which is where AFC reads them, and not off
+    ``__annotations__``: a tool whose signature still carries the *string*
+    ``"LogMeal"`` declares a perfect schema and then fails to be called at all."""
+    params = inspect.signature(fn).parameters
+    return {
+        k: params[k].annotation(**v)
+        if k in params and isinstance(v, dict) and _is_model(params[k].annotation)
+        else v
+        for k, v in args.items()
+    }
+
+
+def _is_model(hint: Any) -> bool:
+    return isinstance(hint, type) and issubclass(hint, BaseModel)
+
+
+def _response(
+    parts: list[types.Part],
+    *,
+    finish: bool = False,
+    record: list[types.Content] | None = None,
+) -> types.GenerateContentResponse:
     return types.GenerateContentResponse(
-        candidates=[types.Candidate(content=types.Content(role="model", parts=parts))]
+        candidates=[
+            types.Candidate(
+                content=types.Content(role="model", parts=parts),
+                finish_reason=types.FinishReason.STOP if finish else None,
+            )
+        ],
+        automatic_function_calling_history=record,
     )
 
 
