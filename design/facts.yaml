@@ -25,7 +25,7 @@
 #   verified   the day a human or the checker last saw value == source
 #   derive     a machine rule against a file in this repo. One of:
 #                {file, pattern}  regex, group 1 is the value
-#                {file, json_len} length of that key's list in a JSON file
+#                {file, json_pluck} {key, field} -> the list of that field
 #                {glob}           number of paths matching
 #   reproduce  a command, for sources no local file can settle
 #   note       why the fact is sharper than it looks; read before writing prose
@@ -241,17 +241,27 @@ facts:
 
   # ---- what we ship ---------------------------------------------------------
 
-  demos.count:
-    value: 11
+  demos.roster:
+    value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
+            lead_qual, aura, forge, orderdesk]
     source: demos/manifest.json
     verified: 2026-08-24
     derive:
       file: demos/manifest.json
-      json_len: demos
+      json_pluck: {key: demos, field: name}
     note: >-
-      manifest.json is the registry the gallery renders from, so it is the count
-      of record. Four marketing strings still say ten. The changelog entry dated
-      2026-07-31 says ten and is right — it was ten that day.
+      The roster is the fact and the count is a projection of it, which is why
+      this row is a list. A count answers "is the number right"; the roster
+      answers "is anything missing", and that is the question with a live wrong
+      answer: platform/frontend/apps/marketing/src/data/demos.ts carries its own
+      hand-kept list of ten, so `orderdesk` ships in the web artifact at
+      /demos/orderdesk and nothing on the apex links to it. manifest.json is the
+      registry, so it is the roster of record and that file is the one that is
+      short.
+
+      A prose count must equal the length of this list. Four marketing strings
+      say ten. The changelog entry dated 2026-07-31 also says ten and is right —
+      it was ten that day, and a dated record is not a claim about now.
     forbid:
       - '\b[Tt]en (?:demos|agents)\b'
       - 'all ten demos'

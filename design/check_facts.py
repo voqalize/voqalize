@@ -71,7 +71,7 @@ def load(name: str) -> dict:
 # --- 1. drift ---------------------------------------------------------------
 
 
-def derived_value(rule: dict) -> str | None:
+def derived_value(rule: dict) -> str | list[str] | None:
     """Re-read one fact out of the tree. None means the rule found nothing."""
     if "glob" in rule:
         return str(len(list(ROOT.glob(rule["glob"]))))
@@ -81,27 +81,41 @@ def derived_value(rule: dict) -> str | None:
         return None
     text = path.read_text()
 
-    if key := rule.get("json_len"):
-        return str(len(json.loads(text)[key]))
+    if pluck := rule.get("json_pluck"):
+        return [row[pluck["field"]] for row in json.loads(text)[pluck["key"]]]
 
     m = re.search(rule["pattern"], text, re.MULTILINE)
     return m.group(1) if m else None
 
 
 def check_drift(facts: dict) -> list[str]:
+    """Re-read every derivable fact out of its source.
+
+    A list-valued fact is compared as a set, because the useful answer is which
+    entry appeared or went missing rather than that two lengths differ. That is
+    the whole argument for storing a roster instead of a count: a count can only
+    tell you a number is wrong, and `demos.roster` has to tell you *orderdesk* is
+    the one nothing links to.
+    """
     errors = []
     for fid, fact in facts.items():
         rule = fact.get("derive")
         if not rule:
             continue
         got = derived_value(rule)
-        want = str(fact["value"])
+        want = fact["value"]
+        src = rule.get("file", rule.get("glob"))
+
         if got is None:
-            errors.append(
-                f"{fid}: derive rule matched nothing in {rule.get('file', rule.get('glob'))}"
-            )
-        elif got != want:
-            src = rule.get("file", rule.get("glob"))
+            errors.append(f"{fid}: derive rule matched nothing in {src}")
+        elif isinstance(want, list) and isinstance(got, list):
+            for label, diff in (
+                ("only in facts.yaml", set(want) - set(got)),
+                (f"only in {src}", set(got) - set(want)),
+            ):
+                if diff:
+                    errors.append(f"{fid}: {label}: {sorted(diff)}")
+        elif str(got) != str(want):
             errors.append(f"{fid}: facts.yaml says {want!r}, {src} says {got!r}")
     return errors
 
