@@ -44,6 +44,30 @@ client is the client.
   and JSON. React, pipecat and the transport are yours to install and yours to
   version.
 
+### Added
+
+- **`fromSessionResponse`.** The same `connect_params` unwrap as `toConnectParams`,
+  shaped for voice-ui-kit's `PipecatAppBase`: pass it as `startBotResponseTransformer`
+  and `startBotParams` alone is enough to drive `PipecatAppBase`'s own two-step
+  connect against `sessions.create`, with no hand-written `client.connect(...)` call
+  left in the app.
+
+- **`startBotParams`.** The other half of that pair, and the reason it exists: a
+  page driving `PipecatAppBase` never calls `createSession`, so it was writing
+  the `sessions.create` request out by hand — the path, the `Bearer` scheme, the
+  `agent_input: { pipeline, payload }` nesting, and `record` sitting *beside*
+  `agent_input` rather than inside it. That is this package's own knowledge, and
+  a copy of it in every app is a copy that goes stale the next time the request
+  moves. `startBotParams(opts)` takes exactly what `createSession` takes and
+  returns the `{ endpoint, headers, requestData }` the prop wants; both now build
+  the request from the same two functions.
+
+  It also closes the one thing `fromSessionResponse` cannot do: warn about
+  `record: true`. That check needs the *request*, and a response transformer
+  never sees one — so the warning moved to where the request is built, which is
+  earlier and unconditional. A publishable key can turn recording off but never
+  on, so there is nothing to wait for the server to confirm.
+
 ## 0.2.0
 
 Follows the control plane's one-entity rename: a call is a **session**, and

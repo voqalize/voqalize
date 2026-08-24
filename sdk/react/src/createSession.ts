@@ -222,6 +222,154 @@ interface CreateSessionResponse {
 }
 
 /**
+ * The two halves of the `sessions.create` request — where it goes, and what it
+ * carries — in one place, because a page that mints through
+ * {@link startBotParams} and a page that calls {@link createSession} must send
+ * the identical thing.
+ */
+function sessionUrl(apiBase: string): string {
+  // No workspace anywhere in the URL. A `pk_` key belongs to exactly one, so
+  // the server reads it off the credential; naming one here would be a second
+  // answer to a question the key has already answered.
+  return `${apiBase.replace(/\/$/, "")}/sessions.create`;
+}
+
+function sessionRequestBody(
+  opts: Pick<CreateSessionOptions, "agentId" | "pipeline" | "payload" | "record">
+): Record<string, JsonValue> {
+  // `agent_input` is what this page hands the agent, and it has two
+  // destinations on the server: it is signed into the session token — which is
+  // how the runtime and then the brain receive it — and stored on the session,
+  // so "what did this page actually send?" survives the token expiring five
+  // minutes later. Stored means readable by anyone who can read the session, so
+  // keep PII out of it.
+  //
+  // The runtime splits it by key: `pipeline` is per-call media config, `payload`
+  // is opaque business context for the brain. Two keys, one field, because they
+  // travel together and arrive together.
+  // Cast, not check: `pipeline` and `payload` are the caller's own objects, and
+  // whatever is in them is about to be `JSON.stringify`d either way.
+  const inner: Record<string, JsonValue> = {};
+  if (opts.pipeline) inner.pipeline = opts.pipeline as JsonValue;
+  if (opts.payload) inner.payload = opts.payload as JsonValue;
+
+  // `record` sits beside `agent_input`, not inside it: `agent_input` is what
+  // this page hands the *brain*, and recording is not the brain's business —
+  // it is a decision about what the service does with the audio. Omitted
+  // entirely when unset, because omission is what "use the agent's default"
+  // means on the server, and `null` is not the same word.
+  const body: Record<string, JsonValue> = { agent_id: opts.agentId, agent_input: inner };
+  if (opts.record !== undefined) body.record = opts.record;
+  return body;
+}
+
+/** Options for {@link startBotParams} — {@link CreateSessionOptions} minus the
+ * `fetch` override, since this function does not fetch anything. */
+export type StartBotParamsOptions = Omit<CreateSessionOptions, "fetchImpl">;
+
+/** Anything that survives `JSON.stringify` — pipecat spells this `Serializable`,
+ * and this package carries its own copy rather than take a dependency for a type. */
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+/**
+ * The request that mints a session: structurally pipecat's `APIRequest`, which
+ * is what `PipecatClient.startBot()` and voice-ui-kit's `startBotParams` prop take.
+ */
+export interface VoqalStartBotRequest {
+  /** Absolute or same-origin URL of `sessions.create`. */
+  endpoint: string;
+  /** Carries the publishable key. A real `Headers`, for the same reason
+   * {@link VoqalConnectParams} needs one. */
+  headers: Headers;
+  /** The JSON body: `{ agent_id, agent_input, record? }`. */
+  requestData: Record<string, JsonValue>;
+}
+
+/**
+ * The request `PipecatClient.startBot()` should make to mint a Voqalize session
+ * — endpoint, headers and body — for voice-ui-kit's `startBotParams` prop.
+ *
+ * `PipecatAppBase` does pipecat's two-step connect itself, so it takes the
+ * *request* rather than a function that performs it. Building that request by
+ * hand means copying the path, the `Bearer` scheme and the `agent_input`
+ * nesting into every page; this is the same knowledge {@link createSession}
+ * uses, exported so there is one copy:
+ *
+ * ```tsx
+ * const params = useMemo(
+ *   () => startBotParams({ apiBase, publishableKey, agentId, payload }),
+ *   [payload]
+ * );
+ *
+ * <PipecatAppBase
+ *   transportType="smallwebrtc"
+ *   startBotParams={params}
+ *   startBotResponseTransformer={fromSessionResponse}
+ * />
+ * ```
+ *
+ * Memoize the result: it is a dependency of `PipecatAppBase`'s connect-on-mount
+ * effect, and a fresh object every render re-mints the session every render.
+ *
+ * An empty `publishableKey` is passed through rather than rejected, so an
+ * unprovisioned page fails at the control plane with a legible 401 that
+ * `PipecatAppBase` surfaces in its `error` render prop — the same place every
+ * other connection failure appears.
+ */
+export function startBotParams(opts: StartBotParamsOptions): VoqalStartBotRequest {
+  // `record: true` cannot succeed from here and the transformer will never see
+  // the refusal, so say so now rather than never — see {@link CreateSessionOptions.record}.
+  if (opts.record === true) {
+    console.warn(
+      "startBotParams: `record: true` is refused on a publishable (pk_) key — " +
+        "this call will NOT be recorded. Turn recording on where its owner " +
+        "controls it: the agent's own default, via MCP `update_agent(recording=true)` " +
+        "or the console. `record: false` from here is still honoured."
+    );
+  }
+  return {
+    endpoint: sessionUrl(opts.apiBase),
+    headers: new Headers({
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${opts.publishableKey}`,
+    }),
+    requestData: sessionRequestBody(opts),
+  };
+}
+
+/**
+ * {@link toConnectParams}, one level up: takes the whole `sessions.create` body
+ * rather than an already-unwrapped `connect_params`. This is the shape
+ * voice-ui-kit's `PipecatAppBase` needs for its `startBotResponseTransformer`
+ * prop, which only ever sees what `client.startBot()` returned — the raw
+ * `sessions.create` response, not `connection_details.connect_params` picked out
+ * of it:
+ *
+ * ```tsx
+ * <PipecatAppBase
+ *   startBotParams={startBotParams({ apiBase, publishableKey, agentId })}
+ *   startBotResponseTransformer={fromSessionResponse}
+ *   transportType="smallwebrtc"
+ * />
+ * ```
+ *
+ * Build the request with {@link startBotParams} rather than by hand — it is the
+ * same knowledge this function's counterpart {@link createSession} uses, and it
+ * warns about `record: true`, which this transformer cannot: the "requested but
+ * declined" check needs the *request*, and a transformer's signature never sees it.
+ */
+export function fromSessionResponse(response: unknown): VoqalConnectParams {
+  const body = response as CreateSessionResponse;
+  return toConnectParams(body?.connection_details?.connect_params);
+}
+
+/**
  * Create and start a session, returning the parameters to connect with.
  *
  * @throws {VoqalSessionError} on a non-2xx response or a body that carries no
@@ -247,32 +395,8 @@ export async function createSession(
     throw new VoqalSessionError("createSession: agentId is required", 0);
   }
 
-  // No workspace anywhere in the URL. A `pk_` key belongs to exactly one, so
-  // the server reads it off the credential; naming one here would be a second
-  // answer to a question the key has already answered.
-  const url = `${apiBase.replace(/\/$/, "")}/sessions.create`;
-
-  // `agent_input` is what this page hands the agent, and it has two
-  // destinations on the server: it is signed into the session token — which is
-  // how the runtime and then the brain receive it — and stored on the session,
-  // so "what did this page actually send?" survives the token expiring five
-  // minutes later. Stored means readable by anyone who can read the session, so
-  // keep PII out of it.
-  //
-  // The runtime splits it by key: `pipeline` is per-call media config, `payload`
-  // is opaque business context for the brain. Two keys, one field, because they
-  // travel together and arrive together.
-  const inner: { pipeline?: VoqalPipelineConfig; payload?: Record<string, unknown> } = {};
-  if (pipeline) inner.pipeline = pipeline;
-  if (payload) inner.payload = payload;
-
-  // `record` sits beside `agent_input`, not inside it: `agent_input` is what
-  // this page hands the *brain*, and recording is not the brain's business —
-  // it is a decision about what the service does with the audio. Omitted
-  // entirely when unset, because omission is what "use the agent's default"
-  // means on the server, and `null` is not the same word.
-  const body: Record<string, unknown> = { agent_id: agentId, agent_input: inner };
-  if (record !== undefined) body.record = record;
+  const url = sessionUrl(apiBase);
+  const body = sessionRequestBody({ agentId, pipeline, payload, record });
 
   let res: Response;
   try {

@@ -18,14 +18,31 @@
  * ```
  *
  * {@link toConnectParams} is the same translation over a response you fetched
- * yourself — for apps that mint the session on their own server.
+ * yourself — for apps that mint the session on their own server. {@link
+ * fromSessionResponse} is the same translation again, shaped for voice-ui-kit's
+ * `PipecatAppBase`, which does pipecat's two-step connect itself: it takes the
+ * *request* to mint with ({@link startBotParams}) and a transformer over the raw
+ * `sessions.create` body it gets back.
+ *
+ * ```tsx
+ * <PipecatAppBase
+ *   transportType="smallwebrtc"
+ *   startBotParams={startBotParams({ apiBase, publishableKey, agentId })}
+ *   startBotResponseTransformer={fromSessionResponse}
+ * />
+ * ```
  */
 
 export {
   createSession,
+  startBotParams,
   toConnectParams,
+  fromSessionResponse,
   VoqalSessionError,
   type CreateSessionOptions,
+  type JsonValue,
+  type StartBotParamsOptions,
+  type VoqalStartBotRequest,
   type VoqalConnectParams,
   type VoqalPipelineConfig,
 } from "./createSession";
