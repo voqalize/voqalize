@@ -105,21 +105,21 @@ class DemoRig:
         return self._built[-1]
 
     def actions(self) -> list[str]:
-        """The ``ui_command`` actions the brain fired, minus the conformance
+        """The ``ui-command`` names the brain fired, minus the conformance
         backchannel (``__``-prefixed, used by ``dump_conversation``)."""
         return [
-            str(c.get("action"))
+            str(c.get("command"))
             for c in self.driver.ui_commands
-            if not str(c.get("action", "")).startswith("__")
+            if not str(c.get("command", "")).startswith("__")
         ]
 
     def command(self, action: str) -> dict[str, Any]:
-        """The first ``ui_command`` for ``action`` — the payload the demo's frontend
-        store receives. Raises if the brain never fired it."""
+        """The payload of the first ``ui-command`` named ``action`` — what the
+        demo's frontend store receives. Raises if the brain never fired it."""
         for c in self.driver.ui_commands:
-            if c.get("action") == action:
-                return dict(c)
-        raise AssertionError(f"{self.name}: no ui_command {action!r} — fired: {self.actions()}")
+            if c.get("command") == action:
+                return dict(c.get("payload") or {})
+        raise AssertionError(f"{self.name}: no ui-command {action!r} — fired: {self.actions()}")
 
 
 @contextlib.asynccontextmanager

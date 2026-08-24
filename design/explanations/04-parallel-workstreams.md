@@ -27,15 +27,11 @@
   a late result deliverable at all (`Session.dispatch` docstring).
 - An action carries no audio, so it needs no floor — a background job can paint
   the screen without waiting for the agent to stop talking.
-- `ActionHandle` awaits a `Result`. The docstring's warning is the whole discipline
-  in one line: "say something first, because you are holding the floor and an
-  `await` with no preceding speech is dead air."
-- `Result(action_id, status: "ok" | "error" | "timeout", data, error)` —
-  **timeout is the same callback with a different status**, not a separate path.
-  `DEFAULT_ACTION_TIMEOUT_S = 30.0`, per-dispatch via the `timeout_s` control
-  field.
-- `on_result` is a control field on the action, not a payload field: the resolution
-  path is declared at dispatch.
+- Dispatch is **one-way**: nothing is returned and nothing is awaited. A brain
+  that needs an answer gets it the way it gets every other tap — as a
+  `client-message` at `on_rtvi`, whenever the app has one. That removes the
+  temptation the old handle created, of awaiting a browser while holding the
+  floor with nothing to say.
 - `on_rtvi` is deliberately **not** a generator (`brain.py`). The app pushing
   state must not be able to seize the floor, and it mints no turn. Background completion
   reports through actions and history, not through the mouth.

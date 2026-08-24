@@ -251,8 +251,8 @@ async def test_an_app_message_may_render() -> None:
     assert rec.names() == ["RTVIFrame"]
     sent = rec.frames[0]
     assert isinstance(sent, RTVIFrame)
-    assert sent.type is RTVIType.SERVER_MESSAGE
-    assert sent.data["type"] == "ui_command"
+    assert sent.type is RTVIType.UI_COMMAND
+    assert sent.data["command"] == "refresh"
 
 
 class Talkative(Brain):

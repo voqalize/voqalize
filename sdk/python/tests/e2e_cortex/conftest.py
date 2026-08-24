@@ -17,6 +17,7 @@ from voqalize.sdk.wire import (
     Frame,
     MalformedFrameError,
     RTVIFrame,
+    RTVIType,
     Wire,
     WireConfig,
     WireSerializer,
@@ -55,7 +56,7 @@ class PygatoClient:
         return frames
 
     async def collect_ui_commands(self, min_count: int, timeout: float = 5.0) -> list[dict]:
-        """Drain inbound messages until at least ``min_count`` ui_commands seen."""
+        """Drain inbound messages until at least ``min_count`` ui-commands seen."""
         cmds: list[dict] = []
 
         async def pump() -> None:
@@ -67,8 +68,8 @@ class PygatoClient:
                     continue
                 if (
                     isinstance(frame, RTVIFrame)
+                    and frame.type is RTVIType.UI_COMMAND
                     and isinstance(frame.data, dict)
-                    and frame.data.get("type") == "ui_command"
                 ):
                     cmds.append(frame.data)
 

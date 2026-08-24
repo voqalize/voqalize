@@ -74,10 +74,9 @@ REQUEST_OPS: dict[type[Frame], str] = {
 # history-request frame, and we do not add one: the wire stays frozen.
 #
 # Instead the driver reuses the RTVI tunnel the wire already has (``client-message``
-# app→brain, ``server-message`` brain→app, the same lane real UIs use for
-# ``ui_command`` / ``action_result`` — opaque to Voqalize, which just relays it). A
-# conformance-aware brain opts in by answering one namespaced client message with
-# its committed state.
+# app→brain, ``ui-command`` brain→app, the same lane real UIs use — opaque to
+# Voqalize, which just relays it). A conformance-aware brain opts in by answering
+# one namespaced client message with its committed state.
 # Because the SDK *owns* ``session.conversation``, that answer can be produced by
 # the framework once (see ``reference.conformance_state``) and every brain built
 # on the SDK inherits it — the customer's brain code writes nothing.
@@ -267,7 +266,7 @@ class VoqalizeDriver:
                 unit.ended_t = t
         elif isinstance(frame, RTVIFrame):
             self.rtvi.append(frame)
-            if isinstance(frame.data, dict) and frame.data.get("type") == "ui_command":
+            if frame.type is RTVIType.UI_COMMAND and isinstance(frame.data, dict):
                 self.ui_commands.append(frame.data)
         elif isinstance(frame, ErrorFrame):
             self.errors.append(frame)
@@ -577,24 +576,6 @@ class VoqalizeDriver:
         stock pipecat client sends."""
         await self.send_rtvi(RTVIType.CLIENT_MESSAGE, {"t": t, "d": d or {}})
 
-    async def send_action_result(
-        self,
-        action_id: int,
-        *,
-        status: str = "ok",
-        result: dict | None = None,
-    ) -> None:
-        """Report the outcome of a UI action the brain requested (app→brain).
-
-        Rides an ordinary ``client-message`` typed ``action_result`` — the SDK
-        routes those to the pending action callback rather than ``on_rtvi``.
-        ``action_id`` is the integer the brain minted in its ``ui_command``; the
-        adapter correlates the outcome by that int at session scope."""
-        await self.send_client_message(
-            "action_result",
-            {"action_id": action_id, "status": status, "result": result or {}},
-        )
-
     async def wait_closed(self, *, timeout: float | None = None) -> int | None:
         """Wait for the brain to close the socket; return the close code (or None)."""
         await self._wait_for(self._closed.is_set, timeout=timeout)
@@ -603,7 +584,9 @@ class VoqalizeDriver:
     async def collect_ui_commands(
         self, *, min_count: int = 1, timeout: float | None = None
     ) -> list[dict]:
-        """Wait until at least ``min_count`` UI commands have arrived; return them all."""
+        """Wait until at least ``min_count`` UI commands have arrived; return them all.
+
+        Each is an RTVI ``ui-command`` body: ``{"command": ..., "payload": {...}}``."""
         await self._wait_for(lambda: len(self.ui_commands) >= min_count, timeout=timeout)
         return list(self.ui_commands)
 
@@ -617,19 +600,19 @@ class VoqalizeDriver:
         :data:`CONFORMANCE_DUMP_EVENT`). The driver sends the namespaced
         ``__voqal.conformance.dump`` client message; a conformance-aware brain answers
         with a ``__voqal.conformance.state`` action carrying its committed
-        ``session.conversation``. No change to the wire — just a cooperation
-        convention on the existing RTVI tunnel."""
+        ``session.conversation``. Returns that action's payload. No change to the
+        wire — just a cooperation convention on the existing RTVI tunnel."""
         before = len(self.ui_commands)
         await self.send_client_message(CONFORMANCE_DUMP_EVENT)
         await self._wait_for(
             lambda: any(
-                c.get("action") == CONFORMANCE_STATE_ACTION for c in self.ui_commands[before:]
+                c.get("command") == CONFORMANCE_STATE_ACTION for c in self.ui_commands[before:]
             ),
             timeout=timeout,
         )
         for c in reversed(self.ui_commands):
-            if c.get("action") == CONFORMANCE_STATE_ACTION:
-                return c
+            if c.get("command") == CONFORMANCE_STATE_ACTION:
+                return c.get("payload") or {}
         raise TimeoutError(f"brain did not echo {CONFORMANCE_STATE_ACTION}")
 
     async def end_session(self, *, timeout: float | None = None) -> None:

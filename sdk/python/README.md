@@ -110,7 +110,7 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
   `on_user_message`; the rest are optional — `greet`/`on_session_start`/
   `on_session_end`/`on_user_idle`/`on_rtvi`/`on_finalize`/`on_error`) +
-  `Session`/`ActionHandle`, the `_BrainAdapter` that maps wire frames ↔
+  `Session`, the `_BrainAdapter` that maps wire frames ↔
   callbacks, and the entry points (`serve` for the Cortex leg, plus the internal
   `adapter_for` / `brain_factory` seams).
 - `src/voqalize/sdk/events.py` — what a callback is handed and what it yields:

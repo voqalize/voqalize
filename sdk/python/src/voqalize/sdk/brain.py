@@ -50,7 +50,7 @@ Mapping onto the wire:
 - ``Chunk``                 → ``SpeechChunkFrame``
 - ``on_finalize``           ← ``FinalizeFrame``
 - ``session.send_rtvi``     → ``RTVIFrame``
-- an ``Action``             → an RTVI ``server-message`` carrying a ``ui_command``
+- an ``Action``             → an RTVI ``ui-command``
 - ``configure_*``           → a ``Configure*Frame``, answered by one ``ResponseFrame``
 - barge-in                  ← ``InterruptionFrame`` → every turn through the watermark is cancelled
 
@@ -63,15 +63,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import inspect
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextvars import ContextVar
-from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from loguru import logger
 
-from .actions import Action, Result
+from .actions import Action
 from .engine import Emitter, SessionAdapter, SessionFactory
 from .events import (
     Chunk,
@@ -111,7 +109,6 @@ from .wire import (
 from .wire.frames import RTVI_TO_APP
 
 __all__ = [
-    "ActionHandle",
     "Brain",
     "RequestRejected",
     "Session",
@@ -120,11 +117,6 @@ __all__ = [
     "brain_factory",
     "serve",
 ]
-
-# The app echoes an action's answer as an RTVI client message of this type, and
-# receives an action as a server message of this one.
-ACTION_RESULT = "action_result"
-UI_COMMAND = "ui_command"
 
 # The turn a brain callback is running for, so floor-free calls made from inside
 # one can annotate what they send without the brain threading it through.
@@ -169,37 +161,14 @@ class RequestRejected(RuntimeError):
 # ─── The session ──────────────────────────────────────────────────────────────
 
 
-class ActionHandle:
-    """What :meth:`Session.dispatch` hands back. ``await handle.result`` to block
-    the turn on the browser's answer — but say something first, because you are
-    holding the floor and an ``await`` with no preceding speech is dead air."""
-
-    def __init__(self, action_id: int) -> None:
-        self.action_id = action_id
-        self._future: asyncio.Future[Result] = asyncio.get_running_loop().create_future()
-
-    @property
-    def result(self) -> asyncio.Future[Result]:
-        """The browser's :class:`~voqalize.sdk.actions.Result`, once it answers or
-        the action expires. Cancelled along with the turn on a barge-in."""
-        return self._future
-
-
-@dataclass
-class _PendingAction:
-    handle: ActionHandle
-    on_result: Callable[[Result], Any] | None
-    expiry: asyncio.Task[None] | None = None
-
-
 class Session:
     """The capability handle: it emits to the wire, and it owns the in-flight
     machinery whose lifetime is exactly the socket.
 
-    That rule is what keeps it thin. Action ids and pending result handlers die
-    when the socket dies, so they live here. Conversation history, model context
-    and domain state have a different lifetime — they may outlive the session —
-    and belong to the brain.
+    That rule is what keeps it thin. In-flight request ids die when the socket
+    dies, so they live here. Conversation history, model context and domain state
+    have a different lifetime — they may outlive the session — and belong to the
+    brain.
     """
 
     def __init__(self, adapter: _BrainAdapter, session_id: str, init: dict[str, Any]) -> None:
@@ -213,8 +182,6 @@ class Session:
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.
         self._speech_seq = 0
-        self._action_seq = 0
-        self._pending: dict[int, _PendingAction] = {}
         # One id per configure request, session-monotonic. Its whole job is to
         # name the answer that comes back.
         self._request_seq = 0
@@ -226,9 +193,9 @@ class Session:
     def send_rtvi(self, type: RTVIType, data: Any = None, *, id: str | None = None) -> None:
         """Send one RTVI message to the app. Never blocks.
 
-        Callable from anywhere — inside a turn, from an ``on_result`` callback,
-        from work that finished after the turn that started it — because a message
-        carries no audio and so needs no floor. Inside a turn it hits the wire in
+        Callable from anywhere — inside a turn, from work that finished long
+        after the turn that started it — because a message carries no audio and so
+        needs no floor. Inside a turn it hits the wire in
         the order it runs, so it cannot jump ahead of speech you already yielded,
         and it is annotated with that turn for traces.
 
@@ -244,53 +211,20 @@ class Session:
             )
         self._adapter.emit(RTVIFrame(type=type, data=data, id=id, turn_id=_current_turn.get()))
 
-    def dispatch(self, action: Action) -> ActionHandle:
-        """Send an action to the app. Never blocks.
+    def dispatch(self, action: Action) -> None:
+        """Send an action to the app. Never blocks, and nothing comes back.
 
-        Sugar over :meth:`send_rtvi`: it rides one ``server-message`` and the app
-        answers with a ``client-message`` naming the ``action_id``.
+        Sugar over :meth:`send_rtvi`: it rides RTVI's own ``ui-command``, which a
+        pipecat client reads with ``useUICommandHandler`` and no adapter of ours.
+        An answer is an ordinary ``client-message`` arriving at
+        :meth:`Brain.on_rtvi`, correlated by whatever your app puts in it.
         """
-        self._action_seq += 1
-        action_id = self._action_seq
-        handle = ActionHandle(action_id)
-        pending = _PendingAction(handle, action.on_result)
-        self._pending[action_id] = pending
-        if action.timeout_s is not None:
-            pending.expiry = self._adapter.spawn(self._expire(action_id, action.timeout_s))
         self.send_rtvi(
-            RTVIType.SERVER_MESSAGE,
-            {
-                "type": UI_COMMAND,
-                "action": type(action).__voqal_action__,
-                "action_id": action_id,
-                **action.to_payload(),
-            },
+            RTVIType.UI_COMMAND,
+            {"command": type(action).__voqal_action__, "payload": action.to_payload()},
         )
-        return handle
-
-    async def _expire(self, action_id: int, timeout_s: float) -> None:
-        await asyncio.sleep(timeout_s)
-        self._settle(Result(action_id=action_id, status="timeout"))
-
-    def _settle(self, result: Result) -> None:
-        pending = self._pending.pop(result.action_id, None)
-        if pending is None:
-            return
-        if pending.expiry is not None and pending.expiry is not asyncio.current_task():
-            pending.expiry.cancel()
-        if not pending.handle.result.done():
-            pending.handle.result.set_result(result)
-        if pending.on_result is None:
-            return
-        outcome = pending.on_result(result)
-        if inspect.isawaitable(outcome):
-            self._adapter.spawn(outcome)
 
     def _discard_pending(self) -> None:
-        for pending in self._pending.values():
-            if pending.expiry is not None:
-                pending.expiry.cancel()
-        self._pending.clear()
         for future in self._awaiting.values():
             future.cancel()
         self._awaiting.clear()
@@ -888,15 +822,9 @@ class _BrainAdapter:
     # ─── The app ────────────────────────────────────────────────────────
 
     def _deliver_rtvi(self, session: Session, frame: RTVIFrame) -> None:
-        data = frame.data
-        if (
-            frame.type is RTVIType.CLIENT_MESSAGE
-            and isinstance(data, dict)
-            and data.get("t") == ACTION_RESULT
-        ):
-            self._settle_action(session, data.get("d"))
-            return
-        self.spawn(self._run_rtvi(session, RTVIMessage(type=frame.type, data=data, id=frame.id)))
+        self.spawn(
+            self._run_rtvi(session, RTVIMessage(type=frame.type, data=frame.data, id=frame.id))
+        )
 
     async def _run_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         try:
@@ -916,22 +844,6 @@ class _BrainAdapter:
             raise
         except Exception:
             logger.exception("brain: on_rtvi failed for {!r}", msg.type)
-
-    def _settle_action(self, session: Session, data: Any) -> None:
-        if not isinstance(data, dict):
-            return
-        action_id = data.get("action_id")
-        if not isinstance(action_id, int):
-            return
-        status = data.get("status")
-        session._settle(
-            Result(
-                action_id=action_id,
-                status=status if status in ("ok", "error", "timeout") else "error",
-                data=data.get("result"),
-                error=data.get("error"),
-            )
-        )
 
 
 async def _cancel(task: asyncio.Task[Any]) -> None:

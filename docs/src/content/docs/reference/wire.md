@@ -367,9 +367,10 @@ brain says. Everything else is a method on the session, callable from anywhere �
 including from the callbacks that are not generators at all.
 
 `session.dispatch(action)` is sugar over `send_rtvi`: it serializes an action
-onto one `server-message` as `{"type": "ui_command", "action": "show_results",
-"action_id": 7, …fields}`. The app answers with a `client-message` carrying that
-`action_id`, and the SDK settles it into the action's `on_result`.
+onto RTVI's own `ui-command` as `{"command": "show_results", "payload": {…fields}}`,
+which a pipecat client reads with `useUICommandHandler`. Nothing comes back — if
+the app has an answer it sends an ordinary `client-message`, correlated by
+whatever the app puts in it.
 
 `configure_*` is awaited because Voqalize answers it. Awaiting is how a language
 Voqalize has no recognizer for becomes an exception the brain handles, rather than a

@@ -24,17 +24,15 @@
 
 ## Facts
 
-- `session.dispatch(...)` **never blocks**; `ActionHandle` is how you wait *if you
-  choose to*, and the docstring's rule is "say something first… an `await` with no
-  preceding speech is dead air."
-- `Result(action_id, status: "ok" | "error" | "timeout", data, error)`.
-  **Timeout is the same callback with a different status** — one path, three
-  outcomes. `DEFAULT_ACTION_TIMEOUT_S = 30.0`; per-dispatch `timeout_s`.
-- `on_result` and `timeout_s` are **control fields**, not payload
-  (`CONTROL_ACTION_FIELDS`), so the resolution policy is declared at the call site
-  and never reaches the browser.
-- `RESERVED_ACTION_KEYS = {"type", "action", "action_id"}` — the envelope's own
-  names cannot be shadowed by a field.
+- `session.dispatch(...)` **never blocks and returns nothing**. There is no handle
+  to await, no result correlation and no timeout: the brain says what it wants
+  rendered and moves on. An answer, if the app has one, arrives later as an
+  ordinary `client-message` at `on_rtvi`, correlated by whatever the app put in
+  it — which is exactly how every other tap already arrives.
+- The action rides RTVI's own `ui-command`, `{"command": …, "payload": {…}}`, so a
+  stock pipecat client reads it with `useUICommandHandler` and no adapter of ours.
+  The payload is **nested**, so no field can shadow the envelope and there is no
+  reserved-name rule to remember.
 - **Typed by construction:** an `Action` is a Pydantic model; the wire name is the
   class name in snake_case (`__voqal_action__` to pin it); serialised
   `model_dump(by_alias=True, mode="json")`; JSON Schema export makes the
@@ -93,8 +91,8 @@
 ## Gap
 
 - We have **no documented pattern** for "tool starts background work and reports
-  later" beyond `servicing`'s convention. The `on_result` / `ActionHandle` path
-  covers browser round trips; server-side background work is bare `asyncio`.
+  later" beyond `servicing`'s convention. Dispatch paints the screen the moment
+  the work lands; server-side background work is bare `asyncio`.
 - **Open:** should the SDK own a task-list abstraction, given that four demos have
   independently built one? See [4](04-parallel-workstreams.md).
 - **Open:** the "tools are cheap" premise is a design rule we follow, not one the

@@ -10,9 +10,9 @@ Say                     | What it proves
 (anything)              | ``on_user_message`` streams — the reply arrives word
                         | by word, one ``Chunk`` each, inside one speech unit
 "look it up"            | Two units in one turn: a filler, a pause, an answer
-"open the dashboard"    | ``session.dispatch`` — a ui_command on the RTVI lane
-"ask me something"      | An action with ``on_result``, and the 15 s timeout that
-                        | fires when nothing answers it
+"open the dashboard"    | ``session.dispatch`` — a ui-command on the RTVI lane
+"ask me something"      | An action that asks; the app's reply arrives at
+                        | ``on_rtvi`` and is voiced on the next turn
 "what did you hear"     | Heard-text reconciliation: what the caller actually
                         | received, which is not what was generated if you barged in
 "speak hindi"           | ``configure_language`` — both legs, TTS and STT
@@ -47,7 +47,6 @@ from voqalize.sdk import (
     Chunk,
     Error,
     Finalize,
-    Result,
     RTVIMessage,
     Session,
     Speech,
@@ -61,13 +60,14 @@ from voqalize.sdk import (
 
 
 class OpenDashboard(Action):
-    """→ {"type":"ui_command","action":"open_dashboard","action_id":N,"panel":…}"""
+    """→ an RTVI ``ui-command``: {"command":"open_dashboard","payload":{"panel":…}}"""
 
     panel: str
 
 
 class AskQuestion(Action):
-    """Dispatched with an ``on_result``; the app answers, or it times out."""
+    """Puts a question on the screen. The app answers whenever it likes, as an
+    ordinary client message — see ``on_rtvi``."""
 
     prompt: str
     choices: list[str]
@@ -108,9 +108,9 @@ class ReferenceBrain(Brain):
         # the unit opens, inside the generator, so the brain does not see it
         # until the finalize names it back.
         self._opened: list[str] = []
-        #: The last action result, spoken on the next turn — a callback holds no
-        #: floor, so it cannot speak for itself.
-        self._pending_result: Result | None = None
+        #: What the app last answered, spoken on the next turn — an app message
+        #: holds no floor, so it cannot speak for itself.
+        self._pending_answer: str | None = None
 
     # ─── Lifecycle ───────────────────────────────────────────────────────
 
@@ -141,13 +141,10 @@ class ReferenceBrain(Brain):
         said = msg.text.lower().strip()
         logger.info("reference: heard {!r}", msg.text)
 
-        # An action result that arrived between turns gets voiced now.
-        if self._pending_result is not None:
-            result, self._pending_result = self._pending_result, None
-            async for speech in self._say(
-                f"By the way, the app answered action {result.action_id} "
-                f"with status {result.status}."
-            ):
+        # An answer that arrived between turns gets voiced now.
+        if self._pending_answer is not None:
+            answer, self._pending_answer = self._pending_answer, None
+            async for speech in self._say(f"By the way, you picked {answer}."):
                 yield speech
 
         if any(word in said for word in _GOODBYE):
@@ -166,17 +163,10 @@ class ReferenceBrain(Brain):
             return
 
         if "ask me" in said:
-            session.dispatch(
-                AskQuestion(
-                    prompt="Which one?",
-                    choices=["first", "second"],
-                    on_result=self._on_answer,
-                    timeout_s=15.0,
-                )
-            )
+            session.dispatch(AskQuestion(prompt="Which one?", choices=["first", "second"]))
             async for speech in self._say(
-                "I put a question on your screen. Nothing here answers it, "
-                "so in fifteen seconds it will time out, and I will tell you on your next turn."
+                "I put a question on your screen. Tap an answer and I will "
+                "mention it on your next turn."
             ):
                 yield speech
             return
@@ -222,8 +212,15 @@ class ReferenceBrain(Brain):
             yield speech
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        # Not a generator: an app message never takes the floor.
+        # Not a generator: an app message never takes the floor. An action's
+        # answer arrives here like any other tap — the dispatch that asked the
+        # question is over, so correlate on whatever your app puts in the reply.
         logger.info("reference: rtvi {} id={} {}", msg.type.value, msg.id, msg.data)
+        if not isinstance(msg.data, dict) or msg.data.get("t") != "answer":
+            return
+        choice = (msg.data.get("d") or {}).get("choice")
+        if isinstance(choice, str):
+            self._pending_answer = choice
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         """What the caller actually heard — the only place the brain learns it.
@@ -245,12 +242,6 @@ class ReferenceBrain(Brain):
         )
 
     # ─── Helpers ─────────────────────────────────────────────────────────
-
-    def _on_answer(self, result: Result) -> None:
-        # Runs on the session, not inside a turn — it holds no floor and cannot
-        # speak. Store it; the next turn voices it.
-        logger.info("reference: action {} → {}", result.action_id, result.status)
-        self._pending_result = result
 
     async def _say(self, text: str) -> AsyncGenerator[Speech, None]:
         """One speech unit, streamed word by word so the chunking is audible on

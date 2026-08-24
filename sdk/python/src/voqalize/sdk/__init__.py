@@ -32,8 +32,8 @@ class; nothing here imports it.
 """
 
 from ._logging import configure_logging, session_context
-from .actions import Action, Result
-from .brain import ActionHandle, Brain, RequestRejected, Session, WireError, serve
+from .actions import Action
+from .brain import Brain, RequestRejected, Session, WireError, serve
 from .events import (
     Chunk,
     Error,
@@ -50,7 +50,6 @@ from .wire import ErrorCode, RTVIType
 
 __all__ = [
     "Action",
-    "ActionHandle",
     "Brain",
     "Channel",
     "Chunk",
@@ -60,7 +59,6 @@ __all__ = [
     "RTVIMessage",
     "RTVIType",
     "RequestRejected",
-    "Result",
     "Session",
     "SessionRejected",
     "Speech",

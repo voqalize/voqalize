@@ -386,32 +386,23 @@ async def scn_heard_truth_barge_in_before_audio(ctx: ScenarioContext) -> None:
     )
 
 
-async def scn_action_result_roundtrip(ctx: ScenarioContext) -> None:
-    """The brain fires a UI action; the driver reports its outcome; the brain
-    correlates it by action_id at session scope. (Reference grammar: ``do X``.)"""
+async def scn_action_dispatch(ctx: ScenarioContext) -> None:
+    """The brain fires a UI action; it arrives as an RTVI ``ui-command`` naming
+    the action, with its fields nested under ``payload``. (Reference grammar:
+    ``do X``.)"""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.user_says(f"{DO_PREFIX}open_panel")
     checks.check_completed(turn)
     commands = await driver.collect_ui_commands(min_count=1)
-    fired = [c for c in commands if c.get("action") == "open_panel"]
+    fired = [c for c in commands if c.get("command") == "open_panel"]
     checks.require(
         len(fired) == 1,
-        f"expected exactly one 'open_panel' ui_command, saw {len(fired)}",
+        f"expected exactly one 'open_panel' ui-command, saw {len(fired)}",
     )
-    action_id = fired[0].get("action_id")
     checks.require(
-        isinstance(action_id, int),
-        f"ui_command action_id {action_id!r} is not an int",
-    )
-    assert isinstance(action_id, int)  # narrowed by the check above
-    await driver.send_action_result(action_id, status="ok", result={"done": True})
-    state = await driver.dump_conversation()
-    outcomes = state.get("outcomes", [])
-    matched = [o for o in outcomes if o.get("action_id") == action_id]
-    checks.require(
-        len(matched) == 1 and matched[0].get("status") == "ok",
-        f"brain did not correlate the action outcome for action_id {action_id}: {outcomes}",
+        fired[0].get("payload") == {"foo": "bar"},
+        f"ui-command payload is not the action's fields: {fired[0].get('payload')!r}",
     )
 
 
@@ -546,9 +537,9 @@ CATALOG: list[Scenario] = [
         tags=("interruption",),
     ),
     Scenario(
-        "action_result_roundtrip",
-        "UI action fired by the brain; outcome correlated by action_id.",
-        scn_action_result_roundtrip,
+        "action_dispatch",
+        "UI action fired by the brain arrives as a ui-command with a nested payload.",
+        scn_action_dispatch,
         requires_reference=True,
     ),
     Scenario(

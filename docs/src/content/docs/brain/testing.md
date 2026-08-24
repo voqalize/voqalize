@@ -56,8 +56,7 @@ off.
 | `barge_in("…")` | Start a turn, let the brain speak, interrupt, finalize the cut with partial heard-truth. | `Turn` |
 | `user_idle(level=1, idle_ms=30000)` | An idle trigger; plays out `on_user_idle`. | `Turn` |
 | `send_rtvi(type, data)` / `send_client_message(t, d)` | One app→brain RTVI message, delivered to `on_rtvi`. That callback cannot speak and opens no turn, so there is nothing to wait for. | — |
-| `send_action_result(action_id, status=, result=)` | The UI reporting back; fires the brain's `callback=`. | — |
-| `collect_ui_commands(min_count=1)` | Waits for and returns the `ui_command` payloads the brain fired. | `list[dict]` |
+| `collect_ui_commands(min_count=1)` | Waits for and returns the `ui-command` bodies the brain fired — `{"command": …, "payload": {…}}`. | `list[dict]` |
 | `end_session()` / `send_cancel()` / `aclose()` | `End`, `Cancel`, teardown. | — |
 
 ## Assert on it
@@ -78,8 +77,8 @@ async def test_answers(driver):
     assert "oat milk" in turn.text.lower()
 
     cmds = await driver.collect_ui_commands(min_count=1)
-    add = next(c for c in cmds if c["action"] == "add_to_cart")
-    assert add["sku"] == "oat-milk" and add["qty"] == 2
+    add = next(c for c in cmds if c["command"] == "add_to_cart")
+    assert add["payload"] == {"sku": "oat-milk", "qty": 2}
 ```
 
 The driver also accumulates `driver.ui_commands`, `driver.errors` and

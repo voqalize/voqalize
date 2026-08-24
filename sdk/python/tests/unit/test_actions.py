@@ -1,10 +1,10 @@
 """Typed actions: declaration, naming, and serialization.
 
-:class:`~voqalize.sdk.Action` is a *declaration* of a ui_command's args half. This
-file pins the three things a browser contract depends on — the wire **name** derived
-from the class, the wire **shape** produced by the fields, and the line between
-payload and control. The over-the-wire half (that this really reaches the pygato
-leg) is ``tests/e2e_cortex/test_e2e_session_action.py``.
+:class:`~voqalize.sdk.Action` is a *declaration* of a ui-command's payload. This
+file pins the two things a browser contract depends on — the wire **name** derived
+from the class, and the wire **shape** produced by the fields. The over-the-wire
+half (that this really reaches the pygato leg) is
+``tests/e2e_cortex/test_e2e_session_action.py``.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from enum import StrEnum
 import pytest
 from pydantic import BaseModel, Field, ValidationError
 
-from voqalize.sdk import Action, Result
+from voqalize.sdk import Action
 
 
 class OpenItinerary(Action):
@@ -47,30 +47,6 @@ def test_explicit_name_wins_over_the_derived_one() -> None:
 
 def test_payload_is_the_declared_fields() -> None:
     assert OpenItinerary(name="Poddar Vietnam").to_payload() == {"name": "Poddar Vietnam"}
-
-
-# ─── payload vs control ───────────────────────────────────────────────────────
-
-
-def test_control_fields_never_reach_the_payload() -> None:
-    """``on_result`` and ``timeout_s`` steer the SDK; they are not the browser's
-    business, and a callable could not be serialized anyway."""
-    action = OpenItinerary(name="x", on_result=lambda _r: None, timeout_s=5.0)
-    assert action.to_payload() == {"name": "x"}
-    assert action.timeout_s == 5.0
-
-
-def test_redeclaring_a_control_field_is_rejected_at_declaration() -> None:
-    """Redeclaring one silently drops the base class's ``exclude=True`` and puts it
-    straight onto the wire — so the class never gets built."""
-    with pytest.raises(TypeError, match="are control, not payload"):
-
-        class Bad(Action):
-            timeout_s: float | None = 3.0
-
-
-def test_a_result_carries_the_action_it_answers() -> None:
-    assert Result(action_id=7, status="timeout").data is None
 
 
 # ─── aliases ───────────────────────────────────────────────────────────────────
@@ -159,23 +135,22 @@ def test_unknown_kwargs_are_rejected() -> None:
         OpenItinerary(name="x", nmae="y")  # type: ignore[call-arg]
 
 
-# ─── the envelope guard ────────────────────────────────────────────────────────
+# ─── no field is reserved ──────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("reserved", ["type", "action", "action_id"])
-def test_a_field_colliding_with_the_envelope_is_rejected_at_declaration(reserved: str) -> None:
-    """Args are spread onto the envelope's top level, so a field named ``action``
-    would overwrite the action name. Caught when the class is defined, not on the
-    wire."""
-    with pytest.raises(TypeError, match="collide with the ui_command envelope"):
-        type(Action)("Bad", (Action,), {"__annotations__": {reserved: str}})
+class Envelope(Action):
+    """Every word the envelope itself uses, as ordinary payload fields."""
+
+    command: str = "c"
+    payload: str = "p"
+    type: str = "t"
 
 
-def test_the_guard_looks_at_the_alias_not_the_field_name() -> None:
-    with pytest.raises(TypeError, match="collide with the ui_command envelope"):
-
-        class AlsoBad(Action):
-            kind: str = Field(default="", alias="type")
+def test_no_field_can_shadow_the_envelope() -> None:
+    """The payload is *nested* under ``payload``, not spread onto the envelope, so
+    there is nothing for a field to collide with and no reserved-name guard to
+    remember."""
+    assert Envelope().to_payload() == {"command": "c", "payload": "p", "type": "t"}
 
 
 def test_a_field_named_name_is_fine() -> None:

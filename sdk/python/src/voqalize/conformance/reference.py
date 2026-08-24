@@ -47,7 +47,6 @@ from voqalize.sdk import (
     Brain,
     Chunk,
     Finalize,
-    Result,
     RTVIMessage,
     RTVIType,
     Session,
@@ -68,7 +67,7 @@ TWO = "two"  # two units: "first" then "second"
 TWO_FIRST = "first"
 TWO_SECOND = "second"
 COUNT_SLOWLY = "count slowly"  # slow multi-chunk unit, cuttable by barge-in
-DO_PREFIX = "do "  # "do open_panel" → speak + fire an action, correlate its result
+DO_PREFIX = "do "  # "do open_panel" → speak, then fire one action
 
 # Fault grammar — the brain deliberately misbehaves so the driver can assert the
 # SDK's liveness guarantee: a raising turn must NOT hang the session. A turn left
@@ -106,7 +105,7 @@ BARGE_SENTINEL = "NEVER_HEARD_AFTER_BARGE_IN"
 
 
 class OpenPanel(Action, name="open_panel"):
-    """The one action the ``do `` grammar knows, for the action round-trip."""
+    """The one action the ``do `` grammar knows, for the dispatch round-trip."""
 
     foo: str = "bar"
 
@@ -116,7 +115,6 @@ class ConformanceState(Action, name=CONFORMANCE_STATE_ACTION):
 
     messages: list[dict[str, Any]]
     app_messages: list[dict[str, Any]]
-    outcomes: list[dict[str, Any]]
 
 
 def story_opening(topic: str) -> str:
@@ -126,11 +124,10 @@ def story_opening(topic: str) -> str:
 
 
 def conformance_state(brain: ConformanceBrain) -> dict[str, Any]:
-    """The backchannel state payload: heard transcript, app messages, results."""
+    """The backchannel state payload: heard transcript and app messages."""
     return {
         "messages": list(brain.messages),
         "app_messages": list(brain.app_messages),
-        "outcomes": list(brain.outcomes),
     }
 
 
@@ -140,7 +137,6 @@ class ConformanceBrain(Brain):
     def __init__(self) -> None:
         self.messages: list[dict[str, Any]] = []
         self.app_messages: list[dict[str, Any]] = []
-        self.outcomes: list[dict[str, Any]] = []
 
     async def greet(self, session: Session) -> str:
         return GREETING_TEXT
@@ -217,7 +213,7 @@ class ConformanceBrain(Brain):
             yield SpeechStart()
             yield Chunk("on it")
             yield SpeechEnd()
-            session.dispatch(OpenPanel(on_result=self._record))
+            session.dispatch(OpenPanel())
             return
 
         yield SpeechStart()
@@ -240,7 +236,7 @@ class ConformanceBrain(Brain):
             return
         name, payload = msg.data.get("t"), msg.data.get("d") or {}
         if name == CONFORMANCE_DUMP_EVENT:
-            session.dispatch(ConformanceState(**conformance_state(self), timeout_s=None))
+            session.dispatch(ConformanceState(**conformance_state(self)))
             return
         self.app_messages.append({"name": name, "data": payload})
 
@@ -249,12 +245,3 @@ class ConformanceBrain(Brain):
         # delivered nothing commits nothing.
         if fin.heard:
             self.messages.append({"role": "assistant", "content": fin.heard})
-
-    def _record(self, result: Result) -> None:
-        self.outcomes.append(
-            {
-                "action_id": result.action_id,
-                "status": result.status,
-                "result": result.data,
-            }
-        )

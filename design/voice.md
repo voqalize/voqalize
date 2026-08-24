@@ -252,8 +252,8 @@ change — or pass allow_sync_tools=True if these tools never call voice().
 
 **SDK docstrings** are where the point of view becomes enforceable, because the reader is
 in the editor with the decision in front of them. State the rule, then its consequence in
-the caller's ear. The `greet` and `ActionHandle` docstrings are the reference standard;
-read them before writing a new one.
+the caller's ear. The `greet` and `Session.dispatch` docstrings are the reference
+standard; read them before writing a new one.
 
 **MCP server instructions and tool descriptions** are read by an autonomous agent that
 follows them literally, across 18 tools on a hosted endpoint. Imperative, one tool per
