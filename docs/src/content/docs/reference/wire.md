@@ -207,7 +207,7 @@ was any good.
 ```proto
 message Request {
   uint64 request_id = 1;
-  oneof op { Config configure = 5; }
+  oneof op { Config configure = 2; }
 }
 message Response { uint64 request_id = 1; Status status = 2; string detail = 3; }
 ```
@@ -274,15 +274,21 @@ reference clip recorded in ten of them. So the legs genuinely differ — a call
 understood in Odia is spoken with the Hindi clip — and one field could not say
 so.
 
-Two rules follow, and both are enforced before the request leaves the SDK:
+Two rules follow, and they are enforced in different places on purpose:
 
 1. **Name a language on one leg and you must name it on the other.** Not that
    they agree — that you stated both. Moving one alone is the silent failure:
    the words stay right and only the voice is wrong, which no transcript, no WER
-   number and no automated check will ever show you.
-2. **A `tts.language` with no recorded clip is rejected.** It would be served by
-   the Hindi clip, and being handed that substitution quietly is how a call ends
-   up in a voice nobody chose. Write what you are actually getting:
+   number and no automated check will ever show you. This is a property of the
+   message itself, so the SDK refuses to build it — before the request leaves.
+2. **A `tts.language` Voqalize has no clip for is rejected**, rather than served
+   by the Hindi clip. That one is not in the message; it is a capability of the
+   speech tier, it changes as clips are recorded, and it is answered by a
+   `REJECTED` `Response` at the moment you ask. A wire contract that froze
+   today's roster would be wrong the day the next clip lands, and every SDK
+   carrying a copy of it would be wrong with it.
+
+Write what you are actually getting:
 
 ```proto
 stt { language: LANGUAGE_OR }   // listen in Odia
@@ -296,27 +302,41 @@ rule.
 
 `Voice` and `Language` are enumerations, not free strings, so a value we do not
 serve cannot be sent at all. Each `Language` value carries its speech-tier code
-and whether a clip exists as proto options, which is what makes the SDKs' own
-tables derived rather than copied:
+as a proto option, which is what makes the SDKs' own tables derived rather than
+copied:
 
 ```proto
 extend google.protobuf.EnumValueOptions {
-  optional string iso_code     = 50001;
-  optional bool   has_tts_clip = 50002;
+  optional string iso_code = 50001;
 }
 
 enum Language {
+  // Unset. On the wire this means leave the language alone.
   LANGUAGE_UNSPECIFIED = 0;
-  LANGUAGE_EN = 1 [(iso_code) = "en", (has_tts_clip) = true];  // English
-  LANGUAGE_OR = 16 [(iso_code) = "or"];                        // Odia, understood only
+
+  // English.
+  LANGUAGE_EN = 1 [(iso_code) = "en"];
+
+  // Odia.
+  LANGUAGE_OR = 16 [(iso_code) = "or"];
   // …
 }
 ```
 
 `iso_code` is not derivable from the name: the catalog mixes ISO 639-1
 two-letter codes with 639-3 three-letter ones, because six of these languages
-have no two-letter code. See the
-[voice & language catalog](/docs/reference/catalog) for the full list.
+have no two-letter code. It is here because it is the identifier a developer
+writes and reads, and every end of the wire has to spell it the same way.
+
+Nothing here says which of these can be *spoken*. That is a capability of the
+speech tier, it moves when the speech tier does, and the runtime answers it when
+asked. See the [voice & language catalog](/docs/reference/catalog) for the full
+list.
+
+Every declaration in `frames.proto` carries its own doc comment, the way the
+`Language` values above do — protoc puts them in `SourceCodeInfo`, so buf and
+any other descriptor consumer read the same words you do, and `buf lint`'s
+`COMMENTS` category fails the build if one is missing.
 
 ## The RTVI plane
 
@@ -433,11 +453,13 @@ the app has an answer it sends an ordinary `client-message`, correlated by
 whatever the app puts in it.
 
 `configure` is awaited because Voqalize answers it. Awaiting is how a language
-Voqalize has no recognizer for becomes an exception the brain handles, rather than a
-call that runs on sounding wrong and reports nothing. The two language rules are
-checked before the request leaves the SDK, so a half-stated language change and a
-clip-less voice are both a `ConfigError` at the call site rather than a rejection
-a turn later.
+Voqalize cannot serve becomes an exception the brain handles, rather than a call
+that runs on sounding wrong and reports nothing — the rejection names the reason
+and the SDK raises `RequestRejected` carrying it.
+
+One rule does not wait for that round trip: a half-stated language is a
+`ConfigError` at the call site, because whether both legs were named is a
+property of the message and needs nothing from the far end to decide.
 
 ## Invariants
 

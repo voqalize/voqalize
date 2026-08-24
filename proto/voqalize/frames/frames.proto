@@ -14,6 +14,11 @@
 // forwards the whitelisted types verbatim in both directions and interprets
 // nothing else about them.
 //
+// Every declaration below is documented in place. Those comments are the
+// contract's documentation — protoc carries them into SourceCodeInfo, so buf,
+// protoc-gen-doc and any descriptor consumer read the same words you do. Prose
+// that is not attached to a declaration is a section banner and nothing else.
+//
 // Regenerate with `make proto`.
 
 syntax = "proto3";
@@ -22,29 +27,51 @@ package voqalize.frames;
 
 import "google/protobuf/descriptor.proto";
 
+// One websocket binary message. Exactly one body is set; an envelope with none
+// is a protocol error, not an empty frame.
 message Envelope {
+  // Which frame this is. The tag numbers are grouped by plane and direction,
+  // which is a reading convenience only — nothing enforces direction here.
   oneof body {
     // Voice plane, V→B.
+
+    // Opens the session. Always the first envelope.
     SessionStart session_start = 1;
-    UserMessage  user_message  = 2;
-    UserIdle     user_idle     = 3;
-    Interruption interruption  = 4;
-    Finalize     finalize      = 5;
-    Response     response      = 6;
+    // A committed user utterance.
+    UserMessage user_message = 2;
+    // The caller has gone quiet past the idle timeout.
+    UserIdle user_idle = 3;
+    // Everything through a turn is dead; stop generating for it.
+    Interruption interruption = 4;
+    // What the caller actually heard of one speech unit.
+    Finalize finalize = 5;
+    // The answer to exactly one Request.
+    Response response = 6;
 
     // Voice plane, B→V.
+
+    // Opens one speech unit.
     SpeechStart speech_start = 7;
+    // One piece of that unit's text.
     SpeechChunk speech_chunk = 8;
-    SpeechEnd   speech_end   = 9;
-    Request     request      = 10;
+    // Closes the unit.
+    SpeechEnd speech_end = 9;
+    // Asks the runtime to change something, and waits.
+    Request request = 10;
 
     // RTVI plane, both directions.
+
+    // One tunnelled pipecat RTVI message.
     RTVIFrame rtvi = 11;
 
     // Lifecycle, both directions.
-    End    end    = 12;
+
+    // Hang up, having said everything already sent.
+    End end = 12;
+    // Abandon the session now.
     Cancel cancel = 13;
-    Error  error  = 14;
+    // Something went wrong, fatally or not.
+    Error error = 14;
   }
 }
 
@@ -53,202 +80,317 @@ message Envelope {
 // First envelope of a session, and the session's first turn. A brain that does
 // not speak `wire_version` refuses the session.
 message SessionStart {
-  uint64 turn_id      = 1;
-  string session_id   = 2;
-  string init         = 3;  // JSON-encoded
+  // The call this is. Stable for the session's life, and the same id the brain
+  // was dialled with as `?session_id=`.
+  string session_id = 1;
+
+  // The session's first turn. The greeting answers it.
+  uint64 turn_id = 2;
+
+  // Whatever the app passed at connect, JSON-encoded and opaque to the runtime.
+  string init = 3;
+
+  // The wire version the runtime speaks. A brain that speaks another one must
+  // refuse rather than guess.
   uint32 wire_version = 4;
 }
 
 // A committed user utterance, on a turn of its own.
 message UserMessage {
+  // The turn this utterance opened. Speech answering it must name it.
   uint64 turn_id = 1;
-  string text    = 2;
+
+  // The recognizer's committed transcript.
+  string text = 2;
 }
 
 // The caller has been silent past the idle timeout and the brain has the floor
-// to re-engage. `level` counts consecutive escalations without intervening
-// speech and resets when the caller speaks; `idle_ms` is the silence elapsed.
+// to re-engage.
 message UserIdle {
+  // The turn the brain may speak on.
   uint64 turn_id = 1;
-  uint32 level   = 2;
+
+  // Consecutive escalations without intervening speech. Resets when the caller
+  // speaks, so a brain can say something different the third time.
+  uint32 level = 2;
+
+  // Silence elapsed since the runtime stopped speaking.
   uint32 idle_ms = 3;
 }
 
 // Everything up to and including `through_turn` is dead: the caller will not
-// hear it, so the brain stops generating for it. Monotone, unacknowledged, and
-// self-correcting — a brain that misses one is corrected by the next.
+// hear it, so the brain stops generating for it.
 message Interruption {
+  // The newest dead turn. Monotone, unacknowledged, and self-correcting — a
+  // brain that misses one is corrected by the next.
   uint64 through_turn = 1;
 }
 
+// Why a speech unit stopped.
 enum FinalizeReason {
-  FINALIZE_REASON_UNSPECIFIED   = 0;
-  FINALIZE_REASON_COMPLETED     = 1;
+  // Never sent. Present because proto3 requires a zero value.
+  FINALIZE_REASON_UNSPECIFIED = 0;
+
+  // The unit played to its end.
+  FINALIZE_REASON_COMPLETED = 1;
+
+  // The caller spoke over it and it was cut short.
   FINALIZE_REASON_USER_BARGE_IN = 2;
 }
 
-// What the caller actually heard of one speech unit. Bounded by that unit's own
-// text, never a cross-unit concatenation.
+// What the caller actually heard of one speech unit. This is the only place a
+// brain learns it, and on a barge-in it is not what was generated.
 message Finalize {
-  uint64         speech_id  = 1;
-  string         heard_text = 2;
-  FinalizeReason reason     = 3;
+  // The unit this closes.
+  uint64 speech_id = 1;
+
+  // The played prefix. Bounded by that unit's own text, never a cross-unit
+  // concatenation.
+  string heard_text = 2;
+
+  // Whether it finished or was cut off.
+  FinalizeReason reason = 3;
 }
 
 // ─── Voice plane: B→V ────────────────────────────────────────────────────────
 
 // Opens one speech unit and binds it to the turn it answers.
 message SpeechStart {
+  // Minted by the brain, unique within the session.
   uint64 speech_id = 1;
-  uint64 turn_id   = 2;
+
+  // The turn being answered. A unit that names a dead turn is dropped.
+  uint64 turn_id = 2;
 }
 
+// One piece of an open speech unit's text, in order.
 message SpeechChunk {
+  // The unit this belongs to.
   uint64 speech_id = 1;
-  string text      = 2;
+
+  // Text as generated. Chunk boundaries carry no meaning; the runtime
+  // re-segments for synthesis.
+  string text = 2;
 }
 
+// Closes one speech unit. A Finalize follows once the audio resolves.
 message SpeechEnd {
+  // The unit being closed.
   uint64 speech_id = 1;
 }
 
 // ─── The control leg ─────────────────────────────────────────────────────────
-//
-// Exactly one Response comes back for every Request.
+
+// A brain asking the runtime to change something. Exactly one Response comes
+// back for every Request.
 //
 // The surface is deliberately narrow: voice and language, and nothing else. The
 // recognizer's thresholds are not settable from here — they keep the runtime's
 // own defaults. We widen this as we learn what is worth naming, and a knob is
 // far easier to add than to take back.
-
 message Request {
+  // Names the Response that answers this. Per session, never reused.
   uint64 request_id = 1;
 
-  reserved 2, 3, 4;  // configure_tts, configure_stt, configure_idle — one op now.
-
+  // What is being asked. One op today; the point of the oneof is that adding a
+  // second does not change the shape of the first.
   oneof op {
-    Config configure = 5;
+    // Change the session's configuration. See Config.
+    Config configure = 2;
   }
 }
 
+// Whether the runtime took a Request.
 enum Status {
+  // Never sent. Present because proto3 requires a zero value.
   STATUS_UNSPECIFIED = 0;
-  STATUS_ACCEPTED    = 1;
-  STATUS_REJECTED    = 2;
+
+  // Taken whole.
+  STATUS_ACCEPTED = 1;
+
+  // Applied not at all. `detail` says why.
+  STATUS_REJECTED = 2;
 }
 
-// Whether the runtime took the request, not whether the effect is audible yet.
+// The answer to exactly one Request. Says whether the runtime took the request,
+// not whether the effect is audible yet.
 message Response {
+  // The Request being answered.
   uint64 request_id = 1;
-  Status status     = 2;
-  string detail     = 3;  // Why it was rejected. Empty on acceptance.
+
+  // Accepted or rejected. There is no partial application.
+  Status status = 2;
+
+  // Why it was rejected, in words meant for the developer reading the log.
+  // Empty on acceptance.
+  string detail = 3;
 }
 
 // ─── Configuration ───────────────────────────────────────────────────────────
+
+// A session's speech configuration, used in two places: the agent record stores
+// it as the session's defaults, and the configure op overrides them while the
+// call is running. The same type in both places is the point — a record cannot
+// drift from the wire if there is only one definition of what a configuration
+// is.
 //
-// One message, three sections, used in two places: the agent record stores it as
-// the session's defaults, and this op overrides them while the call is running.
-// The same type in both places is the point — a record cannot drift from the
-// wire if there is only one definition of what a configuration is.
-//
-// "Unset" reads differently at each end. In the record it means *take the
-// platform default*, so a section added later does not invalidate every stored
-// record. On the wire it means *leave it alone*: a Request carries a delta, and
-// the runtime is already running.
+// "Unset" reads differently at each end. In the record it means *take
+// Voqalize's default*, so a section added later does not invalidate every
+// stored record. On the wire it means *leave it alone*: a Request carries a
+// delta, and the runtime is already running.
 //
 // One op carries all three sections rather than three ops carrying one each,
 // because a language change has to touch both legs at once. Three ops would put
 // a turn boundary between the halves.
-
 message Config {
-  TtsConfig  tts  = 1;
-  SttConfig  stt  = 2;
+  // How the session speaks.
+  TtsConfig tts = 1;
+
+  // How the session listens.
+  SttConfig stt = 2;
+
+  // How long it waits before re-engaging.
   IdleConfig idle = 3;
 }
 
-// Applies to the next speech unit, never mid-utterance.
+// The speaking leg. Applies to the next speech unit, never mid-utterance.
 message TtsConfig {
-  optional Voice    voice    = 1;
+  // Which recorded persona reads the text.
+  optional Voice voice = 1;
+
+  // Which reference clip that persona is cloned from — a recorded speaker, not
+  // a text tag. The speech tier has clips for some languages and not others,
+  // and which is which is its business, not the wire's: naming one it cannot
+  // speak comes back as a rejected Response saying so.
   optional Language language = 2;
 }
 
-// Applies once the open turn commits, never mid-utterance. Acceptance is the
-// recognizer's own answer and is all-or-nothing.
+// The listening leg. Applies once the open turn commits, never mid-utterance.
+// Acceptance is the recognizer's own answer and is all-or-nothing.
 message SttConfig {
+  // Which language the recognizer transcribes.
   optional Language language = 1;
 }
 
-// `timeout_ms` is the silence after the runtime stops speaking before the brain
-// gets the floor. 0 disables idle detection.
+// Idle detection: when the brain gets the floor back after silence.
 message IdleConfig {
+  // Silence after the runtime stops speaking before the brain is handed the
+  // floor. 0 disables idle detection entirely.
   optional uint32 timeout_ms = 1;
 }
 
 // ─── The catalog ─────────────────────────────────────────────────────────────
-//
-// Voices and languages are enumerated rather than free strings so that a value
-// we do not serve cannot be sent at all. It used to be sendable: an unserved
-// language fell back to the English recognizer instead of failing, which is the
-// quietest way there is to get a call wrong.
 
+// Options carried by the catalog enums below.
 extend google.protobuf.EnumValueOptions {
   // The code the speech tier wants for this language. Not derivable from the
   // enum name: the catalog mixes ISO 639-1 two-letter codes with 639-3
   // three-letter ones, because six of these languages have no two-letter code.
   // The name is the language; this is only its spelling.
+  //
+  // It lives here rather than in each consumer because it is the identifier a
+  // developer writes and reads, and every end of the wire has to spell it the
+  // same way.
   optional string iso_code = 50001;
-
-  // Whether omnivoice has a reference clip recorded in this language.
-  //
-  // `TtsConfig.language` selects a *recorded speaker*, not a text tag, so a
-  // language without a clip cannot be spoken — it would be served by the Hindi
-  // clip instead, which is the right words in the wrong voice and is audible to
-  // nobody but the caller. Naming one is rejected. Say what you are actually
-  // getting: `stt.language = LANGUAGE_OR, tts.language = LANGUAGE_HI`.
-  //
-  // This is a capability of the speech tier and moves when it does. It lives
-  // here because it is the one file the runtime and the control plane share, and
-  // a rule the control plane cannot check is a rule that fails at connect time
-  // instead of at write time.
-  optional bool has_tts_clip = 50002;
 }
 
 // The two omnivoice personas. The engine is chosen by the voice, not by a model
 // field; there has never been a second engine to name.
 enum Voice {
-  VOICE_UNSPECIFIED      = 0;
-  VOICE_OMNIVOICE_GAURI  = 1;  // Female.
-  VOICE_OMNIVOICE_GAURAV = 2;  // Male.
+  // Unset. On the wire this means leave the voice alone.
+  VOICE_UNSPECIFIED = 0;
+
+  // Female.
+  VOICE_OMNIVOICE_GAURI = 1;
+
+  // Male.
+  VOICE_OMNIVOICE_GAURAV = 2;
 }
 
-// English plus the 22 Indic languages `vql-stt` serves. Ten of them can also be
-// spoken — see `has_tts_clip`.
+// English plus the 22 Indic languages the speech tier serves.
+//
+// Enumerated rather than a free string so a language we do not serve cannot be
+// sent at all. It used to be sendable: an unserved code fell back to the
+// English recognizer instead of failing, which is the quietest way there is to
+// get a call wrong.
+//
+// Which of these can be *spoken* is a smaller set, and it is not written down
+// here. Reference clips are a capability of the speech tier, they move when it
+// does, and a wire contract that froze today's roster would need a new proto
+// every time a clip is recorded. The runtime answers that question at the
+// moment it is asked, with a rejected Response.
 enum Language {
+  // Unset. On the wire this means leave the language alone.
   LANGUAGE_UNSPECIFIED = 0;
 
-  LANGUAGE_EN  = 1  [(iso_code) = "en",  (has_tts_clip) = true];   // English
-  LANGUAGE_AS  = 2  [(iso_code) = "as"];                           // Assamese
-  LANGUAGE_BN  = 3  [(iso_code) = "bn",  (has_tts_clip) = true];   // Bengali
-  LANGUAGE_BRX = 4  [(iso_code) = "brx"];                          // Bodo
-  LANGUAGE_DOI = 5  [(iso_code) = "doi"];                          // Dogri
-  LANGUAGE_GU  = 6  [(iso_code) = "gu",  (has_tts_clip) = true];   // Gujarati
-  LANGUAGE_HI  = 7  [(iso_code) = "hi",  (has_tts_clip) = true];   // Hindi
-  LANGUAGE_KN  = 8  [(iso_code) = "kn",  (has_tts_clip) = true];   // Kannada
-  LANGUAGE_KOK = 9  [(iso_code) = "kok"];                          // Konkani
-  LANGUAGE_KS  = 10 [(iso_code) = "ks"];                           // Kashmiri
-  LANGUAGE_MAI = 11 [(iso_code) = "mai"];                          // Maithili
-  LANGUAGE_ML  = 12 [(iso_code) = "ml",  (has_tts_clip) = true];   // Malayalam
-  LANGUAGE_MNI = 13 [(iso_code) = "mni"];                          // Manipuri
-  LANGUAGE_MR  = 14 [(iso_code) = "mr",  (has_tts_clip) = true];   // Marathi
-  LANGUAGE_NE  = 15 [(iso_code) = "ne"];                           // Nepali
-  LANGUAGE_OR  = 16 [(iso_code) = "or"];                           // Odia
-  LANGUAGE_PA  = 17 [(iso_code) = "pa",  (has_tts_clip) = true];   // Punjabi
-  LANGUAGE_SA  = 18 [(iso_code) = "sa"];                           // Sanskrit
-  LANGUAGE_SAT = 19 [(iso_code) = "sat"];                          // Santali
-  LANGUAGE_SD  = 20 [(iso_code) = "sd"];                           // Sindhi
-  LANGUAGE_TA  = 21 [(iso_code) = "ta",  (has_tts_clip) = true];   // Tamil
-  LANGUAGE_TE  = 22 [(iso_code) = "te",  (has_tts_clip) = true];   // Telugu
-  LANGUAGE_UR  = 23 [(iso_code) = "ur"];                           // Urdu
+  // English.
+  LANGUAGE_EN = 1 [(iso_code) = "en"];
+
+  // Assamese.
+  LANGUAGE_AS = 2 [(iso_code) = "as"];
+
+  // Bengali.
+  LANGUAGE_BN = 3 [(iso_code) = "bn"];
+
+  // Bodo.
+  LANGUAGE_BRX = 4 [(iso_code) = "brx"];
+
+  // Dogri.
+  LANGUAGE_DOI = 5 [(iso_code) = "doi"];
+
+  // Gujarati.
+  LANGUAGE_GU = 6 [(iso_code) = "gu"];
+
+  // Hindi.
+  LANGUAGE_HI = 7 [(iso_code) = "hi"];
+
+  // Kannada.
+  LANGUAGE_KN = 8 [(iso_code) = "kn"];
+
+  // Konkani.
+  LANGUAGE_KOK = 9 [(iso_code) = "kok"];
+
+  // Kashmiri.
+  LANGUAGE_KS = 10 [(iso_code) = "ks"];
+
+  // Maithili.
+  LANGUAGE_MAI = 11 [(iso_code) = "mai"];
+
+  // Malayalam.
+  LANGUAGE_ML = 12 [(iso_code) = "ml"];
+
+  // Manipuri.
+  LANGUAGE_MNI = 13 [(iso_code) = "mni"];
+
+  // Marathi.
+  LANGUAGE_MR = 14 [(iso_code) = "mr"];
+
+  // Nepali.
+  LANGUAGE_NE = 15 [(iso_code) = "ne"];
+
+  // Odia.
+  LANGUAGE_OR = 16 [(iso_code) = "or"];
+
+  // Punjabi.
+  LANGUAGE_PA = 17 [(iso_code) = "pa"];
+
+  // Sanskrit.
+  LANGUAGE_SA = 18 [(iso_code) = "sa"];
+
+  // Santali.
+  LANGUAGE_SAT = 19 [(iso_code) = "sat"];
+
+  // Sindhi.
+  LANGUAGE_SD = 20 [(iso_code) = "sd"];
+
+  // Tamil.
+  LANGUAGE_TA = 21 [(iso_code) = "ta"];
+
+  // Telugu.
+  LANGUAGE_TE = 22 [(iso_code) = "te"];
+
+  // Urdu.
+  LANGUAGE_UR = 23 [(iso_code) = "ur"];
 }
 
 // ─── RTVI plane ──────────────────────────────────────────────────────────────
@@ -257,53 +399,99 @@ enum Language {
 // direction: `bot-*` and `llm-*` are the runtime's own assertions about the
 // media and the model, and a brain must not be able to forge them.
 enum RTVIType {
+  // Never sent. An envelope carrying it is rejected.
   RTVI_TYPE_UNSPECIFIED = 0;
 
-  // B→V→app.
-  RTVI_TYPE_SERVER_MESSAGE  = 1;  // "server-message"
-  RTVI_TYPE_SERVER_RESPONSE = 2;  // "server-response"
-  RTVI_TYPE_ERROR_RESPONSE  = 3;  // "error-response"
-  RTVI_TYPE_UI_COMMAND      = 4;  // "ui-command"
-  RTVI_TYPE_UI_JOB_GROUP    = 5;  // "ui-job-group"
+  // "server-message" — B→V→app.
+  RTVI_TYPE_SERVER_MESSAGE = 1;
 
-  // app→V→B.
-  RTVI_TYPE_CLIENT_MESSAGE      = 6;   // "client-message"
-  RTVI_TYPE_SEND_TEXT           = 7;   // "send-text"
-  RTVI_TYPE_UI_EVENT            = 8;   // "ui-event"
-  RTVI_TYPE_UI_SNAPSHOT         = 9;   // "ui-snapshot"
-  RTVI_TYPE_UI_CANCEL_JOB_GROUP = 10;  // "ui-cancel-job-group"
+  // "server-response" — B→V→app.
+  RTVI_TYPE_SERVER_RESPONSE = 2;
+
+  // "error-response" — B→V→app.
+  RTVI_TYPE_ERROR_RESPONSE = 3;
+
+  // "ui-command" — B→V→app.
+  RTVI_TYPE_UI_COMMAND = 4;
+
+  // "ui-job-group" — B→V→app.
+  RTVI_TYPE_UI_JOB_GROUP = 5;
+
+  // "client-message" — app→V→B.
+  RTVI_TYPE_CLIENT_MESSAGE = 6;
+
+  // "send-text" — app→V→B.
+  RTVI_TYPE_SEND_TEXT = 7;
+
+  // "ui-event" — app→V→B.
+  RTVI_TYPE_UI_EVENT = 8;
+
+  // "ui-snapshot" — app→V→B.
+  RTVI_TYPE_UI_SNAPSHOT = 9;
+
+  // "ui-cancel-job-group" — app→V→B.
+  RTVI_TYPE_UI_CANCEL_JOB_GROUP = 10;
 }
 
-// One RTVI message. `data` is the RTVI payload, JSON-encoded and opaque; it is
-// bounded by the client's 64 KiB message limit. `id` is RTVI's own correlation
-// id, present on requests and the responses that name them. `turn_id` annotates
-// control-plane traces, is set only B→V, and never reaches the app.
+// One RTVI message, tunnelled.
 message RTVIFrame {
-  RTVIType        type    = 1;
-  string          data    = 2;
-  optional string id      = 3;
+  // Which whitelisted RTVI type this is.
+  RTVIType type = 1;
+
+  // The RTVI payload, JSON-encoded and opaque. Bounded by the client's 64 KiB
+  // message limit.
+  string data = 2;
+
+  // RTVI's own correlation id, present on requests and the responses that name
+  // them.
+  optional string id = 3;
+
+  // Annotates control-plane traces. Set only B→V, and never reaches the app.
   optional uint64 turn_id = 4;
 }
 
 // ─── Lifecycle ───────────────────────────────────────────────────────────────
 
+// Hang up once everything already sent has played. Carries nothing: the reason
+// belongs in the brain's own logs, not in the caller's call.
 message End {}
 
+// Abandon the session now, without waiting for pending audio.
 message Cancel {
+  // Why, for the log. Empty is legal.
   string reason = 1;
 }
 
+// What kind of thing went wrong.
 enum ErrorCode {
-  ERROR_CODE_UNSPECIFIED  = 0;
-  ERROR_CODE_PROTOCOL     = 1;  // Malformed or unexpected frame.
-  ERROR_CODE_WIRE_VERSION = 2;  // The two ends do not speak the same wire.
-  ERROR_CODE_REJECTED     = 3;  // Not permitted on the RTVI plane, or oversized.
-  ERROR_CODE_OVERLOAD     = 4;  // Dropped under congestion.
-  ERROR_CODE_INTERNAL     = 5;
+  // Never sent. Present because proto3 requires a zero value.
+  ERROR_CODE_UNSPECIFIED = 0;
+
+  // Malformed or unexpected frame.
+  ERROR_CODE_PROTOCOL = 1;
+
+  // The two ends do not speak the same wire.
+  ERROR_CODE_WIRE_VERSION = 2;
+
+  // Not permitted on the RTVI plane, or oversized.
+  ERROR_CODE_REJECTED = 3;
+
+  // Dropped under congestion.
+  ERROR_CODE_OVERLOAD = 4;
+
+  // Anything else, and a bug on the sending side.
+  ERROR_CODE_INTERNAL = 5;
 }
 
+// Something went wrong. Fatal or not, it is reported rather than swallowed.
 message Error {
-  ErrorCode code    = 1;
-  string    message = 2;
-  bool      fatal   = 3;
+  // What kind.
+  ErrorCode code = 1;
+
+  // What happened, for the developer reading the log.
+  string message = 2;
+
+  // Whether the session is over. Non-fatal errors are informational and the
+  // call continues.
+  bool fatal = 3;
 }

@@ -7,8 +7,8 @@ Public surface:
 - The frame dataclasses plus ``Frame``, and the enums they carry —
   ``FinalizeReason``, ``ErrorCode``, ``RTVIType``.
 - ``Config`` and its three sections, the ``Voice`` and ``Language`` catalogs,
-  ``SPEAKABLE``, and ``ConfigError`` — one configuration type, shared with the
-  agent record that stores a session's defaults.
+  and ``ConfigError`` — one configuration type, shared with the agent record
+  that stores a session's defaults.
 - ``WireSerializer`` — the protobuf serializer.
 - ``WIRE_VERSION`` — the wire version this build speaks.
 - ``MultiplexedWire``, ``WireConfig``, ``PermanentClose`` — websocket transport
@@ -19,7 +19,6 @@ Public surface:
 """
 
 from .frames import (
-    SPEAKABLE,
     WIRE_VERSION,
     CancelFrame,
     Config,
@@ -63,7 +62,6 @@ from .transport import (
 )
 
 __all__ = [
-    "SPEAKABLE",
     "WIRE_VERSION",
     "AuthRejected",
     "CancelFrame",

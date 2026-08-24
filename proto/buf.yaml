@@ -4,5 +4,10 @@ modules:
 lint:
   use:
     - STANDARD
+    # Every declaration carries its own documentation, and this is what makes
+    # that a rule rather than a habit. The comments are the contract's docs:
+    # protoc carries them into SourceCodeInfo, so buf and every other descriptor
+    # consumer read the same words a person does.
+    - COMMENTS
   except:
     - PACKAGE_VERSION_SUFFIX

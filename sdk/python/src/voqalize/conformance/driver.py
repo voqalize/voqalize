@@ -341,8 +341,8 @@ class VoqalizeDriver:
         then finalizes the unit (heard-truth)."""
         await self._send(
             SessionStartFrame(
-                turn_id=GREETING_TURN,
                 session_id=self.session_id,
+                turn_id=GREETING_TURN,
                 init=init or {},
                 wire_version=WIRE_VERSION,
             )

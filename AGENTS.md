@@ -126,16 +126,21 @@ turn boundary and a possible refusal between the halves.
 serves 23 languages; `omnivoice` has reference clips for ten (`hi, en, bn, gu,
 kn, ml, mr, pa, ta, te`). So understanding Odia while speaking with the Hindi
 clip is a real configuration that one field could not express. Two rules follow,
-both raised as `ConfigError` by `Config` itself before anything reaches the
-socket:
+enforced in different places on purpose:
 
-- **The pairing rule.** Name a language on one leg and you must name it on the
-  other. Not that they agree — that you *stated* both. Changing only the voice
-  touches no language field and is unaffected.
-- **No silent substitution.** A `tts.language` outside the ten with clips is
-  rejected rather than quietly served by the Hindi clip. To run an Odia call you
-  write `stt.language = OR, tts.language = HI` — which is what is actually going
-  to happen.
+- **The pairing rule**, raised as `ConfigError` by `Config` itself before
+  anything reaches the socket. Name a language on one leg and you must name it
+  on the other. Not that they agree — that you *stated* both. Changing only the
+  voice touches no language field and is unaffected. It is checked here because
+  it is a property of the message, decidable without asking anyone.
+- **No silent substitution**, answered by the runtime as a rejected `Response`.
+  A `tts.language` the speech tier has no clip for is refused rather than
+  quietly served by the Hindi clip. To run an Odia call you write
+  `stt.language = OR, tts.language = HI` — which is what is actually going to
+  happen. Which languages have clips is deliberately *not* in the proto: it is
+  the speech tier's own capability and moves when a clip is recorded, and a
+  roster frozen into a wire contract would need a proto release, an SDK release
+  and a redeploy to add a language.
 
 **A page still never sets either.** That part of the old rule was right and stays.
 

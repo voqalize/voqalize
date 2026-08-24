@@ -237,8 +237,8 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
 def _dec_session_start(env: pb.Envelope) -> SessionStartFrame:
     m = env.session_start
     return SessionStartFrame(
-        turn_id=m.turn_id,
         session_id=m.session_id,
+        turn_id=m.turn_id,
         init=json.loads(m.init) if m.init else {},
         wire_version=m.wire_version,
     )

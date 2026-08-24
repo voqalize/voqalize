@@ -42,14 +42,16 @@ from voqalize.conformance import (
     mint_voqalize_token,
 )
 from voqalize.sdk import Brain
-from voqalize.sdk.wire import SPEAKABLE, Config, ConfigureFrame, Language
+from voqalize.sdk.wire import Config, ConfigureFrame
 
-# There is no catalog constant here any more. ``Voice`` and ``Language`` are
-# protobuf enums, so a value vql-speech does not serve cannot be constructed,
-# let alone put on the wire — which is what used to take production down, from
-# fossil agent records naming engines deleted a release earlier. What is left
-# to check is that the demo configured at all, and configured the pair it meant
-# to.
+# There is no catalog check here any more, and no catalog constant either.
+# ``Voice`` and ``Language`` are protobuf enums, so a value vql-speech does not
+# serve cannot be constructed, let alone put on the wire — which is what used to
+# take production down, from fossil agent records naming engines deleted a
+# release earlier. Whether a language has a *reference clip* is the speech
+# tier's own answer and arrives as a rejected response, not something a test
+# re-derives from a copy of the roster. What is left to check is that the demo
+# configured at all, and configured the pair it meant to.
 
 
 @dataclass
@@ -206,29 +208,6 @@ def check_voice_pair(rig: DemoRig, *, voice: str, language: str) -> None:
         f"{rig.name}: STT language is {got_heard!r}, expected {language!r} — "
         "the two halves have drifted apart",
     )
-
-
-def check_catalog(rig: DemoRig) -> None:
-    """Every language the brain named on the speaking leg has a recorded clip.
-
-    Both this and the catalog itself are now unrepresentable failures — ``Voice``
-    and ``Language`` are enums and ``Config`` rejects a clip-less ``tts.language``
-    on construction — so this asserts the guard is still wired rather than
-    re-deriving it. It stays because the failures it names both happened: an
-    unknown voice prefix is rejected at connect (``voice not found``), and a
-    clip-less language was quietly served by the Hindi clip."""
-    for config in _configs(rig):
-        if config.tts is not None and config.tts.language is not None:
-            checks.require(
-                config.tts.language in SPEAKABLE,
-                f"{rig.name}: TTS language {config.tts.language!r} has no recorded "
-                "clip, so it would be read by the Hindi speaker",
-            )
-        if config.stt is not None and config.stt.language is not None:
-            checks.require(
-                config.stt.language in Language,
-                f"{rig.name}: STT language {config.stt.language!r} is not served by vql-stt",
-            )
 
 
 def check_greeting(rig: DemoRig, turn: Any) -> None:

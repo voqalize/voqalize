@@ -103,8 +103,8 @@ class SessionStartFrame(Frame):
     """First frame of a session, and the session's first turn. ``init`` is
     opaque customer init data."""
 
-    turn_id: int = 0
     session_id: str = ""
+    turn_id: int = 0
     init: dict[str, Any] = field(default_factory=dict)
     wire_version: int = WIRE_VERSION
 
@@ -233,36 +233,17 @@ class Language(StrEnum):
     UR = "ur"
 
 
-#: The languages that can be *spoken*, as opposed to only understood.
-#:
-#: :attr:`TtsConfig.language` selects a recorded speaker, not a text tag, so a
-#: language with no reference clip cannot be spoken — it would be served by the
-#: Hindi clip, which is the right words in the wrong voice and is audible to
-#: nobody but the caller.
-#:
-#: A capability of the speech tier, mirrored from ``has_tts_clip`` in
-#: ``frames.proto``. ``tests/wire/test_catalog_matches_proto.py`` fails if this
-#: drifts from it.
-SPEAKABLE: frozenset[Language] = frozenset(
-    {
-        Language.EN,
-        Language.BN,
-        Language.GU,
-        Language.HI,
-        Language.KN,
-        Language.ML,
-        Language.MR,
-        Language.PA,
-        Language.TA,
-        Language.TE,
-    }
-)
-
-
 @dataclass(frozen=True)
 class TtsConfig:
     """How the session speaks. Applies to the next speech unit, never
-    mid-utterance."""
+    mid-utterance.
+
+    ``language`` names a recorded speaker, not a text tag. The speech tier has
+    reference clips for some of these languages and not others; which is which
+    is its business and it changes as clips are recorded, so a language it
+    cannot speak comes back as a rejected :class:`ResponseFrame` saying so
+    rather than being refused here from a stale copy of the roster.
+    """
 
     voice: Voice | None = None
     language: Language | None = None
@@ -300,14 +281,15 @@ class Config:
     why there is one type rather than two — a record cannot drift from the wire
     if there is only one definition of what a configuration is.
 
-    "Unset" means *leave it alone* here, and *take the platform default* in the
+    "Unset" means *leave it alone* here, and *take Voqalize's default* in the
     record. A section left ``None`` is untouched; a field left ``None`` inside a
     section it is present in is untouched too.
 
-    Both legs carry their own language, and that is not duplication. Ten of the
-    twenty-three languages can be spoken; understanding Odia while speaking with
-    the Hindi clip is a real configuration and needs two fields to say. So the
-    guard is not that they agree, it is that you **stated both**::
+    Both legs carry their own language, and that is not duplication. Fewer
+    languages can be spoken than understood, so understanding Odia while
+    speaking with the Hindi clip is a real configuration and needs two fields to
+    say. The guard is therefore not that they agree, it is that you **stated
+    both**::
 
         Config(
             stt=SttConfig(language=Language.OR),   # listen in Odia
@@ -332,15 +314,6 @@ class Config:
                 f"A language has two legs — the recognizer and the recorded speaker — "
                 f"and moving one without the other is silent: the words stay right and "
                 f"only the voice is wrong. Set both, even when they differ."
-            )
-        if spoken is not None and spoken not in SPEAKABLE:
-            catalog = ", ".join(sorted(lang.value for lang in SPEAKABLE))
-            raise ConfigError(
-                f"There is no reference clip recorded in {spoken.value!r}, so it cannot "
-                f"be spoken — only understood. Set tts.language to one that can "
-                f"({catalog}) and say which: a call heard in {spoken.value!r} and spoken "
-                f"with the Hindi clip is a real configuration, but it has to be "
-                f"written down."
             )
 
 

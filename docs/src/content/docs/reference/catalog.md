@@ -91,8 +91,11 @@ Both personas have clips for **ten** of the 23 languages:
 
 `hi`, `en`, `bn`, `gu`, `kn`, `ml`, `mr`, `pa`, `ta`, `te`
 
-**A `tts.language` outside those ten is rejected**, not quietly served by the
-Hindi clip. So an Odia call is a configuration you write down:
+**A `tts.language` outside those ten is rejected** by the runtime, not quietly
+served by the Hindi clip. The list is the roster today, not a promise frozen
+into the wire contract: it grows as clips are recorded, and the session tells
+you when you name one it cannot speak. So an Odia call is a configuration you
+write down:
 
 ```python
 Config(
@@ -119,13 +122,16 @@ shipped with Devanagari read in an English voice for weeks: every test was green
 every log line looked right, and every automated score was unchanged, because
 none of them can hear.
 
-Two rules kill it, and `Config` raises `ConfigError` on both at the call site,
-before anything reaches the socket:
+Two rules kill it, and they are checked in two different places:
 
 1. **State both legs or neither.** Not that the two agree — that you said both.
-   Changing only the voice touches no language field and is unaffected.
+   Changing only the voice touches no language field and is unaffected. `Config`
+   raises `ConfigError` on this one at the call site, before anything reaches
+   the socket: it is a property of the request, so nothing needs to be asked.
 2. **No silent substitution.** A speaking language with no clip is refused, so
-   the Hindi fallback can only be something you asked for.
+   the Hindi fallback can only be something you asked for. This one comes back
+   from the runtime as a rejected response naming the language — which clips
+   exist is the speech tier's answer, and it changes as clips are recorded.
 
 ## Where it is set
 

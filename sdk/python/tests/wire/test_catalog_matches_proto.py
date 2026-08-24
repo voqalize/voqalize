@@ -8,15 +8,19 @@ symptom is a call that connects and is refused.
 
 So the Python side is checked against the descriptor rather than against a copy
 of the list. Regenerate with ``make proto`` and this test says what moved.
+
+Which languages can be *spoken* is deliberately not here. Reference clips are a
+capability of the speech tier and move when it does; the runtime answers that
+question when it is asked, and a copy of today's roster in a wire contract would
+be a third spelling to keep honest.
 """
 
 from __future__ import annotations
 
-from voqalize.sdk.wire import SPEAKABLE, Language, Voice
+from voqalize.sdk.wire import Language, Voice
 from voqalize.sdk.wire import _frames_pb2 as pb
 
 _ISO_CODE = pb.DESCRIPTOR.extensions_by_name["iso_code"]
-_HAS_TTS_CLIP = pb.DESCRIPTOR.extensions_by_name["has_tts_clip"]
 
 
 def _values(enum):
@@ -35,24 +39,6 @@ def test_every_proto_language_carries_an_iso_code() -> None:
     # decode as the empty string and pass the set comparison above once.
     missing = [v.name for v in _values(pb.Language) if not v.GetOptions().Extensions[_ISO_CODE]]
     assert missing == []
-
-
-def test_speakable_is_exactly_the_languages_with_a_clip() -> None:
-    clipped = {
-        Language(v.GetOptions().Extensions[_ISO_CODE])
-        for v in _values(pb.Language)
-        if v.GetOptions().Extensions[_HAS_TTS_CLIP]
-    }
-    assert clipped == set(SPEAKABLE), (
-        "SPEAKABLE has drifted from has_tts_clip. The proto is the definition: "
-        "if omnivoice recorded a clip, add the option there first."
-    )
-
-
-def test_speakable_is_a_subset_of_what_can_be_heard() -> None:
-    # A language we can speak but not transcribe would be a call the caller can
-    # listen to and not talk in.
-    assert set(SPEAKABLE) <= set(Language)
 
 
 def test_every_proto_voice_is_a_python_voice() -> None:

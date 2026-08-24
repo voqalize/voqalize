@@ -34,7 +34,7 @@ from voqalize_demos.testing import ScriptedGemini
 from voqalize.conformance import ConformanceError
 from voqalize.sdk import Brain
 
-from ._harness import check_catalog, check_greeting, check_voice_pair, demo, demo_from
+from ._harness import check_greeting, check_voice_pair, demo, demo_from
 
 pytest.importorskip("google.adk")  # the two ADK demos are built directly, below
 
@@ -152,12 +152,3 @@ async def test_the_check_fails_when_a_half_is_wrong() -> None:
             check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
         with pytest.raises(ConformanceError, match="TTS voice"):
             check_voice_pair(rig, voice="omnivoice/gauri", language="en")
-        # And the catalog check passes only because the values are real ones.
-        check_catalog(rig)
-        rig.driver.tts_settings.append({"voice": "supertonic/F1"})
-        with pytest.raises(ConformanceError, match="not in the catalog"):
-            check_catalog(rig)
-        rig.driver.tts_settings.pop()
-        rig.driver.stt_settings.append({"model": "indic-conformer"})
-        with pytest.raises(ConformanceError, match="403"):
-            check_catalog(rig)

@@ -122,19 +122,27 @@ proto3 JSON. One definition, so the record and the wire cannot drift. Enums spel
 by value name there (`"language": "LANGUAGE_HI"`, not `"hi"`) — that is proto3's
 JSON mapping, not a choice we made.
 
-**Two rules keep the silent bug dead, and both are enforced in the record on write
-and on the wire at runtime:**
+**Two rules keep the silent bug dead, and they are enforced in different places
+on purpose:**
 
-- **The pairing rule.** Both legs keep their own `language` field, because
-  `omnivoice` has reference clips for ten of the 23 languages `vql-stt` serves —
-  so understanding Odia while speaking with the Hindi clip is a real, legitimate
-  configuration. The guard is therefore not equality but **statedness**: naming a
-  language on one leg and not the other is **rejected**. Changing only the voice
-  touches no language field and is unaffected.
-- **No silent substitution.** A `tts.language` outside the ten with clips (`hi,
-  en, bn, gu, kn, ml, mr, pa, ta, te`) is **rejected**, not quietly served with
-  the Hindi clip. To run an Odia call you write `stt.language = OR,
-  tts.language = HI` — which is what is actually going to happen.
+- **The pairing rule**, checked where the configuration is *written* — the SDK
+  raises before the request leaves, and the control plane raises on record
+  write. Both legs keep their own `language` field, because `omnivoice` has
+  reference clips for ten of the 23 languages `vql-stt` serves, so understanding
+  Odia while speaking with the Hindi clip is a real, legitimate configuration.
+  The guard is therefore not equality but **statedness**: naming a language on
+  one leg and not the other is **rejected**. Changing only the voice touches no
+  language field and is unaffected. This is a property of the message, which is
+  why it needs nothing from the far end to decide.
+- **No silent substitution**, checked where the configuration is *used*. A
+  `tts.language` the speech tier has no clip for is **rejected**, not quietly
+  served with the Hindi clip. To run an Odia call you write `stt.language = OR,
+  tts.language = HI` — which is what is actually going to happen. Which
+  languages have clips is *not* in the proto and must not go there: it is a
+  capability of the speech tier, it moves when a clip is recorded, and a wire
+  contract that froze today's roster would take a proto release, an SDK release
+  and a redeploy to add a language. The runtime answers it at the moment it is
+  asked, in the `Response`.
 
 **A page still never sets either.** That part of the old rule was right and stays.
 
@@ -148,14 +156,21 @@ The catalog is small and closed: voices are `omnivoice/gauri` (female) and
 unknown model is **HTTP 403 at connect**, an unknown voice prefix is
 `voice not found` — both fail the session, not the sentence.
 
+`frames.proto` documents every declaration in place rather than in banner
+comments, and `buf lint`'s `COMMENTS` category fails the build if one is
+missing. protoc carries those into `SourceCodeInfo`, so they are the contract's
+documentation for every consumer, not just for whoever opens the file.
+
 ### The runtime half, as it stands in the tree
 
 `await session.configure(Config(tts=…, stt=…, idle=…))` — one method, one wire
-op, three optional sections. `Config.__post_init__` raises `ConfigError` on both
-rules above, at the call site, before anything reaches the socket. Voice and
-language are the `Voice` / `Language` enums from `voqalize.sdk.wire`, whose
-members are read out of the proto descriptor rather than written down twice;
-`tests/wire/test_catalog_matches_proto.py` fails if they drift.
+op, three optional sections. `Config.__post_init__` raises `ConfigError` on the
+pairing rule, at the call site, before anything reaches the socket; the clip
+rule is not checked here and comes back as `RequestRejected`. Voice and language
+are the `Voice` / `Language` enums from `voqalize.sdk.wire`, whose members are
+read out of the proto descriptor rather than written down twice;
+`tests/wire/test_catalog_matches_proto.py` fails if they drift, and
+`tests/wire/test_config_pairing.py` pins the rule.
 
 Still in the tree and still going away: the `Brain.voice` / `Brain.language`
 ClassVars, applied by `_apply_declared_voice` before `on_session_start`. They stay
