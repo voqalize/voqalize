@@ -1,7 +1,7 @@
 /**
  * TravelStore — the single source of truth for the Travel Desk demo.
  *
- * Both the human (clicking the portal) and the Travel Desk agent (via `ui_command`
+ * Both the human (clicking the portal) and the Travel Desk agent (via `ui-command`
  * RTVI messages) call the SAME actions, so the screen stays consistent no matter
  * who is driving. Navigation is plain React state — never the router — so the
  * `PipecatClient` mounted alongside never unmounts and the call stays live.
@@ -13,12 +13,13 @@
  * itinerary and its state — including edits the travel agent makes by hand.
  *
  * The agent's half of that is `uiCommands` at the bottom: one typed handler per
- * `ui_command`, checked against `TravelCommands` in `./uiCommands` (itself mirrored
- * from the `Action` classes in `demos/travel/backend/brain.py`). `TravelAdvisor`
- * hands the map to `useUiCommand`, which does the subscribing and the dispatch.
- * This replaced a 21-case `switch` over `Record<string, unknown>` where every
- * argument had to be re-coerced (`str(cmd.leg_id)!`) and a renamed field showed up
- * as a command that quietly stopped working.
+ * `ui-command`, checked against `TravelCommands` in `./uiCommands` (itself mirrored
+ * from the `Action` classes in `demos/travel/backend/brain_gemini.py`). `TravelAdvisor`
+ * subscribes to pipecat's `RTVIEvent.UICommand` once and routes each envelope's
+ * `command`/`payload` through this map. This replaced a 21-case `switch` over
+ * `Record<string, unknown>` where every argument had to be re-coerced
+ * (`str(cmd.leg_id)!`) and a renamed field showed up as a command that quietly
+ * stopped working.
  */
 
 import {
@@ -48,8 +49,7 @@ import {
   type Task,
   type TaskKind,
 } from './types';
-import type { UiCommandHandlers } from '@voqalize/client-react';
-import type { TravelCommands, WireItinerary } from './uiCommands';
+import type { TravelCommands, UiCommandHandlers, WireItinerary } from './uiCommands';
 import { SEED_ITINERARIES } from './data';
 
 export type View = 'dashboard' | 'overview' | 'flights' | 'hotels';
@@ -168,7 +168,7 @@ export interface TravelStore extends TravelActions {
   snapshot: () => Record<string, unknown> | null;
   /**
    * The agent's screen-driving handlers, keyed by wire name and typed against
-   * {@link TravelCommands}. Hand straight to `useUiCommand(client, uiCommands)`.
+   * {@link TravelCommands}. `TravelAdvisor` routes `RTVIEvent.UICommand` through it.
    */
   uiCommands: UiCommandHandlers<TravelCommands>;
 }
@@ -694,7 +694,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   // `TravelCommands` — a name the brain doesn't declare is a compile error here,
   // and each `args` is the shape its Python `Action` emits, so there is nothing
   // left to coerce or null-check. `useMemo` only to keep the object identity
-  // stable; `useUiCommand` reads it through a ref either way.
+  // stable; the RTVIEvent.UICommand handler in TravelAdvisor reads it fresh via useCallback's deps.
   const uiCommands: UiCommandHandlers<TravelCommands> = useMemo(
     () => ({
       open_dashboard: () => openDashboard(),

@@ -1,11 +1,11 @@
 /**
  * The Travel Desk screen contract — the browser half.
  *
- * **`demos/travel/backend/brain.py` is the source of truth.** Every interface here
- * mirrors one `voqalize.sdk.Action` subclass declared there, field for field, and
+ * **`demos/travel/backend/brain_gemini.py` is the source of truth.** Every interface
+ * here mirrors one `voqalize.sdk.Action` subclass declared there, field for field, and
  * the key it is filed under is that action's wire name (derived from the Python
  * class name: `SearchFlights` → `search_flights`). Change one side and the other
- * must move with it; `demos/tests/test_travel_adk.py` asserts the exact envelopes
+ * must move with it; `demos/tests/test_travel_e2e.py` asserts the exact envelopes
  * these describe, so a drift fails a test rather than a demo.
  *
  * These are **wire** shapes, deliberately separate from the domain types in
@@ -14,10 +14,11 @@
  * store's own model then adds what only the browser knows: a slug id, timestamps,
  * which option is selected, the day plan.
  *
- * The `useUiCommand` hook (`@voqalize/client-react`) checks a handler map against
- * `TravelCommands` below: an unknown action name is a compile error, and each
- * handler's argument is typed — which is what removed the old `switch` with its
- * `str(cmd.leg_id)!` coercions.
+ * `TravelAdvisor` subscribes once to pipecat's `RTVIEvent.UICommand` and routes
+ * every envelope's `command` through a `UiCommandHandlers<TravelCommands>` map:
+ * an unknown action name is a compile error, and each handler's argument is
+ * typed — which is what removed the old `switch` with its `str(cmd.leg_id)!`
+ * coercions.
  */
 
 /** `Family` — one travelling family. */
@@ -88,9 +89,12 @@ export interface WireItinerary {
   hotel_cities: WireCityNights[];
 }
 
+/** One handler per command in `T`, keyed and typed by its wire name. */
+export type UiCommandHandlers<T> = { [K in keyof T]: (args: T[K]) => void };
+
 /**
- * Wire name → argument shape, for every `ui_command` the Travel Desk brain fires.
- * The ten keys are the ten `Action` subclasses in `brain.py`.
+ * Wire name → argument shape, for every `ui-command` the Travel Desk brain fires.
+ * The ten keys are the ten `Action` subclasses in `brain_gemini.py`.
  */
 export interface TravelCommands {
   /** Show the dashboard of saved drafts. */
