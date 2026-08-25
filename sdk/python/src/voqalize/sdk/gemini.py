@@ -129,26 +129,21 @@ class GeminiBrain(Brain):
         # is what lets us stay out of the tool loop entirely.
         self._afc = types.AutomaticFunctionCallingConfig(maximum_remote_calls=max_tool_hops)
 
-        # The conversation, as Gemini contents. **Private.** A brain adapts one
-        # provider's vocabulary to Voqalize's, and the shape of that vocabulary is
-        # the one thing about the provider a brain author must never have to see —
-        # it is what makes two adapters interchangeable. Persisting a transcript
-        # is a real requirement and will get a lifecycle of its own, in terms that
-        # are ours; it will not be this list, whatever it holds that day.
+        # The conversation, in Gemini's own type, on purpose. What a brain owes
+        # Voqalize is provider-neutral; what a brain says to a model is the
+        # provider's, and a wrapper type in between is one more thing that has to
+        # keep up with Gemini. :meth:`append_to_context` is the way in.
         self._history: list[types.Content] = []
         # Units still awaiting their heard truth, in the order Voqalize will
         # report them. Only units that opened a *speech* unit are here: Voqalize
         # finalizes what it played, and a hop that only called a tool played
         # nothing.
         self._awaiting: deque[_Unit] = deque()
-        # Notes handed over by :meth:`note`, waiting for a quiet moment to join
-        # the transcript. See that method for why they wait.
-        self._notes: list[str] = []
 
     # ─── The turn ───────────────────────────────────────────────────────
 
-    def note(self, text: str) -> None:
-        """Put a note into the transcript, in front of what the caller says next.
+    def append_to_context(self, content: types.Content) -> None:
+        """Add to the conversation the model sees, in Gemini's own type.
 
         For context the app knows and the conversation does not — typically the
         live screen state pushed to :meth:`~voqalize.sdk.Brain.on_rtvi`, which
@@ -156,30 +151,38 @@ class GeminiBrain(Brain):
 
             async def on_rtvi(self, session, msg):
                 if msg.data.get("t") == "state_sync":
-                    self.note("ON SCREEN: " + json.dumps(msg.data["d"]))
+                    self.append_to_context(
+                        types.Content(
+                            role="user",
+                            parts=[types.Part(text="ON SCREEN: " + json.dumps(msg.data["d"]))],
+                        )
+                    )
 
-        The note is **appended**, once, where you call it — not re-asked for and
-        re-inserted on every request. That is what makes the transcript a record
-        rather than a rendering, and it is what lets the provider cache it: every
-        request is the previous one plus what happened since.
+        A ``Content`` is whatever Gemini takes, so handing the model a screenshot
+        or a PDF is this same call with a different part. The role must be
+        ``user``: the model's side of a conversation is written by the model.
 
-        So note only what changed. Ten notes of the same screen are ten notes in
-        the transcript, and this method will not guess which of them you meant.
+        It appends **immediately, once, where you call it**. Nothing here
+        debounces, diffs or re-renders — what to append and when is yours, and
+        this method will not guess which of ten identical screens you meant. Every
+        request is the previous one plus what happened since, which is what makes
+        it cacheable and what stops the context changing under a turn already in
+        flight.
 
-        It lands at the next quiet moment — before the caller's next message, or
-        at the top of the next :meth:`respond` — because a turn in flight is
-        writing this transcript too, and a note wedged between a tool call and its
-        result is a conversation Gemini refuses.
+        Calling it mid-turn is safe. The append can land between a tool call and
+        its result; Gemini accepts that, and the model finishes the call before it
+        attends to what arrived. Reconciliation is untouched — appended content is
+        not a speech unit, so it is never rewritten with heard text and never
+        dropped as an unanswered call.
         """
-        self._notes.append(text)
-
-    def _flush_notes(self) -> None:
-        for text in self._notes:
-            self._history.append(types.Content(role="user", parts=[types.Part(text=text)]))
-        self._notes.clear()
+        if content.role != "user":
+            raise ValueError(
+                f"append_to_context takes user content, got role={content.role!r}. "
+                "The model's side of a conversation is written by the model."
+            )
+        self._history.append(content)
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
-        self._flush_notes()
         self._history.append(types.Content(role="user", parts=[types.Part(text=msg.text)]))
         return self.respond(session)
 
@@ -206,7 +209,6 @@ class GeminiBrain(Brain):
         and a unit's heard truth is not known until it has finished playing anyway
         — which is usually after the whole turn generated.
         """
-        self._flush_notes()
         contents = list(self._history)
         # The head of AFC's record is what we just handed it, so folding starts
         # past our own contents.

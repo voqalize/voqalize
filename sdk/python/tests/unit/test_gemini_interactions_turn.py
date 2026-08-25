@@ -457,12 +457,16 @@ async def test_every_hop_carries_the_whole_transcript_and_stores_nothing() -> No
     assert [len(hop) for hop in inputs] == [1, 3], "user; then user + call + result"
 
 
-async def test_a_note_lands_in_front_of_the_next_thing_the_caller_says() -> None:
-    """A note is context for the question, so it goes in front of it — and in front
-    of the caller, not in front of a tool result, which on this API is its own kind
-    of step and never wears the caller's."""
+def _user(text: str) -> gi.UserInputStep:
+    return gi.UserInputStep(content=[gi.TextContent(text=text)])
+
+
+async def test_append_to_context_lands_where_it_was_called() -> None:
+    """Appended once, in place, in front of what the caller says next — and as the
+    caller's own kind of step, not as a tool result, which on this API is a
+    different kind and never wears the caller's."""
     brain, _, session = await _open(_Coach(_ScriptedClient([[_calls("ping")], [_says("Sure.")]])))
-    brain.note("on the meals tab")
+    brain.append_to_context(_user("on the meals tab"))
 
     await _drain(brain, session)
 
@@ -475,38 +479,70 @@ async def test_a_note_lands_in_front_of_the_next_thing_the_caller_says() -> None
     ]
 
 
-async def test_a_note_from_a_tool_does_not_move_the_turn_it_was_written_in() -> None:
-    """The screen moving under a running turn used to move the grounding with it:
-    the hook was re-read on every hop, so hop two argued from a screen hop one had
-    never seen. A note is appended once, at the top of the turn — so the turn it
-    arrives in reads consistently, and the next one has it."""
+async def test_appending_mid_turn_lands_in_the_turn_that_is_running() -> None:
+    """Immediately means immediately, including from inside a tool.
+
+    `grounding()` was re-read on every hop, so hop two silently re-argued from a
+    screen hop one had never seen. This is the opposite: one append, at the point
+    it was made, and every hop from there on carries it. Hop one is untouched —
+    which is what makes each request an extension of the last rather than a
+    re-rendering of it.
+
+    Where "the point it was made" falls is this engine's own business, and here it
+    is between a function call and its result — this loop writes the result after
+    the tool returns, and the tool appended first. The API takes that: it validates
+    no pairing at all, beyond refusing a request whose *last* step is an unanswered
+    call. `GeminiBrain` puts the same append ahead of the call instead, because AFC
+    runs the tool before it hands over the chunk that records it. Both are
+    append-only, both extend the last request, and neither is a position a brain
+    should be written to depend on.
+    """
 
     class _Moving(_Coach):
         async def ping(self) -> str:
             """Move the screen from under the turn, as a caller's thumb does."""
-            self.note("looking at the meals tab")
+            self.append_to_context(_user("now on the meals tab"))
             return "pong"
 
     brain, _, session = await _open(
         _Moving(_ScriptedClient([[_calls("ping")], [_says("Sure.")], [_says("Right.")]]))
     )
-    brain.note("looking at the glucose tab")
+    brain.append_to_context(_user("on the glucose tab"))
 
     await _drain(brain, session)
     inputs = brain._client.interactions.inputs  # pyright: ignore[reportPrivateUsage]
-    # Both hops of the turn opened on the same note.
-    assert [_one(hop[0]) for hop in inputs] == [
-        "user: looking at the glucose tab",
-        "user: looking at the glucose tab",
-    ]
-
-    # The next turn has it, in front of what the caller says next.
-    await _drain(brain, session)
-    inputs = brain._client.interactions.inputs  # pyright: ignore[reportPrivateUsage]
-    assert [_one(step) for step in inputs[2][-2:]] == [
-        "user: looking at the meals tab",
+    assert [_one(step) for step in inputs[0]] == [
+        "user: on the glucose tab",
         "user: hello",
     ]
+    assert [_one(step) for step in inputs[1]] == [
+        "user: on the glucose tab",
+        "user: hello",
+        "call: ping{}",
+        "user: now on the meals tab",
+        'result: ping -> {"result": "pong"}',
+    ]
+
+    # And the next turn extends that — the wedged append stays exactly where it
+    # landed rather than being re-rendered somewhere tidier.
+    await _drain(brain, session)
+    inputs = brain._client.interactions.inputs  # pyright: ignore[reportPrivateUsage]
+    was = [_one(step) for step in inputs[1]]
+    now = [_one(step) for step in inputs[2]]
+    assert now[: len(was)] == was
+    assert now[len(was) :] == ["model: Sure.", "user: hello"]
+
+
+async def test_append_to_context_rejects_the_steps_it_does_not_own() -> None:
+    """Every kind of step but the caller's is either the model's to write or this
+    class's to write back. A brain that appends a model output is telling the model
+    it already said something it never did."""
+    brain, _, _ = await _open(_Coach(_ScriptedClient([[_says("Sure.")]])))
+    with pytest.raises(ValueError, match="UserInputStep"):
+        brain.append_to_context(  # pyright: ignore[reportArgumentType]
+            gi.ModelOutputStep(content=[gi.TextContent(text="of course, doctor")])
+        )
+    assert brain._history == []  # pyright: ignore[reportPrivateUsage]
 
 
 # ─── Declarations ─────────────────────────────────────────────────────────────

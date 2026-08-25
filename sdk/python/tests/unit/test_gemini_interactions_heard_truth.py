@@ -168,3 +168,54 @@ async def test_a_finalize_with_nothing_awaiting_is_the_greeting() -> None:
     await brain.on_finalize(session, _heard("hi, travel desk here"))
 
     assert _texts(brain) == ["hi, travel desk here"]
+
+
+# ─── And what an append does to all of it ─────────────────────────────────────
+
+
+def _appended(brain: GeminiInteractionsBrain) -> list[str]:
+    return [
+        "".join(c.text for c in (s.content or []) if isinstance(c, gi.TextContent))
+        for s in brain._history
+        if isinstance(s, gi.UserInputStep)
+    ]
+
+
+async def test_an_appended_step_is_not_a_unit_to_reconcile() -> None:
+    """`append_to_context` writes into the same list reconciliation rewrites, so it
+    has to be invisible to it.
+
+    It is, and structurally rather than by luck: the queue holds step objects, and
+    reconciliation removes and rewrites *by identity* — which this engine already
+    has to do, since two freshly opened steps are equal as pydantic models. An
+    appended step is neither in the queue nor identical to anything in it.
+    """
+    brain, session = await _brain()
+    _speak(brain, "there are three options this morning")
+    brain.append_to_context(
+        gi.UserInputStep(content=[gi.TextContent(text="ON SCREEN: the flights tab")])
+    )
+
+    await brain.on_finalize(session, _heard("there are three", interrupted=True))
+
+    assert _texts(brain) == ["there are three"]
+    assert _appended(brain) == ["ON SCREEN: the flights tab"]
+
+
+async def test_an_append_does_not_save_an_unanswered_call() -> None:
+    """The one thing this API validates is that the last step is not an unanswered
+    call — and an append is enough to satisfy it, which means an append can leave a
+    broken context looking well-formed. So this cleanup can never be relaxed on the
+    grounds that the API would catch it.
+    """
+    brain, _ = await _brain()
+    _tool_call(brain, "search_flights")
+    brain.append_to_context(
+        gi.UserInputStep(content=[gi.TextContent(text="ON SCREEN: the flights tab")])
+    )
+
+    brain._drop_unanswered()  # pyright: ignore[reportPrivateUsage]
+
+    assert _appended(brain) == ["ON SCREEN: the flights tab"]
+    # The call went; the append stayed.
+    assert [type(s).__name__ for s in brain._history] == ["UserInputStep"]

@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
+from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
@@ -369,10 +370,10 @@ class LegalBrain(GeminiBrain):
         self.current_focus = data if clause_id in CLAUSES_BY_ID else None
         if self.current_focus is None:
             return
-        # Only note when the position actually changes clause — the browser
-        # re-sends the same one as the lawyer reads within a section, and a note
-        # is appended, so an unguarded one here would put the same clause in
-        # front of the model a hundred times over a call.
+        # Only append when the position actually changes clause — the browser
+        # re-sends the same one as the lawyer reads within a section, and the
+        # context is append-only, so an unguarded append would put the same clause
+        # in front of the model a hundred times over a call.
         if clause_id == self._last_focus_clause_id:
             return
         self._last_focus_clause_id = clause_id
@@ -380,9 +381,16 @@ class LegalBrain(GeminiBrain):
             blob = json.dumps(self.current_focus, ensure_ascii=False)
         except (TypeError, ValueError):
             blob = str(self.current_focus)
-        self.note(
-            "LAWYER IS CURRENTLY VIEWING (authoritative — ground ambiguous questions "
-            "in this clause): " + blob
+        self.append_to_context(
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part(
+                        text="LAWYER IS CURRENTLY VIEWING (authoritative — ground ambiguous "
+                        "questions in this clause): " + blob
+                    )
+                ],
+            )
         )
         logger.info("legal: clause_focus ingested (clause_id={})", clause_id)
 

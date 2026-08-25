@@ -40,10 +40,11 @@ Three things are better for having done it ourselves:
   carries an ``id`` and the ``function_result`` quotes it as ``call_id``. When a
   barge-in cuts a turn between the two, the pair that is missing is the one
   named, rather than the one counted.
-* **Grounding is refreshed per hop.** The whole transcript goes over on every
-  call, so a screen the caller touched while a tool was running is in front of
-  the model for the sentence that follows it. On ``generate_content`` the
-  contents are handed over once and a hop cannot refresh them.
+* **The context is re-read per hop.** The whole context goes over on every call,
+  so something :meth:`GeminiInteractionsBrain.append_to_context` added while a
+  tool was running is in front of the model for the sentence that follows it. On
+  ``generate_content`` the contents are handed over once per turn, so the same
+  append waits for the turn after.
 
 **The brain owns the transcript, and the transcript is what was heard.** Each
 ``model_output`` step goes into the transcript as it
@@ -103,10 +104,9 @@ class GeminiInteractionsBrain(Brain):
         # The conversation, as interaction steps — typed by what each one is
         # (``user_input``, ``thought``, ``model_output``, ``function_call``,
         # ``function_result``) rather than by a role shared between a person and a
-        # tool's answer. **Private**, and see the same note on
-        # :class:`~voqalize.sdk.gemini.GeminiBrain`: this list is a provider's
-        # vocabulary, and a brain author reading it would be reading the one thing
-        # that differs between two adapters that are otherwise the same.
+        # tool's answer. In the provider's own types, on purpose; see the same
+        # note on :class:`~voqalize.sdk.gemini.GeminiBrain`. This is where the two
+        # adapters differ, and where they should.
         self._history: list[gi.Step] = []
         # Steps still awaiting their heard truth, in the order Voqalize will
         # report them. Only steps that opened speech are here: Voqalize finalizes
@@ -116,14 +116,11 @@ class GeminiInteractionsBrain(Brain):
         # are equal as pydantic models, so `remove`, `index` and `in` are all
         # wrong on this queue and on the transcript.
         self._awaiting: deque[gi.ModelOutputStep] = deque()
-        # Notes handed over by :meth:`note`, waiting for a quiet moment to join
-        # the transcript. See that method for why they wait.
-        self._notes: list[str] = []
 
     # ─── The turn ───────────────────────────────────────────────────────
 
-    def note(self, text: str) -> None:
-        """Put a note into the transcript, in front of what the caller says next.
+    def append_to_context(self, step: gi.UserInputStep) -> None:
+        """Add to the conversation the model sees, in the interactions API's own type.
 
         For context the app knows and the conversation does not — typically the
         live screen state pushed to :meth:`~voqalize.sdk.Brain.on_rtvi`, which
@@ -131,30 +128,42 @@ class GeminiInteractionsBrain(Brain):
 
             async def on_rtvi(self, session, msg):
                 if msg.data.get("t") == "state_sync":
-                    self.note("ON SCREEN: " + json.dumps(msg.data["d"]))
+                    self.append_to_context(
+                        gi.UserInputStep(
+                            content=[
+                                gi.TextContent(text="ON SCREEN: " + json.dumps(msg.data["d"]))
+                            ]
+                        )
+                    )
 
-        The note is **appended**, once, where you call it — not re-asked for and
-        re-inserted on every hop. That is what makes the transcript a record
-        rather than a rendering, and it is what lets the provider cache it: every
-        hop is the previous one plus what happened since. It also means the
-        grounding cannot change under a turn already in flight, which is what a
-        hook re-read per hop could do.
+        A ``UserInputStep`` holds whatever the API takes, so handing the model a
+        screenshot or a PDF is this same call with different content. It is the
+        only step you may append: every other kind is the model's to write, or a
+        tool result this class writes itself. That is the same rule
+        :meth:`~voqalize.sdk.gemini.GeminiBrain.append_to_context` spells as
+        ``role == "user"``, said in the vocabulary this API uses instead.
 
-        So note only what changed. Ten notes of the same screen are ten steps in
-        the transcript, and this method will not guess which of them you meant.
+        It appends **immediately, once, where you call it**. Nothing here
+        debounces, diffs or re-renders — what to append and when is yours, and
+        this method will not guess which of ten identical screens you meant. Every
+        hop is the previous one plus what happened since, which is what makes it
+        cacheable and what stops the context changing under a turn already in
+        flight.
 
-        It lands at the next quiet moment — before the caller's next message, or
-        at the top of the next :meth:`respond`.
+        Calling it mid-turn is safe. The append can land between a function call
+        and its result; the API accepts that, and the model finishes the call
+        before it attends to what arrived. Reconciliation is untouched — an
+        appended step is not a speech step, so it is never rewritten with heard
+        text and never dropped as an unanswered call.
         """
-        self._notes.append(text)
-
-    def _flush_notes(self) -> None:
-        for text in self._notes:
-            self._history.append(gi.UserInputStep(content=[gi.TextContent(text=text)]))
-        self._notes.clear()
+        if type(step) is not gi.UserInputStep:
+            raise ValueError(
+                f"append_to_context takes a UserInputStep, got {type(step).__name__}. "
+                "The model's side of a conversation is written by the model."
+            )
+        self._history.append(step)
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
-        self._flush_notes()
         self._history.append(gi.UserInputStep(content=[gi.TextContent(text=msg.text)]))
         return self.respond(session)
 
@@ -174,8 +183,6 @@ class GeminiInteractionsBrain(Brain):
         a unit on its first text and closes it at ``step.stop``; every other kind
         of step is silent, so a hop that only calls a tool never opens one.
         """
-        self._flush_notes()  # once per turn, never per hop — the grounding cannot
-        # change under a turn already in flight.
         tools = self.tools  # read once per turn, so a hop cannot change the offer
         declarations = [_declare(fn) for fn in tools]
         table = {fn.__name__: fn for fn in tools}

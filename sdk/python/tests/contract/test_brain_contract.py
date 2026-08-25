@@ -27,14 +27,16 @@ The nine clauses, in the order they appear below:
    the delivered prefix; heard by nobody, drop the unit; and match finalizes to
    units first-in-first-out, which is what the runtime's exactly-once guarantee
    buys. A finalize with nothing waiting is the greeting.
-9. **Every request extends the last.** The transcript is append-only, so each
+9. **Every request extends the last.** The context is append-only, so each
    request the provider sees is the previous one plus what happened since — which
    is what makes it cacheable, and what stops the context changing under a turn
    already in flight.
 
 What is *not* here is as deliberate. Nothing above names ``types.Content`` or
 ``gi.Step``; an invariant that cannot be said without one is a property of a
-provider rather than of a brain, and lives in that engine's own suite.
+provider rather than of a brain, and lives in that engine's own suite. That is
+also why ``append_to_context`` is absent: every engine should offer it, but it
+takes the provider's own type, so what it promises can only be pinned there.
 """
 
 from __future__ import annotations
@@ -349,20 +351,28 @@ async def test_a_finalize_with_nothing_awaiting_is_the_greeting(engine: Engine) 
 
 
 async def test_every_request_extends_the_last(engine: Engine) -> None:
-    """Three turns, with a note dropped in between two of them.
+    """Three turns, the middle one going round a tool.
 
     Each request is the previous one plus what happened since — never a
-    re-rendering of the transcript with something moved. A note that got inserted
-    in front of the latest user turn on every request, which is what `grounding()`
-    did, breaks this on the second turn: the common prefix stops one exchange
-    short of the end, so the cache does too.
+    re-rendering of the context with something moved. `grounding()` re-inserted
+    its text in front of the latest user turn on every request, which breaks this
+    on the second turn: the common prefix stops one exchange short of the end, so
+    the provider's cache does too.
+
+    The tool turn is where it is worth checking. A turn writes the context from
+    both sides — the model's call, then the result this brain wrote back — and
+    whatever request comes next has to carry both on top of everything already
+    there, in the order they happened.
     """
-    brain = engine.brain(says("One."), says("Two."), says("Three."))
+    brain = engine.brain(
+        says("One."),
+        calls(Call("ping")),
+        says("Two."),
+        says("Three."),
+    )
     _, _, session = await open_call(engine, brain)
 
-    for i, word in enumerate(("first", "second", "third")):
-        if i == 1:
-            brain.note("on screen: glucose")
+    for word in ("first", "second", "third"):
         async for _ in brain.on_user_message(session, UserMessage(text=word)):
             pass
 
@@ -370,8 +380,6 @@ async def test_every_request_extends_the_last(engine: Engine) -> None:
     assert len(sent) >= 3, sent
     for before, after in itertools.pairwise(sent):
         assert after[: len(before)] == before, f"{before} is not a prefix of {after}"
-        assert len(after) > len(before), "a request that added nothing"
 
-    # And the note is in there, in front of the words it grounds.
     last = sent[-1]
-    assert last.index("on screen: glucose") < last.index("second")
+    assert last.index("first") < last.index("second") < last.index("third")

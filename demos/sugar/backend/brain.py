@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
+from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field, computed_field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
@@ -379,13 +380,15 @@ class SugarBrain(GeminiBrain):
     # ─── Browser → brain: screen state sync (silent awareness) ──────────
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Note the latest screen snapshot, so the next turn reasons from the live
-        screen.
+        """Put the latest screen snapshot into the context, so the next turn
+        reasons from the live screen.
 
         The browser re-sends the snapshot as the patient scrolls and taps, and most
-        of those are the same screen. Only a changed one is worth a note: the
-        transcript is append-only, so an unguarded note here would put a hundred
-        near-identical screens in front of the model by the end of a call.
+        of those are the same screen. Only a changed one is worth appending: the
+        context is append-only, so an unguarded append here would put a hundred
+        near-identical screens in front of the model by the end of a call. The SDK
+        does not do this for us on purpose — which screens are the same is a
+        question only this brain can answer.
         """
         snapshot = data.get("screen")
         self.current_state = snapshot if isinstance(snapshot, dict) else None
@@ -403,7 +406,7 @@ class SugarBrain(GeminiBrain):
         if message == self._state_message:
             return
         self._state_message = message
-        self.note(message)
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=message)]))
         logger.info("sugar: state_sync ingested (active={})", bool(self.current_state))
 
     # ─── Tools ──────────────────────────────────────────────────────────

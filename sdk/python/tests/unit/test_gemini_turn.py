@@ -390,11 +390,15 @@ async def test_a_barge_in_mid_turn_closes_the_generator_cleanly() -> None:
     assert _history(brain)[:3] == ["user: hello", "model: call:ping", "user: resp:ping"]
 
 
-async def test_a_note_lands_in_front_of_the_next_thing_the_caller_says() -> None:
-    """A note is context for the question, so it goes in front of it. Behind it and
-    the model answers the note instead of the caller."""
+def _user(text: str) -> types.Content:
+    return types.Content(role="user", parts=[types.Part(text=text)])
+
+
+async def test_append_to_context_lands_where_it_was_called() -> None:
+    """Appended once, in place, in front of what the caller says next — not
+    re-rendered onto the request the way `grounding()` did."""
     brain, _, session = await _open(_Coach(_ScriptedClient(_text("Sure."))))
-    brain.note("the caller is looking at the meals tab")
+    brain.append_to_context(_user("the caller is looking at the meals tab"))
 
     await _drain(brain, session)
 
@@ -403,11 +407,55 @@ async def test_a_note_lands_in_front_of_the_next_thing_the_caller_says() -> None
         "the caller is looking at the meals tab",
         "hello",
     ]
-    # And it is in the transcript, once — not re-rendered onto the next request.
     assert _history(brain)[:2] == [
         "user: the caller is looking at the meals tab",
         "user: hello",
     ]
+
+
+async def test_appending_mid_turn_lands_in_the_turn_that_is_running() -> None:
+    """Immediately means immediately, including from inside a tool.
+
+    `grounding()` was re-read per hop, so a turn silently re-argued from whatever
+    the screen said last. This is the opposite: one append, at the point it was
+    made. The SDK does not hold it back for a quiet moment — what to append and
+    when is the developer's.
+
+    Where "the point it was made" falls is this engine's, and it is not where a
+    reader expects: AFC runs the tool before it hands us the chunk that records
+    the call, so the append lands *ahead* of the call it came out of.
+    `GeminiInteractionsBrain` drives its own loop and puts it behind. Both are
+    append-only, both extend the last request, and neither is something a brain
+    should be written to depend on.
+    """
+
+    class _Moving(_Coach):
+        async def ping(self) -> str:
+            """Move the screen from under the turn, as a caller's thumb does."""
+            self.append_to_context(_user("now on the meals tab"))
+            return "pong"
+
+    brain, _, session = await _open(_Moving(_ScriptedClient([*_calls("ping"), *_text("Sure.")])))
+    await _drain(brain, session)
+
+    assert _history(brain) == [
+        "user: hello",
+        "user: now on the meals tab",
+        "model: call:ping",
+        "user: resp:ping",
+        "model: Sure.",
+    ]
+
+
+async def test_append_to_context_rejects_the_model_side() -> None:
+    """The model's half of a conversation is written by the model. A brain that
+    puts words in its mouth is telling it that it already said them."""
+    brain, _, _ = await _open(_Coach(_ScriptedClient(_text("Sure."))))
+    with pytest.raises(ValueError, match="user content"):
+        brain.append_to_context(
+            types.Content(role="model", parts=[types.Part(text="of course, doctor")])
+        )
+    assert brain._history == []  # pyright: ignore[reportPrivateUsage]
 
 
 # ─── Declarations ─────────────────────────────────────────────────────────────

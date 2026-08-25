@@ -97,11 +97,33 @@ is no registry and no decorator to forget.
 
 Two things carry most of what a real agent needs beyond its tools.
 `system_instruction` is settable, so facts known only once the session opens — who
-called, which tenant — go in from `on_session_start`. And `note(text)` puts a line
-into the transcript in front of whatever the caller says next: for the live screen
-state pushed to `on_rtvi`, so the model never answers from a stale turn. A note is
-appended once, where you call it — the transcript only ever grows, which is what
-makes it cacheable, so note what *changed* rather than the screen every time.
+called, which tenant — go in from `on_session_start`. And `append_to_context()`
+adds to the conversation the model sees, for context the app knows and the
+conversation does not — typically the live screen state pushed to `on_rtvi`, which
+takes no floor and starts no turn:
+
+```python
+async def on_rtvi(self, session, msg):
+    if msg.data.get("t") == "state_sync":
+        self.append_to_context(
+            types.Content(
+                role="user",
+                parts=[types.Part(text="ON SCREEN: " + json.dumps(msg.data["d"]))],
+            )
+        )
+```
+
+It takes the provider's own type on purpose — a `Content` here, a `UserInputStep`
+on `GeminiInteractionsBrain`. **Voqalize owns the wire; the provider owns the
+context.** What a brain owes Voqalize is neutral and the same across every adapter;
+what a brain says to a model is the provider's, and a wrapper type in between is
+one more thing that has to keep up with Gemini. It also means handing the model a
+screenshot or a PDF is this same call with a different part, rather than a second
+method we would have had to invent for it.
+
+It appends where you call it, once. Nothing debounces or diffs for you — the
+context only ever grows, which is what makes it cacheable, so append what
+*changed* rather than the whole screen every time.
 
 `import voqalize.sdk` pulls no model vendor: nothing in the core SDK imports this
 module.

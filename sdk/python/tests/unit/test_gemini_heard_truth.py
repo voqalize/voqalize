@@ -148,3 +148,54 @@ async def test_a_finalize_with_nothing_awaiting_is_the_greeting() -> None:
     await brain.on_finalize(session, _heard("hi, travel desk here"))
 
     assert _texts(brain) == ["hi, travel desk here"]
+
+
+# ─── And what an append does to all of it ─────────────────────────────────────
+
+
+def _appended(brain: GeminiBrain) -> list[str]:
+    return [
+        "".join(p.text or "" for p in (c.parts or [])) for c in brain._history if c.role == "user"
+    ]
+
+
+async def test_an_appended_content_is_not_a_unit_to_reconcile() -> None:
+    """`append_to_context` writes into the same list reconciliation rewrites, so it
+    has to be invisible to it.
+
+    It is, and structurally rather than by luck: the queue holds unit objects, and
+    reconciliation removes and rewrites *by identity*. An appended content is
+    neither in the queue nor identical to anything in it, so a finalize cannot land
+    on it however badly the truncation lines up.
+    """
+    brain, session = await _brain()
+    _speak(brain, "there are three options this morning")
+    brain.append_to_context(
+        types.Content(role="user", parts=[types.Part(text="ON SCREEN: the flights tab")])
+    )
+
+    await brain.on_finalize(session, _heard("there are three", interrupted=True))
+
+    assert _texts(brain) == ["there are three"]
+    assert _appended(brain) == ["ON SCREEN: the flights tab"]
+
+
+async def test_an_append_does_not_save_an_unanswered_call() -> None:
+    """The one thing the provider validates is that the last step is not an
+    unanswered call — and an append is enough to satisfy it, which means an append
+    can leave a broken context looking well-formed. So this cleanup can never be
+    relaxed on the grounds that the API would catch it.
+    """
+    brain, _ = await _brain()
+    unit = brain._open_unit()  # pyright: ignore[reportPrivateUsage]
+    part = types.Part(function_call=types.FunctionCall(name="search_flights", args={}))
+    brain._extend_unit(unit, part)  # pyright: ignore[reportPrivateUsage]
+    brain.append_to_context(
+        types.Content(role="user", parts=[types.Part(text="ON SCREEN: the flights tab")])
+    )
+
+    brain._drop_unanswered([(unit, part)])  # pyright: ignore[reportPrivateUsage]
+
+    assert _appended(brain) == ["ON SCREEN: the flights tab"]
+    # The call went; the append stayed.
+    assert [c.role for c in brain._history] == ["user"]  # pyright: ignore[reportPrivateUsage]
