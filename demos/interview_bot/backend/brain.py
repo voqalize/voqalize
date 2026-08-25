@@ -273,11 +273,6 @@ class InterviewBotBrain(GeminiBrain):
     seeded from ``init_payload`` in :meth:`on_session_start`, since the brain is
     built before the session (and its payload) exists."""
 
-    # This agent's own voice — not the connecting page's to choose. `language`
-    # sets both the recognizer's hint and the TTS reference clip (the accent).
-    voice = "omnivoice/gauri"
-    language = "en"
-
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         # The base system instruction only; the full JOB/CANDIDATE/PLAN prompt is
         # applied per session in on_session_start once init_payload has arrived.

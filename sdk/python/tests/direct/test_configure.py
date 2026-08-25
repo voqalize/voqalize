@@ -9,6 +9,15 @@ poking at the plumbing.
 
 Three outcomes, and a brain has to survive all three: accepted, refused, and the
 one the protocol cannot promise away — a Voqalize that stopped answering.
+
+And one ordering, which is the whole reason a brain may configure at all from
+:meth:`Brain.on_session_start`: the request reaches the wire *before* the first
+word of the greeting. A configure that lands after the audio is worse than
+useless — the caller has already heard the wrong voice say hello, in the wrong
+recognizer's language. That is inaudible to automation: the transcript is
+word-perfect, WER is unchanged, every other check passes, and only a native
+speaker hears a foreigner reading their language. The frames are the only place
+it shows.
 """
 
 from __future__ import annotations
@@ -28,6 +37,7 @@ from voqalize.sdk.wire import (
     ConfigureFrame,
     IdleConfig,
     Language,
+    SpeechChunkFrame,
     SttConfig,
     TtsConfig,
     Voice,
@@ -97,6 +107,18 @@ def _spoken(turn) -> str:
     return "".join(text for unit in turn.units for text in unit.texts)
 
 
+def _first_index(driver: VoqalizeDriver, frame_type) -> int | None:
+    """Where a frame type first appears in the driver's own ordered log.
+
+    Requests and speech ride the same lane, so their positions here are the
+    positions the caller experienced.
+    """
+    for i, r in enumerate(driver.log):
+        if isinstance(r.frame, frame_type):
+            return i
+    return None
+
+
 async def test_an_accepted_request_returns_and_the_turn_completes() -> None:
     driver, server = await _open(TuningBrain())
     try:
@@ -159,6 +181,49 @@ async def test_every_request_carries_its_own_id() -> None:
     # The id's whole job is to name the answer, so it is per session and never
     # reused — including across the greeting and the turn that follows it.
     assert [f.request_id for f in driver.requests] == [1, 2]
+
+
+async def test_a_session_start_request_lands_before_the_greeting() -> None:
+    # `on_session_start` runs before `greet` — that ordering is the contract, and
+    # since the voice a brain wants is now a configure call in that hook and
+    # nothing else, this is the only thing standing between a brain and a
+    # greeting spoken in the voice it was replacing.
+    driver, server = await _open(TwiceBrain())
+    try:
+        await driver.start_session()
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    greeting = _first_index(driver, SpeechChunkFrame)
+    assert greeting is not None, "the brain must have greeted"
+    configured = _first_index(driver, ConfigureFrame)
+    assert configured is not None and configured < greeting, (
+        "the request landed after the greeting audio — the caller already heard "
+        "the wrong voice say hello"
+    )
+
+
+async def test_a_refusal_at_session_start_fails_the_session() -> None:
+    # Voqalize has no engine for what this brain asked for, and the brain did not
+    # catch it. It has stated what the call is; running it in some other voice is
+    # a call nobody asked for — so there is no greeting and the session ends
+    # fatally, rather than running to its end sounding wrong.
+    driver, server = await _open(TwiceBrain())
+    driver.reject["configure"] = "no voice 'omnivoice/gaurav'"
+    try:
+        await driver.start_session()
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert _first_index(driver, SpeechChunkFrame) is None, "it must not have greeted"
+    assert [(e.fatal, e.message) for e in driver.errors] == [
+        (
+            True,
+            "on_session_start failed: configure rejected: no voice 'omnivoice/gaurav'",
+        )
+    ]
 
 
 async def test_the_three_sections_travel_as_one_request() -> None:

@@ -65,7 +65,7 @@ import asyncio
 import contextlib
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextvars import ContextVar
-from typing import Any, ClassVar
+from typing import Any
 
 from loguru import logger
 
@@ -95,7 +95,6 @@ from .wire import (
     FinalizeReason,
     Frame,
     InterruptionFrame,
-    Language,
     ResponseFrame,
     RTVIFrame,
     RTVIType,
@@ -103,11 +102,8 @@ from .wire import (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
-    SttConfig,
-    TtsConfig,
     UserIdleFrame,
     UserMessageFrame,
-    Voice,
 )
 from .wire.frames import RTVI_TO_APP
 
@@ -353,35 +349,34 @@ class Brain:
 
     Only :meth:`on_user_message` is required.
 
-    **Voice and language are declared here, not configured elsewhere.** Set
-    :attr:`voice` (and :attr:`language` if the agent doesn't speak English) as
-    class attributes; the SDK applies them at session start, before
-    :meth:`on_session_start` runs::
+    **Voice and language are a call to :meth:`Session.configure` from
+    :meth:`on_session_start`**, which runs before the greeting::
+
+        from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
         class ConciergeBrain(Brain):
-            voice = "omnivoice/gauri"
-            language = "hi"
+            async def on_session_start(self, session: Session) -> None:
+                await session.configure(
+                    Config(
+                        stt=SttConfig(language=Language.HI),
+                        tts=TtsConfig(language=Language.HI, voice=Voice.OMNIVOICE_GAURI),
+                    )
+                )
 
-    They live on the brain because the brain is the only thing that knows the
-    caller — an agent record holds one language for everyone, which is wrong the
-    moment a customer speaks a different one. When the language depends on *this*
-    call, leave the attribute unset and call :meth:`Session.configure` from
-    :meth:`on_session_start` instead; it lands before the first word.
+    A hook, not a class attribute, because the language is often *this* call's:
+    the caller's own, or the connecting page's, neither of which a value fixed at
+    import time can name. A brain that has no such choice to make writes the
+    constant here and pays nothing for it.
+
+    A page that settles the language before the call exists sends it with the
+    connect request instead, and this brain configures nothing — one answer, one
+    authority.
     """
 
-    #: TTS voice for every session this brain serves, e.g. ``"omnivoice/gauri"``.
-    #: ``None`` leaves the agent's configured voice in place.
-    voice: ClassVar[str | None] = None
-
-    #: ISO language code for both halves of the call — the recognizer *and* the
-    #: voice — applied through :meth:`Session.configure` so the two can never
-    #: half-apply. ``None`` leaves the recognizer and voice on English.
-    language: ClassVar[str | None] = None
-
     # Set by the adapter the moment the session exists — before
-    # `_apply_declared_voice`, before `on_session_start`, before anything a
-    # subclass can override. A class-level default so a subclass that defines
-    # `__init__` without calling super still has it.
+    # `on_session_start`, before anything a subclass can override. A class-level
+    # default so a subclass that defines `__init__` without calling super still
+    # has it.
     _session: Session | None = None
 
     @property
@@ -402,18 +397,6 @@ class Brain:
                 "in every hook and every tool — but not in __init__."
             )
         return self._session
-
-    @property
-    def turn(self) -> int | None:
-        """The turn being generated right now, or ``None`` outside one.
-
-        The same value `Session.rtvi` stamps on outbound frames, so a tool that
-        calls `self.session.dispatch(...)` is already correlated to the right turn
-        with nothing to pass. Read it when a tool needs to know *which* turn it is
-        answering — logging, or a side effect that wants to know it may be racing
-        a barge-in.
-        """
-        return _current_turn.get()
 
     # ─── Lifecycle ──────────────────────────────────────────────────────
 
@@ -623,11 +606,6 @@ class _BrainAdapter:
             self._refuse_version(session, frame.wire_version)
             return
         try:
-            await self._apply_declared_voice(session)
-        except Exception as exc:
-            self._abort(session, "voice", exc)
-            return
-        try:
             await self._brain.on_session_start(session)
         except Exception as exc:
             self._abort(session, "on_session_start", exc)
@@ -683,35 +661,6 @@ class _BrainAdapter:
         logger.exception("brain: {} failed for session {}", hook, session.id)
         self.emit(ErrorFrame(code=ErrorCode.INTERNAL, message=f"{hook} failed: {exc}", fatal=True))
         session.end(reason=f"{hook}_failed")
-
-    async def _apply_declared_voice(self, session: Session) -> None:
-        """Apply the brain's declared :attr:`Brain.voice` / :attr:`Brain.language`.
-
-        Here, on the way into the session, rather than in a base class's
-        ``on_session_start`` — a subclass that overrides that hook and forgets
-        ``super()`` would silently lose its voice, and a wrong voice is inaudible
-        to every automated check we have (accent and speaker identity do not show
-        up in a transcript). Applied before the brain's own hook, so a brain that
-        resolves the language per caller can still override it there, and both
-        land before the greeting audio.
-
-        A refusal fails the session. A brain that declared a voice or a language
-        Voqalize will not serve has stated what the call is; running it in some other
-        one is a call nobody asked for.
-        """
-        language, voice = self._brain.language, self._brain.voice
-        if language is None and voice is None:
-            return
-        lang = None if language is None else Language(language)
-        await session.configure(
-            Config(
-                stt=None if lang is None else SttConfig(language=lang),
-                tts=TtsConfig(
-                    voice=None if voice is None else Voice(voice),
-                    language=lang,
-                ),
-            )
-        )
 
     # ─── Driving what the brain yields ──────────────────────────────────
 

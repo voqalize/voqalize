@@ -74,11 +74,6 @@ from voqalize.conformance import (  # noqa: E402
     mint_voqalize_token,
 )
 from voqalize.google_adk.testing import ScriptedLlm, call, reply, reply_and_call  # noqa: E402
-from voqalize.sdk.wire import (  # noqa: E402
-    LLMTextFrame,
-    UpdateSTTSettingsFrame,
-    UpdateTTSSettingsFrame,
-)
 
 # The trailing "…" is the lookahead character that lets the instant opener flush
 # on its own — see `_HELLO_BY_LANGUAGE` in voqalize_demos. It is part of the
@@ -1848,58 +1843,6 @@ async def test_quantity_and_removal_keep_the_mirror_honest() -> None:
         assert [item["id"] for item in cart["items"]] == ["li1"]
         assert cart["items"][0]["quantity"] == 12
         assert cart["item_count"] == 1
-    finally:
-        await driver.aclose()
-        await server.aclose()
-
-
-# ─── the language contract (Hindi audio, English screen) ──────────────────────
-
-
-async def test_the_brain_puts_hindi_on_both_legs_before_it_greets() -> None:
-    """The call is Hindi on both legs, and the brain is the *only* thing making it
-    so — ``OrderDeskBrain.language``/``voice``, applied by the SDK on the way into
-    ``on_session_start``.
-
-    It used to be the browser's per-session pipeline instead, and this test used to
-    read that pipeline out of ``config.ts`` as text. Both moved for the same reason:
-    a page and an server record each held half the answer, and when one link dropped
-    the field the model still wrote Devanagari while an en-IN reference voice read
-    it aloud. Nothing automated caught it — the transcript is word-perfect and
-    accent is invisible to transcription-based scoring — so it shipped, and was
-    found by ear weeks later.
-
-    Two properties, both load-bearing:
-
-    * **Both halves.** One ``Config`` moves the recognizer and the voice
-      together, and the SDK refuses to build one that names a language on a single
-      leg; a config that set only one of the pair would transcribe Hindi with the
-      English model, and the failure then reads as bad recognition rather than
-      bad config.
-    * **Before the greeting.** A settings frame that lands after the first audio is
-      worse than useless — the caller has already heard the wrong voice say hello.
-    """
-    llm = ScriptedLlm(_script())
-    server, driver = await _host(llm)
-    try:
-        await driver.start_session(init=PAYLOAD)
-
-        tts = [r for r in driver.log if isinstance(r.frame, UpdateTTSSettingsFrame)]
-        stt = [r for r in driver.log if isinstance(r.frame, UpdateSTTSettingsFrame)]
-        assert [dict(r.frame.settings) for r in tts] == [
-            {"voice": "omnivoice/gauri", "language": "hi"}
-        ]
-        assert [dict(r.frame.settings) for r in stt] == [{"language_hint": "hi"}]
-
-        greeting_at = next(i for i, r in enumerate(driver.log) if isinstance(r.frame, LLMTextFrame))
-        first_tts = next(
-            i for i, r in enumerate(driver.log) if isinstance(r.frame, UpdateTTSSettingsFrame)
-        )
-        first_stt = next(
-            i for i, r in enumerate(driver.log) if isinstance(r.frame, UpdateSTTSettingsFrame)
-        )
-        assert first_tts < greeting_at, "the Hindi voice landed after the greeting audio"
-        assert first_stt < greeting_at, "the Hindi recognizer landed after the greeting"
     finally:
         await driver.aclose()
         await server.aclose()

@@ -294,11 +294,6 @@ class SupportBrain(GeminiBrain):
     runs each call. Browser-captured photos + submissions arrive via
     :meth:`on_client_message`."""
 
-    # This agent's own voice — not the connecting page's to choose. `language`
-    # sets both the recognizer's hint and the TTS reference clip (the accent).
-    voice = "omnivoice/gaurav"
-    language = "en"
-
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
             llm=llm,

@@ -31,6 +31,7 @@ from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .content import (
     CLAUSES,
@@ -325,11 +326,6 @@ class LegalBrain(GeminiBrain):
     :meth:`on_rtvi`; :meth:`grounding` carries it into every turn, so an ambiguous
     question is answered about the clause on screen."""
 
-    # This agent's own voice — not the connecting page's to choose. `language`
-    # sets both the recognizer's hint and the TTS reference clip (the accent).
-    voice = "omnivoice/gauri"
-    language = "en"
-
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         # Latest reading position the browser pushed. Ephemeral in memory — the
@@ -340,6 +336,16 @@ class LegalBrain(GeminiBrain):
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
+        # This agent's own voice — not the connecting page's to choose, so it is
+        # settled here rather than sent with the connect request. `language` moves
+        # both legs at once: the recognizer's hint, and the TTS reference clip,
+        # which is the accent. This lands before the greeting.
+        await session.configure(
+            Config(
+                stt=SttConfig(language=Language.EN),
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
+            )
+        )
         logger.info("legal: session start")
 
     async def greet(self, session: Session) -> str:

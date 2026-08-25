@@ -152,9 +152,13 @@ closed: `omnivoice/gauri` (female) and `omnivoice/gaurav` (male), and `en` plus
 the 22 Indic codes. An unknown model is **HTTP 403 at connect**, an unknown voice
 prefix is `voice not found` — both fail the session, not the sentence.
 
-Still in the tree and still going away: the `Brain.voice` / `Brain.language`
-ClassVars, applied before `on_session_start`. They stay until the agent records
-carry the defaults; nothing new should be built on them.
+**A brain that wants its own voice says so in `on_session_start`**, which runs
+before `greet`. The `Brain.voice` / `Brain.language` ClassVars and the
+`_apply_declared_voice` step that applied them are gone: a value fixed at import
+time cannot name the language of *this* call. A demo whose page settles the
+language before the call exists sends it with the connect request instead and
+configures nothing — one answer, one authority.
+`tests/direct/test_configure.py` pins the ordering that makes the hook enough.
 
 ## Every demo has an e2e, and one of them is a sweep
 
@@ -167,7 +171,11 @@ no API key, ~33 s for the whole suite.
 `demos/tests/test_demo_voice_contract.py` is the cross-demo sweep: it asserts every
 demo puts a **matched** voice/language pair on both legs before its first audio,
 and carries a **negative control** proving the probe can fail. Add a demo → add a
-row there, or its language pair is unguarded.
+row there, or its language pair is unguarded. The nine demos still on the pre-v3
+`on_session_start(self, session, start)` signature have nowhere to make the call
+from, so their rows are marked `unported=True` and xfail **strictly**: the pair
+they owe stays written down, and porting one turns the row into a loud XPASS
+rather than a quiet pass.
 
 Footguns found writing them (see `demos/tests/_harness.py`):
 

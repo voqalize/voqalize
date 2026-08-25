@@ -282,14 +282,6 @@ class LeadQualBrain(GeminiBrain):
     ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
     runs each call."""
 
-    # The default this advisor opens in. The caller's own selection — or, failing
-    # that, the state they entered — rides ``init_payload`` and overrides this in
-    # on_session_start, which is the only place that knows *this* caller. An agent
-    # record could never hold the right value: it holds one, and Tamil Nadu wants
-    # Tamil while Gujarat wants Gujarati.
-    voice = _DEFAULT_LANG[1]
-    language = _DEFAULT_LANG[2]
-
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
             llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model

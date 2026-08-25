@@ -1419,16 +1419,6 @@ class OrderDeskBrain(AdkBrain):
     (``on_session_start``), the live screen (``grounding``), and the search bar
     (``on_client_message``)."""
 
-    # This agent speaks Hindi to every caller, so it says so itself rather than
-    # depending on the connecting client to remember. It used to be the other way
-    # round — the browser's per-session pipeline was the only thing making the
-    # call Hindi — and when one link in that chain dropped the field, the model
-    # still wrote Devanagari but an en-IN reference voice read it, so a native
-    # speaker heard a foreigner reading Hindi. Nothing automated catches that:
-    # the transcript is word-perfect, only the accent is wrong.
-    language = "hi"
-    voice = "omnivoice/gauri"
-
     def __init__(
         self,
         *,

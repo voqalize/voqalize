@@ -162,7 +162,7 @@ class _Coach(GeminiInteractionsBrain):
     async def ping(self) -> str:
         """Say hello to nothing in particular."""
         self.ran.append("ping")
-        self.seen = (self.session, self.turn)
+        self.seen = self.session
         return "pong"
 
     async def boom(self) -> str:
@@ -584,16 +584,14 @@ async def test_the_tools_are_read_once_per_turn() -> None:
 # ─── The session ──────────────────────────────────────────────────────────────
 
 
-async def test_a_tool_reaches_the_session_and_the_turn() -> None:
+async def test_a_tool_reaches_the_session() -> None:
     """A tool cannot take `session` as a parameter — the signature *is* the schema,
     so the model would try to fill it. It reads the brain instead, which is sound
     because a brain is one instance per call."""
     brain, _, session = await _open(_Coach(_ScriptedClient([[_calls("ping")], [_says("Done.")]])))
-
-    assert brain.turn is None  # outside a turn there is no turn to name
     await _turn(brain)
 
-    assert brain.seen == (session, 2)  # the SessionStart frame was turn 1
+    assert brain.seen is session
 
 
 async def test_a_tool_that_drives_the_screen_is_stamped_with_the_turn_it_ran_in() -> None:

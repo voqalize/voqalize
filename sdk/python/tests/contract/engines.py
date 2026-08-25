@@ -90,7 +90,7 @@ class Tools:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.ran: list[str] = []
-        self.seen: tuple[Session | None, int | None] = (None, None)
+        self.seen: Session | None = None
         self.read_tools = 0
 
     @property
@@ -106,7 +106,7 @@ class Tools:
     async def ping(self) -> str:
         """Say hello to nothing in particular."""
         self.ran.append("ping")
-        self.seen = (self.session, self.turn)  # pyright: ignore[reportAttributeAccessIssue]
+        self.seen = self.session
         return "pong"
 
     async def boom(self) -> str:

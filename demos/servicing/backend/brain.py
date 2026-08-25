@@ -601,11 +601,6 @@ class ServicingBrain(GeminiBrain):
     runs each call. The browser's ``state_sync`` snapshots arrive via
     :meth:`on_client_message` and ground every turn's working context."""
 
-    # This agent's own voice — not the connecting page's to choose. `language`
-    # sets both the recognizer's hint and the TTS reference clip (the accent).
-    voice = "omnivoice/gauri"
-    language = "en"
-
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
             llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model

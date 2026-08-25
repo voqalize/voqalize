@@ -427,10 +427,9 @@ def _close(step: gi.Step | None, buffered: str) -> None:
 def _declare(fn: Callable[..., Any]) -> gi.Function:
     """One tool, as a declaration. The callable stays here.
 
-    ``async def`` is required. We run tools inside the turn's task, where
-    :attr:`~voqalize.sdk.Brain.session` and :attr:`~voqalize.sdk.Brain.turn` are
-    set — a synchronous tool would hold the event loop for the length of whatever
-    it does, and the first ``await`` it grows is a rewrite.
+    ``async def`` is required. We run tools inside the turn's task — a synchronous
+    tool would hold the event loop for the length of whatever it does, and the
+    first ``await`` it grows is a rewrite.
 
     Nothing callable crosses this line, so nothing about the brain does either.
     That is worth saying because the automatic path has the opposite problem:

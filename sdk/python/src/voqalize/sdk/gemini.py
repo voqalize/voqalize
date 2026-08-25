@@ -432,8 +432,7 @@ def _ready(fn: Callable[..., Any]) -> Callable[..., Any]:
     annotations resolved.
 
     ``async def`` is required. AFC runs a synchronous tool on a worker thread, off
-    the loop and outside the turn's context — where :attr:`~voqalize.sdk.Brain.turn`
-    is unset, and where the first ``await`` a tool grows is a rewrite.
+    the loop, where the first ``await`` a tool grows is a rewrite.
 
     **A bound method must not cross this line.** google-genai deep-copies the
     config it is handed — once on entry and again on every AFC hop — and
@@ -461,8 +460,8 @@ def _ready(fn: Callable[..., Any]) -> Callable[..., Any]:
     if not inspect.iscoroutinefunction(fn):
         raise TypeError(
             f"tool {getattr(fn, '__name__', fn)!r} must be `async def`. A sync tool runs on a "
-            "worker thread, where self.session and self.turn are unset, so the first "
-            "self.session.dispatch(...) raises mid-call. Make it `async def` — the body needs "
+            "worker thread, off the loop, so the first self.session.dispatch(...) it grows "
+            "reaches a loop that is not running. Make it `async def` — the body needs "
             "no other change."
         )
 

@@ -19,8 +19,8 @@ The nine clauses, in the order they appear below:
 4. **A turn ends.** However many hops the model asks for, the budget is real.
 5. **The method is the declaration.** Name and docstring travel; nothing else has
    to be written twice.
-6. **A tool runs in the turn**, with :attr:`~voqalize.sdk.Brain.session` and
-   :attr:`~voqalize.sdk.Brain.turn` set, on the loop, `async def` or refused.
+6. **A tool runs in the turn**, with :attr:`~voqalize.sdk.Brain.session` set, on
+   the loop, `async def` or refused.
 7. **`tools` is read once per turn**, so a brain may offer one caller a tool it
    does not offer everyone and still be consistent for the length of a turn.
 8. **Heard truth.** The transcript commits what the caller *heard*: cut off, keep
@@ -213,15 +213,13 @@ async def test_the_declarations_go_with_every_request(engine: Engine) -> None:
 # ─── 6. A tool runs in the turn ───────────────────────────────────────────────
 
 
-async def test_a_tool_reaches_the_session_and_the_turn(engine: Engine) -> None:
-    """A tool that drives the screen needs both: the session to send on, and the
-    turn to stamp it with, so a command generated before a barge-in is dropped
-    rather than landing after the caller has moved on."""
+async def test_a_tool_reaches_the_session(engine: Engine) -> None:
+    """A tool that drives the screen needs the session to send on. The turn it is
+    stamped with is not the tool's to carry — the SDK reads it from the turn's own
+    task — which is why a tool takes no parameter and reads no turn."""
     brain = await _dial(engine, calls(Call("ping")), says("Pong."))
 
-    session, turn = brain.seen
-    assert session is not None
-    assert turn is not None
+    assert brain.seen is not None
 
 
 async def test_a_sync_tool_is_refused(engine: Engine) -> None:

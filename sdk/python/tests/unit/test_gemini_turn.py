@@ -197,7 +197,7 @@ class _Coach(GeminiBrain):
     async def ping(self) -> str:
         """Say hello to nothing in particular."""
         self.ran.append("ping")
-        self.seen = (self.session, self.turn)
+        self.seen = self.session
         return "pong"
 
     async def boom(self) -> str:
@@ -500,9 +500,9 @@ def test_the_declared_tool_is_the_method_and_the_method_is_untouched() -> None:
 
 
 async def test_a_sync_tool_is_refused() -> None:
-    """AFC runs a synchronous tool on a worker thread, off the loop and outside
-    the turn's context — where `self.turn` is unset and the first `await` the tool
-    grows is a rewrite. Half-working is the failure mode we refuse."""
+    """AFC runs a synchronous tool on a worker thread, off the loop, where the
+    first `await` the tool grows is a rewrite. Half-working is the failure mode we
+    refuse."""
 
     class _Sync(_Coach):
         @property
@@ -548,16 +548,14 @@ async def test_tools_are_not_shared_between_brains() -> None:
     assert b.ran == []
 
 
-async def test_a_tool_reaches_the_session_and_the_turn() -> None:
+async def test_a_tool_reaches_the_session() -> None:
     """A tool cannot take `session` as a parameter — the signature *is* the schema,
     so the model would try to fill it. It reads the brain instead, which is sound
     because a brain is one instance per call."""
     brain, _, session = await _open(_Coach(_ScriptedClient(_calls("ping") + _text("Done."))))
-
-    assert brain.turn is None  # outside a turn there is no turn to name
     await _turn(brain)
 
-    assert brain.seen == (session, 2)  # the SessionStart frame was turn 1
+    assert brain.seen is session
 
 
 async def test_a_tool_that_drives_the_screen_is_stamped_with_the_turn_it_ran_in() -> None:
