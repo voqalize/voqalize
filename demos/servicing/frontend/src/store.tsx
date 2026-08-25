@@ -3,9 +3,10 @@
  *
  * One React context drives both the console UI and the voice widget, so the
  * advisor and the "servicing desk" assistant work the same screen. The assistant
- * mutates state via `ui_command` RTVI messages (handleUiCommand); the browser
- * echoes a compact workspace snapshot back to the assistant via `state_sync`
- * (snapshot) so it always knows where the advisor is and what's pending.
+ * mutates state via `ui-command` RTVI messages, `{ command, payload }`
+ * (handleUiCommand); the browser echoes a compact workspace snapshot back to
+ * the assistant via `state_sync` (snapshot) so it always knows where the
+ * advisor is and what's pending.
  *
  * The headline behaviour: `prepareCase` kicks off a case's prep jobs that
  * animate to completion ON THEIR OWN — the advisor stays on whatever case they
@@ -113,7 +114,7 @@ export interface ServicingStore {
 
   // bridges
   snapshot: () => Record<string, unknown>;
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
   registerAgentSend: (fn: AgentSend | null) => void;
 }
 
@@ -825,11 +826,11 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
     };
   }, [cases, activeRef, view, tab, archiveSearch]);
 
-  // ── ui_command dispatch (assistant drives the screen) ─────────────────────
+  // ── ui-command dispatch (assistant drives the screen) ──────────────────────
   const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      const action = String(cmd.action ?? '');
-      switch (action) {
+    (command: string, payload: Record<string, unknown>) => {
+      const cmd = payload;
+      switch (command) {
         case 'open_board':
           openBoard();
           break;
@@ -926,8 +927,8 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
 
   // Dev-only: expose the command dispatch so the flow can be driven/rehearsed
   // from the browser console without a live mic, e.g.
-  //   __servicing.handleUiCommand({ action: 'open_case', ref: 'MS-1057' })
-  //   __servicing.handleUiCommand({ action: 'prepare_case', ref: 'MS-1057', jobs: [...] })
+  //   __servicing.handleUiCommand('open_case', { ref: 'MS-1057' })
+  //   __servicing.handleUiCommand('prepare_case', { ref: 'MS-1057', jobs: [...] })
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     (window as unknown as { __servicing?: unknown }).__servicing = {
