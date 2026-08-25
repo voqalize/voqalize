@@ -19,8 +19,9 @@ Run: ``cd demos && uv run pytest tests/test_aura_e2e.py``
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+import json
 
+from google.genai import interactions as gi
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
 
@@ -55,18 +56,27 @@ def _llm() -> ScriptedGemini:
     )
 
 
-def _tool_results(contents: list[Any]) -> str:
-    """Every tool result in one request's contents, as one blob to assert against.
+def _tool_results(llm: ScriptedGemini) -> str:
+    """Every tool result the brain put in front of the model, as one blob.
 
     A blocking tool's outcome never reaches the wire — the customer hears only the
     sentence the model built from it — so the model's *next* prompt is the only
-    place it is visible."""
-    return " ".join(
-        str((p.function_response.response or {}).get("result", ""))
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    )
+    place it is visible. On the interactions engine that prompt is the ``input``
+    of the next ``interactions.create``: the brain runs the tool itself, between
+    hops, and appends a :class:`gi.FunctionResultStep` carrying the result as
+    ``json.dumps({"result": ...})``. Unwrap that one level — asserting on the raw
+    JSON matches nothing whose result contains a quote."""
+    out: list[str] = []
+    for request in llm.aio.interactions.requests:
+        for step in request.get("input") or []:
+            if not isinstance(step, gi.FunctionResultStep):
+                continue
+            try:
+                payload = json.loads(str(step.result))
+            except (TypeError, ValueError):
+                payload = {"result": step.result}
+            out.append(str(payload.get("result", payload)))
+    return " ".join(out)
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
@@ -113,20 +123,24 @@ async def test_the_signin_blocks_until_the_browser_reports_back() -> None:
         try:
             commands = await rig.driver.collect_ui_commands(min_count=1)
             opened = commands[0]
-            assert opened["action"] == "open_auth", commands
+            assert opened["command"] == "open_auth", commands
+            nonce = opened["payload"]["nonce"]
             # The nonce binds this dialog to the waiting future; without it the
             # browser's answer resolves nothing and the turn hangs to timeout.
-            assert opened["nonce"]
+            assert nonce
             assert not turn.done(), "authenticate returned before the customer signed in"
 
-            await rig.driver.send_client_message("auth_complete", {"nonce": opened["nonce"]})
+            await rig.driver.send_client_message("auth_complete", {"nonce": nonce})
             completed = await turn
         finally:
             turn.cancel()
 
-        check_turn(rig, completed, inferences=2)
+        # Two units: the line before the dialog, and the line after the browser
+        # answered. The second one only exists if the tool actually unblocked and
+        # the brain took a second hop.
+        check_turn(rig, completed, units=2)
 
-    results = _tool_results(llm.captured_contents[-1])
+    results = _tool_results(llm)
     assert "'status': 'authenticated'" in results
     # A JWT the model never wrote: three dot-separated segments, minted by the
     # brain in `_complete_auth` after the browser reported the sign-in.
@@ -147,13 +161,16 @@ async def test_a_dismissed_signin_unblocks_instead_of_sitting_muted() -> None:
         turn = asyncio.create_task(rig.driver.user_says("What's my balance?"))
         try:
             commands = await rig.driver.collect_ui_commands(min_count=1)
-            await rig.driver.send_client_message("auth_cancelled", {"nonce": commands[0]["nonce"]})
+            assert commands[0]["command"] == "open_auth", commands
+            await rig.driver.send_client_message(
+                "auth_cancelled", {"nonce": commands[0]["payload"]["nonce"]}
+            )
             completed = await turn
         finally:
             turn.cancel()
 
-        check_turn(rig, completed, inferences=2)
+        check_turn(rig, completed, units=2)
 
-    results = _tool_results(llm.captured_contents[-1])
+    results = _tool_results(llm)
     assert "'status': 'declined'" in results
     assert "authenticated_context" not in results
