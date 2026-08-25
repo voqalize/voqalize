@@ -209,9 +209,8 @@ class _EnglishArgs(BaseModel):
 
     ``field_validator("*")`` covers each field as declared *and* each string inside a
     list field, so adding a field to a subclass cannot forget the guard. The
-    ``ValueError`` becomes a ``CoercionError`` in
-    :mod:`voqalize._framework.coerce`, which the ADK adapter hands back as a tool
-    error result — the model sees the message and retries in-conversation."""
+    ``ValueError`` reaches the model as a tool error result — it sees the message and
+    retries in-conversation."""
 
     @field_validator("*", mode="after")
     @classmethod
