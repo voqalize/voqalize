@@ -2,13 +2,22 @@
  * The Aura Bank support voice layer — "Aria" as an ambient property of the whole
  * help centre, not a docked chat widget.
  *
- * The entire session lifecycle — mint against the control plane, WebRTC
- * transport, mic control, bot-state — is the public SDK's {@link useVoqalSession}
- * from `@voqalize/client-react`, driven by a publishable (`pk_`) key. While live:
- *   - the hook's `onServerMessage` replays the assistant's `ui_command` messages
- *     onto the shared Aura store, so the agent drives the help centre + video;
+ * The whole session lifecycle — mint against the control plane, WebRTC
+ * transport, mic control — is stock pipecat's `PipecatAppBase`; this file is
+ * just that plus the two bridges that tie the call to the on-screen help
+ * centre:
+ *   - the assistant's `ui-command` server messages (`{ command, payload }`)
+ *     replay onto the shared Aura store, so the agent drives the help centre
+ *     and the video;
  *   - a debounced `state_sync` echoes a compact `screen_state` snapshot back
- *     (via `sendMessage`) so the assistant always knows what's on screen.
+ *     (via `client.sendClientMessage`) so the assistant always knows what's on
+ *     screen.
+ *
+ * This is exactly the surface an external developer embeds: one `fetch` for
+ * `sessions.connect`, handed to `PipecatAppBase`, driven by a publishable
+ * (`pk_`) key — there is no client library to install, and everything after
+ * `connect` is pipecat's own. See `docs/client/handshake` for the same shape
+ * written out for a reader.
  *
  * Voice *status* lives in the shared `AmbientPresence` ring (the catalog-wide
  * treatment, in Aura's indigo) — a full-viewport edge glow, legible peripherally
@@ -17,29 +26,42 @@
  * doubles as a mute toggle, and a small "end" beside it. It reaches the header
  * through the `children` render-prop, so `pages.tsx` keeps owning its own chrome.
  *
+ * `PipecatAppBase` mounts its `PipecatClientProvider` (and `BotAudioOutput`, via
+ * `noThemeProvider`) as soon as the client exists, not when the call goes live —
+ * Aria's audio track is announced once, from the remote track's `unmute` a few
+ * hundred milliseconds after the peer connection is up, so a listener that
+ * subscribes late finds nothing to read. `connectOnMount` is off: nothing opens
+ * a microphone until the visitor has read the notice and joined.
+ *
  * Mounted once at the route level; navigation is React state, so the call
  * survives screen changes. Voqalize runs English STT with OmniVoice English TTS
- * (pipeline declared in this demo's src/config.ts).
+ * (declared on this demo's brain — backend/brain.py — the only place voice and
+ * language belong).
+ *
+ * Aura's HMAC-authenticated sign-in handshake (the browser answering a
+ * dispatched `open_auth` with a signed nonce) rides this same `ui-command` /
+ * `client-message` pair and needs nothing extra here — the store's
+ * `confirmAuth`/`cancelAuth` already echo the nonce back over `agentSend`.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/client-react';
-import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { RTVIEvent, type UICommandData } from '@pipecat-ai/client-js';
+import {
+  usePipecatClient,
+  usePipecatClientMicControl,
+  usePipecatClientTransportState,
+  useRTVIClientEvent,
+} from '@pipecat-ai/client-react';
+import { PipecatAppBase, usePipecatConnectionState } from '@pipecat-ai/voice-ui-kit';
 import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
 import {
   AmbientPresence,
-  useVoqalSession,
+  DemoGate,
+  type AmbientPresenceActivity,
   type AmbientPresencePalette,
-  type VoqalBotState,
-  type VoqalConnectionState,
-} from '@voqalize/client-react';
-import { DemoGate } from '@voqalize/demo-kit';
+} from '@voqalize/demo-kit';
 import { useAura } from './store';
-import { config } from './config';
-
-// Tenant + agent + pk resolve per-environment from this demo's local config
-// (src/config.ts), driven by Vite env vars.
-const AURA = config;
+import { connectRequest, withRealHeaders } from './config';
 
 const PRIMARY = '#4F46E5';
 const ACCENT = '#8B5CF6';
@@ -59,24 +81,7 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
 
 type Status = 'idle' | 'connecting' | 'live' | 'error';
 
-// The control's chrome speaks the source's `live` vocabulary; the SDK hook
-// reports `connected`/`disconnected`. Map the transport state onto the chrome's.
-// (The ring itself takes the SDK's own states straight off the hook.)
-const CONNECTION_STATUS: Record<VoqalConnectionState, Status> = {
-  idle: 'idle',
-  connecting: 'connecting',
-  // `awaiting-microphone` folds into `connecting`: the browser's own permission
-  // prompt is on screen at that moment and is the thing to answer, so the chrome
-  // should keep saying "wait" rather than invent a state of its own.
-  'awaiting-microphone': 'connecting',
-  connected: 'live',
-  disconnected: 'idle',
-  error: 'error',
-};
-
-// The hook's resting `idle` is, from the customer's side, still "she's hearing
-// me" — fold it into this demo's long-standing default label.
-const STATE_LABEL: Record<VoqalBotState, string> = {
+const STATE_LABEL: Record<AmbientPresenceActivity, string> = {
   idle: 'Listening',
   listening: 'Listening',
   thinking: 'Thinking',
@@ -106,13 +111,13 @@ function BeginControl({ status, error, onBegin }: { status: Status; error: strin
 }
 
 // Live: the mic doubles as a mute toggle; a small secondary control ends the call.
-function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () => void }) {
+function LiveControls({ activity, onEnd }: { activity: AmbientPresenceActivity; onEnd: () => void }) {
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
   return (
     <div className="aura-presence">
-      <span className="aura-presence-label">{isMicEnabled ? STATE_LABEL[botState] : 'Muted'}</span>
+      <span className="aura-presence-label">{isMicEnabled ? STATE_LABEL[activity] : 'Muted'}</span>
       <button
-        className={`aura-presence-btn is-live glow-${botState} ${isMicEnabled ? '' : 'is-muted'}`}
+        className={`aura-presence-btn is-live glow-${activity} ${isMicEnabled ? '' : 'is-muted'}`}
         onClick={() => enableMic(!isMicEnabled)}
         title={isMicEnabled ? 'Mute' : 'Unmute'}
       >
@@ -194,60 +199,107 @@ function PresenceStyles() {
 
 // ── Session owner ─────────────────────────────────────────────────────────────
 
+/**
+ * Mints the session and owns the client. No pipeline override: this agent's
+ * voice and language are declared on its brain (backend/brain.py), the only
+ * place they belong.
+ */
 export function AuraAssistant({ children }: { children: (presence: ReactNode) => ReactNode }) {
-  const { handleUiCommand, registerAgentSend, snapshot, rev } = useAura();
+  // Memoized: a fresh object every render would re-fire `PipecatAppBase`'s
+  // connect-on-mount dependency and re-mint a session.
+  const params = useMemo(() => connectRequest({ surface: 'aura-web' }), []);
 
-  // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
-  // (past the `{ data }` quirk), so we read `type` directly.
-  const session = useVoqalSession({
-    apiBase: AURA.apiBase,
-    // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the presence control's error state.
-    publishableKey: AURA.publishableKey ?? '',
-    agentId: AURA.agentId,
-    // No pipeline override: this agent's voice and language are declared on
-    // its brain (backend/brain.py), which is the only place they belong.
-    payload: { surface: 'aura-web' },
-    onServerMessage: useCallback(
-      (msg: Record<string, unknown>) => {
-        if (msg.type === 'ui_command') handleUiCommand(msg);
-      },
+  return (
+    <PipecatAppBase
+      transportType="smallwebrtc"
+      noThemeProvider
+      startBotParams={params}
+      startBotResponseTransformer={withRealHeaders}
+    >
+      {({ error, handleConnect, handleDisconnect }) => (
+        <AuraSession
+          error={error ?? null}
+          onConnect={handleConnect ?? (async () => {})}
+          onDisconnect={handleDisconnect ?? (async () => {})}
+        >
+          {children}
+        </AuraSession>
+      )}
+    </PipecatAppBase>
+  );
+}
+
+// Rendered inside `PipecatAppBase`'s own `PipecatClientProvider`, so every
+// pipecat hook below sees the live client the moment one exists.
+function AuraSession({
+  error,
+  onConnect,
+  onDisconnect,
+  children,
+}: {
+  error: string | null;
+  onConnect: () => void | Promise<void>;
+  onDisconnect: () => void | Promise<void>;
+  children: (presence: ReactNode) => ReactNode;
+}) {
+  const { handleUiCommand, registerAgentSend, snapshot, rev } = useAura();
+  const client = usePipecatClient();
+  const transportState = usePipecatClientTransportState();
+  const { isConnected, isConnecting } = usePipecatConnectionState();
+
+  const status: Status = isConnecting ? 'connecting' : isConnected ? 'live' : error ? 'error' : 'idle';
+
+  // Ambient ring activity: derived straight from pipecat's own turn-taking
+  // events, exactly as `AmbientPresence`'s own doc prescribes.
+  const [activity, setActivity] = useState<AmbientPresenceActivity>('idle');
+  useRTVIClientEvent(RTVIEvent.UserStartedSpeaking, useCallback(() => setActivity('listening'), []));
+  useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity('thinking'), []));
+  useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity('speaking'), []));
+  useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity('idle'), []));
+
+  // Screen ← agent. The brain's `session.dispatch(OpenAuth(...))` etc. lands
+  // here as `{ command, payload }`; the store's reducer keys on one flat object
+  // with an `action` field, so fold the two back together rather than touching
+  // the store (which every other command already matches exactly).
+  useRTVIClientEvent(
+    RTVIEvent.UICommand,
+    useCallback(
+      ({ command, payload }: UICommandData) =>
+        handleUiCommand({ action: command, ...((payload as Record<string, unknown>) ?? {}) }),
       [handleUiCommand],
     ),
-  });
+  );
 
-  const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } = session;
-  const status = CONNECTION_STATUS[connectionState];
+  const sendMessage = useCallback((type: string, data: unknown) => client?.sendClientMessage(type, data), [client]);
 
-  // Once live: open the mic and register the store's agent-send channel
-  // (the store echoes `card_selected` / `auth_complete` / etc. through it).
+  // Once live: open the mic and register the store's agent-send channel (the
+  // store echoes `auth_complete` / `card_selected` / etc. through it — including
+  // Aura's HMAC sign-in nonce).
   useEffect(() => {
-    if (connectionState !== 'connected') return;
-    enableMic(true);
-    registerAgentSend((type, data) => sendMessage(type, data as Record<string, unknown>));
+    if (!isConnected) return;
+    client?.enableMic(true);
+    registerAgentSend(sendMessage);
     return () => registerAgentSend(null);
-  }, [connectionState, enableMic, registerAgentSend, sendMessage]);
+  }, [isConnected, client, registerAgentSend, sendMessage]);
 
   // Debounced `state_sync`: whenever the on-screen state revision bumps, echo a
   // compact snapshot back to the assistant so it always knows what's on screen.
   useEffect(() => {
-    if (connectionState !== 'connected') return;
-    const t = setTimeout(() => {
-      sendMessage('state_sync', { screen_state: snapshot() });
-    }, 250);
+    if (!isConnected) return;
+    const t = setTimeout(() => sendMessage('state_sync', { screen_state: snapshot() }), 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rev, connectionState]);
+  }, [isConnected, rev]);
 
   // Dev-only: drive the flow without a mic.
   //   window.__aura.ui({action:'open_article', article_id:'interest-certificate'})
   //   window.__aura.sendText('where do I download my interest certificate for tax filing?')
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env.DEV || !client) return;
     (window as unknown as { __aura?: unknown }).__aura = {
       client,
       ui: handleUiCommand,
-      sendText: (t: string) => client?.sendText(t),
+      sendText: (t: string) => client.sendText(t),
     };
     return () => {
       delete (window as unknown as { __aura?: unknown }).__aura;
@@ -257,13 +309,13 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
   // Nothing opens a microphone until the visitor has read the notice and joined.
   const [joined, setJoined] = useState(false);
 
-  const presence = client ? (
-    <LiveControls botState={botState} onEnd={disconnect} />
+  const presence = isConnected ? (
+    <LiveControls activity={activity} onEnd={onDisconnect} />
   ) : (
-    <BeginControl status={status} error={error ?? ''} onBegin={connect} />
+    <BeginControl status={status} error={error ?? ''} onBegin={onConnect} />
   );
 
-  const shell = (
+  return (
     <>
       <DemoGate
         open={!joined}
@@ -273,24 +325,13 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
         busy={status === 'connecting'}
         error={status === 'error' ? error || 'Connection issue' : null}
         onJoin={async () => {
-          await connect();
+          await onConnect();
           setJoined(true);
         }}
       />
-      <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
+      <AmbientPresence activity={activity} transportState={transportState} palette={PRESENCE} />
       <PresenceStyles />
       {children(presence)}
     </>
-  );
-
-  // The bot audio lives inside the provider and must stay mounted for the whole
-  // live call — the page chrome renders *below* it, so navigating never drops it.
-  if (!client) return shell;
-
-  return (
-    <PipecatClientProvider client={client}>
-      <BotAudioOutput />
-      {shell}
-    </PipecatClientProvider>
   );
 }
