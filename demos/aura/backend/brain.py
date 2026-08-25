@@ -52,13 +52,14 @@ import secrets
 import time
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from google.genai import interactions as gi
 from loguru import logger
+from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiProvider
 
-from voqalize.sdk import RTVIMessage, RTVIType, Session
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
@@ -518,6 +519,170 @@ Open with a brief, warm greeting in English: say you are {AGENT_NAME} from Aura 
 _GREETING = f"Hi, I'm {AGENT_NAME} from Aura Bank support. What can I help you with today?"
 
 
+# ─── Screen actions ────────────────────────────────────────────────────────────
+# One class per ui_command the /aura console renders. The class name IS the
+# command the browser switches on (``OpenArticle`` → ``open_article``) and the
+# fields are the payload it reads — see ``frontend/src/store.tsx``. These are the
+# screen's contract, not the model's: a tool takes its arguments flat and builds
+# the action here, so an argument the model gives and a field the browser needs
+# stay free to differ (``raise_ticket`` mints the reference; ``run_calculator``
+# solves the maths).
+
+
+class OpenHome(Action):
+    """Back to the Aura Bank home page."""
+
+
+class OpenHelpCenter(Action):
+    """The help centre's category index."""
+
+
+class OpenCategory(Action):
+    """One help-centre category's article list."""
+
+    category: str
+
+
+class OpenArticle(Action):
+    """One help article, full screen."""
+
+    article_id: str
+
+
+class PlayHelpVideo(Action):
+    """Start Aura's own how-to clip, muted, at a given second."""
+
+    video_id: str
+    start_sec: int
+
+
+class HighlightStep(Action):
+    """Move the on-screen step list's focus to one step."""
+
+    index: int
+
+
+class SeekVideo(Action):
+    """Jump the playing clip to another second."""
+
+    start_sec: int
+
+
+class PauseVideo(Action):
+    """Hold the clip where it is."""
+
+
+class ResumeVideo(Action):
+    """Play on from where it was paused."""
+
+
+class ShowContact(Action):
+    """The helpline panel, headed by what they were stuck on."""
+
+    topic: str
+
+
+class RunCalculator(Action):
+    """The calculator screen, filled in and already solved.
+
+    ``inputs`` carries the defaults the customer never gave, because the screen
+    shows its own working — and ``result`` is computed here rather than in the
+    browser so the figure Aria speaks and the figure on screen cannot drift."""
+
+    kind: str
+    inputs: dict[str, float]
+    result: dict[str, float]
+
+
+class StartApplication(Action):
+    """Open a blank product application."""
+
+    product: str
+
+
+class PrefillField(Action):
+    """Type one value into the open application."""
+
+    field: str
+    value: str
+
+
+class SubmitApplication(Action):
+    """Send the open application — only ever after the customer says so."""
+
+
+class CompareItem(BaseModel):
+    """One product in a comparison, as its column renders."""
+
+    id: str = Field(description="Short slug for this option, unique within the list.")
+    name: str = Field(description="The real Aura product name, in clean English.")
+    features: list[str] = Field(
+        default_factory=list, description="Three or four short feature lines, in clean English."
+    )
+
+
+class Compare(Action):
+    """The side-by-side comparison table, with one column starred."""
+
+    kind: str
+    items: list[CompareItem]
+    recommend_id: str
+    recommend_reason: str
+
+
+class BranchResult(BaseModel):
+    """One branch or ATM, as its card renders."""
+
+    name: str = Field(description="Branch or ATM name, in clean English.")
+    address: str = Field(default="", description="One-line street address, in clean English.")
+    kind: Literal["branch", "atm"] = Field(default="branch", description="Which of the two it is.")
+    ifsc: str | None = Field(default=None, description="IFSC code — branches only.")
+    hours: str | None = Field(
+        default=None, description="Opening hours, e.g. 'Mon-Sat, ten to four'."
+    )
+
+
+class FindBranch(Action):
+    """The branch/ATM locator, showing results for one pincode."""
+
+    pincode: str
+    results: list[BranchResult]
+
+
+class ShowChecklist(Action):
+    """A titled list of short lines — documents, eligibility, next steps."""
+
+    title: str
+    items: list[str]
+
+
+class SendToPhone(Action):
+    """The 'sent to your phone' confirmation."""
+
+    what: str
+    channel: str
+    number: str
+
+
+class RaiseTicket(Action):
+    """The ticket receipt, with the reference the server minted."""
+
+    reference: str
+    topic: str
+    summary: str
+
+
+class Spotlight(Action):
+    """Draw a ring around one element on screen."""
+
+    target: str
+    label: str
+
+
+class ShowForexCard(Action):
+    """The Multi-Currency Forex Card screen, with its one-tap request."""
+
+
 class AuraBrain(GeminiInteractionsBrain):
     """One per session. The Aura Bank L1 support assistant: LLM + help-centre /
     calculator / application / comparison / branch tools + the four secure account
@@ -566,9 +731,36 @@ class AuraBrain(GeminiInteractionsBrain):
 
     @property
     def tools(self) -> list[Callable[..., Any]]:
-        """Aria's tools. Empty while the port is in flight — stages 2 and 3 lift
-        them out of ``_dispatch`` below, one method per tool."""
-        return []
+        """The twenty-two ordinary tools Aria may call.
+
+        The six secure ones — ``authenticate``, ``choose_account``,
+        ``get_account_balance``, ``get_statement``, ``choose_credit_card`` and
+        ``show_card_controls`` — are still in ``_dispatch`` below, and join this
+        list when they are lifted out."""
+        return [
+            self.open_home,
+            self.open_help_center,
+            self.open_category,
+            self.open_article,
+            self.play_help_video,
+            self.highlight_step,
+            self.seek_video,
+            self.pause_video,
+            self.resume_video,
+            self.show_contact,
+            self.get_screen_context,
+            self.run_calculator,
+            self.start_application,
+            self.prefill_field,
+            self.submit_application,
+            self.compare,
+            self.find_branch,
+            self.show_checklist,
+            self.send_to_phone,
+            self.raise_ticket,
+            self.spotlight,
+            self.show_forex_card,
+        ]
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -655,169 +847,338 @@ class AuraBrain(GeminiInteractionsBrain):
         self._last_state_note = note
         self.append_to_context(gi.UserInputStep(content=[gi.TextContent(text=note)]))
 
-    # ─── Tool dispatch ──────────────────────────────────────────────────
+    # ─── Tools: the help centre ─────────────────────────────────────────
+
+    async def open_home(self) -> str:
+        """Take the customer back to the Aura Bank home page."""
+        logger.info("aura: open_home")
+        self.session.dispatch(OpenHome())
+        return "home open"
+
+    async def open_help_center(self) -> str:
+        """Open the help centre's index of categories — for a customer who is
+        browsing rather than asking one specific thing."""
+        logger.info("aura: open_help_center")
+        self.session.dispatch(OpenHelpCenter())
+        return "help centre open"
+
+    async def open_category(self, category: str) -> str:
+        """Open one help-centre category so its articles are listed on screen.
+
+        Args:
+            category: The category to list.
+        """
+        category = category.strip()
+        if not category:
+            return "need a category"
+        logger.info("aura: open_category {!r}", category)
+        self.session.dispatch(OpenCategory(category=category))
+        return f"category {category} open"
+
+    async def open_article(self, article_id: str) -> str:
+        """Open the help article that answers their question, full screen.
+
+        This is the FIRST thing to do for any how-to question: speak one short
+        line, then call this so the page is up before you explain anything.
+
+        Args:
+            article_id: Id of the article for this topic.
+        """
+        article_id = article_id.strip()
+        if not article_id:
+            return "need an article_id"
+        logger.info("aura: open_article {!r}", article_id)
+        self.session.dispatch(OpenArticle(article_id=article_id))
+        return f"article {article_id} open"
+
+    # ─── Tools: the video ───────────────────────────────────────────────
+
+    async def play_help_video(self, video_id: str, start_sec: int = 0) -> str:
+        """Play Aura's own how-to clip, muted, from the second that answers their
+        exact question — skip the intro.
+
+        The customer watches while YOU narrate. The on-screen step list carries
+        the steps, so never read them aloud.
+
+        Args:
+            video_id: Id of Aura's clip for this topic.
+            start_sec: Second to start at — the chapter that answers them.
+        """
+        video_id = video_id.strip()
+        if not video_id:
+            return "need a video_id"
+        start_sec = max(0, int(start_sec))
+        logger.info("aura: play_help_video {} @{}s", video_id, start_sec)
+        self.session.dispatch(PlayHelpVideo(video_id=video_id, start_sec=start_sec))
+        return (
+            f"playing {video_id} muted from {start_sec}s. Now narrate the steps in English "
+            "in your own words; call highlight_step(index) as you describe each one."
+        )
+
+    async def highlight_step(self, index: int) -> str:
+        """Move the on-screen step list's focus as you narrate — once per step, in
+        order, with one short line that points at it rather than reciting it.
+
+        Args:
+            index: Zero-based index of the step to focus.
+        """
+        index = int(index)
+        logger.info("aura: highlight_step {}", index)
+        self.session.dispatch(HighlightStep(index=index))
+        return f"step {index} highlighted"
+
+    async def seek_video(self, start_sec: int = 0) -> str:
+        """Jump the playing clip to another second — a different chapter, or back
+        over something they missed.
+
+        Args:
+            start_sec: Second to jump to.
+        """
+        start_sec = max(0, int(start_sec))
+        logger.info("aura: seek_video @{}s", start_sec)
+        self.session.dispatch(SeekVideo(start_sec=start_sec))
+        return f"seeked to {start_sec}s"
+
+    async def pause_video(self) -> str:
+        """Hold the clip where it is — they asked you to wait, or to talk."""
+        logger.info("aura: pause_video")
+        self.session.dispatch(PauseVideo())
+        return "paused"
+
+    async def resume_video(self) -> str:
+        """Play on from where you paused."""
+        logger.info("aura: resume_video")
+        self.session.dispatch(ResumeVideo())
+        return "resumed"
+
+    async def show_contact(self, topic: str = "") -> str:
+        """Put Aura's helpline numbers on screen. For anything genuinely
+        account-specific, unresolved, or urgent — a lost or stolen card, or
+        suspected fraud — show these immediately rather than playing a video.
+
+        Args:
+            topic: What they were stuck on, a few words in clean English.
+        """
+        topic = topic.strip()
+        logger.info("aura: show_contact {!r}", topic)
+        self.session.dispatch(ShowContact(topic=topic))
+        return "contact shown: helpline 1860-200-0100, emergency card block +91 22 2000 0200"
+
+    async def get_screen_context(self) -> str:
+        """What the customer is looking at right now — screen, open article, video
+        position. Call it before referring to something on screen you are not
+        certain is still there."""
+        where = self._screen_summary()
+        logger.info("aura: get_screen_context -> {}", where.get("screen"))
+        return str(where)
+
+    # ─── Tools: calculators, applications, comparisons ──────────────────
+
+    async def run_calculator(
+        self,
+        kind: Literal["emi", "fd", "eligibility"],
+        principal: float | None = None,
+        monthly_income: float | None = None,
+        existing_emi: float | None = None,
+        annual_rate: float | None = None,
+        tenure_months: float | None = None,
+    ) -> str:
+        """Open an on-screen calculator, fill it in and solve it.
+
+        You only need the AMOUNT from the customer. Rate, tenure and existing EMIs
+        default to sensible values and are shown on screen, so do not insist on
+        them. Say the ONE headline figure back in words with the indicative
+        caveat, and let the screen carry the working.
+
+        Args:
+            kind: 'emi' for a loan repayment, 'fd' for deposit maturity,
+                'eligibility' for how much they could borrow.
+            principal: Loan or deposit amount in rupees — for 'emi' and 'fd'.
+            monthly_income: Take-home monthly income in rupees — for 'eligibility'.
+            existing_emi: What they already repay each month — for 'eligibility'.
+            annual_rate: Annual interest rate as a percentage. Leave unset unless
+                they state one.
+            tenure_months: Term in MONTHS. Leave unset unless they state one.
+        """
+        given = {
+            "principal": principal,
+            "monthly_income": monthly_income,
+            "existing_emi": existing_emi,
+            "annual_rate": annual_rate,
+            "tenure_months": tenure_months,
+        }
+        keys = {
+            "emi": ("principal", "annual_rate", "tenure_months"),
+            "fd": ("principal", "annual_rate", "tenure_months"),
+            "eligibility": ("monthly_income", "existing_emi", "annual_rate", "tenure_months"),
+        }[kind]
+        inputs: dict[str, float] = dict(_CALC_DEFAULTS.get(kind, {}))
+        for key in keys:
+            value = given[key]
+            if value is None:
+                continue
+            with contextlib.suppress(TypeError, ValueError):
+                inputs[key] = float(value)
+        result = _compute_calc(kind, inputs)
+        logger.info("aura: run_calculator {} -> {}", kind, result)
+        self.session.dispatch(RunCalculator(kind=kind, inputs=inputs, result=result))
+        return str({"kind": kind, "inputs": inputs, "result": result})
+
+    async def start_application(self, product: Literal["savings", "credit_card", "loan"]) -> str:
+        """Begin a new-customer application — a real top-of-funnel lead, and it
+        needs no login. Then prefill_field each detail they give you, and submit
+        only once they clearly agree.
+
+        Args:
+            product: Which application to open.
+        """
+        if product not in ("savings", "credit_card", "loan"):
+            return "product must be savings, credit_card, or loan"
+        logger.info("aura: start_application {}", product)
+        self.session.dispatch(StartApplication(product=product))
+        return f"{product} application started"
+
+    async def prefill_field(self, field: str, value: str = "") -> str:
+        """Type one detail into the open application.
+
+        Args:
+            field: One of name, mobile, email, city, pan, employment,
+                monthly_income, loan_amount, tenure_years.
+            value: What to type. It renders on screen, so keep it clean English.
+        """
+        field = field.strip()
+        if not field:
+            return "need a field"
+        logger.info("aura: prefill_field {}", field)
+        self.session.dispatch(PrefillField(field=field, value=value))
+        return f"{field} filled"
+
+    async def submit_application(self) -> str:
+        """Send the open application. ONLY after the customer has clearly agreed —
+        never auto-submit."""
+        logger.info("aura: submit_application")
+        self.session.dispatch(SubmitApplication())
+        return "submitted"
+
+    async def compare(
+        self,
+        kind: Literal["credit_card", "savings"],
+        items: list[CompareItem],
+        recommend_id: str = "",
+        recommend_reason: str = "",
+    ) -> str:
+        """Put two or three real Aura products side by side and star the one that
+        fits what they told you. Say only why you starred it; the table carries
+        the rest.
+
+        Args:
+            kind: Which family is being compared.
+            items: The options, with real Aura product names.
+            recommend_id: The id of the option you are starring.
+            recommend_reason: One short line saying why.
+        """
+        if not items:
+            return "need items to compare"
+        kind = "savings" if kind == "savings" else "credit_card"
+        logger.info("aura: compare {} ({})", kind, len(items))
+        self.session.dispatch(
+            Compare(
+                kind=kind,
+                items=items,
+                recommend_id=recommend_id,
+                recommend_reason=recommend_reason,
+            )
+        )
+        return f"comparison shown, {len(items)} options, recommended {recommend_id}"
+
+    async def find_branch(self, pincode: str, results: list[BranchResult]) -> str:
+        """Show nearby branches and ATMs for a pincode. Generate a few plausible
+        ones for that area — they render on screen, so keep them clean English.
+
+        Args:
+            pincode: The pincode they gave you.
+            results: A few nearby branches and ATMs.
+        """
+        logger.info("aura: find_branch {} ({})", pincode, len(results))
+        self.session.dispatch(FindBranch(pincode=pincode, results=results))
+        return f"{len(results)} results shown for {pincode}"
+
+    async def show_checklist(self, title: str, items: list[str]) -> str:
+        """Put a document or eligibility checklist on screen. Do not read it out;
+        the screen is the answer.
+
+        Args:
+            title: Heading, in clean English.
+            items: Short lines, in clean English.
+        """
+        logger.info("aura: show_checklist {!r} ({})", title, len(items))
+        self.session.dispatch(ShowChecklist(title=title, items=[str(s) for s in items]))
+        return f"checklist shown, {len(items)} items"
+
+    async def send_to_phone(
+        self,
+        what: str = "this guide",
+        channel: Literal["whatsapp", "sms"] = "whatsapp",
+        number: str = "",
+    ) -> str:
+        """'Send' the guide or steps you just walked through to their phone — a
+        take-away once you have explained something.
+
+        Args:
+            what: What you are sending, a few words in clean English.
+            channel: Which channel to send it on.
+            number: Their mobile number, if they gave one.
+        """
+        channel = "sms" if channel == "sms" else "whatsapp"
+        logger.info("aura: send_to_phone {} via {}", what, channel)
+        self.session.dispatch(SendToPhone(what=what, channel=channel, number=number))
+        return f"sent on {channel}"
+
+    async def raise_ticket(self, topic: str, summary: str = "") -> str:
+        """Register a complaint or a callback request when something is genuinely
+        account-specific or you could not resolve it. You get a reference number
+        back — read it out in words and tell them to keep it.
+
+        Args:
+            topic: What it is about, a few words in clean English.
+            summary: One sentence of detail, in clean English.
+        """
+        reference = _ticket_reference()
+        logger.info("aura: raise_ticket {!r} -> {}", topic, reference)
+        self.session.dispatch(RaiseTicket(reference=reference, topic=topic, summary=summary))
+        return f"ticket raised, reference {reference}"
+
+    async def spotlight(self, target: str, label: str = "") -> str:
+        """Draw a ring around one element to point at it.
+
+        Args:
+            target: 'calc_result', an application field id (name, mobile, email,
+                city, pan, employment, monthly_income, loan_amount, tenure_years),
+                or 'recommend' for the starred comparison card.
+            label: Optional short caption for the ring.
+        """
+        target = target.strip()
+        if not target:
+            return "need a target"
+        logger.info("aura: spotlight {}", target)
+        self.session.dispatch(Spotlight(target=target, label=label))
+        return f"{target} spotlighted"
+
+    async def show_forex_card(self) -> str:
+        """Show the Aura Multi-Currency Forex Card with its one-tap request — the
+        Journey A cross-sell, once they are enabling international card use.
+
+        Point at it in one short line. Do not recite the benefits; the screen
+        lists them, and the customer taps 'Request this card' to register."""
+        logger.info("aura: show_forex_card")
+        self.session.dispatch(ShowForexCard())
+        return "forex card screen up; the customer taps 'Request this card' to register interest"
+
+    # ─── Tool dispatch: the six secure tools, not yet lifted ────────────
 
     async def _dispatch(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: drive the browser via ``interaction.action(...)`` (the
-        RTVI ui_command the /aura console renders) and return the same result dict the
-        managed AuraBot fed back to the model (as a string). The blocking secure tools
-        await the browser round-trip; every other tool is fire-and-return."""
-        act = interaction.action
-        if name == "open_home":
-            logger.info("aura: open_home")
-            act("open_home")
-            return str({"status": "home_open"})
-        if name == "open_help_center":
-            logger.info("aura: open_help_center")
-            act("open_help_center")
-            return str({"status": "help_center_open"})
-        if name == "open_category":
-            category = str(args.get("category", "")).strip()
-            if not category:
-                return str({"error": "need a category"})
-            logger.info("aura: open_category {!r}", category)
-            act("open_category", {"category": category})
-            return str({"status": "category_open", "category": category})
-        if name == "open_article":
-            article_id = str(args.get("article_id", "")).strip()
-            if not article_id:
-                return str({"error": "need an article_id"})
-            logger.info("aura: open_article {!r}", article_id)
-            act("open_article", {"article_id": article_id})
-            return str({"status": "article_open", "article_id": article_id})
-        if name == "play_help_video":
-            video_id = str(args.get("video_id", "")).strip()
-            try:
-                start_sec = int(args.get("start_sec") or 0)
-            except (TypeError, ValueError):
-                start_sec = 0
-            if not video_id:
-                return str({"error": "need a video_id"})
-            logger.info("aura: play_help_video {} @{}s", video_id, start_sec)
-            act("play_help_video", {"video_id": video_id, "start_sec": start_sec})
-            return str(
-                {
-                    "status": "playing_muted",
-                    "video_id": video_id,
-                    "start_sec": start_sec,
-                    "note": "Video is playing muted from that second. Now narrate the steps in "
-                    "English in your own words; call highlight_step(index) as you describe "
-                    "each step.",
-                }
-            )
-        if name == "highlight_step":
-            try:
-                index = int(args.get("index") or 0)
-            except (TypeError, ValueError):
-                index = 0
-            logger.info("aura: highlight_step {}", index)
-            act("highlight_step", {"index": index})
-            return str({"status": "highlighted", "index": index})
-        if name == "seek_video":
-            try:
-                start_sec = int(args.get("start_sec") or 0)
-            except (TypeError, ValueError):
-                start_sec = 0
-            logger.info("aura: seek_video @{}s", start_sec)
-            act("seek_video", {"start_sec": start_sec})
-            return str({"status": "seeked", "start_sec": start_sec})
-        if name == "pause_video":
-            logger.info("aura: pause_video")
-            act("pause_video")
-            return str({"status": "paused"})
-        if name == "resume_video":
-            logger.info("aura: resume_video")
-            act("resume_video")
-            return str({"status": "resumed"})
-        if name == "show_contact":
-            topic = str(args.get("topic", "")).strip()
-            logger.info("aura: show_contact {!r}", topic)
-            act("show_contact", {"topic": topic})
-            return str(
-                {
-                    "status": "contact_shown",
-                    "topic": topic,
-                    "helpline": "1860-200-0100",
-                    "emergency_card_block": "+91 22 2000 0200",
-                }
-            )
-        if name == "get_screen_context":
-            where = self._screen_summary()
-            logger.info("aura: get_screen_context -> {}", where.get("screen"))
-            return str(where)
-        if name == "run_calculator":
-            return self._run_calculator(interaction, args)
-        if name == "start_application":
-            product = str(args.get("product", "")).strip()
-            if product not in ("savings", "credit_card", "loan"):
-                return str({"error": "product must be savings, credit_card, or loan"})
-            logger.info("aura: start_application {}", product)
-            act("start_application", {"product": product})
-            return str({"status": "application_started", "product": product})
-        if name == "prefill_field":
-            field = str(args.get("field", "")).strip()
-            value = str(args.get("value", ""))
-            if not field:
-                return str({"error": "need a field"})
-            logger.info("aura: prefill_field {}", field)
-            act("prefill_field", {"field": field, "value": value})
-            return str({"status": "filled", "field": field})
-        if name == "submit_application":
-            logger.info("aura: submit_application")
-            act("submit_application")
-            return str({"status": "submitted"})
-        if name == "compare":
-            kind = "savings" if str(args.get("kind")) == "savings" else "credit_card"
-            items = list(args.get("items") or [])
-            if not items:
-                return str({"error": "need items to compare"})
-            recommend_id = str(args.get("recommend_id", ""))
-            logger.info("aura: compare {} ({})", kind, len(items))
-            act(
-                "compare",
-                {
-                    "kind": kind,
-                    "items": items,
-                    "recommend_id": recommend_id,
-                    "recommend_reason": str(args.get("recommend_reason", "")),
-                },
-            )
-            return str(
-                {"status": "comparison_shown", "count": len(items), "recommended": recommend_id}
-            )
-        if name == "find_branch":
-            pincode = str(args.get("pincode", ""))
-            results = list(args.get("results") or [])
-            logger.info("aura: find_branch {} ({})", pincode, len(results))
-            act("find_branch", {"pincode": pincode, "results": results})
-            return str({"status": "results_shown", "pincode": pincode, "count": len(results)})
-        if name == "show_checklist":
-            title = str(args.get("title", "Checklist"))
-            items = [str(s) for s in (args.get("items") or [])]
-            logger.info("aura: show_checklist {!r} ({})", title, len(items))
-            act("show_checklist", {"title": title, "items": items})
-            return str({"status": "checklist_shown", "items": len(items)})
-        if name == "send_to_phone":
-            what = str(args.get("what", "this guide"))
-            channel = "sms" if str(args.get("channel")) == "sms" else "whatsapp"
-            number = str(args.get("number", ""))
-            logger.info("aura: send_to_phone {} via {}", what, channel)
-            act("send_to_phone", {"what": what, "channel": channel, "number": number})
-            return str({"status": "sent", "channel": channel})
-        if name == "raise_ticket":
-            topic = str(args.get("topic", ""))
-            summary = str(args.get("summary", ""))
-            reference = _ticket_reference()
-            logger.info("aura: raise_ticket {!r} -> {}", topic, reference)
-            act("raise_ticket", {"reference": reference, "topic": topic, "summary": summary})
-            return str({"status": "ticket_raised", "reference": reference})
-        if name == "spotlight":
-            target = str(args.get("target", "")).strip()
-            if not target:
-                return str({"error": "need a target"})
-            logger.info("aura: spotlight {}", target)
-            act("spotlight", {"target": target, "label": str(args.get("label", ""))})
-            return str({"status": "spotlighted", "target": target})
+        """The six blocking/secure tools, still in the old if-tree. Dead code until
+        stage 3 converts them to methods the way the twenty-two above were."""
         if name == "authenticate":
             return await self._authenticate(interaction)
         if name == "choose_account":
@@ -830,39 +1191,7 @@ class AuraBrain(GeminiInteractionsBrain):
             return await self._choose_credit_card(interaction, args)
         if name == "show_card_controls":
             return self._show_card_controls(interaction, args)
-        if name == "show_forex_card":
-            logger.info("aura: show_forex_card")
-            act("show_forex_card")
-            return str(
-                {
-                    "status": "forex_card_shown",
-                    "note": "The Aura Multi-Currency Forex Card screen is up with a one-tap "
-                    "request. Point at it in one short line; the customer taps 'Request this "
-                    "card' to capture the lead. Don't recite the benefits — the screen lists them.",
-                }
-            )
         return "unknown tool"
-
-    def _run_calculator(self, interaction, args: dict[str, Any]) -> str:
-        kind = str(args.get("kind", "")).strip()
-        if kind not in ("emi", "fd", "eligibility"):
-            return str({"error": "kind must be emi, fd, or eligibility"})
-        keys = {
-            "emi": ("principal", "annual_rate", "tenure_months"),
-            "fd": ("principal", "annual_rate", "tenure_months"),
-            "eligibility": ("monthly_income", "existing_emi", "annual_rate", "tenure_months"),
-        }[kind]
-        inputs: dict[str, float] = dict(_CALC_DEFAULTS.get(kind, {}))
-        for k in keys:
-            v = args.get(k)
-            if v is None:
-                continue
-            with contextlib.suppress(TypeError, ValueError):
-                inputs[k] = float(v)
-        result = _compute_calc(kind, inputs)
-        logger.info("aura: run_calculator {} -> {}", kind, result)
-        interaction.action("run_calculator", {"kind": kind, "inputs": inputs, "result": result})
-        return str({"status": "calculated", "kind": kind, "inputs": inputs, "result": result})
 
     # ── Authenticated account access ──────────────────────────────────────────
 
