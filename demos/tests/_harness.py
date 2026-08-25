@@ -1,12 +1,13 @@
 """The shared per-demo e2e rig: one real demo brain on a real socket, driven by
 the conformance ``VoqalizeDriver``, with only the *model* scripted.
 
-``test_travel_adk.py`` established this shape for the one ADK demo; every other
-demo is a ``GeminiBrain``, so the only difference is which fake model goes in
-(:class:`voqalize_demos.testing.ScriptedGemini` instead of ADK's ``ScriptedLlm``).
-Everything else — the ``brain_server`` WebSocket, the minted PyGato token, the
-driver's playout/heard-truth model — is identical, which is the point: these tests
-exercise the same wire a production session runs on.
+Every demo is a ``GeminiBrain`` (or ``GeminiInteractionsBrain``) subclass now —
+ADK is gone from the repo, and all eleven demos, travel and orderdesk included,
+are hosted through :func:`demo` with the same
+:class:`voqalize_demos.testing.ScriptedGemini` fake. The ``brain_server``
+WebSocket, the minted PyGato token, and the driver's playout/heard-truth model
+are identical across all eleven, which is the point: these tests exercise the
+same wire a production session runs on.
 
 What every demo's e2e must prove, and why each one is here:
 
@@ -105,9 +106,9 @@ async def demo(name: str, llm: ScriptedGemini) -> AsyncIterator[DemoRig]:
     PyGato-side driver against it. Tears both down on the way out.
 
     The brain comes from :func:`build_for` — the same factory the umbrella mounts —
-    so a test never re-wires a demo by hand. The two ADK demos (``travel``,
-    ``orderdesk``) build their own model from the environment and ignore the
-    injected provider; host those with :func:`demo_from` and an ADK ``ScriptedLlm``."""
+    so a test never re-wires a demo by hand. :func:`demo_from` is the escape hatch
+    for a brain construction that :func:`demo`'s ``build_for(name)(llm)`` shape
+    cannot express."""
     build = build_for(name)
     async with demo_from(name, lambda: build(llm)) as rig:  # type: ignore[arg-type]
         yield rig

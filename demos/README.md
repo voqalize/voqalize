@@ -62,7 +62,7 @@ demos/
     llm.py                # GeminiProvider (the LLM the brains run on)
   <name>/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/
-      package.json         #   links the SDK by path: "@voqalize/client-react": "file:../../../sdk/react"
+      package.json         #   stock @pipecat-ai/client-react + @voqalize/demo-kit: "file:../../shared"
       vite.config.ts       #   base: "/demos/<name>/", dev proxy /api → control plane
       src/config.ts        #   this demo's wiring: tenant + agent id + pk (NO voice/language)
       src/…                #   the app
@@ -73,8 +73,10 @@ demos/
 ```
 
 Each **frontend** is fully self-contained (its own `package.json` + lockfile +
-`node_modules`); it depends on the published `@voqalize/client-react` SDK — until
-that's on npm, by path via `file:../../../sdk/react`. Each **backend** is thin and
+`node_modules`); it depends on stock `@pipecat-ai/client-react` plus
+`@voqalize/demo-kit` (`demos/shared`, the pre-call gate and ambient ring shared
+across the gallery) — there is no Voqalize-authored client wrapper any more.
+Each **backend** is thin and
 shares the one `voqalize_demos` package; the umbrella discovers routers by
 scanning `demos/*/backend`, so nothing binds names in a central registry.
 
@@ -146,13 +148,13 @@ ships separately, onto the pygato node.
 
 `travel` — the **Travel Advisor** — is the reference demo: a `voqalize.sdk.Brain`
 (`demos/travel/backend/`) driven over the inbound path, and a standalone Vite UI
-(`demos/travel/frontend/`) embedded via the public `@voqalize/client-react` SDK.
-The remaining demos follow this same shape.
+(`demos/travel/frontend/`) built on stock pipecat (`@pipecat-ai/client-react`) plus
+`@voqalize/demo-kit`. The remaining demos follow this same shape.
 
 **Every demo has an end-to-end test** (`demos/tests/test_<name>_e2e.py`): the real
-brain on a real `brain_server` socket, driven by the conformance `VoqalizeDriver`, with
-only the *model* faked — `ScriptedGemini` for the `GeminiBrain` demos, ADK's
-`ScriptedLlm` for `travel` and `orderdesk`. No network, no API key. Plus
+brain on a real `brain_server` socket, driven by the conformance `VoqalizeDriver`,
+with only the *model* faked — `ScriptedGemini` (`demos/voqalize_demos/testing.py`)
+for all eleven demos; ADK and its `ScriptedLlm` are gone from the repo. Plus
 `test_demo_voice_contract.py`, a cross-demo sweep that asserts every demo puts a
 **matched** voice/language pair on both legs before its first audio — the one
 defect no transcript, log or WER score can see.
