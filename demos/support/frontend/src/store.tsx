@@ -2,7 +2,7 @@
  * OrdersStore — the single source of truth for the returns demo's screen state.
  *
  * Both the human (tapping the UI) and the Returns Assistant agent (via
- * `ui_command` RTVI messages) call the SAME actions, so the screen stays
+ * `ui-command` RTVI events) call the SAME actions, so the screen stays
  * consistent no matter who is driving. Navigation is plain React state — never
  * the router — so the `PipecatClient` mounted alongside never unmounts and the
  * call stays live as the shopper moves between pages.
@@ -117,8 +117,8 @@ export interface OrdersStore extends State, OrdersActions {
   /** Push an RTVI client message to the bot (null until the call connects). */
   agentSend: AgentSend | null;
   registerAgentSend: (fn: AgentSend | null) => void;
-  /** Dispatch a raw `ui_command` payload coming from the agent over RTVI. */
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  /** Dispatch a `ui-command` event's `{ command, payload }` from the agent. */
+  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
 }
 
 const Ctx = createContext<OrdersStore | null>(null);
@@ -279,37 +279,44 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      const action = String(cmd.action ?? '');
+    (command: string, payload: Record<string, unknown>) => {
       const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
       const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
       const bool = (v: unknown) => v === true;
-      switch (action) {
+      switch (command) {
         case 'open_orders':
           openOrders();
           break;
         case 'open_order':
-          if (str(cmd.order_id)) openOrder(str(cmd.order_id)!);
+          if (str(payload.order_id)) openOrder(str(payload.order_id)!);
           break;
         case 'highlight_item':
-          if (str(cmd.order_id) && str(cmd.item_id)) {
-            highlightItem(str(cmd.order_id)!, str(cmd.item_id)!);
+          if (str(payload.order_id) && str(payload.item_id)) {
+            highlightItem(str(payload.order_id)!, str(payload.item_id)!);
           }
           break;
         case 'start_diagnostics':
-          if (str(cmd.order_id) && str(cmd.item_id) && Array.isArray(cmd.steps)) {
-            startDiagnostics(str(cmd.order_id)!, str(cmd.item_id)!, (cmd.steps as unknown[]).map(String));
+          if (str(payload.order_id) && str(payload.item_id) && Array.isArray(payload.steps)) {
+            startDiagnostics(
+              str(payload.order_id)!,
+              str(payload.item_id)!,
+              (payload.steps as unknown[]).map(String),
+            );
           }
           break;
         case 'record_diagnostic':
-          recordDiagnostic(num(cmd.step) ?? 0, str(cmd.summary) ?? '', cmd.result === 'issue' ? 'issue' : 'ok');
+          recordDiagnostic(
+            num(payload.step) ?? 0,
+            str(payload.summary) ?? '',
+            payload.result === 'issue' ? 'issue' : 'ok',
+          );
           break;
         case 'complete_diagnostics':
-          completeDiagnostics(bool(cmd.resolved), str(cmd.reason));
+          completeDiagnostics(bool(payload.resolved), str(payload.reason));
           break;
         case 'start_return':
-          if (str(cmd.order_id) && str(cmd.item_id)) {
-            startReturn(str(cmd.order_id)!, str(cmd.item_id)!, str(cmd.reason) ?? '');
+          if (str(payload.order_id) && str(payload.item_id)) {
+            startReturn(str(payload.order_id)!, str(payload.item_id)!, str(payload.reason) ?? '');
           }
           break;
         case 'request_photo':
@@ -317,18 +324,18 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           break;
         case 'set_photo_check':
           setPhotoCheck({
-            matches: bool(cmd.matches),
-            boxPresent: bool(cmd.box_present),
-            passed: bool(cmd.passed),
-            note: str(cmd.note) ?? '',
+            matches: bool(payload.matches),
+            boxPresent: bool(payload.box_present),
+            passed: bool(payload.passed),
+            note: str(payload.note) ?? '',
           });
           break;
         case 'fill_return_form':
           fillReturnForm({
-            reason: str(cmd.reason) ?? '',
-            condition: str(cmd.condition) ?? 'Opened — defective',
-            refundMethod: (str(cmd.refund_method) as RefundMethod) ?? 'original_payment',
-            notes: str(cmd.notes) ?? '',
+            reason: str(payload.reason) ?? '',
+            condition: str(payload.condition) ?? 'Opened — defective',
+            refundMethod: (str(payload.refund_method) as RefundMethod) ?? 'original_payment',
+            notes: str(payload.notes) ?? '',
           });
           break;
         default:
