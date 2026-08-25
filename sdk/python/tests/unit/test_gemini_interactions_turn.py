@@ -457,47 +457,12 @@ async def test_every_hop_carries_the_whole_transcript_and_stores_nothing() -> No
     assert [len(hop) for hop in inputs] == [1, 3], "user; then user + call + result"
 
 
-async def test_grounding_is_refreshed_on_every_hop() -> None:
-    """The reason to hand the transcript over each time. On the automatic path the
-    contents go once and a hop cannot refresh them — so a screen the caller
-    touched while a tool ran is invisible to the sentence about it."""
-
-    class _Grounded(_Coach):
-        note = "looking at the glucose tab"
-
-        def grounding(self) -> str | None:
-            return self.note
-
-        async def ping(self) -> str:
-            """Move the screen from under the turn, as a caller's thumb does."""
-            self.note = "looking at the meals tab"
-            return "pong"
-
-    brain, _, session = await _open(
-        _Grounded(_ScriptedClient([[_calls("ping")], [_says("Sure.")]]))
-    )
-
-    await _drain(brain, session)
-
-    inputs = brain._client.interactions.inputs  # pyright: ignore[reportPrivateUsage]
-    assert [_one(hop[0]) for hop in inputs] == [
-        "user: looking at the glucose tab",
-        "user: looking at the meals tab",
-    ]
-
-
-async def test_grounding_lands_before_the_caller_and_not_before_a_tool_result() -> None:
-    """A tool's answer is its own kind of step here, so the search for "the latest
-    thing the caller said" cannot mistake one for the caller — which it can on an
-    API where a function response wears `role="user"`."""
-
-    class _Grounded(_Coach):
-        def grounding(self) -> str | None:
-            return "on the meals tab"
-
-    brain, _, session = await _open(
-        _Grounded(_ScriptedClient([[_calls("ping")], [_says("Sure.")]]))
-    )
+async def test_a_note_lands_in_front_of_the_next_thing_the_caller_says() -> None:
+    """A note is context for the question, so it goes in front of it — and in front
+    of the caller, not in front of a tool result, which on this API is its own kind
+    of step and never wears the caller's."""
+    brain, _, session = await _open(_Coach(_ScriptedClient([[_calls("ping")], [_says("Sure.")]])))
+    brain.note("on the meals tab")
 
     await _drain(brain, session)
 
@@ -507,6 +472,40 @@ async def test_grounding_lands_before_the_caller_and_not_before_a_tool_result() 
         "user: hello",
         "call: ping{}",
         'result: ping -> {"result": "pong"}',
+    ]
+
+
+async def test_a_note_from_a_tool_does_not_move_the_turn_it_was_written_in() -> None:
+    """The screen moving under a running turn used to move the grounding with it:
+    the hook was re-read on every hop, so hop two argued from a screen hop one had
+    never seen. A note is appended once, at the top of the turn — so the turn it
+    arrives in reads consistently, and the next one has it."""
+
+    class _Moving(_Coach):
+        async def ping(self) -> str:
+            """Move the screen from under the turn, as a caller's thumb does."""
+            self.note("looking at the meals tab")
+            return "pong"
+
+    brain, _, session = await _open(
+        _Moving(_ScriptedClient([[_calls("ping")], [_says("Sure.")], [_says("Right.")]]))
+    )
+    brain.note("looking at the glucose tab")
+
+    await _drain(brain, session)
+    inputs = brain._client.interactions.inputs  # pyright: ignore[reportPrivateUsage]
+    # Both hops of the turn opened on the same note.
+    assert [_one(hop[0]) for hop in inputs] == [
+        "user: looking at the glucose tab",
+        "user: looking at the glucose tab",
+    ]
+
+    # The next turn has it, in front of what the caller says next.
+    await _drain(brain, session)
+    inputs = brain._client.interactions.inputs  # pyright: ignore[reportPrivateUsage]
+    assert [_one(step) for step in inputs[2][-2:]] == [
+        "user: looking at the meals tab",
+        "user: hello",
     ]
 
 

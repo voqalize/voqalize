@@ -162,8 +162,9 @@ class Engine(abc.ABC):
         """How many times the provider was asked to generate."""
 
     @abc.abstractmethod
-    def grounding_seen(self, brain: Any) -> list[list[str]]:
-        """Each request's plain text, in order, so a note can be located in it."""
+    def sent_text(self, brain: Any) -> list[list[str]]:
+        """Each request's plain text, in order, so one request can be compared
+        against the next."""
 
     @abc.abstractmethod
     def speak(self, brain: Any, text: str) -> None:
@@ -351,7 +352,7 @@ class AfcEngine(Engine):
         # AFC runs the whole turn inside one call, so a hop is not a request.
         return len(brain._client.models.configs)
 
-    def grounding_seen(self, brain: Any) -> list[list[str]]:
+    def sent_text(self, brain: Any) -> list[list[str]]:
         return [
             [p.text for c in sent for p in (c.parts or []) if p.text]
             for sent in brain._client.models.sent
@@ -462,7 +463,7 @@ class InteractionsEngine(Engine):
     def requests(self, brain: Any) -> int:
         return len(brain._client.aio.interactions.requests)
 
-    def grounding_seen(self, brain: Any) -> list[list[str]]:
+    def sent_text(self, brain: Any) -> list[list[str]]:
         return [
             [
                 c.text

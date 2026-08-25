@@ -15,7 +15,7 @@ Two things worth calling out about how per-session state flows in:
   * **state_sync** — the browser echoes a compact ``state_sync`` snapshot of the
     patient's screen (what's logged, med ticks, taps the patient made by hand).
     :meth:`SugarBrain.on_rtvi` folds it in *silently* — no floor taken, no turn —
-    and :meth:`SugarBrain.grounding` carries it into the next turn.
+    and :meth:`SugarBrain.note` carries it into the next turn.
 
 **The LLM generates the substantive data** (meal items, calorie estimates,
 summary lines): each tool takes one pydantic model, and for thirteen of the
@@ -288,7 +288,7 @@ class SugarBrain(GeminiBrain):
 
     The per-scenario patient picture arrives as ``session.init`` and is folded
     into the system instruction in :meth:`on_session_start`. The browser echoes a
-    ``state_sync`` snapshot to :meth:`on_rtvi`; :meth:`grounding` carries it into
+    ``state_sync`` snapshot to :meth:`on_rtvi`; a note carries it into
     every turn so the coach reasons from the live screen."""
 
     # This coach's language is the patient's own LanguageToggle choice, and the
@@ -343,10 +343,9 @@ class SugarBrain(GeminiBrain):
         # continues naturally from it (it also cued them on what to say).
         self.nudge = str(scenario.get("joined_from_nudge", "")).strip()
 
-        # Fold the whole per-scenario picture into the system instruction so every
-        # turn is grounded in it — the base rebuilds working_context from the
-        # transcript each turn, so the per-scenario picture belongs in the system
-        # prompt instead.
+        # Fold the whole per-scenario picture into the system instruction: it is
+        # true for the whole call and never changes, so it belongs where it is
+        # written once, not in a note that would sit in the transcript.
         context_block = (
             "PATIENT CONTEXT (authoritative — everything you know about this patient and "
             f"today's call; the conversation language is {self.language_name}): "
@@ -370,8 +369,8 @@ class SugarBrain(GeminiBrain):
         """Browser→brain message. ``state_sync`` carries a compact snapshot of the
         patient's screen — what's logged, med ticks, video position, and taps the
         patient made by hand. Ingested *silently* (no floor taken, no turn); the
-        next turn's :meth:`grounding` surfaces it so the coach reasons from the
-        live screen."""
+        next turn carries it as a note, so the coach reasons from the live
+        screen."""
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         if msg.data.get("t") == "state_sync":
@@ -380,27 +379,32 @@ class SugarBrain(GeminiBrain):
     # ─── Browser → brain: screen state sync (silent awareness) ──────────
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Fold the latest screen snapshot into the trailing context message the
-        next turn will carry."""
+        """Note the latest screen snapshot, so the next turn reasons from the live
+        screen.
+
+        The browser re-sends the snapshot as the patient scrolls and taps, and most
+        of those are the same screen. Only a changed one is worth a note: the
+        transcript is append-only, so an unguarded note here would put a hundred
+        near-identical screens in front of the model by the end of a call.
+        """
         snapshot = data.get("screen")
         self.current_state = snapshot if isinstance(snapshot, dict) else None
         if self.current_state is None:
-            self._state_message = "CURRENT SCREEN STATE: the patient's app is initializing."
+            message = "CURRENT SCREEN STATE: the patient's app is initializing."
         else:
             try:
                 blob = json.dumps(self.current_state, ensure_ascii=False)
             except (TypeError, ValueError):
                 blob = str(self.current_state)
-            self._state_message = (
+            message = (
                 "CURRENT SCREEN STATE (authoritative — reflects everything logged so far and "
                 "any taps the patient made by hand; always reason from this): " + blob
             )
+        if message == self._state_message:
+            return
+        self._state_message = message
+        self.note(message)
         logger.info("sugar: state_sync ingested (active={})", bool(self.current_state))
-
-    def grounding(self) -> str | None:
-        """The latest screen snapshot, folded into every turn so the assistant
-        always reasons from the live screen."""
-        return self._state_message
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #

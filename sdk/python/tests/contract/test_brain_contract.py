@@ -27,8 +27,10 @@ The nine clauses, in the order they appear below:
    the delivered prefix; heard by nobody, drop the unit; and match finalizes to
    units first-in-first-out, which is what the runtime's exactly-once guarantee
    buys. A finalize with nothing waiting is the greeting.
-9. **Grounding is per turn and lands before the caller's latest words**, so the
-   model reads the screen as context for the question and not as the question.
+9. **Every request extends the last.** The transcript is append-only, so each
+   request the provider sees is the previous one plus what happened since — which
+   is what makes it cacheable, and what stops the context changing under a turn
+   already in flight.
 
 What is *not* here is as deliberate. Nothing above names ``types.Content`` or
 ``gi.Step``; an invariant that cannot be said without one is a property of a
@@ -38,6 +40,7 @@ provider rather than of a brain, and lives in that engine's own suite.
 from __future__ import annotations
 
 import asyncio
+import itertools
 from typing import Any
 
 import pytest
@@ -342,21 +345,33 @@ async def test_a_finalize_with_nothing_awaiting_is_the_greeting(engine: Engine) 
     assert _said(engine, brain) == ["hi, travel desk here"]
 
 
-# ─── 9. Grounding is per turn, before the caller's latest words ───────────────
+# ─── 9. Every request extends the last ────────────────────────────────────────
 
 
-async def test_grounding_lands_before_the_latest_user_turn(engine: Engine) -> None:
-    """The screen is context for the question, so it goes in front of it. Behind
-    it and the model answers the note instead of the caller."""
+async def test_every_request_extends_the_last(engine: Engine) -> None:
+    """Three turns, with a note dropped in between two of them.
 
-    class _Grounded(engine.coach):
-        def grounding(self) -> str | None:
-            return "on screen: glucose"
+    Each request is the previous one plus what happened since — never a
+    re-rendering of the transcript with something moved. A note that got inserted
+    in front of the latest user turn on every request, which is what `grounding()`
+    did, breaks this on the second turn: the common prefix stops one exchange
+    short of the end, so the cache does too.
+    """
+    brain = engine.brain(says("One."), says("Two."), says("Three."))
+    _, _, session = await open_call(engine, brain)
 
-    brain = engine.brain(says("Right."))
-    brain.__class__ = _Grounded
-    brain._engine = engine
-    await _drain(brain)
+    for i, word in enumerate(("first", "second", "third")):
+        if i == 1:
+            brain.note("on screen: glucose")
+        async for _ in brain.on_user_message(session, UserMessage(text=word)):
+            pass
 
-    for texts in engine.grounding_seen(brain):
-        assert texts[-2:] == ["on screen: glucose", "hello"]
+    sent = engine.sent_text(brain)
+    assert len(sent) >= 3, sent
+    for before, after in itertools.pairwise(sent):
+        assert after[: len(before)] == before, f"{before} is not a prefix of {after}"
+        assert len(after) > len(before), "a request that added nothing"
+
+    # And the note is in there, in front of the words it grounds.
+    last = sent[-1]
+    assert last.index("on screen: glucose") < last.index("second")

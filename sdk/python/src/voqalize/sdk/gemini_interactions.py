@@ -116,10 +116,45 @@ class GeminiInteractionsBrain(Brain):
         # are equal as pydantic models, so `remove`, `index` and `in` are all
         # wrong on this queue and on the transcript.
         self._awaiting: deque[gi.ModelOutputStep] = deque()
+        # Notes handed over by :meth:`note`, waiting for a quiet moment to join
+        # the transcript. See that method for why they wait.
+        self._notes: list[str] = []
 
     # ─── The turn ───────────────────────────────────────────────────────
 
+    def note(self, text: str) -> None:
+        """Put a note into the transcript, in front of what the caller says next.
+
+        For context the app knows and the conversation does not — typically the
+        live screen state pushed to :meth:`~voqalize.sdk.Brain.on_rtvi`, which
+        takes no floor and starts no turn::
+
+            async def on_rtvi(self, session, msg):
+                if msg.data.get("t") == "state_sync":
+                    self.note("ON SCREEN: " + json.dumps(msg.data["d"]))
+
+        The note is **appended**, once, where you call it — not re-asked for and
+        re-inserted on every hop. That is what makes the transcript a record
+        rather than a rendering, and it is what lets the provider cache it: every
+        hop is the previous one plus what happened since. It also means the
+        grounding cannot change under a turn already in flight, which is what a
+        hook re-read per hop could do.
+
+        So note only what changed. Ten notes of the same screen are ten steps in
+        the transcript, and this method will not guess which of them you meant.
+
+        It lands at the next quiet moment — before the caller's next message, or
+        at the top of the next :meth:`respond`.
+        """
+        self._notes.append(text)
+
+    def _flush_notes(self) -> None:
+        for text in self._notes:
+            self._history.append(gi.UserInputStep(content=[gi.TextContent(text=text)]))
+        self._notes.clear()
+
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        self._flush_notes()
         self._history.append(gi.UserInputStep(content=[gi.TextContent(text=msg.text)]))
         return self.respond(session)
 
@@ -139,6 +174,8 @@ class GeminiInteractionsBrain(Brain):
         a unit on its first text and closes it at ``step.stop``; every other kind
         of step is silent, so a hop that only calls a tool never opens one.
         """
+        self._flush_notes()  # once per turn, never per hop — the grounding cannot
+        # change under a turn already in flight.
         tools = self.tools  # read once per turn, so a hop cannot change the offer
         declarations = [_declare(fn) for fn in tools]
         table = {fn.__name__: fn for fn in tools}
@@ -233,7 +270,7 @@ class GeminiInteractionsBrain(Brain):
         """
         request: dict[str, Any] = {
             "model": self._model,
-            "input": self.working_context(),
+            "input": list(self._history),
             "system_instruction": self._system_instruction,
             "generation_config": VOICE_THINKING.model_copy(update={"tool_choice": "none"})
             if answer_now
@@ -327,36 +364,6 @@ class GeminiInteractionsBrain(Brain):
         ]
 
     # ─── Context ────────────────────────────────────────────────────────
-
-    def grounding(self) -> str | None:
-        """Authoritative context folded into every hop — typically the live
-        on-screen state the app pushes to
-        :meth:`~voqalize.sdk.Brain.on_rtvi`. Return a text note and it is
-        inserted **just before the latest thing the caller said**, so an
-        ambiguous question is grounded in what they are looking at. Default:
-        none."""
-        return None
-
-    def working_context(self) -> list[gi.Step]:
-        """The transcript as the input for one hop, with :meth:`grounding`
-        inserted before the latest user step.
-
-        A transcript that opens on a ``model_output`` — the greeting, which
-        answers nothing — is kept. The model resolves the first user step against
-        it, which is the whole point: "yes please" is an answer to the question
-        the agent opened with.
-        """
-        out = list(self._history)
-        note = self.grounding()
-        if not note:
-            return out
-        at = len(out)
-        for i in range(len(out) - 1, -1, -1):
-            if isinstance(out[i], gi.UserInputStep):
-                at = i
-                break
-        out.insert(at, gi.UserInputStep(content=[gi.TextContent(text=note)]))
-        return out
 
     @property
     def system_instruction(self) -> str:

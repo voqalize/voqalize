@@ -141,10 +141,45 @@ class GeminiBrain(Brain):
         # finalizes what it played, and a hop that only called a tool played
         # nothing.
         self._awaiting: deque[_Unit] = deque()
+        # Notes handed over by :meth:`note`, waiting for a quiet moment to join
+        # the transcript. See that method for why they wait.
+        self._notes: list[str] = []
 
     # ─── The turn ───────────────────────────────────────────────────────
 
+    def note(self, text: str) -> None:
+        """Put a note into the transcript, in front of what the caller says next.
+
+        For context the app knows and the conversation does not — typically the
+        live screen state pushed to :meth:`~voqalize.sdk.Brain.on_rtvi`, which
+        takes no floor and starts no turn::
+
+            async def on_rtvi(self, session, msg):
+                if msg.data.get("t") == "state_sync":
+                    self.note("ON SCREEN: " + json.dumps(msg.data["d"]))
+
+        The note is **appended**, once, where you call it — not re-asked for and
+        re-inserted on every request. That is what makes the transcript a record
+        rather than a rendering, and it is what lets the provider cache it: every
+        request is the previous one plus what happened since.
+
+        So note only what changed. Ten notes of the same screen are ten notes in
+        the transcript, and this method will not guess which of them you meant.
+
+        It lands at the next quiet moment — before the caller's next message, or
+        at the top of the next :meth:`respond` — because a turn in flight is
+        writing this transcript too, and a note wedged between a tool call and its
+        result is a conversation Gemini refuses.
+        """
+        self._notes.append(text)
+
+    def _flush_notes(self) -> None:
+        for text in self._notes:
+            self._history.append(types.Content(role="user", parts=[types.Part(text=text)]))
+        self._notes.clear()
+
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        self._flush_notes()
         self._history.append(types.Content(role="user", parts=[types.Part(text=msg.text)]))
         return self.respond(session)
 
@@ -167,11 +202,12 @@ class GeminiBrain(Brain):
         record, which is the only place they exist.
 
         The catch, and it is inherent: the contents are handed over once, so
-        :meth:`grounding` and heard truth apply per *turn*, not per hop. A turn is
-        a couple of seconds, and a unit's heard truth is not known until it has
-        finished playing anyway — which is usually after the whole turn generated.
+        heard truth applies per *turn*, not per hop. A turn is a couple of seconds,
+        and a unit's heard truth is not known until it has finished playing anyway
+        — which is usually after the whole turn generated.
         """
-        contents = self.working_context()
+        self._flush_notes()
+        contents = list(self._history)
         # The head of AFC's record is what we just handed it, so folding starts
         # past our own contents.
         folded = len(contents)
@@ -309,35 +345,6 @@ class GeminiBrain(Brain):
                 self._history = [c for c in self._history if c is not unit.content]
 
     # ─── Context ────────────────────────────────────────────────────────
-
-    def grounding(self) -> str | None:
-        """Authoritative context folded into every turn — typically the live
-        on-screen state the app pushes to
-        :meth:`~voqalize.sdk.Brain.on_rtvi`. Return a text note and it is
-        inserted **just before the latest user turn**, so an ambiguous question is
-        grounded in what the caller is looking at. Default: none."""
-        return None
-
-    def working_context(self) -> list[types.Content]:
-        """The transcript as the contents for one call, with :meth:`grounding`
-        inserted before the latest user turn.
-
-        A leading model turn — the greeting, which answers nothing — is kept.
-        Gemini accepts contents that open on `role="model"` and resolves the
-        first user turn against it, which is the whole point: "yes please" is
-        an answer to the question the agent opened with.
-        """
-        out = list(self._history)
-        note = self.grounding()
-        if not note:
-            return out
-        at = len(out)
-        for i in range(len(out) - 1, -1, -1):
-            if out[i].role == "user":
-                at = i
-                break
-        out.insert(at, types.Content(role="user", parts=[types.Part(text=note)]))
-        return out
 
     @property
     def system_instruction(self) -> str:

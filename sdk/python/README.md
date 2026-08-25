@@ -95,11 +95,13 @@ class Concierge(GeminiBrain):
 the description the model reads, its single pydantic parameter is the schema. There
 is no registry and no decorator to forget.
 
-Two overrides carry most of what a real agent needs. `grounding()` returns a note
-appended to the system instruction on every call — use it for the screen state, so
-the model never answers from a stale turn. `system_instruction` is settable, so
-facts known only once the session opens (who called, which tenant) go in from
-`on_session_start`.
+Two things carry most of what a real agent needs beyond its tools.
+`system_instruction` is settable, so facts known only once the session opens — who
+called, which tenant — go in from `on_session_start`. And `note(text)` puts a line
+into the transcript in front of whatever the caller says next: for the live screen
+state pushed to `on_rtvi`, so the model never answers from a stale turn. A note is
+appended once, where you call it — the transcript only ever grows, which is what
+makes it cacheable, so note what *changed* rather than the screen every time.
 
 `import voqalize.sdk` pulls no model vendor: nothing in the core SDK imports this
 module.

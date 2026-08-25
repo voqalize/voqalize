@@ -9,7 +9,7 @@ Two things worth calling out about how per-session state flows in:
 
   * **clause_focus** — the browser streams the clause centered in the lawyer's
     viewport. :meth:`LegalBrain.on_rtvi` folds it in *silently* — no floor taken,
-    no turn — and :meth:`LegalBrain.grounding` carries it into the next turn, so
+    no turn — and :meth:`LegalBrain.note` carries it into the next turn, so
     "what does this mean" is answered about the clause on screen.
   * **the matter is static** — the contract, the playbook, the data room and the
     prior deals are the same for every session, so they are compiled into the
@@ -323,7 +323,7 @@ class LegalBrain(GeminiBrain):
     this session's reading position.
 
     The browser streams the clause centered in the lawyer's viewport to
-    :meth:`on_rtvi`; :meth:`grounding` carries it into every turn, so an ambiguous
+    :meth:`on_rtvi`; a note carries it into the next turn, so an ambiguous
     question is answered about the clause on screen."""
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
@@ -356,7 +356,7 @@ class LegalBrain(GeminiBrain):
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message. ``clause_focus`` carries the clause centered in the
         lawyer's viewport. Ingested *silently* — no floor taken, no turn; the next
-        turn's :meth:`grounding` surfaces it."""
+        turn carries it as a note."""
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         if msg.data.get("t") == "clause_focus":
@@ -369,27 +369,22 @@ class LegalBrain(GeminiBrain):
         self.current_focus = data if clause_id in CLAUSES_BY_ID else None
         if self.current_focus is None:
             return
-        # Only log when the position actually changes clause — the browser
-        # re-sends the same one as the lawyer reads within a section, and only
-        # the latest is kept either way.
+        # Only note when the position actually changes clause — the browser
+        # re-sends the same one as the lawyer reads within a section, and a note
+        # is appended, so an unguarded one here would put the same clause in
+        # front of the model a hundred times over a call.
         if clause_id == self._last_focus_clause_id:
             return
         self._last_focus_clause_id = clause_id
-        logger.info("legal: clause_focus ingested (clause_id={})", clause_id)
-
-    def grounding(self) -> str | None:
-        """The lawyer's current reading position, folded in just before the latest
-        user turn — so an ambiguous question grounds in the clause on screen."""
-        if not self.current_focus:
-            return None
         try:
             blob = json.dumps(self.current_focus, ensure_ascii=False)
         except (TypeError, ValueError):
             blob = str(self.current_focus)
-        return (
+        self.note(
             "LAWYER IS CURRENTLY VIEWING (authoritative — ground ambiguous questions "
             "in this clause): " + blob
         )
+        logger.info("legal: clause_focus ingested (clause_id={})", clause_id)
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #

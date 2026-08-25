@@ -390,15 +390,11 @@ async def test_a_barge_in_mid_turn_closes_the_generator_cleanly() -> None:
     assert _history(brain)[:3] == ["user: hello", "model: call:ping", "user: resp:ping"]
 
 
-async def test_the_turn_is_generated_from_working_context() -> None:
-    """Grounding is folded in before the latest user turn, once per turn — the
-    contents go over in one call, so a hop cannot refresh them."""
-
-    class _Grounded(_Coach):
-        def grounding(self) -> str | None:
-            return "the caller is looking at the meals tab"
-
-    brain, _, session = await _open(_Grounded(_ScriptedClient(_text("Sure."))))
+async def test_a_note_lands_in_front_of_the_next_thing_the_caller_says() -> None:
+    """A note is context for the question, so it goes in front of it. Behind it and
+    the model answers the note instead of the caller."""
+    brain, _, session = await _open(_Coach(_ScriptedClient(_text("Sure."))))
+    brain.note("the caller is looking at the meals tab")
 
     await _drain(brain, session)
 
@@ -406,6 +402,11 @@ async def test_the_turn_is_generated_from_working_context() -> None:
     assert [p.text for c in sent for p in (c.parts or [])] == [
         "the caller is looking at the meals tab",
         "hello",
+    ]
+    # And it is in the transcript, once — not re-rendered onto the next request.
+    assert _history(brain)[:2] == [
+        "user: the caller is looking at the meals tab",
+        "user: hello",
     ]
 
 
