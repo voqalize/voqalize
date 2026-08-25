@@ -1,30 +1,39 @@
 """ForgeBrain — "Ada", the Flowforge workflow copilot.
 
-A ``voqalize.sdk.Brain`` (a :class:`GeminiBrain`) for the voice **workflow
-studio**: an ITSM/HR-ops admin assembles a Service Request Workflow — a
-block-based statechart over a typed context — by talking to Ada, and Ada drives
-the studio screen as she talks.
+A :class:`voqalize.sdk.gemini.GeminiBrain` for the voice **workflow studio**: an
+ITSM/HR-ops admin assembles a Service Request Workflow — a block-based
+statechart over a typed context — by talking to Ada, and Ada drives the studio
+screen as she talks.
 
-Like the other demos, the LLM generates the structured edits and each tool body
-relays them to the browser via ``interaction.action(name, {...})`` — the RTVI
-``ui_command`` the ``/forge`` UI applies to its store. The browser is the source
-of truth for the open workflow; it pushes a compact ``state_sync`` snapshot on
-every change, folded into every turn's working context (:meth:`grounding`) so Ada
-always edits against the real on-screen blocks and their ids.
+Two things worth calling out about how per-session state flows in:
 
-The tool property names are exactly the keys the store's ops read (``givenState``,
-``connectorId``, ``rejectTo``…), so ``dispatch_tool`` forwards the LLM's arguments
-to the browser almost verbatim.
+  * **init** — just the admin's name (``session.init["admin"]["name"]``), folded
+    into the opening greeting. :meth:`ForgeBrain.greet` is written, not
+    generated: the admin already tapped in, so there is no first-token wait.
+  * **state_sync** — the studio is the source of truth for the open workflow; it
+    echoes a compact ``state_sync`` snapshot (the open workflow, its blocks WITH
+    THEIR IDS, tests, and gaps) on every change. :meth:`ForgeBrain.on_rtvi`
+    folds it in *silently* — no floor taken, no turn — so the next turn edits
+    against the real on-screen ids.
+
+**Twenty-one of twenty-one tools dispatch an** :class:`~voqalize.sdk.Action`
+**that IS the tool's own parameter** — Ada never free-generates infrastructure,
+so every edit the model proposes is already the exact shape the studio store
+applies, and the tool body is one ``self.session.dispatch(action)`` line.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from google.genai import types
 from loguru import logger
+from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 _SYSTEM_INSTRUCTION = """You are Ada, the Flowforge workflow copilot — a voice assistant for an ITSM / HR-ops administrator who builds "Service Request Workflows" by talking to you. You DRIVE THEIR SCREEN as you talk.
 
@@ -38,7 +47,7 @@ VOICE STYLE — SAY LESS, DO MORE. You are watched, not just heard: the admin SE
 WHAT A WORKFLOW IS: a block-based statechart. Each workflow has a typed CONTEXT (the request's data) and STATES (blocks) wired by transitions. You ASSEMBLE it from a governed catalog — you never free-generate infrastructure. Block kinds:
 - start: the trigger. form: collect fields. approval: a person approves or rejects. service: call ONE connector action. gateway: an exclusive branch on guards. wait: an SLA/timer. code: a JavaScript escape hatch. end: a terminal outcome.
 
-CONNECTOR CATALOG (use these connectorId · actionId):
+CONNECTOR CATALOG (use these connector_id · action_id):
 - entra (Microsoft Entra ID): create_user, disable_user, add_to_group, revoke_sessions
 - intune: assign_device, wipe_device, expedite_ship
 - okta: provision_app, deprovision_app
@@ -52,372 +61,422 @@ CONNECTOR CATALOG (use these connectorId · actionId):
 
 CODE IS JAVASCRIPT. Guards and code blocks are JavaScript over `ctx` (the context object). Context keys are dotted and nest: `requester.type` reads `ctx.requester.type`; `hire.department` reads `ctx.hire.department`. Derived fields are flat: the access-request workflow has `privilegedApp`, read as `ctx.privilegedApp`. A guard is a JS expression, e.g. `ctx.requester.type === 'contractor' && ctx.privilegedApp`. A code block is JS statements that end with `return ctx;`. Use show_code to reveal the JavaScript behind a decision or a code step when the rigor is worth seeing — but let it show; don't read it aloud.
 
-ROUTING: an approval's `next` is its approve path and `rejectTo` is its reject path. A gateway has ordered `branches` (each a guard + target) and an `else` default. To add a branch to an existing linear flow, use insert_gateway(after: <stateId>) — the block that came next becomes the else path automatically; point a branch at a new block that eventually rejoins the flow.
+ROUTING: an approval's `next` is its approve path and `reject_to` is its reject path. A gateway has ordered `branches` (each a guard + target) and an `otherwise` default. To add a branch to an existing linear flow, use insert_gateway(after: <stateId>) — the block that came next becomes the default path automatically; point a branch at a new block that eventually rejoins the flow.
 
-TESTS are the admin's mental model: "the workflow is in {givenState}, {event} occurs, expect {expectState}". Events by kind — form: submit/cancel; approval: approve/reject/timeout/withdrawn; wait: elapsed/cancelled. Add tests with add_test, then run_tests. The runner executes the real JS guards — the results appear on screen, so don't recite them.
+TESTS are the admin's mental model: "the workflow is in {given_state}, {event} occurs, expect {expect_state}". Events by kind — form: submit/cancel; approval: approve/reject/timeout/withdrawn; wait: elapsed/cancelled. Add tests with add_test, then run_tests. The runner executes the real JS guards — the results appear on screen, so don't recite them.
 
 HANDLING EDGE CASES (the core demo loop): review_coverage surfaces the unhandled (state, event) pairs — the gaps — on screen. For each gap the admin wants closed: WIRE A REAL HANDLER (a reject route via set_route, a new step via add_state, a branch via insert_gateway, or a code block via set_code), THEN call resolve_gap to clear it. Prove it with add_test + run_tests. This loop — surface the gap, handle it, resolve it, test it — is the heart of the demo.
 
 PUBLISH: publish_workflow makes the open version live. Say it plainly and briefly — e.g. "Publishing now." — and let the Live panel show it. The story if asked: runs are DURABLE — a request mid-approval keeps its place through any restart, and every step runs exactly once. Never name a specific engine or vendor.
 
-THE FINALE — run_scenario: walk a persona through the live flow from the trigger. Pass personaLabel, a context JSON string, and the ordered events the persona fires (e.g. approvals). The screen lights the whole path. Great for proving an edit works, e.g. a contractor requesting a privileged app taking the new security branch.
+THE FINALE — run_scenario: walk a persona through the live flow from the trigger. Pass persona_label, a context JSON string, and the ordered events the persona fires (e.g. approvals). The screen lights the whole path. Great for proving an edit works, e.g. a contractor requesting a privileged app taking the new security branch.
 
 GROUNDING: a CURRENT WORKSPACE STATE snapshot is folded into your context every turn — it lists the open workflow, its blocks WITH THEIR IDS, tests, and gaps. Always use those real ids when you edit; call open_workflow first if none is open.
 
 Open with a brief greeting and ask what they'd like to build or change."""
 
 
-# ─── Reusable schema fragments ──────────────────────────────────────────────────
-
-_CONTEXT_FIELD: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "key": {
-            "type": "string",
-            "description": "Dotted key, e.g. 'requester.type' or 'privilegedApp'.",
-        },
-        "label": {"type": "string"},
-        "type": {"type": "string", "enum": ["string", "boolean", "number", "enum", "user"]},
-        "enumValues": {"type": "array", "items": {"type": "string"}},
-        "derived": {
-            "type": "boolean",
-            "description": "True if computed from other fields by a JS expr.",
-        },
-        "expr": {
-            "type": "string",
-            "description": "JS expression for a derived field, e.g. ctx.app length check.",
-        },
-        "note": {"type": "string", "description": "Provenance, e.g. 'from Entra ID'."},
-    },
-}
-_FORM_FIELD = {
-    "type": "object",
-    "properties": {
-        "key": {"type": "string"},
-        "label": {"type": "string"},
-        "type": {"type": "string", "enum": ["string", "boolean", "number", "enum", "user"]},
-        "enumValues": {"type": "array", "items": {"type": "string"}},
-    },
-}
-_BRANCH = {
-    "type": "object",
-    "properties": {
-        "label": {
-            "type": "string",
-            "description": "Human summary, e.g. 'Contractor + privileged app'.",
-        },
-        "guard": {"type": "string", "description": "JS expression over ctx, first truthy wins."},
-        "to": {"type": "string", "description": "Target state id."},
-    },
-}
+# ─── Nested shapes (not Actions themselves — embedded inside one) ───────────
 
 
-def _arr(item: dict[str, Any]) -> dict[str, Any]:
-    return {"type": "array", "items": item}
+class ContextFieldSpec(BaseModel):
+    """One field in a new workflow's request context."""
+
+    key: str = ""
+    label: str = ""
+    type: str = Field("", description="One of string, boolean, number, enum, user.")
+    enum_values: list[str] = Field(default_factory=list)
+    derived: bool = Field(False, description="True if computed from other fields by a JS expr.")
+    expr: str = Field(
+        "", description="JS expression for a derived field, e.g. ctx.app length check."
+    )
+    note: str = Field("", description="Provenance, e.g. 'from Entra ID'.")
 
 
-# (tool_name, description, properties, required)
-_TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
-    ("open_list", "Return to the list of all Service Request Workflows.", {}, []),
-    ("open_workflow", "Open a workflow by id to edit it.", {"id": {"type": "string"}}, ["id"]),
-    (
-        "create_workflow",
-        "Author a NEW workflow from scratch — creates a draft with a trigger and an end, then build it up.",
-        {
-            "id": {"type": "string", "description": "Short kebab id, e.g. 'guest-wifi'."},
-            "name": {"type": "string"},
-            "description": {"type": "string"},
-            "category": {"type": "string", "enum": ["ITSM", "HR", "Security"]},
-            "trigger": {"type": "string", "description": "How it starts, in plain words."},
-            "channels": {"type": "array", "items": {"type": "string"}},
-            "context": _arr(_CONTEXT_FIELD),
-        },
-        ["name", "trigger"],
-    ),
-    (
-        "add_state",
-        "Add a block into the linear spine after `after` (rewires the flow). For service blocks pass connectorId+actionId; for approval pass approver; for form pass fields; for code pass code.",
-        {
-            "id": {"type": "string", "description": "Optional stable id; auto if omitted."},
-            "after": {"type": "string", "description": "Insert after this state id."},
-            "kind": {
-                "type": "string",
-                "enum": ["form", "approval", "service", "wait", "code", "end"],
-            },
-            "label": {"type": "string"},
-            "subtitle": {"type": "string"},
-            "connectorId": {"type": "string"},
-            "actionId": {"type": "string"},
-            "approver": {
-                "type": "string",
-                "description": "e.g. 'Reporting manager', 'VP, Engineering'.",
-            },
-            "fields": _arr(_FORM_FIELD),
-            "code": {"type": "string", "description": "JS body ending in 'return ctx;'."},
-            "slaHours": {"type": "integer"},
-            "next": {"type": "string"},
-            "rejectTo": {"type": "string"},
-            "outcome": {"type": "string"},
-        },
-        ["kind", "label"],
-    ),
-    (
-        "insert_gateway",
-        "Splice an exclusive branch (gateway) in after `after`. The block that came next becomes the else/default path; each branch guards a route to another block.",
-        {
-            "after": {"type": "string"},
-            "id": {"type": "string"},
-            "label": {"type": "string"},
-            "subtitle": {"type": "string"},
-            "branches": _arr(_BRANCH),
-            "else": {"type": "string", "description": "Optional explicit default target id."},
-        },
-        ["after", "branches"],
-    ),
-    (
-        "add_branch",
-        "Append one guarded branch to an existing gateway.",
-        {
-            "gateway": {"type": "string"},
-            "label": {"type": "string"},
-            "guard": {"type": "string"},
-            "to": {"type": "string"},
-        },
-        ["gateway", "guard", "to"],
-    ),
-    (
-        "set_route",
-        "Rewire a block's transitions.",
-        {
-            "state": {"type": "string"},
-            "next": {"type": "string"},
-            "rejectTo": {"type": "string"},
-            "else": {"type": "string"},
-        },
-        ["state"],
-    ),
-    (
-        "update_state",
-        "Edit a block's label / connector / approver / SLA / outcome.",
-        {
-            "id": {"type": "string"},
-            "label": {"type": "string"},
-            "subtitle": {"type": "string"},
-            "connectorId": {"type": "string"},
-            "actionId": {"type": "string"},
-            "approver": {"type": "string"},
-            "slaHours": {"type": "integer"},
-            "outcome": {"type": "string"},
-        },
-        ["id"],
-    ),
-    (
-        "remove_state",
-        "Delete a block and heal the flow around it.",
-        {"id": {"type": "string"}},
-        ["id"],
-    ),
-    (
-        "add_context_field",
-        "Add a field to the request context. Set derived+expr for a JS-computed field.",
-        _CONTEXT_FIELD["properties"],
-        ["key", "type"],
-    ),
-    (
-        "add_field",
-        "Add one field to a form block.",
-        {"state": {"type": "string"}, "field": _FORM_FIELD},
-        ["state", "field"],
-    ),
-    (
-        "set_code",
-        "Set the JavaScript on a code block (the escape hatch).",
-        {"state": {"type": "string"}, "code": {"type": "string"}},
-        ["state", "code"],
-    ),
-    (
-        "add_test",
-        "Add a transition test: in givenState, on event, expect expectState. `context` is a JSON object string of field values.",
-        {
-            "name": {"type": "string"},
-            "givenState": {"type": "string"},
-            "event": {"type": "string"},
-            "expectState": {"type": "string"},
-            "context": {
-                "type": "string",
-                "description": 'JSON, e.g. {"requester.type":"contractor","app":"AWS Console"}.',
-            },
-        },
-        ["name", "givenState", "event", "expectState"],
-    ),
-    ("run_tests", "Run all tests for the open workflow (executes the real JS guards).", {}, []),
-    (
-        "review_coverage",
-        "Scan for unhandled (state, event) pairs and surface them as gap questions.",
-        {},
-        [],
-    ),
-    (
-        "resolve_gap",
-        "Mark a coverage gap handled AFTER you've wired a real handler for it (a route, step, branch, or code block). Identify it by its id, or by the state+event pair it flagged.",
-        {
-            "id": {"type": "string", "description": "The gap id, if known."},
-            "state": {"type": "string", "description": "Gap's state id (with `event`) if no id."},
-            "event": {"type": "string", "description": "Gap's event (with `state`) if no id."},
-        },
-        [],
-    ),
-    (
-        "run_scenario",
-        "THE FINALE: walk a persona through the live flow from the trigger, lighting the path. `context` is a JSON object string; `events` are the ordered events the persona fires.",
-        {
-            "personaLabel": {"type": "string", "description": "e.g. 'Contractor · AWS Console'."},
-            "context": {"type": "string", "description": "JSON object of context values."},
-            "events": {"type": "array", "items": {"type": "string"}},
-        },
-        ["personaLabel"],
-    ),
-    (
-        "publish_workflow",
-        "Publish the open workflow — makes this version live and durable.",
-        {},
-        [],
-    ),
-    (
-        "set_panel",
-        "Switch the right panel.",
-        {"panel": {"type": "string", "enum": ["flow", "code", "tests", "runtime"]}},
-        ["panel"],
-    ),
-    ("focus_state", "Highlight/select one block on screen.", {"id": {"type": "string"}}, ["id"]),
-    (
-        "show_code",
-        "Open the Code panel and reveal the JavaScript behind one block (a decision's guards or a code step). Show the rigor; don't read it aloud.",
-        {"id": {"type": "string", "description": "The state id whose code to reveal."}},
-        ["id"],
-    ),
-]
+class FormFieldSpec(BaseModel):
+    """One field on a form block."""
 
-_JSON_TO_GENAI = {
-    "string": types.Type.STRING,
-    "integer": types.Type.INTEGER,
-    "number": types.Type.NUMBER,
-    "boolean": types.Type.BOOLEAN,
-    "object": types.Type.OBJECT,
-    "array": types.Type.ARRAY,
-}
+    key: str = ""
+    label: str = ""
+    type: str = Field("", description="One of string, boolean, number, enum, user.")
+    enum_values: list[str] = Field(default_factory=list)
 
 
-def _to_schema(d: dict[str, Any]) -> types.Schema:
-    """Convert a JSON-schema dict to a google-genai Schema (recursive)."""
-    kw: dict[str, Any] = {"type": _JSON_TO_GENAI[d["type"]]}
-    if d.get("description"):
-        kw["description"] = d["description"]
-    if d.get("enum"):
-        kw["enum"] = d["enum"]
-    if d["type"] == "object":
-        props = d.get("properties") or {}
-        kw["properties"] = {k: _to_schema(v) for k, v in props.items()}
-        if d.get("required"):
-            kw["required"] = d["required"]
-    if d["type"] == "array":
-        kw["items"] = _to_schema(d["items"])
-    return types.Schema(**kw)
+class BranchSpec(BaseModel):
+    """One guarded branch of a gateway."""
+
+    label: str = Field("", description="Human summary, e.g. 'Contractor + privileged app'.")
+    guard: str = Field("", description="JS expression over ctx, first truthy wins.")
+    to: str = Field("", description="Target state id.")
 
 
-def _tools() -> types.ToolListUnion:
-    decls = [
-        types.FunctionDeclaration(
-            name=name,
-            description=desc,
-            parameters=_to_schema({"type": "object", "properties": props, "required": req}),
-        )
-        for name, desc, props, req in _TOOLSPECS
-    ]
-    return [types.Tool(function_declarations=decls)]
+# ─── Actions — each one IS the parameter of the tool that dispatches it ─────
+
+
+class OpenList(Action):
+    """Return to the list of all Service Request Workflows. No fields."""
+
+
+class OpenWorkflow(Action):
+    id: str
+
+
+class CreateWorkflow(Action):
+    id: str = Field("", description="Short kebab id, e.g. 'guest-wifi'. Auto-generated if omitted.")
+    name: str
+    description: str = ""
+    category: str = Field("", description="One of ITSM, HR, Security.")
+    trigger: str = Field(description="How it starts, in plain words.")
+    channels: list[str] = Field(default_factory=list)
+    context: list[ContextFieldSpec] = Field(default_factory=list)
+
+
+class AddState(Action):
+    id: str = Field("", description="Optional stable id; auto if omitted.")
+    after: str = Field("", description="Insert after this state id.")
+    kind: Literal["form", "approval", "service", "wait", "code", "end"]
+    label: str
+    subtitle: str = ""
+    connector_id: str = ""
+    action_id: str = ""
+    approver: str = Field("", description="e.g. 'Reporting manager', 'VP, Engineering'.")
+    fields: list[FormFieldSpec] = Field(default_factory=list)
+    code: str = Field("", description="JS body ending in 'return ctx;'.")
+    sla_hours: int = 0
+    next: str = ""
+    reject_to: str = ""
+    outcome: str = ""
+
+
+class InsertGateway(Action):
+    after: str
+    id: str = ""
+    label: str = ""
+    subtitle: str = ""
+    branches: list[BranchSpec]
+    otherwise: str = Field("", description="Optional explicit default target id.")
+
+
+class AddBranch(Action):
+    gateway: str
+    label: str = ""
+    guard: str
+    to: str
+
+
+class SetRoute(Action):
+    state: str
+    next: str = ""
+    reject_to: str = ""
+    otherwise: str = ""
+
+
+class UpdateState(Action):
+    id: str
+    label: str = ""
+    subtitle: str = ""
+    connector_id: str = ""
+    action_id: str = ""
+    approver: str = ""
+    sla_hours: int = 0
+    outcome: str = ""
+
+
+class RemoveState(Action):
+    id: str
+
+
+class AddContextField(Action):
+    key: str = Field(description="Dotted key, e.g. 'requester.type' or 'privilegedApp'.")
+    label: str = ""
+    type: Literal["string", "boolean", "number", "enum", "user"]
+    enum_values: list[str] = Field(default_factory=list)
+    derived: bool = Field(False, description="True if computed from other fields by a JS expr.")
+    expr: str = Field(
+        "", description="JS expression for a derived field, e.g. ctx.app length check."
+    )
+    note: str = Field("", description="Provenance, e.g. 'from Entra ID'.")
+
+
+class AddField(Action):
+    state: str
+    field: FormFieldSpec
+
+
+class SetCode(Action):
+    state: str
+    code: str
+
+
+class AddTest(Action):
+    name: str
+    given_state: str
+    event: str
+    expect_state: str
+    context: str = Field(
+        "", description='JSON, e.g. {"requester.type":"contractor","app":"AWS Console"}.'
+    )
+
+
+class RunTests(Action):
+    """Run all tests for the open workflow. No fields."""
+
+
+class ReviewCoverage(Action):
+    """Scan for unhandled (state, event) pairs. No fields."""
+
+
+class ResolveGap(Action):
+    id: str = Field("", description="The gap id, if known.")
+    state: str = Field("", description="Gap's state id (with `event`) if no id.")
+    event: str = Field("", description="Gap's event (with `state`) if no id.")
+
+
+class RunScenario(Action):
+    persona_label: str = Field(description="e.g. 'Contractor · AWS Console'.")
+    context: str = Field("", description="JSON object of context values.")
+    events: list[str] = Field(default_factory=list)
+
+
+class PublishWorkflow(Action):
+    """Publish the open workflow — makes this version live and durable. No fields."""
+
+
+class SetPanel(Action):
+    panel: Literal["flow", "code", "tests", "runtime"]
+
+
+class FocusState(Action):
+    id: str
+
+
+class ShowCode(Action):
+    id: str = Field(description="The state id whose code to reveal.")
 
 
 class ForgeBrain(GeminiBrain):
-    """One per session. Nearly stateless: the browser owns the workflow; Ada relays
-    edits and grounds on the live ``state_sync`` snapshot every turn."""
+    """One per session. Nearly stateless: the studio owns the workflow; Ada
+    relays edits and grounds on the live ``state_sync`` snapshot every turn."""
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(
-            llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model
-        )
+        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         self.admin_name = "there"
         self.current_state: dict[str, Any] | None = None
-        self._state_received = False
+        self._state_message: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
-    async def on_session_start(self, session, start) -> None:
-        payload = dict(start.init)
+    async def on_session_start(self, session: Session) -> None:
+        payload = dict(session.init or {})
         raw = payload.get("admin")
         admin = raw if isinstance(raw, dict) else {}
         self.admin_name = str(admin.get("name") or "").strip() or "there"
-        await self.say(
-            session,
-            f"Hi {self.admin_name} — Ada here. Want to open a workflow to change, or build a new one?",
+        # Ada's own voice — not the connecting page's to choose, so it is settled
+        # here rather than sent with the connect request. `language` moves both
+        # legs at once, and this lands before the greeting.
+        await session.configure(
+            Config(
+                stt=SttConfig(language=Language.EN),
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
+            )
         )
+        logger.info("forge: session start — admin={!r}", self.admin_name)
 
-    async def on_client_message(self, session, message) -> None:
-        # Ingested silently (no floor taken): we never touch message.interaction.
-        if message.type == "state_sync":
-            snapshot = (message.data or {}).get("workspace")
-            self.current_state = snapshot if isinstance(snapshot, dict) else None
-            self._state_received = True
-            logger.info("forge: state_sync ingested (active={})", bool(self.current_state))
+    async def greet(self, session: Session) -> str:
+        """The opener, written not generated: the admin tapped in to build or
+        change a workflow, so Ada says hello by name and hands them the floor."""
+        return f"Hi {self.admin_name} — Ada here. Want to open a workflow to change, or build a new one?"
 
-    # ─── Grounding: fold the live workspace into every turn ──────────────
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """Browser→brain message. ``state_sync`` carries a compact snapshot of the
+        studio's workspace — the open workflow, its blocks, tests, and gaps.
+        Ingested *silently* (no floor taken, no turn); the next turn carries it
+        as a note, so Ada always edits against the real on-screen ids."""
+        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+            return
+        if msg.data.get("t") == "state_sync":
+            self._ingest_state(msg.data.get("d") or {})
 
-    def grounding(self, interaction) -> str | None:
-        if not self._state_received:
-            return None
+    # ─── Browser → brain: workspace state sync (silent awareness) ────────
+
+    def _ingest_state(self, data: dict[str, Any]) -> None:
+        """Put the latest workspace snapshot into the context, so the next turn
+        edits against the real on-screen blocks and their ids.
+
+        The studio re-sends the snapshot on every change, and many are the same
+        workflow from Ada's point of view (a selection, a scroll). Only a
+        changed snapshot is worth appending: the context is append-only, so an
+        unguarded append here would put a hundred near-identical workspaces in
+        front of the model by the end of a session.
+        """
+        snapshot = data.get("workspace")
+        self.current_state = snapshot if isinstance(snapshot, dict) else None
         if self.current_state is None:
-            return "CURRENT WORKSPACE STATE: the studio is on the workflow list."
-        try:
-            blob = json.dumps(self.current_state, ensure_ascii=False)
-        except (TypeError, ValueError):
-            blob = str(self.current_state)
-        return (
-            "CURRENT WORKSPACE STATE (authoritative — the open workflow with block ids, tests, and gaps; "
-            "always edit against these ids): " + blob
-        )
+            message = "CURRENT WORKSPACE STATE: the studio is on the workflow list."
+        else:
+            try:
+                blob = json.dumps(self.current_state, ensure_ascii=False)
+            except (TypeError, ValueError):
+                blob = str(self.current_state)
+            message = (
+                "CURRENT WORKSPACE STATE (authoritative — the open workflow with block ids, "
+                "tests, and gaps; always edit against these ids): " + blob
+            )
+        if message == self._state_message:
+            return
+        self._state_message = message
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=message)]))
+        logger.info("forge: state_sync ingested (active={})", bool(self.current_state))
 
     # ─── Tools ──────────────────────────────────────────────────────────
+    #
+    # The model calls these directly. Twenty of the twenty-one take exactly the
+    # Action they dispatch — Ada assembles from a governed catalog, never free
+    # generates, so the model's arguments are already the studio's edit. Each
+    # returns a short string; most just say "done" and let the screen speak.
 
-    def dispatch_tool(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """Relay each edit to the browser via ``interaction.action`` — the RTVI
-        ``ui_command`` the /forge store applies. Tool arg names already match the
-        store's op keys, so we forward them verbatim."""
-        logger.info("forge: tool {} {}", name, list(args.keys()))
-        act = interaction.action
-        known = {t[0] for t in _TOOLSPECS}
-        if name not in known:
-            return "unknown tool"
-        act(name, args)
-        return _confirm(name, args)
+    @property
+    def tools(self) -> list[Any]:
+        """The twenty-one Ada may call, read once per turn."""
+        return [
+            self.open_list,
+            self.open_workflow,
+            self.create_workflow,
+            self.add_state,
+            self.insert_gateway,
+            self.add_branch,
+            self.set_route,
+            self.update_state,
+            self.remove_state,
+            self.add_context_field,
+            self.add_field,
+            self.set_code,
+            self.add_test,
+            self.run_tests,
+            self.review_coverage,
+            self.resolve_gap,
+            self.run_scenario,
+            self.publish_workflow,
+            self.set_panel,
+            self.focus_state,
+            self.show_code,
+        ]
 
+    async def open_list(self) -> str:
+        """Return to the list of all Service Request Workflows."""
+        self.session.dispatch(OpenList())
+        return "done"
 
-def _confirm(name: str, args: dict[str, Any]) -> str:
-    """A short result string that keeps the tool loop going."""
-    if name == "run_tests":
-        return "tests running on screen"
-    if name == "review_coverage":
-        return "coverage scanned — the gaps are on screen"
-    if name == "resolve_gap":
-        return "gap cleared"
-    if name == "publish_workflow":
-        return "published — now live and durable"
-    if name == "run_scenario":
-        return f"walking {args.get('personaLabel', 'the persona')} through the flow"
-    if name == "insert_gateway":
+    async def open_workflow(self, action: OpenWorkflow) -> str:
+        """Open a workflow by id to edit it."""
+        self.session.dispatch(action)
+        return f"opened {action.id}"
+
+    async def create_workflow(self, action: CreateWorkflow) -> str:
+        """Author a NEW workflow from scratch — creates a draft with a trigger
+        and an end, then build it up."""
+        self.session.dispatch(action)
+        return f"created draft '{action.name}'"
+
+    async def add_state(self, action: AddState) -> str:
+        """Add a block into the linear spine after `after` (rewires the flow).
+        For service blocks pass connector_id+action_id; for approval pass
+        approver; for form pass fields; for code pass code."""
+        self.session.dispatch(action)
+        return f"added {action.kind} '{action.label}'"
+
+    async def insert_gateway(self, action: InsertGateway) -> str:
+        """Splice an exclusive branch (gateway) in after `after`. The block that
+        came next becomes the default path; each branch guards a route to
+        another block."""
+        self.session.dispatch(action)
         return "branch inserted"
-    if name == "add_state":
-        return f"added {args.get('kind', 'block')} '{args.get('label', '')}'"
-    if name == "create_workflow":
-        return f"created draft '{args.get('name', '')}'"
-    if name == "open_workflow":
-        return f"opened {args.get('id', '')}"
-    return "done"
+
+    async def add_branch(self, action: AddBranch) -> str:
+        """Append one guarded branch to an existing gateway."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def set_route(self, action: SetRoute) -> str:
+        """Rewire a block's transitions."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def update_state(self, action: UpdateState) -> str:
+        """Edit a block's label / connector / approver / SLA / outcome."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def remove_state(self, action: RemoveState) -> str:
+        """Delete a block and heal the flow around it."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def add_context_field(self, action: AddContextField) -> str:
+        """Add a field to the request context. Set derived+expr for a
+        JS-computed field."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def add_field(self, action: AddField) -> str:
+        """Add one field to a form block."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def set_code(self, action: SetCode) -> str:
+        """Set the JavaScript on a code block (the escape hatch)."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def add_test(self, action: AddTest) -> str:
+        """Add a transition test: in given_state, on event, expect expect_state.
+        `context` is a JSON object string of field values."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def run_tests(self) -> str:
+        """Run all tests for the open workflow (executes the real JS guards)."""
+        self.session.dispatch(RunTests())
+        return "tests running on screen"
+
+    async def review_coverage(self) -> str:
+        """Scan for unhandled (state, event) pairs and surface them as gap
+        questions."""
+        self.session.dispatch(ReviewCoverage())
+        return "coverage scanned — the gaps are on screen"
+
+    async def resolve_gap(self, action: ResolveGap) -> str:
+        """Mark a coverage gap handled AFTER you've wired a real handler for it
+        (a route, step, branch, or code block). Identify it by its id, or by
+        the state+event pair it flagged."""
+        self.session.dispatch(action)
+        return "gap cleared"
+
+    async def run_scenario(self, action: RunScenario) -> str:
+        """THE FINALE: walk a persona through the live flow from the trigger,
+        lighting the path. `context` is a JSON object string; `events` are the
+        ordered events the persona fires."""
+        self.session.dispatch(action)
+        return f"walking {action.persona_label or 'the persona'} through the flow"
+
+    async def publish_workflow(self) -> str:
+        """Publish the open workflow — makes this version live and durable."""
+        self.session.dispatch(PublishWorkflow())
+        return "published — now live and durable"
+
+    async def set_panel(self, action: SetPanel) -> str:
+        """Switch the right panel."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def focus_state(self, action: FocusState) -> str:
+        """Highlight/select one block on screen."""
+        self.session.dispatch(action)
+        return "done"
+
+    async def show_code(self, action: ShowCode) -> str:
+        """Open the Code panel and reveal the JavaScript behind one block (a
+        decision's guards or a code step). Show the rigor; don't read it
+        aloud."""
+        self.session.dispatch(action)
+        return "done"

@@ -106,7 +106,7 @@ class Expected:
 # without declaring its voice is a red suite, not a silent gap.
 DEMOS: dict[str, Expected] = {
     "aura": Expected(voice="omnivoice/gauri", language="en", unported=True),
-    "forge": Expected(voice="omnivoice/gauri", language="en", unported=True),
+    "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
     "legal": Expected(voice="omnivoice/gauri", language="en"),
     # Auric opens in the language of the enquiry form's state; nothing in the
