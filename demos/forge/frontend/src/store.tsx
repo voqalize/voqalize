@@ -9,9 +9,9 @@
  *     (state, event) pairs;
  *   • **publish → live**, which mints a running instance with a durable history.
  *
- * The voice contract is one method: `handleUiCommand(name, payload)` maps a brain
- * tool call to an op; `snapshot()` sends the workspace back so the LLM stays
- * grounded; `registerAgentSend` lets the UI push state on change.
+ * The voice contract is one method: `handleUiCommand({command, payload})` maps a
+ * brain tool call to an op; `snapshot()` sends the workspace back so the LLM
+ * stays grounded; `registerAgentSend` lets the UI push state on change.
  */
 
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -36,6 +36,29 @@ import {
 
 const STOP_KINDS = new Set(['form', 'approval', 'wait', 'end']);
 const isStop = (s?: WorkflowState) => !!s && STOP_KINDS.has(s.kind);
+
+/** `given_state` → `givenState`. Only what a wire key needs — no other punctuation. */
+function camelizeKey(k: string): string {
+  return k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+}
+
+/**
+ * A ui-command's `payload` is a pydantic `Action.to_payload()` dump — plain
+ * `model_dump`, so its keys are the Action's own field names as written
+ * (snake_case), nested objects and arrays included. Recurse through it once at
+ * the wire boundary rather than matching two spellings in every op.
+ */
+function camelizeDeep(value: unknown): any {
+  if (Array.isArray(value)) return value.map(camelizeDeep);
+  if (value !== null && typeof value === 'object' && value.constructor === Object) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[camelizeKey(k)] = camelizeDeep(v);
+    }
+    return out;
+  }
+  return value;
+}
 
 /** Expand flat dotted context (`{'requester.type':'contractor'}`) into a nested object. */
 function setPath(obj: Record<string, any>, dotted: string, val: unknown): void {
@@ -537,7 +560,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
       label: String(p.label || 'Branch'),
       subtitle: p.subtitle ? String(p.subtitle) : undefined,
       branches,
-      else: p.else ? String(p.else) : after.next, // default path = what came next
+      else: p.otherwise ? String(p.otherwise) : after.next, // default path = what came next
     };
     after.next = id;
     wf.states.push(gate);
@@ -571,7 +594,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     if (!s) return;
     if (p.next !== undefined) s.next = p.next ? String(p.next) : undefined;
     if (p.rejectTo !== undefined) s.rejectTo = p.rejectTo ? String(p.rejectTo) : undefined;
-    if (p.else !== undefined) s.else = p.else ? String(p.else) : undefined;
+    if (p.otherwise !== undefined) s.else = p.otherwise ? String(p.otherwise) : undefined;
     touch(wf);
     commit();
   };
@@ -804,8 +827,9 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   };
 
   // ── the voice contract ──
-  // A ui_command arrives as one flat object: `{ action, ...payload }`. The whole
-  // object is handed to each op (they read the keys they need).
+  // A ui-command arrives as `{ command, payload }` (`handleUiCommand`, below,
+  // unwraps and camelCases it into these two). The payload object is handed to
+  // each op whole; they read the keys they need.
   const dispatch = (action: string, payload: Record<string, any> = {}) => {
     // Acknowledge on screen the moment the command lands: paint a task row, run
     // the op, then settle the row to "done" on the op's own beat.
@@ -874,7 +898,13 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleUiCommand = (cmd: Record<string, any> = {}) => dispatch(String(cmd.action ?? ''), cmd);
+  // A ui-command's payload is a pydantic Action's own field names — snake_case,
+  // e.g. `given_state`, `connector_id`, `enum_values`. Every op above reads the
+  // camelCase the rest of this store speaks (`givenState`, `connectorId`…), so
+  // the wire boundary camelCases the payload, deeply — once, here — rather than
+  // teaching fifteen ops two spellings each.
+  const handleUiCommand = (cmd: Record<string, any> = {}) =>
+    dispatch(String(cmd.command ?? ''), camelizeDeep((cmd.payload ?? {}) as Record<string, any>));
 
   const snapshot = (): Record<string, unknown> => {
     const m = ref.current;
