@@ -119,7 +119,7 @@ DEMOS: dict[str, Expected] = {
         build=lambda: OrderDeskBrain(model=ScriptedLlm({})),
     ),
     "servicing": Expected(voice="omnivoice/gauri", language="en", unported=True),
-    "shopping": Expected(voice="omnivoice/gaurav", language="en", unported=True),
+    "shopping": Expected(voice="omnivoice/gaurav", language="en"),
     # The patient picks sugar's language on the page, before the call exists, so
     # it rides the connect request and this brain configures nothing. What the
     # page sends is checked where it is built

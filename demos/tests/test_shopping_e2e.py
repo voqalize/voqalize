@@ -31,14 +31,12 @@ def _llm() -> ScriptedGemini:
                 reply_and_call(
                     "Let me pull those up.",
                     "search_products",
-                    query="Samsung",
-                    brand="Samsung",
-                    max_price=60000,
+                    query={"query": "Samsung", "brand": "Samsung", "max_price": 60000},
                 ),
                 reply("Two Samsungs fit that budget — the S24 leads."),
             ],
             "Add the S24 to my cart.": [
-                reply_and_call("Adding it.", "add_to_cart", product_id="galaxy-s24"),
+                reply_and_call("Adding it.", "add_to_cart", request={"product_id": "galaxy-s24"}),
                 reply("The Galaxy S24 is in your cart."),
             ],
         }
@@ -63,10 +61,10 @@ async def test_search_and_cart_drive_the_screen() -> None:
         await rig.driver.start_session()
 
         t1 = await rig.driver.user_says("Show me Samsung phones under sixty thousand.")
-        check_turn(rig, t1, inferences=2)
+        check_turn(rig, t1, units=2)
 
         t2 = await rig.driver.user_says("Add the S24 to my cart.")
-        check_turn(rig, t2, inferences=2)
+        check_turn(rig, t2, units=2)
 
         assert rig.actions() == ["show_search", "add_to_cart"], rig.actions()
 
@@ -87,18 +85,25 @@ async def test_search_and_cart_drive_the_screen() -> None:
 
 async def test_next_turn_is_prompted_with_heard_truth() -> None:
     """The second turn's prompt is the framework's heard transcript, not a
-    brain-kept copy: the first turn's user line and both spoken replies are in it,
-    in order, and the fixed greeting is not (``working_context`` drops assistant
-    turns before the first user turn, so contents always open on a user turn)."""
+    brain-kept copy: the first turn's user line and both spoken replies are in
+    it, in order, ahead of the second turn's own line. AFC resolves a tool
+    round-trip inside one model call, so each user turn is exactly one call —
+    the greeting rides in every prompt as the conversation's opening line."""
     llm = _llm()
     async with demo("shopping", llm) as rig:
         await rig.driver.start_session()
         await rig.driver.user_says("Show me Samsung phones under sixty thousand.")
         await rig.driver.user_says("Add the S24 to my cart.")
 
-    # Calls 1-2 are turn one (the tool round-trip); call 3 opens turn two.
-    turn_two = llm.captured_contents[2]
-    assert [(c.role, "".join(p.text or "" for p in c.parts or [])) for c in turn_two] == [
+    # One call per turn — the second call is the one "Add the S24" rides into.
+    turn_two = llm.captured_contents[-1]
+    spoken = [
+        (c.role, "".join(p.text or "" for p in (c.parts or []) if p.text))
+        for c in turn_two
+        if any(p.text for p in (c.parts or []))
+    ]
+    assert spoken == [
+        ("model", _GREETING),
         ("user", "Show me Samsung phones under sixty thousand."),
         ("model", "Let me pull those up."),
         ("model", "Two Samsungs fit that budget — the S24 leads."),
