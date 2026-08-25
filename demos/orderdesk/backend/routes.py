@@ -17,14 +17,9 @@ from .brain import OrderDeskBrain
 NAME = "orderdesk"
 
 
-def build(_llm: GeminiProvider) -> OrderDeskBrain:
-    """Build a fresh brain — and a fresh, empty order screen — for one session.
-
-    OrderDesk runs on the **Google ADK** adapter, which builds its own Gemini client
-    from the environment (``GOOGLE_API_KEY`` / ``GEMINI_API_KEY`` — the same key the
-    umbrella reads into ``Settings``), so the shared ``GeminiProvider`` the discovery
-    contract hands every demo is unused here."""
-    return OrderDeskBrain()
+def build(llm: GeminiProvider) -> OrderDeskBrain:
+    """Build a fresh brain — and a fresh, empty order screen — for one session."""
+    return OrderDeskBrain(llm=llm)
 
 
 router = make_brain_router(NAME, build)
