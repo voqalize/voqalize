@@ -1,0 +1,61 @@
+---
+/**
+ * Starlight's `<head>`, plus the one script mermaid needs.
+ *
+ * A component override rather than `head:` in `astro.config.mjs`, because the
+ * config's `head` takes literal tag strings — it cannot reach a bundled module,
+ * and the alternative is a CDN `<script src>`, which puts a third party in the
+ * load path of every page for the sake of four diagrams.
+ *
+ * The import is dynamic and guarded, so mermaid's ~500 KB is a separate chunk
+ * that only a page with a diagram on it ever fetches.
+ */
+import Default from "@astrojs/starlight/components/Head.astro";
+---
+
+<Default><slot /></Default>
+
+<script>
+  const blocks = [...document.querySelectorAll<HTMLElement>("pre.mermaid")].map((el) => ({
+    el,
+    source: el.textContent ?? "",
+  }));
+
+  if (blocks.length) {
+    const mermaid = (await import("mermaid")).default;
+    let pass = 0;
+
+    // Re-rendered rather than re-themed: mermaid bakes its palette into the SVG
+    // at render time, so a diagram drawn for the light theme stays drawn for it.
+    // Keeping the source in JS is what makes a second pass possible at all —
+    // the first render replaces the element's own text with the SVG.
+    const render = async () => {
+      const dark = document.documentElement.dataset.theme === "dark";
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: dark ? "dark" : "default",
+        securityLevel: "strict",
+        fontFamily: "var(--sl-font)",
+        sequence: { actorFontFamily: "var(--sl-font)", noteFontFamily: "var(--sl-font)", messageFontFamily: "var(--sl-font)" },
+      });
+      const generation = pass++;
+      await Promise.all(
+        blocks.map(async ({ el, source }, index) => {
+          try {
+            const { svg } = await mermaid.render(`mermaid-${generation}-${index}`, source);
+            el.innerHTML = svg;
+          } catch {
+            // Leave the source showing. A diagram that fails to parse is a bug
+            // in the page, and the page is what the author needs to see.
+          }
+          el.dataset.rendered = "";
+        }),
+      );
+    };
+
+    await render();
+    new MutationObserver(render).observe(document.documentElement, {
+      attributeFilter: ["data-theme"],
+    });
+  }
+</script>

@@ -69,3 +69,31 @@
 .hero .tagline {
   font-weight: 500;
 }
+
+/* Mermaid diagrams.
+ *
+ * A `<pre>` until the script in `components/Head.astro` swaps an SVG into it,
+ * so everything Starlight gives a code block — background, border, monospace —
+ * has to come back off. The fade is there because the raw source is visible for
+ * the one frame before mermaid's chunk lands, and a wall of `A --> B` flashing
+ * into a diagram reads as a bug.
+ */
+pre.mermaid {
+  background: none;
+  border: none;
+  padding: 0;
+  overflow-x: auto;
+  text-align: center;
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 0.15s ease-in;
+}
+
+pre.mermaid[data-rendered] {
+  opacity: 1;
+}
+
+pre.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}

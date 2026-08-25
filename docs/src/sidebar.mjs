@@ -64,6 +64,7 @@ export const sidebar = [
     label: "Start",
     items: [
       { label: "What Voqalize is", slug: "start/what-voqalize-is" },
+      { label: "A session, end to end", slug: "start/session-end-to-end" },
       { label: "Voqalize and pipecat", slug: "start/pipecat" },
     ],
   },
