@@ -1,52 +1,47 @@
 """SupportBrain — the "Returns Assistant" voice agent.
 
-A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + session state). Voqalize
-dials this brain's WebSocket per session; the inherited tool-loop ``on_interaction``
-runs a manual Gemini function-calling loop where **each LLM call is one
-``interaction.say()`` bracket** (1:1 with the wire). Each tool body drives the
-browser via ``interaction.action(name, {...})`` — the RTVI ``ui_command`` the
-``/orders`` UI renders — while returning order/return data to the model.
+A ``GeminiBrain`` (LLM + screen-driving tools + session state). Voqalize dials
+this brain's WebSocket per session; the inherited ``respond`` runs the tool loop
+— google-genai's own automatic function calling, not a loop we drive — so one
+model call spans every hop of a turn. Each tool is a bound ``async def`` method,
+listed by :attr:`~SupportBrain.tools`; its body drives the browser via
+``self.session.dispatch(...)`` (the RTVI ``ui-command`` the ``/orders`` UI
+renders) and returns the order/return data the model needs.
 
-Two browser→brain feedback channels beyond the standard turn arrive on
-``on_client_message``. Both respond, so each takes the floor via
-``message.interaction`` (the interaction Voqalize pre-minted for the client message):
-
-  * ``photo_upload`` — a browser-captured product photo (data URL). We decode it,
-    build a working context from the heard transcript, append the image plus a
-    verification instruction as a final user turn, and run one agent-initiated
-    inference (with the tool loop) so the agent can *verify* the product matches
-    and the original box is present before approving the return.
-  * ``return_submitted`` — the shopper tapped submit; we nudge the agent to close
-    warmly with the confirmation number.
+The browser also reaches the brain outside any turn, over
+:meth:`~voqalize.sdk.Brain.on_rtvi` — a photo the shopper captures, and the tap
+that submits the form. Neither can make the agent speak: nothing about either
+event means the shopper stopped talking, so both fold into the context
+*silently*, via :meth:`~voqalize.sdk.GeminiBrain.append_to_context`, and the
+shopper's next spoken turn is what actually carries them to the model. For the
+photo that means asking the shopper to say a quick word once it lands — see
+step 5 of the prompt below.
 
 The LLM is **dependency-injected** as a :class:`GeminiProvider`; the brain owns
 only the prompt, the tool schemas, and this session's return state. The
-conversation record is framework-owned (``interaction.conversation`` /
-``session.conversation``), rebuilt into Gemini's working context each turn.
+conversation record lives in the base class's own history, rebuilt into
+Gemini's working context every turn.
 """
 
 from __future__ import annotations
 
 import base64
-from typing import Any
+from typing import Any, Literal
 
 from google.genai import types
 from loguru import logger
+from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
 
-from .catalog import (
-    ORDERS,
-    VALID_ITEM_IDS,
-    VALID_ORDER_IDS,
-    get_item,
-    get_order,
-    order_detail,
-    orders_for_prompt,
-)
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+
+from .catalog import ORDERS, get_item, get_order, order_detail, orders_for_prompt
 
 STORE_NAME = "Voqal Mobile"
 
-_REFUND_METHODS = ["original_payment", "store_credit"]
+DiagnosticResult = Literal["ok", "issue"]
+RefundMethod = Literal["original_payment", "store_credit"]
 
 
 _POLICY_FACTS = f"""RETURN POLICY ({STORE_NAME}) — answer only from these facts:
@@ -71,8 +66,8 @@ HOW TO HANDLE A RETURN — follow these steps in order:
 2. OPEN THE CHECKLIST (only if they say it's broken / not working): before accepting a return, troubleshoot. Call start_diagnostics with the order, the item, and a list of 3 or 4 SHORT check labels you will run — for the Bluetooth mic, good ones are ["Charged and powered on", "Status LED lights up", "Enters pairing mode", "Re-paired from Bluetooth settings"]. This opens a checklist on the shopper's screen.
 3. RUN THE CHECKS: ask the checks ONE AT A TIME, in order, as plain questions. After the shopper answers EACH one, call record_diagnostic with the step number (1 for the first check), a one-line summary of their answer, and result "ok" if that check is fine or "issue" if it revealed a problem. If a step actually fixes the device, stop and call complete_diagnostics with resolved true.
 4. FINISH THE CHECKLIST: after the last check, call complete_diagnostics. If the device works now, set resolved true and reassure them — no return needed. If it still does not work, set resolved false with a short reason (e.g. "Won't pair after re-pairing") — this moves the shopper to the return form.
-5. ASK FOR A PHOTO: tell them you need one quick photo — the product TOGETHER WITH its original box — and call request_photo so the photo button stands out. Wait for the photo.
-6. VERIFY THE PHOTO: once the shopper sends a photo you will be shown the image. Check carefully: (a) does the product in the photo match the item being returned, and (b) is the original retail box visible? Call set_photo_check with what you found, then say the result in ONE short sentence. If something is missing (wrong item, or no box), ask them to retake the photo and stop here.
+5. ASK FOR A PHOTO: tell them you need one quick photo — the product TOGETHER WITH its original box — and call request_photo so the photo button stands out. Ask them to say something like "sent it" once they've uploaded it, so you know to look.
+6. VERIFY THE PHOTO: once the shopper tells you it's uploaded you will be shown the image. Check carefully: (a) does the product in the photo match the item being returned, and (b) is the original retail box visible? Call set_photo_check with what you found, then say the result in ONE short sentence. If something is missing (wrong item, or no box), ask them to retake the photo and stop here.
 7. FILL THE FORM: if the photo passed, call fill_return_form to fill in the reason, condition, refund method, and a short note. Then ask the shopper to review it and tap "Confirm & submit return". Once they submit, thank them and tell them they'll get a prepaid label by email.
 
 If the item is not defective (wrong item, changed their mind), skip the checklist and call start_return to go straight to the return form.
@@ -90,248 +85,265 @@ CONVERSATION STYLE:
 _GREETING = f"Hi! I'm the {STORE_NAME} Returns Assistant. How can I help with your order?"
 
 
-# ─── Tool schemas (JSON-schema dicts) ──────────────────────────────────────────
-
-# (tool_name, description, properties, required)
-_TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
-    (
-        "open_orders",
-        "Show the shopper's list of past orders on their screen.",
-        {},
-        [],
-    ),
-    (
-        "open_order",
-        "Open one order's detail page on the shopper's screen and get its items. "
-        "Use when the shopper refers to something they bought.",
-        {
-            "order_id": {
-                "type": "string",
-                "enum": VALID_ORDER_IDS,
-                "description": "The id of the order to open.",
-            },
-        },
-        ["order_id"],
-    ),
-    (
-        "highlight_item",
-        "Highlight one line item on the open order so the shopper sees exactly "
-        "which item you mean. Use to confirm the item before starting a return.",
-        {
-            "order_id": {"type": "string", "enum": VALID_ORDER_IDS, "description": "The order id."},
-            "item_id": {
-                "type": "string",
-                "enum": VALID_ITEM_IDS,
-                "description": "The item to highlight.",
-            },
-        },
-        ["order_id", "item_id"],
-    ),
-    (
-        "start_diagnostics",
-        "Open a troubleshooting checklist on the shopper's screen for a broken item. "
-        "Pass the short labels of the checks you will run, in order. Call before you "
-        "start asking the diagnostic questions.",
-        {
-            "order_id": {"type": "string", "enum": VALID_ORDER_IDS, "description": "The order id."},
-            "item_id": {
-                "type": "string",
-                "enum": VALID_ITEM_IDS,
-                "description": "The item being checked.",
-            },
-            "steps": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "3-4 short check labels, e.g. 'Status LED lights up'.",
-            },
-        },
-        ["order_id", "item_id", "steps"],
-    ),
-    (
-        "record_diagnostic",
-        "Record the shopper's answer to one checklist step: marks it done, shows a "
-        "one-line summary under it, and advances the highlight to the next step. Call "
-        "after the shopper answers each check.",
-        {
-            "step": {"type": "integer", "description": "Which check, 1-based (1 = the first)."},
-            "summary": {"type": "string", "description": "One short line summarizing the answer."},
-            "result": {
-                "type": "string",
-                "enum": ["ok", "issue"],
-                "description": "'ok' if the check is fine, 'issue' if it revealed a problem.",
-            },
-        },
-        ["step", "summary", "result"],
-    ),
-    (
-        "complete_diagnostics",
-        "Finish the checklist. resolved=true if troubleshooting fixed the item (no "
-        "return needed); resolved=false moves the shopper to the return form.",
-        {
-            "resolved": {"type": "boolean", "description": "True if the item works now."},
-            "reason": {
-                "type": "string",
-                "description": "If not resolved, the short return reason.",
-            },
-        },
-        ["resolved"],
-    ),
-    (
-        "start_return",
-        "Begin a return for one item: opens the return form on the shopper's "
-        "screen, pre-filled for that item. Call after the shopper confirms the "
-        "item and troubleshooting did not fix it.",
-        {
-            "order_id": {"type": "string", "enum": VALID_ORDER_IDS, "description": "The order id."},
-            "item_id": {
-                "type": "string",
-                "enum": VALID_ITEM_IDS,
-                "description": "The item being returned.",
-            },
-            "reason": {
-                "type": "string",
-                "description": "Short reason for the return, e.g. 'Not working — won't pair'.",
-            },
-        },
-        ["order_id", "item_id", "reason"],
-    ),
-    (
-        "request_photo",
-        "Prompt the shopper to take or upload a photo of the product with its "
-        "original box. Makes the photo button on the return form stand out. Call "
-        "after start_return, then wait for the photo.",
-        {},
-        [],
-    ),
-    (
-        "set_photo_check",
-        "Record the result of verifying the shopper's uploaded photo. Call after "
-        "you have looked at the photo, before telling the shopper the result.",
-        {
-            "matches": {
-                "type": "boolean",
-                "description": "True if the product in the photo matches the item being returned.",
-            },
-            "box_present": {
-                "type": "boolean",
-                "description": "True if the original box is visible in the photo.",
-            },
-            "note": {
-                "type": "string",
-                "description": "One short line describing what you saw, shown on screen.",
-            },
-        },
-        ["matches", "box_present", "note"],
-    ),
-    (
-        "fill_return_form",
-        "Fill in the return form fields on the shopper's screen and enable the "
-        "submit button. Call only after the photo check has passed. Then ask the "
-        "shopper to review and tap 'Confirm & submit return'.",
-        {
-            "reason": {"type": "string", "description": "The return reason."},
-            "condition": {
-                "type": "string",
-                "description": "Item condition, e.g. 'Opened — defective'.",
-            },
-            "refund_method": {
-                "type": "string",
-                "enum": _REFUND_METHODS,
-                "description": "Where the refund goes.",
-            },
-            "notes": {
-                "type": "string",
-                "description": "A short note summarizing the issue and troubleshooting tried.",
-            },
-        },
-        ["reason", "refund_method"],
-    ),
-]
-
-_JSON_TO_GENAI = {
-    "string": types.Type.STRING,
-    "integer": types.Type.INTEGER,
-    "number": types.Type.NUMBER,
-    "boolean": types.Type.BOOLEAN,
-    "object": types.Type.OBJECT,
-    "array": types.Type.ARRAY,
-}
+# ─── Actions (screen-driving payloads) ─────────────────────────────────────────
+#
+# One class per tool. The wire name is ``snake_case(ClassName)`` — matching the
+# tool's own name is what keeps the two readable side by side, not a rule the
+# SDK enforces.
 
 
-def _to_schema(d: dict[str, Any]) -> types.Schema:
-    """Convert a JSON-schema dict to a google-genai Schema (recursive)."""
-    kw: dict[str, Any] = {"type": _JSON_TO_GENAI[d["type"]]}
-    if d.get("description"):
-        kw["description"] = d["description"]
-    if d.get("enum"):
-        kw["enum"] = d["enum"]
-    if d["type"] == "object":
-        props = d.get("properties") or {}
-        kw["properties"] = {k: _to_schema(v) for k, v in props.items()}
-        if d.get("required"):
-            kw["required"] = d["required"]
-    if d["type"] == "array":
-        kw["items"] = _to_schema(d["items"])
-    return types.Schema(**kw)
+class OpenOrders(Action):
+    pass
 
 
-def _tools() -> types.ToolListUnion:
-    decls = [
-        types.FunctionDeclaration(
-            name=name,
-            description=desc,
-            parameters=_to_schema({"type": "object", "properties": props, "required": req}),
-        )
-        for name, desc, props, req in _TOOLSPECS
-    ]
-    tools: types.ToolListUnion = [types.Tool(function_declarations=decls)]
-    return tools
+class OpenOrder(Action):
+    order_id: str
+
+
+class HighlightItem(Action):
+    order_id: str
+    item_id: str
+
+
+class StartDiagnostics(Action):
+    order_id: str
+    item_id: str
+    steps: list[str]
+
+
+class RecordDiagnostic(Action):
+    step: int
+    summary: str
+    result: DiagnosticResult = "ok"
+
+
+class CompleteDiagnostics(Action):
+    resolved: bool
+    reason: str = ""
+
+
+class StartReturn(Action):
+    order_id: str
+    item_id: str
+    reason: str
+
+
+class RequestPhoto(Action):
+    pass
+
+
+class SetPhotoCheck(Action):
+    matches: bool
+    box_present: bool
+    passed: bool
+    note: str = ""
+
+
+class FillReturnForm(Action):
+    reason: str
+    condition: str = "Opened — defective"
+    refund_method: RefundMethod = "original_payment"
+    notes: str = ""
+
+
+class PhotoCheckResult(BaseModel):
+    """What ``set_photo_check`` asks the model for — everything but ``passed``,
+    which is the brain's own conjunction of the two, not something to trust the
+    model to compute consistently."""
+
+    matches: bool = Field(
+        description="True if the product in the photo matches the item being returned."
+    )
+    box_present: bool = Field(description="True if the original box is visible in the photo.")
+    note: str = Field(
+        default="", description="One short line describing what you saw, shown on screen."
+    )
 
 
 class SupportBrain(GeminiBrain):
-    """One per session. Owns this session's return state + screen-driving tools.
-    ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
-    runs each call. Browser-captured photos + submissions arrive via
-    :meth:`on_client_message`."""
+    """One per session. Owns this session's return state; the inherited tool
+    loop runs each turn, and each tool below drives the screen as it runs.
+    ``on_rtvi`` folds the photo and the submit tap into the context, silently —
+    see the module docstring."""
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(
-            llm=llm,
-            system_instruction=_SYSTEM_INSTRUCTION,
-            tools=_tools() or None,
-            model=model,
-        )
-        # The item the current return is for — set on start_return / start_diagnostics
-        # so a photo uploaded later can be verified against the right product.
+        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+        # The item the current return is for — set on start_return /
+        # start_diagnostics so a photo uploaded later, with no item_id of its
+        # own, can still be verified against the right product.
         self._active_item_id: str | None = None
+
+    # ─── Tools ──────────────────────────────────────────────────────────
+
+    @property
+    def tools(self) -> list[Any]:
+        """The ten the assistant may call."""
+        return [
+            self.open_orders,
+            self.open_order,
+            self.highlight_item,
+            self.start_diagnostics,
+            self.record_diagnostic,
+            self.complete_diagnostics,
+            self.start_return,
+            self.request_photo,
+            self.set_photo_check,
+            self.fill_return_form,
+        ]
+
+    async def open_orders(self) -> str:
+        """Show the shopper's list of past orders on their screen."""
+        logger.info("support: open_orders")
+        self.session.dispatch(OpenOrders())
+        return str({"orders": [order_detail(o) for o in ORDERS]})
+
+    async def open_order(self, action: OpenOrder) -> str:
+        """Open one order's detail page on the shopper's screen and get its
+        items. Use when the shopper refers to something they bought."""
+        order = get_order(action.order_id)
+        if order is None:
+            return f"error: unknown order {action.order_id!r}"
+        logger.info("support: open_order {}", action.order_id)
+        self.session.dispatch(action)
+        return str({"order": order_detail(order)})
+
+    async def highlight_item(self, action: HighlightItem) -> str:
+        """Highlight one line item on the open order so the shopper sees
+        exactly which item you mean. Use to confirm the item before starting a
+        return."""
+        logger.info("support: highlight_item {} / {}", action.order_id, action.item_id)
+        self.session.dispatch(action)
+        item = get_item(action.item_id)
+        return str({"status": "highlighted", "item": item["name"] if item else action.item_id})
+
+    async def start_diagnostics(self, action: StartDiagnostics) -> str:
+        """Open a troubleshooting checklist on the shopper's screen for a
+        broken item. Pass the short labels of the checks you will run, in
+        order. Call before you start asking the diagnostic questions."""
+        steps = [s for s in action.steps if s.strip()]
+        if get_order(action.order_id) is None or get_item(action.item_id) is None or not steps:
+            return "error: need a valid order, item, and steps"
+        self._active_item_id = action.item_id
+        logger.info(
+            "support: start_diagnostics {}/{} steps={}", action.order_id, action.item_id, len(steps)
+        )
+        self.session.dispatch(
+            StartDiagnostics(order_id=action.order_id, item_id=action.item_id, steps=steps)
+        )
+        return str({"status": "diagnostics_open", "steps": steps})
+
+    async def record_diagnostic(self, action: RecordDiagnostic) -> str:
+        """Record the shopper's answer to one checklist step: marks it done,
+        shows a one-line summary under it, and advances the highlight to the
+        next step. Call after the shopper answers each check."""
+        logger.info("support: record_diagnostic step={} result={}", action.step, action.result)
+        self.session.dispatch(action)
+        return str({"status": "recorded", "step": action.step})
+
+    async def complete_diagnostics(self, action: CompleteDiagnostics) -> str:
+        """Finish the checklist. resolved=true if troubleshooting fixed the
+        item (no return needed); resolved=false moves the shopper to the
+        return form."""
+        logger.info("support: complete_diagnostics resolved={}", action.resolved)
+        self.session.dispatch(action)
+        return str({"status": "diagnostics_complete", "resolved": action.resolved})
+
+    async def start_return(self, action: StartReturn) -> str:
+        """Begin a return for one item: opens the return form on the
+        shopper's screen, pre-filled for that item. Call after the shopper
+        confirms the item and troubleshooting did not fix it — or straight
+        away, skipping the checklist, if the item is not defective (wrong
+        item, changed their mind)."""
+        order = get_order(action.order_id)
+        item = get_item(action.item_id)
+        if order is None or item is None:
+            return "error: unknown order or item"
+        self._active_item_id = action.item_id
+        logger.info(
+            "support: start_return {} / {} ({!r})", action.order_id, action.item_id, action.reason
+        )
+        self.session.dispatch(action)
+        return str({"status": "return_started", "item": item["name"], "reason": action.reason})
+
+    async def request_photo(self) -> str:
+        """Prompt the shopper to take or upload a photo of the product with
+        its original box, and ask them to say a quick word once it's
+        uploaded so you know to look. Makes the photo button on the return
+        form stand out. Call after start_return."""
+        logger.info("support: request_photo (item={})", self._active_item_id)
+        self.session.dispatch(RequestPhoto())
+        return str({"status": "awaiting_photo"})
+
+    async def set_photo_check(self, result: PhotoCheckResult) -> str:
+        """Record the result of verifying the shopper's uploaded photo, once
+        you have looked at the image in the conversation. Call before telling
+        the shopper the result."""
+        passed = result.matches and result.box_present
+        logger.info(
+            "support: set_photo_check matches={} box={}", result.matches, result.box_present
+        )
+        self.session.dispatch(
+            SetPhotoCheck(
+                matches=result.matches,
+                box_present=result.box_present,
+                passed=passed,
+                note=result.note,
+            )
+        )
+        return str({"status": "recorded", "passed": passed})
+
+    async def fill_return_form(self, action: FillReturnForm) -> str:
+        """Fill in the return form fields on the shopper's screen and enable
+        the submit button. Call only after the photo check has passed. Then
+        ask the shopper to review and tap 'Confirm & submit return'."""
+        logger.info(
+            "support: fill_return_form reason={!r} refund={!r}", action.reason, action.refund_method
+        )
+        self.session.dispatch(action)
+        return str({"status": "form_filled"})
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
-    async def on_session_start(self, session, start) -> None:
-        await self.say(session, _GREETING)
+    async def on_session_start(self, session: Session) -> None:
+        await session.configure(
+            Config(
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV, language=Language.EN),
+                stt=SttConfig(language=Language.EN),
+            )
+        )
 
-    async def on_client_message(self, session, message) -> None:
-        """Browser→Brain client message. ``photo_upload`` feeds a captured image
-        into a verification turn; ``return_submitted`` nudges a warm close. Both
-        respond, so we take the floor via ``message.interaction``."""
-        if message.type == "photo_upload":
-            await self._handle_photo(message.interaction, message.data or {})
-        elif message.type == "return_submitted":
-            await self._handle_submitted(message.interaction, message.data or {})
+    async def greet(self, session: Session) -> str:
+        """The opener is fixed — no model call, no first-token wait — so the
+        shopper hears the assistant the instant the session connects."""
+        return _GREETING
 
-    # ─── Browser→brain: photo verification & submission ─────────────────
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """Browser→brain message. Both the photo the shopper captures and the
+        submit tap fold into the context *silently* — no floor taken, no turn
+        — because nothing about either means the shopper stopped talking. The
+        shopper's next spoken turn is what actually carries them to the
+        model."""
+        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+            return
+        kind = msg.data.get("t")
+        payload = msg.data.get("d") or {}
+        if kind == "photo_upload":
+            self._ingest_photo(payload)
+        elif kind == "return_submitted":
+            self._ingest_submission(payload)
 
-    async def _handle_photo(self, interaction, data: dict[str, Any]) -> None:
-        """Decode the browser-captured photo and run one verification turn: the
-        image + a verify instruction as a final user turn, over the heard transcript.
-        The tool loop lets the model call set_photo_check / fill_return_form."""
+    # ─── Browser → brain: photo + submission, folded into the context ───
+
+    def _ingest_photo(self, data: dict[str, Any]) -> None:
+        """Decode the browser-captured photo and fold it into the context as a
+        final user turn: the image plus a verification instruction, ahead of
+        whatever the shopper says next — which is the turn that actually
+        carries it to the model."""
         data_url = str(data.get("image") or "")
-        _, _, b64 = data_url.partition(",")
+        header, _, b64 = data_url.partition(",")
         if not b64:
             logger.warning("support: photo_upload had no image data")
             return
-        # Parse the mime type out of the data URL header (defaults to jpeg).
-        header = data_url[: data_url.find(",")]
         mime = "image/jpeg"
         if header.startswith("data:") and ";" in header:
             mime = header[len("data:") : header.find(";")] or "image/jpeg"
@@ -355,152 +367,25 @@ class SupportBrain(GeminiBrain):
             "then tell the shopper the result in one short sentence. If it passed, "
             "call fill_return_form; if not, ask them to retake the photo."
         )
-        parts = [
-            types.Part.from_bytes(data=image_bytes, mime_type=mime),
-            types.Part(text=instruction),
-        ]
-        await self._app_turn(interaction, parts)
+        self.append_to_context(
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_bytes(data=image_bytes, mime_type=mime),
+                    types.Part(text=instruction),
+                ],
+            )
+        )
 
-    async def _handle_submitted(self, interaction, data: dict[str, Any]) -> None:
+    def _ingest_submission(self, data: dict[str, Any]) -> None:
+        """Fold the confirmation number into the context so the model's next
+        reply — once the shopper says something — can close warmly."""
         rma = str(data.get("rma") or "")
         logger.info("support: return_submitted rma={}", rma)
-        instruction = (
-            f"The shopper just submitted the return (confirmation {rma}). Thank them "
-            "warmly, tell them a prepaid return label is on its way by email, and that "
-            "the refund lands once the carrier scans the package. One or two sentences."
+        note = (
+            f"The shopper just submitted the return (confirmation {rma}). Next time "
+            "you speak, thank them warmly, tell them a prepaid return label is on "
+            "its way by email, and that the refund lands once the carrier scans the "
+            "package. One or two sentences."
         )
-        await self._app_turn(interaction, [types.Part(text=instruction)])
-
-    async def _app_turn(self, interaction, user_parts: list[types.Part]) -> None:
-        """Run one turn triggered by a browser client message: build the working
-        context from the heard transcript, append ``user_parts`` as a final user
-        turn, and run the same tool loop as ``respond`` — over the client message's
-        floor-owning ``interaction`` (the id Voqalize minted for it)."""
-        contents = self.working_context(interaction)
-        contents.append(types.Content(role="user", parts=user_parts))
-        for _ in range(self._max_tool_hops):
-            async with interaction.say() as inf:
-                fcalls, model_parts = await self.stream(inf, contents)
-            if model_parts:
-                contents.append(types.Content(role="model", parts=model_parts))
-            if not fcalls:
-                return
-            for fc in fcalls:
-                result = self.dispatch_tool(interaction, fc.name, dict(fc.args or {}))
-                contents.append(
-                    types.Content(
-                        role="tool",
-                        parts=[
-                            types.Part.from_function_response(
-                                name=fc.name, response={"result": result}
-                            )
-                        ],
-                    )
-                )
-
-    # ─── Tools ──────────────────────────────────────────────────────────
-
-    def dispatch_tool(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: drive the browser via ``interaction.action(...)`` (the
-        RTVI ui_command the /orders UI renders) and return the order/return data the
-        model needs. ``interaction`` is an :class:`Interaction` for a normal turn or a
-        :class:`Session` for a browser-triggered turn — both expose ``.action``."""
-        act = interaction.action
-        if name == "open_orders":
-            logger.info("support: open_orders")
-            act("open_orders")
-            return str({"orders": [order_detail(o) for o in ORDERS]})
-        if name == "open_order":
-            order_id = str(args.get("order_id", ""))
-            order = get_order(order_id)
-            if order is None:
-                return str({"error": f"unknown order '{order_id}'"})
-            logger.info("support: open_order {}", order_id)
-            act("open_order", {"order_id": order_id})
-            return str({"order": order_detail(order)})
-        if name == "highlight_item":
-            order_id = str(args.get("order_id", ""))
-            item_id = str(args.get("item_id", ""))
-            logger.info("support: highlight_item {} / {}", order_id, item_id)
-            act("highlight_item", {"order_id": order_id, "item_id": item_id})
-            item = get_item(item_id)
-            return str({"status": "highlighted", "item": item["name"] if item else item_id})
-        if name == "start_diagnostics":
-            order_id = str(args.get("order_id", ""))
-            item_id = str(args.get("item_id", ""))
-            steps = [str(s) for s in (args.get("steps") or []) if str(s).strip()]
-            order = get_order(order_id)
-            item = get_item(item_id)
-            if order is None or item is None or not steps:
-                return str({"error": "need a valid order, item, and steps"})
-            self._active_item_id = item_id
-            logger.info("support: start_diagnostics {}/{} steps={}", order_id, item_id, len(steps))
-            act("start_diagnostics", {"order_id": order_id, "item_id": item_id, "steps": steps})
-            return str({"status": "diagnostics_open", "steps": steps})
-        if name == "record_diagnostic":
-            try:
-                step = int(args.get("step") or 0)
-            except (TypeError, ValueError):
-                step = 0
-            summary = str(args.get("summary", ""))
-            result = str(args.get("result", "ok"))
-            if result not in ("ok", "issue"):
-                result = "ok"
-            logger.info("support: record_diagnostic step={} result={}", step, result)
-            act("record_diagnostic", {"step": step, "summary": summary, "result": result})
-            return str({"status": "recorded", "step": step})
-        if name == "complete_diagnostics":
-            resolved = bool(args.get("resolved"))
-            reason = str(args.get("reason", ""))
-            logger.info("support: complete_diagnostics resolved={}", resolved)
-            act("complete_diagnostics", {"resolved": resolved, "reason": reason})
-            return str({"status": "diagnostics_complete", "resolved": resolved})
-        if name == "start_return":
-            order_id = str(args.get("order_id", ""))
-            item_id = str(args.get("item_id", ""))
-            reason = str(args.get("reason", ""))
-            order = get_order(order_id)
-            item = get_item(item_id)
-            if order is None or item is None:
-                return str({"error": "unknown order or item"})
-            self._active_item_id = item_id
-            logger.info("support: start_return {} / {} ({!r})", order_id, item_id, reason)
-            act("start_return", {"order_id": order_id, "item_id": item_id, "reason": reason})
-            return str({"status": "return_started", "item": item["name"], "reason": reason})
-        if name == "request_photo":
-            logger.info("support: request_photo (item={})", self._active_item_id)
-            act("request_photo")
-            return str({"status": "awaiting_photo"})
-        if name == "set_photo_check":
-            matches = bool(args.get("matches"))
-            box_present = bool(args.get("box_present"))
-            note = str(args.get("note", ""))
-            passed = matches and box_present
-            logger.info("support: set_photo_check matches={} box={}", matches, box_present)
-            act(
-                "set_photo_check",
-                {
-                    "matches": matches,
-                    "box_present": box_present,
-                    "passed": passed,
-                    "note": note,
-                },
-            )
-            return str({"status": "recorded", "passed": passed})
-        if name == "fill_return_form":
-            reason = str(args.get("reason", ""))
-            condition = str(args.get("condition", "Opened — defective"))
-            refund_method = str(args.get("refund_method", "original_payment"))
-            notes = str(args.get("notes", ""))
-            logger.info("support: fill_return_form reason={!r} refund={!r}", reason, refund_method)
-            act(
-                "fill_return_form",
-                {
-                    "reason": reason,
-                    "condition": condition,
-                    "refund_method": refund_method,
-                    "notes": notes,
-                },
-            )
-            return str({"status": "form_filled"})
-        return "unknown tool"
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))

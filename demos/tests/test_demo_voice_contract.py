@@ -127,7 +127,7 @@ DEMOS: dict[str, Expected] = {
     # toggle); what is checkable from here is that no brain-side default has
     # grown back beside it.
     "sugar": Expected(at_connect=True),
-    "support": Expected(voice="omnivoice/gaurav", language="en", unported=True),
+    "support": Expected(voice="omnivoice/gaurav", language="en"),
     "travel": Expected(
         voice="omnivoice/gauri",
         language="hi",
