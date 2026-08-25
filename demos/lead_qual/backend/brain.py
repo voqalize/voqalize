@@ -1,10 +1,10 @@
 """LeadQualBrain — the Auric Gold Finance gold-loan lead-qualification advisor.
 
-A ``voqalize.sdk.Brain`` (LLM + Auric Gold Finance tools + per-session language
-state). Voqalize dials this brain's WebSocket per session; ``respond`` (inherited
-from :class:`GeminiBrain`) runs the manual Gemini function-calling loop where
-**each LLM call is one ``interaction.say()`` bracket** (1:1 with the wire):
-speak a short line, call a tool, feed the result back.
+A :class:`voqalize.sdk.gemini.GeminiBrain`: LLM + Auric Gold Finance tools + this
+session's language and enquiry-form state. Voqalize dials this brain's WebSocket
+per session; ``respond`` (inherited) runs the turn — google-genai calls the
+tools below itself and hands back their results, so a turn that checks
+eligibility and then speaks about it is one call from here, not a loop.
 
 The three tools are:
 
@@ -14,56 +14,121 @@ The three tools are:
 - ``end_call`` — record the outcome and tell the browser the call has ended.
 
 The LLM is **dependency-injected** as a :class:`GeminiProvider`; the brain owns
-only the prompt, the tool schemas, and this session's language/payload state. The
-conversation record is framework-owned (the SDK keeps the heard-text transcript
-in ``interaction.conversation``), rebuilt into Gemini's working context each turn
-by the :class:`GeminiBrain` base.
+only the prompt, the tools, and this session's language/payload state.
 
-Both browser-facing behaviours use the public SDK surface: ``end_call`` renders
-the end screen via ``interaction.action("call_ended", …)`` (the ``ui_command``
-envelope every demo page reads), and ``switch_language`` swaps the recognition
-language via ``session.configure_stt(language_hint=…)`` alongside the TTS change.
+**One advisor, nine languages, chosen per caller.** The enquiry form's state
+(Tamil Nadu → Tamil) does not exist until the session opens, so no agent-level
+default could ever be right — :meth:`on_session_start` resolves it and calls
+``session.configure`` before the greeting is spoken, and ``switch_language``
+moves both legs again mid-call the same way. ``end_call`` drives the browser via
+``session.dispatch(CallEnded(...))``, the standard ``ui-command`` envelope the
+``/lead_qual`` page reads.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from google.genai import types
 from loguru import logger
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider, hello_for
+from pydantic import BaseModel, Field
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+
+from voqalize.sdk import Action, Session
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 # ─── Language tables ───────────────────────────────────────────────────────────
 
-# (STT language_hint, tts_voice, tts_language, display_name) for vql-speech.
 # Auric Gold Finance is Indic-only: STT stays on vql-stt, TTS on OmniVoice
-# (omnivoice/gauri) for the whole session — switching only moves the
-# language_hint among these Indic languages, never the STT model or TTS engine.
-_STATE_LANG: dict[str, tuple[str, str, str, str]] = {
-    "Andhra Pradesh": ("te", "omnivoice/gauri", "te", "Telugu"),
-    "Telangana": ("te", "omnivoice/gauri", "te", "Telugu"),
-    "Tamil Nadu": ("ta", "omnivoice/gauri", "ta", "Tamil"),
-    "Karnataka": ("kn", "omnivoice/gauri", "kn", "Kannada"),
-    "Kerala": ("ml", "omnivoice/gauri", "ml", "Malayalam"),
-    "Maharashtra": ("mr", "omnivoice/gauri", "mr", "Marathi"),
-    "Goa": ("mr", "omnivoice/gauri", "mr", "Marathi"),
-    "Gujarat": ("gu", "omnivoice/gauri", "gu", "Gujarati"),
-    "West Bengal": ("bn", "omnivoice/gauri", "bn", "Bengali"),
-}
-_DEFAULT_LANG = ("hi", "omnivoice/gauri", "hi", "Hindi")
-
-_LANG_BY_NAME: dict[str, tuple[str, str, str]] = {
-    "Hindi": ("hi", "omnivoice/gauri", "hi"),
-    "Telugu": ("te", "omnivoice/gauri", "te"),
-    "Tamil": ("ta", "omnivoice/gauri", "ta"),
-    "Kannada": ("kn", "omnivoice/gauri", "kn"),
-    "Malayalam": ("ml", "omnivoice/gauri", "ml"),
-    "Marathi": ("mr", "omnivoice/gauri", "mr"),
-    "Gujarati": ("gu", "omnivoice/gauri", "gu"),
-    "Bengali": ("bn", "omnivoice/gauri", "bn"),
+# (omnivoice/gauri) for the whole session — switching only moves the language,
+# never the STT model or TTS engine, and the two legs never diverge here.
+_LANG_BY_NAME: dict[str, Language] = {
+    "Hindi": Language.HI,
+    "Telugu": Language.TE,
+    "Tamil": Language.TA,
+    "Kannada": Language.KN,
+    "Malayalam": Language.ML,
+    "Marathi": Language.MR,
+    "Gujarati": Language.GU,
+    "Bengali": Language.BN,
 }
 
-_LANGUAGE_NAMES = list(_LANG_BY_NAME.keys())
+LanguageName = Literal[
+    "Hindi", "Telugu", "Tamil", "Kannada", "Malayalam", "Marathi", "Gujarati", "Bengali"
+]
+
+# Enquiry-form state → the language its callers are answered in.
+_STATE_LANG: dict[str, LanguageName] = {
+    "Andhra Pradesh": "Telugu",
+    "Telangana": "Telugu",
+    "Tamil Nadu": "Tamil",
+    "Karnataka": "Kannada",
+    "Kerala": "Malayalam",
+    "Maharashtra": "Marathi",
+    "Goa": "Marathi",
+    "Gujarat": "Gujarati",
+    "West Bengal": "Bengali",
+}
+_DEFAULT_LANGUAGE: LanguageName = "Hindi"
+
+
+def _config(language_name: LanguageName) -> Config:
+    """Both legs, same language, same voice — one request, for the opener and
+    for ``switch_language``."""
+    language = _LANG_BY_NAME[language_name]
+    return Config(
+        tts=TtsConfig(language=language, voice=Voice.OMNIVOICE_GAURI),
+        stt=SttConfig(language=language),
+    )
+
+
+def _resolve_initial_language(payload: dict[str, Any]) -> LanguageName:
+    """The caller's own choice wins; otherwise the enquiry form's state picks it;
+    otherwise Hindi."""
+    override = str(payload.get("language", "")).strip()
+    if override in _LANG_BY_NAME:
+        return override  # type: ignore[return-value]
+    state = str(payload.get("state", ""))
+    return _STATE_LANG.get(state, _DEFAULT_LANGUAGE)
+
+
+# The opener, per language. A greeting is the one line spoken before any model
+# has run, so it is written here and filled with the customer's name — nothing
+# else about the call is known yet, and a caller waiting on a first token hears
+# the wait.
+_GREETING: dict[LanguageName, str] = {
+    "Hindi": (
+        "नमस्ते {name} जी, मैं प्रिया बोल रही हूँ, ऑरिक गोल्ड फाइनेंस से। "
+        "आपने जो गोल्ड लोन एन्क्वायरी की थी, उसके बारे में कुछ पूछना था।"
+    ),
+    "Telugu": (
+        "నమస్తే {name} గారు, నేను ప్రియ, ఆరిక్ గోల్డ్ ఫైనాన్స్ నుండి. "
+        "మీరు చేసిన గోల్డ్ లోన్ ఎంక్వైరీ గురించి కొన్ని ప్రశ్నలు అడగాలనుకుంటున్నాను."
+    ),
+    "Tamil": (
+        "வணக்கம் {name}, நான் பிரியா, ஆரிக் கோல்ட் ஃபைனான்ஸிலிருந்து பேசுகிறேன். "
+        "நீங்கள் செய்த கோல்ட் லோன் விசாரணை பற்றி சில கேள்விகள் கேட்க விரும்புகிறேன்."
+    ),
+    "Kannada": (
+        "ನಮಸ್ಕಾರ {name} ಅವರೇ, ನಾನು ಪ್ರಿಯಾ, ಆರಿಕ್ ಗೋಲ್ಡ್ ಫೈನಾನ್ಸ್‌ನಿಂದ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ. "
+        "ನೀವು ಮಾಡಿದ ಗೋಲ್ಡ್ ಲೋನ್ ಎಂಕ್ವೈರಿ ಬಗ್ಗೆ ಕೆಲವು ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಬೇಕಿತ್ತು."
+    ),
+    "Malayalam": (
+        "നമസ്കാരം {name}, ഞാൻ പ്രിയ, ഓറിക് ഗോൾഡ് ഫിനാൻസിൽ നിന്നാണ്. "
+        "നിങ്ങൾ ചെയ്ത ഗോൾഡ് ലോൺ എൻക്വയറിയെക്കുറിച്ച് കുറച്ച് ചോദ്യങ്ങൾ ചോദിക്കാൻ ആഗ്രഹിക്കുന്നു."
+    ),
+    "Marathi": (
+        "नमस्कार {name}, मी प्रिया, ऑरिक गोल्ड फायनान्सकडून बोलतेय. "
+        "तुम्ही केलेल्या गोल्ड लोन एन्क्वायरीबद्दल काही प्रश्न विचारायचे होते."
+    ),
+    "Gujarati": (
+        "નમસ્તે {name}, હું પ્રિયા, ઓરિક ગોલ્ડ ફાયનાન્સ તરફથી બોલું છું. "
+        "તમે કરેલી ગોલ્ડ લોન એન્ક્વાયરી વિશે થોડા પ્રશ્નો પૂછવા હતા."
+    ),
+    "Bengali": (
+        "নমস্কার {name}, আমি প্রিয়া, অরিক গোল্ড ফাইন্যান্স থেকে বলছি। "
+        "আপনি যে গোল্ড লোন এনকোয়ারি করেছিলেন সে বিষয়ে কয়েকটা প্রশ্ন জিজ্ঞাসা করতে চেয়েছিলাম।"
+    ),
+}
 
 
 # ─── System prompt ─────────────────────────────────────────────────────────────
@@ -151,265 +216,164 @@ def _check_gold_eligibility(
     }
 
 
-def _resolve_initial_language(payload: dict[str, Any]) -> tuple[str, str, str, str]:
-    """Pick (stt_lang, tts_voice, tts_lang, display_name) from payload."""
-    override = str(payload.get("language", "")).strip()
-    if override in _LANG_BY_NAME:
-        stt, voice, tts = _LANG_BY_NAME[override]
-        return (stt, voice, tts, override)
-    state = str(payload.get("state", ""))
-    return _STATE_LANG.get(state, _DEFAULT_LANG)
+# ─── Tool parameters ────────────────────────────────────────────────────────────
 
 
-# ─── Tool schemas (JSON-schema dicts → google-genai Schema) ────────────────────
+class CheckEligibility(BaseModel):
+    """The one parameter of ``check_eligibility`` — not rendered, just the facts
+    the deterministic rules run on."""
 
-# (tool_name, description, properties, required)
-_TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
-    (
-        "end_call",
-        "End the call and record the outcome. All arguments must be in English "
-        "regardless of the conversation language. Use outcome='qualified' when all "
-        "six questions are answered; a failure outcome when the call cannot proceed.",
-        {
-            "outcome": {
-                "type": "string",
-                "enum": ["qualified", "not_interested", "unresponsive", "ineligible", "other"],
-                "description": "Final outcome of the call.",
-            },
-            "gold_form": {
-                "type": "string",
-                "enum": ["jewelry", "coins", "bars", "mixed"],
-                "description": "Form of the customer's gold.",
-            },
-            "gold_weight_grams": {"type": "number", "description": "Gold weight in grams."},
-            "loan_amount_inr": {"type": "number", "description": "Desired loan amount in rupees."},
-            "loan_purpose": {"type": "string", "description": "Stated purpose of the loan."},
-            "timeline": {
-                "type": "string",
-                "enum": ["immediate", "within_week", "within_month", "exploring"],
-                "description": "How soon the customer needs funds.",
-            },
-            "preferred_next_step": {
-                "type": "string",
-                "enum": ["branch_visit", "home_visit"],
-                "description": "Preferred next step.",
-            },
-        },
-        ["outcome"],
-    ),
-    (
-        "switch_language",
-        "Switch the conversation to a different language when the user explicitly "
-        "requests one. Before calling, acknowledge their request in 1 short sentence "
-        "in the target language. Subsequent conversation continues in the new "
-        "language and its native script.",
-        {
-            "language": {
-                "type": "string",
-                "enum": _LANGUAGE_NAMES,
-                "description": "Target language.",
-            },
-        },
-        ["language"],
-    ),
-    (
-        "check_eligibility",
-        "Check whether a customer qualifies for an Auric Gold Finance gold loan. Before "
-        "calling, inform the user you are checking their eligibility. Returns "
-        "{eligible, reason} in English — translate the reason for the customer.",
-        {
-            "is_jewellery": {
-                "type": "boolean",
-                "description": "True if the gold is household jewellery (not coins or bars).",
-            },
-            "gold_weight_grams": {"type": "number", "description": "Gold weight in grams."},
-            "loan_amount_thousands": {
-                "type": "integer",
-                "description": "Desired loan amount in thousands of rupees (e.g. 50 = 50000).",
-            },
-            "tenure_months": {
-                "type": "integer",
-                "description": "Desired tenure in months (3 to 12).",
-            },
-        },
-        ["is_jewellery", "gold_weight_grams", "loan_amount_thousands"],
-    ),
-]
-
-_JSON_TO_GENAI = {
-    "string": types.Type.STRING,
-    "integer": types.Type.INTEGER,
-    "number": types.Type.NUMBER,
-    "boolean": types.Type.BOOLEAN,
-    "object": types.Type.OBJECT,
-    "array": types.Type.ARRAY,
-}
+    is_jewellery: bool = Field(
+        description="True if the gold is household jewellery (not coins or bars)."
+    )
+    gold_weight_grams: float = Field(description="Gold weight in grams.")
+    loan_amount_thousands: int = Field(
+        description="Desired loan amount in thousands of rupees (e.g. 50 = 50000)."
+    )
+    tenure_months: int | None = Field(
+        default=None, description="Desired tenure in months (3 to 12)."
+    )
 
 
-def _to_schema(d: dict[str, Any]) -> types.Schema:
-    """Convert a JSON-schema dict to a google-genai Schema (recursive)."""
-    kw: dict[str, Any] = {"type": _JSON_TO_GENAI[d["type"]]}
-    if d.get("description"):
-        kw["description"] = d["description"]
-    if d.get("enum"):
-        kw["enum"] = d["enum"]
-    if d["type"] == "object":
-        props = d.get("properties") or {}
-        kw["properties"] = {k: _to_schema(v) for k, v in props.items()}
-        if d.get("required"):
-            kw["required"] = d["required"]
-    if d["type"] == "array":
-        kw["items"] = _to_schema(d["items"])
-    return types.Schema(**kw)
+class SwitchLanguage(BaseModel):
+    language: LanguageName = Field(description="Target language.")
 
 
-def _tools() -> types.ToolListUnion:
-    decls = [
-        types.FunctionDeclaration(
-            name=name,
-            description=desc,
-            parameters=_to_schema({"type": "object", "properties": props, "required": req}),
-        )
-        for name, desc, props, req in _TOOLSPECS
-    ]
-    tools: types.ToolListUnion = [types.Tool(function_declarations=decls)]
-    return tools
+class EndCall(BaseModel):
+    """The one parameter of ``end_call``. The identity fields on the rendered
+    lead (name/phone/state/city) come from the enquiry-form payload the brain
+    already holds, not from here — a hallucinated name is not one the model can
+    hand back to us."""
+
+    outcome: Literal["qualified", "not_interested", "unresponsive", "ineligible", "other"] = Field(
+        description="Final outcome of the call."
+    )
+    gold_form: Literal["jewelry", "coins", "bars", "mixed"] | None = Field(
+        default=None, description="Form of the customer's gold."
+    )
+    gold_weight_grams: float | None = Field(default=None, description="Gold weight in grams.")
+    loan_amount_inr: float | None = Field(
+        default=None, description="Desired loan amount in rupees."
+    )
+    loan_purpose: str | None = Field(default=None, description="Stated purpose of the loan.")
+    timeline: Literal["immediate", "within_week", "within_month", "exploring"] | None = Field(
+        default=None, description="How soon the customer needs funds."
+    )
+    preferred_next_step: Literal["branch_visit", "home_visit"] | None = Field(
+        default=None, description="Preferred next step."
+    )
+
+
+# ─── Actions (browser render contract) ─────────────────────────────────────────
+
+
+class CallEnded(Action, name="call_ended"):
+    """Rendered by the ``/lead_qual`` end screen. ``lead`` carries the
+    enquiry-form identity plus what ``end_call`` collected; ``branch`` is set
+    only for a qualified outcome."""
+
+    outcome: str
+    lead: dict[str, Any]
+    branch: dict[str, str] | None = None
 
 
 class LeadQualBrain(GeminiBrain):
-    """One per session. The Auric Gold Finance gold-loan advisor: LLM + eligibility/
-    language/end-call tools + this session's language and enquiry-form state.
-    ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
-    runs each call."""
+    """One per session. The Auric Gold Finance gold-loan advisor: LLM +
+    eligibility/language/end-call tools + this session's language and
+    enquiry-form state."""
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(
-            llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model
-        )
-        # Per-session state, set for real in on_session_start once the init payload
-        # (name/state/city/gold_weight/loan_amount/…) arrives on the VqlStartFrame.
+        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+        # Per-session state, set for real in on_session_start once session.init
+        # (name/phone/state/city/gold_weight/loan_amount/…) has arrived.
         self.payload: dict[str, Any] = {}
-        self.language_name: str = _DEFAULT_LANG[3]
+        self.language_name: LanguageName = _DEFAULT_LANGUAGE
         self.ended = False
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
-    async def on_session_start(self, session, start) -> None:
-        # The enquiry-form payload rides the start frame. Resolve the initial
-        # language, then open with a hybrid greeting: a language-appropriate hello
-        # is spoken instantly (no LLM call), and the personalised, native-script
-        # remainder streams in behind it.
-        payload = dict(start.init)
+    async def on_session_start(self, session: Session) -> None:
+        """Resolve the caller's language from the enquiry-form payload and
+        configure both legs of the wire before the greeting is spoken — this
+        brain is the only thing that knows it, since Tamil Nadu → Tamil does
+        not exist until this session starts, so no agent-level default could
+        ever have been right."""
+        payload = dict(session.init or {})
         self.payload = payload
-        _stt_lang, voice, tts_lang, self.language_name = _resolve_initial_language(payload)
-
-        # Apply the resolved language BEFORE speaking. This brain is the only
-        # thing that knows it — the language comes from the enquiry form's state
-        # (Tamil Nadu → Tamil), which does not exist until this session starts, so
-        # no agent-level setting could ever have been right. Until this call
-        # existed the resolved pair was thrown away and only the display name
-        # kept, so a Tamil customer got a Tamil hello read by the *Hindi* voice
-        # and transcribed by the *Hindi* recognizer, on the greeting, every time.
-        #
-        # Ordering is load-bearing and measured: a settings frame emitted here is
-        # on the same ordered lane as the speech that follows, so it lands on the
-        # greeting rather than the turn after it.
-        session.configure_language(tts_lang, voice=voice)
-
-        await self.say_then_generate(
-            session, hello_for(self.language_name), self._greeting_instruction(payload)
+        self.language_name = _resolve_initial_language(payload)
+        await session.configure(_config(self.language_name))
+        logger.info(
+            "lead-qual: session start — language={}, state={!r}",
+            self.language_name,
+            payload.get("state"),
         )
 
-    def _greeting_instruction(self, payload: dict[str, Any]) -> str:
-        """Developer-message content that drives the model's opening turn."""
-        name = str(payload.get("name", "Customer"))
-        state = str(payload.get("state", ""))
-        city = str(payload.get("city", ""))
-        gold_weight = str(payload.get("gold_weight", ""))
-        loan_amount = str(payload.get("loan_amount", ""))
-        parts = [
-            f"Customer name: {name}. Customer from {city}, {state}.",
-            f"Speak {self.language_name} in native script.",
-        ]
-        if gold_weight:
-            parts.append(f"Form already has gold weight: {gold_weight} grams.")
-        if loan_amount:
-            parts.append(f"Form already has loan amount: {loan_amount} rupees.")
-        parts.append(
-            "Greet the customer and let them know you want to ask a few questions "
-            "about their gold loan application. One or two short sentences."
-        )
-        return " ".join(parts)
+    async def greet(self, session: Session) -> str:
+        """The opener, written not generated: the enquiry form already named the
+        customer and their language, so there is nothing for a model call to add
+        and no first-token latency to hide."""
+        name = str(self.payload.get("name") or "").strip() or "Customer"
+        return _GREETING[self.language_name].format(name=name)
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
-    def dispatch_tool(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: mutate session state + drive STT/TTS/the browser;
-        return a short string result fed back to the model."""
-        logger.info("lead-qual: tool {} {}", name, dict(args))
-        if name == "check_eligibility":
-            return self._check_eligibility(args)
-        if name == "switch_language":
-            return self._switch_language(interaction, args)
-        if name == "end_call":
-            return self._end_call(interaction, args)
-        return "unknown tool"
+    @property
+    def tools(self) -> list[Any]:
+        """The three the advisor may call."""
+        return [self.check_eligibility, self.switch_language, self.end_call]
 
-    def _check_eligibility(self, args: dict[str, Any]) -> str:
-        tenure = args.get("tenure_months")
+    async def check_eligibility(self, details: CheckEligibility) -> str:
+        """Check whether a customer qualifies for an Auric Gold Finance gold
+        loan. Before calling, inform the user you are checking their
+        eligibility. Returns {eligible, reason} in English — translate the
+        reason for the customer."""
         result = _check_gold_eligibility(
-            is_jewellery=bool(args.get("is_jewellery")),
-            gold_weight_grams=float(args.get("gold_weight_grams") or 0),
-            loan_amount_thousands=int(args.get("loan_amount_thousands") or 0),
-            tenure_months=(int(tenure) if tenure is not None else None),
+            is_jewellery=details.is_jewellery,
+            gold_weight_grams=details.gold_weight_grams,
+            loan_amount_thousands=details.loan_amount_thousands,
+            tenure_months=details.tenure_months,
         )
         logger.info("lead-qual: check_eligibility → {}", result)
         return str(result)
 
-    def _switch_language(self, interaction, args: dict[str, Any]) -> str:
-        language = str(args.get("language", ""))
-        cfg = _LANG_BY_NAME.get(language)
-        if not cfg:
-            return str({"switched_to": self.language_name, "error": "unknown language"})
-        stt_hint, tts_voice, tts_lang = cfg
-        self.language_name = language
-        logger.info(
-            "lead-qual: switch_language → {} (hint={} voice={})", language, stt_hint, tts_voice
-        )
-        # One call moves both halves — recognizer and voice. This is the only
-        # supported way to change language mid-call; doing it as a configure_tts
-        # + configure_stt pair by hand is two calls that can drift, and either
-        # half missing is silent (wrong recognizer transcribes badly; wrong voice
-        # just sounds non-native).
-        interaction.session.configure_language(tts_lang, voice=tts_voice)
-        return str({"switched_to": language})
+    async def switch_language(self, to: SwitchLanguage) -> str:
+        """Switch the conversation to a different language when the user
+        explicitly requests one. Before calling, acknowledge their request in 1
+        short sentence in the target language. Subsequent conversation
+        continues in the new language and its native script."""
+        self.language_name = to.language
+        logger.info("lead-qual: switch_language → {}", to.language)
+        # One request moves both halves — recognizer and voice — so there is no
+        # moment where the call is half in each.
+        await self.session.configure(_config(to.language))
+        return str({"switched_to": to.language})
 
-    def _end_call(self, interaction, args: dict[str, Any]) -> str:
-        outcome = str(args.get("outcome", "other"))
+    async def end_call(self, record: EndCall) -> str:
+        """End the call and record the outcome. All arguments must be in
+        English regardless of the conversation language. Use
+        outcome='qualified' when all six questions are answered; a failure
+        outcome when the call cannot proceed."""
         self.ended = True
-        logger.info("lead-qual: end_call outcome={}", outcome)
+        logger.info("lead-qual: end_call outcome={}", record.outcome)
         lead = {
             "name": str(self.payload.get("name", "")),
             "phone": str(self.payload.get("phone", "")),
             "state": str(self.payload.get("state", "")),
             "city": str(self.payload.get("city", "")),
-            "gold_form": args.get("gold_form"),
-            "gold_weight_grams": args.get("gold_weight_grams"),
-            "loan_amount_inr": args.get("loan_amount_inr"),
-            "loan_purpose": args.get("loan_purpose"),
-            "timeline": args.get("timeline"),
-            "preferred_next_step": args.get("preferred_next_step"),
+            "gold_form": record.gold_form,
+            "gold_weight_grams": record.gold_weight_grams,
+            "loan_amount_inr": record.loan_amount_inr,
+            "loan_purpose": record.loan_purpose,
+            "timeline": record.timeline,
+            "preferred_next_step": record.preferred_next_step,
         }
         branch = (
             {
                 "name": str(self.payload.get("branch_name", "")),
                 "address": str(self.payload.get("branch_address", "")),
             }
-            if outcome == "qualified"
+            if record.outcome == "qualified"
             else None
         )
-        # Tell the browser to render the end screen. Uses the standard ui_command
-        # channel (action "call_ended") — the /lead_qual page reads the ui_command
-        # envelope like every other demo page.
-        interaction.action("call_ended", {"outcome": outcome, "lead": lead, "branch": branch})
-        return str({"status": outcome})
+        self.session.dispatch(CallEnded(outcome=record.outcome, lead=lead, branch=branch))
+        return str({"status": record.outcome})

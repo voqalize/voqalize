@@ -111,7 +111,7 @@ DEMOS: dict[str, Expected] = {
     "legal": Expected(voice="omnivoice/gauri", language="en"),
     # Auric opens in the language of the enquiry form's state; nothing in the
     # payload ⇒ the Hindi default.
-    "lead_qual": Expected(voice="omnivoice/gauri", language="hi", unported=True),
+    "lead_qual": Expected(voice="omnivoice/gauri", language="hi"),
     "orderdesk": Expected(
         voice="omnivoice/gauri",
         language="hi",
@@ -196,7 +196,6 @@ async def test_a_language_in_the_payload_is_not_a_second_authority() -> None:
         check_configured_at_connect(rig)
 
 
-@pytest.mark.xfail(strict=True, reason=UNPORTED)
 async def test_a_per_caller_language_follows_the_enquiry_state() -> None:
     """Auric resolves the caller's language from the enquiry form's state — one
     agent, nine languages, which no single agent-record field could hold."""
