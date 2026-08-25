@@ -34,7 +34,7 @@ export interface DemoConfig {
   publishableKey: string | undefined;
 }
 
-export const config: DemoConfig = {
+export const demo: DemoConfig = {
   apiBase: "/api/v1",
   // Empty when unprovisioned — the control plane answers 401 and the page shows it.
   agentId: (import.meta.env.VITE_AGENT_ID as string | undefined) ?? "",
@@ -46,33 +46,47 @@ export const config: DemoConfig = {
  * four facts that are ours: the route, the `Bearer` scheme, the body shape, and
  * nothing else.
  *
- * `agent_input.payload` is opaque business context the brain receives at the
- * start of the call. It is signed into the session token *and* stored on the
- * session, so send identifiers, not personal data. `pipeline` beside it is
- * per-call media config, which this page deliberately does not set: voice and
- * language belong to the brain.
+ * Two named things ride beside `agent_id`, each named for what it is.
+ *
+ * `init` is the opaque blob the brain reads back as `session.init` — flat, and
+ * uninterpreted by everything between here and there.
+ *
+ * `config` is this session's configuration: the wire `Config`'s `tts`, `stt`
+ * and `idle` sections plus `record`, as canonical proto3 JSON. This page sends
+ * none — voice and language belong to the brain, which is the layer that knows
+ * who is calling. Pass one when the page knows something first: a consent
+ * answer to report, or a language the caller chose before the call began.
+ *
+ * Both are stored on the session and served to the voice runtime over its own
+ * authenticated call, so send identifiers rather than personal data. A `config`
+ * this runtime cannot serve is refused here by field name, in the same sentence
+ * the brain would be given mid-call.
  *
  * Hand it to `PipecatAppBase`'s `startBotParams` — or to
  * `client.startBot(...)` directly — and memoize it there, since it is a
  * dependency of the connect-on-mount effect and a fresh object every render
  * re-starts the call every render.
  */
-export function connectRequest(payload: Record<string, unknown>): APIRequest {
+export function connectRequest(
+  init: Record<string, unknown>,
+  config?: Record<string, unknown>,
+): APIRequest {
   return {
-    endpoint: `${config.apiBase}/sessions.connect`,
+    endpoint: `${demo.apiBase}/sessions.connect`,
     // `Authorization` only. Pipecat sets `Content-Type: application/json` itself
     // and then spreads these over it — sending it here a second time arrives as
     // `application/json, application/json`, which FastAPI does not read as JSON
     // at all: the body comes through as a *string* and the route answers 422
     // with a validation error about the object it was handed.
-    headers: new Headers({ Authorization: `Bearer ${config.publishableKey ?? ""}` }),
-    // Cast, not check: `payload` is this page's own object and is about to be
+    headers: new Headers({ Authorization: `Bearer ${demo.publishableKey ?? ""}` }),
+    // Cast, not check: both are this page's own objects and are about to be
     // `JSON.stringify`d either way. Pipecat types `requestData` as its
     // `Serializable`, which it does not export, so the cast is spelled through
     // the interface it does.
     requestData: {
-      agent_id: config.agentId,
-      agent_input: { payload },
+      agent_id: demo.agentId,
+      init,
+      ...(config ? { config } : {}),
     } as APIRequest["requestData"],
   };
 }
@@ -82,12 +96,25 @@ export function connectRequest(payload: Record<string, unknown>): APIRequest {
  *
  * `sessions.connect` answers with the transport's argument and nothing else —
  * `{ webrtc_request_params: { endpoint, headers }, session_id }` — so a page
- * forwards it rather than reading it. The single thing it cannot forward
- * verbatim is `headers`: pipecat builds the offer request with
- * `Object.fromEntries(headers.entries())`, so the plain object JSON gave you
- * throws a `TypeError` at the offer POST — not at connect, and not with a
- * message about headers. TypeScript will not catch it either, since pipecat
- * types connect params as `unknown`.
+ * forwards it rather than reading it. Pipecat snake-to-camels every key it is
+ * handed, so those names are already the ones it wants.
+ *
+ * The single thing it cannot forward verbatim is `headers`, and the reason is
+ * worth knowing before you try to fix it on the server. Pipecat types it as a
+ * `Headers` and reads it as one — `Object.fromEntries(headers.entries())`, in
+ * both the offer POST and the 200ms ICE flush — and JSON has no `Headers`.
+ * Pipecat's own way around that is the `startBot` fallback: return only
+ * `session_id`, and it derives the offer URL itself and reuses the `Headers`
+ * you already built for `startBot`. We cannot use it. Those headers carry the
+ * publishable key, and the offer POST goes to the voice runtime, which requires
+ * the short-lived session token minted for this one call. Two requests, two
+ * credentials, deliberately — so the credential has to come back as JSON, and
+ * one line has to make it a `Headers` again.
+ *
+ * Getting it wrong is quiet: `isAPIRequest` validates only `endpoint`, so a
+ * plain object passes and then throws a bare `TypeError` at the offer POST —
+ * not at connect, and with no mention of headers. TypeScript will not catch it
+ * either, since pipecat types connect params as `unknown`.
  */
 export function withRealHeaders(response: unknown) {
   const body = response as {
