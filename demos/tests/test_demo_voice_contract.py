@@ -98,7 +98,7 @@ class Expected:
 # test below fails if a demo is discovered and not listed here, so adding a demo
 # without declaring its voice is a red suite, not a silent gap.
 DEMOS: dict[str, Expected] = {
-    "aura": Expected(voice="omnivoice/gauri", language="en", unported=True),
+    "aura": Expected(voice="omnivoice/gauri", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
     "legal": Expected(voice="omnivoice/gauri", language="en"),

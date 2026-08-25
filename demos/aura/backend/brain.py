@@ -50,12 +50,17 @@ import json
 import random
 import secrets
 import time
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from google.genai import types
+from google.genai import interactions as gi
 from loguru import logger
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiProvider
+
+from voqalize.sdk import RTVIMessage, RTVIType, Session
+from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .content import AURA_FACTS
 
@@ -513,405 +518,40 @@ Open with a brief, warm greeting in English: say you are {AGENT_NAME} from Aura 
 _GREETING = f"Hi, I'm {AGENT_NAME} from Aura Bank support. What can I help you with today?"
 
 
-# ─── Tool schemas (JSON-schema dicts → google-genai Schema, mirrored from the ──
-#     managed aura FunctionSchemas / ToolsSchema) ────────────────────────────────
-
-_COMPARE_ITEM = {
-    "type": "object",
-    "properties": {
-        "id": {"type": "string"},
-        "name": {"type": "string"},
-        "features": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "A few short selling points.",
-        },
-    },
-}
-
-_BRANCH_RESULT = {
-    "type": "object",
-    "properties": {
-        "name": {"type": "string"},
-        "address": {"type": "string"},
-        "kind": {"type": "string", "description": "'branch' or 'atm'."},
-        "ifsc": {"type": "string"},
-        "hours": {"type": "string"},
-    },
-}
-
-
-# (tool_name, description, properties, required)
-_TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
-    ("open_home", "Go to the Aura Bank home page.", {}, []),
-    (
-        "open_help_center",
-        "Open the Help & Support centre (category grid + popular questions).",
-        {},
-        [],
-    ),
-    (
-        "open_category",
-        "Open a help category to list its articles.",
-        {
-            "category": {
-                "type": "string",
-                "description": "Category id: cards, accounts, netbanking, payments, loans-deposits, or support.",
-            }
-        },
-        ["category"],
-    ),
-    (
-        "open_article",
-        "Open a specific help article on screen (shows the steps and, if any, its how-to video).",
-        {
-            "article_id": {
-                "type": "string",
-                "description": "Article id from the knowledge base, e.g. 'interest-certificate'.",
-            }
-        },
-        ["article_id"],
-    ),
-    (
-        "play_help_video",
-        "Play an official Aura how-to video on the screen, MUTED, jumped to a specific "
-        "second. Use after open_article. Then narrate the steps in your own words.",
-        {
-            "video_id": {
-                "type": "string",
-                "description": "YouTube video id, e.g. 'M_Oxpto2PRo'.",
-            },
-            "start_sec": {
-                "type": "integer",
-                "description": "Second to jump to — the chapter start that answers the question (skip the intro).",
-            },
-        },
-        ["video_id", "start_sec"],
-    ),
-    (
-        "highlight_step",
-        "Highlight a step in the on-screen step list as you narrate it (0-based chapter index).",
-        {
-            "index": {
-                "type": "integer",
-                "description": "0-based index of the chapter/step to highlight.",
-            }
-        },
-        ["index"],
-    ),
-    (
-        "seek_video",
-        "Jump the currently playing video to another second (e.g. the next step the customer asks about).",
-        {"start_sec": {"type": "integer", "description": "Second to seek to."}},
-        ["start_sec"],
-    ),
-    (
-        "pause_video",
-        "Pause the video (e.g. while you explain something or the customer asks a question).",
-        {},
-        [],
-    ),
-    ("resume_video", "Resume playing the paused video.", {}, []),
-    (
-        "show_contact",
-        "Show Aura helpline / contact options on screen — use when a task is genuinely "
-        "account-specific, needs a branch, or the customer is stuck.",
-        {
-            "topic": {
-                "type": "string",
-                "description": "Short label of what they need help with, e.g. 'lost card' or 'interest certificate'.",
-            }
-        },
-        [],
-    ),
-    (
-        "get_screen_context",
-        "Read what the customer is currently looking at (screen, open article, video position).",
-        {},
-        [],
-    ),
-    (
-        "run_calculator",
-        "Open and fill an on-screen calculator (no login needed). The computed result is "
-        "returned to you — tell the customer the figure.",
-        {
-            "kind": {"type": "string", "description": "'emi', 'fd', or 'eligibility'."},
-            "principal": {"type": "number", "description": "Loan/deposit amount (emi, fd)."},
-            "annual_rate": {"type": "number", "description": "Annual interest rate %."},
-            "tenure_months": {"type": "integer", "description": "Tenure in months."},
-            "monthly_income": {"type": "number", "description": "Monthly income (eligibility)."},
-            "existing_emi": {
-                "type": "number",
-                "description": "Existing monthly EMIs (eligibility).",
-            },
-        },
-        ["kind"],
-    ),
-    (
-        "start_application",
-        "Begin a new-customer application on screen (no login needed). Then prefill_field for each detail.",
-        {"product": {"type": "string", "description": "'savings', 'credit_card', or 'loan'."}},
-        ["product"],
-    ),
-    (
-        "prefill_field",
-        "Fill one field of the open application form.",
-        {
-            "field": {
-                "type": "string",
-                "description": "Field id: name, mobile, email, city, pan, employment, monthly_income, loan_amount, tenure_years.",
-            },
-            "value": {"type": "string", "description": "The value to fill in."},
-        },
-        ["field", "value"],
-    ),
-    ("submit_application", "Submit the open application once the customer is ready.", {}, []),
-    (
-        "compare",
-        "Show a side-by-side comparison of cards or accounts and recommend the best fit.",
-        {
-            "kind": {"type": "string", "description": "'credit_card' or 'savings'."},
-            "items": {
-                "type": "array",
-                "description": "2-4 options to compare (use real Aura product names).",
-                "items": _COMPARE_ITEM,
-            },
-            "recommend_id": {"type": "string", "description": "id of the recommended option."},
-            "recommend_reason": {"type": "string", "description": "One-line why."},
-        },
-        ["kind", "items"],
-    ),
-    (
-        "find_branch",
-        "Show nearby branches / ATMs for a pincode (generate a few plausible ones).",
-        {
-            "pincode": {"type": "string"},
-            "results": {"type": "array", "items": _BRANCH_RESULT},
-        },
-        ["pincode", "results"],
-    ),
-    (
-        "show_checklist",
-        "Show a document / eligibility checklist on screen.",
-        {
-            "title": {"type": "string"},
-            "items": {"type": "array", "items": {"type": "string"}},
-        },
-        ["title", "items"],
-    ),
-    (
-        "send_to_phone",
-        "Send the current guide/steps to the customer's phone (mock take-away).",
-        {
-            "what": {"type": "string", "description": "Short label of what's being sent."},
-            "channel": {"type": "string", "description": "'whatsapp' or 'sms'."},
-            "number": {"type": "string", "description": "Phone number if given, else omit."},
-        },
-        ["what"],
-    ),
-    (
-        "raise_ticket",
-        "Register a complaint or callback request; returns a reference number to read out.",
-        {
-            "topic": {"type": "string"},
-            "summary": {
-                "type": "string",
-                "description": "One-line description of the issue/request.",
-            },
-        },
-        ["topic"],
-    ),
-    (
-        "spotlight",
-        "Draw a ring around an element to point at it. target: 'calc_result', an application field id, or 'recommend'.",
-        {
-            "target": {"type": "string"},
-            "label": {"type": "string", "description": "Optional short caption."},
-        },
-        ["target"],
-    ),
-    (
-        "authenticate",
-        "Securely sign the customer in so they can view their OWN account data. "
-        "Opens a secure sign-in dialog the customer authorises on screen, then "
-        "returns an 'authenticated_context' token you MUST pass to every account "
-        "tool. Call this BEFORE choose_account / get_account_balance / get_statement. "
-        "Never ask the customer for OTP, PIN or password — the dialog handles it.",
-        {},
-        [],
-    ),
-    (
-        "choose_account",
-        "Let the customer pick WHICH of their accounts to look at. Shows an account "
-        "picker on screen for the customer to select one. Requires the "
-        "authenticated_context from authenticate(). Returns the chosen account_id "
-        "(plus branch and nickname) that you pass to get_account_balance / get_statement.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "The exact token returned by authenticate(). Never invent this.",
-            }
-        },
-        ["authenticated_context"],
-    ),
-    (
-        "get_account_balance",
-        "Get the current balance of a specific account. Requires BOTH the "
-        "authenticated_context (from authenticate) AND an account_id the customer "
-        "chose via choose_account. Tell the customer the balance in words.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "Token from authenticate(). Never invent this.",
-            },
-            "account_id": {
-                "type": "string",
-                "description": "account_id returned by choose_account(). Never invent this.",
-            },
-        },
-        ["authenticated_context", "account_id"],
-    ),
-    (
-        "get_statement",
-        "Get recent transactions for a specific account (defaults to the last three "
-        "months). Requires the authenticated_context AND an account_id chosen via "
-        "choose_account. Summarise the transactions for the customer.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "Token from authenticate(). Never invent this.",
-            },
-            "account_id": {
-                "type": "string",
-                "description": "account_id returned by choose_account(). Never invent this.",
-            },
-            "start_date": {
-                "type": "string",
-                "description": "Optional ISO date YYYY-MM-DD; defaults to three months ago.",
-            },
-            "end_date": {
-                "type": "string",
-                "description": "Optional ISO date YYYY-MM-DD; defaults to today.",
-            },
-        },
-        ["authenticated_context", "account_id"],
-    ),
-    (
-        "choose_credit_card",
-        "Show the customer their credit cards so they pick ONE to manage. Requires "
-        "the authenticated_context from authenticate(). Returns the chosen card_id "
-        "(with product name and masked number) that you pass to show_card_controls.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "The exact token returned by authenticate(). Never invent this.",
-            }
-        },
-        ["authenticated_context"],
-    ),
-    (
-        "show_card_controls",
-        "Open the selected credit card's usage & limits controls on screen: "
-        "international/domestic on-off, contactless (tap to pay), online use, and "
-        "the domestic spend and ATM-cash limits. The customer adjusts and saves it "
-        "themselves. Requires BOTH the authenticated_context AND a card_id the "
-        "customer chose via choose_credit_card.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "Token from authenticate(). Never invent this.",
-            },
-            "card_id": {
-                "type": "string",
-                "description": "card_id returned by choose_credit_card(). Never invent this.",
-            },
-        },
-        ["authenticated_context", "card_id"],
-    ),
-    (
-        "show_forex_card",
-        "Show the Aura Multi-Currency Forex Card product screen with a one-tap "
-        "'request this card' lead capture. Use as the travel cross-sell after "
-        "helping with international card limits, when the customer is interested. "
-        "No login needed.",
-        {},
-        [],
-    ),
-]
-
-_JSON_TO_GENAI = {
-    "string": types.Type.STRING,
-    "integer": types.Type.INTEGER,
-    "number": types.Type.NUMBER,
-    "boolean": types.Type.BOOLEAN,
-    "object": types.Type.OBJECT,
-    "array": types.Type.ARRAY,
-}
-
-
-def _to_schema(d: dict[str, Any]) -> types.Schema:
-    """Convert a JSON-schema dict to a google-genai Schema (recursive)."""
-    kw: dict[str, Any] = {"type": _JSON_TO_GENAI[d["type"]]}
-    if d.get("description"):
-        kw["description"] = d["description"]
-    if d.get("enum"):
-        kw["enum"] = d["enum"]
-    if d["type"] == "object":
-        props = d.get("properties") or {}
-        kw["properties"] = {k: _to_schema(v) for k, v in props.items()}
-        if d.get("required"):
-            kw["required"] = d["required"]
-    if d["type"] == "array":
-        kw["items"] = _to_schema(d["items"])
-    return types.Schema(**kw)
-
-
-def _tools() -> types.ToolListUnion:
-    decls = [
-        types.FunctionDeclaration(
-            name=name,
-            description=desc,
-            parameters=_to_schema({"type": "object", "properties": props, "required": req}),
-        )
-        for name, desc, props, req in _TOOLSPECS
-    ]
-    tools: types.ToolListUnion = [types.Tool(function_declarations=decls)]
-    return tools
-
-
-class AuraBrain(GeminiBrain):
+class AuraBrain(GeminiInteractionsBrain):
     """One per session. The Aura Bank L1 support assistant: LLM + help-centre /
     calculator / application / comparison / branch tools + the four secure account
     tools + the two secure credit-card tools + this session's auth/selection/screen
     state.
 
-    Overrides :meth:`respond` (async tool dispatch, because ``authenticate`` /
-    ``choose_account`` / ``choose_credit_card`` block on a browser round-trip) and
-    :meth:`working_context` (folds the latest ``state_sync`` screen snapshot into the
-    LLM's context each turn). Browser→brain feedback — screen syncs and the auth /
-    picker completions/cancels that resolve those blocking tools — arrives on
-    :meth:`on_client_message`.
+    Aura is the demo that earns the interactions engine. Three of its tools —
+    ``authenticate``, ``choose_account``, ``choose_credit_card`` — open a dialog on
+    the customer's screen and then wait up to ninety seconds for the browser to
+    report they finished it. Under AFC that wait sits *inside* an open model
+    stream; here tools run between requests, so the wait costs a pause between
+    hops and nothing else. Browser→brain feedback — the screen snapshot, and the
+    completions and cancels that resolve those waits — arrives on :meth:`on_rtvi`.
     """
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
-            llm=llm,
+            client=llm.client,
             system_instruction=_SYSTEM_INSTRUCTION,
-            tools=_tools(),
             model=model,
             # Headroom above the base default: aura's secure flows chain several
             # tool hops in one turn (authenticate → choose → read).
             max_tool_hops=8,
         )
-        # Session payload (init). Stored for parity with the managed AuraBot; aura
-        # does not seed any account data from it (accounts/cards are hardcoded demo
-        # data), so it does not mutate the system prompt.
+        # Session payload (init). Aura does not seed any account data from it
+        # (accounts and cards are hardcoded demo data), so it does not mutate the
+        # system prompt; it is kept because the screen half reads it.
         self.payload: dict[str, Any] = {}
 
         # Latest screen snapshot the browser has told us about, and whether any
-        # state_sync has arrived yet (so we only inject once the browser reports in).
+        # state_sync has arrived yet.
         self.current_state: dict[str, Any] | None = None
         self._state_synced = False
+        self._last_state_note: str | None = None
 
         # Authenticated-account demo state. ``_pending`` holds the futures that
         # authenticate()/choose_account()/choose_credit_card() block on until the
@@ -924,22 +564,43 @@ class AuraBrain(GeminiBrain):
         self._selected_cards: set[str] = set()
         self._auth_salt = secrets.token_hex(8)
 
+    @property
+    def tools(self) -> list[Callable[..., Any]]:
+        """Aria's tools. Empty while the port is in flight — stages 2 and 3 lift
+        them out of ``_dispatch`` below, one method per tool."""
+        return []
+
     # ─── Callbacks ──────────────────────────────────────────────────────
 
-    async def on_session_start(self, session, start) -> None:
-        # The managed AuraBot took its payload from ctx.init_payload; here it rides
-        # the start frame. Aura does not use it to seed the prompt, but keep it for
-        # parity. Then open with a fixed greeting (no LLM call on the start path).
-        self.payload = dict(start.init)
-        await self.say(session, _GREETING)
+    async def on_session_start(self, session: Session) -> None:
+        # The payload rides the connect request; aura does not use it to seed the
+        # prompt, but the screen half reads it.
+        self.payload = dict(session.init or {})
+        # Aria's own voice — not the connecting page's to choose, so it is settled
+        # here rather than sent with the connect request. `language` moves both
+        # legs at once: the recognizer's hint, and the TTS reference clip, which is
+        # the accent. This lands before the greeting.
+        await session.configure(
+            Config(
+                stt=SttConfig(language=Language.EN),
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
+            )
+        )
+        logger.info("aura: session start")
 
-    async def on_client_message(self, session, message) -> None:
+    async def greet(self, session: Session) -> str:
+        """The opener, written not generated — the customer is already looking at
+        the page, and a support agent who makes them wait on a first token has
+        already made them wait."""
+        return _GREETING
+
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→Brain client message. None take the floor — each mutates state or
-        resolves a blocking tool's future, so we never touch ``message.interaction``:
+        resolves a blocking tool's future, so none starts a turn:
 
         * ``state_sync`` — a compact snapshot of what's on screen (sent on connect
-          and after every change); folded into the LLM context via
-          :meth:`working_context` so the assistant always knows what's on screen.
+          and after every change); folded into the context silently so the
+          assistant always knows what the customer is looking at.
         * ``auth_complete`` — the customer finished the on-screen sign-in; THIS is
           where the server mints the token (only reachable after that authorisation,
           which is why the LLM can never produce one itself), resolving the future
@@ -951,10 +612,14 @@ class AuraBrain(GeminiBrain):
           customer dismissed the dialog; unblocks the waiting tool immediately so the
           bot recovers instead of sitting muted.
         """
-        name = message.type
-        data = message.data or {}
+        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+            return
+        name = msg.data.get("t")
+        data = msg.data.get("d")
+        data = data if isinstance(data, dict) else {}
         if name == "state_sync":
             self._ingest_state(data)
+            self._append_screen_state()
         elif name == "auth_complete":
             self._complete_auth(data)
         elif name == "account_selected":
@@ -964,56 +629,31 @@ class AuraBrain(GeminiBrain):
         elif name in ("auth_cancelled", "account_cancelled", "card_cancelled"):
             self._cancel_pending(data)
 
-    # ─── Working context: fold in the current screen state ──────────────
+    # ─── Screen state: fold the snapshot into the context, silently ─────
 
-    def grounding(self, interaction) -> str | None:
-        """Once the browser has synced, fold the latest screen snapshot into every
-        turn so the assistant reasons from what's on screen right now (the managed
-        bot appended one ``user`` message per ``state_sync``; the freshest snapshot
-        each turn is equivalent and avoids stale duplicates)."""
-        return self._screen_state_note() if self._state_synced else None
+    def _append_screen_state(self) -> None:
+        """Put the freshest snapshot in front of the model, taking no floor.
 
-    def _screen_state_note(self) -> str:
+        The context is append-only and the browser re-sends on every change, so a
+        snapshot that has not moved is not appended twice — otherwise a five-minute
+        call puts the same screen in front of the model a hundred times over."""
+        if not self._state_synced:
+            return
         if self.current_state is None:
-            return "CURRENT SCREEN STATE: the customer is on the Aura Bank home page."
-        try:
-            blob = json.dumps(self.current_state, ensure_ascii=False)
-        except (TypeError, ValueError):
-            blob = str(self.current_state)
-        return (
+            blob = "the customer is on the Aura Bank home page."
+        else:
+            try:
+                blob = json.dumps(self.current_state, ensure_ascii=False)
+            except (TypeError, ValueError):
+                blob = str(self.current_state)
+        note = (
             "CURRENT SCREEN STATE (authoritative — what the customer is looking at right "
             "now; reason from this): " + blob
         )
-
-    # ─── Turn loop: async tool dispatch ─────────────────────────────────
-
-    async def respond(self, interaction) -> None:
-        """Standard tool loop, but awaiting an **async** dispatch: aura's secure
-        tools (``authenticate`` / ``choose_account`` / ``choose_credit_card``) open a
-        dialog and block until the browser reports the customer finished. Each LLM
-        call is still one ``interaction.say()`` bracket (1:1 with the wire), and
-        the tool dispatch happens between brackets (so the blocking wait never sits
-        inside an open inference)."""
-        contents = self.working_context(interaction)
-        for _ in range(self._max_tool_hops):
-            async with interaction.say() as inf:
-                fcalls, model_parts = await self.stream(inf, contents)
-            if model_parts:
-                contents.append(types.Content(role="model", parts=model_parts))
-            if not fcalls:
-                return
-            for fc in fcalls:
-                result = await self._dispatch(interaction, fc.name, dict(fc.args or {}))
-                contents.append(
-                    types.Content(
-                        role="tool",
-                        parts=[
-                            types.Part.from_function_response(
-                                name=fc.name, response={"result": result}
-                            )
-                        ],
-                    )
-                )
+        if note == self._last_state_note:
+            return
+        self._last_state_note = note
+        self.append_to_context(gi.UserInputStep(content=[gi.TextContent(text=note)]))
 
     # ─── Tool dispatch ──────────────────────────────────────────────────
 
