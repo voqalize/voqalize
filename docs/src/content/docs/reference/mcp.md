@@ -11,7 +11,7 @@ editor.
 The server hands your agent its own instructions on connect, and those link here.
 There is no skill to install and nothing to keep in sync: every page on this site
 is also served as raw markdown at the same URL plus `.md`, indexed at
-[`/docs/llms.txt`](/docs/llms.txt).
+[`/llms.txt`](/llms.txt).
 
 It is a **hosted, remote MCP endpoint** — you don't install or run anything. Point
 your MCP client at the URL, authenticate once with Google in the browser, and the
@@ -101,7 +101,7 @@ Setting it is **not automatic** — finish with
 `update_agent(tenant, agent_id, brain_url=…)`. The `sk_` secret is shown once, never
 expires, and minting revokes nothing, so rotation is: mint → redeploy → revoke the
 old key. This is what makes local development tunnel-free; see
-[Cortex relay](/docs/deploy/cortex/).
+[Cortex relay](/deploy/cortex/).
 
 ### Keys
 
@@ -158,19 +158,19 @@ agent in this order:
    the SDK README (`sdk/python/README.md`).
 3. **Create the agent** — `create_agent(tenant, name)` → `{agent, session_key}`.
 4. **Run it and point `brain_url` at it** — locally, `create_agent_credentials` and
-   dial out over [Cortex](/docs/deploy/cortex/) (no tunnel); in production, an
-   [inbound](/docs/deploy/inbound/) route. Either way finish with `update_agent`.
-5. **Test it unattended** — the [conformance harness](/docs/brain/testing/) drives
+   dial out over [Cortex](/deploy/cortex/) (no tunnel); in production, an
+   [inbound](/deploy/inbound/) route. Either way finish with `update_agent`.
+5. **Test it unattended** — the [conformance harness](/brain/testing/) drives
    the brain in text mode, with no audio and no human. Then talk to it live at the
    agent's `test_url`.
 6. **Embed in the browser** — `create_api_key(tenant, agent_id, label, kind="publishable", …)`
-   → `pk_…`, then [the handshake](/docs/client/handshake/) — no package to install.
+   → `pk_…`, then [the handshake](/client/handshake/) — no package to install.
 7. **Instrument it** — `on_finalize` / `on_error` brain-side, `list_sessions` /
    `get_session_events` / `get_session_logs` on ours.
 
 ## Next
 
-- **[Where the brain runs](/docs/deploy/brain-url/)** — inbound vs. Cortex.
-- **[Testing a brain](/docs/brain/testing/)** — the unattended test loop.
-- **[Reading a call back](/docs/operate/logs/)** — events first, logs second, and
+- **[Where the brain runs](/deploy/brain-url/)** — inbound vs. Cortex.
+- **[Testing a brain](/brain/testing/)** — the unattended test loop.
+- **[Reading a call back](/operate/logs/)** — events first, logs second, and
   what an empty list does not mean.

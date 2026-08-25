@@ -60,7 +60,7 @@ async def brain_socket(ws: WebSocket, session_id: str):   # session_id from ?ses
 bytes`, so it mounts on Starlette, aiohttp, or Django Channels the same way. The SDK
 ships no server of its own — your app already runs one, and that is the one the
 route belongs on. To drive a brain over a socket in a *test*, use
-[`brain_server`](/docs/brain/testing/).
+[`brain_server`](/brain/testing/).
 
 ## Authentication
 
@@ -105,6 +105,6 @@ the runtime just dials whatever the `brain_url` resolves to.
 
 ## Next
 
-- **[Cortex relay](/docs/deploy/cortex/)** — the fallback when you can't accept
+- **[Cortex relay](/deploy/cortex/)** — the fallback when you can't accept
   inbound.
 - **The SDK README** (`sdk/python/README.md`) — the serving API in full.

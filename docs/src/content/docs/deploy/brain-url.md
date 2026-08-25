@@ -28,14 +28,14 @@ brain written for one runs on the other unchanged.
 
 Default to **inbound**. If you already run a web or mobile backend, exposing one
 more authenticated WebSocket route is trivial, and it keeps the runtime dialing you
-directly with no relay in the path. See [Inbound server](/docs/deploy/inbound/).
+directly with no relay in the path. See [Inbound server](/deploy/inbound/).
 
 Reach for **Cortex** only when your brain genuinely can't accept inbound
 connections — a serverless function, a process on a laptop behind NAT, or a
 network that only allows egress. Your brain dials out to Cortex, which splices the
 two legs on a scope it derives from the **credential each leg presents** — never
 from the URL, so nothing an attacker can type decides who gets your sessions. See
-[Cortex relay](/docs/deploy/cortex/).
+[Cortex relay](/deploy/cortex/).
 
 ## Setting the `brain_url`
 
@@ -64,4 +64,4 @@ created agent still greets while you build the real one.
 However the connection is made, the runtime presents the same short-lived RS256
 JWT: `iss=pygato`, `aud="brain"`, `sub=session_id`, plus `tenant_id` / `agent_id`.
 Both SDKs verify it against Voqalize's public key for you. Details in
-[The wire](/docs/reference/wire/).
+[The wire](/reference/wire/).

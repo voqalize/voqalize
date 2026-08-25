@@ -7,9 +7,13 @@ import { getCollection, type CollectionEntry } from "astro:content";
  * rather than being written down again here: an absolute URL that disagrees with
  * where the site is actually served is a link that 404s in exactly one
  * environment, which is the kind of thing nobody notices until an agent follows it.
+ *
+ * `BASE` has been the empty string since the site moved to its own origin on
+ * 2026-08-25, and the composition is kept anyway — it is what made that move a
+ * config change rather than a rewrite of every URL in this file.
  */
 
-const SITE = (import.meta.env.SITE ?? "https://voqalize.com").replace(/\/$/, "");
+const SITE = (import.meta.env.SITE ?? "https://docs.voqalize.com").replace(/\/$/, "");
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 /** The rendered page a human reads. */
@@ -37,8 +41,8 @@ export async function markdownPages(): Promise<CollectionEntry<"docs">[]> {
 }
 
 /**
- * Rewrite in-page links to the markdown twin: `/docs/deploy/inbound/#tls` →
- * `/docs/deploy/inbound.md#tls`.
+ * Rewrite in-page links to the markdown twin: `/deploy/inbound/#tls` →
+ * `/deploy/inbound.md#tls`.
  *
  * Without this, an agent handed markdown follows the first link back into HTML
  * and has to know to bolt `.md` on itself. Only links whose target is a page we

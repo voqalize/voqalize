@@ -13,7 +13,7 @@ There are two kinds.
 ## `sk_` — the secret key, and the primary path
 
 Held by your backend. It starts sessions for its own agent, and it is what that
-agent's brain presents when it dials out over [Cortex](/docs/deploy/cortex/).
+agent's brain presents when it dials out over [Cortex](/deploy/cortex/).
 
 This is the path to prefer. Your server mints the session, so it decides who is
 allowed to have one — a login, a rate limit, a paywall, a check that this
@@ -46,11 +46,11 @@ anything to decide about who gets a session.
 
 One asymmetry follows from where the key lives, and it is worth knowing before it
 surprises you: **a `pk_` key may turn recording off, and may not turn it on.**
-See [recordings](/docs/operate/recordings/).
+See [recordings](/operate/recordings/).
 
 ## Minting them
 
-Over [the MCP server](/docs/reference/mcp/), from your editor:
+Over [the MCP server](/reference/mcp/), from your editor:
 
 ```
 create_api_key(tenant, agent_id, label, kind="secret")
@@ -71,5 +71,5 @@ long-lived admin credential to leak.
 
 ## Read next
 
-- [Connections and the handshake](/docs/client/handshake/) — where a `pk_` key is used, and the one line pipecat needs.
-- [Where the brain runs](/docs/deploy/brain-url/) — where the `sk_` key is used.
+- [Connections and the handshake](/client/handshake/) — where a `pk_` key is used, and the one line pipecat needs.
+- [Where the brain runs](/deploy/brain-url/) — where the `sk_` key is used.

@@ -22,7 +22,7 @@ That is the whole design rule, and it is not "be concise."
 
 These numbers are a design target we hold to, not a ratio we have instrumented.
 Their job is the third row: anything that lands there needs a plan for the
-silence, which is [parallel workstreams](/docs/design/parallel-workstreams/).
+silence, which is [parallel workstreams](/design/parallel-workstreams/).
 
 ## Five things a voice prompt does that a chat prompt need not
 
@@ -40,7 +40,7 @@ paragraph:
 - `support`: "Never read out ids or order numbers as raw text — say 'your order
   from May 28th' instead."
 
-See [voice points, the screen holds](/docs/design/voice-points-screen-holds/).
+See [voice points, the screen holds](/design/voice-points-screen-holds/).
 
 ### 2. Hold its prompt still
 
@@ -76,7 +76,7 @@ ready. They are never blocked."
 A recognizer on a phone line in a pharmacy will get things wrong. Correction paths
 belong in the prompt as first-class instructions rather than as a fallback
 paragraph at the end. See
-[misunderstanding and reversal](/docs/design/misunderstanding-and-reversal/).
+[misunderstanding and reversal](/design/misunderstanding-and-reversal/).
 
 ## Never leave silence, said twice in production
 
@@ -86,7 +86,7 @@ paragraph at the end. See
   Say a brief line FIRST, THEN call the tool."
 
 Both of these are the prompt doing latency work. See
-[the turn budget](/docs/design/the-turn-budget/).
+[the turn budget](/design/the-turn-budget/).
 
 ## The sharpest fragment we have shipped
 
@@ -119,9 +119,9 @@ The wording of the question is the model's; the *shape* is not. `ask_choice`
 rejects a set that has fewer than two or more than four choices, or that leaves a
 candidate uncovered — and the prompt tells the model what happens when it does, so
 a rejection is a retry rather than a dead turn. See
-[tool design for voice](/docs/design/tool-design/).
+[tool design for voice](/design/tool-design/).
 
 ## Read next
 
-- [Tool design for voice](/docs/design/tool-design/) — why a tool that waits is a bug.
-- [The turn budget](/docs/design/the-turn-budget/) — what a prompt costs on every turn.
+- [Tool design for voice](/design/tool-design/) — why a tool that waits is a bug.
+- [The turn budget](/design/the-turn-budget/) — what a prompt costs on every turn.

@@ -23,7 +23,7 @@ await session.configure(
 Four settings: the recognizer's language, the speaking voice, the reference clip
 that voice is cloned from, and how long silence runs before the brain gets the
 floor back. The
-[catalog](/docs/reference/catalog/) is the roster of allowed values.
+[catalog](/reference/catalog/) is the roster of allowed values.
 
 None of the four names an engine. The comment above the `Voice` enum in
 [`frames.proto`](https://github.com/voqalize/voqalize/blob/main/proto/voqalize/frames/frames.proto)
@@ -55,7 +55,7 @@ between one call and the next is a change we shipped, and we can name it.
 a value you cannot construct. The failure that closes is an unserved language
 code falling through to the English recognizer, in a call whose transcript reads
 correctly and whose logs are clean — see
-[why both halves matter](/docs/reference/catalog/#why-both-halves-matter).
+[why both halves matter](/reference/catalog/#why-both-halves-matter).
 
 **There are no VAD or end-of-turn knobs either.** Recognizer routing, the clip
 roster and the moment a turn commits are tuned together against the same calls.
@@ -92,5 +92,5 @@ we hold the GPUs it runs on.
 
 ## Read next
 
-- [Voice & language catalog](/docs/reference/catalog/) — the values themselves, and the one rule that makes them safe to change.
-- [What Voqalize is](/docs/start/what-voqalize-is/) — the whole seam, in one page.
+- [Voice & language catalog](/reference/catalog/) — the values themselves, and the one rule that makes them safe to change.
+- [What Voqalize is](/start/what-voqalize-is/) — the whole seam, in one page.

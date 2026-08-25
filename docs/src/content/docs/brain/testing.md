@@ -7,7 +7,7 @@ The hard part of shipping a voice agent is usually not the voice. It's that ever
 change appears to need a person with a microphone. It doesn't.
 
 The SDK ships **`voqalize.conformance`**: a fake Voqalize that speaks
-[the wire](/docs/reference/wire/). It hosts your real `Brain` on a real WebSocket,
+[the wire](/reference/wire/). It hosts your real `Brain` on a real WebSocket,
 mints a real brain-connection token, and models playout and heard-truth the way
 Voqalize does — and lets you drive it in **text mode**. `user_says("…")` in, a `Turn` with
 `.text` out.
@@ -41,7 +41,7 @@ async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
 `brain_server` binds an ephemeral port, so tests never collide, and closes on the
 way out whatever the test did. It is a *test* server — production hosting is
 `run_session` in your own web framework's route (see
-[Inbound](/docs/deploy/inbound/)); the SDK owns no server.
+[Inbound](/deploy/inbound/)); the SDK owns no server.
 
 The brain verifies against the public half of the keypair and the driver signs with
 the private half, so **token verification runs for real** rather than being switched
@@ -157,7 +157,7 @@ heard-truth reconciliation across multiple interruptions.
 ## Then: inspect a live call
 
 Once a human has actually talked to the agent, read the call back over the
-[MCP tools](/docs/reference/mcp/):
+[MCP tools](/reference/mcp/):
 
 ```
 list_sessions(tenant, agent_id=…, limit=20)              # find it — most recent first
@@ -182,7 +182,7 @@ next scenario. Reproduce it offline first, then fix it.
 
 - **The SDK README** (`sdk/python/README.md`) — heard-truth, barge-in,
   and what the framework commits for you.
-- **[MCP server](/docs/reference/mcp/)** — what to log so a
+- **[MCP server](/reference/mcp/)** — what to log so a
   live call is readable in the first place.
-- **[MCP server](/docs/reference/mcp/)** — the observability tools, and the agent
+- **[MCP server](/reference/mcp/)** — the observability tools, and the agent
   surface that runs this loop for you.

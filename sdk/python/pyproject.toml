@@ -61,7 +61,7 @@ examples = [
 
 [project.urls]
 Homepage = "https://voqalize.com"
-Documentation = "https://voqalize.com/docs"
+Documentation = "https://docs.voqalize.com"
 Source = "https://github.com/voqalize/voqalize/tree/main/sdk/python"
 Changelog = "https://github.com/voqalize/voqalize/blob/main/sdk/python/CHANGELOG.md"
 

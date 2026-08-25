@@ -6,21 +6,20 @@ import starlight from "@astrojs/starlight";
 // the same ordering. See src/sidebar.mjs.
 import { sidebar } from "./src/sidebar.mjs";
 
-// The docs site is served under voqalize.com/docs (see docs/README.md), so it is
-// built with `base: "/docs"`. Output is pure static — no runtime dependency.
+// The docs site owns its origin — `docs.voqalize.com`, and `docs.dev.` /
+// `docs.local.` one DNS label in front of each environment's apex, matching the
+// console's `app.` (see docs/README.md). So it is served at the root and carries
+// no `base`; the apex it used to sit under answers `/docs/**` with a permanent
+// redirect here. Output is pure static — no runtime dependency.
 export default defineConfig({
-  site: "https://voqalize.com",
-  base: "/docs",
+  site: "https://docs.voqalize.com",
   trailingSlash: "ignore",
   // `client/react` documented `@voqalize/client-react`, deprecated 2026-08-24.
   // The page is gone rather than rewritten — a page recommending a deprecated
   // package is worse than a 404 — but the URL is linked from the MCP server's
   // instructions, from llms.txt copies already fetched, and from anywhere a
   // reader bookmarked it, so it lands on the page that replaced it.
-  // The key is base-relative; the value is emitted verbatim, so it carries the
-  // `/docs` base itself. Without it the meta-refresh points at voqalize.com/client/…,
-  // which is the marketing site and a 404.
-  redirects: { "/client/react": "/docs/client/handshake" },
+  redirects: { "/client/react": "/client/handshake" },
   vite: { server: { allowedHosts: [".local.voqalize.com"] } },
   integrations: [
     starlight({

@@ -22,7 +22,7 @@ managed service, and everything you need to build against it is here.
 > in the shape pipecat's transport connects with — so there is nothing left for a
 > package of ours to do. The published 0.1.x remains installable for anything
 > already built against it. See
-> [Connections and the handshake](https://voqalize.com/docs/client/handshake/).
+> [Connections and the handshake](https://docs.voqalize.com/client/handshake/).
 
 ## What's here
 
@@ -31,7 +31,7 @@ managed service, and everything you need to build against it is here.
 | [`proto/`](proto/) | **The wire contract of record** — the message set both sides speak. Everything else is generated from or written against this. |
 | [`sdk/python/`](sdk/python/) | Python brain SDK — subclass `Brain`, implement a couple of callbacks. Pipecat-free. |
 | [`demos/`](demos/) | Complete, runnable voice apps (a brain + a UI each). These are real example code, the live demos on our site, and our integration tests — all at once. |
-| [`docs/`](docs/) | The developer documentation site (`voqalize.com/docs`). |
+| [`docs/`](docs/) | The developer documentation site (`docs.voqalize.com`). |
 
 > The Go SDK was removed while the Python/ADK surface is moving fast, and will
 > return once it stabilizes. The wire itself stays language-neutral —
@@ -44,9 +44,9 @@ managed service, and everything you need to build against it is here.
 The fastest on-ramp is the **hosted MCP server**. Connect it
 (`claude mcp add --transport http voqalize https://app.voqalize.com/mcp`) and your
 editor's agent is handed the model on the first call plus links into
-[the docs](https://voqalize.com/docs), every page of which is also served as raw
+[the docs](https://docs.voqalize.com), every page of which is also served as raw
 markdown at the same URL plus `.md`, indexed at
-[`/docs/llms.txt`](https://voqalize.com/docs/llms.txt). It walks from an empty
+[`/llms.txt`](https://docs.voqalize.com/llms.txt). It walks from an empty
 project to a running voice agent: write a brain → create an agent → get a
 `brain_url` → wire a browser UI. Prefer to read code first? Start from
 [`sdk/python/examples/echo`](sdk/python/examples/echo) (the smallest complete

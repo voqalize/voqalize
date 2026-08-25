@@ -58,7 +58,7 @@ Everything the brain sends that is *not* speech is floor-free: an `RTVIFrame` to
 redraw the screen, a `Request` to change how the call behaves, an `End` to hang
 up. Those need no turn and are legal at any moment.
 
-If your brain reaches Voqalize through the [Cortex relay](/docs/deploy/cortex),
+If your brain reaches Voqalize through the [Cortex relay](/deploy/cortex),
 Cortex relays these bytes without reading them. The two ends of the wire are
 Voqalize and the brain; nothing in between interprets the schema.
 
@@ -242,7 +242,7 @@ This message is the payload of this op and of nothing else. The agent record
 holds `brain_url` and carries no voice or language of its own, so there is one
 place a session's configuration comes from and it is the brain. A session starts
 on the runtime's defaults and moves from there — see
-[the catalog](/docs/reference/catalog/#where-it-is-set).
+[the catalog](/reference/catalog/#where-it-is-set).
 
 Unset means *leave it alone*: a `Request` carries a delta and the runtime is
 already running. Explicit presence is what makes that readable — without it an
@@ -330,7 +330,7 @@ writes and reads, and every end of the wire has to spell it the same way.
 
 Nothing here says which of these can be *spoken*. That is a capability of the
 speech tier, it moves when the speech tier does, and the runtime answers it when
-asked. See the [voice & language catalog](/docs/reference/catalog) for the full
+asked. See the [voice & language catalog](/reference/catalog) for the full
 list.
 
 Every declaration in `frames.proto` carries its own doc comment, the way the

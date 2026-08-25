@@ -37,7 +37,7 @@ matcher was at fault. And `source: "agent" | "manual"` records who put the row
 there, so a hand correction is distinguishable from the agent's own work.
 
 None of that is possible if the screen only shows conclusions. See
-[voice points, the screen holds](/docs/design/voice-points-screen-holds/).
+[voice points, the screen holds](/design/voice-points-screen-holds/).
 
 ## Make correction cheap, by voice and by hand
 
@@ -79,7 +79,7 @@ it.
 **Why a click and not a spoken "yes."** A spoken yes can be misheard. It can be
 background noise the recognizer resolved into a word. It can be a genuine yes to a
 question the caller only half-heard, because they started talking over the second
-half of it — and [what the caller heard](/docs/design/interruption-and-heard-truth/)
+half of it — and [what the caller heard](/design/interruption-and-heard-truth/)
 is the part that finished playing, which your agent does not know at the moment it
 asks. A click has none of those failure modes, and it lands on a screen showing
 exactly what is being agreed to.
@@ -105,5 +105,5 @@ confirmations.
 
 ## Read next
 
-- [Tool design for voice](/docs/design/tool-design/) — the compensating-call shape in full.
-- [Interruption and heard truth](/docs/design/interruption-and-heard-truth/) — why the agent cannot assume its question was heard.
+- [Tool design for voice](/design/tool-design/) — the compensating-call shape in full.
+- [Interruption and heard truth](/design/interruption-and-heard-truth/) — why the agent cannot assume its question was heard.

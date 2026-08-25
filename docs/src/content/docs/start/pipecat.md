@@ -23,7 +23,7 @@ pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport
 ```
 
 `sessions.connect` returns the connect params; `client.connect(params)` takes
-them. [The handshake](/docs/client/handshake/) is that request and the one line
+them. [The handshake](/client/handshake/) is that request and the one line
 of glue around it, and it is the entire Voqalize-specific surface in your page.
 
 The demos add two more, and neither is required: `@pipecat-ai/client-react` for
@@ -87,7 +87,7 @@ already pipecat's, which made it a second surface to learn and a release behind
 every pipecat version.
 
 The class of problem it existed to hide is now handled where it belongs: the two
-credential paths are [the same route with a different signer](/docs/client/handshake/),
+credential paths are [the same route with a different signer](/client/handshake/),
 and a recording asked for on a key that may not record is refused when the
 session is minted rather than warned about in a console.
 
@@ -102,5 +102,5 @@ install.
 
 ## Read next
 
-- [Connections and the handshake](/docs/client/handshake/) — the request, both credential paths, and the one line you write.
-- [The wire](/docs/reference/wire/) — how an RTVI message crosses to your brain.
+- [Connections and the handshake](/client/handshake/) — the request, both credential paths, and the one line you write.
+- [The wire](/reference/wire/) — how an RTVI message crosses to your brain.

@@ -36,7 +36,7 @@ npm install @voqalize/avatar
 
 Then mount it wherever your page already draws the bot's tile, passing the
 `PipecatClient` you connected with — see
-[connections and the handshake](/docs/client/handshake/).
+[connections and the handshake](/client/handshake/).
 
 The package's own README is the reference for the mount call, the faces that
 ship with it, and how to author your own. We link rather than quote it: the
@@ -56,7 +56,7 @@ session.send_rtvi(
 )
 ```
 
-`server-message` is on the [RTVI whitelist](/docs/reference/rtvi/), so this
+`server-message` is on the [RTVI whitelist](/reference/rtvi/), so this
 crosses without anything special. The action ids are the avatar library's, and
 [`contract-wire.md`](https://github.com/voqalize/avatar/blob/main/docs/contract-wire.md)
 is the list of record.
@@ -71,7 +71,7 @@ compose with what the processor is doing; claims contest it.
 There is a floor rule here too, and it is the same one everywhere else: an RTVI
 message carries no audio, so `send_rtvi` needs no floor and can be called from
 anywhere — including work that outlives the turn that started it. See
-[parallel workstreams](/docs/design/parallel-workstreams/).
+[parallel workstreams](/design/parallel-workstreams/).
 
 ## What the face is told, and what it decides
 
@@ -89,5 +89,5 @@ never sent.
 
 ## Read next
 
-- [Voqalize and pipecat](/docs/start/pipecat/) — where the processor sits, and what else in the call is pipecat's.
-- [The RTVI plane](/docs/reference/rtvi/) — the whitelist this rides.
+- [Voqalize and pipecat](/start/pipecat/) — where the processor sits, and what else in the call is pipecat's.
+- [The RTVI plane](/reference/rtvi/) — the whitelist this rides.

@@ -9,11 +9,11 @@ hero:
   tagline: A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice.
   actions:
     - text: What Voqalize is
-      link: /docs/start/what-voqalize-is/
+      link: /start/what-voqalize-is/
       icon: right-arrow
       variant: primary
     - text: The wire
-      link: /docs/reference/wire/
+      link: /reference/wire/
       icon: open-book
       variant: minimal
     - text: View on GitHub
@@ -44,19 +44,19 @@ describes surfaces that have shipped.
 <CardGrid stagger>
   <Card title="What Voqalize is" icon="rocket">
     The brain, the session, and the two halves of your app.
-    [Start here →](/docs/start/what-voqalize-is/)
+    [Start here →](/start/what-voqalize-is/)
   </Card>
   <Card title="Put a voice in the browser" icon="laptop">
     One HTTP request, then stock pipecat.
-    [The handshake →](/docs/client/handshake/)
+    [The handshake →](/client/handshake/)
   </Card>
   <Card title="Test a brain without a microphone" icon="puzzle">
     Drive your real brain over the real wire in text mode.
-    [Testing a brain →](/docs/brain/testing/)
+    [Testing a brain →](/brain/testing/)
   </Card>
   <Card title="Where the brain runs" icon="seti:config">
     Your own inbound server, or a relay when you can't accept inbound.
-    [Deploy →](/docs/deploy/brain-url/)
+    [Deploy →](/deploy/brain-url/)
   </Card>
 </CardGrid>
 
@@ -66,4 +66,4 @@ A brain is a single WebSocket URL. Voqalize dials `{brain_url}?session_id={sessi
 one connection per session, opened when a call starts and torn down when it ends.
 Where that URL points is up to you — your own inbound server, or a Cortex relay
 for brains that can't accept inbound connections. Same brain code either way;
-you only choose who dials whom. See [Where the brain runs](/docs/deploy/brain-url/).
+you only choose who dials whom. See [Where the brain runs](/deploy/brain-url/).

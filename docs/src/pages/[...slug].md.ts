@@ -5,7 +5,7 @@ import { markdownLinks, markdownPages, pageUrl } from "../markdown-pages";
 /**
  * Every docs page, again, as raw markdown at the same URL plus `.md`.
  *
- * `/docs/start/quickstart` is for a person; `/docs/start/quickstart.md` is for an
+ * `/start/pipecat` is for a person; `/start/pipecat.md` is for an
  * agent. The MCP server's instructions link here, and an agent that follows a
  * link into rendered HTML has to strip a navigation tree, a search widget and a
  * theme toggle back off before it reaches a sentence. Same words, one source —

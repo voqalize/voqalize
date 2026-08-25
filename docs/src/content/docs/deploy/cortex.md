@@ -10,7 +10,7 @@ Cortex relay, which splices the two legs together.
 
 :::note[Prefer inbound when you can]
 The relay adds a hop and a moving part. If your brain can expose an authenticated
-WebSocket route, use the [inbound path](/docs/deploy/inbound/) instead. Reach for
+WebSocket route, use the [inbound path](/deploy/inbound/) instead. Reach for
 Cortex only when inbound genuinely isn't possible.
 :::
 
@@ -29,7 +29,7 @@ prefix.
 
 ## Get the credentials
 
-Self-service, over the [MCP server](/docs/reference/mcp/):
+Self-service, over the [MCP server](/reference/mcp/):
 
 ```
 create_agent_credentials(tenant, agent_id, label="")
@@ -103,5 +103,5 @@ died do not survive, because a voice session is its socket.
 
 ## Next
 
-- **[Inbound server](/docs/deploy/inbound/)** — the primary path.
-- **[Where the brain runs](/docs/deploy/brain-url/)** — choosing between them.
+- **[Inbound server](/deploy/inbound/)** — the primary path.
+- **[Where the brain runs](/deploy/brain-url/)** — choosing between them.

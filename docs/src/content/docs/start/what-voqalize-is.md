@@ -22,10 +22,10 @@ A **brain** is one URL. Voqalize dials it once per **session**:
 
 One connection, opened when the call starts and closed when it ends. It is the
 shape you already use for webhooks, held open. The frames are protobuf and the
-contract is published — see [the wire](/docs/reference/wire/).
+contract is published — see [the wire](/reference/wire/).
 
 Where that URL points is yours to choose: a route in the service you already
-deploy, or a [Cortex relay](/docs/deploy/cortex/) when your network cannot accept
+deploy, or a [Cortex relay](/deploy/cortex/) when your network cannot accept
 inbound connections. The same brain code runs on either.
 
 ## The two halves of your app
@@ -36,12 +36,12 @@ each other directly — everything between them crosses our wire.
 | | You write | Voqalize runs |
 |---|---|---|
 | **Your server** | The brain: what to say, what to show, which tools to call, what to remember | The socket that dials it, one per session |
-| **Your page** | One HTTP request for the connect params, then stock [pipecat](/docs/start/pipecat/) | WebRTC to the browser, and the RTVI data channel that carries actions and transcripts |
+| **Your page** | One HTTP request for the connect params, then stock [pipecat](/start/pipecat/) | WebRTC to the browser, and the RTVI data channel that carries actions and transcripts |
 | **Between them** | — | Speech recognition, speech synthesis, turn detection, interruption, recording |
 
 The browser half ships no library of ours. One `fetch` returns what a pipecat
 transport connects with, and the rest of the page is pipecat you can read the
-docs for elsewhere — [the handshake](/docs/client/handshake/) is the whole of it.
+docs for elsewhere — [the handshake](/client/handshake/) is the whole of it.
 
 ## What a session does, in order
 
@@ -92,11 +92,11 @@ and swapping the model behind it is a change we never see.
 
 Voqalize holds the session while the call is up: the audio, the recognition, the
 floor, and the recording if you asked for one. All of it is readable back through
-[the MCP server](/docs/reference/mcp/) or the API, inside your own tooling.
+[the MCP server](/reference/mcp/) or the API, inside your own tooling.
 
 ## Read next
 
-- [Voqalize and pipecat](/docs/start/pipecat/) — what is ours, what is theirs, and what that buys you.
-- [Connections and the handshake](/docs/client/handshake/) — the browser half, end to end.
-- [Testing a brain](/docs/brain/testing/) — drive a real brain over the real wire, without a microphone.
-- [The wire](/docs/reference/wire/) — the contract both ends are held to.
+- [Voqalize and pipecat](/start/pipecat/) — what is ours, what is theirs, and what that buys you.
+- [Connections and the handshake](/client/handshake/) — the browser half, end to end.
+- [Testing a brain](/brain/testing/) — drive a real brain over the real wire, without a microphone.
+- [The wire](/reference/wire/) — the contract both ends are held to.

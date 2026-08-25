@@ -25,7 +25,7 @@ tool's return value is for whenever the work is slower than a sentence.
 
 A tool that genuinely takes two seconds has been mis-split. Break it into a cheap
 dispatch plus a background workstream, and report the result the way
-[parallel workstreams](/docs/design/parallel-workstreams/) describes.
+[parallel workstreams](/design/parallel-workstreams/) describes.
 
 ## A tool is not cancelled
 
@@ -36,7 +36,7 @@ This sounds untidy and is correct: the caller interrupted the *speech*. They did
 not interrupt the lookup, and half-applied work is worse to reason about than
 completed work. The screen showing what they asked for is right, whether or not
 the sentence describing it finished. See
-[interruption and heard truth](/docs/design/interruption-and-heard-truth/).
+[interruption and heard truth](/design/interruption-and-heard-truth/).
 
 Tools also run **one at a time, in the order the model produced them**. Two tools
 racing would put the caller's display in an order the model never asked for, and
@@ -84,7 +84,7 @@ has two to four choices, uses known codes, and covers every candidate; a separat
 validator rejects non-Latin labels headed for a screen that must stay Latin. Both
 come back as retriable errors, and the prompt warns the model in advance that they
 can. So the *shape* of the question is guaranteed even though its wording is the
-model's. See [prompt design for voice](/docs/design/prompt-design/).
+model's. See [prompt design for voice](/design/prompt-design/).
 
 ## A tool never holds irreversible authority
 
@@ -126,5 +126,5 @@ Machine work never blocks a turn. A person's decision sometimes has to.
 
 ## Read next
 
-- [Parallel workstreams](/docs/design/parallel-workstreams/) — where the slow half of a tool goes.
-- [Prompt design for voice](/docs/design/prompt-design/) — teaching the model which tool to reach for.
+- [Parallel workstreams](/design/parallel-workstreams/) — where the slow half of a tool goes.
+- [Prompt design for voice](/design/prompt-design/) — teaching the model which tool to reach for.

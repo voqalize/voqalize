@@ -81,7 +81,7 @@ from a dead turn cannot leak a sentence into its successor.
 An action already dispatched has already arrived. The screen does not roll back
 when the caller cuts in, and it should not: the itinerary they are looking at is
 the itinerary they asked for, whether or not the sentence describing it finished.
-See [voice points, the screen holds](/docs/design/voice-points-screen-holds/).
+See [voice points, the screen holds](/design/voice-points-screen-holds/).
 
 In-flight tool work is not cancelled either. A charge that was authorized was
 authorized. If a tool must not outlive its turn, that is a decision for your tool
@@ -96,7 +96,7 @@ unit, which means a test can assert on the heard text instead of the generated
 text — and the strongest property available is the one worth asserting:
 **the history your brain wrote equals what the driver says was heard.**
 
-See [testing a brain](/docs/brain/testing/).
+See [testing a brain](/brain/testing/).
 
 ## One limit we have not established
 
@@ -108,5 +108,5 @@ anything that depends on its last character.
 
 ## Read next
 
-- [The turn budget](/docs/design/the-turn-budget/) — why interruption rate is the cheapest quality signal you have.
-- [Testing a brain](/docs/brain/testing/) — driving barge-in from a test.
+- [The turn budget](/design/the-turn-budget/) — why interruption rate is the cheapest quality signal you have.
+- [Testing a brain](/brain/testing/) — driving barge-in from a test.

@@ -44,15 +44,15 @@ produce them.
 
 **Tool round trips.** A tool in your process is a function call. The same tool
 reached over HTTP is a network round trip on every turn that uses it. See
-[tool design for voice](/docs/design/tool-design/).
+[tool design for voice](/design/tool-design/).
 
 **Retrieval as a serial hop**, unless it was started before it was needed. See
-[parallel workstreams](/docs/design/parallel-workstreams/).
+[parallel workstreams](/design/parallel-workstreams/).
 
 **Work that was serial for no reason.** Three sequential `await`s cost the sum;
 one `asyncio.gather` costs the slowest.
 
-**Prompt size**, which is [prompt design for voice](/docs/design/prompt-design/).
+**Prompt size**, which is [prompt design for voice](/design/prompt-design/).
 
 **A cache miss you caused yourself.** The system instruction is the cache prefix.
 Set it once per session and it matches turn after turn; edit it — even to append
@@ -106,7 +106,7 @@ every turn, in your own process.
 over an agent that is too slow, too long, or wrong, and the three are hard to
 tell apart from a transcript and easy to tell apart from a clock.
 
-`get_session_events` over [the MCP server](/docs/reference/mcp/) returns our half
+`get_session_events` over [the MCP server](/reference/mcp/) returns our half
 of the same call, joined on the same `session_id`.
 
 ## There are no latency numbers on this page
@@ -121,5 +121,5 @@ half you can change today.
 
 ## Read next
 
-- [Parallel workstreams](/docs/design/parallel-workstreams/) — why an agent that handles one thing at a time gives the speed back.
-- [Prompt design for voice](/docs/design/prompt-design/) — what has to be in the prompt because a lookup is silence.
+- [Parallel workstreams](/design/parallel-workstreams/) — why an agent that handles one thing at a time gives the speed back.
+- [Prompt design for voice](/design/prompt-design/) — what has to be in the prompt because a lookup is silence.

@@ -35,7 +35,7 @@ Content-Type: application/json
 `agent_input` is what the page hands the brain. Anything under `payload` is
 opaque business context the agent receives at the start of the call; `pipeline`
 beside it is per-call media config, which most pages should not set — [voice and
-language belong to the brain](/docs/reference/catalog/). `agent_input` is signed
+language belong to the brain](/reference/catalog/). `agent_input` is signed
 into the session token *and* stored on the session, so send identifiers, not
 personal data. `record` rides beside it, not inside it: recording is not the
 brain's business.
@@ -258,7 +258,7 @@ agreed.
 
 ## Next
 
-- **[The wire](/docs/reference/wire/)** — the frames underneath the call, and the
+- **[The wire](/reference/wire/)** — the frames underneath the call, and the
   contract they keep.
-- **[Voice & language catalog](/docs/reference/catalog/)** — why the brain, and
+- **[Voice & language catalog](/reference/catalog/)** — why the brain, and
   not the page, sets how an agent sounds.

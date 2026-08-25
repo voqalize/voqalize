@@ -3,7 +3,9 @@ import { sidebar } from "../sidebar.mjs";
 import { markdownPages, markdownUrl } from "../markdown-pages";
 
 /**
- * The index an agent enters the docs through — https://voqalize.com/docs/llms.txt.
+ * The index an agent enters the docs through — https://docs.voqalize.com/llms.txt.
+ * Since the site moved to its own origin on 2026-08-25 that is the conventional
+ * host-root location, so nothing at the edge has to point at it any more.
  *
  * The apex of the pyramid is the MCP server's `instructions`: a few paragraphs
  * and a link to this file. This is the table of contents under it — every page,

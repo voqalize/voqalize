@@ -15,7 +15,7 @@ our vocabulary and free to change whenever our internals do. It answers *why*.
 Read events first. Interleaving the two would make the weaker half look exactly as
 reliable as the stronger one, which is why they stay separate reads.
 
-Both are on [the MCP server](/docs/reference/mcp/), and both take the
+Both are on [the MCP server](/reference/mcp/), and both take the
 `session_id` you already have — the same string that was in your connect params,
 in `{brain_url}?session_id={session_id}`, and in every line your own brain logged.
 It is the join key across both sides of the call.
@@ -33,12 +33,12 @@ call connected and nothing I expected happened":
   it answers, and it is not your agent — a working call in the wrong voice, and
   the single most confusing failure in the product.
 - **`recording_enabled` and `recording_source`** — whether this call was recorded
-  and which rule decided. See [recordings](/docs/operate/recordings/).
+  and which rule decided. See [recordings](/operate/recordings/).
 
 `source="wire"` — the frames themselves, both directions, between the runtime and
 your brain. Transcripts, each piece of the agent's reply, each action it asked the
 page to take, each interruption. This is the same wire your brain speaks; see
-[the wire](/docs/reference/wire/).
+[the wire](/reference/wire/).
 
 Passing `source="platform"` skips the wire read entirely, which is what makes "how
 far did this call get" a cheap question.
@@ -59,7 +59,7 @@ happened on screen."** It is correct behaviour rather than a bug, and it used to
 invisible — the frame simply did not appear. It appears now, marked as discarded.
 Filtering the wire half by `disposition` is the fastest way to see everything one
 barge-in threw away. See
-[interruption and heard truth](/docs/design/interruption-and-heard-truth/).
+[interruption and heard truth](/design/interruption-and-heard-truth/).
 
 `frame` narrows the same half by type, named exactly as it appears on the wire
 (`VqlUserTextFrame`, `VqlLLMTextFrame`, `VqlFunctionCallsStartedFrame`).
@@ -110,5 +110,5 @@ actually heard.
 
 ## Read next
 
-- [Recordings](/docs/operate/recordings/) — when the events and the logs both look right and the call still sounded wrong.
-- [MCP server](/docs/reference/mcp/) — every tool's signature.
+- [Recordings](/operate/recordings/) — when the events and the logs both look right and the call still sounded wrong.
+- [MCP server](/reference/mcp/) — every tool's signature.

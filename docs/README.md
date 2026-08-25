@@ -1,11 +1,18 @@
 # docs — the Voqalize developer documentation site
 
-The source for `voqalize.com/docs`. Built with **Astro Starlight** (same
+The source for `docs.voqalize.com`. Built with **Astro Starlight** (same
 framework as the marketing site), so it shares branding and outputs **pure
-static** files — no runtime dependency. The built `dist/` is assembled into the
-single Firebase Hosting site at the env apex and served under `/docs`
-(alongside the marketing site at `/` and the demos at `/demos/<name>`), or by
-any static host.
+static** files — no runtime dependency. The built `dist/` is deployed to its own
+Firebase Hosting site, one per environment — `docs.voqalize.com`,
+`docs.dev.voqalize.com`, `docs.local.voqalize.com`, one DNS label in front of
+each apex the way the console's `app.` is — or by any static host.
+
+It moved off the apex on 2026-08-25. The site therefore carries **no `base`**:
+it is served at the root, and the apex answers `/docs/**` with a permanent
+redirect here. Keep it that way. A base path is not free in Astro — the dev
+server strips it before vite sees the request, so vite mints its own dev URLs
+root-relative regardless and the two halves of a page end up on different
+prefixes.
 
 Covers the developer guides, the SDK references, and the **voice / model /
 language catalog** (the vql-speech capability surface — a first-party Voqalize
@@ -13,10 +20,12 @@ microservice).
 
 ## Every page is also markdown
 
-`/docs/start/quickstart` is for a person; `/docs/start/quickstart.md` is the same
-page as raw markdown, for an agent. `/docs/llms.txt` is the index it enters
-through: every page in the site's own reading order, with the one-line
-`description` each page already carries, linking to the `.md` twin.
+`/start/pipecat` is for a person; `/start/pipecat.md` is the same page as raw
+markdown, for an agent. `/llms.txt` is the index it enters through: every page in
+the site's own reading order, with the one-line `description` each page already
+carries, linking to the `.md` twin. On the site's own origin that index sits
+where the convention puts it — at the host root — so nothing at the edge has to
+point at it.
 
 That is the body of the documentation pyramid whose apex is the MCP server's
 `instructions` — a few paragraphs that orient an agent and then point here.
