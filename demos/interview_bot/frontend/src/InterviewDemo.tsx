@@ -2,15 +2,16 @@
  * Prototype interview voice demo — talks to the `interview_bot` brain.
  *
  * The per-session job/candidate/plan ("agent_input") is pasted in as JSON and
- * forwarded verbatim to the brain as the session payload (the brain receives it
- * as `init_payload`). No persistence, no recording — a throwaway test harness.
+ * forwarded verbatim to the brain as `init` — the brain reads it back as
+ * `session.init`. No persistence, no recording — a throwaway test harness.
  *
- * The whole session lifecycle — mint against the control plane, WebRTC transport,
- * mic control, bot-state, and the agent's `ui_command` server-messages — is the
- * public SDK's {@link useVoqalSession} from `@voqalize/client-react`, driven by a
- * publishable (`pk_`) key. This file is just the paste-JSON form, the call UI, and
- * the section/summary bridge the brain drives via `section_changed` /
- * `interview_completed`.
+ * The whole session lifecycle — starting the call, WebRTC transport, mic
+ * control, and the brain's RTVI `ui-command` server-messages — is stock
+ * pipecat's `PipecatAppBase` plus the hooks in `@pipecat-ai/client-react`;
+ * there is no client library beyond the one request in `src/config.ts`. This
+ * file is just the paste-JSON form, the call UI, and the section/summary
+ * bridge the brain drives via `section_changed` / `interview_completed`
+ * `ui-command`s.
  *
  * The interviewer's state is carried by the shared `AmbientPresence` ring — the
  * catalog-wide voice treatment, painted around the whole harness rather than
@@ -19,21 +20,22 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
-import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
+import { RTVIEvent, type TransportState, type UICommandData } from "@pipecat-ai/client-js";
+import {
+  usePipecatClient,
+  usePipecatClientMicControl,
+  usePipecatClientTransportState,
+  useRTVIClientEvent,
+} from "@pipecat-ai/client-react";
+import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import {
   AmbientPresence,
-  useVoqalSession,
+  DemoGate,
+  type AmbientPresenceActivity,
   type AmbientPresencePalette,
-  type VoqalBotState,
-} from "@voqalize/client-react";
-import { DemoGate } from "@voqalize/demo-kit";
-import { config } from "./config";
-
-// Tenant + agent + pk resolve per-environment from this demo's local config
-// (src/config.ts), driven by Vite env vars.
-const INTERVIEW = config;
+} from "@voqalize/demo-kit";
+import { connectRequest, demo, withRealHeaders } from "./config";
 
 // This harness's reading of the shared presence ring: the indigo of its own
 // primary action is the interviewer present and speaking, and it shifts to the
@@ -114,17 +116,23 @@ interface SectionState {
   isLast: boolean;
 }
 
-const STATE_LABEL: Record<VoqalBotState, string> = {
+const STATE_LABEL: Record<AmbientPresenceActivity, string> = {
   idle: "Live",
   listening: "Listening",
   thinking: "Thinking",
   speaking: "Speaking",
 };
 
-// ── Live call controls (inside the PipecatClientProvider) ─────────────────────
+// ── Live call controls (inside PipecatAppBase's client provider) ──────────────
 // The catalog's minimal shape: the state label, a circular mic that doubles as
 // the mute toggle, and a small secondary control that ends the interview.
-function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () => void }) {
+function LiveControls({
+  botState,
+  onEnd,
+}: {
+  botState: AmbientPresenceActivity;
+  onEnd: () => void;
+}) {
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
   const label = isMicEnabled ? STATE_LABEL[botState] : "Muted";
   return (
@@ -145,6 +153,214 @@ function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () 
   );
 }
 
+// ── The live leg: mounted only once PipecatAppBase has started the call ───────
+// (step is "connecting", "call" or "ended"). Reads the transport, the RTVI
+// activity events and the brain's `ui-command`s, and reports the bits the rest
+// of the page needs — section, summary, activity, transport state, connection
+// and error transitions — back up through props, since the ambient ring and the
+// step machine live above `PipecatAppBase` and only this subtree has a client.
+function LiveCall({
+  step,
+  error,
+  section,
+  summary,
+  events,
+  onSection,
+  onCompleted,
+  onConnected,
+  onConnectError,
+  onActivity,
+  onTransportState,
+  onEnd,
+  onNewInterview,
+}: {
+  step: Step;
+  error: string | null;
+  section: SectionState | null;
+  summary: string | null;
+  events: string[];
+  onSection: (section: SectionState, logLine: string) => void;
+  onCompleted: (summary: string, logLine: string) => void;
+  onConnected: () => void;
+  onConnectError: (message: string) => void;
+  onActivity: (activity: AmbientPresenceActivity) => void;
+  onTransportState: (state: TransportState) => void;
+  onEnd: () => void;
+  onNewInterview: () => void;
+}) {
+  const client = usePipecatClient();
+  const transportState = usePipecatClientTransportState();
+  const { isConnected } = usePipecatConnectionState();
+  const { enableMic } = usePipecatClientMicControl();
+  const [activity, setActivityState] = useState<AmbientPresenceActivity>("idle");
+
+  const setActivity = useCallback(
+    (next: AmbientPresenceActivity) => {
+      setActivityState(next);
+      onActivity(next);
+    },
+    [onActivity],
+  );
+
+  useEffect(() => {
+    onTransportState(transportState);
+  }, [transportState, onTransportState]);
+
+  useRTVIClientEvent(
+    RTVIEvent.UserStartedSpeaking,
+    useCallback(() => setActivity("listening"), [setActivity]),
+  );
+  useRTVIClientEvent(
+    RTVIEvent.BotLlmStarted,
+    useCallback(() => setActivity("thinking"), [setActivity]),
+  );
+  useRTVIClientEvent(
+    RTVIEvent.BotStartedSpeaking,
+    useCallback(() => setActivity("speaking"), [setActivity]),
+  );
+  useRTVIClientEvent(
+    RTVIEvent.BotStoppedSpeaking,
+    useCallback(() => setActivity("idle"), [setActivity]),
+  );
+
+  // The brain drives the screen via `session.dispatch(...)`, which arrives here
+  // as an RTVI `ui-command`: `{ command, payload }`.
+  useRTVIClientEvent(
+    RTVIEvent.UICommand,
+    useCallback(
+      ({ command, payload }: UICommandData) => {
+        const data = (payload ?? {}) as Record<string, unknown>;
+        if (command === "section_changed") {
+          const title = (data.title as string) ?? "";
+          const isLast = !!data.is_last;
+          onSection(
+            { index: (data.index as number) ?? 0, key: (data.key as string) ?? "", title, isLast },
+            `➡️ section: ${title}${isLast ? " (final)" : ""}`,
+          );
+        } else if (command === "interview_completed") {
+          onCompleted((data.summary as string) ?? "", "✅ interview completed");
+        }
+      },
+      [onSection, onCompleted],
+    ),
+  );
+
+  // Drive the step machine: connected → live call.
+  useEffect(() => {
+    if (isConnected && step === "connecting") onConnected();
+  }, [isConnected, step, onConnected]);
+
+  // A failed connect bounces back to the call gate with the message surfaced.
+  useEffect(() => {
+    if (error) onConnectError(error);
+  }, [error, onConnectError]);
+
+  // Mic on once the session is live.
+  useEffect(() => {
+    if (!isConnected) return;
+    enableMic(true);
+  }, [isConnected, enableMic]);
+
+  const hangUp = async () => {
+    await client?.disconnect();
+    onEnd();
+  };
+
+  const newInterview = async () => {
+    await client?.disconnect();
+    onNewInterview();
+  };
+
+  if (step === "connecting") {
+    // The ring already carries "something is happening" — this step only
+    // needs to say what, quietly.
+    return (
+      <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+        <Loader2 size={22} className="iv-spin" />
+        <p style={{ marginTop: 12 }}>Connecting…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div
+        className="iv-callcard"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 20,
+          background: "#020617",
+          border: "1px solid #1e293b",
+          borderRadius: 12,
+          padding: 16,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>
+            {step === "ended" ? "Interview complete" : "Live interview"}
+          </div>
+          {section && (
+            <div style={{ marginTop: 6, fontSize: 15, fontWeight: 600 }}>
+              Section {section.index + 1}: {section.title}
+              {section.isLast ? " (final)" : ""}
+            </div>
+          )}
+        </div>
+        {step === "call" && <LiveControls botState={activity} onEnd={() => void hangUp()} />}
+      </div>
+
+      {step === "ended" && (
+        <div
+          style={{
+            marginTop: 16,
+            background: "#022c22",
+            border: "1px solid #065f46",
+            borderRadius: 12,
+            padding: 16,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Summary</div>
+          <div style={{ fontSize: 14, color: "#a7f3d0" }}>{summary || "(none provided)"}</div>
+          <button onClick={() => void newInterview()} style={{ ...secondaryBtn, marginTop: 12 }}>
+            New interview
+          </button>
+        </div>
+      )}
+
+      <div style={{ marginTop: 16 }}>
+        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Event log</div>
+        <div
+          className="iv-log"
+          style={{
+            background: "#020617",
+            border: "1px solid #1e293b",
+            borderRadius: 10,
+            padding: 12,
+            height: 220,
+            maxWidth: "100%",
+            boxSizing: "border-box",
+            overflow: "auto",
+            fontFamily: "ui-monospace, monospace",
+            fontSize: 12,
+            lineHeight: 1.6,
+          }}
+        >
+          {events.length === 0 ? (
+            <span style={{ color: "#475569" }}>waiting for events…</span>
+          ) : (
+            events.map((e, i) => (
+              <div key={i} style={{ whiteSpace: "pre" }}>
+                {e}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function InterviewDemo() {
   const [joined, setJoined] = useState(false);
   const [step, setStep] = useState<Step>("form");
@@ -157,6 +373,8 @@ export function InterviewDemo() {
   const [section, setSection] = useState<SectionState | null>(null);
   const [events, setEvents] = useState<string[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
+  const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
+  const [transportState, setTransportState] = useState<TransportState | undefined>(undefined);
 
   const log = useCallback((line: string) => {
     setEvents((e) => [...e.slice(-200), line]);
@@ -172,62 +390,15 @@ export function InterviewDemo() {
     }
   }, [agentInputText]);
 
-  // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
-  // (past the `{ data }` quirk), so we read `type`/`action` directly — the brain
-  // drives the UI via section_changed / interview_completed ui_commands.
-  const session = useVoqalSession({
-    apiBase: INTERVIEW.apiBase,
-    // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the call error state.
-    publishableKey: INTERVIEW.publishableKey ?? "",
-    agentId: INTERVIEW.agentId,
-    // No pipeline override: this agent's voice and language are declared on
-    // its brain (backend/brain.py), which is the only place they belong.
-    // The opaque agent_input the brain receives as init_payload.
-    payload,
-    onServerMessage: useCallback(
-      (msg: Record<string, unknown>) => {
-        if (msg.type !== "ui_command") return;
-        if (msg.action === "section_changed") {
-          const title = (msg.title as string) ?? "";
-          setSection({
-            index: (msg.index as number) ?? 0,
-            key: (msg.key as string) ?? "",
-            title,
-            isLast: !!msg.is_last,
-          });
-          log(`➡️ section: ${title}${msg.is_last ? " (final)" : ""}`);
-        } else if (msg.action === "interview_completed") {
-          setSummary((msg.summary as string) ?? "");
-          log("✅ interview completed");
-          setStep("ended");
-        }
-      },
-      [log],
-    ),
-  });
-
-  const { client, connectionState, botState, error, connect, disconnect, enableMic } = session;
-
-  // Drive the step machine off the transport state: connected → live call;
-  // error → back to the gate with the message surfaced.
-  useEffect(() => {
-    if (connectionState === "connected") {
-      setStep((s) => (s === "ended" ? s : "call"));
-    } else if (connectionState === "error") {
-      setStep((s) => (s === "ended" ? s : "call-gate"));
-      setCallError(error || "Could not connect.");
-    }
-  }, [connectionState, error]);
-
-  // Mic on once the session is live.
-  useEffect(() => {
-    if (connectionState !== "connected") return;
-    enableMic(true);
-  }, [connectionState, enableMic]);
-
-  // Tear the session down on unmount.
-  useEffect(() => () => void disconnect(), [disconnect]);
+  // The request that starts the call. Memoized: it is a dependency of
+  // PipecatAppBase's connect-on-mount effect, so a fresh object every render
+  // would re-mint a session every render. No `config`: this agent's voice and
+  // language are declared on its brain (backend/brain.py), which is the only
+  // place they belong.
+  const params = useMemo(
+    () => (payload ? connectRequest({ surface: "interview_bot-web", ...payload }) : null),
+    [payload],
+  );
 
   // Request mic on entering the call gate.
   useEffect(() => {
@@ -261,20 +432,13 @@ export function InterviewDemo() {
       setStep("form");
       return;
     }
-    if (!INTERVIEW.publishableKey || !INTERVIEW.agentId) {
+    if (!demo.publishableKey || !demo.agentId) {
       setCallError(
         "Interview demo is not configured (missing agent id or publishable key). Reseed the emulator.",
       );
       return;
     }
     setStep("connecting");
-    connect();
-  };
-
-  const hangUp = async () => {
-    await disconnect();
-    setStep("form");
-    setSection(null);
   };
 
   return (
@@ -298,7 +462,7 @@ export function InterviewDemo() {
         joinLabel="Start the demo"
         onJoin={() => setJoined(true)}
       />
-      <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
+      <AmbientPresence activity={activity} transportState={transportState} palette={PRESENCE} />
 
       <div className="iv-page" style={{ maxWidth: 760, margin: "0 auto", padding: "32px 24px" }}>
         <header style={{ marginBottom: 20 }}>
@@ -394,107 +558,50 @@ export function InterviewDemo() {
           </div>
         )}
 
-        {/* The ring already carries "something is happening" — this step only
-            needs to say what, quietly. */}
-        {step === "connecting" && (
-          <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
-            <Loader2 size={22} className="iv-spin" />
-            <p style={{ marginTop: 12 }}>Connecting…</p>
-          </div>
-        )}
-
-        {(step === "call" || step === "ended") && (
-          <div>
-            {client && (
-              <PipecatClientProvider client={client}>
-                <BotAudioOutput />
-                <div
-                  className="iv-callcard"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 20,
-                    background: "#020617",
-                    border: "1px solid #1e293b",
-                    borderRadius: 12,
-                    padding: 16,
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: "#94a3b8" }}>
-                      {step === "ended" ? "Interview complete" : "Live interview"}
-                    </div>
-                    {section && (
-                      <div style={{ marginTop: 6, fontSize: 15, fontWeight: 600 }}>
-                        Section {section.index + 1}: {section.title}
-                        {section.isLast ? " (final)" : ""}
-                      </div>
-                    )}
-                  </div>
-                  {step === "call" && (
-                    <LiveControls botState={botState} onEnd={() => void hangUp()} />
-                  )}
-                </div>
-              </PipecatClientProvider>
-            )}
-
-            {step === "ended" && (
-              <div
-                style={{
-                  marginTop: 16,
-                  background: "#022c22",
-                  border: "1px solid #065f46",
-                  borderRadius: 12,
-                  padding: 16,
+        {step !== "form" && step !== "call-gate" && params && (
+          <PipecatAppBase
+            transportType="smallwebrtc"
+            connectOnMount
+            noThemeProvider
+            startBotParams={params}
+            startBotResponseTransformer={withRealHeaders}
+          >
+            {({ error }) => (
+              <LiveCall
+                step={step}
+                error={error ?? null}
+                section={section}
+                summary={summary}
+                events={events}
+                onSection={(s, line) => {
+                  setSection(s);
+                  log(line);
                 }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Summary</div>
-                <div style={{ fontSize: 14, color: "#a7f3d0" }}>{summary || "(none provided)"}</div>
-                <button
-                  onClick={() => {
-                    void disconnect();
-                    setStep("form");
-                    setSection(null);
-                    setEvents([]);
-                    setSummary(null);
-                  }}
-                  style={{ ...secondaryBtn, marginTop: 12 }}
-                >
-                  New interview
-                </button>
-              </div>
-            )}
-
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Event log</div>
-              <div
-                className="iv-log"
-                style={{
-                  background: "#020617",
-                  border: "1px solid #1e293b",
-                  borderRadius: 10,
-                  padding: 12,
-                  height: 220,
-                  maxWidth: "100%",
-                  boxSizing: "border-box",
-                  overflow: "auto",
-                  fontFamily: "ui-monospace, monospace",
-                  fontSize: 12,
-                  lineHeight: 1.6,
+                onCompleted={(text, line) => {
+                  setSummary(text);
+                  log(line);
+                  setStep("ended");
                 }}
-              >
-                {events.length === 0 ? (
-                  <span style={{ color: "#475569" }}>waiting for events…</span>
-                ) : (
-                  events.map((e, i) => (
-                    <div key={i} style={{ whiteSpace: "pre" }}>
-                      {e}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
+                onConnected={() => setStep((s) => (s === "connecting" ? "call" : s))}
+                onConnectError={(message) => {
+                  setStep("call-gate");
+                  setCallError(message || "Could not connect.");
+                }}
+                onActivity={setActivity}
+                onTransportState={setTransportState}
+                onEnd={() => {
+                  setStep("form");
+                  setSection(null);
+                }}
+                onNewInterview={() => {
+                  setStep("form");
+                  setSection(null);
+                  setEvents([]);
+                  setSummary(null);
+                }}
+              />
+            )}
+          </PipecatAppBase>
         )}
       </div>
     </div>

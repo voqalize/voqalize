@@ -3,8 +3,8 @@
  *
  * A throwaway test harness: paste the `agent_input` JSON (job + candidate +
  * interview plan) and start a live voice interview. The whole session lifecycle
- * runs through the public SDK's `useVoqalSession`; the brain paces the interview
- * and drives the on-screen section/summary via `ui_command` server-messages.
+ * is stock pipecat's `PipecatAppBase`; the brain paces the interview and drives
+ * the on-screen section/summary via RTVI `ui-command` events.
  */
 
 import { StrictMode } from "react";
