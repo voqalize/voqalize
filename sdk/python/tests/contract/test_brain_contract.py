@@ -11,7 +11,7 @@ The nine clauses, in the order they appear below:
 1. **A unit of speech opens lazily and always closes.** The runtime interrupts a
    unit, so a unit is the grain of an apology; a hop that only calls a tool must
    mint none, and no `SpeechStart` may go out without its `SpeechEnd`.
-2. **Every call is answered.** A transcript holding a call with no result is one
+2. **Every call is answered.** A context holding a call with no result is one
    the provider will reject on the next hop, and the call it is missing is the
    one thing the model is waiting on.
 3. **A tool that raises is answered with the failure**, not dropped — the model
@@ -23,7 +23,7 @@ The nine clauses, in the order they appear below:
    the loop, `async def` or refused.
 7. **`tools` is read once per turn**, so a brain may offer one caller a tool it
    does not offer everyone and still be consistent for the length of a turn.
-8. **Heard truth.** The transcript commits what the caller *heard*: cut off, keep
+8. **Heard truth.** The context commits what the caller *heard*: cut off, keep
    the delivered prefix; heard by nobody, drop the unit; and match finalizes to
    units first-in-first-out, which is what the runtime's exactly-once guarantee
    buys. A finalize with nothing waiting is the greeting.
@@ -149,7 +149,7 @@ async def test_every_call_is_answered(engine: Engine) -> None:
         engine, calls(Call("ping"), Call("show", {"args": {"name": "meals"}})), says("Done.")
     )
 
-    assert _unanswered(engine.transcript(brain)) == []
+    assert _unanswered(engine.context(brain)) == []
 
 
 async def test_a_tool_that_raises_is_answered_not_dropped(engine: Engine) -> None:
@@ -158,7 +158,7 @@ async def test_a_tool_that_raises_is_answered_not_dropped(engine: Engine) -> Non
     rejecting the next hop is the *better* of the two outcomes."""
     brain, events = await _turn(engine, calls(Call("boom")), says("That failed."))
 
-    lines = engine.transcript(brain)
+    lines = engine.context(brain)
     assert _unanswered(lines) == []
     assert any("boom" in line and "kaboom" in line for line in _kinds(lines, "result: "))
     assert shape(events) == ["[", "That failed.", "]"]
@@ -269,7 +269,7 @@ async def _reconciling(engine: Engine) -> tuple[Any, Any]:
 
 
 def _said(engine: Engine, brain: Any) -> list[str]:
-    return [line.removeprefix("model: ") for line in _kinds(engine.transcript(brain), "model: ")]
+    return [line.removeprefix("model: ") for line in _kinds(engine.context(brain), "model: ")]
 
 
 async def test_a_unit_heard_in_full_stays_as_it_was(engine: Engine) -> None:
@@ -293,7 +293,7 @@ async def test_a_unit_cut_off_keeps_only_what_was_delivered(engine: Engine) -> N
     assert _said(engine, brain) == ["the flight leaves at"]
 
 
-async def test_a_unit_nobody_heard_leaves_the_transcript(engine: Engine) -> None:
+async def test_a_unit_nobody_heard_leaves_the_context(engine: Engine) -> None:
     """Generated ahead of playout and beaten to the speaker by a barge-in. A model
     turn with nothing in it is not a turn, so it goes rather than sitting there as
     something the model thinks it said."""
@@ -302,7 +302,7 @@ async def test_a_unit_nobody_heard_leaves_the_transcript(engine: Engine) -> None
 
     await brain.on_finalize(session, _heard("", interrupted=True))
 
-    assert engine.transcript(brain) == []
+    assert engine.context(brain) == []
 
 
 async def test_a_silent_tool_hop_is_never_reconciled(engine: Engine) -> None:
@@ -317,7 +317,7 @@ async def test_a_silent_tool_hop_is_never_reconciled(engine: Engine) -> None:
 
     await brain.on_finalize(session, _heard("there are three", interrupted=True))
 
-    lines = engine.transcript(brain)
+    lines = engine.context(brain)
     assert _kinds(lines, "call: ") == ["call: ping{}"]
     assert _said(engine, brain)[-1] == "there are three"
 

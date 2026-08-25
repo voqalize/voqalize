@@ -26,8 +26,8 @@ from voqalize.sdk.wire import (
 
 
 class Echo(Brain):
-    """On each turn, speak a single echo of the input. Records the transcripts it
-    saw for the isolation assertions."""
+    """On each turn, speak a single echo of the input. Records what it saw for the
+    isolation assertions."""
 
     instances: list[Echo] = []
 

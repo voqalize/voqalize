@@ -4,10 +4,10 @@ point of view.
 The driver *is* the "compliant voqalize": it dials a brain over one session leg,
 speaks the shipped protobuf wire, and plays out the brain's responses the way
 real Voqalize does — minting a turn id per stimulus, auto-finalizing each speech
-unit with a *heard-truth* transcript, and cutting a barge-in with the
+unit with *heard-truth* text, and cutting a barge-in with the
 interruption watermark. Everything the brain sends back is decoded, timestamped,
 and recorded so scenarios can assert the wire's MUSTs against a structured
-transcript.
+record.
 
 Turns end the way they end on a real call: the wire carries no "the brain is
 done" frame, so a turn is over when every speech unit it opened has closed
@@ -378,7 +378,7 @@ class VoqalizeDriver:
         quiet_for: float | None = None,
     ) -> Turn:
         """Drive one user turn: send ``UserMessage``, play out the brain's response,
-        and finalize each spoken unit with a heard-truth transcript. Returns
+        and finalize each spoken unit with heard-truth text. Returns
         the observed :class:`Turn`."""
         timeout = self.default_timeout if timeout is None else timeout
         turn_id = self.next_turn()
@@ -394,7 +394,7 @@ class VoqalizeDriver:
         self, turn_id: int, *, timeout: float, finalize: bool, quiet_for: float | None = None
     ) -> Turn:
         """Play out the brain's response to an already-opened turn, then finalize
-        each spoken unit with a heard-truth transcript. Shared by ``user_says``
+        each spoken unit with heard-truth text. Shared by ``user_says``
         / ``user_idle`` / ``barge_in`` — every Voqalize-opened turn plays out
         identically.
 
@@ -454,7 +454,7 @@ class VoqalizeDriver:
 
         The driver *is* Voqalize here, so it dictates the finalized ``heard_text`` —
         which is exactly what removes the timing nondeterminism of a real barge-in
-        and lets scenarios assert the recorded transcript against a known string.
+        and lets scenarios assert the recorded heard text against a known string.
         By default the heard-truth is *what actually arrived before the cut*
         (``cut.text``); pass ``heard_prefix`` to override it explicitly.
 

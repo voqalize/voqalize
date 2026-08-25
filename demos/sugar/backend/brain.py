@@ -346,7 +346,7 @@ class SugarBrain(GeminiBrain):
 
         # Fold the whole per-scenario picture into the system instruction: it is
         # true for the whole call and never changes, so it belongs where it is
-        # written once, not in a note that would sit in the transcript.
+        # written once, not in an append that would sit in the context.
         context_block = (
             "PATIENT CONTEXT (authoritative — everything you know about this patient and "
             f"today's call; the conversation language is {self.language_name}): "

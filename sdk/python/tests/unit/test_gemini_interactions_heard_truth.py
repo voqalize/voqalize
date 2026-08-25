@@ -1,4 +1,4 @@
-"""`GeminiInteractionsBrain` reconciles its transcript from finalizes, one per
+"""`GeminiInteractionsBrain` reconciles its context from finalizes, one per
 unit it opened.
 
 The rule is the same one `GeminiBrain` follows, and it is the reason this SDK
@@ -98,7 +98,7 @@ async def test_a_unit_cut_off_keeps_only_what_was_delivered() -> None:
     assert _texts(brain) == ["the flight leaves at"]
 
 
-async def test_a_unit_nobody_heard_leaves_the_transcript() -> None:
+async def test_a_unit_nobody_heard_leaves_the_context() -> None:
     """Generated ahead of playout and beaten to the speaker by a barge-in. A model
     turn with nothing in it is not a turn, so the whole step goes rather than
     sitting there as something the model thinks it said."""
@@ -131,7 +131,7 @@ async def test_a_silent_tool_hop_is_never_reconciled() -> None:
 async def test_a_dropped_unit_leaves_the_steps_around_it_untouched() -> None:
     """The step is dropped by *identity*, not by value. Two empty steps are equal
     as pydantic models, so an equality-based removal takes whichever it meets
-    first — and the transcript loses a step the caller did hear."""
+    first — and the context loses a step the caller did hear."""
     brain, session = await _brain()
     _speak(brain, "let me look that up")
     _tool_call(brain, "search_flights")

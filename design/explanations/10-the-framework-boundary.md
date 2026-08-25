@@ -82,7 +82,7 @@ written.
     `__self__`. `_ready` hands over a `functools.wraps` closure, which `deepcopy`
     treats as atomic. ADK draws the same line in the same place — declarations in
     the config, callables in `LlmRequest.tools_dict` beside it.
-- **The transcript is written from both sides of the seam.** Order comes from the
+- **The context is written from both sides of the seam.** Order comes from the
   stream; tool *responses* come from `automatic_function_calling_history`
   (`_fold_results`, `gemini.py:254`), which is the only place they exist —
   google-genai feeds them to the model and never to us. `_drop_unanswered`
@@ -145,14 +145,14 @@ without touching the wire or the runtime.
   −1226/+168, then its call lifecycle handed to voice-ui-kit's `PipecatAppBase`.
 - **The bug that proves the belief.** Because `deepcopy` copies `__self__`, tools
   would have run on a *clone* of the brain: `self.session.dispatch` reaching
-  nothing, the transcript written to an object no one reads, the model told `ok`,
+  nothing, the context written to an object no one reads, the model told `ok`,
   and not one thing on the wire to say so. It crashed instead of going quiet only
   because our brain happens to hold a `genai.Client` whose lock cannot be copied.
   That was luck. A wrapper's failure mode is silence.
 - **172 SDK tests did not find it; dialling the live API did.** The verification
   that counted was a real call: `log_meal` dispatched with a server-computed
   `total_calories=330`, `switch_language` moving both legs before Hindi speech,
-  and a 13-entry transcript with each tool response sitting between the call that
+  and a 13-entry context with each tool response sitting between the call that
   made it and the unit that answered.
 
 ## The test, before you wrap anything

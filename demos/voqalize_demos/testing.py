@@ -32,7 +32,7 @@ including the automatic function calling the brain now leans on:
   drives the real tool body and the real ``session.dispatch``. What the tool
   returned goes into ``automatic_function_calling_history``, never into the
   stream, because that is the only place the real one puts it: the brain reads
-  its transcript off that record.
+  its context off that record.
 * **Streaming.** ``reply(chunks=[...])`` yields one response per chunk, which is
   what real ``generate_content_stream`` does — incremental parts, never a repeated
   aggregate — so a barge-in can land mid-reply.

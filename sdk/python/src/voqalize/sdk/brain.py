@@ -408,7 +408,7 @@ class Brain:
         This is also where a logical conversation spanning several sockets picks
         up: read your own identifier out of ``session.init`` and load your own
         history. The SDK persists nothing and interprets no identifier, so the
-        transcript never leaves your environment.
+        context never leaves your environment.
         """
 
     async def on_session_end(self, session: Session) -> None:
@@ -654,7 +654,7 @@ class _BrainAdapter:
         greeting spoken over state that was never built promises a working agent
         the caller then talks to; a session whose greeting never arrives is dead
         air on the one turn nothing will retry. Neither is a state to keep a call
-        alive in, and both are invisible to every check we have — the transcript
+        alive in, and both are invisible to every check we have — the context
         is empty and no error surfaces. So the failure goes on the wire, fatal,
         naming the hook that raised.
         """

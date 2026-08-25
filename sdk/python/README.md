@@ -66,8 +66,8 @@ and the first word has to arrive now. A template is as clever as it gets.
 ## Let a model do the talking: `GeminiBrain`
 
 `GeminiBrain` (`[gemini]` extra) fills in the parts every model-backed brain
-writes the same way: the history, the streaming, the tool hops, and the rewrite at
-the end that makes the transcript say what the caller *heard*. You bring the
+writes the same way: the context, the streaming, the tool hops, and the rewrite at
+the end that makes the context say what the caller *heard*. You bring the
 system instruction and the tools.
 
 ```python
@@ -155,9 +155,9 @@ module.
 - `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
   `is_system()`, `WireSerializer` (the protobuf serializer, no base class),
   `Wire`/`MultiplexedWire` transport, protobuf stubs.
-- `src/voqalize/sdk/gemini.py` — `GeminiBrain` (`[gemini]` extra): history, the
+- `src/voqalize/sdk/gemini.py` — `GeminiBrain` (`[gemini]` extra): the context, the
   streamed turn, the tool hops google-genai runs for us, and the finalize that
-  rewrites the transcript to what was heard. `gemini_interactions.py` is the same
+  rewrites it to what was heard. `gemini_interactions.py` is the same
   turn against the Interactions API.
 - `src/voqalize/conformance/` — the wire-level conformance harness: `VoqalizeDriver`
   (drives a brain over a real socket from the voice-runtime side, no runtime
@@ -220,7 +220,7 @@ module.
   the newest frame and delivers a non-fatal `ErrorFrame` to the adapter
   (edge-triggered: one per congestion episode per direction), surfaced to the Brain
   via optional `on_error`.
-- **Heard truth, not generated text.** A brain that keeps a transcript commits the
+- **Heard truth, not generated text.** A brain that keeps a context commits the
   user utterance when the stimulus arrives, and one assistant message per speech
   unit — from its *heard* text, at finalize. `GeminiBrain` does this for you. A
   reply that generated three sentences and was cut after one is remembered as one,

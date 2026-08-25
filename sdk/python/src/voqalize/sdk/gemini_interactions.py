@@ -46,9 +46,8 @@ Three things are better for having done it ourselves:
   ``generate_content`` the contents are handed over once per turn, so the same
   append waits for the turn after.
 
-**The brain owns the transcript, and the transcript is what was heard.** Each
-``model_output`` step goes into the transcript as it
-streams, then :meth:`~voqalize.sdk.Brain.on_finalize` rewrites it to the
+**The brain owns the context, and what it records is what was heard.** Each
+``model_output`` step goes into the context as it streams, then :meth:`~voqalize.sdk.Brain.on_finalize` rewrites it to the
 delivered prefix — same rule, same reason, as every other brain here.
 
 Install with ``pip install voqalize-agent-sdk[gemini]``.
@@ -85,7 +84,7 @@ VOICE_THINKING = gi.GenerationConfig(thinking_level="minimal")
 
 class GeminiInteractionsBrain(Brain):
     """Base for a Gemini brain on the interactions API. Override the prompt, the
-    greeting and :attr:`tools`; the turn shape, the tool loop and the transcript
+    greeting and :attr:`tools`; the turn shape, the tool loop and the context
     come from here."""
 
     def __init__(
@@ -114,7 +113,7 @@ class GeminiInteractionsBrain(Brain):
         #
         # Tracked by identity throughout — two freshly opened, still-empty steps
         # are equal as pydantic models, so `remove`, `index` and `in` are all
-        # wrong on this queue and on the transcript.
+        # wrong on this queue and on the context.
         self._awaiting: deque[gi.ModelOutputStep] = deque()
 
     # ─── The turn ───────────────────────────────────────────────────────
@@ -170,12 +169,12 @@ class GeminiInteractionsBrain(Brain):
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """Stream one turn, however many tool hops it takes.
 
-        One hop is one interaction: the whole transcript goes over, the model
+        One hop is one interaction: the whole context goes over, the model
         answers with a series of steps, and if any of them is a ``function_call``
-        we run it, write the result into the transcript and go round again. The
+        we run it, write the result into the context and go round again.
         The loop ends when a hop asks for no tools. If it goes round
         ``max_tool_hops`` times without one, the last hop is run with
-        ``tool_choice="none"``: the declarations stay in place, so the transcript
+        ``tool_choice="none"``: the declarations stay in place, so the context
         still reads, and the model has to answer. A turn that spends its whole
         budget still ends in something the caller hears.
 
@@ -215,7 +214,7 @@ class GeminiInteractionsBrain(Brain):
         arguments still empty — and the rest lands as deltas: text, fragments of
         the arguments JSON, the thought signature. ``step.stop`` closes it.
 
-        Each step joins the transcript the moment it opens, so an interruption
+        Each step joins the context the moment it opens, so an interruption
         leaves behind exactly what had been generated when it landed.
 
         Deltas name the step they belong to by ``index``, so nothing here assumes
@@ -267,7 +266,7 @@ class GeminiInteractionsBrain(Brain):
     async def _stream(
         self, declarations: list[gi.Function], answer_now: bool
     ) -> AsyncIterator[gi.InteractionSSEEvent]:
-        """One streamed, stateless interaction carrying the whole transcript.
+        """One streamed, stateless interaction carrying the whole context.
 
         ``store=False`` and no ``previous_interaction_id``: the conversation lives
         here, in the brain, and never on Google's side. That is the same
@@ -320,7 +319,7 @@ class GeminiInteractionsBrain(Brain):
     async def _run(
         self, table: dict[str, Callable[..., Any]], calls: list[gi.FunctionCallStep]
     ) -> None:
-        """Run this hop's calls and write each result into the transcript.
+        """Run this hop's calls and write each result into the context.
 
         In the order the model produced them, one at a time. Tools drive the
         screen, and two of them racing would put the caller's display in an order
@@ -358,7 +357,7 @@ class GeminiInteractionsBrain(Brain):
         the result we were about to write. A ``function_call`` with no
         ``function_result`` quoting its id is not a conversation Gemini will
         accept on the next turn, so it leaves. Whether the tool actually ran is
-        not ours to know: the transcript records what completed, and the side
+        not ours to know: the context records what completed, and the side
         effect stands either way.
         """
         answered = {
@@ -411,7 +410,7 @@ class GeminiInteractionsBrain(Brain):
         Anything that is not text keeps its identity and its order; only spoken
         text is replaced, by the first text item, and later ones go because they
         were generated and never delivered. A step left with nothing leaves the
-        transcript, since a model turn with no content is not a turn.
+        context, since a model turn with no content is not a turn.
         """
         kept: list[gi.Content] = []
         placed = False

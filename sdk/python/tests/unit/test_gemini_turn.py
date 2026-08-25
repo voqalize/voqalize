@@ -8,7 +8,7 @@ rules cut it into units, and both are tested here:
   * a unit opens on the first spoken text after a close — lazily, so a hop that
     only calls a tool opens none at all.
 
-The transcript is written from both sides of that seam. The **order** comes from
+The context is written from both sides of that seam. The **order** comes from
 the stream, where the parts arrive as the model produced them; the tool
 **responses** come from ``automatic_function_calling_history``, which is the only
 place they exist — google-genai feeds them to the model and never to us.
@@ -301,7 +301,7 @@ async def test_speech_either_side_of_a_tool_is_two_units() -> None:
 
 async def test_a_thought_is_not_spoken() -> None:
     """Thought parts carry text that is reasoning, not speech. They belong in the
-    transcript — Gemini 3 wants them handed back — and never on the wire."""
+    context — Gemini 3 wants them handed back — and never on the wire."""
     script = [
         _chunk([types.Part(text="weighing it up", thought=True)]),
         _chunk([types.Part(text="Good evening.")]),
@@ -357,7 +357,7 @@ async def test_a_tool_that_raises_reaches_the_model_as_an_error() -> None:
     assert [r.response for r in responses if r] == [{"error": "kaboom"}]
 
 
-async def test_a_call_whose_response_never_came_back_leaves_the_transcript() -> None:
+async def test_a_call_whose_response_never_came_back_leaves_the_context() -> None:
     """A hop's responses only reach us on the chunk after it, so a call at the end
     of the stream — a barge-in, or the hop budget running out — may have none and
     never will. Gemini will not accept a `function_call` with no
@@ -386,7 +386,7 @@ async def test_a_barge_in_mid_turn_closes_the_generator_cleanly() -> None:
     await gen.aclose()
 
     assert _shape(seen) == ["[", "One "]
-    # The tool ran and was answered before the cut, so both stay in the transcript.
+    # The tool ran and was answered before the cut, so both stay in the context.
     assert _history(brain)[:3] == ["user: hello", "model: call:ping", "user: resp:ping"]
 
 
@@ -517,7 +517,7 @@ async def test_the_brain_is_not_handed_to_google_genai() -> None:
     every AFC hop — and ``copy.deepcopy`` of a bound method copies ``__self__``
     with it, by definition. A brain that crossed that line would have its tools
     called on a *clone*: ``self.session.dispatch`` reaching nothing, the
-    transcript written to an object no one reads, the model told ``ok``, and not
+    context written to an object no one reads, the model told ``ok``, and not
     one thing on the wire to say so. So a bound method never crosses it — what is
     declared is a plain function, which ``deepcopy`` leaves alone."""
     brain = _Coach(_ScriptedClient([]))

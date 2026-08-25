@@ -34,8 +34,8 @@ responses and hops again, so a turn that calls a tool and then speaks about the
 result is one call from here, not a loop. We take the record it kept
 (``automatic_function_calling_history``) rather than interposing to make our own.
 
-**The brain owns the transcript, and the transcript is what was heard.** Each
-unit of speech goes into the transcript as it streams, then
+**The brain owns the context, and what it records is what was heard.** Each
+unit of speech goes into the context as it streams, then
 :meth:`~voqalize.sdk.Brain.on_finalize` rewrites it to the delivered prefix. A
 reply that generated three sentences and was cut after one is remembered as one —
 which is the only version the caller and the model can both agree on.
@@ -99,7 +99,7 @@ class _Unit:
 
     ``types.Content`` is a pydantic model, so two of them compare equal whenever
     their fields do — and two freshly opened, still-empty turns always do. The
-    queue and the transcript therefore track *this*, never the content itself.
+    queue and the context therefore track *this*, never the content itself.
     """
 
     content: types.Content
@@ -107,7 +107,7 @@ class _Unit:
 
 class GeminiBrain(Brain):
     """Base for a Gemini-backed brain. Override the prompt, the greeting and
-    :attr:`tools`; the turn shape and the transcript come from here. The tools
+    :attr:`tools`; the turn shape and the context come from here. The tools
     themselves are run by google-genai, not by us."""
 
     def __init__(
@@ -199,7 +199,7 @@ class GeminiBrain(Brain):
           eagerly per hop is what used to emit an empty ``SpeechStart`` /
           ``SpeechEnd`` pair around a silent tool call.
 
-        The transcript is written from both sides of the seam and neither alone:
+        The context is written from both sides of the seam and neither alone:
         the **order** comes from the stream, where every part arrives in the order
         the model produced it, and the tool **responses** come from AFC's own
         record, which is the only place they exist.
@@ -295,7 +295,7 @@ class GeminiBrain(Brain):
         )
 
     def _fold_results(self, chunk: types.GenerateContentResponse, folded: int) -> tuple[int, int]:
-        """Move AFC's own function responses into the transcript as they appear.
+        """Move AFC's own function responses into the context as they appear.
 
         ``automatic_function_calling_history`` is the record google-genai keeps of
         the turn it is running: the contents we handed it, then each hop's calls
@@ -304,7 +304,7 @@ class GeminiBrain(Brain):
         where they belong in history, after the unit that called them and before
         the unit that answers.
 
-        Only the responses are taken. The calls are already in the transcript,
+        Only the responses are taken. The calls are already in the context,
         verbatim from the stream, thought signatures and all.
         """
         record = chunk.automatic_function_calling_history or []
@@ -337,7 +337,7 @@ class GeminiBrain(Brain):
         chunk after it — so a call at the cut may have no response and never will.
         A ``function_call`` with no ``function_response`` beside it is not a
         conversation Gemini will accept on the next turn, so it leaves. Whether
-        the tool actually ran is not ours to know: the transcript records what
+        the tool actually ran is not ours to know: the context records what
         completed, and the side effect stands either way.
         """
         for unit, part in calls:
@@ -390,7 +390,7 @@ class GeminiBrain(Brain):
         handed back — keep their identity and their order; only spoken text is
         replaced, by the first text part, and later text parts go because they
         were generated and never delivered. A unit left with nothing leaves the
-        transcript, since a model turn with no parts is not a turn.
+        context, since a model turn with no parts is not a turn.
         """
         kept: list[types.Part] = []
         placed = False
@@ -413,7 +413,7 @@ class GeminiBrain(Brain):
         landed, ready to be cut down to what was heard.
 
         Not yet awaiting a finalize: a hop that only calls a tool belongs in the
-        transcript but was never played, so nothing will be reported for it.
+        context but was never played, so nothing will be reported for it.
         :meth:`respond` enqueues the unit when it opens speech.
         """
         unit = _Unit(types.Content(role="model", parts=[]))
@@ -447,7 +447,7 @@ def _ready(fn: Callable[..., Any]) -> Callable[..., Any]:
     config it is handed — once on entry and again on every AFC hop — and
     ``copy.deepcopy`` of a bound method copies ``__self__`` with it, by definition
     (``copy._deepcopy_method``). The tools it then calls belong to a *clone* of the
-    brain: ``self.session.dispatch`` reaching nothing, the transcript written to an
+    brain: ``self.session.dispatch`` reaching nothing, the context written to an
     object no one reads, the model told ``ok``, and not one thing on the wire to
     say so. Ours happens to hold a ``genai.Client``, whose lock cannot be copied at
     all, so we got a crash instead of that silence — the only luck in it. A plain

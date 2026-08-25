@@ -310,7 +310,7 @@ async def scn_heard_truth_multi_interruption(ctx: ScenarioContext) -> None:
 
     This is the single place implementations most often go wrong. A brain that
     appends what the model *generated* (the full story) instead of what actually
-    *played* (the opening, cut mid-sentence) hands the LLM a transcript that
+    *played* (the opening, cut mid-sentence) hands the LLM a context that
     disagrees with what the human heard — and every subsequent turn compounds the
     divergence."""
     driver = await ctx.connect()
@@ -346,7 +346,7 @@ async def scn_heard_truth_multi_interruption(ctx: ScenarioContext) -> None:
         f"final un-interrupted turn dropped its tail: {c.text!r}",
     )
 
-    # The whole committed history, in order — the exact transcript the LLM sees.
+    # The whole committed history, in order — the exact context the LLM sees.
     state = await driver.dump_conversation()
     checks.check_conversation_sequence(
         state,
@@ -366,7 +366,7 @@ async def scn_heard_truth_barge_in_before_audio(ctx: ScenarioContext) -> None:
     """Barge-in *before any audio plays*: nothing was heard, so a conformant brain
     commits NO assistant message for that turn — not an empty one, not the
     generated text. The user turn is still recorded. (A brain that records an
-    empty or generated assistant turn here corrupts the transcript just as badly
+    empty or generated assistant turn here corrupts the context just as badly
     as the mid-story case.)"""
     driver = await ctx.connect()
     await driver.start_session()
@@ -427,7 +427,7 @@ async def scn_user_idle(ctx: ScenarioContext) -> None:
     plays out and completes exactly like a spoken turn — with the escalation level
     carried through. Crucially, the committed conversation records the assistant
     nudge but **no user turn** (nothing was said), so idle re-engagement never
-    pollutes the faithful transcript with a phantom utterance."""
+    pollutes the faithful context with a phantom utterance."""
     driver = await ctx.connect()
     await driver.start_session()
     turn = await driver.user_idle(level=2, idle_ms=30000)
@@ -451,7 +451,7 @@ async def scn_user_idle(ctx: ScenarioContext) -> None:
 async def scn_app_message_never_speaks(ctx: ScenarioContext) -> None:
     """An app message never takes the floor. Voqalize forwards it to ``on_rtvi``,
     which may render but not speak — so no matter what the brain does with it, the
-    committed transcript gains nothing. Nothing about a click means the human
+    committed context gains nothing. Nothing about a click means the human
     stopped talking, and a brain that answered one would be talking over them."""
     driver = await ctx.connect()
     await driver.start_session()
@@ -460,8 +460,7 @@ async def scn_app_message_never_speaks(ctx: ScenarioContext) -> None:
     after = await driver.dump_conversation()
     checks.require(
         after.get("messages") == before.get("messages"),
-        f"an app message changed the transcript: {before.get('messages')} → "
-        f"{after.get('messages')}",
+        f"an app message changed the context: {before.get('messages')} → {after.get('messages')}",
     )
 
 

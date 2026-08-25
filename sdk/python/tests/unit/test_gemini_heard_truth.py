@@ -1,10 +1,10 @@
-"""`GeminiBrain` reconciles its transcript from finalizes, one per unit it opened.
+"""`GeminiBrain` reconciles its context from finalizes, one per unit it opened.
 
 The brain commits what the caller *heard*. It learns that only from the runtime,
 which reports every speech unit it minted exactly once — including the ones that
 never reached a speaker, as heard-nothing. That guarantee is what lets the queue
 be a plain FIFO: the n-th finalize belongs to the n-th unit, so a unit that was
-generated and never delivered leaves the transcript instead of sitting in it as a
+generated and never delivered leaves the context instead of sitting in it as a
 sentence the model believes it said.
 
 No model call happens here — the units are opened by hand, exactly as `respond`
@@ -93,7 +93,7 @@ async def test_a_unit_cut_off_keeps_only_what_was_delivered() -> None:
     assert _texts(brain) == ["the flight leaves at"]
 
 
-async def test_a_unit_nobody_heard_leaves_the_transcript() -> None:
+async def test_a_unit_nobody_heard_leaves_the_context() -> None:
     """Generated ahead of playout and beaten to the speaker by a barge-in. A model
     turn with nothing in it is not a turn, so it goes rather than sitting there
     as something the model thinks it said."""

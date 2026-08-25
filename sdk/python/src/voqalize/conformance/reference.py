@@ -5,7 +5,7 @@ Two reasons it lives in the harness rather than the tests:
 
 1. **Deep-semantics observability (the backchannel).** The wire lets the driver
    see the brain's *output* frames, but never what the brain *committed* — the
-   heard transcript, the app messages it received, the action results it
+   heard context, the app messages it received, the action results it
    correlated. Those are the MUSTs a black-box driver cannot assert, because the
    wire has no history-request frame and we add none. Instead the brain
    echoes its committed state back over the ordinary application-message lane
@@ -14,7 +14,7 @@ Two reasons it lives in the harness rather than the tests:
    cooperation on a lane it already has.
 
    The echo is brain-side bookkeeping, and it has to be: **history belongs to the
-   brain.** The SDK maintains no transcript, so what this brain records from
+   brain.** The SDK maintains no context, so what this brain records from
    ``on_finalize`` — the delivered prefix, never the generated text — *is* the
    property under test. A brain that recorded what it generated would fail the
    barge-in scenarios, which is exactly the bug those scenarios exist to catch.
@@ -23,7 +23,7 @@ Two reasons it lives in the harness rather than the tests:
    ``ConformanceBrain`` proves the driver itself is sound before it is pointed at
    a brain under test.
 
-The brain is driven purely by the user transcript — a tiny command grammar the
+The brain is driven purely by what the user says — a tiny command grammar the
 scenarios speak (see the ``SAY`` / ``TWO`` / ``COUNT_SLOWLY`` / ``DO`` constants).
 A brain under test does *not* need this grammar: the wire-level tier (greeting,
 single/multi-turn, bracket integrity, auth) works against any brain, and the suite
@@ -124,7 +124,7 @@ def story_opening(topic: str) -> str:
 
 
 def conformance_state(brain: ConformanceBrain) -> dict[str, Any]:
-    """The backchannel state payload: heard transcript and app messages."""
+    """The backchannel state payload: the heard context and the app messages."""
     return {
         "messages": list(brain.messages),
         "app_messages": list(brain.app_messages),

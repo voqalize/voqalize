@@ -1,4 +1,4 @@
-"""The conformance MUSTs — named, reusable assertions over a driven transcript.
+"""The conformance MUSTs — named, reusable assertions over a driven session.
 
 Each check is a plain function that raises :class:`ConformanceError` (an
 ``AssertionError`` subclass, so it reads naturally under pytest *and* can be

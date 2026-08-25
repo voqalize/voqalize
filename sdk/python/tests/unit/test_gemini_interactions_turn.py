@@ -269,7 +269,7 @@ async def test_speech_either_side_of_a_tool_is_two_units() -> None:
 
 
 async def test_a_thought_is_not_spoken_and_keeps_its_signature() -> None:
-    """A thought is reasoning, not speech. It belongs in the transcript — Gemini 3
+    """A thought is reasoning, not speech. It belongs in the context — Gemini 3
     wants its own thought handed back, signed — and the signature exists nowhere
     but the delta that carries it."""
     brain, session = await _brain([_thinks("c2lnbmVk"), _says("Good evening.")])
@@ -314,7 +314,7 @@ async def test_the_arguments_are_assembled_from_the_deltas() -> None:
 
 async def test_a_result_answers_its_call_by_id() -> None:
     """The pair is named, not counted. Position-matching is what quietly corrupts
-    a transcript when a turn is cut between a call and its answer."""
+    a context when a turn is cut between a call and its answer."""
     brain, session = await _brain([_calls("ping")], [_says("All set.")])
 
     await _drain(brain, session)
@@ -373,7 +373,7 @@ async def test_calls_run_in_the_order_the_model_produced_them() -> None:
 
 async def test_the_budget_ends_the_turn_in_speech() -> None:
     """A model that never stops calling would otherwise leave the caller in
-    silence. On the last hop the declarations stay — so the transcript still
+    silence. On the last hop the declarations stay — so the context still
     reads — and `tool_choice` says answer."""
     brain, _, session = await _open(
         _Coach(
@@ -393,11 +393,11 @@ async def test_the_budget_ends_the_turn_in_speech() -> None:
 # ─── Interruption ─────────────────────────────────────────────────────────────
 
 
-async def test_a_call_whose_result_never_came_back_leaves_the_transcript() -> None:
+async def test_a_call_whose_result_never_came_back_leaves_the_context() -> None:
     """A barge-in lands wherever it lands, and may cut between a call and the
     result we were about to write. Gemini will not accept a `function_call` with
     nothing answering it, so it goes. Whether the tool ran is not ours to know:
-    the transcript records what completed, and the side effect stands."""
+    the context records what completed, and the side effect stands."""
     brain, session = await _brain([_says("Hi."), _calls("ping")])
 
     gen = brain.on_user_message(session, UserMessage(text="hello"))
@@ -441,11 +441,11 @@ async def test_a_barge_in_mid_turn_closes_the_generator_cleanly() -> None:
 # ─── What goes over ───────────────────────────────────────────────────────────
 
 
-async def test_every_hop_carries_the_whole_transcript_and_stores_nothing() -> None:
+async def test_every_hop_carries_the_whole_context_and_stores_nothing() -> None:
     """Stateless by construction: no `previous_interaction_id`, `store=False`, and
     the conversation lives in `history`. Server-side state cannot be told that the
     caller only heard half of a sentence, which is the one thing this SDK's
-    transcript is for."""
+    context is for."""
     brain, session = await _brain([_calls("ping")], [_says("All set.")])
 
     await _drain(brain, session)

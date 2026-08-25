@@ -12,7 +12,7 @@ An engine supplies three things and hides everything else:
   * a **base class**, so the same three tools can be mixed onto either brain;
   * a **scripted client**, which replays hops written in the neutral vocabulary
     below and records what the brain asked for;
-  * **accessors**, which read the transcript, the declarations and the speech
+  * **accessors**, which read the context, the declarations and the speech
     queue back out in terms that are ours rather than the provider's.
 
 Nothing above the seam names a provider type. That is the test of the design as
@@ -142,7 +142,7 @@ class Engine(abc.ABC):
         """The class :meth:`brain` builds, to subclass when a test needs a variant."""
 
     @abc.abstractmethod
-    def transcript(self, brain: Any) -> list[str]:
+    def context(self, brain: Any) -> list[str]:
         """The conversation as ``kind: what-is-in-it``, one line per entry."""
 
     @abc.abstractmethod
@@ -321,7 +321,7 @@ class AfcEngine(Engine):
     def coach(self) -> type[Any]:
         return AfcCoach
 
-    def transcript(self, brain: Any) -> list[str]:
+    def context(self, brain: Any) -> list[str]:
         out: list[str] = []
         for content in brain._history:
             kind = "user" if content.role == "user" else "model"
@@ -447,7 +447,7 @@ class InteractionsEngine(Engine):
     def coach(self) -> type[Any]:
         return InteractionsCoach
 
-    def transcript(self, brain: Any) -> list[str]:
+    def context(self, brain: Any) -> list[str]:
         return [_one(step) for step in brain._history]
 
     def declared(self, brain: Any) -> list[list[str]]:
