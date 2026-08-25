@@ -1415,6 +1415,11 @@ class OrderDeskBrain(GeminiBrain):
         # changed nothing the model needs to know about does not repeat itself.
         self._state_message: str | None = None
 
+    @property
+    def tools(self) -> list[Any]:
+        """The nine bound methods AFC may call — the desk's, not this brain's own."""
+        return self.desk.tools
+
     # ─── session start: voice, the pharmacy, then the opener ───────────────
 
     async def on_session_start(self, session: Session) -> None:

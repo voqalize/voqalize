@@ -10,10 +10,8 @@ requires-python = ">=3.12"
 dependencies = [
     # No extra: `google-genai` is declared below in its own right, and the SDK's
     # Google ADK adapter was deleted on 2026-08-24 along with the `[adk]` extra
-    # that pulled `google-adk` in for it. `orderdesk` is the one brain still
-    # riding that adapter and does not import yet — `travel` made the same move
-    # onto `GeminiBrain`; porting orderdesk too is what makes this suite green
-    # again.
+    # that pulled `google-adk` in for it. `travel` and `orderdesk` were the last
+    # two brains riding that adapter; both are now on `GeminiBrain`.
     "voqalize-agent-sdk",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",

@@ -15,9 +15,9 @@ contents=, config=)``. This answers on that seam, from a script::
         ],
     })
 
-This is the ``GeminiBrain`` twin of
-:class:`voqalize.google_adk.testing.ScriptedLlm` (which serves the two ADK demos,
-``travel`` and ``orderdesk``), and it stands in for the whole of google-genai —
+This is the ``GeminiBrain`` twin of the deleted ADK adapter's
+``ScriptedLlm`` (``travel`` and ``orderdesk`` were its last two demos, both now
+ported), and it stands in for the whole of google-genai —
 including the automatic function calling the brain now leans on:
 
 * **Multi-hop per call.** One user turn is ONE ``generate_content_stream`` call,
@@ -50,7 +50,7 @@ import asyncio
 import inspect
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, get_args, get_origin
 
 from google.genai import types
 from pydantic import BaseModel
@@ -361,12 +361,20 @@ def _coerce(fn: Any, args: dict[str, Any]) -> dict[str, Any]:
     ``__annotations__``: a tool whose signature still carries the *string*
     ``"LogMeal"`` declares a perfect schema and then fails to be called at all."""
     params = inspect.signature(fn).parameters
-    return {
-        k: params[k].annotation(**v)
-        if k in params and isinstance(v, dict) and _is_model(params[k].annotation)
-        else v
-        for k, v in args.items()
-    }
+    return {k: _build(params[k].annotation, v) if k in params else v for k, v in args.items()}
+
+
+def _build(hint: Any, value: Any) -> Any:
+    """One argument, built against its declared type — a bare model from a dict,
+    or a list of them from a list of dicts (``add_items(items: list[SpokenItem])``
+    is one parameter whose *type* is the list, and google-genai's real AFC
+    validates it the same way)."""
+    if isinstance(value, dict) and _is_model(hint):
+        return hint(**value)
+    if isinstance(value, list) and get_origin(hint) is list:
+        (item_hint,) = get_args(hint) or (Any,)
+        return [_build(item_hint, item) for item in value]
+    return value
 
 
 def _is_model(hint: Any) -> bool:

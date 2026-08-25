@@ -52,13 +52,7 @@ from ._harness import (
     demo_from,
 )
 
-pytest.importorskip("google.adk")  # orderdesk, the one remaining ADK demo, is built directly, below
-
 discover()
-
-from voqalize_demos._loaded.orderdesk.brain import OrderDeskBrain  # noqa: E402
-
-from voqalize.google_adk.testing import ScriptedLlm  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -111,12 +105,7 @@ DEMOS: dict[str, Expected] = {
     # Auric opens in the language of the enquiry form's state; nothing in the
     # payload ⇒ the Hindi default.
     "lead_qual": Expected(voice="omnivoice/gauri", language="hi"),
-    "orderdesk": Expected(
-        voice="omnivoice/gauri",
-        language="hi",
-        unported=True,
-        build=lambda: OrderDeskBrain(model=ScriptedLlm({})),
-    ),
+    "orderdesk": Expected(voice="omnivoice/gauri", language="hi"),
     "servicing": Expected(voice="omnivoice/gauri", language="en"),
     "shopping": Expected(voice="omnivoice/gaurav", language="en"),
     # The patient picks sugar's language on the page, before the call exists, so
