@@ -1,39 +1,36 @@
 /**
  * The Auric Gold Finance gold-loan lead-qualification voice demo.
  *
- * A landing page → enquiry form → verification-call flow. The whole session
- * lifecycle — mint against the control plane, WebRTC transport, mic control,
- * bot-state — is the public SDK's {@link useVoqalSession}; this file is just the
- * marketing chrome, the form, and the call UI. The hosted `lead_qual` brain
- * (advisor "Priya") drives the browser via the standard `ui_command`
- * server-message channel (`interaction.action("call_ended", …)`), which we read
- * through `onServerMessage` to render the results screen.
+ * A landing page → enquiry form → verification-call flow. The call itself is
+ * stock pipecat: `PipecatAppBase` owns the WebRTC transport and mic, `CallSession`
+ * below is the whole of this page's Voqalize-specific plumbing. The hosted
+ * `lead_qual` brain (advisor "Priya") drives the browser via the standard
+ * `ui-command` RTVI channel (`command: "call_ended"`), read through
+ * `useRTVIClientEvent` to render the results screen.
  *
- * This is exactly the surface an external developer embeds: `useVoqalSession`
- * from `@voqalize/client-react`, driven by a publishable (`pk_`) key.
+ * This is exactly the surface an external developer embeds: `PipecatAppBase`
+ * from `@pipecat-ai/voice-ui-kit`, driven by a publishable (`pk_`) key via
+ * `connectRequest` (`src/config.ts`).
  *
  * The voice layer is ambient, not a console: the shared {@link AmbientPresence}
- * ring from `@voqalize/client-react` frames the whole page for the session, and
- * the live call carries only a quiet timer + status and two small controls
- * (mute, hang up). The "Start Verification Call" button on the call gate stays —
- * it is the funnel's own CTA (Auric calls you), not a chat launcher.
+ * ring from `@voqalize/demo-kit` frames the whole page for the session, and the
+ * live call carries only a quiet timer + status and two small controls (mute,
+ * hang up). The "Start Verification Call" button on the call gate stays — it is
+ * the funnel's own CTA (Auric calls you), not a chat launcher.
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { PipecatClientProvider, usePipecatClientMicControl } from '@pipecat-ai/client-react';
-import { BotAudioOutput } from '@pipecat-ai/voice-ui-kit';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { TransportState, UICommandData } from '@pipecat-ai/client-js';
+import { RTVIEvent } from '@pipecat-ai/client-js';
+import { useRTVIClientEvent, usePipecatClientMicControl, usePipecatClientTransportState } from '@pipecat-ai/client-react';
+import { PipecatAppBase } from '@pipecat-ai/voice-ui-kit';
 import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
-import {
-  AmbientPresence,
-  useVoqalSession,
-  type AmbientPresencePalette,
-} from '@voqalize/client-react';
-import { DemoGate } from '@voqalize/demo-kit';
-import { config } from './config';
+import { AmbientPresence, DemoGate, type AmbientPresencePalette } from '@voqalize/demo-kit';
+import { connectRequest, withRealHeaders, demo } from './config';
 
-// Tenant + agent + pk + pipeline resolve per-environment from the shared demos
-// config (src/config.ts), driven by Vite env vars.
-const LEAD = config;
+// Tenant + agent + pk resolve per-environment from the shared demos config
+// (src/config.ts), driven by Vite env vars.
+const LEAD = demo;
 
 // ── Language config ───────────────────────────────────────────────────────────
 // The demo is Indic multi-language, but the page does not map a language to a
@@ -91,6 +88,10 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
 type Step = 'form' | 'call-gate' | 'connecting' | 'call' | 'ended';
 type BotStatus = 'connecting' | 'ready' | 'thinking' | 'speaking' | 'listening';
 type MicPermission = 'idle' | 'requesting' | 'granted' | 'denied';
+// What Priya is doing, per pipecat's own events — the same four states
+// AmbientPresence renders (§AmbientPresence.tsx): onUserStartedSpeaking →
+// listening, onBotLlmStarted → thinking, onBotStartedSpeaking → speaking.
+type Activity = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 interface FormData {
   name: string; phone: string; state: string; city: string;
@@ -116,65 +117,52 @@ export function GoldLoanAdvisor() {
   const [callDuration, setCallDuration]   = useState(0);
   const [language, setLanguage]           = useState<string>('auto');
 
-  // ── Session payload (recomputed each render; the hook reads the latest at ──
+  // What the ring outside the call renders. Lifted up from `CallSession`, whose
+  // hooks are the only place a live transport/activity value exists — the page
+  // chrome (AmbientPresence, the call-gate) never touches the pipecat client
+  // directly.
+  const [transportState, setTransportState] = useState<TransportState>('disconnected');
+  const [activity, setActivity]              = useState<Activity>('idle');
+
+  // The connect request's `init`, frozen the moment the call starts. A fresh
+  // object literal on every render would re-mint the session every render,
+  // since it is a dependency of `PipecatAppBase`'s connect-on-mount effect.
+  const [callInit, setCallInit] = useState<Record<string, unknown> | null>(null);
+
+  // ── Session payload (recomputed each render; frozen into `callInit` at ─────
   //    connect time) ──────────────────────────────────────────────────────────
   const callLanguage = language === 'auto' ? inferredLanguage(formData.state) : language;
 
-  // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
-  // (past the `{ data }` quirk), so we read `type`/`action` directly.
-  const session = useVoqalSession({
-    apiBase: LEAD.apiBase,
-    // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the call-gate error state.
-    publishableKey: LEAD.publishableKey ?? '',
-    agentId: LEAD.agentId,
-    // No pipeline override. The caller's language selection rides the payload
-    // below and the brain applies it with one session.configure call at session
-    // start — the brain is the only thing that sees this caller, and one request
-    // carrying both legs keeps the recognizer and the TTS voice from drifting apart.
-    payload: {
-      name: formData.name,
-      phone: formData.phone,
-      state: formData.state,
-      city: formData.city,
-      gold_weight: formData.goldWeight || undefined,
-      loan_amount: formData.loanAmount || undefined,
-      language: callLanguage,
-      branch_name: AURIC_BRANCH.name,
-      branch_address: AURIC_BRANCH.address,
-    },
-    onServerMessage: useCallback((msg: Record<string, unknown>) => {
-      // The hosted brain drives the browser via the standard ui_command channel
-      // (interaction.action("call_ended", …)); every demo page reads this shape.
-      if (msg.type === 'ui_command' && msg.action === 'call_ended') {
-        setCallResult({
-          outcome: (msg.outcome as string) ?? 'other',
-          lead: (msg.lead as Record<string, unknown>) ?? {},
-          branch: (msg.branch as { name?: string; address?: string } | null) ?? null,
-        });
-        setStep('ended');
-      }
-    }, []),
-  });
+  // The hosted brain drives the browser via the standard `ui-command` RTVI
+  // channel (`command: "call_ended"`); every ported demo page reads this shape.
+  const handleServerMessage = useCallback((payload: unknown) => {
+    const msg = (payload ?? {}) as {
+      outcome?: string;
+      lead?: Record<string, unknown>;
+      branch?: { name?: string; address?: string } | null;
+    };
+    setCallResult({
+      outcome: msg.outcome ?? 'other',
+      lead: msg.lead ?? {},
+      branch: msg.branch ?? null,
+    });
+    setStep('ended');
+  }, []);
 
-  const { client, connectionState, botState, error, connect, disconnect, enableMic } = session;
+  const handleConnected = useCallback(() => {
+    setStep(s => (s === 'connecting' ? 'call' : s));
+  }, []);
 
-  // ── Cleanup on unmount ──────────────────────────────────────────────────────
-  useEffect(() => () => { disconnect().catch(() => {}); }, [disconnect]);
+  const handleDisconnected = useCallback(() => {
+    // Peer left / transport dropped — return to the gate unless we ended
+    // cleanly: by then `step` is already 'ended', so this update is a no-op.
+    setStep(s => (s === 'call' || s === 'connecting' ? 'call-gate' : s));
+  }, []);
 
-  // ── Connection-state → step transitions ─────────────────────────────────────
-  useEffect(() => {
-    if (connectionState === 'connected') {
-      setStep(s => (s === 'connecting' ? 'call' : s));
-      enableMic(true);
-    } else if (connectionState === 'error') {
-      setCallError(error || 'Could not connect. Please try again.');
-      setStep(s => (s === 'connecting' || s === 'call' ? 'call-gate' : s));
-    } else if (connectionState === 'disconnected') {
-      // Peer left / transport dropped — return to the gate unless we ended cleanly.
-      setStep(s => (s === 'call' || s === 'connecting' ? 'call-gate' : s));
-    }
-  }, [connectionState, error, enableMic]);
+  const handleCallError = useCallback((message: string) => {
+    setCallError(message || 'Could not connect. Please try again.');
+    setStep(s => (s === 'connecting' || s === 'call' ? 'call-gate' : s));
+  }, []);
 
   // ── Auto-request mic permission on call-gate ───────────────────────────────
   useEffect(() => {
@@ -220,24 +208,30 @@ export function GoldLoanAdvisor() {
   };
 
   // ── Connection ─────────────────────────────────────────────────────────────
-  const startCall = async () => {
+  // Voice and language: the caller's choice rides `init` and
+  // `LeadQualBrain.on_session_start` is the only thing that turns it into a
+  // wire `Config` — this page sends no `config` of its own (`src/config.ts`'s
+  // `connectRequest` says why: one owner, never two).
+  const startCall = () => {
     setCallError('');
+    setCallInit({
+      name: formData.name,
+      phone: formData.phone,
+      state: formData.state,
+      city: formData.city,
+      gold_weight: formData.goldWeight || undefined,
+      loan_amount: formData.loanAmount || undefined,
+      language: callLanguage,
+      branch_name: AURIC_BRANCH.name,
+      branch_address: AURIC_BRANCH.address,
+    });
     setStep('connecting');
-    await connect();
   };
 
-  const hangUp = async () => {
-    await disconnect();
-    setStep('call-gate');
-  };
-
-  // ── Bot status (derived from the hook's connection + bot state) ─────────────
-  const botStatus: BotStatus =
-    connectionState !== 'connected' ? 'connecting'
-    : botState === 'thinking' ? 'thinking'
-    : botState === 'speaking' ? 'speaking'
-    : botState === 'listening' ? 'listening'
-    : 'ready';
+  // `PipecatAppBase` disconnects on unmount, and `CallSession` stops being
+  // rendered the moment `step` leaves 'connecting'/'call' — so hanging up is
+  // just that.
+  const hangUp = () => setStep('call-gate');
 
   const botStatusLabel: Record<BotStatus, string> = {
     connecting: 'Connecting…',
@@ -248,10 +242,9 @@ export function GoldLoanAdvisor() {
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const content = (
+  return (
     <div style={{ minHeight: '100vh', background: '#fdf8ef', color: '#1a1a2e', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <style>{PAGE_CSS}</style>
-      {client && <BotAudioOutput />}
 
       {/* Root-level: the funnel starts with an enquiry form and only reaches its
           own call-gate step afterwards, so joining here uncovers the page — the
@@ -267,7 +260,7 @@ export function GoldLoanAdvisor() {
 
       {/* The voice layer as a property of the whole page — the ring frames every
           step of the funnel, not just the call screen. */}
-      <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
+      <AmbientPresence activity={activity} transportState={transportState} palette={PRESENCE} />
 
       {/* ── Header ── */}
       <header className="lq-header" style={{ background: '#1a2472', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -321,18 +314,17 @@ export function GoldLoanAdvisor() {
             />
           )}
 
-          {step === 'connecting' && (
-            <div style={{ textAlign: 'center', padding: '32px 0' }}>
-              <Loader2 className="lq-spin" size={26} color="#c8960c" />
-              <p style={{ marginTop: 14, color: '#6b7280', fontSize: 14 }}>Connecting to your advisor…</p>
-            </div>
-          )}
-
-          {step === 'call' && (
-            <CallUI
-              botStatus={botStatus}
+          {(step === 'connecting' || step === 'call') && callInit && (
+            <CallSession
+              init={callInit}
               botStatusLabel={botStatusLabel}
               callDuration={callDuration}
+              onServerMessage={handleServerMessage}
+              onTransportStateChange={setTransportState}
+              onActivityChange={setActivity}
+              onConnected={handleConnected}
+              onDisconnected={handleDisconnected}
+              onError={handleCallError}
               onHangUp={hangUp}
             />
           )}
@@ -344,8 +336,144 @@ export function GoldLoanAdvisor() {
       )}
     </div>
   );
+}
 
-  return client ? <PipecatClientProvider client={client}>{content}</PipecatClientProvider> : content;
+// ── Call session ─────────────────────────────────────────────────────────────
+// The whole of this page's Voqalize-specific plumbing: a `PipecatAppBase`
+// mounted only once the caller has cleared the call-gate, wrapping one inner
+// component that owns everything needing the live pipecat client — connection
+// state, RTVI events, mic control — and lifts only `activity`/`transportState`
+// back out to the page chrome that renders around the call (AmbientPresence).
+function CallSession({
+  init,
+  botStatusLabel,
+  callDuration,
+  onServerMessage,
+  onTransportStateChange,
+  onActivityChange,
+  onConnected,
+  onDisconnected,
+  onError,
+  onHangUp,
+}: {
+  init: Record<string, unknown>;
+  botStatusLabel: Record<BotStatus, string>;
+  callDuration: number;
+  onServerMessage: (payload: unknown) => void;
+  onTransportStateChange: (state: TransportState) => void;
+  onActivityChange: (activity: Activity) => void;
+  onConnected: () => void;
+  onDisconnected: () => void;
+  onError: (message: string) => void;
+  onHangUp: () => void;
+}) {
+  // `init` is frozen by the caller at call start, so this only recomputes if a
+  // genuinely new call begins — never on an unrelated re-render (the timer).
+  const params = useMemo(() => connectRequest(init), [init]);
+
+  return (
+    <PipecatAppBase
+      transportType="smallwebrtc"
+      connectOnMount
+      noThemeProvider
+      startBotParams={params}
+      startBotResponseTransformer={withRealHeaders}
+    >
+      {({ error }) => (
+        <CallSessionInner
+          error={error ?? null}
+          botStatusLabel={botStatusLabel}
+          callDuration={callDuration}
+          onServerMessage={onServerMessage}
+          onTransportStateChange={onTransportStateChange}
+          onActivityChange={onActivityChange}
+          onConnected={onConnected}
+          onDisconnected={onDisconnected}
+          onError={onError}
+          onHangUp={onHangUp}
+        />
+      )}
+    </PipecatAppBase>
+  );
+}
+
+function CallSessionInner({
+  error,
+  botStatusLabel,
+  callDuration,
+  onServerMessage,
+  onTransportStateChange,
+  onActivityChange,
+  onConnected,
+  onDisconnected,
+  onError,
+  onHangUp,
+}: {
+  error: string | null;
+  botStatusLabel: Record<BotStatus, string>;
+  callDuration: number;
+  onServerMessage: (payload: unknown) => void;
+  onTransportStateChange: (state: TransportState) => void;
+  onActivityChange: (activity: Activity) => void;
+  onConnected: () => void;
+  onDisconnected: () => void;
+  onError: (message: string) => void;
+  onHangUp: () => void;
+}) {
+  const transportState = usePipecatClientTransportState();
+  const [activity, setActivity] = useState<Activity>('idle');
+  // Only a *drop* after having been live counts as "the call ended out from
+  // under us" — the initial 'disconnected' before connectOnMount finishes must
+  // not immediately bounce the page back to the call-gate.
+  const wasConnectedRef = useRef(false);
+
+  useRTVIClientEvent(RTVIEvent.UserStartedSpeaking, useCallback(() => setActivity('listening'), []));
+  useRTVIClientEvent(RTVIEvent.UserStoppedSpeaking, useCallback(() => setActivity('idle'), []));
+  useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity('thinking'), []));
+  useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity('speaking'), []));
+  useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity('idle'), []));
+
+  // The hosted brain drives the browser via the standard `ui-command` RTVI
+  // channel — `CallEnded`'s wire name, `call_ended`, is `snake_case(ClassName)`.
+  useRTVIClientEvent(RTVIEvent.UICommand, useCallback((data: UICommandData) => {
+    if (data.command === 'call_ended') onServerMessage(data.payload);
+  }, [onServerMessage]));
+
+  useEffect(() => { onTransportStateChange(transportState); }, [transportState, onTransportStateChange]);
+  useEffect(() => { onActivityChange(activity); }, [activity, onActivityChange]);
+
+  useEffect(() => {
+    if (transportState === 'connected' || transportState === 'ready') {
+      wasConnectedRef.current = true;
+      onConnected();
+    } else if (transportState === 'disconnected' && wasConnectedRef.current) {
+      onDisconnected();
+    }
+  }, [transportState, onConnected, onDisconnected]);
+
+  useEffect(() => {
+    if (error) onError(error);
+  }, [error, onError]);
+
+  const isConnected = transportState === 'connected' || transportState === 'ready';
+  if (!isConnected) {
+    return (
+      <div style={{ textAlign: 'center', padding: '32px 0' }}>
+        <Loader2 className="lq-spin" size={26} color="#c8960c" />
+        <p style={{ marginTop: 14, color: '#6b7280', fontSize: 14 }}>Connecting to your advisor…</p>
+      </div>
+    );
+  }
+
+  const botStatus: BotStatus = activity === 'idle' ? 'ready' : activity;
+  return (
+    <CallUI
+      botStatus={botStatus}
+      botStatusLabel={botStatusLabel}
+      callDuration={callDuration}
+      onHangUp={onHangUp}
+    />
+  );
 }
 
 // ── Form section ──────────────────────────────────────────────────────────────
