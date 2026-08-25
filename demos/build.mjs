@@ -12,11 +12,9 @@
  * assembled `dist/` (as a versioned artifact) and lays it under the apex domain at
  * `/demos/<name>`, so the browser loads a demo same-origin with marketing + docs.
  *
- * Each demo depends on `@voqalize/client-react` by **published version range**,
- * exactly as a customer's app would — a demo is read and copied, and a `file:`
- * path is not something anyone can copy. So that this repo still tests the SDK it
- * is about to publish rather than the one it published last, the build overlays
- * the locally built `sdk/react` over each install; see `overlayLocalSdk`.
+ * A demo installs stock pipecat and nothing of ours — there is no React client
+ * package to overlay since `sdk/react` was deleted on 2026-08-24. What a reader
+ * copies out of a demo is what npm gives them.
  *
  * Per-demo wiring is baked at build (Vite inlines `import.meta.env.VITE_*`). Each
  * app reads the generic `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`; when building all
@@ -47,42 +45,10 @@ function run(cmd, cwd, extraEnv = {}) {
   execSync(cmd, { cwd, stdio: "inherit", env: { ...process.env, ...extraEnv } });
 }
 
-const sdkDir = join(repoRoot, "sdk", "react");
-
-/**
- * Replace the installed `@voqalize/client-react` with the one built from this
- * tree.
- *
- * The demos ask npm for a published range, which is what makes them copyable —
- * but it would also mean a change to `sdk/react` was never exercised by anything
- * until after it shipped, and the break would surface in a customer's install
- * rather than in CI. Overlaying keeps both: the manifest a reader copies says
- * `^0.x`, the bytes this build compiles against are the working tree's.
- *
- * Copied rather than symlinked on purpose. A link would resolve React and pipecat
- * out of `sdk/react/node_modules`, giving the page a second copy of React and
- * every hook in the SDK an "invalid hook call". A plain directory with no
- * `node_modules` of its own leaves resolution to walk up to the demo's, which is
- * where a real install would find the peers too.
- */
-function overlayLocalSdk(appDir) {
-  const target = join(appDir, "node_modules", "@voqalize", "client-react");
-  if (!existsSync(join(sdkDir, "dist", "index.js"))) {
-    throw new Error("sdk/react was not built before the demos — nothing to overlay");
-  }
-  rmSync(target, { recursive: true, force: true });
-  mkdirSync(target, { recursive: true });
-  for (const entry of ["dist", "package.json", "README.md", "LICENSE", "CHANGELOG.md"]) {
-    const from = join(sdkDir, entry);
-    if (existsSync(from)) cpSync(from, join(target, entry), { recursive: true });
-  }
-}
-
 /** Install (standalone, outside any workspace) and build one Vite app, then copy
  *  its `dist/` into the assembled tree at `outDir`. */
 function buildApp(appDir, outDir, env = {}) {
   run("pnpm install --ignore-workspace", appDir);
-  overlayLocalSdk(appDir);
   run("pnpm build", appDir, env);
   mkdirSync(outDir, { recursive: true });
   cpSync(join(appDir, "dist"), outDir, { recursive: true });
@@ -104,6 +70,15 @@ function readSource(appDir) {
  * them needs the kit's stylesheet for it.
  */
 const HEADLESS_KIT_EXPORTS = new Set(["BotAudioOutput"]);
+
+/**
+ * Exports that are headless only under a prop, mapped to the prop that makes
+ * them so. `PipecatAppBase` returns a bare `PipecatClientProvider` (plus the
+ * headless `BotAudioOutput`) when it is given `noThemeProvider`, and wraps that
+ * in the kit's styled `ThemeProvider` when it is not — so whether it puts styled
+ * DOM on the page is a property of the call site, not of the import.
+ */
+const CONDITIONALLY_HEADLESS_KIT_EXPORTS = new Map([["PipecatAppBase", "noThemeProvider"]]);
 
 /** Named bindings a demo imports from `@pipecat-ai/voice-ui-kit`. */
 function kitImports(src) {
@@ -130,15 +105,21 @@ function kitImports(src) {
  * nothing and would silently pass a demo that reintroduced, say, a
  * `<ControlBar>` — so the check now derives the trigger from the imports instead
  * of a hardcoded component name: **any** binding taken from the kit that isn't
- * on the headless allowlist and is actually rendered as JSX means styled kit UI
- * is on the page, and then both the stylesheet import and a built CSS asset are
- * required.
+ * headless and is actually rendered as JSX means styled kit UI is on the page,
+ * and then both the stylesheet import and a built CSS asset are required.
+ *
+ * "Headless" is read at the same coarseness as everything else here — a grep over
+ * the demo's whole `src/`, which is why the conditional entries look for their
+ * disabling prop anywhere in the file rather than on the tag itself.
  */
 function assertStylesheetShipped(name, appDir, outDir) {
   const src = readSource(appDir);
-  const styled = [...kitImports(src)].filter(
-    (n) => !HEADLESS_KIT_EXPORTS.has(n) && new RegExp(`<${n}[\\s/>]`).test(src),
-  );
+  const styled = [...kitImports(src)].filter((n) => {
+    if (HEADLESS_KIT_EXPORTS.has(n)) return false;
+    if (!new RegExp(`<${n}[\\s/>]`).test(src)) return false;
+    const prop = CONDITIONALLY_HEADLESS_KIT_EXPORTS.get(n);
+    return !(prop && new RegExp(`\\b${prop}\\b`).test(src));
+  });
   const importsStyles = /@pipecat-ai\/voice-ui-kit\/styles/.test(src);
 
   if (styled.length === 0) {
@@ -171,13 +152,9 @@ function assertStylesheetShipped(name, appDir, outDir) {
   console.log(`  ✓ ${name}: voice-ui-kit stylesheet shipped (${css.map((e) => e.name).join(", ")})`);
 }
 
-// 1. The SDK every demo installs — built first, so there is something to overlay.
-run("pnpm install --ignore-workspace", sdkDir);
-run("pnpm build", sdkDir);
-
-// 1b. Then the gallery's own shared chrome — the ambient presence ring and the
+// 1. The gallery's own shared chrome — the ambient presence ring and the
 // notice-and-consent wording every demo shows before it opens a microphone. It
-// needs no SDK: it reads pipecat's transport state and nothing else.
+// reads pipecat's transport state and nothing else.
 run("pnpm install --ignore-workspace", join(demosDir, "shared"));
 run("pnpm build", join(demosDir, "shared"));
 

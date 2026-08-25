@@ -29,6 +29,7 @@ from pathlib import Path
 from types import ModuleType
 
 from fastapi import APIRouter
+from loguru import logger
 
 from voqalize_demos.session import BrainFactory
 
@@ -78,14 +79,30 @@ def discover() -> list[DiscoveredDemo]:
     A folder with a ``backend/routes.py`` is a demo; anything else under ``demos/``
     (``voqalize_demos``, ``frontend`` scaffolding, ``dist``) is skipped. Raises if a
     backend is missing ``NAME`` / ``build`` / ``router``, or if ``NAME`` disagrees
-    with the folder — a wiring bug that should fail startup, not a live session."""
+    with the folder — a wiring bug that should fail startup, not a live session.
+
+    **A backend whose imports do not resolve is skipped, loudly.** Loading happens
+    in one pass, so without this a single demo reaching for a package this
+    environment does not have takes down every other demo with it — and, because
+    the loading is what ``demos/tests/`` collects through, takes down the whole
+    suite including the demos that are fine. That is not a hypothetical: the Google
+    ADK adapter was deleted on 2026-08-24 and ``travel`` and ``orderdesk`` still
+    import it, so ten of eighteen test modules could not be collected. An
+    ``ImportError`` means *this demo is not available here*; every other failure is
+    still a wiring bug and still raises. What was skipped is warned at load and is
+    absent from ``/_healthz``'s ``demos`` list, so a partial gallery is visible
+    rather than silent."""
     root = _demos_root()
     demos: list[DiscoveredDemo] = []
     for backend_dir in sorted(root.glob("*/backend")):
         if not (backend_dir / "routes.py").is_file():
             continue
         folder = backend_dir.parent.name
-        module = _load_backend_package(folder, backend_dir)
+        try:
+            module = _load_backend_package(folder, backend_dir)
+        except ImportError as exc:
+            logger.warning("demos: skipping {!r} — {}", folder, exc)
+            continue
         try:
             name = module.NAME
             router = module.router
