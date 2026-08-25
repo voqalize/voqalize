@@ -200,7 +200,7 @@ frames a brain emits are byte-identical to what the previous release emitted.
   matching ADK's own handling; a result containing no model passes through
   untouched. This is the mirror of the 0.3.0 tool-*argument* coercion.
 - **`useUiCommand`** in `@voqalize/client-react` is the browser half — see
-  [the React client docs](https://voqalize.com/docs/client/react/).
+  [the React client docs](https://docs.voqalize.com/client/react/).
 
 ### Changed
 

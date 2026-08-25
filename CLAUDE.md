@@ -14,7 +14,7 @@ every pipecat release, which is what retired the last one.
 There is no `skill/` any more — it was deleted on 2026-08-21. An agent is oriented
 by the MCP server's own `instructions` and then reads the docs site, every page of
 which is served as raw markdown at its URL plus `.md` and indexed at
-`/docs/llms.txt` (`docs/src/pages/`). Do not reintroduce a second, abridged copy
+`docs.voqalize.com/llms.txt` (`docs/src/pages/`). Do not reintroduce a second, abridged copy
 of the documentation: keeping it honest is a job nobody does, and the last one
 drifted.
 
@@ -240,9 +240,12 @@ Starts the docs site and all eleven demo UIs. **Ports are declared in that file
 and nowhere else** — pm2 passes each on the command line and no `vite.config.ts`
 or `astro.config.mjs` here names one. The demo ports are a base plus the index
 into the `DEMOS` array, which is therefore **append-only**: inserting a name
-renumbers every demo after it. A local nginx fronts them all at
-`local.voqalize.com/demos/<name>` and `/docs`, the same paths the deployed apex
-serves, so a demo mints its session same-origin exactly as it does in prod.
+renumbers every demo after it. A local nginx fronts the demos at
+`local.voqalize.com/demos/<name>`, the same paths the deployed apex serves, so a
+demo mints its session same-origin exactly as it does in prod. The docs get an
+origin instead — `docs.local.voqalize.com`, matching `docs.dev.` and `docs.` —
+and the apex answers `/docs/**` with the same permanent redirect it does in dev
+and prod.
 
 Each demo also runs standalone with plain `pnpm dev` (see `demos/README.md`) —
 that path needs none of the above.
