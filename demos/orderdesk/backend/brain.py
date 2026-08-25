@@ -1519,7 +1519,8 @@ class OrderDeskBrain(GeminiBrain):
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         kind = msg.data.get("t")
-        payload = msg.data.get("d") if isinstance(msg.data.get("d"), dict) else {}
+        raw_payload = msg.data.get("d")
+        payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else {}
         if kind == "state_sync":
             self._ingest_state(payload)
             return
