@@ -23,7 +23,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { buildBrainPayload, patientById, scenarioById, videoById } from './data';
+import { buildBrainPayload, buildSessionConfig, patientById, scenarioById, videoById } from './data';
 import type {
   ActivityEntry,
   CallSummary,
@@ -71,6 +71,8 @@ interface SugarStore {
   patient: Patient | null;
   /** The exact PATIENT CONTEXT payload for this call (also shown to the audience). */
   brainPayload: () => unknown;
+  /** This call's wire configuration — the language toggle's other half. */
+  sessionConfig: () => Record<string, unknown>;
 
   // ── The phone's live screen state ─────────────────────────────────────────
   meals: MealEntry[];
@@ -174,6 +176,8 @@ export function SugarProvider({ children }: { children: ReactNode }) {
     () => (scenario ? buildBrainPayload(scenario, language, talkMode) : {}),
     [scenario, language, talkMode],
   );
+
+  const sessionConfig = useCallback(() => buildSessionConfig(language), [language]);
 
   // ── Agent → screen ──────────────────────────────────────────────────────
   const flashHighlight = useCallback((section: string) => {
@@ -347,6 +351,7 @@ export function SugarProvider({ children }: { children: ReactNode }) {
       scenario,
       patient,
       brainPayload,
+      sessionConfig,
       meals,
       activities,
       meds,
@@ -369,7 +374,7 @@ export function SugarProvider({ children }: { children: ReactNode }) {
     }),
     [
       phase, language, talkMode, startScenario, acceptCall, declineCall, endCall, backToPicker,
-      scenario, patient, brainPayload, meals, activities, meds, glucose, glucoseFocus,
+      scenario, patient, brainPayload, sessionConfig, meals, activities, meds, glucose, glucoseFocus,
       commitment, flags, summary, sensorOrder, highlightSection, videoOpen, videoTitle,
       videoCmd, closeVideo, handleUiCommand, snapshot, registerAgentSend, tapSensorOrder, rev,
     ],

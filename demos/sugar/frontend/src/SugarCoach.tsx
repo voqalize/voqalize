@@ -98,21 +98,30 @@ function CallTimer() {
  * on the state.
  */
 export function SugarCallSession() {
-  const { brainPayload } = useSugar();
+  const { brainPayload, sessionConfig } = useSugar();
 
-  // No pipeline override. The patient's LanguageToggle choice rides the
-  // payload below (`language`), and the brain applies it with one
-  // session.configure call at session start — both legs in one request, so the
-  // recognizer and the TTS voice can't drift apart, which is what happens when
-  // the browser sets one half of the pair. The scenario's PATIENT CONTEXT rides
-  // the payload too, reaching the brain as its init payload.
+  // The patient's LanguageToggle choice is one answer read by two layers, so it
+  // rides both halves of the request. In `init` it reaches the coach, which
+  // greets and reasons in it. In `config` it reaches the runtime, which listens
+  // and speaks in it — both legs together, so the recognizer and the reference
+  // clip cannot drift apart. The scenario's PATIENT CONTEXT rides `init` too.
+  //
+  // The page sends the language because the page is where it was chosen, before
+  // the call existed: the session opens in it and the greeting is already right,
+  // with no configure round trip to have ordered correctly ahead of the one
+  // utterance nobody gets to re-run. Changing it mid-call stays the brain's, via
+  // its `switch_language` tool.
   //
   // Memoized: this is a dependency of PipecatAppBase's connect-on-mount
   // effect, so an unmemoized object literal would re-fire that effect (and
   // re-mint a session) on every render.
   const params = useMemo(
-    () => connectRequest({ surface: "sugar-web", ...(brainPayload() as Record<string, unknown>) }),
-    [brainPayload],
+    () =>
+      connectRequest(
+        { surface: "sugar-web", ...(brainPayload() as Record<string, unknown>) },
+        sessionConfig(),
+      ),
+    [brainPayload, sessionConfig],
   );
 
   return (

@@ -15,7 +15,11 @@ What every demo's e2e must prove, and why each one is here:
 * **its voice and language reach the wire, as a pair** — see :func:`check_voice_pair`.
   This is the check that would have caught the OrderDesk Hindi-in-an-English-voice
   bug, and the invalid ``stt.model`` that took prod down: neither is visible in a
-  transcript, so no amount of conversational assertion finds them.
+  transcript, so no amount of conversational assertion finds them. Where the page
+  settles the language instead — it knows the caller's choice before the call
+  exists — the same fact is asserted the other way round, with
+  :func:`check_configured_at_connect`: the brain sent nothing, so there is one
+  authority for it and not two.
 * **a tool round-trip drives the screen** — two inference brackets for one user
   turn, and the exact ``ui_command`` payload the demo's frontend reads.
 
@@ -207,6 +211,31 @@ def check_voice_pair(rig: DemoRig, *, voice: str, language: str) -> None:
         got_heard == language,
         f"{rig.name}: STT language is {got_heard!r}, expected {language!r} — "
         "the two halves have drifted apart",
+    )
+
+
+def check_configured_at_connect(rig: DemoRig) -> None:
+    """The mirror of :func:`check_voice_pair`: the brain put *nothing* on the wire.
+
+    A demo whose page knows the language before the call exists sends it with the
+    connect request, so the session is already in it by the time this brain is
+    dialled. Then a brain-side configure is not a belt-and-braces second copy —
+    it is a second authority for one answer, and the two disagree the first time
+    only one of them is edited.
+
+    This cannot see what the page sent: no page is running here, and the driver
+    speaks the brain wire, which the connect request never touches. So it is not
+    proof the pair is right — that lives with whoever writes the page (for sugar,
+    ``demos/sugar/frontend/src/data.ts``). It is the guard on the half this suite
+    *can* see, which is that the demo has not quietly grown a brain-side default
+    again.
+    """
+    configs = _configs(rig)
+    checks.require(
+        not configs,
+        f"{rig.name}: the brain configured the wire, but this demo's configuration "
+        "arrives with the connect request — two authorities for one answer, which "
+        f"disagree the first time only one is edited: {configs}",
     )
 
 

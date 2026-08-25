@@ -40,8 +40,12 @@ COACH_NAME = "Sugar Coach"
 
 
 def _config(language: Language) -> Config:
-    """Both legs, same language, same voice — one request. Both of these have a
-    recorded clip, so the legs never have to differ here."""
+    """Both legs, same language, same voice — one request, for ``switch_language``.
+
+    Both of these languages have a recorded clip, so the legs never have to
+    differ here. The session's *opening* language is not built here: it arrives
+    as the page's connect-time ``config``, before this brain is dialled.
+    """
     return Config(
         stt=SttConfig(language=language),
         tts=TtsConfig(language=language, voice=Voice.OMNIVOICE_GAURI),
@@ -287,11 +291,13 @@ class SugarBrain(GeminiBrain):
     ``state_sync`` snapshot to :meth:`on_rtvi`; :meth:`grounding` carries it into
     every turn so the coach reasons from the live screen."""
 
-    # No declared ``voice``/``language``. This coach's language depends on the
-    # caller — the patient's own LanguageToggle choice rides
-    # ``session.init["language"]`` — so on_session_start resolves it and moves
-    # both legs with one ``session.configure`` before the greeting. A declared
-    # default here would only mean configuring the language twice.
+    # This coach's language is the patient's own LanguageToggle choice, and the
+    # page sends it at connect: ``config`` moves both legs of the wire before
+    # this brain is dialled, and ``session.init["language"]`` says which language
+    # to greet and reason in. So there is nothing to configure at session start
+    # — the session already opened in it. What stays here is the change of mind:
+    # ``switch_language`` moves the wire mid-call, which is the one part of this
+    # that is a runtime event.
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
         # The base system instruction only; the PATIENT CONTEXT is folded in per
@@ -312,9 +318,8 @@ class SugarBrain(GeminiBrain):
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        """Read the seeded scenario (``session.init``), move the language on both
-        legs, and fold the PATIENT CONTEXT into the system instruction so every
-        turn is grounded in it."""
+        """Read the seeded scenario (``session.init``) and fold the PATIENT
+        CONTEXT into the system instruction so every turn is grounded in it."""
         payload = dict(session.init or {})
         raw_scenario = payload.get("scenario")
         scenario: dict[str, Any] = raw_scenario if isinstance(raw_scenario, dict) else {}
@@ -322,14 +327,13 @@ class SugarBrain(GeminiBrain):
         patient = raw_patient if isinstance(raw_patient, dict) else {}
         self.patient_name = str(patient.get("name") or "").strip() or "there"
         language = str(payload.get("language", "")).strip()
+        # Which language to write in. The wire is already in it — the page sent
+        # `config` at connect — so this only has to agree with what the session
+        # opened as, and "English" is what an absent or unknown name opened as
+        # too. Getting these two out of step is the silent failure: the coach
+        # writing Devanagari that an English reference clip reads aloud, right on
+        # paper and foreign-accented in the ear.
         self.language_name = language if language in _LANG else "English"
-        # Apply the patient's chosen language to the wire BEFORE greeting. Until
-        # this call existed the choice only reached the prompt, so the coach wrote
-        # Devanagari while an en-IN reference voice read it aloud — the whole
-        # conversation right on paper and foreign-accented in the ear. It only
-        # sounded correct because the browser happened to send a matching
-        # per-session override; the brain must not depend on that.
-        await session.configure(_config(_LANG[self.language_name]))
         # How much the coach leads vs. listens. "quiet" = the patient narrates
         # and we log silently; "guided" = we walk them through beat by beat.
         # Either way the two-or-three-sentence ceiling holds. Default quiet.
