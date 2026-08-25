@@ -683,6 +683,66 @@ class ShowForexCard(Action):
     """The Multi-Currency Forex Card screen, with its one-tap request."""
 
 
+# ── The secure screens ────────────────────────────────────────────────────────
+# The three that carry a ``nonce`` are the blocking half: the brain mints the
+# nonce, dispatches, and then waits on a future the browser resolves by sending
+# the same nonce back on a client message. The nonce is what binds one dialog on
+# one screen to one waiting tool call — without it a stale dialog's answer would
+# resolve whichever wait happened to be open.
+
+
+class OpenAuth(Action):
+    """The secure sign-in sheet. The browser answers with ``auth_complete`` (or
+    ``auth_cancelled``), carrying this nonce; the token is minted there, never
+    here — see :meth:`AuraBrain._complete_auth`."""
+
+    nonce: str
+    name: str
+    masked_mobile: str
+
+
+class ChooseAccount(Action):
+    """The account picker. Answered by ``account_selected`` / ``account_cancelled``."""
+
+    nonce: str
+    accounts: list[dict[str, Any]]
+
+
+class ShowBalance(Action):
+    """The balance card for one account, as of a date."""
+
+    account: dict[str, Any]
+    balance: float
+    currency: str
+    as_of: str
+
+
+class ShowStatement(Action):
+    """A dated transaction list for one account."""
+
+    account: dict[str, Any]
+    from_date: str
+    to_date: str
+    transactions: list[dict[str, Any]]
+    currency: str
+
+
+class ChooseCreditCard(Action):
+    """The card picker. Answered by ``card_selected`` / ``card_cancelled``."""
+
+    nonce: str
+    cards: list[dict[str, Any]]
+
+
+class ShowCardControls(Action):
+    """The usage & limits form for one card — the customer edits and saves it
+    themselves, so the assistant never reads the toggles aloud."""
+
+    card: dict[str, Any]
+    credit_limit: float
+    controls: dict[str, Any]
+
+
 class AuraBrain(GeminiInteractionsBrain):
     """One per session. The Aura Bank L1 support assistant: LLM + help-centre /
     calculator / application / comparison / branch tools + the four secure account
@@ -731,12 +791,11 @@ class AuraBrain(GeminiInteractionsBrain):
 
     @property
     def tools(self) -> list[Callable[..., Any]]:
-        """The twenty-two ordinary tools Aria may call.
+        """The twenty-eight tools Aria may call.
 
-        The six secure ones — ``authenticate``, ``choose_account``,
-        ``get_account_balance``, ``get_statement``, ``choose_credit_card`` and
-        ``show_card_controls`` — are still in ``_dispatch`` below, and join this
-        list when they are lifted out."""
+        The last six are the secure ones, and three of those *block* — they put a
+        dialog on the customer's screen and await the browser's answer. See the
+        section they live in for why that shape needs the interactions engine."""
         return [
             self.open_home,
             self.open_help_center,
@@ -760,6 +819,12 @@ class AuraBrain(GeminiInteractionsBrain):
             self.raise_ticket,
             self.spotlight,
             self.show_forex_card,
+            self.authenticate,
+            self.choose_account,
+            self.get_account_balance,
+            self.get_statement,
+            self.choose_credit_card,
+            self.show_card_controls,
         ]
 
     # ─── Callbacks ──────────────────────────────────────────────────────
@@ -1172,82 +1237,98 @@ class AuraBrain(GeminiInteractionsBrain):
         self.session.dispatch(ShowForexCard())
         return "forex card screen up; the customer taps 'Request this card' to register interest"
 
-    # ─── Tool dispatch: the six secure tools, not yet lifted ────────────
+    # ─── Tools: the six secure ones ─────────────────────────────────────
+    #
+    # Three of these block. ``authenticate``, ``choose_account`` and
+    # ``choose_credit_card`` dispatch a screen carrying a nonce and then await a
+    # future the browser resolves — up to ninety seconds of a customer reading a
+    # sheet and tapping. That is why aura is on the interactions engine: here a
+    # tool runs *between* model requests, so a long wait costs a pause between
+    # hops. Under AFC the same wait would hold an open model stream for the whole
+    # ninety seconds.
+    #
+    # The security property they exist to carry: the token is minted in
+    # ``_complete_auth``, on the browser's report that the customer completed a
+    # real on-screen sign-in. It is never in the model's context as anything but
+    # an opaque string it received, so no prompt can talk the model into
+    # producing one, and every account read below re-verifies it against this
+    # session's salt.
 
-    async def _dispatch(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """The six blocking/secure tools, still in the old if-tree. Dead code until
-        stage 3 converts them to methods the way the twenty-two above were."""
-        if name == "authenticate":
-            return await self._authenticate(interaction)
-        if name == "choose_account":
-            return await self._choose_account(interaction, args)
-        if name == "get_account_balance":
-            return self._get_account_balance(interaction, args)
-        if name == "get_statement":
-            return self._get_statement(interaction, args)
-        if name == "choose_credit_card":
-            return await self._choose_credit_card(interaction, args)
-        if name == "show_card_controls":
-            return self._show_card_controls(interaction, args)
-        return "unknown tool"
-
-    # ── Authenticated account access ──────────────────────────────────────────
-
-    def _verify(self, args: dict[str, Any]) -> dict[str, Any] | None:
-        """Return the token claims iff the authenticated_context arg is a valid,
-        unexpired token minted for THIS session; else None."""
-        token = str(args.get("authenticated_context", "")).strip()
-        payload = _jwt_decode(token)
+    def _verify(self, token: str) -> dict[str, Any] | None:
+        """Return the token claims iff ``token`` is a valid, unexpired token minted
+        for THIS session; else None."""
+        payload = _jwt_decode(str(token or "").strip())
         if not payload or payload.get("sid") != self._auth_salt:
             return None
         return payload
 
-    def _selected_account(
-        self, args: dict[str, Any], payload: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        """The account for account_id, iff it belongs to the token AND the customer
-        actually picked it via choose_account. Enforces "explicitly selected"."""
-        account_id = str(args.get("account_id", "")).strip()
+    def _selected_account(self, account_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """The account for ``account_id``, iff it belongs to the token AND the
+        customer actually picked it via ``choose_account``. Enforces "explicitly
+        selected"."""
+        account_id = str(account_id or "").strip()
         owned = set(payload.get("accounts") or [])
         if account_id not in owned or account_id not in self._selected:
             return None
         return _account_by_id(account_id)
 
-    def _selected_card(
-        self, args: dict[str, Any], payload: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        """The card for card_id, iff it belongs to the token AND the customer actually
-        picked it via choose_credit_card. Mirrors ``_selected_account``."""
-        card_id = str(args.get("card_id", "")).strip()
+    def _selected_card(self, card_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """The card for ``card_id``, iff it belongs to the token AND the customer
+        actually picked it via ``choose_credit_card``. Mirrors
+        :meth:`_selected_account`."""
+        card_id = str(card_id or "").strip()
         owned = set(payload.get("cards") or [])
         if card_id not in owned or card_id not in self._selected_cards:
             return None
         return _card_by_id(card_id)
 
-    async def _authenticate(self, interaction) -> str:
+    async def _await_browser(self, nonce: str) -> str | None:
+        """Wait for the browser to answer the dialog stamped ``nonce``.
+
+        Returns the answer, :data:`_CANCELLED` if the customer dismissed it, or
+        ``None`` on timeout. The future is registered by the caller *before* it
+        dispatches, so an instant answer cannot arrive before there is anything
+        to resolve."""
+        fut = self._pending[nonce]
+        try:
+            return await asyncio.wait_for(fut, timeout=_INTERACTION_TIMEOUT_S)
+        except TimeoutError:
+            return None
+        finally:
+            self._pending.pop(nonce, None)
+
+    def _open_pending(self) -> tuple[str, asyncio.Future[str]]:
+        """A fresh nonce with its future already registered."""
         nonce = secrets.token_hex(8)
         fut: asyncio.Future[str] = asyncio.get_running_loop().create_future()
         self._pending[nonce] = fut
+        return nonce, fut
+
+    async def authenticate(self) -> str:
+        """Sign the customer in securely, on screen, before anything to do with
+        THEIR money — balance, statement, or card.
+
+        This opens a sign-in sheet and waits for them to finish it, so say one
+        short line first ("let me get you signed in securely") and expect a pause.
+        You get back an ``authenticated_context`` — pass it to every account and
+        card tool below, exactly as given. You can never write one yourself."""
+        nonce, _ = self._open_pending()
         logger.info("aura: authenticate -> opening secure sign-in")
-        interaction.action(
-            "open_auth",
-            {
-                "nonce": nonce,
-                "name": _DEMO_CUSTOMER["name"],
-                "masked_mobile": _DEMO_CUSTOMER["masked_mobile"],
-            },
+        self.session.dispatch(
+            OpenAuth(
+                nonce=nonce,
+                name=str(_DEMO_CUSTOMER["name"]),
+                masked_mobile=str(_DEMO_CUSTOMER["masked_mobile"]),
+            )
         )
-        try:
-            token = await asyncio.wait_for(fut, timeout=_INTERACTION_TIMEOUT_S)
-        except TimeoutError:
+        token = await self._await_browser(nonce)
+        if token is None:
             return str(
                 {
                     "status": "not_authenticated",
                     "error": "The customer did not complete the sign-in. Offer to try again.",
                 }
             )
-        finally:
-            self._pending.pop(nonce, None)
         if token == _CANCELLED:
             return str(
                 {
@@ -1266,8 +1347,16 @@ class AuraBrain(GeminiInteractionsBrain):
             }
         )
 
-    async def _choose_account(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def choose_account(self, authenticated_context: str) -> str:
+        """Put the customer's accounts on screen and let them tap the one they mean.
+
+        Waits for the tap — the customer chooses, not you, and not by name over
+        voice. Required before ``get_account_balance`` or ``get_statement``.
+
+        Args:
+            authenticated_context: The token ``authenticate`` returned.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
             return str(
                 {
@@ -1279,19 +1368,14 @@ class AuraBrain(GeminiInteractionsBrain):
         accounts = [
             {k: a[k] for k in _ACCOUNT_FIELDS} for a in _DEMO_ACCOUNTS if a["account_id"] in owned
         ]
-        nonce = secrets.token_hex(8)
-        fut: asyncio.Future[str] = asyncio.get_running_loop().create_future()
-        self._pending[nonce] = fut
+        nonce, _ = self._open_pending()
         logger.info("aura: choose_account -> picker ({} accounts)", len(accounts))
-        interaction.action("choose_account", {"nonce": nonce, "accounts": accounts})
-        try:
-            account_id = await asyncio.wait_for(fut, timeout=_INTERACTION_TIMEOUT_S)
-        except TimeoutError:
+        self.session.dispatch(ChooseAccount(nonce=nonce, accounts=accounts))
+        account_id = await self._await_browser(nonce)
+        if account_id is None:
             return str(
                 {"status": "no_selection", "error": "The customer did not pick an account yet."}
             )
-        finally:
-            self._pending.pop(nonce, None)
         if account_id == _CANCELLED:
             return str(
                 {
@@ -1315,11 +1399,20 @@ class AuraBrain(GeminiInteractionsBrain):
             }
         )
 
-    def _get_account_balance(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def get_account_balance(self, authenticated_context: str, account_id: str) -> str:
+        """The current balance of the account the customer picked, on screen.
+
+        The figure is on the card in front of them — say what it means, don't read
+        the digits back.
+
+        Args:
+            authenticated_context: The token ``authenticate`` returned.
+            account_id: The account the customer picked in ``choose_account``.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
             return str({"status": "not_authenticated", "error": "Call authenticate() first."})
-        acc = self._selected_account(args, payload)
+        acc = self._selected_account(account_id, payload)
         if not acc:
             return str(
                 {
@@ -1329,14 +1422,13 @@ class AuraBrain(GeminiInteractionsBrain):
             )
         as_of = datetime.now(UTC).astimezone().strftime("%Y-%m-%d")
         logger.info("aura: get_account_balance {}", acc["account_id"])
-        interaction.action(
-            "show_balance",
-            {
-                "account": {k: acc[k] for k in _ACCOUNT_FIELDS},
-                "balance": acc["balance"],
-                "currency": acc["currency"],
-                "as_of": as_of,
-            },
+        self.session.dispatch(
+            ShowBalance(
+                account={k: acc[k] for k in _ACCOUNT_FIELDS},
+                balance=acc["balance"],
+                currency=acc["currency"],
+                as_of=as_of,
+            )
         )
         return str(
             {
@@ -1352,11 +1444,28 @@ class AuraBrain(GeminiInteractionsBrain):
             }
         )
 
-    def _get_statement(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def get_statement(
+        self,
+        authenticated_context: str,
+        account_id: str,
+        start_date: str = "",
+        end_date: str = "",
+    ) -> str:
+        """Put the account's transactions for a date range on screen.
+
+        Defaults to the last ninety days. The list is on screen — summarise it
+        (how many, what stands out), never read it out row by row.
+
+        Args:
+            authenticated_context: The token ``authenticate`` returned.
+            account_id: The account the customer picked in ``choose_account``.
+            start_date: Start of the range, YYYY-MM-DD. Blank for ninety days ago.
+            end_date: End of the range, YYYY-MM-DD. Blank for today.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
             return str({"status": "not_authenticated", "error": "Call authenticate() first."})
-        acc = self._selected_account(args, payload)
+        acc = self._selected_account(account_id, payload)
         if not acc:
             return str(
                 {
@@ -1365,8 +1474,8 @@ class AuraBrain(GeminiInteractionsBrain):
                 }
             )
         today = datetime.now(UTC).astimezone().date()
-        start = _parse_date(args.get("start_date")) or (today - timedelta(days=90))
-        end = _parse_date(args.get("end_date")) or today
+        start = _parse_date(start_date) or (today - timedelta(days=90))
+        end = _parse_date(end_date) or today
         rows: list[dict[str, Any]] = []
         for days_ago, desc, amount, kind in _DEMO_TXNS.get(acc["account_id"], []):
             d = today - timedelta(days=days_ago)
@@ -1378,15 +1487,14 @@ class AuraBrain(GeminiInteractionsBrain):
         credits = sum(r["amount"] for r in rows if r["kind"] == "credit")
         debits = sum(r["amount"] for r in rows if r["kind"] == "debit")
         logger.info("aura: get_statement {} ({} txns)", acc["account_id"], len(rows))
-        interaction.action(
-            "show_statement",
-            {
-                "account": {k: acc[k] for k in _ACCOUNT_FIELDS},
-                "from_date": start.isoformat(),
-                "to_date": end.isoformat(),
-                "transactions": rows,
-                "currency": acc["currency"],
-            },
+        self.session.dispatch(
+            ShowStatement(
+                account={k: acc[k] for k in _ACCOUNT_FIELDS},
+                from_date=start.isoformat(),
+                to_date=end.isoformat(),
+                transactions=rows,
+                currency=acc["currency"],
+            )
         )
         return str(
             {
@@ -1401,8 +1509,16 @@ class AuraBrain(GeminiInteractionsBrain):
             }
         )
 
-    async def _choose_credit_card(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def choose_credit_card(self, authenticated_context: str) -> str:
+        """Put the customer's credit cards on screen and let them tap the one they
+        mean.
+
+        Waits for the tap. Required before ``show_card_controls``.
+
+        Args:
+            authenticated_context: The token ``authenticate`` returned.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
             return str(
                 {
@@ -1412,17 +1528,12 @@ class AuraBrain(GeminiInteractionsBrain):
             )
         owned = set(payload.get("cards") or [])
         cards = [{k: c[k] for k in _CARD_FIELDS} for c in _DEMO_CARDS if c["card_id"] in owned]
-        nonce = secrets.token_hex(8)
-        fut: asyncio.Future[str] = asyncio.get_running_loop().create_future()
-        self._pending[nonce] = fut
+        nonce, _ = self._open_pending()
         logger.info("aura: choose_credit_card -> picker ({} cards)", len(cards))
-        interaction.action("choose_credit_card", {"nonce": nonce, "cards": cards})
-        try:
-            card_id = await asyncio.wait_for(fut, timeout=_INTERACTION_TIMEOUT_S)
-        except TimeoutError:
+        self.session.dispatch(ChooseCreditCard(nonce=nonce, cards=cards))
+        card_id = await self._await_browser(nonce)
+        if card_id is None:
             return str({"status": "no_selection", "error": "The customer did not pick a card yet."})
-        finally:
-            self._pending.pop(nonce, None)
         if card_id == _CANCELLED:
             return str(
                 {
@@ -1445,11 +1556,21 @@ class AuraBrain(GeminiInteractionsBrain):
             }
         )
 
-    def _show_card_controls(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def show_card_controls(self, authenticated_context: str, card_id: str) -> str:
+        """Open the usage & limits form for the card the customer picked — domestic
+        and international use, online, contactless, ATM, and the spend limit.
+
+        They adjust and save it themselves. Do NOT read the toggles aloud; the
+        form shows them.
+
+        Args:
+            authenticated_context: The token ``authenticate`` returned.
+            card_id: The card the customer picked in ``choose_credit_card``.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
             return str({"status": "not_authenticated", "error": "Call authenticate() first."})
-        card = self._selected_card(args, payload)
+        card = self._selected_card(card_id, payload)
         if not card:
             return str(
                 {
@@ -1459,13 +1580,12 @@ class AuraBrain(GeminiInteractionsBrain):
             )
         controls = card["controls"]
         logger.info("aura: show_card_controls {}", card["card_id"])
-        interaction.action(
-            "show_card_controls",
-            {
-                "card": {k: card[k] for k in _CARD_FIELDS},
-                "credit_limit": card["credit_limit"],
-                "controls": controls,
-            },
+        self.session.dispatch(
+            ShowCardControls(
+                card={k: card[k] for k in _CARD_FIELDS},
+                credit_limit=card["credit_limit"],
+                controls=controls,
+            )
         )
         return str(
             {
