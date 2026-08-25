@@ -48,10 +48,12 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, get_args, get_origin
 
+from google.genai import interactions as gi
 from google.genai import types
 from pydantic import BaseModel
 
@@ -177,11 +179,34 @@ class _Models:
         return self._owner.answer(model=model, contents=contents, config=config)
 
 
+class _Interactions:
+    """The ``client.aio.interactions`` half of the seam.
+
+    :class:`~voqalize.sdk.gemini_interactions.GeminiInteractionsBrain` runs the
+    tools *itself*, between requests, so this half only plays the model: one
+    ``create()`` is one hop, and the next hop is the next ``Reply`` under the same
+    key. That is the whole difference from :class:`_Models`, which runs a turn's
+    hops — and its tools — inside a single call.
+    """
+
+    def __init__(self, owner: ScriptedGemini) -> None:
+        self._owner = owner
+        #: Every request this seam was handed, in call order.
+        self.requests: list[dict[str, Any]] = []
+
+    async def create(self, **request: Any) -> AsyncIterator[gi.InteractionSSEEvent]:
+        """One hop's SSE stream. Async like the real one, which awaits the call
+        before iterating what it returns."""
+        self.requests.append(request)
+        return self._owner.interact(request)
+
+
 class _Aio:
     """The ``client.aio`` half of the seam."""
 
     def __init__(self, owner: ScriptedGemini) -> None:
         self.models = _Models(owner)
+        self.interactions = _Interactions(owner)
 
 
 class ScriptedGemini:
@@ -274,13 +299,32 @@ class ScriptedGemini:
             if not step.calls:
                 return
 
-    def _next(self, key: str) -> Reply:
+    # ─── The interactions seam ───────────────────────────────────────────
+
+    def interact(self, request: dict[str, Any]) -> AsyncIterator[gi.InteractionSSEEvent]:
+        """One hop of the script, as the event stream the interactions API sends.
+
+        Keyed on the last user step the brain would key on — but scanning *every*
+        user step, newest first, for one the script knows. A brain that appends
+        grounding as a ``UserInputStep`` (aura's screen snapshot does) otherwise
+        buries the sentence the test is keyed on behind a JSON blob."""
+        texts = _user_texts(list(request.get("input") or []))
+        key = next((t for t in texts if self._cursor(t) is not None), texts[0] if texts else "")
+        return _interaction_events(self._next(key))
+
+    def _cursor(self, key: str) -> _Cursor | None:
+        """The script this user text is keyed on: exact first, then any key that is
+        a substring of it, in insertion order."""
         cursor = self._cursors.get(key)
         if cursor is None:
             cursor = next(
                 (c for k, c in self._cursors.items() if k and k in key),
                 None,
             )
+        return cursor
+
+    def _next(self, key: str) -> Reply:
+        cursor = self._cursor(key)
         if cursor is None or cursor.i >= len(cursor.steps):
             return self._default
         step = cursor.steps[cursor.i]
@@ -351,6 +395,52 @@ async def _emit(
     if responses:
         record.extend(types.Content(role="model", parts=parts) for parts in emitted)
         record.append(types.Content(role="user", parts=responses))
+
+
+def _user_texts(steps: list[Any]) -> list[str]:
+    """Every ``UserInputStep``'s text in one request's input, newest first."""
+    return [
+        "".join(c.text for c in (step.content or []) if isinstance(c, gi.TextContent))
+        for step in reversed(steps)
+        if isinstance(step, gi.UserInputStep)
+    ]
+
+
+async def _interaction_events(step: Reply) -> AsyncIterator[gi.InteractionSSEEvent]:
+    """One hop as the SSE sequence a real interaction would produce.
+
+    Speech first, then this hop's calls — each step opening on a ``StepStart``
+    skeleton, filling from deltas and closing on ``StepStop``. A function call's
+    skeleton really is argument-less on the wire and its JSON really does arrive
+    fragmented mid-token, so it goes over in two pieces here too: a brain that
+    read the arguments off the skeleton would otherwise pass."""
+    if step.error is not None:
+        raise RuntimeError(step.error)
+    resource = gi.InteractionSseEventInteraction(id="int_1", status="completed")
+    yield gi.InteractionCreatedEvent(interaction=resource)
+    index = 0
+    chunks = step.chunks or ((step.text,) if step.text else ())
+    if chunks:
+        yield gi.StepStart(index=index, step=gi.ModelOutputStep())
+        for chunk in chunks:
+            if step.chunk_delay:
+                await asyncio.sleep(step.chunk_delay)
+            yield gi.StepDelta(index=index, delta=gi.TextDelta(text=chunk))
+        yield gi.StepStop(index=index)
+        index += 1
+    for name, args in step.calls:
+        payload = json.dumps(args)
+        cut = len(payload) // 2
+        yield gi.StepStart(
+            index=index, step=gi.FunctionCallStep(id=f"call_{name}", name=name, arguments={})
+        )
+        yield gi.StepDelta(index=index, delta=gi.ArgumentsDelta(arguments=payload[:cut]))
+        yield gi.StepDelta(index=index, delta=gi.ArgumentsDelta(arguments=payload[cut:]))
+        yield gi.StepStop(index=index)
+        index += 1
+    # No steps on it: a streamed lifecycle payload omits what only a
+    # non-streaming Interaction carries.
+    yield gi.InteractionCompletedEvent(interaction=resource)
 
 
 def _coerce(fn: Any, args: dict[str, Any]) -> dict[str, Any]:

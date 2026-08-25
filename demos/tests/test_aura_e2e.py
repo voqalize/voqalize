@@ -87,7 +87,7 @@ async def test_narrating_a_help_video_drives_the_screen() -> None:
         await rig.driver.start_session()
 
         turn = await rig.driver.user_says("How do I add a payee?")
-        check_turn(rig, turn, inferences=3)
+        check_turn(rig, turn, units=3)
 
         assert rig.actions() == ["play_help_video", "highlight_step"], rig.actions()
         video = rig.command("play_help_video")
