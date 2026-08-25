@@ -1,41 +1,47 @@
-"""ServicingBrain — the Meridian Servicing Console copilot.
+"""ServicingBrain — the Meridian Servicing Desk copilot.
 
-A ``voqalize.sdk.Brain`` (LLM + case/board screen-driving tools + per-session
-workspace state). Voqalize dials this brain's WebSocket per session; ``respond``
-(inherited from :class:`GeminiBrain`) runs the manual Gemini function-calling loop
-where **each LLM call is one ``interaction.say()`` bracket** (1:1 with the
-wire): speak a short line, call a tool, feed the result back.
+A :class:`voqalize.sdk.gemini.GeminiBrain` for the voice **servicing console**: a
+bank ADVISOR works a mortgage-case queue on an internal desk while talking to the
+desk copilot, and the copilot DRIVES THE SCREEN as it talks. The advisor is a
+colleague, not a customer.
 
-The user here is a bank ADVISOR working a mortgage-case queue, not a customer.
-The assistant is the servicing desk — a colleague who works alongside the advisor
-by voice while driving the screen. Like the travel brain, **the LLM generates the
-substantive data** (payoff figures, rate offers, draft lines, packet fields) and
-passes it as nested function-call arguments; the Python handlers are thin
-pass-throughs that normalize ids, forward to the UI via
-``interaction.action(...)`` (the RTVI ``ui_command`` the ``/servicing`` UI
-renders), and ack the model.
+Two things worth calling out about how per-session state flows in:
 
-The browser echoes a compact workspace snapshot back via ``state_sync``
-(delivered to :meth:`on_client_message`). We keep the latest snapshot so the assistant
-always knows the live on-screen state — surfaced two ways: the
-``get_advisor_context`` tool reads it on demand, and each turn's working context
-is grounded with it (folding every ``state_sync`` into the LLM context silently,
-no inference).
+  * **init** — the advisor's name and role (``session.init["advisor"]``), folded
+    into the opening greeting. :meth:`ServicingBrain.greet` is written, not
+    generated: the advisor is already logged in, so there is no first-token wait.
+  * **state_sync** — the console is the source of truth for the open case and the
+    approvals queue; it echoes a compact ``state_sync`` snapshot on every change.
+    :meth:`ServicingBrain.on_rtvi` folds it in *silently* — no floor taken, no
+    turn — so the next turn (and ``get_advisor_context``) always reasons from the
+    real on-screen state.
 
-The LLM is **dependency-injected** as a :class:`GeminiProvider`; the brain owns
-only the prompt, the tool schemas, and this session's advisor + workspace state.
-The conversation record is framework-owned (``interaction.conversation``),
-rebuilt into Gemini's working context each turn by the :class:`GeminiBrain` base.
+Fourteen of the fifteen tools dispatch a :class:`~voqalize.sdk.Action` that IS the
+tool's own parameter — the LLM generates the substantive data (payoff figures,
+rate offers, drafts, packet fields) as the action's fields, and the tool body is
+mostly one ``self.session.dispatch(action)`` line. ``get_advisor_context`` is the
+one exception: it is read-only (no action, no screen draw), and exists so the
+copilot can answer about the console without moving it.
+
+Two things every UI-facing tool normalizes before it dispatches, because neither
+is something the model can be relied on to produce: a case **ref** reaches the
+console upper-cased (the model writes it the way it heard it), and every job,
+finding, approval and precedent result gets a stable ``id`` (:func:`_assign_ids`)
+the browser keys its rows by — the model is never asked to invent one.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from google.genai import types
 from loguru import logger
+from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 DESK_NAME = "Servicing Desk"
 BANK_NAME = "Meridian Home Loans"
@@ -97,767 +103,560 @@ THE TWO LIVE CASES IN THE ADVISOR'S QUEUE:
 Open with a brief, professional greeting BY NAME, say you are the {DESK_NAME}, and ask what they want to start on. One or two short sentences."""
 
 
-# ── Nested JSON-schema fragments (the LLM-generated data shapes) ───────────────
-
-_JOB_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "label": {
-            "type": "string",
-            "description": "Short label of the background step, e.g. 'Pull payoff figure'.",
-        },
-        "detail": {
-            "type": "string",
-            "description": (
-                "One short line of the result the step produces, e.g. 'Payoff 284,900 + "
-                "1,210 accrued interest'. Shown when the step finishes."
-            ),
-        },
-    },
-    "required": ["label"],
-}
-
-_APPROVAL_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "id": {"type": "string", "description": "Short stable id, e.g. 'a1'."},
-        "title": {
-            "type": "string",
-            "description": "Draft title, e.g. 'Settlement letter' or 'Early-closure fee waiver'.",
-        },
-        "kind": {
-            "type": "string",
-            "enum": [
-                "settlement_letter",
-                "fee_waiver",
-                "rate_offer",
-                "document_release",
-                "escrow_change",
-                "other",
-            ],
-            "description": "Category of the draft (drives the icon shown).",
-        },
-        "summary": {
-            "type": "string",
-            "description": "One-line summary of what the advisor is approving.",
-        },
-        "lines": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "A few short detail lines shown on the draft card (figures, terms).",
-        },
-        "amount": {
-            "type": "number",
-            "description": "Headline dollar amount if relevant (payoff total, fee waived, new payment).",
-        },
-        "recommendation": {
-            "type": "string",
-            "description": (
-                "Your brief recommendation + reason for the advisor, e.g. 'Recommend waiving — "
-                "12-year customer in good standing'. Empty if none."
-            ),
-        },
-        "blocked": {
-            "type": "boolean",
-            "description": (
-                "True if this draft CANNOT be approved yet because the workup caught a blocker "
-                "(e.g. a document-release that's blocked by an open lien). It shows locked until "
-                "the blocker is cleared. Default false."
-            ),
-        },
-        "blocked_reason": {
-            "type": "string",
-            "description": "If blocked, one short line why, e.g. 'Open second lien must clear first'.",
-        },
-    },
-    "required": ["title", "summary"],
-}
-
-# A line of the desk's "workup" — the cross-system assembly/reconciliation legwork.
-_FINDING_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "label": {
-            "type": "string",
-            "description": "What was checked, e.g. 'Payoff reconciliation'.",
-        },
-        "value": {
-            "type": "string",
-            "description": "The assembled/reconciled result, e.g. 'Net payoff 286,400 (a payment posted yesterday wasn't applied)'.",
-        },
-        "flag": {
-            "type": "string",
-            "enum": ["ok", "warn", "info"],
-            "description": "'warn' for a reconciliation the advisor would likely have missed; 'ok' otherwise.",
-        },
-    },
-    "required": ["label", "value"],
-}
-
-# A risk the workup caught that gates a regulated step — the thing nav never surfaces.
-_BLOCKER_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "title": {
-            "type": "string",
-            "description": "Short headline, e.g. 'Open second lien on the property'.",
-        },
-        "detail": {
-            "type": "string",
-            "description": "One or two lines on what it is and why it blocks, e.g. 'A 2021 home-equity line is still open — releasing the title now is a compliance exception.'",
-        },
-        "severity": {
-            "type": "string",
-            "enum": ["block", "warn"],
-            "description": "'block' = a regulated step cannot proceed until cleared; 'warn' = caution only.",
-        },
-        "suggested_route": {
-            "type": "string",
-            "description": "Department to route to in order to clear it, e.g. 'Legal & Custody'.",
-        },
-    },
-    "required": ["title", "detail", "severity"],
-}
-
-# A field/section of a regulated packet (multi-step form) the desk fills.
-_PACKET_FIELD_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "label": {"type": "string", "description": "Field name, e.g. 'Payoff date'."},
-        "value": {
-            "type": "string",
-            "description": "Field value, e.g. '30 June 2026' or '286,400'.",
-        },
-        "mono": {"type": "boolean", "description": "True for figures/ids shown in monospace."},
-    },
-    "required": ["label", "value"],
-}
-
-_PACKET_SECTION_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "id": {"type": "string", "description": "Short id, e.g. 'payoff', 'release', 'escrow'."},
-        "title": {"type": "string", "description": "Section title, e.g. 'Payoff figures'."},
-        "fields": {"type": "array", "items": _PACKET_FIELD_SCHEMA},
-        "blocked": {
-            "type": "boolean",
-            "description": "True if this section is locked by a blocker (e.g. the document-release section while a lien is open).",
-        },
-        "blocked_reason": {"type": "string", "description": "If blocked, one short line why."},
-    },
-    "required": ["title", "fields"],
-}
-
-_PACKET_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "id": {"type": "string", "description": "Short id, e.g. 'closure'."},
-        "title": {"type": "string", "description": "Packet title, e.g. 'Early-closure packet'."},
-        "summary": {"type": "string", "description": "One line on what this packet does."},
-        "sections": {
-            "type": "array",
-            "items": _PACKET_SECTION_SCHEMA,
-            "description": "The form sections (e.g. payoff figures, document release, escrow disposition).",
-        },
-    },
-    "required": ["title", "sections"],
-}
-
-# A past (archived) case returned by the server-side precedent search.
-_PRECEDENT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "ref": {"type": "string", "description": "Archive case reference, e.g. 'MS-0907'."},
-        "customer": {"type": "string", "description": "Customer name on the past case."},
-        "summary": {"type": "string", "description": "One line on what the past case was."},
-        "resolution": {
-            "type": "string",
-            "description": "How it was handled/resolved, e.g. 'Legal subordinated the HELOC; title released after.'",
-        },
-        "days": {"type": "number", "description": "How many days it took to resolve, if relevant."},
-    },
-    "required": ["ref", "summary", "resolution"],
-}
+# ─── Nested shapes (not Actions themselves — embedded inside one) ───────────
 
 
-# ─── Tool schemas (JSON-schema dicts → google-genai Schema) ────────────────────
+class JobSpec(BaseModel):
+    """One background prep step of a ``prepare_case`` workup."""
 
-# (tool_name, description, properties, required)
-_TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
-    (
-        "open_board",
-        "Show the advisor's case board (the worklist of all their cases).",
-        {},
-        [],
-    ),
-    (
-        "open_case",
-        "Open a case by its reference and make it the active case on screen. "
-        "Use when the advisor says 'open Cho's case' or 'pull up MS-1057'.",
-        {"ref": {"type": "string", "description": "Case reference, e.g. 'MS-1042'."}},
-        ["ref"],
-    ),
-    (
-        "set_tab",
-        "Switch the tab within the open case so the advisor sees the right panel.",
-        {
-            "tab": {
-                "type": "string",
-                "enum": ["overview", "payments", "documents", "activity"],
-                "description": "Which tab of the open case to show.",
-            },
-        },
-        ["tab"],
-    ),
-    (
-        "get_advisor_context",
-        "Read where the advisor is right now — which case and tab is on screen, plus a "
-        "snapshot of that case and any pending approvals. Call this to ground a turn in "
-        "what the advisor is currently looking at before you reference it.",
-        {},
-        [],
-    ),
-    (
-        "assign_case",
-        "Route a case to a person or a department (Jira-style assignment). Use when the "
-        "advisor says 'assign it to <person>' or 'send it to <department>'. Assigning to a "
-        "department moves the card to the 'with department' stage.",
-        {
-            "ref": {"type": "string", "description": "Case reference, e.g. 'MS-1057'."},
-            "assignee_kind": {
-                "type": "string",
-                "enum": ["person", "department"],
-                "description": "Whether routing to a teammate or a department queue.",
-            },
-            "assignee": {
-                "type": "string",
-                "description": (
-                    "The person's name (e.g. 'Marcus Bell') or department key: one of "
-                    "pricing, closures, legal, insurance, compliance."
-                ),
-            },
-        },
-        ["ref", "assignee_kind", "assignee"],
-    ),
-    (
-        "move_case",
-        "Move a case card to a different stage on the board.",
-        {
-            "ref": {"type": "string", "description": "Case reference."},
-            "stage": {"type": "string", "enum": STAGES, "description": "Target stage column."},
-        },
-        ["ref", "stage"],
-    ),
-    (
-        "add_comment",
-        "Leave an authored note on a case — handoff context the next desk needs. Use when the "
-        "advisor says 'make a note that…', 'add a comment…', or when you route a case to another "
-        "department and want to capture WHY so the receiving team has the context. If the note "
-        "accompanies a routing, pass the department in 'dept' (it tags the note; route separately "
-        "with assign_case if the case should actually move). Notes are not approvals — they are "
-        "free-text context.",
-        {
-            "ref": {"type": "string", "description": "Case reference, e.g. 'MS-1057'."},
-            "text": {
-                "type": "string",
-                "description": "The note text — a sentence or two of context for the case.",
-            },
-            "dept": {
-                "type": "string",
-                "description": (
-                    "Optional department this note is about (one of pricing, closures, legal, "
-                    "insurance, compliance). Tags the note; omit if it's a general note."
-                ),
-            },
-        },
-        ["ref", "text"],
-    ),
-    (
-        "prepare_case",
-        "Run a full WORKUP on a case IN THE BACKGROUND while the advisor stays on whatever "
-        "they have open. Kicks off the listed prep jobs (which run and complete on their own) "
-        "and, when they finish, reveals everything at once: your findings (the cross-system "
-        "assembly + reconciliations), any blocker you caught, the regulated packet you filled, "
-        "and the drafts in the 'Needs your approval' queue. Use this for a case the advisor "
-        "asks you to 'get ready' / 'take' / 'work up' — never pull them off their current "
-        "screen for it. This is the heavy lifting: do the legwork they'd otherwise do by hand.",
-        {
-            "ref": {"type": "string", "description": "Case reference to prepare, e.g. 'MS-1057'."},
-            "summary": {
-                "type": "string",
-                "description": "One-line summary of what you're preparing for this case.",
-            },
-            "jobs": {
-                "type": "array",
-                "items": _JOB_SCHEMA,
-                "description": "The background prep steps (usually 3-4). They animate to completion.",
-            },
-            "findings": {
-                "type": "array",
-                "items": _FINDING_SCHEMA,
-                "description": (
-                    "The workup result — the cross-system facts you assembled and figures you "
-                    "reconciled (payoff, accrued interest, escrow, in-flight payments). Flag the "
-                    "ones the advisor would likely have missed with 'warn'."
-                ),
-            },
-            "blocker": {
-                **_BLOCKER_SCHEMA,
-                "description": (
-                    "The one risk you caught that gates a regulated step — the thing the advisor "
-                    "wouldn't have known to look for (e.g. an open second lien before a title "
-                    "release). Omit if the case is clean."
-                ),
-            },
-            "packet": {
-                **_PACKET_SCHEMA,
-                "description": (
-                    "The regulated packet (multi-step form) you filled from the workup, e.g. an "
-                    "early-closure packet with payoff figures, document-release, escrow sections. "
-                    "Mark the section a blocker gates with blocked:true. Omit if not relevant."
-                ),
-            },
-            "approvals": {
-                "type": "array",
-                "items": _APPROVAL_SCHEMA,
-                "description": (
-                    "The draft items to reveal for the advisor's approval once prep finishes "
-                    "(settlement letter, fee waiver, document release, etc.). If a blocker gates "
-                    "one (e.g. document release), set blocked:true on it."
-                ),
-            },
-        },
-        ["ref", "jobs"],
-    ),
-    (
-        "post_workup",
-        "Attach a workup to the case the advisor has OPEN ON SCREEN right now (no background "
-        "animation) — the findings you assembled and any blocker you caught. Use this when you "
-        "are co-working a case with the advisor and want to show your reconciliation (e.g. "
-        "Cho's true net saving after fees, or an eligibility flag) immediately.",
-        {
-            "ref": {"type": "string", "description": "Case reference, e.g. 'MS-1042'."},
-            "findings": {
-                "type": "array",
-                "items": _FINDING_SCHEMA,
-                "description": "The facts/reconciliations you assembled for this case.",
-            },
-            "blocker": {
-                **_BLOCKER_SCHEMA,
-                "description": "A risk you caught that needs attention. Omit if the case is clean.",
-            },
-        },
-        ["ref", "findings"],
-    ),
-    (
-        "lookup_precedent",
-        "Search the case ARCHIVE (closed/past cases, not in the advisor's current queue) for "
-        "precedent — how the team handled a similar situation before. Use when the advisor "
-        "asks 'have we done this before?' / 'how did we handle X?'. This is a server-side "
-        "lookup that reaches beyond what's on screen. Generate 2-3 believable past cases.",
-        {
-            "query": {
-                "type": "string",
-                "description": "What you're searching for, e.g. 'early closure with an open second lien'.",
-            },
-            "results": {
-                "type": "array",
-                "items": _PRECEDENT_SCHEMA,
-                "description": "The 2-3 most relevant past cases, each with how it was resolved.",
-            },
-        },
-        ["query", "results"],
-    ),
-    (
-        "update_packet_field",
-        "Change one field of a case's packet (form) — e.g. when the advisor says 'set the "
-        "payoff date to month-end'. Pass the recomputed value yourself (regenerate any figure "
-        "that depends on it, like accrued interest, and update those fields too).",
-        {
-            "ref": {"type": "string", "description": "Case reference."},
-            "section": {
-                "type": "string",
-                "description": "Section id or title to edit, e.g. 'payoff'.",
-            },
-            "field": {"type": "string", "description": "Field label to set, e.g. 'Payoff date'."},
-            "value": {"type": "string", "description": "The new value."},
-            "note": {"type": "string", "description": "Optional one-line activity note."},
-        },
-        ["ref", "section", "field", "value"],
-    ),
-    (
-        "resolve_blocker",
-        "Mark a case's blocker as cleared — e.g. once you confirm Legal has subordinated the "
-        "lien. This unlocks any draft or packet section the blocker was gating so the advisor "
-        "can approve and submit. Only call this when the blocking issue is genuinely resolved.",
-        {
-            "ref": {"type": "string", "description": "Case reference."},
-            "note": {
-                "type": "string",
-                "description": "What cleared it, e.g. 'Legal subordinated the home-equity line'.",
-            },
-        },
-        ["ref"],
-    ),
-    (
-        "submit_packet",
-        "Submit a case's regulated packet to the handling department (a server-side action "
-        "with consequences). Maker-checker: this only goes through AFTER the advisor has "
-        "approved the drafts and any blocker is cleared — if something is still pending or "
-        "blocked, the submission is refused. Confirm the advisor wants to submit before calling.",
-        {"ref": {"type": "string", "description": "Case reference whose packet to submit."}},
-        ["ref"],
-    ),
-    (
-        "draft_approval",
-        "Drop a single draft into a case's 'Needs your approval' queue immediately — for a "
-        "case you are co-working on screen with the advisor (e.g. a rate offer for Cho). The "
-        "advisor approves or declines it. You never execute it yourself.",
-        {
-            "ref": {"type": "string", "description": "Case reference."},
-            "approval": {**_APPROVAL_SCHEMA, "description": "The draft to add."},
-        },
-        ["ref", "approval"],
-    ),
-    (
-        "highlight",
-        "Scroll to and briefly highlight one section of the open case so the advisor's eye follows you.",
-        {
-            "section": {
-                "type": "string",
-                "enum": [
-                    "summary",
-                    "loan",
-                    "payments",
-                    "documents",
-                    "approvals",
-                    "notes",
-                    "activity",
-                ],
-                "description": "Which section to highlight.",
-            },
-        },
-        ["section"],
-    ),
-]
-
-_JSON_TO_GENAI = {
-    "string": types.Type.STRING,
-    "integer": types.Type.INTEGER,
-    "number": types.Type.NUMBER,
-    "boolean": types.Type.BOOLEAN,
-    "object": types.Type.OBJECT,
-    "array": types.Type.ARRAY,
-}
+    id: str = Field("", description="Assigned automatically; never set this.")
+    label: str = Field(description="Short label of the background step, e.g. 'Pull payoff figure'.")
+    detail: str = Field(
+        "",
+        description=(
+            "One short line of the result the step produces, e.g. 'Payoff 284,900 + "
+            "1,210 accrued interest'. Shown when the step finishes."
+        ),
+    )
 
 
-def _to_schema(d: dict[str, Any]) -> types.Schema:
-    """Convert a JSON-schema dict to a google-genai Schema (recursive)."""
-    kw: dict[str, Any] = {"type": _JSON_TO_GENAI[d["type"]]}
-    if d.get("description"):
-        kw["description"] = d["description"]
-    if d.get("enum"):
-        kw["enum"] = d["enum"]
-    if d["type"] == "object":
-        props = d.get("properties") or {}
-        kw["properties"] = {k: _to_schema(v) for k, v in props.items()}
-        if d.get("required"):
-            kw["required"] = d["required"]
-    if d["type"] == "array":
-        kw["items"] = _to_schema(d["items"])
-    return types.Schema(**kw)
+class FindingSpec(BaseModel):
+    """One line of the desk's "workup" — the cross-system assembly/reconciliation legwork."""
 
-
-def _tools() -> types.ToolListUnion:
-    decls = [
-        types.FunctionDeclaration(
-            name=name,
-            description=desc,
-            parameters=_to_schema({"type": "object", "properties": props, "required": req}),
+    id: str = Field("", description="Assigned automatically; never set this.")
+    label: str = Field(description="What was checked, e.g. 'Payoff reconciliation'.")
+    value: str = Field(
+        description=(
+            "The assembled/reconciled result, e.g. 'Net payoff 286,400 (a payment "
+            "posted yesterday wasn't applied)'."
         )
-        for name, desc, props, req in _TOOLSPECS
-    ]
-    tools: types.ToolListUnion = [types.Tool(function_declarations=decls)]
-    return tools
+    )
+    flag: Literal["ok", "warn", "info"] = Field(
+        "ok",
+        description="'warn' for a reconciliation the advisor would likely have missed; 'ok' otherwise.",
+    )
 
 
-def _normalize_ids(items: list[Any], prefix: str) -> list[dict[str, Any]]:
-    """Ensure every dict has a stable string ``id`` (assign ``{prefix}{n}`` if missing)."""
-    out: list[dict[str, Any]] = []
-    for i, raw in enumerate(items):
-        item = dict(raw) if isinstance(raw, dict) else {}
-        if not str(item.get("id") or "").strip():
-            item["id"] = f"{prefix}{i + 1}"
-        else:
-            item["id"] = str(item["id"])
-        out.append(item)
-    return out
+class BlockerSpec(BaseModel):
+    """A risk the workup caught that gates a regulated step — the thing nav never surfaces."""
+
+    title: str = Field(description="Short headline, e.g. 'Open second lien on the property'.")
+    detail: str = Field(
+        description=(
+            "One or two lines on what it is and why it blocks, e.g. 'A 2021 "
+            "home-equity line is still open — releasing the title now is a "
+            "compliance exception.'"
+        )
+    )
+    severity: Literal["block", "warn"] = Field(
+        description="'block' = a regulated step cannot proceed until cleared; 'warn' = caution only."
+    )
+    suggested_route: str = Field(
+        "", description="Department to route to in order to clear it, e.g. 'Legal & Custody'."
+    )
+
+
+class PacketFieldSpec(BaseModel):
+    """A field/section of a regulated packet (multi-step form) the desk fills."""
+
+    label: str = Field(description="Field name, e.g. 'Payoff date'.")
+    value: str = Field(description="Field value, e.g. '30 June 2026' or '286,400'.")
+    mono: bool = Field(False, description="True for figures/ids shown in monospace.")
+
+
+class PacketSectionSpec(BaseModel):
+    id: str = Field("", description="Short id, e.g. 'payoff', 'release', 'escrow'.")
+    title: str = Field(description="Section title, e.g. 'Payoff figures'.")
+    fields: list[PacketFieldSpec] = Field(default_factory=list)
+    blocked: bool = Field(
+        False,
+        description=(
+            "True if this section is locked by a blocker (e.g. the document-release "
+            "section while a lien is open)."
+        ),
+    )
+    blocked_reason: str = Field("", description="If blocked, one short line why.")
+
+
+class PacketSpec(BaseModel):
+    id: str = Field("", description="Short id, e.g. 'closure'.")
+    title: str = Field(description="Packet title, e.g. 'Early-closure packet'.")
+    summary: str = Field("", description="One line on what this packet does.")
+    sections: list[PacketSectionSpec] = Field(
+        default_factory=list,
+        description="The form sections (e.g. payoff figures, document release, escrow disposition).",
+    )
+
+
+class ApprovalSpec(BaseModel):
+    """A draft item dropped into the advisor's 'Needs your approval' queue."""
+
+    id: str = Field("", description="Assigned automatically; never set this.")
+    title: str = Field(
+        description="Draft title, e.g. 'Settlement letter' or 'Early-closure fee waiver'."
+    )
+    kind: Literal[
+        "settlement_letter",
+        "fee_waiver",
+        "rate_offer",
+        "document_release",
+        "escrow_change",
+        "other",
+    ] = Field("other", description="Category of the draft (drives the icon shown).")
+    summary: str = Field(description="One-line summary of what the advisor is approving.")
+    lines: list[str] = Field(
+        default_factory=list,
+        description="A few short detail lines shown on the draft card (figures, terms).",
+    )
+    amount: float | None = Field(
+        None,
+        description="Headline dollar amount if relevant (payoff total, fee waived, new payment).",
+    )
+    recommendation: str = Field(
+        "",
+        description=(
+            "Your brief recommendation + reason for the advisor, e.g. 'Recommend "
+            "waiving — 12-year customer in good standing'. Empty if none."
+        ),
+    )
+    blocked: bool = Field(
+        False,
+        description=(
+            "True if this draft CANNOT be approved yet because the workup caught a "
+            "blocker (e.g. a document-release that's blocked by an open lien). It "
+            "shows locked until the blocker is cleared."
+        ),
+    )
+    blocked_reason: str = Field(
+        "", description="If blocked, one short line why, e.g. 'Open second lien must clear first'."
+    )
+
+
+class PrecedentSpec(BaseModel):
+    """A past (archived) case returned by the server-side precedent search."""
+
+    id: str = Field("", description="Assigned automatically; never set this.")
+    ref: str = Field(description="Archive case reference, e.g. 'MS-0907'.")
+    customer: str = Field("", description="Customer name on the past case.")
+    summary: str = Field("", description="One line on what the past case was.")
+    resolution: str = Field(
+        description="How it was handled/resolved, e.g. 'Legal subordinated the HELOC; title released after.'"
+    )
+    days: float | None = Field(None, description="How many days it took to resolve, if relevant.")
+
+
+# ─── Actions — each one IS the parameter of the tool that dispatches it ─────
+
+
+class OpenBoard(Action):
+    """Show the advisor's case board (the worklist of all their cases). No fields."""
+
+
+class OpenCase(Action):
+    ref: str = Field(description="Case reference, e.g. 'MS-1042'.")
+
+
+class SetTab(Action):
+    tab: Literal["overview", "payments", "documents", "activity"] = Field(
+        description="Which tab of the open case to show."
+    )
+
+
+class AssignCase(Action):
+    ref: str = Field(description="Case reference, e.g. 'MS-1057'.")
+    assignee_kind: Literal["person", "department"] = Field(
+        description="Whether routing to a teammate or a department queue."
+    )
+    assignee: str = Field(
+        description=(
+            "The person's name (e.g. 'Marcus Bell') or department key: one of "
+            "pricing, closures, legal, insurance, compliance."
+        )
+    )
+
+
+class MoveCase(Action):
+    ref: str = Field(description="Case reference.")
+    stage: Literal["new", "in_progress", "needs_approval", "with_dept", "done"] = Field(
+        description="Target stage column."
+    )
+
+
+class AddComment(Action):
+    ref: str = Field(description="Case reference, e.g. 'MS-1057'.")
+    text: str = Field(description="The note text — a sentence or two of context for the case.")
+    dept: str = Field(
+        "",
+        description=(
+            "Optional department this note is about (one of pricing, closures, legal, "
+            "insurance, compliance). Tags the note; omit if it's a general note."
+        ),
+    )
+
+
+class PrepareCase(Action):
+    ref: str = Field(description="Case reference to prepare, e.g. 'MS-1057'.")
+    summary: str = Field("", description="One-line summary of what you're preparing for this case.")
+    jobs: list[JobSpec] = Field(
+        description="The background prep steps (usually 3-4). They animate to completion."
+    )
+    findings: list[FindingSpec] = Field(
+        default_factory=list,
+        description=(
+            "The workup result — the cross-system facts you assembled and figures you "
+            "reconciled (payoff, accrued interest, escrow, in-flight payments). Flag "
+            "the ones the advisor would likely have missed with 'warn'."
+        ),
+    )
+    blocker: BlockerSpec | None = Field(
+        None,
+        description=(
+            "The one risk you caught that gates a regulated step — the thing the "
+            "advisor wouldn't have known to look for (e.g. an open second lien before "
+            "a title release). Omit if the case is clean."
+        ),
+    )
+    packet: PacketSpec | None = Field(
+        None,
+        description=(
+            "The regulated packet (multi-step form) you filled from the workup, e.g. "
+            "an early-closure packet with payoff figures, document-release, escrow "
+            "sections. Mark the section a blocker gates with blocked:true. Omit if not "
+            "relevant."
+        ),
+    )
+    approvals: list[ApprovalSpec] = Field(
+        default_factory=list,
+        description=(
+            "The draft items to reveal for the advisor's approval once prep finishes "
+            "(settlement letter, fee waiver, document release, etc.). If a blocker "
+            "gates one (e.g. document release), set blocked:true on it."
+        ),
+    )
+
+
+class PostWorkup(Action):
+    ref: str = Field(description="Case reference, e.g. 'MS-1042'.")
+    findings: list[FindingSpec] = Field(
+        description="The facts/reconciliations you assembled for this case."
+    )
+    blocker: BlockerSpec | None = Field(
+        None, description="A risk you caught that needs attention. Omit if the case is clean."
+    )
+
+
+class LookupPrecedent(Action):
+    query: str = Field(
+        description="What you're searching for, e.g. 'early closure with an open second lien'."
+    )
+    results: list[PrecedentSpec] = Field(
+        description="The 2-3 most relevant past cases, each with how it was resolved."
+    )
+
+
+class UpdatePacketField(Action):
+    ref: str = Field(description="Case reference.")
+    section: str = Field(description="Section id or title to edit, e.g. 'payoff'.")
+    field: str = Field(description="Field label to set, e.g. 'Payoff date'.")
+    value: str = Field(description="The new value.")
+    note: str = Field("", description="Optional one-line activity note.")
+
+
+class ResolveBlocker(Action):
+    ref: str = Field(description="Case reference.")
+    note: str = Field(
+        "", description="What cleared it, e.g. 'Legal subordinated the home-equity line'."
+    )
+
+
+class SubmitPacket(Action):
+    ref: str = Field(description="Case reference whose packet to submit.")
+
+
+class DraftApproval(Action):
+    ref: str = Field(description="Case reference.")
+    approval: ApprovalSpec = Field(description="The draft to add.")
+
+
+class Highlight(Action):
+    section: Literal[
+        "summary", "loan", "payments", "documents", "approvals", "notes", "activity"
+    ] = Field(description="Which section to highlight.")
+
+
+def _assign_ids(items: list[Any], prefix: str) -> None:
+    """Give every item missing a stable ``id`` one (``{prefix}{n}``), in place —
+    the model is never asked to invent one, but the browser keys its rows by it."""
+    for i, item in enumerate(items):
+        if not item.id.strip():
+            item.id = f"{prefix}{i + 1}"
 
 
 class ServicingBrain(GeminiBrain):
     """One per session. The Meridian Servicing Console copilot: LLM + case/board
-    screen-driving tools + this session's advisor + live workspace state.
-    ``on_interaction`` is the inherited tool-loop ``respond``; :meth:`dispatch_tool`
-    runs each call. The browser's ``state_sync`` snapshots arrive via
-    :meth:`on_client_message` and ground every turn's working context."""
+    screen-driving tools + this session's advisor + live workspace state."""
 
     def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(
-            llm=llm, system_instruction=_SYSTEM_INSTRUCTION, tools=_tools(), model=model
-        )
+        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         # Advisor identity, filled for real in on_session_start from the init payload.
         self.advisor_name = "there"
         self.advisor_role = "Servicing Advisor"
         # Latest workspace snapshot the browser has told us about (authoritative;
         # source of truth lives in the browser, this is the brain's view of it).
         self.current_state: dict[str, Any] | None = None
-        # Whether any state_sync has arrived yet — only fold state into context
-        # once the browser has started pushing snapshots.
-        self._state_received = False
+        self._state_message: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
-    async def on_session_start(self, session, start) -> None:
-        # The advisor payload rides the start frame. Resolve the advisor's
-        # name/role and open with a fixed greeting built from the payload — no LLM
-        # call on the start path, so the desk greets the instant the session
-        # connects.
-        payload = dict(start.init)
+    async def on_session_start(self, session: Session) -> None:
+        payload = dict(session.init or {})
         raw_advisor = payload.get("advisor")
         advisor = raw_advisor if isinstance(raw_advisor, dict) else {}
         self.advisor_name = str(advisor.get("name") or "").strip() or "there"
         self.advisor_role = str(advisor.get("role") or "").strip() or "Servicing Advisor"
-        await self.say(
-            session,
-            f"Hi {self.advisor_name} — {DESK_NAME} here. What would you like to start on?",
+        # The desk's own voice — settled here rather than sent with the connect
+        # request, since this is an internal console with no caller to ask.
+        await session.configure(
+            Config(
+                stt=SttConfig(language=Language.EN),
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
+            )
         )
+        logger.info("servicing: session start — advisor={!r}", self.advisor_name)
 
-    async def on_client_message(self, session, message) -> None:
-        """Browser→Brain client message. ``state_sync`` carries a compact snapshot
-        of the workspace — which case/tab is on screen, pending approvals, and a lean
-        view of the cases. We keep the latest silently (no floor taken, no inference)
-        so the assistant always knows the live on-screen state; the snapshot grounds
-        every turn's working context and backs get_advisor_context."""
-        if message.type == "state_sync":
-            self._ingest_state(message.data or {})
+    async def greet(self, session: Session) -> str:
+        """The opener, written not generated: the advisor is already logged in, so
+        the desk greets the instant the session connects — no LLM call, no
+        first-token wait."""
+        return f"Hi {self.advisor_name} — {DESK_NAME} here. What would you like to start on?"
+
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """Browser→brain message. ``state_sync`` carries a compact snapshot of the
+        workspace — which case/tab is on screen, pending approvals, and a lean
+        view of the cases. Ingested *silently* (no floor taken, no turn); the next
+        turn's working context carries it, so the assistant always knows the live
+        on-screen state, and it backs ``get_advisor_context``."""
+        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+            return
+        if msg.data.get("t") == "state_sync":
+            self._ingest_state(msg.data.get("d") or {})
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
+        """Fold the latest workspace snapshot into the context so every turn
+        reasons from the authoritative on-screen state.
+
+        The console re-sends the snapshot on every change, and many are the same
+        workspace from the desk's point of view (a scroll, a re-render). Only a
+        changed snapshot is worth appending: the context is append-only, so an
+        unguarded append here would flood it with near-duplicate snapshots by the
+        end of a session."""
         snapshot = data.get("workspace")
         self.current_state = snapshot if isinstance(snapshot, dict) else None
-        self._state_received = True
-        logger.info("servicing: state_sync ingested (active={})", bool(self.current_state))
-
-    # ─── Working context grounding (silent state fold) ──────────────────────
-
-    def grounding(self, interaction) -> str | None:
-        """Fold the live workspace snapshot into every turn (every ``state_sync``
-        folded into the LLM context, no inference) so the assistant always reasons
-        from the authoritative on-screen state."""
-        return self._state_grounding()
-
-    def _state_grounding(self) -> str | None:
-        """The authoritative-workspace grounding text. ``None`` before the browser
-        has pushed any snapshot."""
-        if not self._state_received:
-            return None
         if self.current_state is None:
-            return "CURRENT SCREEN STATE: the advisor's console is initializing."
-        try:
-            blob = json.dumps(self.current_state, ensure_ascii=False)
-        except (TypeError, ValueError):
-            blob = str(self.current_state)
-        return (
-            "CURRENT WORKSPACE STATE (authoritative — reflects where the advisor is and "
-            "every edit they or you have made; always reason from this): " + blob
-        )
+            message = "CURRENT WORKSPACE STATE: the advisor's console is initializing."
+        else:
+            try:
+                blob = json.dumps(self.current_state, ensure_ascii=False)
+            except (TypeError, ValueError):
+                blob = str(self.current_state)
+            message = (
+                "CURRENT WORKSPACE STATE (authoritative — reflects where the advisor "
+                "is and every edit they or you have made; always reason from this): " + blob
+            )
+        if message == self._state_message:
+            return
+        self._state_message = message
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=message)]))
+        logger.info("servicing: state_sync ingested (active={})", bool(self.current_state))
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
-    def dispatch_tool(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: normalize the model-generated data, drive the browser
-        via ``interaction.action(...)`` (the RTVI ui_command the /servicing UI
-        renders), and return the same short ack fed back to the model.
-        ``get_advisor_context`` is read-only (no UI push)."""
-        act = interaction.action
-        if name == "open_board":
-            logger.info("servicing: open_board")
-            act("open_board")
-            return str({"status": "board_open"})
-        if name == "open_case":
-            ref = str(args.get("ref", "")).strip().upper()
-            logger.info("servicing: open_case {!r}", ref)
-            act("open_case", {"ref": ref})
-            return str({"status": "opened", "ref": ref})
-        if name == "set_tab":
-            tab = str(args.get("tab", "")).strip()
-            logger.info("servicing: set_tab {!r}", tab)
-            act("set_tab", {"tab": tab})
-            return str({"status": "set", "tab": tab})
-        if name == "get_advisor_context":
-            state = self.current_state or {}
-            where = {
+    @property
+    def tools(self) -> list[Any]:
+        """The fifteen the advisor's desk may call."""
+        return [
+            self.open_board,
+            self.open_case,
+            self.set_tab,
+            self.get_advisor_context,
+            self.assign_case,
+            self.move_case,
+            self.add_comment,
+            self.prepare_case,
+            self.post_workup,
+            self.lookup_precedent,
+            self.update_packet_field,
+            self.resolve_blocker,
+            self.submit_packet,
+            self.draft_approval,
+            self.highlight,
+        ]
+
+    async def open_board(self) -> str:
+        """Show the advisor's case board (the worklist of all their cases)."""
+        self.session.dispatch(OpenBoard())
+        return "board open"
+
+    async def open_case(self, action: OpenCase) -> str:
+        """Open a case by its reference and make it the active case on screen.
+        Use when the advisor says 'open Cho's case' or 'pull up MS-1057'."""
+        action.ref = action.ref.strip().upper()
+        self.session.dispatch(action)
+        return f"opened {action.ref}"
+
+    async def set_tab(self, action: SetTab) -> str:
+        """Switch the tab within the open case so the advisor sees the right panel."""
+        self.session.dispatch(action)
+        return f"showing {action.tab}"
+
+    async def get_advisor_context(self) -> str:
+        """Read where the advisor is right now — which case and tab is on screen,
+        plus a snapshot of that case and any pending approvals. Call this to
+        ground a turn in what the advisor is currently looking at before you
+        reference it."""
+        state = self.current_state or {}
+        return str(
+            {
                 "view": state.get("view"),
                 "active_case": state.get("active_case"),
                 "tab": state.get("tab"),
                 "pending_approvals": state.get("pending_approvals"),
             }
-            logger.info("servicing: get_advisor_context -> {}", where)
-            return str(where)
-        if name == "assign_case":
-            ref = str(args.get("ref", "")).strip().upper()
-            kind = str(args.get("assignee_kind", "")).strip()
-            assignee = str(args.get("assignee", "")).strip()
-            logger.info("servicing: assign_case {} -> {}:{}", ref, kind, assignee)
-            act("assign_case", {"ref": ref, "assignee_kind": kind, "assignee": assignee})
-            label = (
-                DEPARTMENTS.get(assignee.lower(), assignee) if kind == "department" else assignee
-            )
-            return str({"status": "assigned", "ref": ref, "to": label})
-        if name == "move_case":
-            ref = str(args.get("ref", "")).strip().upper()
-            stage = str(args.get("stage", "")).strip()
-            logger.info("servicing: move_case {} -> {}", ref, stage)
-            act("move_case", {"ref": ref, "stage": stage})
-            return str({"status": "moved", "ref": ref, "stage": stage})
-        if name == "add_comment":
-            ref = str(args.get("ref", "")).strip().upper()
-            text = str(args.get("text", "")).strip()
-            dept = str(args.get("dept", "")).strip().lower()
-            if not ref or not text:
-                return str({"error": "need a case ref and note text"})
-            logger.info("servicing: add_comment {} (dept={})", ref, dept or None)
-            act("add_comment", {"ref": ref, "text": text, "dept": dept})
-            return str(
-                {"status": "note_added", "ref": ref, "dept": DEPARTMENTS.get(dept, dept) or None}
-            )
-        if name == "prepare_case":
-            ref = str(args.get("ref", "")).strip().upper()
-            jobs = _normalize_ids(list(args.get("jobs") or []), "j")
-            approvals = _normalize_ids(list(args.get("approvals") or []), "a")
-            findings = _normalize_ids(list(args.get("findings") or []), "f")
-            blocker = args.get("blocker") if isinstance(args.get("blocker"), dict) else None
-            packet = args.get("packet") if isinstance(args.get("packet"), dict) else None
-            summary = str(args.get("summary", ""))
-            if not ref or not jobs:
-                return str({"error": "need a case ref and at least one job"})
-            logger.info(
-                "servicing: prepare_case {} ({} jobs, {} findings, blocker={}, packet={}, {} approvals)",
-                ref,
-                len(jobs),
-                len(findings),
-                bool(blocker),
-                bool(packet),
-                len(approvals),
-            )
-            act(
-                "prepare_case",
-                {
-                    "ref": ref,
-                    "summary": summary,
-                    "jobs": jobs,
-                    "findings": findings,
-                    "blocker": blocker,
-                    "packet": packet,
-                    "approvals": approvals,
-                },
-            )
-            return str(
-                {
-                    "status": "preparing_in_background",
-                    "ref": ref,
-                    "jobs": [j["label"] for j in jobs],
-                    "blocker": blocker.get("title") if blocker else None,
-                    "note": "Running in the background; the advisor stays unblocked. Tell them when ready.",
-                }
-            )
-        if name == "post_workup":
-            ref = str(args.get("ref", "")).strip().upper()
-            findings = _normalize_ids(list(args.get("findings") or []), "f")
-            blocker = args.get("blocker") if isinstance(args.get("blocker"), dict) else None
-            if not ref or not findings:
-                return str({"error": "need a case ref and at least one finding"})
-            logger.info(
-                "servicing: post_workup {} ({} findings, blocker={})",
-                ref,
-                len(findings),
-                bool(blocker),
-            )
-            act("post_workup", {"ref": ref, "findings": findings, "blocker": blocker})
-            return str(
-                {
-                    "status": "workup_posted",
-                    "ref": ref,
-                    "blocker": blocker.get("title") if blocker else None,
-                }
-            )
-        if name == "lookup_precedent":
-            query = str(args.get("query", "")).strip()
-            results = _normalize_ids(list(args.get("results") or []), "p")
-            logger.info("servicing: lookup_precedent {!r} ({} results)", query, len(results))
-            act("lookup_precedent", {"query": query, "results": results})
-            return str(
-                {
-                    "status": "searched_archive",
-                    "query": query,
-                    "results": [
-                        {"ref": r.get("ref"), "resolution": r.get("resolution")} for r in results
-                    ],
-                }
-            )
-        if name == "update_packet_field":
-            ref = str(args.get("ref", "")).strip().upper()
-            section = str(args.get("section", "")).strip()
-            field = str(args.get("field", "")).strip()
-            value = str(args.get("value", "")).strip()
-            note = str(args.get("note", "")).strip()
-            if not ref or not section or not field:
-                return str({"error": "need ref, section and field"})
-            logger.info(
-                "servicing: update_packet_field {} {}/{} -> {!r}", ref, section, field, value
-            )
-            act(
-                "update_packet_field",
-                {"ref": ref, "section": section, "field": field, "value": value, "note": note},
-            )
-            return str({"status": "field_updated", "ref": ref, "field": field, "value": value})
-        if name == "resolve_blocker":
-            ref = str(args.get("ref", "")).strip().upper()
-            note = str(args.get("note", "")).strip()
-            if not ref:
-                return str({"error": "need a case ref"})
-            logger.info("servicing: resolve_blocker {} ({})", ref, note)
-            act("resolve_blocker", {"ref": ref, "note": note})
-            return str({"status": "blocker_cleared", "ref": ref})
-        if name == "submit_packet":
-            ref = str(args.get("ref", "")).strip().upper()
-            if not ref:
-                return str({"error": "need a case ref"})
-            logger.info("servicing: submit_packet {}", ref)
-            act("submit_packet", {"ref": ref})
-            return str(
-                {
-                    "status": "submit_requested",
-                    "ref": ref,
-                    "note": (
-                        "The console will submit only if the advisor has approved the drafts and no "
-                        "blocker is open; otherwise it stays put. Check the workspace state to confirm."
-                    ),
-                }
-            )
-        if name == "draft_approval":
-            ref = str(args.get("ref", "")).strip().upper()
-            approval = args.get("approval")
-            if not ref or not isinstance(approval, dict):
-                return str({"error": "need a case ref and an approval object"})
-            approval = _normalize_ids([approval], "a")[0]
-            logger.info("servicing: draft_approval {} {!r}", ref, approval.get("title"))
-            act("draft_approval", {"ref": ref, "approval": approval})
-            return str(
-                {"status": "drafted_for_approval", "ref": ref, "title": approval.get("title")}
-            )
-        if name == "highlight":
-            section = str(args.get("section", ""))
-            logger.info("servicing: highlight {}", section)
-            act("highlight", {"section": section})
-            return str({"status": "highlighted", "section": section})
-        return "unknown tool"
+        )
+
+    async def assign_case(self, action: AssignCase) -> str:
+        """Route a case to a person or a department (Jira-style assignment). Use
+        when the advisor says 'assign it to <person>' or 'send it to
+        <department>'. Assigning to a department moves the card to the 'with
+        department' stage."""
+        action.ref = action.ref.strip().upper()
+        self.session.dispatch(action)
+        label = (
+            DEPARTMENTS.get(action.assignee.lower(), action.assignee)
+            if action.assignee_kind == "department"
+            else action.assignee
+        )
+        return f"assigned {action.ref} to {label}"
+
+    async def move_case(self, action: MoveCase) -> str:
+        """Move a case card to a different stage on the board."""
+        action.ref = action.ref.strip().upper()
+        self.session.dispatch(action)
+        return f"moved {action.ref} to {action.stage}"
+
+    async def add_comment(self, action: AddComment) -> str:
+        """Leave an authored note on a case — handoff context the next desk
+        needs. Use when the advisor says 'make a note that…', 'add a comment…',
+        or when you route a case to another department and want to capture WHY
+        so the receiving team has the context. If the note accompanies a
+        routing, pass the department in 'dept' (it tags the note; route
+        separately with assign_case if the case should actually move). Notes are
+        not approvals — they are free-text context."""
+        action.ref = action.ref.strip().upper()
+        action.dept = action.dept.strip().lower()
+        if not action.ref or not action.text.strip():
+            return "need a case ref and note text"
+        self.session.dispatch(action)
+        dept_label = DEPARTMENTS.get(action.dept, action.dept) or None
+        return f"noted on {action.ref}" + (f" ({dept_label})" if dept_label else "")
+
+    async def prepare_case(self, action: PrepareCase) -> str:
+        """Run a full WORKUP on a case IN THE BACKGROUND while the advisor stays
+        on whatever they have open. Kicks off the listed prep jobs (which run
+        and complete on their own) and, when they finish, reveals everything at
+        once: your findings (the cross-system assembly + reconciliations), any
+        blocker you caught, the regulated packet you filled, and the drafts in
+        the 'Needs your approval' queue. Use this for a case the advisor asks
+        you to 'get ready' / 'take' / 'work up' — never pull them off their
+        current screen for it. This is the heavy lifting: do the legwork they'd
+        otherwise do by hand."""
+        action.ref = action.ref.strip().upper()
+        if not action.ref or not action.jobs:
+            return "need a case ref and at least one job"
+        _assign_ids(action.jobs, "j")
+        _assign_ids(action.findings, "f")
+        _assign_ids(action.approvals, "a")
+        self.session.dispatch(action)
+        blocker_note = f"; blocker: {action.blocker.title}" if action.blocker else ""
+        return (
+            f"preparing {action.ref} in the background{blocker_note} — tell the advisor when ready"
+        )
+
+    async def post_workup(self, action: PostWorkup) -> str:
+        """Attach a workup to the case the advisor has OPEN ON SCREEN right now
+        (no background animation) — the findings you assembled and any blocker
+        you caught. Use this when you are co-working a case with the advisor
+        and want to show your reconciliation (e.g. Cho's true net saving after
+        fees, or an eligibility flag) immediately."""
+        action.ref = action.ref.strip().upper()
+        if not action.ref or not action.findings:
+            return "need a case ref and at least one finding"
+        _assign_ids(action.findings, "f")
+        self.session.dispatch(action)
+        blocker_note = f"; blocker: {action.blocker.title}" if action.blocker else ""
+        return f"workup posted on {action.ref}{blocker_note}"
+
+    async def lookup_precedent(self, action: LookupPrecedent) -> str:
+        """Search the case ARCHIVE (closed/past cases, not in the advisor's
+        current queue) for precedent — how the team handled a similar situation
+        before. Use when the advisor asks 'have we done this before?' / 'how
+        did we handle X?'. This is a server-side lookup that reaches beyond
+        what's on screen. Generate 2-3 believable past cases."""
+        _assign_ids(action.results, "p")
+        self.session.dispatch(action)
+        return f"searched the archive — {len(action.results)} precedent(s) found"
+
+    async def update_packet_field(self, action: UpdatePacketField) -> str:
+        """Change one field of a case's packet (form) — e.g. when the advisor
+        says 'set the payoff date to month-end'. Pass the recomputed value
+        yourself (regenerate any figure that depends on it, like accrued
+        interest, and update those fields too)."""
+        action.ref = action.ref.strip().upper()
+        if not action.ref or not action.section.strip() or not action.field.strip():
+            return "need ref, section and field"
+        self.session.dispatch(action)
+        return f"set {action.field} to {action.value!r} on {action.ref}"
+
+    async def resolve_blocker(self, action: ResolveBlocker) -> str:
+        """Mark a case's blocker as cleared — e.g. once you confirm Legal has
+        subordinated the lien. This unlocks any draft or packet section the
+        blocker was gating so the advisor can approve and submit. Only call
+        this when the blocking issue is genuinely resolved."""
+        action.ref = action.ref.strip().upper()
+        if not action.ref:
+            return "need a case ref"
+        self.session.dispatch(action)
+        return f"blocker cleared on {action.ref}"
+
+    async def submit_packet(self, action: SubmitPacket) -> str:
+        """Submit a case's regulated packet to the handling department (a
+        server-side action with consequences). Maker-checker: this only goes
+        through AFTER the advisor has approved the drafts and any blocker is
+        cleared — if something is still pending or blocked, the submission is
+        refused. Confirm the advisor wants to submit before calling."""
+        action.ref = action.ref.strip().upper()
+        if not action.ref:
+            return "need a case ref"
+        self.session.dispatch(action)
+        return (
+            f"submit requested for {action.ref} — the console will only submit if "
+            "the advisor has approved the drafts and no blocker is open"
+        )
+
+    async def draft_approval(self, action: DraftApproval) -> str:
+        """Drop a single draft into a case's 'Needs your approval' queue
+        immediately — for a case you are co-working on screen with the advisor
+        (e.g. a rate offer for Cho). The advisor approves or declines it. You
+        never execute it yourself."""
+        action.ref = action.ref.strip().upper()
+        if not action.ref:
+            return "need a case ref"
+        _assign_ids([action.approval], "a")
+        self.session.dispatch(action)
+        return f"drafted '{action.approval.title}' for approval on {action.ref}"
+
+    async def highlight(self, action: Highlight) -> str:
+        """Scroll to and briefly highlight one section of the open case so the
+        advisor's eye follows you."""
+        self.session.dispatch(action)
+        return f"highlighted {action.section}"
