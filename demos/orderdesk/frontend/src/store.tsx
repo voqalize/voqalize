@@ -28,7 +28,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { uiCommandArgs, type UiCommand, type UiCommandArgs, type UiCommandHandlers } from "@voqalize/client-react";
 import { buildBrainPayload, pharmacyById, scenarioById } from "./data";
 import { CLIENT_MESSAGE, type OrderDeskCommands } from "./uiCommands";
 import type {
@@ -43,6 +42,9 @@ import type {
 } from "./types";
 
 type AgentSend = ((type: string, data: unknown) => void) | null;
+
+/** One handler per wire name in `T`, typed to that action's payload. */
+type UiCommandHandlers<T> = { [K in keyof T]: (args: T[K]) => void };
 
 /**
  * A line item as this screen holds it: the brain's render state plus the two
@@ -164,7 +166,7 @@ interface OrderDeskStore {
   // ── Bridges ───────────────────────────────────────────────────────────────
   uiCommands: UiCommandHandlers<OrderDeskCommands>;
   /** Same dispatch by hand — the DEV console affordance (`window.__orderdesk.ui`). */
-  handleUiCommand: (raw: Record<string, unknown>) => void;
+  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
   snapshot: () => OrderSnapshot;
   registerAgentSend: (fn: AgentSend) => void;
 
@@ -629,15 +631,11 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
     [upsertItems, removeIds, highlightItem, showSearchResults, showVariants, showNote],
   );
 
-  // Same dispatch, by hand — for `window.__orderdesk.ui({action:'upsert_items', items:[…]})`.
+  // Same dispatch, by hand — for `window.__orderdesk.ui('upsert_items', {items:[…]})`.
   const handleUiCommand = useCallback(
-    (raw: Record<string, unknown>) => {
-      const cmd = raw as UiCommand;
-      const map = uiCommands as unknown as Record<
-        string,
-        ((args: UiCommandArgs, command: UiCommand) => void) | undefined
-      >;
-      map[cmd.action]?.(uiCommandArgs(cmd), cmd);
+    (command: string, payload: Record<string, unknown>) => {
+      const map = uiCommands as unknown as Record<string, ((args: unknown) => void) | undefined>;
+      map[command]?.(payload);
     },
     [uiCommands],
   );

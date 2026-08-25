@@ -14,9 +14,11 @@
  * `types.ts`, shared with the store and the scenario data; they are re-exported
  * below so a reader of this file sees the whole contract in one place.
  *
- * The `useUiCommand` hook (`@voqalize/client-react`) checks a handler map against
- * `OrderDeskCommands`: an action name the brain doesn't declare is a compile error,
- * and each handler's argument is that action's args — no coercion, no null-checks.
+ * `OrderDeskCallSession` (`OrderDeskCall.tsx`) subscribes to pipecat's
+ * `RTVIEvent.UICommand` and replays each `{ command, payload }` onto a handler
+ * map checked against `OrderDeskCommands`: an action name the brain doesn't
+ * declare is a compile error, and each handler's argument is that action's
+ * payload — no coercion, no null-checks.
  */
 
 import type { FamilyWire, LineItemView, SkuWire } from "./types";
