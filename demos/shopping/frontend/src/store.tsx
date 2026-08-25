@@ -1,8 +1,8 @@
 /**
  * MobileShopStore — the single source of truth for the demo's screen state.
  *
- * Both the human (tapping the UI) and the Mobile Expert agent (via `ui_command`
- * RTVI messages) call the SAME actions, so the screen stays consistent no
+ * Both the human (tapping the UI) and the Mobile Expert agent (via `ui-command`
+ * RTVI events) call the SAME actions, so the screen stays consistent no
  * matter who is driving. Navigation is plain React state — never the router —
  * so the `PipecatClient` mounted alongside never unmounts and the call stays
  * live as the shopper moves between pages.
@@ -95,8 +95,8 @@ export interface MobileShopStore extends State, MobileShopActions {
   results: Phone[];
   cartPhones: Phone[];
   wishlistPhones: Phone[];
-  /** Dispatch a raw `ui_command` payload coming from the agent over RTVI. */
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  /** Dispatch a `ui-command` RTVI event's `{ command, payload }` from the agent. */
+  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
 }
 
 const Ctx = createContext<MobileShopStore | null>(null);
@@ -210,56 +210,55 @@ export function MobileShopProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      const action = String(cmd.action ?? '');
+    (command: string, payload: Record<string, unknown>) => {
       const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
       const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
-      switch (action) {
+      switch (command) {
         case 'navigate_home':
           goHome();
           break;
         case 'show_search':
           showSearch({
-            query: str(cmd.query) ?? '',
-            brand: str(cmd.brand),
-            maxPrice: num(cmd.max_price),
-            category: str(cmd.category),
-            sort: str(cmd.sort_by) as SortKey | undefined,
+            query: str(payload.query) ?? '',
+            brand: str(payload.brand),
+            maxPrice: num(payload.max_price),
+            category: str(payload.category),
+            sort: str(payload.sort_by) as SortKey | undefined,
           });
           break;
         case 'sort':
-          setSort(str(cmd.sort_by) as SortKey | undefined);
+          setSort(str(payload.sort_by) as SortKey | undefined);
           break;
         case 'open_product':
-          if (str(cmd.product_id)) openProduct(str(cmd.product_id)!);
+          if (str(payload.product_id)) openProduct(str(payload.product_id)!);
           break;
         case 'apply_filters':
           applyFilters({
-            brand: str(cmd.brand),
-            maxPrice: num(cmd.max_price),
-            minPrice: num(cmd.min_price),
-            category: str(cmd.category),
+            brand: str(payload.brand),
+            maxPrice: num(payload.max_price),
+            minPrice: num(payload.min_price),
+            category: str(payload.category),
           });
           break;
         case 'clear_filters':
           clearFilters();
           break;
         case 'highlight':
-          if (str(cmd.product_id) && str(cmd.feature)) {
-            highlightFeature(str(cmd.product_id)!, str(cmd.feature)!);
+          if (str(payload.product_id) && str(payload.feature)) {
+            highlightFeature(str(payload.product_id)!, str(payload.feature)!);
           }
           break;
         case 'compare':
-          if (Array.isArray(cmd.product_ids)) compare(cmd.product_ids.map(String));
+          if (Array.isArray(payload.product_ids)) compare(payload.product_ids.map(String));
           break;
         case 'add_to_cart':
-          if (str(cmd.product_id)) addToCart(str(cmd.product_id)!);
+          if (str(payload.product_id)) addToCart(str(payload.product_id)!);
           break;
         case 'add_to_wishlist':
-          if (str(cmd.product_id)) addToWishlist(str(cmd.product_id)!);
+          if (str(payload.product_id)) addToWishlist(str(payload.product_id)!);
           break;
         case 'open_faq':
-          openFaq(str(cmd.topic) ?? null);
+          openFaq(str(payload.topic) ?? null);
           break;
         default:
           // Unknown command — ignore quietly.

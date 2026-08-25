@@ -3,7 +3,7 @@
  * `demos/shopping/backend/catalog.py`.
  *
  * The voice agent reasons over the Python copy and drives the UI by pushing
- * product `id`s in `ui_command` RTVI messages. This file resolves those ids for
+ * product `id`s in `ui-command` RTVI events. This file resolves those ids for
  * rendering, so the `id` values here MUST stay in sync with the Python catalog.
  */
 

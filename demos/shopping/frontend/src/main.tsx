@@ -4,7 +4,7 @@
  * A mock mobile-phone store with the "Mobile Expert" voice agent. The store UI
  * and the voice layer share one `MobileShopProvider`, so the agent and the
  * shopper drive the same screen; state-based navigation keeps the live call
- * alive across screens. The agent drives the page via `ui_command` messages.
+ * alive across screens. The agent drives the page via `ui-command` RTVI events.
  *
  * `MobileExpert` owns the session and hands its one presence control back up as
  * a render-prop, so the store keeps ownership of its own top bar — the voice
