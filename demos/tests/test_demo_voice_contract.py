@@ -52,12 +52,11 @@ from ._harness import (
     demo_from,
 )
 
-pytest.importorskip("google.adk")  # the two ADK demos are built directly, below
+pytest.importorskip("google.adk")  # orderdesk, the one remaining ADK demo, is built directly, below
 
 discover()
 
 from voqalize_demos._loaded.orderdesk.brain import OrderDeskBrain  # noqa: E402
-from voqalize_demos._loaded.travel.brain import TravelBrain  # noqa: E402
 
 from voqalize.google_adk.testing import ScriptedLlm  # noqa: E402
 
@@ -128,12 +127,7 @@ DEMOS: dict[str, Expected] = {
     # grown back beside it.
     "sugar": Expected(at_connect=True),
     "support": Expected(voice="omnivoice/gaurav", language="en"),
-    "travel": Expected(
-        voice="omnivoice/gauri",
-        language="hi",
-        unported=True,
-        build=lambda: TravelBrain(model=ScriptedLlm({})),
-    ),
+    "travel": Expected(voice="omnivoice/gauri", language="hi"),
 }
 
 UNPORTED = (
