@@ -1032,8 +1032,6 @@ class AuraBrain(GeminiInteractionsBrain):
         Args:
             product: Which application to open.
         """
-        if product not in ("savings", "credit_card", "loan"):
-            return "product must be savings, credit_card, or loan"
         logger.info("aura: start_application {}", product)
         self.session.dispatch(StartApplication(product=product))
         return f"{product} application started"
