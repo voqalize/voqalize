@@ -12,9 +12,9 @@ developer documentation. Voqalize itself — the hosted voice runtime — is a
 managed service, and everything you need to build against it is here.
 
 > **Pre-release.** The SDK surfaces and the wire are still moving.
-> `voqalize-agent-sdk` (PyPI) is published, but the surface it carries is the
-> previous one — **pin the version you build against**, and expect the next
-> release to change the brain callbacks.
+> `voqalize-agent-sdk` 0.1.0 is published on PyPI with the `Brain`,
+> `run_session`, and `serve` API documented here. **Pin the version you build
+> against**, because pre-1.0 releases may change the brain callbacks.
 >
 > **`@voqalize/client-react` is deprecated (2026-08-24), takes no replacement,
 > and its source is no longer in this repo.** The browser half of a call is stock

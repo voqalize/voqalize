@@ -89,10 +89,7 @@ trusts.
 
 ### Building the image
 
-`requirements.txt` lists `voqalize-agent-sdk` as if it were on a package index.
-Until it's published there, vendor the SDK into the build context (copy
-`sdk/python/` alongside this dir and `pip install ./python` in the
-Dockerfile), or build a wheel with `uv build` and `COPY` it in. The
-`--allow-unauthenticated` flag is about *Cloud Run's* IAM front door (Voqalize is an
-anonymous external caller); the brain still authenticates the call itself via the
-RS256 token inside `run_session`.
+`requirements.txt` pins the published SDK, so this directory is a complete
+standalone build context. The `--allow-unauthenticated` flag is about *Cloud
+Run's* IAM front door (Voqalize is an anonymous external caller); the brain still
+authenticates the call itself via the RS256 token inside `run_session`.
