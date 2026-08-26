@@ -301,7 +301,8 @@ def _types(args: argparse.Namespace) -> int:
     text = _render(actions, args.union_name, args.module, command)
     if args.out:
         Path(args.out).write_text(text, encoding="utf-8")
-        print(f"{len(actions)} actions → {args.out}", file=sys.stderr)
+        plural = "" if len(actions) == 1 else "s"
+        print(f"{len(actions)} action{plural} → {args.out}", file=sys.stderr)
     else:
         sys.stdout.write(text)
     return 0

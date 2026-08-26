@@ -64,6 +64,16 @@ jobs:
       - name: pyright
         run: uv run pyright
 
+      # Each demo's screen contract is generated from its brain's `Action`
+      # classes. Regenerating and diffing is what keeps the checked-in file
+      # honest: a field renamed in Python without a regenerate fails here,
+      # rather than in a browser as a card that silently stopped filling in.
+      - name: The generated action unions are current
+        working-directory: demos
+        run: |
+          bin/regen-actions.sh
+          git diff --exit-code -- '*/frontend/src/actions.gen.ts'
+
       # The SDK first: the demos import it by path, so an SDK break shows up here
       # as one failure rather than as thirty confusing ones downstream.
       # Prose is checked against the code that settles it, not proofread. This
