@@ -3,14 +3,19 @@
 All notable changes to `voqalize-agent-sdk`. This project is pre-1.0 and still
 alpha: the package API can break on a minor version, the **wire** does not.
 
-**The numbering restarts at `0.0.1`.** Everything below it — `0.1.0` through the
-work that would have been `0.4.0` — was never published: the one host that used
-the SDK installed it from a path in a sibling checkout. `0.0.1` is the first
-version anyone can `pip install`, and starting the public series at the bottom
-says plainly that nothing here is promised yet. Those older entries stay,
-because the API they describe is the API `0.0.1` ships.
+**The numbering restarted at `0.0.1`.** Everything marked *pre-restart* below —
+`0.1.0` through the work that would have been `0.4.0` — was never published: the
+one host that used the SDK installed it from a path in a sibling checkout.
+`0.0.1` is the first version anyone can `pip install`, and starting the public
+series at the bottom said plainly that nothing here was promised yet. Those older
+entries stay, because the API they describe is the API `0.0.1` ships.
 
-## 0.0.4 (unreleased)
+The public series has now caught up to them, so **a heading carrying
+`(pre-restart)` is the old series and a bare one is the shipping series.** They
+are different releases that happen to share a number; the pre-restart entries are
+kept for the history, and nothing installable was ever cut from them.
+
+## 0.1.0 (unreleased)
 
 **Wire version 3, and it is a break.** The envelope carries no fields, barge-in
 is a one-way watermark, and the browser plane is RTVI. A brain built against
@@ -248,7 +253,7 @@ frames a brain emits are byte-identical to what the previous release emitted.
   it uses (`Runner`, `InvocationContext`, callbacks, `types`) are identical
   across the two lines, and the drift canaries pass on 2.3.0 and 2.6.2 alike.
 
-## 0.3.0
+## 0.3.0 (pre-restart)
 
 The ADK adapter grows the seams a real screen-driving agent needed. **No wire
 change** — `proto/voqalize/frames/frames.proto` is untouched, so this is a pure
@@ -303,7 +308,7 @@ package-API release and any 0.2.0 runtime pairing keeps working.
   explicit `args={...}` form for an argument literally named `args`. Mixing the
   two forms raises `TypeError`.
 
-## 0.2.0
+## 0.2.0 (pre-restart)
 
 Breaking changes to the package API. The wire protocol is fully backward
 compatible — every change to `proto/voqalize/frames/frames.proto` in this release
@@ -374,7 +379,7 @@ frames).
 +            await speech.speak("Let me look at that.")
 ```
 
-## 0.1.0
+## 0.1.0 (pre-restart)
 
 Initial release: the pipecat-free `Brain` surface, the inbound (direct) server
 and the Cortex agent, the `Vql*` wire vocabulary, and the framework-owned
