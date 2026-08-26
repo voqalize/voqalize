@@ -1,6 +1,6 @@
 ---
 title: The management API
-description: There is no bearer-key REST API for managing your account, and that is a decision rather than a gap. MCP is the programmatic surface. Two HTTP routes start a call, and your own code calls one of them.
+description: There is no bearer-key REST API for managing your account, and that is a decision rather than a gap. MCP is the programmatic surface. One HTTP route starts a call, and it is the only one your own code calls.
 ---
 
 **There is no bearer-key HTTP API for managing agents, keys or usage.** A secret
@@ -12,32 +12,34 @@ That is worth saying plainly, because it is the opposite of what most products
 do, and because you can waste an afternoon looking for the endpoint that would
 have done it.
 
-## The two routes your own code calls
+## The one route your own code calls
 
-Exactly two routes accept a key rather than a console session, and both do the
-same thing: start one call.
+Exactly one route accepts a key rather than a console session, and it does one
+thing: start a call.
 
 ```
-POST https://api.voqalize.com/api/v1/sessions.create
 POST https://api.voqalize.com/api/v1/sessions.connect
 Authorization: Bearer sk_…
 Content-Type: application/json
 ```
 
-**You call one of them, not both.** They take the same body, run the same
-authorization, spend the same quota and mint the same session — they differ only
-in what comes back:
-
-| Route | Answers with | Call it when |
-|---|---|---|
-| `sessions.connect` | The pipecat transport's argument, and nothing else: `webrtc_request_params` and `session_id`. | Your page is about to join the call. Relay the body to the browser verbatim. |
-| `sessions.create` | The full session record — id, state, agent, config, timestamps, recordings. | You want the record for your own bookkeeping and something else will join. |
+It answers with the pipecat transport's argument and nothing else —
+`webrtc_request_params` and `session_id`. Relay that body to the browser
+verbatim: it is what `startBotAndConnect` takes, so there is no field to pick
+out and no object to rebuild.
 
 There was once a `create_meeting` then `start_meeting` pair. It is gone: nothing
 ever created a connection and then declined to use it, and the gap between the
 two steps was a state nobody guarded. **Start one call. There is no second
-step** — and `sessions.connect` is a projection of `sessions.create` rather than
-a second path to it, so there is exactly one place a session is minted.
+step.**
+
+The route was called `sessions.create` until 2026-08-26, and for a while both
+names answered. If you find the older one in an example, it still works and it
+is not documented: it starts the same call and hands back the whole session
+record instead of the connect params, which every caller then had to dig
+through for the three fields it wanted. Move to `sessions.connect`. If you want
+the record too, read it back with [`get_session`](/operate/reading-a-call/) —
+over MCP or in the console, where reads belong.
 
 ### The body
 

@@ -78,8 +78,8 @@ becomes `webrtcRequestParams`, `session_id` becomes `sessionId`. Keys it does no
 recognise are dropped with a console warning, which is the real reason this
 response is not a session record: a pipecat page does not *read* the start
 response, it *forwards* it. If you want the session record — status, timings,
-recordings — that is `sessions.create`, and it is a different question asked
-later.
+recordings — that is a read, asked later, and it is
+[`get_session`](/operate/reading-a-call/) rather than anything on this route.
 
 ## Two ways to hold the credential
 
