@@ -6,49 +6,47 @@
  * for that day; the brain-facing payload is derived from the same objects in
  * `data.ts` (`buildBrainPayload`) so the screen and the agent can never drift.
  *
- * **The action payloads below are declared twice and kept in sync BY HAND.** The
- * brain's `Action` classes in `backend/brain.py` are the source — they generate
- * the JSON Schema Gemini fills in and the payload that arrives here — and these
- * interfaces are the TypeScript half, typed out again. `MealItem`, `MealEntry`,
- * `ActivityEntry`, `MedStatus`, `Commitment`, `CareFlag` and `CallSummary` all
- * mirror a class over there; change one and change the other in the same commit.
- * Generating this file from `model_json_schema()` is the obvious fix and is the
- * one duplication in this demo we are living with until it is built.
+ * **The action payloads are not written here.** `actions.gen.ts` is generated
+ * from the brain's `Action` classes by `voqalize types`, and every screen type
+ * that mirrors one is derived from it below rather than typed out a second
+ * time. What the screen adds on top — a list key, an enter-animation flag, the
+ * care plan's dosing timing — is the page's own bookkeeping and has no business
+ * in the Python.
  */
 
-export interface MealItem {
-  name: string;
-  quantity: string;
-  calories: number;
-}
+import type {
+  FlagForCareTeam,
+  LogActivity,
+  LogMeal,
+  MarkMedication,
+  SetCommitment,
+  ShowSummary,
+} from './actions.gen';
 
-export interface MealEntry {
+/** A logged meal, plus what the list needs to render and animate it. */
+export type MealEntry = LogMeal & {
   id: string;
-  meal_type: string; // breakfast | lunch | snack | dinner | other
-  time_label: string;
-  items: MealItem[];
-  total_calories: number;
-  note?: string;
   /** True when the agent just logged it — drives the enter animation. */
   fresh?: boolean;
-}
+};
 
-export interface ActivityEntry {
+export type ActivityEntry = LogActivity & {
   id: string;
-  kind: string;
-  duration_min: number;
-  time_label: string;
-  note?: string;
   fresh?: boolean;
-}
+};
 
 export interface MedPlanItem {
   name: string; // e.g. 'Metformin 500mg'
   timing: string; // e.g. 'morning, after breakfast'
 }
 
-export type MedState = 'pending' | 'taken' | 'missed' | 'skipped';
+/** What the brain can mark, plus the state a dose starts the day in. */
+export type MedState = MarkMedication['status'] | 'pending';
 
+/**
+ * A row on the meds card. Not `MarkMedication`: the row exists before anyone
+ * marks it, carries the plan's `timing`, and may never be marked at all.
+ */
 export interface MedStatus {
   name: string;
   timing: string;
@@ -152,9 +150,14 @@ export interface Scenario {
   app: AppDay;
 }
 
-// ── Agent → screen (ui-command payloads) ─────────────────────────────────────
+// ── The rest of the live screen ──────────────────────────────────────────────
 
-/** A queued imperative command for the YouTube player (re-fires via `nonce`). */
+/**
+ * A queued imperative command for the YouTube player (re-fires via `nonce`).
+ * Page-internal: three of the brain's actions collapse into it, and the player
+ * needs a `nonce` to re-fire a repeat of the same command, which no wire
+ * payload carries.
+ */
 export interface VideoCommand {
   action: 'play' | 'pause' | 'resume';
   youtubeId?: string;
@@ -162,20 +165,11 @@ export interface VideoCommand {
   nonce: number;
 }
 
-export interface Commitment {
-  text: string;
-  when?: string;
-}
+export type Commitment = SetCommitment;
 
-export interface CareFlag {
-  topic: string;
-  detail: string;
-}
+export type CareFlag = FlagForCareTeam;
 
-export interface CallSummary {
-  lines: string[];
-  flagged?: string;
-}
+export type CallSummary = ShowSummary;
 
 export type SensorOrderState = 'none' | 'offered' | 'ordered';
 

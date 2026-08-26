@@ -166,12 +166,12 @@ Open per TODAY'S CALL OBJECTIVE: greet by first name as their {COACH_NAME} — f
 # also the payload the browser renders: one class, one schema, one place to
 # change the shape.
 #
-# ┌──────────────────────────────────────────────────────────────────────────┐
-# │ These shapes are duplicated in the frontend as TypeScript, in            │
-# │ ``frontend/src/types.ts``, and the two are kept in sync BY HAND. Change  │
-# │ a field here and change it there in the same commit. (Generating the TS  │
-# │ from ``model_json_schema()`` is the obvious fix and is not built yet.)   │
-# └──────────────────────────────────────────────────────────────────────────┘
+# The browser's half of these shapes is generated from them, not written:
+#
+#     voqalize types sugar/backend/brain.py -o sugar/frontend/src/actions.gen.ts
+#
+# CI regenerates and diffs, so a field added here without that command is a
+# failed build rather than a screen that quietly renders ``undefined``.
 
 
 class MealItem(BaseModel):

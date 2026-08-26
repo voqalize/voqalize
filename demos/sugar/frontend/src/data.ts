@@ -256,6 +256,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Filter coffee (no sugar)', quantity: '1 cup', calories: 40 },
           ],
           total_calories: 290,
+          note: '',
         },
       ],
       meds: [
@@ -322,6 +323,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Coconut chutney', quantity: '2 tbsp', calories: 70 },
           ],
           total_calories: 310,
+          note: '',
         },
         {
           id: 'm2',
@@ -332,6 +334,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Curd', quantity: '1 katori', calories: 90 },
           ],
           total_calories: 470,
+          note: '',
         },
       ],
       activities: [
@@ -398,6 +401,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Sambar', quantity: '1 katori', calories: 120 },
           ],
           total_calories: 300,
+          note: '',
         },
         {
           id: 'm2',
@@ -529,6 +533,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Filter coffee (no sugar)', quantity: '1 cup', calories: 40 },
           ],
           total_calories: 320,
+          note: '',
         },
         {
           id: 'm2',
@@ -540,6 +545,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Vegetable salad', quantity: '1 bowl', calories: 80 },
           ],
           total_calories: 480,
+          note: '',
         },
       ],
       activities: [

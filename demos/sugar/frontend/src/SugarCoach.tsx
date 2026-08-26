@@ -150,12 +150,12 @@ function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => voi
   // `{ command: "log_meal", payload: {...} }`. Subscribing to the event rather
   // than registering thirteen `useUICommandHandler`s: the store is one reducer,
   // and an unknown command is a no-op there by design — the brain and this page
-  // ship separately.
+  // ship separately. The store narrows the pair against `actions.gen.ts`, so
+  // the payload travels as `unknown` and is cast nowhere.
   useRTVIClientEvent(
     RTVIEvent.UICommand,
     useCallback(
-      ({ command, payload }: UICommandData) =>
-        handleUiCommand(command, (payload ?? {}) as Record<string, unknown>),
+      ({ command, payload }: UICommandData) => handleUiCommand(command, payload),
       [handleUiCommand],
     ),
   );
