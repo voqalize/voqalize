@@ -93,31 +93,26 @@ facts:
       compared against is sdk.python.version.published, not this one.
 
   sdk.python.version.published:
-    value: '0.0.3'
+    value: '0.1.0'
     source: https://pypi.org/pypi/voqalize-agent-sdk/json
-    verified: 2026-08-25
+    verified: 2026-08-26
     reproduce: >-
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
-      THE SHARPEST FACT ON THIS PAGE, and it is now a countdown rather than a
-      trap. PyPI 0.0.3 exports Interaction, Conversation, serve_direct,
-      serve_auto; the tree exports Brain, run_session, serve and eighteen more.
-      Until 2026-08-25 both called themselves 0.0.3, so a reader who ran the
-      install line a page printed got code the page did not describe and had no
-      version number to tell them. **The tree is 0.1.0 as of 2026-08-25** — the
-      surface is backward-incompatible, so it takes the minor — and the docs are
-      written against it by owner decision. The bridge until C3 publishes is that
-      **every install line in the docs is pinned**: `==0.1.0` resolves to nothing
-      and says so, where a bare install resolves to the wrong surface silently. A
-      loud failure a reader can act on beats a quiet one they cannot. Re-verify
-      this fact the day C3 lands; when it reads 0.1.0 the pins may stay or go,
-      but nothing else here changes.
+      PyPI and the tree have matched at 0.1.0 since the 2026-08-26 release.
+      This is the first published version of the new Brain, run_session and
+      serve surface; 0.0.3 exposed the incompatible Interaction, Conversation,
+      serve_direct and serve_auto API. Documentation install lines remain pinned
+      to 0.1.0 so examples and installed code cannot silently drift apart.
 
   sdk.python.surface.published:
-    value: [Interaction, Conversation, serve_direct, serve_auto]
-    source: https://pypi.org/pypi/voqalize-agent-sdk/0.0.3/json
-    verified: 2026-08-24
+    value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage,
+            RTVIType, RequestRejected, Session, SessionRejected, Speech, SpeechEnd,
+            SpeechStart, UserIdle, UserMessage, WireError, configure_logging,
+            run_session, serve, session_context]
+    source: https://pypi.org/pypi/voqalize-agent-sdk/0.1.0/json
+    verified: 2026-08-26
 
   sdk.python.surface.tree:
     value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage,
