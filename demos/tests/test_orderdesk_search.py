@@ -24,7 +24,9 @@ from pathlib import Path
 from types import ModuleType
 
 BACKEND = Path(__file__).resolve().parents[1] / "orderdesk" / "backend"
-TYPES_TS = Path(__file__).resolve().parents[1] / "orderdesk" / "frontend" / "src" / "types.ts"
+ACTIONS_TS = (
+    Path(__file__).resolve().parents[1] / "orderdesk" / "frontend" / "src" / "actions.gen.ts"
+)
 _PKG = "orderdesk_backend"
 
 
@@ -389,15 +391,18 @@ def test_search_is_ranked_and_bounded():
 
 def _ts_interface_fields(name: str) -> list[str]:
     body = re.search(
-        rf"export interface {name} \{{(.*?)\n\}}", TYPES_TS.read_text(encoding="utf-8"), re.S
+        rf"export interface {name} \{{(.*?)\n\}}", ACTIONS_TS.read_text(encoding="utf-8"), re.S
     )
-    assert body, f"{name} is gone from types.ts"
+    assert body, f"{name} is gone from actions.gen.ts"
     return re.findall(r"^\s{2}(\w+)\??:", body.group(1), re.M)
 
 
-def test_wire_dicts_match_types_ts():
-    """``SkuWire``/``FamilyWire`` are declared once, in TypeScript. The Python
-    side is checked against that declaration rather than against a copy of it."""
+def test_wire_dicts_match_the_generated_actions():
+    """``search.py`` builds these dicts by hand while ``brain.py`` declares them
+    as pydantic models, and the browser reads whichever ``voqalize types``
+    generated from the second. Checking the first against the generated file
+    ties all three together — a field added to the model without a matching key
+    here, or the reverse, fails."""
     sku = sku_by_code("J0031270")
     assert sku is not None
     assert list(sku.wire()) == _ts_interface_fields("SkuWire")
