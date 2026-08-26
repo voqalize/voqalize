@@ -36,6 +36,7 @@ import {
   type AmbientPresencePalette,
 } from "@voqalize/demo-kit";
 import { connectRequest, demo, withRealHeaders } from "./config";
+import { asUiAction, unhandledUiAction, type SectionChanged } from "./actions.gen";
 
 // This harness's reading of the shared presence ring: the indigo of its own
 // primary action is the interviewer present and speaking, and it shifts to the
@@ -109,12 +110,6 @@ const SAMPLE_AGENT_INPUT = {
 type Step = "form" | "call-gate" | "connecting" | "call" | "ended";
 type MicPermission = "idle" | "requesting" | "granted" | "denied";
 
-interface SectionState {
-  index: number;
-  key: string;
-  title: string;
-  isLast: boolean;
-}
 
 const STATE_LABEL: Record<AmbientPresenceActivity, string> = {
   idle: "Live",
@@ -176,10 +171,10 @@ function LiveCall({
 }: {
   step: Step;
   error: string | null;
-  section: SectionState | null;
+  section: SectionChanged | null;
   summary: string | null;
   events: string[];
-  onSection: (section: SectionState, logLine: string) => void;
+  onSection: (section: SectionChanged, logLine: string) => void;
   onCompleted: (summary: string, logLine: string) => void;
   onConnected: () => void;
   onConnectError: (message: string) => void;
@@ -229,16 +224,19 @@ function LiveCall({
     RTVIEvent.UICommand,
     useCallback(
       ({ command, payload }: UICommandData) => {
-        const data = (payload ?? {}) as Record<string, unknown>;
-        if (command === "section_changed") {
-          const title = (data.title as string) ?? "";
-          const isLast = !!data.is_last;
-          onSection(
-            { index: (data.index as number) ?? 0, key: (data.key as string) ?? "", title, isLast },
-            `➡️ section: ${title}${isLast ? " (final)" : ""}`,
-          );
-        } else if (command === "interview_completed") {
-          onCompleted((data.summary as string) ?? "", "✅ interview completed");
+        const action = asUiAction(command, payload);
+        if (!action) return;
+        switch (action.command) {
+          case "section_changed": {
+            const { title, is_last } = action.payload;
+            onSection(action.payload, `➡️ section: ${title}${is_last ? " (final)" : ""}`);
+            break;
+          }
+          case "interview_completed":
+            onCompleted(action.payload.summary, "✅ interview completed");
+            break;
+          default:
+            unhandledUiAction(action);
         }
       },
       [onSection, onCompleted],
@@ -303,7 +301,7 @@ function LiveCall({
           {section && (
             <div style={{ marginTop: 6, fontSize: 15, fontWeight: 600 }}>
               Section {section.index + 1}: {section.title}
-              {section.isLast ? " (final)" : ""}
+              {section.is_last ? " (final)" : ""}
             </div>
           )}
         </div>
@@ -370,7 +368,7 @@ export function InterviewDemo() {
   const [parseError, setParseError] = useState("");
   const [callError, setCallError] = useState("");
   const [micPermission, setMicPermission] = useState<MicPermission>("idle");
-  const [section, setSection] = useState<SectionState | null>(null);
+  const [section, setSection] = useState<SectionChanged | null>(null);
   const [events, setEvents] = useState<string[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
   const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
