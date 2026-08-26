@@ -27,11 +27,13 @@ from google.genai import interactions as gi
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
 
+from voqalize.sdk.wire import ConfigureFrame
+
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.aura.brain import _GREETING  # noqa: E402
+from voqalize_demos._loaded.aura.brain import _GREETING, _IDLE_MS  # noqa: E402
 
 VOICE = "omnivoice/gauri"
 LANGUAGE = "en"
@@ -64,6 +66,12 @@ def _llm() -> ScriptedGemini:
                 reply("Authorise that whenever you're ready and I'll pull it up."),
             ],
             "Anything else I should know?": [reply("Nothing else — take your time.")],
+            # Keyed on the note ``_complete_auth`` appends, because an idle-driven
+            # turn carries no user sentence — what the model is answering is the
+            # tap, and the note is the newest thing said.
+            "authorised the secure sign-in": [
+                reply("You're signed in. Which account would you like?")
+            ],
             "Just tell me the number.": [
                 reply_and_call(
                     "One moment.",
@@ -251,3 +259,80 @@ async def test_a_forged_token_is_refused_and_the_model_is_sent_back_a_step() -> 
     assert "call show_auth_popup()" in results.lower()
     # No balance leaked past the guard.
     assert "balance" not in results.lower().split("'status': 'not_authenticated'")[1]
+
+
+async def test_the_idle_window_reaches_the_wire() -> None:
+    """Aria asks Voqalize to tell her when the customer goes quiet.
+
+    Idle detection is off unless a brain asks for it, and without it the three
+    tests below could never happen in a real call: a tap is answered on the next
+    idle stimulus, and a session that gets no idle stimulus never answers one."""
+    async with demo("aura", _llm()) as rig:
+        await rig.driver.start_session()
+
+    configs = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
+    timeouts = [c.idle.timeout_ms for c in configs if c.idle is not None]
+    assert timeouts == [_IDLE_MS], configs
+
+
+async def test_a_tap_is_answered_on_the_next_idle() -> None:
+    """The dead stop this closes: the customer taps *Authorise* and hears nothing.
+
+    A tap arrives on ``on_rtvi``, which cannot speak — a click must never put the
+    assistant's voice over the person clicking — and appending a line of context
+    starts no turn. So the customer's answer sits unremarked until they say
+    something, and a customer who has just answered on screen has no reason to.
+    ``on_user_idle`` is the one stimulus that means the floor is genuinely free,
+    and it is where Aria says what the tap earned."""
+    llm = _llm()
+    async with demo("aura", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
+
+        await rig.driver.send_client_message("auth_complete", {"nonce": _auth_nonce(rig)})
+        await asyncio.sleep(0.1)
+
+        # The customer says nothing at all from here on.
+        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
+        check_turn(rig, turn, units=1)
+
+    # She is answering the tap, not a sentence: the newest thing in the context is
+    # the note the tap wrote, and it carries the token she was handed.
+    context = _context_text(llm)
+    assert "authorised the secure sign-in" in context
+    assert f"authenticated_context is {_JWT_HEAD}" in context
+
+
+async def test_a_quiet_customer_with_nothing_pending_is_left_alone() -> None:
+    """Silence is the default, and it is what makes the hook safe to arm.
+
+    A customer thinking is not a customer to be prompted. Aria takes the floor on
+    an idle tick only when the screen owes them a reply — every other tick she
+    says nothing, however many times Voqalize raises one."""
+    async with demo("aura", _llm()) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
+
+        for level in (1, 2, 3):
+            turn = await rig.driver.user_idle(level=level, idle_ms=_IDLE_MS, timeout=1.0)
+            assert turn.units == [], f"level {level} spoke: {[u.text for u in turn.units]}"
+
+
+async def test_answering_out_loud_settles_the_debt() -> None:
+    """A tap the customer then talks over is already answered.
+
+    The reply to a spoken turn is the reply to whatever they last did on screen —
+    the note is right there in the same context — so raising it again on the next
+    idle would have Aria announce the sign-in twice."""
+    async with demo("aura", _llm()) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
+
+        await rig.driver.send_client_message("auth_complete", {"nonce": _auth_nonce(rig)})
+        await asyncio.sleep(0.1)
+
+        turn = await rig.driver.user_says("Anything else I should know?")
+        check_turn(rig, turn, units=1)
+
+        idle = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS, timeout=1.0)
+        assert idle.units == [], [u.text for u in idle.units]

@@ -10,12 +10,12 @@ renders) and returns the order/return data the model needs.
 
 The browser also reaches the brain outside any turn, over
 :meth:`~voqalize.sdk.Brain.on_rtvi` — a photo the shopper captures, and the tap
-that submits the form. Neither can make the agent speak: nothing about either
-event means the shopper stopped talking, so both fold into the context
-*silently*, via :meth:`~voqalize.sdk.GeminiBrain.append_to_context`, and the
-shopper's next spoken turn is what actually carries them to the model. For the
-photo that means asking the shopper to say a quick word once it lands — see
-step 5 of the prompt below.
+that submits the form. Neither takes the floor there: an upload must never put
+the assistant's voice over someone still working the screen, so both fold into
+the context via :meth:`~voqalize.sdk.GeminiBrain.append_to_context` and mark
+that a word is owed. :meth:`~SupportBrain.on_user_idle` pays it — the shopper
+going quiet is the one stimulus that means the floor is genuinely free, which is
+why this brain arms an idle window at all.
 
 The LLM's ``genai.Client`` is **dependency-injected**; the brain owns
 only the prompt, the tool schemas, and this session's return state. The
@@ -26,6 +26,7 @@ Gemini's working context every turn.
 from __future__ import annotations
 
 import base64
+from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 from google import genai
@@ -34,8 +35,8 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
-from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .catalog import ORDERS, get_item, get_order, order_detail, orders_for_prompt
 
@@ -67,8 +68,8 @@ HOW TO HANDLE A RETURN — follow these steps in order:
 2. OPEN THE CHECKLIST (only if they say it's broken / not working): before accepting a return, troubleshoot. Call start_diagnostics with the order, the item, and a list of 3 or 4 SHORT check labels you will run — for the Bluetooth mic, good ones are ["Charged and powered on", "Status LED lights up", "Enters pairing mode", "Re-paired from Bluetooth settings"]. This opens a checklist on the shopper's screen.
 3. RUN THE CHECKS: ask the checks ONE AT A TIME, in order, as plain questions. After the shopper answers EACH one, call record_diagnostic with the step number (1 for the first check), a one-line summary of their answer, and result "ok" if that check is fine or "issue" if it revealed a problem. If a step actually fixes the device, stop and call complete_diagnostics with resolved true.
 4. FINISH THE CHECKLIST: after the last check, call complete_diagnostics. If the device works now, set resolved true and reassure them — no return needed. If it still does not work, set resolved false with a short reason (e.g. "Won't pair after re-pairing") — this moves the shopper to the return form.
-5. ASK FOR A PHOTO: tell them you need one quick photo — the product TOGETHER WITH its original box — and call request_photo so the photo button stands out. Ask them to say something like "sent it" once they've uploaded it, so you know to look.
-6. VERIFY THE PHOTO: once the shopper tells you it's uploaded you will be shown the image. Check carefully: (a) does the product in the photo match the item being returned, and (b) is the original retail box visible? Call set_photo_check with what you found, then say the result in ONE short sentence. If something is missing (wrong item, or no box), ask them to retake the photo and stop here.
+5. ASK FOR A PHOTO: tell them you need one quick photo — the product TOGETHER WITH its original box — and call request_photo so the photo button stands out. Then stop talking and let them do it.
+6. VERIFY THE PHOTO: the moment they upload it you will be shown the image, and you get the next word without being asked for it. Check carefully: (a) does the product in the photo match the item being returned, and (b) is the original retail box visible? Call set_photo_check with what you found, then say the result in ONE short sentence. If something is missing (wrong item, or no box), ask them to retake the photo and stop here.
 7. FILL THE FORM: if the photo passed, call fill_return_form to fill in the reason, condition, refund method, and a short note. Then ask the shopper to review it and tap "Confirm & submit return". Once they submit, thank them and tell them they'll get a prepaid label by email.
 
 If the item is not defective (wrong item, changed their mind), skip the checklist and call start_return to go straight to the return form.
@@ -84,6 +85,14 @@ CONVERSATION STYLE:
 # Fixed opener — spoken straight to TTS with no LLM call, so the demo greets the
 # instant the session connects (the model's ~1s first token is off the start path).
 _GREETING = f"Hi! I'm the {STORE_NAME} Returns Assistant. How can I help with your order?"
+
+# How long a shopper has to be quiet before the assistant may take the floor. It is
+# what turns a photo into something answerable: the capture returns at once and the
+# shopper replies on screen, so without an idle stimulus there is no turn in which
+# to say whether the photo passed. Short, because it is the latency between the tap
+# and the verdict; harmless when nothing was tapped, because ``on_user_idle`` stays
+# silent unless the screen owes the shopper a reply.
+_IDLE_MS = 3000
 
 
 # ─── Actions (screen-driving payloads) ─────────────────────────────────────────
@@ -161,11 +170,18 @@ class PhotoCheckResult(BaseModel):
     )
 
 
+async def _silence() -> AsyncGenerator[Any, None]:
+    """Yields nothing: an idle tick the assistant has no reason to answer."""
+    for _ in ():
+        yield
+
+
 class SupportBrain(GeminiBrain):
     """One per session. Owns this session's return state; the inherited tool
     loop runs each turn, and each tool below drives the screen as it runs.
-    ``on_rtvi`` folds the photo and the submit tap into the context, silently —
-    see the module docstring."""
+    ``on_rtvi`` folds the photo and the submit tap into the context without
+    taking the floor; ``on_user_idle`` answers them — see the module
+    docstring."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
@@ -173,6 +189,11 @@ class SupportBrain(GeminiBrain):
         # start_diagnostics so a photo uploaded later, with no item_id of its
         # own, can still be verified against the right product.
         self._active_item_id: str | None = None
+
+        # Set when the shopper does something on screen that wants answering, and
+        # cleared the moment the assistant speaks to it. It is what
+        # ``on_user_idle`` reads.
+        self._owed_a_reply = False
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
@@ -268,8 +289,8 @@ class SupportBrain(GeminiBrain):
 
     async def request_photo(self) -> str:
         """Prompt the shopper to take or upload a photo of the product with
-        its original box, and ask them to say a quick word once it's
-        uploaded so you know to look. Makes the photo button on the return
+        its original box. You are shown the image as soon as it lands and get
+        the next word, so do not ask them to tell you. Makes the photo button on the return
         form stand out. Call after start_return."""
         logger.info("support: request_photo (item={})", self._active_item_id)
         self.session.dispatch(RequestPhoto())
@@ -310,6 +331,7 @@ class SupportBrain(GeminiBrain):
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV, language=Language.EN),
                 stt=SttConfig(language=Language.EN),
+                idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
 
@@ -318,12 +340,34 @@ class SupportBrain(GeminiBrain):
         shopper hears the assistant the instant the session connects."""
         return _GREETING
 
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        """The shopper spoke. Whatever they last did on screen is answered by the
+        reply this turn produces, so the debt is settled here."""
+        self._owed_a_reply = False
+        return super().on_user_message(session, msg)
+
+    def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
+        """The shopper has gone quiet — and if the last thing they did was upload a
+        photo or submit the return, this is the turn in which to answer it.
+
+        A photo is an answer, but it arrives on :meth:`on_rtvi`, which cannot
+        speak: an upload must never put the assistant's voice over someone still
+        working the screen. So the verdict waits here, for the one stimulus that
+        means the floor is genuinely free. Every other idle tick is silence — a
+        shopper reading their screen is not a shopper to be prompted, and the
+        context already carries the instruction, so the turn is a plain
+        :meth:`respond` with nothing added."""
+        if not self._owed_a_reply:
+            return _silence()
+        self._owed_a_reply = False
+        logger.info("support: idle -> answering what the shopper did on screen")
+        return self.respond(session)
+
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message. Both the photo the shopper captures and the
-        submit tap fold into the context *silently* — no floor taken, no turn
-        — because nothing about either means the shopper stopped talking. The
-        shopper's next spoken turn is what actually carries them to the
-        model."""
+        submit tap fold into the context without taking the floor — an upload is
+        not an interruption — and mark that the assistant owes a word about it,
+        which :meth:`on_user_idle` delivers once the shopper is quiet."""
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         kind = msg.data.get("t")
@@ -337,9 +381,9 @@ class SupportBrain(GeminiBrain):
 
     def _ingest_photo(self, data: dict[str, Any]) -> None:
         """Decode the browser-captured photo and fold it into the context as a
-        final user turn: the image plus a verification instruction, ahead of
-        whatever the shopper says next — which is the turn that actually
-        carries it to the model."""
+        final user turn: the image plus a verification instruction, ahead of the
+        turn ``on_user_idle`` opens once the shopper stops fiddling with the
+        camera."""
         data_url = str(data.get("image") or "")
         header, _, b64 = data_url.partition(",")
         if not b64:
@@ -377,10 +421,11 @@ class SupportBrain(GeminiBrain):
                 ],
             )
         )
+        self._owed_a_reply = True
 
     def _ingest_submission(self, data: dict[str, Any]) -> None:
-        """Fold the confirmation number into the context so the model's next
-        reply — once the shopper says something — can close warmly."""
+        """Fold the confirmation number into the context so the next turn — the one
+        ``on_user_idle`` opens once the shopper is quiet — can close warmly."""
         rma = str(data.get("rma") or "")
         logger.info("support: return_submitted rma={}", rma)
         note = (
@@ -390,3 +435,4 @@ class SupportBrain(GeminiBrain):
             "package. One or two sentences."
         )
         self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+        self._owed_a_reply = True

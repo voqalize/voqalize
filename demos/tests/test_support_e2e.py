@@ -7,25 +7,29 @@ the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e proves
 
 Support is the demo that also earns a **browser→brain** test: the photo the
 shopper captures arrives as an RTVI client message and folds into the context
-silently — no floor taken, no screen command — exactly like legal's
-``clause_focus``. Only the shopper's next spoken turn actually carries it to the
-model, which is the leg nothing else in the suite covers.
+without taking the floor — an upload must never put the assistant's voice over
+someone still working the camera. What answers it is ``on_user_idle``, once the
+shopper is quiet: the leg nothing else in the suite covers, and the reason this
+brain arms an idle window at all.
 
 Run: ``cd demos && uv run pytest tests/test_support_e2e.py``
 """
 
 from __future__ import annotations
 
+import asyncio
 import base64
 
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
 
+from voqalize.sdk.wire import ConfigureFrame
+
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.support.brain import _GREETING  # noqa: E402
+from voqalize_demos._loaded.support.brain import _GREETING, _IDLE_MS  # noqa: E402
 
 VOICE = "omnivoice/gaurav"
 LANGUAGE = "en"
@@ -61,10 +65,10 @@ def _llm() -> ScriptedGemini:
                 reply_and_call("Could you show me the box?", "request_photo"),
                 reply("Thanks — hold the box up to the camera."),
             ],
-            # The photo itself takes no floor (see ``SupportBrain.on_rtvi``); the
-            # shopper's own follow-up is what triggers a call, but the photo's own
-            # verify instruction is what the model actually reads last — so the
-            # key is the distinctive phrase inside it, matched as a substring.
+            # The photo takes no floor (see ``SupportBrain.on_rtvi``); the idle
+            # tick that follows it is what opens the turn, and the photo's own
+            # verify instruction is then the newest thing said — so the key is the
+            # distinctive phrase inside it, matched as a substring.
             "Verify it now": [
                 reply_and_call(
                     "Checking the photo.",
@@ -129,12 +133,26 @@ async def test_the_return_flow_drives_the_screen() -> None:
         assert started["reason"] == "Audio cuts out intermittently"
 
 
-async def test_a_photo_lands_silently_and_the_next_turn_carries_it() -> None:
+async def test_the_idle_window_reaches_the_wire() -> None:
+    """The assistant asks Voqalize to tell it when the shopper goes quiet.
+
+    Idle detection is off unless a brain asks for it, and without it the photo
+    below could never be answered: an upload is answered on the next idle
+    stimulus, and a session that gets no idle stimulus never answers one."""
+    async with demo("support", _llm()) as rig:
+        await rig.driver.start_session()
+
+    configs = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
+    timeouts = [c.idle.timeout_ms for c in configs if c.idle is not None]
+    assert timeouts == [_IDLE_MS], configs
+
+
+async def test_a_photo_lands_silently_and_the_next_idle_answers_it() -> None:
     """The browser→brain path: a captured photo folds into the context via
-    ``on_rtvi`` — no floor taken, no screen command, because nothing about a photo
-    landing means the shopper stopped talking. It takes the shopper's own next
-    spoken word to actually trigger a call, and that is where the verification
-    tools run."""
+    ``on_rtvi`` — no floor taken, no screen command, because a shopper working the
+    camera is not a shopper to be talked over. The verdict comes on the next idle
+    tick, without the shopper having to announce the upload, and that is where the
+    verification tools run."""
     async with demo("support", _llm()) as rig:
         await rig.driver.start_session()
         await rig.driver.user_says("The Sonic buds. I want to send them back.")
@@ -145,8 +163,10 @@ async def test_a_photo_lands_silently_and_the_next_turn_carries_it() -> None:
             {"image": PHOTO_DATA_URL, "item_id": "buds-sonic"},
         )
         assert len(rig.driver.ui_commands) == before, "photo_upload drove the screen"
+        await asyncio.sleep(0.1)
 
-        turn = await rig.driver.user_says("Sent it")
+        # The shopper says nothing at all — they uploaded, and that is their answer.
+        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
         check_turn(rig, turn, units=3)
 
         check = rig.command("set_photo_check")
@@ -158,6 +178,21 @@ async def test_a_photo_lands_silently_and_the_next_turn_carries_it() -> None:
         form = rig.command("fill_return_form")
         assert form["reason"] == "Audio cuts out intermittently"
         assert form["refund_method"] == "original_payment"
+
+
+async def test_a_quiet_shopper_with_nothing_pending_is_left_alone() -> None:
+    """Silence is the default, and it is what makes the hook safe to arm.
+
+    A shopper reading their screen is not a shopper to be prompted. The assistant
+    takes the floor on an idle tick only when the screen owes them a reply —
+    every other tick it says nothing, however many times Voqalize raises one."""
+    async with demo("support", _llm()) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("The Sonic buds. I want to send them back.")
+
+        for level in (1, 2, 3):
+            turn = await rig.driver.user_idle(level=level, idle_ms=_IDLE_MS, timeout=1.0)
+            assert turn.units == [], f"level {level} spoke: {[u.text for u in turn.units]}"
 
 
 async def test_the_photo_turn_is_prompted_over_the_heard_transcript() -> None:
@@ -173,7 +208,8 @@ async def test_the_photo_turn_is_prompted_over_the_heard_transcript() -> None:
             "photo_upload",
             {"image": PHOTO_DATA_URL, "item_id": "buds-sonic"},
         )
-        await rig.driver.user_says("Sent it")
+        await asyncio.sleep(0.1)
+        await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
 
     # One call per turn — the second call is the one the photo rides into.
     photo_turn = llm.captured_contents[-1]
@@ -191,4 +227,3 @@ async def test_the_photo_turn_is_prompted_over_the_heard_transcript() -> None:
         if c.role == "user"
     ]
     assert "The Sonic buds. I want to send them back." in spoken_texts
-    assert "Sent it" in spoken_texts

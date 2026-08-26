@@ -27,7 +27,9 @@ Two mechanics carry the demo, and both run through :meth:`on_rtvi`:
     signed token, the chosen account. A tool that awaited the customer would mute their
     mic exactly while asking them to act, and would model a handshake that does not
     exist: they may never do it, may do it in five minutes, or may have done it
-    already.
+    already. What the customer did is answered on the next idle stimulus — a tap is
+    an answer, but it arrives on a callback that may not speak, so ``on_user_idle``
+    is where Aria takes the floor once the customer is genuinely quiet.
   * **Silent screen-state awareness.** The browser pushes a compact ``state_sync``
     snapshot on connect and after every change, and :meth:`_append_screen_state` folds
     the freshest one into the context without taking the floor, so the assistant always
@@ -49,7 +51,7 @@ import json
 import random
 import secrets
 import time
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
@@ -59,9 +61,9 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
-from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .content import AURA_FACTS
 
@@ -130,6 +132,15 @@ _CALC_DEFAULTS: dict[str, dict[str, float]] = {
 # hallucinated token or account id is rejected server-side, not by the prompt.
 _AUTH_SECRET = b"aura-demo-hs256-secret-not-for-production"
 _AUTH_TTL_SECONDS = 30 * 60
+
+# How long a customer has to be quiet before Aria may take the floor. This is what
+# makes a tap an answer: the dialogs return at once and the customer replies on
+# screen, so without an idle stimulus nobody would ever be given a turn in which to
+# say "you're in — which account?" and the call would stall on a silence the
+# customer thinks they already answered. Short, because it is the latency between
+# the tap and the acknowledgement; harmless when nothing was tapped, because
+# ``on_user_idle`` stays silent unless the screen owes the customer a reply.
+_IDLE_MS = 3000
 
 # What to tell the model when the customer closes a dialog without answering it.
 _DISMISSED = {
@@ -816,6 +827,12 @@ class ShowCardControls(Action):
     controls: CardControls
 
 
+async def _silence() -> AsyncGenerator[Any, None]:
+    """Yields nothing: an idle tick the assistant has no reason to answer."""
+    for _ in ():
+        yield
+
+
 class AuraBrain(GeminiInteractionsBrain):
     """One per session. The Aura Bank L1 support assistant: LLM + help-centre /
     calculator / application / comparison / branch tools + the four secure account
@@ -825,11 +842,13 @@ class AuraBrain(GeminiInteractionsBrain):
     Nothing here waits on the customer. ``show_auth_popup``, ``choose_account``
     and ``choose_credit_card`` dispatch a dialog and return; the customer answers
     it in their own time, or never, and the answer arrives on :meth:`on_rtvi` —
-    which appends a line of context saying what they did. The ordering that the
-    waiting used to enforce is carried instead by the tool signatures: every
-    account and card tool takes an ``authenticated_context`` this brain mints and
-    re-verifies, so a model that skips ahead gets an error naming the step it
-    skipped rather than a number it should not have.
+    which appends a line of context saying what they did and records that Aria
+    owes them a word about it. She says it on the next :meth:`on_user_idle`, the
+    one stimulus that means the floor is free. The ordering that the waiting used
+    to enforce is carried instead by the tool signatures: every account and card
+    tool takes an ``authenticated_context`` this brain mints and re-verifies, so a
+    model that skips ahead gets an error naming the step it skipped rather than a
+    number it should not have.
     """
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
@@ -864,6 +883,11 @@ class AuraBrain(GeminiInteractionsBrain):
         self._selected: set[str] = set()
         self._selected_cards: set[str] = set()
         self._auth_salt = secrets.token_hex(8)
+
+        # Set when the customer answers a dialog and cleared the moment Aria
+        # speaks to it. It is what ``on_user_idle`` reads: a tap is an answer, and
+        # this is the only record that one is outstanding.
+        self._owed_a_reply = False
 
     @property
     def tools(self) -> list[Callable[..., Any]]:
@@ -917,6 +941,7 @@ class AuraBrain(GeminiInteractionsBrain):
             Config(
                 stt=SttConfig(language=Language.EN),
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
+                idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
         logger.info("aura: session start")
@@ -927,10 +952,34 @@ class AuraBrain(GeminiInteractionsBrain):
         already made them wait."""
         return _GREETING
 
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        """The customer spoke. Whatever they last did on screen is answered by the
+        reply this turn produces, so the debt is settled here and ``on_user_idle``
+        does not raise it a second time."""
+        self._owed_a_reply = False
+        return super().on_user_message(session, msg)
+
+    def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
+        """The customer has gone quiet — and if the last thing they did was answer a
+        dialog, this is Aria's turn to say so.
+
+        A tap is an answer, but it arrives on :meth:`on_rtvi`, which cannot speak: a
+        click must never put the assistant's voice over the person clicking. So the
+        answer waits here, for the one stimulus that means the floor is genuinely
+        free. Every other idle tick is silence — a customer thinking is not a
+        customer to be prompted, and the context already carries the note, so the
+        turn is a plain :meth:`respond` with nothing added."""
+        if not self._owed_a_reply:
+            return _silence()
+        self._owed_a_reply = False
+        logger.info("aura: idle -> answering what the customer did on screen")
+        return self.respond(session)
+
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→Brain client message. This is where everything the customer does
-        on screen arrives, and none of it takes the floor — each folds a line into
-        the context, which the model reads on its next turn:
+        on screen arrives, and none of it takes the floor here — each folds a line
+        into the context, and an answered dialog also marks that Aria owes a reply,
+        which :meth:`on_user_idle` delivers once the customer is quiet:
 
         * ``state_sync`` — a compact snapshot of what's on screen (sent on connect
           and after every change), so the assistant always knows what the customer
@@ -1664,6 +1713,7 @@ class AuraBrain(GeminiInteractionsBrain):
             return
         logger.info("aura: {} dialog dismissed by the customer", kind)
         self._append_note(_DISMISSED[kind])
+        self._owed_a_reply = True
 
     def _complete_auth(self, data: dict[str, Any]) -> None:
         """The browser reports the customer finished the on-screen sign-in. THIS is
@@ -1691,6 +1741,7 @@ class AuraBrain(GeminiInteractionsBrain):
             "choose_account(authenticated_context) if they want a balance or statement, or "
             "choose_credit_card(authenticated_context) if they want card controls."
         )
+        self._owed_a_reply = True
 
     def _complete_account(self, data: dict[str, Any]) -> None:
         """The customer tapped an account in the picker."""
@@ -1709,6 +1760,7 @@ class AuraBrain(GeminiInteractionsBrain):
             f"{acc['account_id']} — you may now call get_account_balance or get_statement "
             "with it and the authenticated_context."
         )
+        self._owed_a_reply = True
 
     def _complete_card(self, data: dict[str, Any]) -> None:
         """The customer tapped a card in the picker."""
@@ -1726,3 +1778,4 @@ class AuraBrain(GeminiInteractionsBrain):
             f"({card['network']}, {card['masked_number']}). Its card_id is {card['card_id']} — "
             "you may now call show_card_controls with it and the authenticated_context."
         )
+        self._owed_a_reply = True
