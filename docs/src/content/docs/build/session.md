@@ -5,7 +5,7 @@ description: The whole path in order — the brain you write, the agent you crea
 
 A Voqalize call touches four things you own: a WebSocket route, an agent record,
 one HTTP request from your server, and a page running
-[pipecat](/start/pipecat/). Everything else — the audio, the recognizer, the
+[pipecat](/build/pipecat/). Everything else — the audio, the recognizer, the
 voice, the turn-taking — happens between them.
 
 This page is that path in order. It is the map; each step names the page that
@@ -30,12 +30,12 @@ Voqalize dials one URL, once per session:
 
 The connection opens when the call starts and closes when it ends. Frames are
 protobuf and the contract is published — [the wire](/reference/wire/) is
-406 lines of it. In Python that route is a `Brain` subclass and a call to
+497 lines of it. In Python that route is a `Brain` subclass and a call to
 `run_session`; the [FastAPI example](https://github.com/voqalize/voqalize/tree/main/sdk/python/examples/fastapi_inbound)
 is a working one in about sixty lines.
 
 Your route needs to be reachable from us. When it cannot be — a laptop, a VPC
-with no ingress, a serverless function — [Cortex](/deploy/cortex/) has your
+with no ingress, a serverless function — [Cortex](/build/outbound/) has your
 brain dial out instead, and the brain code is unchanged.
 
 ### 2. Behind the socket, whatever you already run
@@ -51,10 +51,10 @@ deploy today.
 ### 3. Drive it before there is a call to make
 
 The conformance harness opens a real socket, speaks real protobuf, and drives
-your brain through the scenarios the runtime produces — barge-in, idle, an
+your brain through the scenarios Voqalize produces — barge-in, idle, an
 abandoned turn — with no microphone and no account. This is the loop to be in
 while you are writing the brain; steps 4 onward are for when it answers
-correctly. See [testing a brain](/brain/testing/).
+correctly. See [testing a brain](/build/testing/).
 
 ### 4. Create the agent
 
@@ -67,7 +67,7 @@ create_agent(tenant, name, brain_url="https://…/voice")
 
 Over [the MCP server](/reference/mcp/) from your editor, or the console.
 Keep the `agent_id` and the `sk_` key: [every credential names one
-agent](/operate/keys/), and the raw key is stored only as a hash.
+agent](/build/keys/), and the raw key is stored only as a hash.
 
 **The agent record says where the brain lives.** It carries no voice, no
 language, no recognizer settings — those depend on *this* caller, and an agent
@@ -105,7 +105,8 @@ sequenceDiagram
     V->>B: the same message, verbatim
   end
   B-->>V: session.end()
-  V->>B: SessionEnd, with what was heard
+  V->>B: Finalize, with what was heard
+  V->>B: End
 ```
 
 ### 5. Your page asks your server
@@ -116,7 +117,7 @@ does. We never see it.
 
 There is a second path where a publishable `pk_` key sits in the page and the
 browser calls us directly, which suits a demo or a marketing page.
-[The handshake](/client/handshake/) covers both; the rest of this page
+[The handshake](/build/connect/) covers both; the rest of this page
 follows the server path, because it is the one where you get to decide who may
 start a call.
 
@@ -141,13 +142,17 @@ Content-Type: application/json
 }
 ```
 
+**`idle.timeout_ms` defaults to `0`, which is off** — `on_user_idle` never fires
+until something sets a timeout, because a nudge nobody asked for talks over a
+caller who was thinking.
+
 **`config` is how this call sounds and listens.** It is the same `Config` the
 brain sends mid-call, parsed as proto3 JSON — enum members are their names, and
 a name we do not serve is refused at mint with the field pointed at. Send only
 what you want moved; both legs of a language change travel together, because
 moving one leaves the call listening in a language it is answering out of. See
 [the catalog](/reference/catalog/) for what is on the roster and
-[why there is no provider slot](/reference/no-provider-slot/) for the
+[why there is no provider slot](/reference/catalog#why-there-is-no-provider-slot) for the
 question underneath it.
 
 `record` rides beside the three sections and stays out of the wire `Config`,
@@ -163,6 +168,14 @@ than personal data.
 
 Both are optional. A request with an `agent_id` and nothing else starts a call in
 English on both legs.
+
+**Two more keys exist, and both are labels.** `display_name` is what the console
+shows instead of an id, and `metadata` is a flat string→string map — at most
+**10 keys**, values at most **256 characters** — for the handful of things you
+want to recognise a call by later: a support ticket, a build, an experiment arm.
+It is not queryable and it is not storage; that is your own database's job, and
+the cap is where the line is drawn. Anything the brain needs to *act* on goes in
+`init`.
 
 ### 7. Your server hands the body back
 
@@ -186,7 +199,7 @@ and no session record.
 Two things to know before the first call: the `endpoint` is **one machine**,
 chosen when the session is minted, so it cannot be a constant in your page; and
 `headers` has to be a real `Headers` object today, one line in your page, for a
-reason [the handshake](/client/handshake/) writes down.
+reason [the handshake](/build/connect/) writes down.
 
 The media is direct UDP from the browser to that machine. Nothing of ours
 proxies the audio.
@@ -244,7 +257,7 @@ Either side ends it: `session.end()` from the brain, or the caller hangs up.
 `on_session_end` is where you write your own record of what happened.
 
 Ours is readable back through the MCP server or the API — the
-[session log](/operate/logs/) with its wire frames, the
+[session log](/operate/reading-a-call/) with its wire frames, the
 [recording](/operate/recordings/) if you asked for one, and
 [usage](/operate/usage/).
 
@@ -267,11 +280,11 @@ conversation is going.
 
 None of this is needed for a first call, and each has a page:
 
-- [**Cortex**](/deploy/cortex/) — your brain dials out, when it cannot
+- [**Cortex**](/build/outbound/) — your brain dials out, when it cannot
   accept inbound connections.
 - [**Recording**](/operate/recordings/) — per agent as a default, per
   session as a decision.
-- [**The avatar**](/client/avatar/) — a talking head in the page, driven by
+- [**The avatar**](/build/avatar/) — a talking head in the page, driven by
   the same session. The processor is already in every pipeline, so this is a
   browser-side change.
 - [**Idle detection**](/reference/wire/) — `idle.timeout_ms` hands the brain
@@ -283,7 +296,7 @@ None of this is needed for a first call, and each has a page:
 
 ## Read next
 
-- [Connections and the handshake](/client/handshake/) — steps 5 to 7, in full, both credential paths.
-- [Testing a brain](/brain/testing/) — step 3, which is where the day is actually spent.
+- [Connections and the handshake](/build/connect/) — steps 5 to 7, in full, both credential paths.
+- [Testing a brain](/build/testing/) — step 3, which is where the day is actually spent.
 - [The wire](/reference/wire/) — the contract both ends are held to.
-- [Designing for voice](/design/the-turn-budget/) — what changes once it works.
+- [Designing for voice](/design/turn-budget/) — what changes once it works.

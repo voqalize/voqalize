@@ -76,6 +76,14 @@ jobs:
           pnpm install --ignore-workspace
           pnpm build
 
+      # The agent's half of the docs. The sibling repo's check_links.py reads the
+      # rendered HTML across the marketing/docs seam and cannot see this: an agent
+      # has no sidebar, so its whole path is `llms.txt` plus the links inside the
+      # `.md` twins, and that graph can be disconnected while every page renders.
+      - name: Check the docs navigate for an agent
+        working-directory: docs
+        run: python3 check_navigation.py
+
       # Cheap proof the assembly is non-empty and complete: every demo named in
       # manifest.json must have produced an index.html. A Vite app that builds to
       # nothing is a green build and a blank page.

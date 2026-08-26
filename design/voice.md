@@ -315,6 +315,8 @@ A new term is added to this table first and to the SDK second.
 | Typed message, brain → screen | **action** | UI command, event, tool |
 | Screen state, screen → brain | **state sync** | context push, screen capture |
 | The published protocol | **the wire** | the protocol, our API |
+| Voqalize's credential when it dials your brain | **the brain-connection token** | the RS256 JWT, the auth token, the pygato token |
+| The browser's credential for one call | **the session token** |  |
 | The relay for egress-only networks | **Cortex** | tunnel, proxy |
 | The compatibility suite | **the conformance harness** | test kit, test suite |
 | The 2-D talking head | **the avatar** | video agent, digital human |

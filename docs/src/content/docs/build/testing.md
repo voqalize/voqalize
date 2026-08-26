@@ -8,7 +8,8 @@ change appears to need a person with a microphone. It doesn't.
 
 The SDK ships **`voqalize.conformance`**: a fake Voqalize that speaks
 [the wire](/reference/wire/). It hosts your real `Brain` on a real WebSocket,
-mints a real brain-connection token, and models playout and heard-truth the way
+mints a real [brain-connection token](/build/hosting/#the-brain-connection-token),
+and models playout and heard-truth the way
 Voqalize does — and lets you drive it in **text mode**. `user_says("…")` in, a `Turn` with
 `.text` out.
 
@@ -41,7 +42,7 @@ async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
 `brain_server` binds an ephemeral port, so tests never collide, and closes on the
 way out whatever the test did. It is a *test* server — production hosting is
 `run_session` in your own web framework's route (see
-[Inbound](/deploy/inbound/)); the SDK owns no server.
+[Inbound](/build/inbound/)); the SDK owns no server.
 
 The brain verifies against the public half of the keypair and the driver signs with
 the private half, so **token verification runs for real** rather than being switched
@@ -108,7 +109,7 @@ re-engagement, and bad-token rejection.
 
 ```bash
 # Point it at any brain that speaks the wire.
-python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --private-key ./pygato_priv.pem
+python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --private-key ./voqalize_dev.pem
 
 # Prove the harness itself: host the bundled reference brain, run everything.
 python -m voqalize.conformance --self-test
@@ -178,11 +179,12 @@ id joining the two sides is `session.id`, the same string in both.
 When a live call misbehaves in a way the offline suite passed, that gap **is** the
 next scenario. Reproduce it offline first, then fix it.
 
-## Next
+## Read next
 
-- **The SDK README** (`sdk/python/README.md`) — heard-truth, barge-in,
-  and what the framework commits for you.
-- **[MCP server](/reference/mcp/)** — what to log so a
-  live call is readable in the first place.
+- **[Interruption and heard truth](/design/interruption-and-heard-truth/)** —
+  what the harness is modelling when it replays a barge-in, and why your history
+  holds what the caller heard rather than what you generated.
+- **[Reading a call back](/operate/reading-a-call/)** — the same events and logs
+  against a real call, and what to check before concluding one was silent.
 - **[MCP server](/reference/mcp/)** — the observability tools, and the agent
   surface that runs this loop for you.

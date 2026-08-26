@@ -31,7 +31,7 @@ origin the `pk_` key's allowlist rejects at the offer, or a connect that throws
 before the transport starts.
 
 `list_sessions` shows the calls behind any number, and
-[reading a call back](/operate/logs/) shows how far each one got.
+[reading a call back](/operate/reading-a-call/) shows how far each one got.
 
 ## Limits
 
@@ -48,5 +48,5 @@ join is for.
 
 ## Read next
 
-- [Reading a call back](/operate/logs/) — the calls behind the counters.
+- [Reading a call back](/operate/reading-a-call/) — the calls behind the counters.
 - [MCP server](/reference/mcp/) — `get_usage` and `list_sessions` in full.

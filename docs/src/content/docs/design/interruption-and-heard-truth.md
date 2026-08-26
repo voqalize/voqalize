@@ -36,7 +36,7 @@ async def on_finalize(self, session: Session, fin: Finalize) -> None:
 
 `heard` is **the delivered prefix** — the text that reached the caller's ear, not
 the text you yielded. `interrupted` says whether the caller cut in. This is the
-one place the runtime knows something your process cannot: playout happens on our
+one place Voqalize knows something your process cannot: playout happens on our
 side of the wire, so where the audio actually stopped is ours to report and yours
 to record.
 
@@ -60,6 +60,33 @@ Two places it bites, and they are the same lie twice:
 
 The second is worse, because by then the recording is gone.
 
+## Not everything that makes noise is an interruption
+
+A caller who says "mm-hm" while your agent is talking is agreeing, not cutting
+in, and an agent that stops dead for every backchannel is unusable. So barge-in
+is gated on a **confidence that ramps with how long real speech has been
+sustained** — a phantom detection or a one-word garble stays under the bar, a
+sustained interruption crosses it. The bar sits just under the value the
+recognizer carries at the barge-in point, so a genuine one clears it with margin.
+
+Two things follow, and both are design constraints on what you write rather than
+knobs you can turn:
+
+**A short imperative may not land.** "Stop" shouted over a long answer is exactly
+the shape that stays below the bar — brief, and over before confidence has
+climbed. That is the accepted cost of not stopping for "mm-hm", and it is a
+reason to keep a spoken answer short enough that the caller does not need to
+shout it down. See [the turn budget](/design/turn-budget/).
+
+**An idle caller is a different case.** When your agent is not speaking, any
+speech starts a turn instantly — the bar applies only to cutting off speech in
+progress.
+
+**While a tool call runs, the caller is muted, and that is not configurable.** A
+round trip cannot be barged into. This is the mechanical reason the clock is
+yours during a tool call: say something before you make the call, because the
+caller cannot take the floor to ask what happened.
+
 ## What happens to a turn that gets cut
 
 Voqalize sends an interruption naming the last turn it applies to. The SDK marks
@@ -81,7 +108,7 @@ from a dead turn cannot leak a sentence into its successor.
 An action already dispatched has already arrived. The screen does not roll back
 when the caller cuts in, and it should not: the itinerary they are looking at is
 the itinerary they asked for, whether or not the sentence describing it finished.
-See [voice points, the screen holds](/design/voice-points-screen-holds/).
+See [voice points, the screen holds](/design/speech-vs-screen/).
 
 In-flight tool work is not cancelled either. A charge that was authorized was
 authorized. If a tool must not outlive its turn, that is a decision for your tool
@@ -96,7 +123,7 @@ unit, which means a test can assert on the heard text instead of the generated
 text — and the strongest property available is the one worth asserting:
 **the history your brain wrote equals what the driver says was heard.**
 
-See [testing a brain](/brain/testing/).
+See [testing a brain](/build/testing/).
 
 ## One limit we have not established
 
@@ -108,5 +135,5 @@ anything that depends on its last character.
 
 ## Read next
 
-- [The turn budget](/design/the-turn-budget/) — why interruption rate is the cheapest quality signal you have.
-- [Testing a brain](/brain/testing/) — driving barge-in from a test.
+- [The turn budget](/design/turn-budget/) — why interruption rate is the cheapest quality signal you have.
+- [Testing a brain](/build/testing/) — driving barge-in from a test.

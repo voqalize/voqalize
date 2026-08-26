@@ -10,7 +10,7 @@ verbatim in both directions and interpret nothing about them.
 
 This is the second channel of a call. The first one is speech, and it holds the
 floor; this one does not. See
-[voice points, the screen holds](/design/voice-points-screen-holds/).
+[voice points, the screen holds](/design/speech-vs-screen/).
 
 ## The whitelist
 
@@ -25,7 +25,7 @@ which is the contract of record.
 | `server-message` | An unsolicited message to the app. |
 | `server-response` | An answer to a message the app sent, quoting its `id`. |
 | `error-response` | The same, when the answer is a failure. |
-| `ui-command` | An [action](/design/voice-points-screen-holds/) — `{"command": …, "payload": {…}}`. |
+| `ui-command` | An [action](/design/speech-vs-screen/) — `{"command": …, "payload": {…}}`. |
 | `ui-job-group` | Lifecycle envelopes for a group of jobs — started, update, completed — keyed by a shared `job_id`. |
 
 **Page → brain**
@@ -110,5 +110,5 @@ stripped before delivery.
 
 ## Read next
 
-- [Voqalize and pipecat](/start/pipecat/) — the browser packages that read these.
+- [Voqalize and pipecat](/build/pipecat/) — the browser packages that read these.
 - [The wire](/reference/wire/) — the envelope RTVI is carried in.

@@ -19,7 +19,8 @@ of how quietly each one fails:
    sentence that expired when 0.1.1 published.
 
 4. **Retired vocabulary**, from ``lexicon.yaml``: the word for a concept that has
-   two names, the outcome words, and the contrast grammar. Design notes are
+   two names, the outcome words, the contrast grammar, and ``internal_names`` —
+   the service and repository names that are never right in customer prose. Design notes are
    exempt by ``scope.reasoning_only`` — reasoning argues by contrast — except for
    ``platform``, which leaks.
 
@@ -83,6 +84,19 @@ def derived_value(rule: dict) -> str | list[str] | None:
 
     if pluck := rule.get("json_pluck"):
         return [row[pluck["field"]] for row in json.loads(text)[pluck["key"]]]
+
+    # A roster, not a value. `within` first narrows the text to the one block
+    # that holds it — a bare findall over a whole module collects every string
+    # literal in the file, which is a roster of nothing. Both halves are
+    # required together for that reason.
+    if findall := rule.get("findall"):
+        if within := rule.get("within"):
+            m = re.search(within, text, re.MULTILINE | re.DOTALL)
+            if not m:
+                return None
+            text = m.group(1)
+        found = re.findall(findall, text, re.MULTILINE)
+        return found or None
 
     m = re.search(rule["pattern"], text, re.MULTILINE)
     return m.group(1) if m else None
@@ -233,6 +247,15 @@ def scan(files: list[Path], facts: dict, lexicon: dict, sweep: bool) -> tuple[li
 
     for word in lexicon["retired_words"]:
         rules.append((re.compile(rf"\b{re.escape(word)}\b", re.I), "retired word", []))
+
+    for internal in lexicon.get("internal_names", []):
+        rules.append(
+            (
+                re.compile(rf"\b{re.escape(internal['name'])}\b", re.I),
+                f"internal name — say {internal['say_instead']}",
+                internal.get("except", []),
+            )
+        )
 
     for pr in lexicon.get("prohibited", []):
         rules.append(

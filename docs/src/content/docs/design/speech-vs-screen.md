@@ -77,5 +77,5 @@ that is reading things to them.
 
 ## Read next
 
-- [The turn budget](/design/the-turn-budget/) — the one interval of a turn your code controls.
+- [The turn budget](/design/turn-budget/) — the one interval of a turn your code controls.
 - [Interruption and heard truth](/design/interruption-and-heard-truth/) — what the caller heard, which is what a transcript records.

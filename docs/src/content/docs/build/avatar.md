@@ -4,7 +4,7 @@ description: A 2-D talking head driven by the data channel. The pipeline half al
 ---
 
 Every Voqalize session already emits avatar traffic. `AvatarProcessor` sits in
-the runtime's pipeline between text-to-speech and the transport, and from that
+the voice tier's pipeline between text-to-speech and the transport, and from that
 seat it publishes what the face needs: the state it infers from turn and
 function-call boundaries, and viseme cues aligned to the audio about to be
 spoken. Those messages are on your data channel whether or not anything is
@@ -36,7 +36,7 @@ npm install @voqalize/avatar
 
 Then mount it wherever your page already draws the bot's tile, passing the
 `PipecatClient` you connected with — see
-[connections and the handshake](/client/handshake/).
+[connections and the handshake](/build/connect/).
 
 The package's own README is the reference for the mount call, the faces that
 ship with it, and how to author your own. We link rather than quote it: the
@@ -46,7 +46,7 @@ that goes stale in a place you cannot see it change.
 ## Driving the face from your brain
 
 The avatar reads one envelope, and it accepts it from any source — the
-processor in the runtime's pipeline and a brain sending out of band emit the
+processor in the voice tier's pipeline and a brain sending out of band emit the
 same shape:
 
 ```python
@@ -64,7 +64,7 @@ is the list of record.
 **Send actions, and leave claims alone.** An action is a point-in-time behaviour
 that completes on its own and establishes no state — a nod, a greeting, a wait
 gesture. A `claim` is durable, one is in flight at a time, and a later one
-replaces the earlier: the runtime's processor is already claiming, so a claim
+replaces the earlier: the voice tier's processor is already claiming, so a claim
 from your brain is a race with it, and whichever arrives last wins. Actions
 compose with what the processor is doing; claims contest it.
 
@@ -89,5 +89,5 @@ never sent.
 
 ## Read next
 
-- [Voqalize and pipecat](/start/pipecat/) — where the processor sits, and what else in the call is pipecat's.
+- [Voqalize and pipecat](/build/pipecat/) — where the processor sits, and what else in the call is pipecat's.
 - [The RTVI plane](/reference/rtvi/) — the whitelist this rides.

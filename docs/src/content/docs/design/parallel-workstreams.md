@@ -51,7 +51,7 @@ seconds later can still paint the screen.
 
 An action carries no audio, so it needs no floor. The screen can change while the
 agent is mid-sentence, and neither one waits for the other. See
-[voice points, the screen holds](/design/voice-points-screen-holds/).
+[voice points, the screen holds](/design/speech-vs-screen/).
 
 ## The real design question is how a result comes back
 
@@ -102,5 +102,5 @@ row that says so.
 
 ## Read next
 
-- [The turn budget](/design/the-turn-budget/) — where the time in a single turn goes.
-- [Voice points, the screen holds](/design/voice-points-screen-holds/) — why the screen is the wide channel.
+- [The turn budget](/design/turn-budget/) — where the time in a single turn goes.
+- [Voice points, the screen holds](/design/speech-vs-screen/) — why the screen is the wide channel.

@@ -35,7 +35,7 @@ call connected and nothing I expected happened":
 - **`recording_enabled` and `recording_source`** — whether this call was recorded
   and which rule decided. See [recordings](/operate/recordings/).
 
-`source="wire"` — the frames themselves, both directions, between the runtime and
+`source="wire"` — the frames themselves, both directions, between Voqalize and
 your brain. Transcripts, each piece of the agent's reply, each action it asked the
 page to take, each interruption. This is the same wire your brain speaks; see
 [the wire](/reference/wire/).
@@ -73,7 +73,7 @@ response says which:
 | Value | What it means |
 |---|---|
 | `found` | The bundle was read. |
-| `missing` | No bundle at all — the call is still running, the runtime died before teardown, or the upload failed. |
+| `missing` | No bundle at all — the call is still running, the voice tier died before teardown, or the upload failed. |
 | `unavailable` | The store itself could not be read. |
 | `skipped` | You asked for `source="platform"`. |
 
@@ -83,12 +83,15 @@ never truncated; `limit` applies to the wire half only.
 
 ## Reading the logs
 
-`get_session_logs` returns the runtime's timeline for the call: WebRTC and ICE,
+`get_session_logs` returns Voqalize's timeline for the call: WebRTC and ICE,
 speech in and out, the brain WebSocket, teardown.
 
 `level` is a floor — start at `INFO`, drop to `DEBUG` once you know roughly where
-the problem is. `service` narrows to one surface: `pygato` is the voice runtime,
-the process that holds the call and the one worth reading first.
+the problem is. `service` narrows to one surface: `service="pygato"` marks the
+lines written by the process that holds the call, and it is the one worth
+reading first. That string is an internal name — a log field, not vocabulary.
+The other place you will meet it is the `iss` claim on the brain-connection
+token, in [the wire](/reference/wire/).
 
 Do not write assertions against their wording. That is what the event stream is
 for.
@@ -107,6 +110,28 @@ These are Voqalize's records of the call. Your brain runs in your environment an
 logs where you put it. `session.id` is the same string on both sides, so joining
 them is a grep — and your side is where `on_finalize` recorded what the caller
 actually heard.
+
+The join only works if your lines carry the id, and **the SDK has already put it
+there**: both entry points wrap every session in a logging context, so a bare
+`from loguru import logger` anywhere in your brain — and in any task it spawns —
+logs with the call attached. You thread nothing through.
+
+What is left to you is one line at your own entrypoint, because a library has no
+business replacing your process's log handlers:
+
+```python
+from voqalize.sdk import configure_logging
+
+configure_logging(json_logs=True)     # only if you have no loguru setup of your own
+```
+
+Without a sink that prints those fields, they are computed and thrown away, and
+it looks exactly like working. If you already configure loguru, add `{extra}` to
+your format instead. Signatures and the rest are in
+[The Brain API](/reference/brain/#logging).
+
+**Ids are carried whole.** A truncated id reads better in a terminal and matches
+nothing on our side of the query, which is the entire purpose of writing it down.
 
 ## Read next
 

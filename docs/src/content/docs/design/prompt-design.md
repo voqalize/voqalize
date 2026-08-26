@@ -40,7 +40,7 @@ paragraph:
 - `support`: "Never read out ids or order numbers as raw text — say 'your order
   from May 28th' instead."
 
-See [voice points, the screen holds](/design/voice-points-screen-holds/).
+See [voice points, the screen holds](/design/speech-vs-screen/).
 
 ### 2. Hold its prompt still
 
@@ -86,7 +86,7 @@ paragraph at the end. See
   Say a brief line FIRST, THEN call the tool."
 
 Both of these are the prompt doing latency work. See
-[the turn budget](/design/the-turn-budget/).
+[the turn budget](/design/turn-budget/).
 
 ## The sharpest fragment we have shipped
 
@@ -124,4 +124,4 @@ a rejection is a retry rather than a dead turn. See
 ## Read next
 
 - [Tool design for voice](/design/tool-design/) — why a tool that waits is a bug.
-- [The turn budget](/design/the-turn-budget/) — what a prompt costs on every turn.
+- [The turn budget](/design/turn-budget/) — what a prompt costs on every turn.

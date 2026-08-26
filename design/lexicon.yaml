@@ -56,6 +56,14 @@ terms:
     word: the wire
     retired: [the protocol, our API]
 
+  - concept: Voqalize's credential when it dials your brain
+    word: the brain-connection token
+    retired: [the RS256 JWT, the auth token, the pygato token]
+
+  - concept: The browser's credential for one call
+    word: the session token
+    retired: []
+
   - concept: The relay for egress-only networks
     word: Cortex
     retired: [tunnel, proxy]
@@ -67,6 +75,34 @@ terms:
   - concept: The 2-D talking head
     word: the avatar
     retired: [video agent, digital human]
+
+# Internal service and repository names. `voice.md` says these never appear in
+# customer-facing text; until 2026-08-25 nothing checked it, and three had
+# reached the docs site — one of them into a filename a reader types.
+#
+# This runs every time, not under `--sweep`, because there is no sentence in
+# which these are the right word for a customer. It sees prose only:
+# `prose_lines` blanks inline code spans and skips fenced blocks, so the literal
+# claim value `iss="pygato"` in `reference/wire.md` — a string a brain
+# compares against, which the page justifies in place — is exempt by
+# construction rather than by a special case. A leak inside a fence is still a
+# leak, and `--sweep-code` would be the next thing to build; today a person
+# reads the fences.
+internal_names:
+  - name: pygato
+    say_instead: Voqalize, or "the voice tier" where the half matters
+    except:
+      # Our own deployment topology, not a customer's integration: this file
+      # says which node the brains container lands on and which name fronts it.
+      # The rule is about the word a *reader* is taught for the thing they dial,
+      # and nobody dials a node. Every other README under demos/ is governed.
+      - demos/README.md
+  - name: vql-stt
+    say_instead: the recognizer
+  - name: vql-speech
+    say_instead: the speech tier
+  - name: voqalcloud
+    say_instead: Voqalize
 
 # The word we never use for ourselves, kept separate because the rule has
 # exceptions the table cannot carry.

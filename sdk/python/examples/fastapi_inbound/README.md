@@ -2,7 +2,7 @@
 
 A standalone FastAPI app that hosts a `Brain` on an inbound WebSocket route.
 **This is how you deploy a brain in production**: your framework owns the listener
-and the upgrade; the SDK just runs the session over the connected socket. PyGato
+and the upgrade; the SDK just runs the session over the connected socket. Voqalize
 dials your `brain_url` verbatim with `?session_id=` appended — one connection per
 session, opened just-in-time, no relay.
 
@@ -37,10 +37,11 @@ async def voice(websocket, session_id):
     )
 ```
 
-`run_session` verifies PyGato's token, runs one session, and returns when the call
-ends or the socket closes. It never closes the socket — the route owns that, using
-the close codes PyGato understands: **4000** on a rejected token (permanent,
-PyGato gives up), **1011** on an unexpected error (retriable, PyGato reconnects).
+`run_session` verifies the brain-connection token, runs one session, and returns
+when the call ends or the socket closes. It never closes the socket — the route
+owns that, using the close codes Voqalize understands: **4000** on a rejected
+token (permanent, Voqalize gives up), **1011** on an unexpected error
+(retriable, Voqalize reconnects).
 
 > Modeled on the control plane's own `app/entrypoints/http/routes/brains.py`,
 > which hosts Voqalize's demo brains over the identical `_WsChannel` seam — we
@@ -55,20 +56,20 @@ VOQAL_ALLOW_UNVERIFIED=true \
 ```
 
 Then point a **local** demo agent's `brain_url` at `ws://127.0.0.1:8080/voice`
-(PyGato appends `?session_id=`), open the console, and start a call.
+(Voqalize appends `?session_id=`), open the console, and start a call.
 
 ### Local-dev auth: `VOQAL_ALLOW_UNVERIFIED`
 
-By default the SDK verifies PyGato's RS256 token against the **production**
-Voqalize public keys embedded in the package. Your **local** PyGato signs with a
-dev key, so a real check rejects every local session with a close code **4000**
+By default the SDK verifies the brain-connection token against the
+**production** Voqalize public keys embedded in the package. A **local**
+Voqalize signs with a dev key, so a real check rejects every local session with a close code **4000**
 and you hear silence. `VOQAL_ALLOW_UNVERIFIED=true` skips verification for local
 dev; the app reads it into `allow_unverified=`. **Leave it unset in production** —
 a deployed brain gets zero-config prod verification for free.
 
 ## Deploy to Cloud Run
 
-Containerize the brain and expose it at a public `wss://` URL PyGato can dial.
+Containerize the brain and expose it at a public `wss://` URL Voqalize can dial.
 
 ```bash
 # From this directory. Cloud Run terminates TLS and upgrades WebSockets for you.
@@ -81,9 +82,9 @@ gcloud run deploy echo-brain \
 
 Cloud Run returns an HTTPS URL like `https://echo-brain-xxxx.run.app`. Set the
 agent's `brain_url` to its **WebSocket** form —
-`wss://echo-brain-xxxx.run.app/voice` — and PyGato will dial
+`wss://echo-brain-xxxx.run.app/voice` — and Voqalize will dial
 `wss://echo-brain-xxxx.run.app/voice?session_id=…` per session. No `allow_unverified`
-in the deployed image: production PyGato signs with the prod key the SDK already
+in the deployed image: production Voqalize signs with the prod key the SDK already
 trusts.
 
 ### Building the image
@@ -92,6 +93,6 @@ trusts.
 Until it's published there, vendor the SDK into the build context (copy
 `sdk/python/` alongside this dir and `pip install ./python` in the
 Dockerfile), or build a wheel with `uv build` and `COPY` it in. The
-`--allow-unauthenticated` flag is about *Cloud Run's* IAM front door (PyGato is an
-anonymous external caller); the brain still authenticates PyGato itself via the
+`--allow-unauthenticated` flag is about *Cloud Run's* IAM front door (Voqalize is an
+anonymous external caller); the brain still authenticates the call itself via the
 RS256 token inside `run_session`.

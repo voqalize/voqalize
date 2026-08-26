@@ -13,7 +13,7 @@ There are two kinds.
 ## `sk_` — the secret key, and the primary path
 
 Held by your backend. It starts sessions for its own agent, and it is what that
-agent's brain presents when it dials out over [Cortex](/deploy/cortex/).
+agent's brain presents when it dials out over [Cortex](/build/outbound/).
 
 This is the path to prefer. Your server mints the session, so it decides who is
 allowed to have one — a login, a rate limit, a paywall, a check that this
@@ -71,5 +71,5 @@ long-lived admin credential to leak.
 
 ## Read next
 
-- [Connections and the handshake](/client/handshake/) — where a `pk_` key is used, and the one line pipecat needs.
-- [Where the brain runs](/deploy/brain-url/) — where the `sk_` key is used.
+- [Connections and the handshake](/build/connect/) — where a `pk_` key is used, and the one line pipecat needs.
+- [Where the brain runs](/build/hosting/) — where the `sk_` key is used.

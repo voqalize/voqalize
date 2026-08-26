@@ -5,12 +5,12 @@ description: The fallback path for brains that can't accept inbound connections 
 
 Cortex is the fallback for brains that **can't accept inbound connections**:
 serverless functions, a process on a laptop behind NAT, or a network that only
-allows egress. Instead of the runtime dialing you, your brain dials *out* to a
+allows egress. Instead of Voqalize dialing you, your brain dials *out* to a
 Cortex relay, which splices the two legs together.
 
 :::note[Prefer inbound when you can]
 The relay adds a hop and a moving part. If your brain can expose an authenticated
-WebSocket route, use the [inbound path](/deploy/inbound/) instead. Reach for
+WebSocket route, use the [inbound path](/build/inbound/) instead. Reach for
 Cortex only when inbound genuinely isn't possible.
 :::
 
@@ -71,8 +71,15 @@ await serve(
 )                       # returns when the wire closes permanently
 ```
 
+**`version` and `cortex_url` are required**, and the signature will not tell you
+so — `serve` takes `**cortex_kwargs` and forwards them, so omitting one is a
+`TypeError` from a constructor you did not call rather than from the line you
+wrote. `version` is a string of yours; it travels as `X-Agent-Version` on the
+connect and is how you tell which build answered a call.
+
 Pass **exactly one** credential: a static `api_key` (`sk_…`), or an
-`authorization_provider` that mints a `"Bearer <jwt>"` per connect.
+`authorization_provider` that mints a `"Bearer <jwt>"` per connect. Passing both,
+or neither, raises at construction.
 
 `serve` **blocks** for the life of the relay connection. Where that call lives —
 `asyncio.run` in a `__main__`, a task in your app's lifespan, a worker entrypoint —
@@ -86,22 +93,24 @@ fastest way to develop against hosted Voqalize from a laptop. Export the
 credentials and run:
 
 ```bash
-export VOQAL_AGENT_SECRET=sk_...                              # agent_secret
-export VOQAL_CORTEX_URL=wss://cortex.dev.voqalize.com/agent   # cortex_url, verbatim
+export VOQALIZE_AGENT_SECRET=sk_...                              # agent_secret
+export VOQALIZE_CORTEX_URL=wss://cortex.dev.voqalize.com/agent   # cortex_url, verbatim
 python run_cortex.py
 ```
 
-Both are conventions your own code reads and passes through as the kwargs above —
-the SDK reads no environment variables of its own.
+Both names are **yours**, not ours: your code reads them and passes them through
+as the kwargs above. The SDK reads exactly one environment variable of its own,
+and it is the Gemini adapter's model default — see
+[The Brain API](/reference/brain/).
 
 ## Crash-only
 
-Cortex keeps no session state — that lives in the endpoints (the runtime's session
+Cortex keeps no session state — that lives in the endpoints (Voqalize's session
 and your brain). There's no drain protocol and no graceful-shutdown contract.
 Your agent leg reconnects and carries on; the calls that were in flight when it
 died do not survive, because a voice session is its socket.
 
-## Next
+## Read next
 
-- **[Inbound server](/deploy/inbound/)** — the primary path.
-- **[Where the brain runs](/deploy/brain-url/)** — choosing between them.
+- **[Inbound server](/build/inbound/)** — the primary path.
+- **[Where the brain runs](/build/hosting/)** — choosing between them.

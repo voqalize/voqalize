@@ -27,18 +27,27 @@ Content-Type: application/json
 
 {
   "agent_id": "…",
-  "agent_input": { "payload": { "orderId": "A-1183" } },
-  "record": false
+  "init": { "order_id": "A-1183" },
+  "config": { "record": false }
 }
 ```
 
-`agent_input` is what the page hands the brain. Anything under `payload` is
-opaque business context the agent receives at the start of the call; `pipeline`
-beside it is per-call media config, which most pages should not set — [voice and
-language belong to the brain](/reference/catalog/). `agent_input` is signed
-into the session token *and* stored on the session, so send identifiers, not
-personal data. `record` rides beside it, not inside it: recording is not the
-brain's business.
+**Two named things, and the body is strict** — a key it does not declare is a
+422 naming it, not a key quietly dropped. (There are two more, both labels:
+`display_name` and a bounded `metadata` map, in
+[A session, end to end](/build/session/).)
+
+`init` is what the page hands the brain: a flat, opaque blob of business
+context, uninterpreted by everything between this request and `session.init`. It
+is the same word on both ends, which is the point. It is stored on the session
+and readable by anyone who can read the session, so send identifiers rather than
+personal data.
+
+`config` is how this call sounds and listens — `tts`, `stt`, `idle`, and
+`record`. Recording lives here rather than beside `init` because it is not the
+brain's business. Most pages should set none of it; see
+[voice and language](/reference/catalog/) for who sets what, and
+[A session, end to end](/build/session/) for the full body.
 
 The answer is the connect params, and nothing else:
 
@@ -105,7 +114,7 @@ Three hops, and only the middle one is ours:
    does. That trust boundary is yours; we never see it and have no opinion about
    it.
 2. **Your backend calls `sessions.connect` with a secret key** (`sk_…`), naming
-   whatever `agent_id` and `agent_input` it decided *this* caller gets.
+   whatever `agent_id` and `init` it decided *this* caller gets.
 3. **Your backend returns that JSON body to the browser, verbatim.**
 
 ```ts
@@ -119,8 +128,8 @@ app.post("/api/voice/start", requireLogin, async (req, res) => {
     },
     body: JSON.stringify({
       agent_id: agentFor(req.user),
-      agent_input: { payload: { customerId: req.user.id } },
-      record: req.body.consented === true,
+      init: { customer_id: req.user.id },
+      config: { record: req.body.consented === true },
     }),
   });
   res.status(r.status).json(await r.json()); // relay the body AND the status
@@ -219,18 +228,20 @@ write reaches a browser as "Bad Request". Branch on `error.code`; show a person
 | `401` | No `Authorization` header, or a key we don't recognise. |
 | `403` | A `pk_` from an origin it isn't allowlisted for — or one with no allowlist at all. |
 | `404` | No such agent in this key's workspace. A key is scoped to exactly one. |
-| `400` `recording_not_permitted` | `record: true` on a publishable key. See below. |
+| `400` `recording_not_permitted` | `config.record: true` on a publishable key. See below. |
 | `500` `missing_connect_params` | The session was minted but no worker is running for that agent. |
 
 ## Recording is a per-call decision
 
-Omit `record` and the call does whatever the agent is configured for. That is the
-common case: the agent's owner made the decision once, in a place they control.
+Recording is `config.record`, a boolean in the same block as the voice and
+language settings. Omit it and the call does whatever the agent is configured
+for. That is the common case: the agent's owner made the decision once, in a
+place they control.
 
-**`record: false` is always honoured.** A caller who declines is not recorded,
+**`config.record: false` is always honoured.** A caller who declines is not recorded,
 even on an agent that records by default, on either path.
 
-**`record: true` is refused on a publishable key** — `400`, and no call starts, so
+**`config.record: true` is refused on a publishable key** — `400`, and no call starts, so
 nothing is minted and nothing is billed. A `pk_` ships in page source; if it could
 turn recording *on*, anyone holding it could write voice into your storage, on
 your bill, for an agent whose owner chose not to record. The refusal is loud on
@@ -238,7 +249,7 @@ purpose: the failure it replaces was a call that ran, sounded perfectly normal,
 and quietly recorded nothing the page thought it had asked for. Turn recording on
 where its owner controls it — the agent's default, over MCP, or in the console.
 
-On Path B, `record: true` with an `sk_` is fine and is the right way to express
+On Path B, `config.record: true` with an `sk_` is fine and is the right way to express
 per-caller consent. Your backend is the party that actually knows the caller
 agreed.
 
@@ -256,7 +267,7 @@ agreed.
 - **No caching connect params.** They are one session, and the token expires in
   minutes.
 
-## Next
+## Read next
 
 - **[The wire](/reference/wire/)** — the frames underneath the call, and the
   contract they keep.

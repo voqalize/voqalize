@@ -42,7 +42,7 @@ A `pk_` embed that wants recording sets the **agent's** default, which its owner
 controls: `update_agent(recording=true)` over
 [the MCP server](/reference/mcp/), or the same switch in the console.
 
-See [keys and authentication](/operate/keys/).
+See [keys and authentication](/build/keys/).
 
 ## What you get back
 
@@ -75,12 +75,12 @@ Ask for a fresh one rather than holding one.
 The call's `session.created` event carries `recording_enabled` and
 `recording_source` — `client` when the mint request said so, `agent_default` when
 it did not. That is how you answer "why was this call not recorded" without
-guessing. See [reading a call back](/operate/logs/).
+guessing. See [reading a call back](/operate/reading-a-call/).
 
 `get_session` also carries the same recordings without URLs, for when you only
 need to know whether any exist.
 
 ## Read next
 
-- [Reading a call back](/operate/logs/) — events first, logs second, audio last.
-- [Keys and authentication](/operate/keys/) — why the key you hold changes what you may ask for.
+- [Reading a call back](/operate/reading-a-call/) — events first, logs second, audio last.
+- [Keys and authentication](/build/keys/) — why the key you hold changes what you may ask for.

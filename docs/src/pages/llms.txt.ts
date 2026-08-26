@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { sidebar } from "../sidebar.mjs";
-import { markdownPages, markdownUrl } from "../markdown-pages";
+import { APEX, markdownPages, markdownUrl } from "../markdown-pages";
 
 /**
  * The index an agent enters the docs through — https://docs.voqalize.com/llms.txt.
@@ -19,16 +19,33 @@ import { markdownPages, markdownUrl } from "../markdown-pages";
  * the two cannot disagree about what the docs contain. A page missing from the
  * sidebar still appears, under "Other" — a page an agent cannot find is worse
  * than a page in the wrong group, and the odd heading is a visible reminder to
- * put it where it belongs.
+ * put it where it belongs. Sub-groups are flattened into their section in
+ * reading order: a nested item is a depth in the sidebar's tree, not a section
+ * of its own, and before 2026-08-25 the six pages under Build's "Your first
+ * brain" fell straight through to "Other".
+ *
+ * **The apex is named before the first section, not inside one.** It is L1 —
+ * the whole model at low resolution — and an agent that reads a section hub
+ * without it has the branch and not the tree. Starlight's sidebar has no entry
+ * for a splash page, so nothing in the ordering can put it first; it is written
+ * into the preamble here instead.
  */
 
+// The same sentence the site's `description`, the apex's hero and the MCP
+// server's `instructions` open with. Three surfaces, one claim.
 const TAGLINE =
-  "A voice operator that lives inside your app. You write the brain — what to say and what to show; Voqalize runs the voice: WebRTC, STT, TTS, turn-taking, interruptions, and recording.";
+  "Voqalize adds voice to an existing web or mobile app. The user talks, the agent talks back and acts on the screen alongside them — and what they do in the app flows back as context.";
+
+/** The sidebar is a tree; a section of `llms.txt` is a list. */
+const slugs = (items: readonly any[]): string[] =>
+  items.flatMap((item) => (item.slug ? [item.slug] : item.items ? slugs(item.items) : []));
 
 export const GET: APIRoute = async () => {
   const pages = await markdownPages();
   const byId = new Map(pages.map((entry) => [entry.id, entry]));
 
+  const listed = new Set<string>();
+  const apex = byId.get(APEX);
   const lines: string[] = [
     "# Voqalize",
     "",
@@ -36,9 +53,15 @@ export const GET: APIRoute = async () => {
     "",
     "Every page below is served as markdown. Drop the `.md` for the rendered page.",
     "",
+    ...(apex
+      ? [
+          `Start at [${apex.data.title}](${markdownUrl(apex.id)}) — the whole model on one page, with a link out of every branch. The four sections below go one level deeper each.`,
+          "",
+        ]
+      : []),
   ];
+  if (apex) listed.add(apex.id);
 
-  const listed = new Set<string>();
   const section = (label: string, ids: string[]) => {
     const entries = ids.map((id) => byId.get(id)).filter((entry) => entry !== undefined);
     if (entries.length === 0) return;
@@ -54,10 +77,7 @@ export const GET: APIRoute = async () => {
   };
 
   for (const group of sidebar) {
-    section(
-      group.label,
-      group.items.map((item) => item.slug),
-    );
+    section(group.label, slugs(group.items));
   }
   section(
     "Other",

@@ -37,7 +37,7 @@ matcher was at fault. And `source: "agent" | "manual"` records who put the row
 there, so a hand correction is distinguishable from the agent's own work.
 
 None of that is possible if the screen only shows conclusions. See
-[voice points, the screen holds](/design/voice-points-screen-holds/).
+[voice points, the screen holds](/design/speech-vs-screen/).
 
 ## Make correction cheap, by voice and by hand
 

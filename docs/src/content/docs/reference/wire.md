@@ -58,7 +58,7 @@ Everything the brain sends that is *not* speech is floor-free: an `RTVIFrame` to
 redraw the screen, a `Request` to change how the call behaves, an `End` to hang
 up. Those need no turn and are legal at any moment.
 
-If your brain reaches Voqalize through the [Cortex relay](/deploy/cortex),
+If your brain reaches Voqalize through the [Cortex relay](/build/outbound),
 Cortex relays these bytes without reading them. The two ends of the wire are
 Voqalize and the brain; nothing in between interprets the schema.
 
@@ -241,10 +241,10 @@ message IdleConfig { optional uint32 timeout_ms = 1; }
 This message is the payload of this op and of nothing else. The agent record
 holds `brain_url` and carries no voice or language of its own, so there is one
 place a session's configuration comes from and it is the brain. A session starts
-on the runtime's defaults and moves from there — see
+on Voqalize's defaults and moves from there — see
 [the catalog](/reference/catalog/#where-it-is-set).
 
-Unset means *leave it alone*: a `Request` carries a delta and the runtime is
+Unset means *leave it alone*: a `Request` carries a delta and the call is
 already running. Explicit presence is what makes that readable — without it an
 unset `timeout_ms` is indistinguishable from `0`, and a delta that never
 mentioned idle detection would silently disable it.
@@ -254,7 +254,7 @@ would put a turn boundary — and a possible refusal — between the halves, lea
 the call heard in one language and spoken in another.
 
 The surface is deliberately narrow: voice and language, and nothing else. The
-recognizer's thresholds are not settable from here; they keep the runtime's own
+recognizer's thresholds are not settable from here; they keep the voice tier's own
 defaults. This widens as we learn what is worth naming, and a knob is far easier
 to add than to take back.
 
@@ -329,7 +329,7 @@ have no two-letter code. It is here because it is the identifier a developer
 writes and reads, and every end of the wire has to spell it the same way.
 
 Nothing here says which of these can be *spoken*. That is a capability of the
-speech tier, it moves when the speech tier does, and the runtime answers it when
+speech tier, it moves when the speech tier does, and Voqalize answers it when
 asked. See the [voice & language catalog](/reference/catalog) for the full
 list.
 
@@ -365,9 +365,10 @@ type:
 | App → Voqalize → brain | `client-message`, `send-text`, `ui-event`, `ui-snapshot`, `ui-cancel-job-group` |
 
 A type absent from the list does not cross in either direction. `bot-*` and
-`llm-*` are the runtime's own assertions about the media and the model, and a
-brain must not be able to forge them; a brain that sends one gets a `REJECTED`
-`Error` and the frame is dropped.
+`llm-*` are Voqalize's own assertions about the media and the model, and a
+brain must not be able to forge them; a brain that sends one gets a **non-fatal
+`PROTOCOL` `Error`** and the frame is dropped. The call continues — see
+[error codes](/reference/errors/).
 
 ## Lifecycle
 
@@ -379,9 +380,9 @@ non-fatal one is a signal the brain may act on.
 
 ## Connection and auth
 
-Voqalize dials `{brain_url}?session_id={session_id}`, presenting a short-lived
-RS256 JWT as a bare token or as `Authorization: Bearer <jwt>`, verified against
-Voqalize's public key. Required claims: `iss="pygato"`, `aud="brain"`,
+Voqalize dials `{brain_url}?session_id={session_id}`, presenting **the
+brain-connection token** — a short-lived RS256 JWT, sent as a bare token or as
+`Authorization: Bearer <jwt>` and verified against Voqalize's public key. Required claims: `iss="pygato"`, `aud="brain"`,
 `sub == session_id`, and `exp`. `agent_id` and `tenant_id` are informational —
 the recipient decides from them whether it serves this agent.
 

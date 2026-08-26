@@ -1,10 +1,10 @@
 ---
 title: Inbound server
-description: Expose one authenticated WebSocket route; the voice runtime dials into it. The primary way to run a brain.
+description: Expose one authenticated WebSocket route; Voqalize dials into it. The primary way to run a brain.
 ---
 
 The inbound path is the primary way to run a brain: you expose **one authenticated
-WebSocket route**, the voice runtime dials into it, and there's no relay in the
+WebSocket route**, Voqalize dials into it, and there's no relay in the
 path. If you already run a REST API or webhooks, this is the same shape.
 
 ## The route
@@ -16,19 +16,6 @@ the SDK's `run_session`, which drives the whole session and returns when the cal
 ends.
 
 ### Python (FastAPI)
-
-:::caution[PyPI serves a different SDK under the same version number]
-`pip install voqalize-agent-sdk` gets you **0.0.3**, which exports `Interaction`,
-`Conversation`, `serve_direct` and `serve_auto`. This page describes the SDK in
-the repository, which exports `Brain`, `UserMessage`, `Chunk`, `Finalize`,
-`run_session` and `serve`. Both call themselves 0.0.3, so the version number
-gives you nothing to check against: the import below fails, and the error names
-`run_session` rather than the mismatch.
-
-Take the SDK from a clone of
-[`voqalize/voqalize`](https://github.com/voqalize/voqalize) until the published
-one catches up.
-:::
 
 ```python
 from fastapi import FastAPI, WebSocket
@@ -60,15 +47,16 @@ async def brain_socket(ws: WebSocket, session_id: str):   # session_id from ?ses
 bytes`, so it mounts on Starlette, aiohttp, or Django Channels the same way. The SDK
 ships no server of its own — your app already runs one, and that is the one the
 route belongs on. To drive a brain over a socket in a *test*, use
-[`brain_server`](/brain/testing/).
+[`brain_server`](/build/testing/).
 
 ## Authentication
 
-The runtime presents an RS256 JWT (`iss=pygato`, `aud="brain"`,
-`sub=session_id`). The SDK verifies it against Voqalize's embedded public keys by
-default — you just pass the `Authorization` header value through. A verification
-failure raises `SessionRejected`; close the socket with code **4000**, which
-the runtime treats as permanent.
+Voqalize presents **the brain-connection token** — a short-lived RS256 JWT,
+`sub == session_id`. The SDK verifies it against Voqalize's embedded public keys
+by default, so you pass the `Authorization` header value through and check
+nothing yourself. A verification failure raises `SessionRejected`; close the
+socket with code **4000**, which Voqalize treats as permanent. The claims are in
+[The wire](/reference/wire/).
 
 **The socket is the session, and it is not reconnected.** The runtime retries
 the *first* connect for a few seconds — a **4000** during that window stops it
@@ -86,9 +74,10 @@ uvicorn app:app --port 8080
 ngrok http 8080          # → wss://<id>.ngrok.app
 ```
 
-Prod-signed tokens can't be verified through a tunnel, so for **local dev only**
-pass `allow_unverified=True` to `run_session` (or set
-`VOQAL_ALLOW_UNVERIFIED=true`). Never ship that.
+The SDK ships **one** public key, the production signer's, so a token signed by
+dev has nothing to verify against — the tunnel is not what breaks it, and adding
+one will not fix it. For **local dev only**, pass `allow_unverified=True` to
+`run_session`. Never ship that.
 
 Then point the agent at the tunnel:
 
@@ -101,10 +90,10 @@ update_agent(tenant="acme", agent_id="06a2…", brain_url="wss://<id>.ngrok.app/
 Run the route like any other service: behind your own load balancer, one socket
 per session per user. Connection state *is* liveness — there's nothing to pool or
 drain, and dropping a socket drops that call. Scale horizontally with your LB;
-the runtime just dials whatever the `brain_url` resolves to.
+Voqalize just dials whatever the `brain_url` resolves to.
 
-## Next
+## Read next
 
-- **[Cortex relay](/deploy/cortex/)** — the fallback when you can't accept
+- **[Cortex relay](/build/outbound/)** — the fallback when you can't accept
   inbound.
 - **The SDK README** (`sdk/python/README.md`) — the serving API in full.

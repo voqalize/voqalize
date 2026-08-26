@@ -23,7 +23,7 @@ pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport
 ```
 
 `sessions.connect` returns the connect params; `client.connect(params)` takes
-them. [The handshake](/client/handshake/) is that request and the one line
+them. [The handshake](/build/connect/) is that request and the one line
 of glue around it, and it is the entire Voqalize-specific surface in your page.
 
 The demos add two more, and neither is required: `@pipecat-ai/client-react` for
@@ -54,7 +54,7 @@ The whitelist, in both directions:
 A type absent from that list does not cross in either direction. `bot-*` and
 `llm-*` are the voice tier's own assertions about the media and the model — that
 speech started, that the model is thinking — and a brain must not be able to
-forge them. Your page can trust a `bot-started-speaking` because only the runtime
+forge them. Your page can trust a `bot-started-speaking` because only Voqalize
 that moved the audio can emit one.
 
 The list is enumerated in
@@ -63,7 +63,7 @@ which is the contract of record.
 
 ## Your server has no pipecat in it
 
-`pip install voqalize-agent-sdk` installs websockets, protobuf, pydantic and the
+`pip install voqalize-agent-sdk==0.1.0` installs websockets, protobuf, pydantic and the
 JWT library, and nothing else. A brain is callbacks over a socket. Pipecat runs
 on our side of that socket, where the audio is.
 
@@ -87,7 +87,7 @@ already pipecat's, which made it a second surface to learn and a release behind
 every pipecat version.
 
 The class of problem it existed to hide is now handled where it belongs: the two
-credential paths are [the same route with a different signer](/client/handshake/),
+credential paths are [the same route with a different signer](/build/connect/),
 and a recording asked for on a key that may not record is refused when the
 session is minted rather than warned about in a console.
 
@@ -102,5 +102,5 @@ install.
 
 ## Read next
 
-- [Connections and the handshake](/client/handshake/) — the request, both credential paths, and the one line you write.
+- [Connections and the handshake](/build/connect/) — the request, both credential paths, and the one line you write.
 - [The wire](/reference/wire/) — how an RTVI message crosses to your brain.

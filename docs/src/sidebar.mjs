@@ -10,83 +10,127 @@
  * import it, and neither has to think about how the other's toolchain handles
  * TypeScript.
  *
- * ── The shape, and why ──────────────────────────────────────────────────────
+ * ── Four sections, and each one owns its URLs ───────────────────────────────
  *
- * Sections are ordered by what the reader is holding: nothing yet, a brain, a
- * page, an avatar; then what they are running; then the two libraries they
- * consult. Diátaxis governs how a page is *written* and is declared per page in
- * frontmatter — it is deliberately not the navigation, because a top level of
- * "tutorials / how-to / reference / explanation" makes a reader classify their
- * own need before they can move.
+ * **A URL is navigation that survives being copied.** Until 2026-08-25 ours did
+ * not: pages grouped under "Build" lived at `/deploy/`, `/client/`, `/brain/`
+ * and `/operate/`, so the path predicted nothing about the section and the
+ * section predicted nothing about the path. A human reading the sidebar never
+ * noticed. An agent reading `llms.txt` has no sidebar — the path is the only
+ * structure it sees, and we had made the path lie.
  *
- * The two build sections name the halves of the reader's own application rather
- * than splitting the site by role. The same person usually writes both, and a
- * role split makes them read half the site.
+ * So: four sections, four namespaces, and they are the same four words.
  *
- * ── The destination, and what is missing ────────────────────────────────────
+ *   Build    /build/      everything you write, from ten minutes to the whole
+ *                         SDK surface
+ *   Design   /design/     what changes when the output is spoken
+ *   Operate  /operate/    keeping it working
+ *   Reference /reference/ the contracts, consulted from all three
+ *
+ * `Start` was dissolved into Build on the same day. Its three pages were the
+ * prologue of the next section — the Build hub opened by sending the reader back
+ * out to two of them — and the site was telling one story four times at four
+ * lengths. `what-voqalize-is` merged into the apex; the other two are
+ * `build/session` and `build/pipecat`.
+ *
+ * **The IA is built top-down from the MCP handshake.** L0 is the paragraph the
+ * MCP server hands a coding agent, which links one page per section; L1 is the
+ * apex; L2 is these hubs; L3 is what they link to. Every section therefore
+ * answers at `/{section}.md` — including Reference, which had no hub until now.
+ *
+ * Diátaxis governs how a page is *written* and is declared per page. It is
+ * deliberately not the navigation: the reader would have to classify their own
+ * problem before they could move.
+ *
+ * ── Naming rules, earned the hard way ───────────────────────────────────────
+ *
+ * **A slug may not name an internal service.** `pygato` and `vql-stt` are ours
+ * and appear nowhere a customer reads. `cortex` is the one exception and it is
+ * a deliberate one — `design/lexicon.yaml` carries **Cortex** as sanctioned
+ * vocabulary for the relay, because a reader has to name the thing they dial —
+ * but it still loses as a *slug*, because a slug is read by someone who has met
+ * the concept and not the name.
+ * `/deploy/cortex` became `/build/outbound` because an agent that has read only
+ * the handshake has met the concept and never the name.
+ *
+ * **A slug is read without its page.** In `llms.txt` it is a path and one line.
+ * `/client/handshake` lost to `/build/connect` because "handshake" is three
+ * different things here — WebRTC's, TLS's, and the MCP paragraph's own word for
+ * itself.
+ *
+ * ── What is still missing ───────────────────────────────────────────────────
  *
  * Sections arrive as their pages do; a `slug` here must resolve or the build
- * fails. Still to be written, in the order they belong:
+ * fails. **A page that is an outline carries a `:::note[Scaffold]` aside**, and
+ * that is a rule a reader and a checker can both apply — the marker was on
+ * three of nine outlines until 2026-08-25, which made it mean nothing, and
+ * `design/facts.yaml` now counts it.
  *
- *   Start                 quickstart · your first real brain · the MCP door
- *   The brain             the brain surface · speaking · driving the screen ·
- *                         models and tools · context and history · transcripts
- *   The client            receiving actions · sending context · transcript and
- *                         presence · framework notes
- *   The avatar            the browser surface · the faces · authoring a face
- *   Voice and language    choosing a voice · choosing a language · defaults and
- *                         overrides
- *   Reference             the brain API · errors
+ * **One page carries it today: `reference/management-api`.** It is the only
+ * one held open on purpose — it describes a bearer-key HTTP API the control
+ * plane does not have, so writing it is blocked on a product decision rather
+ * than on effort. See `skill-rewrite/DOCS-AUTOMATION.md` §2: the
+ * customer-facing HTTP surface is `sessions.create` and `sessions.connect`,
+ * and everything else programmatic is MCP.
  *
- * "Designing for voice" is the durable quadrant and it is written from the
- * outlines in `design/explanations/`. Seven of the eleven are published. Two
- * more are held on the same work as the sections above; one — the browser is
- * pipecat's — was promoted into Start when the React client was deleted; and
- * "the framework boundary" waits for a second engine to exist.
+ * `build/quickstart` left the list on 2026-08-25; the other eight —
+ * `build/brain/{speaking,actions,tools,context,transcripts}`,
+ * `build/existing-agent`, `reference/brain` and `reference/errors` — were
+ * written from source and verified against it on 2026-08-26.
  *
- * The avatar's Voqalize half — the processor already running in every session,
- * and what a brain may send the face — is published under The client. The pages
- * about the browser surface itself wait on `@voqalize/avatar` 0.3.0: the
- * published 0.2.2 is one React component taking a face by name, 0.3.0 is
- * `createAvatar` taking a face value, and writing three pages against the one
- * about to be replaced is work done twice.
- *
- * Two more sections are held rather than merely unwritten, and both are held on
- * the same work: the brain section and the voice-and-language section describe
- * surfaces being changed right now by `skill-rewrite/BRAIN-SIMPLIFICATION.md` —
- * the configuration ops are collapsing into one and voices and languages are
- * becoming protobuf enumerations. Writing either against today's tree would
- * publish a page with a known expiry date. The board is
- * `skill-rewrite/SURFACE-BOARD.md`.
+ * Still unwritten and not yet listed: the avatar's browser surface, the faces
+ * and authoring a face (held on `@voqalize/avatar` 0.3.0 — writing three pages
+ * against the component about to be replaced is work done twice); two of the
+ * eleven design outlines. "The framework boundary" waits for a second engine to
+ * exist. The board is `skill-rewrite/SURFACE-BOARD.md`.
  */
 export const sidebar = [
   {
-    label: "Start",
+    label: "Build",
     items: [
-      { label: "What Voqalize is", slug: "start/what-voqalize-is" },
-      { label: "A session, end to end", slug: "start/session-end-to-end" },
-      { label: "Voqalize and pipecat", slug: "start/pipecat" },
+      { label: "Overview", slug: "build" },
+      { label: "Quickstart", slug: "build/quickstart" },
+      { label: "A session, end to end", slug: "build/session" },
+      {
+        label: "Your first brain",
+        items: [
+          { label: "Overview", slug: "build/brain" },
+          { label: "Speaking", slug: "build/brain/speaking" },
+          { label: "Actions", slug: "build/brain/actions" },
+          { label: "Tools", slug: "build/brain/tools" },
+          { label: "Context and history", slug: "build/brain/context" },
+          { label: "Transcripts", slug: "build/brain/transcripts" },
+        ],
+      },
+      { label: "Bringing an agent you already have", slug: "build/existing-agent" },
+      { label: "Where the brain runs", slug: "build/hosting" },
+      { label: "Inbound server", slug: "build/inbound" },
+      { label: "Outbound relay", slug: "build/outbound" },
+      { label: "Connecting a page", slug: "build/connect" },
+      { label: "Voqalize and pipecat", slug: "build/pipecat" },
+      { label: "The avatar", slug: "build/avatar" },
+      { label: "Keys and authentication", slug: "build/keys" },
+      { label: "Testing a brain", slug: "build/testing" },
     ],
   },
   {
-    label: "The brain — your server",
-    items: [{ label: "Testing a brain", slug: "brain/testing" }],
-  },
-  {
-    label: "The client — your page",
+    label: "Designing for voice",
     items: [
-      { label: "Connections and the handshake", slug: "client/handshake" },
-      { label: "The avatar", slug: "client/avatar" },
+      { label: "Overview", slug: "design" },
+      { label: "Voice points, the screen holds", slug: "design/speech-vs-screen" },
+      { label: "The turn budget", slug: "design/turn-budget" },
+      { label: "Interruption and heard truth", slug: "design/interruption-and-heard-truth" },
+      { label: "Misunderstanding and reversal", slug: "design/misunderstanding-and-reversal" },
+      { label: "Parallel workstreams", slug: "design/parallel-workstreams" },
+      { label: "Prompt design for voice", slug: "design/prompt-design" },
+      { label: "Tool design for voice", slug: "design/tool-design" },
     ],
   },
   {
-    label: "Run and operate",
+    label: "Operate",
     items: [
-      { label: "Where the brain runs", slug: "deploy/brain-url" },
-      { label: "Inbound server", slug: "deploy/inbound" },
-      { label: "Cortex relay", slug: "deploy/cortex" },
-      { label: "Keys and authentication", slug: "operate/keys" },
-      { label: "Reading a call back", slug: "operate/logs" },
+      { label: "Overview", slug: "operate" },
+      { label: "Reading a call back", slug: "operate/reading-a-call" },
       { label: "Recordings", slug: "operate/recordings" },
       { label: "Usage and limits", slug: "operate/usage" },
     ],
@@ -94,23 +138,14 @@ export const sidebar = [
   {
     label: "Reference",
     items: [
+      { label: "Overview", slug: "reference" },
+      { label: "The Brain API", slug: "reference/brain" },
       { label: "The wire", slug: "reference/wire" },
       { label: "The RTVI plane", slug: "reference/rtvi" },
-      { label: "Voice and language catalog", slug: "reference/catalog" },
-      { label: "Why there is no provider slot", slug: "reference/no-provider-slot" },
+      { label: "Voice and language", slug: "reference/catalog" },
+      { label: "Error codes", slug: "reference/errors" },
+      { label: "The management API", slug: "reference/management-api" },
       { label: "MCP server", slug: "reference/mcp" },
-    ],
-  },
-  {
-    label: "Designing for voice",
-    items: [
-      { label: "Voice points, the screen holds", slug: "design/voice-points-screen-holds" },
-      { label: "The turn budget", slug: "design/the-turn-budget" },
-      { label: "Interruption and heard truth", slug: "design/interruption-and-heard-truth" },
-      { label: "Parallel workstreams", slug: "design/parallel-workstreams" },
-      { label: "Prompt design for voice", slug: "design/prompt-design" },
-      { label: "Tool design for voice", slug: "design/tool-design" },
-      { label: "Misunderstanding and reversal", slug: "design/misunderstanding-and-reversal" },
     ],
   },
 ];
