@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 
 from voqalize.sdk import Session
 from voqalize.sdk.actions import Action
-from voqalize.sdk.brain import adapter_for
+from voqalize.sdk.brain import _adapter_for
 from voqalize.sdk.events import Chunk, Speech, SpeechEnd, SpeechStart, UserMessage
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 from voqalize.sdk.wire import (
@@ -177,7 +177,7 @@ async def _brain(*hops: list[_Scripted]) -> tuple[_Coach, Session]:
 
 async def _open[B: GeminiInteractionsBrain](brain: B) -> tuple[B, _Wire, Session]:
     wire = _Wire()
-    adapter = adapter_for(brain, wire)
+    adapter = _adapter_for(brain, wire)
     await adapter.handle_frame(SessionStartFrame(turn_id=1, session_id="s"))
     session = adapter._session  # pyright: ignore[reportPrivateUsage]
     assert session is not None

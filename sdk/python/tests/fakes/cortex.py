@@ -1,19 +1,24 @@
 """FakeCortex — a session-id-aware TCP relay that stands in for cortex.
 
 Mirrors the real cortex split:
-- Pygato leg: ``ws://host?session_id={session_id}&agent_id={agent_id}``.
+- Pygato leg: ``ws://host?session_id={session_id}`` with ``Authorization: Bearer <jwt>``.
   Wire format ``[payload]``. One session per connection.
-- Agent leg: ``ws://host/agent?agent_id={agent_id}``.
+- Agent leg: ``ws://host/agent`` with ``Authorization: Bearer <sk_… or jwt>``.
   Wire format ``[16-byte session_id][payload]``. One connection per agent
   process; many sessions multiplex over it.
+
+Auth is *not* verified — FakeCortex only reads ``agent_id`` from the bearer
+to know how to route. For an ``sk_…`` token, the raw key is used as the
+agent_id (matches local-dev where the customer key doubles as the pool key).
+For a JWT, the ``agent_id`` claim is read by unverified decode.
 
 FakeCortex inserts the 16-byte session_id prefix on the pygato→agent path
 and strips it on the agent→pygato path. Test session ids are arbitrary
 strings; we hash them to 16 bytes via uuid5.
 
-Two-copy vendoring policy: identical file lives at
-``pygato/tests/fakes/cortex.py`` and ``agent-sdk/tests/fakes/cortex.py``. If
-the two drift, the shared e2e suite catches it.
+A counterpart lives in PyGato's ``tests/fakes/cortex.py``. Keep its routing
+behaviour aligned with this one; the usage examples differ because this suite
+may exercise private SDK construction seams directly.
 
 Usage::
 
@@ -25,7 +30,7 @@ Usage::
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),
-            factory=brain_factory(MyBrain),
+            factory=_brain_factory(MyBrain),
         )
         await agent.run()
 
@@ -128,6 +133,9 @@ class FakeCortex:
         return f"ws://{self._host}:{self._port}"
 
     def pygato_url(self, session_id: str, agent_id: str) -> str:
+        # Query string is a test-only escape hatch: FakeCortex prefers the
+        # Bearer claim but falls back to ?agent_id= so tests that hand-craft
+        # a Wire can skip JWT minting.
         return f"ws://{self._host}:{self._port}?session_id={session_id}&agent_id={agent_id}"
 
     def agent_url(self, agent_id: str) -> str:

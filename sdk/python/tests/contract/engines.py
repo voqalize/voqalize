@@ -35,7 +35,7 @@ from google.genai import types
 from pydantic import BaseModel, Field
 
 from voqalize.sdk import Brain, Session
-from voqalize.sdk.brain import adapter_for
+from voqalize.sdk.brain import _adapter_for
 from voqalize.sdk.events import Chunk, Speech, SpeechEnd, SpeechStart
 from voqalize.sdk.gemini import GeminiBrain
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
@@ -181,7 +181,7 @@ class Engine(abc.ABC):
 
 async def open_call[B: Brain](engine: Engine, brain: B) -> tuple[B, Wire, Session]:
     wire = Wire()
-    adapter = adapter_for(brain, wire)
+    adapter = _adapter_for(brain, wire)
     await adapter.handle_frame(SessionStartFrame(turn_id=1, session_id="s"))
     session = adapter._session  # pyright: ignore[reportPrivateUsage]
     assert session is not None

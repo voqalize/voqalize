@@ -13,7 +13,7 @@ import contextlib
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk import Brain
-from voqalize.sdk.brain import brain_factory
+from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     InterruptionFrame,
@@ -46,7 +46,7 @@ async def test_interruption_cancels_in_flight_turn() -> None:
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),
-            factory=brain_factory(Blocking),
+            factory=_brain_factory(Blocking),
         )
         run_task = asyncio.create_task(agent.run())
 

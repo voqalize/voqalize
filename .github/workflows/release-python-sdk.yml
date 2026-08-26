@@ -1,6 +1,6 @@
 # Publish `voqalize-agent-sdk` to PyPI from a tag.
 #
-#   git tag python-sdk-v0.0.1 && git push origin main --follow-tags
+#   git tag python-sdk-v0.0.1 && git push origin python-sdk-v0.0.1
 #
 # The tag is package-prefixed because this repo used to hold a second publishable
 # SDK on its own series — `@voqalize/client-react`, deprecated 2026-08-24 with

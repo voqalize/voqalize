@@ -7,7 +7,8 @@ promise is "bring the brain, not the voice infra." The customer writes a
 `Brain` of callbacks; the wire is plain protobuf and the Brain surface is
 plain dataclasses. (Pipecat lives only inside the Voqalize voice runtime, on
 the far side of the socket.) The wire is language-neutral — see
-[the wire](../../docs/src/content/docs/reference/wire.md) for the contract.
+[the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.1.0/docs/src/content/docs/reference/wire.md)
+for the contract.
 
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
 path. A brain is not a server: it sits inside an application you already run, and
@@ -72,13 +73,17 @@ system instruction and the tools.
 
 ```python
 from google import genai
+from voqalize.sdk import Action, Session
 from voqalize.sdk.gemini import GeminiBrain
+
+class OpenBooking(Action):
+    destination: str
 
 class Concierge(GeminiBrain):
     def __init__(self) -> None:
         super().__init__(client=genai.Client(), system_instruction="You are a travel desk.")
 
-    async def greet(self, session):
+    async def greet(self, session: Session) -> str:
         return "Travel desk — where to?"
 
     @property
@@ -103,7 +108,12 @@ conversation does not — typically the live screen state pushed to `on_rtvi`, w
 takes no floor and starts no turn:
 
 ```python
-async def on_rtvi(self, session, msg):
+import json
+
+from google.genai import types
+from voqalize.sdk import RTVIMessage, Session
+
+async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
     if msg.data.get("t") == "state_sync":
         self.append_to_context(
             types.Content(
@@ -133,9 +143,8 @@ module.
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
   `on_user_message`; the rest are optional — `greet`/`on_session_start`/
   `on_session_end`/`on_user_idle`/`on_rtvi`/`on_finalize`/`on_error`) +
-  `Session`, the `_BrainAdapter` that maps wire frames ↔
-  callbacks, and the entry points (`serve` for the Cortex leg, plus the internal
-  `adapter_for` / `brain_factory` seams).
+  `Session`, the private adapter that maps wire frames ↔ callbacks, and the
+  `serve` entry point for the Cortex leg.
 - `src/voqalize/sdk/events.py` — what a callback is handed and what it yields:
   `UserMessage`/`UserIdle`/`RTVIMessage`, `SpeechStart`/`Chunk`/`SpeechEnd`,
   `Finalize`, `Error`.
@@ -228,8 +237,8 @@ module.
 
 ## Read next
 
-- [`../../proto/voqalize/frames/frames.proto`](../../proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
-- [`../../docs/src/content/docs/reference/wire.md`](../../docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
+- [The protobuf contract](https://github.com/voqalize/voqalize/blob/python-sdk-v0.1.0/proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
+- [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.1.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
 - The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
 - `examples/` — runnable brains: `echo` (the smallest complete brain),
   `reference` (the one every conformance scenario is run against),

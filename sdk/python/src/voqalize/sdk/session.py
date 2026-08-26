@@ -313,7 +313,7 @@ async def run_session(
     self-hosted deployment), or ``allow_unverified=True`` for local dev. Raises
     :class:`SessionRejected` if the token fails — the caller should close 4000.
     """
-    from .brain import brain_factory  # local import breaks the brain↔transport cycle
+    from .brain import _brain_factory  # local import breaks the brain↔transport cycle
 
     keys = normalize_keys(public_keys) if public_keys is not None else list(VOQALIZE_PUBLIC_KEYS)
     if not allow_unverified and not keys:
@@ -335,7 +335,7 @@ async def run_session(
     ):
         await serve_channel(
             channel,
-            factory=brain_factory(brain),
+            factory=_brain_factory(brain),
             session_id=session_id,
             inbound_queue_maxsize=inbound_queue_maxsize,
         )

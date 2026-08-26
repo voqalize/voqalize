@@ -18,7 +18,7 @@ import contextlib
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk import Brain
-from voqalize.sdk.brain import brain_factory
+from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     Frame,
@@ -60,7 +60,7 @@ async def test_interruption_preempts_backlog() -> None:
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),
-            factory=brain_factory(Slow),
+            factory=_brain_factory(Slow),
         )
         run_task = asyncio.create_task(agent.run())
 

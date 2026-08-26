@@ -36,7 +36,7 @@ from websockets.asyncio.server import ServerConnection
 from websockets.asyncio.server import serve as ws_serve
 
 from voqalize.sdk import Brain
-from voqalize.sdk.brain import brain_factory
+from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.session import normalize_keys, serve_channel, verify_token
 from voqalize.sdk.wire.transport import CLOSE_NO_AGENT
 
@@ -60,7 +60,7 @@ class BrainServer:
         public_keys: str | list[str] | None = None,
         allow_unverified: bool = False,
     ) -> None:
-        self._factory = brain_factory(build)
+        self._factory = _brain_factory(build)
         self._host = host
         self._port = port
         self._allow_unverified = allow_unverified

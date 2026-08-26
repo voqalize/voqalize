@@ -19,7 +19,7 @@ ever earns its way back.
 # 2. add a matching "## 0.0.2" section to sdk/python/CHANGELOG.md
 # 3. commit, then
 git tag python-sdk-v0.0.2
-git push origin main --follow-tags
+git push origin python-sdk-v0.0.2
 ```
 
 The guard job refuses the tag if it disagrees with `pyproject.toml` or if the
@@ -34,8 +34,8 @@ release python sdk → Run workflow**, picking the *tag* as the ref.
 The public series starts at `0.0.1`. Versions `0.1.0`–`0.3.0` in the changelog
 were never published — they were installed from a path by the single host that
 used the SDK — and starting the PyPI history at the bottom says plainly that
-nothing is promised yet. While the package is `0.0.x`, treat every release as
-potentially breaking and let consumers pin narrowly.
+nothing is promised yet. Until the package reaches `1.0`, treat every minor
+release as potentially breaking and let consumers pin narrowly.
 
 The **wire** is the exception and always has been: the `.proto` contract does not
 break on a version bump, and the changelog calls out explicitly when a release

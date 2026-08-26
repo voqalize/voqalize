@@ -10,7 +10,7 @@ import contextlib
 from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
-from voqalize.sdk.brain import brain_factory
+from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     InterruptionFrame,
@@ -42,7 +42,7 @@ async def test_interruption_cancels_in_flight() -> None:
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
-            factory=brain_factory(StreamingResponder),
+            factory=_brain_factory(StreamingResponder),
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),

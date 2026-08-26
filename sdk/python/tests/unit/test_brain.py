@@ -1,6 +1,6 @@
 """The Brain surface, driven directly through its adapter.
 
-No sockets: ``adapter_for`` plus a recording emitter is the whole harness, which
+No sockets: ``_adapter_for`` plus a recording emitter is the whole harness, which
 is what makes it the right place to pin behaviour the wire tests can only reach
 by accident.
 """
@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 
+import voqalize.sdk as sdk
+import voqalize.sdk.brain as brain_module
 from voqalize.sdk import (
     Action,
     Brain,
@@ -23,7 +25,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
-from voqalize.sdk.brain import adapter_for
+from voqalize.sdk.brain import _adapter_for
 from voqalize.sdk.wire import (
     WIRE_VERSION,
     ErrorFrame,
@@ -38,6 +40,41 @@ from voqalize.sdk.wire import (
 )
 
 GREETING_TURN = 1
+
+
+def test_the_public_surface_is_deliberate() -> None:
+    """A helper becomes API the moment ``from voqalize.sdk import *`` names it."""
+    assert sdk.__all__ == [
+        "Action",
+        "Brain",
+        "Channel",
+        "Chunk",
+        "Error",
+        "ErrorCode",
+        "Finalize",
+        "RTVIMessage",
+        "RTVIType",
+        "RequestRejected",
+        "Session",
+        "SessionRejected",
+        "Speech",
+        "SpeechEnd",
+        "SpeechStart",
+        "UserIdle",
+        "UserMessage",
+        "WireError",
+        "configure_logging",
+        "run_session",
+        "serve",
+        "session_context",
+    ]
+    assert brain_module.__all__ == [
+        "Brain",
+        "RequestRejected",
+        "Session",
+        "WireError",
+        "serve",
+    ]
 
 
 class Recorder:
@@ -62,7 +99,7 @@ def _client_message(t: str, d: dict | None = None) -> RTVIFrame:
 
 async def _open(brain: Brain) -> tuple[object, Recorder]:
     rec = Recorder()
-    adapter = adapter_for(brain, rec)
+    adapter = _adapter_for(brain, rec)
     await adapter.handle_frame(SessionStartFrame(turn_id=GREETING_TURN, session_id="s"))
     return adapter, rec
 
@@ -323,7 +360,7 @@ async def test_a_session_that_speaks_our_wire_version_starts() -> None:
     """The gate is `!=`, so the happy path has to be pinned alongside the refusal:
     a version check that refuses everything would pass the test below."""
     rec = Recorder()
-    adapter = adapter_for(Greeter(), rec)
+    adapter = _adapter_for(Greeter(), rec)
     await adapter.handle_frame(
         SessionStartFrame(turn_id=GREETING_TURN, session_id="s", wire_version=WIRE_VERSION)
     )
@@ -337,7 +374,7 @@ async def test_a_session_that_speaks_another_wire_version_is_refused() -> None:
     synthesized and the caller has heard nothing. The brain never greets, and the
     error is fatal so the runtime ends the call rather than sitting mute."""
     rec = Recorder()
-    adapter = adapter_for(Greeter(), rec)
+    adapter = _adapter_for(Greeter(), rec)
     await adapter.handle_frame(
         SessionStartFrame(turn_id=GREETING_TURN, session_id="s", wire_version=WIRE_VERSION + 1)
     )
@@ -354,7 +391,7 @@ async def test_an_older_wire_version_is_refused_too() -> None:
     been renumbered or reused underneath it. Refusing in both directions is what
     keeps that from being a guess."""
     rec = Recorder()
-    adapter = adapter_for(Greeter(), rec)
+    adapter = _adapter_for(Greeter(), rec)
     await adapter.handle_frame(
         SessionStartFrame(turn_id=GREETING_TURN, session_id="s", wire_version=WIRE_VERSION - 1)
     )

@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from tests.e2e_cortex.conftest import connect_pygato
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk import Action, Brain
-from voqalize.sdk.brain import brain_factory
+from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     RTVIFrame,
@@ -60,7 +60,7 @@ async def test_session_action_round_trip() -> None:
     """
     async with FakeCortex() as cortex:
         agent = CortexAgent(
-            factory=brain_factory(ActionBrain),
+            factory=_brain_factory(ActionBrain),
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),
@@ -107,7 +107,7 @@ async def test_the_app_answers_on_the_ordinary_client_message_lane() -> None:
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
-            factory=brain_factory(AskingBrain),
+            factory=_brain_factory(AskingBrain),
             api_key="cb",
             version="1.0.0",
             cortex_url=cortex.agent_url("cb"),

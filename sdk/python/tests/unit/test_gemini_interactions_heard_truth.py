@@ -23,7 +23,7 @@ from google import genai
 from google.genai import interactions as gi
 
 from voqalize.sdk import Session
-from voqalize.sdk.brain import adapter_for
+from voqalize.sdk.brain import _adapter_for
 from voqalize.sdk.events import Finalize
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 from voqalize.sdk.wire import Frame, SessionStartFrame
@@ -41,7 +41,7 @@ async def _brain() -> tuple[GeminiInteractionsBrain, Session]:
         client=genai.Client(api_key="not-used-no-call-is-made"),
         system_instruction="be brief",
     )
-    adapter = adapter_for(brain, _Silent())
+    adapter = _adapter_for(brain, _Silent())
     await adapter.handle_frame(SessionStartFrame(turn_id=1, session_id="s"))
     session = adapter._session  # pyright: ignore[reportPrivateUsage]
     assert session is not None

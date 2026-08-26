@@ -112,8 +112,6 @@ __all__ = [
     "RequestRejected",
     "Session",
     "WireError",
-    "adapter_for",
-    "brain_factory",
     "serve",
 ]
 
@@ -824,14 +822,14 @@ async def _one_unit(opening: str) -> AsyncGenerator[Speech, None]:
 # ─── Entry points ─────────────────────────────────────────────────────────────
 
 
-def adapter_for(brain: Brain, emitter: Emitter) -> SessionAdapter:
+def _adapter_for(brain: Brain, emitter: Emitter) -> SessionAdapter:
     """Host an already-constructed ``Brain`` as a session adapter, with no socket
     anywhere — the seam tests drive the brain through. Hosting uses
-    :func:`brain_factory`, which builds one per session."""
+    :func:`_brain_factory`, which builds one per session."""
     return _BrainAdapter(brain, emitter)
 
 
-def brain_factory(build: type[Brain] | Callable[[], Brain]) -> SessionFactory:
+def _brain_factory(build: type[Brain] | Callable[[], Brain]) -> SessionFactory:
     """A ``SessionFactory`` that builds a fresh brain per session.
 
     ``build`` is a zero-arg callable returning a ``Brain`` — a subclass, or a
@@ -852,4 +850,4 @@ async def serve(brain_cls: type[Brain] | Callable[[], Brain], **cortex_kwargs: A
     where that call lives. When your application owns a WebSocket route, use
     :func:`voqalize.sdk.run_session` there instead.
     """
-    await CortexAgent(factory=brain_factory(brain_cls), **cortex_kwargs).run()
+    await CortexAgent(factory=_brain_factory(brain_cls), **cortex_kwargs).run()

@@ -15,7 +15,7 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
-## 0.1.0 (unreleased)
+## 0.1.0
 
 **Wire version 3, and it is a break.** The envelope carries no fields, barge-in
 is a one-way watermark, and the browser plane is RTVI. A brain built against
@@ -90,6 +90,11 @@ before it has greeted — and the same in reverse, so neither end ever guesses.
   the root marker was meant to do and did not.
 
 ### Removed
+
+- **The internal `adapter_for` and `brain_factory` construction seams are
+  private.** A customer hosts a brain with `run_session` or `serve`; the adapter
+  and per-session factory are implementation details shared by those two paths
+  and the conformance harness, not a third hosting surface.
 
 - **`voqalize.google_adk` is gone**, along with `voqalize._framework` and the
   `[adk]` extra. The adapter never learned version 3 — turns, the RTVI plane and
@@ -226,8 +231,8 @@ frames a brain emits are byte-identical to what the previous release emitted.
   `str()` of a `BaseModel`. A non-dict dump is wrapped as `{"result": ...}`,
   matching ADK's own handling; a result containing no model passes through
   untouched. This is the mirror of the 0.3.0 tool-*argument* coercion.
-- **`useUiCommand`** in `@voqalize/client-react` is the browser half — see
-  [the React client docs](https://docs.voqalize.com/client/react/).
+- **`useUiCommand`** in the former `@voqalize/client-react` package was the
+  browser half. That package and its documentation were retired on 2026-08-24.
 
 ### Changed
 
