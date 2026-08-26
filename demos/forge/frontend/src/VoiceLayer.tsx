@@ -147,7 +147,10 @@ function CallInner({
   // The brain's ui-commands replay straight onto the store.
   useRTVIClientEvent(
     RTVIEvent.UICommand,
-    useCallback((data: UICommandData) => handleUiCommand(data), [handleUiCommand]),
+    useCallback(
+      ({ command, payload }: UICommandData) => handleUiCommand(command, payload),
+      [handleUiCommand],
+    ),
   );
 
   const status: ConnStatus = error ? "error" : isConnecting ? "connecting" : isConnected ? "live" : "idle";

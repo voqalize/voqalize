@@ -77,6 +77,13 @@ GROUNDING: a CURRENT WORKSPACE STATE snapshot is folded into your context every 
 Open with a brief greeting and ask what they'd like to build or change."""
 
 
+# The two closed vocabularies a field and its Action share. Declared once: the
+# model picks from this list and the browser is typed against it, so the two
+# cannot drift apart.
+FieldType = Literal["string", "boolean", "number", "enum", "user"]
+Category = Literal["ITSM", "HR", "Security"]
+
+
 # ─── Nested shapes (not Actions themselves — embedded inside one) ───────────
 
 
@@ -85,7 +92,7 @@ class ContextFieldSpec(BaseModel):
 
     key: str = ""
     label: str = ""
-    type: str = Field("", description="One of string, boolean, number, enum, user.")
+    type: FieldType = "string"
     enum_values: list[str] = Field(default_factory=list)
     derived: bool = Field(False, description="True if computed from other fields by a JS expr.")
     expr: str = Field(
@@ -99,7 +106,7 @@ class FormFieldSpec(BaseModel):
 
     key: str = ""
     label: str = ""
-    type: str = Field("", description="One of string, boolean, number, enum, user.")
+    type: FieldType = "string"
     enum_values: list[str] = Field(default_factory=list)
 
 
@@ -126,7 +133,7 @@ class CreateWorkflow(Action):
     id: str = Field("", description="Short kebab id, e.g. 'guest-wifi'. Auto-generated if omitted.")
     name: str
     description: str = ""
-    category: str = Field("", description="One of ITSM, HR, Security.")
+    category: Category = "ITSM"
     trigger: str = Field(description="How it starts, in plain words.")
     channels: list[str] = Field(default_factory=list)
     context: list[ContextFieldSpec] = Field(default_factory=list)
@@ -190,7 +197,7 @@ class RemoveState(Action):
 class AddContextField(Action):
     key: str = Field(description="Dotted key, e.g. 'requester.type' or 'privilegedApp'.")
     label: str = ""
-    type: Literal["string", "boolean", "number", "enum", "user"]
+    type: FieldType
     enum_values: list[str] = Field(default_factory=list)
     derived: bool = Field(False, description="True if computed from other fields by a JS expr.")
     expr: str = Field(

@@ -9,9 +9,12 @@
  *     (state, event) pairs;
  *   • **publish → live**, which mints a running instance with a durable history.
  *
- * The voice contract is one method: `handleUiCommand({command, payload})` maps a
- * brain tool call to an op; `snapshot()` sends the workspace back so the LLM
- * stays grounded; `registerAgentSend` lets the UI push state on change.
+ * The voice contract is one method: `handleUiCommand(command, payload)` narrows
+ * the pair against the generated `actions.gen.ts` and maps it to an op, so each
+ * op reads its payload typed and `default` is an exhaustiveness check — add an
+ * `Action` to the brain and this file stops compiling until it is handled.
+ * `snapshot()` sends the workspace back so the LLM stays grounded;
+ * `registerAgentSend` lets the UI push state on change.
  */
 
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -22,12 +25,36 @@ import {
   type ContextField,
   type CoverageGap,
   type Deployment,
+  type FormField,
   type HistoryEvent,
   type Simulation,
   type TestCase,
   type Workflow,
   type WorkflowState,
 } from './types';
+import {
+  asUiAction,
+  unhandledUiAction,
+  type AddBranch,
+  type AddContextField,
+  type AddField,
+  type AddState,
+  type AddTest,
+  type ContextFieldSpec,
+  type CreateWorkflow,
+  type FormFieldSpec,
+  type InsertGateway,
+  type OpenWorkflow,
+  type RemoveState,
+  type ResolveGap,
+  type RunScenario,
+  type SetCode,
+  type SetRoute,
+  type ShowCode,
+  type UiAction,
+  type UiActionCommand,
+  type UpdateState,
+} from './actions.gen';
 
 // ─── Interpreter ────────────────────────────────────────────────────────────────
 // A state is either *automatic* (runs and advances on its own) or a *stop* (rests
@@ -36,29 +63,6 @@ import {
 
 const STOP_KINDS = new Set(['form', 'approval', 'wait', 'end']);
 const isStop = (s?: WorkflowState) => !!s && STOP_KINDS.has(s.kind);
-
-/** `given_state` → `givenState`. Only what a wire key needs — no other punctuation. */
-function camelizeKey(k: string): string {
-  return k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
-}
-
-/**
- * A ui-command's `payload` is a pydantic `Action.to_payload()` dump — plain
- * `model_dump`, so its keys are the Action's own field names as written
- * (snake_case), nested objects and arrays included. Recurse through it once at
- * the wire boundary rather than matching two spellings in every op.
- */
-function camelizeDeep(value: unknown): any {
-  if (Array.isArray(value)) return value.map(camelizeDeep);
-  if (value !== null && typeof value === 'object' && value.constructor === Object) {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[camelizeKey(k)] = camelizeDeep(v);
-    }
-    return out;
-  }
-  return value;
-}
 
 /** Expand flat dotted context (`{'requester.type':'contractor'}`) into a nested object. */
 function setPath(obj: Record<string, any>, dotted: string, val: unknown): void {
@@ -101,17 +105,43 @@ function stateById(wf: Workflow, id?: string | null): WorkflowState | undefined 
   return wf.states.find((s) => s.id === id);
 }
 
-/** Coerce a context payload that may arrive as a JSON string (from the brain). */
-function asContext(v: unknown): Record<string, unknown> {
-  if (typeof v === 'string') {
-    try {
-      const parsed = JSON.parse(v);
-      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
-    } catch {
-      return {};
-    }
+/**
+ * A test's and a scenario's context ride the wire as a JSON *string* — a flat
+ * `{"requester.type": "contractor"}` map, whose keys the model invents, is not
+ * a shape a pydantic field can declare.
+ */
+function asContext(json: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
   }
-  return (v as Record<string, unknown>) || {};
+}
+
+/**
+ * The wire's spec shapes are total — every field arrives, empty when unset —
+ * while the studio's own types leave what is unset off. These two convert.
+ */
+function toContextField(spec: ContextFieldSpec): ContextField {
+  return {
+    key: spec.key,
+    label: spec.label || spec.key,
+    type: spec.type,
+    enumValues: spec.enum_values.length ? spec.enum_values : undefined,
+    derived: spec.derived || undefined,
+    expr: spec.expr || undefined,
+    note: spec.note || undefined,
+  };
+}
+
+function toFormField(spec: FormFieldSpec): FormField {
+  return {
+    key: spec.key,
+    label: spec.label || spec.key,
+    type: spec.type,
+    enumValues: spec.enum_values.length ? spec.enum_values : undefined,
+  };
 }
 
 /**
@@ -245,39 +275,41 @@ const ACTIVITY_KIND_WORD: Record<string, string> = {
   gateway: 'a decision',
 };
 
-function activityFor(action: string, p: Record<string, any>): { label: string; detail?: string } | null {
-  const s = (v: unknown): string | undefined => (v == null || v === '' ? undefined : String(v));
-  switch (action) {
+function activityFor(action: UiAction): { label: string; detail?: string } | null {
+  const t = (v: string): string | undefined => v || undefined;
+  switch (action.command) {
     case 'create_workflow':
-      return { label: 'Creating a workflow', detail: s(p.name) };
+      return { label: 'Creating a workflow', detail: t(action.payload.name) };
     case 'open_workflow':
       return { label: 'Opening the workflow' };
     case 'open_list':
       return { label: 'Back to workflows' };
     case 'add_state':
-    case 'add_step':
-      return { label: `Adding ${ACTIVITY_KIND_WORD[p.kind] ?? 'a step'}`, detail: s(p.label) };
+      return {
+        label: `Adding ${ACTIVITY_KIND_WORD[action.payload.kind] ?? 'a step'}`,
+        detail: t(action.payload.label),
+      };
     case 'insert_gateway':
-    case 'insert_branch':
-      return { label: 'Adding a decision', detail: s(p.label) };
+      return { label: 'Adding a decision', detail: t(action.payload.label) };
     case 'add_branch':
-      return { label: 'Adding a branch', detail: s(p.label) };
+      return { label: 'Adding a branch', detail: t(action.payload.label) };
     case 'set_route':
       return { label: 'Rewiring the routing' };
     case 'update_state':
-    case 'update_step':
-      return { label: 'Updating a step', detail: s(p.label) };
+      return { label: 'Updating a step', detail: t(action.payload.label) };
     case 'remove_state':
-    case 'remove_step':
       return { label: 'Removing a step' };
     case 'add_context_field':
-      return { label: 'Adding a field', detail: s(p.label ?? p.key) };
+      return { label: 'Adding a field', detail: t(action.payload.label || action.payload.key) };
     case 'add_field':
-      return { label: 'Adding a form field', detail: s(p.field?.label ?? p.field?.key) };
+      return {
+        label: 'Adding a form field',
+        detail: t(action.payload.field.label || action.payload.field.key),
+      };
     case 'set_code':
       return { label: 'Writing the logic' };
     case 'add_test':
-      return { label: 'Adding a test', detail: s(p.name) };
+      return { label: 'Adding a test', detail: t(action.payload.name) };
     case 'run_tests':
       return { label: 'Running the tests' };
     case 'review_coverage':
@@ -285,13 +317,16 @@ function activityFor(action: string, p: Record<string, any>): { label: string; d
     case 'resolve_gap':
       return { label: 'Closing a gap' };
     case 'run_scenario':
-      return { label: 'Simulating', detail: s(p.personaLabel) };
+      return { label: 'Simulating', detail: t(action.payload.persona_label) };
     case 'publish_workflow':
       return { label: 'Publishing live' };
     case 'show_code':
       return { label: 'Revealing the code' };
+    case 'set_panel':
+    case 'focus_state':
+      return null; // navigation the admin can see for themselves — no noise
     default:
-      return null; // set_panel, focus_state/select_block — no noise
+      return unhandledUiAction(action);
   }
 }
 
@@ -347,9 +382,9 @@ export interface ForgeStore {
   focusState: (id: string | null) => void;
   showCode: (id: string | null) => void;
   /** Convenience for the UI's own buttons — dispatches like a brain command. */
-  dispatch: (action: string, payload?: Record<string, any>) => void;
+  dispatch: (action: UiAction) => void;
   // the voice contract
-  handleUiCommand: (cmd: Record<string, any>) => void;
+  handleUiCommand: (command: string, payload: unknown) => void;
   snapshot: () => Record<string, unknown>;
   registerAgentSend: (fn: AgentSend | null) => void;
 }
@@ -408,11 +443,11 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     }, 3200);
   };
   /** How long a task row stays "active" — matched to the op's own on-screen beat. */
-  const activityDuration = (action: string): number => {
-    if (action === 'run_tests') return 220 * (activeWf()?.tests.length ?? 0) + 550;
-    if (action === 'run_scenario') return 620 * ((ref.current.sim?.path.length ?? 5) + 1) + 300;
-    if (action === 'publish_workflow') return 950;
-    if (action === 'review_coverage') return 800;
+  const activityDuration = (command: UiActionCommand): number => {
+    if (command === 'run_tests') return 220 * (activeWf()?.tests.length ?? 0) + 550;
+    if (command === 'run_scenario') return 620 * ((ref.current.sim?.path.length ?? 5) + 1) + 300;
+    if (command === 'publish_workflow') return 950;
+    if (command === 'review_coverage') return 800;
     return 620;
   };
 
@@ -478,25 +513,26 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     if (wf.status === 'published') wf.status = 'draft';
   };
 
-  const createWorkflow = (p: Record<string, any>) => {
-    const id = String(p.id || `wf-${nextSeq()}`);
+  const createWorkflow = (p: CreateWorkflow) => {
+    const id = p.id || `wf-${nextSeq()}`;
     const startId = `${id}_start`;
     const endId = `${id}_done`;
+    const trigger = p.trigger || 'A request is raised';
     const wf: Workflow = {
       id,
-      name: String(p.name || 'Untitled workflow'),
-      description: String(p.description || ''),
-      category: (p.category as Workflow['category']) || 'ITSM',
+      name: p.name || 'Untitled workflow',
+      description: p.description,
+      category: p.category,
       status: 'draft',
       version: 1,
-      trigger: String(p.trigger || 'A request is raised'),
-      channels: Array.isArray(p.channels) ? p.channels.map(String) : ['Teams', 'Web'],
+      trigger,
+      channels: p.channels.length ? p.channels : ['Teams', 'Web'],
       runsPerMonth: 0,
       updatedLabel: 'new draft',
-      context: Array.isArray(p.context) ? (p.context as ContextField[]) : [],
+      context: p.context.map(toContextField),
       startId,
       states: [
-        { id: startId, kind: 'start', label: String(p.trigger || 'Request raised'), next: endId },
+        { id: startId, kind: 'start', label: trigger, next: endId },
         { id: endId, kind: 'end', label: 'Done', outcome: 'Complete' },
       ],
       tests: [],
@@ -507,27 +543,27 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   };
 
   /** Insert a new state into the linear spine after `after` (rewiring next). */
-  const addState = (p: Record<string, any>) => {
+  const addState = (p: AddState) => {
     const wf = activeWf();
     if (!wf) return;
-    const id = String(p.id || `s_${nextSeq()}`);
+    const id = p.id || `s_${nextSeq()}`;
     const st: WorkflowState = {
       id,
       kind: p.kind,
-      label: String(p.label || 'Step'),
-      subtitle: p.subtitle ? String(p.subtitle) : undefined,
-      connectorId: p.connectorId,
-      actionId: p.actionId,
-      approver: p.approver,
-      fields: p.fields,
-      code: p.code,
-      slaHours: p.slaHours,
-      outcome: p.outcome,
-      next: p.next,
-      rejectTo: p.rejectTo,
+      label: p.label || 'Step',
+      subtitle: p.subtitle || undefined,
+      connectorId: p.connector_id || undefined,
+      actionId: p.action_id || undefined,
+      approver: p.approver || undefined,
+      fields: p.fields.length ? p.fields.map(toFormField) : undefined,
+      code: p.code || undefined,
+      slaHours: p.sla_hours || undefined,
+      outcome: p.outcome || undefined,
+      next: p.next || undefined,
+      rejectTo: p.reject_to || undefined,
     };
     if (p.after) {
-      const prev = stateById(wf, String(p.after));
+      const prev = stateById(wf, p.after);
       if (prev) {
         if (st.next === undefined) st.next = prev.next;
         prev.next = id;
@@ -542,25 +578,25 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   };
 
   /** THE HERO EDIT: splice an exclusive gateway in after `after`. */
-  const insertGateway = (p: Record<string, any>) => {
+  const insertGateway = (p: InsertGateway) => {
     const wf = activeWf();
     if (!wf) return;
-    const after = stateById(wf, String(p.after));
+    const after = stateById(wf, p.after);
     if (!after) return;
-    const id = String(p.id || `g_${nextSeq()}`);
-    const branches: Branch[] = (p.branches ?? []).map((b: any, i: number) => ({
+    const id = p.id || `g_${nextSeq()}`;
+    const branches: Branch[] = p.branches.map((b, i) => ({
       id: `b_${nextSeq()}_${i}`,
-      label: String(b.label || 'Branch'),
-      guard: String(b.guard || 'true'),
-      to: String(b.to),
+      label: b.label || 'Branch',
+      guard: b.guard || 'true',
+      to: b.to,
     }));
     const gate: WorkflowState = {
       id,
       kind: 'gateway',
-      label: String(p.label || 'Branch'),
-      subtitle: p.subtitle ? String(p.subtitle) : undefined,
+      label: p.label || 'Branch',
+      subtitle: p.subtitle || undefined,
       branches,
-      else: p.otherwise ? String(p.otherwise) : after.next, // default path = what came next
+      else: p.otherwise || after.next, // default path = what came next
     };
     after.next = id;
     wf.states.push(gate);
@@ -570,52 +606,60 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     commit();
   };
 
-  const addBranch = (p: Record<string, any>) => {
+  const addBranch = (p: AddBranch) => {
     const wf = activeWf();
     if (!wf) return;
-    const gate = stateById(wf, String(p.gateway));
+    const gate = stateById(wf, p.gateway);
     if (!gate || gate.kind !== 'gateway') return;
     gate.branches = gate.branches ?? [];
     gate.branches.push({
       id: `b_${nextSeq()}`,
-      label: String(p.label || 'Branch'),
-      guard: String(p.guard || 'true'),
-      to: String(p.to),
+      label: p.label || 'Branch',
+      guard: p.guard || 'true',
+      to: p.to,
     });
     touch(wf);
     ref.current.selectedId = gate.id;
     commit();
   };
 
-  const setRoute = (p: Record<string, any>) => {
+  // Every leg is optional and arrives as `''` when the copilot left it alone —
+  // rewiring one exit must not silently unwire the other two.
+  const setRoute = (p: SetRoute) => {
     const wf = activeWf();
     if (!wf) return;
-    const s = stateById(wf, String(p.state));
+    const s = stateById(wf, p.state);
     if (!s) return;
-    if (p.next !== undefined) s.next = p.next ? String(p.next) : undefined;
-    if (p.rejectTo !== undefined) s.rejectTo = p.rejectTo ? String(p.rejectTo) : undefined;
-    if (p.otherwise !== undefined) s.else = p.otherwise ? String(p.otherwise) : undefined;
+    if (p.next) s.next = p.next;
+    if (p.reject_to) s.rejectTo = p.reject_to;
+    if (p.otherwise) s.else = p.otherwise;
     touch(wf);
     commit();
   };
 
-  const updateState = (p: Record<string, any>) => {
+  // Same shape as `setRoute`: a partial edit, so only what was actually named
+  // is written — an empty field means "unchanged", never "clear it".
+  const updateState = (p: UpdateState) => {
     const wf = activeWf();
     if (!wf) return;
-    const s = stateById(wf, String(p.id));
+    const s = stateById(wf, p.id);
     if (!s) return;
-    for (const k of ['label', 'subtitle', 'connectorId', 'actionId', 'approver', 'slaHours', 'outcome'] as const) {
-      if (p[k] !== undefined) (s as any)[k] = p[k];
-    }
+    if (p.label) s.label = p.label;
+    if (p.subtitle) s.subtitle = p.subtitle;
+    if (p.connector_id) s.connectorId = p.connector_id;
+    if (p.action_id) s.actionId = p.action_id;
+    if (p.approver) s.approver = p.approver;
+    if (p.sla_hours) s.slaHours = p.sla_hours;
+    if (p.outcome) s.outcome = p.outcome;
     touch(wf);
     ref.current.selectedId = s.id;
     commit();
   };
 
-  const removeState = (p: Record<string, any>) => {
+  const removeState = (p: RemoveState) => {
     const wf = activeWf();
     if (!wf) return;
-    const id = String(p.id);
+    const { id } = p;
     // heal the spine: anyone pointing at `id` skips to its next
     const gone = stateById(wf, id);
     const to = gone?.next;
@@ -631,45 +675,32 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     commit();
   };
 
-  const addContextField = (p: Record<string, any>) => {
+  const addContextField = (p: AddContextField) => {
     const wf = activeWf();
     if (!wf) return;
-    wf.context.push({
-      key: String(p.key),
-      label: String(p.label || p.key),
-      type: p.type || 'string',
-      enumValues: p.enumValues,
-      derived: !!p.derived,
-      expr: p.expr,
-      note: p.note,
-    });
+    wf.context.push(toContextField(p));
     touch(wf);
     commit();
   };
 
-  const addField = (p: Record<string, any>) => {
+  const addField = (p: AddField) => {
     const wf = activeWf();
     if (!wf) return;
-    const s = stateById(wf, String(p.state));
+    const s = stateById(wf, p.state);
     if (!s) return;
     s.fields = s.fields ?? [];
-    s.fields.push({
-      key: String(p.field?.key),
-      label: String(p.field?.label || p.field?.key),
-      type: p.field?.type || 'string',
-      enumValues: p.field?.enumValues,
-    });
+    s.fields.push(toFormField(p.field));
     touch(wf);
     ref.current.selectedId = s.id;
     commit();
   };
 
-  const setCode = (p: Record<string, any>) => {
+  const setCode = (p: SetCode) => {
     const wf = activeWf();
     if (!wf) return;
-    const s = stateById(wf, String(p.state));
+    const s = stateById(wf, p.state);
     if (!s) return;
-    s.code = String(p.code || '');
+    s.code = p.code;
     if (s.kind !== 'code' && s.kind !== 'gateway') s.kind = 'code';
     touch(wf);
     ref.current.selectedId = s.id;
@@ -679,16 +710,16 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   };
 
   // ── tests ──
-  const addTest = (p: Record<string, any>) => {
+  const addTest = (p: AddTest) => {
     const wf = activeWf();
     if (!wf) return;
     const t: TestCase = {
       id: `t_${nextSeq()}`,
-      name: String(p.name || 'Test'),
-      givenState: String(p.givenState),
+      name: p.name || 'Test',
+      givenState: p.given_state,
       context: asContext(p.context),
-      event: String(p.event),
-      expectState: String(p.expectState),
+      event: p.event,
+      expectState: p.expect_state,
       status: 'idle',
     };
     wf.tests.push(t);
@@ -719,26 +750,19 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   };
 
   // ── coverage linter ──
-  const reviewCoverage = (p: Record<string, any>) => {
+  // The gaps are read off the spec, not handed over: the copilot asks for the
+  // scan and the interpreter answers it, so a question it never thought to ask
+  // still shows up.
+  const reviewCoverage = () => {
     const wf = activeWf();
     if (!wf) return;
-    // If the copilot handed us questions, use them; else derive from unhandled pairs.
-    let gaps: CoverageGap[] = [];
-    if (Array.isArray(p.gaps) && p.gaps.length) {
-      gaps = p.gaps.map((g: any) => ({
-        id: `gap_${nextSeq()}`,
-        state: String(g.state),
-        event: String(g.event),
-        question: String(g.question),
-      }));
-    } else {
-      for (const s of wf.states) {
-        const events = KIND_EVENTS[s.kind];
-        if (!events) continue;
-        for (const ev of events) {
-          if (applyEvent(wf, s, ev) == null) {
-            gaps.push({ id: `gap_${nextSeq()}`, state: s.id, event: ev, question: gapQuestion(s, ev) });
-          }
+    const gaps: CoverageGap[] = [];
+    for (const s of wf.states) {
+      const events = KIND_EVENTS[s.kind];
+      if (!events) continue;
+      for (const ev of events) {
+        if (applyEvent(wf, s, ev) == null) {
+          gaps.push({ id: `gap_${nextSeq()}`, state: s.id, event: ev, question: gapQuestion(s, ev) });
         }
       }
     }
@@ -747,21 +771,23 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     commit();
   };
 
-  const resolveGap = (p: Record<string, any>) => {
+  const resolveGap = (p: ResolveGap) => {
     const wf = activeWf();
     if (!wf) return;
-    const g = wf.gaps.find((x) => x.id === p.id || (x.state === p.state && x.event === p.event));
+    const g = wf.gaps.find(
+      (x) => (p.id && x.id === p.id) || (x.state === p.state && x.event === p.event),
+    );
     if (g) g.resolved = true;
     commit();
   };
 
   // ── persona run (the finale) ──
-  const runScenario = (p: Record<string, any>) => {
+  const runScenario = (p: RunScenario) => {
     const wf = activeWf();
     if (!wf) return;
     clearTimers();
     const flatCtx = asContext(p.context);
-    const events: string[] = Array.isArray(p.events) ? p.events.map(String) : [];
+    const { events } = p;
     const ctx = buildCtx(flatCtx, wf.context);
 
     // Walk the full path across each event in the script.
@@ -782,7 +808,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     ref.current.panel = 'flow';
     ref.current.sim = {
       active: true,
-      personaLabel: String(p.personaLabel || 'Persona'),
+      personaLabel: p.persona_label || 'Persona',
       context: flatCtx,
       path: full,
       current: full[0] ?? null,
@@ -827,84 +853,75 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   };
 
   // ── the voice contract ──
-  // A ui-command arrives as `{ command, payload }` (`handleUiCommand`, below,
-  // unwraps and camelCases it into these two). The payload object is handed to
-  // each op whole; they read the keys they need.
-  const dispatch = (action: string, payload: Record<string, any> = {}) => {
+  // A ui-command arrives as `{ command, payload }`; `asUiAction` narrows the
+  // pair against the generated union, so every op below reads its own payload
+  // type and nothing has to guess at a field.
+  const dispatch = (action: UiAction) => {
     // Acknowledge on screen the moment the command lands: paint a task row, run
     // the op, then settle the row to "done" on the op's own beat.
-    const desc = activityFor(action, payload);
+    const desc = activityFor(action);
     if (desc) {
       const id = pushActivity(desc.label, desc.detail);
-      runOp(action, payload);
-      laterAct(() => completeActivity(id), activityDuration(action));
+      runOp(action);
+      laterAct(() => completeActivity(id), activityDuration(action.command));
       return;
     }
-    runOp(action, payload);
+    runOp(action);
   };
 
-  const runOp = (action: string, payload: Record<string, any> = {}) => {
-    switch (action) {
+  const runOp = (action: UiAction) => {
+    switch (action.command) {
       case 'open_list':
         return openList();
       case 'open_workflow':
-        return openWorkflow(String(payload.id));
+        return openWorkflow(action.payload.id);
       case 'create_workflow':
-        return createWorkflow(payload);
+        return createWorkflow(action.payload);
       case 'add_state':
-      case 'add_step':
-        return addState(payload);
+        return addState(action.payload);
       case 'insert_gateway':
-      case 'insert_branch':
-        return insertGateway(payload);
+        return insertGateway(action.payload);
       case 'add_branch':
-        return addBranch(payload);
+        return addBranch(action.payload);
       case 'set_route':
-        return setRoute(payload);
+        return setRoute(action.payload);
       case 'update_state':
-      case 'update_step':
-        return updateState(payload);
+        return updateState(action.payload);
       case 'remove_state':
-      case 'remove_step':
-        return removeState(payload);
+        return removeState(action.payload);
       case 'add_context_field':
-        return addContextField(payload);
+        return addContextField(action.payload);
       case 'add_field':
-        return addField(payload);
+        return addField(action.payload);
       case 'set_code':
-        return setCode(payload);
+        return setCode(action.payload);
       case 'add_test':
-        return addTest(payload);
+        return addTest(action.payload);
       case 'run_tests':
         return runTests();
       case 'review_coverage':
-        return reviewCoverage(payload);
+        return reviewCoverage();
       case 'resolve_gap':
-        return resolveGap(payload);
+        return resolveGap(action.payload);
       case 'run_scenario':
-        return runScenario(payload);
+        return runScenario(action.payload);
       case 'publish_workflow':
         return publishWorkflow();
       case 'set_panel':
-        return setPanel(payload.panel as Panel);
+        return setPanel(action.payload.panel);
       case 'focus_state':
-      case 'select_block':
-        return focusState(payload.id ? String(payload.id) : null);
+        return focusState(action.payload.id || null);
       case 'show_code':
-        return showCode(payload.id ? String(payload.id) : null);
+        return showCode(action.payload.id || null);
       default:
-        // Unknown command — ignore rather than break the session.
-        return;
+        return unhandledUiAction(action);
     }
   };
 
-  // A ui-command's payload is a pydantic Action's own field names — snake_case,
-  // e.g. `given_state`, `connector_id`, `enum_values`. Every op above reads the
-  // camelCase the rest of this store speaks (`givenState`, `connectorId`…), so
-  // the wire boundary camelCases the payload, deeply — once, here — rather than
-  // teaching fifteen ops two spellings each.
-  const handleUiCommand = (cmd: Record<string, any> = {}) =>
-    dispatch(String(cmd.command ?? ''), camelizeDeep((cmd.payload ?? {}) as Record<string, any>));
+  const handleUiCommand = (command: string, payload: unknown) => {
+    const action = asUiAction(command, payload);
+    if (action) dispatch(action);
+  };
 
   const snapshot = (): Record<string, unknown> => {
     const m = ref.current;
