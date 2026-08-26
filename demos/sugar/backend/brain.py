@@ -60,13 +60,14 @@ _LANG: dict[str, Language] = {
     "Hindi": Language.HI,
 }
 
-# The opener, per language. A greeting is the one line spoken before any model
-# has run, so it is written here and filled with the patient's name — nothing
-# else about the call is known yet, and a caller waiting on a first token hears
-# the wait.
+# The opener, per language — a complete fixed sentence, not filled with the
+# patient's name: the name arrives as free English text in session.init, and
+# English interpolated into the Hindi line would mispronounce. A greeting is
+# the one line spoken before any model has run, so it is written here, not
+# generated.
 _GREETING = {
-    "English": "Hi {name}! Your evening check-in — how did today go?",
-    "Hindi": "नमस्ते {name}! आपकी शाम की चेक-इन — आज का दिन कैसा रहा?",
+    "English": "Hi there! Your evening check-in — how did today go?",
+    "Hindi": "नमस्ते! आपकी शाम की चेक-इन — आज का दिन कैसा रहा?",
 }
 
 # Screen sections the assistant can highlight / that exist on the patient's
@@ -363,9 +364,10 @@ class SugarBrain(GeminiBrain):
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated: the patient tapped Join on a nudge
-        that already told them what to do, so the coach says hello by name and
-        hands them the floor."""
-        return _GREETING[self.language_name].format(name=self.patient_name)
+        that already told them what to do, so the coach says hello and hands them
+        the floor. It does not say the patient's name — that arrives as free
+        English text, and English read into the Hindi line mispronounces."""
+        return _GREETING[self.language_name]
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message. ``state_sync`` carries a compact snapshot of the

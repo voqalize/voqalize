@@ -83,7 +83,8 @@ async def test_a_demo_greets_over_its_own_route(monkeypatch: pytest.MonkeyPatch)
         try:
             greeting = await driver.start_session(init={"scenario": {"patient": {"name": "Asha"}}})
             checks.check_greeting(driver, greeting)
-            assert greeting is not None and "Asha" in greeting.text
+            assert greeting is not None
+            assert greeting.text == "Hi there! Your evening check-in — how did today go?"
         finally:
             await driver.aclose()
 

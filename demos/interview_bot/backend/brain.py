@@ -179,23 +179,10 @@ def _build_system_instruction(
     )
 
 
-def _greeting(
-    job: dict[str, Any],
-    candidate: dict[str, Any],
-    sections: list[tuple[str, dict[str, Any]]],
-) -> str:
-    """The fixed opening line — no model call, ever. References the candidate,
-    the role and the first planned section when ``session.init`` supplies them,
-    same as the rest of the prompt."""
-    name = str(candidate.get("name") or "").split(" ")[0] or "there"
-    role = job.get("title")
-    role_phrase = f"the {role} role" if role else "this role"
-    first = sections[0][1].get("title") if sections else None
-    starting = f" We'll start with {first}." if first else ""
-    return (
-        f"Hi {name}! I'm your AI interviewer for {role_phrase}. We'll go through "
-        f"a few sections together.{starting} Let's get started."
-    )
+_GREETING = (
+    "Hi! I'm your AI interviewer today. We'll go through a few sections "
+    "together. Let's get started."
+)
 
 
 # ─── Actions (browser render contract) ─────────────────────────────────────────
@@ -249,7 +236,6 @@ class InterviewBotBrain(GeminiBrain):
         self.sections: list[tuple[str, dict[str, Any]]] = []
         self.current_index = 0
         self.ended = False
-        self._greeting_text = ""
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
@@ -301,8 +287,8 @@ class InterviewBotBrain(GeminiBrain):
 
     async def on_session_start(self, session: Session) -> None:
         """Settle this agent's own voice, then read the seeded job/candidate/plan
-        (``session.init``), build this session's sections + full system prompt,
-        and set aside the fixed greeting for :meth:`greet`."""
+        (``session.init``) and build this session's sections + full system
+        prompt."""
         await session.configure(
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
@@ -326,7 +312,6 @@ class InterviewBotBrain(GeminiBrain):
         # every inference this session makes — starting with the first turn —
         # sees the full interview context.
         self.system_instruction = _build_system_instruction(job, candidate, plan, self.sections)
-        self._greeting_text = _greeting(job, candidate, self.sections)
         logger.info(
             "interview: session start — {} sections, candidate={!r}, role={!r}",
             len(self.sections),
@@ -335,7 +320,8 @@ class InterviewBotBrain(GeminiBrain):
         )
 
     async def greet(self, session: Session) -> str:
-        """The opener, written not generated: it references the candidate, the
-        role and the first section straight from ``session.init``, so there is
-        nothing for a model call to add and no first-token latency to hide."""
-        return self._greeting_text
+        """The opener, written not generated: no model call on the start path
+        and no first-token latency to hide. It does not name the candidate or
+        the role — both are free text in ``session.init``, not a closed set to
+        pick a sentence from."""
+        return _GREETING

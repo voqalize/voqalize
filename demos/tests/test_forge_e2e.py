@@ -70,12 +70,12 @@ def _llm() -> ScriptedGemini:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """Ada greets the admin by name from the init payload — no model call on the
-    start path — and her declared voice lands on **both** legs before that audio."""
+    """Ada opens with a fixed line — no model call on the start path — and her
+    declared voice lands on **both** legs before that audio."""
     async with demo("forge", _llm()) as rig:
         greeting = await rig.driver.start_session(init=PAYLOAD)
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text.startswith("Hi Nadia — Ada here.")
+        assert greeting is not None and greeting.text.startswith("Hi there — Ada here.")
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
 
 

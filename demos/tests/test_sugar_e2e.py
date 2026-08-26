@@ -74,7 +74,7 @@ def _llm() -> ScriptedGemini:
 
 
 async def test_the_greeting_is_written_without_touching_the_wire() -> None:
-    """The coach opens with its written line, by name, and configures nothing.
+    """The coach opens with its written line and configures nothing.
 
     The session's voice and language arrived with the connect request, so the
     greeting — the one utterance nobody gets to re-run — is already synthesized in
@@ -88,7 +88,7 @@ async def test_the_greeting_is_written_without_touching_the_wire() -> None:
         greeting = await rig.driver.start_session(init={"scenario": SCENARIO})
         check_greeting(rig, greeting)
         assert greeting is not None
-        assert greeting.text == "Hi Rajesh! Your evening check-in — how did today go?"
+        assert greeting.text == "Hi there! Your evening check-in — how did today go?"
         assert llm.calls == []
         check_configured_at_connect(rig)
 
@@ -108,7 +108,7 @@ async def test_the_patients_chosen_language_writes_the_hello() -> None:
     async with demo("sugar", _llm()) as rig:
         greeting = await rig.driver.start_session(init={"language": "Hindi", "scenario": SCENARIO})
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text.startswith("नमस्ते Rajesh!")
+        assert greeting is not None and greeting.text.startswith("नमस्ते!")
         check_configured_at_connect(rig)
 
 

@@ -285,8 +285,10 @@ class ForgeBrain(GeminiBrain):
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated: the admin tapped in to build or
-        change a workflow, so Ada says hello by name and hands them the floor."""
-        return f"Hi {self.admin_name} — Ada here. Want to open a workflow to change, or build a new one?"
+        change a workflow, so Ada says hello and hands them the floor. It does not
+        say the admin's name — that arrives as free text in session.init, and this
+        line is spoken before any model has run to judge it."""
+        return "Hi there — Ada here. Want to open a workflow to change, or build a new one?"
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message. ``state_sync`` carries a compact snapshot of the

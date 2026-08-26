@@ -428,8 +428,9 @@ class ServicingBrain(GeminiBrain):
     async def greet(self, session: Session) -> str:
         """The opener, written not generated: the advisor is already logged in, so
         the desk greets the instant the session connects — no LLM call, no
-        first-token wait."""
-        return f"Hi {self.advisor_name} — {DESK_NAME} here. What would you like to start on?"
+        first-token wait. It does not say the advisor's name — that arrives as
+        free text in session.init, ahead of any model to judge it."""
+        return f"Hi there — {DESK_NAME} here. What would you like to start on?"
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message. ``state_sync`` carries a compact snapshot of the

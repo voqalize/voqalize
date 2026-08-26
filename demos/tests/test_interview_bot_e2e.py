@@ -7,10 +7,10 @@ driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. Se
 
 The interviewer is the demo whose whole shape comes from ``session.init``: the
 job, the candidate and the section plan arrive on the start frame, and the brain
-rebuilds its system instruction — and its fixed opening line — from them before
-the first word. So this file also pins what the model was actually told: a
-greeting that never saw the résumé would still sound fluent, and only the prompt
-shows the difference.
+rebuilds its system instruction from them before the first word. The greeting
+itself is a fixed line, not built from any of that — so this file also pins what
+the model was actually told: a greeting that never saw the résumé still sounds
+fluent, and only the prompt shows the difference.
 
 Run: ``cd demos && uv run pytest tests/test_interview_bot_e2e.py``
 """
@@ -76,16 +76,18 @@ def _llm() -> ScriptedGemini:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """The interviewer opens with a fixed line built from ``session.init`` — no
-    model call on the start path — and its declared female English voice lands
-    on **both** legs before that audio."""
+    """The interviewer opens with a fixed line — no model call on the start
+    path — and its declared female English voice lands on **both** legs before
+    that audio."""
     llm = _llm()
     async with demo("interview_bot", llm) as rig:
         greeting = await rig.driver.start_session(init=PAYLOAD)
         check_greeting(rig, greeting)
         assert greeting is not None
-        assert greeting.text.startswith("Hi Priya!")
-        assert "Backend Engineer" in greeting.text
+        assert greeting.text == (
+            "Hi! I'm your AI interviewer today. We'll go through a few sections "
+            "together. Let's get started."
+        )
         # The greeting cost no inference — the model has not been called yet.
         assert llm.calls == []
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)

@@ -80,7 +80,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     async with demo("lead_qual", _llm()) as rig:
         greeting = await rig.driver.start_session(init=HINDI_LEAD)
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text == _GREETING["Hindi"].format(name="Rajesh")
+        assert greeting is not None and greeting.text == _GREETING["Hindi"]
         check_voice_pair(rig, voice=VOICE, language="hi")
 
 
@@ -95,7 +95,7 @@ async def test_the_enquiry_state_picks_the_language_for_the_greeting() -> None:
     async with demo("lead_qual", _llm()) as rig:
         greeting = await rig.driver.start_session(init=TAMIL_LEAD)
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text == _GREETING["Tamil"].format(name="Meera")
+        assert greeting is not None and greeting.text == _GREETING["Tamil"]
         check_voice_pair(rig, voice=VOICE, language="ta")
 
 

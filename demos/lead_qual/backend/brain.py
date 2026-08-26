@@ -92,41 +92,41 @@ def _resolve_initial_language(payload: dict[str, Any]) -> LanguageName:
     return _STATE_LANG.get(state, _DEFAULT_LANGUAGE)
 
 
-# The opener, per language. A greeting is the one line spoken before any model
-# has run, so it is written here and filled with the customer's name — nothing
-# else about the call is known yet, and a caller waiting on a first token hears
-# the wait.
+# The opener, per language — a complete fixed sentence, not filled with the
+# customer's name: the name arrives as free English text off the enquiry form
+# in session.init, and English interpolated into a native-script TTS line
+# mispronounces. A greeting is the one line spoken before any model has run,
+# so it is written here, not generated.
 _GREETING: dict[LanguageName, str] = {
     "Hindi": (
-        "नमस्ते {name} जी, मैं प्रिया बोल रही हूँ, ऑरिक गोल्ड फाइनेंस से। "
+        "नमस्ते जी, मैं प्रिया बोल रही हूँ, ऑरिक गोल्ड फाइनेंस से। "
         "आपने जो गोल्ड लोन एन्क्वायरी की थी, उसके बारे में कुछ पूछना था।"
     ),
     "Telugu": (
-        "నమస్తే {name} గారు, నేను ప్రియ, ఆరిక్ గోల్డ్ ఫైనాన్స్ నుండి. "
-        "మీరు చేసిన గోల్డ్ లోన్ ఎంక్వైరీ గురించి కొన్ని ప్రశ్నలు అడగాలనుకుంటున్నాను."
+        "నమస్తే, నేను ప్రియ, ఆరిక్ గోల్డ్ ఫైనాన్స్ నుండి. మీరు చేసిన గోల్డ్ లోన్ ఎంక్వైరీ గురించి కొన్ని ప్రశ్నలు అడగాలనుకుంటున్నాను."
     ),
     "Tamil": (
-        "வணக்கம் {name}, நான் பிரியா, ஆரிக் கோல்ட் ஃபைனான்ஸிலிருந்து பேசுகிறேன். "
+        "வணக்கம், நான் பிரியா, ஆரிக் கோல்ட் ஃபைனான்ஸிலிருந்து பேசுகிறேன். "
         "நீங்கள் செய்த கோல்ட் லோன் விசாரணை பற்றி சில கேள்விகள் கேட்க விரும்புகிறேன்."
     ),
     "Kannada": (
-        "ನಮಸ್ಕಾರ {name} ಅವರೇ, ನಾನು ಪ್ರಿಯಾ, ಆರಿಕ್ ಗೋಲ್ಡ್ ಫೈನಾನ್ಸ್‌ನಿಂದ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ. "
+        "ನಮಸ್ಕಾರ, ನಾನು ಪ್ರಿಯಾ, ಆರಿಕ್ ಗೋಲ್ಡ್ ಫೈನಾನ್ಸ್‌ನಿಂದ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ. "
         "ನೀವು ಮಾಡಿದ ಗೋಲ್ಡ್ ಲೋನ್ ಎಂಕ್ವೈರಿ ಬಗ್ಗೆ ಕೆಲವು ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಬೇಕಿತ್ತು."
     ),
     "Malayalam": (
-        "നമസ്കാരം {name}, ഞാൻ പ്രിയ, ഓറിക് ഗോൾഡ് ഫിനാൻസിൽ നിന്നാണ്. "
+        "നമസ്കാരം, ഞാൻ പ്രിയ, ഓറിക് ഗോൾഡ് ഫിനാൻസിൽ നിന്നാണ്. "
         "നിങ്ങൾ ചെയ്ത ഗോൾഡ് ലോൺ എൻക്വയറിയെക്കുറിച്ച് കുറച്ച് ചോദ്യങ്ങൾ ചോദിക്കാൻ ആഗ്രഹിക്കുന്നു."
     ),
     "Marathi": (
-        "नमस्कार {name}, मी प्रिया, ऑरिक गोल्ड फायनान्सकडून बोलतेय. "
+        "नमस्कार, मी प्रिया, ऑरिक गोल्ड फायनान्सकडून बोलतेय. "
         "तुम्ही केलेल्या गोल्ड लोन एन्क्वायरीबद्दल काही प्रश्न विचारायचे होते."
     ),
     "Gujarati": (
-        "નમસ્તે {name}, હું પ્રિયા, ઓરિક ગોલ્ડ ફાયનાન્સ તરફથી બોલું છું. "
+        "નમસ્તે, હું પ્રિયા, ઓરિક ગોલ્ડ ફાયનાન્સ તરફથી બોલું છું. "
         "તમે કરેલી ગોલ્ડ લોન એન્ક્વાયરી વિશે થોડા પ્રશ્નો પૂછવા હતા."
     ),
     "Bengali": (
-        "নমস্কার {name}, আমি প্রিয়া, অরিক গোল্ড ফাইন্যান্স থেকে বলছি। "
+        "নমস্কার, আমি প্রিয়া, অরিক গোল্ড ফাইন্যান্স থেকে বলছি। "
         "আপনি যে গোল্ড লোন এনকোয়ারি করেছিলেন সে বিষয়ে কয়েকটা প্রশ্ন জিজ্ঞাসা করতে চেয়েছিলাম।"
     ),
 }
@@ -311,10 +311,11 @@ class LeadQualBrain(GeminiBrain):
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated: the enquiry form already named the
-        customer and their language, so there is nothing for a model call to add
-        and no first-token latency to hide."""
-        name = str(self.payload.get("name") or "").strip() or "Customer"
-        return _GREETING[self.language_name].format(name=name)
+        customer's language, so there is nothing for a model call to add and no
+        first-token latency to hide. It does not say the customer's name — that
+        arrives as free English text, and English read into a native-script line
+        mispronounces."""
+        return _GREETING[self.language_name]
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
