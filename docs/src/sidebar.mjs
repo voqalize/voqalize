@@ -97,6 +97,7 @@ export const sidebar = [
           { label: "Overview", slug: "build/brain" },
           { label: "Speaking", slug: "build/brain/speaking" },
           { label: "Actions", slug: "build/brain/actions" },
+          { label: "TypeScript types", slug: "build/brain/typescript" },
           { label: "Tools", slug: "build/brain/tools" },
           { label: "Context and history", slug: "build/brain/context" },
           { label: "Transcripts", slug: "build/brain/transcripts" },

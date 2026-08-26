@@ -59,6 +59,11 @@ examples = [
     "uvicorn>=0.30",
 ]
 
+# `voqalize types` — generates the TypeScript action union from your Action
+# classes, so the browser's half of an action is derived rather than copied.
+[project.scripts]
+voqalize = "voqalize.sdk.cli:main"
+
 [project.urls]
 Homepage = "https://voqalize.com"
 Documentation = "https://docs.voqalize.com"

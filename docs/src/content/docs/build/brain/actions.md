@@ -186,7 +186,7 @@ That is pipecat's own message, so the browser half of an action is stock and
 nothing here has to be taught to a client library:
 
 ```tsx
-useUICommandHandler<ShowResultsPayload>("show_results", (payload) => {
+useUICommandHandler<ShowResults>("show_results", (payload) => {
   store.showResults(payload);
 });
 ```
@@ -195,6 +195,10 @@ Or subscribe to the event once and route in a reducer, which is what a page with
 more than a handful of actions ends up doing — `RTVIEvent.UICommand` carries
 `{ command, payload }`. The envelope, the rest of the whitelist and what does not
 cross are [the RTVI plane](/reference/rtvi/).
+
+`ShowResults` is not written by hand. `voqalize types` generates it, and the
+union over `command` that goes with it, from the classes above — see
+[TypeScript types](/build/brain/typescript/).
 
 ## Ordering, and the one time an action does not arrive
 
@@ -242,5 +246,6 @@ That direction is [context and history](/build/brain/context/).
 
 ## Read next
 
+- [TypeScript types](/build/brain/typescript/) — the browser half, generated.
 - [Voice points, the screen holds](/design/speech-vs-screen/) — what goes where.
 - [The RTVI plane](/reference/rtvi/) — the message whitelist, both directions.

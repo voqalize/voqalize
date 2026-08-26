@@ -17,6 +17,28 @@ is a one-way watermark, and the browser plane is RTVI. A brain built against
 version 2 refuses a version 3 session outright — a fatal `Error` then `End`,
 before it has greeted — and the same in reverse, so neither end ever guesses.
 
+### Added
+
+- **`voqalize types` — the TypeScript half of your actions, generated.** The
+  SDK's first console script:
+
+  ```bash
+  uv run voqalize types backend/brain.py -o frontend/src/actions.gen.ts
+  ```
+
+  Out comes an interface per `Action`, an interface per nested model, and a
+  union discriminated on `command` with an exhaustiveness helper — so adding an
+  action fails the browser's build until it is handled, rather than landing on
+  `default: break` and quietly not moving the screen. Docstrings and
+  `Field(description=...)` carry across as JSDoc; a `Literal` or `Enum` becomes
+  a string-literal union.
+
+  No npm package and no runtime: pipecat's `useUICommandHandler` already reads
+  the message, so what was missing was only compile-time. Nothing is optional
+  and nothing emits zod, because `Action` puts every declared field on the wire
+  — the shape is a function of the class, so narrowing on `command` is sound.
+  See [TypeScript types](https://docs.voqalize.com/build/brain/typescript/).
+
 ### Changed
 
 - **The envelope is one `oneof body` and nothing else.** The two correlation
