@@ -9,31 +9,18 @@
  * current on-screen state — including edits the travel agent makes by hand.
  */
 
-export type Meal = 'veg' | 'nonveg' | 'mixed';
+/**
+ * A family, a flight option and a hotel option are the same on screen as on
+ * the wire, so they are the generated shapes rather than a second declaration
+ * of them. What follows adds only what the browser knows: a slug id, which
+ * option is selected, the day plan, the task tray.
+ */
 
-export interface Family {
-  label: string;
-  origin?: string;
-  adults?: number;
-  children?: number;
-  infants?: number;
-  meal?: Meal;
-  assistance?: string;
-}
+import type { Family, FlightOption, HotelOption } from './actions.gen';
 
-export interface FlightOption {
-  id: string;
-  airline: string;
-  flight_no?: string;
-  depart: string;
-  arrive: string;
-  duration?: string;
-  stops?: string;
-  cabin?: string;
-  baggage?: string;
-  price: number;
-  note?: string;
-}
+export type { Family, FlightOption, HotelOption };
+
+export type Meal = Family['meal'];
 
 export interface Leg {
   id: string;
@@ -43,19 +30,6 @@ export interface Leg {
   date: string;
   options?: FlightOption[];
   selectedId?: string;
-}
-
-export interface HotelOption {
-  id: string;
-  name: string;
-  area?: string;
-  stars?: number;
-  board?: string;
-  room_type?: string;
-  rating?: number;
-  amenities?: string[];
-  price_per_night: number;
-  note?: string;
 }
 
 export interface HotelStay {

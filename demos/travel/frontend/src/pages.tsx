@@ -885,23 +885,20 @@ function WhatsAppModal({ active }: { active: Itinerary }) {
 // Dev-only: expose a ui-command dispatcher on window so the agent's screen-driving
 // can be exercised deterministically (without a mic) in browser automation / tests.
 // Takes the same envelope pipecat delivers — `{ command, payload }` — and routes
-// it through the store's typed handlers, exactly as the RTVIEvent.UICommand
-// subscription in TravelAdvisor does on the wire.
+// it through the store, exactly as the RTVIEvent.UICommand subscription in
+// TravelAdvisor does on the wire.
 type DevDispatch = (cmd: UICommandData) => void;
 
 function DevUiExpose() {
-  const { uiCommands } = useTravel();
+  const { handleUiCommand } = useTravel();
   useEffect(() => {
     if (!import.meta.env.DEV) return;
-    const dispatch: DevDispatch = (cmd) => {
-      const handler = (uiCommands as Record<string, ((args: never) => void) | undefined>)[cmd.command];
-      handler?.(cmd.payload as never);
-    };
+    const dispatch: DevDispatch = ({ command, payload }) => handleUiCommand(command, payload);
     (window as unknown as { __travelUi?: DevDispatch }).__travelUi = dispatch;
     return () => {
       delete (window as unknown as { __travelUi?: DevDispatch }).__travelUi;
     };
-  }, [uiCommands]);
+  }, [handleUiCommand]);
   return null;
 }
 

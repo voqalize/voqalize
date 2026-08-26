@@ -181,7 +181,7 @@ function TravelSession({
   handleDisconnect?: () => void | Promise<void>;
   children: (presence: ReactNode) => ReactNode;
 }) {
-  const { uiCommands, registerAgentSend, rev, active, snapshot, highlighted } = useTravel();
+  const { handleUiCommand, registerAgentSend, rev, active, snapshot, highlighted } = useTravel();
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
 
@@ -197,16 +197,15 @@ function TravelSession({
   const connectionState: PresenceConnectionState =
     error && !isConnected && !isConnecting ? "error" : state;
 
-  // The agent drives the screen: every `ui-command` goes to the store's typed
-  // handler for that action.
-  const handleUiCommand = useCallback(
-    (data: UICommandData) => {
-      const handler = (uiCommands as Record<string, ((args: never) => void) | undefined>)[data.command];
-      handler?.(data.payload as never);
-    },
-    [uiCommands],
+  // The agent drives the screen: every `ui-command` goes to the store, which
+  // narrows it against the generated action union.
+  useRTVIClientEvent(
+    RTVIEvent.UICommand,
+    useCallback(
+      ({ command, payload }: UICommandData) => handleUiCommand(command, payload),
+      [handleUiCommand],
+    ),
   );
-  useRTVIClientEvent(RTVIEvent.UICommand, handleUiCommand);
 
   // Register the store's agent-send channel and open the mic once live.
   useEffect(() => {

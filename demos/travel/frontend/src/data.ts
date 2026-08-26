@@ -48,8 +48,8 @@ export const SEED_ITINERARIES: Itinerary[] = [
         selectedId: 'f1',
         options: [
           { id: 'f1', airline: 'Vietnam Airlines', flight_no: 'VN632', depart: 'BLR 23:50', arrive: 'SGN 06:35+1', duration: '5h 15m', stops: 'Non-stop', cabin: 'Economy', baggage: '23kg + 7kg', price: 31200, note: 'Arrival aligned with Delhi family for the shared coach' },
-          { id: 'f2', airline: 'IndiGo', flight_no: '6E1631', depart: 'BLR 21:05', arrive: 'SGN 06:10+1', duration: '6h 35m', stops: '1 stop · BKK', cabin: 'Economy', baggage: '20kg + 7kg', price: 27450 },
-          { id: 'f3', airline: 'Singapore Airlines', flight_no: 'SQ509', depart: 'BLR 21:40', arrive: 'SGN 09:20+1', duration: '8h 10m', stops: '1 stop · SIN', cabin: 'Economy', baggage: '30kg + 7kg', price: 39800 },
+          { id: 'f2', airline: 'IndiGo', flight_no: '6E1631', depart: 'BLR 21:05', arrive: 'SGN 06:10+1', duration: '6h 35m', stops: '1 stop · BKK', cabin: 'Economy', baggage: '20kg + 7kg', price: 27450, note: '' },
+          { id: 'f3', airline: 'Singapore Airlines', flight_no: 'SQ509', depart: 'BLR 21:40', arrive: 'SGN 09:20+1', duration: '8h 10m', stops: '1 stop · SIN', cabin: 'Economy', baggage: '30kg + 7kg', price: 39800, note: '' },
         ],
       },
       {
@@ -57,8 +57,8 @@ export const SEED_ITINERARIES: Itinerary[] = [
         selectedId: 'f1',
         options: [
           { id: 'f1', airline: 'Vietjet Air', flight_no: 'VJ972', depart: 'DEL 23:20', arrive: 'SGN 06:40+1', duration: '5h 50m', stops: 'Non-stop', cabin: 'Economy', baggage: '20kg + 7kg', price: 29600, note: 'Lands 5 min after Bangalore family — one coach for both' },
-          { id: 'f2', airline: 'Vietnam Airlines', flight_no: 'VN670', depart: 'DEL 20:30', arrive: 'SGN 04:05+1', duration: '6h 05m', stops: 'Non-stop', cabin: 'Economy', baggage: '23kg + 7kg', price: 33100 },
-          { id: 'f3', airline: 'Thai Airways', flight_no: 'TG316', depart: 'DEL 22:30', arrive: 'SGN 08:15+1', duration: '8h 15m', stops: '1 stop · BKK', cabin: 'Economy', baggage: '30kg + 7kg', price: 35400 },
+          { id: 'f2', airline: 'Vietnam Airlines', flight_no: 'VN670', depart: 'DEL 20:30', arrive: 'SGN 04:05+1', duration: '6h 05m', stops: 'Non-stop', cabin: 'Economy', baggage: '23kg + 7kg', price: 33100, note: '' },
+          { id: 'f3', airline: 'Thai Airways', flight_no: 'TG316', depart: 'DEL 22:30', arrive: 'SGN 08:15+1', duration: '8h 15m', stops: '1 stop · BKK', cabin: 'Economy', baggage: '30kg + 7kg', price: 35400, note: '' },
         ],
       },
       // Hyderabad outbound — searched, awaiting a pick.
@@ -66,8 +66,8 @@ export const SEED_ITINERARIES: Itinerary[] = [
         id: 'hyd-out', label: 'Hyderabad → Ho Chi Minh (Outbound)', from: 'Hyderabad', to: 'Ho Chi Minh City', date: '12 Aug 2026',
         options: [
           { id: 'f1', airline: 'IndiGo', flight_no: '6E1009', depart: 'HYD 22:15', arrive: 'SGN 06:55+1', duration: '6h 10m', stops: '1 stop · BKK', cabin: 'Economy', baggage: '20kg + 7kg', price: 28900, note: 'Closest to the others — coach can wait 20 min' },
-          { id: 'f2', airline: 'Vietjet Air', flight_no: 'VJ888', depart: 'HYD 20:40', arrive: 'SGN 05:20+1', duration: '6h 10m', stops: '1 stop · BKK', cabin: 'Economy', baggage: '20kg + 7kg', price: 26700 },
-          { id: 'f3', airline: 'Malaysia Airlines', flight_no: 'MH199', depart: 'HYD 23:55', arrive: 'SGN 10:05+1', duration: '8h 40m', stops: '1 stop · KUL', cabin: 'Economy', baggage: '30kg + 7kg', price: 34200 },
+          { id: 'f2', airline: 'Vietjet Air', flight_no: 'VJ888', depart: 'HYD 20:40', arrive: 'SGN 05:20+1', duration: '6h 10m', stops: '1 stop · BKK', cabin: 'Economy', baggage: '20kg + 7kg', price: 26700, note: '' },
+          { id: 'f3', airline: 'Malaysia Airlines', flight_no: 'MH199', depart: 'HYD 23:55', arrive: 'SGN 10:05+1', duration: '8h 40m', stops: '1 stop · KUL', cabin: 'Economy', baggage: '30kg + 7kg', price: 34200, note: '' },
         ],
       },
       // Returns not searched yet — the agent can run these.
@@ -80,8 +80,8 @@ export const SEED_ITINERARIES: Itinerary[] = [
         city: 'Ho Chi Minh City', nights: 1, selectedId: 'h1',
         options: [
           { id: 'h1', name: 'Rex Hotel Saigon', area: 'District 1', stars: 5, board: 'Breakfast included', room_type: '6 rooms — Deluxe', rating: 8.7, amenities: ['Rooftop pool', 'City centre', 'Family rooms'], price_per_night: 11800, note: 'One transit night before the Phu Quoc flight' },
-          { id: 'h2', name: 'Hotel Nikko Saigon', area: 'District 1', stars: 5, board: 'Breakfast included', room_type: '6 rooms — Superior', rating: 8.9, amenities: ['Pool', 'Spa', 'Kids welcome'], price_per_night: 13200 },
-          { id: 'h3', name: 'Sheraton Saigon', area: 'Dong Khoi', stars: 5, board: 'Breakfast included', room_type: '6 rooms — Grand', rating: 9.0, amenities: ['Central', 'Club lounge'], price_per_night: 15600 },
+          { id: 'h2', name: 'Hotel Nikko Saigon', area: 'District 1', stars: 5, board: 'Breakfast included', room_type: '6 rooms — Superior', rating: 8.9, amenities: ['Pool', 'Spa', 'Kids welcome'], price_per_night: 13200, note: '' },
+          { id: 'h3', name: 'Sheraton Saigon', area: 'Dong Khoi', stars: 5, board: 'Breakfast included', room_type: '6 rooms — Grand', rating: 9.0, amenities: ['Central', 'Club lounge'], price_per_night: 15600, note: '' },
         ],
       },
       // Phu Quoc — searched, awaiting a pick.
@@ -89,7 +89,7 @@ export const SEED_ITINERARIES: Itinerary[] = [
         city: 'Phu Quoc', nights: 4,
         options: [
           { id: 'h1', name: 'JW Marriott Phu Quoc Emerald Bay', area: 'Khem Beach', stars: 5, board: 'Breakfast included', room_type: '6 rooms incl. 2 family rooms', rating: 9.2, amenities: ['Beachfront', 'Pool', 'Kids club', 'Bassinet on request'], price_per_night: 42500, note: 'Bassinet confirmed for the Mehta infant' },
-          { id: 'h2', name: 'Premier Village Phu Quoc', area: 'An Thoi', stars: 5, board: 'Breakfast included', room_type: '3 two-bed villas', rating: 9.0, amenities: ['Private beach', 'Villa pools', 'Family-friendly'], price_per_night: 47800 },
+          { id: 'h2', name: 'Premier Village Phu Quoc', area: 'An Thoi', stars: 5, board: 'Breakfast included', room_type: '3 two-bed villas', rating: 9.0, amenities: ['Private beach', 'Villa pools', 'Family-friendly'], price_per_night: 47800, note: '' },
           { id: 'h3', name: 'InterContinental Phu Quoc Long Beach', area: 'Bai Truong', stars: 5, board: 'Breakfast included', room_type: '6 rooms — Classic', rating: 8.9, amenities: ['Beachfront', 'Accessible rooms', 'Pool'], price_per_night: 38900, note: 'Has step-free accessible rooms for the Rao senior' },
         ],
       },
@@ -136,14 +136,14 @@ export const SEED_ITINERARIES: Itinerary[] = [
         id: 'blr-out', label: 'Bangalore → Denpasar (Outbound)', from: 'Bangalore', to: 'Denpasar', date: '5 Sep 2026', selectedId: 'f1',
         options: [
           { id: 'f1', airline: 'Singapore Airlines', flight_no: 'SQ511', depart: 'BLR 21:40', arrive: 'DPS 13:05+1', duration: '10h 55m', stops: '1 stop · SIN', cabin: 'Economy', baggage: '30kg + 7kg', price: 38600, note: 'Honeymoon — smoothest single-stop option' },
-          { id: 'f2', airline: 'AirAsia', flight_no: 'AK24', depart: 'BLR 23:10', arrive: 'DPS 15:40+1', duration: '11h 00m', stops: '1 stop · KUL', cabin: 'Economy', baggage: '20kg + 7kg', price: 29900 },
+          { id: 'f2', airline: 'AirAsia', flight_no: 'AK24', depart: 'BLR 23:10', arrive: 'DPS 15:40+1', duration: '11h 00m', stops: '1 stop · KUL', cabin: 'Economy', baggage: '20kg + 7kg', price: 29900, note: '' },
         ],
       },
       {
         id: 'blr-ret', label: 'Denpasar → Bangalore (Return)', from: 'Denpasar', to: 'Bangalore', date: '10 Sep 2026', selectedId: 'f1',
         options: [
-          { id: 'f1', airline: 'Singapore Airlines', flight_no: 'SQ512', depart: 'DPS 16:35', arrive: 'BLR 22:10', duration: '10h 05m', stops: '1 stop · SIN', cabin: 'Economy', baggage: '30kg + 7kg', price: 37200 },
-          { id: 'f2', airline: 'AirAsia', flight_no: 'AK25', depart: 'DPS 18:20', arrive: 'BLR 01:05+1', duration: '11h 15m', stops: '1 stop · KUL', cabin: 'Economy', baggage: '20kg + 7kg', price: 28400 },
+          { id: 'f1', airline: 'Singapore Airlines', flight_no: 'SQ512', depart: 'DPS 16:35', arrive: 'BLR 22:10', duration: '10h 05m', stops: '1 stop · SIN', cabin: 'Economy', baggage: '30kg + 7kg', price: 37200, note: '' },
+          { id: 'f2', airline: 'AirAsia', flight_no: 'AK25', depart: 'DPS 18:20', arrive: 'BLR 01:05+1', duration: '11h 15m', stops: '1 stop · KUL', cabin: 'Economy', baggage: '20kg + 7kg', price: 28400, note: '' },
         ],
       },
     ],
@@ -152,7 +152,7 @@ export const SEED_ITINERARIES: Itinerary[] = [
         city: 'Seminyak', nights: 5, selectedId: 'h1',
         options: [
           { id: 'h1', name: 'The Legian Seminyak', area: 'Seminyak Beach', stars: 5, board: 'Breakfast included', room_type: 'Ocean Suite', rating: 9.3, amenities: ['Beachfront', 'Honeymoon setup', 'Infinity pool'], price_per_night: 26500, note: 'Honeymoon turndown & private dinner on the house' },
-          { id: 'h2', name: 'W Bali Seminyak', area: 'Seminyak', stars: 5, board: 'Breakfast included', room_type: 'Spectacular Pool Suite', rating: 9.0, amenities: ['Beach club', 'Spa', 'Pool suite'], price_per_night: 31200 },
+          { id: 'h2', name: 'W Bali Seminyak', area: 'Seminyak', stars: 5, board: 'Breakfast included', room_type: 'Spectacular Pool Suite', rating: 9.0, amenities: ['Beach club', 'Spa', 'Pool suite'], price_per_night: 31200, note: '' },
         ],
       },
     ],
@@ -184,7 +184,7 @@ export const SEED_ITINERARIES: Itinerary[] = [
         id: 'blr-out', label: 'Bangalore → Dubai (Outbound)', from: 'Bangalore', to: 'Dubai', date: '20 Oct 2026', selectedId: 'f1',
         options: [
           { id: 'f1', airline: 'Emirates', flight_no: 'EK569', depart: 'BLR 04:25', arrive: 'DXB 07:15', duration: '4h 20m', stops: 'Non-stop', cabin: 'Economy', baggage: '30kg + 7kg', price: 24800, note: 'Bassinet seats confirmed for the infant' },
-          { id: 'f2', airline: 'IndiGo', flight_no: '6E63', depart: 'BLR 09:10', arrive: 'DXB 11:55', duration: '4h 15m', stops: 'Non-stop', cabin: 'Economy', baggage: '20kg + 7kg', price: 19400 },
+          { id: 'f2', airline: 'IndiGo', flight_no: '6E63', depart: 'BLR 09:10', arrive: 'DXB 11:55', duration: '4h 15m', stops: 'Non-stop', cabin: 'Economy', baggage: '20kg + 7kg', price: 19400, note: '' },
         ],
       },
       // Return — not searched yet.
@@ -194,8 +194,8 @@ export const SEED_ITINERARIES: Itinerary[] = [
       {
         city: 'Dubai Marina', nights: 5, selectedId: 'h1',
         options: [
-          { id: 'h1', name: 'Address Dubai Marina', area: 'Dubai Marina', stars: 5, board: 'Breakfast included', room_type: '2 connecting rooms', rating: 9.0, amenities: ['Marina view', 'Kids pool', 'Bassinet', 'Mall access'], price_per_night: 22600 },
-          { id: 'h2', name: 'JW Marriott Marquis', area: 'Business Bay', stars: 5, board: 'Breakfast included', room_type: 'Family room', rating: 8.8, amenities: ['Pool', 'Spa', 'Family-friendly'], price_per_night: 20100 },
+          { id: 'h1', name: 'Address Dubai Marina', area: 'Dubai Marina', stars: 5, board: 'Breakfast included', room_type: '2 connecting rooms', rating: 9.0, amenities: ['Marina view', 'Kids pool', 'Bassinet', 'Mall access'], price_per_night: 22600, note: '' },
+          { id: 'h2', name: 'JW Marriott Marquis', area: 'Business Bay', stars: 5, board: 'Breakfast included', room_type: 'Family room', rating: 8.8, amenities: ['Pool', 'Spa', 'Family-friendly'], price_per_night: 20100, note: '' },
         ],
       },
     ],

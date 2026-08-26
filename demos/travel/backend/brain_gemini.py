@@ -20,7 +20,7 @@ trip is strictly worse than a fact already sitting in context.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from google import genai
 from google.genai import types
@@ -55,6 +55,10 @@ _NOTHING_ON_SCREEN = "No itinerary is open yet — the agent is on the dashboard
 # ─── Tool argument shapes ───────────────────────────────────────────────────
 
 
+#: The three meal preferences the itinerary screen renders a chip for.
+Meal = Literal["veg", "nonveg", "mixed"]
+
+
 class Family(BaseModel):
     """One travelling family on the itinerary."""
 
@@ -63,7 +67,7 @@ class Family(BaseModel):
     adults: int = 0
     children: int = 0
     infants: int = 0
-    meal: str = "mixed"
+    meal: Meal = "mixed"
     assistance: str = ""
 
 
