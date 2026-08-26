@@ -33,13 +33,13 @@ ever created a connection and then declined to use it, and the gap between the
 two steps was a state nobody guarded. **Start one call. There is no second
 step.**
 
-The route was called `sessions.create` until 2026-08-26, and for a while both
-names answered. If you find the older one in an example, it still works and it
-is not documented: it starts the same call and hands back the whole session
-record instead of the connect params, which every caller then had to dig
-through for the three fields it wanted. Move to `sessions.connect`. If you want
-the record too, read it back with [`get_session`](/operate/reading-a-call/) —
-over MCP or in the console, where reads belong.
+The route was called `sessions.create` until 2026-08-26. That name is **gone**,
+not aliased: it answers `404`. If you find it in an older example, change the
+word — the body and the credential are unchanged, and the response is the
+connect params rather than the whole session record every caller had to dig
+through for the three fields it wanted. If you want the record too, read it back
+with [`get_session`](/operate/reading-a-call/) — over MCP or in the console,
+where reads belong.
 
 ### The body
 
