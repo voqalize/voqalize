@@ -264,8 +264,7 @@ function AuraSession({
   useRTVIClientEvent(
     RTVIEvent.UICommand,
     useCallback(
-      ({ command, payload }: UICommandData) =>
-        handleUiCommand({ action: command, ...((payload as Record<string, unknown>) ?? {}) }),
+      ({ command, payload }: UICommandData) => handleUiCommand(command, payload),
       [handleUiCommand],
     ),
   );
@@ -292,7 +291,7 @@ function AuraSession({
   }, [isConnected, rev]);
 
   // Dev-only: drive the flow without a mic.
-  //   window.__aura.ui({action:'open_article', article_id:'interest-certificate'})
+  //   window.__aura.ui('open_article', {article_id: 'interest-certificate'})
   //   window.__aura.sendText('where do I download my interest certificate for tax filing?')
   useEffect(() => {
     if (!import.meta.env.DEV || !client) return;

@@ -10,7 +10,34 @@
  * The voice agent drives the on-screen state through `ui_command` RTVI messages,
  * and the browser echoes a compact `screen_state` snapshot back (`state_sync`) so
  * the assistant always knows what the customer is looking at.
+ *
+ * **What the agent puts on screen is not declared here.** `actions.gen.ts` is
+ * generated from the brain's `Action` classes by `voqalize types`, and the
+ * twenty-odd types below that mirror one are derived from it. What is left is
+ * the knowledge base, the screens the customer navigates alone, and the handful
+ * of fields the browser adds for itself — a re-fire `nonce`, a `saved` flag.
  */
+
+import type {
+  AccountRef,
+  CardRef,
+  ChooseAccount,
+  ChooseCreditCard,
+  Compare,
+  FindBranch,
+  OpenAuth,
+  RaiseTicket,
+  RunCalculator,
+  SendToPhone,
+  ShowBalance,
+  ShowCardControls,
+  ShowChecklist,
+  ShowStatement,
+  Spotlight,
+  StartApplication,
+} from './actions.gen';
+
+export type { BranchResult, CardControls, CompareItem, StatementTxn } from './actions.gen';
 
 export type CategoryId =
   | 'cards'
@@ -98,15 +125,11 @@ export interface VideoCommand {
 
 // ── Interactive tools (all usable without a login) ─────────────────────────────
 
-export type CalcKind = 'emi' | 'fd' | 'eligibility';
+export type CalcKind = RunCalculator['kind'];
 /** Inputs + computed result for the on-screen calculator. Numbers only. */
-export interface CalcState {
-  kind: CalcKind;
-  inputs: Record<string, number>;
-  result: Record<string, number>;
-}
+export type CalcState = RunCalculator;
 
-export type Product = 'savings' | 'credit_card' | 'loan';
+export type Product = StartApplication['product'];
 export interface ApplyField {
   id: string;
   label: string;
@@ -119,77 +142,36 @@ export interface ApplyState {
   submitted: boolean;
 }
 
-export interface CompareItem {
-  id: string;
-  name: string;
-  /** A few short selling-point lines for this option. */
-  features: string[];
-}
-export interface CompareState {
-  kind: 'credit_card' | 'savings';
-  items: CompareItem[];
-  recommendId?: string;
-  recommendReason?: string;
-}
+export type CompareState = Compare;
 
-export interface BranchResult {
-  name: string;
-  address: string;
-  kind: 'branch' | 'atm';
-  ifsc?: string;
-  hours?: string;
-}
-export interface LocatorState {
-  pincode: string;
-  results: BranchResult[];
-}
+export type LocatorState = FindBranch;
 
-export interface ChecklistState {
-  title: string;
-  items: string[];
-}
+export type ChecklistState = ShowChecklist;
 
 /** Confirmation that the agent "sent" the guide to the customer's phone (mock). */
-export interface SentToPhone {
-  what: string;
-  channel: 'whatsapp' | 'sms';
-  number: string;
+export type SentToPhone = SendToPhone & {
+  /** Bumped per send, so a repeat of the same message re-shows the toast. */
   nonce: number;
-}
+};
 
 /** A raised complaint / callback request with a reference number. */
-export interface Ticket {
-  reference: string;
-  topic: string;
-  summary: string;
-}
+export type Ticket = RaiseTicket;
 
 /** General-purpose spotlight — rings the element with [data-aura-spotlight=target]. */
-export interface Spotlight {
-  target: string;
-  label?: string;
+export type SpotlightState = Spotlight & {
+  /** Bumped per call, so ringing the same element twice re-runs the animation. */
   nonce: number;
-}
+};
 
 // ── Authenticated account access ──────────────────────────────────────────────
 
 /** One of the signed-in customer's accounts (never carries the real number). */
-export interface Account {
-  account_id: string;
-  type: string;
-  branch: string;
-  nickname?: string;
-  masked_number: string;
-}
+export type Account = AccountRef;
 
 /** The secure sign-in dialog the agent opens (show_auth_popup()). `nonce` is an
  *  opaque server token echoed back on authorise or cancel, so the server knows which
  *  dialog is being answered — keep it a string; it is NOT numeric. */
-export interface AuthPrompt {
-  name: string;
-  masked_mobile: string;
-  nonce: string;
-}
+export type AuthPrompt = OpenAuth;
 
 /** The signed-in identity, shown as a session badge once authorised. */
 export interface AuthSession {
@@ -198,73 +180,28 @@ export interface AuthSession {
 
 /** The account picker the agent opens (choose_account()). `nonce` is an opaque
  *  server token (string, not numeric). */
-export interface AccountPicker {
-  accounts: Account[];
-  nonce: string;
-}
+export type AccountPicker = ChooseAccount;
 
 /** Balance view for one account (get_account_balance()). */
-export interface BalanceView {
-  account: Account;
-  balance: number;
-  currency: string;
-  as_of: string;
-}
-
-/** One statement row. */
-export interface StatementTxn {
-  date: string;
-  description: string;
-  amount: number;
-  kind: 'debit' | 'credit';
-}
+export type BalanceView = ShowBalance;
 
 /** Statement view for one account over a date range (get_statement()). */
-export interface StatementView {
-  account: Account;
-  from: string;
-  to: string;
-  currency: string;
-  transactions: StatementTxn[];
-}
+export type StatementView = ShowStatement;
 
 // ── Credit-card controls + forex cross-sell ────────────────────────────────────
 
 /** One of the signed-in customer's credit cards (never the real number). */
-export interface Card {
-  card_id: string;
-  network: string;
-  product: string;
-  variant?: string;
-  masked_number: string;
-}
+export type Card = CardRef;
 
 /** The credit-card picker the agent opens (choose_credit_card()). `nonce` is an
  *  opaque server token (string, not numeric). */
-export interface CardPicker {
-  cards: Card[];
-  nonce: string;
-}
-
-/** A card's current usage & limit settings — the customer edits these on screen. */
-export interface CardControls {
-  domestic_enabled: boolean;
-  international_enabled: boolean;
-  contactless_enabled: boolean;
-  online_enabled: boolean;
-  domestic_limit: number;
-  international_limit: number;
-  atm_cash_limit: number;
-}
+export type CardPicker = ChooseCreditCard;
 
 /** The card-controls form for one card (show_card_controls()). */
-export interface CardControlsView {
-  card: Card;
-  credit_limit: number;
-  controls: CardControls;
+export type CardControlsView = ShowCardControls & {
   /** Set once the customer taps "Update controls". */
   saved: boolean;
-}
+};
 
 /** The forex-card cross-sell screen + lead capture (show_forex_card()). */
 export interface ForexView {

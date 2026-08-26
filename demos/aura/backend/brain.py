@@ -224,8 +224,6 @@ def _parse_date(value: Any) -> date | None:
 # choose_account() lets them pick which account to look at.
 _DEMO_CUSTOMER = {"id": "cust_ax_88213", "name": "Ananya Sharma", "masked_mobile": "••••••4021"}
 
-_ACCOUNT_FIELDS = ("account_id", "type", "branch", "nickname", "masked_number")
-
 _DEMO_ACCOUNTS: list[dict[str, Any]] = [
     {
         "account_id": "ac_918021004321",
@@ -282,8 +280,6 @@ def _account_by_id(account_id: str) -> dict[str, Any] | None:
 # show_card_controls() then opens that card's usage/limits form. ``controls`` are
 # the card's CURRENT on-card settings — the customer adjusts and saves them on
 # screen themselves (we only open the form; the LLM never sets a limit).
-_CARD_FIELDS = ("card_id", "network", "product", "variant", "masked_number")
-
 _DEMO_CARDS: list[dict[str, Any]] = [
     {
         "card_id": "cc_shop_7043",
@@ -608,6 +604,15 @@ class ShowContact(Action):
     topic: str
 
 
+# The three closed vocabularies a tool parameter and its Action share. Declared
+# once: the tool's signature is what Gemini is offered, the Action's field is what
+# the browser is typed against, and they cannot drift into two different lists.
+CalcKind = Literal["emi", "fd", "eligibility"]
+Product = Literal["savings", "credit_card", "loan"]
+CompareKind = Literal["credit_card", "savings"]
+Channel = Literal["whatsapp", "sms"]
+
+
 class RunCalculator(Action):
     """The calculator screen, filled in and already solved.
 
@@ -615,7 +620,7 @@ class RunCalculator(Action):
     shows its own working — and ``result`` is computed here rather than in the
     browser so the figure Aria speaks and the figure on screen cannot drift."""
 
-    kind: str
+    kind: CalcKind
     inputs: dict[str, float]
     result: dict[str, float]
 
@@ -623,7 +628,7 @@ class RunCalculator(Action):
 class StartApplication(Action):
     """Open a blank product application."""
 
-    product: str
+    product: Product
 
 
 class PrefillField(Action):
@@ -650,7 +655,7 @@ class CompareItem(BaseModel):
 class Compare(Action):
     """The side-by-side comparison table, with one column starred."""
 
-    kind: str
+    kind: CompareKind
     items: list[CompareItem]
     recommend_id: str
     recommend_reason: str
@@ -686,7 +691,7 @@ class SendToPhone(Action):
     """The 'sent to your phone' confirmation."""
 
     what: str
-    channel: str
+    channel: Channel
     number: str
 
 
@@ -727,17 +732,59 @@ class OpenAuth(Action):
     masked_mobile: str
 
 
+class AccountRef(BaseModel):
+    """An account as the picker and the balance card show it — the projection of
+    the bank's record that is safe to send, with the money left behind."""
+
+    account_id: str
+    type: str
+    branch: str
+    nickname: str
+    masked_number: str
+
+
+class CardRef(BaseModel):
+    """A credit card as the screen shows it. Never the real number."""
+
+    card_id: str
+    network: str
+    product: str
+    variant: str
+    masked_number: str
+
+
+class StatementTxn(BaseModel):
+    """One row of a statement."""
+
+    date: str
+    description: str
+    amount: float
+    kind: Literal["debit", "credit"]
+
+
+class CardControls(BaseModel):
+    """A card's current usage and limit settings, as the form renders them."""
+
+    domestic_enabled: bool
+    international_enabled: bool
+    contactless_enabled: bool
+    online_enabled: bool
+    domestic_limit: float
+    international_limit: float
+    atm_cash_limit: float
+
+
 class ChooseAccount(Action):
     """The account picker. Answered by ``account_selected`` / ``account_cancelled``."""
 
     nonce: str
-    accounts: list[dict[str, Any]]
+    accounts: list[AccountRef]
 
 
 class ShowBalance(Action):
     """The balance card for one account, as of a date."""
 
-    account: dict[str, Any]
+    account: AccountRef
     balance: float
     currency: str
     as_of: str
@@ -746,10 +793,10 @@ class ShowBalance(Action):
 class ShowStatement(Action):
     """A dated transaction list for one account."""
 
-    account: dict[str, Any]
+    account: AccountRef
     from_date: str
     to_date: str
-    transactions: list[dict[str, Any]]
+    transactions: list[StatementTxn]
     currency: str
 
 
@@ -757,16 +804,16 @@ class ChooseCreditCard(Action):
     """The card picker. Answered by ``card_selected`` / ``card_cancelled``."""
 
     nonce: str
-    cards: list[dict[str, Any]]
+    cards: list[CardRef]
 
 
 class ShowCardControls(Action):
     """The usage & limits form for one card — the customer edits and saves it
     themselves, so the assistant never reads the toggles aloud."""
 
-    card: dict[str, Any]
+    card: CardRef
     credit_limit: float
-    controls: dict[str, Any]
+    controls: CardControls
 
 
 class AuraBrain(GeminiInteractionsBrain):
@@ -1080,7 +1127,7 @@ class AuraBrain(GeminiInteractionsBrain):
 
     async def run_calculator(
         self,
-        kind: Literal["emi", "fd", "eligibility"],
+        kind: CalcKind,
         principal: float | None = None,
         monthly_income: float | None = None,
         existing_emi: float | None = None,
@@ -1128,7 +1175,7 @@ class AuraBrain(GeminiInteractionsBrain):
         self.session.dispatch(RunCalculator(kind=kind, inputs=inputs, result=result))
         return str({"kind": kind, "inputs": inputs, "result": result})
 
-    async def start_application(self, product: Literal["savings", "credit_card", "loan"]) -> str:
+    async def start_application(self, product: Product) -> str:
         """Begin a new-customer application — a real top-of-funnel lead, and it
         needs no login. Then prefill_field each detail they give you, and submit
         only once they clearly agree.
@@ -1164,7 +1211,7 @@ class AuraBrain(GeminiInteractionsBrain):
 
     async def compare(
         self,
-        kind: Literal["credit_card", "savings"],
+        kind: CompareKind,
         items: list[CompareItem],
         recommend_id: str = "",
         recommend_reason: str = "",
@@ -1220,7 +1267,7 @@ class AuraBrain(GeminiInteractionsBrain):
     async def send_to_phone(
         self,
         what: str = "this guide",
-        channel: Literal["whatsapp", "sms"] = "whatsapp",
+        channel: Channel = "whatsapp",
         number: str = "",
     ) -> str:
         """'Send' the guide or steps you just walked through to their phone — a
@@ -1398,7 +1445,7 @@ class AuraBrain(GeminiInteractionsBrain):
             )
         owned = set(payload.get("accounts") or [])
         accounts = [
-            {k: a[k] for k in _ACCOUNT_FIELDS} for a in _DEMO_ACCOUNTS if a["account_id"] in owned
+            AccountRef.model_validate(a) for a in _DEMO_ACCOUNTS if a["account_id"] in owned
         ]
         nonce = self._open_dialog("account")
         logger.info("aura: choose_account -> picker ({} accounts)", len(accounts))
@@ -1434,7 +1481,7 @@ class AuraBrain(GeminiInteractionsBrain):
         logger.info("aura: get_account_balance {}", acc["account_id"])
         self.session.dispatch(
             ShowBalance(
-                account={k: acc[k] for k in _ACCOUNT_FIELDS},
+                account=AccountRef.model_validate(acc),
                 balance=acc["balance"],
                 currency=acc["currency"],
                 as_of=as_of,
@@ -1495,10 +1542,10 @@ class AuraBrain(GeminiInteractionsBrain):
         logger.info("aura: get_statement {} ({} txns)", acc["account_id"], len(rows))
         self.session.dispatch(
             ShowStatement(
-                account={k: acc[k] for k in _ACCOUNT_FIELDS},
+                account=AccountRef.model_validate(acc),
                 from_date=start.isoformat(),
                 to_date=end.isoformat(),
-                transactions=rows,
+                transactions=[StatementTxn.model_validate(r) for r in rows],
                 currency=acc["currency"],
             )
         )
@@ -1535,7 +1582,7 @@ class AuraBrain(GeminiInteractionsBrain):
                 }
             )
         owned = set(payload.get("cards") or [])
-        cards = [{k: c[k] for k in _CARD_FIELDS} for c in _DEMO_CARDS if c["card_id"] in owned]
+        cards = [CardRef.model_validate(c) for c in _DEMO_CARDS if c["card_id"] in owned]
         nonce = self._open_dialog("card")
         logger.info("aura: choose_credit_card -> picker ({} cards)", len(cards))
         self.session.dispatch(ChooseCreditCard(nonce=nonce, cards=cards))
@@ -1571,9 +1618,9 @@ class AuraBrain(GeminiInteractionsBrain):
         logger.info("aura: show_card_controls {}", card["card_id"])
         self.session.dispatch(
             ShowCardControls(
-                card={k: card[k] for k in _CARD_FIELDS},
+                card=CardRef.model_validate(card),
                 credit_limit=card["credit_limit"],
-                controls=controls,
+                controls=CardControls.model_validate(controls),
             )
         )
         return str(
