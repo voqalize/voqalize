@@ -30,4 +30,6 @@ class ShowTable(Action):
 
 
 class Dismiss(Action, name="close_it"):
-    pass
+    """Take it down again.
+
+    Answered by ``table_closed``; see :meth:`Desk.on_rtvi` for what that does."""

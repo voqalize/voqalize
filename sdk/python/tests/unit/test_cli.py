@@ -95,6 +95,16 @@ def test_docstrings_and_field_descriptions_carry_across(ts: str) -> None:
     assert "/** One line of the table. */" in ts
 
 
+def test_restructuredtext_markup_becomes_jsdoc_markup(ts: str) -> None:
+    """A docstring is written for Sphinx and read here as a tooltip.
+
+    Double-backtick literals and cross-reference roles are the two constructs
+    that actually occur in a brain, and both read as noise in an editor."""
+    assert "Answered by `table_closed`;" in ts
+    assert "see `Desk.on_rtvi` for what that does." in ts
+    assert "``" not in ts and ":meth:" not in ts
+
+
 def test_only_this_module_s_actions_are_generated(tmp_path: Path) -> None:
     """Scoping, with the registry deliberately polluted first.
 

@@ -126,11 +126,22 @@ def _ts_name(name: str) -> str:
     return name if _TS_IDENT.match(name) else json.dumps(name)
 
 
+#: Sphinx's cross-reference roles, e.g. ``:meth:`Brain.greet```. The target reads
+#: fine on its own; the role name does not.
+_ROLE = re.compile(r":[a-z:]+:`~?([^`]+)`")
+
+
 def _doc(text: str | None, indent: str) -> list[str]:
-    """``description`` as JSDoc, one line or several."""
+    """``description`` as JSDoc, one line or several.
+
+    Docstrings are written in reStructuredText, which JSDoc does not read. The
+    two constructs that actually occur — double-backtick literals and Sphinx
+    roles — become their markdown equivalents, so the tooltip a frontend author
+    sees is the sentence rather than its markup."""
     if not text:
         return []
-    body = text.replace("*/", "*​/").strip()
+    body = _ROLE.sub(r"`\1`", text).replace("``", "`")
+    body = body.replace("*/", "*​/").strip()
     lines = body.splitlines()
     if len(lines) == 1:
         return [f"{indent}/** {lines[0]} */"]
