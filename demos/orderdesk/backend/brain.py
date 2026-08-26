@@ -44,9 +44,9 @@ the rows still waiting on a question, into the context — appended once, only w
 picture actually changed. The brain's own item mirror is only the fallback for the
 first beat, before the browser has spoken.
 
-The six ``ui_command``s are :class:`voqalize.sdk.Action` subclasses, mirrored
-one-for-one by ``frontend/src/uiCommands.ts``; DESIGN.md §3 is the written contract
-for both halves.
+The six ``ui_command``s are :class:`voqalize.sdk.Action` subclasses, and
+``frontend/src/actions.gen.ts`` is generated from them; DESIGN.md §3 is the written
+contract for both halves.
 """
 
 from __future__ import annotations
