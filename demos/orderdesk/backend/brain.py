@@ -55,10 +55,11 @@ import json
 import re
 from typing import Any, Literal
 
+from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider, hello_for
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, hello_for
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -1404,8 +1405,8 @@ class OrderDeskBrain(GeminiBrain):
     ``on_rtvi`` rather than recomputed every call (there is no per-turn grounding
     hook any more; the context is append-only)."""
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=llm.client, system_instruction=_INSTRUCTION, model=model)
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_INSTRUCTION, model=model)
         self.desk = OrderDesk()
         self.scenario: dict[str, Any] = {}
         self.pharmacy: dict[str, Any] = {}

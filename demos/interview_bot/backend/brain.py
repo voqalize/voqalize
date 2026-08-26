@@ -32,9 +32,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -239,10 +240,10 @@ class InterviewBotBrain(GeminiBrain):
     seeded from ``session.init`` in :meth:`on_session_start`, since the brain is
     built before the session (and its payload) exists."""
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         # The base system instruction only; the full JOB/CANDIDATE/PLAN prompt is
         # applied per session in on_session_start once session.init has arrived.
-        super().__init__(client=llm.client, system_instruction=_SYSTEM_BASE, model=model)
+        super().__init__(client=client, system_instruction=_SYSTEM_BASE, model=model)
         # Per-session interview state (populated in on_session_start). Ephemeral
         # in memory — no resume across disconnects, by design for the prototype.
         self.sections: list[tuple[str, dict[str, Any]]] = []

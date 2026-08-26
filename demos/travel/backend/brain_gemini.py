@@ -22,10 +22,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -204,8 +205,8 @@ class TravelBrain(GeminiBrain):
     professional tool the travel agent opens, not a caller-facing surface — so
     it is settled here rather than sent with the connect request."""
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         # Latest browser-pushed itinerary snapshot, folded into context on
         # change. No brain-owned mirror of the itinerary: the ten tools below
         # are pure — dispatch and a short string back — because the browser's

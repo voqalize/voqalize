@@ -8,7 +8,7 @@ surface a demo contributes — discovered and mounted by the umbrella.
 
 from __future__ import annotations
 
-from voqalize_demos import GeminiProvider
+from google import genai
 from voqalize_demos.session import make_brain_router
 
 from .brain import OrderDeskBrain
@@ -17,9 +17,9 @@ from .brain import OrderDeskBrain
 NAME = "orderdesk"
 
 
-def build(llm: GeminiProvider) -> OrderDeskBrain:
+def build(client: genai.Client) -> OrderDeskBrain:
     """Build a fresh brain — and a fresh, empty order screen — for one session."""
-    return OrderDeskBrain(llm=llm)
+    return OrderDeskBrain(client=client)
 
 
 router = make_brain_router(NAME, build)

@@ -27,10 +27,11 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
+from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -258,8 +259,8 @@ class ForgeBrain(GeminiBrain):
     """One per session. Nearly stateless: the studio owns the workflow; Ada
     relays edits and grounds on the live ``state_sync`` snapshot every turn."""
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         self.admin_name = "there"
         self.current_state: dict[str, Any] | None = None
         self._state_message: str | None = None

@@ -9,7 +9,7 @@ the model reads — and its body drives the browser with
 renders, while returning catalog data so the model can talk about what's on
 screen.
 
-The LLM is **dependency-injected** as a :class:`GeminiProvider`; the brain owns
+The LLM's ``genai.Client`` is **dependency-injected**; the brain owns
 only the prompt, the tools, and this session's cart/wishlist. The conversation
 record is framework-owned, rebuilt into Gemini's working context each turn by
 the ``GeminiBrain`` base.
@@ -22,9 +22,10 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -228,8 +229,8 @@ class ShoppingBrain(GeminiBrain):
     screen-driving tools. Each tool drives the browser via
     ``self.session.dispatch(...)`` and returns catalog data to the model."""
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         # Brain-owned domain state only. The conversation record is framework-owned.
         self.cart: list[str] = []
         self.wishlist: list[str] = []

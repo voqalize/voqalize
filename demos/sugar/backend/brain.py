@@ -29,10 +29,11 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
+from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field, computed_field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -300,10 +301,10 @@ class SugarBrain(GeminiBrain):
     # ``switch_language`` moves the wire mid-call, which is the one part of this
     # that is a runtime event.
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         # The base system instruction only; the PATIENT CONTEXT is folded in per
         # session in on_session_start once session.init has arrived.
-        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         # Per-session state (populated on_session_start from session.init).
         # Ephemeral in memory — no resume across disconnects, by design.
         self.patient_name = "there"

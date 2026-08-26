@@ -33,7 +33,7 @@ Two mechanics need more than the standard tool-loop, so this brain overrides ``r
     snapshot as a trailing user turn each turn, so the assistant always reasons from
     what's on screen (``get_screen_context`` reads the same snapshot).
 
-The LLM is **dependency-injected** as a :class:`GeminiProvider`; the brain owns the
+The LLM's ``genai.Client`` is **dependency-injected**; the brain owns the
 prompt, the tool schemas, and this session's auth/selection/screen state. The
 conversation record is framework-owned (``interaction.conversation``), rebuilt into
 Gemini's working context each turn by the :class:`GeminiBrain` base.
@@ -54,10 +54,11 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
+from google import genai
 from google.genai import interactions as gi
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
@@ -758,9 +759,9 @@ class AuraBrain(GeminiInteractionsBrain):
     completions and cancels that resolve those waits — arrives on :meth:`on_rtvi`.
     """
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
-            client=llm.client,
+            client=client,
             system_instruction=_SYSTEM_INSTRUCTION,
             model=model,
             # Headroom above the base default: aura's secure flows chain several

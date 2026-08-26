@@ -8,7 +8,7 @@ backend surface a demo contributes — discovered and mounted by the umbrella.
 
 from __future__ import annotations
 
-from voqalize_demos import GeminiProvider
+from google import genai
 from voqalize_demos.session import make_brain_router
 
 from .brain import LeadQualBrain
@@ -17,9 +17,9 @@ from .brain import LeadQualBrain
 NAME = "lead_qual"
 
 
-def build(llm: GeminiProvider) -> LeadQualBrain:
-    """Build a fresh brain for one session from the shared LLM provider."""
-    return LeadQualBrain(llm=llm)
+def build(client: genai.Client) -> LeadQualBrain:
+    """Build a fresh brain for one session from the shared Gemini client."""
+    return LeadQualBrain(client=client)
 
 
 router = make_brain_router(NAME, build)

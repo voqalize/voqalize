@@ -13,7 +13,7 @@ The three tools are:
 - ``switch_language`` — re-point STT + TTS to another Indic language mid-call;
 - ``end_call`` — record the outcome and tell the browser the call has ended.
 
-The LLM is **dependency-injected** as a :class:`GeminiProvider`; the brain owns
+The LLM's ``genai.Client`` is **dependency-injected**; the brain owns
 only the prompt, the tools, and this session's language/payload state.
 
 **One advisor, nine languages, chosen per caller.** The enquiry form's state
@@ -29,9 +29,10 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -282,8 +283,8 @@ class LeadQualBrain(GeminiBrain):
     eligibility/language/end-call tools + this session's language and
     enquiry-form state."""
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         # Per-session state, set for real in on_session_start once session.init
         # (name/phone/state/city/gold_weight/loan_amount/…) has arrived.
         self.payload: dict[str, Any] = {}

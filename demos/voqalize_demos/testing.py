@@ -1,9 +1,9 @@
-"""``ScriptedGemini`` — a fake :class:`~voqalize_demos.llm.GeminiProvider` driven by
-a dictionary, no network, no API key.
+"""``ScriptedGemini`` — a fake ``genai.Client`` driven by a dictionary, no network,
+no API key.
 
-The demo brains take the provider by injection (see :mod:`voqalize_demos.llm`)
-and hand its ``client`` to :class:`voqalize.sdk.gemini.GeminiBrain`, so the whole
-model is one seam wide: ``client.aio.models.generate_content_stream(model=,
+The demo brains take the client by injection and hand it straight to
+:class:`voqalize.sdk.gemini.GeminiBrain`, so the whole model is one seam wide:
+``client.aio.models.generate_content_stream(model=,
 contents=, config=)``. This answers on that seam, from a script::
 
     from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
@@ -210,9 +210,9 @@ class _Aio:
 
 
 class ScriptedGemini:
-    """A ``GeminiProvider``-shaped fake answering from ``{user_text: [Reply, ...]}``.
+    """A ``genai.Client``-shaped fake answering from ``{user_text: [Reply, ...]}``.
 
-    Structural, not nominal: a brain reads ``llm.client`` and calls
+    Structural, not nominal: a brain calls
     ``client.aio.models.generate_content_stream(...)``, so this answers on both
     halves of that shape and never constructs a real ``genai.Client``."""
 

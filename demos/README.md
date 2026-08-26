@@ -59,7 +59,6 @@ demos/
     discovery.py          # scans demos/*/backend, loads each router from source
     session.py            # the shared per-session WebSocket handler (make_brain_router)
     _gemini.py            # GeminiBrain base (context, tool loop, greeting helpers)
-    llm.py                # GeminiProvider (the LLM the brains run on)
   <name>/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/
       package.json         #   stock @pipecat-ai/client-react + @voqalize/demo-kit: "file:../../shared"

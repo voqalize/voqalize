@@ -17,7 +17,7 @@ shopper's next spoken turn is what actually carries them to the model. For the
 photo that means asking the shopper to say a quick word once it lands — see
 step 5 of the prompt below.
 
-The LLM is **dependency-injected** as a :class:`GeminiProvider`; the brain owns
+The LLM's ``genai.Client`` is **dependency-injected**; the brain owns
 only the prompt, the tool schemas, and this session's return state. The
 conversation record lives in the base class's own history, rebuilt into
 Gemini's working context every turn.
@@ -28,10 +28,11 @@ from __future__ import annotations
 import base64
 from typing import Any, Literal
 
+from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -166,8 +167,8 @@ class SupportBrain(GeminiBrain):
     ``on_rtvi`` folds the photo and the submit tap into the context, silently —
     see the module docstring."""
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         # The item the current return is for — set on start_return /
         # start_diagnostics so a photo uploaded later, with no item_id of its
         # own, can still be verified against the right product.

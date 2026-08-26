@@ -2,7 +2,7 @@
 
 A demo backend never writes WebSocket boilerplate. Its ``routes.py`` is one line::
 
-    router = make_brain_router("travel", lambda llm: TravelBrain(llm=llm))
+    router = make_brain_router("travel", lambda client: TravelBrain(client=client))
 
 which returns a FastAPI ``APIRouter`` exposing ``/{name}`` — the **inbound**
 brain socket Voqalize dials once per session, with the session as a query
@@ -10,7 +10,7 @@ parameter, exactly as it dials a customer's own server. This module owns the
 socket lifecycle: accept, adapt it to the SDK ``Channel``, verify Voqalize's RS256
 brain token inside ``run_session``, and map the outcome to the right close code.
 
-The process-wide dependencies the handler needs — the injected ``GeminiProvider``
+The process-wide dependencies the handler needs — a lazily built ``genai.Client``
 and the verification settings — are set once at startup by the umbrella via
 :func:`init_runtime`, so a per-demo router carries no configuration of its own.
 """
@@ -21,13 +21,14 @@ import contextlib
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import cached_property
 
 from fastapi import APIRouter, Query, WebSocket
+from google import genai
 from loguru import logger
 from starlette.websockets import WebSocketDisconnect
 
 from voqalize.sdk import Brain, SessionRejected, run_session
-from voqalize_demos.llm import GeminiProvider
 
 # Voqalize's Wire treats a 4000 close as permanent (non-retriable) — used for a
 # rejected token; 1011 is retriable (a transient fault).
@@ -36,8 +37,8 @@ _CLOSE_INTERNAL = 1011
 
 _PEM_END = "-----END PUBLIC KEY-----"
 
-# A demo's brain builder: given the shared LLM, build a fresh brain for one session.
-BrainFactory = Callable[[GeminiProvider], Brain]
+# A demo's brain builder: given the shared client, build a fresh brain for one session.
+BrainFactory = Callable[[genai.Client], Brain]
 
 
 def _split_pem_bundle(raw: str) -> tuple[str, ...]:
@@ -93,18 +94,27 @@ class _WsChannel:
 
 @dataclass(frozen=True)
 class _Runtime:
+    """``client`` is built lazily, on first read: the umbrella builds its app graph
+    in every environment — tests, CI, a container that has not been given a key
+    yet — and ``genai.Client(api_key="")`` raises at construction. The key is only
+    needed once a session is actually dialed, which is when a brain socket first
+    reads :attr:`client`."""
+
     settings: Settings
-    llm: GeminiProvider
+
+    @cached_property
+    def client(self) -> genai.Client:
+        return genai.Client(api_key=self.settings.gemini_api_key)
 
 
 _runtime_singleton: _Runtime | None = None
 
 
-def init_runtime(settings: Settings, llm: GeminiProvider) -> None:
+def init_runtime(settings: Settings) -> None:
     """Set the process-wide dependencies every brain socket reads. Called once by
     the umbrella at startup, before any router serves a session."""
     global _runtime_singleton
-    _runtime_singleton = _Runtime(settings=settings, llm=llm)
+    _runtime_singleton = _Runtime(settings=settings)
 
 
 def _runtime() -> _Runtime:
@@ -131,7 +141,7 @@ def make_brain_router(name: str, factory: BrainFactory) -> APIRouter:
         try:
             await run_session(
                 _WsChannel(websocket),
-                brain=lambda: factory(rt.llm),
+                brain=lambda: factory(rt.client),
                 session_id=session_id,
                 token=token,
                 # Verify Voqalize's RS256 brain token. Prefer configured pubkeys

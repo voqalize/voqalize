@@ -117,7 +117,7 @@ async def demo(name: str, llm: ScriptedGemini) -> AsyncIterator[DemoRig]:
 @contextlib.asynccontextmanager
 async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[DemoRig]:
     """:func:`demo` with the brain construction spelled out — for a demo whose model
-    is not the injected ``GeminiProvider``."""
+    is not the injected ``genai.Client``."""
     keypair = generate_keypair()
     built: list[Brain] = []
 

@@ -26,10 +26,11 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
+from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -327,8 +328,8 @@ class LegalBrain(GeminiBrain):
     :meth:`on_rtvi`; a note carries it into the next turn, so an ambiguous
     question is answered about the clause on screen."""
 
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=llm.client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         # Latest reading position the browser pushed. Ephemeral in memory — the
         # browser is the source of truth and re-sends on every scroll.
         self.current_focus: dict[str, Any] | None = None
