@@ -138,7 +138,7 @@ All strings on the wire are **English only** (screen is always English).
   source: "agent" | "manual"; }
 ```
 
-### Typed Actions (Python `Action` subclasses in brain.py → TS mirror `frontend/src/uiCommands.ts`)
+### Typed Actions (Python `Action` subclasses in brain.py → `frontend/src/actions.gen.ts`, generated)
 | wire name | fields | when |
 |---|---|---|
 | `upsert_items` | `items: LineItemView[]` | add or update line items (full render state, frontend diffs by id) |
@@ -272,8 +272,8 @@ lang section and lead_qual `brain.py:74-77`)
   - `matched`: solid row — name, pack, MRP/PTR, scheme badge if any, stock hint, qty stepper.
   - `not_found`: muted row + "not in catalog" + manual search affordance.
   - `highlight_item` → scroll to + pulse the row, show `note` as a speech-bubble chip.
-- Store: sugar-style context + reducer; `handle` map via `useUiCommand<OrderDeskCommands>`
-  (travel pattern, typed mirror in `uiCommands.ts` — every field non-optional).
+- Store: sugar-style context + reducer; one `handleUiCommand` narrowing on `command`
+  against the generated `actions.gen.ts` — every field non-optional, `default` exhaustive.
 - Session: `useVoqalSession` like sugar's `SugarCoach.tsx` (connect on mount at call phase,
   `enableMic`, register agentSend, debounced state_sync on rev). Hindi pipeline hints.
 - Visual identity: NOT sugar's evergreen. B2B distributor tone — think dense, capable, trade-app:

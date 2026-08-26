@@ -19,8 +19,8 @@
  * `BotAudioOutput` — so this file is the two bridges that tie the call to the
  * screen, and nothing else:
  *   - every `ui-command` (`RTVIEvent.UICommand`, `{ command, payload }`) replays
- *     onto the store's typed handler map (`OrderDeskCommands`), so line items
- *     resolve on screen;
+ *     onto the store's one reducer, typed against `actions.gen.ts`, so line
+ *     items resolve on screen;
  *   - a debounced `state_sync` echoes the store's `OrderSnapshot` back, so the
  *     agent's grounding always shows the authoritative cart — including the pills,
  *     quantities and deletes the pharmacist tapped by hand.
@@ -122,8 +122,7 @@ function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => voi
   useRTVIClientEvent(
     RTVIEvent.UICommand,
     useCallback(
-      ({ command, payload }: UICommandData) =>
-        handleUiCommand(command, (payload ?? {}) as Record<string, unknown>),
+      ({ command, payload }: UICommandData) => handleUiCommand(command, payload),
       [handleUiCommand],
     ),
   );

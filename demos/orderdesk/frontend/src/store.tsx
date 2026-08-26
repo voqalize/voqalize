@@ -3,9 +3,11 @@
  * drive one store, so the agent and the pharmacist edit the same cart.
  *
  * Two bridges, the travel/sugar pattern:
- *   - the brain's `ui_command`s land on {@link OrderDeskStore.uiCommands}, a map
- *     typed against `OrderDeskCommands` (`uiCommands.ts`, mirroring brain.py) —
- *     line items appear as free text, resolve, and settle on a SKU;
+ *   - the brain's `ui_command`s land on {@link OrderDeskStore.handleUiCommand},
+ *     which narrows on `command` against `actions.gen.ts` — generated from
+ *     brain.py's six `Action` classes, so a payload needs no coercion and the
+ *     `default` arm is an exhaustiveness check — and line items appear as free
+ *     text, resolve, and settle on a SKU;
  *   - `snapshot()` goes back out as `state_sync` (`{ screen: OrderSnapshot }`) on
  *     every `rev` bump, so the agent's grounding always shows the *authoritative*
  *     cart — including everything the pharmacist tapped by hand (a variant pill,
@@ -29,7 +31,8 @@ import {
   type ReactNode,
 } from "react";
 import { buildBrainPayload, pharmacyById, scenarioById } from "./data";
-import { CLIENT_MESSAGE, type OrderDeskCommands } from "./uiCommands";
+import { CLIENT_MESSAGE } from "./clientMessages";
+import { asUiAction, unhandledUiAction } from "./actions.gen";
 import type {
   DisambigChoice,
   FamilyWire,
@@ -42,9 +45,6 @@ import type {
 } from "./types";
 
 type AgentSend = ((type: string, data: unknown) => void) | null;
-
-/** One handler per wire name in `T`, typed to that action's payload. */
-type UiCommandHandlers<T> = { [K in keyof T]: (args: T[K]) => void };
 
 /**
  * A line item as this screen holds it: the brain's render state plus the two
@@ -164,9 +164,8 @@ interface OrderDeskStore {
   pickFromSearch: (sku: SkuWire) => void;
 
   // ── Bridges ───────────────────────────────────────────────────────────────
-  uiCommands: UiCommandHandlers<OrderDeskCommands>;
-  /** Same dispatch by hand — the DEV console affordance (`window.__orderdesk.ui`). */
-  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
+  /** Replay one `ui-command` onto the screen; also the DEV console's `window.__orderdesk.ui`. */
+  handleUiCommand: (command: string, payload: unknown) => void;
   snapshot: () => OrderSnapshot;
   registerAgentSend: (fn: AgentSend) => void;
 
@@ -614,30 +613,39 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
 
   const dismissNote = useCallback(() => setNote(null), []);
 
-  // The brain's six commands, one handler each. The map is checked against
-  // `OrderDeskCommands` — a name brain.py doesn't declare is a compile error here,
-  // and each `args` is the shape its Python `Action` emits, so there is nothing
-  // left to coerce or null-check.
-  const uiCommands: UiCommandHandlers<OrderDeskCommands> = useMemo(
-    () => ({
-      upsert_items: ({ items: incoming }) => upsertItems(incoming),
-      remove_items: ({ ids }) => removeIds(ids),
-      highlight_item: ({ id, note: n }) => highlightItem(id, n),
-      show_search_results: ({ query, results }) => showSearchResults(query, results),
-      show_variants: ({ item_id, family, results, differing_axes }) =>
-        showVariants(item_id, family, results, differing_axes),
-      order_note: ({ text }) => showNote(text),
-    }),
-    [upsertItems, removeIds, highlightItem, showSearchResults, showVariants, showNote],
-  );
-
-  // Same dispatch, by hand — for `window.__orderdesk.ui('upsert_items', {items:[…]})`.
+  // The brain's six commands. Each payload is the shape its Python `Action`
+  // emits, so there is nothing left to coerce or null-check, and adding a
+  // seventh `Action` fails to compile here until it is handled.
   const handleUiCommand = useCallback(
-    (command: string, payload: Record<string, unknown>) => {
-      const map = uiCommands as unknown as Record<string, ((args: unknown) => void) | undefined>;
-      map[command]?.(payload);
+    (command: string, payload: unknown) => {
+      const action = asUiAction(command, payload);
+      if (!action) return;
+      switch (action.command) {
+        case "upsert_items":
+          upsertItems(action.payload.items);
+          break;
+        case "remove_items":
+          removeIds(action.payload.ids);
+          break;
+        case "highlight_item":
+          highlightItem(action.payload.id, action.payload.note);
+          break;
+        case "show_search_results":
+          showSearchResults(action.payload.query, action.payload.results);
+          break;
+        case "show_variants": {
+          const { item_id, family, results, differing_axes } = action.payload;
+          showVariants(item_id, family, results, differing_axes);
+          break;
+        }
+        case "order_note":
+          showNote(action.payload.text);
+          break;
+        default:
+          unhandledUiAction(action);
+      }
     },
-    [uiCommands],
+    [upsertItems, removeIds, highlightItem, showSearchResults, showVariants, showNote],
   );
 
   // ── Screen → agent ──────────────────────────────────────────────────────
@@ -975,7 +983,6 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       setSearchQuery,
       closeSearch,
       pickFromSearch,
-      uiCommands,
       handleUiCommand,
       snapshot,
       registerAgentSend,
@@ -988,7 +995,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       removeItem, confirmOrder,
       variantStrip, openVariants, closeVariants, pickVariant,
       searchQuery, searchResults, searching, searchOpen, searchTarget, setSearchQuery,
-      closeSearch, pickFromSearch, uiCommands, handleUiCommand, snapshot, registerAgentSend, rev,
+      closeSearch, pickFromSearch, handleUiCommand, snapshot, registerAgentSend, rev,
     ],
   );
 

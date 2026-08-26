@@ -1,78 +1,31 @@
 // Shared shapes for OrderDesk. Owned by the integration contract (DESIGN.md §1);
 // both the UI (pages/store) and the scenario data (data.ts) import from here.
-// The wire shapes (SkuWire, FamilyWire, LineItemView, OrderSnapshot) mirror
-// backend/brain.py's typed Actions — every field is emitted by pydantic, so
-// nothing here is optional unless it is genuinely nullable on the wire.
+//
+// The catalog and line-item shapes are not written here at all: they come off
+// `actions.gen.ts`, generated from backend/brain.py's Actions, and are
+// re-exported below so a reader of this file still sees the whole contract.
+// What stays hand-written is what the browser owns — the snapshot it sends
+// back, the scenario data, and the app's own phases.
 
-// ---------- catalog wire shapes (emitted by the brain's Actions) ----------
+export type {
+  DisambigChoice,
+  DisambigQuestion,
+  FamilyWire,
+  LineItemView,
+  SkuWire,
+} from "./actions.gen";
 
-export interface SkuWire {
-  code: string;          // Product_Code — the stable SKU id
-  name: string;          // clean English name, no trailing -CODE suffix
-  family: string;        // brand root, e.g. "VOLINI", "4 QUIN"
-  variant_label: string; // suffix line: "MAXX", "JOINT XPERT", "CT 40/6.25", "" if none
-  form: string;          // "TABLET" | "GEL" | "SPRAY" | ... | ""
-  strength: string;      // "40 MG", "0.05%", "" if none
-  pack_size: string;     // normalized, e.g. "10'S", "5ML", "20 GM"
-  mrp: number;
-  ptr: number;           // price to retailer — the number a pharmacist cares about
-  stock: number;
-  manufacturer: string;
-  scheme: string;        // "" or e.g. "10 + 1, 5 + 9.09%"
-}
+import type { LineItemView } from "./actions.gen";
 
-export interface FamilyWire {
-  family: string;
-  manufacturers: string[];
-  forms: string[];
-  sku_count: number;     // the family's TRUE size in the catalog. Compared against how
-                         // many of its SKUs actually reached `LineItemView.candidates`
-                         // (which is capped), this is what tells the browser whether a
-                         // card can narrow in place or must open the search panel.
-  hint: string;          // one short human line, e.g. "ENTOD · eye drops/ointment · 6 SKUs"
-}
+/**
+ * "resolving" — just heard, free text, grey and shimmering; "multi_family" —
+ * 2-5 candidate families as option cards; "multi_variant" — one family,
+ * several SKUs, pills on the differing axes; "matched" — locked to a SKU,
+ * qty stepper live; "not_found" — no catalog hit, manual search affordance.
+ */
+export type LineItemStatus = LineItemView["status"];
 
-// ---------- line items ----------
-
-export type LineItemStatus =
-  | "resolving"      // just heard — free text, grey, shimmering
-  | "multi_family"   // 2-5 candidate families — option cards
-  | "multi_variant"  // one family, several SKUs — pills on the differing axes
-  | "matched"        // locked to a SKU — solid row, qty stepper live
-  | "not_found";     // no catalog hit — muted, manual search affordance
-
-// ---------- disambiguation (the sharpest-question mechanic) ----------
-// When many SKUs match, the agent does NOT dump them all. It asks ONE
-// LLM-generated question with 2-4 choice pills, each pill either a leaf SKU or
-// a group that narrows the candidate set; repeated at most once more.
-
-export interface DisambigChoice {
-  label: string;               // short English pill label, e.g. "Eye drops", "CT combos", "Plain 40/80"
-  sku_code: string | null;     // set when this choice IS a single SKU (leaf)
-  narrows_to: string[];        // candidate sku_codes remaining if chosen (leaf → [that code])
-}
-
-export interface DisambigQuestion {
-  text: string;                // on-screen question, English, e.g. "Which Telma line?"
-  choices: DisambigChoice[];   // 2-4; union MUST cover every current candidate
-}
-
-export interface LineItemView {
-  id: string;                  // "li1"... brain-assigned for agent items, "m1"... for manual adds
-  spoken_text: string;         // English transliteration of what was heard
-  query: string;               // search string actually used
-  quantity: number | null;
-  status: LineItemStatus;
-  sku: SkuWire | null;         // set when matched
-  family: string | null;       // set when matched / multi_variant
-  variants: SkuWire[];         // leaf pill choices when candidates ≤ 4 (small sets skip questions)
-  families: FamilyWire[];      // option cards (multi_family), else []
-  candidates: SkuWire[];       // FULL current candidate set (≤24) when ambiguous, else []
-  question: DisambigQuestion | null; // when set, renders INSTEAD of variants/families
-  differing_axes: string[];    // subset of ["variant_label","form","strength","pack_size"]
-  note: string | null;         // short agent note shown on the row
-  source: "agent" | "manual";
-}
+export type LineItemSource = LineItemView["source"];
 
 // ---------- browser -> brain snapshot (state_sync) ----------
 
@@ -84,7 +37,7 @@ export interface SnapshotItem {
   sku_name: string | null;
   pack_size: string | null;
   quantity: number | null;
-  source: "agent" | "manual";
+  source: LineItemSource;
   candidate_codes: string[];   // current candidate sku_codes when ambiguous (lets the
                                // agent see a pill-tap narrowing and ask the next question)
 }
