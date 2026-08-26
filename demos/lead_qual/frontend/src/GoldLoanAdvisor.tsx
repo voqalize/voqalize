@@ -27,6 +27,7 @@ import { PipecatAppBase } from '@pipecat-ai/voice-ui-kit';
 import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
 import { AmbientPresence, DemoGate, type AmbientPresencePalette } from '@voqalize/demo-kit';
 import { connectRequest, withRealHeaders, demo } from './config';
+import { asUiAction, type CallEnded, type UiAction } from './actions.gen';
 
 // Tenant + agent + pk resolve per-environment from the shared demos config
 // (src/config.ts), driven by Vite env vars.
@@ -97,11 +98,6 @@ interface FormData {
   name: string; phone: string; state: string; city: string;
   goldWeight: string; loanAmount: string;
 }
-interface CallResult {
-  outcome: string;
-  lead: Record<string, unknown>;
-  branch?: { name?: string; address?: string } | null;
-}
 
 export function GoldLoanAdvisor() {
   // ── State ──────────────────────────────────────────────────────────────────
@@ -112,7 +108,7 @@ export function GoldLoanAdvisor() {
     name: '', phone: '', state: '', city: '', goldWeight: '', loanAmount: '',
   });
   const [callError, setCallError]     = useState('');
-  const [callResult, setCallResult]   = useState<CallResult | null>(null);
+  const [callResult, setCallResult]   = useState<CallEnded | null>(null);
   const [micPermission, setMicPermission] = useState<MicPermission>('idle');
   const [callDuration, setCallDuration]   = useState(0);
   const [language, setLanguage]           = useState<string>('auto');
@@ -134,18 +130,14 @@ export function GoldLoanAdvisor() {
   const callLanguage = language === 'auto' ? inferredLanguage(formData.state) : language;
 
   // The hosted brain drives the browser via the standard `ui-command` RTVI
-  // channel (`command: "call_ended"`); every ported demo page reads this shape.
-  const handleServerMessage = useCallback((payload: unknown) => {
-    const msg = (payload ?? {}) as {
-      outcome?: string;
-      lead?: Record<string, unknown>;
-      branch?: { name?: string; address?: string } | null;
-    };
-    setCallResult({
-      outcome: msg.outcome ?? 'other',
-      lead: msg.lead ?? {},
-      branch: msg.branch ?? null,
-    });
+  // channel; `actions.gen.ts` says what can arrive, and `call_ended` is all of
+  // it — so the end screen reads a `CallEnded`, not a bag of unknowns.
+  const handleUiAction = useCallback((action: UiAction) => {
+    // `call_ended` is the whole vocabulary, so this annotation is the closed-set
+    // check the other demos get from a `switch`'s exhausted default arm: a
+    // second `Action` widens `UiAction` and stops assigning here.
+    const ended: { command: 'call_ended'; payload: CallEnded } = action;
+    setCallResult(ended.payload);
     setStep('ended');
   }, []);
 
@@ -319,7 +311,7 @@ export function GoldLoanAdvisor() {
               init={callInit}
               botStatusLabel={botStatusLabel}
               callDuration={callDuration}
-              onServerMessage={handleServerMessage}
+              onUiAction={handleUiAction}
               onTransportStateChange={setTransportState}
               onActivityChange={setActivity}
               onConnected={handleConnected}
@@ -348,7 +340,7 @@ function CallSession({
   init,
   botStatusLabel,
   callDuration,
-  onServerMessage,
+  onUiAction,
   onTransportStateChange,
   onActivityChange,
   onConnected,
@@ -359,7 +351,7 @@ function CallSession({
   init: Record<string, unknown>;
   botStatusLabel: Record<BotStatus, string>;
   callDuration: number;
-  onServerMessage: (payload: unknown) => void;
+  onUiAction: (action: UiAction) => void;
   onTransportStateChange: (state: TransportState) => void;
   onActivityChange: (activity: Activity) => void;
   onConnected: () => void;
@@ -384,7 +376,7 @@ function CallSession({
           error={error ?? null}
           botStatusLabel={botStatusLabel}
           callDuration={callDuration}
-          onServerMessage={onServerMessage}
+          onUiAction={onUiAction}
           onTransportStateChange={onTransportStateChange}
           onActivityChange={onActivityChange}
           onConnected={onConnected}
@@ -401,7 +393,7 @@ function CallSessionInner({
   error,
   botStatusLabel,
   callDuration,
-  onServerMessage,
+  onUiAction,
   onTransportStateChange,
   onActivityChange,
   onConnected,
@@ -412,7 +404,7 @@ function CallSessionInner({
   error: string | null;
   botStatusLabel: Record<BotStatus, string>;
   callDuration: number;
-  onServerMessage: (payload: unknown) => void;
+  onUiAction: (action: UiAction) => void;
   onTransportStateChange: (state: TransportState) => void;
   onActivityChange: (activity: Activity) => void;
   onConnected: () => void;
@@ -435,9 +427,10 @@ function CallSessionInner({
 
   // The hosted brain drives the browser via the standard `ui-command` RTVI
   // channel — `CallEnded`'s wire name, `call_ended`, is `snake_case(ClassName)`.
-  useRTVIClientEvent(RTVIEvent.UICommand, useCallback((data: UICommandData) => {
-    if (data.command === 'call_ended') onServerMessage(data.payload);
-  }, [onServerMessage]));
+  useRTVIClientEvent(RTVIEvent.UICommand, useCallback(({ command, payload }: UICommandData) => {
+    const action = asUiAction(command, payload);
+    if (action) onUiAction(action);
+  }, [onUiAction]));
 
   useEffect(() => { onTransportStateChange(transportState); }, [transportState, onTransportStateChange]);
   useEffect(() => { onActivityChange(activity); }, [activity, onActivityChange]);
@@ -717,10 +710,9 @@ function CallUI({ botStatus, botStatusLabel, callDuration, onHangUp }: {
 
 
 // ── Results section ───────────────────────────────────────────────────────────
-function ResultsSection({ result, phone }: { result: CallResult; phone: string }) {
+function ResultsSection({ result, phone }: { result: CallEnded; phone: string }) {
   const qualified = result.outcome === 'qualified';
-  const lead = result.lead as Record<string, unknown>;
-  const branch = result.branch;
+  const { lead, branch } = result;
 
   const fmt = (v: unknown) => {
     if (!v) return '—';
@@ -732,7 +724,7 @@ function ResultsSection({ result, phone }: { result: CallResult; phone: string }
     ['Phone',       lead.phone],
     ['Gold form',   fmt(lead.gold_form)],
     ['Weight',      lead.gold_weight_grams ? `${lead.gold_weight_grams} g` : null],
-    ['Loan amount', lead.loan_amount_inr ? `₹${Number(lead.loan_amount_inr).toLocaleString('en-IN')}` : null],
+    ['Loan amount', lead.loan_amount_inr ? `₹${lead.loan_amount_inr.toLocaleString('en-IN')}` : null],
     ['Purpose',     fmt(lead.loan_purpose)],
     ['Timeline',    fmt(lead.timeline)],
     ['Next step',   fmt(lead.preferred_next_step)],
@@ -758,7 +750,7 @@ function ResultsSection({ result, phone }: { result: CallResult; phone: string }
           </dl>
         </div>
 
-        {qualified && branch?.name && (
+        {qualified && branch && (
           <>
             <div style={{ height: 1, background: '#e5e7eb', margin: '16px 0' }} />
             <div>
@@ -767,7 +759,7 @@ function ResultsSection({ result, phone }: { result: CallResult; phone: string }
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#1a2472' }}>{branch.name}</div>
                 {branch.address && <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{branch.address}</div>}
                 <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address ?? branch.name ?? '')}`}
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address || branch.name)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: '#1a2472', color: 'white', padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}

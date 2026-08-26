@@ -240,42 +240,67 @@ class SwitchLanguage(BaseModel):
     language: LanguageName = Field(description="Target language.")
 
 
+#: The four closed vocabularies the model picks from and the end screen renders.
+#: Declared once so the tool parameter and the rendered lead cannot drift.
+Outcome = Literal["qualified", "not_interested", "unresponsive", "ineligible", "other"]
+GoldForm = Literal["jewelry", "coins", "bars", "mixed"]
+Timeline = Literal["immediate", "within_week", "within_month", "exploring"]
+NextStep = Literal["branch_visit", "home_visit"]
+
+
 class EndCall(BaseModel):
     """The one parameter of ``end_call``. The identity fields on the rendered
     lead (name/phone/state/city) come from the enquiry-form payload the brain
     already holds, not from here — a hallucinated name is not one the model can
     hand back to us."""
 
-    outcome: Literal["qualified", "not_interested", "unresponsive", "ineligible", "other"] = Field(
-        description="Final outcome of the call."
-    )
-    gold_form: Literal["jewelry", "coins", "bars", "mixed"] | None = Field(
-        default=None, description="Form of the customer's gold."
-    )
+    outcome: Outcome = Field(description="Final outcome of the call.")
+    gold_form: GoldForm | None = Field(default=None, description="Form of the customer's gold.")
     gold_weight_grams: float | None = Field(default=None, description="Gold weight in grams.")
     loan_amount_inr: float | None = Field(
         default=None, description="Desired loan amount in rupees."
     )
     loan_purpose: str | None = Field(default=None, description="Stated purpose of the loan.")
-    timeline: Literal["immediate", "within_week", "within_month", "exploring"] | None = Field(
+    timeline: Timeline | None = Field(
         default=None, description="How soon the customer needs funds."
     )
-    preferred_next_step: Literal["branch_visit", "home_visit"] | None = Field(
-        default=None, description="Preferred next step."
-    )
+    preferred_next_step: NextStep | None = Field(default=None, description="Preferred next step.")
 
 
 # ─── Actions (browser render contract) ─────────────────────────────────────────
 
 
-class CallEnded(Action, name="call_ended"):
-    """Rendered by the ``/lead_qual`` end screen. ``lead`` carries the
-    enquiry-form identity plus what ``end_call`` collected; ``branch`` is set
-    only for a qualified outcome."""
+class Branch(BaseModel):
+    """The nearest Auric branch, from the enquiry payload the page sent."""
 
-    outcome: str
-    lead: dict[str, Any]
-    branch: dict[str, str] | None = None
+    name: str
+    address: str
+
+
+class Lead(BaseModel):
+    """The qualification record as the end screen renders it: the four identity
+    fields the enquiry form already carried, plus the six ``end_call``
+    collected. Unanswered questions stay null and the screen omits their rows."""
+
+    name: str
+    phone: str
+    state: str
+    city: str
+    gold_form: GoldForm | None
+    gold_weight_grams: float | None
+    loan_amount_inr: float | None
+    loan_purpose: str | None
+    timeline: Timeline | None
+    preferred_next_step: NextStep | None
+
+
+class CallEnded(Action, name="call_ended"):
+    """Rendered by the ``/lead_qual`` end screen. ``branch`` is set only for a
+    qualified outcome."""
+
+    outcome: Outcome
+    lead: Lead
+    branch: Branch | None = None
 
 
 class LeadQualBrain(GeminiBrain):
@@ -357,23 +382,23 @@ class LeadQualBrain(GeminiBrain):
         outcome when the call cannot proceed."""
         self.ended = True
         logger.info("lead-qual: end_call outcome={}", record.outcome)
-        lead = {
-            "name": str(self.payload.get("name", "")),
-            "phone": str(self.payload.get("phone", "")),
-            "state": str(self.payload.get("state", "")),
-            "city": str(self.payload.get("city", "")),
-            "gold_form": record.gold_form,
-            "gold_weight_grams": record.gold_weight_grams,
-            "loan_amount_inr": record.loan_amount_inr,
-            "loan_purpose": record.loan_purpose,
-            "timeline": record.timeline,
-            "preferred_next_step": record.preferred_next_step,
-        }
+        lead = Lead(
+            name=str(self.payload.get("name", "")),
+            phone=str(self.payload.get("phone", "")),
+            state=str(self.payload.get("state", "")),
+            city=str(self.payload.get("city", "")),
+            gold_form=record.gold_form,
+            gold_weight_grams=record.gold_weight_grams,
+            loan_amount_inr=record.loan_amount_inr,
+            loan_purpose=record.loan_purpose,
+            timeline=record.timeline,
+            preferred_next_step=record.preferred_next_step,
+        )
         branch = (
-            {
-                "name": str(self.payload.get("branch_name", "")),
-                "address": str(self.payload.get("branch_address", "")),
-            }
+            Branch(
+                name=str(self.payload.get("branch_name", "")),
+                address=str(self.payload.get("branch_address", "")),
+            )
             if record.outcome == "qualified"
             else None
         )
