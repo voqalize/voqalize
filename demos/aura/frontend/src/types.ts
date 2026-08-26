@@ -182,9 +182,9 @@ export interface Account {
   masked_number: string;
 }
 
-/** The secure sign-in dialog the agent opens (authenticate()). `nonce` is an opaque
- *  server token echoed back on authorise so the server knows which request to
- *  complete — keep it a string; it is NOT numeric. */
+/** The secure sign-in dialog the agent opens (show_auth_popup()). `nonce` is an
+ *  opaque server token echoed back on authorise or cancel, so the server knows which
+ *  dialog is being answered — keep it a string; it is NOT numeric. */
 export interface AuthPrompt {
   name: string;
   masked_mobile: string;

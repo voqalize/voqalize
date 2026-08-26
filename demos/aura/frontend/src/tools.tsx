@@ -400,8 +400,9 @@ const inrDate = (iso: string): string => {
 };
 
 // A fake, Aura-branded secure sign-in dialog (mimics an OAuth consent). The agent
-// opens it via authenticate(); the customer authorises it themselves. Only on the
-// authorise click does the browser tell the server, which then mints the token.
+// opens it via show_auth_popup() and then carries on talking — nothing waits on
+// this sheet, so the customer can authorise it now, in a minute, or never. Only on
+// the authorise click does the browser tell the server, which then mints the token.
 export function AuthDialog() {
   const { authPrompt, confirmAuth, cancelAuth } = useAura();
   if (!authPrompt) return null;

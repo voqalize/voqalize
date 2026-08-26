@@ -8,7 +8,7 @@ function-calling loop where **each LLM call is one ``interaction.say()`` bracket
 
 This is the most complex demo — it fuses three workstreams:
 
-  * **Authenticated account tools** (``authenticate`` → ``choose_account`` →
+  * **Authenticated account tools** (``show_auth_popup`` → ``choose_account`` →
     ``get_account_balance`` / ``get_statement``, plus ``choose_credit_card`` →
     ``show_card_controls``). These are the demo's security story: a deliberately real
     HS256 token the LLM can only *pass back* — it can never mint one, because only the
@@ -18,20 +18,20 @@ This is the most complex demo — it fuses three workstreams:
   * **Knowledge embed** — the KB/video/facts guides plus ``aura_facts.md`` (copied
     verbatim; the control plane cannot import pygato) interpolated into the prompt.
 
-Two mechanics need more than the standard tool-loop, so this brain overrides ``respond``:
+Two mechanics carry the demo, and both run through :meth:`on_rtvi`:
 
-  * **Async, blocking tools.** ``authenticate`` / ``choose_account`` /
-    ``choose_credit_card`` open an on-screen dialog and then *block* until the browser
-    reports the customer finished, by awaiting an ``asyncio.Future`` resolved in
-    :meth:`on_client_message`. Because the SDK **spawns** both ``on_interaction`` and
-    ``on_client_message`` as their own tasks (the ``VqlUserText`` ack stays prompt),
-    the awaiting tool and the resolving browser message run concurrently. This is why
-    :meth:`respond` awaits an async dispatch.
+  * **Nothing waits on the customer.** ``show_auth_popup`` / ``choose_account`` /
+    ``choose_credit_card`` put a dialog on screen and return in the same breath. What
+    the customer then does arrives later as a browser message, and the brain appends a
+    line of context saying what happened and handing over whatever it produced — the
+    signed token, the chosen account. A tool that awaited the customer would mute their
+    mic exactly while asking them to act, and would model a handshake that does not
+    exist: they may never do it, may do it in five minutes, or may have done it
+    already.
   * **Silent screen-state awareness.** The browser pushes a compact ``state_sync``
-    snapshot on connect and after every change. The managed bot folded it into the LLM
-    context as a ``user`` message; here :meth:`working_context` appends the *latest*
-    snapshot as a trailing user turn each turn, so the assistant always reasons from
-    what's on screen (``get_screen_context`` reads the same snapshot).
+    snapshot on connect and after every change, and :meth:`_append_screen_state` folds
+    the freshest one into the context without taking the floor, so the assistant always
+    reasons from what's on screen (``get_screen_context`` reads the same snapshot).
 
 The LLM's ``genai.Client`` is **dependency-injected**; the brain owns the
 prompt, the tool schemas, and this session's auth/selection/screen state. The
@@ -41,7 +41,6 @@ Gemini's working context each turn by the :class:`GeminiBrain` base.
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import contextlib
 import hashlib
@@ -131,13 +130,38 @@ _CALC_DEFAULTS: dict[str, dict[str, float]] = {
 # hallucinated token or account id is rejected server-side, not by the prompt.
 _AUTH_SECRET = b"aura-demo-hs256-secret-not-for-production"
 _AUTH_TTL_SECONDS = 30 * 60
-# How long authenticate()/choose_account() wait for the customer's on-screen step.
-# The customer is mic-muted during a tool call, so a "Cancel" from the browser is
-# the primary escape; this timeout is only a backstop for an abandoned dialog.
-_INTERACTION_TIMEOUT_S = 90
-# Sentinel the browser's cancel resolves the pending future with, so the tool
-# returns control to the model immediately instead of blocking the whole call.
-_CANCELLED = "__cancelled__"
+
+# What to tell the model when the customer closes a dialog without answering it.
+_DISMISSED = {
+    "auth": "The customer closed the secure sign-in without signing in, so they are NOT "
+    "authenticated and no account or card tool will work. Acknowledge it warmly, offer to "
+    "help with something that needs no sign-in, and offer to open it again whenever they "
+    "are ready.",
+    "account": "The customer closed the account picker without choosing one. Ask which "
+    "account they meant, or offer other help.",
+    "card": "The customer closed the card picker without choosing one. Ask which card they "
+    "wanted to manage, or offer other help.",
+}
+
+# What a tool says when the step before it has not happened. These are the signs on
+# the must-happen-before edges: the model is told which step is missing and that the
+# customer, not it, has to take it — so a model that skipped ahead walks back and
+# asks rather than retrying or inventing a token.
+_NOT_SIGNED_IN = (
+    "The customer is not signed in, so this is refused. Call show_auth_popup(), say one short "
+    "line asking them to authorise it, and wait to be handed an authenticated_context. Do not "
+    "retry this call until you have one."
+)
+_NO_ACCOUNT = (
+    "The customer has not picked an account, so this is refused. Call "
+    "choose_account(authenticated_context) and wait to be told which one they tapped. Do not "
+    "guess an account_id."
+)
+_NO_CARD = (
+    "The customer has not picked a card, so this is refused. Call "
+    "choose_credit_card(authenticated_context) and wait to be told which one they tapped. Do "
+    "not guess a card_id."
+)
 
 
 def _b64url(raw: bytes) -> str:
@@ -196,7 +220,7 @@ def _parse_date(value: Any) -> date | None:
     return None
 
 
-# One hardcoded demo customer + their accounts. authenticate() "signs them in";
+# One hardcoded demo customer + their accounts. show_auth_popup() "signs them in";
 # choose_account() lets them pick which account to look at.
 _DEMO_CUSTOMER = {"id": "cust_ax_88213", "name": "Ananya Sharma", "masked_mobile": "••••••4021"}
 
@@ -399,27 +423,28 @@ PICK THE RIGHT TOOL: a how-to question → article + video. "How much EMI / will
 
 _ACCOUNT_GUIDE = """ACCOUNT ACCESS — viewing the customer's OWN balance & statement (STRICT ORDER):
 You have four secure account tools. They MUST be used in this exact order; the later ones REFUSE if you skip a step.
-1. authenticate() — opens a secure sign-in dialog that the customer authorises themselves on screen. Returns an 'authenticated_context' token. Speak a short line FIRST ("I'll open a secure sign-in now — please authorise it on your screen"), THEN call it; it waits for the customer to finish signing in.
-2. choose_account(authenticated_context) — shows the customer their accounts so they pick ONE. Returns the chosen account_id (with branch and nickname).
+1. show_auth_popup() — puts a secure sign-in on screen for the customer to authorise themselves. It returns AT ONCE, before they have signed in. Say one short line ("I'll put a secure sign-in on your screen — authorise it whenever you're ready"), then carry on with whatever else they asked. You will be TOLD when they sign in, and handed an 'authenticated_context' token then. Never ask them to read anything out.
+2. choose_account(authenticated_context) — puts the customer's accounts on screen so they tap ONE. This also returns at once; you will be told which account they picked.
 3. get_account_balance(authenticated_context, account_id) — the current balance. The balance shows on screen; say just the one figure in words ("your Salary account has about three lakh forty-nine thousand rupees") and stop.
 4. get_statement(authenticated_context, account_id, start_date, end_date) — recent transactions; both dates are OPTIONAL and default to the LAST THREE MONTHS. The statement screen already lists every transaction — do NOT enumerate them aloud. Give ONE short highlight line (e.g. "salary's in and your biggest spend was rent") and point at the screen for the rest.
 
 HARD RULES (these are enforced by the server, not just etiquette):
-- NEVER call get_account_balance or get_statement until you hold BOTH a real authenticated_context (from authenticate) AND an account_id the customer picked (from choose_account). If you don't, authenticate and choose first.
-- NEVER invent, guess, or reuse from memory an authenticated_context or an account_id — pass back ONLY the exact values these tools returned. You cannot fabricate a valid token; the server verifies it and will reject a made-up one.
-- If a tool answers "not authenticated" or "choose an account first", simply walk back and do that step, then retry.
+- NEVER call get_account_balance or get_statement until you have been HANDED BOTH a real authenticated_context AND an account_id the customer picked. Both arrive as messages telling you what the customer just did — not as a tool's return value. Until then, the earlier steps have not happened.
+- NEVER invent, guess, or reuse from memory an authenticated_context or an account_id — pass back ONLY the exact values you were handed. You cannot fabricate a valid token; the server verifies it and will reject a made-up one.
+- If a tool answers "not authenticated" or "choose an account first", the customer has not done that step yet. Do NOT retry the same call. Open the dialog if it isn't up, say one short line asking them to do it, and wait to be told.
+- The customer may take a while, or may never do it. That is fine — stay useful in the meantime and never sit silent waiting.
 - Reassure the customer it's secure and you only VIEW — you never move money and never need their OTP, PIN or password to sign them in."""
 
 
 _CARD_CONTROL_GUIDE = """CREDIT-CARD CONTROLS — changing a card's limits / international usage (secure, reuses the same sign-in):
 When the customer wants to raise or enable something on their CREDIT card — international spend/usage, the domestic limit, tap-to-pay (contactless), online use, or the ATM cash limit — drive it on screen: you OPEN the controls, the customer sets and saves them. STRICT ORDER (later tools refuse if you skip a step):
-1. AUTHENTICATE ONLY IF NEEDED. If the screen state already shows 'authenticated' true, reuse the authenticated_context you already hold from earlier this call and do NOT sign in again. Otherwise call authenticate() first.
-2. choose_credit_card(authenticated_context) — the customer picks WHICH card. Returns the chosen card_id.
+1. AUTHENTICATE ONLY IF NEEDED. If you already hold an authenticated_context from earlier this call, reuse it and do NOT sign in again. Otherwise call show_auth_popup() and wait to be handed one; it does not wait for you.
+2. choose_credit_card(authenticated_context) — puts the cards on screen so the customer taps WHICH one. Returns at once; you will be told which card they picked.
 3. show_card_controls(authenticated_context, card_id) — opens that card's usage & limits form (international/domestic on-off, contactless, online, and the spend / ATM-cash limits). The customer adjusts and saves it themselves. Say ONE short line pointing at the screen ("your card controls are up — flip International on and set the limit there"); do NOT read the toggles aloud.
 4. AS THE FORM COMES UP, this is the natural moment for Journey A (cross-sell): enabling international usually means a trip, so ask one light trip question and, if it fits, offer a forex card.
 5. If they want the forex card, once they've set their limits, call show_forex_card() and let them tap 'Request this card' — that captures the lead.
 
-Same guardrails as account access: NEVER invent or guess an authenticated_context or a card_id (pass back only what the tools returned); you only OPEN the controls, you never change a limit or move money; and never ask for OTP, PIN, CVV, card number or password."""
+Same guardrails as account access: NEVER invent or guess an authenticated_context or a card_id (pass back only what you were handed); you only OPEN the controls, you never change a limit or move money; and never ask for OTP, PIN, CVV, card number or password."""
 
 
 # Curated Aura Bank reference facts (public info), embedded so the assistant can
@@ -685,11 +710,11 @@ class ShowForexCard(Action):
 
 
 # ── The secure screens ────────────────────────────────────────────────────────
-# The three that carry a ``nonce`` are the blocking half: the brain mints the
-# nonce, dispatches, and then waits on a future the browser resolves by sending
-# the same nonce back on a client message. The nonce is what binds one dialog on
-# one screen to one waiting tool call — without it a stale dialog's answer would
-# resolve whichever wait happened to be open.
+# The three that carry a ``nonce`` ask the customer for something. The brain mints
+# the nonce, dispatches, and returns; the browser sends the same nonce back when
+# the customer answers. Nothing waits on that — the nonce is there so the answer can
+# be matched to the dialog that asked for it, and so a stale or replayed one closes
+# nothing.
 
 
 class OpenAuth(Action):
@@ -750,13 +775,14 @@ class AuraBrain(GeminiInteractionsBrain):
     tools + the two secure credit-card tools + this session's auth/selection/screen
     state.
 
-    Aura is the demo that earns the interactions engine. Three of its tools —
-    ``authenticate``, ``choose_account``, ``choose_credit_card`` — open a dialog on
-    the customer's screen and then wait up to ninety seconds for the browser to
-    report they finished it. Under AFC that wait sits *inside* an open model
-    stream; here tools run between requests, so the wait costs a pause between
-    hops and nothing else. Browser→brain feedback — the screen snapshot, and the
-    completions and cancels that resolve those waits — arrives on :meth:`on_rtvi`.
+    Nothing here waits on the customer. ``show_auth_popup``, ``choose_account``
+    and ``choose_credit_card`` dispatch a dialog and return; the customer answers
+    it in their own time, or never, and the answer arrives on :meth:`on_rtvi` —
+    which appends a line of context saying what they did. The ordering that the
+    waiting used to enforce is carried instead by the tool signatures: every
+    account and card tool takes an ``authenticated_context`` this brain mints and
+    re-verifies, so a model that skips ahead gets an error naming the step it
+    skipped rather than a number it should not have.
     """
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
@@ -779,13 +805,15 @@ class AuraBrain(GeminiInteractionsBrain):
         self._state_synced = False
         self._last_state_note: str | None = None
 
-        # Authenticated-account demo state. ``_pending`` holds the futures that
-        # authenticate()/choose_account()/choose_credit_card() block on until the
-        # browser reports the customer finished the on-screen step; ``_selected`` /
-        # ``_selected_cards`` record which accounts/cards the customer actually
-        # picked (balance/statement/controls require it). ``_auth_salt`` binds
-        # minted tokens to this session instance.
-        self._pending: dict[str, asyncio.Future[str]] = {}
+        # Authenticated-account demo state. ``_open_dialogs`` maps the nonce of
+        # each dialog now on screen to what it asks for, so a card answer cannot
+        # close the sign-in and a stale answer is discarded; ``_token`` is the
+        # signed token once the customer has authorised the sign-in, which makes a
+        # second show_auth_popup() a no-op; ``_selected`` / ``_selected_cards``
+        # record what the customer actually picked (balance/statement/controls
+        # require it). ``_auth_salt`` binds minted tokens to this session instance.
+        self._open_dialogs: dict[str, str] = {}
+        self._token: str | None = None
         self._selected: set[str] = set()
         self._selected_cards: set[str] = set()
         self._auth_salt = secrets.token_hex(8)
@@ -794,9 +822,9 @@ class AuraBrain(GeminiInteractionsBrain):
     def tools(self) -> list[Callable[..., Any]]:
         """The twenty-eight tools Aria may call.
 
-        The last six are the secure ones, and three of those *block* — they put a
-        dialog on the customer's screen and await the browser's answer. See the
-        section they live in for why that shape needs the interactions engine."""
+        The last six are the secure ones. Three of those open a dialog and return
+        without waiting for it; the other three refuse until the customer has
+        answered one. See the section they live in."""
         return [
             self.open_home,
             self.open_help_center,
@@ -820,7 +848,7 @@ class AuraBrain(GeminiInteractionsBrain):
             self.raise_ticket,
             self.spotlight,
             self.show_forex_card,
-            self.authenticate,
+            self.show_auth_popup,
             self.choose_account,
             self.get_account_balance,
             self.get_statement,
@@ -853,22 +881,23 @@ class AuraBrain(GeminiInteractionsBrain):
         return _GREETING
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Browser→Brain client message. None take the floor — each mutates state or
-        resolves a blocking tool's future, so none starts a turn:
+        """Browser→Brain client message. This is where everything the customer does
+        on screen arrives, and none of it takes the floor — each folds a line into
+        the context, which the model reads on its next turn:
 
         * ``state_sync`` — a compact snapshot of what's on screen (sent on connect
-          and after every change); folded into the context silently so the
-          assistant always knows what the customer is looking at.
-        * ``auth_complete`` — the customer finished the on-screen sign-in; THIS is
-          where the server mints the token (only reachable after that authorisation,
-          which is why the LLM can never produce one itself), resolving the future
-          that ``authenticate`` is awaiting.
+          and after every change), so the assistant always knows what the customer
+          is looking at.
+        * ``auth_complete`` — the customer finished the on-screen sign-in. THIS is
+          where the server mints the token: it is only reachable via that
+          authorisation, which is why the LLM can never produce one itself. The
+          token goes into the context as something the model was handed.
         * ``account_selected`` / ``card_selected`` — the customer picked one in the
-          on-screen picker; resolves the ``choose_account`` / ``choose_credit_card``
-          future.
+          on-screen picker; recorded here, and named in the context so the model
+          knows what it may now read.
         * ``auth_cancelled`` / ``account_cancelled`` / ``card_cancelled`` — the
-          customer dismissed the dialog; unblocks the waiting tool immediately so the
-          bot recovers instead of sitting muted.
+          customer dismissed the dialog, which is an answer too: the context says so
+          and the model asks rather than assuming.
         """
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
@@ -911,7 +940,16 @@ class AuraBrain(GeminiInteractionsBrain):
         if note == self._last_state_note:
             return
         self._last_state_note = note
-        self.append_to_context(gi.UserInputStep(content=[gi.TextContent(text=note)]))
+        self._append_note(note)
+
+    def _append_note(self, text: str) -> None:
+        """Put one line in front of the model without taking the floor.
+
+        Appended as the customer's own content, which is what it is: every note that
+        goes through here reports something they did on screen. It starts no turn —
+        nothing about a tap means they stopped speaking — so the model reads it on
+        its next one."""
+        self.append_to_context(gi.UserInputStep(content=[gi.TextContent(text=text)]))
 
     # ─── Tools: the help centre ─────────────────────────────────────────
 
@@ -1240,20 +1278,18 @@ class AuraBrain(GeminiInteractionsBrain):
 
     # ─── Tools: the six secure ones ─────────────────────────────────────
     #
-    # Three of these block. ``authenticate``, ``choose_account`` and
-    # ``choose_credit_card`` dispatch a screen carrying a nonce and then await a
-    # future the browser resolves — up to ninety seconds of a customer reading a
-    # sheet and tapping. That is why aura is on the interactions engine: here a
-    # tool runs *between* model requests, so a long wait costs a pause between
-    # hops. Under AFC the same wait would hold an open model stream for the whole
-    # ninety seconds.
+    # None of these block. ``show_auth_popup``, ``choose_account`` and
+    # ``choose_credit_card`` dispatch a screen carrying a nonce and return; the
+    # customer answers in their own time and ``on_rtvi`` folds the answer in.
     #
-    # The security property they exist to carry: the token is minted in
-    # ``_complete_auth``, on the browser's report that the customer completed a
-    # real on-screen sign-in. It is never in the model's context as anything but
-    # an opaque string it received, so no prompt can talk the model into
-    # producing one, and every account read below re-verifies it against this
-    # session's salt.
+    # What holds the order is the signatures. ``authenticated_context`` is minted
+    # in ``_complete_auth``, on the browser's report that the customer completed a
+    # real on-screen sign-in — the only path that reaches the signing key. It is
+    # never in the model's context as anything but an opaque string it was handed,
+    # so no prompt can talk the model into producing one, and every tool below
+    # re-verifies it against this session's salt before it returns a figure. The
+    # error a missing or invalid one earns is the mechanism, not an edge case: it
+    # is what pushes a model that skipped ahead back to asking the customer.
 
     def _verify(self, token: str) -> dict[str, Any] | None:
         """Return the token claims iff ``token`` is a valid, unexpired token minted
@@ -1283,38 +1319,46 @@ class AuraBrain(GeminiInteractionsBrain):
             return None
         return _card_by_id(card_id)
 
-    async def _await_browser(self, nonce: str) -> str | None:
-        """Wait for the browser to answer the dialog stamped ``nonce``.
-
-        Returns the answer, :data:`_CANCELLED` if the customer dismissed it, or
-        ``None`` on timeout. The future is registered by the caller *before* it
-        dispatches, so an instant answer cannot arrive before there is anything
-        to resolve."""
-        fut = self._pending[nonce]
-        try:
-            return await asyncio.wait_for(fut, timeout=_INTERACTION_TIMEOUT_S)
-        except TimeoutError:
-            return None
-        finally:
-            self._pending.pop(nonce, None)
-
-    def _open_pending(self) -> tuple[str, asyncio.Future[str]]:
-        """A fresh nonce with its future already registered."""
+    def _open_dialog(self, kind: str) -> str:
+        """Stamp a fresh nonce and record what it asks for."""
         nonce = secrets.token_hex(8)
-        fut: asyncio.Future[str] = asyncio.get_running_loop().create_future()
-        self._pending[nonce] = fut
-        return nonce, fut
+        self._open_dialogs[nonce] = kind
+        return nonce
 
-    async def authenticate(self) -> str:
-        """Sign the customer in securely, on screen, before anything to do with
-        THEIR money — balance, statement, or card.
+    def _close_dialog(self, data: dict[str, Any], kind: str) -> bool:
+        """True iff ``data`` answers a dialog of ``kind`` that is actually open.
 
-        This opens a sign-in sheet and waits for them to finish it, so say one
-        short line first ("let me get you signed in securely") and expect a pause.
-        You get back an ``authenticated_context`` — pass it to every account and
-        card tool below, exactly as given. You can never write one yourself."""
-        nonce, _ = self._open_pending()
-        logger.info("aura: authenticate -> opening secure sign-in")
+        The nonce is what makes a browser message trustworthy: it was minted here,
+        went out with the dialog, and closes that one dialog once. A replay, or a
+        card answer arriving for a sign-in, matches nothing and is dropped."""
+        nonce = str(data.get("nonce", ""))
+        if self._open_dialogs.get(nonce) != kind:
+            logger.info("aura: {} for an unknown or stale dialog", kind)
+            return False
+        del self._open_dialogs[nonce]
+        return True
+
+    async def show_auth_popup(self) -> str:
+        """Put a secure sign-in on the customer's screen. Required before anything
+        to do with THEIR money — balance, statement, or card.
+
+        Returns as soon as the sheet is up. It does NOT wait: the customer
+        authorises it in their own time, and you are told when they have and handed
+        an ``authenticated_context`` then. Say one short line ("I'll put a secure
+        sign-in on your screen") and carry on being useful. Do not call any account
+        or card tool until you hold that token, and never write one yourself."""
+        if self._token:
+            return str(
+                {
+                    "status": "already_authenticated",
+                    "authenticated_context": self._token,
+                    "customer_name": _DEMO_CUSTOMER["name"],
+                    "note": "Already signed in this call — do not ask them again. Call "
+                    "choose_account(authenticated_context) so they pick which account to view.",
+                }
+            )
+        nonce = self._open_dialog("auth")
+        logger.info("aura: show_auth_popup -> secure sign-in on screen")
         self.session.dispatch(
             OpenAuth(
                 nonce=nonce,
@@ -1322,81 +1366,50 @@ class AuraBrain(GeminiInteractionsBrain):
                 masked_mobile=str(_DEMO_CUSTOMER["masked_mobile"]),
             )
         )
-        token = await self._await_browser(nonce)
-        if token is None:
-            return str(
-                {
-                    "status": "not_authenticated",
-                    "error": "The customer did not complete the sign-in. Offer to try again.",
-                }
-            )
-        if token == _CANCELLED:
-            return str(
-                {
-                    "status": "declined",
-                    "error": "The customer chose not to sign in right now. Acknowledge warmly and "
-                    "offer to help another way; you can try again whenever they're ready.",
-                }
-            )
         return str(
             {
-                "status": "authenticated",
-                "authenticated_context": token,
-                "customer_name": _DEMO_CUSTOMER["name"],
-                "note": "Signed in. Now call choose_account(authenticated_context) so the "
-                "customer picks which account to view.",
+                "status": "sign_in_opened",
+                "note": "The sign-in is on screen and the customer is NOT signed in yet. You "
+                "will be told when they authorise it, and handed an authenticated_context. "
+                "Until then no account or card tool will work. Never ask them to read anything "
+                "out, and do not call this again while it is up.",
             }
         )
 
     async def choose_account(self, authenticated_context: str) -> str:
-        """Put the customer's accounts on screen and let them tap the one they mean.
+        """Put the customer's accounts on screen so they tap the one they mean.
 
-        Waits for the tap — the customer chooses, not you, and not by name over
-        voice. Required before ``get_account_balance`` or ``get_statement``.
+        Returns as soon as the picker is up. It does NOT wait: the customer
+        chooses — not you, and not by name over voice — and you are told which one
+        when they do. Required before ``get_account_balance`` or ``get_statement``.
 
         Args:
-            authenticated_context: The token ``authenticate`` returned.
+            authenticated_context: The token you were handed when the customer
+                signed in.
         """
         payload = self._verify(authenticated_context)
         if not payload:
             return str(
                 {
                     "status": "not_authenticated",
-                    "error": "No valid sign-in. Call authenticate() first.",
+                    "error": "That is not a valid sign-in for this call. The customer has not "
+                    "signed in yet. Call show_auth_popup() and wait to be handed a token.",
                 }
             )
         owned = set(payload.get("accounts") or [])
         accounts = [
             {k: a[k] for k in _ACCOUNT_FIELDS} for a in _DEMO_ACCOUNTS if a["account_id"] in owned
         ]
-        nonce, _ = self._open_pending()
+        nonce = self._open_dialog("account")
         logger.info("aura: choose_account -> picker ({} accounts)", len(accounts))
         self.session.dispatch(ChooseAccount(nonce=nonce, accounts=accounts))
-        account_id = await self._await_browser(nonce)
-        if account_id is None:
-            return str(
-                {"status": "no_selection", "error": "The customer did not pick an account yet."}
-            )
-        if account_id == _CANCELLED:
-            return str(
-                {
-                    "status": "declined",
-                    "error": "The customer closed the account picker without choosing. Ask which "
-                    "account they'd like to view, or offer other help.",
-                }
-            )
-        acc = _account_by_id(account_id)
-        if not acc or account_id not in owned:
-            return str({"status": "invalid_selection", "error": "That account is not available."})
-        self._selected.add(account_id)
         return str(
             {
-                "status": "account_selected",
-                "account_id": acc["account_id"],
-                "type": acc["type"],
-                "branch": acc["branch"],
-                "nickname": acc.get("nickname"),
-                "masked_number": acc["masked_number"],
+                "status": "picker_opened",
+                "accounts_shown": len(accounts),
+                "note": "The account picker is on screen and nothing is chosen yet. You will be "
+                "told which account the customer taps, with its account_id. Do not call "
+                "get_account_balance or get_statement until then, and do not guess an account_id.",
             }
         )
 
@@ -1407,20 +1420,16 @@ class AuraBrain(GeminiInteractionsBrain):
         the digits back.
 
         Args:
-            authenticated_context: The token ``authenticate`` returned.
+            authenticated_context: The token you were handed when the customer
+                signed in.
             account_id: The account the customer picked in ``choose_account``.
         """
         payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": "Call authenticate() first."})
+            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
         acc = self._selected_account(account_id, payload)
         if not acc:
-            return str(
-                {
-                    "status": "account_not_selected",
-                    "error": "Ask the customer to choose an account first (call choose_account).",
-                }
-            )
+            return str({"status": "account_not_selected", "error": _NO_ACCOUNT})
         as_of = datetime.now(UTC).astimezone().strftime("%Y-%m-%d")
         logger.info("aura: get_account_balance {}", acc["account_id"])
         self.session.dispatch(
@@ -1458,22 +1467,18 @@ class AuraBrain(GeminiInteractionsBrain):
         (how many, what stands out), never read it out row by row.
 
         Args:
-            authenticated_context: The token ``authenticate`` returned.
+            authenticated_context: The token you were handed when the customer
+                signed in.
             account_id: The account the customer picked in ``choose_account``.
             start_date: Start of the range, YYYY-MM-DD. Blank for ninety days ago.
             end_date: End of the range, YYYY-MM-DD. Blank for today.
         """
         payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": "Call authenticate() first."})
+            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
         acc = self._selected_account(account_id, payload)
         if not acc:
-            return str(
-                {
-                    "status": "account_not_selected",
-                    "error": "Ask the customer to choose an account first (call choose_account).",
-                }
-            )
+            return str({"status": "account_not_selected", "error": _NO_ACCOUNT})
         today = datetime.now(UTC).astimezone().date()
         start = _parse_date(start_date) or (today - timedelta(days=90))
         end = _parse_date(end_date) or today
@@ -1511,49 +1516,36 @@ class AuraBrain(GeminiInteractionsBrain):
         )
 
     async def choose_credit_card(self, authenticated_context: str) -> str:
-        """Put the customer's credit cards on screen and let them tap the one they
-        mean.
+        """Put the customer's credit cards on screen so they tap the one they mean.
 
-        Waits for the tap. Required before ``show_card_controls``.
+        Returns as soon as the picker is up; it does NOT wait. You are told which
+        card they tapped. Required before ``show_card_controls``.
 
         Args:
-            authenticated_context: The token ``authenticate`` returned.
+            authenticated_context: The token you were handed when the customer
+                signed in.
         """
         payload = self._verify(authenticated_context)
         if not payload:
             return str(
                 {
                     "status": "not_authenticated",
-                    "error": "No valid sign-in. Call authenticate() first.",
+                    "error": "That is not a valid sign-in for this call. The customer has not "
+                    "signed in yet. Call show_auth_popup() and wait to be handed a token.",
                 }
             )
         owned = set(payload.get("cards") or [])
         cards = [{k: c[k] for k in _CARD_FIELDS} for c in _DEMO_CARDS if c["card_id"] in owned]
-        nonce, _ = self._open_pending()
+        nonce = self._open_dialog("card")
         logger.info("aura: choose_credit_card -> picker ({} cards)", len(cards))
         self.session.dispatch(ChooseCreditCard(nonce=nonce, cards=cards))
-        card_id = await self._await_browser(nonce)
-        if card_id is None:
-            return str({"status": "no_selection", "error": "The customer did not pick a card yet."})
-        if card_id == _CANCELLED:
-            return str(
-                {
-                    "status": "declined",
-                    "error": "The customer closed the card picker without choosing. Ask which "
-                    "card they'd like to manage, or offer other help.",
-                }
-            )
-        card = _card_by_id(card_id)
-        if not card or card_id not in owned:
-            return str({"status": "invalid_selection", "error": "That card is not available."})
-        self._selected_cards.add(card_id)
         return str(
             {
-                "status": "card_selected",
-                "card_id": card["card_id"],
-                "product": card["product"],
-                "network": card["network"],
-                "masked_number": card["masked_number"],
+                "status": "picker_opened",
+                "cards_shown": len(cards),
+                "note": "The card picker is on screen and nothing is chosen yet. You will be told "
+                "which card the customer taps, with its card_id. Do not call show_card_controls "
+                "until then, and do not guess a card_id.",
             }
         )
 
@@ -1565,20 +1557,16 @@ class AuraBrain(GeminiInteractionsBrain):
         form shows them.
 
         Args:
-            authenticated_context: The token ``authenticate`` returned.
+            authenticated_context: The token you were handed when the customer
+                signed in.
             card_id: The card the customer picked in ``choose_credit_card``.
         """
         payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": "Call authenticate() first."})
+            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
         card = self._selected_card(card_id, payload)
         if not card:
-            return str(
-                {
-                    "status": "card_not_selected",
-                    "error": "Ask the customer to choose a card first (call choose_credit_card).",
-                }
-            )
+            return str({"status": "card_not_selected", "error": _NO_CARD})
         controls = card["controls"]
         logger.info("aura: show_card_controls {}", card["card_id"])
         self.session.dispatch(
@@ -1619,27 +1607,25 @@ class AuraBrain(GeminiInteractionsBrain):
             "aura: state_sync ingested (screen={})", (self.current_state or {}).get("screen")
         )
 
-    # ── Browser → brain: resolve the blocking secure tools ────────────────────
+    # ── Browser → brain: what the customer did on screen ──────────────────────
 
     def _cancel_pending(self, data: dict[str, Any]) -> None:
+        """The customer closed a dialog without answering it — which is an answer."""
         nonce = str(data.get("nonce", ""))
-        fut = self._pending.get(nonce)
-        if fut is None or fut.done():
+        kind = self._open_dialogs.pop(nonce, None)
+        if kind is None:
             return
-        fut.set_result(_CANCELLED)
-        logger.info("aura: interaction cancelled by customer")
+        logger.info("aura: {} dialog dismissed by the customer", kind)
+        self._append_note(_DISMISSED[kind])
 
     def _complete_auth(self, data: dict[str, Any]) -> None:
         """The browser reports the customer finished the on-screen sign-in. THIS is
         where the server mints the token — only reachable after that authorisation,
         which is why the LLM can never produce one itself."""
-        nonce = str(data.get("nonce", ""))
-        fut = self._pending.get(nonce)
-        if fut is None or fut.done():
-            logger.info("aura: auth_complete for unknown/stale nonce")
+        if not self._close_dialog(data, "auth"):
             return
         now = int(time.time())
-        token = _jwt_encode(
+        self._token = _jwt_encode(
             {
                 "sub": _DEMO_CUSTOMER["id"],
                 "name": _DEMO_CUSTOMER["name"],
@@ -1650,25 +1636,46 @@ class AuraBrain(GeminiInteractionsBrain):
                 "exp": now + _AUTH_TTL_SECONDS,
             }
         )
-        fut.set_result(token)
         logger.info("aura: auth_complete -> token minted for {}", _DEMO_CUSTOMER["name"])
+        self._append_note(
+            "The customer has just authorised the secure sign-in, so they are now signed in. "
+            f"Their authenticated_context is {self._token} — pass it back exactly as written to "
+            "every account and card tool, and never alter it. Next, call "
+            "choose_account(authenticated_context) if they want a balance or statement, or "
+            "choose_credit_card(authenticated_context) if they want card controls."
+        )
 
     def _complete_account(self, data: dict[str, Any]) -> None:
-        nonce = str(data.get("nonce", ""))
-        account_id = str(data.get("account_id", ""))
-        fut = self._pending.get(nonce)
-        if fut is None or fut.done():
-            logger.info("aura: account_selected for unknown/stale nonce")
+        """The customer tapped an account in the picker."""
+        if not self._close_dialog(data, "account"):
             return
-        fut.set_result(account_id)
+        account_id = str(data.get("account_id", ""))
+        acc = _account_by_id(account_id)
+        if acc is None:
+            logger.info("aura: account_selected names no account we hold ({})", account_id)
+            return
+        self._selected.add(account_id)
         logger.info("aura: account_selected -> {}", account_id)
+        self._append_note(
+            f"The customer has just picked their {acc['type']} account "
+            f"({acc['masked_number']}, {acc['branch']}). Its account_id is "
+            f"{acc['account_id']} — you may now call get_account_balance or get_statement "
+            "with it and the authenticated_context."
+        )
 
     def _complete_card(self, data: dict[str, Any]) -> None:
-        nonce = str(data.get("nonce", ""))
-        card_id = str(data.get("card_id", ""))
-        fut = self._pending.get(nonce)
-        if fut is None or fut.done():
-            logger.info("aura: card_selected for unknown/stale nonce")
+        """The customer tapped a card in the picker."""
+        if not self._close_dialog(data, "card"):
             return
-        fut.set_result(card_id)
+        card_id = str(data.get("card_id", ""))
+        card = _card_by_id(card_id)
+        if card is None:
+            logger.info("aura: card_selected names no card we hold ({})", card_id)
+            return
+        self._selected_cards.add(card_id)
         logger.info("aura: card_selected -> {}", card_id)
+        self._append_note(
+            f"The customer has just picked their {card['product']} card "
+            f"({card['network']}, {card['masked_number']}). Its card_id is {card['card_id']} — "
+            "you may now call show_card_controls with it and the authenticated_context."
+        )

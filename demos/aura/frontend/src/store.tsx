@@ -537,9 +537,8 @@ export function AuraProvider({ children }: { children: ReactNode }) {
     bump();
   }, [authPrompt, bump]);
 
-  // Customer declines the sign-in: tell the server so the waiting authenticate()
-  // tool returns immediately (the mic is muted during the call, so this button is
-  // the customer's only way out).
+  // Customer declines the sign-in: tell the server, so the agent hears they closed
+  // it rather than going on believing a sheet is still up in front of them.
   const cancelAuth = useCallback(() => {
     if (authPrompt) agentSendRef.current?.('auth_cancelled', { nonce: authPrompt.nonce });
     setAuthPrompt(null);

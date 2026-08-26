@@ -182,10 +182,13 @@ Footguns found writing them (see `demos/tests/_harness.py`):
 - `driver.dump_conversation()` needs a *cooperating* brain
   (`answer_conformance_dump=True`). The `GeminiBrain` demos do not implement it —
   assert over `llm.captured_contents` instead, which is a stronger property anyway.
-- A **blocking** tool (aura's `authenticate`) needs the turn in flight:
-  `asyncio.create_task(driver.user_says(...))`, then
-  `await driver.collect_ui_commands(min_count=1)` to read the nonce, then
-  `send_client_message`.
+- **Nothing blocks on the customer**, and the tests have to be written that way.
+  aura's `show_auth_popup` dispatches the sign-in and returns, so the turn
+  completes on its own; the customer's answer is a separate step — read the nonce
+  off `rig.command("open_auth")`, `send_client_message`, then
+  `await asyncio.sleep(0.1)` before the next turn, since `on_rtvi` takes no floor
+  and there is nothing to await. What the customer did is never on the wire: it
+  reaches the model as context, so assert on the *next* request's `input`.
 - Asserting on a tool result: read `part.function_response.response["result"]`,
   **not** `str(response)` — the outer dict re-escapes quotes, so a match on
   `"'status': 'declined'"` fails for exactly the results containing an apostrophe.
