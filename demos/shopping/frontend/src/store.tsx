@@ -6,6 +6,10 @@
  * matter who is driving. Navigation is plain React state — never the router —
  * so the `PipecatClient` mounted alongside never unmounts and the call stays
  * live as the shopper moves between pages.
+ *
+ * What the expert can say is `actions.gen.ts`, generated from the brain's
+ * `Action` classes — so `handleUiCommand` narrows on `command` and reads each
+ * payload typed, and its `default` arm is an exhaustiveness check.
  */
 
 import {
@@ -21,9 +25,16 @@ import {
   getPhone,
   sortPhones,
   type CatalogFilters,
+  type Category,
   type Phone,
   type SortKey,
 } from './catalog';
+import {
+  asUiAction,
+  unhandledUiAction,
+  type Highlight as HighlightAction,
+  type OpenFaq,
+} from './actions.gen';
 
 export type View = 'home' | 'search' | 'product' | 'compare' | 'faq';
 
@@ -31,12 +42,16 @@ export interface Filters {
   brand?: string;
   maxPrice?: number;
   minPrice?: number;
-  category?: string;
+  category?: Category;
 }
+
+/** A spec section of the product page, and a policy topic of the FAQ page. */
+export type Feature = HighlightAction['feature'];
+export type FaqTopic = NonNullable<OpenFaq['topic']>;
 
 export interface Highlight {
   productId: string;
-  feature: string;
+  feature: Feature;
   nonce: number; // bump to retrigger the same highlight
 }
 
@@ -49,7 +64,7 @@ interface State {
   sortBy: SortKey | undefined;
   cart: string[];
   wishlist: string[];
-  faqTopic: string | null;
+  faqTopic: FaqTopic | null;
   highlight: Highlight | null;
 }
 
@@ -72,7 +87,7 @@ export interface MobileShopActions {
     query?: string;
     brand?: string;
     maxPrice?: number;
-    category?: string;
+    category?: Category;
     sort?: SortKey;
   }) => void;
   openProduct: (id: string) => void;
@@ -80,15 +95,15 @@ export interface MobileShopActions {
   setQuery: (q: string) => void;
   toggleBrand: (brand: string) => void;
   setMaxPrice: (max: number | undefined) => void;
-  setCategory: (cat: string | undefined) => void;
+  setCategory: (cat: Category | undefined) => void;
   setSort: (by: SortKey | undefined) => void;
   clearFilters: () => void;
-  highlightFeature: (productId: string, feature: string) => void;
+  highlightFeature: (productId: string, feature: Feature) => void;
   compare: (ids: string[]) => void;
   addToCart: (id: string) => void;
   toggleWishlist: (id: string) => void;
   addToWishlist: (id: string) => void;
-  openFaq: (topic?: string | null) => void;
+  openFaq: (topic?: FaqTopic | null) => void;
 }
 
 export interface MobileShopStore extends State, MobileShopActions {
@@ -96,7 +111,7 @@ export interface MobileShopStore extends State, MobileShopActions {
   cartPhones: Phone[];
   wishlistPhones: Phone[];
   /** Dispatch a `ui-command` RTVI event's `{ command, payload }` from the agent. */
-  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
+  handleUiCommand: (command: string, payload: unknown) => void;
 }
 
 const Ctx = createContext<MobileShopStore | null>(null);
@@ -109,7 +124,13 @@ export function MobileShopProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const showSearch = useCallback(
-    (opts?: { query?: string; brand?: string; maxPrice?: number; category?: string; sort?: SortKey }) => {
+    (opts?: {
+      query?: string;
+      brand?: string;
+      maxPrice?: number;
+      category?: Category;
+      sort?: SortKey;
+    }) => {
       setState((s) => ({
         ...s,
         view: 'search',
@@ -156,7 +177,7 @@ export function MobileShopProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, view: 'search', filters: { ...s.filters, maxPrice: max } }));
   }, []);
 
-  const setCategory = useCallback((cat: string | undefined) => {
+  const setCategory = useCallback((cat: Category | undefined) => {
     setState((s) => ({
       ...s,
       view: 'search',
@@ -172,7 +193,7 @@ export function MobileShopProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, filters: {}, query: '', sortBy: undefined }));
   }, []);
 
-  const highlightFeature = useCallback((productId: string, feature: string) => {
+  const highlightFeature = useCallback((productId: string, feature: Feature) => {
     setState((s) => ({
       ...s,
       view: 'product',
@@ -205,64 +226,65 @@ export function MobileShopProvider({ children }: { children: ReactNode }) {
     setState((s) => (s.wishlist.includes(id) ? s : { ...s, wishlist: [...s.wishlist, id] }));
   }, []);
 
-  const openFaq = useCallback((topic?: string | null) => {
+  const openFaq = useCallback((topic?: FaqTopic | null) => {
     setState((s) => ({ ...s, view: 'faq', faqTopic: topic ?? null, highlight: null }));
   }, []);
 
   const handleUiCommand = useCallback(
-    (command: string, payload: Record<string, unknown>) => {
-      const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
-      const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
-      switch (command) {
+    (command: string, payload: unknown) => {
+      const action = asUiAction(command, payload);
+      if (!action) return;
+      switch (action.command) {
         case 'navigate_home':
           goHome();
           break;
-        case 'show_search':
+        case 'show_search': {
+          const { query, brand, max_price, category, sort_by } = action.payload;
           showSearch({
-            query: str(payload.query) ?? '',
-            brand: str(payload.brand),
-            maxPrice: num(payload.max_price),
-            category: str(payload.category),
-            sort: str(payload.sort_by) as SortKey | undefined,
+            query,
+            brand: brand ?? undefined,
+            maxPrice: max_price ?? undefined,
+            category: category ?? undefined,
+            sort: sort_by ?? undefined,
           });
           break;
+        }
         case 'sort':
-          setSort(str(payload.sort_by) as SortKey | undefined);
+          setSort(action.payload.sort_by);
           break;
         case 'open_product':
-          if (str(payload.product_id)) openProduct(str(payload.product_id)!);
+          openProduct(action.payload.product_id);
           break;
-        case 'apply_filters':
+        case 'apply_filters': {
+          const { brand, max_price, min_price, category } = action.payload;
           applyFilters({
-            brand: str(payload.brand),
-            maxPrice: num(payload.max_price),
-            minPrice: num(payload.min_price),
-            category: str(payload.category),
+            brand: brand ?? undefined,
+            maxPrice: max_price ?? undefined,
+            minPrice: min_price ?? undefined,
+            category: category ?? undefined,
           });
           break;
+        }
         case 'clear_filters':
           clearFilters();
           break;
         case 'highlight':
-          if (str(payload.product_id) && str(payload.feature)) {
-            highlightFeature(str(payload.product_id)!, str(payload.feature)!);
-          }
+          highlightFeature(action.payload.product_id, action.payload.feature);
           break;
         case 'compare':
-          if (Array.isArray(payload.product_ids)) compare(payload.product_ids.map(String));
+          compare(action.payload.product_ids);
           break;
         case 'add_to_cart':
-          if (str(payload.product_id)) addToCart(str(payload.product_id)!);
+          addToCart(action.payload.product_id);
           break;
         case 'add_to_wishlist':
-          if (str(payload.product_id)) addToWishlist(str(payload.product_id)!);
+          addToWishlist(action.payload.product_id);
           break;
         case 'open_faq':
-          openFaq(str(payload.topic) ?? null);
+          openFaq(action.payload.topic);
           break;
         default:
-          // Unknown command — ignore quietly.
-          break;
+          unhandledUiAction(action);
       }
     },
     [

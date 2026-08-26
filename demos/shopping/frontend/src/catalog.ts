@@ -7,12 +7,14 @@
  * rendering, so the `id` values here MUST stay in sync with the Python catalog.
  */
 
+import type { ApplyFilters, Sort } from './actions.gen';
+
 export interface Phone {
   id: string;
   brand: string;
   name: string;
   price: number; // USD
-  category: 'flagship' | 'mid-range' | 'budget';
+  category: Category;
   tagline: string;
   colors: string[];
   display: string;
@@ -495,9 +497,14 @@ export function getPhone(id: string): Phone | undefined {
 
 export const BRANDS: string[] = [...new Set(CATALOG.map((p) => p.brand))].sort();
 
-export const CATEGORIES: Phone['category'][] = ['flagship', 'mid-range', 'budget'];
+export const CATEGORIES: Category[] = ['flagship', 'mid-range', 'budget'];
 
-export type SortKey = 'price_low' | 'price_high' | 'rating' | 'newest';
+/**
+ * The two vocabularies the expert and the shop share. Read off the generated
+ * actions rather than written down twice — the Python is where they are set.
+ */
+export type Category = NonNullable<ApplyFilters['category']>;
+export type SortKey = Sort['sort_by'];
 
 export const SORT_LABELS: Record<SortKey, string> = {
   price_low: 'Price: low to high',

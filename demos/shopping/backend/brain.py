@@ -34,6 +34,10 @@ from .catalog import (
     CATALOG,
     VALID_BRANDS,
     VALID_CATEGORIES,
+    Category,
+    SortKey,
+    as_category,
+    as_sort_key,
     catalog_for_prompt,
     get_product,
     search_catalog,
@@ -167,8 +171,8 @@ class ShowSearch(Action):
     query: str
     brand: str | None
     max_price: int | None
-    category: str | None
-    sort_by: str | None
+    category: Category | None
+    sort_by: SortKey | None
     result_ids: list[str]
 
 
@@ -180,7 +184,7 @@ class ApplyFilters(Action):
     brand: str | None
     max_price: int | None
     min_price: int | None
-    category: str | None
+    category: Category | None
     result_ids: list[str]
 
 
@@ -207,7 +211,7 @@ class AddToCart(Action):
 
 
 class Sort(Action):
-    sort_by: str = Field(
+    sort_by: SortKey = Field(
         description=(
             "'price_low' (cheapest first), 'price_high' (most expensive first), "
             "'rating' (top rated first), or 'newest'."
@@ -293,8 +297,8 @@ class ShoppingBrain(GeminiBrain):
                 query=query.query,
                 brand=query.brand,
                 max_price=query.max_price,
-                category=query.category,
-                sort_by=query.sort_by,
+                category=as_category(query.category),
+                sort_by=as_sort_key(query.sort_by),
                 result_ids=[p["id"] for p in matches],
             )
         )
@@ -331,7 +335,7 @@ class ShoppingBrain(GeminiBrain):
                 brand=query.brand,
                 max_price=query.max_price,
                 min_price=query.min_price,
-                category=query.category,
+                category=as_category(query.category),
                 result_ids=[p["id"] for p in matches],
             )
         )
