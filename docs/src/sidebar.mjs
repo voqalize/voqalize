@@ -66,12 +66,12 @@
  * three of nine outlines until 2026-08-25, which made it mean nothing, and
  * `design/facts.yaml` now counts it.
  *
- * **One page carries it today: `reference/management-api`.** It is the only
- * one held open on purpose — it describes a bearer-key HTTP API the control
- * plane does not have, so writing it is blocked on a product decision rather
- * than on effort. See `skill-rewrite/DOCS-AUTOMATION.md` §2: the
- * customer-facing HTTP surface is `sessions.create` and `sessions.connect`,
- * and everything else programmatic is MCP.
+ * **No page carries it today.** `reference/management-api` was the last, and
+ * it was held open on a product decision rather than on effort: it described a
+ * bearer-key HTTP API the control plane does not have. That decision was taken
+ * on 2026-08-26 — MCP is the programmatic management surface, the console is
+ * the interactive one, and the page now says so and explains why `ak_` was
+ * removed rather than renamed. See `skill-rewrite/DOCS-AUTOMATION.md` §2.
  *
  * `build/quickstart` left the list on 2026-08-25; the other eight —
  * `build/brain/{speaking,actions,tools,context,transcripts}`,

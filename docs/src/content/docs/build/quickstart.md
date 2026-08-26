@@ -69,7 +69,8 @@ dials out instead and the brain above does not change —
 
 An **agent** is our record holding your brain's URL. Create one, keep the `sk_`
 key it gives you, and set `brain_url` to the route from step 3 — through the
-[MCP server](/reference/mcp/) or the [management API](/reference/management-api/).
+[MCP server](/reference/mcp/), which is where every account operation lives, or
+the console.
 Locally, put a tunnel in front of the route so the URL is reachable.
 
 ## 5. Open a page

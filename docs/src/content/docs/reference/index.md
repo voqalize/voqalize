@@ -17,7 +17,7 @@ any of it lives in [Build](/build/) or [Designing for voice](/design/).
 | [The RTVI plane](/reference/rtvi/) | The message whitelist, both directions. |
 | [Voice and language](/reference/catalog/) | The voices, the languages, and the pairing rule. |
 | [Error codes](/reference/errors/) | Every code, what raised it, and whether it ends the call. |
-| [The management API](/reference/management-api/) | Agents, sessions, keys and usage over HTTP. |
+| [The management API](/reference/management-api/) | Why there isn't one, and the two routes that start a call. |
 | [The MCP server](/reference/mcp/) | The tools an agent gets, and what each one reads or writes. |
 
 ## What is checked

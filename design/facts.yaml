@@ -453,17 +453,17 @@ facts:
       moved sixteen pages, dissolved Start into Build, folded
       `reference/no-provider-slot` into the catalog it was arguing with, merged
       `start/what-voqalize-is` into the apex, and opened thirteen new slots.
-      **Nine of those slots are scaffolds** — one paragraph and an outline —
-      and every one of them now carries a Scaffold aside, which it did not on
-      2026-08-25: this note claimed ten pages carried the marker while three
-      did, so the marker meant nothing and neither a reader nor a checker could
-      apply the rule. They are counted here because they are published pages a
-      reader can land on. **A count is not a claim about coverage**: the five
-      pages under `build/brain/`, `build/existing-agent` and
-      `reference/{brain,errors,management-api}` do not yet teach what they name.
-      Board row B1. Count this number the way the glob does; the four unpublished
-      design outlines are not in it, because they are outlines in `design/` and
-      not pages.
+      Nine of those slots opened as scaffolds — one paragraph and an outline,
+      each carrying a Scaffold aside so that a reader and a checker could both
+      tell. **None remain as of 2026-08-26**: the five pages under
+      `build/brain/`, `build/existing-agent`, `reference/brain` and
+      `reference/errors` were written, and `reference/management-api` was the
+      last, held open on a product decision rather than on effort. So the count
+      is now a claim about coverage as well as about pages. If a Scaffold aside
+      reappears, the page it is on is unwritten and this note is the record of
+      what that means. Count this number the way the glob does; the four
+      unpublished design outlines are not in it, because they are outlines in
+      `design/` and not pages.
 
   # ---- commercial -----------------------------------------------------------
 

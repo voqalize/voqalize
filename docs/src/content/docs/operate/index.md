@@ -40,8 +40,9 @@ In this order, because each is cheaper than the next:
 
 The [MCP server](/reference/mcp/) puts all of it in your coding agent's hands —
 list sessions, read a call back, check an agent's configuration, without leaving
-the editor. The [management API](/reference/management-api/) is the same surface
-over HTTP.
+the editor. It is the programmatic surface for all of it — there is no
+bearer-key HTTP API beside it, and [the management
+API](/reference/management-api/) explains why.
 
 ## Read next
 
