@@ -89,8 +89,9 @@ jobs:
           VIRTUAL_ENV=/tmp/floor uv run --no-project python -c "
           import google.protobuf, voqalize.sdk
           from voqalize.sdk.wire import _frames_pb2 as fp
-          e = fp.Envelope(); e.ack.SetInParent()
+          e = fp.Envelope(); e.end.SetInParent()
           assert fp.Envelope.FromString(e.SerializeToString()) == e
+          assert e.WhichOneof('body') == 'end'
           print('ok on protobuf', google.protobuf.__version__)
           "
 
