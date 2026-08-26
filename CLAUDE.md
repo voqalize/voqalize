@@ -189,18 +189,17 @@ is now the only mechanism and it is tested directly.
 
 `demos/tests/test_<name>_e2e.py` — all eleven. The real brain on a real
 `brain_server` socket, driven by the conformance `VoqalizeDriver`, with only the
-*model* faked: `ScriptedGemini` (`demos/voqalize_demos/testing.py`) for the nine
-`GeminiBrain` demos, ADK's `ScriptedLlm` for `travel` and `orderdesk`. No network,
-no API key, ~33 s for the whole suite.
+*model* faked: `ScriptedGemini` (`demos/voqalize_demos/testing.py`) drives all
+eleven, aura's `GeminiInteractionsBrain` included — the ADK adapter and its
+`ScriptedLlm` are gone. No network, no API key, ~33 s for the whole suite.
 
 `demos/tests/test_demo_voice_contract.py` is the cross-demo sweep: it asserts every
 demo puts a **matched** voice/language pair on both legs before its first audio,
 and carries a **negative control** proving the probe can fail. Add a demo → add a
-row there, or its language pair is unguarded. The nine demos still on the pre-v3
-`on_session_start(self, session, start)` signature have nowhere to make the call
-from, so their rows are marked `unported=True` and xfail **strictly**: the pair
-they owe stays written down, and porting one turns the row into a loud XPASS
-rather than a quiet pass.
+row there, or its language pair is unguarded. Every row asserts — the
+`unported=True` xfail escape hatch is gone, because there is nothing left to
+excuse: each demo either configures from `on_session_start` or sends the pair
+with the connect request.
 
 Footguns found writing them (see `demos/tests/_harness.py`):
 

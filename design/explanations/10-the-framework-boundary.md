@@ -173,10 +173,11 @@ without touching the wire or the runtime.
 
 ## Gap
 
-- **This boundary is proven on one brain and one demo.** `GeminiBrain` and
-  `sugar`. The ADK path (`travel`, `orderdesk`) has not been through it, and ten
-  demos are unported. Nothing here should be stated as a general shape until a
-  second framework has run against it.
+- **This boundary is proven on one vendor.** All eleven demos run against it, but
+  through `GeminiBrain` and `GeminiInteractionsBrain` — two clients of the same
+  google-genai SDK. The ADK path that was going to be the second vendor is
+  deleted. Nothing here should be stated as a general shape until something that
+  is not google-genai has run against it.
 - **`_ready` is residue, and we know it.** Every line of it is a fact about
   google-genai's internals — the deep-copy of bound methods, the split between
   `get_type_hints` for the declaration and `inspect.signature` for the call under
@@ -190,11 +191,14 @@ without touching the wire or the runtime.
   bare `Literal` gets a correct schema and then fails to *execute*. Telling people
   to wrap it in a model is exactly the kind of workaround rule 2 says must die —
   it lives here because the alternative is a wrapper.
-- **Pydantic → TypeScript is a tolerated duplication.** The action models are
-  hand-mirrored in `demos/sugar/frontend/src/types.ts`. Generating them is future
-  scope; until then the two halves carry a comment saying they must move together.
-- **The unexplored test of the whole thesis:** a second Gemini client on the
-  `interactions` API (`client.interactions.create`, stateless, streaming, with
-  AFC). If the boundary holds across two clients from the same vendor, it is a
-  boundary. If it does not, `_ready` was never residue — it was a wrapper we had
-  not admitted to.
+- ~~**Pydantic → TypeScript is a tolerated duplication.**~~ **Closed.** `voqalize
+  types` generates each demo's `frontend/src/actions.gen.ts` from its `Action`
+  classes, CI regenerates and diffs them, and the `default` arm of every dispatch
+  is an exhaustiveness check — so an action added in Python fails to compile in
+  the browser rather than arriving as a card that never fills in.
+- **The first test of the thesis passed, and it was the weak one.**
+  `GeminiInteractionsBrain` (`client.interactions.create`, stateless, streaming,
+  with AFC) drives aura against the same boundary, so the boundary holds across
+  two clients from one vendor. That is evidence `_ready` is residue rather than an
+  unadmitted wrapper — but both clients ship in the same SDK, so it is the cheap
+  half of the test. The expensive half is still unrun.

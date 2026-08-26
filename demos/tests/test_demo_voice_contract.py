@@ -12,11 +12,10 @@ that has broken repeatedly and that nothing else can see:
   configured nothing, so one layer owns the answer rather than two.
 
 A brain says it by calling ``session.configure`` from ``on_session_start``, which
-runs before the greeting. It used to be a pair of class attributes the SDK
-applied for you; those are gone, and the nine demos still on the pre-v3 callback
-signature cannot make the call yet. Their rows below are ``unported`` — the pair
-they owe, written down, and **strictly** xfailed, so porting one turns green into
-a loud XPASS that makes you move the row rather than letting it pass unnoticed.
+runs before the greeting. It used to be a pair of class attributes the SDK applied
+for you; those are gone, and every demo now makes the call itself — or, where the
+page settles the language first, sends it with the connect request and configures
+nothing.
 
 Why this needs its own file rather than a line in each demo's tests: the failures
 it catches are **silent**. A demo speaking Devanagari through the English
@@ -70,16 +69,11 @@ class Expected:
     what makes "which layer owns this demo's language" a written-down answer
     rather than something read off whichever file you happen to open.
 
-    ``unported`` marks a pair no layer is putting on the wire *yet*: the demo is
-    still on the pre-v3 ``on_session_start(self, session, start)`` signature, which
-    the SDK never calls, so it has nowhere to make the call from. The pair stays
-    written down here and the row is xfailed strictly — the register, not an
-    excuse."""
+    """
 
     voice: str | None = None
     language: str | None = None
     at_connect: bool = False
-    unported: bool = False
     payload: dict[str, Any] = field(default_factory=dict)
     build: Callable[[], Brain] | None = None
 
@@ -90,8 +84,6 @@ class Expected:
                 "state either the voice/language pair this demo speaks or "
                 "at_connect=True, and exactly one of them"
             )
-        if self.unported and not stated:
-            raise ValueError("an unported row still states the pair the demo owes")
 
 
 # The full demo set. Keep this table in step with ``demos/manifest.json`` — the
@@ -119,17 +111,6 @@ DEMOS: dict[str, Expected] = {
     "travel": Expected(voice="omnivoice/gauri", language="hi"),
 }
 
-UNPORTED = (
-    "pre-v3 on_session_start signature — the SDK never calls it, so this demo has "
-    "nowhere to configure from. Owed by #43; when it lands, drop `unported=True`."
-)
-
-
-def _row(name: str):
-    """One parametrized case, xfailed strictly while the demo is unported."""
-    marks = [pytest.mark.xfail(strict=True, reason=UNPORTED)] if DEMOS[name].unported else []
-    return pytest.param(name, marks=marks)
-
 
 def _open(name: str, expected: Expected):
     """The rig for one demo — through the umbrella's own factory where the demo
@@ -148,7 +129,7 @@ def test_every_discovered_demo_has_a_row() -> None:
     )
 
 
-@pytest.mark.parametrize("name", [_row(n) for n in sorted(DEMOS)])
+@pytest.mark.parametrize("name", sorted(DEMOS))
 async def test_demo_puts_a_complete_voice_pair_on_the_wire(name: str) -> None:
     """Open a real session against the demo and read the settings frames.
 

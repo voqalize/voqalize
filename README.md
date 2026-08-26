@@ -33,7 +33,7 @@ managed service, and everything you need to build against it is here.
 | [`demos/`](demos/) | Complete, runnable voice apps (a brain + a UI each). These are real example code, the live demos on our site, and our integration tests — all at once. |
 | [`docs/`](docs/) | The developer documentation site (`docs.voqalize.com`). |
 
-> The Go SDK was removed while the Python/ADK surface is moving fast, and will
+> The Go SDK was removed while the Python surface is moving fast, and will
 > return once it stabilizes. The wire itself stays language-neutral —
 > [`proto/`](proto/) is the contract a future Go (or any other language) SDK
 > would build against, and [the wire](docs/src/content/docs/reference/wire.md)

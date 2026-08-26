@@ -193,9 +193,10 @@ become; it does not govern this file.
   writing the tool. Today it is invisible to a reviewer.
 - **Conflict semantics** when a `state_sync` and an action cross on the wire.
   Convention today: diff by id, last write wins per row. Unstated, untested.
-- Whether the framework boundary **generalises past one framework**. Everything in
-  [10](10-the-framework-boundary.md) is proven on `GeminiBrain` and `sugar` alone;
-  the ADK path has not been through it and ten demos are unported.
+- Whether the framework boundary **generalises past one vendor**. Everything in
+  [10](10-the-framework-boundary.md) is exercised by all eleven demos now, but
+  through `GeminiBrain` and `GeminiInteractionsBrain` — two clients of the same
+  google-genai SDK. The ADK path that would have been the second vendor is deleted.
 - ~~Whether `@voqalize/client-react` is **deleted or kept at four facts**.~~
   **Settled 2026-08-24, the way the position said.** The refusal is a 400 from
   the server (`recording_not_permitted`, and it starts no call), the `Headers`
