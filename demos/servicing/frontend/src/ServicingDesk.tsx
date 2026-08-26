@@ -199,7 +199,7 @@ function ServicingSession({
     RTVIEvent.UICommand,
     useCallback(
       (msg: UICommandData) => {
-        handleUiCommand(msg.command, (msg.payload as Record<string, unknown>) ?? {});
+        handleUiCommand(msg.command, msg.payload);
       },
       [handleUiCommand],
     ),
