@@ -116,8 +116,10 @@ become; it does not govern this file.
     — *agreed; `@tool` and its registry are deleted.*
 36. **Anything that exists because of an upstream bug dies when the bug does.**
     Ship the bug report, not the workaround. — *agreed;* ***violated*** *by the
-    "wrap flat parameters in a model" rule, which is a google-genai execution bug
-    we document instead of fix.*
+    "wrap the field in a model" rule, which is a google-genai execution bug we
+    document instead of fix — though the documentation is now derived from a test
+    of the bug, which is the closest a workaround gets to shipping its own
+    expiry.*
 37. **Ask why the wrapper exists, then ask again one layer up.** A hack you would
     not defend out loud means the answer is higher: what does the vendor recommend,
     and why is this not biting everyone else? — *agreed; this is what replaced a

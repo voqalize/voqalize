@@ -308,7 +308,11 @@ class GeminiInteractionsBrain(Brain):
         between the two classes without touching its tools.
 
         Take one model, or nothing at all. Nested models are fine; the schema goes
-        over as JSON Schema with its ``$defs`` intact.
+        over as JSON Schema with its ``$defs`` intact. The rule is the same here
+        as on the automatic path and the reason is the opposite one: this path
+        parses the model parameter and passes every other argument through
+        untouched, so a flat ``date`` reaches the tool as the ``str`` it arrived
+        as instead of failing loudly (``tests/unit/test_flat_parameters.py``).
 
         The session is not a parameter, because the signature is the schema and
         the model would try to fill it. Read

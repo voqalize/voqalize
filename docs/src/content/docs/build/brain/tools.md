@@ -108,18 +108,27 @@ A tool takes one model parameter — or, like `log_meal` above, no parameters,
 which declares none rather than an empty object. Nested models are fine on both
 adapters: the schema goes over as JSON Schema with its `$defs` intact.
 
-Flat parameters are where the two adapters stop agreeing, and the failure is
-silent. On the automatic path google-genai builds a correct schema for a bare
-`Literal` and then raises when it *calls* the tool — it builds arguments from
-`inspect.signature`, and `isinstance` against a subscripted generic raises.
-google-genai catches that and hands the model `{'error': …}`, which the model
-narrates to the caller as success. The tool never ran, the schema was right, the
-stream was well-formed, and nothing on the wire says otherwise. The interactions
-path executes the same flat parameter without complaint.
+The reason is not that flat parameters are unsupported. A flat `str`, `int`,
+`bool` or `list[str]` runs on both adapters. It is that a flat parameter is the
+one place **neither adapter parses what the model sent**, and the two get that
+wrong in opposite directions.
 
-So write one model. It is the only shape that is portable between the two
-adapters, and wrapping the field costs a line — `Section` above is that wrapper,
-and the same `Literal` written flat is the version that breaks:
+On the automatic path google-genai checks each flat argument with `isinstance`
+and coerces nothing. A bare `Literal` raises immediately — `isinstance` refuses a
+subscripted generic — and a bare `Enum`, `date`, `Decimal` or `UUID` is rejected
+as the JSON string it still is. Both are caught into `{'error': …}` and handed to
+the model, which narrates it to the caller as success. The tool never ran, the
+schema was right, the stream was well-formed, and nothing on the wire says
+otherwise.
+
+On the interactions path the same tool executes. It parses the model parameter
+and passes every other argument through untouched, so your `date` arrives as a
+`str` and the tool is wrong quietly rather than loudly.
+
+A single model parameter is the only annotation *either* path validates. That is
+why the wrapper is not a workaround for `Literal` specifically: `Section` above
+carries a `Literal`, and inside a model it parses on both adapters. Written flat,
+the same field is the version that breaks:
 
 ```python
     # Declares a correct schema, then fails to execute on the automatic path.

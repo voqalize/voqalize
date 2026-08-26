@@ -271,10 +271,16 @@ class GeminiBrain(Brain):
         its docstring is the description the model reads, and its single pydantic
         parameter is the schema. Nothing is declared twice.
 
-        Take one model, or nothing at all. Flat parameters are not supported:
-        google-genai builds a correct schema for a bare ``Literal`` and then fails
-        to *execute* the call, handing the model an error it will cheerfully paper
-        over. A model wraps the same field safely.
+        Take one model, or nothing at all. Not because flatness is unsupported —
+        a flat ``str``, ``int`` or ``list[str]`` runs — but because a flat
+        parameter is the one google-genai never parses. It checks each against
+        ``isinstance`` and coerces nothing, so a bare ``Literal`` raises outright
+        (``isinstance`` refuses a subscripted generic) and a bare ``Enum``,
+        ``date``, ``Decimal`` or ``UUID`` is rejected as the JSON string it still
+        is. Both land as an ``{'error': …}`` the model cheerfully papers over. A
+        model parameter is the only annotation that gets validated, which is why
+        the same ``Literal`` is safe inside one — see
+        ``tests/unit/test_flat_parameters.py``, which pins all of it upstream.
 
         The session is not a parameter, because the signature is the schema and
         the model would try to fill it. Read

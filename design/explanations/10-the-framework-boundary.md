@@ -187,10 +187,15 @@ without touching the wire or the runtime.
   `{'error': …}` and the model will cheerfully tell the caller it did the thing.
   All we can do on our side of the seam is log a warning. There is no path from a
   tool failure to something the caller hears.
-- **Flat parameters are unsupported, and we route around it by documenting.** A
-  bare `Literal` gets a correct schema and then fails to *execute*. Telling people
-  to wrap it in a model is exactly the kind of workaround rule 2 says must die —
-  it lives here because the alternative is a wrapper.
+- **Neither adapter parses a flat argument, and we route around it by
+  documenting.** google-genai checks flat arguments with `isinstance` and coerces
+  nothing, so a bare `Literal` raises and a bare `Enum`/`date`/`Decimal`/`UUID`
+  is rejected — both into an `{'error': …}` the model papers over; the
+  interactions path coerces nothing either and hands the tool the raw string.
+  Telling people to wrap the field in a model is exactly the kind of workaround
+  rule 2 says must die — it lives here because the alternative is a wrapper.
+  `tests/unit/test_flat_parameters.py` pins the upstream behaviour, so the rule
+  fails loudly when the bug is fixed.
 - ~~**Pydantic → TypeScript is a tolerated duplication.**~~ **Closed.** `voqalize
   types` generates each demo's `frontend/src/actions.gen.ts` from its `Action`
   classes, CI regenerates and diffs them, and the `default` arm of every dispatch
