@@ -10,12 +10,12 @@ Everything you skip here has its own page in [Build](/build/).
 ## 1. Install
 
 ```bash
-pip install voqalize-agent-sdk==0.1.0
+pip install voqalize-agent-sdk==0.2.0
 ```
 
-No pipecat, no model SDK, no audio library. **Pin it.** 0.1.0 is the first
-release of this surface; the 0.0.x on PyPI is a different one that will import
-cleanly and then fail on a name this page uses.
+No pipecat, no model SDK, no audio library. **Pin it.** 0.2.0 is where this
+surface stands; the 0.0.x on PyPI is a different one that will import cleanly
+and then fail on a name this page uses.
 
 ## 2. Write the brain
 

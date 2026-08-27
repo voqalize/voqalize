@@ -7,7 +7,7 @@ promise is "bring the brain, not the voice infra." The customer writes a
 `Brain` of callbacks; the wire is plain protobuf and the Brain surface is
 plain dataclasses. (Pipecat lives only inside the Voqalize voice runtime, on
 the far side of the socket.) The wire is language-neutral — see
-[the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.1.0/docs/src/content/docs/reference/wire.md)
+[the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.2.0/docs/src/content/docs/reference/wire.md)
 for the contract.
 
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
@@ -237,8 +237,8 @@ module.
 
 ## Read next
 
-- [The protobuf contract](https://github.com/voqalize/voqalize/blob/python-sdk-v0.1.0/proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
-- [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.1.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
+- [The protobuf contract](https://github.com/voqalize/voqalize/blob/python-sdk-v0.2.0/proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
+- [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.2.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
 - The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
 - `examples/` — runnable brains: `echo` (the smallest complete brain),
   `reference` (the one every conformance scenario is run against),

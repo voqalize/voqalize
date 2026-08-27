@@ -6,7 +6,7 @@ description: Every callback a brain may implement, its signature, and what it is
 A brain is a subclass of `Brain`. Voqalize opens one WebSocket per session, and
 what arrives on it reaches your code as one of eight callbacks, each handed the
 `Session` for that call. This page is every signature on that surface,
-read out of `voqalize-agent-sdk` 0.1.0 and speaking wire version 3.
+read out of `voqalize-agent-sdk` 0.2.0 and speaking wire version 3.
 
 Only `on_user_message` is required. Two callbacks are async generators —
 `on_user_message` and `on_user_idle` — and those two are the only moments the
@@ -416,7 +416,7 @@ working, and every one of those fields is computed and thrown away. The
 ## The two shipped adapters
 
 Both are `Brain` subclasses, both are installed with the `gemini` extra
-(`pip install "voqalize-agent-sdk[gemini]==0.1.0"`), and both are hosted exactly
+(`pip install "voqalize-agent-sdk[gemini]==0.2.0"`), and both are hosted exactly
 like any other brain.
 
 ```python

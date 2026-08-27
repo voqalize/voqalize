@@ -63,7 +63,7 @@ which is the contract of record.
 
 ## Your server has no pipecat in it
 
-`pip install voqalize-agent-sdk==0.1.0` installs websockets, protobuf, pydantic and the
+`pip install voqalize-agent-sdk==0.2.0` installs websockets, protobuf, pydantic and the
 JWT library, and nothing else. A brain is callbacks over a socket. Pipecat runs
 on our side of that socket, where the audio is.
 

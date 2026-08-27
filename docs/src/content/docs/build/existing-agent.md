@@ -183,7 +183,7 @@ Both are behind the `gemini` extra, because `import voqalize.sdk` pulls no model
 vendor:
 
 ```bash
-pip install "voqalize-agent-sdk[gemini]==0.1.0"
+pip install "voqalize-agent-sdk[gemini]==0.2.0"
 ```
 
 Neither is re-exported from `voqalize.sdk`; you import them from their own
