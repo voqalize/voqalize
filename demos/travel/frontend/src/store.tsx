@@ -1,7 +1,7 @@
 /**
  * TravelStore — the single source of truth for the Travel Desk demo.
  *
- * Both the human (clicking the portal) and the Travel Desk agent (via `ui_command`
+ * Both the human (clicking the portal) and the Travel Desk agent (via `ui-command`
  * RTVI messages) call the SAME actions, so the screen stays consistent no matter
  * who is driving. Navigation is plain React state — never the router — so the
  * `PipecatClient` mounted alongside never unmounts and the call stays live.
@@ -12,13 +12,11 @@
  * snapshot back to the agent (`state_sync`) so the AI always knows the active
  * itinerary and its state — including edits the travel agent makes by hand.
  *
- * The agent's half of that is `uiCommands` at the bottom: one typed handler per
- * `ui_command`, checked against `TravelCommands` in `./uiCommands` (itself mirrored
- * from the `Action` classes in `demos/travel/backend/brain.py`). `TravelAdvisor`
- * hands the map to `useUiCommand`, which does the subscribing and the dispatch.
- * This replaced a 21-case `switch` over `Record<string, unknown>` where every
- * argument had to be re-coerced (`str(cmd.leg_id)!`) and a renamed field showed up
- * as a command that quietly stopped working.
+ * The agent's half of that is `handleUiCommand` at the bottom, narrowing on
+ * `actions.gen.ts` — generated from the `Action` classes in
+ * `demos/travel/backend/brain_gemini.py`, so each payload arrives typed and the
+ * `default` arm is an exhaustiveness check. `TravelAdvisor` subscribes to
+ * pipecat's `RTVIEvent.UICommand` once and hands every envelope here.
  */
 
 import {
@@ -36,7 +34,6 @@ import {
   selectedFlight,
   selectedHotel,
   slugify,
-  type Activity,
   type DayPlan,
   type Family,
   type FlightOption,
@@ -48,8 +45,12 @@ import {
   type Task,
   type TaskKind,
 } from './types';
-import type { UiCommandHandlers } from '@voqalize/client-react';
-import type { TravelCommands, WireItinerary } from './uiCommands';
+import {
+  asUiAction,
+  unhandledUiAction,
+  type Itinerary as ItineraryWire,
+  type SetTripStructure,
+} from './actions.gen';
 import { SEED_ITINERARIES } from './data';
 
 export type View = 'dashboard' | 'overview' | 'flights' | 'hotels';
@@ -110,11 +111,11 @@ export type AgentSend = (type: string, data: unknown) => void;
 /**
  * What `createItinerary` needs: the wire shell, or just a name.
  *
- * The brain always sends a complete `WireItinerary` (a pydantic `Action` emits its
- * whole shape), but the "New trip" button in the UI has only a placeholder name —
- * so everything but `name` is optional here, and the store fills the rest.
+ * The brain always sends a complete shell (a pydantic `Action` emits its whole
+ * shape), but the "New trip" button in the UI has only a placeholder name — so
+ * everything but `name` is optional here, and the store fills the rest.
  */
-export type NewItinerary = Partial<WireItinerary> & { name: string };
+export type NewItinerary = Partial<ItineraryWire> & { name: string };
 
 export interface TravelActions {
   openDashboard: () => void;
@@ -122,7 +123,7 @@ export interface TravelActions {
   openItinerary: (idOrName: string) => void;
   /** Build and open a new itinerary. `name` is all the agent must send. */
   createItinerary: (wire: NewItinerary) => void;
-  setTripStructure: (args: TravelCommands['set_trip_structure']) => void;
+  setTripStructure: (args: SetTripStructure) => void;
   setSpecialRequests: (requests: SpecialRequest[]) => void;
   presentFlights: (legId: string, options: FlightOption[]) => void;
   selectFlight: (legId: string, optionId: string) => void;
@@ -166,18 +167,11 @@ export interface TravelStore extends TravelActions {
   registerAgentSend: (fn: AgentSend | null) => void;
   /** Compact snapshot of the active itinerary for `state_sync` (null on dashboard). */
   snapshot: () => Record<string, unknown> | null;
-  /**
-   * The agent's screen-driving handlers, keyed by wire name and typed against
-   * {@link TravelCommands}. Hand straight to `useUiCommand(client, uiCommands)`.
-   */
-  uiCommands: UiCommandHandlers<TravelCommands>;
+  /** Dispatch a `ui-command` RTVI event's `{ command, payload }` from the agent. */
+  handleUiCommand: (command: string, payload: unknown) => void;
 }
 
 const Ctx = createContext<TravelStore | null>(null);
-
-// ── coercion helpers for untrusted ui_command payloads ────────────────────────
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 
 function normalizeOptionsIds<T extends { id?: string }>(items: T[], prefix: string): T[] {
   return items.map((it, i) => ({ ...it, id: it.id && String(it.id) ? String(it.id) : `${prefix}${i + 1}` }));
@@ -194,22 +188,6 @@ const TASK_LINGER = 4500;
 let _taskSeq = 0;
 const newTaskId = (): string => `tk-${Date.now().toString(36)}-${_taskSeq++}`;
 const searchRunMs = (): number => SEARCH_RUN_MIN + Math.floor(Math.random() * SEARCH_RUN_VAR);
-
-/** Coerce an untrusted day-plan payload into a DayPlan (null if no valid day). */
-function toDayPlan(p: Record<string, unknown>): DayPlan | null {
-  const day = typeof p.day === 'number' ? p.day : Number(p.day);
-  if (!Number.isFinite(day) || day < 1) return null;
-  return {
-    day,
-    date: str(p.date),
-    title: str(p.title) ?? `Day ${day}`,
-    transport: str(p.transport),
-    breakfast: str(p.breakfast),
-    lunch: str(p.lunch),
-    dinner: str(p.dinner),
-    activities: arr<Activity>(p.activities),
-  };
-}
 
 /** The wire shell as the store's own itinerary — id, timestamps, empty sections. */
 function buildItinerary(wire: NewItinerary): Itinerary {
@@ -377,7 +355,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   // the heavy part split out of create_itinerary so the shell renders first. Legs are
   // merged by id so any options already searched for a leg survive a re-call.
   const setTripStructure = useCallback(
-    ({ families, legs: wireLegs, hotel_cities }: TravelCommands['set_trip_structure']) =>
+    ({ families, legs: wireLegs, hotel_cities }: SetTripStructure) =>
       mutateActive((it) => {
         const legs: Leg[] =
           wireLegs.length === 0
@@ -690,24 +668,48 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     };
   }, [active, view, flightsLeg, hotelsCity, tasks]);
 
-  // The agent's ten commands, one handler each. The map is checked against
-  // `TravelCommands` — a name the brain doesn't declare is a compile error here,
-  // and each `args` is the shape its Python `Action` emits, so there is nothing
-  // left to coerce or null-check. `useMemo` only to keep the object identity
-  // stable; `useUiCommand` reads it through a ref either way.
-  const uiCommands: UiCommandHandlers<TravelCommands> = useMemo(
-    () => ({
-      open_dashboard: () => openDashboard(),
-      open_itinerary: ({ name }) => openItinerary(name),
-      create_itinerary: ({ itinerary }) => createItinerary(itinerary),
-      set_trip_structure: (args) => setTripStructure(args),
-      search_flights: ({ leg_id, options }) => searchFlights(leg_id, options),
-      show_flights: ({ leg_id }) => viewFlights(leg_id),
-      select_flight: ({ leg_id, option_id }) => selectFlight(leg_id, option_id),
-      search_hotels: ({ city, options }) => searchHotels(city, options),
-      show_hotels: ({ city }) => viewHotels(city),
-      select_hotel: ({ city, option_id }) => selectHotel(city, option_id),
-    }),
+  // The agent's ten commands. Each payload is the shape its Python `Action`
+  // emits, so there is nothing left to coerce or null-check, and the exhausted
+  // `default` arm makes an eleventh action a compile error here.
+  const handleUiCommand = useCallback(
+    (command: string, payload: unknown) => {
+      const action = asUiAction(command, payload);
+      if (!action) return;
+      switch (action.command) {
+        case 'open_dashboard':
+          openDashboard();
+          break;
+        case 'open_itinerary':
+          openItinerary(action.payload.name);
+          break;
+        case 'create_itinerary':
+          createItinerary(action.payload.itinerary);
+          break;
+        case 'set_trip_structure':
+          setTripStructure(action.payload);
+          break;
+        case 'search_flights':
+          searchFlights(action.payload.leg_id, action.payload.options);
+          break;
+        case 'show_flights':
+          viewFlights(action.payload.leg_id);
+          break;
+        case 'select_flight':
+          selectFlight(action.payload.leg_id, action.payload.option_id);
+          break;
+        case 'search_hotels':
+          searchHotels(action.payload.city, action.payload.options);
+          break;
+        case 'show_hotels':
+          viewHotels(action.payload.city);
+          break;
+        case 'select_hotel':
+          selectHotel(action.payload.city, action.payload.option_id);
+          break;
+        default:
+          unhandledUiAction(action);
+      }
+    },
     [
       openDashboard,
       openItinerary,
@@ -738,7 +740,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     agentSend: agentSendRef.current,
     registerAgentSend,
     snapshot,
-    uiCommands,
+    handleUiCommand,
     openDashboard,
     newBlankItinerary,
     openItinerary,

@@ -3,17 +3,19 @@ name = "voqalize-demos"
 version = "0.1.0"
 requires-python = ">=3.12"
 # The demos backend: one umbrella FastAPI app that hosts every demo brain (dialed
-# by Voqalize at /{name}/s/{session_id}). Brains only — the demo UIs are built and
+# by Voqalize at /{name}?session_id=…). Brains only — the demo UIs are built and
 # served elsewhere (under the apex domain). It depends on the public brain SDK **by
 # path** (workspace source) — this is the deployable dogfooding of the public
 # contract: the demos build against the same SDK a customer would.
 dependencies = [
-    # The `adk` extra pulls google-adk: the travel brain runs on the SDK's Google
-    # ADK adapter (`voqalize.google_adk`), so the deployed brains image needs it.
-    "voqalize-agent-sdk[adk]",
+    # No extra: `google-genai` is declared below in its own right, and the SDK's
+    # Google ADK adapter was deleted on 2026-08-24 along with the `[adk]` extra
+    # that pulled `google-adk` in for it. `travel` and `orderdesk` were the last
+    # two brains riding that adapter; both are now on `GeminiBrain`.
+    "voqalize-agent-sdk",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "google-genai>=1.0",
+    "google-genai>=2.19",
     "loguru>=0.7",
     # RS256 verification of Voqalize's brain token needs a crypto backend. pyjwt
     # alone can't verify RS256; the brain host is the party that verifies, so the

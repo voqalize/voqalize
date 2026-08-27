@@ -11,7 +11,7 @@ from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
-from voqalize.sdk.wire import Frame, VqlStartFrame
+from voqalize.sdk.wire import Frame, ResponseFrame, SessionStartFrame
 
 
 class StartRecorder(SessionAdapter):
@@ -21,8 +21,11 @@ class StartRecorder(SessionAdapter):
         self.emitter = emitter
 
     async def handle_frame(self, frame: Frame) -> None:
-        if isinstance(frame, VqlStartFrame):
+        if isinstance(frame, SessionStartFrame):
             StartRecorder.starts += 1
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
 
     async def close(self) -> None:
         pass
@@ -41,7 +44,7 @@ async def test_agent_leg_transient_close_does_not_kill_run() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(VqlStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(turn_id=1, session_id="s1"))
             await wait_until(lambda: StartRecorder.starts >= 1, timeout=3.0)
 
             await cortex.kill_agent_leg("welcome", code=4001)

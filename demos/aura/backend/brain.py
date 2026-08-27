@@ -8,7 +8,7 @@ function-calling loop where **each LLM call is one ``interaction.say()`` bracket
 
 This is the most complex demo — it fuses three workstreams:
 
-  * **Authenticated account tools** (``authenticate`` → ``choose_account`` →
+  * **Authenticated account tools** (``show_auth_popup`` → ``choose_account`` →
     ``get_account_balance`` / ``get_statement``, plus ``choose_credit_card`` →
     ``show_card_controls``). These are the demo's security story: a deliberately real
     HS256 token the LLM can only *pass back* — it can never mint one, because only the
@@ -18,22 +18,24 @@ This is the most complex demo — it fuses three workstreams:
   * **Knowledge embed** — the KB/video/facts guides plus ``aura_facts.md`` (copied
     verbatim; the control plane cannot import pygato) interpolated into the prompt.
 
-Two mechanics need more than the standard tool-loop, so this brain overrides ``respond``:
+Two mechanics carry the demo, and both run through :meth:`on_rtvi`:
 
-  * **Async, blocking tools.** ``authenticate`` / ``choose_account`` /
-    ``choose_credit_card`` open an on-screen dialog and then *block* until the browser
-    reports the customer finished, by awaiting an ``asyncio.Future`` resolved in
-    :meth:`on_client_message`. Because the SDK **spawns** both ``on_interaction`` and
-    ``on_client_message`` as their own tasks (the ``VqlUserText`` ack stays prompt),
-    the awaiting tool and the resolving browser message run concurrently. This is why
-    :meth:`respond` awaits an async dispatch.
+  * **Nothing waits on the customer.** ``show_auth_popup`` / ``choose_account`` /
+    ``choose_credit_card`` put a dialog on screen and return in the same breath. What
+    the customer then does arrives later as a browser message, and the brain appends a
+    line of context saying what happened and handing over whatever it produced — the
+    signed token, the chosen account. A tool that awaited the customer would mute their
+    mic exactly while asking them to act, and would model a handshake that does not
+    exist: they may never do it, may do it in five minutes, or may have done it
+    already. What the customer did is answered on the next idle stimulus — a tap is
+    an answer, but it arrives on a callback that may not speak, so ``on_user_idle``
+    is where Aria takes the floor once the customer is genuinely quiet.
   * **Silent screen-state awareness.** The browser pushes a compact ``state_sync``
-    snapshot on connect and after every change. The managed bot folded it into the LLM
-    context as a ``user`` message; here :meth:`working_context` appends the *latest*
-    snapshot as a trailing user turn each turn, so the assistant always reasons from
-    what's on screen (``get_screen_context`` reads the same snapshot).
+    snapshot on connect and after every change, and :meth:`_append_screen_state` folds
+    the freshest one into the context without taking the floor, so the assistant always
+    reasons from what's on screen (``get_screen_context`` reads the same snapshot).
 
-The LLM is **dependency-injected** as a :class:`GeminiProvider`; the brain owns the
+The LLM's ``genai.Client`` is **dependency-injected**; the brain owns the
 prompt, the tool schemas, and this session's auth/selection/screen state. The
 conversation record is framework-owned (``interaction.conversation``), rebuilt into
 Gemini's working context each turn by the :class:`GeminiBrain` base.
@@ -41,7 +43,6 @@ Gemini's working context each turn by the :class:`GeminiBrain` base.
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import contextlib
 import hashlib
@@ -50,12 +51,19 @@ import json
 import random
 import secrets
 import time
+from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
-from google.genai import types
+from google import genai
+from google.genai import interactions as gi
 from loguru import logger
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from pydantic import BaseModel, Field
+from voqalize_demos import DEFAULT_MODEL
+
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .content import AURA_FACTS
 
@@ -124,13 +132,47 @@ _CALC_DEFAULTS: dict[str, dict[str, float]] = {
 # hallucinated token or account id is rejected server-side, not by the prompt.
 _AUTH_SECRET = b"aura-demo-hs256-secret-not-for-production"
 _AUTH_TTL_SECONDS = 30 * 60
-# How long authenticate()/choose_account() wait for the customer's on-screen step.
-# The customer is mic-muted during a tool call, so a "Cancel" from the browser is
-# the primary escape; this timeout is only a backstop for an abandoned dialog.
-_INTERACTION_TIMEOUT_S = 90
-# Sentinel the browser's cancel resolves the pending future with, so the tool
-# returns control to the model immediately instead of blocking the whole call.
-_CANCELLED = "__cancelled__"
+
+# How long a customer has to be quiet before Aria may take the floor. This is what
+# makes a tap an answer: the dialogs return at once and the customer replies on
+# screen, so without an idle stimulus nobody would ever be given a turn in which to
+# say "you're in — which account?" and the call would stall on a silence the
+# customer thinks they already answered. Short, because it is the latency between
+# the tap and the acknowledgement; harmless when nothing was tapped, because
+# ``on_user_idle`` stays silent unless the screen owes the customer a reply.
+_IDLE_MS = 3000
+
+# What to tell the model when the customer closes a dialog without answering it.
+_DISMISSED = {
+    "auth": "The customer closed the secure sign-in without signing in, so they are NOT "
+    "authenticated and no account or card tool will work. Acknowledge it warmly, offer to "
+    "help with something that needs no sign-in, and offer to open it again whenever they "
+    "are ready.",
+    "account": "The customer closed the account picker without choosing one. Ask which "
+    "account they meant, or offer other help.",
+    "card": "The customer closed the card picker without choosing one. Ask which card they "
+    "wanted to manage, or offer other help.",
+}
+
+# What a tool says when the step before it has not happened. These are the signs on
+# the must-happen-before edges: the model is told which step is missing and that the
+# customer, not it, has to take it — so a model that skipped ahead walks back and
+# asks rather than retrying or inventing a token.
+_NOT_SIGNED_IN = (
+    "The customer is not signed in, so this is refused. Call show_auth_popup(), say one short "
+    "line asking them to authorise it, and wait to be handed an authenticated_context. Do not "
+    "retry this call until you have one."
+)
+_NO_ACCOUNT = (
+    "The customer has not picked an account, so this is refused. Call "
+    "choose_account(authenticated_context) and wait to be told which one they tapped. Do not "
+    "guess an account_id."
+)
+_NO_CARD = (
+    "The customer has not picked a card, so this is refused. Call "
+    "choose_credit_card(authenticated_context) and wait to be told which one they tapped. Do "
+    "not guess a card_id."
+)
 
 
 def _b64url(raw: bytes) -> str:
@@ -189,11 +231,9 @@ def _parse_date(value: Any) -> date | None:
     return None
 
 
-# One hardcoded demo customer + their accounts. authenticate() "signs them in";
+# One hardcoded demo customer + their accounts. show_auth_popup() "signs them in";
 # choose_account() lets them pick which account to look at.
 _DEMO_CUSTOMER = {"id": "cust_ax_88213", "name": "Ananya Sharma", "masked_mobile": "••••••4021"}
-
-_ACCOUNT_FIELDS = ("account_id", "type", "branch", "nickname", "masked_number")
 
 _DEMO_ACCOUNTS: list[dict[str, Any]] = [
     {
@@ -251,8 +291,6 @@ def _account_by_id(account_id: str) -> dict[str, Any] | None:
 # show_card_controls() then opens that card's usage/limits form. ``controls`` are
 # the card's CURRENT on-card settings — the customer adjusts and saves them on
 # screen themselves (we only open the form; the LLM never sets a limit).
-_CARD_FIELDS = ("card_id", "network", "product", "variant", "masked_number")
-
 _DEMO_CARDS: list[dict[str, Any]] = [
     {
         "card_id": "cc_shop_7043",
@@ -392,27 +430,28 @@ PICK THE RIGHT TOOL: a how-to question → article + video. "How much EMI / will
 
 _ACCOUNT_GUIDE = """ACCOUNT ACCESS — viewing the customer's OWN balance & statement (STRICT ORDER):
 You have four secure account tools. They MUST be used in this exact order; the later ones REFUSE if you skip a step.
-1. authenticate() — opens a secure sign-in dialog that the customer authorises themselves on screen. Returns an 'authenticated_context' token. Speak a short line FIRST ("I'll open a secure sign-in now — please authorise it on your screen"), THEN call it; it waits for the customer to finish signing in.
-2. choose_account(authenticated_context) — shows the customer their accounts so they pick ONE. Returns the chosen account_id (with branch and nickname).
+1. show_auth_popup() — puts a secure sign-in on screen for the customer to authorise themselves. It returns AT ONCE, before they have signed in. Say one short line ("I'll put a secure sign-in on your screen — authorise it whenever you're ready"), then carry on with whatever else they asked. You will be TOLD when they sign in, and handed an 'authenticated_context' token then. Never ask them to read anything out.
+2. choose_account(authenticated_context) — puts the customer's accounts on screen so they tap ONE. This also returns at once; you will be told which account they picked.
 3. get_account_balance(authenticated_context, account_id) — the current balance. The balance shows on screen; say just the one figure in words ("your Salary account has about three lakh forty-nine thousand rupees") and stop.
 4. get_statement(authenticated_context, account_id, start_date, end_date) — recent transactions; both dates are OPTIONAL and default to the LAST THREE MONTHS. The statement screen already lists every transaction — do NOT enumerate them aloud. Give ONE short highlight line (e.g. "salary's in and your biggest spend was rent") and point at the screen for the rest.
 
 HARD RULES (these are enforced by the server, not just etiquette):
-- NEVER call get_account_balance or get_statement until you hold BOTH a real authenticated_context (from authenticate) AND an account_id the customer picked (from choose_account). If you don't, authenticate and choose first.
-- NEVER invent, guess, or reuse from memory an authenticated_context or an account_id — pass back ONLY the exact values these tools returned. You cannot fabricate a valid token; the server verifies it and will reject a made-up one.
-- If a tool answers "not authenticated" or "choose an account first", simply walk back and do that step, then retry.
+- NEVER call get_account_balance or get_statement until you have been HANDED BOTH a real authenticated_context AND an account_id the customer picked. Both arrive as messages telling you what the customer just did — not as a tool's return value. Until then, the earlier steps have not happened.
+- NEVER invent, guess, or reuse from memory an authenticated_context or an account_id — pass back ONLY the exact values you were handed. You cannot fabricate a valid token; the server verifies it and will reject a made-up one.
+- If a tool answers "not authenticated" or "choose an account first", the customer has not done that step yet. Do NOT retry the same call. Open the dialog if it isn't up, say one short line asking them to do it, and wait to be told.
+- The customer may take a while, or may never do it. That is fine — stay useful in the meantime and never sit silent waiting.
 - Reassure the customer it's secure and you only VIEW — you never move money and never need their OTP, PIN or password to sign them in."""
 
 
 _CARD_CONTROL_GUIDE = """CREDIT-CARD CONTROLS — changing a card's limits / international usage (secure, reuses the same sign-in):
 When the customer wants to raise or enable something on their CREDIT card — international spend/usage, the domestic limit, tap-to-pay (contactless), online use, or the ATM cash limit — drive it on screen: you OPEN the controls, the customer sets and saves them. STRICT ORDER (later tools refuse if you skip a step):
-1. AUTHENTICATE ONLY IF NEEDED. If the screen state already shows 'authenticated' true, reuse the authenticated_context you already hold from earlier this call and do NOT sign in again. Otherwise call authenticate() first.
-2. choose_credit_card(authenticated_context) — the customer picks WHICH card. Returns the chosen card_id.
+1. AUTHENTICATE ONLY IF NEEDED. If you already hold an authenticated_context from earlier this call, reuse it and do NOT sign in again. Otherwise call show_auth_popup() and wait to be handed one; it does not wait for you.
+2. choose_credit_card(authenticated_context) — puts the cards on screen so the customer taps WHICH one. Returns at once; you will be told which card they picked.
 3. show_card_controls(authenticated_context, card_id) — opens that card's usage & limits form (international/domestic on-off, contactless, online, and the spend / ATM-cash limits). The customer adjusts and saves it themselves. Say ONE short line pointing at the screen ("your card controls are up — flip International on and set the limit there"); do NOT read the toggles aloud.
 4. AS THE FORM COMES UP, this is the natural moment for Journey A (cross-sell): enabling international usually means a trip, so ask one light trip question and, if it fits, offer a forex card.
 5. If they want the forex card, once they've set their limits, call show_forex_card() and let them tap 'Request this card' — that captures the lead.
 
-Same guardrails as account access: NEVER invent or guess an authenticated_context or a card_id (pass back only what the tools returned); you only OPEN the controls, you never change a limit or move money; and never ask for OTP, PIN, CVV, card number or password."""
+Same guardrails as account access: NEVER invent or guess an authenticated_context or a card_id (pass back only what you were handed); you only OPEN the controls, you never change a limit or move money; and never ask for OTP, PIN, CVV, card number or password."""
 
 
 # Curated Aura Bank reference facts (public info), embedded so the assistant can
@@ -513,453 +552,457 @@ Open with a brief, warm greeting in English: say you are {AGENT_NAME} from Aura 
 _GREETING = f"Hi, I'm {AGENT_NAME} from Aura Bank support. What can I help you with today?"
 
 
-# ─── Tool schemas (JSON-schema dicts → google-genai Schema, mirrored from the ──
-#     managed aura FunctionSchemas / ToolsSchema) ────────────────────────────────
-
-_COMPARE_ITEM = {
-    "type": "object",
-    "properties": {
-        "id": {"type": "string"},
-        "name": {"type": "string"},
-        "features": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "A few short selling points.",
-        },
-    },
-}
-
-_BRANCH_RESULT = {
-    "type": "object",
-    "properties": {
-        "name": {"type": "string"},
-        "address": {"type": "string"},
-        "kind": {"type": "string", "description": "'branch' or 'atm'."},
-        "ifsc": {"type": "string"},
-        "hours": {"type": "string"},
-    },
-}
+# ─── Screen actions ────────────────────────────────────────────────────────────
+# One class per ui_command the /aura console renders. The class name IS the
+# command the browser switches on (``OpenArticle`` → ``open_article``) and the
+# fields are the payload it reads — see ``frontend/src/store.tsx``. These are the
+# screen's contract, not the model's: a tool takes its arguments flat and builds
+# the action here, so an argument the model gives and a field the browser needs
+# stay free to differ (``raise_ticket`` mints the reference; ``run_calculator``
+# solves the maths).
 
 
-# (tool_name, description, properties, required)
-_TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
-    ("open_home", "Go to the Aura Bank home page.", {}, []),
-    (
-        "open_help_center",
-        "Open the Help & Support centre (category grid + popular questions).",
-        {},
-        [],
-    ),
-    (
-        "open_category",
-        "Open a help category to list its articles.",
-        {
-            "category": {
-                "type": "string",
-                "description": "Category id: cards, accounts, netbanking, payments, loans-deposits, or support.",
-            }
-        },
-        ["category"],
-    ),
-    (
-        "open_article",
-        "Open a specific help article on screen (shows the steps and, if any, its how-to video).",
-        {
-            "article_id": {
-                "type": "string",
-                "description": "Article id from the knowledge base, e.g. 'interest-certificate'.",
-            }
-        },
-        ["article_id"],
-    ),
-    (
-        "play_help_video",
-        "Play an official Aura how-to video on the screen, MUTED, jumped to a specific "
-        "second. Use after open_article. Then narrate the steps in your own words.",
-        {
-            "video_id": {
-                "type": "string",
-                "description": "YouTube video id, e.g. 'M_Oxpto2PRo'.",
-            },
-            "start_sec": {
-                "type": "integer",
-                "description": "Second to jump to — the chapter start that answers the question (skip the intro).",
-            },
-        },
-        ["video_id", "start_sec"],
-    ),
-    (
-        "highlight_step",
-        "Highlight a step in the on-screen step list as you narrate it (0-based chapter index).",
-        {
-            "index": {
-                "type": "integer",
-                "description": "0-based index of the chapter/step to highlight.",
-            }
-        },
-        ["index"],
-    ),
-    (
-        "seek_video",
-        "Jump the currently playing video to another second (e.g. the next step the customer asks about).",
-        {"start_sec": {"type": "integer", "description": "Second to seek to."}},
-        ["start_sec"],
-    ),
-    (
-        "pause_video",
-        "Pause the video (e.g. while you explain something or the customer asks a question).",
-        {},
-        [],
-    ),
-    ("resume_video", "Resume playing the paused video.", {}, []),
-    (
-        "show_contact",
-        "Show Aura helpline / contact options on screen — use when a task is genuinely "
-        "account-specific, needs a branch, or the customer is stuck.",
-        {
-            "topic": {
-                "type": "string",
-                "description": "Short label of what they need help with, e.g. 'lost card' or 'interest certificate'.",
-            }
-        },
-        [],
-    ),
-    (
-        "get_screen_context",
-        "Read what the customer is currently looking at (screen, open article, video position).",
-        {},
-        [],
-    ),
-    (
-        "run_calculator",
-        "Open and fill an on-screen calculator (no login needed). The computed result is "
-        "returned to you — tell the customer the figure.",
-        {
-            "kind": {"type": "string", "description": "'emi', 'fd', or 'eligibility'."},
-            "principal": {"type": "number", "description": "Loan/deposit amount (emi, fd)."},
-            "annual_rate": {"type": "number", "description": "Annual interest rate %."},
-            "tenure_months": {"type": "integer", "description": "Tenure in months."},
-            "monthly_income": {"type": "number", "description": "Monthly income (eligibility)."},
-            "existing_emi": {
-                "type": "number",
-                "description": "Existing monthly EMIs (eligibility).",
-            },
-        },
-        ["kind"],
-    ),
-    (
-        "start_application",
-        "Begin a new-customer application on screen (no login needed). Then prefill_field for each detail.",
-        {"product": {"type": "string", "description": "'savings', 'credit_card', or 'loan'."}},
-        ["product"],
-    ),
-    (
-        "prefill_field",
-        "Fill one field of the open application form.",
-        {
-            "field": {
-                "type": "string",
-                "description": "Field id: name, mobile, email, city, pan, employment, monthly_income, loan_amount, tenure_years.",
-            },
-            "value": {"type": "string", "description": "The value to fill in."},
-        },
-        ["field", "value"],
-    ),
-    ("submit_application", "Submit the open application once the customer is ready.", {}, []),
-    (
-        "compare",
-        "Show a side-by-side comparison of cards or accounts and recommend the best fit.",
-        {
-            "kind": {"type": "string", "description": "'credit_card' or 'savings'."},
-            "items": {
-                "type": "array",
-                "description": "2-4 options to compare (use real Aura product names).",
-                "items": _COMPARE_ITEM,
-            },
-            "recommend_id": {"type": "string", "description": "id of the recommended option."},
-            "recommend_reason": {"type": "string", "description": "One-line why."},
-        },
-        ["kind", "items"],
-    ),
-    (
-        "find_branch",
-        "Show nearby branches / ATMs for a pincode (generate a few plausible ones).",
-        {
-            "pincode": {"type": "string"},
-            "results": {"type": "array", "items": _BRANCH_RESULT},
-        },
-        ["pincode", "results"],
-    ),
-    (
-        "show_checklist",
-        "Show a document / eligibility checklist on screen.",
-        {
-            "title": {"type": "string"},
-            "items": {"type": "array", "items": {"type": "string"}},
-        },
-        ["title", "items"],
-    ),
-    (
-        "send_to_phone",
-        "Send the current guide/steps to the customer's phone (mock take-away).",
-        {
-            "what": {"type": "string", "description": "Short label of what's being sent."},
-            "channel": {"type": "string", "description": "'whatsapp' or 'sms'."},
-            "number": {"type": "string", "description": "Phone number if given, else omit."},
-        },
-        ["what"],
-    ),
-    (
-        "raise_ticket",
-        "Register a complaint or callback request; returns a reference number to read out.",
-        {
-            "topic": {"type": "string"},
-            "summary": {
-                "type": "string",
-                "description": "One-line description of the issue/request.",
-            },
-        },
-        ["topic"],
-    ),
-    (
-        "spotlight",
-        "Draw a ring around an element to point at it. target: 'calc_result', an application field id, or 'recommend'.",
-        {
-            "target": {"type": "string"},
-            "label": {"type": "string", "description": "Optional short caption."},
-        },
-        ["target"],
-    ),
-    (
-        "authenticate",
-        "Securely sign the customer in so they can view their OWN account data. "
-        "Opens a secure sign-in dialog the customer authorises on screen, then "
-        "returns an 'authenticated_context' token you MUST pass to every account "
-        "tool. Call this BEFORE choose_account / get_account_balance / get_statement. "
-        "Never ask the customer for OTP, PIN or password — the dialog handles it.",
-        {},
-        [],
-    ),
-    (
-        "choose_account",
-        "Let the customer pick WHICH of their accounts to look at. Shows an account "
-        "picker on screen for the customer to select one. Requires the "
-        "authenticated_context from authenticate(). Returns the chosen account_id "
-        "(plus branch and nickname) that you pass to get_account_balance / get_statement.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "The exact token returned by authenticate(). Never invent this.",
-            }
-        },
-        ["authenticated_context"],
-    ),
-    (
-        "get_account_balance",
-        "Get the current balance of a specific account. Requires BOTH the "
-        "authenticated_context (from authenticate) AND an account_id the customer "
-        "chose via choose_account. Tell the customer the balance in words.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "Token from authenticate(). Never invent this.",
-            },
-            "account_id": {
-                "type": "string",
-                "description": "account_id returned by choose_account(). Never invent this.",
-            },
-        },
-        ["authenticated_context", "account_id"],
-    ),
-    (
-        "get_statement",
-        "Get recent transactions for a specific account (defaults to the last three "
-        "months). Requires the authenticated_context AND an account_id chosen via "
-        "choose_account. Summarise the transactions for the customer.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "Token from authenticate(). Never invent this.",
-            },
-            "account_id": {
-                "type": "string",
-                "description": "account_id returned by choose_account(). Never invent this.",
-            },
-            "start_date": {
-                "type": "string",
-                "description": "Optional ISO date YYYY-MM-DD; defaults to three months ago.",
-            },
-            "end_date": {
-                "type": "string",
-                "description": "Optional ISO date YYYY-MM-DD; defaults to today.",
-            },
-        },
-        ["authenticated_context", "account_id"],
-    ),
-    (
-        "choose_credit_card",
-        "Show the customer their credit cards so they pick ONE to manage. Requires "
-        "the authenticated_context from authenticate(). Returns the chosen card_id "
-        "(with product name and masked number) that you pass to show_card_controls.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "The exact token returned by authenticate(). Never invent this.",
-            }
-        },
-        ["authenticated_context"],
-    ),
-    (
-        "show_card_controls",
-        "Open the selected credit card's usage & limits controls on screen: "
-        "international/domestic on-off, contactless (tap to pay), online use, and "
-        "the domestic spend and ATM-cash limits. The customer adjusts and saves it "
-        "themselves. Requires BOTH the authenticated_context AND a card_id the "
-        "customer chose via choose_credit_card.",
-        {
-            "authenticated_context": {
-                "type": "string",
-                "description": "Token from authenticate(). Never invent this.",
-            },
-            "card_id": {
-                "type": "string",
-                "description": "card_id returned by choose_credit_card(). Never invent this.",
-            },
-        },
-        ["authenticated_context", "card_id"],
-    ),
-    (
-        "show_forex_card",
-        "Show the Aura Multi-Currency Forex Card product screen with a one-tap "
-        "'request this card' lead capture. Use as the travel cross-sell after "
-        "helping with international card limits, when the customer is interested. "
-        "No login needed.",
-        {},
-        [],
-    ),
-]
-
-_JSON_TO_GENAI = {
-    "string": types.Type.STRING,
-    "integer": types.Type.INTEGER,
-    "number": types.Type.NUMBER,
-    "boolean": types.Type.BOOLEAN,
-    "object": types.Type.OBJECT,
-    "array": types.Type.ARRAY,
-}
+class OpenHome(Action):
+    """Back to the Aura Bank home page."""
 
 
-def _to_schema(d: dict[str, Any]) -> types.Schema:
-    """Convert a JSON-schema dict to a google-genai Schema (recursive)."""
-    kw: dict[str, Any] = {"type": _JSON_TO_GENAI[d["type"]]}
-    if d.get("description"):
-        kw["description"] = d["description"]
-    if d.get("enum"):
-        kw["enum"] = d["enum"]
-    if d["type"] == "object":
-        props = d.get("properties") or {}
-        kw["properties"] = {k: _to_schema(v) for k, v in props.items()}
-        if d.get("required"):
-            kw["required"] = d["required"]
-    if d["type"] == "array":
-        kw["items"] = _to_schema(d["items"])
-    return types.Schema(**kw)
+class OpenHelpCenter(Action):
+    """The help centre's category index."""
 
 
-def _tools() -> types.ToolListUnion:
-    decls = [
-        types.FunctionDeclaration(
-            name=name,
-            description=desc,
-            parameters=_to_schema({"type": "object", "properties": props, "required": req}),
-        )
-        for name, desc, props, req in _TOOLSPECS
-    ]
-    tools: types.ToolListUnion = [types.Tool(function_declarations=decls)]
-    return tools
+class OpenCategory(Action):
+    """One help-centre category's article list."""
+
+    category: str
 
 
-class AuraBrain(GeminiBrain):
+class OpenArticle(Action):
+    """One help article, full screen."""
+
+    article_id: str
+
+
+class PlayHelpVideo(Action):
+    """Start Aura's own how-to clip, muted, at a given second."""
+
+    video_id: str
+    start_sec: int
+
+
+class HighlightStep(Action):
+    """Move the on-screen step list's focus to one step."""
+
+    index: int
+
+
+class SeekVideo(Action):
+    """Jump the playing clip to another second."""
+
+    start_sec: int
+
+
+class PauseVideo(Action):
+    """Hold the clip where it is."""
+
+
+class ResumeVideo(Action):
+    """Play on from where it was paused."""
+
+
+class ShowContact(Action):
+    """The helpline panel, headed by what they were stuck on."""
+
+    topic: str
+
+
+# The three closed vocabularies a tool parameter and its Action share. Declared
+# once: the tool's signature is what Gemini is offered, the Action's field is what
+# the browser is typed against, and they cannot drift into two different lists.
+CalcKind = Literal["emi", "fd", "eligibility"]
+Product = Literal["savings", "credit_card", "loan"]
+CompareKind = Literal["credit_card", "savings"]
+Channel = Literal["whatsapp", "sms"]
+
+
+class RunCalculator(Action):
+    """The calculator screen, filled in and already solved.
+
+    ``inputs`` carries the defaults the customer never gave, because the screen
+    shows its own working — and ``result`` is computed here rather than in the
+    browser so the figure Aria speaks and the figure on screen cannot drift."""
+
+    kind: CalcKind
+    inputs: dict[str, float]
+    result: dict[str, float]
+
+
+class StartApplication(Action):
+    """Open a blank product application."""
+
+    product: Product
+
+
+class PrefillField(Action):
+    """Type one value into the open application."""
+
+    field: str
+    value: str
+
+
+class SubmitApplication(Action):
+    """Send the open application — only ever after the customer says so."""
+
+
+class CompareItem(BaseModel):
+    """One product in a comparison, as its column renders."""
+
+    id: str = Field(description="Short slug for this option, unique within the list.")
+    name: str = Field(description="The real Aura product name, in clean English.")
+    features: list[str] = Field(
+        default_factory=list, description="Three or four short feature lines, in clean English."
+    )
+
+
+class Compare(Action):
+    """The side-by-side comparison table, with one column starred."""
+
+    kind: CompareKind
+    items: list[CompareItem]
+    recommend_id: str
+    recommend_reason: str
+
+
+class BranchResult(BaseModel):
+    """One branch or ATM, as its card renders."""
+
+    name: str = Field(description="Branch or ATM name, in clean English.")
+    address: str = Field(default="", description="One-line street address, in clean English.")
+    kind: Literal["branch", "atm"] = Field(default="branch", description="Which of the two it is.")
+    ifsc: str | None = Field(default=None, description="IFSC code — branches only.")
+    hours: str | None = Field(
+        default=None, description="Opening hours, e.g. 'Mon-Sat, ten to four'."
+    )
+
+
+class FindBranch(Action):
+    """The branch/ATM locator, showing results for one pincode."""
+
+    pincode: str
+    results: list[BranchResult]
+
+
+class ShowChecklist(Action):
+    """A titled list of short lines — documents, eligibility, next steps."""
+
+    title: str
+    items: list[str]
+
+
+class SendToPhone(Action):
+    """The 'sent to your phone' confirmation."""
+
+    what: str
+    channel: Channel
+    number: str
+
+
+class RaiseTicket(Action):
+    """The ticket receipt, with the reference the server minted."""
+
+    reference: str
+    topic: str
+    summary: str
+
+
+class Spotlight(Action):
+    """Draw a ring around one element on screen."""
+
+    target: str
+    label: str
+
+
+class ShowForexCard(Action):
+    """The Multi-Currency Forex Card screen, with its one-tap request."""
+
+
+# ── The secure screens ────────────────────────────────────────────────────────
+# The three that carry a ``nonce`` ask the customer for something. The brain mints
+# the nonce, dispatches, and returns; the browser sends the same nonce back when
+# the customer answers. Nothing waits on that — the nonce is there so the answer can
+# be matched to the dialog that asked for it, and so a stale or replayed one closes
+# nothing.
+
+
+class OpenAuth(Action):
+    """The secure sign-in sheet. The browser answers with ``auth_complete`` (or
+    ``auth_cancelled``), carrying this nonce; the token is minted there, never
+    here — see :meth:`AuraBrain._complete_auth`."""
+
+    nonce: str
+    name: str
+    masked_mobile: str
+
+
+class AccountRef(BaseModel):
+    """An account as the picker and the balance card show it — the projection of
+    the bank's record that is safe to send, with the money left behind."""
+
+    account_id: str
+    type: str
+    branch: str
+    nickname: str
+    masked_number: str
+
+
+class CardRef(BaseModel):
+    """A credit card as the screen shows it. Never the real number."""
+
+    card_id: str
+    network: str
+    product: str
+    variant: str
+    masked_number: str
+
+
+class StatementTxn(BaseModel):
+    """One row of a statement."""
+
+    date: str
+    description: str
+    amount: float
+    kind: Literal["debit", "credit"]
+
+
+class CardControls(BaseModel):
+    """A card's current usage and limit settings, as the form renders them."""
+
+    domestic_enabled: bool
+    international_enabled: bool
+    contactless_enabled: bool
+    online_enabled: bool
+    domestic_limit: float
+    international_limit: float
+    atm_cash_limit: float
+
+
+class ChooseAccount(Action):
+    """The account picker. Answered by ``account_selected`` / ``account_cancelled``."""
+
+    nonce: str
+    accounts: list[AccountRef]
+
+
+class ShowBalance(Action):
+    """The balance card for one account, as of a date."""
+
+    account: AccountRef
+    balance: float
+    currency: str
+    as_of: str
+
+
+class ShowStatement(Action):
+    """A dated transaction list for one account."""
+
+    account: AccountRef
+    from_date: str
+    to_date: str
+    transactions: list[StatementTxn]
+    currency: str
+
+
+class ChooseCreditCard(Action):
+    """The card picker. Answered by ``card_selected`` / ``card_cancelled``."""
+
+    nonce: str
+    cards: list[CardRef]
+
+
+class ShowCardControls(Action):
+    """The usage & limits form for one card — the customer edits and saves it
+    themselves, so the assistant never reads the toggles aloud."""
+
+    card: CardRef
+    credit_limit: float
+    controls: CardControls
+
+
+async def _silence() -> AsyncGenerator[Any, None]:
+    """Yields nothing: an idle tick the assistant has no reason to answer."""
+    for _ in ():
+        yield
+
+
+class AuraBrain(GeminiInteractionsBrain):
     """One per session. The Aura Bank L1 support assistant: LLM + help-centre /
     calculator / application / comparison / branch tools + the four secure account
     tools + the two secure credit-card tools + this session's auth/selection/screen
     state.
 
-    Overrides :meth:`respond` (async tool dispatch, because ``authenticate`` /
-    ``choose_account`` / ``choose_credit_card`` block on a browser round-trip) and
-    :meth:`working_context` (folds the latest ``state_sync`` screen snapshot into the
-    LLM's context each turn). Browser→brain feedback — screen syncs and the auth /
-    picker completions/cancels that resolve those blocking tools — arrives on
-    :meth:`on_client_message`.
+    Nothing here waits on the customer. ``show_auth_popup``, ``choose_account``
+    and ``choose_credit_card`` dispatch a dialog and return; the customer answers
+    it in their own time, or never, and the answer arrives on :meth:`on_rtvi` —
+    which appends a line of context saying what they did and records that Aria
+    owes them a word about it. She says it on the next :meth:`on_user_idle`, the
+    one stimulus that means the floor is free. The ordering that the waiting used
+    to enforce is carried instead by the tool signatures: every account and card
+    tool takes an ``authenticated_context`` this brain mints and re-verifies, so a
+    model that skips ahead gets an error naming the step it skipped rather than a
+    number it should not have.
     """
 
-    # This agent's own voice — not the connecting page's to choose. `language`
-    # sets both the recognizer's hint and the TTS reference clip (the accent).
-    voice = "omnivoice/gauri"
-    language = "en"
-
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
-            llm=llm,
+            client=client,
             system_instruction=_SYSTEM_INSTRUCTION,
-            tools=_tools(),
             model=model,
             # Headroom above the base default: aura's secure flows chain several
             # tool hops in one turn (authenticate → choose → read).
             max_tool_hops=8,
         )
-        # Session payload (init). Stored for parity with the managed AuraBot; aura
-        # does not seed any account data from it (accounts/cards are hardcoded demo
-        # data), so it does not mutate the system prompt.
+        # Session payload (init). Aura does not seed any account data from it
+        # (accounts and cards are hardcoded demo data), so it does not mutate the
+        # system prompt; it is kept because the screen half reads it.
         self.payload: dict[str, Any] = {}
 
         # Latest screen snapshot the browser has told us about, and whether any
-        # state_sync has arrived yet (so we only inject once the browser reports in).
+        # state_sync has arrived yet.
         self.current_state: dict[str, Any] | None = None
         self._state_synced = False
+        self._last_state_note: str | None = None
 
-        # Authenticated-account demo state. ``_pending`` holds the futures that
-        # authenticate()/choose_account()/choose_credit_card() block on until the
-        # browser reports the customer finished the on-screen step; ``_selected`` /
-        # ``_selected_cards`` record which accounts/cards the customer actually
-        # picked (balance/statement/controls require it). ``_auth_salt`` binds
-        # minted tokens to this session instance.
-        self._pending: dict[str, asyncio.Future[str]] = {}
+        # Authenticated-account demo state. ``_open_dialogs`` maps the nonce of
+        # each dialog now on screen to what it asks for, so a card answer cannot
+        # close the sign-in and a stale answer is discarded; ``_token`` is the
+        # signed token once the customer has authorised the sign-in, which makes a
+        # second show_auth_popup() a no-op; ``_selected`` / ``_selected_cards``
+        # record what the customer actually picked (balance/statement/controls
+        # require it). ``_auth_salt`` binds minted tokens to this session instance.
+        self._open_dialogs: dict[str, str] = {}
+        self._token: str | None = None
         self._selected: set[str] = set()
         self._selected_cards: set[str] = set()
         self._auth_salt = secrets.token_hex(8)
 
+        # Set when the customer answers a dialog and cleared the moment Aria
+        # speaks to it. It is what ``on_user_idle`` reads: a tap is an answer, and
+        # this is the only record that one is outstanding.
+        self._owed_a_reply = False
+
+    @property
+    def tools(self) -> list[Callable[..., Any]]:
+        """The twenty-eight tools Aria may call.
+
+        The last six are the secure ones. Three of those open a dialog and return
+        without waiting for it; the other three refuse until the customer has
+        answered one. See the section they live in."""
+        return [
+            self.open_home,
+            self.open_help_center,
+            self.open_category,
+            self.open_article,
+            self.play_help_video,
+            self.highlight_step,
+            self.seek_video,
+            self.pause_video,
+            self.resume_video,
+            self.show_contact,
+            self.get_screen_context,
+            self.run_calculator,
+            self.start_application,
+            self.prefill_field,
+            self.submit_application,
+            self.compare,
+            self.find_branch,
+            self.show_checklist,
+            self.send_to_phone,
+            self.raise_ticket,
+            self.spotlight,
+            self.show_forex_card,
+            self.show_auth_popup,
+            self.choose_account,
+            self.get_account_balance,
+            self.get_statement,
+            self.choose_credit_card,
+            self.show_card_controls,
+        ]
+
     # ─── Callbacks ──────────────────────────────────────────────────────
 
-    async def on_session_start(self, session, start) -> None:
-        # The managed AuraBot took its payload from ctx.init_payload; here it rides
-        # the start frame. Aura does not use it to seed the prompt, but keep it for
-        # parity. Then open with a fixed greeting (no LLM call on the start path).
-        self.payload = dict(start.init)
-        await self.say(session, _GREETING)
+    async def on_session_start(self, session: Session) -> None:
+        # The payload rides the connect request; aura does not use it to seed the
+        # prompt, but the screen half reads it.
+        self.payload = dict(session.init or {})
+        # Aria's own voice — not the connecting page's to choose, so it is settled
+        # here rather than sent with the connect request. `language` moves both
+        # legs at once: the recognizer's hint, and the TTS reference clip, which is
+        # the accent. This lands before the greeting.
+        await session.configure(
+            Config(
+                stt=SttConfig(language=Language.EN),
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
+                idle=IdleConfig(timeout_ms=_IDLE_MS),
+            )
+        )
+        logger.info("aura: session start")
 
-    async def on_client_message(self, session, message) -> None:
-        """Browser→Brain client message. None take the floor — each mutates state or
-        resolves a blocking tool's future, so we never touch ``message.interaction``:
+    async def greet(self, session: Session) -> str:
+        """The opener, written not generated — the customer is already looking at
+        the page, and a support agent who makes them wait on a first token has
+        already made them wait."""
+        return _GREETING
+
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        """The customer spoke. Whatever they last did on screen is answered by the
+        reply this turn produces, so the debt is settled here and ``on_user_idle``
+        does not raise it a second time."""
+        self._owed_a_reply = False
+        return super().on_user_message(session, msg)
+
+    def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
+        """The customer has gone quiet — and if the last thing they did was answer a
+        dialog, this is Aria's turn to say so.
+
+        A tap is an answer, but it arrives on :meth:`on_rtvi`, which cannot speak: a
+        click must never put the assistant's voice over the person clicking. So the
+        answer waits here, for the one stimulus that means the floor is genuinely
+        free. Every other idle tick is silence — a customer thinking is not a
+        customer to be prompted, and the context already carries the note, so the
+        turn is a plain :meth:`respond` with nothing added."""
+        if not self._owed_a_reply:
+            return _silence()
+        self._owed_a_reply = False
+        logger.info("aura: idle -> answering what the customer did on screen")
+        return self.respond(session)
+
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """Browser→Brain client message. This is where everything the customer does
+        on screen arrives, and none of it takes the floor here — each folds a line
+        into the context, and an answered dialog also marks that Aria owes a reply,
+        which :meth:`on_user_idle` delivers once the customer is quiet:
 
         * ``state_sync`` — a compact snapshot of what's on screen (sent on connect
-          and after every change); folded into the LLM context via
-          :meth:`working_context` so the assistant always knows what's on screen.
-        * ``auth_complete`` — the customer finished the on-screen sign-in; THIS is
-          where the server mints the token (only reachable after that authorisation,
-          which is why the LLM can never produce one itself), resolving the future
-          that ``authenticate`` is awaiting.
+          and after every change), so the assistant always knows what the customer
+          is looking at.
+        * ``auth_complete`` — the customer finished the on-screen sign-in. THIS is
+          where the server mints the token: it is only reachable via that
+          authorisation, which is why the LLM can never produce one itself. The
+          token goes into the context as something the model was handed.
         * ``account_selected`` / ``card_selected`` — the customer picked one in the
-          on-screen picker; resolves the ``choose_account`` / ``choose_credit_card``
-          future.
+          on-screen picker; recorded here, and named in the context so the model
+          knows what it may now read.
         * ``auth_cancelled`` / ``account_cancelled`` / ``card_cancelled`` — the
-          customer dismissed the dialog; unblocks the waiting tool immediately so the
-          bot recovers instead of sitting muted.
+          customer dismissed the dialog, which is an answer too: the context says so
+          and the model asks rather than assuming.
         """
-        name = message.type
-        data = message.data or {}
+        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+            return
+        name = msg.data.get("t")
+        data = msg.data.get("d")
+        data = data if isinstance(data, dict) else {}
         if name == "state_sync":
             self._ingest_state(data)
+            self._append_screen_state()
         elif name == "auth_complete":
             self._complete_auth(data)
         elif name == "account_selected":
@@ -969,412 +1012,529 @@ class AuraBrain(GeminiBrain):
         elif name in ("auth_cancelled", "account_cancelled", "card_cancelled"):
             self._cancel_pending(data)
 
-    # ─── Working context: fold in the current screen state ──────────────
+    # ─── Screen state: fold the snapshot into the context, silently ─────
 
-    def grounding(self, interaction) -> str | None:
-        """Once the browser has synced, fold the latest screen snapshot into every
-        turn so the assistant reasons from what's on screen right now (the managed
-        bot appended one ``user`` message per ``state_sync``; the freshest snapshot
-        each turn is equivalent and avoids stale duplicates)."""
-        return self._screen_state_note() if self._state_synced else None
+    def _append_screen_state(self) -> None:
+        """Put the freshest snapshot in front of the model, taking no floor.
 
-    def _screen_state_note(self) -> str:
+        The context is append-only and the browser re-sends on every change, so a
+        snapshot that has not moved is not appended twice — otherwise a five-minute
+        call puts the same screen in front of the model a hundred times over."""
+        if not self._state_synced:
+            return
         if self.current_state is None:
-            return "CURRENT SCREEN STATE: the customer is on the Aura Bank home page."
-        try:
-            blob = json.dumps(self.current_state, ensure_ascii=False)
-        except (TypeError, ValueError):
-            blob = str(self.current_state)
-        return (
+            blob = "the customer is on the Aura Bank home page."
+        else:
+            try:
+                blob = json.dumps(self.current_state, ensure_ascii=False)
+            except (TypeError, ValueError):
+                blob = str(self.current_state)
+        note = (
             "CURRENT SCREEN STATE (authoritative — what the customer is looking at right "
             "now; reason from this): " + blob
         )
+        if note == self._last_state_note:
+            return
+        self._last_state_note = note
+        self._append_note(note)
 
-    # ─── Turn loop: async tool dispatch ─────────────────────────────────
+    def _append_note(self, text: str) -> None:
+        """Put one line in front of the model without taking the floor.
 
-    async def respond(self, interaction) -> None:
-        """Standard tool loop, but awaiting an **async** dispatch: aura's secure
-        tools (``authenticate`` / ``choose_account`` / ``choose_credit_card``) open a
-        dialog and block until the browser reports the customer finished. Each LLM
-        call is still one ``interaction.say()`` bracket (1:1 with the wire), and
-        the tool dispatch happens between brackets (so the blocking wait never sits
-        inside an open inference)."""
-        contents = self.working_context(interaction)
-        for _ in range(self._max_tool_hops):
-            async with interaction.say() as inf:
-                fcalls, model_parts = await self.stream(inf, contents)
-            if model_parts:
-                contents.append(types.Content(role="model", parts=model_parts))
-            if not fcalls:
-                return
-            for fc in fcalls:
-                result = await self._dispatch(interaction, fc.name, dict(fc.args or {}))
-                contents.append(
-                    types.Content(
-                        role="tool",
-                        parts=[
-                            types.Part.from_function_response(
-                                name=fc.name, response={"result": result}
-                            )
-                        ],
-                    )
-                )
+        Appended as the customer's own content, which is what it is: every note that
+        goes through here reports something they did on screen. It starts no turn —
+        nothing about a tap means they stopped speaking — so the model reads it on
+        its next one."""
+        self.append_to_context(gi.UserInputStep(content=[gi.TextContent(text=text)]))
 
-    # ─── Tool dispatch ──────────────────────────────────────────────────
+    # ─── Tools: the help centre ─────────────────────────────────────────
 
-    async def _dispatch(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """Run one tool call: drive the browser via ``interaction.action(...)`` (the
-        RTVI ui_command the /aura console renders) and return the same result dict the
-        managed AuraBot fed back to the model (as a string). The blocking secure tools
-        await the browser round-trip; every other tool is fire-and-return."""
-        act = interaction.action
-        if name == "open_home":
-            logger.info("aura: open_home")
-            act("open_home")
-            return str({"status": "home_open"})
-        if name == "open_help_center":
-            logger.info("aura: open_help_center")
-            act("open_help_center")
-            return str({"status": "help_center_open"})
-        if name == "open_category":
-            category = str(args.get("category", "")).strip()
-            if not category:
-                return str({"error": "need a category"})
-            logger.info("aura: open_category {!r}", category)
-            act("open_category", {"category": category})
-            return str({"status": "category_open", "category": category})
-        if name == "open_article":
-            article_id = str(args.get("article_id", "")).strip()
-            if not article_id:
-                return str({"error": "need an article_id"})
-            logger.info("aura: open_article {!r}", article_id)
-            act("open_article", {"article_id": article_id})
-            return str({"status": "article_open", "article_id": article_id})
-        if name == "play_help_video":
-            video_id = str(args.get("video_id", "")).strip()
-            try:
-                start_sec = int(args.get("start_sec") or 0)
-            except (TypeError, ValueError):
-                start_sec = 0
-            if not video_id:
-                return str({"error": "need a video_id"})
-            logger.info("aura: play_help_video {} @{}s", video_id, start_sec)
-            act("play_help_video", {"video_id": video_id, "start_sec": start_sec})
-            return str(
-                {
-                    "status": "playing_muted",
-                    "video_id": video_id,
-                    "start_sec": start_sec,
-                    "note": "Video is playing muted from that second. Now narrate the steps in "
-                    "English in your own words; call highlight_step(index) as you describe "
-                    "each step.",
-                }
-            )
-        if name == "highlight_step":
-            try:
-                index = int(args.get("index") or 0)
-            except (TypeError, ValueError):
-                index = 0
-            logger.info("aura: highlight_step {}", index)
-            act("highlight_step", {"index": index})
-            return str({"status": "highlighted", "index": index})
-        if name == "seek_video":
-            try:
-                start_sec = int(args.get("start_sec") or 0)
-            except (TypeError, ValueError):
-                start_sec = 0
-            logger.info("aura: seek_video @{}s", start_sec)
-            act("seek_video", {"start_sec": start_sec})
-            return str({"status": "seeked", "start_sec": start_sec})
-        if name == "pause_video":
-            logger.info("aura: pause_video")
-            act("pause_video")
-            return str({"status": "paused"})
-        if name == "resume_video":
-            logger.info("aura: resume_video")
-            act("resume_video")
-            return str({"status": "resumed"})
-        if name == "show_contact":
-            topic = str(args.get("topic", "")).strip()
-            logger.info("aura: show_contact {!r}", topic)
-            act("show_contact", {"topic": topic})
-            return str(
-                {
-                    "status": "contact_shown",
-                    "topic": topic,
-                    "helpline": "1860-200-0100",
-                    "emergency_card_block": "+91 22 2000 0200",
-                }
-            )
-        if name == "get_screen_context":
-            where = self._screen_summary()
-            logger.info("aura: get_screen_context -> {}", where.get("screen"))
-            return str(where)
-        if name == "run_calculator":
-            return self._run_calculator(interaction, args)
-        if name == "start_application":
-            product = str(args.get("product", "")).strip()
-            if product not in ("savings", "credit_card", "loan"):
-                return str({"error": "product must be savings, credit_card, or loan"})
-            logger.info("aura: start_application {}", product)
-            act("start_application", {"product": product})
-            return str({"status": "application_started", "product": product})
-        if name == "prefill_field":
-            field = str(args.get("field", "")).strip()
-            value = str(args.get("value", ""))
-            if not field:
-                return str({"error": "need a field"})
-            logger.info("aura: prefill_field {}", field)
-            act("prefill_field", {"field": field, "value": value})
-            return str({"status": "filled", "field": field})
-        if name == "submit_application":
-            logger.info("aura: submit_application")
-            act("submit_application")
-            return str({"status": "submitted"})
-        if name == "compare":
-            kind = "savings" if str(args.get("kind")) == "savings" else "credit_card"
-            items = list(args.get("items") or [])
-            if not items:
-                return str({"error": "need items to compare"})
-            recommend_id = str(args.get("recommend_id", ""))
-            logger.info("aura: compare {} ({})", kind, len(items))
-            act(
-                "compare",
-                {
-                    "kind": kind,
-                    "items": items,
-                    "recommend_id": recommend_id,
-                    "recommend_reason": str(args.get("recommend_reason", "")),
-                },
-            )
-            return str(
-                {"status": "comparison_shown", "count": len(items), "recommended": recommend_id}
-            )
-        if name == "find_branch":
-            pincode = str(args.get("pincode", ""))
-            results = list(args.get("results") or [])
-            logger.info("aura: find_branch {} ({})", pincode, len(results))
-            act("find_branch", {"pincode": pincode, "results": results})
-            return str({"status": "results_shown", "pincode": pincode, "count": len(results)})
-        if name == "show_checklist":
-            title = str(args.get("title", "Checklist"))
-            items = [str(s) for s in (args.get("items") or [])]
-            logger.info("aura: show_checklist {!r} ({})", title, len(items))
-            act("show_checklist", {"title": title, "items": items})
-            return str({"status": "checklist_shown", "items": len(items)})
-        if name == "send_to_phone":
-            what = str(args.get("what", "this guide"))
-            channel = "sms" if str(args.get("channel")) == "sms" else "whatsapp"
-            number = str(args.get("number", ""))
-            logger.info("aura: send_to_phone {} via {}", what, channel)
-            act("send_to_phone", {"what": what, "channel": channel, "number": number})
-            return str({"status": "sent", "channel": channel})
-        if name == "raise_ticket":
-            topic = str(args.get("topic", ""))
-            summary = str(args.get("summary", ""))
-            reference = _ticket_reference()
-            logger.info("aura: raise_ticket {!r} -> {}", topic, reference)
-            act("raise_ticket", {"reference": reference, "topic": topic, "summary": summary})
-            return str({"status": "ticket_raised", "reference": reference})
-        if name == "spotlight":
-            target = str(args.get("target", "")).strip()
-            if not target:
-                return str({"error": "need a target"})
-            logger.info("aura: spotlight {}", target)
-            act("spotlight", {"target": target, "label": str(args.get("label", ""))})
-            return str({"status": "spotlighted", "target": target})
-        if name == "authenticate":
-            return await self._authenticate(interaction)
-        if name == "choose_account":
-            return await self._choose_account(interaction, args)
-        if name == "get_account_balance":
-            return self._get_account_balance(interaction, args)
-        if name == "get_statement":
-            return self._get_statement(interaction, args)
-        if name == "choose_credit_card":
-            return await self._choose_credit_card(interaction, args)
-        if name == "show_card_controls":
-            return self._show_card_controls(interaction, args)
-        if name == "show_forex_card":
-            logger.info("aura: show_forex_card")
-            act("show_forex_card")
-            return str(
-                {
-                    "status": "forex_card_shown",
-                    "note": "The Aura Multi-Currency Forex Card screen is up with a one-tap "
-                    "request. Point at it in one short line; the customer taps 'Request this "
-                    "card' to capture the lead. Don't recite the benefits — the screen lists them.",
-                }
-            )
-        return "unknown tool"
+    async def open_home(self) -> str:
+        """Take the customer back to the Aura Bank home page."""
+        logger.info("aura: open_home")
+        self.session.dispatch(OpenHome())
+        return "home open"
 
-    def _run_calculator(self, interaction, args: dict[str, Any]) -> str:
-        kind = str(args.get("kind", "")).strip()
-        if kind not in ("emi", "fd", "eligibility"):
-            return str({"error": "kind must be emi, fd, or eligibility"})
+    async def open_help_center(self) -> str:
+        """Open the help centre's index of categories — for a customer who is
+        browsing rather than asking one specific thing."""
+        logger.info("aura: open_help_center")
+        self.session.dispatch(OpenHelpCenter())
+        return "help centre open"
+
+    async def open_category(self, category: str) -> str:
+        """Open one help-centre category so its articles are listed on screen.
+
+        Args:
+            category: The category to list.
+        """
+        category = category.strip()
+        if not category:
+            return "need a category"
+        logger.info("aura: open_category {!r}", category)
+        self.session.dispatch(OpenCategory(category=category))
+        return f"category {category} open"
+
+    async def open_article(self, article_id: str) -> str:
+        """Open the help article that answers their question, full screen.
+
+        This is the FIRST thing to do for any how-to question: speak one short
+        line, then call this so the page is up before you explain anything.
+
+        Args:
+            article_id: Id of the article for this topic.
+        """
+        article_id = article_id.strip()
+        if not article_id:
+            return "need an article_id"
+        logger.info("aura: open_article {!r}", article_id)
+        self.session.dispatch(OpenArticle(article_id=article_id))
+        return f"article {article_id} open"
+
+    # ─── Tools: the video ───────────────────────────────────────────────
+
+    async def play_help_video(self, video_id: str, start_sec: int = 0) -> str:
+        """Play Aura's own how-to clip, muted, from the second that answers their
+        exact question — skip the intro.
+
+        The customer watches while YOU narrate. The on-screen step list carries
+        the steps, so never read them aloud.
+
+        Args:
+            video_id: Id of Aura's clip for this topic.
+            start_sec: Second to start at — the chapter that answers them.
+        """
+        video_id = video_id.strip()
+        if not video_id:
+            return "need a video_id"
+        start_sec = max(0, int(start_sec))
+        logger.info("aura: play_help_video {} @{}s", video_id, start_sec)
+        self.session.dispatch(PlayHelpVideo(video_id=video_id, start_sec=start_sec))
+        return (
+            f"playing {video_id} muted from {start_sec}s. Now narrate the steps in English "
+            "in your own words; call highlight_step(index) as you describe each one."
+        )
+
+    async def highlight_step(self, index: int) -> str:
+        """Move the on-screen step list's focus as you narrate — once per step, in
+        order, with one short line that points at it rather than reciting it.
+
+        Args:
+            index: Zero-based index of the step to focus.
+        """
+        index = int(index)
+        logger.info("aura: highlight_step {}", index)
+        self.session.dispatch(HighlightStep(index=index))
+        return f"step {index} highlighted"
+
+    async def seek_video(self, start_sec: int = 0) -> str:
+        """Jump the playing clip to another second — a different chapter, or back
+        over something they missed.
+
+        Args:
+            start_sec: Second to jump to.
+        """
+        start_sec = max(0, int(start_sec))
+        logger.info("aura: seek_video @{}s", start_sec)
+        self.session.dispatch(SeekVideo(start_sec=start_sec))
+        return f"seeked to {start_sec}s"
+
+    async def pause_video(self) -> str:
+        """Hold the clip where it is — they asked you to wait, or to talk."""
+        logger.info("aura: pause_video")
+        self.session.dispatch(PauseVideo())
+        return "paused"
+
+    async def resume_video(self) -> str:
+        """Play on from where you paused."""
+        logger.info("aura: resume_video")
+        self.session.dispatch(ResumeVideo())
+        return "resumed"
+
+    async def show_contact(self, topic: str = "") -> str:
+        """Put Aura's helpline numbers on screen. For anything genuinely
+        account-specific, unresolved, or urgent — a lost or stolen card, or
+        suspected fraud — show these immediately rather than playing a video.
+
+        Args:
+            topic: What they were stuck on, a few words in clean English.
+        """
+        topic = topic.strip()
+        logger.info("aura: show_contact {!r}", topic)
+        self.session.dispatch(ShowContact(topic=topic))
+        return "contact shown: helpline 1860-200-0100, emergency card block +91 22 2000 0200"
+
+    async def get_screen_context(self) -> str:
+        """What the customer is looking at right now — screen, open article, video
+        position. Call it before referring to something on screen you are not
+        certain is still there."""
+        where = self._screen_summary()
+        logger.info("aura: get_screen_context -> {}", where.get("screen"))
+        return str(where)
+
+    # ─── Tools: calculators, applications, comparisons ──────────────────
+
+    async def run_calculator(
+        self,
+        kind: CalcKind,
+        principal: float | None = None,
+        monthly_income: float | None = None,
+        existing_emi: float | None = None,
+        annual_rate: float | None = None,
+        tenure_months: float | None = None,
+    ) -> str:
+        """Open an on-screen calculator, fill it in and solve it.
+
+        You only need the AMOUNT from the customer. Rate, tenure and existing EMIs
+        default to sensible values and are shown on screen, so do not insist on
+        them. Say the ONE headline figure back in words with the indicative
+        caveat, and let the screen carry the working.
+
+        Args:
+            kind: 'emi' for a loan repayment, 'fd' for deposit maturity,
+                'eligibility' for how much they could borrow.
+            principal: Loan or deposit amount in rupees — for 'emi' and 'fd'.
+            monthly_income: Take-home monthly income in rupees — for 'eligibility'.
+            existing_emi: What they already repay each month — for 'eligibility'.
+            annual_rate: Annual interest rate as a percentage. Leave unset unless
+                they state one.
+            tenure_months: Term in MONTHS. Leave unset unless they state one.
+        """
+        given = {
+            "principal": principal,
+            "monthly_income": monthly_income,
+            "existing_emi": existing_emi,
+            "annual_rate": annual_rate,
+            "tenure_months": tenure_months,
+        }
         keys = {
             "emi": ("principal", "annual_rate", "tenure_months"),
             "fd": ("principal", "annual_rate", "tenure_months"),
             "eligibility": ("monthly_income", "existing_emi", "annual_rate", "tenure_months"),
         }[kind]
         inputs: dict[str, float] = dict(_CALC_DEFAULTS.get(kind, {}))
-        for k in keys:
-            v = args.get(k)
-            if v is None:
+        for key in keys:
+            value = given[key]
+            if value is None:
                 continue
             with contextlib.suppress(TypeError, ValueError):
-                inputs[k] = float(v)
+                inputs[key] = float(value)
         result = _compute_calc(kind, inputs)
         logger.info("aura: run_calculator {} -> {}", kind, result)
-        interaction.action("run_calculator", {"kind": kind, "inputs": inputs, "result": result})
-        return str({"status": "calculated", "kind": kind, "inputs": inputs, "result": result})
+        self.session.dispatch(RunCalculator(kind=kind, inputs=inputs, result=result))
+        return str({"kind": kind, "inputs": inputs, "result": result})
 
-    # ── Authenticated account access ──────────────────────────────────────────
+    async def start_application(self, product: Product) -> str:
+        """Begin a new-customer application — a real top-of-funnel lead, and it
+        needs no login. Then prefill_field each detail they give you, and submit
+        only once they clearly agree.
 
-    def _verify(self, args: dict[str, Any]) -> dict[str, Any] | None:
-        """Return the token claims iff the authenticated_context arg is a valid,
-        unexpired token minted for THIS session; else None."""
-        token = str(args.get("authenticated_context", "")).strip()
-        payload = _jwt_decode(token)
+        Args:
+            product: Which application to open.
+        """
+        logger.info("aura: start_application {}", product)
+        self.session.dispatch(StartApplication(product=product))
+        return f"{product} application started"
+
+    async def prefill_field(self, field: str, value: str = "") -> str:
+        """Type one detail into the open application.
+
+        Args:
+            field: One of name, mobile, email, city, pan, employment,
+                monthly_income, loan_amount, tenure_years.
+            value: What to type. It renders on screen, so keep it clean English.
+        """
+        field = field.strip()
+        if not field:
+            return "need a field"
+        logger.info("aura: prefill_field {}", field)
+        self.session.dispatch(PrefillField(field=field, value=value))
+        return f"{field} filled"
+
+    async def submit_application(self) -> str:
+        """Send the open application. ONLY after the customer has clearly agreed —
+        never auto-submit."""
+        logger.info("aura: submit_application")
+        self.session.dispatch(SubmitApplication())
+        return "submitted"
+
+    async def compare(
+        self,
+        kind: CompareKind,
+        items: list[CompareItem],
+        recommend_id: str = "",
+        recommend_reason: str = "",
+    ) -> str:
+        """Put two or three real Aura products side by side and star the one that
+        fits what they told you. Say only why you starred it; the table carries
+        the rest.
+
+        Args:
+            kind: Which family is being compared.
+            items: The options, with real Aura product names.
+            recommend_id: The id of the option you are starring.
+            recommend_reason: One short line saying why.
+        """
+        if not items:
+            return "need items to compare"
+        kind = "savings" if kind == "savings" else "credit_card"
+        logger.info("aura: compare {} ({})", kind, len(items))
+        self.session.dispatch(
+            Compare(
+                kind=kind,
+                items=items,
+                recommend_id=recommend_id,
+                recommend_reason=recommend_reason,
+            )
+        )
+        return f"comparison shown, {len(items)} options, recommended {recommend_id}"
+
+    async def find_branch(self, pincode: str, results: list[BranchResult]) -> str:
+        """Show nearby branches and ATMs for a pincode. Generate a few plausible
+        ones for that area — they render on screen, so keep them clean English.
+
+        Args:
+            pincode: The pincode they gave you.
+            results: A few nearby branches and ATMs.
+        """
+        logger.info("aura: find_branch {} ({})", pincode, len(results))
+        self.session.dispatch(FindBranch(pincode=pincode, results=results))
+        return f"{len(results)} results shown for {pincode}"
+
+    async def show_checklist(self, title: str, items: list[str]) -> str:
+        """Put a document or eligibility checklist on screen. Do not read it out;
+        the screen is the answer.
+
+        Args:
+            title: Heading, in clean English.
+            items: Short lines, in clean English.
+        """
+        logger.info("aura: show_checklist {!r} ({})", title, len(items))
+        self.session.dispatch(ShowChecklist(title=title, items=[str(s) for s in items]))
+        return f"checklist shown, {len(items)} items"
+
+    async def send_to_phone(
+        self,
+        what: str = "this guide",
+        channel: Channel = "whatsapp",
+        number: str = "",
+    ) -> str:
+        """'Send' the guide or steps you just walked through to their phone — a
+        take-away once you have explained something.
+
+        Args:
+            what: What you are sending, a few words in clean English.
+            channel: Which channel to send it on.
+            number: Their mobile number, if they gave one.
+        """
+        channel = "sms" if channel == "sms" else "whatsapp"
+        logger.info("aura: send_to_phone {} via {}", what, channel)
+        self.session.dispatch(SendToPhone(what=what, channel=channel, number=number))
+        return f"sent on {channel}"
+
+    async def raise_ticket(self, topic: str, summary: str = "") -> str:
+        """Register a complaint or a callback request when something is genuinely
+        account-specific or you could not resolve it. You get a reference number
+        back — read it out in words and tell them to keep it.
+
+        Args:
+            topic: What it is about, a few words in clean English.
+            summary: One sentence of detail, in clean English.
+        """
+        reference = _ticket_reference()
+        logger.info("aura: raise_ticket {!r} -> {}", topic, reference)
+        self.session.dispatch(RaiseTicket(reference=reference, topic=topic, summary=summary))
+        return f"ticket raised, reference {reference}"
+
+    async def spotlight(self, target: str, label: str = "") -> str:
+        """Draw a ring around one element to point at it.
+
+        Args:
+            target: 'calc_result', an application field id (name, mobile, email,
+                city, pan, employment, monthly_income, loan_amount, tenure_years),
+                or 'recommend' for the starred comparison card.
+            label: Optional short caption for the ring.
+        """
+        target = target.strip()
+        if not target:
+            return "need a target"
+        logger.info("aura: spotlight {}", target)
+        self.session.dispatch(Spotlight(target=target, label=label))
+        return f"{target} spotlighted"
+
+    async def show_forex_card(self) -> str:
+        """Show the Aura Multi-Currency Forex Card with its one-tap request — the
+        Journey A cross-sell, once they are enabling international card use.
+
+        Point at it in one short line. Do not recite the benefits; the screen
+        lists them, and the customer taps 'Request this card' to register."""
+        logger.info("aura: show_forex_card")
+        self.session.dispatch(ShowForexCard())
+        return "forex card screen up; the customer taps 'Request this card' to register interest"
+
+    # ─── Tools: the six secure ones ─────────────────────────────────────
+    #
+    # None of these block. ``show_auth_popup``, ``choose_account`` and
+    # ``choose_credit_card`` dispatch a screen carrying a nonce and return; the
+    # customer answers in their own time and ``on_rtvi`` folds the answer in.
+    #
+    # What holds the order is the signatures. ``authenticated_context`` is minted
+    # in ``_complete_auth``, on the browser's report that the customer completed a
+    # real on-screen sign-in — the only path that reaches the signing key. It is
+    # never in the model's context as anything but an opaque string it was handed,
+    # so no prompt can talk the model into producing one, and every tool below
+    # re-verifies it against this session's salt before it returns a figure. The
+    # error a missing or invalid one earns is the mechanism, not an edge case: it
+    # is what pushes a model that skipped ahead back to asking the customer.
+
+    def _verify(self, token: str) -> dict[str, Any] | None:
+        """Return the token claims iff ``token`` is a valid, unexpired token minted
+        for THIS session; else None."""
+        payload = _jwt_decode(str(token or "").strip())
         if not payload or payload.get("sid") != self._auth_salt:
             return None
         return payload
 
-    def _selected_account(
-        self, args: dict[str, Any], payload: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        """The account for account_id, iff it belongs to the token AND the customer
-        actually picked it via choose_account. Enforces "explicitly selected"."""
-        account_id = str(args.get("account_id", "")).strip()
+    def _selected_account(self, account_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """The account for ``account_id``, iff it belongs to the token AND the
+        customer actually picked it via ``choose_account``. Enforces "explicitly
+        selected"."""
+        account_id = str(account_id or "").strip()
         owned = set(payload.get("accounts") or [])
         if account_id not in owned or account_id not in self._selected:
             return None
         return _account_by_id(account_id)
 
-    def _selected_card(
-        self, args: dict[str, Any], payload: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        """The card for card_id, iff it belongs to the token AND the customer actually
-        picked it via choose_credit_card. Mirrors ``_selected_account``."""
-        card_id = str(args.get("card_id", "")).strip()
+    def _selected_card(self, card_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """The card for ``card_id``, iff it belongs to the token AND the customer
+        actually picked it via ``choose_credit_card``. Mirrors
+        :meth:`_selected_account`."""
+        card_id = str(card_id or "").strip()
         owned = set(payload.get("cards") or [])
         if card_id not in owned or card_id not in self._selected_cards:
             return None
         return _card_by_id(card_id)
 
-    async def _authenticate(self, interaction) -> str:
+    def _open_dialog(self, kind: str) -> str:
+        """Stamp a fresh nonce and record what it asks for."""
         nonce = secrets.token_hex(8)
-        fut: asyncio.Future[str] = asyncio.get_running_loop().create_future()
-        self._pending[nonce] = fut
-        logger.info("aura: authenticate -> opening secure sign-in")
-        interaction.action(
-            "open_auth",
-            {
-                "nonce": nonce,
-                "name": _DEMO_CUSTOMER["name"],
-                "masked_mobile": _DEMO_CUSTOMER["masked_mobile"],
-            },
+        self._open_dialogs[nonce] = kind
+        return nonce
+
+    def _close_dialog(self, data: dict[str, Any], kind: str) -> bool:
+        """True iff ``data`` answers a dialog of ``kind`` that is actually open.
+
+        The nonce is what makes a browser message trustworthy: it was minted here,
+        went out with the dialog, and closes that one dialog once. A replay, or a
+        card answer arriving for a sign-in, matches nothing and is dropped."""
+        nonce = str(data.get("nonce", ""))
+        if self._open_dialogs.get(nonce) != kind:
+            logger.info("aura: {} for an unknown or stale dialog", kind)
+            return False
+        del self._open_dialogs[nonce]
+        return True
+
+    async def show_auth_popup(self) -> str:
+        """Put a secure sign-in on the customer's screen. Required before anything
+        to do with THEIR money — balance, statement, or card.
+
+        Returns as soon as the sheet is up. It does NOT wait: the customer
+        authorises it in their own time, and you are told when they have and handed
+        an ``authenticated_context`` then. Say one short line ("I'll put a secure
+        sign-in on your screen") and carry on being useful. Do not call any account
+        or card tool until you hold that token, and never write one yourself."""
+        if self._token:
+            return str(
+                {
+                    "status": "already_authenticated",
+                    "authenticated_context": self._token,
+                    "customer_name": _DEMO_CUSTOMER["name"],
+                    "note": "Already signed in this call — do not ask them again. Call "
+                    "choose_account(authenticated_context) so they pick which account to view.",
+                }
+            )
+        nonce = self._open_dialog("auth")
+        logger.info("aura: show_auth_popup -> secure sign-in on screen")
+        self.session.dispatch(
+            OpenAuth(
+                nonce=nonce,
+                name=str(_DEMO_CUSTOMER["name"]),
+                masked_mobile=str(_DEMO_CUSTOMER["masked_mobile"]),
+            )
         )
-        try:
-            token = await asyncio.wait_for(fut, timeout=_INTERACTION_TIMEOUT_S)
-        except TimeoutError:
-            return str(
-                {
-                    "status": "not_authenticated",
-                    "error": "The customer did not complete the sign-in. Offer to try again.",
-                }
-            )
-        finally:
-            self._pending.pop(nonce, None)
-        if token == _CANCELLED:
-            return str(
-                {
-                    "status": "declined",
-                    "error": "The customer chose not to sign in right now. Acknowledge warmly and "
-                    "offer to help another way; you can try again whenever they're ready.",
-                }
-            )
         return str(
             {
-                "status": "authenticated",
-                "authenticated_context": token,
-                "customer_name": _DEMO_CUSTOMER["name"],
-                "note": "Signed in. Now call choose_account(authenticated_context) so the "
-                "customer picks which account to view.",
+                "status": "sign_in_opened",
+                "note": "The sign-in is on screen and the customer is NOT signed in yet. You "
+                "will be told when they authorise it, and handed an authenticated_context. "
+                "Until then no account or card tool will work. Never ask them to read anything "
+                "out, and do not call this again while it is up.",
             }
         )
 
-    async def _choose_account(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def choose_account(self, authenticated_context: str) -> str:
+        """Put the customer's accounts on screen so they tap the one they mean.
+
+        Returns as soon as the picker is up. It does NOT wait: the customer
+        chooses — not you, and not by name over voice — and you are told which one
+        when they do. Required before ``get_account_balance`` or ``get_statement``.
+
+        Args:
+            authenticated_context: The token you were handed when the customer
+                signed in.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
             return str(
                 {
                     "status": "not_authenticated",
-                    "error": "No valid sign-in. Call authenticate() first.",
+                    "error": "That is not a valid sign-in for this call. The customer has not "
+                    "signed in yet. Call show_auth_popup() and wait to be handed a token.",
                 }
             )
         owned = set(payload.get("accounts") or [])
         accounts = [
-            {k: a[k] for k in _ACCOUNT_FIELDS} for a in _DEMO_ACCOUNTS if a["account_id"] in owned
+            AccountRef.model_validate(a) for a in _DEMO_ACCOUNTS if a["account_id"] in owned
         ]
-        nonce = secrets.token_hex(8)
-        fut: asyncio.Future[str] = asyncio.get_running_loop().create_future()
-        self._pending[nonce] = fut
+        nonce = self._open_dialog("account")
         logger.info("aura: choose_account -> picker ({} accounts)", len(accounts))
-        interaction.action("choose_account", {"nonce": nonce, "accounts": accounts})
-        try:
-            account_id = await asyncio.wait_for(fut, timeout=_INTERACTION_TIMEOUT_S)
-        except TimeoutError:
-            return str(
-                {"status": "no_selection", "error": "The customer did not pick an account yet."}
-            )
-        finally:
-            self._pending.pop(nonce, None)
-        if account_id == _CANCELLED:
-            return str(
-                {
-                    "status": "declined",
-                    "error": "The customer closed the account picker without choosing. Ask which "
-                    "account they'd like to view, or offer other help.",
-                }
-            )
-        acc = _account_by_id(account_id)
-        if not acc or account_id not in owned:
-            return str({"status": "invalid_selection", "error": "That account is not available."})
-        self._selected.add(account_id)
+        self.session.dispatch(ChooseAccount(nonce=nonce, accounts=accounts))
         return str(
             {
-                "status": "account_selected",
-                "account_id": acc["account_id"],
-                "type": acc["type"],
-                "branch": acc["branch"],
-                "nickname": acc.get("nickname"),
-                "masked_number": acc["masked_number"],
+                "status": "picker_opened",
+                "accounts_shown": len(accounts),
+                "note": "The account picker is on screen and nothing is chosen yet. You will be "
+                "told which account the customer taps, with its account_id. Do not call "
+                "get_account_balance or get_statement until then, and do not guess an account_id.",
             }
         )
 
-    def _get_account_balance(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def get_account_balance(self, authenticated_context: str, account_id: str) -> str:
+        """The current balance of the account the customer picked, on screen.
+
+        The figure is on the card in front of them — say what it means, don't read
+        the digits back.
+
+        Args:
+            authenticated_context: The token you were handed when the customer
+                signed in.
+            account_id: The account the customer picked in ``choose_account``.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": "Call authenticate() first."})
-        acc = self._selected_account(args, payload)
+            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
+        acc = self._selected_account(account_id, payload)
         if not acc:
-            return str(
-                {
-                    "status": "account_not_selected",
-                    "error": "Ask the customer to choose an account first (call choose_account).",
-                }
-            )
+            return str({"status": "account_not_selected", "error": _NO_ACCOUNT})
         as_of = datetime.now(UTC).astimezone().strftime("%Y-%m-%d")
         logger.info("aura: get_account_balance {}", acc["account_id"])
-        interaction.action(
-            "show_balance",
-            {
-                "account": {k: acc[k] for k in _ACCOUNT_FIELDS},
-                "balance": acc["balance"],
-                "currency": acc["currency"],
-                "as_of": as_of,
-            },
+        self.session.dispatch(
+            ShowBalance(
+                account=AccountRef.model_validate(acc),
+                balance=acc["balance"],
+                currency=acc["currency"],
+                as_of=as_of,
+            )
         )
         return str(
             {
@@ -1390,21 +1550,34 @@ class AuraBrain(GeminiBrain):
             }
         )
 
-    def _get_statement(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def get_statement(
+        self,
+        authenticated_context: str,
+        account_id: str,
+        start_date: str = "",
+        end_date: str = "",
+    ) -> str:
+        """Put the account's transactions for a date range on screen.
+
+        Defaults to the last ninety days. The list is on screen — summarise it
+        (how many, what stands out), never read it out row by row.
+
+        Args:
+            authenticated_context: The token you were handed when the customer
+                signed in.
+            account_id: The account the customer picked in ``choose_account``.
+            start_date: Start of the range, YYYY-MM-DD. Blank for ninety days ago.
+            end_date: End of the range, YYYY-MM-DD. Blank for today.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": "Call authenticate() first."})
-        acc = self._selected_account(args, payload)
+            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
+        acc = self._selected_account(account_id, payload)
         if not acc:
-            return str(
-                {
-                    "status": "account_not_selected",
-                    "error": "Ask the customer to choose an account first (call choose_account).",
-                }
-            )
+            return str({"status": "account_not_selected", "error": _NO_ACCOUNT})
         today = datetime.now(UTC).astimezone().date()
-        start = _parse_date(args.get("start_date")) or (today - timedelta(days=90))
-        end = _parse_date(args.get("end_date")) or today
+        start = _parse_date(start_date) or (today - timedelta(days=90))
+        end = _parse_date(end_date) or today
         rows: list[dict[str, Any]] = []
         for days_ago, desc, amount, kind in _DEMO_TXNS.get(acc["account_id"], []):
             d = today - timedelta(days=days_ago)
@@ -1416,15 +1589,14 @@ class AuraBrain(GeminiBrain):
         credits = sum(r["amount"] for r in rows if r["kind"] == "credit")
         debits = sum(r["amount"] for r in rows if r["kind"] == "debit")
         logger.info("aura: get_statement {} ({} txns)", acc["account_id"], len(rows))
-        interaction.action(
-            "show_statement",
-            {
-                "account": {k: acc[k] for k in _ACCOUNT_FIELDS},
-                "from_date": start.isoformat(),
-                "to_date": end.isoformat(),
-                "transactions": rows,
-                "currency": acc["currency"],
-            },
+        self.session.dispatch(
+            ShowStatement(
+                account=AccountRef.model_validate(acc),
+                from_date=start.isoformat(),
+                to_date=end.isoformat(),
+                transactions=[StatementTxn.model_validate(r) for r in rows],
+                currency=acc["currency"],
+            )
         )
         return str(
             {
@@ -1439,71 +1611,66 @@ class AuraBrain(GeminiBrain):
             }
         )
 
-    async def _choose_credit_card(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def choose_credit_card(self, authenticated_context: str) -> str:
+        """Put the customer's credit cards on screen so they tap the one they mean.
+
+        Returns as soon as the picker is up; it does NOT wait. You are told which
+        card they tapped. Required before ``show_card_controls``.
+
+        Args:
+            authenticated_context: The token you were handed when the customer
+                signed in.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
             return str(
                 {
                     "status": "not_authenticated",
-                    "error": "No valid sign-in. Call authenticate() first.",
+                    "error": "That is not a valid sign-in for this call. The customer has not "
+                    "signed in yet. Call show_auth_popup() and wait to be handed a token.",
                 }
             )
         owned = set(payload.get("cards") or [])
-        cards = [{k: c[k] for k in _CARD_FIELDS} for c in _DEMO_CARDS if c["card_id"] in owned]
-        nonce = secrets.token_hex(8)
-        fut: asyncio.Future[str] = asyncio.get_running_loop().create_future()
-        self._pending[nonce] = fut
+        cards = [CardRef.model_validate(c) for c in _DEMO_CARDS if c["card_id"] in owned]
+        nonce = self._open_dialog("card")
         logger.info("aura: choose_credit_card -> picker ({} cards)", len(cards))
-        interaction.action("choose_credit_card", {"nonce": nonce, "cards": cards})
-        try:
-            card_id = await asyncio.wait_for(fut, timeout=_INTERACTION_TIMEOUT_S)
-        except TimeoutError:
-            return str({"status": "no_selection", "error": "The customer did not pick a card yet."})
-        finally:
-            self._pending.pop(nonce, None)
-        if card_id == _CANCELLED:
-            return str(
-                {
-                    "status": "declined",
-                    "error": "The customer closed the card picker without choosing. Ask which "
-                    "card they'd like to manage, or offer other help.",
-                }
-            )
-        card = _card_by_id(card_id)
-        if not card or card_id not in owned:
-            return str({"status": "invalid_selection", "error": "That card is not available."})
-        self._selected_cards.add(card_id)
+        self.session.dispatch(ChooseCreditCard(nonce=nonce, cards=cards))
         return str(
             {
-                "status": "card_selected",
-                "card_id": card["card_id"],
-                "product": card["product"],
-                "network": card["network"],
-                "masked_number": card["masked_number"],
+                "status": "picker_opened",
+                "cards_shown": len(cards),
+                "note": "The card picker is on screen and nothing is chosen yet. You will be told "
+                "which card the customer taps, with its card_id. Do not call show_card_controls "
+                "until then, and do not guess a card_id.",
             }
         )
 
-    def _show_card_controls(self, interaction, args: dict[str, Any]) -> str:
-        payload = self._verify(args)
+    async def show_card_controls(self, authenticated_context: str, card_id: str) -> str:
+        """Open the usage & limits form for the card the customer picked — domestic
+        and international use, online, contactless, ATM, and the spend limit.
+
+        They adjust and save it themselves. Do NOT read the toggles aloud; the
+        form shows them.
+
+        Args:
+            authenticated_context: The token you were handed when the customer
+                signed in.
+            card_id: The card the customer picked in ``choose_credit_card``.
+        """
+        payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": "Call authenticate() first."})
-        card = self._selected_card(args, payload)
+            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
+        card = self._selected_card(card_id, payload)
         if not card:
-            return str(
-                {
-                    "status": "card_not_selected",
-                    "error": "Ask the customer to choose a card first (call choose_credit_card).",
-                }
-            )
+            return str({"status": "card_not_selected", "error": _NO_CARD})
         controls = card["controls"]
         logger.info("aura: show_card_controls {}", card["card_id"])
-        interaction.action(
-            "show_card_controls",
-            {
-                "card": {k: card[k] for k in _CARD_FIELDS},
-                "credit_limit": card["credit_limit"],
-                "controls": controls,
-            },
+        self.session.dispatch(
+            ShowCardControls(
+                card=CardRef.model_validate(card),
+                credit_limit=card["credit_limit"],
+                controls=CardControls.model_validate(controls),
+            )
         )
         return str(
             {
@@ -1536,27 +1703,26 @@ class AuraBrain(GeminiBrain):
             "aura: state_sync ingested (screen={})", (self.current_state or {}).get("screen")
         )
 
-    # ── Browser → brain: resolve the blocking secure tools ────────────────────
+    # ── Browser → brain: what the customer did on screen ──────────────────────
 
     def _cancel_pending(self, data: dict[str, Any]) -> None:
+        """The customer closed a dialog without answering it — which is an answer."""
         nonce = str(data.get("nonce", ""))
-        fut = self._pending.get(nonce)
-        if fut is None or fut.done():
+        kind = self._open_dialogs.pop(nonce, None)
+        if kind is None:
             return
-        fut.set_result(_CANCELLED)
-        logger.info("aura: interaction cancelled by customer")
+        logger.info("aura: {} dialog dismissed by the customer", kind)
+        self._append_note(_DISMISSED[kind])
+        self._owed_a_reply = True
 
     def _complete_auth(self, data: dict[str, Any]) -> None:
         """The browser reports the customer finished the on-screen sign-in. THIS is
         where the server mints the token — only reachable after that authorisation,
         which is why the LLM can never produce one itself."""
-        nonce = str(data.get("nonce", ""))
-        fut = self._pending.get(nonce)
-        if fut is None or fut.done():
-            logger.info("aura: auth_complete for unknown/stale nonce")
+        if not self._close_dialog(data, "auth"):
             return
         now = int(time.time())
-        token = _jwt_encode(
+        self._token = _jwt_encode(
             {
                 "sub": _DEMO_CUSTOMER["id"],
                 "name": _DEMO_CUSTOMER["name"],
@@ -1567,25 +1733,49 @@ class AuraBrain(GeminiBrain):
                 "exp": now + _AUTH_TTL_SECONDS,
             }
         )
-        fut.set_result(token)
         logger.info("aura: auth_complete -> token minted for {}", _DEMO_CUSTOMER["name"])
+        self._append_note(
+            "The customer has just authorised the secure sign-in, so they are now signed in. "
+            f"Their authenticated_context is {self._token} — pass it back exactly as written to "
+            "every account and card tool, and never alter it. Next, call "
+            "choose_account(authenticated_context) if they want a balance or statement, or "
+            "choose_credit_card(authenticated_context) if they want card controls."
+        )
+        self._owed_a_reply = True
 
     def _complete_account(self, data: dict[str, Any]) -> None:
-        nonce = str(data.get("nonce", ""))
-        account_id = str(data.get("account_id", ""))
-        fut = self._pending.get(nonce)
-        if fut is None or fut.done():
-            logger.info("aura: account_selected for unknown/stale nonce")
+        """The customer tapped an account in the picker."""
+        if not self._close_dialog(data, "account"):
             return
-        fut.set_result(account_id)
+        account_id = str(data.get("account_id", ""))
+        acc = _account_by_id(account_id)
+        if acc is None:
+            logger.info("aura: account_selected names no account we hold ({})", account_id)
+            return
+        self._selected.add(account_id)
         logger.info("aura: account_selected -> {}", account_id)
+        self._append_note(
+            f"The customer has just picked their {acc['type']} account "
+            f"({acc['masked_number']}, {acc['branch']}). Its account_id is "
+            f"{acc['account_id']} — you may now call get_account_balance or get_statement "
+            "with it and the authenticated_context."
+        )
+        self._owed_a_reply = True
 
     def _complete_card(self, data: dict[str, Any]) -> None:
-        nonce = str(data.get("nonce", ""))
-        card_id = str(data.get("card_id", ""))
-        fut = self._pending.get(nonce)
-        if fut is None or fut.done():
-            logger.info("aura: card_selected for unknown/stale nonce")
+        """The customer tapped a card in the picker."""
+        if not self._close_dialog(data, "card"):
             return
-        fut.set_result(card_id)
+        card_id = str(data.get("card_id", ""))
+        card = _card_by_id(card_id)
+        if card is None:
+            logger.info("aura: card_selected names no card we hold ({})", card_id)
+            return
+        self._selected_cards.add(card_id)
         logger.info("aura: card_selected -> {}", card_id)
+        self._append_note(
+            f"The customer has just picked their {card['product']} card "
+            f"({card['network']}, {card['masked_number']}). Its card_id is {card['card_id']} — "
+            "you may now call show_card_controls with it and the authenticated_context."
+        )
+        self._owed_a_reply = True

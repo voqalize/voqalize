@@ -1,171 +1,201 @@
 # Voqalize Agent SDK (Python)
 
-Part of the Voqalize voice AI platform: **you bring the brain, we bring the voice.**
+**You bring the brain, we bring the voice.**
 
 **Pipecat-free.** Installing this SDK pulls **no** `pipecat` dependency — the
 promise is "bring the brain, not the voice infra." The customer writes a
 `Brain` of callbacks; the wire is plain protobuf and the Brain surface is
 plain dataclasses. (Pipecat lives only inside the Voqalize voice runtime, on
-the far side of the socket.) The `Vql*` wire is language-neutral — see
-[`proto/`](../../proto) for the contract.
+the far side of the socket.) The wire is language-neutral — see
+[the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.2.0/docs/src/content/docs/reference/wire.md)
+for the contract.
 
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
-path. One Brain runs on either transport; a config flip picks which, with no
-brain-code change (`serve_auto`). The SDK **does not own a WebSocket server** — its
-production entrypoint is a *connected socket*:
+path. A brain is not a server: it sits inside an application you already run, and
+the SDK owns **no** WebSocket server and **no** process management. That leaves
+exactly two ways to host it, and the same `Brain` runs unchanged on either:
 
-- **`run_session()` (`src/voqalize/sdk/session.py`) — the primary inbound surface.**
-  Your web framework (FastAPI/Starlette, Django Channels, Flask, aiohttp) accepts
-  the upgrade and hands the connected socket (anything with `send(bytes)`/`recv()->bytes` —
+- **`run_session()` (`src/voqalize/sdk/session.py`) — your app owns the route.**
+  Your web framework (FastAPI/Starlette, Django Channels, aiohttp) accepts the
+  upgrade and hands the connected socket (anything with `send(bytes)`/`recv()->bytes` —
   the `Channel` protocol) to the SDK, along with the URL `session_id` and the
-  `Authorization` header. The voice runtime dials `{brain_url}/s/{session_id}` per
-  session; one connection = one session. No Cortex relay, no server owned by the SDK.
-- **`DirectAgent` / `serve_direct()` (`src/voqalize/sdk/inbound.py`) — a localhost/dev convenience.**
-  Owns a `websockets` server and runs each connection through the *same* `run_session`
-  loop. For quick scripts and local dev only.
-- **`CortexAgent` / `serve()` (`src/voqalize/sdk/outbound.py`) — the optional fallback.**
+  `Authorization` header. The voice runtime dials `{brain_url}?session_id={session_id}`
+  per session — your path, verbatim — so one ordinary route is enough; one
+  connection = one session. No relay in the path.
+- **`serve()` (`src/voqalize/sdk/outbound.py`) — your app can't accept inbound.**
   One outbound multiplexed WebSocket to a Cortex relay; many sessions demuxed by a
-  16-byte prefix. For brains that can't accept inbound (serverless/FaaS, laptops,
-  egress-only).
+  16-byte prefix. For serverless/FaaS, laptops and egress-only networks. It
+  **blocks** until the relay closes permanently — where that call lives is yours to
+  decide.
+
+For a socket in a *test*, `voqalize.conformance.brain_server` stands a brain on an
+ephemeral localhost port. It is a test bench, not a hosting option.
 
 ## Install
 
 ```bash
 pip install voqalize-agent-sdk               # core, pipecat-free
-pip install "voqalize-agent-sdk[adk]"        # + the Google ADK integration
+pip install "voqalize-agent-sdk[gemini]"     # + `GeminiBrain` (google-genai)
 pip install "voqalize-agent-sdk[examples]"   # + deps used only by examples/
 ```
 
-## Already have an ADK agent? Wrap it
+## The smallest complete brain
 
-If your brain is already a **Google ADK** agent, you don't port it to the `Brain`
-API. You hand the SDK a factory for the agent you already have, and it drives your
-agent's own run loop — adding only the voice concerns: one speech bracket per model
-call, barge-in, heard-truth history (what the user *actually heard*, truncated on
-interruption), and the wire. Your agent, tools, model, and prompt stay exactly as
-they are.
-
-The integration is an **optional extra** — `import voqalize.sdk` pulls none of it;
-installing `[adk]` is what pulls in `google-adk`.
+One method is required. It is handed what the caller said and yields speech; the
+brackets are what let the runtime start and stop audio without waiting for the
+sentence to finish.
 
 ```python
-from google.adk.agents import LlmAgent
-from voqalize.google_adk import adk_brain
-from voqalize.sdk import serve_direct
+from collections.abc import AsyncGenerator
+from voqalize.sdk import Brain, Chunk, Session, Speech, SpeechEnd, SpeechStart, UserMessage
 
-def build_agent() -> LlmAgent:                 # your existing agent, unchanged
-    return LlmAgent(name="desk", model="gemini-2.5-flash",
-                    instruction="You are a travel desk.", tools=[book_flight])
+class EchoBrain(Brain):
+    async def greet(self, session: Session) -> str:
+        return "Hi! I'm an echo bot. Say something and I'll repeat it back."
 
-make = adk_brain(build_agent, greeting="Travel desk — where to?")
-await serve_direct(make)                       # or mount make() in your own route
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[Speech, None]:
+        yield SpeechStart()
+        yield Chunk(f"You said: {msg.text}")
+        yield SpeechEnd()
 ```
 
-Every default is overridable and your existing framework customizations survive:
-a dynamic `greeting=` callback, your own ADK `Runner` / `SessionService` via
-`runner_factory=`, multi-agent trees, `on_resume=` to rehydrate a conversation that
-spanned an earlier call, `turn_timeout` / `error_fallback`, and `voice().action(...)`
-from inside a tool to drive the browser. For the full knob list, read the
-`adk_brain` docstring. ADK is the one shipped framework integration today.
+`greet` returns a **string, not a model call** — the caller is already on the line
+and the first word has to arrive now. A template is as clever as it gets.
 
-### Subclass `AdkBrain` when the agent needs the screen
+## Let a model do the talking: `GeminiBrain`
 
-A screen-driving agent extends `AdkBrain` instead of calling `adk_brain(...)`, and
-gets four things the raw framework doesn't give you:
+`GeminiBrain` (`[gemini]` extra) fills in the parts every model-backed brain
+writes the same way: the context, the streaming, the tool hops, and the rewrite at
+the end that makes the context say what the caller *heard*. You bring the
+system instruction and the tools.
 
 ```python
-class TravelBrain(AdkBrain):
+from google import genai
+from voqalize.sdk import Action, Session
+from voqalize.sdk.gemini import GeminiBrain
+
+class OpenBooking(Action):
+    destination: str
+
+class Concierge(GeminiBrain):
     def __init__(self) -> None:
-        super().__init__(lambda: build_agent(self.desk), greeting="Where to?")
-        self.desk = TravelDesk()          # the agent is built lazily — this is in time
+        super().__init__(client=genai.Client(), system_instruction="You are a travel desk.")
 
-    def grounding(self) -> str:           # appended to the system instruction, every call
-        return "ON SCREEN NOW: " + json.dumps(self.browser_state or {})
+    async def greet(self, session: Session) -> str:
+        return "Travel desk — where to?"
+
+    @property
+    def tools(self):
+        return [self.open_booking]
+
+    async def open_booking(self, args: OpenBooking) -> str:
+        """Put the booking form on screen."""      # the model reads this
+        self.session.dispatch(args)
+        return "ok"
 ```
 
-- **`grounding()`** is appended to the *fully assembled* system instruction on every
-  model call — the root agent's and each sub-agent's. It composes with your own
-  `instruction` rather than replacing it, is re-read per call (so `return None`
-  omits the block turn by turn), and costs no round-trip. Use it for anything the
-  model must not answer from a stale turn.
-- **`self.browser_state`** is the last `state_sync` client message your UI pushed,
-  parsed and kept for you. It takes **no floor** — a screen change never makes the
-  agent talk — and replaces rather than merges. Override `on_client_message` for
-  your own message types and call `super()` to keep it.
-- **Tool arguments arrive as the models you annotated.** A parameter typed `Leg` or
-  `list[Leg]` is constructed before your tool runs, `Field(alias=...)` honored both
-  ways; an argument the model shaped wrong comes back to it as a retryable tool
-  error, not an exception. No defensive `isinstance(raw, dict)` in the body.
-- **Tools must be `async`.** A sync tool is rejected when the agent is built, naming
-  it — ADK would dispatch it on a thread pool where `voice()` is unset, and you'd
-  find out mid-call. `allow_sync_tools=True` opts out.
+**The method is the declaration.** A tool is a bound `async def`: its docstring is
+the description the model reads, its single pydantic parameter is the schema. There
+is no registry and no decorator to forget.
 
-The [`travel` demo](https://github.com/voqalize/voqalize/blob/main/demos/travel/backend/brain.py)
-is the worked example: a prompt, ten async tools, and one `grounding()` override.
+Two things carry most of what a real agent needs beyond its tools.
+`system_instruction` is settable, so facts known only once the session opens — who
+called, which tenant — go in from `on_session_start`. And `append_to_context()`
+adds to the conversation the model sees, for context the app knows and the
+conversation does not — typically the live screen state pushed to `on_rtvi`, which
+takes no floor and starts no turn:
+
+```python
+import json
+
+from google.genai import types
+from voqalize.sdk import RTVIMessage, Session
+
+async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+    if msg.data.get("t") == "state_sync":
+        self.append_to_context(
+            types.Content(
+                role="user",
+                parts=[types.Part(text="ON SCREEN: " + json.dumps(msg.data["d"]))],
+            )
+        )
+```
+
+It takes the provider's own type on purpose — a `Content` here, a `UserInputStep`
+on `GeminiInteractionsBrain`. **Voqalize owns the wire; the provider owns the
+context.** What a brain owes Voqalize is neutral and the same across every adapter;
+what a brain says to a model is the provider's, and a wrapper type in between is
+one more thing that has to keep up with Gemini. It also means handing the model a
+screenshot or a PDF is this same call with a different part, rather than a second
+method we would have had to invent for it.
+
+It appends where you call it, once. Nothing debounces or diffs for you — the
+context only ever grows, which is what makes it cacheable, so append what
+*changed* rather than the whole screen every time.
+
+`import voqalize.sdk` pulls no model vendor: nothing in the core SDK imports this
+module.
 
 ## Layout
 
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
-  `on_interaction`; the rest are optional — `on_session_start`/`on_session_end`/
-  `on_user_idle`/`on_inference_finalized`/`on_client_message`/`on_error`) +
-  `Session`/`Interaction`/`Inference`/`Conversation`/`Outcome`/`ClientMessage`/
-  `IdleInfo`, the `_BrainAdapter` that maps `Vql*` frames ↔ callbacks, and the
-  entry points (`serve`/`serve_direct`/`make_agent`/`make_direct_agent`/
-  `brain_factory`).
+  `on_user_message`; the rest are optional — `greet`/`on_session_start`/
+  `on_session_end`/`on_user_idle`/`on_rtvi`/`on_finalize`/`on_error`) +
+  `Session`, the private adapter that maps wire frames ↔ callbacks, and the
+  `serve` entry point for the Cortex leg.
+- `src/voqalize/sdk/events.py` — what a callback is handed and what it yields:
+  `UserMessage`/`UserIdle`/`RTVIMessage`, `SpeechStart`/`Chunk`/`SpeechEnd`,
+  `Finalize`, `Error`.
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
-  `SessionRunner` (two-lane in/out, system-first feeder, ack-on-dequeue,
-  drop-newest + `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` /
-  `SessionFactory` / `RunnerHost` seams. **One runner drives both transports.**
+  `SessionRunner` (two-lane in/out, system-first feeder, drop-newest +
+  `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` / `SessionFactory` /
+  `RunnerHost` seams. **One runner drives both transports.**
 - `src/voqalize/sdk/session.py` — the connection-handoff surface: the `Channel`
   protocol (`send`/`recv` bytes), `run_session()` (verify token → run one session
   over a caller-supplied channel), `serve_channel()` (the transport-neutral loop,
-  no auth — reused by `DirectAgent`), and `verify_token`. Owns no server.
-- `src/voqalize/sdk/inbound.py` — `DirectAgent` (localhost WS server) +
-  `_ServerChannel` (adapts a `websockets` `ServerConnection` to `Channel`);
-  verifies and delegates to `serve_channel`.
+  no auth — reused by the conformance `brain_server`), and `verify_token`. Owns no
+  server.
 - `src/voqalize/sdk/outbound.py` — `CortexAgent` (multiplexed demux + shared fair
   writer over one wire), implementing `RunnerHost`.
-- `src/voqalize/sdk/_platform_keys.py` — the embedded Voqalize public key(s) the
-  direct server verifies against by default.
-- `src/voqalize/sdk/wire/` — plain-dataclass `Vql*` + lifecycle/RTVI frames,
-  `FrameDirection`, `is_system()`, `CortexFrameSerializer` (protobuf transcoder,
-  no base class), `Wire`/`MultiplexedWire` transport, protobuf stubs.
-- `src/voqalize/_framework/` — the shared, framework-agnostic core every framework
-  integration is built on: `_FrameworkBrain` (owns `run_inference`, the one
-  primitive that spends a floor on a model turn), `voice()` (the `ContextVar`
-  accessor a native tool uses for UI side-effects), heard-truth readers, the
-  greeting/resume resolver, and the no-dead-air turn runner. Internal.
-- `src/voqalize/google_adk/` — the **Google ADK** integration (`[adk]` extra):
-  `AdkBrain` / `adk_brain(...)` plus `ScriptedLlm` for tests. See
-  [Already have an ADK agent? Wrap it](#already-have-an-adk-agent-wrap-it).
-- `src/voqalize/conformance/` — the wire-level conformance harness: `VoiceDriver`
+- `src/voqalize/sdk/_keys.py` — the embedded Voqalize public key(s)
+  `run_session` verifies against by default.
+- `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
+  `is_system()`, `WireSerializer` (the protobuf serializer, no base class),
+  `Wire`/`MultiplexedWire` transport, protobuf stubs.
+- `src/voqalize/sdk/gemini.py` — `GeminiBrain` (`[gemini]` extra): the context, the
+  streamed turn, the tool hops google-genai runs for us, and the finalize that
+  rewrites it to what was heard. `gemini_interactions.py` is the same
+  turn against the Interactions API.
+- `src/voqalize/conformance/` — the wire-level conformance harness: `VoqalizeDriver`
   (drives a brain over a real socket from the voice-runtime side, no runtime
-  needed), the scenario catalog, the MUST checks, and a `python -m
+  needed), `brain_server` (a brain on an ephemeral localhost port, for tests that
+  want the real wire), the scenario catalog, the MUST checks, and a `python -m
   voqalize.conformance` CLI. Point it at your brain to prove it speaks the
-  protocol correctly.
+  wire correctly.
 
 ## Core invariants
 
 - **Pipecat-free customer surface.** `import voqalize.sdk` loads zero pipecat
-  modules. `pyjwt` is a runtime dependency (the direct server verifies the
-  runtime's token).
+  modules. `pyjwt` is a runtime dependency (`run_session` verifies the runtime's
+  token).
 - **Connection-handoff, not a server.** The production inbound surface is
   `run_session(channel, *, brain, session_id, token=...)`: the customer's
   framework owns the listener + upgrade and hands the SDK a connected `Channel`.
   The SDK **verifies by default** against the embedded Voqalize public keys
-  (`_platform_keys.py`) — the token shape is uniform for every brain
+  (`_keys.py`) — the token shape is uniform for every brain
   (`iss=pygato, aud=brain, sub=session_id`), and `sub` must equal the passed
-  `session_id`. The audience is a protocol constant (`BRAIN_AUDIENCE = "brain"`),
+  `session_id`. The audience is a wire constant (`BRAIN_AUDIENCE = "brain"`),
   verified unconditionally alongside `iss="pygato"` and `exp` — there is no
   per-agent audience and no `audience=` parameter; override `public_keys=`, or
   `allow_unverified=True` (local dev). A bad token raises `SessionRejected`
-  (caller closes 4000). `serve_direct()` is the localhost wrapper that owns a
-  `websockets` server and calls the same loop. One socket = one session; framing
-  is bare `[1-byte direction][protobuf]`, session implicit in the URL.
-- **Config picks the transport, brain code doesn't change.**
-  `serve_auto(MyBrain, mode=…)` (default `$VOQAL_AGENT_MODE`) dispatches to `serve`
-  (outbound Cortex) or `serve_direct` (localhost inbound); production inbound
-  mounts `run_session` in the customer's framework. Same `Brain` either way.
+  (caller closes 4000). One socket = one session; framing is bare
+  `[protobuf]`, session implicit in the URL.
+- **Two hosting paths, one `Brain`.** `run_session` in the route your app already
+  owns, or `await serve(...)` over a Cortex relay when it can't accept inbound. The
+  SDK reads no environment variables and owns no process management: which path you
+  are on is a property of your application, not a config flip.
 - **Cortex (fallback):** one `CortexAgent` process → one outbound WebSocket to a
   `wss://.../agent` URL. Auth is `Authorization: Bearer <api_key>` (or a
   per-connect JWT via `authorization_provider`) + `X-Agent-Version`. Many sessions
@@ -173,45 +203,45 @@ is the worked example: a prompt, ten async tools, and one `grounding()` override
 - **One `SessionRunner` per `session_id`.** `factory(emitter)` (a `SessionFactory`)
   runs once per session, building a fresh `_BrainAdapter(Brain(), emitter)`.
   Cross-session writes are structurally unreachable. Holds identically for both
-  transports — `direct` just has one session per connection.
-- **Two lanes each way.** System frames (`VqlStart` / `Interruption` / `Cancel`,
-  per `is_system()`) ride a priority lane that bypasses queued data; everything
-  else rides a bounded normal lane (default 256) with **drop-newest**. `End` is
-  *not* system — it rides the normal lane so a session tears down only after its
-  queued data drains.
-- **Ack-gated ordering.** Every wire-vocab data frame carries `request_id > 0`.
-  The runner emits an `Ack(request_id)` envelope the moment the frame comes **off
-  the inbound lane**, before `adapter.handle_frame` runs. The ack means *"committed
-  to the ordered lane"*, not *"handled"* — the feeder is a single sequential
-  consumer, so ordering is already settled at dequeue, and that is all the
-  runtime's flow control needs. **Do slow I/O off the callback lane.** The runtime
-  blocks its own pipeline on this ack; when the ack waited for your handler (the
-  shape until 2026-08-13), a `on_inference_finalized` that wrote a row to a
-  database delayed the *next* user utterance by exactly that write. Callbacks
-  behind a slow one still wait — one ordered lane is the contract, and it is what
-  commits heard-truth before the next utterance arrives — so spawn your own
-  background work, as the adapter already does for `on_interaction`.
-- **Interruption is a drain barrier.** Barge-in rides the wire as a field-less
-  `InterruptionFrame` (system lane); the adapter cancels the in-flight interaction
-  task(s) and echoes an `InterruptionFrame` back on the outbound system lane — the
-  runtime's drain barrier. Correlation lives on `inference_id`, not on the interrupt.
+  transports — the inbound path just has one session per connection.
+- **Two lanes each way.** System frames (`SessionStart` / `Interruption` /
+  `Cancel`, per `is_system()`) ride a priority lane that bypasses queued data;
+  everything else rides a bounded normal lane (default 256) with **drop-newest**.
+  `End` is *not* system — it rides the normal lane so a session tears down only
+  after its queued data drains.
+- **One sequential consumer.** The feeder takes envelopes off the inbound lane
+  one at a time and awaits `adapter.handle_frame` on each, so callbacks see frames
+  in wire order. A slow callback delays the callbacks behind it and nothing else —
+  it never reaches back across the wire. Still, **do slow I/O off the callback
+  lane**: an `on_finalize` that writes a database row delays the next callback by
+  exactly that write. Spawn your own background work, as the adapter already does
+  for an RTVI message.
+- **A `Response` bypasses the lanes.** It is an answer, not a stimulus: exactly
+  one consumer — the caller blocked on it — and no ordering against speech or user
+  messages. Queueing it behind the feeder would deadlock every `configure_*` made
+  from inside a callback, because the feeder is inside that very callback.
+- **Interruption is a watermark.** Barge-in rides the wire as an
+  `InterruptionFrame` naming the turn it condemns (system lane); the adapter
+  raises `max(watermark, through_turn)` and cancels the in-flight turn. Nothing
+  goes back, so there is no barrier to hold and nothing to time out — a newer
+  turn simply outranks the watermark.
 - **Backpressure never kills a session.** On normal-lane overflow the runner drops
   the newest frame and delivers a non-fatal `ErrorFrame` to the adapter
   (edge-triggered: one per congestion episode per direction), surfaced to the Brain
   via optional `on_error`.
-- **Framework-owned `Conversation` (heard-text contract).** The SDK commits the
-  user utterance at interaction start and one assistant message per inference from
-  its HEARD text at finalize; the Brain keeps no parallel history and cannot commit
-  generated text.
+- **Heard truth, not generated text.** A brain that keeps a context commits the
+  user utterance when the stimulus arrives, and one assistant message per speech
+  unit — from its *heard* text, at finalize. `GeminiBrain` does this for you. A
+  reply that generated three sentences and was cut after one is remembered as one,
+  which is the only version the caller and the model can both agree on.
 
 ## Read next
 
-- [docs/architecture.md](docs/architecture.md) — connection model, per-session engine, ack-gated ordering, backpressure, reconnect.
-- [docs/decisions.md](docs/decisions.md) — why the SDK is pipecat-free, why the Brain is the sole surface, why routing stays out of the SDK, drop-newest, etc.
-- [docs/wire-protocol.md](docs/wire-protocol.md) — envelope shapes, frame vocabulary, close codes.
-- `examples/` — runnable brains: `echo` (smallest complete brain), `travel`
-  (a hand-written `Brain` over Gemini with screen-driving tools), `travel_adk`
-  (the same agent as a native ADK `LlmAgent`, wrapped with `adk_brain`),
+- [The protobuf contract](https://github.com/voqalize/voqalize/blob/python-sdk-v0.2.0/proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
+- [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.2.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
+- The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
+- `examples/` — runnable brains: `echo` (the smallest complete brain),
+  `reference` (the one every conformance scenario is run against),
   `fastapi_inbound` (mount a brain in your own FastAPI app).
 
 ## Development

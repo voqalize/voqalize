@@ -1,0 +1,483 @@
+# Every number, version, licence and date a Voqalize surface is allowed to claim.
+#
+# This file exists because prose cannot be trusted with a number. Four claims on
+# live pages disagreed with the code on the day it was written, and none of them
+# was caught by any build: the docs said the React client was "not yet on npm"
+# while npm served 0.1.1; the marketing site counted ten demos against a manifest
+# of eleven; a page once advertised sixty-plus languages against a roster of
+# twenty-three. Every one of those was written true and went stale in place.
+#
+# So a number lives here, once, next to the file it was read out of — and a
+# writer cites it rather than remembering it. `design/check_facts.py` re-derives
+# every fact carrying a `derive:` rule straight from that source and fails when
+# the two disagree, which is what stops THIS file becoming the next stale page.
+#
+# Its companion is `lexicon.yaml`, which does the same job for words.
+#
+# Adding a fact: give it a `source` precise enough to open, a `verified` date,
+# and a `derive:` rule if the source is a file in this repo. If it is not — a
+# registry, or another of the four repos — give it `reproduce:`, the command
+# that re-earns the stamp by hand.
+#
+# Fields
+#   value      what may be claimed
+#   source     path:line, or a URL, precise enough to open
+#   verified   the day a human or the checker last saw value == source
+#   derive     a machine rule against a file in this repo. One of:
+#                {file, pattern}  regex, group 1 is the value
+#                {file, json_pluck} {key, field} -> the list of that field
+#                {glob}           number of paths matching
+#   reproduce  a command, for sources no local file can settle
+#   note       why the fact is sharper than it looks; read before writing prose
+#   forbid     regexes that contradict this fact and must not reach a reader
+#   except     path globs where a forbid hit is legitimate (dated records)
+
+version: 1
+harvested: 2026-08-24
+
+facts:
+
+  # ---- the wire -------------------------------------------------------------
+
+  wire.version:
+    value: 3
+    source: sdk/python/src/voqalize/sdk/wire/frames.py:29
+    verified: 2026-08-24
+    derive:
+      file: sdk/python/src/voqalize/sdk/wire/frames.py
+      pattern: '^WIRE_VERSION = (\d+)$'
+    note: >-
+      Both ends carry their own constant and refuse a mismatch
+      (ERROR_CODE_WIRE_VERSION). PyGato's copy is
+      platform/backend/pygato/src/pygato/wire/frames.py:33 and must equal this.
+      The address said :30 until 2026-08-25 — the value was right and the line
+      was three off, which is the failure "address before assertion" exists to
+      stop, in the one file whose whole job is being addressable.
+
+  wire.dial:
+    value: '{brain_url}?session_id={session_id}'
+    source: proto/voqalize/frames/frames.proto
+    verified: 2026-08-24
+    note: >-
+      Wire v3 moved the session id out of the path. The retired shape is
+      {brain_url}/s/{session_id}; a brain that mounts a route there is never
+      dialled, and the empty-brain_url welcome brain still answers, so the call
+      greets and nobody learns.
+    forbid:
+      - '/s/\{session_id\}'
+      - '/s/\{sid\}'
+
+  # ---- the Python brain SDK -------------------------------------------------
+
+  sdk.python.package:
+    value: voqalize-agent-sdk
+    source: sdk/python/pyproject.toml:2
+    verified: 2026-08-24
+    derive:
+      file: sdk/python/pyproject.toml
+      pattern: '^name = "(.+)"$'
+
+  sdk.python.version.tree:
+    value: '0.2.0'
+    source: sdk/python/pyproject.toml:3
+    verified: 2026-08-27
+    derive:
+      file: sdk/python/pyproject.toml
+      pattern: '^version = "(.+)"$'
+    note: >-
+      Bumped to 0.2.0 on 2026-08-27, and the minor rather than the patch for the
+      same reason 0.1.0 was: the surface breaks. FinalizeReason is gone and
+      Finalize carries a third field, so a caller that constructs one no longer
+      compiles. Under 1.0 that is what a minor is for. Derived, so this line
+      cannot drift from pyproject.toml — but the number it should be compared
+      against is sdk.python.version.published, not this one, and the two are
+      deliberately apart between a bump and the tag that publishes it.
+
+  sdk.python.version.published:
+    value: '0.2.0'
+    source: https://pypi.org/pypi/voqalize-agent-sdk/json
+    verified: 2026-08-27
+    reproduce: >-
+      curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
+    note: >-
+      Published 2026-08-27 by the `python-sdk-v0.2.0` tag, and level with
+      sdk.python.version.tree again. 0.2.0 retires FinalizeReason and gives
+      Finalize its third field; 0.1.0 was the first published version of the
+      Brain, run_session and serve surface, and 0.0.3 exposed the incompatible
+      Interaction, Conversation, serve_direct and serve_auto API. Documentation
+      install lines stay pinned to the published number so examples and
+      installed code cannot silently drift apart — move them with this line.
+      The control plane resolves the SDK from PyPI rather than from the sibling
+      tree, so this number is also what unblocks a platform proto change: until
+      it moves, the two copies of the wire stub in that repo cannot agree.
+
+  sdk.python.surface.published:
+    value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage,
+            RTVIType, RequestRejected, Session, SessionRejected, Speech, SpeechEnd,
+            SpeechStart, UserIdle, UserMessage, WireError, configure_logging,
+            run_session, serve, session_context]
+    source: https://pypi.org/pypi/voqalize-agent-sdk/0.2.0/json
+    verified: 2026-08-27
+
+  sdk.python.surface.tree:
+    value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage,
+            RTVIType, RequestRejected, Session, SessionRejected, Speech, SpeechEnd,
+            SpeechStart, UserIdle, UserMessage, WireError, configure_logging,
+            run_session, serve, session_context]
+    source: sdk/python/src/voqalize/sdk/__init__.py
+    verified: 2026-08-25
+    derive:
+      file: sdk/python/src/voqalize/sdk/__init__.py
+      within: '^__all__\s*=\s*\[(.*?)\]'
+      findall: '"([^"]+)"'
+    note: >-
+      Twenty-two names, read out of __all__ on 2026-08-25 — the roster this tree
+      ships as 0.1.0. It was recorded as nine on 2026-08-24 while the hardening
+      agent held brain.py, and the nine were the ones the board had confirmed
+      rather than the whole export. Two things are NOT in it and are asked for
+      often: GeminiBrain lives in voqalize.sdk.gemini behind the `gemini` extra
+      and is deliberately not re-exported here, and **there is no AdkBrain** —
+      the ADK adapter was deleted, and the apex claimed it shipped until this
+      was caught on 2026-08-25.
+    forbid:
+      - '\bAdkBrain\b'
+
+  sdk.python.pipecat:
+    value: none
+    source: sdk/python/pyproject.toml:20
+    verified: 2026-08-24
+    note: >-
+      Pipecat-free by design, and the claim is about the dependency tree rather
+      than a version: installing the brain SDK must not pull pipecat. The
+      version below belongs to the voice tier, which the customer never installs.
+
+  # ---- the React client SDK (retired) ---------------------------------------
+  #
+  # The source left this tree on 2026-08-24. What remains here is what a customer
+  # can still observe from outside it: a name on npm, a last version, and a
+  # deprecation notice. Every fact below is therefore registry-sourced and
+  # attested by a command, not derived from a file — there is no file left.
+
+  sdk.react.package:
+    value: '@voqalize/client-react'
+    source: https://registry.npmjs.org/@voqalize/client-react
+    verified: 2026-08-24
+    reproduce: >-
+      curl -s https://registry.npmjs.org/@voqalize%2Fclient-react
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['name'])"
+    note: >-
+      The name is claimed and stays claimed. Deprecating does not unpublish, and
+      unpublishing would break the ten demo UIs still resolving ^0.1.0 — and
+      anyone else who built against it.
+
+  sdk.react.version.published:
+    value: '0.1.1'
+    source: https://registry.npmjs.org/@voqalize/client-react
+    verified: 2026-08-24
+    reproduce: >-
+      curl -s https://registry.npmjs.org/@voqalize%2Fclient-react
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['dist-tags']['latest'])"
+    note: >-
+      Published 2026-08-13; versions are 0.0.1, 0.1.0, 0.1.1. Frozen there — see
+      sdk.react.deprecated. Nothing further publishes: the release workflow was
+      deleted with the source. There was a 0.3.0 staged in-tree that never
+      published; it is gone, and this is the only version a customer ever saw.
+
+  sdk.react.deprecated:
+    value: deprecated 2026-08-24, no replacement package
+    source: docs/src/content/docs/build/connect.md
+    verified: 2026-08-24
+    reproduce: >-
+      curl -s https://registry.npmjs.org/@voqalize%2Fclient-react
+      | python3 -c "import sys,json;d=json.load(sys.stdin);v=d['dist-tags']['latest'];print(d['versions'][v].get('deprecated','NOT DEPRECATED'))"
+    note: >-
+      THE FACT THAT RETIRES A SURFACE. The package existed to do two things a
+      page could not do for itself: lift connect params out of a SessionDetail,
+      and rebuild `headers` as a real `Headers`. `sessions.connect` (2026-08-24)
+      answers in the shape pipecat's transport takes, so the first is gone; the
+      second is one line, written down in `client/handshake`. There is no
+      successor package and there must not be one — the browser half of a call is
+      pipecat's, and a wrapper is a second surface to learn and a lag behind
+      every pipecat release. No page may carry an install line for it, and no
+      page may promise a replacement. The source was deleted from this repo the
+      same day, so there is nothing left to point a reader at either.
+    forbid:
+      - 'not yet on npm'
+      - 'Not yet on npm'
+      - 'pnpm add @voqalize/client-react'
+      - 'npm install @voqalize/client-react'
+      - 'yarn add @voqalize/client-react'
+    except:
+      - '**/CHANGELOG.md'
+      - '**/changelog.astro'
+
+  repo.voqalize.licence:
+    value: Apache-2.0
+    source: LICENSE
+    verified: 2026-08-24
+
+  # ---- the avatar library (sibling repo, MIT, published in lockstep) ---------
+
+  avatar.npm.package:
+    value: '@voqalize/avatar'
+    source: avatar/packages/avatar-js/package.json
+    verified: 2026-08-24
+    reproduce: grep '"name"' ../avatar/packages/*/package.json
+
+  avatar.pypi.package:
+    value: voqalize-avatar
+    source: avatar/packages/avatar-py/pyproject.toml:2
+    verified: 2026-08-24
+
+  avatar.version:
+    value: '0.3.0'
+    source: avatar/packages/avatar-py/pyproject.toml:3
+    verified: 2026-08-24
+    note: >-
+      The npm and PyPI packages publish in lockstep, so one number covers both.
+      A different repo, so no derive rule reaches it.
+
+  avatar.licence:
+    value: MIT
+    source: avatar/LICENSE
+    verified: 2026-08-24
+    note: >-
+      MIT, and deliberately not Apache-2.0 like this repo. A page that states one
+      licence for "our open source" is wrong about one of the two.
+
+  # ---- the voice tier -------------------------------------------------------
+
+  pipecat.version:
+    value: '1.7.0'
+    source: platform/backend/pygato/pyproject.toml:15
+    verified: 2026-08-24
+    reproduce: grep pipecat-ai ../platform/backend/pygato/pyproject.toml
+    note: >-
+      A floor (>=1.7.0), not a pin, and it is the voice tier's dependency rather
+      than the customer's. 1.7.0 is load-bearing history: every conformance lane
+      that passed before it had passed on 1.5.0, the version carrying L7, so all
+      eleven were re-earned on 1.7.0. The changelog's "pipecat 1.2.1 -> 1.5.0" is
+      a dated entry about 2026-07-07 and stays true as a record.
+
+  pipecat.client.floor:
+    value: '>=1.5.0 <2'
+    source: demos/shared/package.json:27
+    verified: 2026-08-25
+    derive:
+      file: demos/shared/package.json
+      pattern: '"@pipecat-ai/client-js": "(>=[0-9.]+ <[0-9]+)"'
+    note: >-
+      The browser half, and a different number from pipecat.version above, which
+      is the voice tier's Python floor. This one is a peer dependency of
+      @voqalize/demo-kit, so every demo in the repo is built against it and the
+      floor is exercised rather than asserted. The demos themselves resolve
+      ^1.13.0 as a dev dependency; the floor is what a customer's page must
+      clear, and it is the number docs/start/pipecat.md is allowed to print.
+
+  speech.stt.model:
+    value: vql-stt
+    source: platform/backend/pygato/src/pygato/session.py:98
+    verified: 2026-08-25
+    reproduce: >-
+      grep -n '_STT_MODEL = ' ../platform/backend/pygato/src/pygato/session.py
+    note: >-
+      A composite router, the default, and the only one. Language selects the
+      engine underneath; a brain never names an engine. Until 2026-08-25 this
+      fact cited `docs/.../reference/catalog.md:39` as its source — the fact
+      file citing the prose it exists to police, which makes the check a mirror
+      of itself. The name is also an internal one and does not belong in
+      customer-facing prose; see `lexicon.yaml internal_names`.
+
+  speech.stt.languages.indic:
+    value: 22
+    source: speech/src/vql_speech/stt/engines/indic_conformer.py SUPPORTED_LANGUAGES
+    verified: 2026-08-24
+    reproduce: >-
+      python3 -c "import re;print(len(re.findall(r'\"[a-z]{2,3}\",',
+      open('../speech/src/vql_speech/stt/engines/indic_conformer.py').read())))"
+
+  speech.stt.languages.total:
+    value: 23
+    source: speech/src/vql_speech/stt/engines/indic_conformer.py + English
+    verified: 2026-08-24
+    note: >-
+      English plus 22 Indic languages. Say twenty-three, or say "English plus 22
+      Indic languages"; the roster is in docs reference/catalog.md and nowhere
+      else. The retired claim is "sixty-plus languages", which was never true of
+      any model we host.
+    forbid:
+      - '\b(sixty|60)\+? languages'
+      - '\b100\+? languages'
+
+  speech.tts.clip_languages:
+    value: 10
+    source: platform/backend/pygato/src/pygato/session_config.py:43 TTS_CLIP_LANGUAGES
+    verified: 2026-08-25
+    reproduce: >-
+      python3 -c "import re;t=open('../platform/backend/pygato/src/pygato/session_config.py').read();
+      print(len(re.findall(r'Language\.\w+', re.search(r'TTS_CLIP_LANGUAGES = frozenset\((.*?)\)',
+      t, re.S).group(1))))"
+    note: >-
+      **The number that makes "23 languages" a half-truth, and it has no
+      derivable source in this repo.** `vql-stt` *hears* 23; there are recorded
+      reference clips for 10 — bn, en, gu, hi, kn, ml, mr, pa, ta, te. A
+      tts.language outside that set is refused at mint with the field named, so
+      an Odia call is written `stt.language=OR, tts.language=HI` on purpose. A
+      surface that says "23 languages" without saying which half is which is
+      one clip away from the production bug this whole rule came from. Recorded
+      here because a bare 23 invites exactly that sentence.
+    forbid:
+      # The wrong half asserted. "23 languages" alone is fine where the page
+      # then says which ten are spoken — reference/catalog.md does exactly that
+      # — so the pattern names the *verb*, which is what makes the claim false.
+      - '\b(speaks|speaking|spoken in|voices in|say[s]?) (23|twenty-three) languages'
+      - '\b(23|twenty-three) (voices|speakers|recorded)'
+
+  speech.turn.eot_timeout_share:
+    value: '8.6%'
+    source: platform/backend/pygato/src/pygato/turn_strategies.py:44 (measured over 14 days of production)
+    verified: 2026-08-26
+    reproduce: >-
+      grep -n '8.6% of real turns'
+      ../platform/backend/pygato/src/pygato/turn_strategies.py
+    note: >-
+      The share of real turns closed by the silence deadline rather than by the
+      turn detector being confident — which is why a committed turn is not
+      always a finished thought. Load-bearing for the trade it justifies:
+      withholding every timeout close would make all 8.6%% pay the full stall
+      (~8 s of dead air), where answering the fragment costs one interruption.
+      **The measurement window is a claim in a code comment, not a stamp** —
+      nothing in either tree records when the 14 days were. Treat the window as
+      unverified and re-measure before the number is repeated anywhere new.
+
+  speech.interrupt.confidence:
+    value: 0.45
+    source: platform/backend/pygato/src/pygato/session.py:116 _INTERRUPT_CONFIDENCE
+    verified: 2026-08-26
+    reproduce: >-
+      grep -n '_INTERRUPT_CONFIDENCE = '
+      ../platform/backend/pygato/src/pygato/session.py
+    note: >-
+      The bar a transcription must clear to cut off speech in progress.
+      Confidence ramps with how long real speech has been sustained, so a
+      backchannel or a one-word garble stays under it and a sustained barge-in
+      crosses it; the bar sits just under the 0.5 the recognizer carries at the
+      barge-in point, so a genuine one clears with margin. **The accepted cost
+      is that a short imperative may not land** — "stop" is exactly the shape
+      that stays below the bar. Not a knob: it is paired with the speech tier's
+      own barge-in setting and moving one alone desynchronises them. An idle
+      caller is unaffected; any speech starts a fresh turn instantly.
+
+  mcp.tools.rpm:
+    value: 300
+    source: platform/backend/controlplane/app/platform/ratelimit.py:59 MCP_TOOL_RPM
+    verified: 2026-08-26
+    reproduce: >-
+      grep -rn 'MCP_TOOL_RPM' ../platform/backend/controlplane/app/
+    note: >-
+      Per workspace, per minute, on the MCP surface's own key namespace —
+      charged at the membership check, so it lands only after membership is
+      proven and an agent looping over sessions cannot spend the budget a page
+      needs to start a call. The two unscoped tools (`whoami`, `list_tenants`)
+      take no `tenant` and are not metered here.
+
+  session.metadata.max_keys:
+    value: 10
+    source: platform/backend/controlplane/app/domains/sessions/documents.py:16 MAX_METADATA_KEYS
+    verified: 2026-08-26
+    reproduce: >-
+      grep -n 'MAX_METADATA_KEYS\|MAX_METADATA_VALUE_LENGTH'
+      ../platform/backend/controlplane/app/domains/sessions/documents.py
+    note: >-
+      Values are capped at 256 characters alongside. The cap is not a security
+      control — it is the line between "labels I can recognise this call by" and
+      "a place to keep application state", which is the caller's own database's
+      job. `metadata` is not queryable, which is the other half of that line.
+
+  speech.idle.default_ms:
+    value: 0
+    source: platform/backend/pygato/src/pygato/session_config.py:108 DEFAULT_IDLE_TIMEOUT_MS
+    verified: 2026-08-25
+    reproduce: >-
+      grep -n 'DEFAULT_IDLE_TIMEOUT_MS\|MAX_IDLE_TIMEOUT_MS'
+      ../platform/backend/pygato/src/pygato/session_config.py
+    note: >-
+      **Idle detection is off unless you ask for it.** Zero, because a nudge
+      nobody asked for talks over a caller who was thinking. The ceiling is
+      300000 ms — past a few minutes the caller has gone and the lever that
+      helps is ending the session. Every page that prints `idle.timeout_ms`
+      owes the reader the default, or `on_user_idle` reads like a callback that
+      fires on its own.
+
+  # ---- what we ship ---------------------------------------------------------
+
+  demos.roster:
+    value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
+            lead_qual, aura, forge, orderdesk]
+    source: demos/manifest.json
+    verified: 2026-08-24
+    derive:
+      file: demos/manifest.json
+      json_pluck: {key: demos, field: name}
+    note: >-
+      The roster is the fact and the count is a projection of it, which is why
+      this row is a list. A count answers "is the number right"; the roster
+      answers "is anything missing", and that is the question with a live wrong
+      answer: platform/frontend/apps/marketing/src/data/demos.ts carries its own
+      hand-kept list of ten, so `orderdesk` ships in the web artifact at
+      /demos/orderdesk and nothing on the apex links to it. manifest.json is the
+      registry, so it is the roster of record and that file is the one that is
+      short.
+
+      A prose count must equal the length of this list. Four marketing strings
+      say ten. The changelog entry dated 2026-07-31 also says ten and is right —
+      it was ten that day, and a dated record is not a claim about now.
+    forbid:
+      - '\b[Tt]en (?:demos|agents)\b'
+      - 'all ten demos'
+    except:
+      - '**/changelog.astro'
+
+  docs.pages:
+    value: 40
+    source: docs/src/content/docs/
+    verified: 2026-08-26
+    derive:
+      glob: docs/src/content/docs/**/*.md*
+    note: >-
+      Thirty-nine pages, each served twice — rendered, and as the `.md` twin an
+      agent reads — plus llms.txt and 404.html. It was 26 on the morning of
+      2026-08-25 and the growth is not new writing: the tree was rebuilt
+      top-down from the MCP handshake into four sections whose names are their
+      URL namespaces (Build, Designing for voice, Operate, Reference), which
+      moved sixteen pages, dissolved Start into Build, folded
+      `reference/no-provider-slot` into the catalog it was arguing with, merged
+      `start/what-voqalize-is` into the apex, and opened thirteen new slots.
+      Nine of those slots opened as scaffolds — one paragraph and an outline,
+      each carrying a Scaffold aside so that a reader and a checker could both
+      tell. **None remain as of 2026-08-26**: the five pages under
+      `build/brain/`, `build/existing-agent`, `reference/brain` and
+      `reference/errors` were written, and `reference/management-api` was the
+      last, held open on a product decision rather than on effort. So the count
+      is now a claim about coverage as well as about pages. If a Scaffold aside
+      reappears, the page it is on is unwritten and this note is the record of
+      what that means. Count this number the way the glob does; the four
+      unpublished design outlines are not in it, because they are outlines in
+      `design/` and not pages.
+
+  # ---- commercial -----------------------------------------------------------
+
+  pricing.state:
+    value: free during developer preview
+    source: platform/frontend/apps/marketing/src/pages/pricing.astro
+    verified: 2026-08-24
+    note: >-
+      The only number on that page is $0 and it is the whole statement. There are
+      no tiers, so no surface may name one. When pricing arrives the meter is
+      session time — the seconds a session is live on the voice tier — never
+      seats, agents, requests or tokens. We never resell tokens, because the
+      brain runs in the reader's building and bills them directly.
+    forbid:
+      - '\bper[- ]seat\b'
+      - '\bfree trial\b'

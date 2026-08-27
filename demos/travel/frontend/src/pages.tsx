@@ -11,7 +11,7 @@
  */
 
 import { useEffect, type ReactNode } from 'react';
-import { uiCommandArgs, type UiCommand } from '@voqalize/client-react';
+import type { UICommandData } from '@pipecat-ai/client-js';
 import { useTravel } from './store';
 import {
   paxSummary,
@@ -882,27 +882,23 @@ function WhatsAppModal({ active }: { active: Itinerary }) {
   );
 }
 
-// Dev-only: expose a ui_command dispatcher on window so the agent's screen-driving
+// Dev-only: expose a ui-command dispatcher on window so the agent's screen-driving
 // can be exercised deterministically (without a mic) in browser automation / tests.
-// Takes the same envelope the brain sends — `{ action, ...args }` — and routes it
-// through the store's typed handlers, exactly as `useUiCommand` does on the wire.
-type DevDispatch = (cmd: UiCommand) => void;
+// Takes the same envelope pipecat delivers — `{ command, payload }` — and routes
+// it through the store, exactly as the RTVIEvent.UICommand subscription in
+// TravelAdvisor does on the wire.
+type DevDispatch = (cmd: UICommandData) => void;
 
 function DevUiExpose() {
-  const { uiCommands } = useTravel();
+  const { handleUiCommand } = useTravel();
   useEffect(() => {
     if (!import.meta.env.DEV) return;
-    const dispatch: DevDispatch = (cmd) => {
-      const handler = (uiCommands as Record<string, ((args: never, cmd: UiCommand) => void) | undefined>)[
-        cmd.action
-      ];
-      handler?.(uiCommandArgs(cmd) as never, cmd);
-    };
+    const dispatch: DevDispatch = ({ command, payload }) => handleUiCommand(command, payload);
     (window as unknown as { __travelUi?: DevDispatch }).__travelUi = dispatch;
     return () => {
       delete (window as unknown as { __travelUi?: DevDispatch }).__travelUi;
     };
-  }, [uiCommands]);
+  }, [handleUiCommand]);
   return null;
 }
 

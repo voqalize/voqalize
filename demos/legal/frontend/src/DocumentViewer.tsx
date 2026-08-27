@@ -13,7 +13,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { useLegal } from './store';
-import { MATTER } from './content';
+import { MATTER, type ClauseId } from './content';
 
 const FOCUS_DEBOUNCE_MS = 500;
 const HIGHLIGHT_MS = 2200;
@@ -21,7 +21,7 @@ const HIGHLIGHT_MS = 2200;
 export function DocumentViewer() {
   const { clauses, comments, redlines, insertions, pointer, setFocusedClause, sendClauseFocus } =
     useLegal();
-  const clauseRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const clauseRefs = useRef<Map<ClauseId, HTMLElement>>(new Map());
   const focusDebounceRef = useRef<number | null>(null);
   const highlightTimerRef = useRef<number | null>(null);
 
@@ -45,11 +45,16 @@ export function DocumentViewer() {
 
   // ── reading-position tracking ─────────────────────────────────────────────
   useEffect(() => {
+    // Keyed the other way round, so the clause that crosses the band comes back
+    // as a clause id rather than as whatever string the DOM happens to hold.
+    const idByElement = new Map<Element, ClauseId>();
+    clauseRefs.current.forEach((el, id) => idByElement.set(el, id));
+
     const observer = new IntersectionObserver(
       (entries) => {
         const hit = entries.find((e) => e.isIntersecting);
         if (!hit) return;
-        const id = hit.target.getAttribute('data-clause-id');
+        const id = idByElement.get(hit.target);
         if (!id) return;
         setFocusedClause(id);
         if (focusDebounceRef.current) window.clearTimeout(focusDebounceRef.current);
@@ -59,7 +64,7 @@ export function DocumentViewer() {
       // "what the lawyer is reading right now".
       { rootMargin: '-45% 0px -45% 0px', threshold: 0 },
     );
-    clauseRefs.current.forEach((el) => observer.observe(el));
+    idByElement.forEach((_, el) => observer.observe(el));
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -92,7 +97,6 @@ export function DocumentViewer() {
           <div key={clause.id}>
             <section
               id={`clause-${clause.id}`}
-              data-clause-id={clause.id}
               ref={(el) => {
                 if (el) clauseRefs.current.set(clause.id, el);
                 else clauseRefs.current.delete(clause.id);

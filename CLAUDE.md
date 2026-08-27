@@ -1,9 +1,22 @@
 # voqalize — Claude's map
 
 The **public developer surface** for Voqalize: the wire contract (`proto/`), the
-brain SDKs (`sdk/python`, `sdk/react`), the runnable demos (`demos/`), the docs
-site (`docs/`) and the Claude Code skill (`skill/`). The platform itself lives in
-the private `voqalcloud` repo; the speech stack lives in `vql-speech`.
+brain SDK (`sdk/python`), the runnable demos (`demos/`) and the docs site
+(`docs/`). The platform itself lives in the private `voqalcloud` repo; the speech
+stack lives in `vql-speech`.
+
+There is no `sdk/react` any more — the React client package was deprecated and
+deleted on 2026-08-24. The browser half of a call is stock pipecat plus one
+`fetch`, written down in `docs/src/content/docs/client/handshake.md`. Do not
+reintroduce a client wrapper: it is a second surface to learn and a lag behind
+every pipecat release, which is what retired the last one.
+
+There is no `skill/` any more — it was deleted on 2026-08-21. An agent is oriented
+by the MCP server's own `instructions` and then reads the docs site, every page of
+which is served as raw markdown at its URL plus `.md` and indexed at
+`docs.voqalize.com/llms.txt` (`docs/src/pages/`). Do not reintroduce a second, abridged copy
+of the documentation: keeping it honest is a job nobody does, and the last one
+drifted.
 
 Read `README.md` for what each directory is and `demos/README.md` for how a demo
 is built and deployed. This file is only the things that will bite you.
@@ -58,7 +71,9 @@ Consequences to internalize:
     `demos/pyproject.toml`, `demos/Dockerfile`, `demos/docker-entrypoint.sh`,
     `demos/bin/brains-node-deploy.sh`, `demos/cloudbuild.brains-vm.yaml`, `uv.lock`
   - web ← `demos/**/frontend/**`, `demos/build.mjs`, `demos/manifest.json`,
-    `sdk/react/**`, `docs/**`
+    `sdk/react/**`, `docs/**` — that fourth entry is now dead, and only someone
+    with access to the trigger can remove it; it matches nothing since the React
+    SDK was deleted.
   Note what that means: **`demos/voqalize_demos/**` is on the brains list**, and
   that is where the test fakes live (`testing.py`). A commit that adds nothing but
   tests still rolls the brains if it touches the shared spine — `e2cc025` did
@@ -79,60 +94,125 @@ differ between a `main` push and its promotion:
 for h in brain.dev.voqalize.com brain.voqalize.com; do curl -fsS https://$h/_healthz; echo; done
 ```
 
-## Voice and language belong to the brain — never to the page
+## Voice and language: the record holds the default, the brain overrides
 
-`tts.language` selects the **voice-cloning reference clip**; `stt.language_hint`
-selects the **recognizer**. They are one setting with two legs, and moving only one
-is *silent*: the words stay right, only the speaker is wrong. No transcript, log,
-metric or WER score can see it — a Hindi call read by an English reference clip
-scores identically and sounds like a foreigner reading Devanagari. That was a real
-production bug on `/demos/orderdesk`.
+`tts.language` selects the **voice-cloning reference clip**; `stt.language`
+selects the **recognizer**. They are one setting with two legs, and moving only
+one is *silent*: the words stay right, only the speaker is wrong. No transcript,
+log, metric or WER score can see it — a Hindi call read by an English reference
+clip scores identically and sounds like a foreigner reading Devanagari. That was a
+real production bug on `/demos/orderdesk`, and it is the reason every rule below
+exists.
 
-So there is exactly **one** sanctioned way to move a language, and it is server-side:
+**This section was rewritten on 2026-08-24 and describes where the work is
+going.** The old rule — *"the agent record deliberately carries no stt/tts blocks"*
+— cut too far, and the ClassVars it forced are what this stream is removing. The
+analysis and the board are `skill-rewrite/BRAIN-SIMPLIFICATION.md`; read it before
+touching any of this. What is *shipping* today is the last subsection.
 
-```python
-class MyBrain(GeminiBrain):
-    voice = "omnivoice/gauri"     # applied before on_session_start, so before greeting audio
-    language = "hi"
+**The agent record carries the configuration, and it is the default.** It is what
+shapes the pipeline, which the runtime builds before it ever dials the brain. The
+brain overrides at runtime, and an override then means what it says: a condition
+changed during this call. The record's value is not a lesser thing the brain
+routinely replaces — it is where a default belongs, because a default is not a
+runtime event.
 
-    async def on_session_start(self, session):
-        # Per-caller override, still both legs, still before the first word:
-        await session.configure_language("ta", voice="omnivoice/gauri")
-```
+The record stores the **same protobuf messages** the wire carries, as canonical
+proto3 JSON. One definition, so the record and the wire cannot drift. Enums spell
+by value name there (`"language": "LANGUAGE_HI"`, not `"hi"`) — that is proto3's
+JSON mapping, not a choice we made.
 
-`Session.configure_language(language, *, voice=None)` is `configure_tts(...)` **and**
-`configure_stt(...)` in one call. That is the entire point of it — do not call the
-two halves separately, and do not put a language anywhere a page or a database
-record can set it. The agent record deliberately carries **no** stt/tts blocks; a
-brain is version-controlled and a Firestore field is not.
+**Two rules keep the silent bug dead, and they are enforced in different places
+on purpose:**
+
+- **The pairing rule**, checked where the configuration is *written* — the SDK
+  raises before the request leaves, and the control plane raises on record
+  write. Both legs keep their own `language` field, because `omnivoice` has
+  reference clips for ten of the 23 languages `vql-stt` serves, so understanding
+  Odia while speaking with the Hindi clip is a real, legitimate configuration.
+  The guard is therefore not equality but **statedness**: naming a language on
+  one leg and not the other is **rejected**. Changing only the voice touches no
+  language field and is unaffected. This is a property of the message, which is
+  why it needs nothing from the far end to decide.
+- **No silent substitution**, checked where the configuration is *used*. A
+  `tts.language` the speech tier has no clip for is **rejected**, not quietly
+  served with the Hindi clip. To run an Odia call you write `stt.language = OR,
+  tts.language = HI` — which is what is actually going to happen. Which
+  languages have clips is *not* in the proto and must not go there: it is a
+  capability of the speech tier, it moves when a clip is recorded, and a wire
+  contract that froze today's roster would take a proto release, an SDK release
+  and a redeploy to add a language. The runtime answers it at the moment it is
+  asked, in the `Response`.
+
+**A page still never sets either.** That part of the old rule was right and stays.
+
+The surface is **deliberately narrow: voice and language only.** Voices and
+languages are protobuf enums, so an unserved value is unrepresentable rather than
+silently falling back to the English recognizer. The eleven VAD knobs left the
+wire entirely and keep their internal PyGato defaults; we widen as we learn.
 
 The catalog is small and closed: voices are `omnivoice/gauri` (female) and
 `omnivoice/gaurav` (male); `vql-stt` serves `en` plus the 22 Indic codes. An
 unknown model is **HTTP 403 at connect**, an unknown voice prefix is
 `voice not found` — both fail the session, not the sentence.
 
+`frames.proto` documents every declaration in place rather than in banner
+comments, and `buf lint`'s `COMMENTS` category fails the build if one is
+missing. protoc carries those into `SourceCodeInfo`, so they are the contract's
+documentation for every consumer, not just for whoever opens the file.
+
+### The runtime half, as it stands in the tree
+
+`await session.configure(Config(tts=…, stt=…, idle=…))` — one method, one wire
+op, three optional sections. `Config.__post_init__` raises `ConfigError` on the
+pairing rule, at the call site, before anything reaches the socket; the clip
+rule is not checked here and comes back as `RequestRejected`. Voice and language
+are the `Voice` / `Language` enums from `voqalize.sdk.wire`, whose members are
+read out of the proto descriptor rather than written down twice;
+`tests/wire/test_catalog_matches_proto.py` fails if they drift, and
+`tests/wire/test_config_pairing.py` pins the rule.
+
+**A brain that wants its own voice says so in `on_session_start`**, which runs
+before `greet`. The `Brain.voice` / `Brain.language` ClassVars and the
+`_apply_declared_voice` step that applied them are gone: a value fixed at import
+time cannot name the language of *this* call, which is what the question usually
+turns out to be. A demo whose page settles the language before the call exists
+sends it with the connect request instead and configures nothing — one answer,
+one authority.
+
+`tests/direct/test_configure.py` pins the ordering that makes the hook enough: a
+request from `on_session_start` reaches the wire before the first
+`SpeechChunkFrame`. That ordering was the ClassVar's whole justification, so it
+is now the only mechanism and it is tested directly.
+
 ## Every demo has an e2e, and one of them is a sweep
 
 `demos/tests/test_<name>_e2e.py` — all eleven. The real brain on a real
-`DirectAgent` socket, driven by the conformance `VoiceDriver`, with only the
-*model* faked: `ScriptedGemini` (`demos/voqalize_demos/testing.py`) for the nine
-`GeminiBrain` demos, ADK's `ScriptedLlm` for `travel` and `orderdesk`. No network,
-no API key, ~33 s for the whole suite.
+`brain_server` socket, driven by the conformance `VoqalizeDriver`, with only the
+*model* faked: `ScriptedGemini` (`demos/voqalize_demos/testing.py`) drives all
+eleven, aura's `GeminiInteractionsBrain` included — the ADK adapter and its
+`ScriptedLlm` are gone. No network, no API key, ~33 s for the whole suite.
 
 `demos/tests/test_demo_voice_contract.py` is the cross-demo sweep: it asserts every
 demo puts a **matched** voice/language pair on both legs before its first audio,
 and carries a **negative control** proving the probe can fail. Add a demo → add a
-row there, or its language pair is unguarded.
+row there, or its language pair is unguarded. Every row asserts — the
+`unported=True` xfail escape hatch is gone, because there is nothing left to
+excuse: each demo either configures from `on_session_start` or sends the pair
+with the connect request.
 
 Footguns found writing them (see `demos/tests/_harness.py`):
 
 - `driver.dump_conversation()` needs a *cooperating* brain
   (`answer_conformance_dump=True`). The `GeminiBrain` demos do not implement it —
   assert over `llm.captured_contents` instead, which is a stronger property anyway.
-- A **blocking** tool (aura's `authenticate`) needs the turn in flight:
-  `asyncio.create_task(driver.user_says(...))`, then
-  `await driver.collect_ui_commands(min_count=1)` to read the nonce, then
-  `send_client_message`.
+- **Nothing blocks on the customer**, and the tests have to be written that way.
+  aura's `show_auth_popup` dispatches the sign-in and returns, so the turn
+  completes on its own; the customer's answer is a separate step — read the nonce
+  off `rig.command("open_auth")`, `send_client_message`, then
+  `await asyncio.sleep(0.1)` before the next turn, since `on_rtvi` takes no floor
+  and there is nothing to await. What the customer did is never on the wire: it
+  reaches the model as context, so assert on the *next* request's `input`.
 - Asserting on a tool result: read `part.function_response.response["result"]`,
   **not** `str(response)` — the outer dict re-escapes quotes, so a match on
   `"'status': 'declined'"` fails for exactly the results containing an apostrophe.
@@ -144,6 +224,7 @@ uv run ruff format --check . && uv run ruff check .
 uv run pyright                       # whole repo, and it is clean — keep it that way
 cd sdk/python && uv run pytest -q
 cd demos && uv run pytest tests/     # every demo's brain over the real wire, ~33 s
+uv run --with pyyaml python3 design/check_facts.py   # numbers and words, below
 ```
 
 These are exactly what `.github/workflows/ci.yml` runs, in the same order, on the
@@ -159,6 +240,55 @@ umbrella app never imports) is excluded in `pyproject.toml` with a note, and the
 three errors that turned out to be in *shipping* brain code — a possibly-unbound
 `spoke` and a `str | None` joined as `str`, both in `demos/orderdesk/backend/
 brain.py` — were fixed rather than fenced. Don't add to the exclusion.
+
+## Running it locally
+
+```sh
+pm2 start ecosystem.config.cjs
+```
+
+Starts the docs site and all eleven demo UIs. **Ports are declared in that file
+and nowhere else** — pm2 passes each on the command line and no `vite.config.ts`
+or `astro.config.mjs` here names one. The demo ports are a base plus the index
+into the `DEMOS` array, which is therefore **append-only**: inserting a name
+renumbers every demo after it. A local nginx fronts the demos at
+`local.voqalize.com/demos/<name>`, the same paths the deployed apex serves, so a
+demo mints its session same-origin exactly as it does in prod. The docs get an
+origin instead — `docs.local.voqalize.com`, matching `docs.dev.` and `docs.` —
+and the apex answers `/docs/**` with the same permanent redirect it does in dev
+and prod.
+
+Each demo also runs standalone with plain `pnpm dev` (see `demos/README.md`) —
+that path needs none of the above.
+
+## Everything a developer reads is written to one standard
+
+`design/voice.md` is the writing standard for this repo: the docs site, the SDK
+docstrings, error messages, the wire contract's prose, the demo source, the
+changelog and commit messages. It carries the persona, five principles, four signature
+moves, a **closed lexicon** (a concept keeps one word across the proto, the SDK, the docs
+and the site), and a recognition test to run before publishing. Read it before writing
+anything a customer will see — including an error string, which is our highest-traffic
+documentation and is read at the worst possible moment.
+
+Two consequences worth knowing without opening it: **no surface calls Voqalize a
+platform**, and **internal service or repository names never appear in customer-facing
+text** — the end that dials your brain is *Voqalize*.
+
+**A number goes in `design/facts.yaml` before it goes in a sentence.** Every
+claimable version, count, licence and date lives there once, next to the file it
+was read out of, and `design/check_facts.py` re-reads each one straight from that
+source — so the facts file cannot quietly become the next stale page. Prose is
+checked the other way round: a fact may declare the sentences that are wrong
+*because* of it, which is how the docs site stopped saying the React client was
+"not yet on npm" three weeks after it published. `design/lexicon.yaml` is the
+same file for words, and holds `voice.md`'s table to itself row by row.
+
+Facts whose source is a registry or one of the three sibling repos cannot be
+derived from this tree; they carry the command that re-earns the stamp, and
+`--attested` lists them with the age of the last check. Run `--sweep` when you
+want the retired synonyms too — mostly ordinary English, so it is advisory and a
+person reads it.
 
 ## Hard rules
 

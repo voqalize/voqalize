@@ -2,56 +2,44 @@
  * The Flowforge voice layer — "Ada" as ambient studio presence, not a docked
  * chat widget.
  *
- * Same embedding surface every Voqalize demo uses: {@link useVoqalSession} from
- * `@voqalize/client-react`, minted with a publishable (`pk_`) key. This layer owns
- * the whole session lifecycle and wires it to the studio through the shared store:
- *   - it mirrors the SDK's bot/connection state into the store, so the header
- *     presence control reads it (the ring itself takes the state as props, from
- *     the shared `AmbientPresence` in `@voqalize/client-react`);
- *   - the brain's `ui_command` server-messages replay onto the store (add a step,
- *     insert a decision, run the tests, publish live…);
- *   - a compact workspace snapshot is echoed back (`state_sync`) on connect and
- *     after every change, so Ada always knows the open workflow, its steps, tests,
- *     and gaps — including edits the admin makes by hand.
+ * Stock pipecat, the same embedding surface every Voqalize demo uses:
+ * `PipecatAppBase` (from `@pipecat-ai/voice-ui-kit`) creates and holds the
+ * client; a render-prop child owns everything that needs it. This layer wires
+ * that child to the studio through the shared store:
+ *   - it mirrors pipecat's own bot-activity and connection state into the
+ *     store, so the header presence control reads it (the ring itself takes
+ *     the state as props, from the shared `AmbientPresence` in
+ *     `@voqalize/demo-kit`);
+ *   - the brain's `ui-command` RTVI messages replay onto the store (add a
+ *     step, insert a decision, run the tests, publish live…);
+ *   - a compact workspace snapshot is echoed back (`state_sync`) on connect
+ *     and after every change, so Ada always knows the open workflow, its
+ *     steps, tests, and gaps — including edits the admin makes by hand.
  *
  * The presence control lives in the app's top bar (rendered via the `children`
  * render-prop so the studio owns its own chrome): a single mic affordance that
  * begins the call, then doubles as a mute toggle, with a small "end" beside it —
- * the same shape a customer would embed. Mounted once inside `ForgeProvider`, so
- * the call survives navigating between the list and the editor.
+ * the same shape a customer would embed. `PipecatAppBase` is mounted once
+ * inside `ForgeProvider`, so the call survives navigating between the list and
+ * the editor; nothing opens a microphone until the visitor has read the notice
+ * and joined through `DemoGate`.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
-import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  AmbientPresence,
-  useVoqalSession,
-  type AmbientPresencePalette,
-  type VoqalConnectionState,
-} from "@voqalize/client-react";
+  usePipecatClient,
+  usePipecatClientMicControl,
+  usePipecatClientTransportState,
+  useRTVIClientEvent,
+} from "@pipecat-ai/client-react";
+import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
+import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
+import { AmbientPresence, DemoGate, type AmbientPresencePalette } from "@voqalize/demo-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
-import { DemoGate } from "@voqalize/demo-kit";
 import { useForge, type BotState, type ConnStatus } from "./store";
 import { ActivityFeed } from "./ActivityFeed";
 import { ADMIN } from "./data";
-import { config } from "./config";
-
-const FORGE = config;
-
-// The store's ConnStatus vocabulary uses `live`; the SDK hook reports
-// `connected`/`disconnected`. Map the transport state onto the store's.
-const CONNECTION_STATUS: Record<VoqalConnectionState, ConnStatus> = {
-  idle: "idle",
-  connecting: "connecting",
-  // `awaiting-microphone` folds into `connecting`: the browser's own permission
-  // prompt is on screen at that moment and is the thing to answer, so the chrome
-  // should keep saying "wait" rather than invent a state of its own.
-  "awaiting-microphone": "connecting",
-  connected: "live",
-  disconnected: "idle",
-  error: "error",
-};
+import { connectRequest, withRealHeaders } from "./config";
 
 // Flowforge's reading of the shared presence ring: violet is the build surface,
 // cyan is the machine computing — so Ada's ring shifts to cyan the moment she's
@@ -82,7 +70,7 @@ function BeginControl({
 }: {
   status: ConnStatus;
   error: string;
-  onBegin: () => void;
+  onBegin: () => void | Promise<void>;
 }) {
   const connecting = status === "connecting";
   return (
@@ -104,7 +92,7 @@ function BeginControl({
 }
 
 // Live: the mic doubles as a mute toggle; a small secondary control ends the call.
-function LiveControls({ onEnd }: { onEnd: () => void }) {
+function LiveControls({ onEnd }: { onEnd?: () => void | Promise<void> }) {
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
   const { botState } = useForge();
   const label = isMicEnabled ? STATE_LABEL[botState] : "Muted";
@@ -126,57 +114,72 @@ function LiveControls({ onEnd }: { onEnd: () => void }) {
 }
 
 // ── Session owner ─────────────────────────────────────────────────────────────
+// Runs inside PipecatAppBase's own PipecatClientProvider, so every pipecat hook
+// here has a client from the first render — connectOnMount is deliberately
+// off; DemoGate's `onJoin` is what actually starts the call.
 
-export function VoiceLayer({ children }: { children: (presence: ReactNode) => ReactNode }) {
+function CallInner({
+  error,
+  onConnect,
+  onDisconnect,
+  children,
+}: {
+  error: string | null;
+  onConnect?: () => void | Promise<void>;
+  onDisconnect?: () => void | Promise<void>;
+  children: (presence: ReactNode) => ReactNode;
+}) {
   const { setBotState, setConnectionState, handleUiCommand, registerAgentSend, snapshot, model } = useForge();
 
-  const session = useVoqalSession({
-    apiBase: FORGE.apiBase,
-    publishableKey: FORGE.publishableKey ?? "",
-    agentId: FORGE.agentId,
-    // No pipeline override: this agent's voice and language are declared on
-    // its brain (backend/brain.py), which is the only place they belong.
-    payload: {
-      surface: "forge-web",
-      admin: { name: ADMIN.name, role: ADMIN.role },
-    },
-    onServerMessage: useCallback(
-      (msg: Record<string, unknown>) => {
-        if (msg.type === "ui_command") handleUiCommand(msg);
-      },
+  const client = usePipecatClient();
+  const transportState = usePipecatClientTransportState();
+  const { isConnected, isConnecting } = usePipecatConnectionState();
+
+  // Bot activity: derived straight from pipecat's own events, the same mapping
+  // AmbientPresence documents (listening → thinking → speaking → idle).
+  const [activity, setActivity] = useState<BotState>("idle");
+  useRTVIClientEvent(RTVIEvent.UserStartedSpeaking, useCallback(() => setActivity("listening"), []));
+  useRTVIClientEvent(RTVIEvent.UserStoppedSpeaking, useCallback(() => setActivity("idle"), []));
+  useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity("thinking"), []));
+  useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
+  useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("idle"), []));
+
+  // The brain's ui-commands replay straight onto the store.
+  useRTVIClientEvent(
+    RTVIEvent.UICommand,
+    useCallback(
+      ({ command, payload }: UICommandData) => handleUiCommand(command, payload),
       [handleUiCommand],
     ),
-  });
+  );
 
-  const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } = session;
-  const status = CONNECTION_STATUS[connectionState];
+  const status: ConnStatus = error ? "error" : isConnecting ? "connecting" : isConnected ? "live" : "idle";
 
-  // Mirror the SDK's bot/connection state into the store — the header presence
-  // control reads them from `useForge()`. (The ambient ring itself takes them as
-  // props, straight off the session.)
+  // Mirror pipecat's state into the store — the header presence control and
+  // ActivityFeed read them from `useForge()`.
   useEffect(() => {
-    setBotState(botState);
-  }, [botState, setBotState]);
+    setBotState(activity);
+  }, [activity, setBotState]);
   useEffect(() => {
     setConnectionState(status);
   }, [status, setConnectionState]);
 
-  // Register the store's agent-send channel and open the mic once live.
+  // Open the mic and register the store's agent-send channel once live.
   useEffect(() => {
-    if (connectionState !== "connected") return;
-    enableMic(true);
-    registerAgentSend((type, data) => sendMessage(type, data as Record<string, unknown>));
+    if (!isConnected || !client) return;
+    client.enableMic(true);
+    registerAgentSend((type, data) => client.sendClientMessage(type, data));
     return () => registerAgentSend(null);
-  }, [connectionState, enableMic, registerAgentSend, sendMessage]);
+  }, [isConnected, client, registerAgentSend]);
 
   // Debounced snapshot push: on connect and after every change (rev), so Ada stays
   // in sync with edits the admin makes by hand too.
   useEffect(() => {
-    if (connectionState !== "connected") return;
-    const t = setTimeout(() => sendMessage("state_sync", { workspace: snapshot() }), 250);
+    if (!isConnected || !client) return;
+    const t = setTimeout(() => client.sendClientMessage("state_sync", { workspace: snapshot() }), 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionState, model.rev]);
+  }, [isConnected, client, model.rev]);
 
   // Dev-only: drive the flow from the console without a mic.
   useEffect(() => {
@@ -190,13 +193,13 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
   // Nothing opens a microphone until the visitor has read the notice and joined.
   const [joined, setJoined] = useState(false);
 
-  const presence = client ? (
-    <LiveControls onEnd={disconnect} />
+  const presence = isConnected ? (
+    <LiveControls onEnd={onDisconnect} />
   ) : (
-    <BeginControl status={status} error={error ?? ""} onBegin={connect} />
+    <BeginControl status={status} error={error ?? ""} onBegin={onConnect ?? (() => {})} />
   );
 
-  const shell = (
+  return (
     <>
       <DemoGate
         open={!joined}
@@ -206,13 +209,13 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
         busy={status === "connecting"}
         error={status === "error" ? error || "Connection issue" : null}
         onJoin={async () => {
-          await connect();
+          await onConnect?.();
           setJoined(true);
         }}
       />
       <AmbientPresence
-        botState={botState}
-        connectionState={connectionState}
+        activity={activity}
+        transportState={transportState}
         palette={PRESENCE}
         weight={0.8}
         tempo={1.5}
@@ -222,13 +225,28 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
       <ActivityFeed />
     </>
   );
+}
 
-  if (!client) return <>{shell}</>;
+export function VoiceLayer({ children }: { children: (presence: ReactNode) => ReactNode }) {
+  // No pipeline override: this agent's voice and language are declared on its
+  // brain (backend/brain.py), which is the only place they belong.
+  const params = useMemo(
+    () => connectRequest({ surface: "forge-web", admin: { name: ADMIN.name, role: ADMIN.role } }),
+    [],
+  );
 
   return (
-    <PipecatClientProvider client={client}>
-      <BotAudioOutput />
-      {shell}
-    </PipecatClientProvider>
+    <PipecatAppBase
+      transportType="smallwebrtc"
+      noThemeProvider
+      startBotParams={params}
+      startBotResponseTransformer={withRealHeaders}
+    >
+      {({ error, handleConnect, handleDisconnect }) => (
+        <CallInner error={error ?? null} onConnect={handleConnect} onDisconnect={handleDisconnect}>
+          {children}
+        </CallInner>
+      )}
+    </PipecatAppBase>
   );
 }

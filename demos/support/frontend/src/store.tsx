@@ -2,7 +2,7 @@
  * OrdersStore — the single source of truth for the returns demo's screen state.
  *
  * Both the human (tapping the UI) and the Returns Assistant agent (via
- * `ui_command` RTVI messages) call the SAME actions, so the screen stays
+ * `ui-command` RTVI events) call the SAME actions, so the screen stays
  * consistent no matter who is driving. Navigation is plain React state — never
  * the router — so the `PipecatClient` mounted alongside never unmounts and the
  * call stays live as the shopper moves between pages.
@@ -10,6 +10,10 @@
  * The store also holds an `agentSend` channel: the voice widget registers a way
  * to push RTVI client messages to the bot, and the return form uses it to send
  * a captured photo (`photo_upload`) and the final submission (`return_submitted`).
+ *
+ * What the assistant can say is `actions.gen.ts`, generated from the brain's
+ * `Action` classes — so `handleUiCommand` narrows on `command`, reads each
+ * payload typed, and fails to compile when the brain grows an action.
  */
 
 import {
@@ -21,12 +25,19 @@ import {
   type ReactNode,
 } from 'react';
 import { getOrder } from './catalog';
+import {
+  asUiAction,
+  unhandledUiAction,
+  type FillReturnForm,
+  type RecordDiagnostic,
+} from './actions.gen';
 
 export type View = 'orders' | 'order' | 'diagnostics' | 'return';
 
-export type RefundMethod = 'original_payment' | 'store_credit';
+export type RefundMethod = FillReturnForm['refund_method'];
 
-export type DiagResult = 'pending' | 'ok' | 'issue';
+/** The assistant reports a verdict; `pending` is the screen's own, before one. */
+export type DiagResult = 'pending' | RecordDiagnostic['result'];
 
 export interface DiagStep {
   label: string;
@@ -99,7 +110,7 @@ export interface OrdersActions {
   openOrder: (orderId: string) => void;
   highlightItem: (orderId: string, itemId: string) => void;
   startDiagnostics: (orderId: string, itemId: string, steps: string[]) => void;
-  recordDiagnostic: (step: number, summary: string, result: 'ok' | 'issue') => void;
+  recordDiagnostic: (step: number, summary: string, result: RecordDiagnostic['result']) => void;
   completeDiagnostics: (resolved: boolean, reason?: string) => void;
   startReturn: (orderId: string, itemId: string, reason: string) => void;
   requestPhoto: () => void;
@@ -117,8 +128,8 @@ export interface OrdersStore extends State, OrdersActions {
   /** Push an RTVI client message to the bot (null until the call connects). */
   agentSend: AgentSend | null;
   registerAgentSend: (fn: AgentSend | null) => void;
-  /** Dispatch a raw `ui_command` payload coming from the agent over RTVI. */
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  /** Dispatch a `ui-command` event's `{ command, payload }` from the agent. */
+  handleUiCommand: (command: string, payload: unknown) => void;
 }
 
 const Ctx = createContext<OrdersStore | null>(null);
@@ -172,19 +183,22 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const recordDiagnostic = useCallback((step: number, summary: string, result: 'ok' | 'issue') => {
-    setState((s) => {
-      if (!s.diag) return s;
-      const idx =
-        Number.isFinite(step) && step >= 1 && step <= s.diag.steps.length
-          ? step - 1
-          : s.diag.currentIndex;
-      const steps = s.diag.steps.map((st, i) => (i === idx ? { ...st, summary, result } : st));
-      let next = idx + 1;
-      while (next < steps.length && steps[next].result !== 'pending') next++;
-      return { ...s, diag: { ...s.diag, steps, currentIndex: Math.min(next, steps.length) } };
-    });
-  }, []);
+  const recordDiagnostic = useCallback(
+    (step: number, summary: string, result: RecordDiagnostic['result']) => {
+      setState((s) => {
+        if (!s.diag) return s;
+        const idx =
+          Number.isFinite(step) && step >= 1 && step <= s.diag.steps.length
+            ? step - 1
+            : s.diag.currentIndex;
+        const steps = s.diag.steps.map((st, i) => (i === idx ? { ...st, summary, result } : st));
+        let next = idx + 1;
+        while (next < steps.length && steps[next].result !== 'pending') next++;
+        return { ...s, diag: { ...s.diag, steps, currentIndex: Math.min(next, steps.length) } };
+      });
+    },
+    [],
+  );
 
   const completeDiagnostics = useCallback((resolved: boolean, reason?: string) => {
     setState((s) => {
@@ -279,60 +293,52 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      const action = String(cmd.action ?? '');
-      const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
-      const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
-      const bool = (v: unknown) => v === true;
-      switch (action) {
+    (command: string, payload: unknown) => {
+      const action = asUiAction(command, payload);
+      if (!action) return;
+      switch (action.command) {
         case 'open_orders':
           openOrders();
           break;
         case 'open_order':
-          if (str(cmd.order_id)) openOrder(str(cmd.order_id)!);
+          openOrder(action.payload.order_id);
           break;
         case 'highlight_item':
-          if (str(cmd.order_id) && str(cmd.item_id)) {
-            highlightItem(str(cmd.order_id)!, str(cmd.item_id)!);
-          }
+          highlightItem(action.payload.order_id, action.payload.item_id);
           break;
-        case 'start_diagnostics':
-          if (str(cmd.order_id) && str(cmd.item_id) && Array.isArray(cmd.steps)) {
-            startDiagnostics(str(cmd.order_id)!, str(cmd.item_id)!, (cmd.steps as unknown[]).map(String));
-          }
+        case 'start_diagnostics': {
+          const { order_id, item_id, steps } = action.payload;
+          startDiagnostics(order_id, item_id, steps);
           break;
-        case 'record_diagnostic':
-          recordDiagnostic(num(cmd.step) ?? 0, str(cmd.summary) ?? '', cmd.result === 'issue' ? 'issue' : 'ok');
+        }
+        case 'record_diagnostic': {
+          const { step, summary, result } = action.payload;
+          recordDiagnostic(step, summary, result);
           break;
+        }
         case 'complete_diagnostics':
-          completeDiagnostics(bool(cmd.resolved), str(cmd.reason));
+          completeDiagnostics(action.payload.resolved, action.payload.reason);
           break;
-        case 'start_return':
-          if (str(cmd.order_id) && str(cmd.item_id)) {
-            startReturn(str(cmd.order_id)!, str(cmd.item_id)!, str(cmd.reason) ?? '');
-          }
+        case 'start_return': {
+          const { order_id, item_id, reason } = action.payload;
+          startReturn(order_id, item_id, reason);
           break;
+        }
         case 'request_photo':
           requestPhoto();
           break;
-        case 'set_photo_check':
-          setPhotoCheck({
-            matches: bool(cmd.matches),
-            boxPresent: bool(cmd.box_present),
-            passed: bool(cmd.passed),
-            note: str(cmd.note) ?? '',
-          });
+        case 'set_photo_check': {
+          const { matches, box_present, passed, note } = action.payload;
+          setPhotoCheck({ matches, boxPresent: box_present, passed, note });
           break;
-        case 'fill_return_form':
-          fillReturnForm({
-            reason: str(cmd.reason) ?? '',
-            condition: str(cmd.condition) ?? 'Opened — defective',
-            refundMethod: (str(cmd.refund_method) as RefundMethod) ?? 'original_payment',
-            notes: str(cmd.notes) ?? '',
-          });
+        }
+        case 'fill_return_form': {
+          const { reason, condition, refund_method, notes } = action.payload;
+          fillReturnForm({ reason, condition, refundMethod: refund_method, notes });
           break;
+        }
         default:
-          break;
+          unhandledUiAction(action);
       }
     },
     [

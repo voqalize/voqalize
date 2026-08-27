@@ -256,6 +256,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Filter coffee (no sugar)', quantity: '1 cup', calories: 40 },
           ],
           total_calories: 290,
+          note: '',
         },
       ],
       meds: [
@@ -322,6 +323,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Coconut chutney', quantity: '2 tbsp', calories: 70 },
           ],
           total_calories: 310,
+          note: '',
         },
         {
           id: 'm2',
@@ -332,6 +334,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Curd', quantity: '1 katori', calories: 90 },
           ],
           total_calories: 470,
+          note: '',
         },
       ],
       activities: [
@@ -398,6 +401,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Sambar', quantity: '1 katori', calories: 120 },
           ],
           total_calories: 300,
+          note: '',
         },
         {
           id: 'm2',
@@ -529,6 +533,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Filter coffee (no sugar)', quantity: '1 cup', calories: 40 },
           ],
           total_calories: 320,
+          note: '',
         },
         {
           id: 'm2',
@@ -540,6 +545,7 @@ export const SCENARIOS: Scenario[] = [
             { name: 'Vegetable salad', quantity: '1 bowl', calories: 80 },
           ],
           total_calories: 480,
+          note: '',
         },
       ],
       activities: [
@@ -570,6 +576,37 @@ export function scenarioById(id: string): Scenario {
 }
 
 // ── Brain payload (PATIENT CONTEXT) ──────────────────────────────────────────
+
+/**
+ * The wire half of the patient's language choice.
+ *
+ * The same toggle feeds two things, and they are read by different layers.
+ * `buildBrainPayload` puts `language` in `init`, which tells the coach what to
+ * *say* — which greeting line, which language the PATIENT CONTEXT names. This
+ * puts it in `config`, which tells the runtime how to *speak* it: the
+ * recognizer to listen with, and the voice-cloning reference clip to read with.
+ *
+ * Both legs, always, in one object. `stt.language` alone leaves the coach read
+ * by an English clip — the words right on paper and foreign-accented in the
+ * ear, which no transcript, log or metric can see. It shipped that way on
+ * `/demos/orderdesk` once.
+ *
+ * It rides the connect request rather than a `session.configure` from the brain
+ * because the page knows the answer first: the patient chose it before the call
+ * existed. So the session opens in it, and the greeting — the one utterance
+ * nobody gets to re-run — is synthesized in the right voice with no round trip
+ * to have ordered correctly. What the brain still owns is a change of mind
+ * mid-call, which is what its `switch_language` tool is for.
+ *
+ * Enums spell by value name: that is proto3's JSON mapping, not our choice.
+ */
+export function buildSessionConfig(language: Language) {
+  const code = language === 'Hindi' ? 'LANGUAGE_HI' : 'LANGUAGE_EN';
+  return {
+    tts: { language: code, voice: 'VOICE_OMNIVOICE_GAURI' },
+    stt: { language: code },
+  };
+}
 
 /**
  * Fold a scenario into the single object the `sugar` brain receives as

@@ -14,11 +14,23 @@
  * Routing is stored ergonomically (a `next` spine + labelled side-exits + gateway
  * branches) rather than as a flat transition table, because that's what keeps the
  * top-to-bottom flow legible on a projector and easy for the LLM to assemble.
+ *
+ * **What the copilot sends is not declared here.** `actions.gen.ts` is generated
+ * from the brain's `Action` classes by `voqalize types`; the two closed
+ * vocabularies both halves share are read off it below. Everything else on this
+ * page is the studio's own — a block that is `fresh`, a test that is `running`,
+ * a gap that is `resolved` — and none of it is the model's to set.
  */
+
+import type { AddContextField, CreateWorkflow } from './actions.gen';
 
 // ─── Catalog: the governed building blocks the admin assembles ──────────────────
 
 /** A block kind the admin can drop into a workflow (the left-rail palette). */
+/**
+ * Wider than `AddState['kind']` on purpose: `start` and `gateway` are structural,
+ * minted by `create_workflow` and `insert_gateway`, never named by the copilot.
+ */
 export type StateKind =
   | 'start' // the trigger — a request raised from Teams / Slack / web
   | 'form' // a user task: collect fields from the requester
@@ -53,7 +65,7 @@ export interface BlockSpec {
 
 // ─── Typed context: the request's data model (the "metadata") ───────────────────
 
-export type FieldType = 'string' | 'boolean' | 'number' | 'enum' | 'user';
+export type FieldType = AddContextField['type'];
 
 /**
  * One field of the request's context — either collected on a form or **derived**
@@ -115,7 +127,7 @@ export interface WorkflowState {
 
 // ─── The workflow ───────────────────────────────────────────────────────────────
 
-export type WorkflowCategory = 'ITSM' | 'HR' | 'Security';
+export type WorkflowCategory = CreateWorkflow['category'];
 export type WorkflowStatus = 'draft' | 'published';
 
 export interface Workflow {

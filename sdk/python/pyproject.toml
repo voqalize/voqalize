@@ -1,6 +1,6 @@
 [project]
 name = "voqalize-agent-sdk"
-version = "0.0.3"
+version = "0.2.0"
 description = "Bring the brain, we bring the voice: write a plain Python Brain, Voqalize runs the voice."
 readme = "README.md"
 license = "Apache-2.0"
@@ -20,9 +20,13 @@ requires-python = ">=3.12"
 # Pipecat-free by design: installing this SDK must NOT pull pipecat. The
 # customer writes a plain `Brain`; the wire is plain protobuf. `pyjwt[crypto]` is
 # a runtime dep because the inbound (direct) server verifies PyGato's RS256 token
-# — the `crypto` extra (cryptography) is what supplies RS256, and the conformance
-# harness needs it too to mint keypairs/tokens. Without it a clean install fails
-# at verification time with "Algorithm 'RS256' could not be found".
+# — the `crypto` extra is what supplies RS256, and without it a clean install
+# fails at verification time with "Algorithm 'RS256' could not be found".
+# `cryptography` is then declared again, on its own, because
+# `voqalize.conformance` imports it directly to mint the keypair a scenario signs
+# with. A package you `import` is a package you declare: leaning on pyjwt's extra
+# to supply it means the day pyjwt stops pulling it, the harness breaks for a
+# reason nothing in this file explains.
 # `pydantic` is a runtime dep because `voqalize.sdk.Action` — the typed UI
 # command — IS a pydantic model, so `import voqalize.sdk` needs it. It is not an
 # optional-extra candidate: an SDK that only *sometimes* exposes its typed
@@ -36,35 +40,33 @@ dependencies = [
     # dragged to 6.x by installing an SDK whose wire happens to be protobuf.
     "protobuf>=5.29.3,<7",
     "pyjwt[crypto]>=2.8",
+    "cryptography>=42",
     "pydantic>=2.7",
 ]
 
 [project.optional-dependencies]
-# The Google ADK framework integration (`voqalize.google_adk`). Optional by
-# design: the core SDK stays dependency-light (`import voqalize.sdk` pulls no
-# ADK). Install with `pip install voqalize-agent-sdk[adk]` to hand the SDK a
-# native ADK agent and let it drive the run loop.
-#
-# Floor is 2.3 rather than the oldest ADK the adapter works against, because of
-# what the older releases drag in: ADK <2.2 caps `starlette<1` and ADK <2.3 caps
-# `opentelemetry-*<=1.41.1`, so a host application on current versions of either
-# is silently walked backwards by installing this extra. 2.3 is the first release
-# that pins neither.
-adk = ["google-adk>=2.3,<3"]
+# `voqalize.sdk.gemini` — the Gemini-backed Brain base class. Optional because
+# `import voqalize.sdk` must pull no model vendor. Floor is 2.x because
+# `GeminiBrain` sets `thinking_config.thinking_level`, which the 1.x releases do
+# not model.
+gemini = ["google-genai>=2.19"]
 # Deps used only by the bundled examples/ — never imported by the SDK itself.
-# `examples/travel` (OpenAI Agents + Gemini), `examples/fastapi_inbound`
-# (FastAPI/uvicorn).
+# `examples/reference` and `examples/fastapi_inbound` mount a Brain on FastAPI and
+# are served with uvicorn. `examples/echo` needs nothing but the SDK, which is the
+# point of it.
 examples = [
-    "openai-agents>=0.17",
-    "python-dotenv>=1.0",
     "fastapi>=0.115",
     "uvicorn>=0.30",
-    "google-genai>=1.0",
 ]
+
+# `voqalize types` — generates the TypeScript action union from your Action
+# classes, so the browser's half of an action is derived rather than copied.
+[project.scripts]
+voqalize = "voqalize.sdk.cli:main"
 
 [project.urls]
 Homepage = "https://voqalize.com"
-Documentation = "https://voqalize.com/docs"
+Documentation = "https://docs.voqalize.com"
 Source = "https://github.com/voqalize/voqalize/tree/main/sdk/python"
 Changelog = "https://github.com/voqalize/voqalize/blob/main/sdk/python/CHANGELOG.md"
 
@@ -84,6 +86,6 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-# Make the project root importable so tests can drive the client-authored
-# `examples/` demos (e.g. the ADK travel agent) as a customer would import them.
+# Make the project root importable so tests can drive the bundled `examples/`
+# demos exactly as a customer would import them.
 pythonpath = ["."]

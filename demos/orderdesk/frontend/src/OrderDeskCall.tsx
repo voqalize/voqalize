@@ -6,40 +6,34 @@
  * order screen. Hanging up ends the phase (→ ended screen).
  *
  * Presence is ambient: the shared {@link AmbientPresence} ring from
- * `@voqalize/client-react` glows around the whole screen and carries the agent's
+ * `@voqalize/demo-kit` glows around the whole screen and carries the agent's
  * state (listening / thinking / speaking) peripherally — which matters more here
  * than in most demos, because the pharmacist is *reading the cart*, not watching
  * the agent. The bar keeps only the identity bits: who's on the line, the state
  * label + timer, and the end-call button.
  *
- * The session lifecycle — mint against the control plane, WebRTC transport, mic,
- * bot state — is the public SDK's {@link useVoqalSession}. Everything else here is
- * the two bridges that tie the call to the screen:
- *   - {@link useUiCommand} dispatches the brain's `ui_command`s onto the store's
- *     typed handler map (`OrderDeskCommands`), so line items resolve on screen;
+ * **This is exactly the surface an external developer embeds, and it is almost
+ * entirely pipecat's.** Voice-ui-kit's `PipecatAppBase` does pipecat's whole
+ * two-step connect (`startBot` against the control plane, then `connect` the
+ * transport) and owns the client's lifecycle — including its own
+ * `BotAudioOutput` — so this file is the two bridges that tie the call to the
+ * screen, and nothing else:
+ *   - every `ui-command` (`RTVIEvent.UICommand`, `{ command, payload }`) replays
+ *     onto the store's one reducer, typed against `actions.gen.ts`, so line
+ *     items resolve on screen;
  *   - a debounced `state_sync` echoes the store's `OrderSnapshot` back, so the
  *     agent's grounding always shows the authoritative cart — including the pills,
  *     quantities and deletes the pharmacist tapped by hand.
  */
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { PipecatClientProvider } from "@pipecat-ai/client-react";
-import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
-import {
-  AmbientPresence,
-  useUiCommand,
-  useVoqalSession,
-  type AmbientPresencePalette,
-  type VoqalBotState,
-} from "@voqalize/client-react";
-import { config } from "./config";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
+import { usePipecatClient, usePipecatClientTransportState, useRTVIClientEvent } from "@pipecat-ai/client-react";
+import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
+import { AmbientPresence, type AmbientPresenceActivity, type AmbientPresencePalette } from "@voqalize/demo-kit";
+import { connectRequest, withRealHeaders } from "./config";
 import { useOrderDesk } from "./store";
 import { BODY, RED, SAFFRON } from "./theme";
-import type { OrderDeskCommands } from "./uiCommands";
-
-// Tenant + agent + pk resolve per-environment from this demo's local config
-// (src/config.ts), driven by Vite env vars.
-const ORDERDESK = config;
 
 /** Who the pharmacist thinks is on the line. */
 export const AGENT_NAME = "MedSetu Order Desk";
@@ -55,14 +49,14 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
   offline: "#C6D0DE",
 };
 
-const STATE_DOT: Record<VoqalBotState, string> = {
+const STATE_DOT: Record<AmbientPresenceActivity, string> = {
   idle: "#7FB2F2",
   listening: "#7FB2F2",
   thinking: "#F5B759",
   speaking: "#4E9BEF",
 };
 
-const STATE_LABEL: Record<VoqalBotState, string> = {
+const STATE_LABEL: Record<AmbientPresenceActivity, string> = {
   idle: "Listening",
   listening: "Listening",
   thinking: "Checking catalog…",
@@ -81,65 +75,83 @@ function CallTimer() {
 }
 
 /**
- * The in-call bar pinned to the top of the order screen while the call is live,
- * plus all the invisible bridges. Mounted by pages.tsx when phase === 'call';
- * connects on mount, and hanging up moves the demo to the ended screen.
+ * Mints the session and owns the client. Mounted by pages.tsx when
+ * phase === 'call'; connects on mount, and hanging up moves the demo to the
+ * ended screen.
  */
 export function OrderDeskCallSession() {
-  const { endCall, uiCommands, handleUiCommand, registerAgentSend, rev, snapshot, brainPayload } =
-    useOrderDesk();
-  const startedRef = useRef(false);
+  const { brainPayload } = useOrderDesk();
 
-  // The entire session lifecycle in one hook.
-  const session = useVoqalSession({
-    apiBase: ORDERDESK.apiBase,
-    // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the bar's error state.
-    publishableKey: ORDERDESK.publishableKey ?? "",
-    agentId: ORDERDESK.agentId,
-    // No pipeline override: this agent's voice and language are declared on
-    // its brain (backend/brain.py), which is the only place they belong.
-    // The scenario's PHARMACY CONTEXT rides the payload → the brain's init_payload.
-    payload: { surface: "orderdesk-web", ...(brainPayload() as Record<string, unknown>) },
-  });
+  // No pipeline override: this agent's voice and language are declared on
+  // its brain (backend/brain.py), which is the only place they belong. The
+  // scenario's PHARMACY CONTEXT rides `init` → the brain's `session.init`.
+  //
+  // Memoized: this is a dependency of PipecatAppBase's connect-on-mount
+  // effect, so an unmemoized object literal would re-fire that effect (and
+  // re-mint a session) on every render.
+  const params = useMemo(
+    () => connectRequest({ surface: "orderdesk-web", ...(brainPayload() as Record<string, unknown>) }),
+    [brainPayload],
+  );
 
-  const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } =
-    session;
+  return (
+    <PipecatAppBase
+      transportType="smallwebrtc"
+      connectOnMount
+      noThemeProvider
+      startBotParams={params}
+      startBotResponseTransformer={withRealHeaders}
+    >
+      {({ error, handleConnect }) => <CallBar error={error ?? null} onRetry={handleConnect} />}
+    </PipecatAppBase>
+  );
+}
 
-  // The agent drives the cart: every `ui_command` goes to the store's typed
-  // handler for that action. Subscription, envelope stripping and dispatch are the
-  // hook's; the store only says what each command means.
-  useUiCommand<OrderDeskCommands>(client, uiCommands);
+/** The in-call bar, the presence ring, and the two bridges to the store. */
+function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => void | Promise<void> }) {
+  const client = usePipecatClient();
+  const transportState = usePipecatClientTransportState();
+  const { isConnected: isLive } = usePipecatConnectionState();
+  const { endCall, handleUiCommand, registerAgentSend, rev, snapshot } = useOrderDesk();
+  const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
 
-  // The call IS the UX: connect on mount, once.
+  // Screen ← desk. The brain's `session.dispatch(UpsertItems(...))` lands here as
+  // `{ command: "upsert_items", payload: {...} }`. Subscribing to the event
+  // rather than registering six `useUICommandHandler`s: the store is one
+  // reducer, and an unknown command is a no-op there by design.
+  useRTVIClientEvent(
+    RTVIEvent.UICommand,
+    useCallback(
+      ({ command, payload }: UICommandData) => handleUiCommand(command, payload),
+      [handleUiCommand],
+    ),
+  );
+
+  useRTVIClientEvent(RTVIEvent.UserStartedSpeaking, useCallback(() => setActivity("listening"), []));
+  useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity("thinking"), []));
+  useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
+  useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("idle"), []));
+
+  // Register the store's agent-send channel once the call is live (the search
+  // bar's `catalog_search` and a row's `list_variants` ride it).
   useEffect(() => {
-    if (!startedRef.current) {
-      startedRef.current = true;
-      connect();
-    }
-  }, [connect]);
-
-  // Register the store's agent-send channel (the search bar's `catalog_search`
-  // rides it) and open the mic once a session is live.
-  useEffect(() => {
-    if (connectionState !== "connected") return;
-    enableMic(true);
-    registerAgentSend((type, data) => sendMessage(type, data as Record<string, unknown>));
+    if (!isLive || !client) return;
+    registerAgentSend((type, data) => client.sendClientMessage(type, data as Record<string, unknown>));
     return () => registerAgentSend(null);
-  }, [connectionState, enableMic, registerAgentSend, sendMessage]);
+  }, [isLive, client, registerAgentSend]);
 
   // Debounced snapshot push: on connect and after every change (rev), so the desk
   // stays in sync with taps the pharmacist makes by hand too. DESIGN §3: the brain
   // reads this snapshot as the authoritative cart.
   useEffect(() => {
-    if (connectionState !== "connected") return;
-    const t = setTimeout(() => sendMessage("state_sync", { screen: snapshot() }), 250);
+    if (!isLive || !client) return;
+    const t = setTimeout(() => client.sendClientMessage("state_sync", { screen: snapshot() }), 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionState, rev]);
+  }, [isLive, client, rev]);
 
   // Dev-only: drive the flow without a mic.
-  //   window.__orderdesk.ui({action:'upsert_items', items:[{id:'li1', spoken_text:'volini spray', …}]})
+  //   window.__orderdesk.ui('upsert_items', {items:[{id:'li1', spoken_text:'volini spray', …}]})
   //   window.__orderdesk.sendText('do volini spray aur paanch telma chalis bhej do')
   useEffect(() => {
     if (!import.meta.env.DEV || !client) return;
@@ -154,11 +166,8 @@ export function OrderDeskCallSession() {
     };
   }, [client, handleUiCommand, snapshot]);
 
-  const isLive = connectionState === "connected";
-  const isError = connectionState === "error";
-
   const hangUp = async () => {
-    await disconnect();
+    await client?.disconnect();
     endCall();
   };
 
@@ -166,7 +175,7 @@ export function OrderDeskCallSession() {
   // bar in the tree, but paints around the whole screen.
   const bar = (inner: ReactNode) => (
     <>
-      <AmbientPresence botState={botState} connectionState={connectionState} palette={PRESENCE} />
+      <AmbientPresence activity={activity} transportState={transportState} palette={PRESENCE} />
       <div
         style={{
           display: "flex",
@@ -184,63 +193,47 @@ export function OrderDeskCallSession() {
     </>
   );
 
-  if (isError) {
+  if (error || transportState === "error") {
     return bar(
       <>
         <span style={{ fontSize: 12.5, flex: 1, lineHeight: 1.35 }}>{error || "Call failed."}</span>
-        <button onClick={connect} style={pillBtn(SAFFRON)}>Retry</button>
+        <button onClick={onRetry} style={pillBtn(SAFFRON)}>Retry</button>
         <button onClick={hangUp} style={pillBtn(RED)}>✕</button>
       </>,
     );
   }
 
-  const connecting = (
-    <>
-      <span className="od-blink" aria-hidden style={{ width: 9, height: 9, borderRadius: "50%", background: "#7FB2F2" }} />
-      <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{AGENT_NAME}</span>
-      <span style={{ fontSize: 12, opacity: 0.85 }}>Connecting…</span>
-      <button onClick={hangUp} style={pillBtn(RED)} title="End call">✕</button>
-    </>
-  );
-
-  if (!client) {
-    return bar(connecting);
+  if (!isLive) {
+    return bar(
+      <>
+        <span className="od-blink" aria-hidden style={{ width: 9, height: 9, borderRadius: "50%", background: "#7FB2F2" }} />
+        <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{AGENT_NAME}</span>
+        <span style={{ fontSize: 12, opacity: 0.85 }}>Connecting…</span>
+        <button onClick={hangUp} style={pillBtn(RED)} title="End call">✕</button>
+      </>,
+    );
   }
 
-  // The provider — and with it BotAudioOutput — mounts the moment the client
-  // exists, NOT when the call goes live. `BotAudioOutput` learns about the bot's
-  // audio track from a single `TrackStarted` event, and SmallWebRTCTransport
-  // fires that from the remote track's `unmute`, ~250 ms after the peer
-  // connection is up. There is no second chance: `client.tracks()` only ever
-  // reports the LOCAL tracks, so a listener that subscribes late finds nothing
-  // to read. Gating this subtree on `connectionState === "connected"` mounted it
-  // ~1 s after the event and the call played silently — RTP arriving, decoded by
-  // nobody. Only the bar chrome may depend on `isLive`.
-  return (
-    <PipecatClientProvider client={client}>
-      <BotAudioOutput />
-      {!isLive ? bar(connecting) : bar(
-        <>
-          <span
-            aria-hidden
-            style={{ flex: "none", width: 9, height: 9, borderRadius: "50%", background: STATE_DOT[botState] }}
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.15 }}>{AGENT_NAME}</div>
-            <div style={{ fontSize: "var(--od-mini)", opacity: 0.82 }}>
-              {STATE_LABEL[botState]} · <CallTimer />
-            </div>
-          </div>
-          <button
-            onClick={hangUp}
-            style={{ ...pillBtn(RED), width: 32, height: 32, borderRadius: "50%", fontSize: 13, padding: 0 }}
-            title="End call"
-          >
-            ⏻
-          </button>
-        </>,
-      )}
-    </PipecatClientProvider>
+  return bar(
+    <>
+      <span
+        aria-hidden
+        style={{ flex: "none", width: 9, height: 9, borderRadius: "50%", background: STATE_DOT[activity] }}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.15 }}>{AGENT_NAME}</div>
+        <div style={{ fontSize: "var(--od-mini)", opacity: 0.82 }}>
+          {STATE_LABEL[activity]} · <CallTimer />
+        </div>
+      </div>
+      <button
+        onClick={hangUp}
+        style={{ ...pillBtn(RED), width: 32, height: 32, borderRadius: "50%", fontSize: 13, padding: 0 }}
+        title="End call"
+      >
+        ⏻
+      </button>
+    </>,
   );
 }
 

@@ -2,40 +2,34 @@
 
 One :class:`SessionRunner` per session. It owns the two-lane inbound buffer, the
 two-lane outbound buffer, the feeder loop that dispatches frames to the session
-adapter, and ack-gating. The *same* runner drives both transports (the outbound
-Cortex relay and the inbound direct server), which differ only in the small
-:class:`RunnerHost` seam (who signals the writer and who tears the session down).
+adapter. The *same* runner drives both transports (the outbound Cortex relay and
+the inbound direct server), which differ only in the small :class:`RunnerHost`
+seam (who signals the writer and who tears the session down).
 
-Design (identical to the previous pipecat-pipeline version, minus pipecat):
+Design:
 
-- **Two lanes each way.** System frames (``VqlStart`` / ``Interruption`` / ``Cancel``
-  — see :func:`~voqalize.sdk.wire.is_system`) ride a priority lane that bypasses
-  queued data; everything else rides a bounded normal lane with **drop-newest**
-  semantics. ``End`` is *not* system — it rides the normal lane so a session tears
-  down only after its queued data drains.
-- **Ack-gating.** For any inbound frame carrying ``request_id > 0``, the runner
-  emits an ``Ack`` envelope the moment the frame is **taken off the inbound lane**,
-  before ``adapter.handle_frame`` runs. The ack answers "this frame is committed to
-  the ordered lane", not "the brain finished thinking about it" — and that is
-  exactly the fact PyGato's ``_send_and_await_ack`` needs, because the feeder below
-  is a single sequential consumer, so ordering into the adapter is already
-  guaranteed at dequeue time.
-
-  Acking *after* the handler (what this did until 2026-08-13) made the ack mean
-  "handled", which quietly welded brain-side compute onto PyGato's pipeline: a
-  customer's ``on_inference_finalized`` doing a database write parked
-  ``__process_queue`` for the whole write, and the *next* user utterance — queued
-  behind it in the same direction-agnostic queue — went out late by exactly that
-  much. It cost a real call about two seconds a turn and was invisible, because the
-  delay landed on PyGato's transmit lane where no timer was watching. A slow
-  callback still delays the *callbacks* behind it (they are one ordered lane by
-  design); it no longer delays the wire.
-- **Backpressure.** Normal-lane overflow drops the newest frame and delivers a
-  non-fatal ``ErrorFrame`` to the adapter (edge-triggered: one per congestion
-  episode per direction). The runner never kills a session.
-- **Interruption** is handled in the *adapter* (cancel in-flight + echo the drain
-  barrier); the runner only guarantees the ``Interruption`` is dispatched ahead of
-  queued data via the system lane.
+- **Two lanes each way.** Session control — ``SessionStart`` / ``Interruption`` /
+  ``Cancel``, see :func:`~voqalize.sdk.wire.frames.is_priority` — rides a priority
+  lane that bypasses queued data. Nothing on it has an ordering relationship with
+  what it overtakes. ``End`` is *not* priority: it rides the bulk lane so a
+  session tears down only after its queued data drains.
+- **Backpressure sheds only the unbounded flows.** The bulk lane is bounded, and
+  a full lane drops a newly arriving speech chunk or RTVI message — see
+  :func:`~voqalize.sdk.wire.frames.is_droppable`. Everything else is bounded by
+  turns taken and units spoken, so it queues however deep the backlog runs. A
+  drop delivers a non-fatal ``ErrorFrame`` to the adapter, edge-triggered: one
+  per congestion episode per direction. The runner never kills a session.
+- **One sequential consumer.** The feeder below takes frames off the inbound
+  lanes one at a time and awaits ``adapter.handle_frame`` on each, so the adapter
+  sees frames in wire order. A slow callback delays the *callbacks* behind it and
+  nothing else — it never reaches back across the wire.
+- **A ``Response`` bypasses the lanes entirely.** It is an answer, not a
+  stimulus: it has exactly one consumer — the caller blocked on it — and no
+  ordering against speech or user messages. Queueing it behind the feeder would
+  deadlock every request made from a callback, because the feeder is inside the
+  very callback that is awaiting it.
+- **Interruption** is handled in the *adapter*, which holds the watermark; the
+  runner only guarantees it is dispatched ahead of queued data.
 """
 
 from __future__ import annotations
@@ -49,15 +43,12 @@ from typing import Protocol
 
 from loguru import logger
 
-from .wire import EndFrame, ErrorFrame, Frame, FrameDirection, is_system
+from .wire import CancelFrame, EndFrame, ErrorCode, ErrorFrame, Frame, ResponseFrame
+from .wire.frames import is_droppable, is_priority
 
-DEFAULT_NORMAL_MAXSIZE = 256
-DEFAULT_SYSTEM_MAXSIZE = 32  # tripwire; never expected to fill
+DEFAULT_BULK_MAXSIZE = 256
+DEFAULT_PRIORITY_MAXSIZE = 32  # tripwire; never expected to fill
 _LOW_WATERMARK_FRAC = 0.5
-
-# Every brain→wire frame is sent DOWNSTREAM (1); PyGato flips ui_command to
-# UPSTREAM on its own read.
-OUT_DIRECTION = FrameDirection.DOWNSTREAM
 
 
 # ─── Seams ────────────────────────────────────────────────────────────────────
@@ -76,19 +67,22 @@ class Emitter(Protocol):
 class SessionAdapter(Protocol):
     """The brain-side of one session (implemented by ``brain._BrainAdapter``).
 
-    ``handle_frame`` is dispatched sequentially by the feeder, system-lane first.
-    It may emit frames synchronously via the :class:`Emitter` it was built with,
-    and it may spawn its own tasks (e.g. ``on_interaction``). ``close`` runs
-    session teardown (``on_session_end``).
+    ``handle_frame`` is dispatched sequentially by the feeder, priority lane
+    first. It may emit frames synchronously via the :class:`Emitter` it was built
+    with, and it may spawn its own tasks (e.g. ``on_user_message``).
+    ``settle_response`` is called straight off the reader instead, and must not
+    block. ``close`` runs session teardown (``on_session_end``).
     """
 
     async def handle_frame(self, frame: Frame) -> None: ...
+
+    def settle_response(self, frame: ResponseFrame) -> None: ...
 
     async def close(self) -> None: ...
 
 
 # A factory builds the adapter for one session, wired to the runner's Emitter.
-# The session id itself arrives inside the VqlStart frame, so it isn't a
+# The session id itself arrives inside the SessionStart frame, so it isn't a
 # parameter here (matches the Brain surface, where Session.id = frame.session_id).
 SessionFactory = Callable[["Emitter"], SessionAdapter]
 
@@ -108,98 +102,69 @@ class RunnerHost(Protocol):
     def close_session(self, runner: SessionRunner) -> None: ...
 
 
-@dataclass
-class _Ack:
-    """Outbound marker: emit an ``Ack(ack_id)`` envelope. Never dropped."""
-
-    ack_id: int
-
-
-OutItem = Frame | _Ack
-
-
-# ─── Lane containers ──────────────────────────────────────────────────────────
+# ─── Lane container ───────────────────────────────────────────────────────────
 
 
 @dataclass
-class _InLanes:
-    """Inbound: system (priority) + normal (bounded, drop-newest), one consumer."""
+class _Lanes:
+    """Priority (bypasses queued data) + bulk (bounded, sheds droppable frames)."""
 
-    system_max: int
-    normal_max: int
-    system: deque[tuple[Frame, int]] = field(default_factory=deque)
-    normal: deque[tuple[Frame, int]] = field(default_factory=deque)
-    ready: asyncio.Event = field(default_factory=asyncio.Event)
+    priority_max: int
+    bulk_max: int
+    label: str
+    priority: deque[Frame] = field(default_factory=deque)
+    bulk: deque[Frame] = field(default_factory=deque)
 
-    def put_system(self, item: tuple[Frame, int]) -> None:
-        if len(self.system) >= self.system_max:
-            raise RuntimeError(f"inbound system lane overflow at {self.system_max} — bug")
-        self.system.append(item)
-        self.ready.set()
-
-    def put_normal(self, item: tuple[Frame, int]) -> bool:
-        if len(self.normal) >= self.normal_max:
+    def put(self, frame: Frame) -> bool:
+        """Queue a frame. False means it was shed under backpressure."""
+        if is_priority(frame):
+            if len(self.priority) >= self.priority_max:
+                raise RuntimeError(
+                    f"{self.label} priority lane overflow at {self.priority_max} — bug"
+                )
+            self.priority.append(frame)
+            return True
+        if len(self.bulk) >= self.bulk_max and is_droppable(frame):
             return False
-        self.normal.append(item)
-        self.ready.set()
+        self.bulk.append(frame)
         return True
 
-    async def get(self) -> tuple[Frame, int]:
-        while True:
-            if self.system:
-                item = self.system.popleft()
-            elif self.normal:
-                item = self.normal.popleft()
-            else:
-                self.ready.clear()
-                await self.ready.wait()
-                continue
-            if not self.system and not self.normal:
-                self.ready.clear()
-            return item
-
-    def depth(self) -> int:
-        return len(self.system) + len(self.normal)
-
-
-@dataclass
-class _OutLanes:
-    """Outbound: system (Interruption echo) + normal (Frame | _Ack)."""
-
-    system_max: int
-    normal_max: int
-    system: deque[OutItem] = field(default_factory=deque)
-    normal: deque[OutItem] = field(default_factory=deque)
-
-    def put_system(self, item: OutItem) -> None:
-        if len(self.system) >= self.system_max:
-            raise RuntimeError(f"outbound system lane overflow at {self.system_max} — bug")
-        self.system.append(item)
-
-    def put_normal(self, item: OutItem) -> bool:
-        if len(self.normal) >= self.normal_max:
-            return False
-        self.normal.append(item)
-        return True
-
-    def append_ack(self, item: _Ack) -> None:
-        # Acks bypass the bound: a dropped ack hangs the bridge. They stay in the
-        # normal lane so they FIFO with the session's own frames rather than
-        # overtaking them on the system lane.
-        self.normal.append(item)
-
-    def pop(self) -> OutItem | None:
-        if self.system:
-            return self.system.popleft()
-        if self.normal:
-            return self.normal.popleft()
+    def pop(self) -> Frame | None:
+        if self.priority:
+            return self.priority.popleft()
+        if self.bulk:
+            return self.bulk.popleft()
         return None
 
     def empty(self) -> bool:
-        return not self.system and not self.normal
+        return not self.priority and not self.bulk
 
     def depth(self) -> int:
-        return len(self.system) + len(self.normal)
+        return len(self.priority) + len(self.bulk)
+
+
+@dataclass
+class _InLanes(_Lanes):
+    """Inbound lanes, with the single consumer's readiness event."""
+
+    ready: asyncio.Event = field(default_factory=asyncio.Event)
+
+    def put(self, frame: Frame) -> bool:
+        queued = super().put(frame)
+        if queued:
+            self.ready.set()
+        return queued
+
+    async def get(self) -> Frame:
+        while True:
+            frame = self.pop()
+            if frame is None:
+                self.ready.clear()
+                await self.ready.wait()
+                continue
+            if self.empty():
+                self.ready.clear()
+            return frame
 
 
 # ─── SessionRunner ────────────────────────────────────────────────────────────
@@ -214,21 +179,21 @@ class SessionRunner:
         session_id: bytes,
         factory: SessionFactory,
         host: RunnerHost,
-        normal_max: int = DEFAULT_NORMAL_MAXSIZE,
-        system_max: int = DEFAULT_SYSTEM_MAXSIZE,
+        bulk_max: int = DEFAULT_BULK_MAXSIZE,
+        priority_max: int = DEFAULT_PRIORITY_MAXSIZE,
     ) -> None:
         self.session_id = session_id
         self._host = host
-        self._in = _InLanes(system_max=system_max, normal_max=normal_max)
-        self._out = _OutLanes(system_max=system_max, normal_max=normal_max)
-        self._low_watermark = max(1, int(normal_max * _LOW_WATERMARK_FRAC))
+        self._in = _InLanes(priority_max=priority_max, bulk_max=bulk_max, label="inbound")
+        self._out = _Lanes(priority_max=priority_max, bulk_max=bulk_max, label="outbound")
+        self._low_watermark = max(1, int(bulk_max * _LOW_WATERMARK_FRAC))
 
         # Build the adapter last — it captures ``self`` as its Emitter.
         self._adapter: SessionAdapter = factory(self)
 
         self._feeder_task: asyncio.Task[None] | None = None
         self._error_pump_task: asyncio.Task[None] | None = None
-        self._error_events: asyncio.Queue[tuple[FrameDirection, str]] = asyncio.Queue()
+        self._error_events: asyncio.Queue[str] = asyncio.Queue()
 
         # Edge-triggered congestion flags (avoid ErrorFrame spam).
         self._inbound_congested = False
@@ -251,38 +216,30 @@ class SessionRunner:
 
     # ─── Inbound (called by the transport reader) ───────────────────────
 
-    def enqueue_inbound(self, frame: Frame, request_id: int = 0) -> None:
-        item = (frame, request_id)
-        if is_system(frame):
-            self._in.put_system(item)
-        elif not self._in.put_normal(item):
+    def enqueue_inbound(self, frame: Frame) -> None:
+        if isinstance(frame, ResponseFrame):
+            self._adapter.settle_response(frame)
+            return
+        if not self._in.put(frame):
             self._notify_inbound_drop()
 
     # ─── Outbound (Emitter, called by the adapter) ──────────────────────
 
     def send(self, frame: Frame) -> None:
         was_empty = self._out.empty()
-        if is_system(frame):
-            self._out.put_system(frame)
-        elif not self._out.put_normal(frame):
+        if not self._out.put(frame):
             self._notify_outbound_drop()
             return
         if was_empty:
             self._host.signal_ready(self)
 
-    def _enqueue_ack(self, ack_id: int) -> None:
-        was_empty = self._out.empty()
-        self._out.append_ack(_Ack(ack_id))
-        if was_empty:
-            self._host.signal_ready(self)
-
-    def pop_out(self) -> OutItem | None:
-        item = self._out.pop()
+    def pop_out(self) -> Frame | None:
+        frame = self._out.pop()
         # Outbound drained: re-check the edge-triggered flag so an outbound-heavy
         # session with no inbound traffic can still clear.
         if self._outbound_congested and self._out.depth() <= self._low_watermark:
             self._outbound_congested = False
-        return item
+        return frame
 
     def out_empty(self) -> bool:
         return self._out.empty()
@@ -293,13 +250,7 @@ class SessionRunner:
         ended = False
         try:
             while True:
-                frame, request_id = await self._in.get()
-                # Ack first: the frame is now committed to this single sequential
-                # consumer, which is the whole of what the ack promises. Waiting
-                # until `handle_frame` returns would put the customer's callback
-                # on PyGato's critical path — see the module docstring.
-                if request_id:
-                    self._enqueue_ack(request_id)
+                frame = await self._in.get()
                 try:
                     await self._adapter.handle_frame(frame)
                 except asyncio.CancelledError:
@@ -310,7 +261,10 @@ class SessionRunner:
                     )
                 if self._inbound_congested and self._in.depth() <= self._low_watermark:
                     self._inbound_congested = False
-                if isinstance(frame, EndFrame):
+                # Both are terminal. The difference is the lane they rode in
+                # on: `Cancel` bypassed whatever was queued, `End` drained
+                # behind it.
+                if isinstance(frame, EndFrame | CancelFrame):
                     ended = True
                     break
         except asyncio.CancelledError:
@@ -325,27 +279,23 @@ class SessionRunner:
         if not self._inbound_congested:
             self._inbound_congested = True
             self._error_events.put_nowait(
-                (
-                    FrameDirection.DOWNSTREAM,
-                    "voqalize: inbound queue full; dropping data frames until consumer catches up",
-                )
+                "voqalize: inbound queue full; dropping data frames until consumer catches up"
             )
 
     def _notify_outbound_drop(self) -> None:
         if not self._outbound_congested:
             self._outbound_congested = True
             self._error_events.put_nowait(
-                (
-                    FrameDirection.UPSTREAM,
-                    "voqalize: outbound queue full; dropping data frames until wire catches up",
-                )
+                "voqalize: outbound queue full; dropping data frames until wire catches up"
             )
 
     async def _error_pump(self) -> None:
         while True:
-            _direction, message = await self._error_events.get()
+            message = await self._error_events.get()
             try:
-                await self._adapter.handle_frame(ErrorFrame(error=message, fatal=False))
+                await self._adapter.handle_frame(
+                    ErrorFrame(code=ErrorCode.OVERLOAD, message=message, fatal=False)
+                )
             except asyncio.CancelledError:
                 raise
             except Exception:

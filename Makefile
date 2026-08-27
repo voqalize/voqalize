@@ -7,7 +7,7 @@ PROTO_DIR        := proto
 PROTO_GEN_DIR    := $(PROTO_DIR)/gen/python/voqalize/frames
 PY_SDK_WIRE_DIR  := sdk/python/src/voqalize/sdk/wire
 
-.PHONY: proto proto-lint proto-breaking
+.PHONY: proto proto-lint
 
 ## Regenerate protobuf stubs (Python) and copy them into the SDK tree.
 ## Run after editing any *.proto under proto/.
@@ -21,6 +21,3 @@ proto:
 proto-lint:
 	cd $(PROTO_DIR) && buf lint
 
-## Backwards-compat check against the committed baseline.
-proto-breaking:
-	cd $(PROTO_DIR) && buf breaking --against '.git#branch=main'

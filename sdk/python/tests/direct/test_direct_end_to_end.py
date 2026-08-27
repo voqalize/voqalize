@@ -1,10 +1,10 @@
 """End-to-end tests for the direct (Cortex-less) brain path.
 
-Exercises the real server stack — ``DirectAgent`` → ``_ServerWire`` →
+Exercises the real server stack — ``BrainServer`` → ``_ServerChannel`` →
 ``SessionBuffer`` → ``_SessionRunner`` → the ergonomic ``Brain`` adapter — over
 a real TCP WebSocket, driven by the actual PyGato-leg ``Wire`` client speaking
-the same bare ``[direction][payload]`` framing and ``Vql*`` vocabulary PyGato
-uses against Cortex today. No Cortex relay is involved.
+the same one-envelope-per-message framing and frame vocabulary PyGato uses
+against Cortex today. No Cortex relay is involved.
 
 This is the proof that "PyGato dials the customer's brain directly, one socket
 per session" works with the existing per-session machinery unchanged.
@@ -21,41 +21,43 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from voqalize.sdk import Brain, DirectAgent, brain_factory
+from voqalize.conformance import BrainServer
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
-    FrameDirection,
     InterruptionFrame,
     PermanentClose,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 # ─── A tiny brain ────────────────────────────────────────────────────────────
 
 
 class EchoBrain(Brain):
-    """Greets on session start; echoes each user turn back as one inference."""
+    """Greets on session start; echoes each user turn back as one unit."""
 
-    async def on_session_start(self, session, start) -> None:
-        async with session.say() as inf:
-            await inf.speak("hi there")
+    async def greet(self, session) -> str:
+        return "hi there"
 
-    async def on_interaction(self, interaction) -> None:
-        async with interaction.say() as inf:
-            await inf.speak(f"echo: {interaction.transcript}")
+    async def on_user_message(self, session, msg):
+        yield SpeechStart()
+        yield Chunk(f"echo: {msg.text}")
+        yield SpeechEnd()
 
 
 class SlowBrain(Brain):
     """Speaks after a delay — long enough to be barged in on."""
 
-    async def on_interaction(self, interaction) -> None:
-        async with interaction.say() as inf:
-            await asyncio.sleep(5.0)  # cancelled by the interruption before this
-            await inf.speak("you should never hear this")
+    async def on_user_message(self, session, msg):
+        yield SpeechStart()
+        await asyncio.sleep(5.0)  # cancelled by the interruption before this
+        yield Chunk("you should never hear this")
+        yield SpeechEnd()
 
 
 # ─── Harness ─────────────────────────────────────────────────────────────────
@@ -66,53 +68,45 @@ class _Client:
 
     def __init__(self, wire: Wire) -> None:
         self._wire = wire
-        self._ser = CortexFrameSerializer()
+        self._ser = WireSerializer()
 
-    async def send(self, frame, *, request_id: int = 0) -> None:
-        payload = await self._ser.serialize(frame, request_id=request_id)
-        await self._wire.send(FrameDirection.DOWNSTREAM, payload)
+    async def send(self, frame) -> None:
+        await self._wire.send(await self._ser.serialize(frame))
 
-    async def collect_until(self, predicate, timeout: float = 3.0):
-        """Drain inbound messages until ``predicate(frames, acks)`` is true.
-
-        Returns ``(frames, acks)`` where ``frames`` is the list of decoded
-        Frames and ``acks`` the list of ack ids seen."""
+    async def collect_until(self, predicate, timeout: float = 3.0) -> list:
+        """Drain inbound messages until ``predicate(frames)`` is true."""
         frames: list = []
-        acks: list[int] = []
 
         async def _pump():
-            while not predicate(frames, acks):
-                _direction, payload = await self._wire.recv()
-                msg = await self._ser.deserialize_message(payload)
-                if msg.ack is not None:
-                    acks.append(msg.ack)
-                elif msg.frame is not None:
-                    frames.append(msg.frame)
+            while not predicate(frames):
+                frame = await self._ser.deserialize_message(await self._wire.recv())
+                if frame is not None:
+                    frames.append(frame)
 
         await asyncio.wait_for(_pump(), timeout=timeout)
-        return frames, acks
+        return frames
 
 
-async def _serve(brain_cls, **kwargs) -> tuple[DirectAgent, int]:
-    agent = DirectAgent(
-        factory=brain_factory(brain_cls),
+async def _serve(brain_cls, **kwargs) -> tuple[BrainServer, int]:
+    server = BrainServer(
+        brain_cls,
         host="127.0.0.1",
         port=0,
         **kwargs,
     )
-    port = await agent.start()
-    return agent, port
+    port = await server.start()
+    return server, port
 
 
 async def _connect(port: int, session_id: str, *, headers: dict | None = None) -> Wire:
-    wire = Wire(WireConfig(url=f"ws://127.0.0.1:{port}/s/{session_id}", headers=headers))
+    wire = Wire(WireConfig(url=f"ws://127.0.0.1:{port}?session_id={session_id}", headers=headers))
     await wire.start()
     return wire
 
 
 def _has_text(substr: str):
-    def _pred(frames, _acks) -> bool:
-        return any(isinstance(f, VqlLLMTextFrame) and substr in f.text for f in frames)
+    def _pred(frames) -> bool:
+        return any(isinstance(f, SpeechChunkFrame) and substr in f.text for f in frames)
 
     return _pred
 
@@ -121,92 +115,79 @@ def _has_text(substr: str):
 
 
 async def test_direct_round_trip_greeting_and_echo():
-    """Full loop with no Cortex: start → greeting → user turn → echo + ack."""
-    agent, port = await _serve(EchoBrain, allow_unverified=True)
+    """Full loop with no Cortex: start → greeting → user turn → echo."""
+    server, port = await _serve(EchoBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        # Session start → the brain greets (agent-initiated inference 0).
-        await client.send(VqlStartFrame(session_id=session_id, agent_id="echo"))
-        frames, _ = await client.collect_until(_has_text("hi there"))
-        assert any(isinstance(f, VqlLLMTextFrame) and "hi there" in f.text for f in frames)
+        # Session start is turn 1 → the brain greets on it.
+        await client.send(SessionStartFrame(turn_id=1, session_id=session_id))
+        frames = await client.collect_until(_has_text("hi there"))
+        assert any(isinstance(f, SpeechChunkFrame) and "hi there" in f.text for f in frames)
 
-        # A user turn → the brain echoes, and the frame is acked after dispatch.
-        await client.send(VqlUserTextFrame(interaction_id=1, text="ping"), request_id=42)
-        frames, acks = await client.collect_until(
-            lambda fr, ac: _has_text("echo: ping")(fr, ac) and 42 in ac
-        )
-        assert any(isinstance(f, VqlLLMTextFrame) and "echo: ping" in f.text for f in frames)
-        assert 42 in acks, "the data frame must be acked after the brain consumes it"
+        # A user turn → the brain echoes.
+        await client.send(UserMessageFrame(turn_id=2, text="ping"))
+        frames = await client.collect_until(_has_text("echo: ping"))
+        assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
     finally:
         await wire.close()
-        await agent.aclose()
+        await server.aclose()
 
 
-async def test_direct_interruption_echoes_drain_barrier():
-    """A barge-in cancels the in-flight interaction and echoes the barrier."""
-    agent, port = await _serve(SlowBrain, allow_unverified=True)
+async def test_direct_interruption_cancels_the_turn_it_names():
+    """A barge-in raises the watermark, and the turn under it stops generating."""
+    server, port = await _serve(SlowBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        await client.send(VqlStartFrame(session_id=session_id, agent_id="slow"))
-        # Kick off the slow interaction, then barge in before it can speak.
-        await client.send(VqlUserTextFrame(interaction_id=1, text="hello"), request_id=1)
-        await asyncio.sleep(0.1)
-        await client.send(InterruptionFrame())
-
-        # The brain echoes an InterruptionFrame back — PyGato's drain barrier.
-        frames, _ = await client.collect_until(
-            lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr)
+        await client.send(SessionStartFrame(turn_id=1, session_id=session_id))
+        # Kick off the slow turn, then barge in before it can speak.
+        await client.send(UserMessageFrame(turn_id=2, text="hello"))
+        frames = await client.collect_until(
+            lambda fr: any(isinstance(f, SpeechStartFrame) for f in fr)
         )
-        assert any(isinstance(f, InterruptionFrame) for f in frames)
-        # The cancelled inference never produced its (post-sleep) text.
-        assert not any(isinstance(f, VqlLLMTextFrame) and "never hear" in f.text for f in frames)
+        await client.send(InterruptionFrame(through_turn=2))
+
+        # Nothing comes back: the watermark is Voqalize's own, so there is no
+        # acknowledgement to wait for — only the silence that proves the turn died.
+        with pytest.raises(TimeoutError):
+            await client.collect_until(
+                lambda fr: any(isinstance(f, SpeechChunkFrame) for f in fr), timeout=1.0
+            )
+        assert not any(isinstance(f, InterruptionFrame) for f in frames), (
+            "the watermark is V→B only; a brain that echoes it overtakes its own speech"
+        )
     finally:
         await wire.close()
-        await agent.aclose()
+        await server.aclose()
 
 
-async def test_direct_idle_interruption_is_handled_and_session_survives():
-    """An ``InterruptionFrame`` arriving with **no turn in flight** (an idle
-    barge-in — the user speaks while the agent is silent, e.g. just after the
-    greeting settles) is handled gracefully: the brain cancels nothing, still echoes
-    the drain barrier, and the session stays live for the next turn.
+async def test_direct_idle_interruption_leaves_the_session_live():
+    """An ``InterruptionFrame`` arriving with **no turn in flight** — the user
+    speaks while the agent is silent, just after the greeting settles — raises the
+    watermark over nothing and the session serves the next turn normally.
 
-    The other interruption test barges a *running* turn; this pins the empty-pending
-    path (``_cancel_pending`` over zero interactions), which a regression could
-    plausibly crash on or leave wedged so the next turn never answers."""
-    agent, port = await _serve(EchoBrain, allow_unverified=True)
+    The other interruption test barges a *running* turn; this pins the empty case,
+    which a regression could plausibly crash on or leave wedged."""
+    server, port = await _serve(EchoBrain, allow_unverified=True)
     session_id = str(uuid.uuid4())
     wire = await _connect(port, session_id)
     client = _Client(wire)
     try:
-        await client.send(VqlStartFrame(session_id=session_id, agent_id="echo"))
-        # Drain the greeting first, so the InterruptionFrame we look for next can
-        # only be the idle barge-in's drain echo.
+        await client.send(SessionStartFrame(turn_id=1, session_id=session_id))
         await client.collect_until(_has_text("hi there"))
 
-        # Idle barge-in: interrupt with no interaction in flight.
-        await client.send(InterruptionFrame())
-        frames, _ = await client.collect_until(
-            lambda fr, _ac: any(isinstance(f, InterruptionFrame) for f in fr)
-        )
-        assert any(isinstance(f, InterruptionFrame) for f in frames), (
-            "an idle interruption must still echo the drain barrier"
-        )
+        await client.send(InterruptionFrame(through_turn=1))
 
-        # The session survived: a subsequent user turn is served normally + acked.
-        await client.send(VqlUserTextFrame(interaction_id=1, text="ping"), request_id=7)
-        frames, acks = await client.collect_until(
-            lambda fr, ac: _has_text("echo: ping")(fr, ac) and 7 in ac
-        )
-        assert any(isinstance(f, VqlLLMTextFrame) and "echo: ping" in f.text for f in frames)
-        assert 7 in acks, "the post-interruption turn must still be acked"
+        # The session survived: a subsequent user turn is served normally.
+        await client.send(UserMessageFrame(turn_id=2, text="ping"))
+        frames = await client.collect_until(_has_text("echo: ping"))
+        assert any(isinstance(f, SpeechChunkFrame) and "echo: ping" in f.text for f in frames)
     finally:
         await wire.close()
-        await agent.aclose()
+        await server.aclose()
 
 
 async def test_direct_auth_accepts_valid_token_rejects_bad():
@@ -244,14 +225,14 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
             algorithm="RS256",
         )
 
-    agent, port = await _serve(EchoBrain, public_keys=pub_pem)
+    server, port = await _serve(EchoBrain, public_keys=pub_pem)
     try:
         # Valid token → connects and works.
         good_sid = str(uuid.uuid4())
         wire = await _connect(port, good_sid, headers={"Authorization": f"Bearer {mint(good_sid)}"})
         client = _Client(wire)
-        await client.send(VqlStartFrame(session_id=good_sid, agent_id="echo"))
-        frames, _ = await client.collect_until(_has_text("hi there"))
+        await client.send(SessionStartFrame(turn_id=1, session_id=good_sid))
+        frames = await client.collect_until(_has_text("hi there"))
         assert frames
         await wire.close()
 
@@ -266,7 +247,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
         with pytest.raises(PermanentClose):
             bad_wire = Wire(
                 WireConfig(
-                    url=f"ws://127.0.0.1:{port}/s/{bad_sid}",
+                    url=f"ws://127.0.0.1:{port}?session_id={bad_sid}",
                     headers={"Authorization": f"Bearer {mint(bad_sid, priv=other_pem)}"},
                 )
             )
@@ -275,52 +256,31 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
             await bad_wire.start()
             await bad_wire.recv()
     finally:
-        await agent.aclose()
+        await server.aclose()
 
 
-async def test_embedded_platform_keys_present_and_valid():
+async def test_embedded_voqalize_keys_present_and_valid():
     """The shipped SDK must carry at least one parseable Voqalize public key, or
     the zero-config default silently has nothing to verify against."""
     from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
-    from voqalize.sdk._platform_keys import VOQAL_PLATFORM_PUBLIC_KEYS
+    from voqalize.sdk._keys import VOQALIZE_PUBLIC_KEYS
 
-    assert VOQAL_PLATFORM_PUBLIC_KEYS, "no embedded platform keys"
-    for pem in VOQAL_PLATFORM_PUBLIC_KEYS:
+    assert VOQALIZE_PUBLIC_KEYS, "no embedded Voqalize keys"
+    for pem in VOQALIZE_PUBLIC_KEYS:
         load_pem_public_key(pem.encode())  # raises if malformed
 
 
-async def test_direct_default_verifies_with_embedded_keys():
-    """Zero config: no ``public_keys`` and no ``allow_unverified`` ⇒ the embedded
-    Voqalize keys are used, so an unauthenticated peer is rejected (4000). Proves
-    verification is the default, not opt-in."""
-    agent, port = await _serve(EchoBrain)  # no keys, no allow_unverified
-    try:
-        sid = str(uuid.uuid4())
-        with pytest.raises(PermanentClose):
-            wire = Wire(WireConfig(url=f"ws://127.0.0.1:{port}/s/{sid}"))  # no bearer
-            await wire.start()
-            await wire.recv()
-    finally:
-        await agent.aclose()
+async def test_brain_server_demands_an_explicit_verification_choice():
+    """No keys and no ``allow_unverified`` fails at construction.
 
-
-async def test_direct_empty_keys_raises_without_allow_unverified():
-    """An explicitly empty key set with no ``allow_unverified`` must fail loudly at
-    construction rather than silently accept everything."""
-    with pytest.raises(ValueError, match="no verification keys"):
-        DirectAgent(
-            factory=brain_factory(EchoBrain),
-            host="127.0.0.1",
-            port=0,
-            public_keys=[],
-        )
+    ``BrainServer`` deliberately has no fallback to the embedded Voqalize keys
+    (``run_session`` does): a test server trusting the *production* signer can only
+    ever reject every token a test mints, and that takes a while to see.
+    """
+    for kwargs in ({}, {"public_keys": []}):
+        with pytest.raises(ValueError, match="public_keys="):
+            BrainServer(EchoBrain, host="127.0.0.1", port=0, **kwargs)
     # allow_unverified is the explicit escape hatch — no raise even with no keys.
-    agent = DirectAgent(
-        factory=brain_factory(EchoBrain),
-        host="127.0.0.1",
-        port=0,
-        public_keys=[],
-        allow_unverified=True,
-    )
-    await agent.aclose()
+    server = BrainServer(EchoBrain, host="127.0.0.1", port=0, allow_unverified=True)
+    await server.aclose()

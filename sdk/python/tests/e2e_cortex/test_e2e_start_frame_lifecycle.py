@@ -1,8 +1,8 @@
-"""Pygato side (Wire client): send a VqlStartFrame carrying session_id,
-agent_id, and an init payload.
+"""Pygato side (Wire client): send a SessionStartFrame carrying a session_id and
+opaque init data.
 
-Agent side: a test SessionAdapter observes the VqlStartFrame verbatim — proving
-the session identity and init payload survive the multiplexed wire."""
+Agent side: a test SessionAdapter observes the SessionStartFrame verbatim — proving
+the session id and its init data survive the multiplexed wire."""
 
 from __future__ import annotations
 
@@ -13,24 +13,27 @@ from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
-from voqalize.sdk.wire import Frame, VqlStartFrame
+from voqalize.sdk.wire import Frame, ResponseFrame, SessionStartFrame
 
 
 class StartCapture(SessionAdapter):
-    seen: list[VqlStartFrame] = []
+    seen: list[SessionStartFrame] = []
 
     def __init__(self, emitter: Emitter) -> None:
         self.emitter = emitter
 
     async def handle_frame(self, frame: Frame) -> None:
-        if isinstance(frame, VqlStartFrame):
+        if isinstance(frame, SessionStartFrame):
             StartCapture.seen.append(frame)
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
 
     async def close(self) -> None:
         pass
 
 
-async def test_start_frame_carries_identity_and_payload() -> None:
+async def test_start_frame_carries_session_id_and_init() -> None:
     StartCapture.seen = []
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -44,14 +47,13 @@ async def test_start_frame_carries_identity_and_payload() -> None:
         client = await connect_pygato(cortex, "s1")
         try:
             await client.send(
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={"greeting": "hi"})
+                SessionStartFrame(turn_id=1, session_id="s1", init={"greeting": "hi"})
             )
 
             await wait_until(lambda: bool(StartCapture.seen), timeout=3.0)
             vql_start = StartCapture.seen[0]
             assert vql_start.session_id == "s1"
-            assert vql_start.agent_id == "welcome"
-            assert vql_start.payload == {"greeting": "hi"}
+            assert vql_start.init == {"greeting": "hi"}
         finally:
             await client.close()
             run_task.cancel()

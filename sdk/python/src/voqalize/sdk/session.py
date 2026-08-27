@@ -14,26 +14,26 @@ which is the natural shape of every WebSocket object (the ``websockets`` library
 Starlette's ``WebSocket.send_bytes``/``receive_bytes`` via a 2-line shim, etc.).
 
     # FastAPI — your route, your upgrade; the SDK just runs the session.
-    @app.websocket("/s/{session_id}")
+    @app.websocket("/voice")
     async def voice(ws: WebSocket, session_id: str):
         await ws.accept()
         await run_session(
             _StarletteChannel(ws),                       # send/recv bytes
-            brain=MyBrain,
-            session_id=session_id,                       # from your route param
+            brain=MyBrain,                               # or a () -> Brain factory
+            session_id=session_id,                       # from ?session_id=
             token=ws.headers.get("authorization"),       # SDK verifies it
         )
 
-Auth is the caller's request to extract and the SDK's to verify: you pass the URL
-``session_id`` and the ``Authorization`` header value; the SDK checks PyGato's
+Auth is the caller's request to extract and the SDK's to verify: you pass the
+``session_id`` query parameter and the ``Authorization`` header value; the SDK checks Voqalize's
 RS256 token (signature + expiry + ``sub == session_id``) against the embedded
 Voqalize keys by default. Framework-specific wrappers that do the extraction for
 you can be layered on later — this primitive stays assumption-free.
 
 ``run_session`` runs until the session ends (``End`` drains) or the socket errors,
 then returns. It never closes the channel — the caller owns the socket's
-lifecycle. The localhost :class:`~voqalize.sdk.inbound.DirectAgent` is just a
-thin convenience that owns a ``websockets`` server and calls this per connection.
+lifecycle. When your process cannot accept an inbound connection at all, dial the
+Cortex relay instead with :func:`voqalize.sdk.serve`.
 """
 
 from __future__ import annotations
@@ -47,27 +47,25 @@ from typing import TYPE_CHECKING, Any, Protocol
 import jwt
 from loguru import logger
 
+from ._keys import VOQALIZE_PUBLIC_KEYS
 from ._logging import session_context
-from ._platform_keys import VOQAL_PLATFORM_PUBLIC_KEYS
 from .engine import (
-    DEFAULT_NORMAL_MAXSIZE,
-    OUT_DIRECTION,
+    DEFAULT_BULK_MAXSIZE,
     RunnerHost,
     SessionFactory,
     SessionRunner,
-    _Ack,
 )
-from .wire import CortexFrameSerializer, MalformedFrameError
+from .wire import MalformedFrameError, WireSerializer
 
 if TYPE_CHECKING:
     from .brain import Brain
 
-# The audience every PyGato brain-connection token carries — a protocol constant
-# (not per-agent). Any brain verifies aud == this; nothing configures it.
+# The audience every brain-connection token carries — a wire constant, not a
+# per-agent one. Any brain verifies aud == this; nothing configures it.
 BRAIN_AUDIENCE = "brain"
 
-# Namespace for hashing a non-UUID session id string to 16 bytes (a real PyGato
-# session_id is already a UUID; this is only a robustness fallback).
+# Namespace for hashing a non-UUID session id string to 16 bytes (a session id
+# Voqalize minted is already a UUID; this is only a robustness fallback).
 _SESSION_NAMESPACE = uuid.UUID("d1e83b8d-3a3b-4ab5-9c0c-9c8d6f5d8a01")
 
 
@@ -85,15 +83,15 @@ class Channel(Protocol):
 
 
 class SessionRejected(Exception):
-    """Raised by :func:`run_session` when the PyGato token fails verification.
+    """Raised by :func:`run_session` when the connection's token fails verification.
 
-    The caller should close the socket (PyGato treats close code 4000 as a
-    permanent, non-retriable rejection — mirroring Cortex's ``NoAgent``)."""
+    The caller should close the socket: close code 4000 is what Voqalize reads as a
+    permanent, non-retriable rejection."""
 
 
 def session_id_bytes(session_id: str) -> bytes:
-    """16-byte key for the session. Raw UUID bytes when the id is a real UUID
-    (the PyGato case), else a stable uuid5 hash."""
+    """16-byte key for the session. Raw UUID bytes when the id is a real UUID,
+    else a stable uuid5 hash."""
     try:
         return uuid.UUID(session_id).bytes
     except ValueError:
@@ -115,19 +113,18 @@ def verify_token(
     public_keys: list[str],
     allow_unverified: bool,
 ) -> dict[str, Any] | None:
-    """Verify PyGato's RS256 brain-connection token against ``public_keys``.
+    """Verify Voqalize's RS256 brain-connection token against ``public_keys``.
 
-    Returns the verified claims on success and ``None`` on rejection — so it is
-    still usable as a boolean guard, but the caller can also read the identity
-    the token asserts. That matters because ``tenant_id`` / ``agent_id`` /
-    ``meeting_id`` are what tag the session's log lines (`_logging`), and the
-    only trustworthy source for them is the signature that was just checked.
-    An unverified session yields ``{}``, which is truthy-negative in the same
-    way: verified-with-no-claims and not-verified stay distinguishable.
+    Returns the verified claims on success and ``None`` on rejection — test
+    ``is None``, not truthiness, because a verified token with no claims and an
+    ``allow_unverified`` session both yield ``{}``. The claims matter because
+    ``tenant_id`` and ``agent_id`` are what tag the session's log lines
+    (`_logging`), and the only trustworthy source for them is the signature that
+    was just checked.
 
     Every brain — a customer's WebSocket, a Cortex relay, or one of Voqalize's own
     hosted demo brains — verifies the *same* token the *same* way: signature, plus
-    ``iss="pygato"``, ``aud="brain"`` (a protocol constant — all brain connections
+    ``iss="pygato"``, ``aud="brain"`` (a wire constant — all brain connections
     share it), and ``sub == session_id`` (scoped to exactly one session). The
     recipient then decides from the token's ``tenant_id`` / ``agent_id`` whether it
     serves that agent. ``token`` may be a bare JWT or an
@@ -171,14 +168,14 @@ class _ChannelSession(RunnerHost):
         *,
         session_id_raw: bytes,
         factory: SessionFactory,
-        serializer: CortexFrameSerializer,
-        normal_max: int,
+        serializer: WireSerializer,
+        bulk_max: int,
     ) -> None:
         self._channel = channel
         self._sid = session_id_raw
         self._factory = factory
         self._serializer = serializer
-        self._normal_max = normal_max
+        self._bulk_max = bulk_max
         self._runner: SessionRunner | None = None
         self._writer_task: asyncio.Task[None] | None = None
         self._ready = asyncio.Event()
@@ -186,7 +183,7 @@ class _ChannelSession(RunnerHost):
 
     async def run(self) -> None:
         runner = SessionRunner(
-            session_id=self._sid, factory=self._factory, host=self, normal_max=self._normal_max
+            session_id=self._sid, factory=self._factory, host=self, bulk_max=self._bulk_max
         )
         self._runner = runner
         runner.start()
@@ -218,17 +215,17 @@ class _ChannelSession(RunnerHost):
             if isinstance(msg, str):
                 logger.warning("session: received TEXT frame; ignoring")
                 continue
-            if len(msg) < 1:
+            if not msg:
                 continue
-            payload = bytes(msg[1:])  # drop the 1-byte direction; inbound is DOWNSTREAM
+            payload = bytes(msg)
             try:
-                decoded = await self._serializer.deserialize_message(payload)
+                frame = await self._serializer.deserialize_message(payload)
             except MalformedFrameError:
                 logger.exception("session: malformed payload; skipping")
                 continue
-            if decoded.frame is None:
-                continue  # SDK is the ack sender, never the receiver
-            self._runner.enqueue_inbound(decoded.frame, decoded.request_id)
+            if frame is None:
+                continue  # a body this build does not know
+            self._runner.enqueue_inbound(frame)
 
     async def _writer_loop(self) -> None:
         assert self._runner is not None
@@ -236,19 +233,16 @@ class _ChannelSession(RunnerHost):
         while True:
             await self._ready.wait()
             while True:
-                item = runner.pop_out()
-                if item is None:
+                frame = runner.pop_out()
+                if frame is None:
                     break
                 try:
-                    if isinstance(item, _Ack):
-                        out = serialize_ack_bytes(item.ack_id)
-                    else:
-                        out = await self._serializer.serialize(item)
+                    out = await self._serializer.serialize(frame)
                 except Exception:
                     logger.exception("session: serialize failed")
                     continue
                 try:
-                    await self._channel.send(bytes([OUT_DIRECTION.value]) + out)
+                    await self._channel.send(out)
                 except asyncio.CancelledError:
                     raise
                 except Exception:
@@ -268,13 +262,6 @@ class _ChannelSession(RunnerHost):
             self._runner = None
 
 
-def serialize_ack_bytes(ack_id: int) -> bytes:
-    # Local re-export so _ChannelSession doesn't reach into wire.serializer.
-    from .wire.serializer import serialize_ack
-
-    return serialize_ack(ack_id)
-
-
 async def serve_channel(
     channel: Channel,
     *,
@@ -284,16 +271,16 @@ async def serve_channel(
 ) -> None:
     """Transport-neutral session loop over a connected channel — **no auth**.
 
-    Used by :func:`run_session` (after it verifies the token) and by
-    :class:`~voqalize.sdk.inbound.DirectAgent` (which verifies its own way).
-    Runs until the session ends or the socket errors; never closes the channel.
+    Used by :func:`run_session` after it verifies the token, and by the test host
+    :func:`voqalize.conformance.brain_server`, which verifies its own way. Runs
+    until the session ends or the socket errors; never closes the channel.
     """
     conn = _ChannelSession(
         channel,
         session_id_raw=session_id_bytes(session_id),
         factory=factory,
-        serializer=CortexFrameSerializer(),
-        normal_max=inbound_queue_maxsize or DEFAULT_NORMAL_MAXSIZE,
+        serializer=WireSerializer(),
+        bulk_max=inbound_queue_maxsize or DEFAULT_BULK_MAXSIZE,
     )
     await conn.run()
 
@@ -301,8 +288,7 @@ async def serve_channel(
 async def run_session(
     channel: Channel,
     *,
-    brain: type[Brain] | None = None,
-    brain_builder: Callable[[], Brain] | None = None,
+    brain: type[Brain] | Callable[[], Brain],
     session_id: str,
     token: str | None = None,
     public_keys: str | list[str] | None = None,
@@ -317,30 +303,24 @@ async def run_session(
     ``Authorization`` header ``token``. A fresh brain runs this one session; the
     call returns when the session ends or the socket closes.
 
-    Pass **exactly one** of ``brain=`` (a zero-arg ``Brain`` subclass) or
-    ``brain_builder=`` (a ``() -> Brain`` factory). Use ``brain_builder`` when the
-    brain needs injected dependencies — e.g. ``brain_builder=lambda:
-    TravelBrain(llm=provider)`` — so a fresh instance is still built per session.
+    ``brain`` is a ``Brain`` subclass, or any zero-arg callable returning one when
+    the brain needs injected dependencies (``brain=lambda: TravelBrain(llm=provider)``).
+    Either way it runs once per session, so no state leaks between calls.
 
-    Verification is on by default against the embedded Voqalize keys — PyGato's
+    Verification is on by default against the embedded Voqalize keys — the
     token must be ``iss=pygato``, ``aud=brain``, and ``sub == session_id`` (see
     :func:`verify_token`). Override the keys with ``public_keys=`` (e.g. a
     self-hosted deployment), or ``allow_unverified=True`` for local dev. Raises
     :class:`SessionRejected` if the token fails — the caller should close 4000.
     """
-    from .brain import brain_factory  # local import breaks the brain↔transport cycle
+    from .brain import _brain_factory  # local import breaks the brain↔transport cycle
 
-    if (brain is None) == (brain_builder is None):
-        raise ValueError("run_session: pass exactly one of brain= or brain_builder=")
-    build: Callable[[], Brain] = brain if brain is not None else brain_builder  # type: ignore[assignment]
-
-    keys = (
-        normalize_keys(public_keys) if public_keys is not None else list(VOQAL_PLATFORM_PUBLIC_KEYS)
-    )
+    keys = normalize_keys(public_keys) if public_keys is not None else list(VOQALIZE_PUBLIC_KEYS)
     if not allow_unverified and not keys:
         raise ValueError(
-            "run_session: no verification keys (embedded platform keys empty and "
-            "public_keys= not passed). Pass public_keys= or allow_unverified=True."
+            "run_session: no verification keys (the embedded Voqalize keys are "
+            "empty and public_keys= was not passed). Pass public_keys= or "
+            "allow_unverified=True."
         )
     claims = verify_token(token, session_id, public_keys=keys, allow_unverified=allow_unverified)
     if claims is None:
@@ -352,11 +332,10 @@ async def run_session(
         session_id,
         tenant_id=str(claims.get("tenant_id", "")),
         agent_id=str(claims.get("agent_id", "")),
-        meeting_id=str(claims.get("meeting_id", "")),
     ):
         await serve_channel(
             channel,
-            factory=brain_factory(build),
+            factory=_brain_factory(brain),
             session_id=session_id,
             inbound_queue_maxsize=inbound_queue_maxsize,
         )

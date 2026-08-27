@@ -15,6 +15,8 @@ carve-outs) so the demo has something substantive to catch.
 
 from __future__ import annotations
 
+from typing import Literal, get_args
+
 MATTER = {
     "client": "Acme Robotics, Inc.",
     "counterparty": "Nimbus Cloud Systems, Inc.",
@@ -167,6 +169,12 @@ CLAUSES: list[dict[str, str]] = [
 ]
 
 CLAUSES_BY_ID: dict[str, dict[str, str]] = {c["id"]: c for c in CLAUSES}
+
+#: The clause ids, as a type. A tool that takes a `ClauseId` cannot be handed one
+#: that is not in the document, so nothing downstream has to check.
+ClauseId = Literal["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"]
+
+assert set(get_args(ClauseId)) == set(CLAUSES_BY_ID), "ClauseId has drifted from CLAUSES"
 
 # The "data room" this matter sits in — other documents attached to the same
 # deal, plus an external record. Only metadata (name + description), no full

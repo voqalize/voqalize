@@ -15,11 +15,10 @@ import pytest
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
-    FrameDirection,
-    VqlStartFrame,
+    SessionStartFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
@@ -32,7 +31,7 @@ def _broken_factory(_host):
 
 
 async def test_factory_crash_raises_out_of_run() -> None:
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -46,10 +45,7 @@ async def test_factory_crash_raises_out_of_run() -> None:
         wire = Wire(WireConfig(url=cortex.pygato_url("s1", "welcome")))
         await wire.start()
         await wire.send(
-            FrameDirection.DOWNSTREAM,
-            await serializer.serialize(
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={})
-            ),
+            await serializer.serialize(SessionStartFrame(session_id="s1", init={})),
         )
 
         with pytest.raises(_Boom):

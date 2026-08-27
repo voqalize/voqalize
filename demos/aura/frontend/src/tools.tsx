@@ -189,7 +189,7 @@ export function ComparePage() {
       <div style={{ overflowX: 'auto' }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'stretch', minWidth: 'min-content' }}>
           {compare.items.map((it) => {
-            const rec = it.id === compare.recommendId;
+            const rec = it.id === compare.recommend_id;
             return (
               <div
                 key={it.id}
@@ -223,9 +223,9 @@ export function ComparePage() {
           })}
         </div>
       </div>
-      {compare.recommendReason && (
+      {compare.recommend_reason && (
         <div style={{ marginTop: 16, background: '#EEF0FE', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 16px', fontSize: 14, color: PRIMARY }}>
-          <strong>Why this one:</strong> {compare.recommendReason}
+          <strong>Why this one:</strong> {compare.recommend_reason}
         </div>
       )}
       <div style={{ marginTop: 12, fontSize: 11.5, color: MUTED }}>
@@ -400,8 +400,9 @@ const inrDate = (iso: string): string => {
 };
 
 // A fake, Aura-branded secure sign-in dialog (mimics an OAuth consent). The agent
-// opens it via authenticate(); the customer authorises it themselves. Only on the
-// authorise click does the browser tell the server, which then mints the token.
+// opens it via show_auth_popup() and then carries on talking — nothing waits on
+// this sheet, so the customer can authorise it now, in a minute, or never. Only on
+// the authorise click does the browser tell the server, which then mints the token.
 export function AuthDialog() {
   const { authPrompt, confirmAuth, cancelAuth } = useAura();
   if (!authPrompt) return null;
@@ -529,7 +530,7 @@ export function StatementPage() {
     <PageShell title="Account Statement" subtitle={`${a.nickname || a.type} · ${a.masked_number}`}>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
         <div style={{ fontSize: 12.5, color: MUTED }}>
-          {inrDate(statement.from)} — {inrDate(statement.to)}
+          {inrDate(statement.from_date)} — {inrDate(statement.to_date)}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontSize: 13 }}>
           <span style={{ color: '#1B7A38', fontWeight: 700 }}>+ {inr(credits)} in</span>

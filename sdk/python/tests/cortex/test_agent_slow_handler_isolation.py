@@ -3,7 +3,7 @@ the same agent process.
 
 This pins the engine's core promise: each session has its own SessionRunner with
 its own pair of in/out lanes, the wire reader doesn't await the adapter's
-coroutine, and a talkative-but-slow session that overflows its inbound normal
+coroutine, and a talkative-but-slow session that overflows its inbound bulk
 lane gets a non-fatal ``ErrorFrame`` (drop-newest) without affecting peers. The
 congestion ErrorFrame is delivered on a separate error-pump task, so it reaches
 the wedged adapter even while its feeder is parked in ``handle_frame``."""
@@ -18,14 +18,16 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     ErrorFrame,
     Frame,
-    FrameDirection,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    ResponseFrame,
+    RTVIFrame,
+    RTVIType,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 _INBOUND_MAX = 4  # tiny so it's easy to overflow
@@ -36,7 +38,7 @@ class Recorder(SessionAdapter):
     contexts (creating the head-of-line pile-up). Session B is fast.
 
     We disambiguate sessions by the ``A:`` / ``B:`` prefix on the first
-    VqlUserTextFrame's text — the adapter isn't told its session id directly for
+    UserMessageFrame's text — the adapter isn't told its session id directly for
     data frames."""
 
     instances: list[Recorder] = []
@@ -47,10 +49,14 @@ class Recorder(SessionAdapter):
         self.session_tag: str | None = None
         self.contexts_processed: list[str] = []
         self.errors: list[ErrorFrame] = []
+        self.rtvi: list[RTVIFrame] = []
         self.gate = asyncio.Event()
 
     async def handle_frame(self, frame: Frame) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+        if isinstance(frame, RTVIFrame):
+            self.rtvi.append(frame)
+            return
+        if isinstance(frame, UserMessageFrame):
             if self.session_tag is None:
                 self.session_tag = frame.text.split(":", 1)[0]
             if self.session_tag == "A":
@@ -64,17 +70,20 @@ class Recorder(SessionAdapter):
             self.errors.append(frame)
             return
 
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
+
     async def close(self) -> None:
         pass
 
 
-async def _send(wire: Wire, serializer: CortexFrameSerializer, frame: Frame) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame))
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame) -> None:
+    await wire.send(await serializer.serialize(frame))
 
 
 async def test_slow_handler_does_not_block_other_sessions() -> None:
     Recorder.instances.clear()
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -102,55 +111,43 @@ async def test_slow_handler_does_not_block_other_sessions() -> None:
                 await run_task
 
 
-async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: CortexFrameSerializer) -> None:
+async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: WireSerializer) -> None:
     # Open both sessions and wait for both Recorder instances.
-    await _send(
-        wire_a,
-        serializer,
-        VqlStartFrame(session_id="sA", agent_id="welcome", payload={}),
-    )
-    await _send(
-        wire_b,
-        serializer,
-        VqlStartFrame(session_id="sB", agent_id="welcome", payload={}),
-    )
+    await _send(wire_a, serializer, SessionStartFrame(turn_id=1, session_id="sA"))
+    await _send(wire_b, serializer, SessionStartFrame(turn_id=1, session_id="sB"))
     await wait_for(lambda: len(Recorder.instances) == 2, timeout=3.0)
 
-    # Send one context to A so the slow handler is already in flight.
-    await _send(
-        wire_a,
-        serializer,
-        VqlUserTextFrame(interaction_id=0, text="A:t0"),
-    )
+    # Send one turn to A so the slow handler is already in flight.
+    await _send(wire_a, serializer, UserMessageFrame(turn_id=2, text="A:t0"))
 
-    # `session_tag` is set the moment the first context enters handle_frame; the
+    # `session_tag` is set the moment the first turn enters handle_frame; the
     # gate is still closed so the slow handler is parked, but the tag is visible.
     await wait_for(
         lambda: any(r.session_tag == "A" for r in Recorder.instances),
         timeout=3.0,
     )
 
-    # Overflow the inbound queue on A. One context is in flight (blocked),
-    # _INBOUND_MAX more fit, anything beyond drops.
+    # A second turn, queued behind the wedged one. A turn is bounded by the
+    # conversation, so the lane holds it however deep the backlog runs.
+    await _send(wire_a, serializer, UserMessageFrame(turn_id=3, text="A:t1"))
+
+    # Overflow A's inbound lane with the one inbound flow that *is* unbounded:
+    # an app pushing RTVI messages faster than the brain reads them.
     FLOOD = _INBOUND_MAX + 8
-    for i in range(1, FLOOD + 1):
+    for i in range(FLOOD):
         await _send(
             wire_a,
             serializer,
-            VqlUserTextFrame(interaction_id=i, text=f"A:t{i}"),
+            RTVIFrame(type=RTVIType.UI_EVENT, data={"t": "scroll", "d": {"i": i}}),
         )
 
     # B keeps flowing while A is wedged.
-    await _send(
-        wire_b,
-        serializer,
-        VqlUserTextFrame(interaction_id=0, text="B:t0"),
-    )
+    await _send(wire_b, serializer, UserMessageFrame(turn_id=2, text="B:t0"))
 
     rec_a = next(r for r in Recorder.instances if r.session_tag == "A")
     rec_b = next(r for r in Recorder.instances if r is not rec_a)
 
-    # B's context must complete even though A is wedged.
+    # B's turn must complete even though A is wedged.
     await wait_for(lambda: "B:t0" in rec_b.contexts_processed, timeout=5.0)
 
     # A should have received at least one non-fatal ErrorFrame about the inbound
@@ -159,11 +156,13 @@ async def _run_assertions(wire_a: Wire, wire_b: Wire, serializer: CortexFrameSer
     assert all(not e.fatal for e in rec_a.errors), (
         "drop ErrorFrames must be non-fatal — the runner never kills a session"
     )
-    assert any("inbound queue full" in (e.error or "") for e in rec_a.errors), (
-        f"expected inbound-drop ErrorFrame, got {[e.error for e in rec_a.errors]}"
+    assert any("inbound queue full" in e.message for e in rec_a.errors), (
+        f"expected inbound-drop ErrorFrame, got {[e.message for e in rec_a.errors]}"
     )
 
     # Releasing A's gate lets the surviving frames drain. Importantly: A is NOT
-    # killed by the drop — it keeps processing remaining frames.
+    # killed by the drop — it keeps processing, and the turn that queued behind
+    # the flood is still there to process.
     rec_a.gate.set()
-    await wait_for(lambda: len(rec_a.contexts_processed) >= 2, timeout=5.0)
+    await wait_for(lambda: rec_a.contexts_processed == ["A:t0", "A:t1"], timeout=5.0)
+    assert len(rec_a.rtvi) < FLOOD, "the unbounded flow is what the full lane sheds"

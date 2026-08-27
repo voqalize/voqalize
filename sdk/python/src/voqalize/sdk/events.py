@@ -1,0 +1,144 @@
+"""What a Brain receives, and what it says.
+
+Three groups, and the split between them is the whole contract:
+
+* **Triggers** — :class:`UserMessage`, :class:`UserIdle`, :class:`RTVIMessage`.
+  Voqalize hands one to a callback; that callback is where the floor lives.
+* **Speech** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`. The
+  only thing a speaking callback may yield, because speech is the only thing
+  whose position on the audio timeline is its meaning. Everything else — an
+  action, a language switch, hanging up — is a method on the session.
+* **Reports** — :class:`Finalize` and :class:`Error`. What happened, after it
+  happened.
+
+Speech is bracketed because it can be cut mid-word: one ``SpeechStart`` …
+``SpeechEnd`` pair is one *unit*, and a unit is the granularity at which Voqalize
+reports back what the user actually heard.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from .wire import ErrorCode, RTVIType
+
+__all__ = [
+    "Chunk",
+    "Error",
+    "Finalize",
+    "RTVIMessage",
+    "Speech",
+    "SpeechEnd",
+    "SpeechStart",
+    "UserIdle",
+    "UserMessage",
+]
+
+
+# ─── Triggers ─────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class UserMessage:
+    """The human finished an utterance and the floor is yours."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class UserIdle:
+    """The human has gone quiet, and the floor is yours if you want it.
+
+    ``level`` counts consecutive escalations with no intervening speech (1 is the
+    first nudge, and it resets the moment they say something), so a brain can
+    escalate — "still there?" at 1, wrap up at 3. ``idle_ms`` is the silence that
+    had elapsed when Voqalize noticed.
+    """
+
+    level: int
+    idle_ms: int
+
+
+@dataclass(frozen=True)
+class RTVIMessage:
+    """One RTVI message from the app — a tap, a keystroke, a state push.
+
+    Voqalize forwards the whitelisted types verbatim and interprets nothing about
+    them. Handling one cannot make the agent speak, because nothing about a click
+    means the human stopped talking.
+
+    ``id`` is RTVI's own correlation id when the message carries one; answer such
+    a message with :meth:`Session.send_rtvi` quoting it back.
+    """
+
+    type: RTVIType
+    data: Any = None
+    id: str | None = None
+
+
+# ─── Emissions ────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class SpeechStart:
+    """Open a unit of speech."""
+
+
+@dataclass(frozen=True)
+class Chunk:
+    """Text to speak, inside an open unit. Stream them as you produce them."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class SpeechEnd:
+    """Close the open unit of speech."""
+
+
+#: One unit of speech, delimited.
+Speech = SpeechStart | Chunk | SpeechEnd
+
+
+# ─── Reports ──────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class Finalize:
+    """What the user actually heard for one unit of speech.
+
+    Arrives after playout, which may be long after the callback that produced the
+    unit returned. ``heard`` is the delivered prefix, not what you generated —
+    on a barge-in the two differ, and recording the generated version is how a
+    model ends up referencing sentences it never finished saying.
+
+    ``generated`` is the text this end put on the wire for that unit, kept by the
+    SDK so you do not have to keep it yourself. ``heard`` is a verbatim prefix of
+    it, which is what makes :attr:`interrupted` a comparison rather than a claim:
+    equal means the unit played out, shorter means the caller cut it off, and
+    empty against a unit that sent text means nothing reached the ear. Voqalize
+    used to send the verdict alongside the evidence; it stopped, because a copy of
+    a derivable fact is one more thing that can be wrong.
+
+    ``speech_id`` names the unit this reports on — the value the SDK minted when
+    the unit opened, echoed back unchanged. It correlates and does nothing else.
+    """
+
+    speech_id: int
+    heard: str
+    generated: str
+
+    @property
+    def interrupted(self) -> bool:
+        """``True`` when the caller talked over this unit and it was cut short."""
+        return self.heard != self.generated
+
+
+@dataclass(frozen=True)
+class Error:
+    """A signal from Voqalize. Today: the wire dropped data under congestion."""
+
+    code: ErrorCode
+    message: str
+    fatal: bool = False

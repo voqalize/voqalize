@@ -23,7 +23,6 @@ on:
       - 'demos/**/frontend/**'
       - 'demos/build.mjs'
       - 'demos/manifest.json'
-      - 'sdk/react/**'
       - 'docs/**'
       - '.github/workflows/ci-web.yml'
   pull_request:
@@ -31,12 +30,8 @@ on:
       - 'demos/**/frontend/**'
       - 'demos/build.mjs'
       - 'demos/manifest.json'
-      - 'sdk/react/**'
       - 'docs/**'
       - '.github/workflows/ci-web.yml'
-  # release-react-sdk.yml runs this build before it publishes, so a release is
-  # gated on exactly the checks a merge is — not on a copy of them that can drift.
-  workflow_call:
 
 jobs:
   build:
@@ -67,16 +62,6 @@ jobs:
           corepack prepare "pnpm@$pinned" --activate
           pnpm --version
 
-      # The SDK on its own, before anything that consumes it. A demo build only
-      # exercises the parts of the package its own screens import, and a break in
-      # the rest would surface for the first time in someone else's `npm install`.
-      - name: Typecheck and build the React SDK
-        working-directory: sdk/react
-        run: |
-          pnpm install --ignore-workspace
-          pnpm typecheck
-          pnpm build
-
       # Every demo UI, built standalone and assembled exactly as the deploy does.
       # No VITE_* wiring is passed: the per-demo tenant/agent/publishable key are
       # trigger substitutions, and a demo built without them renders a clear
@@ -90,6 +75,14 @@ jobs:
         run: |
           pnpm install --ignore-workspace
           pnpm build
+
+      # The agent's half of the docs. The sibling repo's check_links.py reads the
+      # rendered HTML across the marketing/docs seam and cannot see this: an agent
+      # has no sidebar, so its whole path is `llms.txt` plus the links inside the
+      # `.md` twins, and that graph can be disconnected while every page renders.
+      - name: Check the docs navigate for an agent
+        working-directory: docs
+        run: python3 check_navigation.py
 
       # Cheap proof the assembly is non-empty and complete: every demo named in
       # manifest.json must have produced an index.html. A Vite app that builds to

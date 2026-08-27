@@ -14,7 +14,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 
 from voqalize.sdk.engine import Emitter, SessionAdapter
-from voqalize.sdk.wire import Frame
+from voqalize.sdk.wire import Frame, ResponseFrame
 
 FrameHook = Callable[[Frame, "RecordingAdapter"], Awaitable[None]]
 
@@ -25,7 +25,7 @@ class RecordingAdapter(SessionAdapter):
     frames via ``self.emitter``.
 
     An optional async ``on_frame(frame, self)`` hook fires for each frame after
-    recording — the engine-level analogue of the old pipecat ``process_frame``
+    recording — the engine-level analogue of a pipecat ``process_frame``
     override.
     """
 
@@ -39,6 +39,11 @@ class RecordingAdapter(SessionAdapter):
         self.received.append(frame)
         if self._on_frame is not None:
             await self._on_frame(frame, self)
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        # No request ever leaves a recording adapter, so an answer to one is
+        # just another frame to record.
+        self.received.append(frame)
 
     async def close(self) -> None:
         self.closed = True

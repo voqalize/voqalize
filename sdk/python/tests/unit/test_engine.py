@@ -1,14 +1,13 @@
 """Unit tests for the per-session engine (:class:`SessionRunner`).
 
 Drives a runner directly through a fake :class:`RunnerHost`, pinning the lane
-semantics that used to live in ``SessionBuffer``: system-lane priority (both
-directions), drop-newest on the normal lane with an edge-triggered congestion
-``ErrorFrame`` delivered to the adapter, ack emission at dequeue (never waiting on
-``handle_frame``), and EndFrame teardown notifying the host.
+semantics: priority-lane ordering (both directions), drop-newest on the bulk lane
+with an edge-triggered congestion ``ErrorFrame`` delivered to the adapter, and
+EndFrame teardown notifying the host.
 
-(Cross-session fair-writer round-robin is now a CortexAgent concern and is
-covered by ``tests/cortex/test_agent_session_isolation.py``; single-session
-runner behavior is pinned here.)
+(Cross-session fair-writer round-robin is a CortexAgent concern, covered by
+``tests/cortex/test_agent_session_isolation.py``; single-session runner behaviour
+is pinned here.)
 """
 
 from __future__ import annotations
@@ -17,22 +16,23 @@ import asyncio
 from collections.abc import Awaitable, Callable
 
 from voqalize.sdk.engine import (
-    DEFAULT_NORMAL_MAXSIZE,
-    DEFAULT_SYSTEM_MAXSIZE,
+    DEFAULT_BULK_MAXSIZE,
+    DEFAULT_PRIORITY_MAXSIZE,
     Emitter,
     RunnerHost,
     SessionAdapter,
     SessionRunner,
-    _Ack,
 )
 from voqalize.sdk.wire import (
     CancelFrame,
     EndFrame,
+    ErrorCode,
     ErrorFrame,
     Frame,
     InterruptionFrame,
-    VqlLLMTextFrame,
-    VqlUserTextFrame,
+    ResponseFrame,
+    SpeechChunkFrame,
+    UserMessageFrame,
 )
 
 SID = b"\x00" * 15 + b"\x01"
@@ -64,12 +64,15 @@ class Recorder(SessionAdapter):
         if self._on_frame is not None:
             await self._on_frame(frame, self)
 
+    def settle_response(self, frame: ResponseFrame) -> None:
+        self.received.append(frame)
+
     async def close(self) -> None:
         self.closed = True
 
 
 def _build(
-    *, normal_max: int = DEFAULT_NORMAL_MAXSIZE, on_frame: FrameHook | None = None
+    *, bulk_max: int = DEFAULT_BULK_MAXSIZE, on_frame: FrameHook | None = None
 ) -> tuple[SessionRunner, Recorder, FakeHost]:
     host = FakeHost()
     holder: dict[str, Recorder] = {}
@@ -79,7 +82,7 @@ def _build(
         holder["adapter"] = adapter
         return adapter
 
-    runner = SessionRunner(session_id=SID, factory=factory, host=host, normal_max=normal_max)
+    runner = SessionRunner(session_id=SID, factory=factory, host=host, bulk_max=bulk_max)
     return runner, holder["adapter"], host
 
 
@@ -93,24 +96,24 @@ async def _until(predicate, *, timeout: float = 2.0, interval: float = 0.005) ->
     raise AssertionError(f"timeout waiting for {predicate}")
 
 
-# ─── Inbound: system lane priority ───────────────────────────────────────────
+# ─── Inbound: priority lane ordering ─────────────────────────────────────────
 
 
-async def test_system_lane_dispatched_before_normal() -> None:
-    runner, adapter, _host = _build(normal_max=64)
-    # Enqueue three normal frames, then one system frame, all before the feeder
-    # starts — so the feeder's first pop must choose the system lane.
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="a"))
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="b"))
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="c"))
-    runner.enqueue_inbound(InterruptionFrame())  # system lane
+async def test_priority_lane_dispatched_before_bulk() -> None:
+    runner, adapter, _host = _build(bulk_max=64)
+    # Enqueue three bulk frames, then one priority frame, all before the feeder
+    # starts — so the feeder's first pop must choose the priority lane.
+    runner.enqueue_inbound(UserMessageFrame(text="a"))
+    runner.enqueue_inbound(UserMessageFrame(text="b"))
+    runner.enqueue_inbound(UserMessageFrame(text="c"))
+    runner.enqueue_inbound(InterruptionFrame(through_turn=3))  # priority lane
     runner.start()
     try:
         await _until(lambda: len(adapter.received) == 4)
         assert isinstance(adapter.received[0], InterruptionFrame), (
-            f"system lane must come first; got {type(adapter.received[0]).__name__}"
+            f"priority lane must come first; got {type(adapter.received[0]).__name__}"
         )
-        texts = [f.text for f in adapter.received[1:] if isinstance(f, VqlUserTextFrame)]
+        texts = [f.text for f in adapter.received[1:] if isinstance(f, UserMessageFrame)]
         assert texts == ["a", "b", "c"]
     finally:
         await runner.cancel()
@@ -119,10 +122,10 @@ async def test_system_lane_dispatched_before_normal() -> None:
 # ─── Inbound: drop-newest + congestion ErrorFrame ────────────────────────────
 
 
-async def test_inbound_normal_lane_drops_newest_and_signals_error() -> None:
-    runner, adapter, _host = _build(normal_max=4)
+async def test_inbound_bulk_lane_drops_newest_and_signals_error() -> None:
+    runner, adapter, _host = _build(bulk_max=4)
     for i in range(8):
-        runner.enqueue_inbound(VqlUserTextFrame(interaction_id=i, text=f"f{i}"))
+        runner.enqueue_inbound(SpeechChunkFrame(speech_id=1, text=f"f{i}"))
     # First 4 kept, remaining 4 dropped (drop-newest) — all before the feeder ran.
     assert runner._in.depth() == 4
     runner.start()
@@ -130,61 +133,27 @@ async def test_inbound_normal_lane_drops_newest_and_signals_error() -> None:
         # The four survivors are the FIRST four, and a single non-fatal
         # ErrorFrame is delivered to the adapter about the congestion.
         await _until(lambda: any(isinstance(f, ErrorFrame) for f in adapter.received))
-        texts = [f.text for f in adapter.received if isinstance(f, VqlUserTextFrame)]
+        texts = [f.text for f in adapter.received if isinstance(f, SpeechChunkFrame)]
         assert texts == ["f0", "f1", "f2", "f3"]
         errs = [f for f in adapter.received if isinstance(f, ErrorFrame)]
         assert len(errs) == 1
         assert not errs[0].fatal
-        assert "inbound queue full" in errs[0].error
+        assert errs[0].code is ErrorCode.OVERLOAD
+        assert "inbound queue full" in errs[0].message
     finally:
         await runner.cancel()
 
 
-# ─── Ack emitted on dequeue, NOT after handle_frame ──────────────────────────
-
-
-async def test_ack_enqueued_when_the_frame_is_taken_off_the_lane() -> None:
-    runner, adapter, host = _build()
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="x"), request_id=42)
-    runner.start()
-    try:
-        await _until(lambda: adapter.received and not runner.out_empty())
-        item = runner.pop_out()
-        assert isinstance(item, _Ack)
-        assert item.ack_id == 42
-        assert host.ready_signals >= 1
-    finally:
-        await runner.cancel()
-
-
-async def test_a_slow_handler_does_not_hold_the_ack() -> None:
-    """The ack must not wait for the brain's compute.
-
-    PyGato blocks its own pipeline queue on this ack, so a handler that waits —
-    a customer writing a transcript row inside ``on_inference_finalized``, which
-    is the real case this pins — would otherwise delay the *next* user utterance
-    by exactly its own cost, on a lane nothing times.
-    """
-    gate = asyncio.Event()
-
-    async def block(frame: Frame, _adapter: Recorder) -> None:
-        if isinstance(frame, VqlUserTextFrame):
-            await gate.wait()
-
-    runner, adapter, _host = _build(on_frame=block)
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="x"), request_id=7)
-    runner.start()
-    try:
-        # The handler is parked on the gate and has NOT returned.
-        await _until(lambda: bool(adapter.received))
-        await _until(lambda: not runner.out_empty())
-        item = runner.pop_out()
-        assert isinstance(item, _Ack) and item.ack_id == 7, (
-            "the ack must be out while the handler is still running"
-        )
-    finally:
-        gate.set()
-        await runner.cancel()
+async def test_a_full_bulk_lane_still_queues_what_it_cannot_shed() -> None:
+    """Droppability is a property of the flow, not of the queue. Speech chunks
+    and RTVI messages are unbounded, so a full lane sheds them; a user message is
+    bounded by turns taken, so it queues however deep the backlog runs."""
+    runner, _adapter, _host = _build(bulk_max=2)
+    for i in range(4):
+        runner.enqueue_inbound(SpeechChunkFrame(speech_id=1, text=f"c{i}"))
+    assert runner._in.depth() == 2
+    runner.enqueue_inbound(UserMessageFrame(turn_id=9, text="say this anyway"))
+    assert runner._in.depth() == 3
 
 
 # ─── Outbound: drop-newest + congestion ErrorFrame ───────────────────────────
@@ -192,51 +161,61 @@ async def test_a_slow_handler_does_not_hold_the_ack() -> None:
 
 async def test_outbound_overflow_delivers_error_frame() -> None:
     async def flood(frame: Frame, adapter: Recorder) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+        if isinstance(frame, UserMessageFrame):
             # Tight synchronous burst; nobody pops the outbound lane in this
             # unit test, so it overflows past normal_max and drops newest.
             for i in range(64):
-                adapter.emitter.send(
-                    VqlLLMTextFrame(interaction_id=1, inference_id=1, text=f"c{i}")
-                )
+                adapter.emitter.send(SpeechChunkFrame(speech_id=1, text=f"c{i}"))
 
-    runner, adapter, host = _build(normal_max=4, on_frame=flood)
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="go"))
+    runner, adapter, host = _build(bulk_max=4, on_frame=flood)
+    runner.enqueue_inbound(UserMessageFrame(text="go"))
     runner.start()
     try:
         await _until(lambda: any(isinstance(f, ErrorFrame) for f in adapter.received))
         errs = [f for f in adapter.received if isinstance(f, ErrorFrame)]
         assert not errs[0].fatal
-        assert "outbound queue full" in errs[0].error
+        assert "outbound queue full" in errs[0].message
         # The runner never kills the session on a drop.
         assert host.closed == []
     finally:
         await runner.cancel()
 
 
-# ─── Outbound: system frame jumps ahead of queued normal frames ──────────────
+# ─── Outbound: a priority frame jumps ahead of queued bulk frames ────────────
 
 
-async def test_outbound_system_frame_pops_first() -> None:
+async def test_outbound_priority_frame_pops_first() -> None:
     async def emit_mix(frame: Frame, adapter: Recorder) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+        if isinstance(frame, UserMessageFrame):
             for i in range(3):
-                adapter.emitter.send(
-                    VqlLLMTextFrame(interaction_id=1, inference_id=1, text=f"n{i}")
-                )
-            adapter.emitter.send(CancelFrame())  # system lane
+                adapter.emitter.send(SpeechChunkFrame(speech_id=1, text=f"n{i}"))
+            adapter.emitter.send(CancelFrame())  # priority lane
 
-    runner, _adapter, _host = _build(normal_max=64, on_frame=emit_mix)
-    runner.enqueue_inbound(VqlUserTextFrame(interaction_id=1, text="go"))
+    runner, _adapter, _host = _build(bulk_max=64, on_frame=emit_mix)
+    runner.enqueue_inbound(UserMessageFrame(turn_id=2, text="go"))
     runner.start()
     try:
         await _until(lambda: runner._out.depth() == 4)
         first = runner.pop_out()
-        assert isinstance(first, CancelFrame), (
-            f"system lane must pop first; got {type(first).__name__}"
-        )
+        assert isinstance(first, CancelFrame), f"priority lane must pop first; got {first!r}"
     finally:
         await runner.cancel()
+
+
+async def test_end_drains_behind_queued_data() -> None:
+    """``End`` is terminal but not priority: a session tears down only after the
+    data already queued in front of it has been dispatched."""
+    runner, adapter, host = _build(bulk_max=64)
+    runner.enqueue_inbound(SpeechChunkFrame(speech_id=1, text="one"))
+    runner.enqueue_inbound(SpeechChunkFrame(speech_id=1, text="two"))
+    runner.enqueue_inbound(EndFrame())
+    runner.start()
+    await _until(lambda: runner in host.closed)
+    assert [type(f).__name__ for f in adapter.received] == [
+        "SpeechChunkFrame",
+        "SpeechChunkFrame",
+        "EndFrame",
+    ]
 
 
 # ─── EndFrame teardown notifies the host ─────────────────────────────────────
@@ -253,5 +232,5 @@ async def test_endframe_tears_down_and_notifies_host() -> None:
 
 # Module-level constants are sane.
 def test_default_maxsizes_positive() -> None:
-    assert DEFAULT_NORMAL_MAXSIZE > 0
-    assert DEFAULT_SYSTEM_MAXSIZE > 0
+    assert DEFAULT_BULK_MAXSIZE > 0
+    assert DEFAULT_PRIORITY_MAXSIZE > 0

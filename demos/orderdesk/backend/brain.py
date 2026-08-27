@@ -1,4 +1,4 @@
-"""OrderDeskBrain — MedSetu's B2B order desk, on **Google ADK**.
+"""OrderDeskBrain — MedSetu's B2B order desk.
 
 A pharmacist taps Join on a 9 AM push notification and rattles off a bulk order in
 Hindi. Every spoken line lands on screen as a free-text row, resolves against the
@@ -26,8 +26,8 @@ that choice set — 2-4 choices, known codes, total coverage — and rejects a b
 a retriable error, so the *shape* of the question is guaranteed even though its wording
 is the model's. Choices become :class:`DisambigChoice` pills (leaf when a choice is a
 single SKU, a group otherwise); a group tap narrows ``candidate_codes`` in the browser
-snapshot, the mirror follows on the next :meth:`OrderDeskBrain.grounding`, and the next
-question is asked over what is left. Two rounds settle 24 candidates.
+snapshot, the mirror follows on the next ``state_sync``, and the next question is asked
+over what is left. Two rounds settle 24 candidates.
 
 **Two scripts, one screen.** The call is Hindi, in Devanagari, spoken by a TTS that
 mangles pharma brand names; the screen — and therefore every tool argument, every
@@ -37,36 +37,32 @@ turns the ``ValueError`` into a retriable tool error), and the plain-``str`` too
 run the same guard in-body and answer with the same message.
 
 **Grounding beats memory.** The browser pushes its cart on every change
-(``state_sync``, parked on ``browser_state`` by the SDK) — including pill taps,
+(``state_sync``, answered by :meth:`OrderDeskBrain.on_rtvi`) — including pill taps,
 manual adds, quantity edits and deletes the pharmacist made with their thumb.
-:meth:`OrderDeskBrain.grounding` folds that snapshot, plus a PENDING line naming the
-rows still waiting on a question, into **every** model call. The brain's own item
-mirror is only the fallback for the first beat, before the browser has spoken.
+:meth:`OrderDeskBrain._ingest_state` folds that snapshot, plus a PENDING line naming
+the rows still waiting on a question, into the context — appended once, only when the
+picture actually changed. The brain's own item mirror is only the fallback for the
+first beat, before the browser has spoken.
 
-The six ``ui_command``s are :class:`voqalize.sdk.Action` subclasses, mirrored
-one-for-one by ``frontend/src/uiCommands.ts``; DESIGN.md §3 is the written contract
-for both halves.
+The six ``ui_command``s are :class:`voqalize.sdk.Action` subclasses, and
+``frontend/src/actions.gen.ts`` is generated from them; DESIGN.md §3 is the written
+contract for both halves.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
-from google.adk.agents import LlmAgent
+from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
-from voqalize_demos import DEFAULT_MODEL, VOICE_THINKING, hello_for
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, hello_for
 
-from voqalize.google_adk import AdkBrain, voice
-from voqalize.sdk import Action
-
-if TYPE_CHECKING:
-    from google.adk.models.base_llm import BaseLlm
-
-    from voqalize.sdk.brain import ClientMessage, Session, SessionStart
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 # The browser→brain messages (DESIGN §3). `state_sync` is the SDK's own convention
 # and is handled by the base. Both of these are answered floor-free — no inference,
@@ -214,9 +210,8 @@ class _EnglishArgs(BaseModel):
 
     ``field_validator("*")`` covers each field as declared *and* each string inside a
     list field, so adding a field to a subclass cannot forget the guard. The
-    ``ValueError`` becomes a ``CoercionError`` in
-    :mod:`voqalize._framework.coerce`, which the ADK adapter hands back as a tool
-    error result — the model sees the message and retries in-conversation."""
+    ``ValueError`` reaches the model as a tool error result — it sees the message and
+    retries in-conversation."""
 
     @field_validator("*", mode="after")
     @classmethod
@@ -514,12 +509,11 @@ def _describes(sku: SkuWire, terms: list[str]) -> bool:
 class OrderDesk:
     """This session's cart mirror and the nine screen-driving tools.
 
-    The tools are ordinary ``async`` methods — ADK drops the bound ``self`` when it
-    builds their schemas, so session state on the instance costs nothing. Each one
-    mutates the mirror, fires ``voice().action(...)`` (the RTVI ``ui_command`` the
-    ``/orderdesk`` UI renders), and returns a compact briefing for the model. Tools
-    must be ``async``: a sync tool runs on a thread pool where ``voice()`` is unset,
-    and the SDK refuses one at startup.
+    The tools are ordinary ``async`` methods — google-genai's automatic function
+    calling drops the bound ``self`` when it builds their schemas, so session state
+    on the instance costs nothing. Each one mutates the mirror, fires
+    ``self._dispatch(...)`` (the RTVI ``ui-command`` the ``/orderdesk`` UI renders),
+    and returns a compact briefing for the model.
 
     ``catalog`` is the ``backend/search.py`` module (DESIGN §2). It is imported
     **lazily**, on first use, so this brain imports — and its tests run — without the
@@ -527,6 +521,9 @@ class OrderDesk:
 
     def __init__(self, catalog: Any | None = None) -> None:
         self._catalog = catalog
+        # Set by OrderDeskBrain.on_session_start, once, before any tool can run —
+        # the RTVI channel `_dispatch` sends on.
+        self.session: Session | None = None
         # id → row. Insertion-ordered: the mirror renders in the order he said them.
         self.items: dict[str, LineItemView] = {}
         # The brain is the numbering authority for agent rows (manual adds are "m1"…,
@@ -850,10 +847,17 @@ class OrderDesk:
             logger.warning("orderdesk: skus_in_family({!r}) failed: {}", family, exc)
             return []
 
+    def _dispatch(self, action: Action) -> None:
+        """The one ``session.dispatch`` call site every tool method routes through."""
+        assert self.session is not None, (
+            "OrderDesk.session is unset — a tool ran before on_session_start"
+        )
+        self.session.dispatch(action)
+
     def _upsert(self, row: LineItemView) -> None:
         """Put one row on screen (add or replace) and keep the mirror in step."""
         self.items[row.id] = row
-        voice().action(UpsertItems(items=[row]))
+        self._dispatch(UpsertItems(items=[row]))
 
     def _note_scheme(self, row: LineItemView) -> None:
         """Fire the banner when a matched SKU carries a supplier scheme.
@@ -865,7 +869,7 @@ class OrderDesk:
         if not sku or not sku.scheme or sku.code in self._noted:
             return
         self._noted.add(sku.code)
-        voice().action(OrderNote(text=f"{sku.name} — scheme: {sku.scheme}"))
+        self._dispatch(OrderNote(text=f"{sku.name} — scheme: {sku.scheme}"))
 
     def _brief(self, row: LineItemView) -> dict[str, Any]:
         """The minimal-question briefing for one row — what the model reads back.
@@ -1325,7 +1329,7 @@ class OrderDesk:
         self._narrowed.difference_update(removed)
         if not removed:
             return {"error": "none of those ids are on the order", "known_ids": list(self.items)}
-        voice().action(RemoveItems(ids=removed))
+        self._dispatch(RemoveItems(ids=removed))
         return {"removed": removed, "remaining": len(self.items)}
 
     async def highlight(self, item_id: str, note: str | None = None) -> dict[str, Any]:
@@ -1343,7 +1347,7 @@ class OrderDesk:
         if row is None:
             return self._ref_error(item_id)
         row.note = note
-        voice().action(HighlightItem(id=row.id, note=note))
+        self._dispatch(HighlightItem(id=row.id, note=note))
         return {"id": row.id, "status": row.status, "note": note}
 
     # ─── the manual search bar (browser → brain, floor-free) ────────────────
@@ -1374,8 +1378,9 @@ class OrderDesk:
             differing_axes=_differing_axes(results),
         )
 
+    @property
     def tools(self) -> list[Any]:
-        """The nine bound methods handed to ``LlmAgent(tools=...)``."""
+        """The nine bound methods the model may call."""
         return [
             self.add_items,
             self.refine_item,
@@ -1389,79 +1394,49 @@ class OrderDesk:
         ]
 
 
-def build_orderdesk_agent(model: str | BaseLlm, desk: OrderDesk, instruction: str) -> LlmAgent:
-    """Build the order-desk ``LlmAgent`` over one session's :class:`OrderDesk`.
-
-    ``model`` is any ADK model — a model-id string in production, or a fake
-    ``BaseLlm`` (``voqalize.google_adk.testing.ScriptedLlm``) in tests.
-    ``instruction`` is the base prompt with this session's PHARMACY CONTEXT already
-    folded in (see :meth:`OrderDeskBrain.on_session_start`).
-
-    ``generate_content_config`` is what keeps the thinking budget off the turn: an
-    ADK agent left unset thinks by default, and on a voice call that is dead air
-    the caller sits through (the SDK's own ``AdkBrain`` says so at startup)."""
-    return LlmAgent(
-        name="orderdesk",
-        model=model,
-        instruction=instruction,
-        tools=desk.tools(),
-        generate_content_config=types.GenerateContentConfig(thinking_config=VOICE_THINKING),
-    )
-
-
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
-class OrderDeskBrain(AdkBrain):
-    """One per session: the ADK agent above, this call's pharmacy, and the live cart.
+class OrderDeskBrain(GeminiBrain):
+    """One per session: the tools above, this call's pharmacy, and the live cart.
 
-    Three seams beyond the agent itself — the per-session system instruction
-    (``on_session_start``), the live screen (``grounding``), and the search bar
-    (``on_client_message``)."""
+    Two seams beyond the tools themselves — the per-session system instruction
+    (``on_session_start``) and the live screen, folded into the context by
+    ``on_rtvi`` rather than recomputed every call (there is no per-turn grounding
+    hook any more; the context is append-only)."""
 
-    # This agent speaks Hindi to every caller, so it says so itself rather than
-    # depending on the connecting client to remember. It used to be the other way
-    # round — the browser's per-session pipeline was the only thing making the
-    # call Hindi — and when one link in that chain dropped the field, the model
-    # still wrote Devanagari but an en-IN reference voice read it, so a native
-    # speaker heard a foreigner reading Hindi. Nothing automated catches that:
-    # the transcript is word-perfect, only the accent is wrong.
-    language = "hi"
-    voice = "omnivoice/gauri"
-
-    def __init__(
-        self,
-        *,
-        model: str | BaseLlm = DEFAULT_MODEL,
-        catalog: Any | None = None,
-        answer_conformance_dump: bool = False,
-    ) -> None:
-        super().__init__(
-            # Built lazily on session start, so it sees the fields assigned below AND
-            # the per-session instruction folded in by on_session_start.
-            lambda: build_orderdesk_agent(model, self.desk, self.instruction),
-            greeting=self._greet,
-            streaming=True,
-            answer_conformance_dump=answer_conformance_dump,
-        )
-        self.desk = OrderDesk(catalog)
-        # The base prompt until the session payload arrives (see on_session_start).
-        self.instruction = _INSTRUCTION
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_INSTRUCTION, model=model)
+        self.desk = OrderDesk()
         self.scenario: dict[str, Any] = {}
         self.pharmacy: dict[str, Any] = {}
         self.nudge = ""
+        # The last screen+PENDING message appended to context, so a state_sync that
+        # changed nothing the model needs to know about does not repeat itself.
+        self._state_message: str | None = None
 
-    # ─── session start: the pharmacy, then the opener ──────────────────────
+    @property
+    def tools(self) -> list[Any]:
+        """The nine bound methods AFC may call — the desk's, not this brain's own."""
+        return self.desk.tools
 
-    async def on_session_start(self, session: Session, start: SessionStart) -> None:
-        """Fold this call's PHARMACY CONTEXT into the system instruction, then greet.
+    # ─── session start: voice, the pharmacy, then the opener ───────────────
 
-        Order matters: the agent is built lazily on first use *inside* the base's
-        ``on_session_start``, so the instruction must be complete before we call up.
-        Everything about the store, the previous calls, the order history and today's
-        objective goes into the system prompt (not a tool the model has to remember to
-        call), so even the opening line is grounded in it."""
-        payload = dict(start.init or {})
+    async def on_session_start(self, session: Session) -> None:
+        """Configure the Hindi voice, fold this call's PHARMACY CONTEXT into the
+        system instruction, and hand the desk its dispatch channel.
+
+        Everything about the store, the previous calls, the order history and
+        today's objective goes into the system prompt (not a tool the model has to
+        remember to call), so even the opening line is grounded in it."""
+        await session.configure(
+            Config(
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.HI),
+                stt=SttConfig(language=Language.HI),
+            )
+        )
+        self.desk.session = session
+        payload = dict(session.init or {})
         raw = payload.get("scenario")
         self.scenario = raw if isinstance(raw, dict) else {}
         raw_pharmacy = self.scenario.get("pharmacy")
@@ -1475,110 +1450,45 @@ class OrderDeskBrain(AdkBrain):
                 f"today's call objective; the conversation language is {language}): "
                 + json.dumps(self.scenario, ensure_ascii=False)
             )
-            self.instruction = f"{_INSTRUCTION}\n\n{block}"
+            self.system_instruction = f"{_INSTRUCTION}\n\n{block}"
         logger.info(
             "orderdesk: session start — pharmacy={!r}, call_type={!r}, history={} lines",
             self.pharmacy.get("name"),
             self.scenario.get("call_type"),
             len(self.scenario.get("order_history") or []),
         )
-        await super().on_session_start(session, start)
 
-    def opening_stimulus(self) -> str:
-        """The one-shot turn that produces the opener (also the key a scripted model
-        keys the greeting off, which is why it is a method and not an f-string
-        inline)."""
-        return (
-            "[The pharmacist just tapped Join on this morning's MedSetu order "
-            f"notification: {self.nudge or 'time to place the daily order'!r}. Speak your "
-            "opening line NOW — one or two short Hindi sentences in Devanagari, "
-            "continuing from that notification, grounded in your last call with them "
-            "and what they usually order, ending with an invitation to start today's "
-            "order. You have already said a short नमस्ते out loud, so do not greet "
-            "again. Call NO tools on this turn.]"
-        )
+    async def greet(self, session: Session) -> str:
+        """Static — no model call, so audio starts the instant the call connects.
 
-    async def _greet(self, session: Session, _start: SessionStart) -> str | None:
-        """The greeting hook — sugar's hybrid opener in the AdkBrain idiom.
+        The old opener ran the model once over an ``opening_stimulus`` to speak a
+        scenario-grounded line; that generation is exactly what wire-v3 forbids
+        here (a greeting is a template at most). The fixed Hindi hello plus the
+        fixed fallback line is what that generation used to fall back to anyway
+        when the model was unavailable, so nothing about the call's reliability
+        changes — only the one case that used to cost a round trip before the
+        caller heard anything."""
+        return f"{_HELLO} {_FALLBACK_OPENER}"
 
-        A fixed Hindi hello is spoken **instantly** (no model call, so audio starts
-        the moment the call connects), and the grounded remainder streams into the
-        **same** greeting bracket behind it, hiding the model's first-token latency.
-        Both are spoken here, so the hook returns ``None`` — its "already opened, say
-        nothing more" answer."""
-        # Bound before the bracket, not inside it: an `async with` whose __aexit__
-        # can suppress means control reaches the check below even if the body did
-        # not finish, and an unbound name there would turn a failed opener into a
-        # dead call rather than the fixed line.
-        spoke = False
-        async with session.say() as speech:
-            await speech.speak(_HELLO)
-            spoke = await self._stream_opener(speech)
-        if not spoke:
-            # The model was unavailable (no key, an error): the call still opens.
-            async with session.say() as speech:
-                await speech.speak(_FALLBACK_OPENER)
-        return None
+    # ─── the live screen, folded into context on every state_sync ──────────
 
-    async def _stream_opener(self, speech: Any) -> bool:
-        """Generate the grounded opener by running the agent once over the stimulus,
-        speaking each chunk into the greeting bracket as it arrives.
+    def _ingest_state(self, data: dict[str, Any]) -> None:
+        """Fold the browser's live cart into the model's context.
 
-        The ADK runner is driven directly because there is no floor-owning interaction
-        at session start — this is agent-initiated speech, not a reply. Both the
-        stimulus and the opener land in ADK's own session, so the model's next turn
-        remembers how it opened. Returns whether anything was actually spoken."""
-        from google.adk.agents.run_config import RunConfig, StreamingMode
-        from google.genai import types
-
-        assert self._session_id is not None
-        spoke = False
-        try:
-            async for event in self._runner.run_async(
-                user_id=self._session_id,
-                session_id=self._session_id,
-                new_message=types.Content(
-                    role="user", parts=[types.Part(text=self.opening_stimulus())]
-                ),
-                run_config=RunConfig(streaming_mode=StreamingMode.SSE),
-            ):
-                if event.author == "user" or event.content is None:
-                    continue
-                text = "".join(
-                    # `part.text`, not `getattr(part, "text", None)` — the getattr
-                    # tested the same value but narrowed nothing, so the generator
-                    # still yielded `str | None` into a join that takes `str`.
-                    part.text
-                    for part in (event.content.parts or [])
-                    if part.text and not getattr(part, "thought", False)
-                )
-                # Partials stream; the aggregate that follows them repeats the whole
-                # reply, so it is only spoken when nothing streamed (non-SSE models).
-                if not text or (not event.partial and spoke):
-                    continue
-                await speech.speak(text)
-                spoke = True
-        except Exception as exc:
-            logger.warning("orderdesk: generated opener failed ({}); using the fixed line", exc)
-        return spoke
-
-    # ─── the live screen, on every model call ──────────────────────────────
-
-    def grounding(self) -> str | None:
-        """The cart as it stands, appended to the system instruction on every call.
-
-        The browser's own ``state_sync`` snapshot wins — it is the authoritative cart
-        and it carries the pharmacist's manual edits (a pill tapped, a quantity typed,
-        a row deleted, Confirm pressed) — with this brain's mirror as the fallback for
-        the first beat. The PENDING line names the rows still short of a SKU and the
-        axes to ask about, so the model never re-asks a question the screen already
-        answered. ``None`` (nothing appended) until there is anything at all.
+        The browser's own ``state_sync`` snapshot (``data["screen"]``) wins — it is
+        the authoritative cart and it carries the pharmacist's manual edits (a pill
+        tapped, a quantity typed, a row deleted, Confirm pressed) — with this
+        brain's mirror as the fallback for the first beat. The PENDING line names
+        the rows still short of a SKU and the axes to ask about, so the model never
+        re-asks a question the screen already answered. Appended once, and only
+        when the picture actually changed — the context is append-only, and
+        ``state_sync`` arrives on every keystroke-adjacent change.
 
         The snapshot's ``candidate_codes`` are folded back into the mirror first: a
         group pill the pharmacist tapped narrows the row *here*, so the PENDING line
-        says "narrowed to 6 — ask the next question" rather than repeating the question
-        he just answered with his thumb."""
-        snapshot = (self.browser_state or {}).get("screen")
+        says "narrowed to 6 — ask the next question" rather than repeating the
+        question he just answered with his thumb."""
+        snapshot = data.get("screen")
         screen = snapshot if isinstance(snapshot, dict) else self.desk.mirror()
         live: dict[str, dict[str, Any]] | None = None
         if isinstance(snapshot, dict):
@@ -1590,33 +1500,44 @@ class OrderDeskBrain(AdkBrain):
             self.desk.absorb(live)
         pending = self.desk.pending(live)
         if not screen and not pending:
-            return None
+            return
         head = _SCREEN_HEADER + (
             json.dumps(screen, ensure_ascii=False, default=str) if screen else _NOTHING_ON_SCREEN
         )
-        return f"{head}\n{pending}" if pending else head
+        message = f"{head}\n{pending}" if pending else head
+        if message == self._state_message:
+            return
+        self._state_message = message
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=message)]))
+        logger.info("orderdesk: state_sync ingested ({} items on screen)", len(self.desk.items))
 
-    # ─── the manual search bar ─────────────────────────────────────────────
+    # ─── browser → brain: the manual search bar, and the live screen ───────
 
-    async def on_client_message(self, session: Session, message: ClientMessage) -> None:
-        """The two things his thumb asks the catalog directly.
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """The three things the browser tells the desk, all floor-free.
 
         ``catalog_search`` is the search bar mid-keystroke; ``list_variants`` is the
-        Change-variant control on a matched row. Both are answered with a **floor-free**
-        action — session-scoped, no inference, no speech — so neither a keystroke nor a
-        tap can make the agent start talking over him. Everything else — ``state_sync``
-        above all — goes to the base, which parks the snapshot on ``browser_state`` for
-        :meth:`grounding`."""
-        if message.type == CATALOG_SEARCH:
-            query = str((message.data or {}).get("query") or "").strip()
+        Change-variant control on a matched row — both answered with a session-scoped
+        action, no inference, no speech, so neither a keystroke nor a tap can make
+        the agent start talking over him. ``state_sync`` is folded into context by
+        :meth:`_ingest_state`."""
+        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+            return
+        kind = msg.data.get("t")
+        raw_payload = msg.data.get("d")
+        payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else {}
+        if kind == "state_sync":
+            self._ingest_state(payload)
+            return
+        if kind == CATALOG_SEARCH:
+            query = str(payload.get("query") or "").strip()
             results = self.desk.search_rows(query)
             logger.info("orderdesk: catalog_search {!r} → {} rows", query, len(results))
-            session.action(ShowSearchResults(query=query, results=results))
+            session.dispatch(ShowSearchResults(query=query, results=results))
             return
-        if message.type == LIST_VARIANTS:
-            data = message.data or {}
-            item_id = str(data.get("item_id") or "").strip()
-            family = str(data.get("family") or "").strip()
+        if kind == LIST_VARIANTS:
+            item_id = str(payload.get("item_id") or "").strip()
+            family = str(payload.get("family") or "").strip()
             action = self.desk.variant_rows(item_id, family)
             logger.info(
                 "orderdesk: list_variants {!r} on {!r} → {} rows",
@@ -1624,6 +1545,5 @@ class OrderDeskBrain(AdkBrain):
                 item_id,
                 len(action.results),
             )
-            session.action(action)
+            session.dispatch(action)
             return
-        await super().on_client_message(session, message)

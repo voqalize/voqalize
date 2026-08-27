@@ -10,13 +10,13 @@ message is captured verbatim as the failure reason.
 **A scenario that could not apply is skipped, and the skip is in the report.**
 Two-thirds of the catalog needs the reference *command grammar* — a brain that
 answers ``say banana`` by speaking "banana" (see :mod:`.reference`). Pointed at an
-ordinary brain those scenarios used to fail, so a perfectly conformant brain was
-told it was NON-CONFORMANT for not knowing a vocabulary it was never supposed to
-know; running with ``--no-reference`` instead dropped them from the report
-entirely and printed a bare CONFORMANT over a quarter of the catalog. Both
-answers were wrong in the same way — the verdict didn't say what it had tested.
-The suite now *probes* for the grammar and skips what cannot apply, with the
-reason attached, and the verdict states its own coverage.
+ordinary brain those scenarios cannot pass, and there are two wrong ways to
+handle that: fail them, which tells a perfectly conformant brain it is
+NON-CONFORMANT for not knowing a vocabulary it was never supposed to know; or
+drop them, which prints a bare CONFORMANT over a quarter of the catalog. Both are
+wrong the same way — the verdict does not say what it tested. So the suite
+*probes* for the grammar and skips what cannot apply, with the reason attached,
+and the verdict states its own coverage.
 """
 
 from __future__ import annotations
@@ -183,7 +183,7 @@ async def run_suite(
 ) -> Report:
     """Run the catalog against ``brain_url`` and return a :class:`Report`.
 
-    ``private_key_pem`` signs the pygato token the driver presents (``None`` ⇒ no
+    ``private_key_pem`` signs the brain-connection token the driver presents (``None`` ⇒ no
     auth header, for a brain running ``allow_unverified``).
 
     ``include_reference`` decides the deep-semantics tier: ``None`` (the default)

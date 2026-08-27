@@ -1,5 +1,5 @@
 """Outbound congestion: when the adapter emits frames faster than the wire
-drains, the normal-lane bound kicks in. The runner drops newest and delivers a
+drains, the bulk-lane bound kicks in. The runner drops newest and delivers a
 single non-fatal ``ErrorFrame`` back to the adapter (via ``handle_frame``) —
 edge-triggered, so the adapter isn't spammed with one ErrorFrame per drop.
 
@@ -17,15 +17,15 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     ErrorFrame,
     Frame,
-    FrameDirection,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    ResponseFrame,
+    SessionStartFrame,
+    SpeechChunkFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 _QUEUE_MAX = 4
@@ -33,7 +33,7 @@ _FLOOD = 64  # well above _QUEUE_MAX so drops are guaranteed
 
 
 class Flooder(SessionAdapter):
-    """On the first VqlUserTextFrame, emit ``_FLOOD`` VqlLLMTextFrames in a tight
+    """On the first UserMessageFrame, emit ``_FLOOD`` SpeechChunkFrames in a tight
     synchronous loop (no await → the outbound lane can't drain between sends, so
     it overflows). Records any ErrorFrame the runner delivers back."""
 
@@ -49,21 +49,20 @@ class Flooder(SessionAdapter):
         if isinstance(frame, ErrorFrame):
             self.errors.append(frame)
             return
-        if isinstance(frame, VqlUserTextFrame) and not self._fired:
+        if isinstance(frame, UserMessageFrame) and not self._fired:
             self._fired = True
             for i in range(_FLOOD):
-                self.emitter.send(
-                    VqlLLMTextFrame(
-                        interaction_id=frame.interaction_id, inference_id=1, text=f"chunk-{i}"
-                    )
-                )
+                self.emitter.send(SpeechChunkFrame(speech_id=1, text=f"chunk-{i}"))
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
 
     async def close(self) -> None:
         pass
 
 
-async def _send(wire: Wire, serializer: CortexFrameSerializer, frame: Frame) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame))
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame) -> None:
+    await wire.send(await serializer.serialize(frame))
 
 
 async def test_outbound_overflow_delivers_error_frame() -> None:
@@ -72,7 +71,7 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
     ErrorFrames per congestion episode."""
 
     Flooder.instances.clear()
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -94,13 +93,9 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
             await _send(
                 wire,
                 serializer,
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(turn_id=1, session_id="s1"),
             )
-            await _send(
-                wire,
-                serializer,
-                VqlUserTextFrame(interaction_id=1, text="go"),
-            )
+            await _send(wire, serializer, UserMessageFrame(turn_id=2, text="go"))
 
             await wait_for(lambda: len(Flooder.instances) == 1, timeout=3.0)
             flooder = Flooder.instances[0]
@@ -113,8 +108,8 @@ async def test_outbound_overflow_delivers_error_frame() -> None:
             assert all(not e.fatal for e in flooder.errors), (
                 "outbound drops must be non-fatal — the runner never kills a session"
             )
-            assert any("outbound queue full" in (e.error or "") for e in flooder.errors), (
-                f"expected an outbound-drop ErrorFrame; got {[e.error for e in flooder.errors]}"
+            assert any("outbound queue full" in e.message for e in flooder.errors), (
+                f"expected an outbound-drop ErrorFrame; got {[e.message for e in flooder.errors]}"
             )
 
             # Edge-triggered: a single congestion episode produces one ErrorFrame

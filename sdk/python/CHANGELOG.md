@@ -3,12 +3,141 @@
 All notable changes to `voqalize-agent-sdk`. This project is pre-1.0 and still
 alpha: the package API can break on a minor version, the **wire** does not.
 
-**The numbering restarts at `0.0.1`.** Everything below it — `0.1.0` through the
-work that would have been `0.4.0` — was never published: the one host that used
-the SDK installed it from a path in a sibling checkout. `0.0.1` is the first
-version anyone can `pip install`, and starting the public series at the bottom
-says plainly that nothing here is promised yet. Those older entries stay,
-because the API they describe is the API `0.0.1` ships.
+**The numbering restarted at `0.0.1`.** Everything marked *pre-restart* below —
+`0.1.0` through the work that would have been `0.4.0` — was never published: the
+one host that used the SDK installed it from a path in a sibling checkout.
+`0.0.1` is the first version anyone can `pip install`, and starting the public
+series at the bottom said plainly that nothing here was promised yet. Those older
+entries stay, because the API they describe is the API `0.0.1` ships.
+
+The public series has now caught up to them, so **a heading carrying
+`(pre-restart)` is the old series and a bare one is the shipping series.** They
+are different releases that happen to share a number; the pre-restart entries are
+kept for the history, and nothing installable was ever cut from them.
+
+## 0.2.0
+
+**`Finalize` reports the evidence, and the verdict is a comparison.** The wire
+stopped carrying `FinalizeReason`: `heard_text` is a verbatim prefix of what the
+brain generated for that unit, so equal means it played out, shorter means it was
+cut off, and empty against chunks that were sent means nothing reached the ear.
+The brain holds the other half of every one of those comparisons, and a copy of a
+derivable fact is one more thing that can disagree with the terms it came from.
+
+### Changed
+
+- **`Finalize` gains `generated`, and `interrupted` becomes a property.** The SDK
+  records what each open unit put on the wire and hands it back, so
+  `fin.interrupted` is `fin.heard != fin.generated` and nothing else. A brain
+  reading `fin.interrupted` and `fin.heard` needs no change; one constructing a
+  `Finalize` — a test, a fake — must now pass `generated`.
+- **The conformance driver answers silent brackets.** Voqalize enrols a unit when
+  it opens, not when its first chunk arrives, so a brain is owed exactly one
+  finalize per bracket it opened and a bracket that carried no text is not an
+  exception. The driver used to drop those, which passed a brain whose finalize
+  pairing then ran one behind in production.
+
+### Removed
+
+- **`FinalizeReason`**, from `voqalize.sdk.wire` and from `FinalizeFrame`. Tag 3
+  and the name `reason` are reserved in the proto, so an older brain still
+  decodes the message and reads the field as unset.
+
+## 0.1.0
+
+**Wire version 3, and it is a break.** The envelope carries no fields, barge-in
+is a one-way watermark, and the browser plane is RTVI. A brain built against
+version 2 refuses a version 3 session outright — a fatal `Error` then `End`,
+before it has greeted — and the same in reverse, so neither end ever guesses.
+
+### Added
+
+- **`voqalize types` — the TypeScript half of your actions, generated.** The
+  SDK's first console script:
+
+  ```bash
+  uv run voqalize types backend/brain.py -o frontend/src/actions.gen.ts
+  ```
+
+  Out comes an interface per `Action`, an interface per nested model, and a
+  union discriminated on `command` with an exhaustiveness helper — so adding an
+  action fails the browser's build until it is handled, rather than landing on
+  `default: break` and quietly not moving the screen. Docstrings and
+  `Field(description=...)` carry across as JSDoc; a `Literal` or `Enum` becomes
+  a string-literal union.
+
+  No npm package and no runtime: pipecat's `useUICommandHandler` already reads
+  the message, so what was missing was only compile-time. Nothing is optional
+  and nothing emits zod, because `Action` puts every declared field on the wire
+  — the shape is a function of the class, so narrowing on `command` is sound.
+  See [TypeScript types](https://docs.voqalize.com/build/brain/typescript/).
+
+### Changed
+
+- **The envelope is one `oneof body` and nothing else.** The two correlation
+  scalars are gone from it; every identifier is a field of the message it
+  belongs to — `turn_id` on `SessionStart`/`UserMessage`/`UserIdle`/`SpeechStart`,
+  `speech_id` on the speech frames and `Finalize`, `request_id` on the
+  request/response pair. `WireSerializer.serialize(frame)` takes the frame and
+  nothing else; `deserialize_message(payload)` returns one.
+- **`epoch` → `turn_id`, and `SessionStart` is turn 1.** Only `UserMessage` and
+  `UserIdle` mint further turns, so the first thing the caller says is turn 2.
+  The greeting rides the turn `SessionStart` itself minted; there is no turn `0`.
+- **Interruption is a watermark, not a reply.** `Interruption` carries
+  `through_turn` and travels voice→brain only. Record
+  `max(watermark, through_turn)` and stop generating for anything at or below it;
+  send nothing back. The echo, the drain barrier and its timeout are gone — a
+  repeat is harmless, a missed one is covered by the next, and a newer turn
+  simply outranks the watermark.
+- **The browser plane is RTVI.** `BrowserMessage`/`BrowserCommand` →
+  one `RTVIFrame(type, data, id, turn_id)` in both directions, carrying a pipecat
+  RTVI message minus its constant label. `on_browser_message` → `on_rtvi`;
+  `session.dispatch(action)` is now sugar over `session.send_rtvi(...)`. `type`
+  is a closed whitelist of ten values and which side may originate each is part
+  of the type: a brain cannot forge `bot-*` or `llm-*`.
+- **The brain leg is dialled at `{brain_url}?session_id={session_id}`.** Your
+  path is used verbatim, so a brain is one ordinary WebSocket route rather than a
+  wildcard path segment carved out for us.
+- **`Error` carries an `ErrorCode`** — `PROTOCOL`, `WIRE_VERSION`, `REJECTED`,
+  `OVERLOAD`, `INTERNAL` — alongside the message and `fatal` flag.
+- **The inbound socket is the session and is not reconnected.** The runtime
+  retries the *first* connect under a short deadline; once you have answered, any
+  close ends the call.
+- **Conformance:** `InferenceObs` → `SpeechObs`, `EpochObs` → `TurnObs`,
+  `.inferences` → `.units`, `.epoch` → `.turn_id`; `send_browser_message` →
+  `send_rtvi` / `send_client_message`; scenario ids `two_inferences_one_turn` →
+  `two_units_one_turn` and `browser_message_*` → `app_message_*`.
+- **`cryptography` is a declared dependency** rather than one borrowed from
+  `pyjwt[crypto]`: `voqalize.conformance` imports it directly to mint the keypair
+  a scenario signs with. A package you import is a package you declare.
+- **The `examples` extra is now `fastapi` + `uvicorn`.** `openai-agents`,
+  `python-dotenv` and `google-genai` left with the examples that used them.
+- **`py.typed` moved.** `voqalize` is a namespace package, so the marker at its
+  root was never read; it now sits in `voqalize/conformance/`, beside the one
+  `voqalize/sdk/` already had. Both packages are typed to consumers, which is what
+  the root marker was meant to do and did not.
+
+### Removed
+
+- **The internal `adapter_for` and `brain_factory` construction seams are
+  private.** A customer hosts a brain with `run_session` or `serve`; the adapter
+  and per-session factory are implementation details shared by those two paths
+  and the conformance harness, not a third hosting surface.
+
+- **`voqalize.google_adk` is gone**, along with `voqalize._framework` and the
+  `[adk]` extra. The adapter never learned version 3 — turns, the RTVI plane and
+  the heard-truth write-back all still assumed version 2 — and its suite had been
+  switched off at collection since that break, so what shipped was 2,100 lines
+  that nothing ran. A test file that is not collected is not a skip: the suite
+  reported green the whole time.
+
+  It comes back as a port once the `Brain` surface has settled. The shape it ports
+  *to* already exists: `tests/contract/` states the nine clauses once and runs them
+  against every engine, so adding an integration is writing an `Engine` and reading
+  the failures — not another twenty-two files of its own.
+- **`examples/travel` and `examples/travel_adk`.** Both were written against the
+  retired `on_interaction` surface. `echo`, `reference` and `fastapi_inbound` are
+  on the current one and stay.
 
 ## 0.0.3
 
@@ -130,8 +259,8 @@ frames a brain emits are byte-identical to what the previous release emitted.
   `str()` of a `BaseModel`. A non-dict dump is wrapped as `{"result": ...}`,
   matching ADK's own handling; a result containing no model passes through
   untouched. This is the mirror of the 0.3.0 tool-*argument* coercion.
-- **`useUiCommand`** in `@voqalize/client-react` is the browser half — see
-  [the React client docs](https://voqalize.com/docs/client/react/).
+- **`useUiCommand`** in the former `@voqalize/client-react` package was the
+  browser half. That package and its documentation were retired on 2026-08-24.
 
 ### Changed
 
@@ -157,7 +286,7 @@ frames a brain emits are byte-identical to what the previous release emitted.
   it uses (`Runner`, `InvocationContext`, callbacks, `types`) are identical
   across the two lines, and the drift canaries pass on 2.3.0 and 2.6.2 alike.
 
-## 0.3.0
+## 0.3.0 (pre-restart)
 
 The ADK adapter grows the seams a real screen-driving agent needed. **No wire
 change** — `proto/voqalize/frames/frames.proto` is untouched, so this is a pure
@@ -212,7 +341,7 @@ package-API release and any 0.2.0 runtime pairing keeps working.
   explicit `args={...}` form for an argument literally named `args`. Mixing the
   two forms raises `TypeError`.
 
-## 0.2.0
+## 0.2.0 (pre-restart)
 
 Breaking changes to the package API. The wire protocol is fully backward
 compatible — every change to `proto/voqalize/frames/frames.proto` in this release
@@ -283,7 +412,7 @@ frames).
 +            await speech.speak("Let me look at that.")
 ```
 
-## 0.1.0
+## 0.1.0 (pre-restart)
 
 Initial release: the pipecat-free `Brain` surface, the inbound (direct) server
 and the Cortex agent, the `Vql*` wire vocabulary, and the framework-owned

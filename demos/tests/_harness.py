@@ -1,21 +1,26 @@
 """The shared per-demo e2e rig: one real demo brain on a real socket, driven by
-the conformance ``VoiceDriver``, with only the *model* scripted.
+the conformance ``VoqalizeDriver``, with only the *model* scripted.
 
-``test_travel_adk.py`` established this shape for the one ADK demo; every other
-demo is a ``GeminiBrain``, so the only difference is which fake model goes in
-(:class:`voqalize_demos.testing.ScriptedGemini` instead of ADK's ``ScriptedLlm``).
-Everything else — the ``DirectAgent`` WebSocket, the minted PyGato token, the
-driver's playout/heard-truth model — is identical, which is the point: these tests
-exercise the same wire a production session runs on.
+Every demo is a ``GeminiBrain`` (or ``GeminiInteractionsBrain``) subclass now —
+ADK is gone from the repo, and all eleven demos, travel and orderdesk included,
+are hosted through :func:`demo` with the same
+:class:`voqalize_demos.testing.ScriptedGemini` fake. The ``brain_server``
+WebSocket, the minted PyGato token, and the driver's playout/heard-truth model
+are identical across all eleven, which is the point: these tests exercise the
+same wire a production session runs on.
 
 What every demo's e2e must prove, and why each one is here:
 
-* **it greets** — on interaction 0, brackets closed, no ``VqlInteractionCompleted``
-  (Voice never opened that interaction). The liveness floor.
+* **it greets** — on interaction 0, with every bracket it opened closed. The
+  liveness floor.
 * **its voice and language reach the wire, as a pair** — see :func:`check_voice_pair`.
   This is the check that would have caught the OrderDesk Hindi-in-an-English-voice
   bug, and the invalid ``stt.model`` that took prod down: neither is visible in a
-  transcript, so no amount of conversational assertion finds them.
+  transcript, so no amount of conversational assertion finds them. Where the page
+  settles the language instead — it knows the caller's choice before the call
+  exists — the same fact is asserted the other way round, with
+  :func:`check_configured_at_connect`: the brain sent nothing, so there is one
+  authority for it and not two.
 * **a tool round-trip drives the screen** — two inference brackets for one user
   turn, and the exact ``ui_command`` payload the demo's frontend reads.
 
@@ -34,49 +39,24 @@ from voqalize_demos.discovery import build_for
 from voqalize_demos.testing import ScriptedGemini
 
 from voqalize.conformance import (
+    BrainServer,
     DirectConnection,
-    VoiceDriver,
+    VoqalizeDriver,
     checks,
     generate_keypair,
-    mint_pygato_token,
+    mint_voqalize_token,
 )
-from voqalize.sdk import Brain, DirectAgent, brain_factory
+from voqalize.sdk import Brain
+from voqalize.sdk.wire import Config, ConfigureFrame
 
-# The whole TTS catalog (``docs/reference/catalog.md``). A voice outside it is
-# rejected by vql-speech at connect — which is how two fossil agent records took
-# production down: the values named engines deleted a release earlier, and nothing
-# between the record and the wire had an opinion.
-VOICES = frozenset({"omnivoice/gauri", "omnivoice/gaurav"})
-
-# What ``vql-stt`` serves: English plus the 22 Indic languages. Anything else
-# silently falls back to the English recognizer.
-LANGUAGES = frozenset(
-    {
-        "en",
-        "as",
-        "bn",
-        "brx",
-        "doi",
-        "gu",
-        "hi",
-        "kn",
-        "kok",
-        "ks",
-        "mai",
-        "ml",
-        "mni",
-        "mr",
-        "ne",
-        "or",
-        "pa",
-        "sa",
-        "sat",
-        "sd",
-        "ta",
-        "te",
-        "ur",
-    }
-)
+# There is no catalog check here any more, and no catalog constant either.
+# ``Voice`` and ``Language`` are protobuf enums, so a value vql-speech does not
+# serve cannot be constructed, let alone put on the wire — which is what used to
+# take production down, from fossil agent records naming engines deleted a
+# release earlier. Whether a language has a *reference clip* is the speech
+# tier's own answer and arrives as a rejected response, not something a test
+# re-derives from a copy of the roster. What is left to check is that the demo
+# configured at all, and configured the pair it meant to.
 
 
 @dataclass
@@ -84,15 +64,15 @@ class DemoRig:
     """One hosted demo session: the brain under test, its socket, and the driver."""
 
     name: str
-    agent: DirectAgent
-    driver: VoiceDriver
+    server: BrainServer
+    driver: VoqalizeDriver
     _built: list[Brain]
 
     @property
     def brain(self) -> Brain:
         """The brain serving this session.
 
-        ``DirectAgent`` builds it on connect — *after* the rig is handed to the
+        The server builds it on connect — *after* the rig is handed to the
         test — so a read before ``driver.start_session()`` is a test bug, and says
         so rather than returning ``None``."""
         if not self._built:
@@ -103,21 +83,21 @@ class DemoRig:
         return self._built[-1]
 
     def actions(self) -> list[str]:
-        """The ``ui_command`` actions the brain fired, minus the conformance
+        """The ``ui-command`` names the brain fired, minus the conformance
         backchannel (``__``-prefixed, used by ``dump_conversation``)."""
         return [
-            str(c.get("action"))
+            str(c.get("command"))
             for c in self.driver.ui_commands
-            if not str(c.get("action", "")).startswith("__")
+            if not str(c.get("command", "")).startswith("__")
         ]
 
     def command(self, action: str) -> dict[str, Any]:
-        """The first ``ui_command`` for ``action`` — the payload the demo's frontend
-        store receives. Raises if the brain never fired it."""
+        """The payload of the first ``ui-command`` named ``action`` — what the
+        demo's frontend store receives. Raises if the brain never fired it."""
         for c in self.driver.ui_commands:
-            if c.get("action") == action:
-                return dict(c)
-        raise AssertionError(f"{self.name}: no ui_command {action!r} — fired: {self.actions()}")
+            if c.get("command") == action:
+                return dict(c.get("payload") or {})
+        raise AssertionError(f"{self.name}: no ui-command {action!r} — fired: {self.actions()}")
 
 
 @contextlib.asynccontextmanager
@@ -126,9 +106,9 @@ async def demo(name: str, llm: ScriptedGemini) -> AsyncIterator[DemoRig]:
     PyGato-side driver against it. Tears both down on the way out.
 
     The brain comes from :func:`build_for` — the same factory the umbrella mounts —
-    so a test never re-wires a demo by hand. The two ADK demos (``travel``,
-    ``orderdesk``) build their own model from the environment and ignore the
-    injected provider; host those with :func:`demo_from` and an ADK ``ScriptedLlm``."""
+    so a test never re-wires a demo by hand. :func:`demo_from` is the escape hatch
+    for a brain construction that :func:`demo`'s ``build_for(name)(llm)`` shape
+    cannot express."""
     build = build_for(name)
     async with demo_from(name, lambda: build(llm)) as rig:  # type: ignore[arg-type]
         yield rig
@@ -137,7 +117,7 @@ async def demo(name: str, llm: ScriptedGemini) -> AsyncIterator[DemoRig]:
 @contextlib.asynccontextmanager
 async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[DemoRig]:
     """:func:`demo` with the brain construction spelled out — for a demo whose model
-    is not the injected ``GeminiProvider``."""
+    is not the injected ``genai.Client``."""
     keypair = generate_keypair()
     built: list[Brain] = []
 
@@ -146,19 +126,19 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
         built.append(brain)
         return brain
 
-    agent = DirectAgent(
-        factory=brain_factory(_build),
+    server = BrainServer(
+        _build,
         host="127.0.0.1",
         port=0,
         public_keys=keypair.public_pem,
     )
-    port = await agent.start()
+    port = await server.start()
     session_id = f"{name}-e2e"
-    driver = VoiceDriver(
+    driver = VoqalizeDriver(
         DirectConnection(
             f"ws://127.0.0.1:{port}",
             session_id,
-            token=mint_pygato_token(
+            token=mint_voqalize_token(
                 private_key_pem=keypair.private_pem,
                 session_id=session_id,
                 agent_id=name,
@@ -166,99 +146,98 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
             ),
         ),
         session_id=session_id,
-        agent_id=name,
         default_timeout=10.0,
     )
     await driver.open()
     try:
-        yield DemoRig(name=name, agent=agent, driver=driver, _built=built)
+        yield DemoRig(name=name, server=server, driver=driver, _built=built)
     finally:
         await driver.aclose()
-        await agent.aclose()
+        await server.aclose()
 
 
 # ─── The checks every demo shares ─────────────────────────────────────────────
 
 
-def check_voice_pair(rig: DemoRig, *, voice: str, language: str) -> None:
-    """Both halves of the language reached the wire, agreeing, before the greeting.
+def _configs(rig: DemoRig) -> list[Config]:
+    """Every configuration the brain put on the wire, in order."""
+    return [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
 
-    ``language`` sets the recognizer **and** the voice-cloning reference clip, and
-    the two are named differently on the two legs (TTS ``language``, STT
-    ``language_hint``). Half-applying it is silent: the words stay right and only
-    the speaker is wrong, so WER, logs and every automated score are blind to it —
-    which is exactly how a demo shipped Devanagari read in an English voice for
-    weeks. The only place it is visible is here, on the frames themselves."""
-    driver = rig.driver
+
+def _last(configs: list[Config], read: Callable[[Config], Any]) -> Any:
+    """The last value any request actually set for one field.
+
+    Requests are deltas, so the session's state is the newest *stated* value —
+    a later request that left a section out did not reset it."""
+    for config in reversed(configs):
+        value = read(config)
+        if value is not None:
+            return value
+    return None
+
+
+def check_voice_pair(rig: DemoRig, *, voice: str, language: str) -> None:
+    """Both halves of the language reached the wire, as one request, before the
+    greeting.
+
+    ``language`` sets the recognizer **and** the voice-cloning reference clip.
+    Half-applying it is silent: the words stay right and only the speaker is
+    wrong, so WER, logs and every automated score are blind to it — which is
+    exactly how a demo shipped Devanagari read in an English voice for weeks. The
+    only place it is visible is here, on the frames themselves.
+
+    The SDK now refuses to build a half-stated ``Config`` at all, so this is no
+    longer the last line of defence. It is still the only check that the pair the
+    demo chose is the pair it meant."""
+    configs = _configs(rig)
     checks.require(
-        bool(driver.tts_settings),
-        f"{rig.name}: no TTSUpdateSettings on the wire — the brain declared no voice "
-        "and set none, so the session runs on whatever the platform default happens "
+        bool(configs),
+        f"{rig.name}: nothing configured on the wire — the brain declared no voice "
+        "and set none, so the session runs on whatever the record's default happens "
         "to be",
     )
+    got_voice = _last(configs, lambda c: c.tts.voice if c.tts else None)
+    got_spoken = _last(configs, lambda c: c.tts.language if c.tts else None)
+    got_heard = _last(configs, lambda c: c.stt.language if c.stt else None)
     checks.require(
-        bool(driver.stt_settings),
-        f"{rig.name}: no STTUpdateSettings on the wire — the recognizer never got a "
-        "language hint, so the caller is transcribed as English",
-    )
-    tts = driver.tts_settings[-1]
-    stt = driver.stt_settings[-1]
-    checks.require(
-        tts.get("voice") == voice,
-        f"{rig.name}: TTS voice is {tts.get('voice')!r}, expected {voice!r}",
+        got_voice == voice,
+        f"{rig.name}: TTS voice is {got_voice!r}, expected {voice!r}",
     )
     checks.require(
-        tts.get("language") == language,
-        f"{rig.name}: TTS language is {tts.get('language')!r}, expected {language!r} — "
+        got_spoken == language,
+        f"{rig.name}: TTS language is {got_spoken!r}, expected {language!r} — "
         "the reference clip, i.e. which recorded speaker reads the text",
     )
     checks.require(
-        stt.get("language_hint") == language,
-        f"{rig.name}: STT language_hint is {stt.get('language_hint')!r}, expected "
-        f"{language!r} — the two halves have drifted apart",
+        got_heard == language,
+        f"{rig.name}: STT language is {got_heard!r}, expected {language!r} — "
+        "the two halves have drifted apart",
     )
-    check_catalog(rig)
 
 
-def check_catalog(rig: DemoRig) -> None:
-    """Every voice/language the brain ever put on the wire is one vql-speech serves.
+def check_configured_at_connect(rig: DemoRig) -> None:
+    """The mirror of :func:`check_voice_pair`: the brain put *nothing* on the wire.
 
-    A value outside the catalog is not a soft failure: an unknown voice prefix is
-    rejected at connect (``voice not found``), and an unknown ``?model=`` is an
-    HTTP 403 before a single frame flows. Both have happened in production, from
-    values that were valid when they were written and were never revisited."""
-    for tts in rig.driver.tts_settings:
-        voice = tts.get("voice")
-        if voice is not None:
-            checks.require(
-                voice in VOICES,
-                f"{rig.name}: voice {voice!r} is not in the catalog {sorted(VOICES)} — "
-                "vql-speech rejects it at connect",
-            )
-        language = tts.get("language")
-        if language is not None:
-            checks.require(
-                language in LANGUAGES,
-                f"{rig.name}: TTS language {language!r} is not served by vql-stt",
-            )
-        model = tts.get("model")
-        checks.require(
-            model is None or model == "sonic-2",
-            f"{rig.name}: TTS model {model!r} — the engine is chosen by the voice "
-            "prefix; naming a deleted engine here is how prod broke",
-        )
-    for stt in rig.driver.stt_settings:
-        hint = stt.get("language_hint")
-        if hint is not None:
-            checks.require(
-                hint in LANGUAGES,
-                f"{rig.name}: STT language_hint {hint!r} is not served by vql-stt",
-            )
-        model = stt.get("model")
-        checks.require(
-            model in (None, "vql-stt", "flux-general-en", "flux-general-multi"),
-            f"{rig.name}: STT model {model!r} is rejected by vql-speech with HTTP 403",
-        )
+    A demo whose page knows the language before the call exists sends it with the
+    connect request, so the session is already in it by the time this brain is
+    dialled. Then a brain-side configure is not a belt-and-braces second copy —
+    it is a second authority for one answer, and the two disagree the first time
+    only one of them is edited.
+
+    This cannot see what the page sent: no page is running here, and the driver
+    speaks the brain wire, which the connect request never touches. So it is not
+    proof the pair is right — that lives with whoever writes the page (for sugar,
+    ``demos/sugar/frontend/src/data.ts``). It is the guard on the half this suite
+    *can* see, which is that the demo has not quietly grown a brain-side default
+    again.
+    """
+    configs = _configs(rig)
+    checks.require(
+        not configs,
+        f"{rig.name}: the brain configured the wire, but this demo's configuration "
+        "arrives with the connect request — two authorities for one answer, which "
+        f"disagree the first time only one is edited: {configs}",
+    )
 
 
 def check_greeting(rig: DemoRig, turn: Any) -> None:
@@ -270,16 +249,16 @@ def check_greeting(rig: DemoRig, turn: Any) -> None:
     )
 
 
-def check_turn(rig: DemoRig, turn: Any, *, inferences: int | None = None) -> None:
+def check_turn(rig: DemoRig, turn: Any, *, units: int | None = None) -> None:
     """A clean user turn: it spoke, every bracket closed, ids are monotone, and the
-    interaction completed (without which Voice stays muted for the rest of the call)."""
+    turn completed (without which Voqalize stays muted for the rest of the call)."""
     checks.check_brackets_closed(turn)
-    checks.check_inference_ids_monotonic(turn)
+    checks.check_speech_ids_monotonic(turn)
     checks.check_completed(turn)
     checks.check_spoke(turn)
-    if inferences is not None:
+    if units is not None:
         checks.require(
-            len(turn.inferences) == inferences,
-            f"{rig.name}: expected {inferences} inference bracket(s), got "
-            f"{len(turn.inferences)}: {[i.text for i in turn.inferences]}",
+            len(turn.units) == units,
+            f"{rig.name}: expected {units} unit(s) of speech, got "
+            f"{len(turn.units)}: {[u.text for u in turn.units]}",
         )

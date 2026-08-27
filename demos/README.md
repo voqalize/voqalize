@@ -22,7 +22,7 @@ architecture:
   **pygato node**, fronted by Caddy at `brain.voqalize.com`
   (`brain.dev.voqalize.com` for dev). A single umbrella FastAPI app
   (`voqalize_demos/umbrella.py`) discovers every co-located backend and hosts
-  its brain WebSocket at `/{name}/s/{session_id}`. That's *all* this container
+  its brain WebSocket at `/{name}?session_id=…`. That's *all* this container
   does — it's brains only. See `Dockerfile` + `cloudbuild.brains-vm.yaml`.
 - **The frontend UIs** (plus the docs) build into a versioned **web artifact**
   (`cloudbuild.web.yaml`) that the private marketing repo downloads and lays under
@@ -32,7 +32,7 @@ architecture:
   touches the brain container.
 
 The **UI path** (`{apex}/demos/{name}`) and the **brain path**
-(`wss://brain.voqalize.com/{name}/s/{id}`) are independent: the brain socket lives
+(`wss://brain.voqalize.com/{name}`) are independent: the brain socket lives
 on the pygato node because Voqalize dials it **server-side**, regardless of where
 the browser loads the UI. So a demo's `brain_url` is `wss://brain.voqalize.com/{name}`
 — and moving the UI to the apex needed no agent re-provisioning at all.
@@ -41,7 +41,7 @@ the browser loads the UI. So a demo's `brain_url` is `wss://brain.voqalize.com/{
 |---|---|---|
 | `{apex}/demos/{name}` | the demo's UI (its own independent Vite build) | apex (Firebase Hosting) |
 | `{apex}/api/*` | session bootstrap → control plane (Hosting rewrite) | apex |
-| `wss://brain.<env>.voqalize.com/{name}/s/{id}` | the brain WebSocket (Voqalize dials here) | pygato node (brains container, behind Caddy) |
+| `wss://brain.<env>.voqalize.com/{name}` | the brain WebSocket (Voqalize dials here) | pygato node (brains container, behind Caddy) |
 
 ## Structure
 
@@ -59,10 +59,9 @@ demos/
     discovery.py          # scans demos/*/backend, loads each router from source
     session.py            # the shared per-session WebSocket handler (make_brain_router)
     _gemini.py            # GeminiBrain base (context, tool loop, greeting helpers)
-    llm.py                # GeminiProvider (the LLM the brains run on)
   <name>/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/
-      package.json         #   links the SDK by path: "@voqalize/client-react": "file:../../../sdk/react"
+      package.json         #   stock @pipecat-ai/client-react + @voqalize/demo-kit: "file:../../shared"
       vite.config.ts       #   base: "/demos/<name>/", dev proxy /api → control plane
       src/config.ts        #   this demo's wiring: tenant + agent id + pk (NO voice/language)
       src/…                #   the app
@@ -73,8 +72,10 @@ demos/
 ```
 
 Each **frontend** is fully self-contained (its own `package.json` + lockfile +
-`node_modules`); it depends on the published `@voqalize/client-react` SDK — until
-that's on npm, by path via `file:../../../sdk/react`. Each **backend** is thin and
+`node_modules`); it depends on stock `@pipecat-ai/client-react` plus
+`@voqalize/demo-kit` (`demos/shared`, the pre-call gate and ambient ring shared
+across the gallery) — there is no Voqalize-authored client wrapper any more.
+Each **backend** is thin and
 shares the one `voqalize_demos` package; the umbrella discovers routers by
 scanning `demos/*/backend`, so nothing binds names in a central registry.
 
@@ -95,9 +96,9 @@ discovers backends and each frontend declares its own connection wiring. To add
    existing demo's `package.json` / `vite.config.ts` (set `base: "/demos/<name>/"`
    and a unique dev `port`) / `tsconfig.json` / `index.html` / `.env.example`, and
    a `src/config.ts` declaring only the connection wiring. **Voice and language do
-   not live here** — the brain declares them (`Brain.voice` / `Brain.language`, or
-   `session.configure_language(...)` per caller), because that is the only place
-   the STT and TTS legs move together. Setting one leg from the page is the
+   not live here** — the agent record carries the default and the brain overrides
+   it per caller (`await session.configure(Config(stt=…, tts=…))`), because that is
+   the only place the STT and TTS legs move together. Setting one leg from the page is the
    half-applied-pair bug, and it is silent: the words stay right and only the
    speaker is wrong.
 3. **Env** — `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY` (this app's
@@ -111,8 +112,14 @@ discovers backends and each frontend declares its own connection wiring. To add
 
 ## Running it
 
-Each demo UI runs on its own Vite dev server; the backend runs once and serves
-every brain.
+`pm2 start ecosystem.config.cjs` from the repo root is the supervised path: the
+brains umbrella at `brain.local.voqalize.com` and every UI at
+`local.voqalize.com/demos/<name>` — the same apex layout production serves, so a
+demo mints its session same-origin exactly as it does deployed. Ports are
+declared in that file and nowhere else.
+
+Standalone, one demo at a time, no nginx: each demo UI runs on its own Vite dev
+server; the backend runs once and serves every brain.
 
 ```bash
 # Backend (umbrella FastAPI): brains only. No built UIs, no /api proxy in dev.
@@ -122,7 +129,7 @@ cd demos && uv run uvicorn voqalize_demos.umbrella:app --reload --port 8080
 cd demos/travel/frontend
 cp .env.example .env          # fill in VITE_AGENT_ID / VITE_PUBLISHABLE_KEY
 pnpm install --ignore-workspace
-pnpm dev                      # http://localhost:5751/demos/travel/
+pnpm dev                      # open the URL it prints, at /demos/travel/
 ```
 
 To build and assemble every UI the way the web artifact ships them:
@@ -140,13 +147,13 @@ ships separately, onto the pygato node.
 
 `travel` — the **Travel Advisor** — is the reference demo: a `voqalize.sdk.Brain`
 (`demos/travel/backend/`) driven over the inbound path, and a standalone Vite UI
-(`demos/travel/frontend/`) embedded via the public `@voqalize/client-react` SDK.
-The remaining demos follow this same shape.
+(`demos/travel/frontend/`) built on stock pipecat (`@pipecat-ai/client-react`) plus
+`@voqalize/demo-kit`. The remaining demos follow this same shape.
 
 **Every demo has an end-to-end test** (`demos/tests/test_<name>_e2e.py`): the real
-brain on a real `DirectAgent` socket, driven by the conformance `VoiceDriver`, with
-only the *model* faked — `ScriptedGemini` for the `GeminiBrain` demos, ADK's
-`ScriptedLlm` for `travel` and `orderdesk`. No network, no API key. Plus
+brain on a real `brain_server` socket, driven by the conformance `VoqalizeDriver`,
+with only the *model* faked — `ScriptedGemini` (`demos/voqalize_demos/testing.py`)
+for all eleven demos; ADK and its `ScriptedLlm` are gone from the repo. Plus
 `test_demo_voice_contract.py`, a cross-demo sweep that asserts every demo puts a
 **matched** voice/language pair on both legs before its first audio — the one
 defect no transcript, log or WER score can see.

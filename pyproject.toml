@@ -27,14 +27,10 @@ members = [
 dev = [
     "ruff>=0.8.0",
     "pyright>=1.1.390",
-    # The framework-SDK integration (voqalize.google_adk) is lint- and type-gated
-    # here, so the shared workspace venv needs google-adk installed. It is NOT a
-    # runtime dep of the core SDK — `import voqalize.sdk` pulls none of it;
-    # customers opt in via the sdk/python `adk` extra. Only `import
-    # voqalize.google_adk` needs it. (google-genai is a transitive dep of
-    # google-adk and the ADK adapter imports its `types`, so it's declared
-    # explicitly here rather than relying on the transitive edge for pyright.)
-    "google-adk>=2.3,<3",
+    # `voqalize.sdk.gemini` is lint- and type-gated here, so the shared workspace
+    # venv needs google-genai installed. It is NOT a runtime dep of the core SDK —
+    # `import voqalize.sdk` pulls none of it; customers opt in via the sdk/python
+    # `gemini` extra.
     "google-genai>=1.0,<3",
 ]
 
@@ -52,10 +48,6 @@ extend-exclude = [
     "**/*_pb2.py",
     "**/*_pb2.pyi",
     "**/*_pb2_grpc.py",
-    # Customer-facing skill scaffolding: standalone templates a developer drops
-    # into their OWN repo (sibling `from brain import ...` imports that resolve
-    # there, not here). Shipped as docs, not workspace code.
-    "**/skill/templates/**",
 ]
 
 [tool.ruff.lint]
@@ -154,9 +146,6 @@ exclude = [
     # (FakeCortex vs the real relay). The strict-mode signal we care about is in
     # src/, not tests/.
     "**/tests/**",
-    # Customer-facing skill scaffolding (sibling imports resolve in the
-    # developer's repo, not here). Excluded from the strict-mode gate.
-    "**/skill/templates/**",
     # Example brains are illustrative usage code that legitimately import heavy
     # optional deps (openai-agents, google-genai) parked behind the `examples`
     # extra — not part of the base env. Ruff still lints them; strict pyright

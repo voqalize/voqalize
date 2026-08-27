@@ -5,7 +5,7 @@ When pygato sends EndFrame for a session, the SDK must:
   2. Tear down the session's internal tasks (feeder, error pump) without leaks.
   3. Remove the session from CortexAgent's session map.
 
-A second VqlStartFrame for the same session_id after teardown must build a
+A second SessionStartFrame for the same session_id after teardown must build a
 fresh adapter instance — proving the slot was freed.
 """
 
@@ -19,14 +19,14 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     EndFrame,
     Frame,
-    FrameDirection,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    ResponseFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
@@ -40,22 +40,25 @@ class Recorder(SessionAdapter):
         self.saw_end = False
 
     async def handle_frame(self, frame: Frame) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+        if isinstance(frame, UserMessageFrame):
             self.saw_context = True
         if isinstance(frame, EndFrame):
             self.saw_end = True
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
 
     async def close(self) -> None:
         pass
 
 
-async def _send(wire: Wire, serializer: CortexFrameSerializer, frame: Frame) -> None:
-    await wire.send(FrameDirection.DOWNSTREAM, await serializer.serialize(frame))
+async def _send(wire: Wire, serializer: WireSerializer, frame: Frame) -> None:
+    await wire.send(await serializer.serialize(frame))
 
 
 async def test_endframe_tears_down_session_cleanly() -> None:
     Recorder.instances.clear()
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
@@ -73,9 +76,9 @@ async def test_endframe_tears_down_session_cleanly() -> None:
             await _send(
                 wire,
                 serializer,
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(turn_id=1, session_id="s1"),
             )
-            await _send(wire, serializer, VqlUserTextFrame(interaction_id=1, text="hi"))
+            await _send(wire, serializer, UserMessageFrame(turn_id=2, text="hi"))
 
             await wait_for(lambda: len(Recorder.instances) == 1, timeout=3.0)
             rec = Recorder.instances[0]
@@ -96,7 +99,7 @@ async def test_endframe_tears_down_session_cleanly() -> None:
             await _send(
                 wire,
                 serializer,
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={}),
+                SessionStartFrame(turn_id=1, session_id="s1"),
             )
             await wait_for(lambda: len(Recorder.instances) == 2, timeout=3.0)
             assert Recorder.instances[1] is not Recorder.instances[0]

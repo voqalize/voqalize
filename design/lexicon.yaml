@@ -1,0 +1,181 @@
+# The closed lexicon, in the form a machine can check.
+#
+# `voice.md` says the lexicon is closed and prints it as a table for people to
+# read. This file is the same table for the checker to read, and the two are held
+# equal by `design/check_facts.py` — edit here, and the check tells you the
+# moment voice.md drifts. It is a mirror rather than a second copy: there is one
+# record, rendered twice, and neither is allowed to say something the other does
+# not.
+#
+# A word that is retired here is a word that once shipped. Every synonym below
+# was on a real surface, which is why it is worth the machine's time: a concept
+# that has two names has two explanations, and the second one is always older.
+#
+# Adding a term: add it here first and to the SDK second. That order is the whole
+# discipline — a name that reaches code before it reaches this file is a name
+# nobody argued about.
+
+version: 1
+source_of_truth_for: design/voice.md '## Mechanics and lexicon' table
+
+# Concept -> the one word, and the words it replaced.
+#
+# These `retired` entries are NOT part of the default check, and the reason is
+# worth stating: most of them are ordinary English. `call`, `event`, `tool`,
+# `runtime` and `proxy` are correct in a hundred sentences that are not about
+# the concept they were retired from, and a check that flags all of them is a
+# check nobody runs twice. They are swept on demand, with `--sweep`, and read by
+# a person. The words that are never right in any sentence — `retired_words`
+# below, and `platform` — run every time.
+terms:
+  - concept: The developer's WebSocket agent
+    word: brain
+    retired: [agent backend, bot, handler]
+
+  - concept: One call, one socket
+    word: session
+    retired: [meeting, conversation, call, room]
+
+  - concept: What Voqalize runs below text
+    word: the voice tier
+    retired: [the platform, the runtime, voice infrastructure]
+
+  - concept: The runtime that dials the brain
+    word: Voqalize
+    retired: [Voice, our server, the bot, the runtime]
+
+  - concept: Typed message, brain -> screen
+    word: action
+    retired: [UI command, event, tool]
+
+  - concept: Screen state, screen -> brain
+    word: state sync
+    retired: [context push, screen capture]
+
+  - concept: The published protocol
+    word: the wire
+    retired: [the protocol, our API]
+
+  - concept: Voqalize's credential when it dials your brain
+    word: the brain-connection token
+    retired: [the RS256 JWT, the auth token, the pygato token]
+
+  - concept: The browser's credential for one call
+    word: the session token
+    retired: []
+
+  - concept: The relay for egress-only networks
+    word: Cortex
+    retired: [tunnel, proxy]
+
+  - concept: The compatibility suite
+    word: the conformance harness
+    retired: [test kit, test suite]
+
+  - concept: The 2-D talking head
+    word: the avatar
+    retired: [video agent, digital human]
+
+# Internal service and repository names. `voice.md` says these never appear in
+# customer-facing text; until 2026-08-25 nothing checked it, and three had
+# reached the docs site — one of them into a filename a reader types.
+#
+# This runs every time, not under `--sweep`, because there is no sentence in
+# which these are the right word for a customer. It sees prose only:
+# `prose_lines` blanks inline code spans and skips fenced blocks, so the literal
+# claim value `iss="pygato"` in `reference/wire.md` — a string a brain
+# compares against, which the page justifies in place — is exempt by
+# construction rather than by a special case. A leak inside a fence is still a
+# leak, and `--sweep-code` would be the next thing to build; today a person
+# reads the fences.
+internal_names:
+  - name: pygato
+    say_instead: Voqalize, or "the voice tier" where the half matters
+    except:
+      # Our own deployment topology, not a customer's integration: this file
+      # says which node the brains container lands on and which name fronts it.
+      # The rule is about the word a *reader* is taught for the thing they dial,
+      # and nobody dials a node. Every other README under demos/ is governed.
+      - demos/README.md
+  - name: vql-stt
+    say_instead: the recognizer
+  - name: vql-speech
+    say_instead: the speech tier
+  - name: voqalcloud
+    say_instead: Voqalize
+
+# The word we never use for ourselves, kept separate because the rule has
+# exceptions the table cannot carry.
+prohibited:
+  - word: platform
+    why: >-
+      Our argument is that intelligence should not live on a platform, so the
+      word contradicts the product in the reader's ear. Internal engineering
+      documents still use it; nothing a customer reads does.
+    allowed_in:
+      - internal engineering and strategy documents
+      - a competitor category, where it names their thing and not ours
+      - a sentence that disclaims it ("before we ever described it as a platform")
+      - a third party's own name (Google Cloud Platform)
+
+# Retired vocabulary. Not synonyms for anything — words that assert an outcome
+# the reader has not been shown.
+retired_words:
+  - magic
+  - effortless
+  - just works
+  - delight
+  - superpower
+  - unleash
+  - seamless
+  - transform
+  - unlock
+  - supercharge
+  - revolutionize
+  - empower
+  - leverage
+  - robust
+  - enterprise-grade
+  - blazing
+  - best-in-class
+  - next-gen
+  - AI-powered
+  - cutting-edge
+
+# Retired grammar. The ban is contrast against an alternative — another product,
+# another vendor, or the reader's prior experience. Contrast between two things
+# inside our own system stays, because that is how an API gets described, so
+# these are reported for a human to judge rather than failed outright.
+retired_constructions:
+  - pattern: '\bunlike\b'
+    name: contrast against an alternative
+  - pattern: '\bno more\b'
+    name: contrast against an alternative
+  - pattern: '\bwithout the\b'
+    name: contrast against an alternative
+  - name: the fragment pair as a headline
+    manual: true
+  - name: the question as a heading
+    manual: true
+  - name: the tricolon run for cadence
+    manual: true
+    note: >-
+      "Faster. Simpler. Yours." A plain enumeration of three true things is
+      ordinary English; the cadence is the ban.
+
+# Where these rules apply. Design notes and decision records are reasoning, and
+# reasoning argues by contrast — so only the `platform` rule reaches them.
+scope:
+  governed:
+    - docs/src/content/docs/**
+    - demos/**/README.md
+    - sdk/**/README.md
+  reasoning_only:
+    - design/**
+    - '**/AGENTS.md'
+    - '**/CLAUDE.md'
+  never:
+    - '**/node_modules/**'
+    - '**/dist/**'
+    - '**/.astro/**'
+    - proto/gen/**

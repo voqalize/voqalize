@@ -1,7 +1,6 @@
 # The inbound brain needs the SDK plus an ASGI framework + server. That's it —
 # no pipecat, no audio libs (the voice runtime lives on the other side of the
-# socket). Pin to the SDK's published package name once it's on an index; for
-# now install it editable from the repo (see README).
-voqalize-agent-sdk
+# socket).
+voqalize-agent-sdk==0.2.0
 fastapi>=0.115
 uvicorn[standard]>=0.30

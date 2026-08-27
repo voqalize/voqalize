@@ -1,11 +1,10 @@
 """Typed actions: declaration, naming, and serialization.
 
-:class:`~voqalize.sdk.Action` is a *declaration* of a ui_command's args half. This
-file pins the three things a browser contract depends on — the wire **name** derived
-from the class, the wire **shape** produced by the fields, and the guarantee that
-those are byte-identical to what the legacy ``action(name, dict)`` form emits. The
-over-the-wire half (that this really rides an ``RTVIServerMessageFrame`` to the
-pygato leg) is ``tests/e2e_cortex/test_e2e_session_action.py``.
+:class:`~voqalize.sdk.Action` is a *declaration* of a ui-command's payload. This
+file pins the two things a browser contract depends on — the wire **name** derived
+from the class, and the wire **shape** produced by the fields. The over-the-wire
+half (that this really reaches the pygato leg) is
+``tests/e2e_cortex/test_e2e_session_action.py``.
 """
 
 from __future__ import annotations
@@ -17,7 +16,6 @@ import pytest
 from pydantic import BaseModel, Field, ValidationError
 
 from voqalize.sdk import Action
-from voqalize.sdk.actions import action_envelope
 
 
 class OpenItinerary(Action):
@@ -49,43 +47,6 @@ def test_explicit_name_wins_over_the_derived_one() -> None:
 
 def test_payload_is_the_declared_fields() -> None:
     assert OpenItinerary(name="Poddar Vietnam").to_payload() == {"name": "Poddar Vietnam"}
-
-
-# ─── the contract with the legacy form ─────────────────────────────────────────
-
-
-def test_typed_and_legacy_envelopes_are_identical() -> None:
-    """The whole compatibility claim in one assertion: the same command, declared or
-    hand-assembled, produces the same ``(name, args)`` — so the browser cannot tell
-    which form the brain used."""
-    typed = action_envelope(OpenItinerary(name="Poddar Vietnam"), None)
-    legacy = action_envelope("open_itinerary", {"name": "Poddar Vietnam"})
-    assert typed == legacy == ("open_itinerary", {"name": "Poddar Vietnam"})
-
-
-def test_legacy_form_is_untouched() -> None:
-    """Non-pydantic brains (and other languages) keep the general surface: an
-    arbitrary name and an arbitrary dict, passed through verbatim."""
-    assert action_envelope("anything_at_all", {"a": 1, "b": [2, {"c": 3}]}) == (
-        "anything_at_all",
-        {"a": 1, "b": [2, {"c": 3}]},
-    )
-    # A bare name with no args is an empty payload, not None.
-    assert action_envelope("ping", None) == ("ping", {})
-
-
-def test_legacy_args_dict_is_copied_not_aliased() -> None:
-    """The caller's dict must not become the envelope — mutating it after the call
-    can't retroactively change what was queued."""
-    args = {"qty": 1}
-    _, payload = action_envelope("add_to_cart", args)
-    args["qty"] = 99
-    assert payload == {"qty": 1}
-
-
-def test_passing_both_an_action_and_args_is_an_error() -> None:
-    with pytest.raises(TypeError, match="takes no separate args dict"):
-        action_envelope(OpenItinerary(name="x"), {"name": "y"})
 
 
 # ─── aliases ───────────────────────────────────────────────────────────────────
@@ -122,7 +83,7 @@ def test_aliases_are_emitted_by_alias_at_every_depth() -> None:
 
 def test_either_spelling_constructs() -> None:
     """``populate_by_name`` — the field name and the alias both validate, matching how
-    the SDK builds tool *arguments* (``_framework.coerce``)."""
+    the SDK builds tool *arguments* (``sdk.gemini_interactions._coerce``)."""
     by_alias = SearchFlights(leg_id="l", **{"from": "BLR"})
     by_name = SearchFlights(leg_id="l", from_="BLR")
     assert (
@@ -174,23 +135,22 @@ def test_unknown_kwargs_are_rejected() -> None:
         OpenItinerary(name="x", nmae="y")  # type: ignore[call-arg]
 
 
-# ─── the envelope guard ────────────────────────────────────────────────────────
+# ─── no field is reserved ──────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("reserved", ["type", "action", "action_id"])
-def test_a_field_colliding_with_the_envelope_is_rejected_at_declaration(reserved: str) -> None:
-    """Args are spread onto the envelope's top level, so a field named ``action``
-    would overwrite the action name. Caught when the class is defined, not on the
-    wire."""
-    with pytest.raises(TypeError, match="collide with the ui_command envelope"):
-        type(Action)("Bad", (Action,), {"__annotations__": {reserved: str}})
+class Envelope(Action):
+    """Every word the envelope itself uses, as ordinary payload fields."""
+
+    command: str = "c"
+    payload: str = "p"
+    type: str = "t"
 
 
-def test_the_guard_looks_at_the_alias_not_the_field_name() -> None:
-    with pytest.raises(TypeError, match="collide with the ui_command envelope"):
-
-        class AlsoBad(Action):
-            kind: str = Field(default="", alias="type")
+def test_no_field_can_shadow_the_envelope() -> None:
+    """The payload is *nested* under ``payload``, not spread onto the envelope, so
+    there is nothing for a field to collide with and no reserved-name guard to
+    remember."""
+    assert Envelope().to_payload() == {"command": "c", "payload": "p", "type": "t"}
 
 
 def test_a_field_named_name_is_fine() -> None:

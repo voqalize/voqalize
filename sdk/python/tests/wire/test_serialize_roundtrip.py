@@ -5,142 +5,102 @@ from __future__ import annotations
 import pytest
 
 from voqalize.sdk.wire import (
+    WIRE_VERSION,
     CancelFrame,
-    CortexFrameSerializer,
+    Config,
+    ConfigureFrame,
     EndFrame,
+    ErrorCode,
     ErrorFrame,
-    FinalizeReason,
+    FinalizeFrame,
     Frame,
+    IdleConfig,
     InterruptionFrame,
-    VqlFunctionCallInProgressFrame,
-    VqlFunctionCallResultFrame,
-    VqlFunctionCallsStartedFrame,
-    VqlInferenceFinalizedFrame,
-    VqlLLMFullResponseEndFrame,
-    VqlLLMFullResponseStartFrame,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    Language,
+    ResponseFrame,
+    RTVIFrame,
+    RTVIType,
+    SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
+    SttConfig,
+    TtsConfig,
+    UserIdleFrame,
+    UserMessageFrame,
+    Voice,
+    WireSerializer,
 )
 
 
 def _frames() -> list[Frame]:
     return [
-        VqlStartFrame(
+        SessionStartFrame(
+            turn_id=1,
             session_id="sess-123",
-            agent_id="welcome",
-            payload={"greet": "hello", "n": 7, "deep": {"k": [1, 2, 3]}},
-            audio_in_sample_rate=8000,
-            audio_out_sample_rate=22050,
-            enable_metrics=True,
-            enable_tracing=False,
-            enable_usage_metrics=True,
-            report_only_initial_ttfb=True,
+            init={"greet": "hello", "n": 7, "deep": {"k": [1, 2, 3]}},
         ),
-        VqlUserTextFrame(interaction_id=1, text="hello there"),
-        # Interruption rides the wire as the field-less InterruptionFrame.
-        InterruptionFrame(),
-        VqlInferenceFinalizedFrame(
-            interaction_id=3,
-            inference_id=1,
-            heard_text="ok, scheduled",
-            interrupted=False,
-            reason=FinalizeReason.COMPLETED,
+        UserMessageFrame(turn_id=4, text="hello there"),
+        UserIdleFrame(turn_id=5, level=2, idle_ms=30000),
+        InterruptionFrame(through_turn=9),
+        FinalizeFrame(speech_id=3, heard_text="ok, scheduled"),
+        FinalizeFrame(speech_id=4, heard_text="partial..."),
+        SpeechStartFrame(speech_id=7, turn_id=4),
+        SpeechChunkFrame(speech_id=7, text="hi"),
+        SpeechChunkFrame(speech_id=7, text=" world"),
+        SpeechEndFrame(speech_id=7),
+        RTVIFrame(
+            type=RTVIType.UI_COMMAND,
+            data={"command": "open_panel", "payload": {"panel": "orders"}},
+            turn_id=4,
         ),
-        VqlInferenceFinalizedFrame(
-            interaction_id=4,
-            inference_id=2,
-            heard_text="partial...",
-            interrupted=True,
-            reason=FinalizeReason.USER_BARGE_IN,
+        RTVIFrame(type=RTVIType.CLIENT_MESSAGE, data={"t": "tap", "d": {"id": 3}}, id="req-1"),
+        ConfigureFrame(
+            request_id=1,
+            config=Config(
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.HI),
+                stt=SttConfig(language=Language.HI),
+                idle=IdleConfig(timeout_ms=0),
+            ),
         ),
-        VqlLLMFullResponseStartFrame(interaction_id=5, inference_id=1),
-        VqlLLMTextFrame(interaction_id=5, inference_id=1, text="hi"),
-        VqlLLMTextFrame(interaction_id=5, inference_id=1, text=" world"),
-        VqlLLMFullResponseEndFrame(interaction_id=5, inference_id=1),
-        VqlFunctionCallsStartedFrame(
-            interaction_id=6,
-            inference_id=1,
-            tool_call_id="tc-1",
-            function_name="get_weather",
-            arguments={"city": "BLR", "unit": "C"},
+        # The legs differ on purpose: Odia is understood, and there is no Odia
+        # clip to speak it with, so the call is spoken with the Hindi one.
+        ConfigureFrame(
+            request_id=2,
+            config=Config(stt=SttConfig(language=Language.OR), tts=TtsConfig(language=Language.HI)),
         ),
-        VqlFunctionCallInProgressFrame(
-            interaction_id=6,
-            inference_id=1,
-            tool_call_id="tc-1",
-            function_name="get_weather",
-            arguments={"city": "BLR", "unit": "C"},
-        ),
-        VqlFunctionCallResultFrame(
-            interaction_id=6,
-            inference_id=1,
-            tool_call_id="tc-1",
-            function_name="get_weather",
-            result={"temp_c": 28, "summary": "warm"},
-        ),
+        ConfigureFrame(request_id=3, config=Config(tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV))),
+        ResponseFrame(request_id=3, accepted=True),
+        ResponseFrame(request_id=4, accepted=False, detail="no recognizer for language 'sat'"),
         EndFrame(),
         CancelFrame(reason="user_left"),
         CancelFrame(),  # reason=None → empty string on wire
-        ErrorFrame(error="upstream timeout", fatal=False),
-        ErrorFrame(error="bad config", fatal=True),
+        ErrorFrame(code=ErrorCode.OVERLOAD, message="upstream timeout", fatal=False),
+        ErrorFrame(code=ErrorCode.WIRE_VERSION, message="bad wire", fatal=True),
     ]
 
 
-_VQL_FIELDS = {
-    VqlStartFrame: (
-        "session_id",
-        "agent_id",
-        "payload",
-        "audio_in_sample_rate",
-        "audio_out_sample_rate",
-        "enable_metrics",
-        "enable_tracing",
-        "enable_usage_metrics",
-        "report_only_initial_ttfb",
-    ),
-    VqlUserTextFrame: ("interaction_id", "text"),
-    VqlInferenceFinalizedFrame: (
-        "interaction_id",
-        "inference_id",
-        "heard_text",
-        "interrupted",
-        "reason",
-    ),
-    VqlLLMFullResponseStartFrame: ("interaction_id", "inference_id"),
-    VqlLLMTextFrame: ("interaction_id", "inference_id", "text"),
-    VqlLLMFullResponseEndFrame: ("interaction_id", "inference_id"),
-    VqlFunctionCallsStartedFrame: (
-        "interaction_id",
-        "inference_id",
-        "tool_call_id",
-        "function_name",
-        "arguments",
-    ),
-    VqlFunctionCallInProgressFrame: (
-        "interaction_id",
-        "inference_id",
-        "tool_call_id",
-        "function_name",
-        "arguments",
-    ),
-    VqlFunctionCallResultFrame: (
-        "interaction_id",
-        "inference_id",
-        "tool_call_id",
-        "function_name",
-        "result",
-    ),
-    # InterruptionFrame is field-less — round-trips to an InterruptionFrame.
-    InterruptionFrame: (),
+_FIELDS: dict[type[Frame], tuple[str, ...]] = {
+    SessionStartFrame: ("turn_id", "session_id", "init", "wire_version"),
+    UserMessageFrame: ("turn_id", "text"),
+    UserIdleFrame: ("turn_id", "level", "idle_ms"),
+    InterruptionFrame: ("through_turn",),
+    FinalizeFrame: ("speech_id", "heard_text"),
+    SpeechStartFrame: ("speech_id", "turn_id"),
+    SpeechChunkFrame: ("speech_id", "text"),
+    SpeechEndFrame: ("speech_id",),
+    RTVIFrame: ("type", "data", "id", "turn_id"),
+    ConfigureFrame: ("request_id", "config"),
+    ResponseFrame: ("request_id", "accepted", "detail"),
+    ErrorFrame: ("code", "message", "fatal"),
+    # Field-less frames round-trip to their own type and nothing more.
     EndFrame: (),
-    ErrorFrame: ("error", "fatal"),
 }
 
 
 @pytest.mark.parametrize("frame", _frames(), ids=lambda f: type(f).__name__)
 async def test_roundtrip(frame: Frame) -> None:
-    ser = CortexFrameSerializer()
+    ser = WireSerializer()
     payload = await ser.serialize(frame)
     assert isinstance(payload, bytes)
 
@@ -153,8 +113,55 @@ async def test_roundtrip(frame: Frame) -> None:
         assert out.reason == frame.reason
         return
 
-    for field in _VQL_FIELDS.get(type(frame), ()):
+    for field in _FIELDS[type(frame)]:
         assert getattr(out, field) == getattr(frame, field), (
             f"{type(frame).__name__}.{field} differs: "
             f"{getattr(out, field)!r} != {getattr(frame, field)!r}"
         )
+
+
+async def test_session_start_carries_the_wire_version() -> None:
+    """The version is stamped on the session's first frame and nowhere else."""
+    ser = WireSerializer()
+    out = await ser.deserialize(await ser.serialize(SessionStartFrame(turn_id=1, session_id="s")))
+    assert isinstance(out, SessionStartFrame)
+    assert out.wire_version == WIRE_VERSION
+
+
+async def test_rtvi_turn_id_is_absent_when_unset() -> None:
+    """``turn_id`` on the RTVI plane annotates traces. Unset means unset — it
+    must not decode as turn 0, which is a turn nobody minted."""
+    ser = WireSerializer()
+    out = await ser.deserialize(
+        await ser.serialize(RTVIFrame(type=RTVIType.SERVER_MESSAGE, data={"a": 1}))
+    )
+    assert isinstance(out, RTVIFrame)
+    assert out.turn_id is None
+    assert out.id is None
+
+
+async def test_an_empty_delta_still_names_its_op() -> None:
+    """A request that changes nothing is a legal no-op the far side answers — so
+    the op must survive the trip even when no section is set. Encode it as a bare
+    envelope and it would arrive as an unknown operation instead."""
+    ser = WireSerializer()
+    out = await ser.deserialize(await ser.serialize(ConfigureFrame(request_id=9)))
+    assert isinstance(out, ConfigureFrame)
+    assert out.config == Config()
+
+
+async def test_an_unset_section_stays_unset() -> None:
+    """Unset means *leave it alone*, and there is no value that says so — an
+    IdleConfig that decoded as ``timeout_ms=0`` would disable idle detection on
+    every request that never mentioned it."""
+    ser = WireSerializer()
+    out = await ser.deserialize(
+        await ser.serialize(
+            ConfigureFrame(request_id=9, config=Config(tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI)))
+        )
+    )
+    assert isinstance(out, ConfigureFrame)
+    assert out.config.idle is None
+    assert out.config.stt is None
+    assert out.config.tts is not None
+    assert out.config.tts.language is None

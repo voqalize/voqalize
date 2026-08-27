@@ -21,6 +21,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { asUiAction, unhandledUiAction } from './actions.gen';
 import { chapterAt, getArticle, getVideo } from './kb';
 import type {
   Account,
@@ -43,7 +44,7 @@ import type {
   Product,
   Screen,
   SentToPhone,
-  Spotlight,
+  SpotlightState,
   StatementView,
   Ticket,
   VideoCommand,
@@ -142,7 +143,7 @@ export interface AuraActions {
   closeSentToPhone: () => void;
   raiseTicket: (reference: string, topic: string, summary: string) => void;
   closeTicket: () => void;
-  spotlight: (target: string, label?: string) => void;
+  spotlight: (target: string, label: string) => void;
   // ── authenticated account access ──
   openAuth: (prompt: AuthPrompt) => void;
   /** Customer taps "Authorise": tells the server (auth_complete) + shows the badge. */
@@ -192,7 +193,7 @@ export interface AuraStore extends AuraActions {
   checklist: { title: string; items: string[] } | null;
   sentToPhone: SentToPhone | null;
   ticket: Ticket | null;
-  spotlightState: Spotlight | null;
+  spotlightState: SpotlightState | null;
   // authenticated account access (null unless active)
   authSession: AuthSession | null;
   authPrompt: AuthPrompt | null;
@@ -209,66 +210,10 @@ export interface AuraStore extends AuraActions {
   agentSend: AgentSend | null;
   registerAgentSend: (fn: AgentSend | null) => void;
   snapshot: () => Record<string, unknown>;
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  handleUiCommand: (command: string, payload: unknown) => void;
 }
 
 const Ctx = createContext<AuraStore | null>(null);
-
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-const num = (v: unknown): number | undefined => {
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : undefined;
-};
-const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
-const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
-// Coerce an untrusted {k: v} map to numbers (calculator inputs).
-const numMap = (v: unknown): Record<string, number> => {
-  const out: Record<string, number> = {};
-  for (const [k, val] of Object.entries(obj(v))) {
-    const n = num(val);
-    if (n !== undefined) out[k] = n;
-  }
-  return out;
-};
-
-// Coerce an untrusted object to an Account (never trusts a real account number).
-const account = (v: unknown): Account => {
-  const o = obj(v);
-  return {
-    account_id: str(o.account_id) ?? '',
-    type: str(o.type) ?? 'Account',
-    branch: str(o.branch) ?? '',
-    nickname: str(o.nickname),
-    masked_number: str(o.masked_number) ?? '',
-  };
-};
-
-const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
-
-// Coerce an untrusted object to a Card (never trusts a real card number).
-const card = (v: unknown): Card => {
-  const o = obj(v);
-  return {
-    card_id: str(o.card_id) ?? '',
-    network: str(o.network) ?? '',
-    product: str(o.product) ?? 'Credit Card',
-    variant: str(o.variant),
-    masked_number: str(o.masked_number) ?? '',
-  };
-};
-
-const toControls = (v: unknown): CardControls => {
-  const o = obj(v);
-  return {
-    domestic_enabled: bool(o.domestic_enabled, true),
-    international_enabled: bool(o.international_enabled, false),
-    contactless_enabled: bool(o.contactless_enabled, true),
-    online_enabled: bool(o.online_enabled, true),
-    domestic_limit: num(o.domestic_limit) ?? 0,
-    international_limit: num(o.international_limit) ?? 0,
-    atm_cash_limit: num(o.atm_cash_limit) ?? 0,
-  };
-};
 
 export function AuraProvider({ children }: { children: ReactNode }) {
   const [screen, setScreen] = useState<Screen>('home');
@@ -288,7 +233,7 @@ export function AuraProvider({ children }: { children: ReactNode }) {
   const [checklist, setChecklist] = useState<{ title: string; items: string[] } | null>(null);
   const [sentToPhone, setSentToPhone] = useState<SentToPhone | null>(null);
   const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [spotlightState, setSpotlightState] = useState<Spotlight | null>(null);
+  const [spotlightState, setSpotlightState] = useState<SpotlightState | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [authPrompt, setAuthPrompt] = useState<AuthPrompt | null>(null);
   const [accountPicker, setAccountPicker] = useState<AccountPicker | null>(null);
@@ -511,7 +456,7 @@ export function AuraProvider({ children }: { children: ReactNode }) {
   const closeTicket = useCallback(() => setTicket(null), []);
 
   const spotlight = useCallback(
-    (target: string, label?: string) => {
+    (target: string, label: string) => {
       setSpotlightState({ target, label, nonce: nextNonce() });
       bump();
     },
@@ -537,9 +482,8 @@ export function AuraProvider({ children }: { children: ReactNode }) {
     bump();
   }, [authPrompt, bump]);
 
-  // Customer declines the sign-in: tell the server so the waiting authenticate()
-  // tool returns immediately (the mic is muted during the call, so this button is
-  // the customer's only way out).
+  // Customer declines the sign-in: tell the server, so the agent hears they closed
+  // it rather than going on believing a sheet is still up in front of them.
   const cancelAuth = useCallback(() => {
     if (authPrompt) agentSendRef.current?.('auth_cancelled', { nonce: authPrompt.nonce });
     setAuthPrompt(null);
@@ -696,7 +640,7 @@ export function AuraProvider({ children }: { children: ReactNode }) {
           }
         : null,
       compare: compare
-        ? { kind: compare.kind, options: compare.items.map((it) => it.name), recommended: compare.recommendId }
+        ? { kind: compare.kind, options: compare.items.map((it) => it.name), recommended: compare.recommend_id }
         : null,
       locator: locator ? { pincode: locator.pincode, count: locator.results.length } : null,
       checklist: checklist ? { title: checklist.title, items: checklist.items.length } : null,
@@ -745,8 +689,10 @@ export function AuraProvider({ children }: { children: ReactNode }) {
   ]);
 
   const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      switch (String(cmd.action ?? '')) {
+    (command: string, payload: unknown) => {
+      const action = asUiAction(command, payload);
+      if (!action) return;
+      switch (action.command) {
         case 'open_home':
           openHome();
           break;
@@ -754,19 +700,19 @@ export function AuraProvider({ children }: { children: ReactNode }) {
           openHelpCenter();
           break;
         case 'open_category':
-          if (str(cmd.category)) openCategory(str(cmd.category)!);
+          openCategory(action.payload.category);
           break;
         case 'open_article':
-          if (str(cmd.article_id)) openArticle(str(cmd.article_id)!);
+          openArticle(action.payload.article_id);
           break;
         case 'play_help_video':
-          if (str(cmd.video_id)) playVideo(str(cmd.video_id)!, num(cmd.start_sec) ?? 0);
+          playVideo(action.payload.video_id, action.payload.start_sec);
           break;
         case 'highlight_step':
-          highlightStep(num(cmd.index) ?? 0);
+          highlightStep(action.payload.index);
           break;
         case 'seek_video':
-          seekVideo(num(cmd.start_sec) ?? 0);
+          seekVideo(action.payload.start_sec);
           break;
         case 'pause_video':
           pauseVideo();
@@ -775,121 +721,67 @@ export function AuraProvider({ children }: { children: ReactNode }) {
           resumeVideo();
           break;
         case 'show_contact':
-          showContact(str(cmd.topic) ?? '');
+          showContact(action.payload.topic);
           break;
         case 'run_calculator': {
-          const kind = str(cmd.kind) as CalcKind | undefined;
-          if (kind === 'emi' || kind === 'fd' || kind === 'eligibility')
-            runCalculator(kind, numMap(cmd.inputs), Object.keys(obj(cmd.result)).length ? numMap(cmd.result) : undefined);
+          const { kind, inputs, result } = action.payload;
+          runCalculator(kind, inputs, Object.keys(result).length ? result : undefined);
           break;
         }
-        case 'start_application': {
-          const product = str(cmd.product) as Product | undefined;
-          if (product === 'savings' || product === 'credit_card' || product === 'loan') startApplication(product);
+        case 'start_application':
+          startApplication(action.payload.product);
           break;
-        }
-        case 'prefill_field': {
-          // Single {field,value} or bulk {fields:[{field,value}]}.
-          const bulk = arr<Record<string, unknown>>(cmd.fields);
-          if (bulk.length) bulk.forEach((f) => str(f.field) && prefillField(str(f.field)!, String(f.value ?? '')));
-          else if (str(cmd.field)) prefillField(str(cmd.field)!, String(cmd.value ?? ''));
+        case 'prefill_field':
+          prefillField(action.payload.field, action.payload.value);
           break;
-        }
         case 'submit_application':
           submitApplication();
           break;
-        case 'compare': {
-          const kind = str(cmd.kind) === 'savings' ? 'savings' : 'credit_card';
-          showCompare({
-            kind,
-            items: arr<Record<string, unknown>>(cmd.items).map((it, i) => ({
-              id: str(it.id) ?? `c${i + 1}`,
-              name: str(it.name) ?? `Option ${i + 1}`,
-              features: arr<unknown>(it.features).map(String),
-            })),
-            recommendId: str(cmd.recommend_id),
-            recommendReason: str(cmd.recommend_reason),
-          });
+        case 'compare':
+          showCompare(action.payload);
           break;
-        }
         case 'find_branch':
-          showLocator(
-            str(cmd.pincode) ?? '',
-            arr<Record<string, unknown>>(cmd.results).map((r) => ({
-              name: str(r.name) ?? 'Aura Bank',
-              address: str(r.address) ?? '',
-              kind: str(r.kind) === 'atm' ? 'atm' : 'branch',
-              ifsc: str(r.ifsc),
-              hours: str(r.hours),
-            })),
-          );
-          break;
-        case 'send_to_phone':
-          sendToPhone(str(cmd.what) ?? 'this guide', str(cmd.channel) === 'sms' ? 'sms' : 'whatsapp', str(cmd.number) ?? '');
-          break;
-        case 'raise_ticket':
-          raiseTicket(str(cmd.reference) ?? '', str(cmd.topic) ?? '', str(cmd.summary) ?? '');
+          showLocator(action.payload.pincode, action.payload.results);
           break;
         case 'show_checklist':
-          showChecklist(str(cmd.title) ?? 'Checklist', arr<unknown>(cmd.items).map(String));
+          showChecklist(action.payload.title, action.payload.items);
           break;
+        case 'send_to_phone': {
+          const { what, channel, number } = action.payload;
+          sendToPhone(what, channel, number);
+          break;
+        }
+        case 'raise_ticket': {
+          const { reference, topic, summary } = action.payload;
+          raiseTicket(reference, topic, summary);
+          break;
+        }
         case 'spotlight':
-          if (str(cmd.target)) spotlight(str(cmd.target)!, str(cmd.label));
+          spotlight(action.payload.target, action.payload.label);
           break;
         case 'open_auth':
-          openAuth({
-            name: str(cmd.name) ?? 'your Aura account',
-            masked_mobile: str(cmd.masked_mobile) ?? '',
-            nonce: str(cmd.nonce) ?? '',
-          });
+          openAuth(action.payload);
           break;
         case 'choose_account':
-          openAccountPicker({
-            accounts: arr<unknown>(cmd.accounts).map(account),
-            nonce: str(cmd.nonce) ?? '',
-          });
+          openAccountPicker(action.payload);
           break;
         case 'show_balance':
-          showBalance({
-            account: account(cmd.account),
-            balance: num(cmd.balance) ?? 0,
-            currency: str(cmd.currency) ?? 'INR',
-            as_of: str(cmd.as_of) ?? '',
-          });
+          showBalance(action.payload);
           break;
         case 'show_statement':
-          showStatement({
-            account: account(cmd.account),
-            from: str(cmd.from_date) ?? '',
-            to: str(cmd.to_date) ?? '',
-            currency: str(cmd.currency) ?? 'INR',
-            transactions: arr<Record<string, unknown>>(cmd.transactions).map((t) => ({
-              date: str(t.date) ?? '',
-              description: str(t.description) ?? '',
-              amount: num(t.amount) ?? 0,
-              kind: str(t.kind) === 'credit' ? 'credit' : 'debit',
-            })),
-          });
+          showStatement(action.payload);
           break;
         case 'choose_credit_card':
-          openCardPicker({
-            cards: arr<unknown>(cmd.cards).map(card),
-            nonce: str(cmd.nonce) ?? '',
-          });
+          openCardPicker(action.payload);
           break;
         case 'show_card_controls':
-          showCardControls({
-            card: card(cmd.card),
-            credit_limit: num(cmd.credit_limit) ?? 0,
-            controls: toControls(cmd.controls),
-            saved: false,
-          });
+          showCardControls({ ...action.payload, saved: false });
           break;
         case 'show_forex_card':
           showForexCard();
           break;
         default:
-          break;
+          return unhandledUiAction(action);
       }
     },
     [

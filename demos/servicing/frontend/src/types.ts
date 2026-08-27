@@ -7,9 +7,24 @@
  * drives the same screen: it opens cases, switches tabs, routes cases between
  * desks, prepares a case in the background (jobs that animate to completion),
  * and drafts maker-checker approvals the advisor signs off on.
+ *
+ * **The wire shapes are not written here.** `actions.gen.ts` is generated from
+ * the brain's `Action` classes by `voqalize types`, and the closed vocabularies
+ * below are read off it rather than typed out a second time. The screen types
+ * proper stay hand-written on purpose: a `Job` has a `status` the wire never
+ * carries, a `Blocker` can be resolved, a `PacketSection` is approved. What the
+ * desk sends is a specification; what the console holds is a thing with a life.
  */
 
-export type Stage = 'new' | 'in_progress' | 'needs_approval' | 'with_dept' | 'done';
+import type {
+  ApprovalSpec,
+  BlockerSpec,
+  FindingSpec,
+  MoveCase,
+  SetTab,
+} from './actions.gen';
+
+export type Stage = MoveCase['stage'];
 
 export type CaseType =
   | 'rate_change'
@@ -23,24 +38,18 @@ export type Priority = 'low' | 'normal' | 'high' | 'urgent';
 
 export type DepartmentId = 'pricing' | 'closures' | 'legal' | 'insurance' | 'compliance';
 
-export type CaseTab = 'overview' | 'payments' | 'documents' | 'activity';
+export type CaseTab = SetTab['tab'];
 
 export type View = 'board' | 'case';
 
-export type ApprovalKind =
-  | 'settlement_letter'
-  | 'fee_waiver'
-  | 'rate_offer'
-  | 'document_release'
-  | 'escrow_change'
-  | 'other';
+export type ApprovalKind = ApprovalSpec['kind'];
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'blocked';
 export type ApprovalStatus = 'pending' | 'approved' | 'declined' | 'blocked';
 
 /** How a workup finding reads: a plain fact, a reconciliation worth noticing, or info. */
-export type FindingFlag = 'ok' | 'warn' | 'info';
-export type BlockerSeverity = 'block' | 'warn';
+export type FindingFlag = FindingSpec['flag'];
+export type BlockerSeverity = BlockerSpec['severity'];
 export type BlockerStatus = 'open' | 'resolved';
 export type PacketStatus = 'draft' | 'ready' | 'submitting' | 'submitted';
 export type PacketSectionStatus = 'ready' | 'blocked' | 'approved';

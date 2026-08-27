@@ -1,26 +1,27 @@
 """InterviewBotBrain — the job-interview conductor.
 
-A :class:`~voqalize_demos.brains._gemini.GeminiBrain` that runs a structured voice
+A :class:`~voqalize.sdk.gemini.GeminiBrain` that runs a structured voice
 interview (Gemini + two section-pacing tools). Voqalize dials this brain's
-WebSocket per session and the inherited ``respond`` tool-loop drives the
-interview.
+WebSocket per session and the inherited ``respond`` tool loop drives the
+interview; google-genai runs the tools itself.
 
-The per-session **init_payload** carries the JOB, the CANDIDATE, and a structured
+The per-session **init** carries the JOB, the CANDIDATE, and a structured
 INTERVIEW PLAN (assembled by the caller). The brain is built *before* the session
-starts, so the payload arrives in :meth:`on_session_start` as ``start.init`` — we
-read it there, build the ordered section list + the full JOB/CANDIDATE/PLAN system
-instruction, and apply it to the config before generating the greeting.
+starts, so the payload arrives in :meth:`on_session_start` as ``session.init`` —
+we read it there, build the ordered section list + the full JOB/CANDIDATE/PLAN
+system instruction, and set both aside for the turn ahead and the fixed opening
+line.
 
 Two tools pace the interview:
 
   * ``advance_to_next_section`` — move to the next planned section;
   * ``mark_interview_completed`` — end the interview after the last section.
 
-Each tool drives the ``/interview`` UI via ``interaction.action(...)`` — the SDK
-wraps the field payload in its RTVI ``ui_command`` envelope (``{"type":
-"ui_command", "action": <name>, ...}``). The inner fields
-(``index``/``key``/``title``/``is_last`` and ``summary``) are the browser render
-contract.
+Each tool drives the ``/interview`` UI directly, with ``self.session.dispatch(...)``
+— the method that paces the interview is the method that drives the screen, there
+is no separate dispatch table. The dispatched :class:`~voqalize.sdk.Action` is
+this file's browser render contract: ``SectionChanged`` for a section move,
+``InterviewCompleted`` for the close.
 
 Interview state (the current section pointer) is ephemeral in memory — there is
 no resume across disconnects, by design for the prototype.
@@ -31,9 +32,13 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from google.genai import types
+from google import genai
 from loguru import logger
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, GeminiProvider
+from pydantic import BaseModel, Field
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+
+from voqalize.sdk import Action, Session
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 _RESUME_CHARS = 4000
 _FIELD_CHARS = 600
@@ -144,7 +149,7 @@ def _build_system_instruction(
     sections: list[tuple[str, dict[str, Any]]],
 ) -> str:
     """The full JOB/CANDIDATE/PLAN system prompt, rebuilt per session from
-    init_payload."""
+    ``session.init``."""
     job_desc = job.get("description") or job.get("short_description") or ""
     resume = candidate.get("resume_text") or ""
     plan_goal = plan.get("goal") or ""
@@ -174,175 +179,78 @@ def _build_system_instruction(
     )
 
 
-def _greeting_prompt(
-    job: dict[str, Any],
-    candidate: dict[str, Any],
-    sections: list[tuple[str, dict[str, Any]]],
-) -> str:
-    """A one-shot prompt for the LLM-generated opening line (references the
-    candidate + first section)."""
-    name = str(candidate.get("name") or "").split(" ")[0] or "there"
-    title = job.get("title") or "the role"
-    first = sections[0][1].get("title") if sections else None
-    opening = f" Begin the first section ({first})." if first else ""
-    return (
-        f"Greet {name} warmly by name and introduce yourself as their AI "
-        f"interviewer for the {title} role. Briefly mention you'll go through "
-        f"a few sections together.{opening} Keep it to two or three short "
-        "sentences, then ask your first question."
+_GREETING = (
+    "Hi! I'm your AI interviewer today. We'll go through a few sections "
+    "together. Let's get started."
+)
+
+
+# ─── Actions (browser render contract) ─────────────────────────────────────────
+
+
+class SectionChanged(Action):
+    """Rendered by the ``/interview`` progress rail when the interviewer moves on
+    to the next section. ``index``/``is_last`` are the brain's own pointer, not
+    the model's count — the UI cannot recompute either from the conversation."""
+
+    index: int
+    key: str
+    title: str
+    is_last: bool
+
+
+class InterviewCompleted(Action):
+    """Rendered when the interview ends. ``summary`` is also this tool's whole
+    parameter — the model's own performance summary is what the app renders."""
+
+    summary: str = Field(
+        default="", description="A brief overall summary of the candidate's performance."
     )
 
 
-# ─── Tool schemas (JSON-schema dicts → genai) ──────────────────────────────────
+class SectionNotes(BaseModel):
+    """The one parameter of ``advance_to_next_section`` — not rendered, just
+    logged, since the section the app draws is computed from the brain's own
+    pointer rather than anything the model reports."""
 
-# (tool_name, description, properties, required)
-_TOOLSPECS: list[tuple[str, str, dict[str, Any], list[str]]] = [
-    (
-        "advance_to_next_section",
-        "Move to the next interview section. Call this only when you have finished "
-        "the current section. Tell the candidate you are moving on before calling. "
-        "Returns the section you have now entered.",
-        {
-            "section_notes": {
-                "type": "string",
-                "description": "One or two sentences on how the candidate did in the "
-                "section you are leaving.",
-            },
-        },
-        [],
-    ),
-    (
-        "mark_interview_completed",
-        "End the interview. Call this only after the final section, once you have "
-        "thanked the candidate.",
-        {
-            "summary": {
-                "type": "string",
-                "description": "A brief overall summary of the candidate's performance.",
-            },
-        },
-        [],
-    ),
-]
-
-_JSON_TO_GENAI = {
-    "string": types.Type.STRING,
-    "integer": types.Type.INTEGER,
-    "number": types.Type.NUMBER,
-    "boolean": types.Type.BOOLEAN,
-    "object": types.Type.OBJECT,
-    "array": types.Type.ARRAY,
-}
-
-
-def _to_schema(d: dict[str, Any]) -> types.Schema:
-    """Convert a JSON-schema dict to a google-genai Schema (recursive)."""
-    kw: dict[str, Any] = {"type": _JSON_TO_GENAI[d["type"]]}
-    if d.get("description"):
-        kw["description"] = d["description"]
-    if d.get("enum"):
-        kw["enum"] = d["enum"]
-    if d["type"] == "object":
-        props = d.get("properties") or {}
-        kw["properties"] = {k: _to_schema(v) for k, v in props.items()}
-        if d.get("required"):
-            kw["required"] = d["required"]
-    if d["type"] == "array":
-        kw["items"] = _to_schema(d["items"])
-    return types.Schema(**kw)
-
-
-def _tools() -> types.ToolListUnion:
-    decls = [
-        types.FunctionDeclaration(
-            name=name,
-            description=desc,
-            parameters=_to_schema({"type": "object", "properties": props, "required": req}),
-        )
-        for name, desc, props, req in _TOOLSPECS
-    ]
-    tools: types.ToolListUnion = [types.Tool(function_declarations=decls)]
-    return tools
+    section_notes: str = Field(
+        default="",
+        description="One or two sentences on how the candidate did in the section you are leaving.",
+    )
 
 
 class InterviewBotBrain(GeminiBrain):
-    """One per session. Runs a structured voice interview: the inherited tool-loop
-    ``respond`` conducts each turn; :meth:`dispatch_tool` paces the sections.
+    """One per session. Runs a structured voice interview: the inherited tool
+    loop ``respond`` conducts each turn; the two tools below pace the sections.
 
     Per-session state (the ordered sections + the current section pointer) is
-    seeded from ``init_payload`` in :meth:`on_session_start`, since the brain is
+    seeded from ``session.init`` in :meth:`on_session_start`, since the brain is
     built before the session (and its payload) exists."""
 
-    # This agent's own voice — not the connecting page's to choose. `language`
-    # sets both the recognizer's hint and the TTS reference clip (the accent).
-    voice = "omnivoice/gauri"
-    language = "en"
-
-    def __init__(self, *, llm: GeminiProvider, model: str = DEFAULT_MODEL) -> None:
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         # The base system instruction only; the full JOB/CANDIDATE/PLAN prompt is
-        # applied per session in on_session_start once init_payload has arrived.
-        super().__init__(
-            llm=llm, system_instruction=_SYSTEM_BASE, tools=_tools() or None, model=model
-        )
-        # Per-session interview state (populated on_session_start). Ephemeral in
-        # memory — no resume across disconnects, by design for the prototype.
+        # applied per session in on_session_start once session.init has arrived.
+        super().__init__(client=client, system_instruction=_SYSTEM_BASE, model=model)
+        # Per-session interview state (populated in on_session_start). Ephemeral
+        # in memory — no resume across disconnects, by design for the prototype.
         self.sections: list[tuple[str, dict[str, Any]]] = []
         self.current_index = 0
         self.ended = False
 
-    # ─── Callbacks ──────────────────────────────────────────────────────
-
-    async def on_session_start(self, session, start) -> None:
-        """Read the seeded job/candidate/plan (``start.init``), build this session's
-        sections + full system prompt, then speak an LLM-generated greeting."""
-        payload = dict(start.init or {})
-        job = payload.get("job") or {}
-        candidate = payload.get("candidate") or {}
-        plan = payload.get("plan") or {}
-        self.sections = _order_sections(plan.get("sections") or {})
-        self.current_index = 0
-        self.ended = False
-
-        # Bake the per-session JOB/CANDIDATE/PLAN into the system instruction. The
-        # base built self._config with only _SYSTEM_BASE (no payload at __init__);
-        # rebuild it now so this session's inferences — including the greeting
-        # below — see the full interview context.
-        instruction = _build_system_instruction(job, candidate, plan, self.sections)
-        self._config = self._config.model_copy(update={"system_instruction": instruction})
-        logger.info(
-            "interview: session start — {} sections, candidate={!r}, role={!r}",
-            len(self.sections),
-            candidate.get("name"),
-            job.get("title"),
-        )
-
-        # Hybrid greeting: a quick "Hi!" is spoken instantly (no LLM call), then the
-        # personalised intro + first question streams in behind it so the model's
-        # first-token latency is off the perceived start path. The trailing "…" is
-        # load-bearing — it is the lookahead character pipecat's aggregator waits for,
-        # without which the opener is held back until the LLM's first chunk and is not
-        # instant at all. Same reason as `_HELLO_BY_LANGUAGE` in voqalize_demos.
-        await self.say_then_generate(
-            session, "Hi!…", _greeting_prompt(job, candidate, self.sections)
-        )
-
     # ─── Tools ──────────────────────────────────────────────────────────
 
-    def dispatch_tool(self, interaction, name: str, args: dict[str, Any]) -> str:
-        """Pace the interview: mutate the section pointer + drive the ``/interview``
-        UI via ``interaction.action(...)``. Returns a short string fed back to the
-        model."""
-        if name == "advance_to_next_section":
-            return self._advance(interaction, args)
-        if name == "mark_interview_completed":
-            return self._complete(interaction, args)
-        return "unknown tool"
+    @property
+    def tools(self) -> list[Any]:
+        """The two the interviewer may call."""
+        return [self.advance_to_next_section, self.mark_interview_completed]
 
-    def _advance(self, interaction, args: dict[str, Any]) -> str:
-        notes = str(args.get("section_notes", "")).strip()
+    async def advance_to_next_section(self, notes: SectionNotes) -> str:
+        """Move to the next interview section. Call this only when you have
+        finished the current section. Tell the candidate you are moving on
+        before calling. Returns the section you have now entered."""
         last_index = len(self.sections) - 1
         if self.current_index >= last_index:
-            logger.info("interview: advance past final section (notes={!r})", notes)
+            logger.info("interview: advance past final section (notes={!r})", notes.section_notes)
             return "This was the final section. Wrap up and call mark_interview_completed."
 
         self.current_index += 1
@@ -354,12 +262,10 @@ class InterviewBotBrain(GeminiBrain):
             self.current_index + 1,
             len(self.sections),
             key,
-            notes,
+            notes.section_notes,
         )
-        # Browser render — the fields pushed in the SDK's ui_command envelope.
-        interaction.action(
-            "section_changed",
-            {"index": self.current_index, "key": key, "title": title, "is_last": is_last},
+        self.session.dispatch(
+            SectionChanged(index=self.current_index, key=key, title=title, is_last=is_last)
         )
         position = f"{self.current_index + 1} of {len(self.sections)}"
         instruction = (
@@ -369,9 +275,53 @@ class InterviewBotBrain(GeminiBrain):
         )
         return f"Entered section {key} ({title}), position {position}. {instruction}"
 
-    def _complete(self, interaction, args: dict[str, Any]) -> str:
-        summary = str(args.get("summary", "")).strip()
+    async def mark_interview_completed(self, summary: InterviewCompleted) -> str:
+        """End the interview. Call this only after the final section, once you
+        have thanked the candidate."""
         self.ended = True
-        logger.info("interview: mark_interview_completed (summary={!r})", summary)
-        interaction.action("interview_completed", {"summary": summary})
+        logger.info("interview: mark_interview_completed (summary={!r})", summary.summary)
+        self.session.dispatch(summary)
         return "completed"
+
+    # ─── Callbacks ──────────────────────────────────────────────────────
+
+    async def on_session_start(self, session: Session) -> None:
+        """Settle this agent's own voice, then read the seeded job/candidate/plan
+        (``session.init``) and build this session's sections + full system
+        prompt."""
+        await session.configure(
+            Config(
+                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
+                stt=SttConfig(language=Language.EN),
+            )
+        )
+
+        payload = dict(session.init or {})
+        raw_job = payload.get("job")
+        raw_candidate = payload.get("candidate")
+        raw_plan = payload.get("plan")
+        job: dict[str, Any] = raw_job if isinstance(raw_job, dict) else {}
+        candidate: dict[str, Any] = raw_candidate if isinstance(raw_candidate, dict) else {}
+        plan: dict[str, Any] = raw_plan if isinstance(raw_plan, dict) else {}
+        raw_sections = plan.get("sections")
+        self.sections = _order_sections(raw_sections if isinstance(raw_sections, dict) else {})
+        self.current_index = 0
+        self.ended = False
+
+        # Bake the per-session JOB/CANDIDATE/PLAN into the system instruction so
+        # every inference this session makes — starting with the first turn —
+        # sees the full interview context.
+        self.system_instruction = _build_system_instruction(job, candidate, plan, self.sections)
+        logger.info(
+            "interview: session start — {} sections, candidate={!r}, role={!r}",
+            len(self.sections),
+            candidate.get("name"),
+            job.get("title"),
+        )
+
+    async def greet(self, session: Session) -> str:
+        """The opener, written not generated: no model call on the start path
+        and no first-token latency to hide. It does not name the candidate or
+        the role — both are free text in ``session.init``, not a closed set to
+        pick a sentence from."""
+        return _GREETING

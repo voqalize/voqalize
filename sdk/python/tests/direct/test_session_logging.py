@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from loguru import logger
 
 from voqalize.sdk import Brain, configure_logging, run_session, session_context
-from voqalize.sdk.wire import CortexFrameSerializer, VqlLLMTextFrame, VqlStartFrame
+from voqalize.sdk.wire import SessionStartFrame, SpeechChunkFrame, WireSerializer
 
 _TEARDOWN_ERRORS = (TimeoutError, asyncio.CancelledError, ConnectionError)
 
@@ -86,10 +86,11 @@ async def test_empty_identity_fields_are_omitted_not_blank():
 
 
 class _LoggingBrain(Brain):
-    async def on_session_start(self, session, start) -> None:
+    async def on_session_start(self, session) -> None:
         logger.info("brain: session started")
-        async with session.say() as inf:
-            await inf.speak("hi there")
+
+    async def greet(self, session) -> str:
+        return "hi there"
 
 
 class _Endpoint:
@@ -159,14 +160,14 @@ async def test_brain_lines_carry_the_identity_from_the_verified_token():
                 public_keys=pub,
             )
         )
-        ser = CortexFrameSerializer()
+        ser = WireSerializer()
         try:
-            await client_ch.send(b"\x01" + await ser.serialize(VqlStartFrame(session_id=sid)))
+            await client_ch.send(await ser.serialize(SessionStartFrame(turn_id=1, session_id=sid)))
 
             async def _await_greeting() -> None:
                 while True:
-                    msg = await ser.deserialize_message((await client_ch.recv())[1:])
-                    if isinstance(msg.frame, VqlLLMTextFrame) and "hi there" in msg.frame.text:
+                    frame = await ser.deserialize_message(await client_ch.recv())
+                    if isinstance(frame, SpeechChunkFrame) and "hi there" in frame.text:
                         return
 
             await asyncio.wait_for(_await_greeting(), timeout=3.0)

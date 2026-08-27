@@ -9,9 +9,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install deps first for layer caching. `voqalize-agent-sdk` resolves from a
-# package index once published; until then, COPY the SDK in and `pip install` it
-# from the local path (see the README's "Building the image" note).
+# Install the published, pinned SDK and server dependencies first for layer
+# caching.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

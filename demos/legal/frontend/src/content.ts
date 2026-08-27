@@ -1,11 +1,16 @@
 /**
  * Contract content for the Docket demo — mirrors the legal brain's backend
- * content by hand (clause ids/text must match exactly, since the assistant's
- * `clause_id` references key off this list).
+ * content by hand. The text must match; the ids no longer can drift, since
+ * {@link ClauseId} is read off the generated actions and so off the brain.
  */
 
+import type { PointToClause } from './actions.gen';
+
+/** The ten clauses of this contract — the only ids the assistant can name. */
+export type ClauseId = PointToClause['clause_id'];
+
 export interface Clause {
-  id: string;
+  id: ClauseId;
   number: string;
   heading: string;
   text: string;
@@ -81,9 +86,9 @@ export const CLAUSES: Clause[] = [
   },
 ];
 
-export const CLAUSES_BY_ID: Record<string, Clause> = Object.fromEntries(
+export const CLAUSES_BY_ID = Object.fromEntries(
   CLAUSES.map((c) => [c.id, c]),
-);
+) as Record<ClauseId, Clause>;
 
 export interface DataRoomDoc {
   id: string;

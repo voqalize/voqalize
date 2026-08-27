@@ -5,8 +5,9 @@
 
 This is how a customer hosts a brain in production: your web framework owns the
 WebSocket listener and the upgrade, and hands the SDK the connected socket. PyGato
-dials ``{brain_url}/s/{session_id}`` — one connection per session, opened
-just-in-time, torn down when the call ends. No Cortex relay, no SDK-owned server.
+dials your ``brain_url`` verbatim with ``?session_id=`` appended — one connection
+per session, opened just-in-time, torn down when the call ends. No Cortex relay,
+no SDK-owned server.
 
 The three moving parts:
 
@@ -14,9 +15,9 @@ The three moving parts:
    protocol — just ``async send(bytes)`` / ``async recv() -> bytes``. (Modeled on
    the control plane's own ``routes/brains.py`` adapter, which hosts our demo
    brains over the exact same seam.)
-2. The ``@app.websocket("/s/{session_id}")`` route accepts the upgrade, pulls the
-   ``session_id`` from the path and the token from the ``Authorization`` header,
-   and calls :func:`run_session`.
+2. The ``@app.websocket("/voice")`` route accepts the upgrade, pulls the
+   ``session_id`` from the query string and the token from the ``Authorization``
+   header, and calls :func:`run_session`.
 3. Close-code discipline: a rejected token → close **4000** (permanent,
    non-retriable — PyGato gives up); an unexpected error → **1011** (retriable —
    PyGato reconnects); a clean end or peer close → normal close.
@@ -29,26 +30,39 @@ from __future__ import annotations
 
 import contextlib
 import os
+from collections.abc import AsyncGenerator
 
 from fastapi import FastAPI, WebSocket
 from loguru import logger
 from starlette.websockets import WebSocketDisconnect
 
-from voqalize.sdk import Brain, Interaction, Session, SessionRejected, SessionStart, run_session
+from voqalize.sdk import (
+    Brain,
+    Chunk,
+    Session,
+    SessionRejected,
+    Speech,
+    SpeechEnd,
+    SpeechStart,
+    UserMessage,
+    run_session,
+)
 
 # ─── The brain (same shape as examples/echo) ──────────────────────────────────
 
 
 class EchoBrain(Brain):
-    """Greets on session start, echoes each user turn."""
+    """Greets, then echoes each user turn."""
 
-    async def on_session_start(self, session: Session, start: SessionStart) -> None:
-        async with session.say() as inf:
-            await inf.speak("Hi! I'm an echo bot. Say something and I'll repeat it back.")
+    async def greet(self, session: Session) -> str:
+        return "Hi! I'm an echo bot. Say something and I'll repeat it back."
 
-    async def on_interaction(self, interaction: Interaction) -> None:
-        async with interaction.say() as inf:
-            await inf.speak(f"You said: {interaction.transcript}")
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[Speech, None]:
+        yield SpeechStart()
+        yield Chunk(f"You said: {msg.text}")
+        yield SpeechEnd()
 
 
 # ─── Transport: FastAPI WebSocket → SDK Channel ───────────────────────────────
@@ -81,7 +95,7 @@ class _WsChannel:
         return await self._ws.receive_bytes()
 
 
-@app.websocket("/s/{session_id}")
+@app.websocket("/voice")
 async def voice(websocket: WebSocket, session_id: str) -> None:
     await websocket.accept()
     token = websocket.headers.get("Authorization")

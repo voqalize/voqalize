@@ -3,8 +3,12 @@
  * call drive one store, so the agent and the patient see the same screen.
  *
  * Same two-way pattern as travel/servicing:
- *   - `handleUiCommand(cmd)` replays the brain's `ui_command` RTVI messages
- *     onto this store (meals appear, meds tick, the chart zooms, videos play);
+ *   - `handleUiCommand(command, payload)` replays the brain's RTVI `ui-command`
+ *     frames onto this store (meals appear, meds tick, the chart zooms, videos
+ *     play). It narrows the pair through `asUiAction` from the generated
+ *     `actions.gen.ts`, so each case reads its payload typed and the `default`
+ *     arm is an exhaustiveness check — add an `Action` to the brain and this
+ *     file stops compiling until it is handled;
  *   - `snapshot()` is echoed back as `state_sync` (`{ screen: ... }`) so the
  *     brain always knows what's on screen — including taps the patient makes
  *     by hand (confirming the sensor order).
@@ -22,7 +26,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { buildBrainPayload, patientById, scenarioById, videoById } from './data';
+import { asUiAction, unhandledUiAction, type Highlight } from './actions.gen';
+import { buildBrainPayload, buildSessionConfig, patientById, scenarioById, videoById } from './data';
 import type {
   ActivityEntry,
   CallSummary,
@@ -37,7 +42,6 @@ import type {
   Scenario,
   SensorOrderState,
   TalkMode,
-  UiCommand,
   VideoCommand,
 } from './types';
 
@@ -71,6 +75,8 @@ interface SugarStore {
   patient: Patient | null;
   /** The exact PATIENT CONTEXT payload for this call (also shown to the audience). */
   brainPayload: () => unknown;
+  /** This call's wire configuration — the language toggle's other half. */
+  sessionConfig: () => Record<string, unknown>;
 
   // ── The phone's live screen state ─────────────────────────────────────────
   meals: MealEntry[];
@@ -82,7 +88,7 @@ interface SugarStore {
   flags: CareFlag[];
   summary: CallSummary | null;
   sensorOrder: SensorOrderState;
-  highlightSection: string | null;
+  highlightSection: Highlight['section'] | null;
 
   // Video (imperative command queue for the YouTube player)
   videoOpen: boolean;
@@ -91,7 +97,7 @@ interface SugarStore {
   closeVideo: () => void;
 
   // ── Bridges ───────────────────────────────────────────────────────────────
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  handleUiCommand: (command: string, payload: unknown) => void;
   snapshot: () => Record<string, unknown>;
   registerAgentSend: (fn: AgentSend) => void;
   /** Patient taps the sensor-renewal card by hand; the agent sees it via state_sync. */
@@ -127,7 +133,7 @@ export function SugarProvider({ children }: { children: ReactNode }) {
   const [flags, setFlags] = useState<CareFlag[]>([]);
   const [summary, setSummary] = useState<CallSummary | null>(null);
   const [sensorOrder, setSensorOrder] = useState<SensorOrderState>('none');
-  const [highlightSection, setHighlightSection] = useState<string | null>(null);
+  const [highlightSection, setHighlightSection] = useState<Highlight['section'] | null>(null);
   const [videoOpen, setVideoOpen] = useState(false);
   const [videoTitle, setVideoTitle] = useState<string | null>(null);
   const [videoCmd, setVideoCmd] = useState<VideoCommand | null>(null);
@@ -175,28 +181,22 @@ export function SugarProvider({ children }: { children: ReactNode }) {
     [scenario, language, talkMode],
   );
 
+  const sessionConfig = useCallback(() => buildSessionConfig(language), [language]);
+
   // ── Agent → screen ──────────────────────────────────────────────────────
-  const flashHighlight = useCallback((section: string) => {
+  const flashHighlight = useCallback((section: Highlight['section']) => {
     setHighlightSection(section);
     if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
     highlightTimer.current = window.setTimeout(() => setHighlightSection(null), 2600);
   }, []);
 
   const handleUiCommand = useCallback(
-    (raw: Record<string, unknown>) => {
-      const cmd = raw as UiCommand;
-      switch (cmd.action) {
+    (command: string, payload: unknown) => {
+      const action = asUiAction(command, payload);
+      if (!action) return;
+      switch (action.command) {
         case 'log_meal': {
-          const items = Array.isArray(cmd.items) ? (cmd.items as MealEntry['items']) : [];
-          const entry: MealEntry = {
-            id: nextId(),
-            meal_type: String(cmd.meal_type ?? 'other'),
-            time_label: String(cmd.time_label ?? ''),
-            items,
-            total_calories: Number(cmd.total_calories ?? 0),
-            note: cmd.note ? String(cmd.note) : undefined,
-            fresh: true,
-          };
+          const entry: MealEntry = { id: nextId(), ...action.payload, fresh: true };
           // A re-log of the same meal type replaces the fresh entry (the agent
           // re-calls log_meal with corrections).
           setMeals((prev) => {
@@ -208,25 +208,18 @@ export function SugarProvider({ children }: { children: ReactNode }) {
           break;
         }
         case 'log_activity': {
-          const entry: ActivityEntry = {
-            id: nextId(),
-            kind: String(cmd.kind ?? ''),
-            duration_min: Number(cmd.duration_min ?? 0),
-            time_label: String(cmd.time_label ?? ''),
-            note: cmd.note ? String(cmd.note) : undefined,
-            fresh: true,
-          };
+          const entry: ActivityEntry = { id: nextId(), ...action.payload, fresh: true };
           setActivities((prev) => [...prev, entry]);
           flashHighlight('activity');
           break;
         }
         case 'mark_medication': {
-          const name = String(cmd.name ?? '').toLowerCase();
-          const status = String(cmd.status ?? '') as MedStatus['status'];
+          const { name, status, time_label } = action.payload;
+          const wanted = name.toLowerCase();
           setMeds((prev) =>
             prev.map((m) =>
-              m.name.toLowerCase().includes(name) || name.includes(m.name.toLowerCase())
-                ? { ...m, status, time_label: cmd.time_label ? String(cmd.time_label) : m.time_label }
+              m.name.toLowerCase().includes(wanted) || wanted.includes(m.name.toLowerCase())
+                ? { ...m, status, time_label: time_label || m.time_label }
                 : m,
             ),
           );
@@ -234,23 +227,24 @@ export function SugarProvider({ children }: { children: ReactNode }) {
           break;
         }
         case 'show_glucose': {
+          const { focus_time_label, note } = action.payload;
           setGlucoseFocus({
-            time_label: cmd.focus_time_label ? String(cmd.focus_time_label) : undefined,
-            note: cmd.note ? String(cmd.note) : undefined,
+            time_label: focus_time_label || undefined,
+            note: note || undefined,
             nonce: ++nonceRef.current,
           });
           flashHighlight('glucose');
           break;
         }
         case 'play_video': {
-          const video = videoById(String(cmd.video_id ?? ''));
+          const video = videoById(action.payload.video_id);
           if (!video) break;
           setVideoOpen(true);
           setVideoTitle(video.title);
           setVideoCmd({
             action: 'play',
             youtubeId: video.youtube_id,
-            startSec: Number(cmd.start_sec ?? 0),
+            startSec: action.payload.start_sec,
             nonce: ++nonceRef.current,
           });
           break;
@@ -262,17 +256,11 @@ export function SugarProvider({ children }: { children: ReactNode }) {
           setVideoCmd({ action: 'resume', nonce: ++nonceRef.current });
           break;
         case 'set_commitment':
-          setCommitment({
-            text: String(cmd.text ?? ''),
-            when: cmd.when ? String(cmd.when) : undefined,
-          });
+          setCommitment(action.payload);
           flashHighlight('summary');
           break;
         case 'flag_for_care_team':
-          setFlags((prev) => [
-            ...prev,
-            { topic: String(cmd.topic ?? ''), detail: String(cmd.detail ?? '') },
-          ]);
+          setFlags((prev) => [...prev, action.payload]);
           break;
         case 'show_sensor_renewal':
           setSensorOrder((prev) => (prev === 'ordered' ? prev : 'offered'));
@@ -281,16 +269,14 @@ export function SugarProvider({ children }: { children: ReactNode }) {
         case 'confirm_sensor_order':
           setSensorOrder('ordered');
           break;
-        case 'show_summary': {
-          const lines = Array.isArray(cmd.lines) ? (cmd.lines as string[]).map(String) : [];
-          setSummary({ lines, flagged: cmd.flagged ? String(cmd.flagged) : undefined });
+        case 'show_summary':
+          setSummary(action.payload);
           break;
-        }
         case 'highlight':
-          flashHighlight(String(cmd.section ?? ''));
+          flashHighlight(action.payload.section);
           break;
         default:
-          break;
+          return unhandledUiAction(action);
       }
       bump();
     },
@@ -347,6 +333,7 @@ export function SugarProvider({ children }: { children: ReactNode }) {
       scenario,
       patient,
       brainPayload,
+      sessionConfig,
       meals,
       activities,
       meds,
@@ -369,7 +356,7 @@ export function SugarProvider({ children }: { children: ReactNode }) {
     }),
     [
       phase, language, talkMode, startScenario, acceptCall, declineCall, endCall, backToPicker,
-      scenario, patient, brainPayload, meals, activities, meds, glucose, glucoseFocus,
+      scenario, patient, brainPayload, sessionConfig, meals, activities, meds, glucose, glucoseFocus,
       commitment, flags, summary, sensorOrder, highlightSection, videoOpen, videoTitle,
       videoCmd, closeVideo, handleUiCommand, snapshot, registerAgentSend, tapSensorOrder, rev,
     ],

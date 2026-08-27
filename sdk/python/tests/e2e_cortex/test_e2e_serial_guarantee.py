@@ -1,4 +1,4 @@
-"""Burst 10 VqlUserTextFrames over the wire. The agent's ``handle_frame``
+"""Burst 10 UserMessageFrames over the wire. The agent's ``handle_frame``
 invocations are serialized — the engine feeder awaits each ``handle_frame``
 before pulling the next inbound frame, so at most one runs at a time."""
 
@@ -11,7 +11,7 @@ from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
-from voqalize.sdk.wire import Frame, VqlStartFrame, VqlUserTextFrame
+from voqalize.sdk.wire import Frame, ResponseFrame, SessionStartFrame, UserMessageFrame
 
 
 class SerialChecker(SessionAdapter):
@@ -23,13 +23,16 @@ class SerialChecker(SessionAdapter):
         self.emitter = emitter
 
     async def handle_frame(self, frame: Frame) -> None:
-        if isinstance(frame, VqlUserTextFrame):
+        if isinstance(frame, UserMessageFrame):
             SerialChecker.in_flight += 1
             SerialChecker.max_in_flight = max(SerialChecker.max_in_flight, SerialChecker.in_flight)
-            SerialChecker.timeline.append(("start", frame.interaction_id))
+            SerialChecker.timeline.append(("start", frame.turn_id))
             await asyncio.sleep(0.01)
-            SerialChecker.timeline.append(("end", frame.interaction_id))
+            SerialChecker.timeline.append(("end", frame.turn_id))
             SerialChecker.in_flight -= 1
+
+    def settle_response(self, frame: ResponseFrame) -> None:
+        pass
 
     async def close(self) -> None:
         pass
@@ -51,9 +54,9 @@ async def test_serial_dispatch_under_burst() -> None:
 
         client = await connect_pygato(cortex, "s1")
         try:
-            await client.send(VqlStartFrame(session_id="s1", agent_id="welcome", payload={}))
+            await client.send(SessionStartFrame(turn_id=1, session_id="s1"))
             for i in range(10):
-                await client.send(VqlUserTextFrame(interaction_id=i, text=f"msg-{i}"))
+                await client.send(UserMessageFrame(turn_id=2 + i, text=f"msg-{i}"))
 
             await wait_until(
                 lambda: sum(1 for kind, _ in SerialChecker.timeline if kind == "end") == 10,
@@ -62,11 +65,11 @@ async def test_serial_dispatch_under_burst() -> None:
             assert SerialChecker.max_in_flight == 1, (
                 f"concurrency observed: max_in_flight={SerialChecker.max_in_flight}"
             )
-            for i in range(10):
+            for i in range(2, 12):
                 start_idx = SerialChecker.timeline.index(("start", i))
                 end_idx = SerialChecker.timeline.index(("end", i))
                 assert end_idx == start_idx + 1, (
-                    f"interaction {i} start/end not adjacent: {SerialChecker.timeline}"
+                    f"turn {i} start/end not adjacent: {SerialChecker.timeline}"
                 )
         finally:
             await client.close()

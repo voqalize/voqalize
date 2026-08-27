@@ -1,295 +1,493 @@
-// Voqalize cortex wire frames.
+// The Voqalize wire.
 //
-// This schema is the canonical wire vocabulary between:
-//   - the voice runtime (pygato / gato) and cortex
-//   - the agent SDK (CortexAgent)       and cortex
+// One Envelope per websocket binary message, between the Voqalize runtime (V)
+// and a brain (B). Cortex relays the bytes without reading them.
 //
-// Cortex itself is byte-opaque; this schema is consumed only by the two
-// endpoints. Generated stubs are committed alongside each SDK:
-//   - sdk/python/src/voqalize/sdk/wire/_frames_pb2.py
+// The wire has two planes.
 //
-// Regenerate with `make proto` (root Makefile, driven by `buf generate`).
+// The voice plane is ours: turns, speech units, what the caller actually heard,
+// and the control leg. Voqalize mints `turn_id` because Voqalize decides when a
+// turn commits. Speech must name the turn it answers.
 //
-// Field-number policy in `Envelope.body`:
-//   1 – 30   reserved for Vql application frames
-//   31 +     reserved for pipeline lifecycle / transport frames
+// The RTVI plane is a tunnel. An RTVIFrame is one pipecat RTVI message
+// `{id, label: "rtvi-ai", type, data}`, minus the constant label. Voqalize
+// forwards the whitelisted types verbatim in both directions and interprets
+// nothing else about them.
 //
-// Opaque dict fields (`payload`, function call `arguments` / `result`) are
-// JSON-encoded `string`, matching pipecat's `MessageFrame.data` pattern.
-// No `google.protobuf.Struct` dependency.
+// Every declaration below is documented in place. Those comments are the
+// contract's documentation — protoc carries them into SourceCodeInfo, so buf,
+// protoc-gen-doc and any descriptor consumer read the same words you do. Prose
+// that is not attached to a declaration is a section banner and nothing else.
+//
+// Regenerate with `make proto`.
 
 syntax = "proto3";
 
 package voqalize.frames;
 
-// ─── Envelope ─────────────────────────────────────────────────────────────────
+import "google/protobuf/descriptor.proto";
 
-// Top-level message carried in each websocket binary payload.
-// Wire layout: [1 byte direction] [Envelope serialized bytes].
-//
-// Ordering ack protocol (CortexLLMService ↔ CortexAgent):
-//   • The pygato bridge tags outbound data frames with `request_id` (a
-//     monotonically increasing uint64).
-//   • The agent SDK, after the customer's `process_frame` returns for that
-//     frame, sends an `Ack { ack_id = request_id }` envelope back over the
-//     wire. The bridge resolves the pending future to unblock its own
-//     `process_frame`, which releases pipecat's next queued frame.
-//   • Lifecycle frames (Vql*Start/Interruption/End/Cancel) and SystemFrames
-//     are not ack-gated — they have no `request_id`.
+// One websocket binary message. Exactly one body is set; an envelope with none
+// is a protocol error, not an empty frame.
 message Envelope {
-  // COMPATIBILITY RULE — this oneof is ADD-ONLY.
-  //
-  // PyGato and the Brains that talk to it deploy independently and promote at
-  // different times (dev-first for pygato, both-envs-at-once for the demo
-  // brains), so at any moment an old sender can be talking to a new receiver or
-  // vice versa. Protobuf drops an unknown oneof field silently, which turns a
-  // renumbering into a frame that vanishes with no error.
-  //
-  // Therefore: NEVER remove a field, NEVER renumber one, and never repurpose a
-  // retired number. A new capability is either a new OPTIONAL field appended to
-  // an existing message (absent == the old behaviour) or an entirely new frame
-  // number — and it must be DEFAULT-OFF, so a peer that has never heard of it
-  // behaves exactly as before.
+  // Which frame this is. The tag numbers are grouped by plane and direction,
+  // which is a reading convenience only — nothing enforces direction here.
   oneof body {
-    // Vql application frames (1 – 30)
-    VqlStart                   vql_start            = 1;
-    VqlUserText                vql_user_text        = 2;
-    VqlInterruption            vql_interruption     = 3;
-    VqlInferenceFinalized      vql_inference_finalized = 4;
-    VqlLLMFullResponseStart    vql_llm_start        = 5;
-    VqlLLMText                 vql_llm_text         = 6;
-    VqlLLMFullResponseEnd      vql_llm_end          = 7;
-    VqlFunctionCallsStarted    vql_fc_started       = 8;
-    VqlFunctionCallInProgress  vql_fc_in_progress   = 9;
-    VqlFunctionCallResult      vql_fc_result        = 10;
-    VqlInteractionCompleted    vql_interaction_completed = 11;
-    VqlUserIdle                vql_user_idle        = 12;
+    // Voice plane, V→B.
 
-    // Pipeline lifecycle / transport frames (31+)
-    End    end    = 31;
-    Cancel cancel = 32;
-    Error  error  = 33;
+    // Opens the session. Always the first envelope.
+    SessionStart session_start = 1;
+    // A committed user utterance.
+    UserMessage user_message = 2;
+    // The caller has gone quiet past the idle timeout.
+    UserIdle user_idle = 3;
+    // Everything through a turn is dead; stop generating for it.
+    Interruption interruption = 4;
+    // What the caller actually heard of one speech unit.
+    Finalize finalize = 5;
+    // The answer to exactly one Request.
+    Response response = 6;
 
-    // Pipecat-native frames that ride the cortex wire.
-    // These are NOT Vql vocabulary — they wrap pipecat's own frame types so
-    // a customer agent can drive pygato's STT/TTS/RTVI processors over the
-    // wire. JSON-encoded dicts; the deserialized frame reconstructs the
-    // pipecat-native type.
-    RTVIServerMessage  rtvi_server_message  = 34;
-    STTUpdateSettings  stt_update_settings  = 35;
-    TTSUpdateSettings  tts_update_settings  = 36;
-    RTVIClientMessage  rtvi_client_message  = 37;
-    IdleUpdateSettings idle_update_settings = 38;
+    // Voice plane, B→V.
 
-    // Ordering acks (40+). Not application frames; consumed by the bridge.
-    Ack ack = 40;
+    // Opens one speech unit.
+    SpeechStart speech_start = 7;
+    // One piece of that unit's text.
+    SpeechChunk speech_chunk = 8;
+    // Closes the unit.
+    SpeechEnd speech_end = 9;
+    // Asks the runtime to change something, and waits.
+    Request request = 10;
+
+    // RTVI plane, both directions.
+
+    // One tunnelled pipecat RTVI message.
+    RTVIFrame rtvi = 11;
+
+    // Lifecycle, both directions.
+
+    // Hang up, having said everything already sent.
+    End end = 12;
+    // Abandon the session now.
+    Cancel cancel = 13;
+    // Something went wrong, fatally or not.
+    Error error = 14;
   }
-
-  // Set by the sender on data frames that require an ack back. Zero / absent
-  // means "no ack expected." Bridge-scoped counter starting at 1; receiver
-  // does not need to interpret the value, only echo it.
-  uint64 request_id = 50;
 }
 
-// ─── Vql application frames ───────────────────────────────────────────────────
+// ─── Voice plane: V→B ────────────────────────────────────────────────────────
 
-// First frame on the wire. session_id and agent_id are named protocol fields;
-// `payload` is opaque customer-defined init data, JSON-encoded.
-//
-// VqlStart also carries the pipecat StartFrame fields the agent's logical
-// pipeline needs to bootstrap (sample rates, metrics flags). Tracing context
-// is intentionally omitted — not portable across processes.
-message VqlStart {
+// First envelope of a session, and the session's first turn. A brain that does
+// not speak `wire_version` refuses the session.
+message SessionStart {
+  // The call this is. Stable for the session's life, and the same id the brain
+  // was dialled with as `?session_id=`.
   string session_id = 1;
-  string agent_id   = 2;
-  string payload    = 3;
 
-  // Inherited pipecat StartFrame fields.
-  uint32 audio_in_sample_rate     = 10;
-  uint32 audio_out_sample_rate    = 11;
-  bool   enable_metrics           = 12;
-  bool   enable_tracing           = 13;
-  bool   enable_usage_metrics     = 14;
-  bool   report_only_initial_ttfb = 15;
+  // The session's first turn. The greeting answers it.
+  uint64 turn_id = 2;
+
+  // Whatever the app passed at connect, JSON-encoded and opaque to the runtime.
+  string init = 3;
+
+  // The wire version the runtime speaks. A brain that speaks another one must
+  // refuse rather than guess.
+  uint32 wire_version = 4;
 }
 
-// Why a finalize was emitted. interrupted == true iff reason == USER_BARGE_IN;
-// both are kept because consumers key off either the bool (cheap) or the reason
-// (extensible). UNSPECIFIED never appears on the wire — the sender always sets it.
-enum FinalizeReason {
-  FINALIZE_REASON_UNSPECIFIED   = 0;
-  FINALIZE_REASON_COMPLETED     = 1;
-  FINALIZE_REASON_USER_BARGE_IN = 2;
+// A committed user utterance, on a turn of its own.
+message UserMessage {
+  // The turn this utterance opened. Speech answering it must name it.
+  uint64 turn_id = 1;
+
+  // The recognizer's committed transcript.
+  string text = 2;
 }
 
-// Committed user stimulus for one interaction. interaction_id is Voice-minted,
-// session-monotonic. Emitted downstream by UserContextAggregator.
-message VqlUserText {
-  uint64 interaction_id = 1;
-  string text           = 2;
+// The caller has been silent past the idle timeout and the brain has the floor
+// to re-engage.
+message UserIdle {
+  // The turn the brain may speak on.
+  uint64 turn_id = 1;
+
+  // Consecutive escalations without intervening speech. Resets when the caller
+  // speaks, so a brain can say something different the third time.
+  uint32 level = 2;
+
+  // Silence elapsed since the runtime stopped speaking.
+  uint32 idle_ms = 3;
 }
 
-// Voice-opened idle interaction. Voice detected the user has been silent past
-// the configured idle timeout and opened a fresh interaction so the Brain can
-// re-engage ("still there?"). interaction_id is Voice-minted, same monotonic
-// space as VqlUserText — the Brain responds through it and returns
-// VqlInteractionCompleted exactly like a spoken turn. level counts consecutive
-// idle escalations without intervening user speech (1 = first nudge); it resets
-// when the user speaks. idle_ms is the silence elapsed when the interaction
-// opened.
-message VqlUserIdle {
-  uint64 interaction_id = 1;
-  uint32 level          = 2;
-  uint32 idle_ms        = 3;
+// Everything up to and including `through_turn` is dead: the caller will not
+// hear it, so the brain stops generating for it.
+message Interruption {
+  // The newest dead turn. Monotone, unacknowledged, and self-correcting — a
+  // brain that misses one is corrected by the next.
+  uint64 through_turn = 1;
 }
 
-// Pure interruption signal — field-less. Maps to pipecat's native
-// InterruptionFrame; correlation is carried by inference_id on the data frames,
-// not here.
-message VqlInterruption {}
+// What the caller actually heard of one speech unit. This is the only place a
+// brain learns it, and on a barge-in it is not what was generated.
+message Finalize {
+  // The unit this closes.
+  uint64 speech_id = 1;
 
-// Per-inference finalize: the text the user actually heard for ONE inference
-// (never a cross-inference concatenation). interaction_id + inference_id are the
-// composite key.
-message VqlInferenceFinalized {
-  uint64         interaction_id = 1;
-  uint64         inference_id   = 2;
-  string         heard_text     = 3;
-  bool           interrupted    = 4;
-  FinalizeReason reason         = 5;
+  // The played prefix — a verbatim prefix of that unit's own text, never a
+  // cross-unit concatenation. Equal to what the brain generated means it played
+  // out; shorter means it was cut off; empty against chunks that were sent means
+  // nothing reached the ear.
+  string heard_text = 2;
+
+  // Was `FinalizeReason reason`, retired 2026-08-27. Whether a unit was cut is
+  // the comparison above, and the brain holds the half of it the runtime does
+  // not: it knows what it generated. Carrying the answer as well as the terms
+  // made a second copy of one fact, and a copy can disagree with the derivation
+  // where the derivation cannot disagree with itself. The tag stays reserved and
+  // an older brain still decodes the message, reading the field as unset.
+  reserved 3;
+  reserved "reason";
 }
 
-message VqlLLMFullResponseStart {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
+// ─── Voice plane: B→V ────────────────────────────────────────────────────────
+
+// Opens one speech unit and binds it to the turn it answers.
+message SpeechStart {
+  // Minted by the brain, unique within the session.
+  uint64 speech_id = 1;
+
+  // The turn being answered. A unit that names a dead turn is dropped.
+  uint64 turn_id = 2;
 }
 
-message VqlLLMText {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
-  string text           = 3;
+// One piece of an open speech unit's text, in order.
+message SpeechChunk {
+  // The unit this belongs to.
+  uint64 speech_id = 1;
+
+  // Text as generated. Chunk boundaries carry no meaning; the runtime
+  // re-segments for synthesis.
+  string text = 2;
 }
 
-message VqlLLMFullResponseEnd {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
+// Closes one speech unit. A Finalize follows once the audio resolves.
+message SpeechEnd {
+  // The unit being closed.
+  uint64 speech_id = 1;
 }
 
-message VqlFunctionCallsStarted {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
-  string tool_call_id   = 3;
-  string function_name  = 4;
-  string arguments      = 5;  // JSON-encoded
+// ─── The control leg ─────────────────────────────────────────────────────────
+
+// A brain asking the runtime to change something. Exactly one Response comes
+// back for every Request.
+//
+// The surface is deliberately narrow: voice and language, and nothing else. The
+// recognizer's thresholds are not settable from here — they keep the runtime's
+// own defaults. We widen this as we learn what is worth naming, and a knob is
+// far easier to add than to take back.
+message Request {
+  // Names the Response that answers this. Per session, never reused.
+  uint64 request_id = 1;
+
+  // What is being asked. One op today; the point of the oneof is that adding a
+  // second does not change the shape of the first.
+  oneof op {
+    // Change the session's configuration. See Config.
+    Config configure = 2;
+  }
 }
 
-message VqlFunctionCallInProgress {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
-  string tool_call_id   = 3;
-  string function_name  = 4;
-  string arguments      = 5;  // JSON-encoded
+// Whether the runtime took a Request.
+enum Status {
+  // Never sent. Present because proto3 requires a zero value.
+  STATUS_UNSPECIFIED = 0;
+
+  // Taken whole.
+  STATUS_ACCEPTED = 1;
+
+  // Applied not at all. `detail` says why.
+  STATUS_REJECTED = 2;
 }
 
-message VqlFunctionCallResult {
-  uint64 interaction_id = 1;
-  uint64 inference_id   = 2;
-  string tool_call_id   = 3;
-  string function_name  = 4;
-  string result         = 5;  // JSON-encoded
+// The answer to exactly one Request. Says whether the runtime took the request,
+// not whether the effect is audible yet.
+message Response {
+  // The Request being answered.
+  uint64 request_id = 1;
+
+  // Accepted or rejected. There is no partial application.
+  Status status = 2;
+
+  // Why it was rejected, in words meant for the developer reading the log.
+  // Empty on acceptance.
+  string detail = 3;
 }
 
-// Brain → Voice: the Brain is done responding to the whole interaction (emitted
-// when on_interaction returns cleanly). Barge-in skips this — Voice finalizes the
-// cut inference directly. Idempotent per interaction_id.
-message VqlInteractionCompleted {
-  uint64 interaction_id = 1;
+// ─── Configuration ───────────────────────────────────────────────────────────
+
+// A session's speech configuration, used in two places: the agent record stores
+// it as the session's defaults, and the configure op overrides them while the
+// call is running. The same type in both places is the point — a record cannot
+// drift from the wire if there is only one definition of what a configuration
+// is.
+//
+// "Unset" reads differently at each end. In the record it means *take
+// Voqalize's default*, so a section added later does not invalidate every
+// stored record. On the wire it means *leave it alone*: a Request carries a
+// delta, and the runtime is already running.
+//
+// One op carries all three sections rather than three ops carrying one each,
+// because a language change has to touch both legs at once. Three ops would put
+// a turn boundary between the halves.
+message Config {
+  // How the session speaks.
+  TtsConfig tts = 1;
+
+  // How the session listens.
+  SttConfig stt = 2;
+
+  // How long it waits before re-engaging.
+  IdleConfig idle = 3;
 }
 
-// ─── Pipeline lifecycle / transport frames ────────────────────────────────────
+// The speaking leg. Applies to the next speech unit, never mid-utterance.
+message TtsConfig {
+  // Which recorded persona reads the text.
+  optional Voice voice = 1;
 
+  // Which reference clip that persona is cloned from — a recorded speaker, not
+  // a text tag. The speech tier has clips for some languages and not others,
+  // and which is which is its business, not the wire's: naming one it cannot
+  // speak comes back as a rejected Response saying so.
+  optional Language language = 2;
+}
+
+// The listening leg. Applies once the open turn commits, never mid-utterance.
+// Acceptance is the recognizer's own answer and is all-or-nothing.
+message SttConfig {
+  // Which language the recognizer transcribes.
+  optional Language language = 1;
+}
+
+// Idle detection: when the brain gets the floor back after silence.
+message IdleConfig {
+  // Silence after the runtime stops speaking before the brain is handed the
+  // floor. 0 disables idle detection entirely.
+  optional uint32 timeout_ms = 1;
+}
+
+// ─── The catalog ─────────────────────────────────────────────────────────────
+
+// Options carried by the catalog enums below.
+extend google.protobuf.EnumValueOptions {
+  // The code the speech tier wants for this language. Not derivable from the
+  // enum name: the catalog mixes ISO 639-1 two-letter codes with 639-3
+  // three-letter ones, because six of these languages have no two-letter code.
+  // The name is the language; this is only its spelling.
+  //
+  // It lives here rather than in each consumer because it is the identifier a
+  // developer writes and reads, and every end of the wire has to spell it the
+  // same way.
+  optional string iso_code = 50001;
+}
+
+// The two omnivoice personas. The engine is chosen by the voice, not by a model
+// field; there has never been a second engine to name.
+enum Voice {
+  // Unset. On the wire this means leave the voice alone.
+  VOICE_UNSPECIFIED = 0;
+
+  // Female.
+  VOICE_OMNIVOICE_GAURI = 1;
+
+  // Male.
+  VOICE_OMNIVOICE_GAURAV = 2;
+}
+
+// English plus the 22 Indic languages the speech tier serves.
+//
+// Enumerated rather than a free string so a language we do not serve cannot be
+// sent at all. It used to be sendable: an unserved code fell back to the
+// English recognizer instead of failing, which is the quietest way there is to
+// get a call wrong.
+//
+// Which of these can be *spoken* is a smaller set, and it is not written down
+// here. Reference clips are a capability of the speech tier, they move when it
+// does, and a wire contract that froze today's roster would need a new proto
+// every time a clip is recorded. The runtime answers that question at the
+// moment it is asked, with a rejected Response.
+enum Language {
+  // Unset. On the wire this means leave the language alone.
+  LANGUAGE_UNSPECIFIED = 0;
+
+  // English.
+  LANGUAGE_EN = 1 [(iso_code) = "en"];
+
+  // Assamese.
+  LANGUAGE_AS = 2 [(iso_code) = "as"];
+
+  // Bengali.
+  LANGUAGE_BN = 3 [(iso_code) = "bn"];
+
+  // Bodo.
+  LANGUAGE_BRX = 4 [(iso_code) = "brx"];
+
+  // Dogri.
+  LANGUAGE_DOI = 5 [(iso_code) = "doi"];
+
+  // Gujarati.
+  LANGUAGE_GU = 6 [(iso_code) = "gu"];
+
+  // Hindi.
+  LANGUAGE_HI = 7 [(iso_code) = "hi"];
+
+  // Kannada.
+  LANGUAGE_KN = 8 [(iso_code) = "kn"];
+
+  // Konkani.
+  LANGUAGE_KOK = 9 [(iso_code) = "kok"];
+
+  // Kashmiri.
+  LANGUAGE_KS = 10 [(iso_code) = "ks"];
+
+  // Maithili.
+  LANGUAGE_MAI = 11 [(iso_code) = "mai"];
+
+  // Malayalam.
+  LANGUAGE_ML = 12 [(iso_code) = "ml"];
+
+  // Manipuri.
+  LANGUAGE_MNI = 13 [(iso_code) = "mni"];
+
+  // Marathi.
+  LANGUAGE_MR = 14 [(iso_code) = "mr"];
+
+  // Nepali.
+  LANGUAGE_NE = 15 [(iso_code) = "ne"];
+
+  // Odia.
+  LANGUAGE_OR = 16 [(iso_code) = "or"];
+
+  // Punjabi.
+  LANGUAGE_PA = 17 [(iso_code) = "pa"];
+
+  // Sanskrit.
+  LANGUAGE_SA = 18 [(iso_code) = "sa"];
+
+  // Santali.
+  LANGUAGE_SAT = 19 [(iso_code) = "sat"];
+
+  // Sindhi.
+  LANGUAGE_SD = 20 [(iso_code) = "sd"];
+
+  // Tamil.
+  LANGUAGE_TA = 21 [(iso_code) = "ta"];
+
+  // Telugu.
+  LANGUAGE_TE = 22 [(iso_code) = "te"];
+
+  // Urdu.
+  LANGUAGE_UR = 23 [(iso_code) = "ur"];
+}
+
+// ─── RTVI plane ──────────────────────────────────────────────────────────────
+
+// The whitelist. A type absent here does not cross the wire in either
+// direction: `bot-*` and `llm-*` are the runtime's own assertions about the
+// media and the model, and a brain must not be able to forge them.
+enum RTVIType {
+  // Never sent. An envelope carrying it is rejected.
+  RTVI_TYPE_UNSPECIFIED = 0;
+
+  // "server-message" — B→V→app.
+  RTVI_TYPE_SERVER_MESSAGE = 1;
+
+  // "server-response" — B→V→app.
+  RTVI_TYPE_SERVER_RESPONSE = 2;
+
+  // "error-response" — B→V→app.
+  RTVI_TYPE_ERROR_RESPONSE = 3;
+
+  // "ui-command" — B→V→app.
+  RTVI_TYPE_UI_COMMAND = 4;
+
+  // "ui-job-group" — B→V→app.
+  RTVI_TYPE_UI_JOB_GROUP = 5;
+
+  // "client-message" — app→V→B.
+  RTVI_TYPE_CLIENT_MESSAGE = 6;
+
+  // "send-text" — app→V→B.
+  RTVI_TYPE_SEND_TEXT = 7;
+
+  // "ui-event" — app→V→B.
+  RTVI_TYPE_UI_EVENT = 8;
+
+  // "ui-snapshot" — app→V→B.
+  RTVI_TYPE_UI_SNAPSHOT = 9;
+
+  // "ui-cancel-job-group" — app→V→B.
+  RTVI_TYPE_UI_CANCEL_JOB_GROUP = 10;
+}
+
+// One RTVI message, tunnelled.
+message RTVIFrame {
+  // Which whitelisted RTVI type this is.
+  RTVIType type = 1;
+
+  // The RTVI payload, JSON-encoded and opaque. Bounded by the client's 64 KiB
+  // message limit.
+  string data = 2;
+
+  // RTVI's own correlation id, present on requests and the responses that name
+  // them.
+  optional string id = 3;
+
+  // Annotates control-plane traces. Set only B→V, and never reaches the app.
+  optional uint64 turn_id = 4;
+}
+
+// ─── Lifecycle ───────────────────────────────────────────────────────────────
+
+// Hang up once everything already sent has played. Carries nothing: the reason
+// belongs in the brain's own logs, not in the caller's call.
 message End {}
 
+// Abandon the session now, without waiting for pending audio.
 message Cancel {
+  // Why, for the log. Empty is legal.
   string reason = 1;
 }
 
+// What kind of thing went wrong.
+enum ErrorCode {
+  // Never sent. Present because proto3 requires a zero value.
+  ERROR_CODE_UNSPECIFIED = 0;
+
+  // Malformed or unexpected frame.
+  ERROR_CODE_PROTOCOL = 1;
+
+  // The two ends do not speak the same wire.
+  ERROR_CODE_WIRE_VERSION = 2;
+
+  // Not permitted on the RTVI plane, or oversized.
+  ERROR_CODE_REJECTED = 3;
+
+  // Dropped under congestion.
+  ERROR_CODE_OVERLOAD = 4;
+
+  // Anything else, and a bug on the sending side.
+  ERROR_CODE_INTERNAL = 5;
+}
+
+// Something went wrong. Fatal or not, it is reported rather than swallowed.
 message Error {
-  string error = 1;
-  bool   fatal = 2;
-}
+  // What kind.
+  ErrorCode code = 1;
 
-// ─── Pipecat-native frames (wrappers) ─────────────────────────────────────────
+  // What happened, for the developer reading the log.
+  string message = 2;
 
-// Carries pipecat's RTVIServerMessageFrame.data verbatim, JSON-encoded.
-// Direction on the wire (byte prefix) is set by the sender's push_frame call;
-// for browser-bound server messages the agent pushes UPSTREAM so pygato's
-// RTVI processor (upstream of the cortex bridge) picks it up.
-message RTVIServerMessage {
-  string data = 1;  // JSON-encoded
-}
-
-// Carries pipecat's RTVIClientMessageFrame — a browser→Brain custom message
-// (e.g. state_sync). pygato's RTVI processor emits it DOWNSTREAM into the cortex
-// bridge, which forwards it to the customer agent; the SDK surfaces it as
-// `on_client_message`. `data` is the message's `d` payload, JSON-encoded.
-//
-// EVERY client message is delivered to the Brain — Voice never interprets `type`
-// and there is no respond:true/false flag. The Brain decides what to do: update
-// its own state (and let a tool read it on demand), append it to history without
-// running the model, or spend the stamped interaction_id on an inference right
-// away. Most ids never drive an inference, and that is fine. Delivered
-// fire-and-forget (no ack) so high-frequency ambient messages (e.g. state_sync)
-// never block the ordered conversation lane.
-message RTVIClientMessage {
-  string msg_id = 1;
-  string type   = 2;
-  string data   = 3;  // JSON-encoded
-
-  // Voice-minted session-monotonic stamp, in the same space as VqlUserText /
-  // VqlUserIdle, letting the Brain spend this message's turn on an inference.
-  //
-  // ADDED LATER — 0/absent means "unstamped", i.e. the sender is an older pygato
-  // that predates the stamp. Real ids start at 1, so 0 can never collide with a
-  // live interaction. An unstamped message still reaches the Brain and still
-  // updates its state; the Brain just cannot spend the id and must respond (if
-  // it wants to) with an agent-initiated turn instead.
-  uint64 interaction_id = 4;
-}
-
-// Carries pipecat's STTUpdateSettingsFrame.settings (legacy dict path).
-// Receiver reconstructs STTUpdateSettingsFrame(settings=<decoded>); pipecat's
-// STT services convert dict → typed delta with a deprecation warning.
-// Agent pushes UPSTREAM so it reaches pygato's STT (upstream of the bridge).
-message STTUpdateSettings {
-  string settings = 1;  // JSON-encoded dict
-}
-
-// Carries pipecat's TTSUpdateSettingsFrame.settings (legacy dict path).
-// Agent pushes DOWNSTREAM so it reaches pygato's TTS (downstream of the bridge).
-message TTSUpdateSettings {
-  string settings = 1;  // JSON-encoded dict
-}
-
-// Brain → Voice: (re)configure idle detection mid-session — the idle half of
-// the voice-protocol session.configure() DTO, mirroring STT/TTSUpdateSettings.
-// settings is a JSON-encoded IdlePolicy (e.g. {"timeout_ms": 30000}); Voice
-// applies it to its idle detector (pipecat UserIdleTimeoutUpdateFrame). A
-// timeout of 0 disables idle detection.
-message IdleUpdateSettings {
-  string settings = 1;  // JSON-encoded IdlePolicy
-}
-
-// ─── Ordering acks ────────────────────────────────────────────────────────────
-
-// Sent by the agent SDK after the customer's `process_frame` returns for a
-// data frame the bridge sent with an ack_id. Used by the bridge to gate
-// `push_frame` of subsequent plumbing frames so that pipecat's strict in-order
-// dispatch contract is preserved across the websocket round-trip.
-//
-// Acks are wire-level — they do not appear as pipecat Frames in either
-// pipeline. ack_id is bridge-scoped; counter starts at 1 and is monotonic
-// per bridge instance.
-message Ack {
-  uint64 ack_id = 1;
+  // Whether the session is over. Non-fatal errors are informational and the
+  // call continues.
+  bool fatal = 3;
 }

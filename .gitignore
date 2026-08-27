@@ -6,6 +6,12 @@ __pycache__/
 uv.lock.*
 dist/
 build/
+# ...but `build/` above is a Python-packaging rule, and the docs site has a
+# section at that name — `/build/` is the first lifecycle hub the MCP handshake
+# links to, so the URL is load-bearing. Without this the whole directory is
+# silently untracked: `git status` stays clean and the pages ship from nobody's
+# checkout but yours.
+!docs/src/content/docs/build/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
@@ -15,10 +21,10 @@ node_modules/
 .pnpm-store/
 *.tsbuildinfo
 .astro/
-# sdk/react is a pnpm workspace member — the root lockfile is authoritative. This
-# transient lockfile is only written when demos/build.mjs builds it standalone
+# docs is a pnpm workspace member — the root lockfile is authoritative. This
+# transient lockfile is only written when it is installed standalone
 # (--ignore-workspace) and must not be committed.
-sdk/react/pnpm-lock.yaml
+docs/pnpm-lock.yaml
 
 # Generated protobuf stubs (regenerated via `make proto`)
 proto/gen/

@@ -10,9 +10,9 @@
  * and the demos supply only what genuinely differs: what the demo is and what to
  * do with it.
  *
- * The mechanism ({@link PreCallGate}) ships in the public SDK and is deliberately
- * copy-free, because a customer's disclosure obligations are theirs, not ours to
- * pre-write. This package is the other half: our own copy, for our own gallery.
+ * The mechanism ({@link PreCallGate}) is deliberately copy-free — a customer's
+ * disclosure obligations are theirs, not ours to pre-write. This module is the
+ * other half: our own copy, for our own gallery.
  *
  * If you change {@link CONSENT} or {@link RETENTION_DAYS}, change
  * `frontend/apps/marketing/src/pages/privacy.astro` in the private repo in the
@@ -21,8 +21,18 @@
  * finding waiting to be written up.
  */
 
-import { PreCallGate } from "@voqalize/client-react";
 import type { ReactNode } from "react";
+
+import { PreCallGate } from "./PreCallGate";
+
+export {
+  AmbientPresence,
+  type AmbientPresenceProps,
+  type AmbientPresencePalette,
+  type AmbientPresenceBeam,
+  type AmbientPresenceActivity,
+} from "./AmbientPresence";
+export { PreCallGate, type PreCallGateProps } from "./PreCallGate";
 
 /**
  * How long a demo recording lives. Enforced by a GCS lifecycle rule on the
@@ -68,9 +78,9 @@ export interface DemoGateProps {
   onJoin: () => void | Promise<void>;
   /** Button text. Default `"Join call"` — override where joining isn't calling. */
   joinLabel?: string;
-  /** Pass `connectionState === "connecting"` where the gate connects directly. */
+  /** True while the gate is connecting, where the gate connects directly. */
   busy?: boolean;
-  /** Pass `session.error` so a failed connect stays visible in the gate. */
+  /** A failed connect's message, so it stays visible in the gate. */
   error?: string | null;
   /** Tint, to sit inside the host demo's palette rather than on top of it. */
   accent?: string;
@@ -90,7 +100,7 @@ export interface DemoGateProps {
  *   open={!joined}
  *   title="Travel Desk"
  *   blurb="Plan a trip out loud and watch the itinerary build itself on screen."
- *   busy={connectionState === "connecting"}
+ *   busy={transportState === "connecting"}
  *   error={error}
  *   onJoin={async () => { await connect(); setJoined(true); }}
  * />

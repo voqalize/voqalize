@@ -1,15 +1,14 @@
-"""Protocol-conformance tests for the demos runtime.
+"""The umbrella, over HTTP, on the route Voqalize actually dials.
 
-These are the "integration test" leg of the demos' triple duty: they drive the
-**real** inbound stack — the SDK's ``run_session`` over an in-memory ``Channel``
-pair, the actual demo ``Brain``, the real ``Vql*`` wire vocabulary — with a
-PyGato-side driver, **no audio and no LLM**. A demo's fixed session-start greeting
-rides the wire exactly as it would in production, proving the brain is wired to
-the transport correctly. (Full-voice behaviour — the LLM tool loop — is a staging
-smoke test, not a CI unit.)
+Every other demo test builds a brain by hand and hosts it on a bare socket. This
+one starts the whole umbrella app under uvicorn and dials
+``ws://…/sugar?session_id=…`` — the same URL shape, the same query parameter, the
+same ``Authorization`` header a production session carries. The route is the one
+piece nothing else covers, and the one that stayed on a retired path shape
+(``/{name}/s/{session_id}``) long after the wire had moved, because a harness that
+calls ``run_session`` directly never dials a URL at all.
 
-The channel/driver harness mirrors the SDK's own
-``tests/direct/test_run_session_handoff.py``.
+Plus the discovery/wiring checks that keep a malformed backend out of startup.
 """
 
 from __future__ import annotations
@@ -17,105 +16,99 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import importlib
-import uuid
-from datetime import UTC, datetime, timedelta
+from collections.abc import AsyncIterator
 
-import jwt
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+import uvicorn
 from voqalize_demos.discovery import build_for, discover
-from voqalize_demos.llm import GeminiProvider
 from voqalize_demos.umbrella import create_app
+from websockets.asyncio.client import connect
+from websockets.exceptions import InvalidStatus
 
-from voqalize.sdk import run_session
-from voqalize.sdk.wire import CortexFrameSerializer, VqlLLMTextFrame, VqlStartFrame
+from voqalize.conformance import (
+    DirectConnection,
+    VoqalizeDriver,
+    checks,
+    generate_keypair,
+    mint_voqalize_token,
+)
 
-_TEARDOWN_ERRORS = (TimeoutError, asyncio.CancelledError, ConnectionError)
-
-
-# ─── In-memory channel harness (PyGato ↔ brain, no server, no TCP) ─────────────
-
-
-class _Endpoint:
-    def __init__(self, out_q: asyncio.Queue, in_q: asyncio.Queue) -> None:
-        self._out = out_q
-        self._in = in_q
-
-    async def send(self, data: bytes) -> None:
-        await self._out.put(bytes(data))
-
-    async def recv(self) -> bytes:
-        item = await self._in.get()
-        if item is None:
-            raise ConnectionError("channel closed")
-        return item
-
-    async def close(self) -> None:
-        await self._out.put(None)
+SESSION_ID = "route-conformance"
 
 
-def _pipe() -> tuple[_Endpoint, _Endpoint]:
-    a2b: asyncio.Queue = asyncio.Queue()
-    b2a: asyncio.Queue = asyncio.Queue()
-    return _Endpoint(out_q=a2b, in_q=b2a), _Endpoint(out_q=b2a, in_q=a2b)
+@contextlib.asynccontextmanager
+async def umbrella(monkeypatch: pytest.MonkeyPatch, public_pem: str) -> AsyncIterator[int]:
+    """The real umbrella app on an ephemeral port, trusting ``public_pem``.
 
-
-class _Client:
-    """PyGato-side driver over the in-memory channel: bare [dir][payload] framing."""
-
-    def __init__(self, endpoint: _Endpoint) -> None:
-        self._ep = endpoint
-        self._ser = CortexFrameSerializer()
-
-    async def send(self, frame, *, request_id: int = 0) -> None:
-        payload = await self._ser.serialize(frame, request_id=request_id)
-        await self._ep.send(b"\x01" + payload)  # DOWNSTREAM
-
-    async def collect_until(self, predicate, timeout: float = 3.0):
-        frames: list = []
-        acks: list[int] = []
-
-        async def _pump():
-            while not predicate(frames, acks):
-                raw = await self._ep.recv()
-                msg = await self._ser.deserialize_message(raw[1:])
-                if msg.ack is not None:
-                    acks.append(msg.ack)
-                elif msg.frame is not None:
-                    frames.append(msg.frame)
-
-        await asyncio.wait_for(_pump(), timeout=timeout)
-        return frames, acks
-
-
-def _mint_token(priv_pem: bytes, session_id: str) -> str:
-    return "Bearer " + jwt.encode(
-        {
-            "iss": "pygato",
-            "aud": "brain",
-            "sub": session_id,
-            "iat": datetime.now(UTC),
-            "exp": datetime.now(UTC) + timedelta(seconds=60),
-        },
-        priv_pem,
-        algorithm="RS256",
+    ``GEMINI_API_KEY`` is set because a brain builds its client at construction;
+    nothing here reaches the model — the greeting is a written line."""
+    monkeypatch.setenv("GEMINI_API_KEY", "not-used-no-model-call-here")
+    monkeypatch.setenv("VOQALIZE_BRAIN_PUBKEYS", public_pem)
+    server = uvicorn.Server(
+        uvicorn.Config(create_app(), host="127.0.0.1", port=0, log_level="warning")
     )
+    task = asyncio.create_task(server.serve())
+    try:
+        while not server.started:
+            await asyncio.sleep(0.01)
+        yield server.servers[0].sockets[0].getsockname()[1]
+    finally:
+        server.should_exit = True
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(task, timeout=5.0)
 
 
-def _keypair() -> tuple[bytes, str]:
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    priv = key.private_bytes(
-        serialization.Encoding.PEM,
-        serialization.PrivateFormat.PKCS8,
-        serialization.NoEncryption(),
-    )
-    pub = (
-        key.public_key()
-        .public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
-        .decode()
-    )
-    return priv, pub
+async def test_a_demo_greets_over_its_own_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A session dialled at ``/sugar?session_id=…`` greets.
+
+    ``DirectConnection`` appends the query parameter itself, exactly as Voqalize
+    does, so the URL under test is the deployed one and not a tidier equivalent."""
+    keypair = generate_keypair()
+    async with umbrella(monkeypatch, keypair.public_pem) as port:
+        driver = VoqalizeDriver(
+            DirectConnection(
+                f"ws://127.0.0.1:{port}/sugar",
+                SESSION_ID,
+                token=mint_voqalize_token(
+                    private_key_pem=keypair.private_pem,
+                    session_id=SESSION_ID,
+                    agent_id="sugar",
+                    tenant_id="demo",
+                ),
+            ),
+            session_id=SESSION_ID,
+            default_timeout=10.0,
+        )
+        await driver.open()
+        try:
+            greeting = await driver.start_session(init={"scenario": {"patient": {"name": "Asha"}}})
+            checks.check_greeting(driver, greeting)
+            assert greeting is not None
+            assert greeting.text == "Hi there! Your evening check-in — how did today go?"
+        finally:
+            await driver.aclose()
+
+
+async def test_a_dial_without_a_session_id_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The session is the query parameter, and it is required.
+
+    Without it the route has no session to run, so the handshake is refused rather
+    than opening a socket that can never be finished."""
+    keypair = generate_keypair()
+    async with umbrella(monkeypatch, keypair.public_pem) as port:
+        with pytest.raises(InvalidStatus) as refused:
+            await connect(f"ws://127.0.0.1:{port}/sugar")
+    assert refused.value.response.status_code == 403
+
+
+async def test_the_retired_path_shape_is_gone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``/{name}/s/{session_id}`` was the shape before the session moved to the
+    query string. Nothing answers there — a brain is one ordinary route now."""
+    keypair = generate_keypair()
+    async with umbrella(monkeypatch, keypair.public_pem) as port:
+        with pytest.raises(InvalidStatus) as refused:
+            await connect(f"ws://127.0.0.1:{port}/sugar/s/{SESSION_ID}?session_id={SESSION_ID}")
+    assert refused.value.response.status_code == 403
 
 
 # ─── Discovery / wiring ────────────────────────────────────────────────────────
@@ -174,44 +167,6 @@ def test_healthz_reports_the_build_commit(monkeypatch: pytest.MonkeyPatch):
     finally:
         monkeypatch.undo()
         importlib.reload(umbrella)
-
-
-# ─── Inbound protocol conformance (real stack, no LLM) ─────────────────────────
-
-
-async def test_travel_greeting_rides_the_wire():
-    """A real travel session over the inbound path speaks its fixed greeting.
-
-    Drives the actual ``TravelBrain`` (built through the manifest registry) with a
-    valid Voqalize brain token. ``on_session_start`` speaks a fixed line — no LLM
-    call — so this asserts the brain↔transport wiring end-to-end without a Gemini
-    key or any audio."""
-    priv, pub = _keypair()
-    sid = str(uuid.uuid4())
-    llm = GeminiProvider(api_key="")  # never called — the greeting is a fixed line
-    build = build_for("travel")
-
-    server_ch, client_ch = _pipe()
-    task = asyncio.create_task(
-        run_session(
-            server_ch,
-            brain_builder=lambda: build(llm),
-            session_id=sid,
-            token=_mint_token(priv, sid),
-            public_keys=pub,
-        )
-    )
-    client = _Client(client_ch)
-    try:
-        await client.send(VqlStartFrame(session_id=sid, agent_id="travel"))
-        frames, _ = await client.collect_until(
-            lambda fr, _ac: any(isinstance(f, VqlLLMTextFrame) and "प्रिया" in f.text for f in fr)
-        )
-        assert any(isinstance(f, VqlLLMTextFrame) for f in frames)
-    finally:
-        await client_ch.close()
-        with contextlib.suppress(*_TEARDOWN_ERRORS):
-            await asyncio.wait_for(task, timeout=2.0)
 
 
 def test_unknown_demo_has_no_backend():

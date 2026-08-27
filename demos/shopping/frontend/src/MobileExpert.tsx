@@ -1,11 +1,11 @@
 /**
  * The Mobile Expert voice layer — ambient presence, not a docked chat widget.
  *
- * The whole session lifecycle — mint against the control plane, WebRTC
- * transport, mic control, bot-state — is the public SDK's {@link useVoqalSession};
- * this file owns the session plus one bridge that ties the call to the on-screen
- * store: the agent's `ui_command` server-messages replay onto the shared shopping
- * store, so the agent drives the very page the shopper is looking at.
+ * The whole session lifecycle — start against the control plane, WebRTC
+ * transport, mic control, activity — is stock pipecat's `PipecatAppBase`; this
+ * file owns the connect request plus one bridge that ties the call to the
+ * on-screen store: the agent's `ui-command` RTVI events replay onto the shared
+ * shopping store, so the agent drives the very page the shopper is looking at.
  *
  * Voice *status* lives in the shared {@link AmbientPresence} ring — a
  * full-viewport glow around the store, readable out of the corner of your eye —
@@ -15,29 +15,18 @@
  * as a mute toggle with a small "end" beside it. When the agent points at a spec
  * on the product page, the ring's beam layer travels from the screen edge to it.
  *
- * This is exactly the surface an external developer embeds: `useVoqalSession`
- * from `@voqalize/client-react`, driven by a publishable (`pk_`) key. Mounted
- * once inside the `MobileShopProvider`, so the call survives page changes.
+ * `DemoGate` covers the store until the shopper has read the notice and joined —
+ * `PipecatAppBase` (and the microphone it opens) does not mount until then.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
-import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useRTVIClientEvent, usePipecatClientMicControl } from "@pipecat-ai/client-react";
+import { PipecatAppBase, usePipecatConnectionState, type PipecatBaseChildProps } from "@pipecat-ai/voice-ui-kit";
+import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
-import {
-  AmbientPresence,
-  useVoqalSession,
-  type AmbientPresencePalette,
-  type VoqalBotState,
-  type VoqalConnectionState,
-} from "@voqalize/client-react";
-import { DemoGate } from "@voqalize/demo-kit";
-import { useMobileShop } from "./store";
-import { config } from "./config";
-
-// Tenant + agent + pk resolve per-environment from this demo's local config
-// (src/config.ts), driven by Vite env vars.
-const MOBILE = config;
+import { AmbientPresence, DemoGate, type AmbientPresenceActivity, type AmbientPresencePalette } from "@voqalize/demo-kit";
+import { useMobileShop, type Highlight } from "./store";
+import { connectRequest, withRealHeaders } from "./config";
 
 const BRAND = "#4f46e5";
 
@@ -56,7 +45,7 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
   beam: "#06b6d4",
 };
 
-const STATE_LABEL: Record<VoqalBotState, string> = {
+const ACTIVITY_LABEL: Record<AmbientPresenceActivity, string> = {
   idle: "Live",
   listening: "Listening",
   thinking: "Thinking",
@@ -67,20 +56,15 @@ const STATE_LABEL: Record<VoqalBotState, string> = {
 // The one voice affordance in the store's chrome. Idle: click to begin.
 
 function BeginControl({
-  connectionState,
+  connecting,
   error,
   onBegin,
 }: {
-  connectionState: VoqalConnectionState;
+  connecting: boolean;
   error: string;
   onBegin: () => void;
 }) {
-  const connecting = connectionState === "connecting";
-  const label = connecting
-    ? "Connecting…"
-    : connectionState === "error"
-      ? error || "Connection issue"
-      : "Ask the Mobile Expert";
+  const label = connecting ? "Connecting…" : error || "Ask the Mobile Expert";
   return (
     <div className="ms-presence">
       <span className="ms-presence-label">{label}</span>
@@ -98,14 +82,14 @@ function BeginControl({
 }
 
 // Live: the mic doubles as a mute toggle; a small secondary control ends the call.
-function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () => void }) {
+function LiveControls({ activity, onEnd }: { activity: AmbientPresenceActivity; onEnd: () => void }) {
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
-  const label = isMicEnabled ? STATE_LABEL[botState] : "Muted";
+  const label = isMicEnabled ? ACTIVITY_LABEL[activity] : "Muted";
   return (
     <div className="ms-presence">
       <span className="ms-presence-label">{label}</span>
       <button
-        className={`ms-presence-btn is-live pstate-${botState} ${isMicEnabled ? "" : "is-muted"}`}
+        className={`ms-presence-btn is-live pstate-${activity} ${isMicEnabled ? "" : "is-muted"}`}
         onClick={() => enableMic(!isMicEnabled)}
         title={isMicEnabled ? "Mute" : "Unmute"}
       >
@@ -118,91 +102,94 @@ function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () 
   );
 }
 
-// ── Session owner ─────────────────────────────────────────────────────────────
-export function MobileExpert({ children }: { children: (presence: ReactNode) => ReactNode }) {
-  const { handleUiCommand, highlight } = useMobileShop();
+// ── The live call ─────────────────────────────────────────────────────────────
+// Rendered inside PipecatAppBase's provider, so its hooks always see a real
+// (if not yet connected) client.
 
-  // The entire session lifecycle in one hook. `onServerMessage` is pre-unwrapped
-  // (past the `{ data }` quirk), so we read `type` directly.
-  const session = useVoqalSession({
-    apiBase: MOBILE.apiBase,
-    // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the presence control's error state.
-    publishableKey: MOBILE.publishableKey ?? "",
-    agentId: MOBILE.agentId,
-    // No pipeline override: this agent's voice and language are declared on
-    // its brain (backend/brain.py), which is the only place they belong.
-    payload: { surface: "mobile-web" },
-    onServerMessage: useCallback(
-      (msg: Record<string, unknown>) => {
-        if (msg.type === "ui_command") handleUiCommand(msg);
-      },
+interface CallSessionProps extends PipecatBaseChildProps {
+  handleUiCommand: (command: string, payload: Record<string, unknown>) => void;
+  highlight: Highlight | null;
+  children: (presence: ReactNode) => ReactNode;
+}
+
+function CallSession({ error, handleConnect, handleDisconnect, handleUiCommand, highlight, children }: CallSessionProps) {
+  const { isConnected, isConnecting } = usePipecatConnectionState();
+  const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
+
+  useRTVIClientEvent(
+    RTVIEvent.UICommand,
+    useCallback(
+      (data: UICommandData) => handleUiCommand(data.command, (data.payload ?? {}) as Record<string, unknown>),
       [handleUiCommand],
     ),
-  });
+  );
+  useRTVIClientEvent(RTVIEvent.UserStartedSpeaking, useCallback(() => setActivity("listening"), []));
+  useRTVIClientEvent(RTVIEvent.UserStoppedSpeaking, useCallback(() => setActivity("idle"), []));
+  useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity("thinking"), []));
+  useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
+  useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("idle"), []));
 
-  const { client, connectionState, botState, error, connect, disconnect, enableMic } = session;
-
-  // Turn the mic on once the session is live.
-  useEffect(() => {
-    if (connectionState !== "connected") return;
-    enableMic(true);
-  }, [connectionState, enableMic]);
-
-  // Dev-only: expose the live client for driving the flow without a mic in tests.
-  useEffect(() => {
-    if (!import.meta.env.DEV || !client) return;
-    (window as unknown as { __mobileExpert?: unknown }).__mobileExpert = client;
-    return () => {
-      delete (window as unknown as { __mobileExpert?: unknown }).__mobileExpert;
-    };
-  }, [client]);
-
-  const isLive = client !== null && connectionState === "connected";
-
-  // Nothing opens a microphone until the visitor has read the notice and joined.
-  const [joined, setJoined] = useState(false);
-
-  const presence = isLive ? (
-    <LiveControls botState={botState} onEnd={disconnect} />
+  const presence = isConnected ? (
+    <LiveControls activity={activity} onEnd={() => handleDisconnect?.()} />
   ) : (
-    <BeginControl connectionState={connectionState} error={error ?? ""} onBegin={connect} />
+    <BeginControl connecting={isConnecting} error={error ?? ""} onBegin={() => handleConnect?.()} />
   );
 
-  const shell = (
+  return (
     <>
-      <DemoGate
-        open={!joined}
-        title="Mobile Expert"
-        blurb="Shop for a phone out loud — say what you actually need it for and watch the shortlist narrow on screen."
-        accent={PRESENCE.listening}
-        busy={connectionState === "connecting"}
-        error={connectionState === "error" ? error || "Connection issue" : null}
-        onJoin={async () => {
-          await connect();
-          setJoined(true);
-        }}
-      />
       <AmbientPresence
-        botState={botState}
-        connectionState={connectionState}
+        activity={activity}
+        transportState={isConnected ? "ready" : isConnecting ? "connecting" : "disconnected"}
         palette={PRESENCE}
         // The agent reaching into the page: when it calls out a spec, a beam
         // travels from the edge of the screen to that spec block.
         beam={highlight ? { id: highlight.nonce, targetId: `feature-${highlight.feature}` } : null}
       />
       {children(presence)}
-      <style>{PRESENCE_STYLES}</style>
     </>
   );
+}
 
-  if (!client) return shell;
+// ── Session owner ─────────────────────────────────────────────────────────────
+export function MobileExpert({ children }: { children: (presence: ReactNode) => ReactNode }) {
+  const { handleUiCommand, highlight } = useMobileShop();
+
+  // Nothing opens a microphone until the visitor has read the notice and joined.
+  const [joined, setJoined] = useState(false);
+
+  const params = useMemo(() => connectRequest({ surface: "mobile-web" }), []);
 
   return (
-    <PipecatClientProvider client={client}>
-      <BotAudioOutput />
-      {shell}
-    </PipecatClientProvider>
+    <>
+      <DemoGate
+        open={!joined}
+        title="Mobile Expert"
+        blurb="Shop for a phone out loud — say what you actually need it for and watch the shortlist narrow on screen."
+        accent={PRESENCE.listening}
+        onJoin={() => setJoined(true)}
+      />
+      {joined ? (
+        <PipecatAppBase
+          transportType="smallwebrtc"
+          connectOnMount
+          noThemeProvider
+          startBotParams={params}
+          startBotResponseTransformer={withRealHeaders}
+        >
+          {(props) => (
+            <CallSession {...props} handleUiCommand={handleUiCommand} highlight={highlight}>
+              {children}
+            </CallSession>
+          )}
+        </PipecatAppBase>
+      ) : (
+        <>
+          <AmbientPresence activity="idle" transportState="disconnected" palette={PRESENCE} beam={null} />
+          {children(<BeginControl connecting={false} error="" onBegin={() => setJoined(true)} />)}
+        </>
+      )}
+      <style>{PRESENCE_STYLES}</style>
+    </>
   );
 }
 

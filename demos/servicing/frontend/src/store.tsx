@@ -3,9 +3,19 @@
  *
  * One React context drives both the console UI and the voice widget, so the
  * advisor and the "servicing desk" assistant work the same screen. The assistant
- * mutates state via `ui_command` RTVI messages (handleUiCommand); the browser
- * echoes a compact workspace snapshot back to the assistant via `state_sync`
- * (snapshot) so it always knows where the advisor is and what's pending.
+ * mutates state via `ui-command` RTVI messages, `{ command, payload }`
+ * (handleUiCommand); the browser echoes a compact workspace snapshot back to
+ * the assistant via `state_sync` (snapshot) so it always knows where the
+ * advisor is and what's pending. The pair is narrowed against the generated
+ * `actions.gen.ts`, so each case reads its payload typed and `default` is an
+ * exhaustiveness check — add an `Action` to the brain and this file stops
+ * compiling until it is handled.
+ *
+ * The `norm*` functions below are not validation. They are the one real
+ * translation in this demo: the desk sends a *specification* and the console
+ * holds a *thing with a life* — a job that is queued then running then done, a
+ * blocker that can be resolved, a section that is approved. None of that state
+ * belongs on the wire, and none of it is the model's to set.
  *
  * The headline behaviour: `prepareCase` kicks off a case's prep jobs that
  * animate to completion ON THEIR OWN — the advisor stays on whatever case they
@@ -41,12 +51,24 @@ import {
   type Stage,
   type View,
 } from './types';
+import {
+  asUiAction,
+  unhandledUiAction,
+  type ApprovalSpec,
+  type BlockerSpec,
+  type FindingSpec,
+  type Highlight as HighlightAction,
+  type JobSpec,
+  type PacketSectionSpec,
+  type PacketSpec,
+  type PrecedentSpec,
+} from './actions.gen';
 import { DEPARTMENTS, TEAM, WORKSPACE } from './data';
 
 type AgentSend = (type: string, data: Record<string, unknown>) => void;
 
-interface Highlight {
-  section: string;
+interface HighlightState {
+  section: HighlightAction['section'];
   nonce: number;
 }
 
@@ -66,7 +88,7 @@ export interface ServicingStore {
   activeRef: string | null;
   tab: CaseTab;
   filter: BoardFilter;
-  highlighted: Highlight | null;
+  highlighted: HighlightState | null;
   rev: number;
 
   active: Case | null;
@@ -82,7 +104,7 @@ export interface ServicingStore {
   openCase: (ref: string) => void;
   setTab: (tab: CaseTab) => void;
   setFilter: (f: BoardFilter) => void;
-  highlight: (section: string) => void;
+  highlight: (section: HighlightAction['section']) => void;
 
   // board / jira
   assignCase: (ref: string, kind: 'person' | 'department', assignee: string) => void;
@@ -94,16 +116,16 @@ export interface ServicingStore {
   prepareCase: (
     ref: string,
     summary: string,
-    jobs: { id?: string; label: string; detail?: string }[],
-    approvals: RawApproval[],
-    extras?: { findings?: RawFinding[]; blocker?: RawBlocker; packet?: RawPacket },
+    jobs: JobSpec[],
+    approvals: ApprovalSpec[],
+    extras?: { findings?: FindingSpec[]; blocker?: BlockerSpec | null; packet?: PacketSpec | null },
   ) => void;
-  draftApproval: (ref: string, approval: RawApproval) => void;
+  draftApproval: (ref: string, approval: ApprovalSpec) => void;
   decideApproval: (ref: string, approvalId: string, decision: ApprovalStatus) => void;
 
   // server-side tools (the desk reaches beyond the screen)
-  postWorkup: (ref: string, findings: RawFinding[], blocker?: RawBlocker) => void;
-  lookupPrecedent: (query: string, results: RawPrecedent[]) => void;
+  postWorkup: (ref: string, findings: FindingSpec[], blocker?: BlockerSpec | null) => void;
+  lookupPrecedent: (query: string, results: PrecedentSpec[]) => void;
   dismissSearch: () => void;
   // packet (regulated multi-step form)
   updatePacketField: (ref: string, section: string, field: string, value: string, note?: string) => void;
@@ -113,68 +135,8 @@ export interface ServicingStore {
 
   // bridges
   snapshot: () => Record<string, unknown>;
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  handleUiCommand: (command: string, payload: unknown) => void;
   registerAgentSend: (fn: AgentSend | null) => void;
-}
-
-interface RawApproval {
-  id?: string;
-  title?: string;
-  kind?: string;
-  summary?: string;
-  lines?: string[];
-  amount?: number;
-  recommendation?: string;
-  blocked?: boolean;
-  blocked_reason?: string;
-  blockedReason?: string;
-}
-
-interface RawFinding {
-  id?: string;
-  label?: string;
-  value?: string;
-  flag?: string;
-}
-
-interface RawBlocker {
-  id?: string;
-  title?: string;
-  detail?: string;
-  severity?: string;
-  suggested_route?: string;
-  suggestedRoute?: string;
-}
-
-interface RawPacketField {
-  label?: string;
-  value?: string;
-  mono?: boolean;
-}
-
-interface RawPacketSection {
-  id?: string;
-  title?: string;
-  fields?: RawPacketField[];
-  status?: string;
-  blocked?: boolean;
-  blocked_reason?: string;
-  blockedReason?: string;
-}
-
-interface RawPacket {
-  id?: string;
-  title?: string;
-  summary?: string;
-  sections?: RawPacketSection[];
-}
-
-interface RawPrecedent {
-  ref?: string;
-  customer?: string;
-  summary?: string;
-  resolution?: string;
-  days?: number;
 }
 
 const Ctx = createContext<ServicingStore | null>(null);
@@ -185,101 +147,74 @@ export function useServicing(): ServicingStore {
   return v;
 }
 
-// ── coercion helpers (untrusted RTVI payloads) ────────────────────────────────
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-const num = (v: unknown): number | undefined =>
-  typeof v === 'number' && Number.isFinite(v) ? v : undefined;
-const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+// The desk assigns ids to jobs, findings, approvals and precedents server-side.
+// A packet and its sections carry the id the model chose, and a blocker has none
+// at all — those three are the only rows the browser has to name itself.
 let _idc = 0;
 const rid = (p: string): string => `${p}-${Date.now().toString(36)}-${_idc++}`;
 
-const VALID_STAGES: Stage[] = ['new', 'in_progress', 'needs_approval', 'with_dept', 'done'];
-const VALID_TABS: CaseTab[] = ['overview', 'payments', 'documents', 'activity'];
-
-function normApproval(raw: RawApproval): Approval {
-  const blocked = raw.blocked === true;
-  const reason = str(raw.blocked_reason) ?? str(raw.blockedReason);
+/** A draft as sent, plus the queue state it enters — always pending or blocked. */
+function normApproval(spec: ApprovalSpec): Approval {
   return {
-    id: str(raw.id) ?? rid('a'),
-    title: str(raw.title) ?? 'Draft item',
-    kind: (str(raw.kind) as Approval['kind']) ?? 'other',
-    summary: str(raw.summary) ?? '',
-    lines: arr<string>(raw.lines).map(String),
-    amount: num(raw.amount),
-    recommendation: str(raw.recommendation),
-    status: blocked ? 'blocked' : 'pending',
-    blockedReason: blocked ? (reason ?? 'Blocked — resolve the flagged issue first.') : undefined,
+    id: spec.id,
+    title: spec.title,
+    kind: spec.kind,
+    summary: spec.summary,
+    lines: spec.lines,
+    amount: spec.amount ?? undefined,
+    recommendation: spec.recommendation || undefined,
+    status: spec.blocked ? 'blocked' : 'pending',
+    blockedReason: spec.blocked
+      ? spec.blocked_reason || 'Blocked — resolve the flagged issue first.'
+      : undefined,
   };
 }
 
-const FINDING_FLAGS: Finding['flag'][] = ['ok', 'warn', 'info'];
-function normFinding(raw: RawFinding): Finding {
-  const flag = str(raw.flag) as Finding['flag'] | undefined;
-  return {
-    id: str(raw.id) ?? rid('f'),
-    label: str(raw.label) ?? '',
-    value: str(raw.value) ?? '',
-    flag: flag && FINDING_FLAGS.includes(flag) ? flag : 'ok',
-  };
+function normFinding(spec: FindingSpec): Finding {
+  return { id: spec.id, label: spec.label, value: spec.value, flag: spec.flag };
 }
 
-function normBlocker(raw: RawBlocker | undefined): Blocker | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const title = str(raw.title);
-  if (!title) return null;
+/** A blocker arrives open, is named here, and is resolved by the advisor later. */
+function normBlocker(spec: BlockerSpec | null | undefined): Blocker | null {
+  if (!spec) return null;
   return {
-    id: str(raw.id) ?? rid('blk'),
-    title,
-    detail: str(raw.detail) ?? '',
-    severity: str(raw.severity) === 'warn' ? 'warn' : 'block',
-    suggestedRoute: str(raw.suggested_route) ?? str(raw.suggestedRoute),
+    id: rid('blk'),
+    title: spec.title,
+    detail: spec.detail,
+    severity: spec.severity,
+    suggestedRoute: spec.suggested_route || undefined,
     status: 'open',
   };
 }
 
-const SECTION_STATUSES: PacketSection['status'][] = ['ready', 'blocked', 'approved'];
-function normSection(raw: RawPacketSection): PacketSection {
-  const reason = str(raw.blocked_reason) ?? str(raw.blockedReason);
-  const rawStatus = str(raw.status) as PacketSection['status'] | undefined;
-  const status: PacketSection['status'] =
-    raw.blocked === true
-      ? 'blocked'
-      : rawStatus && SECTION_STATUSES.includes(rawStatus)
-        ? rawStatus
-        : 'ready';
+function normSection(spec: PacketSectionSpec): PacketSection {
   return {
-    id: str(raw.id) ?? rid('sec'),
-    title: str(raw.title) ?? 'Section',
-    fields: arr<RawPacketField>(raw.fields).map((f) => ({
-      label: str(f.label) ?? '',
-      value: str(f.value) ?? '',
-      mono: f.mono === true,
-    })),
-    status,
-    blockedReason: status === 'blocked' ? (reason ?? 'Blocked.') : undefined,
+    id: spec.id || rid('sec'),
+    title: spec.title,
+    fields: spec.fields.map((f) => ({ label: f.label, value: f.value, mono: f.mono })),
+    status: spec.blocked ? 'blocked' : 'ready',
+    blockedReason: spec.blocked ? spec.blocked_reason || 'Blocked.' : undefined,
   };
 }
 
-function normPacket(raw: RawPacket | undefined): Packet | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const sections = arr<RawPacketSection>(raw.sections).map(normSection);
-  if (!sections.length) return null;
+function normPacket(spec: PacketSpec | null | undefined): Packet | null {
+  if (!spec || !spec.sections.length) return null;
   return {
-    id: str(raw.id) ?? rid('pkt'),
-    title: str(raw.title) ?? 'Packet',
-    summary: str(raw.summary),
-    sections,
+    id: spec.id || rid('pkt'),
+    title: spec.title,
+    summary: spec.summary || undefined,
+    sections: spec.sections.map(normSection),
     status: 'ready',
   };
 }
 
-function normPrecedent(raw: RawPrecedent): PrecedentResult {
+function normPrecedent(spec: PrecedentSpec): PrecedentResult {
   return {
-    ref: str(raw.ref) ?? '—',
-    customer: str(raw.customer) ?? '',
-    summary: str(raw.summary) ?? '',
-    resolution: str(raw.resolution) ?? '',
-    days: num(raw.days),
+    ref: spec.ref,
+    customer: spec.customer,
+    summary: spec.summary,
+    resolution: spec.resolution,
+    days: spec.days ?? undefined,
   };
 }
 
@@ -328,7 +263,7 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
   const [activeRef, setActiveRef] = useState<string | null>(null);
   const [tab, setTabState] = useState<CaseTab>('overview');
   const [filter, setFilterState] = useState<BoardFilter>({ kind: 'mine' });
-  const [highlighted, setHighlighted] = useState<Highlight | null>(null);
+  const [highlighted, setHighlighted] = useState<HighlightState | null>(null);
   const [archiveSearch, setArchiveSearch] = useState<ArchiveSearch | null>(null);
   const [rev, setRev] = useState(0);
 
@@ -382,7 +317,6 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
 
   const setTab = useCallback(
     (t: CaseTab) => {
-      if (!VALID_TABS.includes(t)) return;
       setTabState(t);
       bump();
     },
@@ -398,7 +332,7 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
   );
 
   const highlight = useCallback(
-    (section: string) => {
+    (section: HighlightAction['section']) => {
       setView('case');
       setHighlighted({ section, nonce: Date.now() });
       bump();
@@ -435,7 +369,6 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
 
   const moveCase = useCallback(
     (ref: string, stage: Stage) => {
-      if (!VALID_STAGES.includes(stage)) return;
       const r = ref.trim().toUpperCase();
       mutateCase(r, (c) =>
         logActivity({ ...c, stage }, 'agent', `Moved to ${stage.replace('_', ' ')}`),
@@ -446,7 +379,7 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
 
   const addComment = useCallback(
     (ref: string, text: string, authorKind: 'advisor' | 'agent' = 'advisor', dept?: string) => {
-      const body = str(text);
+      const body = text.trim();
       if (!body) return;
       const r = ref.trim().toUpperCase();
       const d = dept ? findDept(dept) : undefined;
@@ -476,17 +409,17 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
     (
       ref: string,
       summary: string,
-      rawJobs: { id?: string; label: string; detail?: string }[],
-      rawApprovals: RawApproval[],
-      extras?: { findings?: RawFinding[]; blocker?: RawBlocker; packet?: RawPacket },
+      rawJobs: JobSpec[],
+      rawApprovals: ApprovalSpec[],
+      extras?: { findings?: FindingSpec[]; blocker?: BlockerSpec | null; packet?: PacketSpec | null },
     ) => {
       const r = ref.trim().toUpperCase();
       const jobs: Job[] = rawJobs
-        .filter((j) => str(j.label))
-        .map((j, i) => ({
-          id: str(j.id) ?? `j${i + 1}`,
-          label: String(j.label),
-          detail: str(j.detail),
+        .filter((j) => j.label)
+        .map((j) => ({
+          id: j.id,
+          label: j.label,
+          detail: j.detail || undefined,
           status: 'queued' as const,
         }));
       if (!jobs.length) return;
@@ -565,7 +498,7 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
 
   // ── server-side tools: workup, archive search, packet ──────────────────────
   const setWorkup = useCallback(
-    (ref: string, rawFindings: RawFinding[], rawBlocker?: RawBlocker) => {
+    (ref: string, rawFindings: FindingSpec[], rawBlocker?: BlockerSpec | null) => {
       const r = ref.trim().toUpperCase();
       const findings = rawFindings.map(normFinding).filter((f) => f.label);
       const blocker = normBlocker(rawBlocker);
@@ -585,14 +518,15 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
   );
 
   const postWorkup = useCallback(
-    (ref: string, findings: RawFinding[], blocker?: RawBlocker) => setWorkup(ref, findings, blocker),
+    (ref: string, findings: FindingSpec[], blocker?: BlockerSpec | null) =>
+      setWorkup(ref, findings, blocker),
     [setWorkup],
   );
 
   const lookupPrecedent = useCallback(
-    (query: string, rawResults: RawPrecedent[]) => {
-      const q = str(query) ?? 'similar cases';
-      const results = arr<RawPrecedent>(rawResults).map(normPrecedent);
+    (query: string, rawResults: PrecedentSpec[]) => {
+      const q = query || 'similar cases';
+      const results = rawResults.map(normPrecedent);
       setArchiveSearch({ query: q, status: 'searching', results: [] });
       bump();
       timersRef.current.push(
@@ -615,7 +549,6 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
       const r = ref.trim().toUpperCase();
       const sec = (section || '').trim().toLowerCase();
       const fld = (field || '').trim().toLowerCase();
-      const val = str(value) ?? '';
       mutateCase(r, (c) => {
         if (!c.packet) return c;
         const sections = c.packet.sections.map((s) => {
@@ -624,14 +557,14 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
           return {
             ...s,
             fields: s.fields.map((f) =>
-              f.label.toLowerCase().includes(fld) ? { ...f, value: val } : f,
+              f.label.toLowerCase().includes(fld) ? { ...f, value } : f,
             ),
           };
         });
         return logActivity(
           { ...c, packet: { ...c.packet, sections } },
           'agent',
-          note || `Updated ${field} to ${val}`,
+          note || `Updated ${field} to ${value}`,
         );
       });
     },
@@ -645,7 +578,7 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
         if (!c.blocker) return c;
         const next: Case = {
           ...c,
-          blocker: { ...c.blocker, status: 'resolved', resolvedNote: str(note) },
+          blocker: { ...c.blocker, status: 'resolved', resolvedNote: note || undefined },
           // Unblock anything the blocker was gating.
           approvals: c.approvals.map((a) =>
             a.status === 'blocked' ? { ...a, status: 'pending', blockedReason: undefined } : a,
@@ -704,7 +637,7 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
   const canSubmitPacket = useCallback((c: Case) => packetSubmittable(c), []);
 
   const draftApproval = useCallback(
-    (ref: string, raw: RawApproval) => {
+    (ref: string, raw: ApprovalSpec) => {
       const r = ref.trim().toUpperCase();
       const approval = normApproval(raw);
       mutateCase(r, (c) =>
@@ -825,81 +758,66 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
     };
   }, [cases, activeRef, view, tab, archiveSearch]);
 
-  // ── ui_command dispatch (assistant drives the screen) ─────────────────────
+  // ── ui-command dispatch (assistant drives the screen) ──────────────────────
   const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      const action = String(cmd.action ?? '');
-      switch (action) {
+    (command: string, payload: unknown) => {
+      const action = asUiAction(command, payload);
+      if (!action) return;
+      switch (action.command) {
         case 'open_board':
           openBoard();
           break;
         case 'open_case':
-          if (str(cmd.ref)) openCase(str(cmd.ref)!);
+          openCase(action.payload.ref);
           break;
         case 'set_tab':
-          if (str(cmd.tab)) setTab(str(cmd.tab) as CaseTab);
+          setTab(action.payload.tab);
           break;
-        case 'assign_case':
-          if (str(cmd.ref) && str(cmd.assignee))
-            assignCase(
-              str(cmd.ref)!,
-              str(cmd.assignee_kind) === 'department' ? 'department' : 'person',
-              str(cmd.assignee)!,
-            );
+        case 'assign_case': {
+          const { ref, assignee_kind, assignee } = action.payload;
+          assignCase(ref, assignee_kind, assignee);
           break;
+        }
         case 'move_case':
-          if (str(cmd.ref) && str(cmd.stage)) moveCase(str(cmd.ref)!, str(cmd.stage) as Stage);
+          moveCase(action.payload.ref, action.payload.stage);
           break;
-        case 'add_comment':
-          if (str(cmd.ref) && str(cmd.text))
-            addComment(str(cmd.ref)!, str(cmd.text)!, 'agent', str(cmd.dept));
+        case 'add_comment': {
+          const { ref, text, dept } = action.payload;
+          addComment(ref, text, 'agent', dept);
           break;
-        case 'prepare_case':
-          if (str(cmd.ref))
-            prepareCase(
-              str(cmd.ref)!,
-              str(cmd.summary) ?? '',
-              arr<{ id?: string; label: string; detail?: string }>(cmd.jobs),
-              arr<RawApproval>(cmd.approvals),
-              {
-                findings: arr<RawFinding>(cmd.findings),
-                blocker: cmd.blocker as RawBlocker | undefined,
-                packet: cmd.packet as RawPacket | undefined,
-              },
-            );
+        }
+        case 'prepare_case': {
+          const { ref, summary, jobs, findings, blocker, packet } = action.payload;
+          prepareCase(ref, summary, jobs, action.payload.approvals, { findings, blocker, packet });
           break;
+        }
         case 'draft_approval':
-          if (str(cmd.ref) && cmd.approval && typeof cmd.approval === 'object')
-            draftApproval(str(cmd.ref)!, cmd.approval as RawApproval);
+          draftApproval(action.payload.ref, action.payload.approval);
           break;
-        case 'post_workup':
-          if (str(cmd.ref))
-            postWorkup(str(cmd.ref)!, arr<RawFinding>(cmd.findings), cmd.blocker as RawBlocker | undefined);
+        case 'post_workup': {
+          const { ref, findings, blocker } = action.payload;
+          postWorkup(ref, findings, blocker);
           break;
+        }
         case 'lookup_precedent':
-          lookupPrecedent(str(cmd.query) ?? '', arr<RawPrecedent>(cmd.results));
+          lookupPrecedent(action.payload.query, action.payload.results);
           break;
-        case 'update_packet_field':
-          if (str(cmd.ref) && str(cmd.section) && str(cmd.field))
-            updatePacketField(
-              str(cmd.ref)!,
-              str(cmd.section)!,
-              str(cmd.field)!,
-              str(cmd.value) ?? '',
-              str(cmd.note),
-            );
+        case 'update_packet_field': {
+          const { ref, section, field, value, note } = action.payload;
+          updatePacketField(ref, section, field, value, note);
           break;
+        }
         case 'resolve_blocker':
-          if (str(cmd.ref)) resolveBlocker(str(cmd.ref)!, str(cmd.note));
+          resolveBlocker(action.payload.ref, action.payload.note);
           break;
         case 'submit_packet':
-          if (str(cmd.ref)) submitPacket(str(cmd.ref)!);
+          submitPacket(action.payload.ref);
           break;
         case 'highlight':
-          if (str(cmd.section)) highlight(str(cmd.section)!);
+          highlight(action.payload.section);
           break;
         default:
-          break;
+          return unhandledUiAction(action);
       }
     },
     [
@@ -926,8 +844,8 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
 
   // Dev-only: expose the command dispatch so the flow can be driven/rehearsed
   // from the browser console without a live mic, e.g.
-  //   __servicing.handleUiCommand({ action: 'open_case', ref: 'MS-1057' })
-  //   __servicing.handleUiCommand({ action: 'prepare_case', ref: 'MS-1057', jobs: [...] })
+  //   __servicing.handleUiCommand('open_case', { ref: 'MS-1057' })
+  //   __servicing.handleUiCommand('prepare_case', { ref: 'MS-1057', jobs: [...] })
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     (window as unknown as { __servicing?: unknown }).__servicing = {

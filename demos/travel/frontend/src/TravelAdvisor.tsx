@@ -3,47 +3,51 @@
  * not a widget parked in the corner.
  *
  * There is no panel and no launcher. The agent's state is the page itself: the
- * shared `AmbientPresence` ring from `@voqalize/client-react` glows around the
+ * shared `AmbientPresence` ring from `@voqalize/demo-kit` glows around the
  * viewport in Trip Studio's vermilion, shifting to itinerary gold while the desk
  * reasons, and firing a short beam at whatever section the agent just moved the
  * travel agent's eye to. The only affordance is one small control handed up into
  * the portal's own top bar (via the `children` render-prop, so the portal keeps
  * ownership of its chrome): begin, then mute-toggle, plus a quiet "end".
  *
- * The whole session lifecycle — mint against the control plane, WebRTC transport,
- * mic control, bot-state — is the public SDK's {@link useVoqalSession}; this file
- * is just that control plus two bridges that tie the call to the on-screen portal:
- *   - the agent's `ui_command` server-messages replay onto the shared travel
+ * The session itself is stock pipecat: `PipecatAppBase` mints the client and
+ * connects/disconnects it, already wrapped in its own `PipecatClientProvider`.
+ * `TravelSession` below runs inside that provider and adds the two bridges that
+ * tie the call to the on-screen portal:
+ *   - the agent's `ui-command` server messages replay onto the shared travel
  *     store, so the agent drives the portal;
  *   - a compact snapshot of the active itinerary is echoed back to the agent
  *     (`state_sync`) on connect and after every change — so the AI always knows
  *     the current state, including edits the travel agent makes by hand.
  *
- * This is exactly the surface an external developer embeds: `useVoqalSession`
- * from `@voqalize/client-react`, driven by a publishable (`pk_`) key. Mounted
- * once inside the `TravelProvider`, so the call survives screen changes.
+ * Mounted once inside the `TravelProvider`, without `connectOnMount` — the call
+ * only opens once a visitor has passed the `DemoGate` below, so the demo's own
+ * control only ever appears to someone who has already consented.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { PipecatClientProvider, usePipecatClientMicControl } from "@pipecat-ai/client-react";
-import { BotAudioOutput } from "@pipecat-ai/voice-ui-kit";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
+import {
+  useRTVIClientEvent,
+  usePipecatClient,
+  usePipecatClientMicControl,
+  usePipecatClientTransportState,
+} from "@pipecat-ai/client-react";
+import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import {
   AmbientPresence,
-  useUiCommand,
-  useVoqalSession,
+  DemoGate,
+  type AmbientPresenceActivity,
   type AmbientPresencePalette,
-  type VoqalBotState,
-  type VoqalConnectionState,
-} from "@voqalize/client-react";
-import { DemoGate } from "@voqalize/demo-kit";
+} from "@voqalize/demo-kit";
 import { useTravel } from "./store";
-import type { TravelCommands } from "./uiCommands";
-import { config } from "./config";
+import { connectRequest, withRealHeaders } from "./config";
 
-// Tenant + agent + pk resolve per-environment from this demo's local config
-// (src/config.ts), driven by Vite env vars.
-const TRAVEL = config;
+// A connection can also be in the state PipecatAppBase's own `error` prop
+// carries, which `usePipecatConnectionState`'s three states have no slot for —
+// the presence control needs all four.
+type PresenceConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
 // Trip Studio's reading of the shared presence ring, straight off the portal's own
 // tokens: `--vermilion` (#E24E2A) is the live/agent colour everywhere in this demo,
@@ -63,7 +67,7 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
 };
 
 // The mic stays open once live, so `idle` is still "listening" to the user.
-const STATE_LABEL: Record<VoqalBotState, string> = {
+const STATE_LABEL: Record<AmbientPresenceActivity, string> = {
   idle: "Listening",
   listening: "Listening",
   thinking: "Thinking",
@@ -77,7 +81,7 @@ function BeginControl({
   error,
   onBegin,
 }: {
-  connectionState: VoqalConnectionState;
+  connectionState: PresenceConnectionState;
   error: string;
   onBegin: () => void;
 }) {
@@ -110,13 +114,13 @@ function BeginControl({
 }
 
 // Live: the mic doubles as a mute toggle; a small secondary control ends the call.
-function LiveControls({ botState, onEnd }: { botState: VoqalBotState; onEnd: () => void }) {
+function LiveControls({ activity, onEnd }: { activity: AmbientPresenceActivity; onEnd: () => void }) {
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
   return (
     <div className="tv-presence">
-      <span className="tv-presence-label">{isMicEnabled ? STATE_LABEL[botState] : "Muted"}</span>
+      <span className="tv-presence-label">{isMicEnabled ? STATE_LABEL[activity] : "Muted"}</span>
       <button
-        className={`tv-presence-btn is-live pstate-${botState} ${isMicEnabled ? "" : "is-muted"}`}
+        className={`tv-presence-btn is-live pstate-${activity} ${isMicEnabled ? "" : "is-muted"}`}
         onClick={() => enableMic(!isMicEnabled)}
         title={isMicEnabled ? "Mute" : "Unmute"}
       >
@@ -163,46 +167,62 @@ const PRESENCE_STYLES = `
 }
 `;
 
-// ── Session owner ─────────────────────────────────────────────────────────────
-export function TravelAdvisor({ children }: { children: (presence: ReactNode) => ReactNode }) {
-  const { uiCommands, registerAgentSend, rev, active, snapshot, highlighted } = useTravel();
+// ── Session bridge ────────────────────────────────────────────────────────────
+// Runs inside PipecatAppBase's render-prop children, already wrapped in its own
+// PipecatClientProvider — the hooks below need nothing more from us.
+function TravelSession({
+  error,
+  handleConnect,
+  handleDisconnect,
+  children,
+}: {
+  error: string | null;
+  handleConnect?: () => void | Promise<void>;
+  handleDisconnect?: () => void | Promise<void>;
+  children: (presence: ReactNode) => ReactNode;
+}) {
+  const { handleUiCommand, registerAgentSend, rev, active, snapshot, highlighted } = useTravel();
+  const client = usePipecatClient();
+  const transportState = usePipecatClientTransportState();
 
-  // The entire session lifecycle in one hook.
-  const session = useVoqalSession({
-    apiBase: TRAVEL.apiBase,
-    // Empty when unprovisioned — the SDK surfaces a clear "publishableKey is
-    // required" error, shown in the presence control's error state.
-    publishableKey: TRAVEL.publishableKey ?? "",
-    agentId: TRAVEL.agentId,
-    // No pipeline override: this agent's voice and language are declared on
-    // its brain (backend/brain.py), which is the only place they belong.
-    payload: { surface: "travel-web" },
-  });
+  // Track what the agent is doing off pipecat's own events — the derivation the
+  // shared `AmbientPresence` component's own doc comment prescribes.
+  const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
+  useRTVIClientEvent(RTVIEvent.UserStartedSpeaking, useCallback(() => setActivity("listening"), []));
+  useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity("thinking"), []));
+  useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
+  useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("idle"), []));
 
-  const { client, connectionState, botState, error, connect, disconnect, enableMic, sendMessage } =
-    session;
+  const { state, isConnected, isConnecting } = usePipecatConnectionState();
+  const connectionState: PresenceConnectionState =
+    error && !isConnected && !isConnecting ? "error" : state;
 
-  // The agent drives the screen: every `ui_command` goes to the store's typed
-  // handler for that action. Subscription, envelope stripping and dispatch are the
-  // hook's; the store only says what each command means.
-  useUiCommand<TravelCommands>(client, uiCommands);
+  // The agent drives the screen: every `ui-command` goes to the store, which
+  // narrows it against the generated action union.
+  useRTVIClientEvent(
+    RTVIEvent.UICommand,
+    useCallback(
+      ({ command, payload }: UICommandData) => handleUiCommand(command, payload),
+      [handleUiCommand],
+    ),
+  );
 
-  // Register the store's agent-send channel and mic once a session is live.
+  // Register the store's agent-send channel and open the mic once live.
   useEffect(() => {
-    if (connectionState !== "connected") return;
-    enableMic(true);
-    registerAgentSend((type, data) => sendMessage(type, data as Record<string, unknown>));
+    if (!isConnected || !client) return;
+    client.enableMic(true);
+    registerAgentSend((type, data) => client.sendClientMessage(type, data));
     return () => registerAgentSend(null);
-  }, [connectionState, enableMic, registerAgentSend, sendMessage]);
+  }, [isConnected, client, registerAgentSend]);
 
   // Debounced snapshot push: on connect and after every change (rev / active id),
   // so the agent stays in sync with edits the travel agent makes by hand too.
   useEffect(() => {
-    if (connectionState !== "connected") return;
-    const t = setTimeout(() => sendMessage("state_sync", { itinerary: snapshot() }), 250);
+    if (!isConnected || !client) return;
+    const t = setTimeout(() => client.sendClientMessage("state_sync", { itinerary: snapshot() }), 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionState, rev, active?.id]);
+  }, [isConnected, rev, active?.id]);
 
   // Dev-only: expose the live client for driving the flow without a mic in tests.
   useEffect(() => {
@@ -213,10 +233,10 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
     };
   }, [client]);
 
-  // A hung-up session leaves the hook's client behind; clear it before redialling.
+  // A hung-up session leaves a stale client behind; clear it before redialling.
   const begin = async () => {
-    if (connectionState === "disconnected") await disconnect();
-    await connect();
+    if (connectionState === "disconnected") await handleDisconnect?.();
+    await handleConnect?.();
   };
 
   // Nothing opens a microphone until the visitor has read the notice and joined.
@@ -224,14 +244,13 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
   // demo's own control only ever appears to someone who has already consented.
   const [joined, setJoined] = useState(false);
 
-  const presence =
-    connectionState === "connected" ? (
-      <LiveControls botState={botState} onEnd={disconnect} />
-    ) : (
-      <BeginControl connectionState={connectionState} error={error ?? ""} onBegin={begin} />
-    );
+  const presence = isConnected ? (
+    <LiveControls activity={activity} onEnd={() => handleDisconnect?.()} />
+  ) : (
+    <BeginControl connectionState={connectionState} error={error ?? ""} onBegin={begin} />
+  );
 
-  const shell = (
+  return (
     <>
       <DemoGate
         open={!joined}
@@ -246,8 +265,8 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
         }}
       />
       <AmbientPresence
-        botState={botState}
-        connectionState={connectionState}
+        activity={activity}
+        transportState={transportState}
         palette={PRESENCE}
         // The desk points at the section it just moved the agent's eye to.
         beam={highlighted ? { id: highlighted.nonce, targetId: `tv-sec-${highlighted.section}` } : null}
@@ -256,13 +275,30 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
       {children(presence)}
     </>
   );
+}
 
-  if (!client) return shell;
+// ── Session owner ─────────────────────────────────────────────────────────────
+export function TravelAdvisor({ children }: { children: (presence: ReactNode) => ReactNode }) {
+  // No pipeline override: this agent's voice and language are declared on its
+  // brain (backend/brain_gemini.py), which is the only place they belong.
+  const params = useMemo(() => connectRequest({ surface: "travel-web" }), []);
 
   return (
-    <PipecatClientProvider client={client}>
-      <BotAudioOutput />
-      {shell}
-    </PipecatClientProvider>
+    <PipecatAppBase
+      transportType="smallwebrtc"
+      noThemeProvider
+      startBotParams={params}
+      startBotResponseTransformer={withRealHeaders}
+    >
+      {({ error, handleConnect, handleDisconnect }) => (
+        <TravelSession
+          error={error ?? null}
+          handleConnect={handleConnect}
+          handleDisconnect={handleDisconnect}
+        >
+          {children}
+        </TravelSession>
+      )}
+    </PipecatAppBase>
   );
 }

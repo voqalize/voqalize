@@ -1,55 +1,55 @@
-"""Cortex wire layer — plain-dataclass frames + protobuf serializer + transport.
+"""The wire — plain-dataclass frames, protobuf serializer, transport.
 
-Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. The wire only
-ever moves protobuf ``Envelope`` bytes; the frame *classes* here are plain
-dataclasses that never cross the socket.
+Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. Only protobuf
+``Envelope`` bytes cross the socket; the frame classes here never do.
 
 Public surface:
-- ``Frame`` + the ``Vql*Frame`` / lifecycle / RTVI dataclasses — the wire's frame
-  vocabulary. ``FrameDirection`` — the 1-byte direction enum. ``is_system`` — the
-  lane-routing predicate.
-- ``CortexFrameSerializer`` — protobuf transcoder (plain class).
-- ``MultiplexedWire``, ``Wire``, ``WireConfig``, ``PermanentClose`` — websocket
-  transport with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
-  handshake-refused case: a credential cortex answers 401/403 to is never
+- The frame dataclasses plus ``Frame``, and the enums they carry —
+  ``ErrorCode`` and ``RTVIType``.
+- ``Config`` and its three sections, the ``Voice`` and ``Language`` catalogs,
+  and ``ConfigError`` — one configuration type, shared with the agent record
+  that stores a session's defaults.
+- ``WireSerializer`` — the protobuf serializer.
+- ``WIRE_VERSION`` — the wire version this build speaks.
+- ``MultiplexedWire``, ``WireConfig``, ``PermanentClose`` — websocket transport
+  with reconnect. ``AuthRejected`` (a ``PermanentClose``) is the
+  handshake-refused case: a credential Cortex answers 401/403 to is never
   retried.
 - ``UnsupportedFrameError``, ``MalformedFrameError`` — fail-loud signaling.
 """
 
 from .frames import (
-    VQL_FRAME_CLASSES,
+    WIRE_VERSION,
     CancelFrame,
+    Config,
+    ConfigError,
+    ConfigureFrame,
+    ConfigureRequest,
     EndFrame,
+    ErrorCode,
     ErrorFrame,
-    FinalizeReason,
+    FinalizeFrame,
     Frame,
-    FrameDirection,
-    IdleUpdateSettingsFrame,
+    IdleConfig,
     InterruptionFrame,
-    RTVIServerMessageFrame,
-    STTUpdateSettingsFrame,
-    TTSUpdateSettingsFrame,
-    VqlFunctionCallInProgressFrame,
-    VqlFunctionCallResultFrame,
-    VqlFunctionCallsStartedFrame,
-    VqlInferenceFinalizedFrame,
-    VqlInteractionCompletedFrame,
-    VqlLLMFullResponseEndFrame,
-    VqlLLMFullResponseStartFrame,
-    VqlLLMTextFrame,
-    VqlRTVIClientMessageFrame,
-    VqlStartFrame,
-    VqlUserIdleFrame,
-    VqlUserTextFrame,
-    is_system,
+    Language,
+    ResponseFrame,
+    RTVIFrame,
+    RTVIType,
+    SessionStartFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
+    SttConfig,
+    TtsConfig,
+    UserIdleFrame,
+    UserMessageFrame,
+    Voice,
 )
 from .serializer import (
-    Ack,
-    CortexFrameSerializer,
-    DecodedMessage,
     MalformedFrameError,
     UnsupportedFrameError,
-    serialize_ack,
+    WireSerializer,
 )
 from .transport import (
     AuthRejected,
@@ -61,41 +61,39 @@ from .transport import (
 )
 
 __all__ = [
-    "VQL_FRAME_CLASSES",
-    "Ack",
+    "WIRE_VERSION",
     "AuthRejected",
     "CancelFrame",
-    "CortexFrameSerializer",
-    "DecodedMessage",
+    "Config",
+    "ConfigError",
+    "ConfigureFrame",
+    "ConfigureRequest",
     "EndFrame",
+    "ErrorCode",
     "ErrorFrame",
-    "FinalizeReason",
+    "FinalizeFrame",
     "Frame",
-    "FrameDirection",
-    "IdleUpdateSettingsFrame",
+    "IdleConfig",
     "InterruptionFrame",
+    "Language",
     "MalformedFrameError",
     "MultiplexedWire",
     "PermanentClose",
-    "RTVIServerMessageFrame",
-    "STTUpdateSettingsFrame",
-    "TTSUpdateSettingsFrame",
+    "RTVIFrame",
+    "RTVIType",
+    "ResponseFrame",
+    "SessionStartFrame",
+    "SpeechChunkFrame",
+    "SpeechEndFrame",
+    "SpeechStartFrame",
+    "SttConfig",
+    "TtsConfig",
     "UnsupportedFrameError",
-    "VqlFunctionCallInProgressFrame",
-    "VqlFunctionCallResultFrame",
-    "VqlFunctionCallsStartedFrame",
-    "VqlInferenceFinalizedFrame",
-    "VqlInteractionCompletedFrame",
-    "VqlLLMFullResponseEndFrame",
-    "VqlLLMFullResponseStartFrame",
-    "VqlLLMTextFrame",
-    "VqlRTVIClientMessageFrame",
-    "VqlStartFrame",
-    "VqlUserIdleFrame",
-    "VqlUserTextFrame",
+    "UserIdleFrame",
+    "UserMessageFrame",
+    "Voice",
     "Wire",
     "WireClosed",
     "WireConfig",
-    "is_system",
-    "serialize_ack",
+    "WireSerializer",
 ]

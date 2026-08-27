@@ -11,23 +11,23 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, brain_factory
+from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     Frame,
-    FrameDirection,
-    VqlLLMTextFrame,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    SessionStartFrame,
+    SpeechChunkFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
 class Echo(Brain):
-    """On each interaction, speak a single echo of the input. Records the
-    transcripts it saw for the isolation assertions."""
+    """On each turn, speak a single echo of the input. Records what it saw for the
+    isolation assertions."""
 
     instances: list[Echo] = []
 
@@ -35,10 +35,11 @@ class Echo(Brain):
         Echo.instances.append(self)
         self.seen_contexts: list[str] = []
 
-    async def on_interaction(self, interaction) -> None:
-        self.seen_contexts.append(interaction.transcript)
-        async with interaction.say() as inf:
-            await inf.speak(f"echo:{interaction.transcript}")
+    async def on_user_message(self, session, msg):
+        self.seen_contexts.append(msg.text)
+        yield SpeechStart()
+        yield Chunk(f"echo:{msg.text}")
+        yield SpeechEnd()
 
 
 async def _drain_until(wire: Wire, serializer, predicate, timeout: float = 3.0):
@@ -47,7 +48,7 @@ async def _drain_until(wire: Wire, serializer, predicate, timeout: float = 3.0):
 
     async def loop() -> None:
         while True:
-            _direction, payload = await wire.recv()
+            payload = await wire.recv()
             frame = await serializer.deserialize(payload)
             received.append(frame)
             if predicate(received):
@@ -59,14 +60,14 @@ async def _drain_until(wire: Wire, serializer, predicate, timeout: float = 3.0):
 
 async def test_two_sessions_are_isolated() -> None:
     Echo.instances.clear()
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
 
     async with FakeCortex() as cortex:
         agent = CortexAgent(
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),
-            factory=brain_factory(Echo),
+            factory=_brain_factory(Echo),
         )
         run_task = asyncio.create_task(agent.run())
 
@@ -78,36 +79,31 @@ async def test_two_sessions_are_isolated() -> None:
         # Open both sessions.
         for session_id, wire in (("sA", wire_a), ("sB", wire_b)):
             await wire.send(
-                FrameDirection.DOWNSTREAM,
-                await serializer.serialize(
-                    VqlStartFrame(session_id=session_id, agent_id="welcome", payload={})
-                ),
+                await serializer.serialize(SessionStartFrame(turn_id=1, session_id=session_id)),
             )
 
         # Send a context frame on each leg.
         await wire_a.send(
-            FrameDirection.DOWNSTREAM,
-            await serializer.serialize(VqlUserTextFrame(interaction_id=1, text="hello-A")),
+            await serializer.serialize(UserMessageFrame(turn_id=2, text="hello-A")),
         )
         await wire_b.send(
-            FrameDirection.DOWNSTREAM,
-            await serializer.serialize(VqlUserTextFrame(interaction_id=1, text="hello-B")),
+            await serializer.serialize(UserMessageFrame(turn_id=2, text="hello-B")),
         )
 
         # Each pygato wire must receive only its own session's response.
         recv_a = await _drain_until(
             wire_a,
             serializer,
-            lambda r: any(isinstance(f, VqlLLMTextFrame) for f in r),
+            lambda r: any(isinstance(f, SpeechChunkFrame) for f in r),
         )
         recv_b = await _drain_until(
             wire_b,
             serializer,
-            lambda r: any(isinstance(f, VqlLLMTextFrame) for f in r),
+            lambda r: any(isinstance(f, SpeechChunkFrame) for f in r),
         )
 
-        text_a = next(f for f in recv_a if isinstance(f, VqlLLMTextFrame))
-        text_b = next(f for f in recv_b if isinstance(f, VqlLLMTextFrame))
+        text_a = next(f for f in recv_a if isinstance(f, SpeechChunkFrame))
+        text_b = next(f for f in recv_b if isinstance(f, SpeechChunkFrame))
         assert text_a.text == "echo:hello-A"
         assert text_b.text == "echo:hello-B"
 

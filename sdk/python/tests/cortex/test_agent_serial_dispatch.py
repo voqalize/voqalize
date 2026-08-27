@@ -1,4 +1,4 @@
-"""Two VqlUserTextFrames sent back-to-back arrive at the session adapter in
+"""Two UserMessageFrames sent back-to-back arrive at the session adapter in
 order, and the second is not dispatched until the first ``handle_frame``
 completes. This is the engine's per-session serial guarantee: the feeder awaits
 each ``handle_frame`` before pulling the next inbound frame. Exercised
@@ -14,18 +14,18 @@ from tests.fakes.cortex import FakeCortex
 from voqalize.sdk.engine import Emitter, SessionAdapter
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
-    CortexFrameSerializer,
     Frame,
-    FrameDirection,
-    VqlStartFrame,
-    VqlUserTextFrame,
+    ResponseFrame,
+    SessionStartFrame,
+    UserMessageFrame,
     Wire,
     WireConfig,
+    WireSerializer,
 )
 
 
 async def test_two_data_frames_serial_dispatch() -> None:
-    serializer = CortexFrameSerializer()
+    serializer = WireSerializer()
     arrivals: list[str] = []
     can_finish = asyncio.Event()
 
@@ -34,11 +34,14 @@ async def test_two_data_frames_serial_dispatch() -> None:
             self.emitter = emitter
 
         async def handle_frame(self, frame: Frame) -> None:
-            if isinstance(frame, VqlUserTextFrame):
+            if isinstance(frame, UserMessageFrame):
                 arrivals.append(f"start:{frame.text}")
                 if frame.text == "first":
                     await can_finish.wait()
                 arrivals.append(f"end:{frame.text}")
+
+        def settle_response(self, frame: ResponseFrame) -> None:
+            pass
 
         async def close(self) -> None:
             pass
@@ -55,22 +58,17 @@ async def test_two_data_frames_serial_dispatch() -> None:
         pygato_wire = Wire(WireConfig(url=cortex.pygato_url("s1", "welcome")))
         await pygato_wire.start()
 
-        # Open the session with VqlStartFrame.
+        # Open the session with SessionStartFrame.
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
-            await serializer.serialize(
-                VqlStartFrame(session_id="s1", agent_id="welcome", payload={})
-            ),
+            await serializer.serialize(SessionStartFrame(turn_id=1, session_id="s1")),
         )
 
         # Two data frames back-to-back.
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
-            await serializer.serialize(VqlUserTextFrame(interaction_id=1, text="first")),
+            await serializer.serialize(UserMessageFrame(turn_id=2, text="first")),
         )
         await pygato_wire.send(
-            FrameDirection.DOWNSTREAM,
-            await serializer.serialize(VqlUserTextFrame(interaction_id=2, text="second")),
+            await serializer.serialize(UserMessageFrame(turn_id=3, text="second")),
         )
 
         # First handler invocation starts; second must wait.

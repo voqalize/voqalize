@@ -1,17 +1,18 @@
 """The Aura Bank support demo, end to end over the wire — no network, no LLM key.
 
 The real ``AuraBrain`` — the shipping ``demos/aura/backend/brain.py``, its real
-prompt, its real thirty-odd tools — hosted on a real ``DirectAgent`` socket and
-driven by the conformance ``VoiceDriver``, with only the *model* scripted. See
+prompt, its real thirty-odd tools — hosted on a real ``brain_server`` socket and
+driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. See
 ``tests/_harness.py`` for what every demo's e2e proves.
 
-Aura is the only demo with a **blocking** tool: ``authenticate`` opens a sign-in
-dialog and waits for the browser to report the customer finished, and the server
-mints the session token *there* — which is precisely why the model can never
-produce one. Testing that needs a turn in flight and a client message sent into
-it, so it lives here rather than in the cross-demo sweep. Its failure mode is the
-worst one a voice agent has: a tool that never unblocks leaves the bot silent
-with the floor held, which no assertion on a completed turn can see.
+Aura is the demo that carries the secure flow, and what these tests pin is that
+**nothing waits on the customer**. ``show_auth_popup`` puts a sign-in on screen
+and returns in the same breath; the customer authorises it in their own time, or
+never; the brain mints the token when the browser reports they did, and hands it
+to the model as a line of context. The ordering that a wait used to enforce is
+carried instead by the signatures — a tool that needs a token refuses without one
+— so the four tests below are the four states that actually occur: opened, taken,
+dismissed, and skipped.
 
 Run: ``cd demos && uv run pytest tests/test_aura_e2e.py``
 """
@@ -19,19 +20,32 @@ Run: ``cd demos && uv run pytest tests/test_aura_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
+from google.genai import interactions as gi
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+
+from voqalize.sdk.wire import ConfigureFrame
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.aura.brain import _GREETING  # noqa: E402
+from voqalize_demos._loaded.aura.brain import _GREETING, _IDLE_MS  # noqa: E402
 
 VOICE = "omnivoice/gauri"
 LANGUAGE = "en"
+
+#: The header every token the brain mints starts with — HS256, JWT — base64url'd.
+#: Its presence in a blob means something got signed.
+_JWT_HEAD = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+
+#: A well-formed JWT the brain never signed — our header, junk signature. What the
+#: model would produce if it filled the parameter in rather than wait to be handed
+#: one.
+FORGED = _JWT_HEAD + "eyJzdWIiOiJjdXNfMSJ9.not_our_signature"
 
 
 def _llm() -> ScriptedGemini:
@@ -48,25 +62,75 @@ def _llm() -> ScriptedGemini:
                 reply("Then tap Add Payee and enter their account number."),
             ],
             "What's my balance?": [
-                reply_and_call("Let me get you signed in securely.", "authenticate"),
-                reply("You're signed in — which account would you like?"),
+                reply_and_call("I'll put a secure sign-in on your screen.", "show_auth_popup"),
+                reply("Authorise that whenever you're ready and I'll pull it up."),
+            ],
+            "Anything else I should know?": [reply("Nothing else — take your time.")],
+            # Keyed on the note ``_complete_auth`` appends, because an idle-driven
+            # turn carries no user sentence — what the model is answering is the
+            # tap, and the note is the newest thing said.
+            "authorised the secure sign-in": [
+                reply("You're signed in. Which account would you like?")
+            ],
+            "Just tell me the number.": [
+                reply_and_call(
+                    "One moment.",
+                    "get_account_balance",
+                    authenticated_context=FORGED,
+                    account_id="ac_918021004321",
+                ),
+                reply("I'll need you to sign in first — the sign-in is on your screen."),
             ],
         }
     )
 
 
-def _tool_results(contents: list[Any]) -> str:
-    """Every tool result in one request's contents, as one blob to assert against.
+def _tool_results(llm: ScriptedGemini) -> str:
+    """Every tool result the brain put in front of the model, as one blob.
 
-    A blocking tool's outcome never reaches the wire — the customer hears only the
-    sentence the model built from it — so the model's *next* prompt is the only
-    place it is visible."""
-    return " ".join(
-        str((p.function_response.response or {}).get("result", ""))
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    )
+    A tool's outcome never reaches the wire — the customer hears only the sentence
+    the model built from it — so the model's *next* prompt is the only place it is
+    visible. On the interactions engine that prompt is the ``input`` of the next
+    ``interactions.create``: the brain runs the tool itself, between hops, and
+    appends a :class:`gi.FunctionResultStep` carrying the result as
+    ``json.dumps({"result": ...})``. Unwrap that one level — asserting on the raw
+    JSON matches nothing whose result contains a quote."""
+    out: list[str] = []
+    for request in llm.aio.interactions.requests:
+        for step in request.get("input") or []:
+            if not isinstance(step, gi.FunctionResultStep):
+                continue
+            try:
+                payload = json.loads(str(step.result))
+            except (TypeError, ValueError):
+                payload = {"result": step.result}
+            out.append(str(payload.get("result", payload)))
+    return " ".join(out)
+
+
+def _context_text(llm: ScriptedGemini) -> str:
+    """Everything the brain appended to the context as the customer's own words.
+
+    What the customer does on screen reaches the model exactly one way: ``on_rtvi``
+    appends a line saying what they did. It takes no floor, so it is invisible
+    until the *next* request carries the whole context along with it."""
+    out: list[str] = []
+    for request in llm.aio.interactions.requests:
+        for step in request.get("input") or []:
+            if isinstance(step, gi.UserInputStep):
+                out.extend(str(getattr(c, "text", "") or "") for c in (step.content or []))
+    return " ".join(out)
+
+
+def _auth_nonce(rig: Any) -> str:
+    """The nonce the brain stamped on the sign-in it just put on screen.
+
+    It is what makes the browser's answer trustworthy: minted here, carried out
+    with the dialog, and good for that one dialog once."""
+    opened = rig.command("open_auth")
+    nonce = str(opened["nonce"])
+    assert nonce, opened
+    return nonce
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
@@ -87,7 +151,7 @@ async def test_narrating_a_help_video_drives_the_screen() -> None:
         await rig.driver.start_session()
 
         turn = await rig.driver.user_says("How do I add a payee?")
-        check_turn(rig, turn, inferences=3)
+        check_turn(rig, turn, units=3)
 
         assert rig.actions() == ["play_help_video", "highlight_step"], rig.actions()
         video = rig.command("play_help_video")
@@ -96,64 +160,179 @@ async def test_narrating_a_help_video_drives_the_screen() -> None:
         assert rig.command("highlight_step")["index"] == 1
 
 
-async def test_the_signin_blocks_until_the_browser_reports_back() -> None:
-    """The full secure handshake, with the turn in flight.
+async def test_the_signin_goes_up_and_the_turn_finishes_without_it() -> None:
+    """The turn completes with the sign-in still untouched on screen.
 
-    ``authenticate`` opens the dialog and *waits*: the tool call has not returned,
-    so the turn cannot finish until the browser answers. Then the server — not the
-    model — mints the token, which is the property the whole design rests on: the
-    token is only reachable after a real on-screen authorisation, so no amount of
-    prompt injection produces one. Assert it in the model's next prompt, since
-    that is the only place a tool result is ever visible."""
+    This is the whole point of the shape. The old tool awaited the browser, which
+    meant the customer sat mic-muted for as long as they took to read a sheet —
+    gagged precisely while being asked to act. Now the tool announces and returns:
+    the customer keeps the floor, keeps the call, and can answer the sheet in a
+    minute or not at all."""
     llm = _llm()
     async with demo("aura", llm) as rig:
         await rig.driver.start_session()
 
-        turn = asyncio.create_task(rig.driver.user_says("What's my balance?"))
-        try:
-            commands = await rig.driver.collect_ui_commands(min_count=1)
-            opened = commands[0]
-            assert opened["action"] == "open_auth", commands
-            # The nonce binds this dialog to the waiting future; without it the
-            # browser's answer resolves nothing and the turn hangs to timeout.
-            assert opened["nonce"]
-            assert not turn.done(), "authenticate returned before the customer signed in"
+        turn = await rig.driver.user_says("What's my balance?")
+        check_turn(rig, turn, units=2)
 
-            await rig.driver.send_client_message("auth_complete", {"nonce": opened["nonce"]})
-            completed = await turn
-        finally:
-            turn.cancel()
+        assert rig.actions() == ["open_auth"], rig.actions()
+        assert _auth_nonce(rig)
 
-        check_turn(rig, completed, inferences=2)
-
-    results = _tool_results(llm.captured_contents[-1])
-    assert "'status': 'authenticated'" in results
-    # A JWT the model never wrote: three dot-separated segments, minted by the
-    # brain in `_complete_auth` after the browser reported the sign-in.
-    assert "'authenticated_context': 'ey" in results
+    results = _tool_results(llm)
+    assert "'status': 'sign_in_opened'" in results
+    # Nothing was minted. The result talks *about* an authenticated_context — it is
+    # telling the model to wait for one — but no token exists, because the customer
+    # has not signed in and the brain is the only thing that can sign.
+    assert _JWT_HEAD not in results
 
 
-async def test_a_dismissed_signin_unblocks_instead_of_sitting_muted() -> None:
-    """The customer closing the dialog must unblock the tool immediately.
+async def test_signing_in_hands_the_model_a_token_it_could_not_have_written() -> None:
+    """The browser reports the sign-in, and the token appears in the *context*.
 
-    Without the cancel path the future waits out its ninety-second timeout with the
-    floor held — the caller says "no thanks", and the bot goes silent for a minute
-    and a half. So the cancel is asserted as a *completed turn that still speaks*,
-    not merely as a status string."""
+    The server — not the model — mints it, in ``_complete_auth``, on the browser's
+    report that the customer completed a real on-screen authorisation. That is the
+    property the whole design rests on: the signing key is reachable by exactly one
+    path, and it does not run through the model. What the model gets is an opaque
+    string it was handed, in a line of context describing what the customer did."""
     llm = _llm()
     async with demo("aura", llm) as rig:
         await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
 
-        turn = asyncio.create_task(rig.driver.user_says("What's my balance?"))
-        try:
-            commands = await rig.driver.collect_ui_commands(min_count=1)
-            await rig.driver.send_client_message("auth_cancelled", {"nonce": commands[0]["nonce"]})
-            completed = await turn
-        finally:
-            turn.cancel()
+        await rig.driver.send_client_message("auth_complete", {"nonce": _auth_nonce(rig)})
+        # `send_client_message` returns once the frame is sent, not once `on_rtvi`
+        # has run it (it takes no floor, so there is nothing to await) — give the
+        # append a beat before the next turn's prompt is built.
+        await asyncio.sleep(0.1)
 
-        check_turn(rig, completed, inferences=2)
+        turn = await rig.driver.user_says("Anything else I should know?")
+        check_turn(rig, turn, units=1)
 
-    results = _tool_results(llm.captured_contents[-1])
-    assert "'status': 'declined'" in results
-    assert "authenticated_context" not in results
+    context = _context_text(llm)
+    assert "authorised the secure sign-in" in context
+    # A JWT the model never wrote: our header, three dot-separated segments.
+    assert f"authenticated_context is {_JWT_HEAD}" in context
+
+
+async def test_a_dismissed_signin_tells_the_model_so_instead_of_stalling() -> None:
+    """The customer closing the sheet is an answer, and it reaches the model.
+
+    Nothing is waiting on it any more, so the failure this guards is quieter than
+    the old one: not a bot muted for ninety seconds, but a bot that goes on
+    believing a sign-in is pending and asks the customer to authorise a sheet that
+    is no longer there."""
+    llm = _llm()
+    async with demo("aura", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
+
+        await rig.driver.send_client_message("auth_cancelled", {"nonce": _auth_nonce(rig)})
+        await asyncio.sleep(0.1)
+
+        turn = await rig.driver.user_says("Anything else I should know?")
+        check_turn(rig, turn, units=1)
+
+    context = _context_text(llm)
+    assert "closed the secure sign-in without signing in" in context
+    assert _JWT_HEAD not in context
+
+
+async def test_a_forged_token_is_refused_and_the_model_is_sent_back_a_step() -> None:
+    """The must-happen-before edge, exercised by skipping it.
+
+    With nothing blocking, a model is perfectly able to call ``get_account_balance``
+    the moment it sees the sign-in go up, filling in a plausible-looking token. The
+    signature is what stops it: the parameter is mandatory, the brain verifies it
+    against this session's salt, and a forgery earns an error naming the step that
+    has not happened. The failure path *is* the enforcement — so it is asserted as
+    a completed, speaking turn, not merely as a status string."""
+    llm = _llm()
+    async with demo("aura", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
+
+        turn = await rig.driver.user_says("Just tell me the number.")
+        check_turn(rig, turn, units=2)
+
+    results = _tool_results(llm)
+    assert "'status': 'not_authenticated'" in results
+    assert "call show_auth_popup()" in results.lower()
+    # No balance leaked past the guard.
+    assert "balance" not in results.lower().split("'status': 'not_authenticated'")[1]
+
+
+async def test_the_idle_window_reaches_the_wire() -> None:
+    """Aria asks Voqalize to tell her when the customer goes quiet.
+
+    Idle detection is off unless a brain asks for it, and without it the three
+    tests below could never happen in a real call: a tap is answered on the next
+    idle stimulus, and a session that gets no idle stimulus never answers one."""
+    async with demo("aura", _llm()) as rig:
+        await rig.driver.start_session()
+
+    configs = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
+    timeouts = [c.idle.timeout_ms for c in configs if c.idle is not None]
+    assert timeouts == [_IDLE_MS], configs
+
+
+async def test_a_tap_is_answered_on_the_next_idle() -> None:
+    """The dead stop this closes: the customer taps *Authorise* and hears nothing.
+
+    A tap arrives on ``on_rtvi``, which cannot speak — a click must never put the
+    assistant's voice over the person clicking — and appending a line of context
+    starts no turn. So the customer's answer sits unremarked until they say
+    something, and a customer who has just answered on screen has no reason to.
+    ``on_user_idle`` is the one stimulus that means the floor is genuinely free,
+    and it is where Aria says what the tap earned."""
+    llm = _llm()
+    async with demo("aura", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
+
+        await rig.driver.send_client_message("auth_complete", {"nonce": _auth_nonce(rig)})
+        await asyncio.sleep(0.1)
+
+        # The customer says nothing at all from here on.
+        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
+        check_turn(rig, turn, units=1)
+
+    # She is answering the tap, not a sentence: the newest thing in the context is
+    # the note the tap wrote, and it carries the token she was handed.
+    context = _context_text(llm)
+    assert "authorised the secure sign-in" in context
+    assert f"authenticated_context is {_JWT_HEAD}" in context
+
+
+async def test_a_quiet_customer_with_nothing_pending_is_left_alone() -> None:
+    """Silence is the default, and it is what makes the hook safe to arm.
+
+    A customer thinking is not a customer to be prompted. Aria takes the floor on
+    an idle tick only when the screen owes them a reply — every other tick she
+    says nothing, however many times Voqalize raises one."""
+    async with demo("aura", _llm()) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
+
+        for level in (1, 2, 3):
+            turn = await rig.driver.user_idle(level=level, idle_ms=_IDLE_MS, timeout=1.0)
+            assert turn.units == [], f"level {level} spoke: {[u.text for u in turn.units]}"
+
+
+async def test_answering_out_loud_settles_the_debt() -> None:
+    """A tap the customer then talks over is already answered.
+
+    The reply to a spoken turn is the reply to whatever they last did on screen —
+    the note is right there in the same context — so raising it again on the next
+    idle would have Aria announce the sign-in twice."""
+    async with demo("aura", _llm()) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's my balance?")
+
+        await rig.driver.send_client_message("auth_complete", {"nonce": _auth_nonce(rig)})
+        await asyncio.sleep(0.1)
+
+        turn = await rig.driver.user_says("Anything else I should know?")
+        check_turn(rig, turn, units=1)
+
+        idle = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS, timeout=1.0)
+        assert idle.units == [], [u.text for u in idle.units]

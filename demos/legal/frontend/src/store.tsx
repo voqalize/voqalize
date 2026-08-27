@@ -3,13 +3,24 @@
  *
  * One React context drives the document view and the ambient voice layer, so
  * the assistant and the lawyer work the same screen. The assistant mutates
- * state via `ui_command` RTVI messages (handleUiCommand): `point_to_clause`
- * scrolls/highlights a clause, `add_comment`/`propose_redline` anchor content
- * to a clause, and `run_diligence` drops fully-resolved background-task cards
- * that animate queued -> running -> done on their own (no real backend
- * concurrency — the model generates each result up front, the browser just
- * paces the reveal). The browser silently tells the assistant which clause is
- * in view via `clause_focus`, so it always knows where the lawyer is reading.
+ * state through RTVI's own `ui-command` — the brain's `session.dispatch(...)`
+ * arrives as `{ command, payload }`, `actions.gen.ts` (generated from the
+ * brain's `Action` classes) says what that pair can be, and
+ * {@link LegalStore.handleUiCommand} is the one reducer over it: `point_to_clause` scrolls/highlights a clause,
+ * `add_comment`/`propose_redline` anchor content to a clause, and
+ * `run_diligence` drops fully-resolved background-task cards that animate
+ * queued -> running -> done on their own (no real backend concurrency — the
+ * model generates each result up front, the browser just paces the reveal). An
+ * unknown command is a no-op by design: the brain and this page ship separately.
+ *
+ * The browser silently tells the assistant which clause is in view by sending
+ * `clause_focus` as an RTVI `client-message`, so it always knows where the
+ * lawyer is reading.
+ *
+ * What this store deliberately does **not** hold is what the assistant is
+ * doing. Presence is a rendering of pipecat's own state, never a second copy of
+ * it kept here — the call component derives it from RTVI events and hands it
+ * to the ring as a prop.
  */
 
 import {
@@ -21,31 +32,36 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { CLAUSES, CLAUSES_BY_ID, type Clause } from './content';
+import { CLAUSES, CLAUSES_BY_ID, type Clause, type ClauseId } from './content';
+import {
+  asUiAction,
+  unhandledUiAction,
+  type AddComment,
+  type DiligenceJob,
+  type InsertClause,
+  type Obligation as ObligationSpec,
+  type ProposeRedline,
+  type RouteForApproval,
+} from './actions.gen';
 
-export type BotState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type ConnectionState = 'idle' | 'connecting' | 'live' | 'error';
+/** The tray's own lifecycle — the brain sends a resolved job, never a running one. */
 export type TaskStatus = 'queued' | 'running' | 'done';
-export type TaskKind =
-  | 'finding'
-  | 'precedent'
-  | 'benchmark'
-  | 'exposure'
-  | 'search'
-  | 'research'
-  | 'memo';
-export type FindingFlag = 'ok' | 'warn' | 'risk';
+
+export type TaskKind = DiligenceJob['kind'];
+export type FindingFlag = NonNullable<DiligenceJob['finding_flag']>;
+
+/** The lawyer's verdict on a routed item — nothing the assistant sets. */
 export type ApprovalStatus = 'pending' | 'approved' | 'declined';
 
 export interface Comment {
   id: string;
-  clauseId: string;
+  clauseId: ClauseId;
   text: string;
 }
 
 export interface Redline {
   id: string;
-  clauseId: string;
+  clauseId: ClauseId;
   originalExcerpt: string;
   proposedText: string;
   rationale: string;
@@ -53,7 +69,7 @@ export interface Redline {
 
 export interface Insertion {
   id: string;
-  afterClauseId: string;
+  afterClauseId: ClauseId;
   heading: string;
   proposedText: string;
   rationale: string;
@@ -98,7 +114,7 @@ export interface Approval {
 
 export interface Obligation {
   id: string;
-  clauseId: string;
+  clauseId: ClauseId;
   label: string;
   window: string;
   note?: string;
@@ -111,8 +127,8 @@ export interface SessionSummary {
 }
 
 interface PointerEvent_ {
-  clauseId: string;
-  reason?: string;
+  clauseId: ClauseId;
+  reason: string;
   nonce: number;
 }
 
@@ -120,7 +136,7 @@ type AgentSend = (type: string, data: Record<string, unknown>) => void;
 
 export interface LegalStore {
   clauses: Clause[];
-  focusedClauseId: string | null;
+  focusedClauseId: ClauseId | null;
   comments: Comment[];
   redlines: Redline[];
   insertions: Insertion[];
@@ -129,17 +145,14 @@ export interface LegalStore {
   obligations: Obligation[];
   sessionSummary: SessionSummary | null;
   pointer: PointerEvent_ | null;
-  botState: BotState;
-  connectionState: ConnectionState;
 
-  setFocusedClause: (clauseId: string | null) => void;
-  setBotState: (s: BotState) => void;
-  setConnectionState: (s: ConnectionState) => void;
+  setFocusedClause: (clauseId: ClauseId | null) => void;
   setApprovalStatus: (id: string, status: ApprovalStatus) => void;
 
-  handleUiCommand: (cmd: Record<string, unknown>) => void;
+  /** Replay one `ui-command` onto the screen. Unknown commands are ignored. */
+  handleUiCommand: (command: string, payload: unknown) => void;
   registerAgentSend: (fn: AgentSend | null) => void;
-  sendClauseFocus: (clauseId: string) => void;
+  sendClauseFocus: (clauseId: ClauseId) => void;
 }
 
 const Ctx = createContext<LegalStore | null>(null);
@@ -150,10 +163,6 @@ export function useLegal(): LegalStore {
   return v;
 }
 
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
-const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
-const strArr = (v: unknown): string[] => arr<unknown>(v).filter((x): x is string => typeof x === 'string' && !!x);
 let _idc = 0;
 const rid = (p: string): string => `${p}-${Date.now().toString(36)}-${_idc++}`;
 
@@ -174,7 +183,7 @@ const TASK_RUN_MS: Record<TaskKind, number> = {
 };
 
 export function LegalProvider({ children }: { children: ReactNode }) {
-  const [focusedClauseId, setFocusedClauseId] = useState<string | null>(null);
+  const [focusedClauseId, setFocusedClauseId] = useState<ClauseId | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [redlines, setRedlines] = useState<Redline[]>([]);
   const [insertions, setInsertions] = useState<Insertion[]>([]);
@@ -183,8 +192,6 @@ export function LegalProvider({ children }: { children: ReactNode }) {
   const [obligations, setObligations] = useState<Obligation[]>([]);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [pointer, setPointer] = useState<PointerEvent_ | null>(null);
-  const [botState, setBotState] = useState<BotState>('idle');
-  const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
 
   const agentSendRef = useRef<AgentSend | null>(null);
   const timersRef = useRef<number[]>([]);
@@ -197,7 +204,7 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const setFocusedClause = useCallback((clauseId: string | null) => {
+  const setFocusedClause = useCallback((clauseId: ClauseId | null) => {
     setFocusedClauseId(clauseId);
   }, []);
 
@@ -205,9 +212,9 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     agentSendRef.current = fn;
   }, []);
 
-  const sendClauseFocus = useCallback((clauseId: string) => {
+  const sendClauseFocus = useCallback((clauseId: ClauseId) => {
     const clause = CLAUSES_BY_ID[clauseId];
-    if (!clause || !agentSendRef.current) return;
+    if (!agentSendRef.current) return;
     try {
       agentSendRef.current('clause_focus', {
         clause_id: clause.id,
@@ -219,70 +226,71 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const pointToClause = useCallback((clauseId: string, reason?: string) => {
-    if (!CLAUSES_BY_ID[clauseId]) return;
+  const pointToClause = useCallback((clauseId: ClauseId, reason: string) => {
     setPointer({ clauseId, reason, nonce: Date.now() });
   }, []);
 
-  const addComment = useCallback((clauseId: string, text: string, id?: string) => {
-    if (!CLAUSES_BY_ID[clauseId] || !text) return;
-    setComments((list) => [...list, { id: id ?? rid('cm'), clauseId, text }]);
+  const addComment = useCallback((p: AddComment) => {
+    if (!p.text) return;
+    setComments((list) => [...list, { id: rid('cm'), clauseId: p.clause_id, text: p.text }]);
   }, []);
 
-  const addRedline = useCallback(
-    (
-      clauseId: string,
-      originalExcerpt: string,
-      proposedText: string,
-      rationale: string,
-      id?: string,
-    ) => {
-      if (!CLAUSES_BY_ID[clauseId] || !originalExcerpt || !proposedText) return;
-      setRedlines((list) => [
-        ...list,
-        { id: id ?? rid('rl'), clauseId, originalExcerpt, proposedText, rationale },
-      ]);
-    },
-    [],
-  );
+  const addRedline = useCallback((p: ProposeRedline) => {
+    if (!p.original_excerpt || !p.proposed_text) return;
+    setRedlines((list) => [
+      ...list,
+      {
+        id: rid('rl'),
+        clauseId: p.clause_id,
+        originalExcerpt: p.original_excerpt,
+        proposedText: p.proposed_text,
+        rationale: p.rationale,
+      },
+    ]);
+  }, []);
 
-  const addInsertion = useCallback(
-    (afterClauseId: string, heading: string, proposedText: string, rationale: string, id?: string) => {
-      if (!CLAUSES_BY_ID[afterClauseId] || !heading || !proposedText) return;
-      setInsertions((list) => [
-        ...list,
-        { id: id ?? rid('ins'), afterClauseId, heading, proposedText, rationale },
-      ]);
-    },
-    [],
-  );
+  const addInsertion = useCallback((p: InsertClause) => {
+    if (!p.heading || !p.proposed_text) return;
+    setInsertions((list) => [
+      ...list,
+      {
+        id: rid('ins'),
+        afterClauseId: p.after_clause_id,
+        heading: p.heading,
+        proposedText: p.proposed_text,
+        rationale: p.rationale,
+      },
+    ]);
+  }, []);
 
-  const runDiligence = useCallback((rawJobs: Record<string, unknown>[]) => {
-    const jobs: TaskCard[] = rawJobs
-      .filter((j) => str(j.label) && str(j.kind))
-      .map((j, i) => ({
-        id: str(j.id) ?? `t-${Date.now().toString(36)}-${i}`,
-        label: String(j.label),
-        detail: str(j.detail),
+  const runDiligence = useCallback((specs: DiligenceJob[]) => {
+    // A job carries every kind's fields; `kind` says which of them to read, and
+    // the rest arrive empty. `|| undefined` is what turns an empty one back off.
+    const jobs: TaskCard[] = specs
+      .filter((j) => j.label)
+      .map((j) => ({
+        id: rid('t'),
+        label: j.label,
+        detail: j.detail || undefined,
         status: 'queued' as const,
-        kind: str(j.kind) as TaskKind,
-        durationMs: TASK_RUN_MS[str(j.kind) as TaskKind] ?? 9000,
-        summary: str(j.summary) ?? '',
-        findingValue: str(j.finding_value),
-        findingFlag: str(j.finding_flag) as FindingFlag | undefined,
-        precedentDeal: str(j.precedent_deal),
-        precedentResolution: str(j.precedent_resolution),
-        benchmarkPercentile: str(j.benchmark_percentile),
-        benchmarkNote: str(j.benchmark_note),
-        exposureCap: str(j.exposure_cap),
-        exposureEstimate: str(j.exposure_estimate),
-        exposureGap: str(j.exposure_gap),
-        searchScope: str(j.search_scope),
-        searchExcerpt: str(j.search_excerpt),
-        researchFinding: str(j.research_finding),
-        researchSource: str(j.research_source),
-        researchFlag: str(j.research_flag) as FindingFlag | undefined,
-        memoBody: str(j.memo_body),
+        kind: j.kind,
+        durationMs: TASK_RUN_MS[j.kind],
+        summary: j.summary,
+        findingValue: j.finding_value || undefined,
+        findingFlag: j.finding_flag ?? undefined,
+        precedentDeal: j.precedent_deal || undefined,
+        precedentResolution: j.precedent_resolution || undefined,
+        benchmarkPercentile: j.benchmark_percentile || undefined,
+        benchmarkNote: j.benchmark_note || undefined,
+        exposureCap: j.exposure_cap || undefined,
+        exposureEstimate: j.exposure_estimate || undefined,
+        exposureGap: j.exposure_gap || undefined,
+        searchScope: j.search_scope || undefined,
+        searchExcerpt: j.search_excerpt || undefined,
+        researchFinding: j.research_finding || undefined,
+        researchSource: j.research_source || undefined,
+        researchFlag: j.research_flag ?? undefined,
+        memoBody: j.memo_body || undefined,
       }));
     if (!jobs.length) return;
 
@@ -293,7 +301,7 @@ export function LegalProvider({ children }: { children: ReactNode }) {
 
     jobs.forEach((job, i) => {
       const startAt = TASK_LEAD + i * TASK_STEP;
-      const runMs = TASK_RUN_MS[job.kind] ?? 9000;
+      const runMs = TASK_RUN_MS[job.kind];
       timersRef.current.push(window.setTimeout(() => setStatus(job.id, 'running'), startAt));
       timersRef.current.push(
         window.setTimeout(() => setStatus(job.id, 'done'), startAt + runMs),
@@ -301,22 +309,18 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const routeForApproval = useCallback((cmd: Record<string, unknown>) => {
-    const title = str(cmd.title);
-    const summary = str(cmd.summary);
-    const recommendation = str(cmd.recommendation);
-    const routedTo = str(cmd.routed_to);
-    if (!title || !summary || !recommendation || !routedTo) return;
+  const routeForApproval = useCallback((p: RouteForApproval) => {
+    if (!p.title || !p.summary || !p.recommendation || !p.routed_to) return;
     setApprovals((list) => [
       ...list,
       {
-        id: str(cmd.id) ?? rid('ap'),
-        title,
-        summary,
-        amount: num(cmd.amount),
-        lines: strArr(cmd.lines),
-        recommendation,
-        routedTo,
+        id: rid('ap'),
+        title: p.title,
+        summary: p.summary,
+        amount: p.amount,
+        lines: p.lines,
+        recommendation: p.recommendation,
+        routedTo: p.routed_to,
         status: 'pending',
       },
     ]);
@@ -326,70 +330,53 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     setApprovals((list) => list.map((a) => (a.id === id ? { ...a, status } : a)));
   }, []);
 
-  const extractObligations = useCallback((rawObligations: Record<string, unknown>[]) => {
-    const entries: Obligation[] = rawObligations
-      .filter((o) => str(o.clause_id) && CLAUSES_BY_ID[str(o.clause_id) ?? ''] && str(o.label) && str(o.window))
-      .map((o, i) => ({
-        id: str(o.id) ?? `ob-${Date.now().toString(36)}-${i}`,
-        clauseId: String(o.clause_id),
-        label: String(o.label),
-        window: String(o.window),
-        note: str(o.note),
+  const extractObligations = useCallback((specs: ObligationSpec[]) => {
+    const entries: Obligation[] = specs
+      .filter((o) => o.label && o.window)
+      .map((o) => ({
+        id: rid('ob'),
+        clauseId: o.clause_id,
+        label: o.label,
+        window: o.window,
+        note: o.note || undefined,
       }));
     if (!entries.length) return;
     setObligations((list) => [...list, ...entries]);
   }, []);
 
   const handleUiCommand = useCallback(
-    (cmd: Record<string, unknown>) => {
-      const action = String(cmd.action ?? '');
-      switch (action) {
+    (command: string, payload: unknown) => {
+      const action = asUiAction(command, payload);
+      if (!action) return;
+      switch (action.command) {
         case 'point_to_clause':
-          if (str(cmd.clause_id)) pointToClause(str(cmd.clause_id)!, str(cmd.reason));
+          pointToClause(action.payload.clause_id, action.payload.reason);
           break;
         case 'add_comment':
-          if (str(cmd.clause_id) && str(cmd.text))
-            addComment(str(cmd.clause_id)!, str(cmd.text)!, str(cmd.id));
+          addComment(action.payload);
           break;
         case 'propose_redline':
-          if (str(cmd.clause_id) && str(cmd.original_excerpt) && str(cmd.proposed_text))
-            addRedline(
-              str(cmd.clause_id)!,
-              str(cmd.original_excerpt)!,
-              str(cmd.proposed_text)!,
-              str(cmd.rationale) ?? '',
-              str(cmd.id),
-            );
+          addRedline(action.payload);
           break;
         case 'insert_clause':
-          if (str(cmd.after_clause_id) && str(cmd.heading) && str(cmd.proposed_text))
-            addInsertion(
-              str(cmd.after_clause_id)!,
-              str(cmd.heading)!,
-              str(cmd.proposed_text)!,
-              str(cmd.rationale) ?? '',
-              str(cmd.id),
-            );
+          addInsertion(action.payload);
           break;
         case 'run_diligence':
-          runDiligence(arr<Record<string, unknown>>(cmd.jobs));
+          runDiligence(action.payload.jobs);
           break;
         case 'route_for_approval':
-          routeForApproval(cmd);
+          routeForApproval(action.payload);
           break;
         case 'extract_obligations':
-          extractObligations(arr<Record<string, unknown>>(cmd.obligations));
+          extractObligations(action.payload.obligations);
           break;
-        case 'summarize_session':
-          if (str(cmd.headline))
-            setSessionSummary({
-              headline: str(cmd.headline)!,
-              highlights: strArr(cmd.highlights),
-              openItems: strArr(cmd.open_items),
-            });
+        case 'summarize_session': {
+          const { headline, highlights, open_items } = action.payload;
+          if (headline) setSessionSummary({ headline, highlights, openItems: open_items });
           break;
+        }
         default:
-          break;
+          unhandledUiAction(action);
       }
     },
     [
@@ -403,16 +390,6 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  // Dev-only: drive the flow from the browser console without a live mic, e.g.
-  //   __legal.handleUiCommand({ action: 'point_to_clause', clause_id: 'c8' })
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    (window as unknown as { __legal?: unknown }).__legal = { handleUiCommand };
-    return () => {
-      delete (window as unknown as { __legal?: unknown }).__legal;
-    };
-  }, [handleUiCommand]);
-
   const value: LegalStore = {
     clauses: CLAUSES,
     focusedClauseId,
@@ -424,11 +401,7 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     obligations,
     sessionSummary,
     pointer,
-    botState,
-    connectionState,
     setFocusedClause,
-    setBotState,
-    setConnectionState,
     setApprovalStatus,
     handleUiCommand,
     registerAgentSend,

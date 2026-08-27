@@ -1,6 +1,6 @@
 """Sugar Coach — the demo's own FastAPI brain route.
 
-Voqalize dials `/sugar/s/{session_id}` once per session (the inbound path); the
+Voqalize dials `/sugar?session_id=…` once per session (the inbound path); the
 shared `make_brain_router` owns the socket lifecycle and token verification, so
 this file only names the demo and its per-session brain factory. This is the whole
 backend surface a demo contributes — discovered and mounted by the umbrella.
@@ -8,7 +8,7 @@ backend surface a demo contributes — discovered and mounted by the umbrella.
 
 from __future__ import annotations
 
-from voqalize_demos import GeminiProvider
+from google import genai
 from voqalize_demos.session import make_brain_router
 
 from .brain import SugarBrain
@@ -17,9 +17,9 @@ from .brain import SugarBrain
 NAME = "sugar"
 
 
-def build(llm: GeminiProvider) -> SugarBrain:
-    """Build a fresh brain for one session from the shared LLM provider."""
-    return SugarBrain(llm=llm)
+def build(client: genai.Client) -> SugarBrain:
+    """Build a fresh brain for one session from the shared Gemini client."""
+    return SugarBrain(client=client)
 
 
 router = make_brain_router(NAME, build)

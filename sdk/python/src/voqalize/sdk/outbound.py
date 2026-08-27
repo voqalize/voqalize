@@ -2,10 +2,10 @@
 
 One agent process holds one **outbound** WebSocket to Cortex's ``/agent``
 endpoint. Many sessions ride that single connection, demuxed by a 16-byte raw
-UUID prefix on every message (see ``cortex/internal/protocol/protocol.go``).
-This is the fallback for brains that cannot accept an inbound connection
-(serverless/FaaS, laptops, strict egress-only networks); the **primary** path is
-:class:`voqalize.sdk.inbound.DirectAgent`.
+UUID prefix on every message, which the relay inserts and strips.
+This is the path for brains that cannot accept an inbound connection (serverless,
+laptops, strict egress-only networks); when the application owns a WebSocket route
+it uses :func:`voqalize.sdk.run_session` there instead.
 
 The customer writes a :class:`~voqalize.sdk.brain.Brain`; the same Brain runs
 unchanged on either transport. Both hand a
@@ -22,11 +22,11 @@ Per-session guarantees, by construction:
    (per-session lanes); a talkative session can't starve quiet ones outbound
    (the shared writer round-robins via the ready queue). On overflow: drop newest
    + a non-fatal ``ErrorFrame`` to the affected session — never a kill.
-4. **Interruption** rides the wire as a field-less ``InterruptionFrame`` (system
-   lane), dispatched ahead of queued data; the adapter cancels in-flight work and
-   echoes the drain barrier.
+4. **Interruption** rides the wire as an ``InterruptionFrame`` naming the turn it
+   condemns (system lane), dispatched ahead of queued data; the adapter raises
+   the session's watermark and cancels in-flight work. Nothing goes back.
 5. **Reconnect** (via ``MultiplexedWire``): on reconnect all sessions are torn
-   down; PyGato re-sends each ``VqlStartFrame``, creating fresh runners.
+   down; Voqalize re-sends each ``SessionStartFrame``, creating fresh runners.
 """
 
 from __future__ import annotations
@@ -40,23 +40,20 @@ from loguru import logger
 
 from ._logging import session_context
 from .engine import (
-    DEFAULT_NORMAL_MAXSIZE,
-    OUT_DIRECTION,
+    DEFAULT_BULK_MAXSIZE,
     RunnerHost,
     SessionFactory,
     SessionRunner,
-    _Ack,
 )
 from .wire import (
-    CortexFrameSerializer,
     MalformedFrameError,
     MultiplexedWire,
     PermanentClose,
-    VqlStartFrame,
+    SessionStartFrame,
     WireClosed,
     WireConfig,
+    WireSerializer,
 )
-from .wire.serializer import serialize_ack
 
 
 class CortexAgent(RunnerHost):
@@ -74,7 +71,7 @@ class CortexAgent(RunnerHost):
         inbound_queue_maxsize: int | None = None,
     ) -> None:
         # Exactly one auth source: a static sk_… (customer agents) OR a callable
-        # that mints a fresh ``"Bearer <jwt>"`` per connect (platform agents).
+        # that mints a fresh ``"Bearer <jwt>"`` per connect (our own agents).
         if (api_key is None) == (authorization_provider is None):
             raise ValueError("CortexAgent: pass exactly one of api_key= or authorization_provider=")
         self._api_key = api_key
@@ -82,8 +79,8 @@ class CortexAgent(RunnerHost):
         self._version = version
         self._cortex_url = cortex_url
         self._factory = factory
-        self._serializer = CortexFrameSerializer()
-        self._normal_maxsize = inbound_queue_maxsize or DEFAULT_NORMAL_MAXSIZE
+        self._serializer = WireSerializer()
+        self._bulk_maxsize = inbound_queue_maxsize or DEFAULT_BULK_MAXSIZE
 
         self._wire: MultiplexedWire | None = None
         self._sessions: dict[bytes, SessionRunner] = {}
@@ -159,7 +156,7 @@ class CortexAgent(RunnerHost):
         assert self._wire is not None
         while not self._stopped.is_set():
             try:
-                sid, _direction, payload = await self._wire.recv()
+                sid, payload = await self._wire.recv()
             except PermanentClose as exc:
                 self._permanent = exc
                 return
@@ -172,20 +169,20 @@ class CortexAgent(RunnerHost):
                 return
 
             try:
-                decoded = await self._serializer.deserialize_message(payload)
+                frame = await self._serializer.deserialize_message(payload)
             except MalformedFrameError:
                 logger.exception("cortex: malformed payload, skipping")
                 continue
-            if decoded.frame is None:
-                # The SDK sends acks; it never expects to receive them.
+            if frame is None:
+                # A body this build does not know.
                 continue
 
             runner = self._sessions.get(sid)
             if runner is None:
-                if not isinstance(decoded.frame, VqlStartFrame):
+                if not isinstance(frame, SessionStartFrame):
                     logger.warning(
                         "cortex: dropping {} for unknown session {}",
-                        type(decoded.frame).__name__,
+                        type(frame).__name__,
                         _sid_str(sid),
                     )
                     continue
@@ -193,7 +190,7 @@ class CortexAgent(RunnerHost):
                     session_id=sid,
                     factory=self._factory,
                     host=self,
-                    normal_max=self._normal_maxsize,
+                    bulk_max=self._bulk_maxsize,
                 )
                 # `start()` inside the context, not merely the log line: the
                 # tasks it creates copy the ambient context, so the brain's own
@@ -204,7 +201,7 @@ class CortexAgent(RunnerHost):
                     runner.start()
                     logger.info("cortex: opened session {}", _sid_str(sid))
                 self._sessions[sid] = runner
-            runner.enqueue_inbound(decoded.frame, decoded.request_id)
+            runner.enqueue_inbound(frame)
 
     async def _writer_loop(self) -> None:
         assert self._wire is not None
@@ -213,21 +210,18 @@ class CortexAgent(RunnerHost):
             runner = self._sessions.get(sid)
             if runner is None:
                 continue  # closed between signal and now
-            item = runner.pop_out()
-            if item is None:
+            out = runner.pop_out()
+            if out is None:
                 continue
             try:
-                if isinstance(item, _Ack):
-                    payload = serialize_ack(item.ack_id)
-                else:
-                    payload = await self._serializer.serialize(item)
+                payload = await self._serializer.serialize(out)
             except Exception:
                 logger.exception("cortex: serialize failed for session {}", _sid_str(sid))
                 if not runner.out_empty():
                     self._ready.put_nowait(sid)
                 continue
             try:
-                await self._wire.send(sid, OUT_DIRECTION, payload)
+                await self._wire.send(sid, payload)
             except (WireClosed, PermanentClose):
                 return
             except asyncio.CancelledError:

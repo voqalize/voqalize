@@ -2,7 +2,7 @@
 
 This image is **brains only**. It exposes one thing:
 
-- ``/{name}/s/{session_id}`` — a demo's brain WebSocket, contributed by its own
+- ``/{name}?session_id=…`` — a demo's brain WebSocket, contributed by its own
   ``demos/{name}/backend/routes.py`` and discovered at startup. Voqalize dials
   this per session; the SDK verifies Voqalize's RS256 brain token itself.
 
@@ -26,7 +26,6 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.llm import GeminiProvider
 from voqalize_demos.session import Settings, init_runtime
 
 #: Commit this image was built from — baked in by ``demos/Dockerfile``'s
@@ -38,8 +37,7 @@ def create_app() -> FastAPI:
     """Build the umbrella app: wire the shared runtime, then discover and mount
     every co-located demo's brain router."""
     settings = Settings.from_env()
-    llm = GeminiProvider(api_key=settings.gemini_api_key)
-    init_runtime(settings, llm)
+    init_runtime(settings)
 
     demos = discover()
     demo_names = {d.name for d in demos}

@@ -6,10 +6,11 @@ runs the full CI gate, builds the sdist and wheel, installs the wheel against
 the oldest protobuf we claim to support, publishes to
 [PyPI](https://pypi.org/project/voqalize-agent-sdk/) and opens a GitHub release.
 
-The tag is package-prefixed. This repo holds two publishable SDKs — the Python
-brain SDK and `@voqalize/client-react` — and they do **not** version in lockstep,
-so `python-sdk-v*` and `react-sdk-v*` are separate series (see
-[`sdk/react/RELEASING.md`](../react/RELEASING.md)).
+The tag is package-prefixed: `python-sdk-v*`. It is prefixed because this repo
+used to hold a second publishable SDK, `@voqalize/client-react`, on its own
+`react-sdk-v*` series — deprecated 2026-08-24, nothing further publishes. The
+prefix stays: it costs nothing and it is the shape to keep if a second package
+ever earns its way back.
 
 ## Cutting a release
 
@@ -18,7 +19,7 @@ so `python-sdk-v*` and `react-sdk-v*` are separate series (see
 # 2. add a matching "## 0.0.2" section to sdk/python/CHANGELOG.md
 # 3. commit, then
 git tag python-sdk-v0.0.2
-git push origin main --follow-tags
+git push origin python-sdk-v0.0.2
 ```
 
 The guard job refuses the tag if it disagrees with `pyproject.toml` or if the
@@ -33,8 +34,8 @@ release python sdk → Run workflow**, picking the *tag* as the ref.
 The public series starts at `0.0.1`. Versions `0.1.0`–`0.3.0` in the changelog
 were never published — they were installed from a path by the single host that
 used the SDK — and starting the PyPI history at the bottom says plainly that
-nothing is promised yet. While the package is `0.0.x`, treat every release as
-potentially breaking and let consumers pin narrowly.
+nothing is promised yet. Until the package reaches `1.0`, treat every minor
+release as potentially breaking and let consumers pin narrowly.
 
 The **wire** is the exception and always has been: the `.proto` contract does not
 break on a version bump, and the changelog calls out explicitly when a release
@@ -101,6 +102,6 @@ started compiling, and `pip install` would go quiet on every platform that did
 not get a wheel.
 
 `pip install voqalize-agent-sdk` pulls `websockets`, `loguru`, `protobuf`,
-`pyjwt[crypto]` and `pydantic` — deliberately **not** pipecat and **not** ADK.
-The Google ADK integration is the `[adk]` extra, so `import voqalize.sdk` costs a
-host application nothing it did not ask for.
+`pyjwt[crypto]`, `cryptography` and `pydantic` — deliberately **not** pipecat and
+**not** a model vendor. `GeminiBrain` lives behind the `[gemini]` extra, so
+`import voqalize.sdk` costs a host application nothing it did not ask for.

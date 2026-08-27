@@ -1,19 +1,24 @@
 """FakeCortex — a session-id-aware TCP relay that stands in for cortex.
 
 Mirrors the real cortex split:
-- Pygato leg: ``ws://host/s/{session_id}?agent_id={agent_id}``.
-  Wire format ``[1-byte direction][payload]``. One session per connection.
-- Agent leg: ``ws://host/agent?agent_id={agent_id}``.
-  Wire format ``[16-byte session_id][1-byte direction][payload]``. One
-  connection per agent process; many sessions multiplex over it.
+- Pygato leg: ``ws://host?session_id={session_id}`` with ``Authorization: Bearer <jwt>``.
+  Wire format ``[payload]``. One session per connection.
+- Agent leg: ``ws://host/agent`` with ``Authorization: Bearer <sk_… or jwt>``.
+  Wire format ``[16-byte session_id][payload]``. One connection per agent
+  process; many sessions multiplex over it.
+
+Auth is *not* verified — FakeCortex only reads ``agent_id`` from the bearer
+to know how to route. For an ``sk_…`` token, the raw key is used as the
+agent_id (matches local-dev where the customer key doubles as the pool key).
+For a JWT, the ``agent_id`` claim is read by unverified decode.
 
 FakeCortex inserts the 16-byte session_id prefix on the pygato→agent path
 and strips it on the agent→pygato path. Test session ids are arbitrary
 strings; we hash them to 16 bytes via uuid5.
 
-Two-copy vendoring policy: identical file lives at
-``pygato/tests/fakes/cortex.py`` and ``agent-sdk/tests/fakes/cortex.py``. If
-the two drift, the shared e2e suite catches it.
+A counterpart lives in PyGato's ``tests/fakes/cortex.py``. Keep its routing
+behaviour aligned with this one; the usage examples differ because this suite
+may exercise private SDK construction seams directly.
 
 Usage::
 
@@ -25,7 +30,7 @@ Usage::
             api_key="welcome",
             version="1.0.0",
             cortex_url=cortex.agent_url("welcome"),
-            factory=brain_factory(MyBrain),
+            factory=_brain_factory(MyBrain),
         )
         await agent.run()
 
@@ -123,12 +128,15 @@ class FakeCortex:
     # ─── URL helpers ────────────────────────────────────────────────────
 
     def base_url(self) -> str:
-        """Root URL — `ws://host:port`. Pygato's CortexLLMService
-        appends `/s/{session_id}` itself."""
+        """Root URL — `ws://host:port`. The brain bridge appends
+        `?session_id=` itself."""
         return f"ws://{self._host}:{self._port}"
 
     def pygato_url(self, session_id: str, agent_id: str) -> str:
-        return f"ws://{self._host}:{self._port}/s/{session_id}?agent_id={agent_id}"
+        # Query string is a test-only escape hatch: FakeCortex prefers the
+        # Bearer claim but falls back to ?agent_id= so tests that hand-craft
+        # a Wire can skip JWT minting.
+        return f"ws://{self._host}:{self._port}?session_id={session_id}&agent_id={agent_id}"
 
     def agent_url(self, agent_id: str) -> str:
         return f"ws://{self._host}:{self._port}/agent?agent_id={agent_id}"
@@ -175,19 +183,21 @@ class FakeCortex:
         params = self._parse_query(ws)
         agent_id = self._agent_id_from_bearer(ws) or params.get("agent_id")
 
-        if path.startswith("/s/"):
-            session_id = path[len("/s/") :]
-            if not session_id or not agent_id:
-                await ws.close(code=1003, reason="missing session_id/agent_id")
-                return
-            await self._serve_pygato(ws, session_id=session_id, agent_id=agent_id)
-        elif path == "/agent":
+        if path == "/agent":
             if not agent_id:
                 await ws.close(code=1003, reason="missing agent_id")
                 return
             await self._serve_agent(ws, agent_id=agent_id)
-        else:
-            await ws.close(code=1003, reason=f"unknown path {path!r}")
+            return
+
+        # Everything else is the pygato leg. The session rides the query, not
+        # the path, so a brain is one ordinary WebSocket route mounted wherever
+        # the customer already mounts routes.
+        session_id = params.get("session_id")
+        if not session_id or not agent_id:
+            await ws.close(code=1003, reason="missing session_id/agent_id")
+            return
+        await self._serve_pygato(ws, session_id=session_id, agent_id=agent_id)
 
     async def _serve_pygato(self, ws: ServerConnection, *, session_id: str, agent_id: str) -> None:
         async with self._lock:
@@ -239,8 +249,8 @@ class FakeCortex:
     # ─── Routing ───────────────────────────────────────────────────────
 
     async def _route_pygato_to_agent(self, sess: _Session, msg: bytes) -> None:
-        """pygato sent `[direction][payload]`. Prepend the 16-byte session_id
-        and forward to the agent leg."""
+        """pygato sent `[payload]`. Prepend the 16-byte session_id and forward
+        to the agent leg."""
         if sess.drop_pygato_to_agent > 0:
             sess.drop_pygato_to_agent -= 1
             logger.debug(f"fake_cortex: drop pygato→agent ({len(msg)}B)")
@@ -267,10 +277,9 @@ class FakeCortex:
                 agent.buffered.append(prefixed)
 
     async def _route_agent_to_pygato(self, agent: _AgentLeg, msg: bytes) -> None:
-        """Agent sent `[16B session_id][direction][payload]`. Strip the
-        session_id and forward `[direction][payload]` to the corresponding
-        pygato leg."""
-        if len(msg) < SESSION_ID_LEN + 1:
+        """Agent sent `[16B session_id][payload]`. Strip the session_id and
+        forward `[payload]` to the corresponding pygato leg."""
+        if len(msg) < SESSION_ID_LEN:
             logger.warning(f"fake_cortex: short agent→pygato message ({len(msg)}B); dropping")
             return
         sid_bytes = msg[:SESSION_ID_LEN]

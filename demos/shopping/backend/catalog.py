@@ -13,7 +13,7 @@ copy. When you add or rename a product here, mirror the id there.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict, cast, get_args
 
 
 class Phone(TypedDict):
@@ -648,11 +648,25 @@ _BY_ID: dict[str, Phone] = {p["id"]: p for p in CATALOG}
 
 VALID_IDS: list[str] = [p["id"] for p in CATALOG]
 VALID_BRANDS: list[str] = sorted({p["brand"] for p in CATALOG})
-VALID_CATEGORIES: list[str] = ["flagship", "mid-range", "budget"]
 
-# Sort keys the agent (and console) can order results by. Mirror in
-# ``console/src/mobile/catalog.ts``.
-VALID_SORTS: list[str] = ["price_low", "price_high", "rating", "newest"]
+#: The two closed vocabularies the model and the console share. Declared as
+#: types so the Actions carry them onto the wire, with the runtime lists read
+#: back off them for the tool descriptions.
+Category = Literal["flagship", "mid-range", "budget"]
+SortKey = Literal["price_low", "price_high", "rating", "newest"]
+
+VALID_CATEGORIES: list[str] = list(get_args(Category))
+VALID_SORTS: list[str] = list(get_args(SortKey))
+
+
+def as_category(value: str | None) -> Category | None:
+    """Narrow what the model said to what the console can render, or nothing."""
+    return cast(Category, value) if value in VALID_CATEGORIES else None
+
+
+def as_sort_key(value: str | None) -> SortKey | None:
+    """As :func:`as_category`, for the sort order."""
+    return cast(SortKey, value) if value in VALID_SORTS else None
 
 
 # ── Lookups ─────────────────────────────────────────────────────────────────

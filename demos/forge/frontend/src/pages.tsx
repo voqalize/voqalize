@@ -44,7 +44,20 @@ export function ListView() {
         ))}
         <button
           className="ff-card ff-card-new"
-          onClick={() => dispatch('create_workflow', { name: 'Untitled workflow', category: 'ITSM' })}
+          onClick={() =>
+            dispatch({
+              command: 'create_workflow',
+              payload: {
+                id: '',
+                name: 'Untitled workflow',
+                description: '',
+                category: 'ITSM',
+                trigger: '',
+                channels: [],
+                context: [],
+              },
+            })
+          }
         >
           <div className="ff-plus">+</div>
           <div className="ff-card-name">New workflow</div>
@@ -76,7 +89,7 @@ export function Editor() {
         </div>
         <button
           className={`ff-publish ${wf.status === 'draft' ? 'ff-publish-hot' : ''}`}
-          onClick={() => dispatch('publish_workflow')}
+          onClick={() => dispatch({ command: 'publish_workflow', payload: {} })}
         >
           ⚡ Publish
         </button>
@@ -299,7 +312,7 @@ function TestsPanel({ wf }: { wf: Workflow }) {
   return (
     <div className="ff-tests">
       <div className="ff-tests-bar">
-        <button className="ff-run" onClick={() => dispatch('run_tests')}>
+        <button className="ff-run" onClick={() => dispatch({ command: 'run_tests', payload: {} })}>
           ▶ Run {wf.tests.length} test{wf.tests.length === 1 ? '' : 's'}
         </button>
         {wf.tests.length > 0 && (
@@ -329,7 +342,7 @@ function TestsPanel({ wf }: { wf: Workflow }) {
       <div className="ff-coverage">
         <div className="ff-cov-head">
           <div className="ff-eyebrow">Coverage</div>
-          <button className="ff-cov-btn" onClick={() => dispatch('review_coverage')}>
+          <button className="ff-cov-btn" onClick={() => dispatch({ command: 'review_coverage', payload: {} })}>
             Check for gaps
           </button>
         </div>
@@ -367,7 +380,7 @@ function RuntimePanel() {
           Publish to make this version live. Runs are <strong>durable</strong> — a request that's mid-approval keeps
           its place if anything restarts, and every step runs exactly once.
         </p>
-        <button className="ff-run" onClick={() => dispatch('publish_workflow')}>
+        <button className="ff-run" onClick={() => dispatch({ command: 'publish_workflow', payload: {} })}>
           Publish
         </button>
       </div>

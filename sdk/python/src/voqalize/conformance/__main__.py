@@ -3,10 +3,10 @@ running brain and print a pass/fail report.
 
 Examples::
 
-    # A brain that verifies pygato tokens against a public key: sign with the
-    # matching private key.
+    # A brain that verifies Voqalize's brain-connection token against a public
+    # key: sign with the matching private key.
     python -m voqalize.conformance \\
-        --brain-url ws://127.0.0.1:8787 --private-key ./pygato_priv.pem
+        --brain-url ws://127.0.0.1:8787 --private-key ./voqalize_priv.pem
 
     # A brain running allow_unverified (local dev): no token.
     python -m voqalize.conformance --brain-url ws://127.0.0.1:8787 --no-auth
@@ -52,36 +52,25 @@ async def _run(args: argparse.Namespace) -> Report:
 async def _self_test(args: argparse.Namespace) -> Report:
     """Host the bundled reference brain on an ephemeral port and run the full
     catalog against it — proves the driver + checks are internally consistent."""
-    from voqalize.sdk.brain import brain_factory
-    from voqalize.sdk.inbound import DirectAgent
-
+    from .host import brain_server
     from .reference import ConformanceBrain
-    from .wire_pygato import generate_keypair
+    from .wire_voqalize import generate_keypair
 
     keypair = generate_keypair()
-    agent = DirectAgent(
-        factory=brain_factory(ConformanceBrain),
-        host="127.0.0.1",
-        port=0,
-        public_keys=keypair.public_pem,
-    )
-    port = await agent.start()
-    try:
+    async with brain_server(ConformanceBrain, public_keys=keypair.public_pem) as server:
         return await run_suite(
-            f"ws://127.0.0.1:{port}",
+            server.url,
             private_key_pem=keypair.private_pem,
             include_reference=True,
             default_timeout=args.timeout,
         )
-    finally:
-        await agent.aclose()
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="voqalize.conformance")
     parser.add_argument("--brain-url", help="ws://host:port base URL of the brain under test")
     parser.add_argument(
-        "--private-key", help="PEM file to sign the runtime token the brain verifies"
+        "--private-key", help="PEM file to sign the token Voqalize presents to the brain"
     )
     parser.add_argument(
         "--no-auth",
