@@ -34,7 +34,6 @@ from voqalize.sdk.wire import (
     EndFrame,
     ErrorFrame,
     FinalizeFrame,
-    FinalizeReason,
     Frame,
     InterruptionFrame,
     ResponseFrame,
@@ -362,7 +361,7 @@ class VoqalizeDriver:
         if io is None or not io.units:
             return None
         if finalize_greeting:
-            await self._finalize_completed(io, FinalizeReason.COMPLETED)
+            await self._finalize_completed(io)
         return Turn(
             turn_id=GREETING_TURN,
             units=list(io.units),
@@ -410,7 +409,7 @@ class VoqalizeDriver:
         await self._quiesce(self._quiet(quiet_for), timeout=timeout)
         io = self.turns.setdefault(turn_id, TurnObs(turn_id))
         if finalize:
-            await self._finalize_completed(io, FinalizeReason.COMPLETED)
+            await self._finalize_completed(io)
         return Turn(turn_id, list(io.units), completed=io.completed)
 
     async def user_idle(
@@ -446,8 +445,7 @@ class VoqalizeDriver:
     ) -> Turn:
         """Drive a user barge-in: start a turn, let the brain begin speaking, then
         raise the interruption watermark through that turn. Finalize the cut unit
-        with ``interrupted=True`` / ``USER_BARGE_IN`` and a partial heard-truth,
-        and return it on :attr:`Turn.heard`.
+        with a partial heard-truth and return it on :attr:`Turn.heard`.
 
         Nothing comes back: the watermark is state, not an event, so the driver
         waits for the brain to go quiet rather than for an acknowledgement.
@@ -457,6 +455,13 @@ class VoqalizeDriver:
         and lets scenarios assert the recorded heard text against a known string.
         By default the heard-truth is *what actually arrived before the cut*
         (``cut.text``); pass ``heard_prefix`` to override it explicitly.
+
+        Those two defaults interact, and a scenario asserting on the brain's side
+        has to know it. A brain reads a unit as cut by comparing the heard prefix
+        against the text it generated, so a unit whose every chunk reached the
+        driver before the watermark landed reads as *complete* on the brain's side
+        even though :attr:`Turn.interrupted` is set here. Pass ``heard_prefix`` to
+        model a unit the caller genuinely talked over mid-playout.
 
         Timing knobs, from earliest cut to latest:
 
@@ -517,13 +522,7 @@ class VoqalizeDriver:
         heard: str | None = None
         if cut is not None:
             heard = heard_prefix if heard_prefix is not None else cut.text
-            await self._send(
-                FinalizeFrame(
-                    speech_id=cut.speech_id,
-                    heard_text=heard,
-                    reason=FinalizeReason.USER_BARGE_IN,
-                )
-            )
+            await self._send(FinalizeFrame(speech_id=cut.speech_id, heard_text=heard))
             io.finalized.add(cut.speech_id)
         return Turn(
             turn_id,
@@ -544,15 +543,19 @@ class VoqalizeDriver:
                 return unit
         return io.units[-1]
 
-    async def _finalize_completed(self, io: TurnObs, reason: FinalizeReason) -> None:
-        """Finalize every spoken, ended, not-yet-finalized unit in ``io`` with
-        heard-truth = exactly what the brain emitted (never generated)."""
+    async def _finalize_completed(self, io: TurnObs) -> None:
+        """Finalize every ended, not-yet-finalized unit in ``io`` with heard-truth
+        = exactly what the brain emitted (never generated).
+
+        A bracket that carried no text is answered too, as ``heard_text=""``.
+        Voqalize enrols a unit when it opens, not when its first chunk arrives, so
+        a brain is owed one finalize per bracket it opened and a silent bracket is
+        not an exception. A driver that quietly dropped those would pass a brain
+        whose finalize pairing then runs one behind in production."""
         for unit in io.units:
-            if unit.speech_id in io.finalized or not unit.spoke or not unit.ended:
+            if unit.speech_id in io.finalized or not unit.ended:
                 continue
-            await self._send(
-                FinalizeFrame(speech_id=unit.speech_id, heard_text=unit.text, reason=reason)
-            )
+            await self._send(FinalizeFrame(speech_id=unit.speech_id, heard_text=unit.text))
             io.finalized.add(unit.speech_id)
 
     # ─── the RTVI tunnel ─────────────────────────────────────────────────────

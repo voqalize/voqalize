@@ -106,13 +106,9 @@ class ReferenceBrain(Brain):
     def __init__(self) -> None:
         #: speech_id → what the caller actually heard. Written in on_finalize.
         self.heard: dict[int, str] = {}
-        #: speech_id → what this brain generated for that unit.
+        #: speech_id → what this brain generated for that unit. The SDK hands
+        #: it back on the finalize, so pairing the two is not the brain's job.
         self.generated: dict[int, str] = {}
-        # Units finalize in the order they opened, so a queue is enough to pair
-        # each finalize with the text that produced it. The SDK mints the id as
-        # the unit opens, inside the generator, so the brain does not see it
-        # until the finalize names it back.
-        self._opened: list[str] = []
         #: What the app last answered, spoken on the next turn — an app message
         #: holds no floor, so it cannot speak for itself.
         self._pending_answer: str | None = None
@@ -129,7 +125,6 @@ class ReferenceBrain(Brain):
             "Hello. I am the reference brain. Say anything and I will echo it, "
             "or ask me to open the dashboard."
         )
-        self._opened.append(line)
         return line
 
     async def on_session_end(self, session: Session) -> None:
@@ -242,14 +237,13 @@ class ReferenceBrain(Brain):
         as if they landed.
         """
         self.heard[fin.speech_id] = fin.heard
-        if self._opened:
-            self.generated[fin.speech_id] = self._opened.pop(0)
+        self.generated[fin.speech_id] = fin.generated
         logger.info(
             "reference: finalized #{} interrupted={} heard={!r} (generated {!r})",
             fin.speech_id,
             fin.interrupted,
             fin.heard,
-            self.generated.get(fin.speech_id, ""),
+            fin.generated,
         )
 
     # ─── Helpers ─────────────────────────────────────────────────────────
@@ -257,7 +251,6 @@ class ReferenceBrain(Brain):
     async def _say(self, text: str) -> AsyncGenerator[Speech, None]:
         """One speech unit, streamed word by word so the chunking is audible on
         the wire (a real brain yields whatever its model streams)."""
-        self._opened.append(text)
         yield SpeechStart()
         for word in text.split(" "):
             yield Chunk(word + " ")

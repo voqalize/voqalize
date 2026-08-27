@@ -16,13 +16,20 @@ async def on_finalize(self, session: Session, fin: Finalize) -> None:
     ...
 ```
 
-`Finalize` carries three fields and nothing else:
+`Finalize` carries three fields and one thing derived from two of them:
 
 | Field | What it is |
 |---|---|
 | `heard` | The delivered prefix of that unit's text — what reached the caller's ear. |
-| `interrupted` | `True` when the caller talked over it, `False` when it played to its end. |
+| `generated` | The text you emitted for that unit, kept by the SDK so you need not. |
 | `speech_id` | The unit this reports on. |
+| `interrupted` | `heard != generated`. `True` when the caller talked over it, `False` when it played to its end. |
+
+`heard` is a verbatim prefix of `generated`, which is what makes `interrupted` a
+comparison rather than a claim: equal means the unit played out, shorter means it
+was cut off, and empty against a unit that sent text means nothing reached the
+ear. Voqalize used to send the verdict alongside the evidence and no longer does
+— a second copy of a derivable fact is one more thing that can disagree.
 
 `speech_id` correlates and does nothing else. The SDK mints it when the unit
 opens, inside your generator, so this callback is the first place your own code
@@ -35,12 +42,13 @@ what was heard is known yet, and the record is written here or nowhere.
 
 Four guarantees a brain can be written against:
 
-- **Exactly one finalize per speech unit that carried text.** A unit you opened
-  and closed with no `Chunk` in it — or only empty ones — is never reported,
-  because it played nothing.
+- **Exactly one finalize per bracket you opened.** Enrolment happens at
+  `SpeechStart`, not at the first `Chunk`, so a unit you opened and closed with
+  no text in it is reported too — as `heard=""` against `generated=""`, which
+  reads as complete, because nothing was cut.
 - **They arrive in the order the units opened**, oldest first.
-- **A unit the caller never heard is still reported**, as `heard=""` with
-  `interrupted=True`. Generated ahead of playout and beaten to the speaker.
+- **A unit the caller never heard is still reported**, as `heard=""` against the
+  text you generated. Generated ahead of playout and beaten to the speaker.
 - **A finalize with nothing of yours waiting is the greeting.** `greet` returns a
   string the SDK speaks for you, so this callback is the only record of it that
   exists. Skip it and your model does not know it greeted, and opens a second
@@ -48,9 +56,17 @@ Four guarantees a brain can be written against:
 
 ## Pair a finalize with the unit that produced it
 
-Enrol a unit when you emit its **first chunk of text**, not when you yield
-`SpeechStart`. Then a plain FIFO queue is enough: the n-th finalize belongs to
-the n-th unit you enrolled.
+Enrol a unit **where you yield `SpeechStart`** — the same line, so the queue and
+the wire cannot disagree. Then a plain FIFO is enough: the n-th finalize belongs
+to the n-th bracket you opened.
+
+The other half is to **open no bracket you have nothing to say in**. A hop that
+only calls a tool is what the model did, not something it said; open a unit for
+it and you have bought a finalize you must account for, and the moment you
+forget to, the reply's heard text lands on the tool call and every finalize
+after it is off by one for the rest of the session. So the `SpeechStart` below
+is lazy — it waits for the first non-empty piece — and enrolment rides along
+with it.
 
 ```python
 from collections import deque
@@ -61,7 +77,7 @@ from voqalize.sdk import Brain, Chunk, Finalize, Session, SpeechEnd, SpeechStart
 class Concierge(Brain):
     def __init__(self) -> None:
         self.history: list[dict[str, str]] = []
-        # Units that emitted text, oldest first. One finalize is coming for each.
+        # Brackets opened, oldest first. One finalize is coming for each.
         self._awaiting: deque[dict[str, str]] = deque()
 
     async def on_user_message(self, session: Session, msg: UserMessage):
@@ -93,11 +109,11 @@ class Concierge(Brain):
             self.history = [c for c in self.history if c is not unit]
 ```
 
-The lazy open is what keeps the queue honest. A hop that only calls a tool must
-mint no unit: enrol one for it and the reply's heard text lands on the tool call,
-and every finalize after it is off by one for the rest of the session. Both
-shipped adapters do exactly this, and the contract suite asserts it against every
-brain we ship — see [testing a brain](/build/testing/).
+Both shipped adapters are built this way, and the contract suite asserts it
+against every brain we ship — including the tool-only hop that must leave the
+queue untouched. The conformance driver answers silent brackets too, so a brain
+that opens one and forgets to enrol it fails there rather than in a call — see
+[testing a brain](/build/testing/).
 
 **Keep the callback short.** Frames are dispatched one at a time, so a database
 round-trip in `on_finalize` delays the callbacks queued behind it, including the
@@ -108,9 +124,10 @@ write here is two seconds of a dead turn still generating.
 
 ## The correction only ever shortens
 
-`heard` is bounded by that unit's own generated text, and expressed in that
+`heard` is bounded by that unit's own `generated` text, and expressed in that
 unit's own characters. Voqalize can hand you back less than you sent, down to
-nothing at all, and can never hand you back more.
+nothing at all, and can never hand you back more. That bound is what the
+`interrupted` comparison rests on.
 
 That bound is a mechanism rather than a promise. No label survives the speech
 path to say which text belonged to which unit, so Voqalize does not carry one: it
@@ -135,8 +152,8 @@ never acknowledged, never echoed. A brain that misses one is corrected by the
 next.
 
 **An interruption does not cancel the finalizes you are owed.** The turn's task
-is cancelled and its generator closed, and the units that already emitted text
-are still reported — as the prefix that played, or as `heard=""`. That is what
+is cancelled and its generator closed, and every bracket it had already opened
+is still reported — as the prefix that played, or as `heard=""`. That is what
 makes `on_finalize` the one place the record is written.
 
 ## What a wrong record costs on the next turn

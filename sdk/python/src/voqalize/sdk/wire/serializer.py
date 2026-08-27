@@ -31,7 +31,6 @@ from .frames import (
     ErrorCode,
     ErrorFrame,
     FinalizeFrame,
-    FinalizeReason,
     Frame,
     IdleConfig,
     InterruptionFrame,
@@ -49,12 +48,6 @@ from .frames import (
     UserMessageFrame,
     Voice,
 )
-
-_REASON_TO_PB: dict[FinalizeReason, int] = {
-    FinalizeReason.COMPLETED: pb.FINALIZE_REASON_COMPLETED,
-    FinalizeReason.USER_BARGE_IN: pb.FINALIZE_REASON_USER_BARGE_IN,
-}
-_REASON_FROM_PB: dict[int, FinalizeReason] = {v: k for k, v in _REASON_TO_PB.items()}
 
 _CODE_TO_PB: dict[ErrorCode, int] = {
     ErrorCode.PROTOCOL: pb.ERROR_CODE_PROTOCOL,
@@ -138,7 +131,6 @@ def _enc_finalize(f: FinalizeFrame, env: pb.Envelope) -> None:
     m = env.finalize
     m.speech_id = f.speech_id
     m.heard_text = f.heard_text
-    m.reason = _REASON_TO_PB[f.reason]
 
 
 def _enc_speech_start(f: SpeechStartFrame, env: pb.Envelope) -> None:
@@ -263,7 +255,6 @@ def _dec_finalize(env: pb.Envelope) -> FinalizeFrame:
     return FinalizeFrame(
         speech_id=m.speech_id,
         heard_text=m.heard_text,
-        reason=_REASON_FROM_PB.get(m.reason, FinalizeReason.COMPLETED),
     )
 
 

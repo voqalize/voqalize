@@ -23,9 +23,12 @@
 
 ## Facts — the mechanism
 
-- **`Finalize(speech_id, heard, interrupted)`** arrives after playout, once per
+- **`Finalize(speech_id, heard, generated)`** arrives after playout, once per
   unit. `heard` is **the delivered prefix** — what actually reached the caller's
-  ear, not what you yielded. `interrupted` says whether the caller cut in.
+  ear, not what you yielded; `generated` is what you yielded, kept by the SDK.
+  `fin.interrupted` is `heard != generated` and is derived, not sent: the wire
+  carried the verdict until 2026-08-27, and a copy of a derivable fact is one
+  more thing that can disagree with the terms it was derived from.
 - `on_finalize(session, fin)` is the callback. Its docstring is blunt about the
   stakes: "Record `fin.heard`… a failure that is silent, cumulative, and invisible
   in every metric."

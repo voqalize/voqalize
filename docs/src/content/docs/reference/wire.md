@@ -145,7 +145,7 @@ guess.
 | `UserMessage` | `turn_id`, `text` | The human finished an utterance. A new turn: the floor is the brain's. |
 | `UserIdle` | `turn_id`, `level`, `idle_ms` | The human has been silent past the configured timeout. Also a new turn. `level` counts consecutive escalations with no intervening speech (1 is the first nudge) and resets when they speak; `idle_ms` is the silence elapsed when it fired. |
 | `Interruption` | `through_turn` | Everything up to and including `through_turn` is dead — the caller will not hear it. Stop generating for it. |
-| `Finalize` | `speech_id`, `heard_text`, `reason` | What the human actually heard of one speech unit. |
+| `Finalize` | `speech_id`, `heard_text` | What the human actually heard of one speech unit. |
 | `Response` | `request_id`, `status`, `detail` | The answer to one `Request`. |
 | `RTVIFrame` | `type`, `data` *(JSON)*, `id` | The app said something. Delivered verbatim; Voqalize never decides whether it deserves a reply. |
 | `End` | — | The call is over. |
@@ -171,9 +171,16 @@ the SDK. The wire has no `Struct` dependency; opaque payloads stay opaque.
 ### What the human heard
 
 `Finalize.heard_text` is the **delivered prefix** — what was actually played,
-not what was generated. On a barge-in the two differ, and it is bounded by that
-unit's own text, never a concatenation across units. `reason` is `COMPLETED` or
-`USER_BARGE_IN`.
+not what was generated. It is a *verbatim* prefix of that unit's own text, never
+a concatenation across units, which is what makes it the whole report: equal to
+what you sent means the unit played out, shorter means the caller cut it off, and
+empty against chunks you sent means nothing reached the ear.
+
+So the message carries no verdict. Tag 3 held a `FinalizeReason` until
+2026-08-27 and is now reserved: you hold the text you generated, Voqalize holds
+what played, and the comparison is one subtraction away on the end that has both.
+A copy of that answer could disagree with it; the subtraction cannot. An older
+brain still decodes the message and reads the field as unset.
 
 Feed `heard_text` back into your model's history rather than what you generated.
 A model that remembers the sentence it started is a model that references a
@@ -478,7 +485,12 @@ Both ends rely on these, and a brain that implements the wire directly owes them
 6. **Exactly one `Response` per `Request`**, matching on `request_id`.
 7. **Nothing is emitted outside a turn except floor-free messages** —
    `RTVIFrame`, `Request`, `End`, `Cancel`, `Error`.
-8. **`heard_text` is the delivered prefix**, per unit, never a concatenation.
+8. **`heard_text` is the delivered prefix**, per unit, never a concatenation,
+   and a verbatim prefix of that unit's own text.
+9. **Exactly one `Finalize` per bracket the brain opened**, in that order —
+   including for a unit that turned out silent, which reports nothing heard.
+   A brain cannot know in advance which of its units will be silent, and an
+   absent report is indistinguishable from a late one.
 
 ## Changing the wire
 

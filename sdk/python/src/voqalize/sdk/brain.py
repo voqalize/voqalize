@@ -92,7 +92,6 @@ from .wire import (
     ErrorCode,
     ErrorFrame,
     FinalizeFrame,
-    FinalizeReason,
     Frame,
     InterruptionFrame,
     ResponseFrame,
@@ -491,11 +490,17 @@ class Brain:
         """One speech unit finished playing, and this is what the user *heard* —
         the delivered prefix, not what you generated.
 
-        Fires once per unit that produced audio, after the callback that produced
-        it has long returned. Record ``fin.heard``: a barged-in reply that
-        generated three sentences and delivered one must go into history as one,
-        or the model will reference things it never finished saying — a failure
-        that is silent, cumulative, and invisible in every metric.
+        Fires exactly once per unit you opened, after the callback that produced
+        it has long returned — including for a unit that turned out silent, which
+        reports nothing heard, because an absent report and a late one are the
+        same thing to whoever is waiting for it. Record ``fin.heard``: a barged-in
+        reply that generated three sentences and delivered one must go into
+        history as one, or the model will reference things it never finished
+        saying — a failure that is silent, cumulative, and invisible in every
+        metric.
+
+        ``fin.generated`` is what you sent, kept by the SDK, so ``fin.interrupted``
+        is the two of them differing rather than a flag you have to trust.
         """
 
 
@@ -517,6 +522,10 @@ class _BrainAdapter:
         # Floor-free work — app messages, result callbacks — which a barge-in has
         # no reason to touch. Cancelled only at teardown.
         self._ambient: set[asyncio.Task[Any]] = set()
+        # What each open unit has put on the wire, so `Finalize` can hand the
+        # brain both halves of the comparison. Voqalize promises exactly one
+        # finalize per bracket a brain opened, so an entry is popped, not left.
+        self._generated: dict[int, str] = {}
 
     # ─── Adapter services used by Session ───────────────────────────────
 
@@ -569,7 +578,7 @@ class _BrainAdapter:
                 Finalize(
                     speech_id=frame.speech_id,
                     heard=frame.heard_text,
-                    interrupted=frame.reason is FinalizeReason.USER_BARGE_IN,
+                    generated=self._generated.pop(frame.speech_id, ""),
                 ),
             )
         elif isinstance(frame, RTVIFrame):
@@ -669,6 +678,11 @@ class _BrainAdapter:
         not abandoned, so the brain's ``finally`` blocks run. A unit left open by
         anything *else* is closed on the wire, so a brain that crashes mid-speech
         does not leave the runtime waiting for a chunk that will never come.
+
+        Each unit's text is kept as it goes out, and handed back on that unit's
+        :class:`~voqalize.sdk.Finalize` as ``generated``. Voqalize reports the
+        heard prefix and nothing more, so this end holds what the prefix is a
+        prefix *of* — and a cut unit is the two of them differing.
         """
         speech_id: int | None = None
         cut = False
@@ -678,11 +692,13 @@ class _BrainAdapter:
                     if speech_id is not None:
                         raise WireError("SpeechStart inside an open speech unit")
                     speech_id = session._next_speech_id()
+                    self._generated[speech_id] = ""
                     self.emit(SpeechStartFrame(speech_id=speech_id, turn_id=turn_id))
                 elif isinstance(event, Chunk):
                     if speech_id is None:
                         raise WireError("Chunk outside a speech unit")
                     if event.text:
+                        self._generated[speech_id] += event.text
                         self.emit(SpeechChunkFrame(speech_id=speech_id, text=event.text))
                 elif isinstance(event, SpeechEnd):
                     if speech_id is None:

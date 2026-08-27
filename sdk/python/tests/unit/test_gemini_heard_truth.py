@@ -56,7 +56,10 @@ def _speak(brain: GeminiBrain, text: str) -> None:
 
 
 def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Finalize:
-    return Finalize(speech_id=speech_id, heard=text, interrupted=interrupted)
+    """One finalize. ``interrupted`` is a comparison rather than a flag, so a cut
+    unit is one whose generated text runs past what the caller heard."""
+    generated = text + " ...and the tail nobody heard." if interrupted else text
+    return Finalize(speech_id=speech_id, heard=text, generated=generated)
 
 
 # ─── And what an append does to all of it ─────────────────────────────────────

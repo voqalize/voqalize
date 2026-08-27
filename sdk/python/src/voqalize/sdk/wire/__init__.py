@@ -5,7 +5,7 @@ Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. Only protobuf
 
 Public surface:
 - The frame dataclasses plus ``Frame``, and the enums they carry —
-  ``FinalizeReason``, ``ErrorCode``, ``RTVIType``.
+  ``ErrorCode`` and ``RTVIType``.
 - ``Config`` and its three sections, the ``Voice`` and ``Language`` catalogs,
   and ``ConfigError`` — one configuration type, shared with the agent record
   that stores a session's defaults.
@@ -29,7 +29,6 @@ from .frames import (
     ErrorCode,
     ErrorFrame,
     FinalizeFrame,
-    FinalizeReason,
     Frame,
     IdleConfig,
     InterruptionFrame,
@@ -73,7 +72,6 @@ __all__ = [
     "ErrorCode",
     "ErrorFrame",
     "FinalizeFrame",
-    "FinalizeReason",
     "Frame",
     "IdleConfig",
     "InterruptionFrame",

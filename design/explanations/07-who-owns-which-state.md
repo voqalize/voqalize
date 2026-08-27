@@ -30,8 +30,9 @@
 ## Facts
 
 - **Conversation state is ours, delivered as events.** `Finalize(speech_id,
-  heard, interrupted)` after playout ([3](03-interruption-and-heard-truth.md)) —
-  and `heard` is a fact you cannot compute.
+  heard, generated)` after playout ([3](03-interruption-and-heard-truth.md)) —
+  and `heard` is the one of the three you cannot compute, which is why it is the
+  only one that travels.
 - **Screen state is yours, delivered as `state_sync`.** It lands on
   `on_rtvi`, which is deliberately **not a generator**: the app pushing state
   must not be able to take the floor, and an app message mints no turn.

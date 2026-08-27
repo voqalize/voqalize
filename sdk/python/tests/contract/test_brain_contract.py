@@ -79,7 +79,10 @@ async def _dial(engine: Engine, *hops: Any) -> Any:
 
 
 def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Finalize:
-    return Finalize(speech_id=speech_id, heard=text, interrupted=interrupted)
+    """One finalize. ``interrupted`` is a comparison rather than a flag, so a cut
+    unit is one whose generated text runs past what the caller heard."""
+    generated = text + " ...and the tail nobody heard." if interrupted else text
+    return Finalize(speech_id=speech_id, heard=text, generated=generated)
 
 
 def _kinds(lines: list[str], prefix: str) -> list[str]:

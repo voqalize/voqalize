@@ -126,30 +126,26 @@ message Interruption {
   uint64 through_turn = 1;
 }
 
-// Why a speech unit stopped.
-enum FinalizeReason {
-  // Never sent. Present because proto3 requires a zero value.
-  FINALIZE_REASON_UNSPECIFIED = 0;
-
-  // The unit played to its end.
-  FINALIZE_REASON_COMPLETED = 1;
-
-  // The caller spoke over it and it was cut short.
-  FINALIZE_REASON_USER_BARGE_IN = 2;
-}
-
 // What the caller actually heard of one speech unit. This is the only place a
 // brain learns it, and on a barge-in it is not what was generated.
 message Finalize {
   // The unit this closes.
   uint64 speech_id = 1;
 
-  // The played prefix. Bounded by that unit's own text, never a cross-unit
-  // concatenation.
+  // The played prefix — a verbatim prefix of that unit's own text, never a
+  // cross-unit concatenation. Equal to what the brain generated means it played
+  // out; shorter means it was cut off; empty against chunks that were sent means
+  // nothing reached the ear.
   string heard_text = 2;
 
-  // Whether it finished or was cut off.
-  FinalizeReason reason = 3;
+  // Was `FinalizeReason reason`, retired 2026-08-27. Whether a unit was cut is
+  // the comparison above, and the brain holds the half of it the runtime does
+  // not: it knows what it generated. Carrying the answer as well as the terms
+  // made a second copy of one fact, and a copy can disagree with the derivation
+  // where the derivation cannot disagree with itself. The tag stays reserved and
+  // an older brain still decodes the message, reading the field as unset.
+  reserved 3;
+  reserved "reason";
 }
 
 // ─── Voice plane: B→V ────────────────────────────────────────────────────────

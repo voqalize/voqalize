@@ -69,7 +69,10 @@ def _tool_call(brain: GeminiInteractionsBrain, name: str) -> None:
 
 
 def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Finalize:
-    return Finalize(speech_id=speech_id, heard=text, interrupted=interrupted)
+    """One finalize. ``interrupted`` is a comparison rather than a flag, so a cut
+    unit is one whose generated text runs past what the caller heard."""
+    generated = text + " ...and the tail nobody heard." if interrupted else text
+    return Finalize(speech_id=speech_id, heard=text, generated=generated)
 
 
 async def test_a_dropped_unit_leaves_the_steps_around_it_untouched() -> None:

@@ -32,10 +32,12 @@ async def on_finalize(self, session: Session, fin: Finalize) -> None:
     ...
 ```
 
-`Finalize` carries three things: `speech_id`, `heard`, and `interrupted`.
+`Finalize` carries three things: `speech_id`, `heard`, and `generated`.
 
 `heard` is **the delivered prefix** — the text that reached the caller's ear, not
-the text you yielded. `interrupted` says whether the caller cut in. This is the
+the text you yielded. `generated` is the text you yielded, kept by the SDK so the
+two can be set side by side; `fin.interrupted` is that comparison and nothing
+more. This is the
 one place Voqalize knows something your process cannot: playout happens on our
 side of the wire, so where the audio actually stopped is ours to report and yours
 to record.

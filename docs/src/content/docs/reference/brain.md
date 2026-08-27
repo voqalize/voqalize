@@ -246,7 +246,11 @@ class RTVIMessage:
 class Finalize:
     speech_id: int      # the unit this reports on
     heard: str          # the delivered prefix, not what you generated
-    interrupted: bool   # True when a barge-in cut it
+    generated: str      # what you sent for that unit, kept by the SDK
+
+    @property
+    def interrupted(self) -> bool:   # heard != generated
+        ...
 
 @dataclass(frozen=True)
 class Error:
@@ -268,10 +272,14 @@ carries different names, and a reader moving between this page and
 |---|---|---|
 | `speech_id` | `speech_id` | Same name, same value. |
 | `heard_text` | `heard` | Same value. |
-| `reason` | `interrupted` | A `FinalizeReason` — `completed` or `user_barge_in` — flattened to the boolean, because the only question a brain asks of it is whether it was cut. |
+| — | `generated` | Not on the wire. The SDK keeps the text each unit sent, so the comparison below has both halves without you writing a ledger. |
+| — | `interrupted` | Not on the wire either: `heard != generated`. |
 
-The wire has one more reason than the boolean can express only if one is added;
-today the enum has exactly the two.
+`heard` is a verbatim prefix of `generated`, so equal means the unit played out
+and shorter means the caller cut it off. Voqalize used to send that verdict as
+well — a `FinalizeReason` — and stopped, because the end that generated the text
+can work it out, and a copy of a fact you can derive is one more thing that can
+be wrong.
 
 ## What a generator may yield
 

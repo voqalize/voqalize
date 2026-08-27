@@ -19,7 +19,6 @@ from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
     FinalizeFrame,
-    FinalizeReason,
     SessionStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
@@ -54,11 +53,7 @@ async def test_round_trip_every_frame() -> None:
 
             # Drive a user turn + a finalize.
             await client.send(UserMessageFrame(turn_id=2, text="user said hi"))
-            await client.send(
-                FinalizeFrame(
-                    speech_id=1, heard_text="bot said hi", reason=FinalizeReason.COMPLETED
-                ),
-            )
+            await client.send(FinalizeFrame(speech_id=1, heard_text="bot said hi"))
 
             # The Brain's unit of speech emits Start → Text → End.
             expected = {

@@ -113,13 +113,26 @@ class Finalize:
     on a barge-in the two differ, and recording the generated version is how a
     model ends up referencing sentences it never finished saying.
 
+    ``generated`` is the text this end put on the wire for that unit, kept by the
+    SDK so you do not have to keep it yourself. ``heard`` is a verbatim prefix of
+    it, which is what makes :attr:`interrupted` a comparison rather than a claim:
+    equal means the unit played out, shorter means the caller cut it off, and
+    empty against a unit that sent text means nothing reached the ear. Voqalize
+    used to send the verdict alongside the evidence; it stopped, because a copy of
+    a derivable fact is one more thing that can be wrong.
+
     ``speech_id`` names the unit this reports on — the value the SDK minted when
     the unit opened, echoed back unchanged. It correlates and does nothing else.
     """
 
     speech_id: int
     heard: str
-    interrupted: bool
+    generated: str
+
+    @property
+    def interrupted(self) -> bool:
+        """``True`` when the caller talked over this unit and it was cut short."""
+        return self.heard != self.generated
 
 
 @dataclass(frozen=True)

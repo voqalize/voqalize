@@ -33,13 +33,6 @@ class Frame:
     """Marker base for every wire frame."""
 
 
-class FinalizeReason(StrEnum):
-    """Why a speech unit was finalized."""
-
-    COMPLETED = "completed"
-    USER_BARGE_IN = "user_barge_in"
-
-
 class ErrorCode(StrEnum):
     """What kind of error an :class:`ErrorFrame` reports."""
 
@@ -141,11 +134,16 @@ class InterruptionFrame(Frame):
 @dataclass
 class FinalizeFrame(Frame):
     """What the user actually heard of one speech unit — never a cross-unit
-    concatenation."""
+    concatenation.
+
+    ``heard_text`` is a verbatim prefix of the text this unit generated, which is
+    why the frame carries nothing else: equal means it played out, shorter means
+    it was cut off, and the brain is the end that holds the other half of the
+    comparison. :class:`voqalize.sdk.Finalize` makes it for you.
+    """
 
     speech_id: int = 0
     heard_text: str = ""
-    reason: FinalizeReason = FinalizeReason.COMPLETED
 
 
 # ─── Brain → Voqalize ────────────────────────────────────────────────────────────
