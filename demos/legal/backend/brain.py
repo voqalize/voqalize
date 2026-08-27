@@ -117,7 +117,7 @@ Open with ONE brief, quiet line acknowledging you're following along on the {MAT
 
 # The opener. A quiet acknowledgement, not a chat-assistant greeting, and generic
 # — no counterparty name, which sidesteps TTS mispronouncing a vendor.
-_GREETING = "I have the MSA open. Ready to assist."
+_GREETING = "Hello, I have the contract open and am ready to assist."
 
 
 # ── The tool surface: one pydantic model per tool ──────────────────────────────
