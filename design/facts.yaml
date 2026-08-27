@@ -78,19 +78,20 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.1.0'
+    value: '0.2.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-08-25
+    verified: 2026-08-27
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped from 0.0.4 on 2026-08-25, and the minor rather than the patch
-      because the surface is backward-incompatible: Interaction, Conversation,
-      serve_direct and serve_auto are gone, and Brain, run_session and serve
-      replaced them. Under 1.0 that is what a minor is for. Derived, so this
-      line cannot drift from pyproject.toml — but the number it should be
-      compared against is sdk.python.version.published, not this one.
+      Bumped to 0.2.0 on 2026-08-27, and the minor rather than the patch for the
+      same reason 0.1.0 was: the surface breaks. FinalizeReason is gone and
+      Finalize carries a third field, so a caller that constructs one no longer
+      compiles. Under 1.0 that is what a minor is for. Derived, so this line
+      cannot drift from pyproject.toml — but the number it should be compared
+      against is sdk.python.version.published, not this one, and the two are
+      deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
     value: '0.1.0'
@@ -100,11 +101,14 @@ facts:
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
-      PyPI and the tree have matched at 0.1.0 since the 2026-08-26 release.
-      This is the first published version of the new Brain, run_session and
-      serve surface; 0.0.3 exposed the incompatible Interaction, Conversation,
-      serve_direct and serve_auto API. Documentation install lines remain pinned
-      to 0.1.0 so examples and installed code cannot silently drift apart.
+      Published 2026-08-26. The tree moved to 0.2.0 on 2026-08-27 and PyPI has
+      not, so the two are apart until the `python-sdk-v0.2.0` tag is pushed;
+      move this line and the documentation install lines together when it is.
+      0.1.0 is the first published version of the Brain, run_session and serve
+      surface; 0.0.3 exposed the incompatible Interaction, Conversation,
+      serve_direct and serve_auto API. Documentation install lines stay pinned
+      to the published number so examples and installed code cannot silently
+      drift apart.
 
   sdk.python.surface.published:
     value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage,

@@ -15,6 +15,34 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.2.0
+
+**`Finalize` reports the evidence, and the verdict is a comparison.** The wire
+stopped carrying `FinalizeReason`: `heard_text` is a verbatim prefix of what the
+brain generated for that unit, so equal means it played out, shorter means it was
+cut off, and empty against chunks that were sent means nothing reached the ear.
+The brain holds the other half of every one of those comparisons, and a copy of a
+derivable fact is one more thing that can disagree with the terms it came from.
+
+### Changed
+
+- **`Finalize` gains `generated`, and `interrupted` becomes a property.** The SDK
+  records what each open unit put on the wire and hands it back, so
+  `fin.interrupted` is `fin.heard != fin.generated` and nothing else. A brain
+  reading `fin.interrupted` and `fin.heard` needs no change; one constructing a
+  `Finalize` — a test, a fake — must now pass `generated`.
+- **The conformance driver answers silent brackets.** Voqalize enrols a unit when
+  it opens, not when its first chunk arrives, so a brain is owed exactly one
+  finalize per bracket it opened and a bracket that carried no text is not an
+  exception. The driver used to drop those, which passed a brain whose finalize
+  pairing then ran one behind in production.
+
+### Removed
+
+- **`FinalizeReason`**, from `voqalize.sdk.wire` and from `FinalizeFrame`. Tag 3
+  and the name `reason` are reserved in the proto, so an older brain still
+  decodes the message and reads the field as unset.
+
 ## 0.1.0
 
 **Wire version 3, and it is a break.** The envelope carries no fields, barge-in

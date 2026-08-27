@@ -1,6 +1,6 @@
 [project]
 name = "voqalize-agent-sdk"
-version = "0.1.0"
+version = "0.2.0"
 description = "Bring the brain, we bring the voice: write a plain Python Brain, Voqalize runs the voice."
 readme = "README.md"
 license = "Apache-2.0"
