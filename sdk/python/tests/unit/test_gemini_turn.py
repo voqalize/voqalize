@@ -17,6 +17,12 @@ The stand-in below is faithful to both. It runs each tool the moment it yields
 the chunk carrying the call, and it keeps the record the same way the live API
 does: opening as the contents it was handed, growing only once a hop is over, so
 a hop's responses are first visible on the next hop's first chunk.
+
+`tests/contract/test_brain_contract.py` states the engine-agnostic clauses this
+brain has to satisfy (a turn ends, every call is answered, `tools` is read once,
+...) once, against every engine. This file is what needs the real AFC stand-in
+to exercise: the streaming/unit-boundary rules above, and other behavior AFC
+itself is responsible for.
 """
 
 from __future__ import annotations
@@ -264,41 +270,6 @@ def _history(brain: _Coach) -> list[str]:
 # ─── The two rules ────────────────────────────────────────────────────────────
 
 
-async def test_a_plain_turn_is_one_unit() -> None:
-    brain, session = await _brain(_text("Good ", "evening."))
-
-    assert _shape(await _drain(brain, session)) == ["[", "Good ", "evening.", "]"]
-
-
-async def test_a_silent_tool_hop_opens_no_unit() -> None:
-    """The whole reason for opening lazily. Under a per-hop unit this turn emits
-    an empty `SpeechStart`/`SpeechEnd` pair around the tool call, and the runtime
-    mints a speech unit for a hop that never made a sound."""
-    brain, session = await _brain(_calls("ping") + _text("Done."))
-
-    assert _shape(await _drain(brain, session)) == ["[", "Done.", "]"]
-    assert brain.ran == ["ping"]
-    assert len(brain._awaiting) == 1  # pyright: ignore[reportPrivateUsage]
-
-
-async def test_speech_either_side_of_a_tool_is_two_units() -> None:
-    """`finish_reason` is the only boundary between hops, and there is one per
-    hop — so a turn that narrates, calls a tool, then reports back is two units
-    of speech under one turn id."""
-    script = _text("Let me look.") + _calls("ping") + _text("All set.")
-    brain, session = await _brain(script)
-
-    assert _shape(await _drain(brain, session)) == [
-        "[",
-        "Let me look.",
-        "]",
-        "[",
-        "All set.",
-        "]",
-    ]
-    assert len(brain._awaiting) == 2  # pyright: ignore[reportPrivateUsage]
-
-
 async def test_a_thought_is_not_spoken() -> None:
     """Thought parts carry text that is reasoning, not speech. They belong in the
     context — Gemini 3 wants them handed back — and never on the wire."""
@@ -340,21 +311,6 @@ async def test_tool_responses_land_in_history_in_hop_order() -> None:
         "user: resp:ping",
         "model: All set.",
     ]
-
-
-async def test_a_tool_that_raises_reaches_the_model_as_an_error() -> None:
-    """google-genai turns any exception into `{'error': str(e)}` and hands it to
-    the model, which will otherwise tell the caller it did the thing. We do not
-    interpose to catch it — we read it out of the record, which is how it becomes
-    visible on our side too."""
-    brain, session = await _brain(_calls("boom") + _text("Sorry."))
-
-    await _drain(brain, session)
-
-    responses = [
-        p.function_response for c in brain._history for p in (c.parts or []) if p.function_response
-    ]
-    assert [r.response for r in responses if r] == [{"error": "kaboom"}]
 
 
 async def test_a_call_whose_response_never_came_back_leaves_the_context() -> None:
@@ -548,43 +504,6 @@ def test_the_declared_tool_is_the_method_and_the_method_is_untouched() -> None:
     assert _Coach.show.__annotations__["args"] == "_Section"
 
 
-async def test_a_sync_tool_is_refused() -> None:
-    """AFC runs a synchronous tool on a worker thread, off the loop, where the
-    first `await` the tool grows is a rewrite. Half-working is the failure mode we
-    refuse."""
-
-    class _Sync(_Coach):
-        @property
-        def tools(self) -> list[Any]:
-            return [self.blocking]
-
-        def blocking(self) -> str:
-            """Not a coroutine."""
-            return "ok"
-
-    with pytest.raises(TypeError, match="must be `async def`"):
-        _declared(_Sync(_ScriptedClient([])))
-
-
-async def test_the_tools_are_read_once_per_turn() -> None:
-    """The list is a property, not a decorator swept at construction — so a brain
-    can offer a caller a tool it does not offer everyone, decided as late as the
-    turn it is needed for."""
-
-    class _Gated(_Coach):
-        unlocked = False
-
-        @property
-        def tools(self) -> list[Any]:
-            return [self.show, self.ping] if self.unlocked else [self.ping]
-
-    brain = _Gated(_ScriptedClient([]))
-    assert [fn.__name__ for fn in _declared(brain)] == ["ping"]
-
-    brain.unlocked = True
-    assert [fn.__name__ for fn in _declared(brain)] == ["show", "ping"]
-
-
 async def test_tools_are_not_shared_between_brains() -> None:
     """The declarations are bound methods, so two sessions of the same brain drive
     two different screens."""
@@ -595,16 +514,6 @@ async def test_tools_are_not_shared_between_brains() -> None:
 
     assert a.ran == ["ping"]
     assert b.ran == []
-
-
-async def test_a_tool_reaches_the_session() -> None:
-    """A tool cannot take `session` as a parameter — the signature *is* the schema,
-    so the model would try to fill it. It reads the brain instead, which is sound
-    because a brain is one instance per call."""
-    brain, _, session = await _open(_Coach(_ScriptedClient(_calls("ping") + _text("Done."))))
-    await _turn(brain)
-
-    assert brain.seen is session
 
 
 async def test_a_tool_that_drives_the_screen_is_stamped_with_the_turn_it_ran_in() -> None:

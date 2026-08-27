@@ -15,6 +15,12 @@ a gate rather than a decoration:
   * ``interaction.completed`` carries **no** steps, because a streamed one never
     does;
   * and it runs no tools, because on this API nobody does that but us.
+
+`tests/contract/test_brain_contract.py` states the engine-agnostic clauses this
+brain has to satisfy (a turn ends, every call is answered, `tools` is read once,
+...) once, against every engine. This file is what needs the real interactions
+stand-in to exercise: the loop this engine drives itself, argument assembly from
+deltas, and other behavior the Interactions API is responsible for.
 """
 
 from __future__ import annotations
@@ -232,42 +238,6 @@ def _one(step: gi.Step) -> str:
 # ─── Units of speech ──────────────────────────────────────────────────────────
 
 
-async def test_a_plain_turn_is_one_unit() -> None:
-    brain, session = await _brain([_says("Good ", "evening.")])
-
-    assert _shape(await _drain(brain, session)) == ["[", "Good ", "evening.", "]"]
-
-
-async def test_a_silent_hop_opens_no_unit() -> None:
-    """A hop that only thinks and calls a tool made no sound, so no unit is minted
-    for it and no finalize will come back for one."""
-    brain, session = await _brain([_thinks(), _calls("ping")], [_says("Done.")])
-
-    assert _shape(await _drain(brain, session)) == ["[", "Done.", "]"]
-    assert brain.ran == ["ping"]
-    assert len(brain._awaiting) == 1  # pyright: ignore[reportPrivateUsage]
-
-
-async def test_speech_either_side_of_a_tool_is_two_units() -> None:
-    """A `model_output` step is a unit of speech, and its edges are told to us
-    rather than inferred — so a turn that narrates, calls a tool, then reports
-    back is two units under one turn id."""
-    brain, session = await _brain(
-        [_says("Let me look."), _calls("ping")],
-        [_says("All set.")],
-    )
-
-    assert _shape(await _drain(brain, session)) == [
-        "[",
-        "Let me look.",
-        "]",
-        "[",
-        "All set.",
-        "]",
-    ]
-    assert len(brain._awaiting) == 2  # pyright: ignore[reportPrivateUsage]
-
-
 async def test_a_thought_is_not_spoken_and_keeps_its_signature() -> None:
     """A thought is reasoning, not speech. It belongs in the context — Gemini 3
     wants its own thought handed back, signed — and the signature exists nowhere
@@ -356,19 +326,6 @@ async def test_a_tool_the_brain_does_not_have_is_answered_not_dropped() -> None:
     assert result.is_error is True
     assert "teleport" in str(result.result)
     assert brain.ran == []
-
-
-async def test_calls_run_in_the_order_the_model_produced_them() -> None:
-    """One at a time, in order. Tools drive the screen, and two of them racing
-    would leave the caller's display in an order the model never asked for."""
-    brain, session = await _brain(
-        [_calls("show", args={"name": "meals"}), _calls("ping")],
-        [_says("Done.")],
-    )
-
-    await _drain(brain, session)
-
-    assert brain.ran == ["show:meals", "ping"]
 
 
 async def test_the_budget_ends_the_turn_in_speech() -> None:
@@ -580,53 +537,7 @@ async def test_nothing_callable_is_declared() -> None:
         assert json.loads(function.model_dump_json())["type"] == "function"
 
 
-async def test_a_sync_tool_is_refused() -> None:
-    """We run tools inside the turn's task. A synchronous one would hold the event
-    loop for as long as it runs, and the first `await` it grows is a rewrite."""
-
-    class _Sync(_Coach):
-        @property
-        def tools(self) -> list[Any]:
-            return [self.blocking]
-
-        def blocking(self) -> str:
-            """Not a coroutine."""
-            return "ok"
-
-    with pytest.raises(TypeError, match="must be `async def`"):
-        _declared(_Sync(_ScriptedClient([])))
-
-
-async def test_the_tools_are_read_once_per_turn() -> None:
-    """The list is a property, so a brain can offer a caller a tool it does not
-    offer everyone — decided as late as the turn it is needed for, and fixed for
-    the length of that turn however many hops it takes."""
-
-    class _Gated(_Coach):
-        unlocked = False
-
-        @property
-        def tools(self) -> list[Any]:
-            return [self.show, self.ping] if self.unlocked else [self.ping]
-
-    brain = _Gated(_ScriptedClient([]))
-    assert list(_declared(brain)) == ["ping"]
-
-    brain.unlocked = True
-    assert list(_declared(brain)) == ["show", "ping"]
-
-
 # ─── The session ──────────────────────────────────────────────────────────────
-
-
-async def test_a_tool_reaches_the_session() -> None:
-    """A tool cannot take `session` as a parameter — the signature *is* the schema,
-    so the model would try to fill it. It reads the brain instead, which is sound
-    because a brain is one instance per call."""
-    brain, _, session = await _open(_Coach(_ScriptedClient([[_calls("ping")], [_says("Done.")]])))
-    await _turn(brain)
-
-    assert brain.seen is session
 
 
 async def test_a_tool_that_drives_the_screen_is_stamped_with_the_turn_it_ran_in() -> None:

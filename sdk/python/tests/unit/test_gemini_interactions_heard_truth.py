@@ -1,16 +1,12 @@
 """`GeminiInteractionsBrain` reconciles its context from finalizes, one per
 unit it opened.
 
-The rule is the same one `GeminiBrain` follows, and it is the reason this SDK
-holds the conversation itself rather than letting the API hold it: the brain
-commits what the caller *heard*, and only the runtime knows that. It reports
-every speech unit it minted exactly once — including the ones that never reached
-a speaker, as heard-nothing — which is what lets the queue be a plain FIFO.
-
-What differs is the *shape* being rewritten. A turn here is a list of steps, and
-the unit is one ``model_output`` step, held by identity and edited in place. So a
-tool call sitting between two spoken units is a step of its own rather than a
-part inside one, and cutting a unit down cannot disturb it.
+`tests/contract/test_brain_contract.py` states that rule once and runs it
+against every engine. What is specific to this engine, and covered only here: a
+turn is a list of steps, the unit is one ``model_output`` step held by identity,
+and a step dropped by reconciliation must not disturb the steps around it —
+plus `append_to_context`, which has to stay invisible to reconciliation
+whatever step type it holds.
 
 No model call happens here — the units are opened by hand, exactly as `respond`
 opens them while streaming. `test_gemini_interactions_turn.py` covers the
@@ -76,58 +72,6 @@ def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Final
     return Finalize(speech_id=speech_id, heard=text, interrupted=interrupted)
 
 
-async def test_a_unit_heard_in_full_stays_as_it_was() -> None:
-    """The ordinary turn: generated and delivered agree, so nothing moves."""
-    brain, session = await _brain()
-    _speak(brain, "the flight leaves at nine")
-
-    await brain.on_finalize(session, _heard("the flight leaves at nine"))
-
-    assert _texts(brain) == ["the flight leaves at nine"]
-
-
-async def test_a_unit_cut_off_keeps_only_what_was_delivered() -> None:
-    """The caller talked over it. The rest was never said, so the model must not
-    be able to refer back to it — that is how an agent ends up citing a sentence
-    the caller never heard."""
-    brain, session = await _brain()
-    _speak(brain, "the flight leaves at nine and connects through frankfurt")
-
-    await brain.on_finalize(session, _heard("the flight leaves at", interrupted=True))
-
-    assert _texts(brain) == ["the flight leaves at"]
-
-
-async def test_a_unit_nobody_heard_leaves_the_context() -> None:
-    """Generated ahead of playout and beaten to the speaker by a barge-in. A model
-    turn with nothing in it is not a turn, so the whole step goes rather than
-    sitting there as something the model thinks it said."""
-    brain, session = await _brain()
-    _speak(brain, "and here is the part nobody will ever hear")
-
-    await brain.on_finalize(session, _heard("", interrupted=True))
-
-    assert _texts(brain) == [], "no trace of it anywhere"
-    assert not brain._history
-
-
-async def test_a_silent_tool_hop_is_never_reconciled() -> None:
-    """A hop that only calls a tool is what the model *did*, not something it said.
-    Nothing was minted for it and nothing comes back for it — so it is not in the
-    queue at all, and the finalize behind it belongs to the reply. Put it in the
-    queue and the reply's heard text lands on the tool call, the call is rewritten
-    to a sentence, and every later turn is off by one for the rest of the call."""
-    brain, session = await _brain()
-    _tool_call(brain, "search_flights")
-    _speak(brain, "there are three options this morning")
-
-    await brain.on_finalize(session, _heard("there are three", interrupted=True))
-
-    calls = [s for s in brain._history if isinstance(s, gi.FunctionCallStep)]
-    assert [s.name for s in calls] == ["search_flights"]
-    assert _texts(brain) == ["there are three"]
-
-
 async def test_a_dropped_unit_leaves_the_steps_around_it_untouched() -> None:
     """The step is dropped by *identity*, not by value. Two empty steps are equal
     as pydantic models, so an equality-based removal takes whichever it meets
@@ -141,33 +85,6 @@ async def test_a_dropped_unit_leaves_the_steps_around_it_untouched() -> None:
     await brain.on_finalize(session, _heard("", speech_id=2, interrupted=True))
 
     assert [type(s).__name__ for s in brain._history] == ["FunctionCallStep"]
-
-
-async def test_finalizes_are_matched_to_units_in_order() -> None:
-    """The queue is a plain FIFO, which is what the exactly-once guarantee buys:
-    the n-th finalize belongs to the n-th unit the brain opened. One turn can hold
-    several — the model narrates, calls a tool, then reports back — and they come
-    home in order."""
-    brain, session = await _brain()
-    _speak(brain, "let me look that up")
-    _tool_call(brain, "search_flights")
-    _speak(brain, "there are three options this morning")
-
-    await brain.on_finalize(session, _heard("let me look that up", speech_id=1))
-    await brain.on_finalize(session, _heard("there are three", speech_id=2, interrupted=True))
-
-    assert _texts(brain) == ["let me look that up", "there are three"]
-
-
-async def test_a_finalize_with_nothing_awaiting_is_the_greeting() -> None:
-    """`greet` is spoken by the SDK, not generated here, so the finalize is the
-    only record of it. Without this the model does not know it greeted and opens
-    a second time."""
-    brain, session = await _brain()
-
-    await brain.on_finalize(session, _heard("hi, travel desk here"))
-
-    assert _texts(brain) == ["hi, travel desk here"]
 
 
 # ─── And what an append does to all of it ─────────────────────────────────────
