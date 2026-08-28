@@ -90,6 +90,9 @@ class Expected:
 # test below fails if a demo is discovered and not listed here, so adding a demo
 # without declaring its voice is a red suite, not a silent gap.
 DEMOS: dict[str, Expected] = {
+    # Aria takes the language from the connect request's ``init`` and configures
+    # both legs from it, so the brain still owns the answer — nothing in the
+    # payload ⇒ English. The per-caller case is asserted below.
     "aura": Expected(voice="omnivoice/gauri", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
@@ -166,6 +169,33 @@ async def test_a_per_caller_language_follows_the_enquiry_state() -> None:
     async with demo("lead_qual", ScriptedGemini()) as rig:
         await rig.driver.start_session(init={"name": "Meera", "state": "Tamil Nadu"})
         check_voice_pair(rig, voice="omnivoice/gauri", language="ta")
+
+
+async def test_aura_answers_in_the_language_the_page_offered() -> None:
+    """The customer picks the language on Aura's page before the call exists.
+
+    Unlike sugar — where the page sends the ``config`` itself and the brain
+    configures nothing — aura sends only the *name* and the brain resolves it,
+    because the same choice also has to move the prompt: a model told to speak
+    Tamil while the reference clip reads English is the failure that is green in
+    every log, correct on paper and wrong in the ear. One layer owns it, and it
+    is this one.
+    """
+    async with demo("aura", ScriptedGemini()) as rig:
+        await rig.driver.start_session(init={"language": "Tamil"})
+        check_voice_pair(rig, voice="omnivoice/gauri", language="ta")
+
+
+async def test_an_unknown_language_falls_back_rather_than_refusing() -> None:
+    """A stale page against a new brain answers in English, and answers.
+
+    The page offers a closed list, so a name outside it is a version skew rather
+    than a caller's choice. A demo that greets in the wrong language is
+    recoverable in front of a room; one that refuses to connect is not.
+    """
+    async with demo("aura", ScriptedGemini()) as rig:
+        await rig.driver.start_session(init={"language": "Klingon"})
+        check_voice_pair(rig, voice="omnivoice/gauri", language="en")
 
 
 async def test_the_check_fails_when_a_half_is_wrong() -> None:

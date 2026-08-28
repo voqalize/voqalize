@@ -20,6 +20,9 @@ importers:
       '@pipecat-ai/voice-ui-kit':
         specifier: ^0.13.0
         version: 0.13.1(@daily-co/daily-js@0.91.0)(@pipecat-ai/client-js@1.13.0)(@pipecat-ai/client-react@1.8.1(@babel/core@7.29.7)(@babel/template@7.29.7)(@pipecat-ai/client-js@1.13.0)(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@pipecat-ai/small-webrtc-transport@1.10.6(@pipecat-ai/client-js@1.13.0))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@voqalize/avatar':
+        specifier: ^0.3.0
+        version: 0.3.0(@pipecat-ai/client-js@1.13.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@voqalize/demo-kit':
         specifier: file:../../shared
         version: file:../../shared(@pipecat-ai/client-js@1.13.0)(react@19.2.8)
@@ -1120,6 +1123,21 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
+
+  '@voqalize/avatar@0.3.0':
+    resolution: {integrity: sha512-LKx9LNfG5/+2ifFgZJvWpgMeXzX1KM1hwuiVkzFSzAUiI0YwYA1OpOzFyHwXP4aHJA/xZ2CRpTK3J4Un8mS9bA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@pipecat-ai/client-js': '>=1.4 <2'
+      react: '>=18'
+      react-dom: '>=18'
+    peerDependenciesMeta:
+      '@pipecat-ai/client-js':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
 
   '@voqalize/demo-kit@file:../../shared':
     resolution: {directory: ../../shared, type: directory}
@@ -2497,6 +2515,12 @@ snapshots:
       vite: 6.4.3(@types/node@25.9.5)
     transitivePeerDependencies:
       - supports-color
+
+  '@voqalize/avatar@0.3.0(@pipecat-ai/client-js@1.13.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    optionalDependencies:
+      '@pipecat-ai/client-js': 1.13.0
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
 
   '@voqalize/demo-kit@file:../../shared(@pipecat-ai/client-js@1.13.0)(react@19.2.8)':
     dependencies:

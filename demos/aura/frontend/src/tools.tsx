@@ -307,8 +307,10 @@ export function SendToPhoneToast() {
 export function TicketCard() {
   const { ticket, closeTicket } = useAura();
   if (!ticket) return null;
+  // Bottom-*left*: Aria owns the right-hand corner now (AuraDock), and this card
+  // appears at exactly the moment she has just raised the request it confirms.
   return (
-    <div className="aura-dock" style={{ position: 'fixed', right: 24, bottom: 110, zIndex: 1150, width: 300, background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 14, boxShadow: '0 16px 40px rgba(26,22,32,.22)', overflow: 'hidden' }}>
+    <div className="aura-dock" style={{ position: 'fixed', left: 24, bottom: 110, zIndex: 1150, width: 300, background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 14, boxShadow: '0 16px 40px rgba(26,22,32,.22)', overflow: 'hidden' }}>
       <div style={{ background: PRIMARY, color: '#fff', padding: '11px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontWeight: 800, fontSize: 13.5 }}>Request registered</span>
         <button onClick={closeTicket} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 14 }}>✕</button>

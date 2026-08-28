@@ -872,12 +872,14 @@ function ArticlePage({ article }: { article: Article }) {
 function ContactPanel() {
   const { contactOpen, contactTopic, closeContact } = useAura();
   if (!contactOpen) return null;
+  // Bottom-left, like TicketCard and for the same reason: the right-hand corner
+  // belongs to Aria, who is usually mid-sentence when this opens.
   return (
     <div
       className="aura-dock"
       style={{
         position: 'fixed',
-        right: 24,
+        left: 24,
         bottom: 110,
         zIndex: 1100,
         width: 300,

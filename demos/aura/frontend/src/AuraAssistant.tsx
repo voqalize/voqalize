@@ -21,10 +21,15 @@
  *
  * Voice *status* lives in the shared `AmbientPresence` ring (the catalog-wide
  * treatment, in Aura's indigo) — a full-viewport edge glow, legible peripherally
- * while the customer reads the page. The only chrome is one small control in the
- * bank's own navigation row: a label, a mic button that begins the call and then
- * doubles as a mute toggle, and a small "end" beside it. It reaches the header
- * through the `children` render-prop, so `pages.tsx` keeps owning its own chrome.
+ * while the customer reads the page. **The call has one door and one cockpit.**
+ * The door is the corner launcher wearing Aria's portrait; the cockpit is the
+ * tile, where the mic, the device picker and the end button sit directly under
+ * her picture (`AuraDock`). The bank's own navigation row gets a status line
+ * while a call is running and nothing at all before one — reached through the
+ * `children` render-prop, so `pages.tsx` keeps owning its chrome. Controls in
+ * the header and a transcript in a floating panel were two halves of one call in
+ * two places; a second "Ask Aura Support" button beside the launcher was two
+ * doors to the same microphone.
  *
  * `PipecatAppBase` mounts its `PipecatClientProvider` (and `BotAudioOutput`, via
  * `noThemeProvider`) as soon as the client exists, not when the call goes live —
@@ -34,9 +39,43 @@
  * a microphone until the visitor has read the notice and joined.
  *
  * Mounted once at the route level; navigation is React state, so the call
- * survives screen changes. Voqalize runs English STT with OmniVoice English TTS
- * (declared on this demo's brain — backend/brain.py — the only place voice and
- * language belong).
+ * survives screen changes.
+ *
+ * ## How a call starts, and why it starts that way
+ *
+ * The page loads as a bank site loads: nothing covering it, nothing asking for
+ * anything. Aria is one launcher in the bottom-right corner — the position every
+ * customer already reaches for, and the position the bank's *current* assistant
+ * occupies — plus the same small control in the bank's own header. Either one
+ * opens the pre-call sheet: what this is, which language, the recording notice,
+ * one button. The microphone opens after that button and not before.
+ *
+ * That sheet used to be the *first* thing the page rendered, before the visitor
+ * had asked for anything, which is a demo's habit rather than a bank's: it hid
+ * the product behind a dark modal at the moment a stakeholder is deciding what
+ * the product looks like. It is now `dismissible` for the same reason — the help
+ * centre is genuinely usable without a call, so "Not now" has to be a real
+ * answer.
+ *
+ * Three things sit on top of that base, and each is additive rather than a
+ * replacement — the ring is the demo's argument and nothing here takes it away:
+ *
+ *   - **the language**, picked in the sheet before the call exists and sent in
+ *     the connect request's `init`. The brain reads it once and moves the
+ *     recognizer, the reference clip and the prompt together; the page names a
+ *     language and configures nothing (see `language.tsx`, and `backend/brain.py`
+ *     → the Language section, which is the authority);
+ *   - **the meeting tile**, `@voqalize/avatar`'s `myna` rig driven by the
+ *     runtime's own `avatar` messages on the data channel the transcript already
+ *     rides, framed as the picture-in-picture window of a video call — name
+ *     plate, running timer, captions, and the call's controls beneath it;
+ *   - **the chat column** inside that tile, off by default, which shows both
+ *     halves of the conversation in voice-ui-kit's karaoke rendering and lets the
+ *     customer type into it.
+ *
+ * The last two live in `AuraDock`; `?avatar=0` and `?chat=1` move their
+ * defaults, which is how you show the same demo with and without them in one
+ * sitting.
  *
  * Aura's HMAC-authenticated sign-in handshake (the browser answering a
  * dispatched `open_auth` with a signed nonce) rides this same `ui-command` /
@@ -44,16 +83,14 @@
  * `confirmAuth`/`cancelAuth` already echo the nonce back over `agentSend`.
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { RTVIEvent, type UICommandData } from '@pipecat-ai/client-js';
 import {
   usePipecatClient,
-  usePipecatClientMicControl,
   usePipecatClientTransportState,
   useRTVIClientEvent,
 } from '@pipecat-ai/client-react';
 import { PipecatAppBase, usePipecatConnectionState } from '@pipecat-ai/voice-ui-kit';
-import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
 import {
   AmbientPresence,
   DemoGate,
@@ -62,6 +99,8 @@ import {
 } from '@voqalize/demo-kit';
 import { useAura } from './store';
 import { connectRequest, withRealHeaders } from './config';
+import { AuraDock } from './AuraDock';
+import { DEFAULT_LANGUAGE, LanguagePicker, type LanguageName } from './language';
 
 const PRIMARY = '#4F46E5';
 const ACCENT = '#8B5CF6';
@@ -88,44 +127,32 @@ const STATE_LABEL: Record<AmbientPresenceActivity, string> = {
   speaking: 'Speaking',
 };
 
-// ── The one voice control, in Aura's own navigation row ───────────────────────
+// ── What the bank's own navigation row says about the call ───────────────────
 
-function BeginControl({ status, error, onBegin }: { status: Status; error: string; onBegin: () => void }) {
-  const connecting = status === 'connecting';
+// Nothing, before one starts. The row used to carry a second "Ask Aura Support"
+// button beside the corner launcher — two doors to the same microphone, a step
+// apart, saying different things. The launcher is the door: it is the thing
+// wearing Aria's face, it is where the eye goes, and the pre-call sheet it opens
+// already reports connecting and failure states (`DemoGate`'s `busy`/`error`).
+
+/**
+ * Live: a status, and only a status.
+ *
+ * The mic, the device picker and the end button used to be here, in the bank's
+ * own navigation row, while the transcript sat in a panel at the other end of
+ * the page — two halves of one call in two places. They are now in the tile,
+ * directly under Aria's picture, where a decade of video calls has taught
+ * everyone to look for them (`AuraDock`).
+ *
+ * What stays is one non-interactive line saying a call is running, because a
+ * bank site that gives no sign of it in its own chrome is worse than one that
+ * does. It reads the same `activity` the ring and the tile read.
+ */
+function LiveStatus({ activity }: { activity: AmbientPresenceActivity }) {
   return (
     <div className="aura-presence">
-      <span className="aura-presence-label">
-        {connecting ? 'Connecting…' : status === 'error' ? error || 'Connection issue' : 'Ask Aura Support'}
-      </span>
-      {connecting ? (
-        <button className="aura-presence-btn is-connecting" disabled title="Connecting…">
-          <Loader2 size={16} className="aura-spin" />
-        </button>
-      ) : (
-        <button className="aura-presence-btn" onClick={onBegin} title="Ask Aura Support">
-          <Mic size={16} />
-        </button>
-      )}
-    </div>
-  );
-}
-
-// Live: the mic doubles as a mute toggle; a small secondary control ends the call.
-function LiveControls({ activity, onEnd }: { activity: AmbientPresenceActivity; onEnd: () => void }) {
-  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
-  return (
-    <div className="aura-presence">
-      <span className="aura-presence-label">{isMicEnabled ? STATE_LABEL[activity] : 'Muted'}</span>
-      <button
-        className={`aura-presence-btn is-live glow-${activity} ${isMicEnabled ? '' : 'is-muted'}`}
-        onClick={() => enableMic(!isMicEnabled)}
-        title={isMicEnabled ? 'Mute' : 'Unmute'}
-      >
-        {isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />}
-      </button>
-      <button className="aura-presence-end" onClick={onEnd} title="End call">
-        <PhoneOff size={13} />
-      </button>
+      <span className={`aura-presence-live is-${activity}`} aria-hidden />
+      <span className="aura-presence-label">Live with Aria · {STATE_LABEL[activity]}</span>
     </div>
   );
 }
@@ -145,69 +172,81 @@ function PresenceStyles() {
         color: #6E6470;
         white-space: nowrap;
       }
-      .aura-presence-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 34px;
-        height: 34px;
+      /* The live pip: the header's whole share of a running call. */
+      .aura-presence-live {
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
-        border: none;
-        background: linear-gradient(135deg, ${PRIMARY} 0%, ${ACCENT} 100%);
-        color: #fff;
-        cursor: pointer;
+        background: #34D399;
         flex: none;
-        transition: transform .15s ease, box-shadow .2s ease, background .15s ease;
+        box-shadow: 0 0 0 3px rgba(52,211,153,.20);
+        transition: background .2s ease, box-shadow .2s ease;
       }
-      .aura-presence-btn:hover { transform: scale(1.05); }
-      .aura-presence-btn:active { transform: scale(0.97); }
-      .aura-presence-btn.is-connecting {
-        background: none;
-        color: ${PRIMARY};
-        cursor: default;
-      }
-      .aura-presence-btn.is-connecting:hover { transform: none; }
-      .aura-presence-btn.is-live { box-shadow: 0 0 0 4px rgba(79,70,229,.16); }
-      .aura-presence-btn.is-live.glow-thinking { box-shadow: 0 0 0 4px rgba(240,160,32,.28); }
-      .aura-presence-btn.is-live.glow-speaking { box-shadow: 0 0 0 5px rgba(139,92,246,.30); }
-      .aura-presence-btn.is-muted {
-        background: #FFFFFF;
-        border: 1.5px solid #E6E2F2;
-        color: #6E6470;
-        box-shadow: none;
-      }
-      .aura-presence-end {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        border: none;
-        background: none;
-        color: #A79FB2;
-        cursor: pointer;
-        flex: none;
-        transition: color .15s ease, background .15s ease;
-      }
-      .aura-presence-end:hover { color: ${PRIMARY}; background: #EEF0FE; }
-      .aura-spin { animation: aura-spin .9s linear infinite; }
-      @keyframes aura-spin { to { transform: rotate(360deg); } }
+      .aura-presence-live.is-thinking { background: #F0A020; box-shadow: 0 0 0 3px rgba(240,160,32,.22); }
+      .aura-presence-live.is-speaking { background: ${ACCENT}; box-shadow: 0 0 0 3px rgba(139,92,246,.24); }
     `}</style>
   );
 }
 
 // ── Session owner ─────────────────────────────────────────────────────────────
 
+/** What this page tells the brain about the call, before the call exists. */
+interface AuraInit extends Record<string, unknown> {
+  surface: string;
+  language: LanguageName;
+}
+
 /**
- * Mints the session and owns the client. No pipeline override: this agent's
- * voice and language are declared on its brain (backend/brain.py), the only
- * place they belong.
+ * Mints the session and owns the client. No `config`: the page names a language
+ * and the brain resolves it, because that one choice also has to move the prompt
+ * — one layer owns it, and it is the brain (backend/brain.py).
  */
 export function AuraAssistant({ children }: { children: (presence: ReactNode) => ReactNode }) {
-  // Memoized: a fresh object every render would re-fire `PipecatAppBase`'s
-  // connect-on-mount dependency and re-mint a session.
-  const params = useMemo(() => connectRequest({ surface: 'aura-web' }), []);
+  // One object for the life of the page, and the sheet's picker **mutates it in
+  // place**. That is deliberate and it is not a shortcut: `startBotParams` is a
+  // dependency of `PipecatAppBase`'s client-creation effect, so handing it a
+  // fresh object when the customer picks a language tears the `PipecatClient`
+  // down and builds another one — on the click before the join, and again on the
+  // join itself. Nothing reads this object until `connect` serializes it, which
+  // is after the picker has written to it, so the mutation is invisible to
+  // everything except the request that carries it.
+  const init = useRef<AuraInit>({ surface: 'aura-web', language: DEFAULT_LANGUAGE }).current;
+  const params = useMemo(() => connectRequest(init), [init]);
+
+  // **Everything the customer has decided lives here, above `PipecatAppBase`,
+  // and that placement is load-bearing.** `PipecatAppBase` renders its children
+  // bare while it builds the transport and wrapped in `PipecatClientProvider`
+  // once the client exists — two different trees, so React unmounts and remounts
+  // everything below it the moment the client arrives, a second or so into the
+  // page. Any state held down there is silently reset by that.
+  //
+  // That is what the sheet's old `joined` flag was: press the button early
+  // enough — while `handleConnect` is still undefined, so the click connects
+  // nothing — and the remount hands you back the notice you just accepted, with
+  // no call running. The intent (`wantCall`) is kept up here instead and the
+  // session below reconciles toward it, which also means a click that lands
+  // before the client is ready is answered when it *is* ready rather than
+  // dropped.
+  const [language, setLanguage] = useState<LanguageName>(init.language);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [wantCall, setWantCall] = useState(false);
+  const flags = useMemo(readFlags, []);
+
+  const openSheet = useCallback(() => setSheetOpen(true), []);
+  const pickLanguage = useCallback(
+    (name: LanguageName) => {
+      init.language = name;
+      setLanguage(name);
+    },
+    [init],
+  );
+  // Live: the sheet has done its job. Failed: it stays open with the reason on
+  // it — a modal that closes onto a dead call is worse than one that explains.
+  const onLive = useCallback(() => {
+    setSheetOpen(false);
+    setWantCall(false);
+  }, []);
+  const onFailed = useCallback(() => setWantCall(false), []);
 
   return (
     <PipecatAppBase
@@ -219,8 +258,18 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
       {({ error, handleConnect, handleDisconnect }) => (
         <AuraSession
           error={error ?? null}
-          onConnect={handleConnect ?? (async () => {})}
+          onConnect={handleConnect}
           onDisconnect={handleDisconnect ?? (async () => {})}
+          flags={flags}
+          language={language}
+          onPickLanguage={pickLanguage}
+          sheetOpen={sheetOpen}
+          onOpenSheet={openSheet}
+          onCloseSheet={() => setSheetOpen(false)}
+          wantCall={wantCall}
+          onWantCall={() => setWantCall(true)}
+          onLive={onLive}
+          onFailed={onFailed}
         >
           {children}
         </AuraSession>
@@ -229,17 +278,54 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
   );
 }
 
+/**
+ * The two switches this demo is shown with, read once from the query string.
+ *
+ * Both surfaces are new next to the ambient ring the demo has always had, and a
+ * room comparing them wants the same page with each one off — so they are query
+ * flags rather than a rebuild. The avatar is on by default because it is the
+ * thing being shown; the chat is off, because a text box the visitor never asked
+ * for reads as an admission that the voice is not enough.
+ */
+function readFlags(): { avatar: boolean; chat: boolean } {
+  const q = new URLSearchParams(window.location.search);
+  const off = (v: string | null) => v === '0' || v === 'false';
+  const on = (v: string | null) => v === '' || v === '1' || v === 'true';
+  return { avatar: !off(q.get('avatar')), chat: q.has('chat') && on(q.get('chat')) };
+}
+
 // Rendered inside `PipecatAppBase`'s own `PipecatClientProvider`, so every
 // pipecat hook below sees the live client the moment one exists.
 function AuraSession({
   error,
   onConnect,
   onDisconnect,
+  flags,
+  language,
+  onPickLanguage,
+  sheetOpen,
+  onOpenSheet,
+  onCloseSheet,
+  wantCall,
+  onWantCall,
+  onLive,
+  onFailed,
   children,
 }: {
   error: string | null;
-  onConnect: () => void | Promise<void>;
+  /** `undefined` until `PipecatAppBase` has a client — see the reconciler below. */
+  onConnect: (() => void | Promise<void>) | undefined;
   onDisconnect: () => void | Promise<void>;
+  flags: { avatar: boolean; chat: boolean };
+  language: LanguageName;
+  onPickLanguage: (name: LanguageName) => void;
+  sheetOpen: boolean;
+  onOpenSheet: () => void;
+  onCloseSheet: () => void;
+  wantCall: boolean;
+  onWantCall: () => void;
+  onLive: () => void;
+  onFailed: () => void;
   children: (presence: ReactNode) => ReactNode;
 }) {
   const { handleUiCommand, registerAgentSend, snapshot, rev } = useAura();
@@ -305,31 +391,72 @@ function AuraSession({
     };
   }, [client, handleUiCommand]);
 
-  // Nothing opens a microphone until the visitor has read the notice and joined.
-  const [joined, setJoined] = useState(false);
+  // ── The reconciler ──────────────────────────────────────────────────────────
+  //
+  // The customer says *whether they want a call*; this says when one can start.
+  // `onConnect` is `PipecatAppBase`'s `handleConnect`, and it is `undefined`
+  // until the transport module has been imported and the client built — a real
+  // window on a cold load, and long enough for someone to have already pressed
+  // the button. Holding the intent and firing it on readiness is the difference
+  // between "the notice came back and nothing happened" and a call.
+  //
+  // `attempt` keeps it to one connect per intent. A remount resets it, which is
+  // exactly right: a remount is the client arriving, and the attempt it forgets
+  // is the one that connected nothing.
+  const connect = useRef(onConnect);
+  connect.current = onConnect;
+  const attempt = useRef(false);
+  useEffect(() => {
+    if (!wantCall) {
+      attempt.current = false;
+      return;
+    }
+    if (!client || attempt.current) return;
+    attempt.current = true;
+    void connect.current?.();
+  }, [wantCall, client]);
 
-  const presence = isConnected ? (
-    <LiveControls activity={activity} onEnd={onDisconnect} />
-  ) : (
-    <BeginControl status={status} error={error ?? ''} onBegin={onConnect} />
-  );
+  // `handleConnect` catches its own failures and reports them through `error`
+  // rather than rejecting, so the sheet learns how it went from these two and
+  // not from awaiting the click.
+  useEffect(() => {
+    if (isConnected) onLive();
+  }, [isConnected, onLive]);
+  useEffect(() => {
+    if (error) onFailed();
+  }, [error, onFailed]);
+
+  const presence = isConnected ? <LiveStatus activity={activity} /> : null;
 
   return (
     <>
       <DemoGate
-        open={!joined}
-        title="Aura Support"
-        blurb="Call your bank's support line — ask about your account and watch Aura work the answer out on screen."
+        open={sheetOpen}
+        title="Talk to Aria"
+        blurb="Aura's support line, answered by voice. Ask a question and watch the help centre work the answer out on screen."
         accent={PRESENCE.listening}
-        busy={status === 'connecting'}
+        theme="light"
+        joinLabel="Start call"
+        busy={wantCall || status === 'connecting'}
         error={status === 'error' ? error || 'Connection issue' : null}
-        onJoin={async () => {
-          await onConnect();
-          setJoined(true);
-        }}
-      />
+        dismissible
+        dismissLabel="Not now"
+        onDismiss={onCloseSheet}
+        onJoin={onWantCall}
+      >
+        <LanguagePicker value={language} onChange={onPickLanguage} />
+      </DemoGate>
       <AmbientPresence activity={activity} transportState={transportState} palette={PRESENCE} />
       <PresenceStyles />
+      <AuraDock
+        client={client ?? null}
+        activity={activity}
+        avatar={flags.avatar}
+        chat={flags.chat}
+        phase={isConnected ? 'live' : status === 'connecting' || wantCall ? 'connecting' : 'idle'}
+        onStart={onOpenSheet}
+        onEnd={() => void onDisconnect()}
+      />
       {children(presence)}
     </>
   );

@@ -8,6 +8,13 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: "/demos/aura/",
   plugins: [react()],
+  build: {
+    // voice-ui-kit's scoped stylesheet is authored with native CSS nesting.
+    // Vite's default CSS target (safari14) cannot lower one of its rules and
+    // warns on every build; it emits the nesting untouched either way, so the
+    // only thing a modern target changes is the noise in the log.
+    cssTarget: "chrome112",
+  },
   server: {
     // Vite rejects unknown Host headers; allow the local nginx front.
     allowedHosts: [".local.voqalize.com"],

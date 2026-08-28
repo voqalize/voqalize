@@ -4,7 +4,11 @@ A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + per-session state), porte
 verbatim from the in-process managed brain ``pygato.managed.aura`` (its ``AuraBot``).
 PyGato dials this brain's WebSocket per session; ``respond`` runs a manual Gemini
 function-calling loop where **each LLM call is one ``interaction.say()`` bracket**
-(1:1 with the wire): speak a short line, call a tool, feed the result back.
+(1:1 with the wire): a hop may speak, may call tools, may do both, and a hop that
+only calls tools is silent. The prompt spends that budget on **one spoken line
+per customer question**, at the top, with every screen call batched underneath
+it — a hop is cheap, but an utterance is a second of the customer's attention,
+and a turn that spends five of them on one answer is the thing they remember.
 
 This is the most complex demo — it fuses three workstreams:
 
@@ -141,6 +145,120 @@ _AUTH_TTL_SECONDS = 30 * 60
 # the tap and the acknowledgement; harmless when nothing was tapped, because
 # ``on_user_idle`` stays silent unless the screen owes the customer a reply.
 _IDLE_MS = 3000
+
+# ─── Language ──────────────────────────────────────────────────────────────────
+# The caller picks the language on the page, before the call exists, so it rides
+# the connect request in ``init`` and this brain reads it once in
+# ``on_session_start``. There is no mid-call switch and no ``switch_language``
+# tool: the language is a property of the call, chosen the way a caller picks a
+# queue on an IVR, and moving it mid-sentence would change the voice in the
+# customer's ear halfway through an answer.
+#
+# The catalogue is exactly the ten languages OmniVoice has reference clips for —
+# no more, because naming a language TTS cannot speak is refused at the call site
+# rather than silently substituted, and no fewer, because a bank that serves a
+# state should answer in that state's language.
+#
+# **Only the voice moves.** The screen — every article, video, checklist and
+# button — stays in English, and the prompt says so explicitly below. This is not
+# a shortcut: the customer is looking at Aura's real, English help pages, and an
+# assistant that reads a Tamil sentence off an English screen is describing what
+# is in front of them rather than replacing it.
+_LANG_BY_NAME: dict[str, Language] = {
+    "English": Language.EN,
+    "Hindi": Language.HI,
+    "Bengali": Language.BN,
+    "Gujarati": Language.GU,
+    "Kannada": Language.KN,
+    "Malayalam": Language.ML,
+    "Marathi": Language.MR,
+    "Punjabi": Language.PA,
+    "Tamil": Language.TA,
+    "Telugu": Language.TE,
+}
+
+LanguageName = Literal[
+    "English",
+    "Hindi",
+    "Bengali",
+    "Gujarati",
+    "Kannada",
+    "Malayalam",
+    "Marathi",
+    "Punjabi",
+    "Tamil",
+    "Telugu",
+]
+
+_DEFAULT_LANGUAGE: LanguageName = "English"
+
+# The native script each language is written in, named in the prompt so the model
+# cannot answer Tamil in Latin transliteration — which TTS then reads as English
+# and the customer hears as gibberish.
+_SCRIPT: dict[LanguageName, str] = {
+    "English": "the Latin alphabet",
+    "Hindi": "Devanagari",
+    "Bengali": "Bengali script",
+    "Gujarati": "Gujarati script",
+    "Kannada": "Kannada script",
+    "Malayalam": "Malayalam script",
+    "Marathi": "Devanagari",
+    "Punjabi": "Gurmukhi",
+    "Tamil": "Tamil script",
+    "Telugu": "Telugu script",
+}
+
+
+def _resolve_language(payload: dict[str, Any]) -> LanguageName:
+    """The language the page sent, or English.
+
+    Anything unrecognised reads as English rather than raising. The page owns
+    this field and offers a closed list, so a value that is not in the table is a
+    stale build talking to a new brain — and a demo that answers in the wrong
+    language is recoverable in a way one that refuses to connect is not.
+    """
+    name = str(payload.get("language", "")).strip()
+    if name in _LANG_BY_NAME:
+        return name  # type: ignore[return-value]
+    return _DEFAULT_LANGUAGE
+
+
+# The opener, per language — a complete fixed sentence, spoken straight to TTS
+# with no LLM call so the demo greets the instant the session connects. Written
+# rather than translated at runtime for the same reason it is written at all: it
+# is the one line said before any model has run.
+_GREETING: dict[LanguageName, str] = {
+    "English": f"Hi, I'm {AGENT_NAME} from Aura Bank support. What can I help you with today?",
+    "Hindi": ("नमस्ते, मैं आरिया बोल रही हूँ, ऑरा बैंक सपोर्ट से। आज मैं आपकी किस चीज़ में मदद कर सकती हूँ?"),
+    "Bengali": ("নমস্কার, আমি আরিয়া, অরা ব্যাঙ্ক সাপোর্ট থেকে বলছি। আজ আমি আপনাকে কী সাহায্য করতে পারি?"),
+    "Gujarati": ("નમસ્તે, હું આરિયા, ઓરા બેંક સપોર્ટ તરફથી બોલું છું. આજે હું તમને શેમાં મદદ કરી શકું?"),
+    "Kannada": (
+        "ನಮಸ್ಕಾರ, ನಾನು ಆರಿಯಾ, ಔರಾ ಬ್ಯಾಂಕ್ ಸಪೋರ್ಟ್‌ನಿಂದ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ. ಇಂದು ನಾನು ನಿಮಗೆ ಏನು ಸಹಾಯ ಮಾಡಬಹುದು?"
+    ),
+    "Malayalam": ("നമസ്കാരം, ഞാൻ ആരിയ, ഓറ ബാങ്ക് സപ്പോർട്ടിൽ നിന്നാണ്. ഇന്ന് ഞാൻ നിങ്ങളെ എന്തിൽ സഹായിക്കാം?"),
+    "Marathi": ("नमस्कार, मी आरिया, ऑरा बँक सपोर्टकडून बोलतेय. आज मी तुम्हाला कशात मदत करू शकते?"),
+    "Punjabi": ("ਸਤ ਸ੍ਰੀ ਅਕਾਲ, ਮੈਂ ਆਰੀਆ ਹਾਂ, ਔਰਾ ਬੈਂਕ ਸਪੋਰਟ ਤੋਂ। ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕਿਸ ਚੀਜ਼ ਵਿੱਚ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?"),
+    "Tamil": (
+        "வணக்கம், நான் ஆரியா, ஔரா வங்கி ஆதரவு பிரிவிலிருந்து பேசுகிறேன். இன்று உங்களுக்கு எதில் உதவ முடியும்?"
+    ),
+    "Telugu": ("నమస్తే, నేను ఆరియా, ఔరా బ్యాంక్ సపోర్ట్ నుండి మాట్లాడుతున్నాను. ఈరోజు నేను మీకు ఏమి సహాయం చేయగలను?"),
+}
+
+
+def _config(language_name: LanguageName) -> Config:
+    """Both legs on the same language, and the idle timeout that makes a tap an answer.
+
+    Aria's voice is the same clip in every language — only the language moves.
+    Naming one leg and not the other is refused at the call site rather than
+    half-applied, which is why they are written together here and never apart.
+    """
+    language = _LANG_BY_NAME[language_name]
+    return Config(
+        stt=SttConfig(language=language),
+        tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=language),
+        idle=IdleConfig(timeout_ms=_IDLE_MS),
+    )
+
 
 # What to tell the model when the customer closes a dialog without answering it.
 _DISMISSED = {
@@ -370,14 +488,17 @@ SUPPORT:
 - grievance-redressal — lodge a complaint / dispute a transaction. no login."""
 
 _VIDEO_GUIDE = """OFFICIAL AURA HOW-TO VIDEOS — play with play_help_video(video_id, start_sec). \
-Always open the matching article FIRST, then play the video. Jump to the chapter \
-start_sec that answers the exact question (skip the intro). The muted video and the \
-on-screen step list carry the steps — do NOT recite them aloud. Use highlight_step(index) \
-to move the on-screen focus (index is 0-based into the chapter list below) and say just one \
-short line pointing at the screen. The chapter map below is for YOU to pick the right \
-start_sec and the right step to highlight — it is not a script to read out.
+Open the matching article and play the video IN THE SAME STEP — both calls together, \
+one after the other, with no speech between them. Jump to the chapter start_sec that \
+answers the exact question (skip the intro). The muted video and the on-screen step list \
+carry the steps — do NOT recite them aloud. \
+THE STEP LIST FOLLOWS THE VIDEO BY ITSELF: while the clip is playing, the page highlights \
+whichever step is on screen from the playback position, so you do NOT call \
+highlight_step at all. It is only for when there is no video playing — a paused clip, or a \
+topic with no clip — and then it is at most one call, silently. The chapter map below is \
+for YOU to pick the right start_sec — it is not a script to read out.
 
-M_Oxpto2PRo — Interest Certificate on the 'open' app (plays muted; you narrate in English):
+M_Oxpto2PRo — Interest Certificate on the 'open' app (plays muted; the step list on screen carries the steps, so you do not narrate them):
   [0] start 8  — log in to 'open'
   [1] start 15 — tap the profile/name icon → Services and Support
   [2] start 23 — Services tab → Loans
@@ -414,7 +535,7 @@ VxO3yJmBuRE — Fund transfer / add payee on the 'open' app:
   → adding a new payee: start 18."""
 
 
-_TOOLS_GUIDE = """INTERACTIVE TOOLS — beyond videos, you can DO useful things on screen, all WITHOUT a login. Speak a short line first, then call the tool. The result renders on screen — say just the headline figure, don't recite every input.
+_TOOLS_GUIDE = """INTERACTIVE TOOLS — beyond videos, you can DO useful things on screen, all WITHOUT a login. Say your one short line and call the tool in the SAME step — never a line, then a pause, then the call. The result renders on screen — say just the headline figure, don't recite every input.
 
 - run_calculator(kind, …) — open an on-screen calculator and fill it. You only need the AMOUNT from the customer ("emi"/"fd": principal; "eligibility": monthly_income). Interest rate, tenure, and existing EMIs DEFAULT to sensible values automatically — don't insist on them. The computed result comes back to you: say the ONE headline figure in words ("your EMI's about sixteen thousand eight hundred a month, indicative"). Fold the assumption and the indicative caveat into that same short line — don't spell out every default; the calculator screen shows them.
 - start_application(product) — begin a "savings", "credit_card", or "loan" application (a real top-of-funnel lead). Then prefill_field(field, value) for each detail they give you (name, mobile, email, city, pan / employment, monthly_income / loan_amount, tenure_years). Use spotlight(target=field) to point at a field. Call submit_application when they're ready. This NEEDS NO LOGIN — it's a new-customer flow.
@@ -487,10 +608,37 @@ Journey B — MUST FIRE whenever the customer opens (or asks to open) a Fixed De
 GOLDEN RULE: help first, sell second, one offer at a time. If a cross-sell doesn't clearly serve what they're trying to do, skip it. Never stack offers in one breath, and never re-pitch something they've declined."""
 
 
-_SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the Aura Bank support assistant — a friendly L1 (first-level) voice agent on the Aura Bank website. Customers ask you common "how do I…" banking questions and YOU DRIVE THEIR SCREEN: you open the right help article and play Aura's own how-to video while you explain.
+def _language_rules(language: LanguageName) -> str:
+    """The LANGUAGE block, which is the only part of this prompt the caller moves.
+
+    Two rules do the work, and they pull in opposite directions on purpose.
+    *Speak* in the caller's language, in its own script — a Latin transliteration
+    is read aloud by TTS as English and lands as gibberish. *Render* every
+    argument that reaches the screen in English, because the screen is Aura's
+    real help site and it is in English: the articles, the videos, the step
+    lists, the buttons. Aria describes what the customer is looking at rather
+    than replacing it, which is what a bilingual person at a branch counter does
+    with an English form.
+    """
+    if language == "English":
+        return (
+            "- You SPEAK in clear, natural English (warm Indian English is perfect). "
+            "Do NOT switch to another language unless the customer speaks one first — "
+            "and even then, keep every DISPLAYED argument in English."
+        )
+    script = _SCRIPT[language]
+    return f"""- You SPEAK in {language}, always written in {script} — never in Latin transliteration, which the voice reads aloud as English and the customer hears as nonsense.
+- Write English banking words in {script} too (account, balance, statement, credit card, UPI, IFSC): that is how a {language} speaker says them out loud.
+- The customer chose {language} before the call started. Stay in it for the whole call even if they use an English word or two — mixing English words into a {language} sentence is normal speech, not a request to switch.
+- THE SCREEN IS IN ENGLISH and stays in English. Aura's help articles, videos, step lists and buttons are English, and every argument you pass to a tool that gets DISPLAYED — checklist items, comparison names and features, branch names and addresses, ticket topic and summary, application field values — MUST be plain English.
+- So: speak {language}, render English. Point at what is on screen in {language} ("इस स्क्रीन पर steps दिख रहे हैं") rather than translating the page aloud."""
+
+
+def _system_instruction(language: LanguageName) -> str:
+    return f"""You are {AGENT_NAME}, the Aura Bank support assistant — a friendly L1 (first-level) voice agent on the Aura Bank website. Customers ask you common "how do I…" banking questions and YOU DRIVE THEIR SCREEN: you open the right help article and play Aura's own how-to video while you explain.
 
 LANGUAGE & VOICE OUTPUT:
-- You SPEAK in clear, natural English (warm Indian English is perfect). Do NOT use Hindi.
+{_language_rules(language)}
 - YOUR SPOKEN TEXT IS READ ALOUD BY A BASIC TTS that mangles digits, symbols and abbreviations. So NORMALIZE everything you say into spoken WORDS:
     • numbers & money → words, NEVER digits: say "sixteen thousand eight hundred and one rupees", never "16,801" or "₹16,801".
     • percentages → words: "nine point five percent", never "9.5%".
@@ -514,19 +662,17 @@ SAFETY & ACCURACY (an L1 must get these right):
 - Never ask for, or read back, a full card number, CVV, OTP, PIN, or password.
 
 YOU CONTROL THE SCREEN — SHOW, don't tell. When there's a screen for it, the screen IS the answer; your voice just points at it:
-- For ANY how-to question, first SPEAK a short line, then open_article(article_id) for the matching topic so the help page comes up.
-- If that topic has a video, then call play_help_video(video_id, start_sec) — jump to the chapter that answers their exact question (skip the intro). The video plays MUTED and the on-screen step list carries every step.
-- Do NOT read the steps aloud. The video and step list show them. As they play, call highlight_step(index) to move the on-screen focus, and say ONE short line pointing at it ("watch the steps light up here", "you're on the Manage Usage step now"). Never recite the menu path or enumerate the steps in speech — that duplicates the screen.
+- For ANY how-to question, open_article(article_id) for the matching topic so the help page comes up.
+- If that topic has a video, call play_help_video(video_id, start_sec) too — jump to the chapter that answers their exact question (skip the intro). The video plays MUTED and the on-screen step list carries every step.
+- Do NOT read the steps aloud. The video and step list show them — and the step list highlights itself from the video's position while it plays, so do NOT call highlight_step during playback; it is for a paused clip or a topic with no clip, at most once. Never recite the menu path or enumerate the steps in speech — that duplicates the screen.
 - Use seek_video(start_sec) to jump to another part, pause_video()/resume_video() if they ask you to wait, and show_contact(topic) when something is genuinely account-specific or they're stuck — it shows the helpline numbers.
 
-ALWAYS SPEAK BEFORE A TOOL CALL — opening a page or loading a video takes a moment; never leave silence. Say a brief line FIRST ("Sure, let me pull that up for you"), THEN call the tool.
+ONE SPOKEN LINE PER QUESTION, AND IT COMES FIRST. Speak your short line and issue EVERY screen call that answer needs in the SAME step — the line and the calls go out together, so audio starts immediately and the screen moves under it. Then work in silence: when the tool results come back, say NOTHING more unless a result actually changed your answer. NEVER speak twice for one question, and NEVER narrate what you are about to do next ("now let me highlight the steps", "the steps are lighting up") — the customer is watching that happen.
 
-WORKFLOW for a typical question (e.g. "where do I download my interest certificate for tax filing?"):
-1. Acknowledge in one short line ("Sure, pulling it up now").
-2. open_article("interest-certificate").
-3. play_help_video("M_Oxpto2PRo", 15) — jump past the intro to the relevant step.
-4. Call highlight_step(0), highlight_step(1)… to move the on-screen focus — but do NOT read the steps aloud; say one short line like "the steps are lighting up as it plays".
-5. Stop there. Add the login caveat only if it matters, in a few words, and offer the helpline (show_contact) only if they're stuck.
+WORKFLOW for a typical question (e.g. "where do I download my interest certificate for tax filing?") — this is ONE step, not five:
+1. Say one short line ("Sure — here's how"), AND in the same step call open_article("interest-certificate") and play_help_video("M_Oxpto2PRo", 15) together.
+2. Stop talking. The video plays, the step list follows it, and the customer reads. Add the login caveat only if it matters, in a few words, and offer the helpline (show_contact) only if they're stuck.
+3. Say nothing else until they ask something. Silence while the customer watches is CORRECT — it is not dead air, and filling it is the single worst thing you can do here.
 
 STAY GROUNDED: the website tells you the current screen, the open article, and the video's position via state. Call get_screen_context() if you need to confirm what the customer is looking at before you reference it ("the step you're on right now…").
 
@@ -544,12 +690,7 @@ STAY GROUNDED: the website tells you the current screen, the open article, and t
 
 {_AURA_KNOWLEDGE}
 
-Open with a brief, warm greeting in English: say you are {AGENT_NAME} from Aura Bank support, and ask what you can help with today. One short sentence — model the brevity you'll keep all call."""
-
-
-# Fixed opener — spoken straight to TTS with no LLM call, so the demo greets the
-# instant the session connects (the model's ~1s first token is off the start path).
-_GREETING = f"Hi, I'm {AGENT_NAME} from Aura Bank support. What can I help you with today?"
+Open with a brief, warm greeting in {language}: say you are {AGENT_NAME} from Aura Bank support, and ask what you can help with today. One short sentence — model the brevity you'll keep all call."""
 
 
 # ─── Screen actions ────────────────────────────────────────────────────────────
@@ -854,7 +995,9 @@ class AuraBrain(GeminiInteractionsBrain):
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
             client=client,
-            system_instruction=_SYSTEM_INSTRUCTION,
+            # Replaced in ``on_session_start`` once the caller's language is in
+            # hand; English is what it stays for an English call.
+            system_instruction=_system_instruction(_DEFAULT_LANGUAGE),
             model=model,
             # Headroom above the base default: aura's secure flows chain several
             # tool hops in one turn (authenticate → choose → read).
@@ -864,6 +1007,9 @@ class AuraBrain(GeminiInteractionsBrain):
         # (accounts and cards are hardcoded demo data), so it does not mutate the
         # system prompt; it is kept because the screen half reads it.
         self.payload: dict[str, Any] = {}
+
+        # The language this call is answered in, settled once from ``init``.
+        self.language: LanguageName = _DEFAULT_LANGUAGE
 
         # Latest screen snapshot the browser has told us about, and whether any
         # state_sync has arrived yet.
@@ -930,27 +1076,32 @@ class AuraBrain(GeminiInteractionsBrain):
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        # The payload rides the connect request; aura does not use it to seed the
-        # prompt, but the screen half reads it.
+        # The payload rides the connect request. The screen half reads it, and so
+        # does the language: the customer picked it on the page before the call
+        # existed, which is the only moment at which a language can be chosen
+        # without changing a voice mid-sentence.
         self.payload = dict(session.init or {})
-        # Aria's own voice — not the connecting page's to choose, so it is settled
-        # here rather than sent with the connect request. `language` moves both
-        # legs at once: the recognizer's hint, and the TTS reference clip, which is
-        # the accent. This lands before the greeting.
-        await session.configure(
-            Config(
-                stt=SttConfig(language=Language.EN),
-                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
-                idle=IdleConfig(timeout_ms=_IDLE_MS),
-            )
-        )
-        logger.info("aura: session start")
+        self.language = _resolve_language(self.payload)
+
+        # `language` moves both legs at once: the recognizer's hint, and the TTS
+        # reference clip, which is the accent. Aria's voice does not change with
+        # it — one person, ten languages. This lands before the greeting, so the
+        # opener below is spoken by the clip the customer asked for.
+        await session.configure(_config(self.language))
+
+        # And the prompt follows the voice. A model told to speak Tamil while the
+        # clip reads English is the failure that looks correct in every log: the
+        # words are right and only the mouth is wrong.
+        self.system_instruction = _system_instruction(self.language)
+        logger.info("aura: session start (language={})", self.language)
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated — the customer is already looking at
         the page, and a support agent who makes them wait on a first token has
-        already made them wait."""
-        return _GREETING
+        already made them wait. One fixed sentence per language; nothing is
+        translated at runtime, because this is the line spoken before any model
+        has run."""
+        return _GREETING[self.language]
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """The customer spoke. Whatever they last did on screen is answered by the
@@ -1095,10 +1246,12 @@ class AuraBrain(GeminiInteractionsBrain):
 
     async def play_help_video(self, video_id: str, start_sec: int = 0) -> str:
         """Play Aura's own how-to clip, muted, from the second that answers their
-        exact question — skip the intro.
+        exact question — skip the intro. Call it in the same step as
+        open_article, not in a step of its own.
 
-        The customer watches while YOU narrate. The on-screen step list carries
-        the steps, so never read them aloud.
+        The customer watches. The on-screen step list carries the steps and
+        follows the video by itself, so never read them aloud and say nothing
+        while it plays.
 
         Args:
             video_id: Id of Aura's clip for this topic.
@@ -1110,14 +1263,25 @@ class AuraBrain(GeminiInteractionsBrain):
         start_sec = max(0, int(start_sec))
         logger.info("aura: play_help_video {} @{}s", video_id, start_sec)
         self.session.dispatch(PlayHelpVideo(video_id=video_id, start_sec=start_sec))
+        # What this returns is a rule the model reads every time, so it says the
+        # cadence rule rather than restating the obvious. It used to end "now
+        # narrate the steps … call highlight_step(index) as you describe each
+        # one", which turned one question into five spoken interactions — the
+        # step list already follows the video, so those calls changed nothing on
+        # screen and cost an utterance each.
         return (
-            f"playing {video_id} muted from {start_sec}s. Now narrate the steps in English "
-            "in your own words; call highlight_step(index) as you describe each one."
+            f"playing {video_id} muted from {start_sec}s. The step list is following the "
+            "video on its own — do not call highlight_step, and say nothing more until "
+            "the customer speaks."
         )
 
     async def highlight_step(self, index: int) -> str:
-        """Move the on-screen step list's focus as you narrate — once per step, in
-        order, with one short line that points at it rather than reciting it.
+        """Focus one step on screen when no video is carrying it — a paused clip,
+        or a topic with no clip. Silently, and at most once.
+
+        While a clip is playing the page highlights the step at the playback
+        position by itself (``frontend/src/store.tsx``), so calling this during
+        playback moves nothing and only costs a turn.
 
         Args:
             index: Zero-based index of the step to focus.

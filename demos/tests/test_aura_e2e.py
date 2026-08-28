@@ -139,8 +139,24 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     async with demo("aura", _llm()) as rig:
         greeting = await rig.driver.start_session()
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text == _GREETING
+        assert greeting is not None and greeting.text == _GREETING["English"]
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
+
+
+async def test_the_language_the_page_picked_moves_the_greeting_and_both_legs() -> None:
+    """The customer picks the language before the call exists, and it rides ``init``.
+
+    Three things have to move together and this is the one place all three are
+    visible at once: the opener is the *written* Tamil line rather than an English
+    one translated at runtime, and the recognizer and the reference clip are both
+    on ``ta`` before that audio. Move only the clip and the words stay right while
+    the speaker is wrong — the failure no transcript, log or WER score can see.
+    """
+    async with demo("aura", _llm()) as rig:
+        greeting = await rig.driver.start_session(init={"language": "Tamil"})
+        check_greeting(rig, greeting)
+        assert greeting is not None and greeting.text == _GREETING["Tamil"]
+        check_voice_pair(rig, voice=VOICE, language="ta")
 
 
 async def test_narrating_a_help_video_drives_the_screen() -> None:

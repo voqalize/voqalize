@@ -86,6 +86,18 @@ export interface DemoGateProps {
   accent?: string;
   /** Panel treatment. Default `"dark"`. */
   theme?: "light" | "dark";
+  /**
+   * Let a visitor walk away without joining. Default `false`, which is right
+   * for a demo whose page *is* the call. Turn it on where the page stands on
+   * its own and the call is one thing offered on it — aura's help centre, say,
+   * where a gate that cannot be closed makes a bank site behave like a kiosk.
+   * The consent rule is untouched either way: dismissing joins nothing.
+   */
+  dismissible?: boolean;
+  /** Called when a dismissible gate is dismissed. */
+  onDismiss?: () => void;
+  /** Text for the dismiss affordance. Default `"Not now"`. */
+  dismissLabel?: string;
   /** Anything the demo needs chosen before the call — a language, a scenario. */
   children?: ReactNode;
 }
@@ -116,6 +128,9 @@ export function DemoGate({
   error,
   accent,
   theme = "dark",
+  dismissible,
+  onDismiss,
+  dismissLabel,
   children,
 }: DemoGateProps) {
   return (
@@ -130,6 +145,9 @@ export function DemoGate({
       error={error}
       accent={accent}
       theme={theme}
+      dismissible={dismissible}
+      onDismiss={onDismiss}
+      dismissLabel={dismissLabel}
       onJoin={onJoin}
     >
       {children}
