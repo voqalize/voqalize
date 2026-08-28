@@ -69,13 +69,11 @@ Over [the MCP server](/reference/mcp/) from your editor, or the console.
 Keep the `agent_id` and the `sk_` key: [every credential names one
 agent](/build/keys/), and the raw key is stored only as a hash.
 
-**The agent record says where the brain lives.** It carries no voice, no
-language, no recognizer settings — those depend on *this* caller, and an agent
-record cannot. Our own lead-qualification brain is the proof: it reads a state
-from the enquiry form and answers a caller in Tamil Nadu in Tamil, which is a
-fact that does not exist until the call starts. So the record holds `brain_url`,
-and step 6 holds the rest. The one default it does carry is whether calls for
-this agent are [recorded](/operate/recordings/).
+**The agent record says where the brain lives and whether recording defaults to
+on.** It carries no voice, language, recognizer or idle settings — those depend
+on *this* caller. Our own lead-qualification brain reads a state from the
+enquiry form and answers a caller in Tamil Nadu in Tamil, which is a fact that
+does not exist until the call starts. Step 6 holds that call's configuration.
 
 ## What happens on every call
 
@@ -116,10 +114,11 @@ entirely yours — a session cookie, a bearer token, whatever your app already
 does. We never see it.
 
 There is a second path where a publishable `pk_` key sits in the page and the
-browser calls us directly, which suits a demo or a marketing page.
-[The handshake](/build/connect/) covers both; the rest of this page
-follows the server path, because it is the one where you get to decide who may
-start a call.
+browser calls us directly, which suits a demo or a public page. On that path the
+browser may send the same `tts`, `stt` and `idle` configuration shown below;
+`record: false` is accepted and `record: true` is refused. [The
+handshake](/build/connect/) covers both. The rest of this page follows the server
+path, because it is the one where you decide who may start a call.
 
 ### 6. Your server starts the session
 
@@ -266,15 +265,15 @@ Ours is readable back through the MCP server or the API — the
 Three levels, and the later one wins:
 
 1. **Voqalize's defaults** — English on both legs.
-2. **Your server's `config`**, at connect. What this caller gets, decided by
-   code that knows who they are.
+2. **The session creator's `config`**, at connect. This may be your server with
+   an `sk_`, or a browser holding a publishable `pk_`.
 3. **The brain**, with `session.configure(Config(...))` — at session start, or
    any time during the call.
 
 The brain always has the last word, because `on_session_start` runs after connect.
-Levels 2 and 3 are the same message seen from two sides: your server sets the
-call up knowing who booked it, and the brain moves it knowing how the
-conversation is going.
+Levels 2 and 3 are the same message seen from two sides: the session creator
+sets the call up immediately before it starts, and the brain moves it knowing
+how the conversation is going.
 
 ## The optional half
 

@@ -159,10 +159,11 @@ sent, the call still connects, and the session runs on defaults with nothing
 anywhere saying so — which is why the request body is strict and an undeclared
 key is a 422 naming it.
 
-`init` is stored on the session record, returned to anyone who can read that
-session, and it has no retention policy of its own. **Send identifiers, not
-personal data**, and resolve them against your own store the way the snippet
-above does.
+`init` is stored on the session record and returned to anyone who can read that
+session. During developer preview, retention is neither configurable nor
+guaranteed. **Send identifiers, not personal data**, and resolve them against
+your own store the way the snippet above does. See [current status and supported
+environments](/overview/status/) for the preview data policy.
 
 ## History is yours
 

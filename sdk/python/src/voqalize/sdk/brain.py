@@ -258,11 +258,11 @@ class Session:
     async def configure(self, config: Config) -> None:
         """Override the session's configuration. Brain → Voqalize.
 
-        The session already opened on the agent record's defaults, so this is for
-        a condition that changed *during* the call — the caller switched
-        language, the line got noisy, this one needs longer to think. It is not
-        how a session is initialized; by the time a brain runs, the pipeline is
-        built and speaking::
+        The session opened on the configuration supplied to ``sessions.connect``,
+        resolved over Voqalize's defaults. The brain may change it from
+        ``on_session_start`` or later — the caller switched language, the line
+        got noisy, this one needs longer to think. By the time the brain runs,
+        the pipeline is already built::
 
             await session.configure(
                 Config(

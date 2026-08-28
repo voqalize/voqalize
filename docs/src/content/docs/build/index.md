@@ -1,13 +1,11 @@
 ---
-title: Build
-description: From nothing to an application people use twice — the brain you write, where it runs, the page that connects, and the SDK surface in full.
+title: Build an embedded voice agent
+description: Connect your app, implement the brain, deploy it, and verify a complete call.
 ---
 
-Everything you write lives here. A brain is one WebSocket endpoint: it receives
-what the caller said and sends back what to say and what to show. Voqalize dials
-it once per call. This section takes you from an empty file to a brain that
-speaks, acts on the screen, calls tools, remembers a conversation and has tests —
-and it is the section to come back to when you add the next capability.
+Build the integration in two places: a Pipecat client in your app and a brain
+WebSocket in your backend. Voqalize connects them for each call and runs the
+voice path between them.
 
 ## The three pieces
 
@@ -15,31 +13,30 @@ and it is the section to come back to when you add the next capability.
 - **An agent.** A record on our side: a name and your brain's URL.
 - **A client.** Stock pipecat on your page. You write no transport code.
 
-## The path
+## Recommended path
 
-Ten minutes first, then depth in the order you will want it.
+1. [How a session works](/build/session/) — follow one call from your app to the
+   brain and back.
+2. [Quickstart](/build/quickstart/) — run the smallest complete web example.
+3. [Connect your app](/build/connect/) — choose browser or backend session
+   creation and connect a Pipecat client.
+4. [Build the brain](/build/brain/) — add speech, screen actions, tools, context
+   and conversation history.
+5. [Use another agent framework](/build/existing-agent/) — connect an existing
+   framework through the text-and-actions wire.
+6. [Deploy the brain](/build/hosting/) — use an inbound WebSocket in production
+   or the outbound relay when the environment cannot accept ingress.
+7. [Test the brain](/build/testing/) — run protocol scenarios without a
+   microphone or live model.
 
-1. [Quickstart](/build/quickstart/) — a call you can hear, no explanations.
-2. [A session, end to end](/build/session/) — the whole path with the frames on it.
-3. [Your first brain](/build/brain/) — the callbacks, and the five chapters under it.
-4. [Bringing an agent you already have](/build/existing-agent/) — if you arrived
-   with an ADK, LangChain or hand-rolled agent, start here instead of at 3.
-5. [Where the brain runs](/build/hosting/) — inbound or outbound, and how to choose.
-6. [Connecting a page](/build/connect/) — the browser half, end to end.
-7. [Keys and authentication](/build/keys/) — `sk_` and `pk_`, and which goes where.
-8. [Testing a brain](/build/testing/) — the real wire, no microphone, no model.
+Use [keys and authentication](/build/keys/) when choosing where a session may be
+created. Add [the avatar](/build/avatar/) after the call path works.
 
-Along the way: [Voqalize and pipecat](/build/pipecat/) for what is ours and what
-is theirs, and [the avatar](/build/avatar/) when a face helps.
+## What Voqalize runs
 
-## What you are not building
+Voqalize runs WebRTC, recognition, synthesis, endpointing, turn-taking,
+interruption and optional recording. Your app uses Pipecat's client transport;
+your brain receives finalized text and returns speech and actions.
 
-No audio handling. No turn detector. No reconnection logic. No transport code in
-the browser. If you find yourself writing any of it, you are on the wrong side of
-the line — read [the boundary](/) again.
-
-## When you are done here
-
-You have an application that works. Whether it is one people use twice is a
-different question, and it is
-[Designing for voice](/design/).
+Once the complete call works, continue with [improving the agent](/design/) and
+[operating calls](/operate/).

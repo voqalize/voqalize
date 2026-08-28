@@ -1,6 +1,6 @@
 ---
 title: Usage and limits
-description: What Voqalize counts, where the billable number comes from, and the one gap in it that tells you your embed is broken.
+description: What Voqalize counts, how call duration is measured, and the one gap that tells you your embed is broken.
 ---
 
 `get_usage(tenant, period="")` returns one workspace's counters for one billing
@@ -11,11 +11,16 @@ history, so the answer costs the same in a workspace's fortieth month as in its
 first, and a period with no calls returns zeros rather than taking longer to say
 so.
 
-## The billable quantity
+## The usage quantity
 
 `duration_secs` comes from the **voice runtime's own measurement of the call** —
 the time it actually held, not the span from when a token was minted. A session
 that was created and never answered contributes zero.
+
+Developer preview is free. Future paid pricing is planned per session minute,
+with the developer's LLM billed separately by its provider; prices have not
+been set. See [current status and supported environments](/overview/status/) for
+what the planned minute includes.
 
 `agents` breaks the same numbers down per agent, busiest first.
 
@@ -35,10 +40,11 @@ before the transport starts.
 
 ## Limits
 
-Every workspace has limits, and during developer preview they are set per
-workspace rather than published as a tier table — there is nothing here to quote
-back at us yet. Ask if you need a specific ceiling raised for a launch, and ask
-before the launch rather than during it.
+Every workspace has limits, including concurrent-call and API rate limits.
+During developer preview they are set per workspace rather than published as a
+tier table; no public concurrency number is committed. The preview also has no
+availability guarantee. Ask before a pilot or launch that needs a specific
+ceiling.
 
 One is worth knowing about because it shapes how you poll: the management API is
 rate limited per workspace. A dashboard that fires a burst of reads per page is

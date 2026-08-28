@@ -3,10 +3,11 @@ title: Voice & language catalog
 description: The recognizer languages and TTS voices a session can select, and how a brain moves them.
 ---
 
-Every session starts on Voqalize's defaults — English on both legs — and
-**the brain** sets the recognizer language and the speaking voice for *this*
-caller. This page is the catalog of allowed values, and the one rule that makes
-them safe to change.
+Every session starts from the configuration supplied to `sessions.connect`,
+resolved over Voqalize's defaults — English on both legs when nobody says
+otherwise. The brain may change the recognizer language, speaking voice and idle
+timeout while the call runs. This page is the catalog of allowed values, and the
+one rule that makes them safe to change.
 
 :::caution[A language has two legs, and you set both]
 `stt.language` picks the **recognizer**. `tts.language` picks the **reference
@@ -137,29 +138,32 @@ Two rules kill it, and they are checked in two different places:
 
 ## Where it is set
 
-There is **one message**, `Config`, and it is set from two sides. Your server
-sends it as the `config` field of `sessions.connect`, as proto3 JSON; your brain
-sends the same message as a Python object with `session.configure(...)`. Same
-fields, same rules, same rejections — a `config` block in an HTTP body and a
-`Config(...)` in a callback are not two features to learn.
+There is **one message**, `Config`, and it is set from two sides. Whoever calls
+`sessions.connect` sends it as proto3 JSON; your brain sends the same message as
+a Python object with `session.configure(...)`. Same fields, same rules, same
+rejections — a `config` block in an HTTP body and a `Config(...)` in a callback
+are not two features to learn.
 
 | Level | Who sets it | When |
 |---|---|---|
 | 1 | Voqalize's defaults | English on both legs, always |
-| 2 | Your server, in `config` at [connect](/build/session/) | Knows who booked the call |
+| 2 | The session creator, in `config` at [connect](/build/session/) | Knows who is starting the call |
 | 3 | Your brain, `await session.configure(Config(...))` | Knows how the call is going |
 
 Later wins, and the brain always has the last word because `on_session_start`
 runs after connect. STT applies at the next turn boundary, TTS at the next
 speech unit, never mid-utterance.
 
-The agent record holds `brain_url` and nothing about voice or language — an
-agent-level language cannot depend on the caller, and `lead_qual` is the proof:
-it resolves a language from an enquiry form that does not exist until the
-session starts.
+The agent record holds `brain_url` and a recording default. It holds no voice,
+language or idle setting — an agent-level language cannot depend on the caller,
+and `lead_qual` is the proof: it resolves a language from an enquiry form that
+does not exist until the session starts.
 
-**From the browser: never.** A page can set at most one leg of a pair, which is
-precisely the failure above. Level 2 is your *server*, holding the `sk_` key.
+A browser holding a publishable `pk_` may call `sessions.connect` directly and
+set `tts`, `stt` and `idle`, subject to the same pairing and catalog rules. A
+browser that asks its own backend to start the session supplies no Voqalize
+configuration itself; the backend holding the `sk_` makes that request. The
+separate recording rule is on [recordings](/operate/recordings/).
 
 The `lead_qual` demo resolves its language per caller and then switches mid-call
 across eight Indic languages — a worked example of both.

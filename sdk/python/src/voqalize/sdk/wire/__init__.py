@@ -7,8 +7,8 @@ Public surface:
 - The frame dataclasses plus ``Frame``, and the enums they carry —
   ``ErrorCode`` and ``RTVIType``.
 - ``Config`` and its three sections, the ``Voice`` and ``Language`` catalogs,
-  and ``ConfigError`` — one configuration type, shared with the agent record
-  that stores a session's defaults.
+  and ``ConfigError`` — one configuration type used at session creation and for
+  changes made by the brain while the call is running.
 - ``WireSerializer`` — the protobuf serializer.
 - ``WIRE_VERSION`` — the wire version this build speaks.
 - ``MultiplexedWire``, ``WireConfig``, ``PermanentClose`` — websocket transport

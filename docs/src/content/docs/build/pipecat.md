@@ -35,6 +35,20 @@ Everything you learn here transfers. `usePipecatConversation` for the transcript
 context — those are pipecat's APIs, documented by pipecat, and they behave the
 same against any pipecat server.
 
+## Web, React Native and native mobile
+
+Pipecat publishes clients for JavaScript, React, React Native, native iOS and
+native Android, with SmallWebRTC transports for each environment. Because
+Voqalize uses those Pipecat interfaces directly, all five are supported client
+environments.
+
+Our runnable examples currently cover web only. For React Native, Swift or
+Kotlin, start with Pipecat's official
+[client SDK documentation](https://docs.pipecat.ai/client/introduction) and use
+the same `sessions.connect` response described in [connecting a
+page](/build/connect/). Use the transport package and lifecycle conventions for
+your target environment.
+
 ## The message layer is RTVI
 
 An action from your brain and a click from your page are both RTVI messages —

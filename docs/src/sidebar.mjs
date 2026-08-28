@@ -10,7 +10,7 @@
  * import it, and neither has to think about how the other's toolchain handles
  * TypeScript.
  *
- * ── Four sections, and each one owns its URLs ───────────────────────────────
+ * Five sections, and each one owns its URLs
  *
  * **A URL is navigation that survives being copied.** Until 2026-08-25 ours did
  * not: pages grouped under "Build" lived at `/deploy/`, `/client/`, `/brain/`
@@ -19,8 +19,10 @@
  * noticed. An agent reading `llms.txt` has no sidebar — the path is the only
  * structure it sees, and we had made the path lie.
  *
- * So: four sections, four namespaces, and they are the same four words.
+ * So: five sections, five namespaces, and their names describe the reader's
+ * next decision.
  *
+ *   Overview /overview/   evaluation, support and preview status
  *   Build    /build/      everything you write, from ten minutes to the whole
  *                         SDK surface
  *   Design   /design/     what changes when the output is spoken
@@ -34,9 +36,10 @@
  * `build/session` and `build/pipecat`.
  *
  * **The IA is built top-down from the MCP handshake.** L0 is the paragraph the
- * MCP server hands a coding agent, which links one page per section; L1 is the
- * apex; L2 is these hubs; L3 is what they link to. Every section therefore
- * answers at `/{section}.md` — including Reference, which had no hub until now.
+ * MCP server hands a coding agent; L1 is the apex; L2 is evaluation plus the
+ * four task-oriented hubs; L3 is what they link to. Task sections therefore
+ * answer at `/{section}.md`. Overview is deliberately a decision page rather
+ * than another hub.
  *
  * Diátaxis governs how a page is *written* and is declared per page. It is
  * deliberately not the navigation: the reader would have to classify their own
@@ -86,11 +89,19 @@
  */
 export const sidebar = [
   {
-    label: "Build",
+    label: "Start here",
+    items: [
+      { label: "Current status and support", slug: "overview/status" },
+    ],
+  },
+  {
+    label: "Build an agent",
     items: [
       { label: "Overview", slug: "build" },
-      { label: "Quickstart", slug: "build/quickstart" },
-      { label: "A session, end to end", slug: "build/session" },
+      { label: "How a session works", slug: "build/session" },
+      { label: "Quickstart: first call", slug: "build/quickstart" },
+      { label: "Connect your app", slug: "build/connect" },
+      { label: "Pipecat client SDKs", slug: "build/pipecat" },
       {
         label: "Your first brain",
         items: [
@@ -103,19 +114,17 @@ export const sidebar = [
           { label: "Transcripts", slug: "build/brain/transcripts" },
         ],
       },
-      { label: "Bringing an agent you already have", slug: "build/existing-agent" },
-      { label: "Where the brain runs", slug: "build/hosting" },
+      { label: "Use another agent framework", slug: "build/existing-agent" },
+      { label: "Deploy the brain", slug: "build/hosting" },
       { label: "Inbound server", slug: "build/inbound" },
       { label: "Outbound relay", slug: "build/outbound" },
-      { label: "Connecting a page", slug: "build/connect" },
-      { label: "Voqalize and pipecat", slug: "build/pipecat" },
-      { label: "The avatar", slug: "build/avatar" },
-      { label: "Keys and authentication", slug: "build/keys" },
       { label: "Testing a brain", slug: "build/testing" },
+      { label: "Keys and authentication", slug: "build/keys" },
+      { label: "Add an avatar", slug: "build/avatar" },
     ],
   },
   {
-    label: "Designing for voice",
+    label: "Improve the agent",
     items: [
       { label: "Overview", slug: "design" },
       { label: "Voice points, the screen holds", slug: "design/speech-vs-screen" },
@@ -137,7 +146,7 @@ export const sidebar = [
     ],
   },
   {
-    label: "Reference",
+    label: "API and protocols",
     items: [
       { label: "Overview", slug: "reference" },
       { label: "The Brain API", slug: "reference/brain" },

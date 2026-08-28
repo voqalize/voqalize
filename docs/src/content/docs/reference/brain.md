@@ -43,8 +43,8 @@ from any callback and from work that outlives one.
 | `session_context` | context manager | Tag log lines with a call's identity. |
 
 Configuration types are not among them. They live in `voqalize.sdk.wire`,
-because the same definitions are what the agent record stores as a session's
-defaults:
+because the same definitions are accepted at session creation and over the
+mid-call wire:
 
 ```python
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
@@ -191,8 +191,9 @@ consumed what you yielded, so writing it in that order *is* the ordering, and
 the goodbye is heard. `reason` is logged locally and does not cross the wire.
 
 **`configure`** overrides the session's configuration mid-call and is awaited,
-because Voqalize answers it. The session already opened on the agent record's
-defaults, so this is for a condition that changed during the call.
+because Voqalize answers it. The session opened on the configuration supplied
+to `sessions.connect`, resolved over Voqalize's defaults; the brain may change
+it from `on_session_start` or later.
 
 ```python
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice

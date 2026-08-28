@@ -275,13 +275,13 @@ class ConfigError(ValueError):
 class Config:
     """One configuration, three sections.
 
-    The same shape the agent record stores as the session's defaults, which is
-    why there is one type rather than two — a record cannot drift from the wire
-    if there is only one definition of what a configuration is.
+    The same shape ``sessions.connect`` accepts immediately before the call
+    starts. The agent record does not store it; that record holds the brain URL
+    and a recording default.
 
-    "Unset" means *leave it alone* here, and *take Voqalize's default* in the
-    record. A section left ``None`` is untouched; a field left ``None`` inside a
-    section it is present in is untouched too.
+    At session creation, unset means *take Voqalize's default*. In a mid-call
+    request, unset means *leave it alone*. A section left ``None`` is untouched;
+    a field left ``None`` inside a section it is present in is untouched too.
 
     Both legs carry their own language, and that is not duplication. Fewer
     languages can be spoken than understood, so understanding Odia while
@@ -319,8 +319,8 @@ class Config:
 class ConfigureFrame(Frame):
     """Override the session's configuration mid-call. Brain → Voqalize.
 
-    The session already starts from the agent record's defaults, so this is for
-    a condition that changed during the call — not for initialization.
+    The session already starts from the configuration supplied at connect,
+    resolved over Voqalize's defaults. This request may change it at any time.
     """
 
     request_id: int = 0

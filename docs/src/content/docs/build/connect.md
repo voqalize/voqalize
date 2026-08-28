@@ -9,8 +9,7 @@ ours sits between those two. The audio is direct UDP, and the control messages �
 transcripts, the agent's UI commands, your client messages — ride RTVI on that
 peer connection's data channel.
 
-So the whole browser-side integration is: get the connect params, hand them to
-pipecat, stop thinking about us.
+The app integration gets the connect parameters and passes them to Pipecat.
 
 ```
 POST /sessions.connect  ──▶  { where to send the offer, what to present on it }
@@ -32,15 +31,14 @@ Content-Type: application/json
 }
 ```
 
-**Two named things, and the body is strict** — a key it does not declare is a
-422 naming it, not a key quietly dropped. (There are two more, both labels:
-`display_name` and a bounded `metadata` map, in
-[A session, end to end](/build/session/).)
+The body is strict: an undeclared key returns a `422` naming it. Two optional
+labeling fields are also accepted: `display_name` and a bounded `metadata` map,
+described in [A session, end to end](/build/session/).
 
 `init` is what the page hands the brain: a flat, opaque blob of business
-context, uninterpreted by everything between this request and `session.init`. It
-is the same word on both ends, which is the point. It is stored on the session
-and readable by anyone who can read the session, so send identifiers rather than
+context, uninterpreted by everything between this request and `session.init`.
+The same value arrives as `session.init`. It is stored on the session and
+readable by anyone who can read the session, so send identifiers instead of
 personal data.
 
 `config` is how this call sounds and listens — `tts`, `stt`, `idle`, and
@@ -136,11 +134,9 @@ app.post("/api/voice/start", requireLogin, async (req, res) => {
 });
 ```
 
-**Relay it whole.** Don't unwrap it, rename its keys, or fold it into an envelope
-of your own: the browser's next line hands it to pipecat, and a field you dropped
-is an address pipecat cannot reach. Relay the status too — a refusal turned into
-a `200` with an empty body is a page that fails somewhere much less legible than
-where it actually went wrong.
+Return the response body and HTTP status unchanged. The browser passes the body
+to Pipecat, so renaming or removing a field prevents the transport from using
+the returned endpoint or credential.
 
 The `sk_` never reaches the browser. Neither does anything else of ours: your
 page talks to your origin, and the only Voqalize address it ever learns is the
@@ -244,16 +240,15 @@ even on an agent that records by default, on either path.
 **`config.record: true` is refused on a publishable key** — `400`, and no call starts, so
 nothing is minted and nothing is billed. A `pk_` ships in page source; if it could
 turn recording *on*, anyone holding it could write voice into your storage, on
-your bill, for an agent whose owner chose not to record. The refusal is loud on
-purpose: the failure it replaces was a call that ran, sounded perfectly normal,
-and quietly recorded nothing the page thought it had asked for. Turn recording on
-where its owner controls it — the agent's default, over MCP, or in the console.
+your bill, for an agent whose owner chose not to record. Enable recording through
+the agent default, MCP, the console, or a backend request authenticated with an
+`sk_`.
 
 On Path B, `config.record: true` with an `sk_` is fine and is the right way to express
 per-caller consent. Your backend is the party that actually knows the caller
 agreed.
 
-## What not to build
+## Integration constraints
 
 - **No relay past the handshake.** Once connected, the media is direct UDP and
   RTVI is on the data channel. Your server is not in the loop and does not want

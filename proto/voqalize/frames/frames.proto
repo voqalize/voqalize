@@ -180,10 +180,10 @@ message SpeechEnd {
 // A brain asking the runtime to change something. Exactly one Response comes
 // back for every Request.
 //
-// The surface is deliberately narrow: voice and language, and nothing else. The
-// recognizer's thresholds are not settable from here — they keep the runtime's
-// own defaults. We widen this as we learn what is worth naming, and a knob is
-// far easier to add than to take back.
+// The surface is deliberately narrow: how the session speaks, listens and
+// responds to idle time. The recognizer's thresholds are not settable from here
+// — they keep the runtime's own defaults. Recording is fixed when the session
+// starts and has no mid-call operation.
 message Request {
   // Names the Response that answers this. Per session, never reused.
   uint64 request_id = 1;
@@ -224,16 +224,15 @@ message Response {
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-// A session's speech configuration, used in two places: the agent record stores
-// it as the session's defaults, and the configure op overrides them while the
-// call is running. The same type in both places is the point — a record cannot
-// drift from the wire if there is only one definition of what a configuration
-// is.
+// A session's speech configuration, used in two places: sessions.connect
+// supplies it immediately before the call starts, and the configure op changes
+// it while the call is running. The agent record stores neither this message nor
+// voice, language or idle settings; it stores the brain URL and a recording
+// default.
 //
-// "Unset" reads differently at each end. In the record it means *take
-// Voqalize's default*, so a section added later does not invalidate every
-// stored record. On the wire it means *leave it alone*: a Request carries a
-// delta, and the runtime is already running.
+// "Unset" reads differently at each end. At session creation it means *take
+// Voqalize's default*. On the wire it means *leave it alone*: a Request carries
+// a delta, and the runtime is already running.
 //
 // One op carries all three sections rather than three ops carrying one each,
 // because a language change has to touch both legs at once. Three ops would put

@@ -245,11 +245,11 @@ message SttConfig  { optional Language language = 1; }
 message IdleConfig { optional uint32 timeout_ms = 1; }
 ```
 
-This message is the payload of this op and of nothing else. The agent record
-holds `brain_url` and carries no voice or language of its own, so there is one
-place a session's configuration comes from and it is the brain. A session starts
-on Voqalize's defaults and moves from there — see
-[the catalog](/reference/catalog/#where-it-is-set).
+This message is used twice. `sessions.connect` supplies the starting `tts`,
+`stt` and `idle` sections immediately before the call; the brain sends the same
+shape in this op while the call is running. The agent record holds `brain_url`
+and a recording default, and carries no voice, language or idle configuration.
+See [the catalog](/reference/catalog/#where-it-is-set).
 
 Unset means *leave it alone*: a `Request` carries a delta and the call is
 already running. Explicit presence is what makes that readable — without it an

@@ -11,8 +11,8 @@ contract, the SDKs you build a brain with, runnable demo applications, and the
 developer documentation. Voqalize itself — the hosted voice runtime — is a
 managed service, and everything you need to build against it is here.
 
-> **Pre-release.** The SDK surfaces and the wire are still moving.
-> `voqalize-agent-sdk` 0.1.0 is published on PyPI with the `Brain`,
+> **Developer preview.** The SDK surfaces and the wire are still moving.
+> `voqalize-agent-sdk` 0.2.0 is published on PyPI as an alpha with the `Brain`,
 > `run_session`, and `serve` API documented here. **Pin the version you build
 > against**, because pre-1.0 releases may change the brain callbacks.
 >
@@ -22,7 +22,7 @@ managed service, and everything you need to build against it is here.
 > in the shape pipecat's transport connects with — so there is nothing left for a
 > package of ours to do. The published 0.1.x remains installable for anything
 > already built against it. See
-> [Connections and the handshake](https://docs.voqalize.com/client/handshake/).
+> [Connections and the handshake](https://docs.voqalize.com/build/connect/).
 
 ## What's here
 
@@ -51,7 +51,7 @@ project to a running voice agent: write a brain → create an agent → get a
 `brain_url` → wire a browser UI. Prefer to read code first? Start from
 [`sdk/python/examples/echo`](sdk/python/examples/echo) (the smallest complete
 brain) or [`sdk/python/examples/travel`](sdk/python/examples/travel) (a fuller
-one), and [Connections and the handshake](docs/src/content/docs/client/handshake.md)
+one), and [Connections and the handshake](docs/src/content/docs/build/connect.md)
 for the browser side.
 
 ## The shape of a Voqalize app

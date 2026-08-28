@@ -1,4 +1,6 @@
-# Every number, version, licence and date a Voqalize surface is allowed to claim.
+# Every stable product claim a Voqalize surface is allowed to repeat: numbers,
+# versions, licences and dates, plus the boundaries that otherwise drift between
+# the website, documentation, SDK and MCP instructions.
 #
 # This file exists because prose cannot be trusted with a number. Four claims on
 # live pages disagreed with the code on the day it was written, and none of them
@@ -33,7 +35,7 @@
 #   except     path globs where a forbid hit is legitimate (dated records)
 
 version: 1
-harvested: 2026-08-24
+harvested: 2026-08-28
 
 facts:
 
@@ -66,6 +68,65 @@ facts:
     forbid:
       - '/s/\{session_id\}'
       - '/s/\{sid\}'
+
+  # ---- configuration ownership --------------------------------------------
+
+  config.agent_record:
+    value: [brain_url, recording_default]
+    source: platform/backend/controlplane/app/domains/agents/configuration.py AgentConfiguration
+    verified: 2026-08-28
+    reproduce: >-
+      sed -n '/class AgentConfiguration/,/def validate_configuration/p'
+      ../platform/backend/controlplane/app/domains/agents/configuration.py
+    note: >-
+      The Firestore agent document has one deployment field, brain_url, and one
+      behavioural default, recording.enabled (false unless set). It has no
+      voice, language, recognizer or idle settings. Legacy stt/tts blocks are
+      dropped on read. Recording is the exception because the service writes
+      and stores the audio; the value on the record is only the fallback when a
+      session-connect request omits config.record.
+
+  config.session_connect:
+    value: [tts, stt, idle, record]
+    source: platform/backend/controlplane/app/domains/sessions/session_config.py
+    verified: 2026-08-28
+    reproduce: >-
+      sed -n '1,120p'
+      ../platform/backend/controlplane/app/domains/sessions/session_config.py
+    note: >-
+      These are the configuration sections accepted just before a call starts.
+      tts/stt/idle are the proto Config parsed from canonical proto3 JSON;
+      record is lifted out first because recording is decided once when the
+      pipeline is built and has no mid-session wire operation.
+
+  config.brain_runtime:
+    value: [tts, stt, idle]
+    source: proto/voqalize/frames/frames.proto Config
+    verified: 2026-08-28
+    derive:
+      file: proto/voqalize/frames/frames.proto
+      within: '^message Config \{(.*?)^\}'
+      findall: '^\s+(?:TtsConfig|SttConfig|IdleConfig)\s+(\w+)\s*='
+    note: >-
+      The brain may send any Config delta while the session is running and gets
+      an accepted/rejected Response. TTS applies to the next speech unit, STT at
+      the next committed turn boundary and idle immediately. Recording is not a
+      Config field and cannot change after the call starts.
+
+  config.publishable_browser:
+    value: tts, stt and idle accepted; record false accepted; record true refused
+    source: platform/backend/controlplane/app/domains/sessions/session_service.py _resolve_recording
+    verified: 2026-08-28
+    reproduce: >-
+      sed -n '/def _resolve_recording/,/class SessionService/p'
+      ../platform/backend/controlplane/app/domains/sessions/session_service.py
+    note: >-
+      A browser holding a publishable pk_ may call sessions.connect directly and
+      supply the same config as any caller. The only credential-specific rule
+      is recording: false is always honoured, true is HTTP 400
+      recording_not_permitted, and omission uses the agent's recording default.
+      A browser that calls its own backend does not call Voqalize and therefore
+      supplies no Voqalize configuration itself; its backend makes that choice.
 
   # ---- the Python brain SDK -------------------------------------------------
 
@@ -111,6 +172,19 @@ facts:
       The control plane resolves the SDK from PyPI rather than from the sibling
       tree, so this number is also what unblocks a platform proto change: until
       it moves, the two copies of the wire stub in that repo cannot agree.
+
+  sdk.python.stability:
+    value: alpha; Python >=3.12; pre-1.0 surface may change
+    source: https://pypi.org/pypi/voqalize-agent-sdk/json
+    verified: 2026-08-28
+    reproduce: >-
+      curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
+      | python3 -c "import sys,json;d=json.load(sys.stdin)['info'];print(d['requires_python'], [x for x in d['classifiers'] if x.startswith('Development Status')])"
+    note: >-
+      The registry classifies the package as Development Status 3 - Alpha and
+      requires Python >=3.12. Install examples pin sdk.python.version.published;
+      the stability sentence carries no promise of callback compatibility before
+      1.0.
 
   sdk.python.surface.published:
     value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage,
@@ -274,6 +348,58 @@ facts:
       floor is exercised rather than asserted. The demos themselves resolve
       ^1.13.0 as a dev dependency; the floor is what a customer's page must
       clear, and it is the number docs/start/pipecat.md is allowed to print.
+
+  pipecat.client.platforms:
+    value: [JavaScript, React, React Native, iOS Swift, Android Kotlin]
+    source: https://docs.pipecat.ai/client/introduction
+    verified: 2026-08-28
+    note: >-
+      Pipecat publishes clients for all five and SmallWebRTC transports for web,
+      React Native, native iOS and native Android. Voqalize speaks the same RTVI
+      and SmallWebRTC surfaces. This is protocol support, not example coverage:
+      the Voqalize repository currently ships complete client examples only for
+      web. C++ also exists upstream but is not a Voqalize-supported environment
+      until we state otherwise.
+
+  pipecat.client.examples:
+    value: [web]
+    source: demos/*/frontend
+    verified: 2026-08-28
+    note: >-
+      Every Voqalize demo client is a web frontend. Link the official Pipecat
+      guide for React Native, iOS or Android and say plainly that Voqalize does
+      not yet ship a native example; never turn upstream SDK availability into
+      a claim that we tested an example we do not have.
+
+  brain.frameworks.built_in:
+    value: [Gemini]
+    source: sdk/python/src/voqalize/sdk/gemini.py + sdk/python/src/voqalize/sdk/gemini_interactions.py
+    verified: 2026-08-28
+    note: >-
+      GeminiBrain and GeminiInteractionsBrain are the two shipped adapters and
+      both are behind the gemini extra. No ADK, LangChain or OpenAI Agents
+      adapter ships. Other language/framework combinations implement the public,
+      language-neutral protobuf wire and prove it with the conformance suite.
+
+  brain.frameworks.extension_contract:
+    value: language-neutral protobuf websocket plus conformance verification
+    source: proto/voqalize/frames/frames.proto + sdk/python/src/voqalize/conformance/
+    verified: 2026-08-28
+    note: >-
+      The English specification is the commented proto plus the wire reference.
+      A coding agent may implement it in another language or around another
+      framework, then run the conformance harness. Describe that as an
+      implementation path, not as a first-party adapter.
+
+  brain.hosting:
+    value: inbound WebSocket by default; outbound Cortex supported and preferred for local development
+    source: sdk/python/src/voqalize/sdk/session.py + sdk/python/src/voqalize/sdk/outbound.py
+    verified: 2026-08-28
+    note: >-
+      Both paths run the same Brain and wire. Production builds toward an inbound
+      wss route owned by the customer's application. Cortex is a supported relay
+      for egress-only environments and is the documented local-development path
+      because it needs no public tunnel.
 
   speech.stt.model:
     value: vql-stt
@@ -440,17 +566,18 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 40
+    value: 41
     source: docs/src/content/docs/
     verified: 2026-08-26
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
-      Thirty-nine pages, each served twice — rendered, and as the `.md` twin an
+      Forty-one pages, each served twice — rendered, and as the `.md` twin an
       agent reads — plus llms.txt and 404.html. It was 26 on the morning of
       2026-08-25 and the growth is not new writing: the tree was rebuilt
-      top-down from the MCP handshake into four sections whose names are their
-      URL namespaces (Build, Designing for voice, Operate, Reference), which
+      top-down from the MCP handshake into an evaluation section plus four task
+      sections whose names are their URL namespaces (Build, Designing for
+      voice, Operate, Reference), which
       moved sixteen pages, dissolved Start into Build, folded
       `reference/no-provider-slot` into the catalog it was arguing with, merged
       `start/what-voqalize-is` into the apex, and opened thirteen new slots.
@@ -481,3 +608,82 @@ facts:
     forbid:
       - '\bper[- ]seat\b'
       - '\bfree trial\b'
+
+  preview.service_level:
+    value: no availability guarantee; rate limiting and interruptions may occur
+    source: product decision 2026-08-28
+    verified: 2026-08-28
+    note: >-
+      Developer preview carries no SLA. State this before a developer treats a
+      successful prototype as a production availability commitment. Do not
+      invent an uptime percentage or a standard concurrent-call allowance.
+
+  regions.current:
+    value: India
+    source: platform/frontend/apps/marketing/src/pages/privacy.astro:294
+    verified: 2026-08-28
+    reproduce: >-
+      sed -n '286,302p'
+      ../platform/frontend/apps/marketing/src/pages/privacy.astro
+    note: >-
+      Processing and storage are in India today. The deployed control plane and
+      storage are asia-south1 and the voice tier runs in Indian data centres.
+
+  regions.planned:
+    value: United States
+    source: product decision 2026-08-28
+    verified: 2026-08-28
+    note: >-
+      Planned, not available. A page must keep the future tense and must not
+      imply that a caller can select a US region today.
+
+  session.data.stored:
+    value: [session record, init, events, transcripts, logs, optional audio recordings]
+    source: platform/backend/controlplane/app/domains/sessions/documents.py + app/domains/logs/
+    verified: 2026-08-28
+    reproduce: >-
+      sed -n '65,125p'
+      ../platform/backend/controlplane/app/domains/sessions/documents.py
+    note: >-
+      Transcripts are carried in the stored wire-event artifact rather than a
+      separate transcript database. Audio exists only when recording resolved
+      true for that session. The brain's own model history and logs remain in
+      the developer's environment.
+
+  session.data.retention:
+    value: not configurable or guaranteed during developer preview
+    source: product decision 2026-08-28
+    verified: 2026-08-28
+    note: >-
+      Do not publish current bucket lifecycle rules as a customer contract.
+      Fine-grained retention and access controls are planned for paid plans;
+      neither their shape nor their dates are committed. Until then developers
+      must avoid putting personal data in init and must not build compliance
+      assumptions on a retention interval.
+
+  pricing.direction:
+    value: per session minute, all-inclusive except the developer's LLM
+    source: product decision 2026-08-28
+    verified: 2026-08-28
+    note: >-
+      Future paid pricing will include STT, TTS, endpointing, WebRTC, avatar,
+      monitoring, observability and service availability. The brain and its LLM
+      remain in the developer's environment and its model bill remains theirs.
+      The price per minute is unset.
+
+  limits.concurrent_calls:
+    value: limited during developer preview; number unset
+    source: product decision 2026-08-28
+    verified: 2026-08-28
+    note: >-
+      Workspaces may be rate-limited and concurrent-call ceilings apply, but no
+      public number exists. Ask before a pilot or launch; never print a guessed
+      tier table.
+
+  support.paid_direction:
+    value: ticket support on paid plans; custom support contracts for enterprise plans
+    source: product decision 2026-08-28
+    verified: 2026-08-28
+    note: >-
+      A future commercial commitment, not a developer-preview SLA. No response
+      time, severity schedule or launch date is committed yet.

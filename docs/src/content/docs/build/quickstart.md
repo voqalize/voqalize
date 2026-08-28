@@ -75,16 +75,17 @@ Locally, put a tunnel in front of the route so the URL is reachable.
 
 ## 5. Open a page
 
-One `fetch` for the connect parameters, then stock pipecat. No library of ours
-in the browser, which is also why iOS and Android are the same integration —
-[Connecting a page](/build/connect/).
+One `fetch` for the connect parameters, then stock pipecat. The runnable example
+is web; Pipecat also supplies React Native, native iOS and native Android clients
+for the same connect contract. See [Connecting a page](/build/connect/) and
+[Voqalize and pipecat](/build/pipecat/).
 
-## The one thing that will fool you
+## Verify that your brain answered
 
-An agent whose `brain_url` is empty still greets — a hosted fallback answers so a
-bare agent is never silent. So hearing a voice proves the call worked, not that
-your code ran. Say something in your own words from `on_user_message`, as above,
-before you believe step 3 and step 4 are connected.
+An agent whose `brain_url` is empty uses the hosted welcome brain. A greeting
+therefore verifies the call path, but not your WebSocket route. Return a
+distinctive response from `on_user_message`, as above, and confirm that response
+before continuing.
 
 ## Read next
 

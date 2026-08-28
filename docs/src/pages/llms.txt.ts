@@ -55,7 +55,7 @@ export const GET: APIRoute = async () => {
     "",
     ...(apex
       ? [
-          `Start at [${apex.data.title}](${markdownUrl(apex.id)}) — the whole model on one page, with a link out of every branch. The four sections below go one level deeper each.`,
+          `Start at [${apex.data.title}](${markdownUrl(apex.id)}) — the whole model on one page, with a link out of every branch. Check current status first, then use the task sections below to build and operate it.`,
           "",
         ]
       : []),

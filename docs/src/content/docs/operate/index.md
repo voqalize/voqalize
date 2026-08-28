@@ -1,16 +1,14 @@
 ---
 title: Operate
-description: Running it in production — reading one call back, what persists per session, and the counters that tell you the embed is broken.
+description: Inspect one call, retrieve its artifacts, and monitor usage and limits.
 ---
 
-In production you debug one call, not a system. Everything here is keyed by
-`session_id`, and that is the join: the console, the logs, the recording and your
-own systems all name a call the same way. Start with the call somebody complained
-about and work outward.
+Use `session_id` to join the console, events, logs, optional recordings and your
+own systems. Start with the affected call, then compare it with aggregate usage.
 
 ## Start with one call
 
-In this order, because each is cheaper than the next:
+Inspect these artifacts in order:
 
 1. **Events** — what happened and when. The ordered spine of the call, and the
    only one of the three that is a contract.
@@ -24,9 +22,14 @@ In this order, because each is cheaper than the next:
 
 - **Events** persist per session and are the durable record.
 - **Logs** upload when the call ends, so a call in progress has none.
-- **Recordings are off by default** and are turned on per agent.
+- **Recordings are off by default.** The agent carries a default; an authorized
+  session creator can override it for a call.
 - **Conversation history is yours.** We hold the call, not what your brain
   remembered about it.
+
+During developer preview, retention is not configurable or guaranteed. See
+[current status and supported environments](/overview/status/) before building
+an archival or compliance workflow.
 
 ## The pages
 

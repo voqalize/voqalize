@@ -15,8 +15,7 @@ root-relative regardless and the two halves of a page end up on different
 prefixes.
 
 Covers the developer guides, the SDK references, and the **voice / model /
-language catalog** (the vql-speech capability surface — a first-party Voqalize
-microservice).
+language catalog** exposed by the speech tier.
 
 ## Every page is also markdown
 
@@ -72,7 +71,7 @@ pnpm build && python3 check_navigation.py
 It asserts what an agent's path depends on and the HTML link checker cannot see:
 `llms.txt` names every page exactly once and the apex first, no page is in the
 build that nothing links to, no markdown link drops out of markdown, and every
-retired URL answers in both formats. `check_links.py` in the platform repo is
+retired URL answers in both formats. `check_links.py` in the private product repo is
 the other half — it reads rendered HTML across the marketing/docs seam. Neither
 is a superset of the other, and every defect the gate exists for was invisible
 to a check that read one format and not the other.

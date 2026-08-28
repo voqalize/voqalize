@@ -19,23 +19,21 @@ brain code is identical regardless. The only choice is **who dials whom**.
 | **You expose** | One authenticated `wss://` route | Nothing inbound |
 | **Best for** | Any backend that can accept connections | Serverless, laptops, egress-only / air-gapped networks |
 | **Scaling** | Your own load balancer | Hand out a different Cortex URL |
-| **Status** | Primary — build toward this | Fallback |
+| **Status** | Default deployment | Supported; default for local development |
 
 Both paths run the **same per-session engine** and the **same `Vql*` wire**. A
 brain written for one runs on the other unchanged.
 
 ## Choosing
 
-Default to **inbound**. If you already run a web or mobile backend, exposing one
-more authenticated WebSocket route is trivial, and it keeps Voqalize dialing you
-directly with no relay in the path. See [Inbound server](/build/inbound/).
+Use **inbound** for the standard deployment when your backend can expose an
+authenticated WebSocket route. Voqalize then dials your application directly.
+See [Inbound server](/build/inbound/).
 
-Reach for **Cortex** only when your brain genuinely can't accept inbound
-connections — a serverless function, a process on a laptop behind NAT, or a
-network that only allows egress. Your brain dials out to Cortex, which splices the
-two legs on a scope it derives from the **credential each leg presents** — never
-from the URL, so nothing an attacker can type decides who gets your sessions. See
-[Cortex relay](/build/outbound/).
+Use **Cortex** for local development or when the brain cannot accept inbound
+connections, such as a serverless function, a laptop behind NAT or an
+egress-only network. Your brain dials out to Cortex, which matches both legs
+from their credentials. See [Cortex relay](/build/outbound/).
 
 ## Setting the `brain_url`
 
@@ -54,7 +52,8 @@ Rules:
 - Give the URL of your route, path and all — Voqalize uses it verbatim and
   appends only `?session_id=`. For Cortex, it's the Cortex origin exactly as
   `create_agent_credentials` returned it.
-- Changing `brain_url` never touches the agent's STT/TTS config.
+- Changing `brain_url` never changes a session's STT/TTS configuration; that is
+  supplied at connect or by the brain while the call runs.
 
 An **empty** `brain_url` falls back to a hosted `welcome` brain, so a freshly
 created agent still greets while you build the real one.

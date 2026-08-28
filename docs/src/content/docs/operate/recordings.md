@@ -9,9 +9,8 @@ is a real answer rather than a missing one.
 
 ## Who decides
 
-The client developer's explicit `record` wins in both directions, because they are
-the only party who knows whether *this* caller consented. They can turn it off for
-an agent that records by default just as easily as on.
+The session creator's explicit `record` value takes precedence over the agent
+default. This lets your backend apply the caller's consent for each call.
 
 | What the mint request says | What happens |
 |---|---|
@@ -19,24 +18,18 @@ an agent that records by default just as easily as on.
 | `record: false` | Not recorded, whatever the agent's default says |
 | omitted | The agent's configured default, which itself defaults to off |
 
-Omitting the field is how "let the agent decide" is spelled. It is a different
-thing from `false`, and the distinction is the whole reason the field is nullable.
+Omitting the field uses the agent default. Sending `false` explicitly disables
+recording for that call.
 
 ## One asymmetry, and it is about which key you hold
 
 **A publishable (`pk_`) key may turn recording off. It may not turn it on.**
 
-A `pk_` key ships in page source, so "the client developer" on that path is
-whoever can read the page. Turning recording *off* needs no trust — opting out of
-being recorded never does. Turning it *on* would let a stranger write voice into
-your bucket, on your bill, for an agent whose owner chose not to record.
+A `pk_` key ships in page source. It may honor an opt-out, but it cannot authorize
+storage of new audio for an agent whose owner did not enable recording.
 
-That refusal is an HTTP `400` with code `recording_not_permitted`, and it starts no
-call. It used to be a silent fallback to the agent default, which meant a page
-asking to record could "work" by coincidence whenever the owner had already turned
-recording on — and then quietly not work the day they turned it off. A request
-that can only ever be a no-op is a bug in the page, and it should be found on the
-page's first run rather than by an auditor looking for a call nobody recorded.
+That refusal is an HTTP `400` with code `recording_not_permitted`, and it starts
+no call. Handle the error where the session is created.
 
 A `pk_` embed that wants recording sets the **agent's** default, which its owner
 controls: `update_agent(recording=true)` over
@@ -49,10 +42,8 @@ See [keys and authentication](/build/keys/).
 `get_recordings(tenant, session_id)` returns one track **per side**: `role` is
 `user` (the caller's microphone) or `agent` (what was spoken back).
 
-Two tracks rather than one mix is the point. Listening to them separately
-distinguishes "the agent said nothing" from "the agent was never asked anything" —
-which a mixed track cannot tell you, and which is the first question worth asking
-about a call that went quiet.
+Separate tracks let you inspect the caller and agent channels independently. This
+distinguishes missing agent audio from missing caller audio.
 
 Each track carries its state, duration, size, content type, and a
 `failure_reason` if it has one.
@@ -69,6 +60,11 @@ long enough to download and short enough that a leaked URL is dead by the time
 anyone finds it.
 
 Ask for a fresh one rather than holding one.
+
+The URL lifetime is not a retention promise. During developer preview,
+recording retention is neither configurable nor guaranteed. Download anything
+you need to keep, and do not build around an assumed retention interval. See
+[current status and supported environments](/overview/status/).
 
 ## Which rule decided, after the fact
 
