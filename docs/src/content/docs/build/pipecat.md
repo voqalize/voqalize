@@ -60,10 +60,16 @@ The whitelist, in both directions:
 | Brain → page | Page → brain |
 |---|---|
 | `server-message` | `client-message` |
-| `server-response` | `send-text` |
-| `error-response` | `ui-event` |
-| `ui-command` | `ui-snapshot` |
-| `ui-job-group` | `ui-cancel-job-group` |
+| `server-response` | `ui-event` |
+| `error-response` | `ui-snapshot` |
+| `ui-command` | `ui-cancel-job-group` |
+| `ui-job-group` | |
+
+`client.sendText(…)` is the sixth type your page may send and the one exception
+to "verbatim": a typed sentence takes the floor the way a spoken one does, so
+Voqalize commits it as a user turn and your brain answers it in
+`on_user_message` rather than receiving a message. See
+[the RTVI plane](/reference/rtvi/).
 
 A type absent from that list does not cross in either direction. `bot-*` and
 `llm-*` are the voice tier's own assertions about the media and the model — that

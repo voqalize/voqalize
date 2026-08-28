@@ -6,7 +6,9 @@ description: A whitelist of message types carried verbatim between your brain an
 Your brain and your page talk to each other over RTVI, pipecat's own message
 format, tunnelled through the Voqalize wire. A message is
 `{id, label, type, data}` on the data channel; we carry the whitelisted types
-verbatim in both directions and interpret nothing about them.
+verbatim in both directions and interpret nothing about them — with one
+deliberate exception, [`send-text`](#send-text-is-a-turn-not-a-message), which
+becomes a user turn rather than arriving as a message.
 
 This is the second channel of a call. The first one is speech, and it holds the
 floor; this one does not. See
@@ -33,17 +35,44 @@ which is the contract of record.
 | Type | What it is |
 |---|---|
 | `client-message` | Anything the app wants to tell the brain — a tap, a keystroke, a state push. |
-| `send-text` | Text submitted into the conversation, carrying its own flags for whether to run it immediately and whether to answer aloud. |
 | `ui-event` | A named event with an app-defined payload. |
 | `ui-snapshot` | The page's accessibility tree, whole, each time. |
 | `ui-cancel-job-group` | Cancel an in-flight job group, by its `job_id`. |
 
 Only two of these have a Voqalize method behind them: `ui-command` is what
 `session.dispatch` rides, and `client-message` is what most apps send back. The
-rest of the `ui-*` family and `send-text` are pipecat's own, defined and
-implemented by its client and its server-side workers; we carry them and
-interpret nothing. The descriptions above are what pipecat's client does with
-them, and pipecat's documentation is the authority on all five.
+rest of the `ui-*` family is pipecat's own, defined and implemented by its client
+and its server-side workers; we carry them and interpret nothing. The
+descriptions above are what pipecat's client does with them, and pipecat's
+documentation is the authority on all four.
+
+## `send-text` is a turn, not a message
+
+The fifth type your page may send is the exception, and it is the reason the
+sentence above says "verbatim" everywhere except here. A person typing a question
+is not clicking: it is the same stimulus speaking is, and it takes the floor the
+same way. So `send-text` never reaches your brain as a message.
+
+```js
+client.sendText("where do I download my interest certificate?");
+```
+
+Stock pipecat, no argument of ours. The runtime interrupts whatever the agent was
+saying — the answer to the last question is over — and commits the sentence as a
+user turn. Your brain answers it in `on_user_message`, with no way to tell it was
+typed and nothing to write to receive it: a brain built before you added a text
+box gains one the day you add it.
+
+Two flags ride pipecat's `send-text` and **neither is honoured**, deliberately
+rather than by omission. `run_immediately=false` would need a stimulus that is
+stored without minting a turn, and `audio_response=false` would need a per-turn
+gate on synthesis; the runtime has neither. Half-honouring one is worse than
+refusing it, because a caller who asked for silence and got speech has been told
+something false about the mechanism. **A typed question is answered aloud,
+always.**
+
+An empty submission mints nothing — it is dropped where it arrives rather than
+travelling as a turn that says nothing.
 
 ## What does not cross, and why that is the point
 

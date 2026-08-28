@@ -89,11 +89,16 @@ The enumeration is `RTVIType` in
 split into two sets the SDK names `RTVI_TO_BRAIN` and `RTVI_TO_APP` in
 `voqalize.sdk.wire.frames`.
 
-Your page may send `client-message`, `send-text`, `ui-event`, `ui-snapshot` and
+Your page may send `client-message`, `ui-event`, `ui-snapshot` and
 `ui-cancel-job-group`. Your brain may send `server-message`, `server-response`,
 `error-response`, `ui-command` and `ui-job-group`. What each one is for is in
 [the RTVI plane](/reference/rtvi/); `ui-command` is what `session.dispatch`
 rides, and `client-message` is what most pages send back.
+
+`send-text` is on the page's half too, and is the one type that reaches you as
+something other than a message: a typed sentence commits as a **user turn**, so
+it arrives in `on_user_message` beside the spoken ones and `on_rtvi` never sees
+it.
 
 **`bot-*` and `llm-*` are on neither list.** They are the voice tier's own
 assertions about the media and the model — that speech started, that playout

@@ -369,7 +369,13 @@ type:
 | Direction | Types |
 |---|---|
 | Brain → Voqalize → app | `server-message`, `server-response`, `error-response`, `ui-command`, `ui-job-group` |
-| App → Voqalize → brain | `client-message`, `send-text`, `ui-event`, `ui-snapshot`, `ui-cancel-job-group` |
+| App → Voqalize → brain | `client-message`, `ui-event`, `ui-snapshot`, `ui-cancel-job-group` |
+
+`send-text` is on the app's half of the whitelist and is not in that row on
+purpose: it is the one type that does not cross as a message. A typed sentence
+takes the floor the way a spoken one does, so Voqalize commits it as a **user
+turn** — your brain answers it in `on_user_message` and never sees an `RTVI`
+frame for it. See [the RTVI plane](/reference/rtvi/).
 
 A type absent from the list does not cross in either direction. `bot-*` and
 `llm-*` are Voqalize's own assertions about the media and the model, and a
