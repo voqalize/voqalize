@@ -237,6 +237,14 @@ that path needs none of the above.
 
 ## Everything a developer reads is written to one standard
 
+Lead with the developer's goal and the value Voqalize adds inside their existing
+application, then establish the ownership boundary in concrete terms: what they keep,
+what Voqalize runs, and how the two connect. Write with calm technical confidence—direct,
+concise, and specific—without sales language, internal history, contrived contrasts, or
+arguments defending product decisions. Organize every page around the next task a
+developer or coding agent needs to complete, state current capabilities and limitations
+plainly, and link factual claims to the relevant contract, code, or centralized fact.
+
 `design/voice.md` is the writing standard for this repo: the docs site, the SDK
 docstrings, error messages, the wire contract's prose, the demo source, the
 changelog and commit messages. It carries the persona, five principles, four signature
