@@ -593,6 +593,54 @@ facts:
       unpublished design outlines are not in it, because they are outlines in
       `design/` and not pages.
 
+  # ---- the two URLs a developer types first ---------------------------------
+
+  # Both of these reached a customer dead, reported 2026-09-01: an integrator hit
+  # two broken links inside their first ten minutes, and both read as "this
+  # product is broken" rather than "this line is stale". They are the first
+  # request a new developer makes, so they are checked literally — inside code
+  # fences, where a URL lives and where `forbid:` cannot see.
+
+  host.api:
+    value: app.voqalize.com
+    source: platform/docs/decisions.md "api.voqalize.com does not exist and never did"
+    verified: 2026-09-01
+    reproduce: >-
+      dig +short app.voqalize.com   # answers; api.voqalize.com is NXDOMAIN
+    note: >-
+      One host fronts the control plane, and it is the console's: the REST route
+      that starts every call is POST https://app.voqalize.com/api/v1/sessions.connect.
+      There is no api.* host in any environment and there never was — locally the
+      control plane and the console likewise share app.local.voqalize.com. A doc
+      naming an api.* host is stale, not a variant spelling, and the failure is
+      total: the name does not resolve, so the reader gets a DNS error on the one
+      route their own code calls.
+    forbid_literal:
+      - 'api\.(dev\.|local\.|prod\.)?voqalize\.com'
+
+  host.mcp_endpoint:
+    value: https://app.voqalize.com/mcp/
+    source: platform/backend/controlplane/app/entrypoints/mcp/server.py MCP_MOUNT_PREFIX
+    verified: 2026-09-01
+    reproduce: >-
+      curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://app.voqalize.com/mcp/
+      # 401 with a WWW-Authenticate challenge; /mcp without the slash is 405
+    note: >-
+      The trailing slash is part of the endpoint. /mcp is the Starlette mount
+      prefix and the streamable transport sits at that mount's root, so a request
+      to /mcp never reaches the mount — it falls through to the console SPA's
+      catch-all, which is registered GET-only and answers a client's POST with 405
+      and allow: GET. With the slash the same POST answers 401 plus the
+      WWW-Authenticate challenge and OAuth completes. The mount is deliberately
+      not slash-redirecting: MCP_WELL_KNOWN_RELATIVE_PATH is "" so discovery
+      advertises the resource as .../mcp, and an MCP client's RFC 8707 resource
+      check is exact rather than slash-insensitive. Write the URL with the slash
+      everywhere a reader will paste it.
+    forbid_literal:
+      - 'voqalize\.com/mcp(?![/\w])'
+    except:
+      - design/facts.yaml
+
   # ---- commercial -----------------------------------------------------------
 
   pricing.state:

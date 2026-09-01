@@ -18,6 +18,16 @@ of how quietly each one fails:
    wrong *because* of the fact. "Not yet on npm" is not a typo; it is a true
    sentence that expired when 0.1.1 published.
 
+   ``forbid:`` reads prose only: fenced blocks are skipped and inline spans are
+   blanked, because a lexicon rule is a rule about the words a human chose. A URL
+   is the opposite case — it lives in the fence precisely so a reader will paste
+   it, and a stale one there is worse than in a sentence, not exempt from it. So a
+   fact may also carry ``forbid_literal:``, checked against every line of the same
+   files with nothing stripped. Both broken links a customer hit on 2026-09-01
+   (``api.voqalize.com``, which never resolved, and a ``/mcp`` URL missing its
+   trailing slash) sat inside ```` ``` ```` blocks on the docs site, where
+   ``forbid:`` could not see them.
+
 4. **Retired vocabulary**, from ``lexicon.yaml``: the word for a concept that has
    two names, the outcome words, the contrast grammar, and ``internal_names`` —
    the service and repository names that are never right in customer prose. Design notes are
@@ -199,6 +209,14 @@ def governed_files(lexicon: dict, narrow: str | None) -> list[Path]:
     never = scope.get("never", [])
     seen: dict[Path, None] = {}
     for g in globs:
+        # A trailing bare ``**`` matches DIRECTORIES ONLY in pathlib (through 3.12),
+        # so ``docs/src/content/docs/**`` silently selected nothing and the whole
+        # docs site — the surface this scan exists for — went unscanned while the
+        # run still printed a reassuring "0 finding(s)" over five READMEs. That is
+        # how both dead URLs reported on 2026-09-01 reached a customer. Normalise
+        # here rather than in the yaml so the next glob written that way also works.
+        if g.endswith("**"):
+            g += "/*"
         for p in ROOT.glob(g):
             if not p.is_file() or p.suffix not in {".md", ".mdx", ".txt", ".astro"}:
                 continue
@@ -238,10 +256,17 @@ def prose_lines(text: str):
 
 def scan(files: list[Path], facts: dict, lexicon: dict, sweep: bool) -> tuple[list[str], list[str]]:
     rules: list[tuple[re.Pattern[str], str, list[str]]] = []
+    # Checked against raw lines instead of prose — see ``forbid_literal`` in the
+    # module docstring. Same files, same findings bucket; only the stripping differs.
+    literal_rules: list[tuple[re.Pattern[str], str, list[str]]] = []
 
     for fid, fact in facts.items():
         for pat in fact.get("forbid", []):
             rules.append(
+                (re.compile(pat), f"contradicts {fid} (= {fact['value']})", fact.get("except", []))
+            )
+        for pat in fact.get("forbid_literal", []):
+            literal_rules.append(
                 (re.compile(pat), f"contradicts {fid} (= {fact['value']})", fact.get("except", []))
             )
 
@@ -286,13 +311,20 @@ def scan(files: list[Path], facts: dict, lexicon: dict, sweep: bool) -> tuple[li
     advisories: list[str] = []
     for path in files:
         rel = path.relative_to(ROOT)
-        for n, line in prose_lines(path.read_text()):
+        text = path.read_text()
+        for n, line in prose_lines(text):
             for bucket, rs in ((findings, rules), (advisories, advisory)):
                 for rx, why, exc in rs:
                     if exc and exempt(path, exc):
                         continue
                     if m := rx.search(line):
                         bucket.append(f"{rel}:{n}: {m.group(0)!r} — {why}")
+        for n, line in enumerate(text.splitlines(), 1):
+            for rx, why, exc in literal_rules:
+                if exc and exempt(path, exc):
+                    continue
+                if m := rx.search(line):
+                    findings.append(f"{rel}:{n}: {m.group(0)!r} — {why}")
     return findings, advisories
 
 

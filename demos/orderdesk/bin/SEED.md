@@ -157,11 +157,11 @@ into the app's `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`.)
 
 ## Local dev
 
-The local control plane (voqalcloud, `api.local.voqalize.com`) serves the same
-API. Provision a local agent the same way against the local console
-(`app.local.voqalize.com`, or local MCP if running), with
-`brain_url = "wss://brain.local.voqalize.com/orderdesk"`, then put its id + pk in
-`demos/orderdesk/frontend/.env`.
+The local control plane (voqalcloud) serves the same API on the same host as the
+local console, `app.local.voqalize.com` — the deployed convention with one DNS
+label changed. Provision a local agent the same way there (or over local MCP if
+it is running), with `brain_url = "wss://brain.local.voqalize.com/orderdesk"`,
+then put its id + pk in `demos/orderdesk/frontend/.env`.
 
 ```bash
 # both halves, supervised — ports live in ecosystem.config.cjs and nowhere else
