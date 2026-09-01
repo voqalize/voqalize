@@ -1,7 +1,7 @@
 """Every demo, one check: the voice and the language reach the wire as a pair.
 
 The per-demo e2e files each drive their own demo's conversation. This one is the
-sweep — it opens a session against **all eleven** demos and asserts only the thing
+sweep — it opens a session against **all twelve** demos and asserts only the thing
 that has broken repeatedly and that nothing else can see:
 
 * both halves of the language landed (TTS ``language`` *and* STT ``language_hint``),
@@ -90,6 +90,12 @@ class Expected:
 # test below fails if a demo is discovered and not listed here, so adding a demo
 # without declaring its voice is a red suite, not a silent gap.
 DEMOS: dict[str, Expected] = {
+    # The avatar demo swaps voice mid-call — nine faces share two recorded
+    # reference speakers, so a switch moves the voice with the face. What is
+    # checked here is the pair it OPENS on: `myna` is the default and `myna` is
+    # female. The switch's own pair is asserted in test_avatar_e2e.py, on the
+    # configure frames, because this sweep only ever reads the last stated value.
+    "avatar": Expected(voice="omnivoice/gauri", language="en"),
     # Aria takes the language from the connect request's ``init`` and configures
     # both legs from it, so the brain still owns the answer — nothing in the
     # payload ⇒ English. The per-caller case is asserted below.

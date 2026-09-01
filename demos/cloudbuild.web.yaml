@@ -63,6 +63,8 @@ substitutions:
   _AURA_PK: ''
   _FORGE_AGENT: ''
   _FORGE_PK: ''
+  _AVATAR_AGENT: ''
+  _AVATAR_PK: ''
   _ORDERDESK_AGENT: ''
   _ORDERDESK_PK: ''
 
@@ -100,6 +102,8 @@ steps:
       - 'VITE_AURA_PK=${_AURA_PK}'
       - 'VITE_FORGE_AGENT=${_FORGE_AGENT}'
       - 'VITE_FORGE_PK=${_FORGE_PK}'
+      - 'VITE_AVATAR_AGENT=${_AVATAR_AGENT}'
+      - 'VITE_AVATAR_PK=${_AVATAR_PK}'
       - 'VITE_ORDERDESK_AGENT=${_ORDERDESK_AGENT}'
       - 'VITE_ORDERDESK_PK=${_ORDERDESK_PK}'
 

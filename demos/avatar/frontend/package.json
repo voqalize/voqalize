@@ -1,0 +1,32 @@
+{
+  "name": "@voqalize/demo-avatar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The avatar demo — the open-source talking head explaining itself. A standalone Vite app served at /demos/avatar.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@pipecat-ai/client-js": "^1.13.0",
+    "@pipecat-ai/client-react": "^1.8.0",
+    "@pipecat-ai/small-webrtc-transport": "^1.10.6",
+    "@pipecat-ai/voice-ui-kit": "^0.13.0",
+    "@voqalize/avatar": "^0.3.0",
+    "@voqalize/demo-kit": "file:../../shared",
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.5.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
