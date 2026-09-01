@@ -148,16 +148,64 @@ Then check the third thing, which is not a requirement but a hazard:
    - `openai-agents` 0.22.0 runs `drop_orphan_function_calls` **before** your
      filter, not after, so an item your fold removes can leave a dangling
      reasoning item that nothing cleans up and the API rejects.
+   - The Vercel AI SDK 7.0 normalizes twice, in two packages, and the second
+     pass differs per provider: Anthropic merges adjacent same-role messages
+     where Google and OpenAI do not, and Anthropic strips trailing whitespace
+     from a final assistant message — so a `heard` prefix that ends mid-word is
+     not byte-preserved in tail position there.
 
    An interrupted turn is disposable in a coding agent and load-bearing in a
    voice agent. Framework defaults are written by the former.
 
-**Server-held history cannot be corrected.** If your framework chains on a
-stored conversation id — `previous_response_id`, a Conversations id, a live
-bidi connection — the prior assistant turn is never re-sent, so there is nothing
-to rewrite. Send the full input on every call and turn storage off. The shipped
-`GeminiInteractionsBrain` sends `store=False` and no `previous_interaction_id`
-for this reason (`sdk/python/src/voqalize/sdk/gemini_interactions.py`).
+**Server-held history cannot be corrected, and it can be the default.** If your
+framework chains on a stored conversation id — `previous_response_id`, a
+Conversations id, a live bidi connection — the prior assistant turn is never
+re-sent, so there is nothing to rewrite. Send the full input on every call and
+turn storage off. The shipped `GeminiInteractionsBrain` sends `store=False` and
+no `previous_interaction_id` for this reason
+(`sdk/python/src/voqalize/sdk/gemini_interactions.py`).
+
+Do not assume you have to opt in to this. On the Vercel AI SDK's default OpenAI
+model, `store` defaults to true and the provider replaces an assistant message
+carrying an `itemId` with `{ type: "item_reference", id }` — so the model reads
+the **original, uncorrected** text back out of the provider's own store, and
+your correction is discarded below every seam you have. Nothing errors. Check
+what your provider does with a rewritten message before you trust the fold.
+
+## The id has to survive the language boundary
+
+`speech_id` is a protobuf `uint64`, and that is not one type once you leave
+Python. Three JavaScript protobuf runtimes decode the same field three ways:
+`@bufbuild/protobuf` gives a `bigint`, `protobufjs` gives a `Long` object, and
+`google-protobuf` gives a **`number` below 2^53 and a `string` at or above it** —
+so the type changes with the value, in production, mid-call.
+
+The failure that matters is not a crash. It is a `Map` lookup:
+
+```js
+map.set(1001n, unit);   // the id as the wire runtime decoded it
+map.get(1001);          // the id as your code wrote it
+// undefined
+```
+
+A fold keyed by `speech_id` misses, the correction matches no generated event,
+the rule says drop it, and the model is handed the generated text. That is the
+original bug, reintroduced one layer down, failing the same silent way. `bigint`
+and `number` also refuse to compare with `===` and throw on mixed arithmetic, and
+`JSON.stringify` throws on a `bigint` and quietly writes `{"low":…,"high":…}` for
+a `Long` — so a persisted event log can come back with keys that will never match
+again.
+
+Two rules keep this closed, and neither costs anything:
+
+- **Mint below 2^53.** A per-session counter is what every SDK already does, and
+  it keeps every runtime on its safe branch. A snowflake or a timestamp in
+  nanoseconds lands above the boundary immediately.
+- **Surface it as a string.** Normalize at the decode boundary and never hand a
+  brain a `bigint`, a `Long`, or a type that depends on the value. A string
+  compares, keys a `Map`, and serializes identically in every language — and it
+  is already what proto3 canonical JSON uses for 64-bit fields, which is how the
+  agent record stores these messages.
 
 ## Google ADK
 
@@ -261,6 +309,75 @@ Reasoning here is a separate top-level item carrying `encrypted_content`, not a
 signature on a text part — take it from `output_item.done`, where it is complete,
 and never from `.added`.
 
+## Vercel AI SDK
+
+Verified against `ai` 7.0.87 with `@ai-sdk/anthropic`, `@ai-sdk/google` and
+`@ai-sdk/openai`, driven by a mock provider and a capturing `fetch`.
+
+**There is no native id, so you carry your own.** `text-start` / `text-delta` /
+`text-end` each carry an `id` and it is observable before any text — the right
+shape — but `stream-text.ts` uses it as a map key and drops it: the content part
+it pushes is `{type, text, providerMetadata}`. `ModelMessage`'s `TextPart` has no
+id, and neither does anything the provider receives.
+
+**`providerOptions` on the text part is the carrier.** It survives into
+`ModelMessage`, reaches the provider verbatim, and every real converter strips an
+unrecognized namespace, so it never reaches the API body. Hang the id **on the
+part, not the message** — one assistant message routinely holds several text
+blocks, each its own speech unit.
+
+It earns its place twice: `convert-to-language-model-prompt.ts` deletes an empty
+assistant text part **unless it carries `providerOptions`**, so the same stamp
+keeps a fully barged-in unit from silently vanishing.
+
+**Then strip `providerOptions.openai.itemId` from any part your fold rewrote.**
+This is the highest-severity item on the page. The OpenAI provider stamps that id
+at `text-start`; on the next call, with `store` defaulting to true, it emits
+`{ type: "item_reference", id }` **in place of your rewritten text**, and the
+model reads the original from the provider's store. The carrier and the
+correction-destroying mechanism are the same channel. Setting
+`providerOptions: { openai: { store: false } }` also works; stripping is better,
+because it states the invariant — a rewritten part is no longer the part the
+provider stored.
+
+**`prepareStep` is the seam**, stable in 7.0 and firing before every step
+including each tool hop, on `streamText`, `generateText` and `Agent` alike. What
+it returns is what the provider receives.
+
+Two failure modes at that step. **Ignore its `messages` argument** — it carries
+your own previous output forward, so a fold that reads it folds its own output;
+rebuild from your events plus `responseMessages`. And `standardizePrompt` runs
+*before* it, rejecting an absent or empty prompt and throwing on a `system` role
+inside `messages`, so pass a prompt at construction as well.
+
+If you are porting from 5.x: **`experimental_prepareStep` is silently ignored in
+7.0.** It fires zero times, with no error and no warning, and the corrector is
+simply gone.
+
+**Read `result.responseMessages`, never `result.response.messages`** — the latter
+is last-step-only and deprecated, so it loses every tool interaction in a
+multi-step turn.
+
+**An abort materializes nothing.** The in-flight step never becomes a step
+result, `onFinish` does not fire, and every result promise rejects. There is no
+partial assistant message and no flag to clear — which makes the transient
+accumulator from `fullStream` the *only* route to the text the caller heard, and
+the reason events are appended at completion rather than read back afterwards.
+Watch a barge-in that lands during a tool-calling step: tool calls on a step that
+ends in error are parsed but never executed, which is exactly the orphan shape.
+
+**The SDK guards one direction only.** An assistant tool-call with no result
+throws `MissingToolResultsError`; an orphaned tool *result* passes silently into
+the provider body. So carry non-text parts by reference and never rebuild them —
+that also keeps reasoning intact, since a reasoning part rebuilt without its
+`providerOptions` is dropped whole by Anthropic with a warning, and by OpenAI
+with nothing.
+
+The SDK's own realtime path does model barge-in, and it is worth seeing why it
+does not generalize: it truncates by milliseconds of audio played and delegates
+the correction to the provider's server-side conversation. That works only where
+one provider owns the history.
+
 ## A framework that hands you the message list
 
 This is the easiest case and the one that proves the pattern is not
@@ -274,20 +391,33 @@ example above, and it sits below every framework, hooks or not.
 
 ## What is not settled
 
-**Whether a corrected text part should keep its reasoning signature.** Google's
-documentation says a signature must be returned in the exact part it arrived in,
-and that signatures on text parts are not strictly validated. Two agent
-frameworks read that oppositely in their own source: ADK treats the signature as
-bound to the text and returns it verbatim; `pi` documents a production failure
-caused by *dropping* one, and strips signatures on model change rather than on
-text change. Neither is a live-API result, and as of 2026-09-01 neither are we.
+**Whether a corrected text part should keep its reasoning signature.** The
+question is narrower than it first looks, because the signature does not sit in
+the same place on every provider.
+
+Where reasoning is **its own block** — an Anthropic `thinking` block carrying
+`signature`, an OpenAI reasoning item carrying `encrypted_content` — the
+signature covers the reasoning, not the sentence beside it, and correcting that
+sentence leaves it untouched. Carry the block through verbatim and the question
+does not arise. What does bite there is losing the metadata: a reasoning part
+rebuilt without its signature is dropped whole, with a warning on Anthropic and
+silently on OpenAI.
+
+The open case is the one where the signature rides **on the corrected text part
+itself**, which is Gemini's `thoughtSignature`. Google's documentation says a
+signature must be returned in the exact part it arrived in and that signatures on
+text parts are not strictly validated. Two agent frameworks read that oppositely
+in their own source: ADK treats the signature as bound to the text and returns it
+verbatim; `pi` documents a production failure caused by *dropping* one, and
+strips signatures on model change rather than on text change. Neither is a
+live-API result, and as of 2026-09-01 neither are we.
 
 Until that is measured, treat it as provider-conditional and state which you
-chose. Note that Gemini ships `skip_thought_signature_validator` as a sentinel
-for the "no valid signature for this part" case, which may be the answer rather
-than either keeping or dropping. The same question is open on the Responses API:
-whether replayed `encrypted_content` is validated against the text of the item
-that follows it.
+chose. Gemini ships `skip_thought_signature_validator` as a sentinel for the "no
+valid signature for this part" case, which may be the answer rather than either
+keeping or dropping. The same question is open on the Responses API: whether
+replayed `encrypted_content` is validated against the text of the item that
+follows it.
 
 **What an unheard unit looks like is yours to choose.** When `heard` is empty and
 the unit carried only text, dropping the turn and keeping an empty one are both
