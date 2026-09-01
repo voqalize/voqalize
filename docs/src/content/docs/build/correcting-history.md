@@ -1,7 +1,11 @@
 ---
-title: The ledger
-description: Your framework owns history. Two things change it — what the caller heard, and context your app pushes. Keep both as events and fold the history before each model call.
+title: Correcting history in your framework
+description: For anyone writing a brain against a framework we ship no adapter for. Your framework owns history; two things change it, and both are corrected at one point before each model call.
 ---
+
+This page is for the reader porting a framework we ship no adapter for — the one
+writing the integration rather than using one. A brain built on a shipped adapter
+gets all of this already and can skip the page.
 
 Your agent framework already keeps a conversation history, and it keeps it
 correctly for chat. A voice call breaks it in exactly two places:
@@ -35,14 +39,20 @@ immediately before each model call**.
 # object — a types.Content, an ADK Event, a Responses item. Never ours.
 Event(kind="generated",  speech_id=..., unit=..., payload=...)   # the model spoke
 Event(kind="correction", speech_id=..., unit=..., heard="...")   # what landed
-Event(kind="tool_call")  / Event(kind="tool_result")
+Event(kind="tool",       payload=...)                            # a call and its result
 Event(kind="context",    payload=...)                            # your app pushed
 Event(kind="compaction", payload=...)                            # ignore what precedes me
 ```
 
 Nothing is ever edited. A correction is a **second event naming the same speech
-unit**, so the ledger holds both what the model generated and what the caller
+unit**, so the record holds both what the model generated and what the caller
 heard, and the fold decides which the model sees.
+
+This shape is a ledger, and that word is worth exactly one sentence: it is a
+pattern you implement, not a class you import. Nothing in the SDK is named this,
+no symbol exposes it, and a brain running on a shipped adapter never meets it.
+Each integration builds its own out of whatever its framework already has —
+which, in two of the three cases below, is most of it.
 
 Three properties earn their keep:
 
@@ -62,12 +72,51 @@ Three properties earn their keep:
 | **Correct text by `speech_id`** | The corrections for one generated event, in unit order, are always full prefixes, then one truncated, then empties — a barge-in cuts at one point. The event's text becomes their **concatenation**. |
 | **Touch nothing else** | Tool calls, tool results and reasoning blocks pass through verbatim. |
 | **Mark it complete** | A framework flag meaning "this turn did not finish" must be cleared on a corrected event. A barge-in is not an error, and some frameworks delete unfinished turns outright. |
-| **Repair the unanswered call** | A tool call whose result never arrived, because the barge-in landed between them. What to do is framework-specific — see below. |
 | **Drop an unmatched correction** | A correction naming no generated event is speech you chose not to record. |
 | **Start at the newest compaction** | Everything before it is represented by its payload. |
 
 `heard` is a verbatim prefix of what you generated, so a fold never invents text
 — it only ever shortens.
+
+There is no rule here for a tool call whose result never arrived, because that
+state should not be reachable. See below.
+
+## A tool call and its result are one event
+
+**A tool call in a voice brain does not block**, and that constraint does the
+work. Two shapes, and there is no third:
+
+- **Synchronous** — it reads state your process already holds and returns. There
+  is no window for anything to arrive between the call and the result, because
+  there is no wait.
+- **Asynchronous** — it starts work and returns *now*, telling the model the
+  result is pending and running in the background. The eventual answer arrives as
+  its own later event, on its own turn.
+
+Under either shape the call and its result are produced together, so **append
+them together, as one event.** Not a call event and then a result event: one
+append, at the moment the pair exists. A barge-in that lands before the pair is
+complete writes neither, and a fold can then never see a call without its
+result.
+
+That is the reason the rule table above has no repair step. A repair is what you
+need when the invariant is not enforced, and the shape of the invariant is that
+tool calls never occupy time a barge-in can land inside.
+
+Frameworks defend this unevenly, which is what you would expect from libraries
+written for chat. `openai-agents` 0.22.0 strips an orphaned call **and** the
+reasoning item preceding it, because the API rejects a reasoning item not
+followed by its associated item. `pi` 0.84.4 keeps the call and injects a
+synthetic failed result, explicitly to preserve the reasoning chain. Google ADK
+2.8.0 drops an orphaned *response* and passes an orphaned *call* straight to the
+model. Three libraries, three answers — which is itself the argument for making
+the state unreachable rather than picking one.
+
+The shipped `GeminiBrain` carries a `_drop_unanswered` step for exactly this
+state, because automatic function calling delivers a hop's responses on the
+first chunk of the next hop and a cut can land between them
+(`sdk/python/src/voqalize/sdk/gemini.py`). Whether that becomes an atomic
+append instead is open work as of 2026-09-01, not a shipped guarantee.
 
 ## What your framework has to give you
 
@@ -114,8 +163,8 @@ for this reason (`sdk/python/src/voqalize/sdk/gemini_interactions.py`).
 
 Verified against `google-adk` 2.8.0.
 
-**Do not build a ledger.** `Session.events` is one already — append-only, with a
-stable `Event.id` per model step, durably persisted. What is yours is the
+**Do not build a second record.** `Session.events` is one already — append-only,
+with a stable `Event.id` per model step, durably persisted. What is yours is the
 metadata convention and the fold.
 
 **The id.** `Event.id` is minted before streaming and is stable across it: every
@@ -158,10 +207,7 @@ Two failure modes at that step. **Fold on events, never on
 assembly, so the ids you need are gone by then. And ADK's copy is shallow:
 writing a top-level `Part` field is safe, but mutating a nested one
 (`function_call.args`) writes straight through into the stored event and corrupts
-the ledger.
-
-**Unanswered tool calls are yours.** ADK drops orphaned function *responses* for
-free and passes a dangling function *call* straight to the model.
+the record.
 
 **Context is native.** `LlmRequest._insert_transient_user_content` inserts
 backward and stops after a `function_response`, so it cannot land between a call
@@ -191,7 +237,7 @@ and keep a side table.
 
 **Fold at two points, because neither is enough alone.**
 
-- Implement the `Session` protocol as the ledger: `add_items` appends events
+- Implement the `Session` protocol as the record: `add_items` appends events
   verbatim, `get_items` returns the folded view. Make `pop_item` a no-op and
   `clear_session` append a compaction event rather than truncating.
 - `Session.get_items` fires **once per `Runner.run()`**, not per tool hop, so a
@@ -201,16 +247,10 @@ and keep a side table.
 
 This is why the fold must be idempotent.
 
-**Queued context drains into the ledger, not into the filter.** Items the filter
+**Queued context drains into the record, not into the filter.** Items the filter
 adds are discarded on the next hop — the runner rebuilds input from the original
 input plus generated items. Append a real user-role event at the flush boundary
 and let the fold re-emit it.
-
-**Unanswered tool calls are already handled**, better than the general rule:
-`drop_orphan_function_calls` removes the call *and* the reasoning item preceding
-it, because the API rejects a reasoning item not followed by its associated item.
-Rely on it for anything flowing through the session. Inside the filter you are
-past it, so if your fold removes an item there, do that cleanup yourself.
 
 **Correct text in place on a shallow copy; never rebuild the item.** Truncating
 text leaves `annotations` offsets pointing past the end and invalidates
@@ -249,11 +289,11 @@ than either keeping or dropping. The same question is open on the Responses API:
 whether replayed `encrypted_content` is validated against the text of the item
 that follows it.
 
-**What an unheard unit should look like.** When `heard` is empty and the unit
-carried only text, the shipped adapters drop the turn. That is the truth from the
-caller's side — they heard nothing, so nothing was said — but it leaves the model
-seeing two consecutive caller turns. Decide it explicitly for your history rather
-than inheriting it.
+**What an unheard unit looks like is yours to choose.** When `heard` is empty and
+the unit carried only text, dropping the turn and keeping an empty one are both
+defensible: the caller heard nothing, so nothing was said — and yet the model
+then sees two consecutive caller turns. Nothing on the wire depends on it. Decide
+it for your framework, write down which you chose, and keep it consistent.
 
 ## Read next
 

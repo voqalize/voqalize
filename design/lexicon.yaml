@@ -76,10 +76,6 @@ terms:
     word: the avatar
     retired: [video agent, digital human]
 
-  - concept: What a brain records and corrects
-    word: the ledger
-    retired: []
-
 # Internal service and repository names. `voice.md` says these never appear in
 # customer-facing text; until 2026-08-25 nothing checked it, and three had
 # reached the docs site — one of them into a filename a reader types.
