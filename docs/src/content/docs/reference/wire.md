@@ -247,8 +247,9 @@ message IdleConfig { optional uint32 timeout_ms = 1; }
 
 This message is used twice. `sessions.connect` supplies the starting `tts`,
 `stt` and `idle` sections immediately before the call; the brain sends the same
-shape in this op while the call is running. The agent record holds `brain_url`
-and a recording default, and carries no voice, language or idle configuration.
+shape in this op while the call is running. The agent record holds a connection
+`mode`, a `brain_url` and a recording default, and carries no voice, language or
+idle configuration.
 See [the catalog](/reference/catalog/#where-it-is-set).
 
 Unset means *leave it alone*: a `Request` carries a delta and the call is

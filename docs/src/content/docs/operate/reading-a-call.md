@@ -28,12 +28,14 @@ Two sources, merged chronologically.
 created, connected, ended. Two payloads on `session.created` answer most of "the
 call connected and nothing I expected happened":
 
-- **`brain_url_defaulted`.** When this is `true`, the agent has no `brain_url`, so
-  the hosted `welcome` brain answered instead of yours. The call works. It greets,
-  it answers, and it is not your agent — a working call in the wrong voice, and
-  the single most confusing failure in the product.
 - **`recording_enabled` and `recording_source`** — whether this call was recorded
   and which rule decided. See [recordings](/operate/recordings/).
+
+On calls placed before 2026-09-01 you may also see **`brain_url_defaulted`**. When
+`true`, the agent had no `brain_url`, so a hosted `welcome` brain answered instead
+of yours: the call worked, it greeted, it answered, and it was not your agent — a
+working call in the wrong voice. No call since carries it, because an agent with
+no brain is refused at `sessions.connect` rather than answered by us.
 
 `source="wire"` — the frames themselves, both directions, between Voqalize and
 your brain. Transcripts, each piece of the agent's reply, each action it asked the

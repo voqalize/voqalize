@@ -95,21 +95,25 @@ non-loopback host).
 | Tool | Signature | Does |
 |---|---|---|
 | `create_agent` | `(tenant, name, description="", brain_url="", recording=None) -> dict` | Create an agent. Returns `{agent, session_key (sk_…, once)}`. |
-| `create_agent_credentials` | `(tenant, agent_id, label="") -> dict` | Mint Cortex outbound credentials for a brain that **can't accept inbound** (localhost, serverless, egress-only). Returns `{agent_secret (sk_…, once), cortex_url, brain_url, key_id, usage}`. |
-| `get_agent` | `(tenant, agent_id) -> dict` | One agent: `id`, name, description, status, `brain_url`, Playground `test_url`, timestamps. It does **not** return STT/TTS config. |
+| `create_agent_credentials` | `(tenant, agent_id, label="") -> dict` | Mint Cortex outbound credentials for a brain that **can't accept inbound** (localhost, serverless, egress-only). Switches the agent to `cortex` mode and returns `{agent_secret (sk_…, once), cortex_url, key_id, usage}`. There is no `brain_url` to copy back — the relay address is ours. |
+| `get_agent` | `(tenant, agent_id) -> dict` | One agent: `id`, name, description, status, `mode`, `brain_url`, `stage`, Playground `test_url`, timestamps. It does **not** return STT/TTS config. |
 | `list_agents` | `(tenant, status="", limit=20, cursor="") -> dict` | List agents, archived included. `status` is an exact match on one of two values, `active` or `archived`; any other string returns an empty list rather than an error, so read an empty result twice. |
-| `update_agent` | `(tenant, agent_id, name="", description="", brain_url="", recording=None) -> dict` | Rename, re-describe, point the brain at a WS URL, or set the agent's [recording](/operate/recordings/) default. |
+| `update_agent` | `(tenant, agent_id, name="", description="", brain_url="", mode="", recording=None) -> dict` | Rename, re-describe, point the brain at a WS URL, or set the agent's [recording](/operate/recordings/) default. A `brain_url` implies `mode="inbound"`; you rarely pass `mode` yourself. |
 | `archive_agent` | `(tenant, agent_id) -> dict` | Soft delete (stops serving new sessions). |
 
 There is no separate `set_brain_url` tool — pass `brain_url` to `create_agent` up
 front, or set it later with `update_agent`. It must be `wss://` (`ws://` only for
-`localhost`/`127.0.0.1`); an empty `brain_url` falls back to the hosted `welcome`
-demo brain so a bare agent still greets.
+`localhost`/`127.0.0.1`).
 
-`create_agent_credentials` returns three fields that go to three different
-places, and two of them are URLs that are **not interchangeable**.
-[Cortex relay](/build/outbound/) has the table and the `update_agent` call that
-finishes the job. What is worth knowing before you call the tool: the `sk_`
+**An agent with no `mode` cannot take a call**: `sessions.connect` refuses it with
+`409 agent_not_configured`, and `stage` reads `unconfigured`. An empty `brain_url`
+used to fall back to a hosted `welcome` demo brain so a bare agent still greeted,
+which meant a call that worked was no evidence your brain was wired.
+
+`create_agent_credentials` puts the agent on the relay and hands you the one URL
+your brain dials out to. [Cortex relay](/build/outbound/) has the detail — including
+the `update_agent` round trip it used to require and no longer does. What is worth
+knowing before you call the tool: the `sk_`
 secret is shown once, never expires, and minting revokes nothing — so rotation
 is mint, redeploy, then `revoke_api_key` on the old one, with no window where
 the agent cannot connect.
@@ -165,9 +169,11 @@ agent in this order:
 2. **Write the brain** — `on_session_start` / `on_user_message` /
    `on_rtvi` / `on_user_idle`. See [Your first brain](/build/brain/).
 3. **Create the agent** — `create_agent(tenant, name)` → `{agent, session_key}`.
-4. **Run it and point `brain_url` at it** — locally, `create_agent_credentials` and
-   dial out over [Cortex](/build/outbound/) (no tunnel); in production, an
-   [inbound](/build/inbound/) route. Either way finish with `update_agent`.
+4. **Run it and say how it is reached** — locally, `create_agent_credentials` to
+   dial out over [Cortex](/build/outbound/) (no tunnel), which sets the mode for
+   you; in production, `update_agent(brain_url=…)` for an
+   [inbound](/build/inbound/) route. Until you do one of the two, the agent
+   cannot take a call.
 5. **Test it unattended** — the [conformance harness](/build/testing/) drives
    the brain in text mode, with no audio and no human. Then talk to it live at the
    agent's `test_url`.
