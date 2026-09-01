@@ -178,4 +178,5 @@ scope:
     - '**/node_modules/**'
     - '**/dist/**'
     - '**/.astro/**'
+    - '**/.pytest_cache/**'
     - proto/gen/**

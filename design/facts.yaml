@@ -626,16 +626,20 @@ facts:
       curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://app.voqalize.com/mcp/
       # 401 with a WWW-Authenticate challenge; /mcp without the slash is 405
     note: >-
-      The trailing slash is part of the endpoint. /mcp is the Starlette mount
-      prefix and the streamable transport sits at that mount's root, so a request
-      to /mcp never reaches the mount — it falls through to the console SPA's
-      catch-all, which is registered GET-only and answers a client's POST with 405
-      and allow: GET. With the slash the same POST answers 401 plus the
-      WWW-Authenticate challenge and OAuth completes. The mount is deliberately
-      not slash-redirecting: MCP_WELL_KNOWN_RELATIVE_PATH is "" so discovery
-      advertises the resource as .../mcp, and an MCP client's RFC 8707 resource
-      check is exact rather than slash-insensitive. Write the URL with the slash
-      everywhere a reader will paste it.
+      /mcp/ is the endpoint and the URL to configure: /mcp is the Starlette mount
+      prefix and the streamable transport sits at that mount's root. Write it with
+      the slash everywhere a reader will paste it — it answers directly, with no
+      redirect hop.
+      /mcp is no longer broken, though. It answered 405 with allow: GET until
+      2026-09-01, because the console SPA's GET-only catch-all matched it and
+      shadowed the redirect Starlette would otherwise have sent; the catch-all is
+      registered only when the built console exists, so the failure appeared in
+      deployed images and never locally. An explicit 307 in
+      platform/backend/controlplane/app/entrypoints/http/app.py restores it,
+      preserving method and body.
+      Both spellings satisfy the OAuth resource check: check_resource_allowed in
+      mcp.shared.auth_utils normalises trailing slashes before comparing, against
+      the URL the client was configured with rather than the one it followed.
     forbid_literal:
       - 'voqalize\.com/mcp(?![/\w])'
     except:

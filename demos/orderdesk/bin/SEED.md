@@ -9,8 +9,8 @@ session with the MCP connected:
 claude mcp add --transport http voqalize https://app.voqalize.com/mcp/
 ```
 
-The **trailing slash matters** — `/mcp` answers `405` with `allow: GET`; only
-`/mcp/` is the streamable endpoint. The OAuth is interactive, so if you are
+`/mcp/` is the streamable endpoint and the URL to configure; `/mcp` redirects to
+it. The OAuth is interactive, so if you are
 already signed in to the console it is usually faster to just drive the console
 UI (`https://app.voqalize.com/{tenant}`) — it exposes every field this runbook
 needs, including the STT/TTS ones the MCP `create_agent` does not.
