@@ -20,7 +20,7 @@ POST /sessions.connect  ──▶  { where to send the offer, what to present on
 ## The one call
 
 ```http
-POST https://api.voqalize.com/api/v1/sessions.connect
+POST https://app.voqalize.com/api/v1/sessions.connect
 Authorization: Bearer <your key>
 Content-Type: application/json
 
@@ -118,7 +118,7 @@ Three hops, and only the middle one is ours:
 ```ts
 // your server — the only place your sk_ key exists
 app.post("/api/voice/start", requireLogin, async (req, res) => {
-  const r = await fetch("https://api.voqalize.com/api/v1/sessions.connect", {
+  const r = await fetch("https://app.voqalize.com/api/v1/sessions.connect", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.VOQALIZE_SECRET_KEY}`,

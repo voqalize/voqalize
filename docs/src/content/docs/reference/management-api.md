@@ -18,7 +18,7 @@ Exactly one route accepts a key rather than a console session, and it does one
 thing: start a call.
 
 ```
-POST https://api.voqalize.com/api/v1/sessions.connect
+POST https://app.voqalize.com/api/v1/sessions.connect
 Authorization: Bearer sk_…
 Content-Type: application/json
 ```

@@ -125,7 +125,7 @@ path, because it is the one where you decide who may start a call.
 One request, holding two named things:
 
 ```http
-POST https://api.voqalize.com/api/v1/sessions.connect
+POST https://app.voqalize.com/api/v1/sessions.connect
 Authorization: Bearer sk_live_…
 Content-Type: application/json
 

@@ -42,7 +42,7 @@ managed service, and everything you need to build against it is here.
 ## Getting started
 
 The fastest on-ramp is the **hosted MCP server**. Connect it
-(`claude mcp add --transport http voqalize https://app.voqalize.com/mcp`) and your
+(`claude mcp add --transport http voqalize https://app.voqalize.com/mcp/`) and your
 editor's agent is handed the model on the first call plus links into
 [the docs](https://docs.voqalize.com), every page of which is also served as raw
 markdown at the same URL plus `.md`, indexed at

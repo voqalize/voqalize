@@ -22,7 +22,7 @@ tools are available.
 Add the server to your MCP client. In Claude Code:
 
 ```bash
-claude mcp add --transport http voqalize https://app.voqalize.com/mcp
+claude mcp add --transport http voqalize https://app.voqalize.com/mcp/
 ```
 
 Or, project-scoped, drop an `.mcp.json` at your repo root:
@@ -32,7 +32,7 @@ Or, project-scoped, drop an `.mcp.json` at your repo root:
   "mcpServers": {
     "voqalize": {
       "type": "http",
-      "url": "https://app.voqalize.com/mcp"
+      "url": "https://app.voqalize.com/mcp/"
     }
   }
 }
@@ -41,6 +41,16 @@ Or, project-scoped, drop an `.mcp.json` at your repo root:
 On first use your client runs a browser **Google sign-in** and the tools light up.
 There is **no API key, client ID, or secret to configure** — the client registers
 itself dynamically and carries the resulting token.
+
+:::caution[Keep the trailing slash]
+The endpoint is `/mcp/`, slash included. `/mcp` is the mount prefix and the
+streamable transport sits at that mount's root, so a `POST` to `/mcp` never
+reaches it: the request falls through to the console's single-page app, which
+serves `GET` only, and comes back `405 Method Not Allowed` with an `allow: GET`
+header. That is a routing miss rather than a server fault. Add the slash and the
+same request answers `401` plus a `WWW-Authenticate` challenge, and OAuth
+proceeds.
+:::
 
 :::note[One endpoint, no install]
 The old pre-pivot server was a local stdio process holding a management key
