@@ -320,6 +320,7 @@ A new term is added to this table first and to the SDK second.
 | The relay for egress-only networks | **Cortex** | tunnel, proxy |
 | The compatibility suite | **the conformance harness** | test kit, test suite |
 | The 2-D talking head | **the avatar** | video agent, digital human |
+| What a brain records and corrects | **the ledger** |  |
 
 **We never describe Voqalize as a platform.** Our argument is that intelligence should not
 live on a platform, and the word contradicts the product in the reader's ear. Internal

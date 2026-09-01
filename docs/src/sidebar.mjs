@@ -112,6 +112,7 @@ export const sidebar = [
           { label: "Tools", slug: "build/brain/tools" },
           { label: "Context and history", slug: "build/brain/context" },
           { label: "Transcripts", slug: "build/brain/transcripts" },
+          { label: "The ledger", slug: "build/brain/ledger" },
         ],
       },
       { label: "Use another agent framework", slug: "build/existing-agent" },
