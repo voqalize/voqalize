@@ -50,13 +50,21 @@ Rules:
 
 - It must be `wss://` (plain `ws://` is allowed only for `localhost`).
 - Give the URL of your route, path and all — Voqalize uses it verbatim and
-  appends only `?session_id=`. For Cortex, it's the Cortex origin exactly as
-  `create_agent_credentials` returned it.
+  appends only `?session_id=`. Setting it puts the agent in `inbound` mode.
+- On Cortex you set no URL at all: `create_agent_credentials` switches the agent
+  to `cortex` mode and holds the relay address itself.
 - Changing `brain_url` never changes a session's STT/TTS configuration; that is
   supplied at connect or by the brain while the call runs.
 
-An **empty** `brain_url` falls back to a hosted `welcome` brain, so a freshly
-created agent still greets while you build the real one.
+**An agent with no brain cannot take a call.** `sessions.connect` refuses it with
+`409 agent_not_configured` before anything is minted, and `get_agent` reports its
+`stage` as `unconfigured`.
+
+That is a deliberate reversal. An empty `brain_url` used to fall back to a hosted
+`welcome` brain, so a freshly created agent still greeted while you built the real
+one — and a call that connected, sounded right and answered was no evidence at all
+that your code had run. A configuration step you can skip without seeing anything
+break is a step that gets skipped.
 
 ## The brain-connection token
 

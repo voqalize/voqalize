@@ -82,10 +82,14 @@ for the same connect contract. See [Connecting a page](/build/connect/) and
 
 ## Verify that your brain answered
 
-An agent whose `brain_url` is empty uses the hosted welcome brain. A greeting
-therefore verifies the call path, but not your WebSocket route. Return a
-distinctive response from `on_user_message`, as above, and confirm that response
-before continuing.
+A call reaching your agent is now evidence that your route answered: an agent
+with no brain cannot take one at all, so there is no hosted greeter standing in
+for yours. Until 2026-09-01 there was, and a greeting proved only that the call
+path worked.
+
+A greeting still does not prove your *turn handling* works. Return a distinctive
+response from `on_user_message`, as above, and confirm that response before
+continuing.
 
 ## Read next
 

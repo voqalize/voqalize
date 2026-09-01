@@ -154,7 +154,8 @@ Later wins, and the brain always has the last word because `on_session_start`
 runs after connect. STT applies at the next turn boundary, TTS at the next
 speech unit, never mid-utterance.
 
-The agent record holds `brain_url` and a recording default. It holds no voice,
+The agent record holds a connection `mode`, a `brain_url` and a recording
+default. It holds no voice,
 language or idle setting — an agent-level language cannot depend on the caller,
 and `lead_qual` is the proof: it resolves a language from an enquiry form that
 does not exist until the session starts.
