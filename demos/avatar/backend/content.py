@@ -1,4 +1,4 @@
-"""What the avatar demo knows: the seven documentation sections, the nine
+"""What the avatar demo knows: the eight documentation sections, the nine
 avatars, and the background the model answers from.
 
 Kept out of ``brain.py`` because it is *content* — it is edited when the avatar
@@ -31,6 +31,7 @@ SectionId = Literal[
     "wire",
     "lipsync",
     "faces",
+    "custom",
     "limits",
 ]
 
@@ -129,16 +130,28 @@ SECTIONS: tuple[Section, ...] = (
         title="Choose a face, or ship your own",
         notes=(
             "Nine ship today: three line-art faces and six painted ones, all on the same "
-            "rig and the same wire. Swapping is a remount and nothing else. Under the "
-            "drawing there are three layers — a mixer that resolves layered inputs per "
-            "channel, a rig that takes about thirty pose numbers, and a face that "
-            "consumes them. The part worth knowing is the smoothing: every channel has "
-            "its own time constant and the head's is about a hundred and sixty "
-            "milliseconds, so keyframes are not what the face does — the smoothing "
-            "between them is. Blinking, breathing, gaze and idle sway are the renderer's "
-            "own and are never sent by anybody, because a server that had to send a blink "
-            "would be sending it late. Your own avatar is any module that exports create "
-            "avatar. There is no registry and no renderer interface, on purpose."
+            "rig and the same wire. Swapping is a remount and nothing else. The part "
+            "worth knowing is the smoothing: every channel has its own time constant and "
+            "the head's is about a hundred and sixty milliseconds, so keyframes are not "
+            "what the face does — the smoothing between them is. Blinking, breathing, "
+            "gaze and idle sway are the renderer's own and are never sent by anybody, "
+            "because a server that had to send a blink would be sending it late."
+        ),
+    ),
+    Section(
+        id="custom",
+        title="Ship your own avatar",
+        notes=(
+            "An avatar is any module that exports a create avatar function. There is no "
+            "registry to add yourself to and no renderer interface to implement, on "
+            "purpose — you get a canvas and the same pose numbers the shipped faces get, "
+            "and what you draw with them is yours. Two ways in. Start from a shipped "
+            "face and change the drawing, which keeps the rig and takes an afternoon. Or "
+            "write the render function yourself, in canvas, S-V-G, W-e-b-G-L or anything "
+            "else that can paint sixty times a second. Either way you handle three "
+            "things: mouth shape, which arrives as one of eight letters, plus head turn "
+            "and eye state. Everything else has a sensible resting value, so a face that "
+            "only does the mouth still works."
         ),
     ),
     Section(
@@ -172,10 +185,14 @@ AvatarKey = Literal[
     "naina",
 ]
 
-#: The avatar the call opens on. `myna` is the line-art character the library
-#: ships in its own demos, and it is the one drawing every rig change is checked
-#: against — so the face a visitor meets first is the one under the most scrutiny.
-DEFAULT_AVATAR: AvatarKey = "myna"
+#: The avatar the call opens on, and the one constraint on choosing it: it must
+#: be a face whose gender matches the voice the *agent* is provisioned with
+#: (``omnivoice/gaurav``). :meth:`AvatarBrain.on_session_start` does state the
+#: voice before the opener is spoken, but a default that already agrees needs no
+#: correction to arrive on time — the greeting is right even if nothing lands.
+#: `arjun` is painted rather than line-art for the same reason: a face read as
+#: male makes the pairing visible, where a doodle leaves the visitor to guess.
+DEFAULT_AVATAR: AvatarKey = "arjun"
 
 
 @dataclass(frozen=True)
@@ -292,7 +309,7 @@ FACTS ABOUT THE LIBRARY — answer from these, and say you are not sure if it is
 - The backend half is one pipecat frame processor. It sits between text-to-speech and the transport, and from that seat it publishes the state it infers and the visemes for the audio about to play.
 - The browser half is one mount call. You give it the pipecat client you already connected with, and there is nothing else to configure.
 - It works against any pipecat pipeline. Voqalize is one consumer of it, not the only one.
-- Nine avatars ship today: three line-art faces and six painted ones. You can author your own — a face is a drawing plus a pose spec, and an avatar is any module that exports createAvatar.
+- Nine avatars ship today: three line-art faces and six painted ones. You can ship your own: an avatar is any module that exports createAvatar, and there is no registry and no renderer interface to implement.
 - Backchannels — the small acknowledgements, "mm-hm", "one moment", a nod — were the part the brief called out as mattering most, because a face listens far more than it speaks.
 
 FACTS ABOUT THIS CALL — the same again, for how you are being run right now:

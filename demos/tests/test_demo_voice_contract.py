@@ -92,10 +92,12 @@ class Expected:
 DEMOS: dict[str, Expected] = {
     # The avatar demo swaps voice mid-call — nine faces share two recorded
     # reference speakers, so a switch moves the voice with the face. What is
-    # checked here is the pair it OPENS on: `myna` is the default and `myna` is
-    # female. The switch's own pair is asserted in test_avatar_e2e.py, on the
-    # configure frames, because this sweep only ever reads the last stated value.
-    "avatar": Expected(voice="omnivoice/gauri", language="en"),
+    # checked here is the pair it OPENS on: `arjun` is the default and `arjun` is
+    # male — deliberately, because that is the voice the agent itself is
+    # provisioned with, so the opener is right even if no configure lands first.
+    # The switch's own pair is asserted in test_avatar_e2e.py, on the configure
+    # frames, because this sweep only ever reads the last stated value.
+    "avatar": Expected(voice="omnivoice/gaurav", language="en"),
     # Aria takes the language from the connect request's ``init`` and configures
     # both legs from it, so the brain still owns the answer — nothing in the
     # payload ⇒ English. The per-caller case is asserted below.

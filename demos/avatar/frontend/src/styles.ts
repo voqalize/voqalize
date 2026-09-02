@@ -9,9 +9,12 @@
  * honest with it written down. **The page is paper and the face has its own
  * field.** Nine avatars ship with their own colour, so a page that competes with
  * them makes every face look wrong in a different way — the drawing therefore
- * sits on a fixed ink tile, the size and shape it will really live at in a call,
- * and everything around it is a light, cool paper carrying documentation. One
- * accent, indigo, and it only ever marks what is live, current, or a link.
+ * sits on a fixed stage the size and shape it will really live at in a call, and
+ * everything around it is a light, cool paper carrying documentation. The stage
+ * is lit rather than dark: these faces are drawn as line art over a light ground
+ * and read as a lit room, not a black box, which is also what keeps captions and
+ * controls legible in the places a video call puts them. One accent, indigo, and
+ * it only ever marks what is live, current, or a link.
  * Radius is differentiated by kind — 12px on the tile because it is a video
  * tile, 3px on code, none anywhere else — so the page cannot collapse into a
  * deck of identical cards. Nothing animates beside the avatar: an idle face is
@@ -30,6 +33,8 @@ export const STYLES = `
 
     --rule: #cfd2d6;
     --field: #dee0e3;
+    --stage-top: #f4f5fb;
+    --stage-bottom: #dfe2ee;
 
     --sans: "Archivo", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -109,26 +114,70 @@ export const STYLES = `
     display: flex; flex-direction: column; gap: 14px;
   }
 
-  /* ── the tile: the one place with a dark field and a real radius ──────── */
+  /* ── the tile: a lit stage, the one place with a real radius ───────────── */
 
   .av-tile {
     position: relative;
     aspect-ratio: 4 / 3;
     border-radius: 12px;
     overflow: hidden;
-    background: var(--ink);
+    border: 1px solid var(--rule);
+    background: linear-gradient(168deg, var(--stage-top) 0%, var(--stage-bottom) 100%);
     display: flex; align-items: stretch; justify-content: center;
   }
   .av-face { width: 100%; height: 100%; display: block; }
-  .av-face.is-loading { background: var(--ink); }
+
+  /* The one chrome element left on the picture: who and what is happening,
+     top-left. A dark plate, because it reads over a face rather than the page —
+     the captions moved off the picture and are set on the page below it. */
+  .av-chip {
+    position: absolute; top: 10px; left: 10px; z-index: 2;
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 10px; border-radius: 999px;
+    background: rgba(21, 23, 28, .66);
+    backdrop-filter: blur(6px);
+    color: #fff; font-size: 11.5px; font-weight: 500;
+  }
+  .av-chip .av-clock { font-family: var(--mono); font-size: 11px; opacity: .78; }
+
+  /* ── the caption track, under the picture ─────────────────────────────── */
+  /*
+     A fixed band rather than one that grows: it holds the newest line at the
+     bottom and clips what has scrolled off the top, so nothing below it ever
+     moves — a hang-up button that slides out from under the cursor while the
+     bot is mid-sentence is worse than a little empty space before the call.
+
+     The fade duration is CAPTION_LIFE_MS in AvatarDemo.tsx. The animation takes
+     a retired line to zero and the timer removes it at the same moment, so the
+     removal is never a visible cut. Change one and change the other.
+  */
 
   .av-captions {
-    position: absolute; inset: auto 0 0 0;
-    padding: 0 14px 14px;
-    display: flex; justify-content: center;
-    pointer-events: none;
+    height: 4.6em;
+    overflow: hidden;
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 2px;
+    font-size: 13.5px; line-height: 1.5;
+    max-width: 48ch;
   }
-  .av-captions .vkui-root { width: 100%; display: flex; justify-content: center; }
+  .av-caption-past {
+    margin: 0; color: var(--graphite);
+    animation: av-caption-fade 11000ms linear forwards;
+  }
+  @keyframes av-caption-fade { from { opacity: .6 } to { opacity: 0 } }
+  .av-caption-live { color: var(--ink); }
+  .av-captions .vkui-root { display: block; }
+  /* The kit's overlay is authored to sit on a video frame — a dark plate with
+     its own radius. Here it is set on the page, so only its karaoke timing is
+     wanted and none of its surface. */
+  .av-caption-live .vkui-root *,
+  .av-caption-live.vkui-root * {
+    background: transparent; box-shadow: none; border-radius: 0;
+    color: inherit; padding: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .av-caption-past { animation: none; opacity: .45; }
+  }
 
   .av-invite { display: flex; flex-direction: column; gap: 9px; }
   .av-invite p { margin: 0; font-size: 13px; color: var(--graphite); max-width: 44ch; }
@@ -142,30 +191,27 @@ export const STYLES = `
   .av-start:hover { background: #2426ad; }
   .av-start:disabled { opacity: .6; cursor: default; }
 
-  /* ── status line under the tile ───────────────────────────────────────── */
-
-  .av-status {
-    display: flex; align-items: center; gap: 9px;
-    font-size: 13px; color: var(--graphite);
-    min-height: 30px;
-  }
-  .av-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--graphite); flex: none; }
-  .av-status.is-listening .av-dot,
-  .av-status.is-speaking .av-dot { background: var(--indigo); }
-  .av-status.is-working .av-dot { background: var(--indigo); animation: av-pulse 1.4s ease-in-out infinite; }
+  .av-dot { width: 7px; height: 7px; border-radius: 50%; background: #98a0ae; flex: none; }
+  .av-chip.is-listening .av-dot { background: #34d399; }
+  .av-chip.is-speaking .av-dot { background: #7f80ee; }
+  .av-chip.is-thinking .av-dot,
+  .av-chip.is-working .av-dot { background: #f0a020; animation: av-pulse 1.4s ease-in-out infinite; }
   @keyframes av-pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
-  .av-status-label { color: var(--ink); font-weight: 500; }
-  .av-clock { margin-left: auto; font-family: var(--mono); font-size: 12px; }
 
-  .av-ctl { display: flex; gap: 8px; margin-left: 4px; }
-  .av-ctl button {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px; padding: 0;
-    background: transparent; color: var(--graphite);
-    border: 1px solid var(--rule); border-radius: 5px; cursor: pointer;
+  /* ── the meeting controls, directly under the picture ─────────────────── */
+
+  .av-bar { display: flex; justify-content: center; }
+  .av-controls {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    border: 0; background: none; box-shadow: none; padding: 0;
   }
-  .av-ctl button:hover { color: var(--ink); border-color: var(--graphite); }
-  .av-ctl button.is-muted { color: #b0382a; border-color: #d9a49c; }
+  .av-hangup {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; margin-left: 2px;
+    border: 0; border-radius: 9px;
+    background: #c2352a; color: #fff; cursor: pointer;
+  }
+  .av-hangup:hover { background: #a72c22; }
 
   /* ── the avatar picker ────────────────────────────────────────────────── */
 
@@ -195,17 +241,18 @@ export const STYLES = `
   /* ── the end card, in place of the tile ───────────────────────────────── */
 
   .av-end {
-    position: absolute; inset: 0; z-index: 3;
-    background: var(--ink); color: var(--chalk);
+    position: absolute; inset: 0; z-index: 4;
+    background: rgba(244, 245, 249, .93);
+    backdrop-filter: blur(3px);
+    color: var(--ink);
     padding: 26px; display: flex; flex-direction: column; justify-content: center; gap: 12px;
   }
   .av-end h2 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.015em; }
-  .av-end p { margin: 0; font-size: 13.5px; color: #a7adb9; }
-  .av-end a { color: #a9aaf5; }
+  .av-end p { margin: 0; font-size: 13.5px; color: var(--graphite); }
   .av-again {
     align-self: flex-start; margin-top: 6px;
     font-family: var(--sans); font-size: 13.5px; font-weight: 600;
-    color: var(--ink); background: var(--chalk);
+    color: var(--chalk); background: var(--indigo);
     border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer;
   }
 

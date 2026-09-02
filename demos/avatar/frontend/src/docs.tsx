@@ -16,11 +16,13 @@
  *     line to paste; the paragraph explains the line they have already found.
  *   * **Second person, present tense, active voice.** You install, you mount, it
  *     sends.
+ *   * **One idea per sentence, in the shortest words that are still exact.** A
+ *     sentence that needs two commas to hold itself up is two sentences.
  *   * **Limits are stated as facts**, in their own section, at the same weight as
  *     the features — not softened and not buried.
  *
  * The `id`s below are the wire: the brain's `show_section` names one and the page
- * scrolls to it (`backend/content.py` holds the same seven, and the same order).
+ * scrolls to it (`backend/content.py` holds the same eight, and the same order).
  * Adding a section here means adding it there, and the `SectionId` literal in the
  * brain is what makes the mismatch a type error rather than a dead scroll.
  */
@@ -94,7 +96,7 @@ function Step({ n, children }: { n: string; children: ReactNode }) {
   );
 }
 
-// ── The seven sections ──────────────────────────────────────────────────────
+// ── The eight sections ──────────────────────────────────────────────────────
 
 export const DOC_SECTIONS: DocSection[] = [
   {
@@ -105,13 +107,13 @@ export const DOC_SECTIONS: DocSection[] = [
       <>
         <p className="doc-lede">
           Your pipeline already streams speech to the browser. This library draws a face that moves
-          with it — lip-synced to the audio, and aware of whether the agent is listening, thinking,
-          running a tool, or has just been interrupted.
+          with it. The mouth follows the audio, and the expression follows what the agent is doing:
+          listening, thinking, running a tool, or being interrupted.
         </p>
         <p>
-          It adds no video track and no second media path. The face rides the RTVI data channel your
-          client already has open, at a few hundred bytes a second. There is no per-minute avatar
-          vendor between you and the picture.
+          There is no video track. The face rides the RTVI data channel your client already has
+          open, at a few hundred bytes a second. Nothing renders on a server, so there is no
+          per-minute avatar vendor between you and the picture.
         </p>
         <Grid
           head={["Package", "What it does"]}
@@ -119,26 +121,27 @@ export const DOC_SECTIONS: DocSection[] = [
             [
               "voqalize-avatar",
               <>
-                One pipecat frame processor. It infers what the agent is doing from frames already
-                flowing past it, and aligns mouth shapes to the audio about to be spoken.
+                One pipecat frame processor. It reads the frames already flowing past it to work out
+                what the agent is doing, and it lines up mouth shapes with the audio about to play.
               </>,
             ],
             [
               "@voqalize/avatar",
               <>
-                One mount call in the browser. It renders the face from the{" "}
-                <code>PipecatClient</code> you already connected with.
+                One mount call in the browser. It draws the face from the <code>PipecatClient</code>{" "}
+                you already connected with.
               </>,
             ],
           ]}
         />
         <p>
-          The two are ends of one wire format and publish from the same tag, so the versions cannot
-          drift apart. Both are MIT-licensed — use them in closed-source products.
+          The two packages are ends of one wire format. They publish from the same tag, so their
+          versions cannot drift apart. Both are MIT-licensed, so you can use them in a closed-source
+          product.
         </p>
         <p className="doc-req">
-          Needs pipecat-ai 1.4 or later, Python 3.12+, and Node 20+. Any transport works: nothing in
-          either package names one.
+          Needs pipecat-ai 1.4 or later, Python 3.12+, and Node 20+. Any transport works: neither
+          package names one.
         </p>
       </>
     ),
@@ -151,7 +154,7 @@ export const DOC_SECTIONS: DocSection[] = [
     body: (
       <>
         <p className="doc-lede">
-          Three steps, and neither call takes configuration. This is the whole integration.
+          Three steps. Neither call takes configuration, and this is the whole integration.
         </p>
 
         <Step n="1">
@@ -168,15 +171,15 @@ pipeline = Pipeline([
     ..., tts, AvatarProcessor(), transport.output(),
 ])`}</Code>
           <p>
-            That seat is the requirement, not a convention. From there the processor sees the audio
-            before it is spoken, at generation speed, which is what the mouth needs.{" "}
-            <code>StartFrame</code> supplies the sample rate and the aligner rides inside the wheel,
-            so there is nothing to pass in.
+            That position is a requirement, not a convention. From there the processor can see the
+            audio before it is played, which is what the mouth needs. It reads the sample rate off{" "}
+            <code>StartFrame</code>, and the aligner ships inside the wheel, so there is nothing to
+            pass in.
           </p>
         </Step>
 
         <Step n="3">
-          <h3>Mount the face where you render the bot</h3>
+          <h3>Mount the face where you draw the bot</h3>
           <Code lang="javascript">{`import { createAvatar } from '@voqalize/avatar';
 
 const avatar = createAvatar({ mount: el, client: pipecatClient });
@@ -193,16 +196,15 @@ import { wren } from '@voqalize/avatar/faces/wren';
 />`}</Code>
           <p>
             <code>createAvatar</code> returns <code>{"{ destroy() }"}</code> and nothing else. The
-            avatar is an embodiment of your client and reacts to it, so there is no state to read
-            back and no avatar to drive.
+            avatar watches your client and reacts to it. There is no state to read back, and nothing
+            to drive.
           </p>
         </Step>
 
         <Note>
           One optional line: forward your RTVI processor’s <code>on_client_ready</code> event to{" "}
-          <code>avatar.on_client_ready()</code>. It re-announces the current state once the
-          browser’s data channel exists. Skipping it costs the widget its opening pose and nothing
-          more.
+          <code>avatar.on_client_ready()</code>. It repeats the current state once the browser’s
+          data channel exists. Skip it and you lose the opening pose. Nothing else changes.
         </Note>
       </>
     ),
@@ -215,9 +217,9 @@ import { wren } from '@voqalize/avatar/faces/wren';
     body: (
       <>
         <p className="doc-lede">
-          Speaking and listening are the easy states. Everything between them is inference, and a
-          face that goes blank while a model is mid-response reads as a dropped connection — so idle
-          is the wrong answer to most of the silence in a call.
+          Speaking and listening are easy. Everything between them has to be inferred. If the face
+          goes blank while the model is still working, people read it as a dropped call — so idle is
+          the wrong answer to most of the silence in a conversation.
         </p>
         <Grid
           head={["State", "Where it comes from"]}
@@ -225,37 +227,37 @@ import { wren } from '@voqalize/avatar/faces/wren';
             [
               "SPEAKING\nLISTENING\nMUTED\nOFFLINE\nDEGRADED",
               <>
-                Your <code>PipecatClient</code>, in the browser. No backend involvement, and nothing
+                Your <code>PipecatClient</code>, in the browser. No backend involved, and nothing
                 for you to send.
               </>,
             ],
             [
               "THINKING",
               <>
-                <code>AvatarProcessor</code>, watching turn and LLM response boundaries. It knows a
-                reply is owed.
+                <code>AvatarProcessor</code>. It watches turn and LLM response boundaries, so it
+                knows a reply is owed.
               </>,
             ],
             [
               "WORKING",
               <>
-                You, if your tools run outside the pipeline. The processor sees function-call frames
-                when they pass through it and claims this itself; it cannot see a tool running
-                inside a service on the far side of a socket.
+                You, if your tools run outside the pipeline. The processor claims this itself for
+                function calls that pass through it. It cannot see a tool running inside a service
+                on the far side of a socket.
               </>,
             ],
-            ["STRAINING", <>You, when a call you are waiting on has returned nothing at all.</>],
+            ["STRAINING", <>You, when something you are waiting on has returned nothing at all.</>],
           ]}
         />
         <p>
-          Blinking, breathing, gaze aversion and idle sway are never in this table. They belong to
-          the renderer and nobody sends them — a server that had to send a blink would be sending it
+          Blinking, breathing, gaze and idle sway are not in this table. They belong to the
+          renderer, and nobody sends them. A server that had to send a blink would be sending it
           late.
         </p>
         <Note>
-          The avatar in this page is holding <code>WORKING</code> out loud when you ask it to look
-          something up. That claim is coming from the demo’s agent over the same channel described
-          below, which is the asymmetry in row three, live.
+          The avatar on this page holds <code>WORKING</code> when you ask it to look something up.
+          That claim comes from the demo’s agent over the channel described below. It is row three,
+          live.
         </Note>
       </>
     ),
@@ -268,9 +270,8 @@ import { wren } from '@voqalize/avatar/faces/wren';
     body: (
       <>
         <p className="doc-lede">
-          Beyond the two calls above, a server can say exactly three things to a face. All three
-          ride one RTVI <code>server-message</code> under a <code>{'{"type": "avatar"}'}</code>{" "}
-          envelope.
+          Past the two calls above, a server can say exactly three things to a face. All three ride
+          one RTVI <code>server-message</code> under a <code>{'{"type": "avatar"}'}</code> envelope.
         </p>
         <Code lang="python">{`say = rtvi.send_server_message
 
@@ -286,15 +287,15 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
             [
               "claim",
               <>
-                A durable candidate state: <code>THINKING</code>, <code>WORKING</code>,{" "}
-                <code>STRAINING</code>, or <code>null</code> to clear. Exactly one is in flight, so
-                a later claim replaces the earlier one.
+                A state you are asking for: <code>THINKING</code>, <code>WORKING</code>,{" "}
+                <code>STRAINING</code>, or <code>null</code> to clear it. Only one is in flight at a
+                time, so a new claim replaces the old one.
               </>,
             ],
             [
               "action",
               <>
-                One behaviour that completes on its own and leaves no state behind:{" "}
+                One behaviour that finishes on its own and leaves no state behind:{" "}
                 <code>ACK_RECEIVE</code>, <code>ACK_NOD</code>, <code>RESPONSE_INTERRUPTED</code>,{" "}
                 <code>GESTURE_GREET</code>, <code>GESTURE_GOODBYE</code>,{" "}
                 <code>GESTURE_APPROVE</code>, <code>GESTURE_WAIT</code>.
@@ -303,22 +304,21 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
             [
               "cues",
               <>
-                Mouth shapes on a timeline. <code>AvatarProcessor</code> sends these for you; see
+                Mouth shapes on a timeline. <code>AvatarProcessor</code> sends these for you. See
                 the next section.
               </>,
             ],
           ]}
         />
         <p>
-          Precedence runs one way, and it is the part to remember. What the browser observes about
-          the audio — that the bot started speaking, that the caller did, that the microphone is
-          muted — is a fact, and facts win. Your claim sits underneath every fact and retires the
-          moment one arrives. You can tell the face what to consider; you cannot tell it what is
-          happening.
+          Precedence runs one way, and this is the part to remember. What the browser observes about
+          the audio is a fact: the bot started speaking, the caller started speaking, the microphone
+          is muted. Facts win. Your claim sits underneath them and is dropped as soon as a fact
+          arrives. You can tell the face what to consider. You cannot tell it what is happening.
         </p>
         <p>
-          There is no version field. A command the browser does not recognise is ignored, so an
-          older page and a newer server still run a call.
+          There is no version field. The browser ignores a command it does not recognise, so an old
+          page and a new server still run a call.
         </p>
       </>
     ),
@@ -331,9 +331,9 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
     body: (
       <>
         <p className="doc-lede">
-          A cue is never a play-this-now command. It is a time, a mouth shape, and optionally a
-          loudness — and zero on that clock is the first audio sample of the turn, so when a cue
-          arrives carries no meaning at all.
+          A cue is not a play-this-now command. It is a time, a mouth shape, and sometimes a
+          loudness. Zero on that clock is the first audio sample of the turn, so it does not matter
+          when a cue arrives.
         </p>
         <Code lang="json">{`{ "type": "avatar", "cmd": "cues", "ctx": "tts-41", "from_ms": 0,
   "cues": [ { "t": 0,   "v": "X" },
@@ -354,23 +354,22 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
             [
               "from_ms",
               <>
-                Discard the track at and after this offset, then append these cues. An overwrite,
-                never a merge.
+                Throw away the track from this offset onward, then add these cues. It overwrites; it
+                never merges.
               </>,
             ],
           ]}
         />
         <p>
-          Two legs write that one track. A fast leg predicts shapes from the text the moment there
-          is text — about 0.15 ms of work, so it runs on the event loop — and the mouth moves the
-          instant audio starts. An accurate leg decodes the rendered audio on a worker thread and
-          splices in behind it as it advances. <code>from_ms</code> is the whole correction
-          mechanism, and if it is working you never see the second leg arrive.
+          Two passes write that one track. A fast pass guesses shapes from the text as soon as there
+          is text, so the mouth moves the moment audio starts. It costs about 0.15 ms, which is why
+          it can run on the event loop. An accurate pass then decodes the real audio on a worker
+          thread and splices its results in behind the first. <code>from_ms</code> is the whole
+          correction mechanism. When it works, you never notice the second pass arrive.
         </p>
         <Note>
           <code>final: true</code> on a cue message means no more patches for that context. It does
-          not mean the audio has finished. <code>BotStoppedSpeaking</code> is the hard stop for the
-          mouth.
+          not mean the audio has finished. <code>BotStoppedSpeaking</code> is what stops the mouth.
         </Note>
       </>
     ),
@@ -378,13 +377,13 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
 
   {
     id: "faces",
-    title: "Choose a face, or ship your own",
+    title: "Choose a face",
     rail: "Faces",
     body: (
       <>
         <p className="doc-lede">
-          Nine avatars ship: three SVG line-art faces and six painted Canvas2D identities. Each has
-          its own entry point, so you pay for the one you import. Swapping one is a remount.
+          Nine avatars ship: three SVG line-art faces and six painted Canvas2D people. Each one has
+          its own entry point, so you only pay for the one you import. Swapping is a remount.
         </p>
         <Code lang="javascript">{`// line art: peep, wren, myna
 import { peep } from '@voqalize/avatar/faces/peep';
@@ -392,30 +391,102 @@ import { peep } from '@voqalize/avatar/faces/peep';
 // painted: arjun, meera, vikram, ishita, kabir, naina
 import { createAvatar } from '@voqalize/avatar/avatars/meera';`}</Code>
         <p>
-          Under the drawing there are three layers. A mixer resolves layered inputs — idle motion,
-          gaze, a gesture clip, the mouth — channel by channel. A rig applies about thirty pose
-          numbers. A face consumes them. Layers mix in a fixed order, and while a viseme track is
+          Under the drawing there are three layers. A mixer combines the things that want to move
+          the face — idle motion, gaze, a gesture, the mouth — one channel at a time. A rig turns
+          the result into about thirty pose numbers. A face draws them. While a mouth track is
           playing it owns the mouth outright, so a nod during speech moves the head and nothing
           else.
         </p>
         <p>
-          Smoothing is the animation. Every channel chases its target at its own time constant — the
-          mouth at 42 ms, the eyelids at 18 ms, the head at 160 ms — so keyframes are not what the
-          face does; the smoothing between them is.
+          Smoothing is what you actually see. Every channel chases its target at its own speed: the
+          mouth in 42 ms, the eyelids in 18 ms, the head in 160 ms. Keyframes are not what the face
+          does. The smoothing between them is.
         </p>
-        <h3>Ship your own avatar</h3>
         <p>
-          A different rendering technology is not a face. It is a different{" "}
-          <code>createAvatar</code>, published as its own module:
+          To recolour a face without redrawing it, pass <code>theme</code>. The keys belong to the
+          face; read the defaults off its <code>THEME</code> export.
+        </p>
+      </>
+    ),
+  },
+
+  {
+    id: "custom",
+    title: "Ship your own avatar",
+    rail: "Your own",
+    body: (
+      <>
+        <p className="doc-lede">
+          There are three ways in, and they cost an hour, an afternoon, and a week. Pick by how much
+          of the face you actually want to own.
+        </p>
+
+        <h3>Draw a new face on the shipped rig</h3>
+        <p>
+          This is the common case. You write one module that draws an SVG and writes pose numbers
+          into it. Nothing else changes: the wire, the mixer, the smoothing, the gestures and the
+          lipsync all stay where they are.
+        </p>
+        <Code lang="javascript">{`// my-face.js — no build step, no dependencies
+export function createFace(mount, theme) {
+  mount.innerHTML = buildSvgMarkup(theme);   // generated, not an asset
+  const svg = mount.querySelector('svg');
+  return {
+    svg,
+    theme,
+    apply(params) { /* write ~30 floats into the DOM, 60x a second */ },
+    destroy() { mount.innerHTML = ''; },
+  };
+}
+export const META  = { viewBox: {…}, mouthCrop: {…} };  // the 4:3 camera
+export const THEME = { ink: '#1b1b1b', paper: '#ffffff' };
+export const myFace = { create: createFace, meta: META };`}</Code>
+        <Code lang="javascript">{`import { myFace } from './my-face.js';
+createAvatar({ mount: el, client: pipecatClient, face: myFace });`}</Code>
+        <p>
+          You draw 22 of the 30 channels: the mouth, the eyes and the brows. Head, breath, shoulders
+          and torso are done for you from a table of constants, so you write numbers rather than
+          code for those.
+        </p>
+        <p>
+          Your module holds no animation. No timer, no <code>requestAnimationFrame</code>, no
+          easing, and no state that survives a frame. Roughly sixty times a second you are handed
+          one object of about thirty floats, already mixed, clamped and smoothed, and you write it
+          into the DOM. That is the whole job.
+        </p>
+
+        <h3>Replace the renderer</h3>
+        <p>
+          If SVG is not what you want to draw in, pass <code>rig</code> instead of <code>face</code>
+          . A rig is a factory that returns <code>apply(frame)</code> and <code>destroy()</code>,
+          and it can paint with anything — Canvas2D, WebGL, WebGPU, or a third-party renderer. The
+          six painted avatars in this demo are exactly this: a Canvas2D rig in front of the same
+          mixer.
+        </p>
+        <Code lang="javascript">{`createAvatar({
+  mount: el,
+  client: pipecatClient,
+  rig: createMyRig,        // (opts) => { apply(frame), destroy() }
+  rigOptions: { … },       // passed straight through; opaque to the library
+});`}</Code>
+        <p>
+          <code>VisemeTrack</code> in <code>@voqalize/avatar/internal</code> turns a cue array and a
+          clock into the mouth shape for the current frame. Every renderer needs that, and no
+          renderer should write it twice.
+        </p>
+
+        <h3>Publish it</h3>
+        <p>
+          An avatar is any module that exports <code>createAvatar</code> with the signature below.
+          There is no registry to add yourself to, no name to resolve, and no renderer interface to
+          implement. Publish it under your own name and import it like any other package.
         </p>
         <Code lang="typescript">{`createAvatar({ mount, client, ...yourOptions }) -> { destroy() }`}</Code>
-        <p>
-          There is no registry, and there is deliberately no renderer interface — the thirty pose
-          channels are how our SVG mixer talks to our own faces, not a public seam. What a new
-          renderer needs to understand is the wire above. <code>VisemeTrack</code> in{" "}
-          <code>@voqalize/avatar/internal</code> turns a cue array and a clock into the shape for
-          the current frame; every renderer needs that, and none should write it twice.
-        </p>
+        <Note>
+          The thirty pose channels are how our mixer talks to our own faces. They are not a public
+          seam, and they can change. What a new renderer has to understand is the wire above, which
+          does not.
+        </Note>
       </>
     ),
   },
@@ -427,7 +498,7 @@ import { createAvatar } from '@voqalize/avatar/avatars/meera';`}</Code>
     body: (
       <>
         <p className="doc-lede">
-          Four limits worth knowing before you install it, rather than after.
+          Four limits, worth knowing before you install it rather than after.
         </p>
         <ul className="doc-limits">
           <li>
@@ -436,18 +507,18 @@ import { createAvatar } from '@voqalize/avatar/avatars/meera';`}</Code>
           </li>
           <li>
             <strong>Alignment is English only.</strong> The aligner’s acoustic model is English. The
-            avatar still runs on any language; the mouth shapes are only right for one.
+            avatar runs on any language, but the mouth shapes are only right for one.
           </li>
           <li>
             <strong>Lipsync wheels cover Linux x86-64, Linux aarch64, and macOS arm64.</strong>{" "}
             Anywhere else, pip installs the sdist, which carries no binary.{" "}
-            <code>AvatarProcessor</code> catches it, logs once, and runs the state channel alone.
-            The degradation is exactly one thing: the face still listens, thinks, claims the floor
-            and yields it, and its mouth does not move while it speaks.
+            <code>AvatarProcessor</code> notices, logs once, and runs the state channel on its own.
+            You lose exactly one thing: the face still listens, thinks, takes the floor and gives it
+            back, and its mouth does not move while it speaks.
           </li>
           <li>
             <strong>It needs a pipecat pipeline.</strong> There is no standalone player, and no
-            client-side lipsync to fall back on.
+            browser-side lipsync to fall back on.
           </li>
         </ul>
       </>

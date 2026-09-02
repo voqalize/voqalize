@@ -94,8 +94,8 @@ _BACKSTOP_S = 150.0
 _IDLE_MS = 3500
 
 _GREETING = (
-    "Hi — and that wave was not my idea. It was one message from the brain on the other side "
-    "of this call. I'm the open-source avatar; ask me how any of it works."
+    "Hi — that wave was one message from the brain on the other side of this call, not "
+    "something I decided. Ask me how any of it works and I'll put it on the page."
 )
 
 # The last thing anyone hears. Fixed, and spoken instead of a model turn: at the
@@ -229,7 +229,7 @@ THE AVATARS — call switch_avatar and you become that one. The voice changes wi
 
 HOW TO RUN THIS CALL:
 
-1. ANSWER WITH THE SECTION OPEN. For any question about how the thing works — installing it, the protocol, the lipsync, the states, the faces, the limits — call show_section FIRST, then answer against it. One section per question. NEVER read the page out loud; they can see it. Say the thing the page compressed out, or the reason behind what it says.
+1. POINT FIRST, THEN TALK. For ANY question about how the thing works — installing it, the protocol, the lipsync, the states, the faces, authoring your own, the limits — call show_section BEFORE you say anything. The scroll is the answer; your sentences are the footnote on it. One section per question. NEVER read the page out loud, and never summarise what is now on their screen — say only the thing the page left out, or the reason behind it.
 
 2. DEMONSTRATE, DO NOT DESCRIBE. When you have just explained a behaviour, perform it. Explained actions? Wave. Explained claims? Call demonstrate. If someone asks "show me" anything, the answer is a tool call, not a sentence.
 
@@ -237,10 +237,11 @@ HOW TO RUN THIS CALL:
 
 4. CHANGE YOUR FACE WHEN ASKED, AND OFFER IT ONCE. If they ask what you look like, what else there is, or to see another one, call switch_avatar. Mention that the voice moved with the face. They can also click a face themselves — when they do, you will be told, and you should react in one short line.
 
-5. WATCH THE CLOCK. Two minutes is about eight exchanges. Do not offer a tour of all seven sections; answer what was asked. If you are told you are running out of time, start closing.
+5. WATCH THE CLOCK. Two minutes is about eight exchanges. Do not offer a tour of all eight sections; answer what was asked. If you are told you are running out of time, start closing.
 
-STYLE:
-- This is voice. One or two sentences per turn. Three is already too many.
+STYLE — the hard rule first:
+- TWO SHORT SENTENCES PER TURN. Never three. If a thought needs more, it needed a tool call instead: put it on their screen and say one line about it.
+- Show, do not narrate. A visitor who asks to see something gets a tool call. A visitor who asks how something works gets the section scrolled up first and two sentences after.
 - Lead with the mechanism, then what it gets you. Never the other way round.
 - No marketing words. Do not say seamless, magic, effortless, or powerful. You are talking to someone who will read the source.
 - Never read out a tool name, an id, or a URL. Say "the wire", not "contract-wire dot em-dee".
@@ -258,7 +259,8 @@ class AvatarBrain(GeminiBrain):
         # The face currently mounted. The page opens on the same default (its
         # own `roster.ts`), because the picture has to be on screen before this
         # brain is dialled — so the two agree by being written down twice, once
-        # on each side of the seam.
+        # on each side of the seam. The default is also chosen to match the
+        # voice the agent is provisioned with; see DEFAULT_AVATAR in content.py.
         self._avatar: AvatarKey = DEFAULT_AVATAR
         # Monotonic, set on session start. The cap is measured from the moment
         # the brain is dialled, which is within a second of the visitor hearing
@@ -509,13 +511,22 @@ class AvatarBrain(GeminiBrain):
         return self.respond(session)
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Two things the page tells the brain: that it is on, and that the
-        visitor clicked a face.
+        """Two things the page tells the brain: that it is on, and which face is
+        on screen.
 
-        On the click, the page has already swapped the drawing — it owns its own
+        The page has already swapped the drawing in both cases — it owns its own
         rendering and should not wait for a round trip to redraw. What it cannot
         do is move the voice or tell the model, and those are exactly what happen
-        here, which is why the click comes to the brain at all."""
+        here, which is why a face reaches the brain at all.
+
+        ``ready`` carries the face as a backstop, not as the normal path. The
+        page's strip is inert until the call is up, precisely so the face on
+        screen when the opener is spoken is always :data:`DEFAULT_AVATAR` — a
+        face picked before dialling could not be corrected in time, because
+        :meth:`greet` is awaited before this message can arrive and the runner
+        dispatches frames one at a time, so waiting here would deadlock the
+        session rather than delay it. A reconnecting client can still arrive
+        wearing something else, and this is what catches that."""
         kind = msg.data.get("t")
         if kind == "ready":
             # The data channel exists as of now, so this is the first moment a
@@ -524,6 +535,15 @@ class AvatarBrain(GeminiBrain):
             if not self._waved:
                 self._waved = True
                 self._act("GESTURE_GREET")
+            # Normally a no-op: the page opens on DEFAULT_AVATAR and cannot
+            # be changed until the call is up. A reconnect is the case that is
+            # not — it re-announces whatever face the visitor had switched to,
+            # and a face left uncorrected speaks in the wrong voice for the
+            # rest of the call. No note to the model: it already knows, or
+            # nothing has been said yet.
+            opening = str((msg.data.get("d") or {}).get("key", ""))
+            if opening in AVATARS_BY_KEY and opening != self._avatar:
+                await self._wear(cast(AvatarKey, opening), asked_by="the visitor")
             return
         if kind != "pick_avatar":
             return

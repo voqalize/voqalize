@@ -28,10 +28,14 @@
  *   * **screen → brain**, as two RTVI `client-message`s. `ready` says the data
  *     channel exists, which is what the opening wave waits for — a brain is
  *     dialled before this page has one, and a gesture sent then goes nowhere.
- *     `pick_avatar` says the visitor chose a face off the strip: the page swaps
- *     the drawing immediately — it owns its own rendering and should not wait a
- *     round trip to redraw — and tells the brain, which is the only end that can
- *     move the voice and the model's context.
+ *     It also carries the face, which every call resets to the default at that
+ *     moment: the opener is spoken before this page can say anything, so a face
+ *     chosen beforehand would get one line in the other speaker's voice, and
+ *     two recorded speakers means that reads immediately as the wrong gender.
+ *     `pick_avatar` says the visitor chose a face mid-call: the page
+ *     swaps the drawing immediately — it owns its own rendering and should not
+ *     wait a round trip to redraw — and tells the brain, which is the only end
+ *     that can move the voice and the model's context.
  *
  * The face the brain drives and the face a click mounts are the same component;
  * both paths write one piece of state.
@@ -45,14 +49,18 @@ import {
   useRTVIClientEvent,
 } from "@pipecat-ai/client-react";
 import {
+  BotAudioControl,
+  ControlBar,
+  ControlBarDivider,
   PipecatAppBase,
-  TranscriptOverlay,
+  TranscriptOverlayComponent,
+  UserAudioControl,
   usePipecatConnectionState,
 } from "@pipecat-ai/voice-ui-kit";
 import "@pipecat-ai/voice-ui-kit/styles.scoped";
 import { Avatar } from "@voqalize/avatar/react";
 import type { AvatarFactory, AvatarOptions } from "@voqalize/avatar";
-import { Github, Mic, MicOff, PhoneOff } from "lucide-react";
+import { Github, PhoneOff } from "lucide-react";
 import { asUiAction, unhandledUiAction } from "./actions.gen";
 import { connectRequest, demo, withRealHeaders } from "./config";
 import { DOC_SECTIONS } from "./docs";
@@ -62,6 +70,20 @@ import { STYLES } from "./styles";
 /** Two minutes, and the page only *reports* it — the brain enforces it. Kept
  *  here so the clock reads the same as the one that will actually hang up. */
 const LIMIT_S = 120;
+
+/** How many finished sentences stay on screen behind the one being spoken.
+ *  Two is what fits under the tile without pushing the controls down. */
+const CAPTION_HISTORY = 2;
+
+/** How long a finished sentence takes to fade to nothing. Long enough to read
+ *  a sentence you only half-heard; short enough that the band is empty again
+ *  by the time the next answer starts. */
+const CAPTION_LIFE_MS = 11000;
+
+/** A chunk that ends a sentence retires the line and starts a new one. The
+ *  synthesiser is fed sentence by sentence, so this fires on the boundary the
+ *  audio actually has. */
+const SENTENCE_END = /[.!?…]["')\]]?\s*$/;
 
 /** Where a visitor goes next. The demo exists to be the front door of an
  *  open-source library, so the links are the point rather than the footer. */
@@ -135,6 +157,102 @@ function Face({
       create={factory.create}
       aria-label={`${ROSTER_BY_KEY[factory.key]?.name ?? "The"} avatar`}
     />
+  );
+}
+
+/**
+ * The bot's own words, under the picture, arriving as they are spoken.
+ *
+ * The words come off `bot-tts-text`, which is the text the runtime handed the
+ * synthesiser: it is the only feed that is word-for-word what you are hearing,
+ * chunk by chunk, and it arrives whatever RTVI protocol version the two ends
+ * negotiate. `voice-ui-kit`'s own `TranscriptOverlay` reads a different feed
+ * whose shape moved between protocol versions, so this page drives the kit's
+ * headless `TranscriptOverlayComponent` with the words instead — the same
+ * karaoke rendering, fed from the durable event.
+ *
+ * **A sentence does not vanish when the next one starts; it dims.** Speech is
+ * gone the moment it is said, and a caption that is replaced mid-thought is
+ * worse than none — a visitor who half-heard a clause has nowhere to look. So
+ * a finished sentence retires behind the live one and fades out over eleven
+ * seconds, and the band is empty again before the next answer needs it. Two
+ * are kept: three pushes the controls off the fold.
+ */
+interface RetiredLine {
+  id: number;
+  text: string;
+  at: number;
+}
+
+function Captions() {
+  const [retired, setRetired] = useState<RetiredLine[]>([]);
+  const [words, setWords] = useState<string[]>([]);
+  const [turnEnd, setTurnEnd] = useState(false);
+  // The chunks of the sentence currently being spoken. A ref rather than state
+  // because two handlers append to it and both need to read what the other
+  // just wrote, in the same tick.
+  const live = useRef<string[]>([]);
+  const seq = useRef(0);
+
+  /** Move the sentence in flight into the fading stack. */
+  const retire = useCallback(() => {
+    const text = live.current.join("").trim();
+    live.current = [];
+    setWords([]);
+    if (!text) return;
+    seq.current += 1;
+    const line = { id: seq.current, text, at: Date.now() };
+    setRetired((prev) => [...prev, line].slice(-CAPTION_HISTORY));
+  }, []);
+
+  useRTVIClientEvent(
+    RTVIEvent.BotTtsText,
+    useCallback(
+      (data: { text: string }) => {
+        if (!data.text) return;
+        live.current = [...live.current, data.text];
+        setWords(live.current);
+        setTurnEnd(false);
+        if (SENTENCE_END.test(data.text)) retire();
+      },
+      [retire],
+    ),
+  );
+  useRTVIClientEvent(
+    RTVIEvent.BotStoppedSpeaking,
+    useCallback(() => {
+      retire();
+      setTurnEnd(true);
+    }, [retire]),
+  );
+
+  // One timer, always for the oldest line — the CSS animation has already taken
+  // it to zero by the time this fires, so removal is invisible rather than a cut.
+  useEffect(() => {
+    if (retired.length === 0) return;
+    const oldest = retired[0];
+    const timer = window.setTimeout(
+      () => setRetired((prev) => prev.filter((line) => line.id !== oldest.id)),
+      Math.max(0, oldest.at + CAPTION_LIFE_MS - Date.now()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [retired]);
+
+  // Always mounted, even empty: the band reserves its own height so the
+  // controls under it never move while the bot is talking.
+  return (
+    <div className="av-captions" aria-live="polite">
+      {retired.map((line) => (
+        <p key={line.id} className="av-caption-past">
+          {line.text}
+        </p>
+      ))}
+      {words.length > 0 ? (
+        <div className="vkui-root av-caption-live">
+          <TranscriptOverlayComponent words={words} size="sm" turnEnd={turnEnd} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -320,12 +438,25 @@ function Stage({
   // from its greeting would be dropped here, invisibly, while the greeting audio
   // played normally because the transport queues audio. The opening wave answers
   // this message instead, which is the first moment one can arrive.
+  //
+  // **The face resets here, and that is the fix for the one mismatch this demo
+  // could not otherwise avoid.** There are two recorded speakers, so a face is
+  // paired to one of them by gender, and a face wearing the other one's voice is
+  // the first thing anybody notices. The opener is spoken before this page can
+  // say anything at all: the brain is dialled at pipeline start, `greet` is
+  // awaited before any client message can be delivered, and waiting for one
+  // there would deadlock the session rather than delay it. So a face chosen
+  // before dialling could not be corrected in time — it would speak one line in
+  // the wrong voice. Opening every call on the default is the version of this
+  // with no race in it. The strip stays a gallery before the call and becomes a
+  // control during it.
   useEffect(() => {
     if (!isConnected) return;
+    setAvatarKey(DEFAULT_AVATAR);
     enableMic(true);
     setActivity("listening");
     startedAt.current = Date.now();
-    client?.sendClientMessage("ready", {});
+    client?.sendClientMessage("ready", { key: DEFAULT_AVATAR });
   }, [isConnected, enableMic, client]);
 
   useEffect(() => {
@@ -340,13 +471,16 @@ function Stage({
 
   // Screen → brain. The drawing swaps here and now; the voice and the model's
   // context are the brain's to move, and it is told so it can do both.
+  //
+  // Before the call there is nobody to tell, and the call will open on the
+  // default anyway — so a click is a preview of the drawing and nothing more.
   const pick = useCallback(
     (key: string) => {
       if (key === avatarKey) return;
       setAvatarKey(key);
-      client?.sendClientMessage("pick_avatar", { key });
+      if (isConnected) client?.sendClientMessage("pick_avatar", { key });
     },
-    [avatarKey, client],
+    [avatarKey, client, isConnected],
   );
 
   const hangUp = async () => {
@@ -361,18 +495,22 @@ function Stage({
   return (
     <main className="av-main">
       <div className="av-call">
+        {/* The tile is a video call: who is on it and what is happening in the
+            corner, the caption track across the bottom, the meeting controls
+            directly beneath the picture. `voice-ui-kit`'s stylesheet is
+            Tailwind and 132 KB, so this imports `styles.scoped` — every rule
+            scoped under `.vkui-root` — and only the two islands that hold kit
+            components wear that class. */}
         <div className="av-tile">
           <Face avatarKey={avatarKey} client={client} />
 
-          {/* The bot's own words, arriving a word at a time as they are spoken.
-              `voice-ui-kit`'s stylesheet is Tailwind and 132 KB, so this imports
-              `styles.scoped` — every rule scoped under `.vkui-root` — and only
-              the caption strip wears that class. */}
-          {live ? (
-            <div className="av-captions">
-              <div className="vkui-root">
-                <TranscriptOverlay participant="remote" size="sm" />
-              </div>
+          {isConnected && !ended ? (
+            <div className={`av-chip is-${shown}`}>
+              <span className="av-dot" aria-hidden />
+              <span>
+                {working ? `Working — ${working}` : isMicEnabled ? ACTIVITY_LABEL[shown] : "Muted"}
+              </span>
+              <span className="av-clock">{clock}</span>
             </div>
           ) : null}
 
@@ -389,6 +527,12 @@ function Stage({
             </div>
           ) : null}
         </div>
+
+        {/* Under the picture, where a video call puts its captions. Mounted for
+            the whole call rather than once something has been said: the greeting
+            starts synthesising at the same moment the call connects, and a
+            listener registered a beat later loses the opening words. */}
+        {!ended ? <Captions /> : null}
 
         {!isConnected && !ended ? (
           <div className="av-invite">
@@ -407,44 +551,42 @@ function Stage({
           </div>
         ) : null}
 
-        {isConnected || ended ? (
-          <div className={`av-status is-${shown}`}>
-            <span className="av-dot" aria-hidden />
-            <span className="av-status-label">
-              {working
-                ? `Working — ${working}`
-                : isMicEnabled || !live
-                  ? ACTIVITY_LABEL[shown]
-                  : "Muted"}
-            </span>
-            {live ? (
-              <>
-                <span className="av-clock">{clock}</span>
-                <span className="av-ctl">
-                  <button
-                    type="button"
-                    className={isMicEnabled ? "" : "is-muted"}
-                    onClick={() => enableMic(!isMicEnabled)}
-                    aria-label={isMicEnabled ? "Mute the microphone" : "Unmute the microphone"}
-                  >
-                    {isMicEnabled ? <Mic size={14} /> : <MicOff size={14} />}
-                  </button>
-                  <button type="button" onClick={() => void hangUp()} aria-label="End the call">
-                    <PhoneOff size={13} />
-                  </button>
-                </span>
-              </>
-            ) : null}
+        {/* Mute, the bot's own volume, and hang up — the three a two-minute
+            call actually needs, in the row a decade of video calls has taught
+            everyone to look for. The mic control carries its own level meter,
+            which is the answer to "is it hearing me". */}
+        {live ? (
+          <div className="av-bar vkui-root">
+            <ControlBar noAnimateIn className="av-controls">
+              <UserAudioControl
+                size="sm"
+                variant="outline"
+                noSpeakers
+                visualizerProps={{ barCount: 5 }}
+              />
+              <BotAudioControl size="sm" variant="outline" />
+              <ControlBarDivider />
+              <button
+                type="button"
+                className="av-hangup"
+                onClick={() => void hangUp()}
+                aria-label="End the call"
+                title="End the call"
+              >
+                <PhoneOff size={15} />
+              </button>
+            </ControlBar>
           </div>
         ) : null}
 
         {error ? <p className="av-error">{error}</p> : null}
 
         {/* The picker is the second authority on the face, and deliberately so:
-            a visitor whose microphone fails still gets to see all nine. */}
+            a visitor whose microphone fails still gets to see all nine. Before
+            the call it previews a drawing; during one it moves the voice too. */}
         <div className="av-picker">
           <div className="av-picker-head">
-            <span>Nine avatars ship. Pick one.</span>
+            <span>{live ? "Pick a face. The voice moves with it." : "Nine avatars ship."}</span>
             <span className="av-picker-kind">{ROSTER_BY_KEY[avatarKey]?.kind}</span>
           </div>
           <div className="av-strip" role="group" aria-label="Choose an avatar">

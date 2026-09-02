@@ -24,8 +24,10 @@ import { createAvatar as createSvgAvatar } from "@voqalize/avatar";
 import type { AvatarFactory, AvatarOptions, Face } from "@voqalize/avatar";
 
 /** The face the page paints before the call exists. Must equal
- *  `DEFAULT_AVATAR` in `backend/content.py`. */
-export const DEFAULT_AVATAR = "myna";
+ *  `DEFAULT_AVATAR` in `backend/content.py`, which explains why it is this one:
+ *  the opener is spoken in the voice the agent is provisioned with, so the
+ *  default face has to be the one that voice already fits. */
+export const DEFAULT_AVATAR = "arjun";
 
 export interface RosterEntry {
   /** The key the brain uses, and the one sent back when a visitor clicks. */
@@ -40,7 +42,10 @@ export interface RosterEntry {
 
 /** Wrap a drawing as an avatar module, which is the interface everything else
  *  here speaks. `face` is read at mount, so the closure is the whole binding. */
-function fromFace(load: () => Promise<{ default?: unknown } & Record<string, unknown>>, name: string) {
+function fromFace(
+  load: () => Promise<{ default?: unknown } & Record<string, unknown>>,
+  name: string,
+) {
   return async (): Promise<AvatarFactory<AvatarOptions>> => {
     const mod = await load();
     const face = mod[name] as Face;

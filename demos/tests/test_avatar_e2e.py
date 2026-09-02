@@ -34,9 +34,10 @@ discover()
 from voqalize_demos._loaded.avatar import brain as brain_module  # noqa: E402
 from voqalize_demos._loaded.avatar.brain import _GREETING, _SIGN_OFF  # noqa: E402
 
-# The default avatar is `myna`, and `myna` is female — so the call opens on the
-# female reference clip, and any switch to a male avatar has to move it.
-VOICE = "omnivoice/gauri"
+# The default avatar is `arjun`, and `arjun` is male — so the call opens on the
+# male reference clip, which is also the voice the agent is provisioned with, and
+# any switch to a female avatar has to move it.
+VOICE = "omnivoice/gaurav"
 LANGUAGE = "en"
 
 
@@ -85,8 +86,8 @@ def _llm() -> ScriptedGemini:
                 ),
             ],
             "Can I see a different face?": [
-                reply_and_call("Watch this.", "switch_avatar", request={"avatar": "vikram"}),
-                reply("That's Vikram — and the voice moved with the face."),
+                reply_and_call("Watch this.", "switch_avatar", request={"avatar": "meera"}),
+                reply("That's Meera — and the voice moved with the face."),
             ],
             "Why does the pipeline not know when you're working?": [
                 # The shape the prompt demands: a holding line out loud, THEN the
@@ -124,8 +125,8 @@ async def test_it_greets_with_a_wave_and_its_voice_reaches_the_wire() -> None:
     the bug would have been invisible: the greeting would still be heard. So the
     page says it is listening and the wave answers that, once.
 
-    The female English pair lands on both legs before the greeting audio,
-    because the call opens on ``myna``."""
+    The male English pair lands on both legs before the greeting audio,
+    because the call opens on ``arjun``."""
     async with demo("avatar", _llm()) as rig:
         greeting = await rig.driver.start_session()
         check_greeting(rig, greeting)
@@ -179,14 +180,14 @@ async def test_switching_the_avatar_moves_the_voice_with_it() -> None:
         check_turn(rig, turn, units=2)
 
         switch = rig.command("switch_avatar")
-        assert switch["key"] == "vikram"
-        assert switch["name"] == "Vikram"
-        assert switch["voice"] == "omnivoice/gaurav"
+        assert switch["key"] == "meera"
+        assert switch["name"] == "Meera"
+        assert switch["voice"] == "omnivoice/gauri"
 
         # And the same fact on the configure lane, which is what the ear hears.
         configs = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
         voices = [c.tts.voice for c in configs if c.tts and c.tts.voice]
-        assert voices == ["omnivoice/gauri", "omnivoice/gaurav"], voices
+        assert voices == ["omnivoice/gaurav", "omnivoice/gauri"], voices
         # Both language legs restated on the switch: `Config` refuses a
         # half-stated pair, and this is the check that the demo did not learn to
         # send one anyway by dropping the section.
@@ -240,21 +241,21 @@ async def test_a_click_on_the_strip_moves_the_voice_and_reaches_the_model() -> N
     voice (the recorded reference speaker is the runtime's, not the page's) and
     the model's knowledge that it is now wearing a different face. A click that
     redrew the avatar and left both behind is the demo's worst failure: the
-    visitor watches a man appear and hears a woman keep talking."""
+    visitor watches a woman appear and hears a man keep talking."""
     llm = _llm()
     async with demo("avatar", llm) as rig:
         await rig.driver.start_session()
 
-        await rig.driver.send_client_message("pick_avatar", {"key": "kabir"})
+        await rig.driver.send_client_message("pick_avatar", {"key": "naina"})
         await _settle()
 
         configs = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
         voices = [c.tts.voice for c in configs if c.tts and c.tts.voice]
-        assert voices[-1] == "omnivoice/gaurav", voices
+        assert voices[-1] == "omnivoice/gauri", voices
         # The page is told too, even though it swapped already: one code path
         # wears an avatar, whoever asked for it, and the confirmation carries the
         # voice the page never chose.
-        assert rig.command("switch_avatar")["key"] == "kabir"
+        assert rig.command("switch_avatar")["key"] == "naina"
 
         # And the model is told, without anything taking the floor — a click is
         # not a question, and answering one out loud talks over someone reading.
@@ -264,7 +265,7 @@ async def test_a_click_on_the_strip_moves_the_voice_and_reaches_the_model() -> N
     grounded = "".join(
         p.text or "" for c in llm.captured_contents[-1] for p in (c.parts or []) if c.role == "user"
     )
-    assert "kabir" in grounded.lower(), grounded
+    assert "naina" in grounded.lower(), grounded
 
 
 async def test_the_call_is_capped_and_ends_on_a_wave(monkeypatch: pytest.MonkeyPatch) -> None:
