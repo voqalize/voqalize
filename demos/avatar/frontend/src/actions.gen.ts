@@ -5,18 +5,18 @@
 // optional and no runtime validation is needed to narrow on `command`.
 
 /**
- * Put one architecture slide on screen. The brain sends the whole slide,
- * not just its id: the page renders what it is given, so a slide edited in
- * `content.py` ships without a matching page change.
+ * Scroll the documentation to one section and mark it current.
+ *
+ * Only the id and the heading travel, and that is the inversion from the
+ * earlier slide deck: the page *is* the documentation now, so it already holds
+ * every word. Sending prose over the wire would give a visitor two versions of
+ * the same paragraph and leave the page unreadable on its own — which is the
+ * one thing a page linked from a README cannot be.
  */
-export interface ShowSlide {
+export interface ShowSection {
   id: string;
 
   title: string;
-
-  subtitle: string;
-
-  beats: string[];
 }
 
 /**
@@ -51,7 +51,7 @@ export interface ShowEndCard {
 
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
-  | { command: 'show_slide'; payload: ShowSlide }
+  | { command: 'show_section'; payload: ShowSection }
   | { command: 'switch_avatar'; payload: SwitchAvatar }
   | { command: 'working_on'; payload: WorkingOn }
   | { command: 'show_end_card'; payload: ShowEndCard };
@@ -59,7 +59,7 @@ export type UiAction =
 export type UiActionCommand = UiAction['command'];
 
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
-  'show_slide',
+  'show_section',
   'switch_avatar',
   'working_on',
   'show_end_card',

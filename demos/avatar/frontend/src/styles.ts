@@ -5,179 +5,348 @@
  * the app is one screen, and a build that has to resolve a stylesheet is one more
  * thing between a reader and the twenty lines they came here to copy.
  *
- * Two constraints from the library shape what is here. The face is the subject,
- * so it gets the largest stable block on the page and nothing animates beside it
- * — an idle avatar is deliberately low-amplitude, and a page that pulses around
- * it destroys the effect it was tuned for. And the palette stays near-black with
- * one accent, because the avatars are separate drawings with their own colour and
- * a page that competes with them makes every face look wrong in a different way.
+ * The design, in one paragraph, because the rules below are easier to keep
+ * honest with it written down. **The page is paper and the face has its own
+ * field.** Nine avatars ship with their own colour, so a page that competes with
+ * them makes every face look wrong in a different way — the drawing therefore
+ * sits on a fixed ink tile, the size and shape it will really live at in a call,
+ * and everything around it is a light, cool paper carrying documentation. One
+ * accent, indigo, and it only ever marks what is live, current, or a link.
+ * Radius is differentiated by kind — 12px on the tile because it is a video
+ * tile, 3px on code, none anywhere else — so the page cannot collapse into a
+ * deck of identical cards. Nothing animates beside the avatar: an idle face is
+ * deliberately low-amplitude and a page that pulses around it destroys the
+ * effect it was tuned for. The one exception is the section rail, which moves
+ * when the conversation moves the page, and is answering the reader.
  */
 
 export const STYLES = `
-  :root { color-scheme: dark; }
+  :root {
+    --paper: #e8e9eb;
+    --ink: #15171c;
+    --graphite: #565c68;
+    --chalk: #f7f8fa;
+    --indigo: #2e2fc9;
+
+    --rule: #cfd2d6;
+    --field: #dee0e3;
+
+    --sans: "Archivo", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --head-h: 58px;
+    color-scheme: light;
+  }
+
   * { box-sizing: border-box; }
-  body { margin: 0; background: #08080a; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+  }
+  body { margin: 0; background: var(--paper); }
 
   .av-root {
     min-height: 100vh;
-    background: radial-gradient(120% 80% at 50% -10%, #17131f 0%, #08080a 60%);
-    color: #e7e5e4;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    display: flex;
-    flex-direction: column;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
+
+  .av-root a { color: var(--indigo); text-underline-offset: 2px; }
+  .av-root a:hover { text-decoration-thickness: 2px; }
+  :focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  .av-sr {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+
+  /* ── masthead ─────────────────────────────────────────────────────────── */
 
   .av-head {
-    display: flex; align-items: center; gap: 10px;
-    padding: 14px 22px; border-bottom: 1px solid #1c1a22;
+    position: sticky; top: 0; z-index: 20;
+    height: var(--head-h);
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 26px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
   }
-  .av-wordmark { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #d4d4d8; }
-  .av-badge {
-    font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
-    color: #a78bfa; border: 1px solid #3b2f5c; border-radius: 4px; padding: 1px 6px;
+  .av-wordmark {
+    font-family: var(--mono); font-size: 14px; font-weight: 500;
+    color: var(--ink); text-decoration: none; letter-spacing: -.01em;
   }
-  .av-headlink {
-    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-    font-size: 13px; color: #a1a1aa; text-decoration: none;
+  .av-root a.av-wordmark { color: var(--ink); }
+  .av-wordmark:hover { text-decoration: underline; }
+  .av-licence {
+    font-family: var(--mono); font-size: 11px; color: var(--graphite);
+    border: 1px solid var(--rule); padding: 1px 5px;
   }
-  .av-headlink:hover { color: #e7e5e4; }
+  .av-headnav { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .av-headnav a {
+    font-size: 13.5px; color: var(--graphite); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .av-headnav a:hover { color: var(--ink); }
 
-  /* ── the stage ───────────────────────────────────────────────────────── */
+  /* ── the three columns ────────────────────────────────────────────────── */
 
-  .av-stage {
-    flex: 1; width: 100%; max-width: 1080px; margin: 0 auto;
-    padding: 28px 22px 40px;
-    display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
-    gap: 34px; align-items: start;
-  }
-  @media (max-width: 900px) {
-    .av-stage { grid-template-columns: minmax(0, 1fr); gap: 22px; }
-    .av-column { max-width: 420px; margin: 0 auto; width: 100%; }
+  .av-main {
+    max-width: 1300px; margin: 0 auto;
+    column-gap: 0;
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) 26px minmax(0, 2fr);
+    gap: 0 34px 0 0;
+    padding: 0 26px 96px;
+    align-items: start;
   }
 
-  .av-column { display: flex; flex-direction: column; gap: 14px; }
+  .av-call {
+    position: sticky; top: calc(var(--head-h) + 26px);
+    padding: 26px 0 0;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  /* ── the tile: the one place with a dark field and a real radius ──────── */
 
   .av-tile {
-    position: relative; border-radius: 16px; overflow: hidden;
-    background: #100e16; border: 1px solid #241f30;
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--ink);
+    display: flex; align-items: stretch; justify-content: center;
   }
-  .av-face { display: block; width: 100%; aspect-ratio: 1 / 1; }
-  .av-face.is-loading { background: #100e16; }
-  .av-face canvas, .av-face svg { display: block; width: 100%; height: 100%; }
+  .av-face { width: 100%; height: 100%; display: block; }
+  .av-face.is-loading { background: var(--ink); }
 
-  .av-chip, .av-working {
-    position: absolute; left: 12px; bottom: 12px;
-    display: inline-flex; align-items: center; gap: 8px;
-    background: rgba(8,8,10,.72); backdrop-filter: blur(6px);
-    border: 1px solid #2a2436; border-radius: 999px;
-    padding: 5px 12px; font-size: 12px; color: #d4d4d8;
+  .av-captions {
+    position: absolute; inset: auto 0 0 0;
+    padding: 0 14px 14px;
+    display: flex; justify-content: center;
+    pointer-events: none;
   }
-  .av-chip-dot, .av-working-dot {
-    width: 7px; height: 7px; border-radius: 50%; background: #8b5cf6;
-  }
-  .av-chip.is-thinking .av-chip-dot { background: #22d3ee; }
-  .av-chip.is-listening .av-chip-dot { background: #4ade80; }
-  .av-chip-clock {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    color: #71717a; padding-left: 8px; border-left: 1px solid #2a2436;
-  }
-  .av-working { color: #c4b5fd; border-color: #3b2f5c; }
-  /* Slow, and under 1.5 Hz on purpose: the same ceiling the avatar's own idle
-     motion is held to, so the page does not read as more agitated than the face. */
-  .av-working-dot { animation: av-pulse 1.4s ease-in-out infinite; }
-  @keyframes av-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  .av-captions .vkui-root { width: 100%; display: flex; justify-content: center; }
 
-  .av-controls { display: flex; align-items: center; gap: 10px; }
-  .av-mic, .av-hangup {
+  .av-invite { display: flex; flex-direction: column; gap: 9px; }
+  .av-invite p { margin: 0; font-size: 13px; color: var(--graphite); max-width: 44ch; }
+
+  .av-start {
+    align-self: flex-start;
+    font-family: var(--sans); font-size: 14.5px; font-weight: 600;
+    color: var(--chalk); background: var(--indigo);
+    border: 0; border-radius: 6px; padding: 10px 20px; cursor: pointer;
+  }
+  .av-start:hover { background: #2426ad; }
+  .av-start:disabled { opacity: .6; cursor: default; }
+
+  /* ── status line under the tile ───────────────────────────────────────── */
+
+  .av-status {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 13px; color: var(--graphite);
+    min-height: 30px;
+  }
+  .av-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--graphite); flex: none; }
+  .av-status.is-listening .av-dot,
+  .av-status.is-speaking .av-dot { background: var(--indigo); }
+  .av-status.is-working .av-dot { background: var(--indigo); animation: av-pulse 1.4s ease-in-out infinite; }
+  @keyframes av-pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+  .av-status-label { color: var(--ink); font-weight: 500; }
+  .av-clock { margin-left: auto; font-family: var(--mono); font-size: 12px; }
+
+  .av-ctl { display: flex; gap: 8px; margin-left: 4px; }
+  .av-ctl button {
     display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 999px; cursor: pointer; border: 1px solid #2a2436;
-    background: #14111c; color: #e7e5e4;
+    width: 28px; height: 28px; padding: 0;
+    background: transparent; color: var(--graphite);
+    border: 1px solid var(--rule); border-radius: 5px; cursor: pointer;
   }
-  .av-mic { width: 40px; height: 40px; }
-  .av-mic.is-muted { background: #3f1d2b; border-color: #7f1d3a; color: #fda4af; }
-  .av-hangup { width: 40px; height: 40px; background: #3f1d1d; border-color: #7f1d1d; color: #fca5a5; }
-  .av-mic:hover, .av-hangup:hover { filter: brightness(1.25); }
+  .av-ctl button:hover { color: var(--ink); border-color: var(--graphite); }
+  .av-ctl button.is-muted { color: #b0382a; border-color: #d9a49c; }
 
+  /* ── the avatar picker ────────────────────────────────────────────────── */
+
+  .av-picker { display: flex; flex-direction: column; gap: 8px; }
+  .av-picker-head {
+    font-size: 12px; color: var(--graphite);
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-top: 1px solid var(--rule); padding-top: 12px;
+  }
+  .av-picker-kind { font-family: var(--mono); font-size: 11px; }
   .av-strip { display: flex; flex-wrap: wrap; gap: 6px; }
   .av-pick {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
-    padding: 6px 10px; border-radius: 9px; cursor: pointer;
-    background: #100e16; border: 1px solid #241f30; color: #a1a1aa;
-    font: inherit; text-align: left;
+    font-family: var(--sans); font-size: 13px; color: var(--graphite);
+    background: transparent; border: 1px solid var(--rule); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer;
   }
-  .av-pick:hover { border-color: #3b2f5c; color: #e7e5e4; }
-  .av-pick.is-on { background: #1c1630; border-color: #7c3aed; color: #ede9fe; }
-  .av-pick-name { font-size: 12px; font-weight: 600; }
-  .av-pick-kind { font-size: 10px; opacity: .6; }
+  .av-pick:hover { color: var(--ink); border-color: var(--graphite); }
+  .av-pick.is-on { color: var(--chalk); background: var(--ink); border-color: var(--ink); }
 
-  /* ── the panel ───────────────────────────────────────────────────────── */
+  /* ── the openers ──────────────────────────────────────────────────────── */
 
-  .av-panel {
-    background: #0d0c11; border: 1px solid #1f1b28; border-radius: 16px;
-    padding: 26px 28px; animation: av-rise .28s ease-out;
-  }
-  @keyframes av-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .av-panel-kicker {
-    margin: 0 0 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: #a78bfa;
-  }
-  .av-panel h2 { margin: 0 0 16px; font-size: 25px; line-height: 1.2; font-weight: 650; letter-spacing: -.01em; }
-  .av-panel-lede { margin: 0 0 18px; color: #a1a1aa; font-size: 14px; line-height: 1.6; max-width: 46ch; }
-  .av-panel-foot { margin: 18px 0 0; color: #71717a; font-size: 13px; }
+  .av-openers { border-top: 1px solid var(--rule); padding-top: 12px; }
+  .av-openers p { margin: 0 0 8px; font-size: 12px; color: var(--graphite); }
+  .av-openers ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  .av-openers li { font-size: 13.5px; color: var(--ink); }
 
-  .av-beats { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-  .av-beats li {
-    position: relative; padding-left: 20px; font-size: 15px; line-height: 1.5; color: #d4d4d8;
-  }
-  .av-beats li::before {
-    content: ""; position: absolute; left: 0; top: 9px;
-    width: 6px; height: 6px; border-radius: 50%; background: #7c3aed;
-  }
-
-  .av-openers { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-  .av-openers li {
-    font-size: 14px; color: #c4b5fd; background: #14111c;
-    border: 1px solid #241f30; border-radius: 9px; padding: 8px 12px; width: fit-content;
-  }
-
-  /* ── overlays ────────────────────────────────────────────────────────── */
-
-  .av-connecting {
-    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
-    display: inline-flex; align-items: center; gap: 8px;
-    color: #a1a1aa; font-size: 13px;
-  }
-  .av-spin { animation: av-rotate 1s linear infinite; }
-  @keyframes av-rotate { to { transform: rotate(360deg); } }
-
-  .av-error { color: #fca5a5; font-size: 13px; text-align: center; padding: 10px; }
-  .av-error-block { margin: 60px auto; max-width: 460px; border: 1px solid #7f1d1d; border-radius: 12px; }
+  /* ── the end card, in place of the tile ───────────────────────────────── */
 
   .av-end {
-    position: fixed; inset: 0; z-index: 900;
-    background: rgba(8,8,10,.86); backdrop-filter: blur(8px);
-    display: grid; place-items: center; padding: 22px;
+    position: absolute; inset: 0; z-index: 3;
+    background: var(--ink); color: var(--chalk);
+    padding: 26px; display: flex; flex-direction: column; justify-content: center; gap: 12px;
   }
-  .av-end-card {
-    max-width: 460px; background: #0d0c11; border: 1px solid #2a2436;
-    border-radius: 16px; padding: 30px;
-  }
-  .av-end-card h2 { margin: 0 0 12px; font-size: 22px; font-weight: 650; }
-  .av-end-card p { margin: 0 0 18px; color: #a1a1aa; font-size: 14px; line-height: 1.6; }
-  .av-end-links { display: grid; gap: 10px; margin-bottom: 20px; }
-  .av-end-links a { color: #c4b5fd; font-size: 14px; text-decoration: none; }
-  .av-end-links a:hover { text-decoration: underline; }
-  .av-cta {
-    display: inline-flex; align-items: center; gap: 8px; justify-content: center;
-    background: #7c3aed; color: #fff !important; font-weight: 600;
-    border-radius: 10px; padding: 11px 16px;
-  }
-  .av-cta:hover { background: #6d28d9; text-decoration: none !important; }
-  .av-end-foot { font-size: 13px; color: #71717a; margin: 0 0 18px !important; }
-  .av-end-foot a { color: #a1a1aa; }
+  .av-end h2 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.015em; }
+  .av-end p { margin: 0; font-size: 13.5px; color: #a7adb9; }
+  .av-end a { color: #a9aaf5; }
   .av-again {
-    width: 100%; background: transparent; border: 1px solid #2a2436; color: #a1a1aa;
-    border-radius: 10px; padding: 9px; cursor: pointer; font: inherit; font-size: 13px;
+    align-self: flex-start; margin-top: 6px;
+    font-family: var(--sans); font-size: 13.5px; font-weight: 600;
+    color: var(--ink); background: var(--chalk);
+    border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer;
   }
-  .av-again:hover { color: #e7e5e4; border-color: #3b2f5c; }
+
+  .av-error {
+    font-size: 13px; color: #8f2d20;
+    border-left: 2px solid #b0382a; padding-left: 10px;
+  }
+
+  /* ── the section rail ─────────────────────────────────────────────────── */
+  /*
+     A dope sheet, which is the drawing this library is made of: one tick per
+     section, top to bottom, the current one filled. It moves when the avatar
+     moves the page, which is the only motion on the page that is not the face.
+  */
+
+  .av-rail {
+    position: sticky; top: calc(var(--head-h) + 26px);
+    padding: 30px 0 0;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .av-rail-track { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .av-tick {
+    position: relative;
+    width: 26px; height: 26px; padding: 0;
+    background: transparent; border: 0; cursor: pointer;
+  }
+  .av-tick::before {
+    content: ""; position: absolute; left: 50%; top: 6px; bottom: 6px;
+    width: 2px; margin-left: -1px; background: var(--rule);
+    transition: background-color .25s ease, transform .25s ease;
+  }
+  .av-tick:hover::before { background: var(--graphite); }
+  .av-tick.is-on::before { background: var(--indigo); transform: scaleX(2.5); }
+  .av-tick-label {
+    position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%);
+    font-size: 11.5px; white-space: nowrap; color: var(--ink);
+    background: var(--paper); padding: 2px 6px; border: 1px solid var(--rule);
+    opacity: 0; pointer-events: none; transition: opacity .15s ease;
+  }
+  .av-tick:hover .av-tick-label, .av-tick:focus-visible .av-tick-label { opacity: 1; }
+
+  /* ── the documentation ────────────────────────────────────────────────── */
+
+  .av-docs { padding: 30px 0 0; max-width: 68ch; }
+
+  .doc-section { scroll-margin-top: calc(var(--head-h) + 22px); padding: 0 0 40px; }
+  .doc-section + .doc-section { border-top: 1px solid var(--rule); padding-top: 34px; }
+
+  .doc-section h2 {
+    margin: 0 0 14px; font-size: 26px; line-height: 1.2; font-weight: 600;
+    letter-spacing: -.02em; color: var(--ink);
+  }
+  .doc-section.is-current h2 { position: relative; }
+  .doc-section.is-current h2::before {
+    content: ""; position: absolute; left: -18px; top: 4px; bottom: 4px;
+    width: 3px; background: var(--indigo);
+  }
+  .doc-section h3 {
+    margin: 26px 0 10px; font-size: 15.5px; font-weight: 600; color: var(--ink);
+  }
+  .doc-section p { margin: 0 0 14px; }
+  .doc-lede { font-size: 17px; line-height: 1.5; color: var(--ink); }
+  .doc-req { font-size: 13.5px; color: var(--graphite); }
+  .doc-section code {
+    font-family: var(--mono); font-size: .88em;
+    background: var(--field); padding: 1px 4px; border-radius: 3px;
+  }
+
+  .doc-code { margin: 0 0 16px; }
+  .doc-code figcaption {
+    font-family: var(--mono); font-size: 11px; color: var(--graphite);
+    padding-bottom: 5px;
+  }
+  .doc-code pre {
+    margin: 0; padding: 14px 16px; overflow-x: auto;
+    background: var(--ink); border-radius: 3px;
+  }
+  .doc-code code {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+    color: var(--chalk); background: none; padding: 0;
+    white-space: pre;
+  }
+
+  .doc-grid { width: 100%; border-collapse: collapse; margin: 0 0 18px; font-size: 14px; }
+  .doc-grid thead th {
+    text-align: left; font-size: 12px; font-weight: 500; color: var(--graphite);
+    padding: 0 12px 6px 0; border-bottom: 1px solid var(--rule);
+  }
+  .doc-grid tbody th {
+    text-align: left; font-family: var(--mono); font-size: 12.5px; font-weight: 400;
+    color: var(--ink); vertical-align: top; white-space: pre-line;
+    padding: 11px 14px 11px 0; width: 30%;
+    border-bottom: 1px solid var(--rule);
+  }
+  .doc-grid td {
+    vertical-align: top; padding: 11px 0; color: var(--graphite);
+    border-bottom: 1px solid var(--rule);
+  }
+  .doc-grid td code, .doc-grid tbody th code { background: none; padding: 0; }
+
+  .doc-note {
+    border-left: 2px solid var(--indigo); padding: 2px 0 2px 14px;
+    font-size: 14px; color: var(--graphite);
+  }
+
+  .doc-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 0 12px; margin-bottom: 26px; }
+  .doc-step-n {
+    font-family: var(--mono); font-size: 13px; color: var(--graphite);
+    padding-top: 1px;
+  }
+  .doc-step-body > h3:first-child { margin-top: 0; }
+
+  .doc-limits { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 16px; }
+  .doc-limits li { padding-left: 14px; border-left: 1px solid var(--rule); color: var(--graphite); }
+  .doc-limits strong { color: var(--ink); font-weight: 600; }
+
+  /* ── the close ────────────────────────────────────────────────────────── */
+
+  .av-outro { border-top: 1px solid var(--rule); padding-top: 26px; max-width: 68ch; }
+  .av-outro h2 { margin: 0 0 10px; font-size: 20px; font-weight: 600; letter-spacing: -.015em; }
+  .av-outro p { margin: 0 0 14px; color: var(--graphite); }
+  .av-outro-links { display: flex; flex-wrap: wrap; gap: 18px; font-size: 14px; }
+
+  /* ── narrow ───────────────────────────────────────────────────────────── */
+
+  /* The rail is the first thing to go: it is an index, and an index is a
+     luxury before the reading column is safe. The two columns survive well
+     below the desktop width because the prose is capped at 68ch either way. */
+  @media (max-width: 1000px) {
+    .av-main {
+      grid-template-columns: minmax(230px, 1fr) minmax(0, 1.9fr);
+      gap: 0 26px; padding: 26px 22px 64px;
+    }
+    .av-rail { display: none; }
+    .doc-code code { font-size: 11.5px; }
+    .doc-section.is-current h2::before { left: -12px; }
+  }
+
+  @media (max-width: 760px) {
+    .av-main { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .av-call { position: static; max-width: 440px; }
+    .av-docs { padding-top: 34px; }
+  }
 `;

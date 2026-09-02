@@ -1,9 +1,9 @@
 """AvatarBrain — the demo that explains the avatar by being one.
 
 A ``GeminiBrain`` whose whole subject is the face it is wearing. The visitor
-asks how the talking head works; the brain brings up a slide, answers against
-it, and — because the same wire it is describing is open the whole time —
-demonstrates the thing it just said. It waves as the greeting starts, before it
+asks how the talking head works; the brain scrolls the page to that section of
+the documentation, answers against it, and — because the same wire it is
+describing is open the whole time — demonstrates the thing it just said. It waves as the greeting starts, before it
 has been asked for anything. It holds a working claim while it digs something
 up. It swaps to a different avatar mid-sentence and takes the matching voice
 with it.
@@ -21,8 +21,8 @@ Three mechanics are worth reading before the code:
   processor in the voice tier's pipeline infers ``THINKING`` for itself — it
   watches the turn boundaries and knows a reply is owed. It cannot see a tool
   running inside a brain on the far side of a socket, so ``WORKING`` has to come
-  from here. That asymmetry is a slide (``silence``) *and* a behaviour, and the
-  two are the same fact. ``demonstrate`` also sends ``THINKING`` and
+  from here. That asymmetry is a documentation section (``states``) *and* a
+  behaviour, and the two are the same fact. ``demonstrate`` also sends ``THINKING`` and
   ``STRAINING`` on request, which does race the pipeline's own claim — the last
   one wins. Every other brain should leave claims alone; this one's job is to
   show you the mechanism, which is the one reason to touch them.
@@ -33,8 +33,8 @@ Three mechanics are worth reading before the code:
   a place to keep a limit. It ends the way the demo started — a wave and a line.
 
 The LLM's ``genai.Client`` is dependency-injected; the brain owns the prompt,
-the tools, and this session's avatar and clock. The slides and the roster live
-in ``content.py``.
+the tools, and this session's avatar and clock. The section index and the
+roster live in ``content.py``; the documentation itself is on the page.
 """
 
 from __future__ import annotations
@@ -68,11 +68,11 @@ from .content import (
     AVATARS_BY_KEY,
     BACKGROUND,
     DEFAULT_AVATAR,
-    SLIDES_BY_ID,
+    SECTIONS_BY_ID,
     AvatarKey,
-    SlideId,
+    SectionId,
     avatars_for_prompt,
-    slides_for_prompt,
+    sections_for_prompt,
 )
 
 # ─── The clock ────────────────────────────────────────────────────────────────
@@ -140,15 +140,17 @@ _DEEP_DIVE_S = 2.4
 # ─── Actions (what the page renders) ──────────────────────────────────────────
 
 
-class ShowSlide(Action):
-    """Put one architecture slide on screen. The brain sends the whole slide,
-    not just its id: the page renders what it is given, so a slide edited in
-    ``content.py`` ships without a matching page change."""
+class ShowSection(Action):
+    """Scroll the documentation to one section and mark it current.
+
+    Only the id and the heading travel, and that is the inversion from the
+    earlier slide deck: the page *is* the documentation now, so it already holds
+    every word. Sending prose over the wire would give a visitor two versions of
+    the same paragraph and leave the page unreadable on its own — which is the
+    one thing a page linked from a README cannot be."""
 
     id: str
     title: str
-    subtitle: str
-    beats: list[str]
 
 
 class SwitchAvatar(Action):
@@ -177,14 +179,14 @@ class ShowEndCard(Action):
 
 # ─── Tool parameters ──────────────────────────────────────────────────────────
 #
-# Separate from the actions above, deliberately. The model chooses a slide id or
-# an avatar key; everything else on the wire — the slide's own beats, the
-# avatar's voice — is looked up here, so the model cannot put a title on screen
-# that the library does not have.
+# Separate from the actions above, deliberately. The model chooses a section id
+# or an avatar key; everything else on the wire — the section's heading, the
+# avatar's voice — is looked up here, so the model cannot scroll the reader to a
+# heading the page does not have.
 
 
-class SlideRequest(BaseModel):
-    slide: SlideId = Field(description="Which slide to bring up.")
+class SectionRequest(BaseModel):
+    section: SectionId = Field(description="Which documentation section to open.")
 
 
 class AvatarRequest(BaseModel):
@@ -203,7 +205,7 @@ class DeepDiveRequest(BaseModel):
     topic: str = Field(
         description="What you are looking up, in three or four words, shown on screen."
     )
-    slide: SlideId = Field(description="The slide whose material you need.")
+    section: SectionId = Field(description="The section whose material you need.")
 
 
 async def _silence() -> AsyncGenerator[Any, None]:
@@ -219,15 +221,15 @@ WHAT YOU ARE. You are a drawing in their browser, driven over the data channel o
 
 {BACKGROUND}
 
-THE SLIDES — call show_slide and the picture goes up on their screen; the tool hands you back the material to answer from:
-{slides_for_prompt()}
+WHAT IS ON THEIR SCREEN. The right two-thirds of the page is the library's documentation — headings, code, the wire reference — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back the material to answer with:
+{sections_for_prompt()}
 
 THE AVATARS — call switch_avatar and you become that one. The voice changes with the face; say so when it happens, because that is the interesting part:
 {avatars_for_prompt()}
 
 HOW TO RUN THIS CALL:
 
-1. ANSWER WITH THE PICTURE UP. For any question about how the thing works — the protocol, the lipsync, the states, the rendering — call show_slide FIRST, then answer against it. One slide per question. Do not narrate the slide's bullets; they are already on screen. Say the thing the bullets were compressed out of.
+1. ANSWER WITH THE SECTION OPEN. For any question about how the thing works — installing it, the protocol, the lipsync, the states, the faces, the limits — call show_section FIRST, then answer against it. One section per question. NEVER read the page out loud; they can see it. Say the thing the page compressed out, or the reason behind what it says.
 
 2. DEMONSTRATE, DO NOT DESCRIBE. When you have just explained a behaviour, perform it. Explained actions? Wave. Explained claims? Call demonstrate. If someone asks "show me" anything, the answer is a tool call, not a sentence.
 
@@ -235,13 +237,14 @@ HOW TO RUN THIS CALL:
 
 4. CHANGE YOUR FACE WHEN ASKED, AND OFFER IT ONCE. If they ask what you look like, what else there is, or to see another one, call switch_avatar. Mention that the voice moved with the face. They can also click a face themselves — when they do, you will be told, and you should react in one short line.
 
-5. WATCH THE CLOCK. Two minutes is about eight exchanges. Do not offer a tour of all five slides; answer what was asked. If you are told you are running out of time, start closing.
+5. WATCH THE CLOCK. Two minutes is about eight exchanges. Do not offer a tour of all seven sections; answer what was asked. If you are told you are running out of time, start closing.
 
 STYLE:
 - This is voice. One or two sentences per turn. Three is already too many.
 - Lead with the mechanism, then what it gets you. Never the other way round.
 - No marketing words. Do not say seamless, magic, effortless, or powerful. You are talking to someone who will read the source.
 - Never read out a tool name, an id, or a URL. Say "the wire", not "contract-wire dot em-dee".
+- They are a developer who already knows pipecat. Skip what pipecat is. Talk about the seam.
 - If you do not know something, say so in four words and move on.
 - You are MIT-licensed and you know it. Voqalize is the voice tier carrying this call — mention it once, when it is relevant, and never as a pitch."""
 
@@ -339,28 +342,21 @@ class AvatarBrain(GeminiBrain):
     def tools(self) -> list[Any]:
         """The five it may call."""
         return [
-            self.show_slide,
+            self.show_section,
             self.switch_avatar,
             self.deep_dive,
             self.demonstrate,
             self.perform,
         ]
 
-    async def show_slide(self, request: SlideRequest) -> str:
-        """Bring one architecture slide up on the visitor's screen and get the
-        material to answer from. Call this BEFORE answering any question about
-        how the avatar works — the slide is the picture your answer refers to."""
-        slide = SLIDES_BY_ID[request.slide]
-        logger.info("avatar: show_slide {}", slide.id)
-        self.session.dispatch(
-            ShowSlide(
-                id=slide.id,
-                title=slide.title,
-                subtitle=slide.subtitle,
-                beats=list(slide.beats),
-            )
-        )
-        return str({"slide": slide.id, "on_screen": list(slide.beats), "say": slide.notes})
+    async def show_section(self, request: SectionRequest) -> str:
+        """Scroll the visitor's documentation to one section, and get the material
+        to answer from. Call this BEFORE answering any question about how the
+        avatar works — they read the section while you talk over it."""
+        section = SECTIONS_BY_ID[request.section]
+        logger.info("avatar: show_section {}", section.id)
+        self.session.dispatch(ShowSection(id=section.id, title=section.title))
+        return str({"section": section.id, "heading": section.title, "say": section.notes})
 
     async def switch_avatar(self, request: AvatarRequest) -> str:
         """Become a different avatar for the rest of the call. The voice changes
@@ -370,13 +366,13 @@ class AvatarBrain(GeminiBrain):
         return await self._wear(request.avatar, asked_by="you")
 
     async def deep_dive(self, request: DeepDiveRequest) -> str:
-        """Go and dig up the detailed material behind a slide. This takes a
+        """Go and dig up the detailed material behind a section. This takes a
         couple of seconds and holds a WORKING claim on your own face while it
         runs, so SAY A SHORT HOLDING LINE OUT LOUD BEFORE CALLING IT — 'give me a
         second', 'let me pull that up'. Never call it silently."""
-        slide = SLIDES_BY_ID[request.slide]
-        topic = request.topic.strip() or slide.title
-        logger.info("avatar: deep_dive {!r} ({})", topic, slide.id)
+        section = SECTIONS_BY_ID[request.section]
+        topic = request.topic.strip() or section.title
+        logger.info("avatar: deep_dive {!r} ({})", topic, section.id)
         # The claim and the on-screen strip go out together, then the seconds
         # actually pass. This is the one place in the demo where the visitor is
         # asked to wait, and they were told it was coming.
@@ -386,15 +382,8 @@ class AvatarBrain(GeminiBrain):
             await asyncio.sleep(_DEEP_DIVE_S)
         finally:
             self._claim(None)
-        self.session.dispatch(
-            ShowSlide(
-                id=slide.id,
-                title=slide.title,
-                subtitle=slide.subtitle,
-                beats=list(slide.beats),
-            )
-        )
-        return str({"topic": topic, "say": slide.notes})
+        self.session.dispatch(ShowSection(id=section.id, title=section.title))
+        return str({"topic": topic, "say": section.notes})
 
     async def demonstrate(self, request: ClaimRequest) -> str:
         """Hold one durable state on your face for a few seconds so the visitor
@@ -511,7 +500,7 @@ class AvatarBrain(GeminiBrain):
         take the floor: a page control must never put a voice over someone still
         reading. So the reaction waits here, for the one stimulus that means the
         floor is genuinely free. Every other idle tick is silence, because a
-        visitor reading a slide is not a visitor to be prompted."""
+        visitor reading the documentation is not a visitor to be prompted."""
         if self._out_of_time():
             return self._sign_off(session)
         if not self._owed_a_reply:

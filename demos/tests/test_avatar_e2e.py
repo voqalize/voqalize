@@ -1,7 +1,7 @@
 """The avatar demo, end to end over the wire — no network, no LLM key.
 
 The real ``AvatarBrain`` — the shipping ``demos/avatar/backend/brain.py``, its
-real prompt, its real five tools, its real slides — hosted on a real
+real prompt, its real five tools, its real section index — hosted on a real
 ``brain_server`` socket and driven by the conformance ``VoqalizeDriver``, with
 only the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e
 proves.
@@ -77,7 +77,9 @@ def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
             "How does the lipsync stay in step?": [
-                reply_and_call("Here's the timeline.", "show_slide", request={"slide": "lipsync"}),
+                reply_and_call(
+                    "Here's the timeline.", "show_section", request={"section": "lipsync"}
+                ),
                 reply(
                     "Two legs write one track — a fast one from the text, an accurate one behind it."
                 ),
@@ -92,7 +94,7 @@ def _llm() -> ScriptedGemini:
                 reply_and_call(
                     "Give me a second, let me pull that up.",
                     "deep_dive",
-                    request={"topic": "who can see what", "slide": "silence"},
+                    request={"topic": "who can see what", "section": "states"},
                 ),
                 reply(
                     "The pipeline watches turns; it can't see inside a brain on the far side of a socket."
@@ -142,23 +144,25 @@ async def test_it_greets_with_a_wave_and_its_voice_reaches_the_wire() -> None:
         assert _actions(rig) == ["GESTURE_GREET"], _avatar_messages(rig)
 
 
-async def test_a_question_brings_up_the_slide_it_is_answered_against() -> None:
-    """The picture goes up first, and the page is sent the whole slide.
+async def test_a_question_scrolls_the_page_to_the_section_it_is_answered_from() -> None:
+    """The documentation moves first, and only an id and a heading travel.
 
-    The model chooses an id; the title and the beats are looked up in
-    ``content.py`` — so a slide edited there reaches the screen without a
-    matching page change, and the model cannot put a heading on screen that the
-    library does not have."""
+    The page holds the prose — it is the link target from the library's README
+    and has to read on its own — so the wire carries the section the answer is
+    coming from and nothing else. The model chooses an id; the heading is looked
+    up in ``content.py``, so it cannot scroll the reader to a heading the page
+    does not have."""
     async with demo("avatar", _llm()) as rig:
         await rig.driver.start_session()
         turn = await rig.driver.user_says("How does the lipsync stay in step?")
         check_turn(rig, turn, units=2)
 
-        assert rig.actions() == ["show_slide"], rig.actions()
-        slide = rig.command("show_slide")
-        assert slide["id"] == "lipsync"
-        assert slide["title"] == "The mouth is a timeline, not a command"
-        assert "from_ms says where to cut and repatch" in slide["beats"]
+        assert rig.actions() == ["show_section"], rig.actions()
+        section = rig.command("show_section")
+        assert section["id"] == "lipsync"
+        assert section["title"] == "How the mouth stays in sync"
+        # The prose stays on the page: nothing but the id and the heading travels.
+        assert set(section) == {"id", "title"}, section
 
 
 async def test_switching_the_avatar_moves_the_voice_with_it() -> None:
@@ -206,8 +210,9 @@ async def test_the_deliberate_dig_claims_working_out_loud_and_clears_it() -> Non
         assert turn.units[0].text.startswith("Give me a second")
         assert _claims(rig) == ["WORKING", None], _avatar_messages(rig)
         assert rig.command("working_on")["topic"] == "who can see what"
-        # The dig ends with the slide it dug through, so the answer has a picture.
-        assert rig.command("show_slide")["id"] == "silence"
+        # The dig ends on the section it dug through, so the answer has the
+        # documentation for it open in front of the visitor.
+        assert rig.command("show_section")["id"] == "states"
 
 
 async def test_claims_and_actions_are_two_different_things_on_the_wire() -> None:
