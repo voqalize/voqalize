@@ -20,14 +20,12 @@ correctly for chat. A voice call breaks it in exactly two places:
 Everything else your framework does stays. Do not replace its history; correct
 it, at one point, deterministically.
 
-**What ships today, and what does not.** Everything below works when your
-framework mints the ids — you are keying corrections to an ADK `Event.id` or a
-Responses `msg_…`, and those are yours to read. The SDK's own `speech_id` is
-minted inside `Brain._drive` and is first readable on the `Finalize`, so a brain
-that brackets speech itself cannot yet name a unit at the moment it opens one;
-[Transcripts](/build/brain/transcripts/) has the ordering rule that works in
-`0.2.0` in the meantime. Returning the id at `SpeechStart` is the change that
-closes that gap and it has not shipped as of 2026-09-01.
+**Two ids, and you choose which to key on.** Your framework mints its own — an
+ADK `Event.id`, a Responses `msg_…` — and Voqalize's speech unit has one too:
+take it from `session.next_speech_id()` and name the unit with
+`SpeechStart(id=...)`, and it arrives back on that unit's `Finalize`. Key
+corrections on whichever of the two your fold looks things up by, and hold the
+other beside it.
 
 ## The shape
 

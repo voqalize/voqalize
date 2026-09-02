@@ -31,9 +31,9 @@ was cut off, and empty against a unit that sent text means nothing reached the
 ear. Voqalize used to send the verdict alongside the evidence and no longer does
 — a second copy of a derivable fact is one more thing that can disagree.
 
-`speech_id` correlates and does nothing else. The SDK mints it when the unit
-opens, inside your generator, so this callback is the first place your own code
-sees the number — which is why the pairing below is by order rather than by id.
+`speech_id` correlates and does nothing else. Take one from
+`session.next_speech_id()`, name the unit with it, and it comes back here on that
+unit's finalize — which is how the pairing below works.
 
 The callback fires **after playout**, which is long after the generator that
 produced the unit returned. The turn is over when the generator returns; it does
@@ -46,13 +46,15 @@ Four guarantees a brain can be written against:
   `SpeechStart`, not at the first `Chunk`, so a unit you opened and closed with
   no text in it is reported too — as `heard=""` against `generated=""`, which
   reads as complete, because nothing was cut.
-- **They arrive in the order the units opened**, oldest first.
+- **They arrive in the order the units opened**, oldest first. Pair by id
+  anyway: order is a property of today's runtime, and an id is a property of the
+  unit.
 - **A unit the caller never heard is still reported**, as `heard=""` against the
   text you generated. Generated ahead of playout and beaten to the speaker.
-- **A finalize with nothing of yours waiting is the greeting.** `greet` returns a
-  string the SDK speaks for you, so this callback is the only record of it that
-  exists. Skip it and your model does not know it greeted, and opens a second
-  time.
+- **A finalize naming an id you never opened is speech you did not generate.**
+  `greet` returns a string the SDK speaks for you, so this callback is the only
+  record of it that exists — skip it and your model does not know it greeted, and
+  opens a second time. A line you yielded yourself arrives the same way.
 
 ## Pair a finalize with the unit that produced it
 
@@ -62,23 +64,20 @@ to the n-th bracket you opened.
 
 The other half is to **open no bracket you have nothing to say in**. A hop that
 only calls a tool is what the model did, not something it said; open a unit for
-it and you have bought a finalize you must account for, and the moment you
-forget to, the reply's heard text lands on the tool call and every finalize
-after it is off by one for the rest of the session. So the `SpeechStart` below
-is lazy — it waits for the first non-empty piece — and enrolment rides along
-with it.
+it and you have bought a finalize you must account for. So the `SpeechStart`
+below is lazy — it waits for the first non-empty piece — and the unit is enrolled
+on the adjacent line, so the record and the wire cannot disagree about which unit
+is which.
 
 ```python
-from collections import deque
-
 from voqalize.sdk import Brain, Chunk, Finalize, Session, SpeechEnd, SpeechStart, UserMessage
 
 
 class Concierge(Brain):
     def __init__(self) -> None:
         self.history: list[dict[str, str]] = []
-        # Brackets opened, oldest first. One finalize is coming for each.
-        self._awaiting: deque[dict[str, str]] = deque()
+        # Units awaiting their heard truth, by the id they were opened under.
+        self._awaiting: dict[int, dict[str, str]] = {}
 
     async def on_user_message(self, session: Session, msg: UserMessage):
         self.history.append({"role": "user", "text": msg.text})
@@ -90,30 +89,38 @@ class Concierge(Brain):
             if unit is None:
                 unit = {"role": "assistant", "text": ""}
                 self.history.append(unit)
-                self._awaiting.append(unit)
-                yield SpeechStart()
+                speech_id = session.next_speech_id()
+                self._awaiting[speech_id] = unit
+                yield SpeechStart(id=speech_id)
             unit["text"] += piece
             yield Chunk(piece)
         if unit is not None:
             yield SpeechEnd()
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
-        if not self._awaiting:
+        unit = self._awaiting.pop(fin.speech_id, None)
+        if unit is None:                        # speech you did not generate here
             if fin.heard:                       # the greeting, already heard-truth
                 self.history.append({"role": "assistant", "text": fin.heard})
             return
-        unit = self._awaiting.popleft()
         if fin.heard:
             unit["text"] = fin.heard
         else:                                   # nobody heard it, so it is not a turn
             self.history = [c for c in self.history if c is not unit]
 ```
 
+**Match by id, not by position.** A queue popped oldest-first reads an unmatched
+finalize as "this must be the greeting", and that is only true while nothing else
+speaks. Yield a line of your own — a filler while a tool runs — and its finalize
+pops the model's unit instead, rewriting a sentence the model generated and
+leaving its reasoning signature attached to text it never produced. Keyed, an id
+you never opened matches nothing, and the model's turn is untouched.
+
 Both shipped adapters are built this way, and the contract suite asserts it
 against every brain we ship — including the tool-only hop that must leave the
-queue untouched. The conformance driver answers silent brackets too, so a brain
-that opens one and forgets to enrol it fails there rather than in a call — see
-[testing a brain](/build/testing/).
+record untouched, and a finalize arriving out of order. The conformance driver
+answers silent brackets too, so a brain that opens one and forgets to enrol it
+fails there rather than in a call — see [testing a brain](/build/testing/).
 
 **Keep the callback short.** Frames are dispatched one at a time, so a database
 round-trip in `on_finalize` delays the callbacks queued behind it, including the

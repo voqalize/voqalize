@@ -15,6 +15,53 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.3.0
+
+**A brain can name the unit it opens.** `session.next_speech_id()` hands out the
+id a unit will run under; name the unit with it and the same value arrives on
+that unit's `Finalize`. That is how a brain recognises its own work after the
+fact — a filler line it wants kept out of its model's context, or the history
+entry a correction belongs to. Until now the id was minted privately and first
+readable on the `Finalize`, so the only way to pair the two was to count them.
+
+The wire is unchanged. Ids are still session-monotone integers, still opaque to
+Voqalize, and a packet capture of a brain that names nothing is identical to
+`0.2.0`.
+
+### Added
+
+- **`Session.next_speech_id()`** takes the next id for the session. Taking one
+  and not using it is fine: ids are opaque and gaps mean nothing, because
+  Voqalize quotes one back exactly as it arrived and never orders, compares or
+  parses one.
+- **`SpeechStart(id=...)`** names the unit. Leave it unset and the SDK takes the
+  next id itself, which is right whenever the unit needs no name.
+- **A reused id raises `WireError`** at the call site, where the brain author can
+  see it, rather than on the wire — where one finalize would arrive for two
+  pieces of text with no way to tell which it describes, and the transcript would
+  be quietly short a sentence.
+
+### Fixed
+
+- **`GeminiBrain` and `GeminiInteractionsBrain` match a finalize by id, not by
+  arrival order.** Both kept a FIFO of units awaiting their heard truth and
+  popped the oldest, with an empty queue read as "this must be the greeting".
+  A brain that yielded speech of its own — a filler while a tool ran — put that
+  text on the model's turn, overwriting a sentence the model generated and
+  keeping the signature that no longer signed it; the model's own text then
+  landed at the end of history as a separate turn. Which of those two wrong
+  outcomes you got depended on whether generation outran playout. Keyed by id,
+  a finalize naming no unit of ours is unambiguous — speech this brain did not
+  generate — and the model's turn is never touched.
+
+### Changed
+
+- **The conformance check on speech ids tests uniqueness, not order.**
+  `check_speech_ids_monotonic` is now `check_speech_ids_unique`. Ordering was
+  never the contract: a brain that takes two ids and speaks them in the other
+  order is conformant, and the old check tested a habit of this SDK rather than
+  the wire.
+
 ## 0.2.0
 
 **`Finalize` reports the evidence, and the verdict is a comparison.** The wire

@@ -54,9 +54,15 @@ Mapping onto the wire:
 - ``configure_*``           → a ``Configure*Frame``, answered by one ``ResponseFrame``
 - barge-in                  ← ``InterruptionFrame`` → every turn through the watermark is cancelled
 
-Correlation never appears in this surface. Voqalize mints a ``turn_id`` for each
-stimulus and the SDK binds the speech it produces to that turn, so a barge-in can
-name exactly what is dead.
+Turn correlation never appears in this surface. Voqalize mints a ``turn_id`` for
+each stimulus and the SDK binds the speech it produces to that turn, so a barge-in
+can name exactly what is dead.
+
+One id is yours. ``session.next_speech_id()`` hands you the id a unit will run
+under; name the unit with it (``SpeechStart(id=sid)``) and the same value arrives
+on that unit's ``Finalize``. That is how a brain recognises its own work — a
+filler line to keep out of the model's context, or the history entry a correction
+belongs to. Leave it unset and the SDK takes the next one.
 """
 
 from __future__ import annotations
@@ -178,6 +184,10 @@ class Session:
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.
         self._speech_seq = 0
+        # Every id this session has spent, so a unit cannot be opened twice under
+        # one name. The wire's obligation is uniqueness within the session, and
+        # this is the seat that can still fail at the call site.
+        self._speech_ids_used: set[int] = set()
         # One id per configure request, session-monotonic. Its whole job is to
         # name the answer that comes back.
         self._request_seq = 0
@@ -330,11 +340,46 @@ class Session:
         if not future.done():
             future.set_result(frame)
 
-    # ─── Internal ───────────────────────────────────────────────────────
+    # ─── Speech ids ─────────────────────────────────────────────────────
 
-    def _next_speech_id(self) -> int:
+    def next_speech_id(self) -> int:
+        """Take the next speech id for this session.
+
+        Name a unit with it and the same value arrives on that unit's
+        :class:`~voqalize.sdk.Finalize`, which is how a brain recognises its own
+        work after the fact::
+
+            sid = session.next_speech_id()
+            yield SpeechStart(id=sid)
+            yield Chunk("Let me check that")
+            yield SpeechEnd()
+
+        Then in ``on_finalize``, ``fin.speech_id == sid`` is the unit you opened
+        — enough to keep an acknowledgement out of your model's context, or to
+        find the entry a correction belongs to without counting.
+
+        Taking an id and not using it is fine. Ids are opaque and gaps mean
+        nothing: Voqalize quotes one back exactly as it arrived and never orders,
+        compares or parses one.
+        """
         self._speech_seq += 1
         return self._speech_seq
+
+    # ─── Internal ───────────────────────────────────────────────────────
+
+    def _claim_speech_id(self, speech_id: int | None) -> int:
+        """The id one unit will run under, spent so nothing can reuse it."""
+        if speech_id is None:
+            speech_id = self.next_speech_id()
+        if speech_id in self._speech_ids_used:
+            raise WireError(
+                f"speech id {speech_id} was already used in this session. One unit per "
+                "id — the report that comes back names the unit, and a repeated id "
+                "makes two units indistinguishable. Take a fresh one from "
+                "session.next_speech_id()."
+            )
+        self._speech_ids_used.add(speech_id)
+        return speech_id
 
 
 # ─── The Brain contract ───────────────────────────────────────────────────────
@@ -501,6 +546,12 @@ class Brain:
 
         ``fin.generated`` is what you sent, kept by the SDK, so ``fin.interrupted``
         is the two of them differing rather than a flag you have to trust.
+
+        ``fin.speech_id`` is the unit's own id. Name a unit at
+        :class:`~voqalize.sdk.SpeechStart` with a value from
+        :meth:`Session.next_speech_id` and you can recognise it here without
+        counting — which is what a brain needs to keep one line out of its
+        model's context, or to find the entry a correction belongs to.
         """
 
 
@@ -691,7 +742,7 @@ class _BrainAdapter:
                 if isinstance(event, SpeechStart):
                     if speech_id is not None:
                         raise WireError("SpeechStart inside an open speech unit")
-                    speech_id = session._next_speech_id()
+                    speech_id = session._claim_speech_id(event.id)
                     self._generated[speech_id] = ""
                     self.emit(SpeechStartFrame(speech_id=speech_id, turn_id=turn_id))
                 elif isinstance(event, Chunk):

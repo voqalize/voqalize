@@ -167,8 +167,9 @@ class Engine(abc.ABC):
         against the next."""
 
     @abc.abstractmethod
-    def speak(self, brain: Any, text: str) -> None:
-        """Add one delivered unit of speech and queue the finalize it is owed.
+    def speak(self, brain: Any, text: str) -> int:
+        """Add one delivered unit of speech and enrol it under the id it opened on
+        the wire, returning that id.
 
         What `respond` does while streaming, done by hand — the heard-truth rules
         are about reconciliation, and a model call would only be scenery.
@@ -358,10 +359,12 @@ class AfcEngine(Engine):
             for sent in brain._client.models.sent
         ]
 
-    def speak(self, brain: Any, text: str) -> None:
+    def speak(self, brain: Any, text: str) -> int:
         unit = brain._open_unit()
         brain._extend_unit(unit, types.Part(text=text))
-        brain._awaiting.append(unit)
+        speech_id = brain.session.next_speech_id()
+        brain._awaiting[speech_id] = unit
+        return speech_id
 
     def silent_call(self, brain: Any, name: str) -> None:
         unit = brain._open_unit()
@@ -475,10 +478,12 @@ class InteractionsEngine(Engine):
             for r in brain._client.aio.interactions.requests
         ]
 
-    def speak(self, brain: Any, text: str) -> None:
+    def speak(self, brain: Any, text: str) -> int:
         step = gi.ModelOutputStep(content=[gi.TextContent(text=text)])
         brain._history.append(step)
-        brain._awaiting.append(step)
+        speech_id = brain.session.next_speech_id()
+        brain._awaiting[speech_id] = step
+        return speech_id
 
     def silent_call(self, brain: Any, name: str) -> None:
         brain._history.append(gi.FunctionCallStep(id=f"call_{name}", name=name, arguments={}))

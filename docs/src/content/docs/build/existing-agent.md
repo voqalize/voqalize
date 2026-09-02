@@ -134,8 +134,11 @@ parties can both refer to. `on_finalize` hands you the delivered prefix as
 `fin.heard`, per unit, after playout — long after the generator that produced it
 returned (`sdk/python/src/voqalize/sdk/events.py`, `Finalize`). So:
 
-- Turn off your framework's own append of the assistant turn, or rewrite that
-  entry in place when the finalize arrives.
+- Turn off your framework's own append of the assistant turn, or correct that
+  entry when the finalize arrives. Find it by id: take one from
+  `session.next_speech_id()`, name the unit with it, and `fin.speech_id` is the
+  entry to correct. Counting finalizes instead works only while nothing but your
+  model ever speaks.
 - Append `fin.heard`. A reply that generated three sentences and delivered one
   goes into history as one.
 - Handle the empty case. `heard` is an empty string for a unit that reached no
@@ -150,20 +153,22 @@ watermark and the ordering rules;
 [Interruption and heard truth](/design/interruption-and-heard-truth/) is the
 argument under them.
 
-`GeminiBrain.on_finalize` is a shipped implementation of exactly this: it pops
-the oldest unit still awaiting a finalize, rewrites that turn's text down to
-`heard`, and drops the turn when nothing is left of it
+`GeminiBrain.on_finalize` is a shipped implementation of exactly this: it looks
+up the unit by `fin.speech_id`, rewrites that turn's text down to `heard`, and
+drops the turn when nothing is left of it
 (`sdk/python/src/voqalize/sdk/gemini.py`, `on_finalize` and `_reconcile`).
-`sdk/python/tests/unit/test_gemini_heard_truth.py` pins the eight cases,
-including that finalizes match units in order and that a unit nobody heard leaves
-the context.
+`sdk/python/tests/unit/test_gemini_heard_truth.py` pins the cases, and the
+contract suite pins that a finalize finds its unit by id even when the finalizes
+come back out of order, and that speech the brain wrote itself never rewrites the
+model's turn.
 
 ### The greeting is also history
 
 `greet` returns a string the SDK speaks, so your framework never saw it. Its
-finalize arrives with nothing of yours awaiting one — that is the branch in both
-adapters that appends `fin.heard` as a fresh model turn rather than rewriting an
-existing one. Skip it and the model does not know it greeted, and asks its
+finalize names an id you never opened — that is the branch in both adapters that
+appends `fin.heard` as a fresh model turn rather than correcting an existing one.
+The same branch carries a line you yielded yourself, and it is safe because the
+lookup is by id: an id you never opened matches nothing. Skip it and the model does not know it greeted, and asks its
 opening question a second time.
 
 ### Keep the conversation in your process

@@ -57,7 +57,6 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections import deque
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from typing import Any, cast, get_type_hints
 
@@ -107,14 +106,16 @@ class GeminiInteractionsBrain(Brain):
         # note on :class:`~voqalize.sdk.gemini.GeminiBrain`. This is where the two
         # adapters differ, and where they should.
         self._history: list[gi.Step] = []
-        # Steps still awaiting their heard truth, in the order Voqalize will
-        # report them. Only steps that opened speech are here: Voqalize finalizes
-        # what it played, and a hop that only called a tool played nothing.
+        # Steps still awaiting their heard truth, by the speech id they were
+        # opened under. Only steps that opened speech are here: Voqalize finalizes
+        # what it played, and a hop that only called a tool played nothing. Keyed
+        # rather than queued, so a unit this brain never generated — the greeting,
+        # a line the brain spoke itself — cannot displace one it did.
         #
-        # Tracked by identity throughout — two freshly opened, still-empty steps
-        # are equal as pydantic models, so `remove`, `index` and `in` are all
-        # wrong on this queue and on the context.
-        self._awaiting: deque[gi.ModelOutputStep] = deque()
+        # The values are tracked by identity throughout — two freshly opened,
+        # still-empty steps are equal as pydantic models, so `remove`, `index` and
+        # `in` are all wrong on them and on the context.
+        self._awaiting: dict[int, gi.ModelOutputStep] = {}
 
     # ─── The turn ───────────────────────────────────────────────────────
 
@@ -236,8 +237,12 @@ class GeminiInteractionsBrain(Brain):
                     buffered[event.index] += delta.text
                     if isinstance(step, gi.ModelOutputStep):
                         if speaking is None:
-                            yield SpeechStart()
-                            self._awaiting.append(step)
+                            # Name the unit and enrol it on adjacent lines, so the
+                            # ledger and the wire cannot disagree about which is
+                            # which.
+                            speech_id = self.session.next_speech_id()
+                            yield SpeechStart(id=speech_id)
+                            self._awaiting[speech_id] = step
                             speaking = event.index
                         yield Chunk(delta.text)
                 elif isinstance(delta, gi.ArgumentsDelta):
@@ -396,17 +401,24 @@ class GeminiInteractionsBrain(Brain):
         """Rewrite the step Voqalize just finished playing down to what the
         caller actually heard.
 
-        A unit this brain never opened is the greeting: `greet` returns a string
-        the SDK speaks, so the only record of it anywhere is what comes back
-        here — already heard-truth, already cut to the delivered prefix if the
-        caller talked over it. Without this the model does not know it greeted,
-        and asks its opening question a second time.
+        A finalize naming no step of ours is speech this brain did not generate:
+        the greeting, which `greet` returns as a string for the SDK to speak, or a
+        line the brain yielded itself. The only record of it anywhere is what
+        comes back here — already heard-truth, already cut to the delivered prefix
+        if the caller talked over it. Without this the model does not know it
+        greeted, and asks its opening question a second time.
+
+        The lookup is by id rather than by arrival order, and that is what makes
+        the branch above safe. Popping the oldest step instead means speech the
+        brain wrote itself lands on the model's step and rewrites text the model
+        signed.
         """
-        if not self._awaiting:
+        step = self._awaiting.pop(fin.speech_id, None)
+        if step is None:
             if fin.heard:
                 self._history.append(gi.ModelOutputStep(content=[gi.TextContent(text=fin.heard)]))
             return
-        self._reconcile(self._awaiting.popleft(), fin.heard)
+        self._reconcile(step, fin.heard)
 
     def _reconcile(self, step: gi.ModelOutputStep, heard: str) -> None:
         """Collapse a step's text down to ``heard``, in place.

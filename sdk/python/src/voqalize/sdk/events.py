@@ -82,7 +82,23 @@ class RTVIMessage:
 
 @dataclass(frozen=True)
 class SpeechStart:
-    """Open a unit of speech."""
+    """Open a unit of speech.
+
+    ``id`` names the unit, and naming it is how a brain recognises its own work
+    when the report comes back — the same value arrives on that unit's
+    :class:`Finalize`. Take one from :meth:`Session.next_speech_id` before you
+    yield::
+
+        sid = session.next_speech_id()
+        yield SpeechStart(id=sid)
+        yield Chunk("One moment")
+        yield SpeechEnd()
+
+    Leave it unset and the SDK takes the next id itself, which is right whenever
+    the unit needs no name.
+    """
+
+    id: int | None = None
 
 
 @dataclass(frozen=True)
