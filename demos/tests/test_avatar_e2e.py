@@ -286,3 +286,24 @@ async def test_the_call_is_capped_and_ends_on_a_wave(monkeypatch: pytest.MonkeyP
         kinds = [type(r.frame) for r in rig.driver.log]
         assert EndFrame in kinds, "the brain did not hang up at the cap"
         assert kinds.index(EndFrame) > len(kinds) - 1 - kinds[::-1].index(SpeechEndFrame)
+
+
+async def test_the_demo_says_goodbye_exactly_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Past the cap, every later stimulus is silence — not a second goodbye.
+
+    Both stimuli that check the clock reach the sign-off, and one of them is not
+    hypothetical: the runtime ticks idle a few seconds after the goodbye
+    finishes, on every capped call. Measured before this guard, on a real
+    session — the line was spoken at 124s and again at 140s, over a session the
+    brain had already ended."""
+    monkeypatch.setattr(brain_module, "_LIMIT_S", 0.0)
+    async with demo("avatar", _llm()) as rig:
+        await rig.driver.start_session()
+        first = await rig.driver.user_says("Anything at all.")
+        assert first is not None and first.units[0].text == _SIGN_OFF
+
+        again = await rig.driver.user_idle()
+        assert not (again and again.units), "the demo said goodbye a second time"
+
+        once_more = await rig.driver.user_says("Still here.")
+        assert not (once_more and once_more.units), "the demo said goodbye a third time"

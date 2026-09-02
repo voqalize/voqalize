@@ -330,6 +330,16 @@ class AvatarBrain(GeminiBrain):
         session.dispatch(ShowEndCard(reason="time_limit"))
         session.end("time_limit_backstop")
 
+    def _closed_off(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """Sign off, but only ever once.
+
+        Both stimuli reach this: a visitor who keeps talking past the cap, and
+        the idle tick five seconds after the goodbye finishes. The second one is
+        not hypothetical — it is what the runtime does on every capped call, so
+        without this guard the demo says goodbye twice, the second time over a
+        session it has already ended."""
+        return _silence() if self._signed_off else self._sign_off(session)
+
     async def _sign_off(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The fixed close: a wave, a line, the card, and the hang-up.
 
@@ -471,7 +481,7 @@ class AvatarBrain(GeminiBrain):
         """A turn, unless the clock has run out — in which case this is the last
         one and it is not the model's."""
         if self._out_of_time():
-            return self._sign_off(session)
+            return self._closed_off(session)
         if not self._nudged and self._elapsed() >= _NUDGE_S:
             self._nudged = True
             self._note(
@@ -489,7 +499,7 @@ class AvatarBrain(GeminiBrain):
         rather than by signing off. Every other idle tick is silence: someone
         reading the documentation is not someone to be prompted."""
         if self._out_of_time():
-            return self._sign_off(session)
+            return self._closed_off(session)
         return _silence()
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
