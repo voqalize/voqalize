@@ -148,8 +148,9 @@ into the app's `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`.)
 
 ## 5. Deploy + verify
 
-1. Brains: **both** environments deploy off the same `^main$` push — the dev and
-   prod brains triggers watch the same public repo, so one push builds both.
+1. Brains: each environment deploys off its own branch — `deploy-brains-vm`
+   watches `^main$`, `deploy-brains-vm-prod` watches `^prod$`, both on this
+   public repo. A `main` push is dev only; prod needs the fast-forward.
    The verify step reads `demos/manifest.json` and asserts `/_healthz` serves
    exactly that roster, so adding a demo needs nothing bumped anywhere — a demo
    in the manifest that did not come up names itself in the failure. (It carried
