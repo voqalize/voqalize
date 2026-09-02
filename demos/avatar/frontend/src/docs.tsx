@@ -385,6 +385,12 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
           Nine avatars ship: three SVG line-art faces and six painted Canvas2D people. Each one has
           its own entry point, so you only pay for the one you import. Swapping is a remount.
         </p>
+        <p>
+          This demo still asks you to choose before you dial, and that is a speech constraint rather
+          than a rendering one. Nine faces share two recorded reference voices, so picking a face
+          picks a voice. Changing it halfway through an answer is the one thing a listener always
+          notices, so the strip locks once the call is up.
+        </p>
         <Code lang="javascript">{`// line art: peep, wren, myna
 import { peep } from '@voqalize/avatar/faces/peep';
 

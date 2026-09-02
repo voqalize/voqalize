@@ -23,10 +23,11 @@
 import { createAvatar as createSvgAvatar } from "@voqalize/avatar";
 import type { AvatarFactory, AvatarOptions, Face } from "@voqalize/avatar";
 
-/** The face the page paints before the call exists. Must equal
- *  `DEFAULT_AVATAR` in `backend/content.py`, which explains why it is this one:
- *  the opener is spoken in the voice the agent is provisioned with, so the
- *  default face has to be the one that voice already fits. */
+/** The face the strip starts on, and the one a call gets if nothing was picked.
+ *  Must equal `DEFAULT_AVATAR` in `backend/content.py`, which explains why it is
+ *  this one: an unpicked call is the only call whose voice was not chosen with
+ *  its face, so the default has to be a face the agent's own voice already
+ *  fits. */
 export const DEFAULT_AVATAR = "arjun";
 
 export interface RosterEntry {

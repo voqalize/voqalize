@@ -25,20 +25,20 @@
  *     generated shape). A section command carries an id and a heading, not prose
  *     — the page already holds every word, and two copies of a paragraph is how a
  *     page linked from a README stops being readable on its own.
- *   * **screen → brain**, as two RTVI `client-message`s. `ready` says the data
+ *   * **screen → brain**, as one RTVI `client-message`. `ready` says the data
  *     channel exists, which is what the opening wave waits for — a brain is
  *     dialled before this page has one, and a gesture sent then goes nowhere.
- *     It also carries the face, which every call resets to the default at that
- *     moment: the opener is spoken before this page can say anything, so a face
- *     chosen beforehand would get one line in the other speaker's voice, and
- *     two recorded speakers means that reads immediately as the wrong gender.
- *     `pick_avatar` says the visitor chose a face mid-call: the page
- *     swaps the drawing immediately — it owns its own rendering and should not
- *     wait a round trip to redraw — and tells the brain, which is the only end
- *     that can move the voice and the model's context.
  *
- * The face the brain drives and the face a click mounts are the same component;
- * both paths write one piece of state.
+ * **The face is chosen before the call and never during it,** which is why it
+ * does not travel on either lane. Nine faces share two recorded reference
+ * speakers, so a face and a voice are one choice; the strip writes the key into
+ * the connect request and the brain reads it there, before the opener is
+ * synthesised. Mid-call is not an option worth having: the opener is spoken
+ * before this page can say anything at all — `greet` is awaited before any
+ * client message can be delivered, and waiting for one there deadlocks the
+ * session — so a face picked after dialling would speak its first line in the
+ * other speaker's voice, which with two speakers reads immediately as the wrong
+ * gender. The strip is therefore live before the call and locked during it.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -323,10 +323,14 @@ function Outro() {
 
 function Stage({
   error,
+  avatarKey,
+  onPick,
   onBegin,
   onEnd,
 }: {
   error: string | null;
+  avatarKey: string;
+  onPick: (key: string) => void;
   onBegin?: () => void | Promise<void>;
   onEnd?: () => void | Promise<void>;
 }) {
@@ -334,7 +338,6 @@ function Stage({
   const { isConnected, isConnecting } = usePipecatConnectionState();
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
 
-  const [avatarKey, setAvatarKey] = useState<string>(DEFAULT_AVATAR);
   const [current, setCurrent] = useState<string>(DOC_SECTIONS[0].id);
   const [working, setWorking] = useState<string | null>(null);
   const [ended, setEnded] = useState<string | null>(null);
@@ -362,9 +365,6 @@ function Stage({
           case "show_section":
             setWorking(null);
             goTo(action.payload.id);
-            break;
-          case "switch_avatar":
-            setAvatarKey(action.payload.key);
             break;
           case "working_on":
             setWorking(action.payload.topic);
@@ -443,24 +443,15 @@ function Stage({
   // played normally because the transport queues audio. The opening wave answers
   // this message instead, which is the first moment one can arrive.
   //
-  // **The face resets here, and that is the fix for the one mismatch this demo
-  // could not otherwise avoid.** There are two recorded speakers, so a face is
-  // paired to one of them by gender, and a face wearing the other one's voice is
-  // the first thing anybody notices. The opener is spoken before this page can
-  // say anything at all: the brain is dialled at pipeline start, `greet` is
-  // awaited before any client message can be delivered, and waiting for one
-  // there would deadlock the session rather than delay it. So a face chosen
-  // before dialling could not be corrected in time — it would speak one line in
-  // the wrong voice. Opening every call on the default is the version of this
-  // with no race in it. The strip stays a gallery before the call and becomes a
-  // control during it.
+  // The face is not announced here and does not need to be: it went out with the
+  // connect request, and the brain configured its voice before the opener was
+  // synthesised. Both ends were holding the same key before either spoke.
   useEffect(() => {
     if (!isConnected) return;
-    setAvatarKey(DEFAULT_AVATAR);
     enableMic(true);
     setActivity("listening");
     startedAt.current = Date.now();
-    client?.sendClientMessage("ready", { key: DEFAULT_AVATAR });
+    client?.sendClientMessage("ready", {});
   }, [isConnected, enableMic, client]);
 
   useEffect(() => {
@@ -472,20 +463,6 @@ function Stage({
     }, 1000);
     return () => clearInterval(tick);
   }, [isConnected, ended]);
-
-  // Screen → brain. The drawing swaps here and now; the voice and the model's
-  // context are the brain's to move, and it is told so it can do both.
-  //
-  // Before the call there is nobody to tell, and the call will open on the
-  // default anyway — so a click is a preview of the drawing and nothing more.
-  const pick = useCallback(
-    (key: string) => {
-      if (key === avatarKey) return;
-      setAvatarKey(key);
-      if (isConnected) client?.sendClientMessage("pick_avatar", { key });
-    },
-    [avatarKey, client, isConnected],
-  );
 
   const hangUp = async () => {
     await onEnd?.();
@@ -585,12 +562,17 @@ function Stage({
 
         {error ? <p className="av-error">{error}</p> : null}
 
-        {/* The picker is the second authority on the face, and deliberately so:
-            a visitor whose microphone fails still gets to see all nine. Before
-            the call it previews a drawing; during one it moves the voice too. */}
-        <div className="av-picker">
+        {/* The only authority on the face, and only before the call. Each face
+            is paired to one of two recorded voices, so choosing here chooses
+            both — which is why the strip locks once the call is up rather than
+            changing a voice in the middle of an answer. */}
+        <div className={`av-picker${live ? " is-locked" : ""}`}>
           <div className="av-picker-head">
-            <span>{live ? "Pick a face. The voice moves with it." : "Nine avatars ship."}</span>
+            <span>
+              {live
+                ? "The face and the voice are set for this call."
+                : "Pick a face. Its voice comes with it."}
+            </span>
             <span className="av-picker-kind">{ROSTER_BY_KEY[avatarKey]?.kind}</span>
           </div>
           <div className="av-strip" role="group" aria-label="Choose an avatar">
@@ -599,7 +581,8 @@ function Stage({
                 key={entry.key}
                 type="button"
                 className={`av-pick${entry.key === avatarKey ? " is-on" : ""}`}
-                onClick={() => pick(entry.key)}
+                onClick={() => onPick(entry.key)}
+                disabled={live}
                 aria-pressed={entry.key === avatarKey}
               >
                 {entry.name}
@@ -646,10 +629,28 @@ function Stage({
  * opens a microphone until the visitor asks for it.
  */
 export function AvatarDemo() {
-  // Memoized: a fresh object every render would re-fire the connect effect and
-  // re-mint a session. No `config` — the voice belongs to the brain, which
-  // changes it mid-call every time the face changes.
-  const params = useMemo(() => connectRequest({ surface: "avatar-web" }), []);
+  // The face lives up here because the connect request does: it is chosen before
+  // the call exists and has to be in the body that mints the session.
+  //
+  // One mutable object rather than a fresh one per pick, and the reason is
+  // structural. `params` is a dependency of pipecat's connect path, so a new
+  // object identity re-mints a session; the visitor clicking through nine faces
+  // would mint nine. Writing into the same object leaves the identity alone, and
+  // the write is safe because the only reader is `JSON.stringify` at connect,
+  // which happens after every pick and before any of them matters.
+  //
+  // No `config` — the voice belongs to the brain, which reads this same key out
+  // of `init` and configures the pair itself. The page never names a voice.
+  const init = useRef({ surface: "avatar-web", avatar: DEFAULT_AVATAR }).current;
+  const params = useMemo(() => connectRequest(init), [init]);
+  const [avatarKey, setAvatarKey] = useState<string>(DEFAULT_AVATAR);
+  const onPick = useCallback(
+    (key: string) => {
+      init.avatar = key;
+      setAvatarKey(key);
+    },
+    [init],
+  );
   const unprovisioned = !demo.agentId || !demo.publishableKey;
 
   return (
@@ -687,7 +688,13 @@ export function AvatarDemo() {
           startBotResponseTransformer={withRealHeaders}
         >
           {({ error, handleConnect, handleDisconnect }) => (
-            <Stage error={error ?? null} onBegin={handleConnect} onEnd={handleDisconnect} />
+            <Stage
+              error={error ?? null}
+              avatarKey={avatarKey}
+              onPick={onPick}
+              onBegin={handleConnect}
+              onEnd={handleDisconnect}
+            />
           )}
         </PipecatAppBase>
       )}

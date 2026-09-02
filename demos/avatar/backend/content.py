@@ -130,8 +130,12 @@ SECTIONS: tuple[Section, ...] = (
         title="Choose a face, or ship your own",
         notes=(
             "Nine ship today: three line-art faces and six painted ones, all on the same "
-            "rig and the same wire. Swapping is a remount and nothing else. The part "
-            "worth knowing is the smoothing: every channel has its own time constant and "
+            "rig and the same wire. Swapping one for another is a remount and nothing "
+            "else, which is why this demo asks you to choose before you dial rather than "
+            "during the call: nine faces share two recorded voices, so the face and the "
+            "voice are a single choice, and a voice that changes halfway through an "
+            "answer is the thing a listener notices. The part worth knowing is the "
+            "smoothing: every channel has its own time constant and "
             "the head's is about a hundred and sixty milliseconds, so keyframes are not "
             "what the face does — the smoothing between them is. Blinking, breathing, "
             "gaze and idle sway are the renderer's own and are never sent by anybody, "
@@ -185,13 +189,13 @@ AvatarKey = Literal[
     "naina",
 ]
 
-#: The avatar the call opens on, and the one constraint on choosing it: it must
-#: be a face whose gender matches the voice the *agent* is provisioned with
-#: (``omnivoice/gaurav``). :meth:`AvatarBrain.on_session_start` does state the
-#: voice before the opener is spoken, but a default that already agrees needs no
-#: correction to arrive on time — the greeting is right even if nothing lands.
-#: `arjun` is painted rather than line-art for the same reason: a face read as
-#: male makes the pairing visible, where a doodle leaves the visitor to guess.
+#: The face a call gets when the visitor did not pick one, and the one constraint
+#: on choosing it: it must be a face whose gender matches the voice the *agent* is
+#: provisioned with (``omnivoice/gaurav``). Every other face arrives in the
+#: connect request and is configured before a word is spoken, so it needs no such
+#: agreement — this one is the fallback for a payload that named nothing, and a
+#: fallback that disagreed with the agent's own voice would be the exact defect
+#: the pre-call choice exists to remove.
 DEFAULT_AVATAR: AvatarKey = "arjun"
 
 
@@ -284,8 +288,9 @@ AVATARS_BY_KEY: dict[str, AvatarIdentity] = {a.key: a for a in AVATARS}
 
 
 def avatars_for_prompt() -> str:
-    """The roster as the model reads it — the bracketed key is the tool argument."""
-    return "\n".join(f"- [{a.key}] {a.name} — {a.renderer}. {a.blurb}" for a in AVATARS)
+    """The roster as the model reads it. No key: the model does not choose a face
+    any more, so a key here would only be something to read out loud."""
+    return "\n".join(f"- {a.name} — {a.renderer}. {a.blurb}" for a in AVATARS)
 
 
 def sections_for_prompt() -> str:

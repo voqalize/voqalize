@@ -1,5 +1,5 @@
-// Generated from avatar/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
-//   voqalize types avatar/backend/brain.py -o avatar/frontend/src/actions.gen.ts
+// Generated from demos/avatar/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
+//   voqalize types demos/avatar/backend/brain.py -o demos/avatar/frontend/src/actions.gen.ts
 //
 // Every field is present on the wire, `null` included, so nothing here is
 // optional and no runtime validation is needed to narrow on `command`.
@@ -20,20 +20,6 @@ export interface ShowSection {
 }
 
 /**
- * Swap the mounted avatar. `voice` rides along so the page can say which
- * voice went with it — it does not select one; the brain already did.
- */
-export interface SwitchAvatar {
-  key: string;
-
-  name: string;
-
-  renderer: string;
-
-  voice: string;
-}
-
-/**
  * Paint the working strip. Fired beside the `WORKING` claim, so the face
  * and the page say the same thing about the same seconds.
  */
@@ -51,18 +37,16 @@ export interface ShowEndCard {
 
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
-  | { command: 'show_section'; payload: ShowSection }
-  | { command: 'switch_avatar'; payload: SwitchAvatar }
-  | { command: 'working_on'; payload: WorkingOn }
-  | { command: 'show_end_card'; payload: ShowEndCard };
+  | { command: "show_section"; payload: ShowSection }
+  | { command: "working_on"; payload: WorkingOn }
+  | { command: "show_end_card"; payload: ShowEndCard };
 
-export type UiActionCommand = UiAction['command'];
+export type UiActionCommand = UiAction["command"];
 
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
-  'show_section',
-  'switch_avatar',
-  'working_on',
-  'show_end_card',
+  "show_section",
+  "working_on",
+  "show_end_card",
 ];
 
 const _known = new Set<string>(UI_ACTION_COMMANDS);

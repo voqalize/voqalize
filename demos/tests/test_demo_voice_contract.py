@@ -90,13 +90,12 @@ class Expected:
 # test below fails if a demo is discovered and not listed here, so adding a demo
 # without declaring its voice is a red suite, not a silent gap.
 DEMOS: dict[str, Expected] = {
-    # The avatar demo swaps voice mid-call — nine faces share two recorded
-    # reference speakers, so a switch moves the voice with the face. What is
-    # checked here is the pair it OPENS on: `arjun` is the default and `arjun` is
-    # male — deliberately, because that is the voice the agent itself is
-    # provisioned with, so the opener is right even if no configure lands first.
-    # The switch's own pair is asserted in test_avatar_e2e.py, on the configure
-    # frames, because this sweep only ever reads the last stated value.
+    # The avatar demo takes its voice from the face the visitor picked before
+    # dialling — nine faces share two recorded reference speakers, so a face and
+    # a voice are one choice. This sweep sends no `init`, so what is checked here
+    # is the fallback: `arjun` is the default and `arjun` is male, deliberately,
+    # because that is the voice the agent itself is provisioned with. The picked
+    # case is asserted in test_avatar_e2e.py.
     "avatar": Expected(voice="omnivoice/gaurav", language="en"),
     # Aria takes the language from the connect request's ``init`` and configures
     # both legs from it, so the brain still owns the answer — nothing in the

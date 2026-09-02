@@ -5,10 +5,9 @@ asks how the talking head works; the brain scrolls the page to that section of
 the documentation, answers against it, and — because the same wire it is
 describing is open the whole time — demonstrates the thing it just said. It waves as the greeting starts, before it
 has been asked for anything. It holds a working claim while it digs something
-up. It swaps to a different avatar mid-sentence and takes the matching voice
-with it.
+up.
 
-Three mechanics are worth reading before the code:
+Four mechanics are worth reading before the code:
 
 * **A wave is a message, not a decision.** Every gesture and every claim here is
   an RTVI ``server-message`` under the ``{"type": "avatar"}`` envelope — the
@@ -26,6 +25,16 @@ Three mechanics are worth reading before the code:
   ``STRAINING`` on request, which does race the pipeline's own claim — the last
   one wins. Every other brain should leave claims alone; this one's job is to
   show you the mechanism, which is the one reason to touch them.
+
+* **The face is chosen before the call, and never during it.** Nine faces share
+  two recorded reference speakers, so a face is paired to a voice by gender and
+  the pair has to be settled before a word is spoken. The visitor picks on the
+  strip while the page is idle; the key rides the connect request in ``init``
+  and this brain reads it once in :meth:`on_session_start`, configures that
+  voice, and keeps it for the session. There is no ``switch_avatar`` tool and no
+  mid-call pick. The reason is not implementation difficulty: a voice that
+  changes in the middle of an answer is the thing a listener notices, and a face
+  and a voice that disagree for even one sentence is the demo's worst failure.
 
 * **The call is capped at two minutes,** because this page is going to be
   linked from the library's front door and the demo tenant pays for every
@@ -88,10 +97,11 @@ _LIMIT_S = 120.0
 _NUDGE_S = 90.0
 _BACKSTOP_S = 150.0
 
-# How long a visitor is quiet before the assistant may take the floor. Short,
-# because the one thing it is for is answering a click: picking an avatar from
-# the strip is an answer, and it arrives on a callback that cannot speak.
-_IDLE_MS = 3500
+# How long a visitor is quiet before the brain gets a tick. The only thing it is
+# for is the graceful close: the cap is checked on a turn boundary, and a visitor
+# who stops talking after two minutes produces no more boundaries. Without this
+# their last experience of the demo is the backstop cutting the line.
+_IDLE_MS = 5000
 
 _GREETING = (
     "Hi — that wave was one message from the brain on the other side of this call, not "
@@ -153,16 +163,6 @@ class ShowSection(Action):
     title: str
 
 
-class SwitchAvatar(Action):
-    """Swap the mounted avatar. ``voice`` rides along so the page can say which
-    voice went with it — it does not select one; the brain already did."""
-
-    key: str
-    name: str
-    renderer: str
-    voice: str
-
-
 class WorkingOn(Action):
     """Paint the working strip. Fired beside the ``WORKING`` claim, so the face
     and the page say the same thing about the same seconds."""
@@ -179,18 +179,13 @@ class ShowEndCard(Action):
 
 # ─── Tool parameters ──────────────────────────────────────────────────────────
 #
-# Separate from the actions above, deliberately. The model chooses a section id
-# or an avatar key; everything else on the wire — the section's heading, the
-# avatar's voice — is looked up here, so the model cannot scroll the reader to a
-# heading the page does not have.
+# Separate from the actions above, deliberately. The model chooses a section id;
+# everything else on the wire — the section's heading — is looked up here, so the
+# model cannot scroll the reader to a heading the page does not have.
 
 
 class SectionRequest(BaseModel):
     section: SectionId = Field(description="Which documentation section to open.")
-
-
-class AvatarRequest(BaseModel):
-    avatar: AvatarKey = Field(description="Which avatar to wear for the rest of the call.")
 
 
 class GestureRequest(BaseModel):
@@ -214,7 +209,20 @@ async def _silence() -> AsyncGenerator[Any, None]:
         yield
 
 
-def _system_instruction() -> str:
+def _resolve_avatar(init: dict[str, Any] | None) -> AvatarKey:
+    """Which face this call is wearing, from the connect request.
+
+    Anything unrecognised falls back to the default rather than raising: this is
+    a public page and the payload is browser-supplied, so a stale build or a
+    hand-edited request must produce a working call rather than a failed one. The
+    fallback is a face whose voice the agent already has, so the fallback is not
+    itself a mismatch."""
+    key = str((init or {}).get("avatar", ""))
+    return cast(AvatarKey, key) if key in AVATARS_BY_KEY else DEFAULT_AVATAR
+
+
+def _system_instruction(wearing: AvatarKey) -> str:
+    identity = AVATARS_BY_KEY[wearing]
     return f"""You are the avatar — the 2-D talking head from the open-source voqalize/avatar library — and you are demonstrating yourself to a developer who has just landed on the page. You have TWO MINUTES. Be quick, be concrete, and be a little bit pleased with yourself.
 
 WHAT YOU ARE. You are a drawing in their browser, driven over the data channel of a live voice call. A brain (this code) sends you three kinds of message and nothing else: a claim, an action, and viseme cues. You are wearing the library right now, so every single thing you describe, you can also do.
@@ -224,7 +232,7 @@ WHAT YOU ARE. You are a drawing in their browser, driven over the data channel o
 WHAT IS ON THEIR SCREEN. The right two-thirds of the page is the library's documentation — headings, code, the wire reference — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back the material to answer with:
 {sections_for_prompt()}
 
-THE AVATARS — call switch_avatar and you become that one. The voice changes with the face; say so when it happens, because that is the interesting part:
+WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, speaking in the voice that face is paired with. The visitor chose that on the strip before the call started, and it does not change while the call is up — nine faces share two recorded reference speakers, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The nine:
 {avatars_for_prompt()}
 
 HOW TO RUN THIS CALL:
@@ -235,7 +243,7 @@ HOW TO RUN THIS CALL:
 
 3. THE DELIBERATE DIG. When a question needs real material — the numbers, the timing, the reasoning behind a design — SAY A SHORT HOLDING LINE OUT LOUD FIRST ("Give me a second, let me pull that up"), and THEN call deep_dive. Never call deep_dive silently: the whole point is that the visitor watches you go into a working state, having been told you were about to. It takes a couple of seconds and that is deliberate.
 
-4. CHANGE YOUR FACE WHEN ASKED, AND OFFER IT ONCE. If they ask what you look like, what else there is, or to see another one, call switch_avatar. Mention that the voice moved with the face. They can also click a face themselves — when they do, you will be told, and you should react in one short line.
+4. THE FACE IS NOT YOURS TO CHANGE. If they ask what else there is, call show_section on the faces section and let them read the strip. Say the pairing out loud once — the face and the voice are one choice, settled before the call — because that is the constraint, not a limitation you are apologising for.
 
 5. WATCH THE CLOCK. Two minutes is about eight exchanges. Do not offer a tour of all eight sections; answer what was asked. If you are told you are running out of time, start closing.
 
@@ -255,12 +263,14 @@ class AvatarBrain(GeminiBrain):
     cap; the inherited tool loop runs the turn."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=client, system_instruction=_system_instruction(), model=model)
-        # The face currently mounted. The page opens on the same default (its
-        # own `roster.ts`), because the picture has to be on screen before this
-        # brain is dialled — so the two agree by being written down twice, once
-        # on each side of the seam. The default is also chosen to match the
-        # voice the agent is provisioned with; see DEFAULT_AVATAR in content.py.
+        super().__init__(
+            client=client, system_instruction=_system_instruction(DEFAULT_AVATAR), model=model
+        )
+        # The face this call is wearing, settled from `init` in `on_session_start`
+        # before anything is spoken. The default stands in until then, and it is
+        # also what an unpicked call gets — which is why it has to be a face
+        # matching the voice the agent is provisioned with; see DEFAULT_AVATAR in
+        # content.py.
         self._avatar: AvatarKey = DEFAULT_AVATAR
         # Monotonic, set on session start. The cap is measured from the moment
         # the brain is dialled, which is within a second of the visitor hearing
@@ -270,9 +280,6 @@ class AvatarBrain(GeminiBrain):
         self._signed_off = False
         # Whether the opening wave has gone out. See `greet`.
         self._waved = False
-        # Set when the visitor does something on screen that wants a word, and
-        # cleared the moment one is spoken. Read by `on_user_idle`.
-        self._owed_a_reply = False
         self._backstop: asyncio.Task[None] | None = None
 
     # ─── The avatar wire ────────────────────────────────────────────────
@@ -342,10 +349,9 @@ class AvatarBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The five it may call."""
+        """The four it may call."""
         return [
             self.show_section,
-            self.switch_avatar,
             self.deep_dive,
             self.demonstrate,
             self.perform,
@@ -359,13 +365,6 @@ class AvatarBrain(GeminiBrain):
         logger.info("avatar: show_section {}", section.id)
         self.session.dispatch(ShowSection(id=section.id, title=section.title))
         return str({"section": section.id, "heading": section.title, "say": section.notes})
-
-    async def switch_avatar(self, request: AvatarRequest) -> str:
-        """Become a different avatar for the rest of the call. The voice changes
-        with the face — there are two recorded reference speakers, so the pairing
-        is by gender, and it is applied here rather than on the page. Call when
-        the visitor asks to see another one."""
-        return await self._wear(request.avatar, asked_by="you")
 
     async def deep_dive(self, request: DeepDiveRequest) -> str:
         """Go and dig up the detailed material behind a section. This takes a
@@ -412,50 +411,38 @@ class AvatarBrain(GeminiBrain):
         self._act(action_id)
         return str({"performed": request.gesture, "wire_id": action_id})
 
-    # ─── Wearing a face ─────────────────────────────────────────────────
-
-    async def _wear(self, key: AvatarKey, *, asked_by: str) -> str:
-        """Mount an avatar and take its voice with it — the one operation, whether
-        the model chose it or the visitor clicked it.
-
-        Both legs of the language are restated on every switch even though only
-        the voice moves, because :class:`Config` refuses a half-stated pair:
-        naming a language on one leg and not the other is the silent bug this
-        whole seam exists to prevent."""
-        identity = AVATARS_BY_KEY[key]
-        previous = self._avatar
-        self._avatar = key
-        logger.info("avatar: wearing {} (was {}, voice {})", key, previous, identity.voice.value)
-        self.session.dispatch(
-            SwitchAvatar(
-                key=identity.key,
-                name=identity.name,
-                renderer=identity.renderer,
-                voice=identity.voice.value,
-            )
-        )
-        await self.session.configure(
-            Config(
-                tts=TtsConfig(voice=identity.voice, language=Language.EN),
-                stt=SttConfig(language=Language.EN),
-            )
-        )
-        return str(
-            {
-                "wearing": identity.name,
-                "renderer": identity.renderer,
-                "voice": identity.voice.value,
-                "chosen_by": asked_by,
-            }
-        )
-
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
+        """Settle the face and its voice, once, before anything is spoken.
+
+        The visitor picked on the strip while the page was idle, so the key rode
+        the connect request and is here in ``init`` before the pipeline has said
+        a word. That timing is the whole reason the choice lives there: a face
+        chosen after the call is up cannot be applied to the opener, because
+        :meth:`greet` is awaited before any client message can be delivered and
+        waiting for one there deadlocks the session rather than delaying it.
+
+        Both language legs are stated even though only the voice is in question,
+        because :class:`Config` refuses a half-stated pair — naming a language on
+        one leg and not the other is the silent bug this seam exists to prevent.
+
+        The prompt is rebuilt here for the same reason the voice is: a model told
+        it is wearing one face while the visitor is looking at another will say
+        so out loud, confidently, in the first sentence."""
         self._started = time.monotonic()
+        self._avatar = _resolve_avatar(session.init)
+        identity = AVATARS_BY_KEY[self._avatar]
+        logger.info(
+            "avatar: wearing {} ({}, voice {})",
+            identity.key,
+            identity.renderer,
+            identity.voice.value,
+        )
+        self.system_instruction = _system_instruction(self._avatar)
         await session.configure(
             Config(
-                tts=TtsConfig(voice=AVATARS_BY_KEY[DEFAULT_AVATAR].voice, language=Language.EN),
+                tts=TtsConfig(voice=identity.voice, language=Language.EN),
                 stt=SttConfig(language=Language.EN),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
@@ -483,7 +470,6 @@ class AvatarBrain(GeminiBrain):
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """A turn, unless the clock has run out — in which case this is the last
         one and it is not the model's."""
-        self._owed_a_reply = False
         if self._out_of_time():
             return self._sign_off(session)
         if not self._nudged and self._elapsed() >= _NUDGE_S:
@@ -495,67 +481,37 @@ class AvatarBrain(GeminiBrain):
         return super().on_user_message(session, msg)
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        """Quiet. The only thing worth speaking into it is an answer that is
-        already owed — the visitor clicked a face and nothing has said so yet.
+        """Quiet, and the one thing worth breaking it for is the close.
 
-        A click is an answer, but it arrives on :meth:`on_rtvi`, which cannot
-        take the floor: a page control must never put a voice over someone still
-        reading. So the reaction waits here, for the one stimulus that means the
-        floor is genuinely free. Every other idle tick is silence, because a
-        visitor reading the documentation is not a visitor to be prompted."""
+        The cap is checked on a turn boundary, which is the right place — it lets
+        a sentence finish. A visitor who stops talking at ninety seconds produces
+        no more boundaries, so without this tick the demo ends by being cut off
+        rather than by signing off. Every other idle tick is silence: someone
+        reading the documentation is not someone to be prompted."""
         if self._out_of_time():
             return self._sign_off(session)
-        if not self._owed_a_reply:
-            return _silence()
-        self._owed_a_reply = False
-        return self.respond(session)
+        return _silence()
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Two things the page tells the brain: that it is on, and which face is
-        on screen.
+        """One thing the page tells the brain: that its data channel is open.
 
-        The page has already swapped the drawing in both cases — it owns its own
-        rendering and should not wait for a round trip to redraw. What it cannot
-        do is move the voice or tell the model, and those are exactly what happen
-        here, which is why a face reaches the brain at all.
+        Nothing about the face travels on this lane. The face was settled at
+        connect, on both sides of the socket at once, from the same key — so
+        there is nothing left to reconcile and no window in which the picture and
+        the voice can disagree.
 
-        ``ready`` carries the face as a backstop, not as the normal path. The
-        page's strip is inert until the call is up, precisely so the face on
-        screen when the opener is spoken is always :data:`DEFAULT_AVATAR` — a
-        face picked before dialling could not be corrected in time, because
-        :meth:`greet` is awaited before this message can arrive and the runner
-        dispatches frames one at a time, so waiting here would deadlock the
-        session rather than delay it. A reconnecting client can still arrive
-        wearing something else, and this is what catches that."""
-        kind = msg.data.get("t")
-        if kind == "ready":
-            # The data channel exists as of now, so this is the first moment a
-            # gesture can actually land. Once per session: a reconnecting client
-            # would otherwise re-greet in the middle of a sentence.
-            if not self._waved:
-                self._waved = True
-                self._act("GESTURE_GREET")
-            # Normally a no-op: the page opens on DEFAULT_AVATAR and cannot
-            # be changed until the call is up. A reconnect is the case that is
-            # not — it re-announces whatever face the visitor had switched to,
-            # and a face left uncorrected speaks in the wrong voice for the
-            # rest of the call. No note to the model: it already knows, or
-            # nothing has been said yet.
-            opening = str((msg.data.get("d") or {}).get("key", ""))
-            if opening in AVATARS_BY_KEY and opening != self._avatar:
-                await self._wear(cast(AvatarKey, opening), asked_by="the visitor")
+        What is left is the wave, and it has to wait for this message. A brain is
+        dialled at pipeline start, before the browser's data channel exists, so a
+        gesture sent from :meth:`greet` is dropped where nothing can see it —
+        silently, while the greeting audio plays normally, because the transport
+        queues audio and not server messages."""
+        if msg.data.get("t") != "ready":
             return
-        if kind != "pick_avatar":
-            return
-        key = str((msg.data.get("d") or {}).get("key", ""))
-        if key not in AVATARS_BY_KEY or key == self._avatar:
-            return
-        result = await self._wear(cast(AvatarKey, key), asked_by="the visitor")
-        self._note(
-            f"SYSTEM: the visitor just picked an avatar from the strip themselves: {result}. "
-            "React in one short line when you next speak."
-        )
-        self._owed_a_reply = True
+        # Once per session: a reconnecting client would otherwise re-greet in the
+        # middle of a sentence.
+        if not self._waved:
+            self._waved = True
+            self._act("GESTURE_GREET")
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The inherited turn, with the cap checked once more on the way out.

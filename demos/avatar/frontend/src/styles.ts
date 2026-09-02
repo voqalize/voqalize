@@ -228,8 +228,14 @@ export const STYLES = `
     background: transparent; border: 1px solid var(--rule); border-radius: 4px;
     padding: 4px 10px; cursor: pointer;
   }
-  .av-pick:hover { color: var(--ink); border-color: var(--graphite); }
+  .av-pick:hover:not(:disabled) { color: var(--ink); border-color: var(--graphite); }
   .av-pick.is-on { color: var(--chalk); background: var(--ink); border-color: var(--ink); }
+  /* Locked for the length of the call, because a face carries a voice and the
+     voice cannot move mid-answer. The chosen one stays fully legible — it is
+     what the visitor is looking at — and only the eight they can no longer
+     reach recede. */
+  .av-pick:disabled { cursor: default; }
+  .av-picker.is-locked .av-pick:not(.is-on) { opacity: .38; }
 
   /* ── the openers ──────────────────────────────────────────────────────── */
 

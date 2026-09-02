@@ -85,10 +85,6 @@ def _llm() -> ScriptedGemini:
                     "Two legs write one track — a fast one from the text, an accurate one behind it."
                 ),
             ],
-            "Can I see a different face?": [
-                reply_and_call("Watch this.", "switch_avatar", request={"avatar": "meera"}),
-                reply("That's Meera — and the voice moved with the face."),
-            ],
             "Why does the pipeline not know when you're working?": [
                 # The shape the prompt demands: a holding line out loud, THEN the
                 # dig. A silent deep_dive is the failure mode this scripts against.
@@ -166,34 +162,44 @@ async def test_a_question_scrolls_the_page_to_the_section_it_is_answered_from() 
         assert set(section) == {"id", "title"}, section
 
 
-async def test_switching_the_avatar_moves_the_voice_with_it() -> None:
-    """The half-applied pair, in the one place it can actually happen.
+async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() -> None:
+    """The pairing, asserted where it is actually decided.
 
     Nine faces share two recorded reference speakers, so a face and a voice are
-    paired by gender. A switch that redrew the avatar and left the voice behind
-    would be invisible in a transcript and obvious to a listener — so this
-    asserts both halves: the page is told, *and* a configure carrying the male
-    voice reached the wire."""
+    one choice. The visitor makes it on the strip before dialling and it rides
+    the connect request; the brain has to apply it before the opener is
+    synthesised, because a greeting in the other speaker's voice is the whole
+    defect this arrangement exists to remove.
+
+    ``meera`` is female, and the agent this demo runs on is provisioned male —
+    so a brain that ignored ``init`` and let the agent's own voice stand would
+    still produce audio, and this is the assertion that catches it."""
     async with demo("avatar", _llm()) as rig:
-        await rig.driver.start_session()
-        turn = await rig.driver.user_says("Can I see a different face?")
-        check_turn(rig, turn, units=2)
+        greeting = await rig.driver.start_session(init={"surface": "avatar-web", "avatar": "meera"})
+        assert greeting is not None and greeting.text == _GREETING
+        check_voice_pair(rig, voice="omnivoice/gauri", language="en")
 
-        switch = rig.command("switch_avatar")
-        assert switch["key"] == "meera"
-        assert switch["name"] == "Meera"
-        assert switch["voice"] == "omnivoice/gauri"
-
-        # And the same fact on the configure lane, which is what the ear hears.
+        # Exactly one, and before the greeting. A second would mean something
+        # still moves the voice mid-call, which is the thing that was removed.
         configs = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
         voices = [c.tts.voice for c in configs if c.tts and c.tts.voice]
-        assert voices == ["omnivoice/gaurav", "omnivoice/gauri"], voices
-        # Both language legs restated on the switch: `Config` refuses a
-        # half-stated pair, and this is the check that the demo did not learn to
-        # send one anyway by dropping the section.
-        last = configs[-1]
-        assert last.tts is not None and last.stt is not None
-        assert last.tts.language == "en" and last.stt.language == "en"
+        assert voices == ["omnivoice/gauri"], voices
+        # Both language legs, because `Config` refuses a half-stated pair and
+        # this is the check that the demo did not learn to send one anyway.
+        only = configs[0]
+        assert only.tts is not None and only.stt is not None
+        assert only.tts.language == "en" and only.stt.language == "en"
+
+
+async def test_an_unknown_face_falls_back_to_one_the_agent_can_already_speak() -> None:
+    """The payload is browser-supplied on a public page, so a stale build or a
+    hand-edited request must produce a working call rather than a failed one —
+    and the fallback must not itself be a mismatch. ``arjun`` is the default
+    precisely because the agent is provisioned with the voice it is paired
+    with."""
+    async with demo("avatar", _llm()) as rig:
+        await rig.driver.start_session(init={"avatar": "not-a-face"})
+        check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
 
 
 async def test_the_deliberate_dig_claims_working_out_loud_and_clears_it() -> None:
@@ -232,40 +238,24 @@ async def test_claims_and_actions_are_two_different_things_on_the_wire() -> None
         assert _claims(rig) == ["THINKING", None]
 
 
-async def test_a_click_on_the_strip_moves_the_voice_and_reaches_the_model() -> None:
-    """The manual picker is the second way to change the face, and the half a
-    page cannot do for itself is the half asserted here.
+async def test_the_strip_cannot_move_the_voice_once_the_call_is_up() -> None:
+    """The mid-call pick is gone, and this is the assertion that keeps it gone.
 
-    The drawing swaps in the browser, immediately, with no round trip — so
-    nothing about *that* is on this wire. What has to come to the brain is the
-    voice (the recorded reference speaker is the runtime's, not the page's) and
-    the model's knowledge that it is now wearing a different face. A click that
-    redrew the avatar and left both behind is the demo's worst failure: the
-    visitor watches a woman appear and hears a man keep talking."""
-    llm = _llm()
-    async with demo("avatar", llm) as rig:
+    It used to be the demo's showpiece: click a face, the voice follows. It was
+    also its worst moment — the voice changing in the middle of an answer is the
+    one thing a listener always notices. The page locks the strip for the length
+    of the call; this is the brain half, so a page that ships the old behaviour
+    by accident cannot resurrect it on its own."""
+    async with demo("avatar", _llm()) as rig:
         await rig.driver.start_session()
+        before = len([r for r in rig.driver.requests if isinstance(r, ConfigureFrame)])
 
         await rig.driver.send_client_message("pick_avatar", {"key": "naina"})
         await _settle()
 
-        configs = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
-        voices = [c.tts.voice for c in configs if c.tts and c.tts.voice]
-        assert voices[-1] == "omnivoice/gauri", voices
-        # The page is told too, even though it swapped already: one code path
-        # wears an avatar, whoever asked for it, and the confirmation carries the
-        # voice the page never chose.
-        assert rig.command("switch_avatar")["key"] == "naina"
-
-        # And the model is told, without anything taking the floor — a click is
-        # not a question, and answering one out loud talks over someone reading.
-        turn = await rig.driver.user_says("Anything at all.")
-        check_turn(rig, turn, units=1)
-
-    grounded = "".join(
-        p.text or "" for c in llm.captured_contents[-1] for p in (c.parts or []) if c.role == "user"
-    )
-    assert "naina" in grounded.lower(), grounded
+        after = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
+        assert len(after) == before, "a mid-call pick moved the voice"
+        assert "switch_avatar" not in rig.actions(), rig.actions()
 
 
 async def test_the_call_is_capped_and_ends_on_a_wave(monkeypatch: pytest.MonkeyPatch) -> None:
