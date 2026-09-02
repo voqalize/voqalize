@@ -196,7 +196,7 @@ become; it does not govern this file.
 - **Conflict semantics** when a `state_sync` and an action cross on the wire.
   Convention today: diff by id, last write wins per row. Unstated, untested.
 - Whether the framework boundary **generalises past one vendor**. Everything in
-  [10](10-the-framework-boundary.md) is exercised by all eleven demos now, but
+  [10](10-the-framework-boundary.md) is exercised by every demo now, but
   through `GeminiBrain` and `GeminiInteractionsBrain` — two clients of the same
   google-genai SDK. The ADK path that would have been the second vendor is deleted.
 - ~~Whether `@voqalize/client-react` is **deleted or kept at four facts**.~~
@@ -221,13 +221,13 @@ become; it does not govern this file.
 
 - No demo asserts history-equals-`heard`.
 - No demo exercises `status="timeout"`.
-- **Ten demos still declare `@voqalize/client-react` at `^0.1.0`**, and the
+- **Most demos still declare `@voqalize/client-react` at `^0.1.0`**, and the
   package was deprecated and its source deleted on 2026-08-24. They keep building:
   deprecating does not unpublish, so `^0.1.0` still resolves 0.1.1 from the
   registry — which is also why the overlay in `build.mjs` can go. What that
   0.1.x surface carries and nothing else now does is **presence**
   (`AmbientPresence`, `useVoqalSession`, `useUiCommand`); the last two are thin
-  over pipecat, the first is not, and it needs a home before those ten pages can
+  over pipecat, the first is not, and it needs a home before those pages can
   be ported. Sugar and legal are ported already and are the shape to copy.
 - **A failed tool never reaches the caller.** google-genai hands the model
   `{'error': …}` and the model says it did the thing; our side can only log.
@@ -237,7 +237,7 @@ become; it does not govern this file.
   state is the screen.
 - **Every design here assumes a screen — and that is a scope boundary, not an
   oversight.** There is no telephony anywhere in the product: the runtime is
-  WebRTC, all eleven demos are browsers, and nothing in the repo mentions PSTN or
+  WebRTC, every demo is a browser, and nothing in the repo mentions PSTN or
   SIP. So "voice alongside a visual surface" is what we build, and half these
   practices are *defined* by it (#1, #2, #18, #21, #31). State it deliberately at
   the top of the set rather than leaving a reader to discover it on page nine.

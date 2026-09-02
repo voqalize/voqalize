@@ -54,10 +54,6 @@ substitutions:
   _SSH_SECRET: brains-deploy-ssh-key
   _IMAGE: ${_REGION}-docker.pkg.dev/${_PROJECT}/YOUR_REGISTRY/demos
   _DEPLOYER_SA: projects/YOUR_GCP_PROJECT/serviceAccounts/YOUR_DEPLOYER_SA@YOUR_GCP_PROJECT.iam.gserviceaccount.com
-  # Expected demo count — the gate asserts /_healthz lists exactly this many.
-  # Discovery is per-directory and the app starts happily with one brain missing,
-  # so a bare 200 would let a silently-dark demo ship.
-  _EXPECTED_DEMOS: "12"
 
 steps:
   # 1. Build the brains-only image. Context is the repo root — the backend
@@ -144,17 +140,25 @@ steps:
         TAG="$$TAG" python3 - <<'PY'
         import json, os
         d = json.load(open("/workspace/healthz.json"))
-        names = d.get("demos") or []
-        expected = int("${_EXPECTED_DEMOS}")
+        served = set(d.get("demos") or [])
+        # The manifest is the roster of record, so the gate reads it rather than
+        # a number someone has to remember to bump. Discovery is per-directory
+        # and the app starts happily with one brain missing, so a bare 200 would
+        # let a silently-dark demo ship — and a count would only say how many
+        # are dark, never which.
+        want_demos = {x["name"] for x in json.load(open("demos/manifest.json"))["demos"]}
         want = os.environ["TAG"]
         assert d.get("ok") is True, f"not ok: {d}"
-        assert len(names) == expected, f"expected {expected} demos, got {len(names)}: {names}"
+        assert served == want_demos, (
+            f"the deployed brains do not match demos/manifest.json — "
+            f"missing {sorted(want_demos - served)}, unlisted {sorted(served - want_demos)}"
+        )
         got = d.get("git_sha")
         assert got == want, (
             f"served git_sha {got!r} != just-deployed {want!r} — the old container "
             "is still answering, so this deploy did not take"
         )
-        print(f"✓ {len(names)} demos live at {got}: {names}")
+        print(f"✓ every demo in the manifest is live at {got}: {sorted(served)}")
         PY
 
 # No top-level `images:` — that pushes only AFTER every step, and the deploy step

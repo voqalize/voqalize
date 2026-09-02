@@ -60,7 +60,7 @@
   step, the passing tests, the lit path, the code."
 - **`servicing`** — "Voice augments the screen; it does not replace it."
 - **`support`** — `highlight_item` "to point at the exact line."
-- Every one of the eleven demos drives a screen. None of them is a phone call.
+- Every demo drives a screen. None of them is a phone call.
 
 ## The move this page names
 

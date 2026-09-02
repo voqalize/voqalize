@@ -549,19 +549,21 @@ facts:
     note: >-
       The roster is the fact and the count is a projection of it, which is why
       this row is a list. A count answers "is the number right"; the roster
-      answers "is anything missing", and that is the question with a live wrong
-      answer: platform/frontend/apps/marketing/src/data/demos.ts carries its own
-      hand-kept list of ten, so `orderdesk` ships in the web artifact at
-      /demos/orderdesk and nothing on the apex links to it. manifest.json is the
-      registry, so it is the roster of record and that file is the one that is
-      short.
+      answers "is anything missing", and that is the question worth asking —
+      manifest.json is the registry, so it is the roster of record and anything
+      else keeping its own list is the file that goes short.
 
-      A prose count must equal the length of this list. Four marketing strings
-      say ten. The changelog entry dated 2026-07-31 also says ten and is right —
-      it was ten that day, and a dated record is not a claim about now.
+      **No prose anywhere states how many demos there are.** Every count written
+      here has gone stale, most of them within a release: pages said ten against
+      a manifest of eleven, then eleven against twelve, and a build gate carried
+      its own copy of the number until adding a demo turned the deploy red. A
+      count carries no information a reader needs — nobody chooses Voqalize on
+      the size of the gallery — and it is wrong the day the next demo lands. Say
+      "our demos", "every demo", "the gallery"; if something genuinely must
+      enumerate them, read this roster. A dated record — a changelog entry — may
+      keep the number it was true with, because it is not a claim about now.
     forbid:
-      - '\b[Tt]en (?:demos|agents)\b'
-      - 'all ten demos'
+      - '\b(?:[Tt]en|[Ee]leven|[Tt]welve|[Tt]hirteen|\d{1,2}) (?:shipping )?(?:demos|demo agents)\b'
     except:
       - '**/changelog.astro'
 

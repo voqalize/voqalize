@@ -150,12 +150,11 @@ into the app's `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`.)
 
 1. Brains: **both** environments deploy off the same `^main$` push — the dev and
    prod brains triggers watch the same public repo, so one push builds both.
-   `_EXPECTED_DEMOS` in `cloudbuild.brains-vm.yaml` counts the demos, so a new
-   one bumps it — but the yaml default is **overridden by a trigger substitution
-   of the same name**, on `deploy-brains-vm` (dev) and `deploy-brains-vm-prod`.
-   Bump all three, or the container deploys fine and the verify step still fails
-   with `expected 11 demos, got 12`. `gcloud builds triggers update` cannot reach
-   a substitution either; use the same export/import round-trip as step 4.
+   The verify step reads `demos/manifest.json` and asserts `/_healthz` serves
+   exactly that roster, so adding a demo needs nothing bumped anywhere — a demo
+   in the manifest that did not come up names itself in the failure. (It carried
+   an `_EXPECTED_DEMOS` count until 2026-09-02, in the yaml *and* on both
+   triggers, and adding one turned the deploy red every time.)
 2. Web: the web trigger → Pub/Sub (`web-artifact-built`) → marketing deploy lays
    `/demos/orderdesk` under the apex. A web build that started *before* the
    substitutions were written bakes empty values, so re-run the trigger after

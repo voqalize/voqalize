@@ -2,11 +2,11 @@
 the conformance ``VoqalizeDriver``, with only the *model* scripted.
 
 Every demo is a ``GeminiBrain`` (or ``GeminiInteractionsBrain``) subclass now —
-ADK is gone from the repo, and all twelve demos, travel and orderdesk included,
-are hosted through :func:`demo` with the same
+ADK is gone from the repo, and every demo, travel and orderdesk included,
+is hosted through :func:`demo` with the same
 :class:`voqalize_demos.testing.ScriptedGemini` fake. The ``brain_server``
 WebSocket, the minted PyGato token, and the driver's playout/heard-truth model
-are identical across all twelve, which is the point: these tests exercise the
+are identical across every one of them, which is the point: these tests exercise the
 same wire a production session runs on.
 
 What every demo's e2e must prove, and why each one is here:

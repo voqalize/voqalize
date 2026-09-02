@@ -173,7 +173,7 @@ without touching the wire or the runtime.
 
 ## Gap
 
-- **This boundary is proven on one vendor.** All eleven demos run against it, but
+- **This boundary is proven on one vendor.** Every demo runs against it, but
   through `GeminiBrain` and `GeminiInteractionsBrain` — two clients of the same
   google-genai SDK. The ADK path that was going to be the second vendor is
   deleted. Nothing here should be stated as a general shape until something that
