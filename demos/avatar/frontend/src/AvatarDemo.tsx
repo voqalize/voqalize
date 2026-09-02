@@ -196,7 +196,11 @@ function Captions() {
 
   /** Move the sentence in flight into the fading stack. */
   const retire = useCallback(() => {
-    const text = live.current.join("").trim();
+    // One space between chunks, because that is exactly what the live line
+    // showed: the kit's overlay renders each entry followed by a space. Joining
+    // them any other way makes a retired sentence read differently from the one
+    // the visitor just watched being spoken.
+    const text = live.current.join(" ").replace(/\s+/g, " ").trim();
     live.current = [];
     setWords([]);
     if (!text) return;
