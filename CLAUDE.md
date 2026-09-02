@@ -187,10 +187,10 @@ is now the only mechanism and it is tested directly.
 
 ## Every demo has an e2e, and one of them is a sweep
 
-`demos/tests/test_<name>_e2e.py` — all eleven. The real brain on a real
+`demos/tests/test_<name>_e2e.py` — all twelve. The real brain on a real
 `brain_server` socket, driven by the conformance `VoqalizeDriver`, with only the
 *model* faked: `ScriptedGemini` (`demos/voqalize_demos/testing.py`) drives all
-eleven, aura's `GeminiInteractionsBrain` included — the ADK adapter and its
+twelve, aura's `GeminiInteractionsBrain` included — the ADK adapter and its
 `ScriptedLlm` are gone. No network, no API key, ~33 s for the whole suite.
 
 `demos/tests/test_demo_voice_contract.py` is the cross-demo sweep: it asserts every
@@ -247,7 +247,7 @@ brain.py` — were fixed rather than fenced. Don't add to the exclusion.
 pm2 start ecosystem.config.cjs
 ```
 
-Starts the docs site and all eleven demo UIs. **Ports are declared in that file
+Starts the docs site and all twelve demo UIs. **Ports are declared in that file
 and nowhere else** — pm2 passes each on the command line and no `vite.config.ts`
 or `astro.config.mjs` here names one. The demo ports are a base plus the index
 into the `DEMOS` array, which is therefore **append-only**: inserting a name

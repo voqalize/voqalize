@@ -540,9 +540,9 @@ facts:
 
   demos.roster:
     value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
-            lead_qual, aura, forge, orderdesk]
+            lead_qual, aura, forge, avatar, orderdesk]
     source: demos/manifest.json
-    verified: 2026-08-24
+    verified: 2026-09-01
     derive:
       file: demos/manifest.json
       json_pluck: {key: demos, field: name}

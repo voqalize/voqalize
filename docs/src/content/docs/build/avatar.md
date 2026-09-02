@@ -26,7 +26,11 @@ the microphone is muted. Most of that comes from frames a pipecat pipeline
 already emits, which is why the integration takes an argument at neither end.
 
 The Playground in the console renders one against a live call, so you can hear
-and watch the thing before you install anything.
+and watch the thing before you install anything. So does
+[the avatar demo](https://voqalize.com/demos/avatar), which is the library
+explaining itself: it brings the architecture up on screen, demonstrates the
+three commands below on its own face, and changes which avatar it is while you
+watch.
 
 ## The browser half
 
