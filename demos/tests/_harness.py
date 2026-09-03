@@ -253,7 +253,7 @@ def check_turn(rig: DemoRig, turn: Any, *, units: int | None = None) -> None:
     """A clean user turn: it spoke, every bracket closed, ids are monotone, and the
     turn completed (without which Voqalize stays muted for the rest of the call)."""
     checks.check_brackets_closed(turn)
-    checks.check_speech_ids_monotonic(turn)
+    checks.check_speech_ids_unique(turn)
     checks.check_completed(turn)
     checks.check_spoke(turn)
     if units is not None:

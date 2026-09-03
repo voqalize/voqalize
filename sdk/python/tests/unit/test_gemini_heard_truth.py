@@ -46,16 +46,18 @@ def _texts(brain: GeminiBrain) -> list[str]:
     ]
 
 
-def _speak(brain: GeminiBrain, text: str) -> None:
+def _speak(brain: GeminiBrain, text: str) -> int:
     """One unit of generated speech, as `respond` builds it while streaming: it
-    goes into history, and it joins the queue because it opened a speech unit on
-    the wire and one finalize is therefore coming back for it."""
+    goes into history, and it enrols under the id it opened on the wire, because
+    one finalize naming that id is coming back for it."""
     unit = brain._open_unit()  # pyright: ignore[reportPrivateUsage]
     brain._extend_unit(unit, types.Part(text=text))  # pyright: ignore[reportPrivateUsage]
-    brain._awaiting.append(unit)  # pyright: ignore[reportPrivateUsage]
+    speech_id = brain.session.next_speech_id()
+    brain._awaiting[speech_id] = unit  # pyright: ignore[reportPrivateUsage]
+    return speech_id
 
 
-def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Finalize:
+def _heard(text: str, *, speech_id: int = 1, interrupted: bool = False) -> Finalize:
     """One finalize. ``interrupted`` is a comparison rather than a flag, so a cut
     unit is one whose generated text runs past what the caller heard."""
     generated = text + " ...and the tail nobody heard." if interrupted else text

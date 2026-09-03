@@ -111,9 +111,21 @@ a button is not the app taking the floor.
 
 **`speech_id` is brain-minted and names one unit of speech.** `SpeechStart`
 opens it and binds it to a turn; each `SpeechChunk` carries it; `SpeechEnd`
-closes it; the `Finalize` that reports what was heard names it back. Voqalize never
-mints, orders or compares one — it quotes it back exactly as it arrived, so a
-brain may number units however it likes.
+closes it; the `Finalize` that reports what was heard names it back. Voqalize
+never mints, orders, compares or parses one — it quotes it back exactly as it
+arrived.
+
+**Ids ascend within a session, and that is how they stay unique.** A repeated or
+out-of-order id **fails the session**: one `Finalize` would describe two pieces of
+text with no way to tell which, and every report after it is a guess — the same
+reason a wire version mismatch is fatal. Voqalize checks that one comparison and
+nothing else; it still never orders, compares or parses an id beyond it.
+
+Keep them small. The field is a `uint64`, and a language whose integers are
+IEEE-754 doubles is exact only to 2^53. The shipped SDK numbers them from 1, hands
+you the next one at `session.next_speech_id()`, and raises `WireError` at the call
+site on an id that does not ascend — so the mistake is a stack trace in your own
+code rather than a dropped call.
 
 One turn may hold several units: a filler, a pause while a tool runs, then the
 answer. The unit is the granularity of everything downstream, because the unit
@@ -423,8 +435,11 @@ connection would reach a fresh session with none of the first one's history.
 
 The [Python SDK](https://github.com/voqalize/voqalize/tree/main/sdk/python) is
 the wire with the bookkeeping removed. A brain implements callbacks and yields
-speech; nothing in its surface names a `turn_id`. The one `speech_id` it sees is
-on `Finalize`, which reports what a unit was heard as and needs to say which.
+speech; nothing in its surface names a `turn_id`. `speech_id` it keeps, because a
+brain needs it: `session.next_speech_id()` hands out the next one and
+`SpeechStart(id=...)` names the unit with it, so the `Finalize` that reports what
+that unit was heard as can be recognised without counting. A brain that names
+nothing still works — the SDK takes the next id itself.
 
 ```python
 class Greeter(Brain):

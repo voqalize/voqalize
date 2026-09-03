@@ -78,7 +78,7 @@ async def _dial(engine: Engine, *hops: Any) -> Any:
     return brain
 
 
-def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Finalize:
+def _heard(text: str, *, speech_id: int = 1, interrupted: bool = False) -> Finalize:
     """One finalize. ``interrupted`` is a comparison rather than a flag, so a cut
     unit is one whose generated text runs past what the caller heard."""
     generated = text + " ...and the tail nobody heard." if interrupted else text
@@ -325,29 +325,61 @@ async def test_a_silent_tool_hop_is_never_reconciled(engine: Engine) -> None:
     assert _said(engine, brain)[-1] == "there are three"
 
 
-async def test_finalizes_are_matched_to_units_in_order(engine: Engine) -> None:
-    """The queue is a plain FIFO, which is what the exactly-once guarantee buys:
-    the n-th finalize belongs to the n-th unit the brain opened."""
-    brain, session = await _reconciling(engine)
-    engine.speak(brain, "let me look that up")
-    engine.silent_call(brain, "ping")
-    engine.speak(brain, "there are three options this morning")
+async def test_a_finalize_finds_its_unit_by_id(engine: Engine) -> None:
+    """A finalize names the unit it reports on, and that name is what is matched.
 
-    await brain.on_finalize(session, _heard("let me look that up", speech_id=1))
-    await brain.on_finalize(session, _heard("there are three", speech_id=2, interrupted=True))
+    Arrival order is not: the finalizes below come back second-unit-first, and
+    each correction still lands on the unit that generated the text it is a
+    prefix of. Matching by position instead — popping the oldest unit still
+    waiting — puts the second unit's heard text on the first, which is a model
+    turn claiming a sentence it never generated.
+    """
+    brain, session = await _reconciling(engine)
+    first = engine.speak(brain, "let me look that up")
+    engine.silent_call(brain, "ping")
+    second = engine.speak(brain, "there are three options this morning")
+
+    await brain.on_finalize(session, _heard("there are three", speech_id=second, interrupted=True))
+    await brain.on_finalize(session, _heard("let me look that up", speech_id=first))
 
     assert _said(engine, brain) == ["let me look that up", "there are three"]
 
 
-async def test_a_finalize_with_nothing_awaiting_is_the_greeting(engine: Engine) -> None:
+async def test_a_finalize_naming_no_unit_of_ours_is_speech_we_did_not_generate(
+    engine: Engine,
+) -> None:
     """`greet` is spoken by the SDK, not generated here, so the finalize is the
     only record of it. Without this the model does not know it greeted and opens
-    a second time."""
+    a second time.
+
+    The same branch carries a line the brain yielded itself. It is safe because
+    the lookup is by id: an id we never opened matches nothing, so the unit is
+    recorded on its own rather than rewriting a turn the model generated.
+    """
     brain, session = await _reconciling(engine)
 
-    await brain.on_finalize(session, _heard("hi, travel desk here"))
+    await brain.on_finalize(session, _heard("hi, travel desk here", speech_id=404))
 
     assert _said(engine, brain) == ["hi, travel desk here"]
+
+
+async def test_brain_authored_speech_never_rewrites_the_model_turn(engine: Engine) -> None:
+    """A brain that speaks a line of its own — a filler while a tool runs — and
+    then lets the model answer.
+
+    The filler's finalize arrives first, because it played first. It names a unit
+    the model never generated, so it must not touch the model's. Matching by
+    position does exactly that: the filler's text lands on the model's turn, and
+    the model's own sentence is then recorded as a second, separate turn.
+    """
+    brain, session = await _reconciling(engine)
+    filler = session.next_speech_id()  # yielded by the brain, never enrolled
+    spoken = engine.speak(brain, "there are three options this morning")
+
+    await brain.on_finalize(session, _heard("one moment", speech_id=filler))
+    await brain.on_finalize(session, _heard("there are three", speech_id=spoken, interrupted=True))
+
+    assert _said(engine, brain) == ["there are three", "one moment"]
 
 
 # ─── 9. Every request extends the last ────────────────────────────────────────

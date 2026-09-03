@@ -115,6 +115,7 @@ export const sidebar = [
         ],
       },
       { label: "Use another agent framework", slug: "build/existing-agent" },
+      { label: "Correcting history", slug: "build/correcting-history" },
       { label: "Deploy the brain", slug: "build/hosting" },
       { label: "Inbound server", slug: "build/inbound" },
       { label: "Outbound relay", slug: "build/outbound" },

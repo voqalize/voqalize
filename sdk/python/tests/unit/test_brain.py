@@ -29,6 +29,7 @@ from voqalize.sdk.brain import _adapter_for
 from voqalize.sdk.wire import (
     WIRE_VERSION,
     ErrorFrame,
+    FinalizeFrame,
     Frame,
     InterruptionFrame,
     RTVIFrame,
@@ -397,3 +398,144 @@ async def test_an_older_wire_version_is_refused_too() -> None:
     )
     await asyncio.sleep(0.02)
     assert rec.names() == ["ErrorFrame", "EndFrame"]
+
+
+# ─── Naming a unit ────────────────────────────────────────────────────────────
+
+
+class Namer(Brain):
+    """A brain that names the unit it opens, which is how it recognises its own
+    work when the report comes back — a filler line it wants kept out of its
+    model's context, say."""
+
+    def __init__(self) -> None:
+        self.named: list[int] = []
+        self.finalized: list[int] = []
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        sid = session.next_speech_id()
+        self.named.append(sid)
+        yield SpeechStart(id=sid)
+        yield Chunk("one moment")
+        yield SpeechEnd()
+
+    async def on_finalize(self, session: Session, fin: sdk.Finalize) -> None:
+        self.finalized.append(fin.speech_id)
+
+
+async def test_a_named_unit_carries_that_id_on_the_wire() -> None:
+    """The id the brain took is the id the frames carry. Nothing renumbers it —
+    Voqalize quotes it back exactly as it arrived."""
+    brain = Namer()
+    _adapter, rec = await _open(brain)
+    await _adapter.handle_frame(UserMessageFrame(turn_id=2, text="hi"))  # type: ignore[attr-defined]
+    await asyncio.sleep(0.02)
+
+    starts = [f for f in rec.frames if isinstance(f, SpeechStartFrame) and f.turn_id == 2]
+    assert [f.speech_id for f in starts] == brain.named
+
+
+async def test_a_named_unit_comes_back_under_its_own_name() -> None:
+    """The whole point: a brain can recognise the unit it opened without counting
+    finalizes, which is what it needs to keep one line out of its model's
+    context."""
+    brain = Namer()
+    adapter, _rec = await _open(brain)
+    await adapter.handle_frame(UserMessageFrame(turn_id=2, text="hi"))  # type: ignore[attr-defined]
+    await asyncio.sleep(0.02)
+    sid = brain.named[0]
+
+    await adapter.handle_frame(FinalizeFrame(speech_id=sid, heard_text="one moment"))  # type: ignore[attr-defined]
+
+    assert brain.finalized == [sid]
+
+
+async def test_an_unnamed_unit_still_gets_an_id() -> None:
+    """Naming is optional. A brain with nothing to recognise writes what it always
+    wrote, and the SDK takes the next id itself."""
+    _adapter, rec = await _open(Greeter())
+    await asyncio.sleep(0.02)
+    starts = [f for f in rec.frames if isinstance(f, SpeechStartFrame)]
+    assert [f.speech_id for f in starts] == [1]
+
+
+class Abandoner(Brain):
+    """Takes an id for a unit it then decides not to open — a tool answered, so
+    the filler is no longer worth saying."""
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        session.next_speech_id()  # taken, never used
+        yield SpeechStart()
+        yield Chunk("here they are")
+        yield SpeechEnd()
+
+
+async def test_taking_an_id_and_not_using_it_leaves_a_gap() -> None:
+    """Ids are opaque and gaps mean nothing — Voqalize never orders or compares
+    one — so allocating ahead of a unit that then goes unspoken costs nothing."""
+    adapter, rec = await _open(Abandoner())
+    await asyncio.sleep(0.02)
+    await adapter.handle_frame(UserMessageFrame(turn_id=2, text="hi"))  # type: ignore[attr-defined]
+    await asyncio.sleep(0.02)
+
+    starts = [f for f in rec.frames if isinstance(f, SpeechStartFrame) and f.turn_id == 2]
+    assert [f.speech_id for f in starts] == [2]  # 1 was taken and dropped
+
+
+class Reuser(Brain):
+    """A brain whose counter reset — per model call, per tool loop. This is the
+    mistake a speech-id scheme invites, and it is the one Voqalize fails the
+    session over: one finalize would arrive for two pieces of text with no way to
+    tell which it describes."""
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        yield SpeechStart(id=7)
+        yield Chunk("first")
+        yield SpeechEnd()
+        yield SpeechStart(id=7)
+        yield Chunk("second")
+        yield SpeechEnd()
+
+
+class Descender(Brain):
+    """Two ids taken ahead of time and spoken in the other order. Unique, so a
+    uniqueness rule would let it through — and Voqalize would still fail the
+    session, because the rule there is that ids ascend."""
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        first, second = session.next_speech_id(), session.next_speech_id()
+        yield SpeechStart(id=second)
+        yield Chunk("second")
+        yield SpeechEnd()
+        yield SpeechStart(id=first)
+        yield Chunk("first")
+        yield SpeechEnd()
+
+
+async def test_a_reused_id_is_refused_at_the_call_site() -> None:
+    """Refused here, where the brain author can see it, rather than on the wire —
+    where Voqalize ends the session and the author reads it as a dropped call."""
+    adapter, rec = await _open(Reuser())
+    await adapter.handle_frame(UserMessageFrame(turn_id=2, text="hi"))  # type: ignore[attr-defined]
+    await asyncio.sleep(0.02)
+
+    assert rec.spoken() == "first"
+
+
+async def test_an_id_that_does_not_ascend_is_refused_at_the_call_site() -> None:
+    """The SDK holds the same rule the wire does. Holding only uniqueness here
+    would let a brain send a descending id, and the session would die on the far
+    end for something this end could see."""
+    adapter, rec = await _open(Descender())
+    await adapter.handle_frame(UserMessageFrame(turn_id=2, text="hi"))  # type: ignore[attr-defined]
+    await asyncio.sleep(0.02)
+
+    assert rec.spoken() == "second"

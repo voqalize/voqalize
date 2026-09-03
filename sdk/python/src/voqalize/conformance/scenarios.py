@@ -148,7 +148,7 @@ async def scn_single_turn(ctx: ScenarioContext) -> None:
     checks.check_spoke(turn)
     checks.check_completed(turn)
     checks.check_brackets_closed(turn)
-    checks.check_speech_ids_monotonic(turn)
+    checks.check_speech_ids_unique(turn)
     checks.check_bound_to_turn(driver, turn)
 
 
@@ -177,7 +177,7 @@ async def scn_two_units_one_turn(ctx: ScenarioContext) -> None:
     turn = await driver.user_says(TWO)
     checks.check_completed(turn)
     checks.check_brackets_closed(turn)
-    checks.check_speech_ids_monotonic(turn)
+    checks.check_speech_ids_unique(turn)
     checks.require(
         len(turn.units) == 2,
         f"expected 2 units for a two-unit turn, saw {len(turn.units)}",

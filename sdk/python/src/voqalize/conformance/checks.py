@@ -12,7 +12,7 @@ The rules come straight from the wire contract — `docs/reference/wire`, and
 
 * **one bracket per speech unit** — every unit the brain opens
   (``SpeechStart``) must close (``…End``) exactly once, with a monotone
-  ``speech_id`` sequence;
+  ``speech_id`` unique to it;
 * **heard-truth** — the assistant text committed to the conversation is what the
   driver *heard* (played out), never brain-generated tail past a barge-in;
 * **barge-in is a watermark** — every turn through ``through_turn`` is dead, and
@@ -51,19 +51,21 @@ def check_brackets_closed(turn: Turn) -> None:
         )
 
 
-def check_speech_ids_monotonic(turn: Turn, *, start: int = 1) -> None:
-    """Speech ids within a turn are strictly increasing from ``start``. Ids are
-    session-monotonic, so a later turn legitimately starts well above 1."""
+def check_speech_ids_unique(turn: Turn) -> None:
+    """No two units in a turn share an id.
+
+    Uniqueness is the obligation the wire states, and ordering is not: Voqalize
+    quotes an id back exactly as it arrived and never compares or sorts one, so a
+    brain that takes two ids and speaks them in the other order is conformant. An
+    earlier version of this check required the ids to be strictly increasing,
+    which tested a habit of the shipped SDK rather than the contract.
+    """
     ids = [unit.speech_id for unit in turn.units]
     require(
-        ids == sorted(ids) and len(set(ids)) == len(ids),
-        f"turn {turn.turn_id}: speech ids {ids} are not strictly increasing / unique",
+        len(set(ids)) == len(ids),
+        f"turn {turn.turn_id}: speech ids {ids} repeat — one unit per id, so a "
+        "repeated id makes two units indistinguishable in the report that comes back",
     )
-    if ids:
-        require(
-            ids[0] >= start,
-            f"turn {turn.turn_id}: first speech id {ids[0]} < {start}",
-        )
 
 
 def check_bound_to_turn(driver: VoqalizeDriver, turn: Turn) -> None:

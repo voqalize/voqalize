@@ -172,8 +172,15 @@ these two attributes, and its turn id is the turn the greeting is bound to.
 def dispatch(self, action: Action) -> None: ...
 def send_rtvi(self, type: RTVIType, data: Any = None, *, id: str | None = None) -> None: ...
 def end(self, reason: str = "agent_ended") -> None: ...
+def next_speech_id(self) -> int: ...
 async def configure(self, config: Config) -> None: ...
 ```
+
+**`next_speech_id`** takes the next speech id for the session. Name a unit with
+it — `SpeechStart(id=sid)` — and the same value arrives on that unit's
+`Finalize`, which is how a brain recognises its own work after the fact. Taking
+one and not using it is fine: ids are opaque and gaps mean nothing. Reusing one
+raises `WireError`.
 
 **`dispatch`** sends one action to the app and never blocks; nothing comes back.
 It rides RTVI's own `ui-command`, which a pipecat client reads with
@@ -271,7 +278,7 @@ carries different names, and a reader moving between this page and
 
 | Wire field | SDK attribute | |
 |---|---|---|
-| `speech_id` | `speech_id` | Same name, same value. |
+| `speech_id` | `speech_id` | Same name, same value — the id the unit was opened under. |
 | `heard_text` | `heard` | Same value. |
 | — | `generated` | Not on the wire. The SDK keeps the text each unit sent, so the comparison below has both halves without you writing a ledger. |
 | — | `interrupted` | Not on the wire either: `heard != generated`. |
@@ -286,7 +293,8 @@ be wrong.
 
 ```python
 @dataclass(frozen=True)
-class SpeechStart: ...
+class SpeechStart:
+    id: int | None = None    # name it, or let the SDK take the next id
 
 @dataclass(frozen=True)
 class Chunk:

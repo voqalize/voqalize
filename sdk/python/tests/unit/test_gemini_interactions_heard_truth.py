@@ -52,13 +52,15 @@ def _texts(brain: GeminiInteractionsBrain) -> list[str]:
     ]
 
 
-def _speak(brain: GeminiInteractionsBrain, text: str) -> None:
+def _speak(brain: GeminiInteractionsBrain, text: str) -> int:
     """One unit of generated speech, as `respond` builds it while streaming: the
     step goes into history, and it joins the queue because it opened a speech
     unit on the wire and one finalize is therefore coming back for it."""
     step = gi.ModelOutputStep(content=[gi.TextContent(text=text)])
     brain._history.append(step)
-    brain._awaiting.append(step)  # pyright: ignore[reportPrivateUsage]
+    speech_id = brain.session.next_speech_id()
+    brain._awaiting[speech_id] = step  # pyright: ignore[reportPrivateUsage]
+    return speech_id
 
 
 def _tool_call(brain: GeminiInteractionsBrain, name: str) -> None:
@@ -68,7 +70,7 @@ def _tool_call(brain: GeminiInteractionsBrain, name: str) -> None:
     brain._history.append(gi.FunctionCallStep(id=f"call_{name}", name=name, arguments={}))
 
 
-def _heard(text: str, *, speech_id: int = 0, interrupted: bool = False) -> Finalize:
+def _heard(text: str, *, speech_id: int = 1, interrupted: bool = False) -> Finalize:
     """One finalize. ``interrupted`` is a comparison rather than a flag, so a cut
     unit is one whose generated text runs past what the caller heard."""
     generated = text + " ...and the tail nobody heard." if interrupted else text

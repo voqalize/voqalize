@@ -46,7 +46,6 @@ from __future__ import annotations
 import functools
 import inspect
 import os
-from collections import deque
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from typing import Any, get_type_hints
@@ -134,11 +133,13 @@ class GeminiBrain(Brain):
         # provider's, and a wrapper type in between is one more thing that has to
         # keep up with Gemini. :meth:`append_to_context` is the way in.
         self._history: list[types.Content] = []
-        # Units still awaiting their heard truth, in the order Voqalize will
-        # report them. Only units that opened a *speech* unit are here: Voqalize
+        # Units still awaiting their heard truth, by the speech id they were
+        # opened under. Only units that opened a *speech* unit are here: Voqalize
         # finalizes what it played, and a hop that only called a tool played
-        # nothing.
-        self._awaiting: deque[_Unit] = deque()
+        # nothing. Keyed rather than queued, so a unit this brain never generated
+        # — the greeting, a line the brain spoke itself — cannot displace one it
+        # did and overwrite a turn the model signed.
+        self._awaiting: dict[int, _Unit] = {}
 
     # ─── The turn ───────────────────────────────────────────────────────
 
@@ -232,8 +233,12 @@ class GeminiBrain(Brain):
                     # `thought` parts carry text that is reasoning, not speech.
                     if part.text and not part.thought:
                         if not speaking:
-                            yield SpeechStart()
-                            self._awaiting.append(unit)
+                            # Name the unit and enrol it on adjacent lines, so the
+                            # ledger and the wire cannot disagree about which is
+                            # which.
+                            speech_id = session.next_speech_id()
+                            yield SpeechStart(id=speech_id)
+                            self._awaiting[speech_id] = unit
                             speaking = True
                         yield Chunk(part.text)
                 if _finished(chunk):
@@ -375,19 +380,27 @@ class GeminiBrain(Brain):
         """Rewrite the unit Voqalize just finished playing down to what the
         caller actually heard.
 
-        A unit this brain never opened is the greeting: `greet` returns a string
-        the SDK speaks, so the only record of it anywhere is what comes back
-        here — already heard-truth, already cut to the delivered prefix if the
-        caller talked over it. Without this the model does not know it greeted,
-        and asks its opening question a second time.
+        A finalize naming no unit of ours is speech this brain did not generate:
+        the greeting, which `greet` returns as a string for the SDK to speak, or a
+        line the brain yielded itself. The only record of it anywhere is what
+        comes back here — already heard-truth, already cut to the delivered prefix
+        if the caller talked over it. Without this the model does not know it
+        greeted, and asks its opening question a second time.
+
+        The lookup is by id rather than by arrival order, and that is what makes
+        the branch above safe. Popping the oldest unit instead means speech the
+        brain wrote itself lands on the model's turn and rewrites text the model
+        signed — a turn that then claims to have said something it never
+        generated.
         """
-        if not self._awaiting:
+        unit = self._awaiting.pop(fin.speech_id, None)
+        if unit is None:
             if fin.heard:
                 self._history.append(
                     types.Content(role="model", parts=[types.Part(text=fin.heard)])
                 )
             return
-        self._reconcile(self._awaiting.popleft(), fin.heard)
+        self._reconcile(unit, fin.heard)
 
     def _reconcile(self, unit: _Unit, heard: str) -> None:
         """Collapse a unit's text down to ``heard``, in place.
