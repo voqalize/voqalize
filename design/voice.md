@@ -196,7 +196,7 @@ to put a brain in, a telephony specialist will beat us and should. *Edge:* alway
 the shape of the workload, never about the reader.
 
 **Be dry.** Understatement is the entire humor budget, and it works because the facts
-carry themselves: *"Our own eleven demos run that way in 33 seconds."* Numbers we earned —
+carry themselves: *"Our own demos run that way in 33 seconds."* Numbers we earned —
 1,143 simultaneous, ~50,000 interviews, 18 MCP tools, English plus 22 Indic languages on
 our own GPUs — are stated flat and take no adjective, because the adjective is what makes
 a reader suspect the number. No exclamation, no wink, no emoji, no joke at a named

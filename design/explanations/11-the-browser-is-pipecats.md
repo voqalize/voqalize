@@ -10,7 +10,7 @@
 > server, the `Headers` line moved into `docs/client/handshake`, and
 > `@voqalize/client-react` is deprecated on npm with no successor. Everything
 > below is the analysis as it stood before that — including the gaps, two of
-> which (presence, the demo dependency declaration) are what the eleven demos
+> which (presence, the demo dependency declaration) are what the demos
 > still need before the package's source can be removed. Read it as the record of
 > an argument, not as a description of the tree.
 

@@ -1,5 +1,5 @@
 /**
- * pm2 entrypoint for this repo's local surfaces: the docs site and the eleven
+ * pm2 entrypoint for this repo's local surfaces: the docs site and the twelve
  * demo UIs.
  *
  *   pm2 start ecosystem.config.cjs                 # everything
@@ -39,6 +39,7 @@ const DEMOS = [
   'aura',
   'forge',
   'orderdesk',
+  'avatar',
 ];
 
 module.exports = {

@@ -153,7 +153,7 @@ ships separately, onto the pygato node.
 **Every demo has an end-to-end test** (`demos/tests/test_<name>_e2e.py`): the real
 brain on a real `brain_server` socket, driven by the conformance `VoqalizeDriver`,
 with only the *model* faked — `ScriptedGemini` (`demos/voqalize_demos/testing.py`)
-for all eleven demos; ADK and its `ScriptedLlm` are gone from the repo. Plus
+for every demo; ADK and its `ScriptedLlm` are gone from the repo. Plus
 `test_demo_voice_contract.py`, a cross-demo sweep that asserts every demo puts a
 **matched** voice/language pair on both legs before its first audio — the one
 defect no transcript, log or WER score can see.

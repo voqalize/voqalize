@@ -9,8 +9,8 @@ session with the MCP connected:
 claude mcp add --transport http voqalize https://app.voqalize.com/mcp/
 ```
 
-The **trailing slash matters** — `/mcp` answers `405` with `allow: GET`; only
-`/mcp/` is the streamable endpoint. The OAuth is interactive, so if you are
+`/mcp/` is the streamable endpoint and the URL to configure; `/mcp` redirects to
+it. The OAuth is interactive, so if you are
 already signed in to the console it is usually faster to just drive the console
 UI (`https://app.voqalize.com/{tenant}`) — it exposes every field this runbook
 needs, including the STT/TTS ones the MCP `create_agent` does not.
@@ -92,22 +92,30 @@ bad recognition rather than bad config:
 ```
 create_api_key(
   tenant          = "aCxzYVYr",
-  label           = "orderdesk-demos-prod",   # dev: orderdesk-demos-dev
+  label           = "orderdesk-demos-prod",           # dev: orderdesk-demos-dev
   kind            = "publishable",
-  allowed_origins = [],                       # empty — see below
+  allowed_origins = ["https://voqalize.com"],         # dev: https://dev.voqalize.com
 )
 # → pk_...  (shown once — capture it)
 ```
 
-The label convention is `<demo>-demos-{dev,prod}`, and **every** existing demo
-key is origin-unrestricted ("any (demo)" in the console). Leave
-`allowed_origins` empty to match; pinning this one key to the apex would make it
-the only demo that breaks when someone previews the site from another host.
+The label convention is `<demo>-demos-{dev,prod}`, and the origin is the one
+apex that serves the demo — one per environment, because a demo page calls
+`/api/v1` same-origin (Hosting rewrites it to Cloud Run), so the `Origin` the
+browser sends on `sessions.connect` is the apex itself.
 
-Note that a demo bundle currently inlines *every* `VITE_*` value, not just its
-own — so all the demo publishable keys ship in each app's JS. That is tolerable
-because they are publishable and unrestricted by design, but it does mean
-tightening origins on one key is not the isolated change it looks like.
+**An empty list is refused**, and it used to be the instruction here: every demo
+key was minted origin-unrestricted until `backfill_pk_origins.py` pinned each one
+to its apex. `resolve_allowed_origins` now raises
+`PUBLISHABLE_KEY_REQUIRES_ORIGINS` rather than mint a key that every request
+would reject anyway — so a runbook that still says "leave it empty" fails at
+step 3 rather than in production.
+
+Note that a demo bundle inlines *every* `VITE_*` value, not just its own — so
+all the demo publishable keys ship in each app's JS. That is what the origin
+pin is for: a key lifted out of one bundle is still only usable from the apex it
+names. It also means the keys travel together, so a key minted against the wrong
+apex is served from twelve pages, not one.
 
 ## 4. Wire the web build
 
@@ -140,12 +148,14 @@ into the app's `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`.)
 
 ## 5. Deploy + verify
 
-1. Brains: **both** environments deploy off the same `^main$` push — the dev and
-   prod brains triggers watch the same public repo, so one push builds both.
-   `_EXPECTED_DEMOS` is bumped to 11 in `cloudbuild.brains-vm.yaml`, but the yaml
-   default is **overridden by a trigger substitution of the same name**: bump it
-   on both triggers too, or the container deploys fine and the verify step still
-   fails with `expected 10 demos, got 11`.
+1. Brains: each environment deploys off its own branch — `deploy-brains-vm`
+   watches `^main$`, `deploy-brains-vm-prod` watches `^prod$`, both on this
+   public repo. A `main` push is dev only; prod needs the fast-forward.
+   The verify step reads `demos/manifest.json` and asserts `/_healthz` serves
+   exactly that roster, so adding a demo needs nothing bumped anywhere — a demo
+   in the manifest that did not come up names itself in the failure. (It carried
+   an `_EXPECTED_DEMOS` count until 2026-09-02, in the yaml *and* on both
+   triggers, and adding one turned the deploy red every time.)
 2. Web: the web trigger → Pub/Sub (`web-artifact-built`) → marketing deploy lays
    `/demos/orderdesk` under the apex. A web build that started *before* the
    substitutions were written bakes empty values, so re-run the trigger after

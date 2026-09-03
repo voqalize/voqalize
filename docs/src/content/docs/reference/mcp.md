@@ -42,14 +42,12 @@ On first use your client runs a browser **Google sign-in** and the tools light u
 There is **no API key, client ID, or secret to configure** — the client registers
 itself dynamically and carries the resulting token.
 
-:::caution[Keep the trailing slash]
-The endpoint is `/mcp/`, slash included. `/mcp` is the mount prefix and the
-streamable transport sits at that mount's root, so a `POST` to `/mcp` never
-reaches it: the request falls through to the console's single-page app, which
-serves `GET` only, and comes back `405 Method Not Allowed` with an `allow: GET`
-header. That is a routing miss rather than a server fault. Add the slash and the
-same request answers `401` plus a `WWW-Authenticate` challenge, and OAuth
-proceeds.
+:::note[Either spelling reaches it]
+The endpoint is `/mcp/` and that is the URL to configure — it answers directly,
+with no redirect. `/mcp` reaches it too: it answers `307` to `/mcp/`, preserving
+the method and the body, which every MCP client follows. Both spellings also
+satisfy the OAuth resource check, which compares paths without regard to a
+trailing slash.
 :::
 
 :::note[One endpoint, no install]
