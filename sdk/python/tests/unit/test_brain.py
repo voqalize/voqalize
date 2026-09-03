@@ -488,9 +488,9 @@ async def test_taking_an_id_and_not_using_it_leaves_a_gap() -> None:
 
 class Reuser(Brain):
     """A brain whose counter reset — per model call, per tool loop. This is the
-    mistake a speech-id scheme invites, and the runtime cannot see it: one
-    finalize would arrive for two pieces of text with no way to tell which it
-    describes."""
+    mistake a speech-id scheme invites, and it is the one Voqalize fails the
+    session over: one finalize would arrive for two pieces of text with no way to
+    tell which it describes."""
 
     async def on_user_message(
         self, session: Session, msg: UserMessage
@@ -503,11 +503,39 @@ class Reuser(Brain):
         yield SpeechEnd()
 
 
+class Descender(Brain):
+    """Two ids taken ahead of time and spoken in the other order. Unique, so a
+    uniqueness rule would let it through — and Voqalize would still fail the
+    session, because the rule there is that ids ascend."""
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[object, None]:
+        first, second = session.next_speech_id(), session.next_speech_id()
+        yield SpeechStart(id=second)
+        yield Chunk("second")
+        yield SpeechEnd()
+        yield SpeechStart(id=first)
+        yield Chunk("first")
+        yield SpeechEnd()
+
+
 async def test_a_reused_id_is_refused_at_the_call_site() -> None:
-    """Refused here, where the brain author can see it, rather than on the wire
-    where it becomes a transcript that is quietly short one sentence."""
+    """Refused here, where the brain author can see it, rather than on the wire —
+    where Voqalize ends the session and the author reads it as a dropped call."""
     adapter, rec = await _open(Reuser())
     await adapter.handle_frame(UserMessageFrame(turn_id=2, text="hi"))  # type: ignore[attr-defined]
     await asyncio.sleep(0.02)
 
     assert rec.spoken() == "first"
+
+
+async def test_an_id_that_does_not_ascend_is_refused_at_the_call_site() -> None:
+    """The SDK holds the same rule the wire does. Holding only uniqueness here
+    would let a brain send a descending id, and the session would die on the far
+    end for something this end could see."""
+    adapter, rec = await _open(Descender())
+    await adapter.handle_frame(UserMessageFrame(turn_id=2, text="hi"))  # type: ignore[attr-defined]
+    await asyncio.sleep(0.02)
+
+    assert rec.spoken() == "second"

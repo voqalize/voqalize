@@ -60,13 +60,21 @@ nothing.
 
 ### `protocol`
 
-Voqalize refuses one thing your brain sent and keeps the call running. Three of
-the four sites are on the RTVI plane: a type the app originates rather than the
-brain, a payload that will not serialize to JSON, and a payload past the 64 KiB
-limit the browser's message size imposes. The fourth is a `SpeechStart` carrying
-no `speech_id`, which names nothing a `Finalize` could ever be matched against.
+Voqalize refuses one thing your brain sent. Three of the five sites are on the
+RTVI plane: a type the app originates rather than the brain, a payload that will
+not serialize to JSON, and a payload past the 64 KiB limit the browser's message
+size imposes. The fourth is a `SpeechStart` carrying no `speech_id`, which names
+nothing a `Finalize` could ever be matched against.
 
-The frame is dropped, the error comes back non-fatal, and the turn continues.
+The fifth is **fatal, and it is the only one that is**: a `SpeechStart` whose
+`speech_id` does not ascend. A repeated or out-of-order id means the two ends have
+stopped agreeing on what a unit is — one `Finalize` would describe two pieces of
+text with no way to tell which — so speech stops there and the session ends.
+Units already open are still answered. The SDK raises `WireError` at the call site
+first, so this reaches the wire only from a brain that speaks it directly.
+
+For the other four the frame is dropped, the error comes back non-fatal, and the
+turn continues.
 The SDK catches the first of those before it reaches the socket — `send_rtvi`
 raises `WireError` for a type outside the sendable set — so a `protocol` error
 in your logs usually means an oversized payload. See

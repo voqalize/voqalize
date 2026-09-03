@@ -152,7 +152,12 @@ message Finalize {
 
 // Opens one speech unit and binds it to the turn it answers.
 message SpeechStart {
-  // Minted by the brain, unique within the session.
+  // Minted by the brain, and strictly ascending within the session — which is
+  // how it is also unique, the obligation that actually matters. A repeated or
+  // out-of-order id fails the session: one Finalize would then describe two
+  // pieces of text with no way to tell which, and every report after it is a
+  // guess. Voqalize still never orders, compares or parses one beyond that
+  // check; it quotes the value back exactly as it arrived.
   uint64 speech_id = 1;
 
   // The turn being answered. A unit that names a dead turn is dropped.

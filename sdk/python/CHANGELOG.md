@@ -36,10 +36,12 @@ Voqalize, and a packet capture of a brain that names nothing is identical to
   parses one.
 - **`SpeechStart(id=...)`** names the unit. Leave it unset and the SDK takes the
   next id itself, which is right whenever the unit needs no name.
-- **A reused id raises `WireError`** at the call site, where the brain author can
-  see it, rather than on the wire — where one finalize would arrive for two
-  pieces of text with no way to tell which it describes, and the transcript would
-  be quietly short a sentence.
+- **An id that does not ascend raises `WireError`** at the call site, where the
+  brain author can see it. Ids ascend within a session, which is how they stay
+  unique; Voqalize **fails the session** on a repeated or out-of-order one,
+  because a single finalize would then describe two pieces of text with no way to
+  tell which. Raising here turns a dropped call into a stack trace in your own
+  code.
 
 ### Fixed
 

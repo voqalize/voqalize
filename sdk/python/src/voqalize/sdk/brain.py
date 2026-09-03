@@ -184,10 +184,12 @@ class Session:
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.
         self._speech_seq = 0
-        # Every id this session has spent, so a unit cannot be opened twice under
-        # one name. The wire's obligation is uniqueness within the session, and
-        # this is the seat that can still fail at the call site.
-        self._speech_ids_used: set[int] = set()
+        # The highest id this session has opened a unit under. Ids ascend, so one
+        # integer is the whole check — and ascending is how they are also unique,
+        # which is the obligation that matters. Voqalize fails the session on a
+        # repeat, so this is the seat that can still fail at the call site
+        # instead, where the author can see it.
+        self._speech_id_opened = 0
         # One id per configure request, session-monotonic. Its whole job is to
         # name the answer that comes back.
         self._request_seq = 0
@@ -358,9 +360,10 @@ class Session:
         — enough to keep an acknowledgement out of your model's context, or to
         find the entry a correction belongs to without counting.
 
-        Taking an id and not using it is fine. Ids are opaque and gaps mean
-        nothing: Voqalize quotes one back exactly as it arrived and never orders,
-        compares or parses one.
+        Taking an id and not using it is fine — gaps mean nothing. Opening a unit
+        under an id at or below one already opened is not: Voqalize fails the
+        session on it, and this SDK raises :class:`WireError` first, at the call
+        site, where you can see which line did it.
         """
         self._speech_seq += 1
         return self._speech_seq
@@ -368,17 +371,18 @@ class Session:
     # ─── Internal ───────────────────────────────────────────────────────
 
     def _claim_speech_id(self, speech_id: int | None) -> int:
-        """The id one unit will run under, spent so nothing can reuse it."""
+        """The id one unit will run under, spent so nothing can open under it again."""
         if speech_id is None:
             speech_id = self.next_speech_id()
-        if speech_id in self._speech_ids_used:
+        if speech_id <= self._speech_id_opened:
             raise WireError(
-                f"speech id {speech_id} was already used in this session. One unit per "
-                "id — the report that comes back names the unit, and a repeated id "
-                "makes two units indistinguishable. Take a fresh one from "
-                "session.next_speech_id()."
+                f"speech id {speech_id} is not above the last unit this session opened "
+                f"({self._speech_id_opened}). Ids ascend, which is how they stay unique: "
+                "the report that comes back names the unit, and a repeated id makes two "
+                "units indistinguishable. Voqalize fails the session on one, so this is "
+                "raised here instead. Take a fresh id from session.next_speech_id()."
             )
-        self._speech_ids_used.add(speech_id)
+        self._speech_id_opened = speech_id
         return speech_id
 
 

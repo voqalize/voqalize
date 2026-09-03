@@ -115,13 +115,17 @@ closes it; the `Finalize` that reports what was heard names it back. Voqalize
 never mints, orders, compares or parses one — it quotes it back exactly as it
 arrived.
 
-The one obligation is **uniqueness within the session**: a repeated id makes two
-units indistinguishable in the report that comes back, and the transcript is then
-quietly short a sentence. Ordering is not an obligation, so a brain that takes two
-ids and speaks them in the other order is conformant. Keep them small — the field
-is a `uint64`, and a language whose integers are IEEE-754 doubles is exact only
-to 2^53. The shipped SDK numbers them from 1 and hands you the next one at
-`session.next_speech_id()`.
+**Ids ascend within a session, and that is how they stay unique.** A repeated or
+out-of-order id **fails the session**: one `Finalize` would describe two pieces of
+text with no way to tell which, and every report after it is a guess — the same
+reason a wire version mismatch is fatal. Voqalize checks that one comparison and
+nothing else; it still never orders, compares or parses an id beyond it.
+
+Keep them small. The field is a `uint64`, and a language whose integers are
+IEEE-754 doubles is exact only to 2^53. The shipped SDK numbers them from 1, hands
+you the next one at `session.next_speech_id()`, and raises `WireError` at the call
+site on an id that does not ascend — so the mistake is a stack trace in your own
+code rather than a dropped call.
 
 One turn may hold several units: a filler, a pause while a tool runs, then the
 answer. The unit is the granularity of everything downstream, because the unit
