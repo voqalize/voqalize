@@ -224,8 +224,12 @@ matched ⇒ `{status:"matched", name, pack_size, mrp, scheme}`; not_found ⇒ su
   `agent` access). `routes.py`: `NAME = "orderdesk"`, `build(llm)`, `router = make_brain_router(...)`.
 - Session payload (from frontend `buildBrainPayload`) → system instruction at session start,
   sugar-style: scenario JSON appended as `PHARMACY CONTEXT (authoritative...)`.
-- `grounding()` → `"CURRENT ORDER SCREEN (authoritative, reflects manual edits): " + json(browser_state)`
-  plus a `PENDING:` line listing unresolved item ids/questions. Prefer browser snapshot over mirror.
+- **The screen is read, never remembered.** `state_sync` folds the browser snapshot into
+  `OrderDesk` and stops there; the context gets one line naming what the pharmacist changed
+  by hand, never the cart. The model reads the cart through the `read_screen` tool (rows,
+  quantities, and the `PENDING:` line of unresolved ids/questions). `OrderDesk.version` is
+  bumped only by his edits, and every mutating tool refuses on a version staler than the last
+  `read_screen` — so the extra hop is paid only when he has actually moved something.
 - `on_client_message`: `catalog_search` → `search()` → floor-free `show_search_results`;
   everything else → `super()` (keeps state_sync default).
 - Greeting: instant Hindi hello + generated opener continuing from `joined_from_nudge`

@@ -134,16 +134,18 @@ def replies(*items: Reply) -> list[Reply]:
     return list(items)
 
 
-def _last_user_text(contents: list[types.Content]) -> str:
-    """The most recent ``role="user"`` text in a Gemini request (``""`` if none).
+def _user_contents(contents: list[types.Content]) -> list[str]:
+    """Every ``role="user"`` text in a Gemini request, newest first.
 
-    Mirrors what the model itself keys on. Read once per turn now that the hops
-    happen inside one call, so one key holds every step of it."""
-    for content in reversed(contents):
-        if content.role != "user":
-            continue
-        return "".join(p.text for p in (content.parts or []) if p.text)
-    return ""
+    Newest first because that is what the model keys on; *every* one because the
+    newest is not always the sentence. A brain that appends grounding to the
+    context — orderdesk\'s "he changed the screen" note — files it as a user turn
+    of its own, and it lands after the utterance it is grounding."""
+    return [
+        "".join(p.text for p in (content.parts or []) if p.text)
+        for content in reversed(contents)
+        if content.role == "user"
+    ]
 
 
 @dataclass
@@ -266,7 +268,7 @@ class ScriptedGemini:
                 system_instruction=_system_text(config),
             )
         )
-        return self._turn(_last_user_text(items), config, items)
+        return self._turn(self._key(_user_contents(items)), config, items)
 
     async def _turn(
         self,
@@ -308,9 +310,14 @@ class ScriptedGemini:
         user step, newest first, for one the script knows. A brain that appends
         grounding as a ``UserInputStep`` (aura's screen snapshot does) otherwise
         buries the sentence the test is keyed on behind a JSON blob."""
-        texts = _user_texts(list(request.get("input") or []))
-        key = next((t for t in texts if self._cursor(t) is not None), texts[0] if texts else "")
-        return _interaction_events(self._next(key))
+        return _interaction_events(
+            self._next(self._key(_user_texts(list(request.get("input") or []))))
+        )
+
+    def _key(self, texts: list[str]) -> str:
+        """The script key for a request, given its user texts newest first: the
+        newest one the script knows, else the newest."""
+        return next((t for t in texts if self._cursor(t) is not None), texts[0] if texts else "")
 
     def _cursor(self, key: str) -> _Cursor | None:
         """The script this user text is keyed on: exact first, then any key that is

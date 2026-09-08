@@ -36,13 +36,16 @@ catalog query — is English. That split is enforced, not merely requested: a
 turns the ``ValueError`` into a retriable tool error), and the plain-``str`` tools
 run the same guard in-body and answer with the same message.
 
-**Grounding beats memory.** The browser pushes its cart on every change
+**The screen is read, never remembered.** The browser pushes its cart on every change
 (``state_sync``, answered by :meth:`OrderDeskBrain.on_rtvi`) — including pill taps,
-manual adds, quantity edits and deletes the pharmacist made with their thumb.
-:meth:`OrderDeskBrain._ingest_state` folds that snapshot, plus a PENDING line naming
-the rows still waiting on a question, into the context — appended once, only when the
-picture actually changed. The brain's own item mirror is only the fallback for the
-first beat, before the browser has spoken.
+manual adds, quantity edits and deletes the pharmacist made with their thumb. That
+snapshot updates :class:`OrderDesk` and goes no further: the model sees one line saying
+*he changed something*, and reads the cart itself through :meth:`OrderDesk.read_screen`.
+The old shape put the whole cart in the context on every change — 21 copies in one
+113-second production call, each labelled authoritative, none of them dated — and the
+model reasoned from whichever it noticed. ``OrderDesk.version``, bumped only by his
+edits, is what makes reading-instead-of-remembering enforceable rather than merely
+requested: a tool aimed at a screen he has changed since the last read refuses.
 
 The six ``ui_command``s are :class:`voqalize.sdk.Action` subclasses, and
 ``frontend/src/actions.gen.ts`` is generated from them; DESIGN.md §3 is the written
@@ -92,6 +95,13 @@ LANGUAGE — TOOL ARGUMENTS ARE ENGLISH, ALWAYS:
 - The screen is English and the catalog is English. EVERY string you pass to a tool — item text, query, note — is in clean English letters. Transliterate what you heard: "वोलिनी" → "volini", "चार क्विन" → "4 quin", "थायरोनॉर्म" → "thyronorm", "पैन फोर्टी" → "pan 40", "अबीवेज़" → "abiways".
 - A tool argument containing Devanagari is rejected and you will have to call again. Do not let that happen.
 
+THE SCREEN — READ IT, NEVER REMEMBER IT:
+- Nothing in this conversation is a picture of his screen. read_screen() is the only one. It is free and silent: it takes no floor, says nothing, and moves nothing.
+- Call read_screen BEFORE you act on anything he points at — "दूसरा वाला", "वो वाला", "टेल्मा हटा दो", a quantity change, a removal, a variant swap. The row ids and quantities you saw earlier may have moved since.
+- You do not need it right after your own tool call. Your own tools tell you what they did; only HIS edits change the screen behind your back.
+- When you are told he changed something himself, read_screen and then act. You are told THAT he changed it, never what it now says.
+- If a tool refuses because the screen moved under you, that is not something to report or apologise for — call read_screen and make the call again.
+
 THE TTS CANNOT PRONOUNCE MEDICINE NAMES. This is the single most important speaking rule:
 - Minimise saying brand names out loud. The screen already shows them, spelled correctly.
 - Point at the screen instead: "स्क्रीन पर ऑप्शन देखिए", "स्क्रीन पर दिख रहा है", "ऊपर वाला ऑप्शन".
@@ -121,7 +131,7 @@ DISAMBIGUATION WHEN MANY SKUS MATCH — never twenty pills:
     Him: "फोर्टी" → one or two SKUs left; call choose, or let him tap the pill.
   What you must NOT do: read the twenty-four names aloud, ask "कौन सा टेल्मा चाहिए?" with no choices, or ask about pack size first.
 - After ask_choice, say THAT SAME question out loud in ONE short Hindi sentence. Do not list the choices aloud — they are pills on his screen.
-- If he taps a group pill himself, your screen grounding shows fewer candidates on that row. Do not repeat the question — ask the NEXT one over what is left, or lock it with choose.
+- If he taps a group pill himself, that row has fewer candidates now. read_screen, then ask the NEXT question over what is left, or lock it with choose — never re-ask the one he just answered with his thumb.
 
 PACE — keep the order moving:
 - The moment he names a product, call add_items. Do not wait for the previous one to resolve; do not ask a question in between. He can list six items in one breath — take them all in ONE add_items call with a list.
@@ -133,7 +143,7 @@ CORRECTIONS:
 - A QUANTITY TWEAK IS NEVER A RE-ADD. An absolute number ("बारह कर दो") is set_quantity; a relative one ("दस और डाल दो", "थोड़ा कम कर दो", "double कर दो") is adjust_quantity with a delta — plus ten is 10, "ten less" is -10. If he wants none of it, that is remove_items, not a delta down to zero.
 - A VARIANT SWAP IS NEVER A RE-ADD EITHER. The brand is already right and only the variant is wrong ("ऑइंटमेंट वाला कर दो", "सौ ग्राम वाला", "फोर्टी कर दो") → change_variant on that row, with the variant in English ("ointment", "100 gm", "40 mg"). It stays inside the brand already on the row and keeps the quantity. Never remove the row and add it again — he loses his place on the screen.
 - If you do not have the row id to hand, pass the product name instead of the id — every row tool accepts either. If the name matches two rows you will be told so; ask him which one rather than guessing.
-- By hand: he also taps the screen — picks a pill, edits a quantity, deletes a row, adds something from the search bar. Those arrive in your CURRENT ORDER SCREEN grounding. Acknowledge in three words if it is worth acknowledging ("देख लिया") and NEVER redo what he already did himself.
+- By hand: he also taps the screen — picks a pill, edits a quantity, deletes a row, adds something from the search bar. You are told that he changed something; read_screen to see what it is now. Acknowledge in three words if it is worth acknowledging ("देख लिया") and NEVER redo what he already did himself.
 
 THE REGULAR ORDER:
 - If he says "मेरा रेगुलर ऑर्डर लगा दो" or similar, do NOT make him list it. Take his usual items from the PHARMACY CONTEXT (usual_items, else order_history) and add them in ONE add_items call, with the quantities from history. Then say in one line that his usual basket is on screen and ask what to change.
@@ -145,7 +155,7 @@ CONFIRMING — he confirms, not you:
 - Once the screen state says confirmed, close in ONE short line — order placed, delivery as usual, see you next time. Then stop.
 
 STAY GROUNDED — you never invent anything:
-- Never invent a SKU, a pack size, a price, a stock number or a scheme. The only product facts you may state are the ones a tool just returned to you or the screen state shows.
+- Never invent a SKU, a pack size, a price, a stock number or a scheme. The only product facts you may state are the ones a tool just returned to you or read_screen shows.
 - If nothing matched, say so plainly and offer the search bar: "ये कैटलॉग में नहीं मिला — स्क्रीन पर सर्च कर के देखिए।" Never substitute a different brand on your own.
 - A scheme banner appears on screen by itself when an item carries a deal. Mention it in one short line ("इस पर स्कीम चल रही है") — do not read the terms aloud.
 
@@ -162,14 +172,20 @@ A WORKED STRETCH OF THE CALL:
 Open the call per TODAY'S CALL OBJECTIVE."""
 
 
-# The header on the live cart `grounding()` appends to every model call.
-_SCREEN_HEADER = "CURRENT ORDER SCREEN (authoritative — reflects manual edits): "
-
 _PENDING_HEADER = (
     "PENDING (rows still waiting on you — ask ONE short question each, about the named axes only): "
 )
 
-_NOTHING_ON_SCREEN = "The order screen is empty — no items yet."
+# What a `state_sync` puts in front of the model. It names *what* he changed and
+# nothing else: the screen itself is read through `read_screen`, so this line is a
+# nudge, never a picture. Carrying values here is how the old screen dump started.
+_CHANGE_HEADER = "THE PHARMACIST JUST CHANGED THE SCREEN HIMSELF: "
+_CHANGE_FOOTER = ". Call read_screen() before you act on any row."
+
+_STALE_SCREEN = (
+    "He has changed the screen since you last read it, so this is refused — the row ids and "
+    "quantities you are working from may no longer be right. Call read_screen() and try again."
+)
 
 # Spoken instantly at session start, before the model has produced a token.
 _HELLO = hello_for(LANGUAGE)
@@ -507,7 +523,7 @@ def _describes(sku: SkuWire, terms: list[str]) -> bool:
 
 
 class OrderDesk:
-    """This session's cart mirror and the nine screen-driving tools.
+    """This session's cart and the ten tools that read and drive it.
 
     The tools are ordinary ``async`` methods — google-genai's automatic function
     calling drops the bound ``self`` when it builds their schemas, so session state
@@ -536,6 +552,13 @@ class OrderDesk:
         # browser snapshot, folded in by `absorb`). PENDING names them differently: the
         # question was answered, the row is smaller, and the NEXT question is due.
         self._narrowed: set[str] = set()
+        # What the pharmacist has changed on screen, and whether the model has read
+        # it since. Bumped **only** by `absorb` — never by this brain's own tools, so
+        # a model that just moved a row itself is not sent back to re-read it. That
+        # is what keeps the read conditional rather than a hop on every turn.
+        self.version = 0
+        self._read_version = 0
+        self._changes: list[str] = []
 
     @property
     def catalog(self) -> Any:
@@ -551,37 +574,6 @@ class OrderDesk:
     def _next_id(self) -> str:
         self._counter += 1
         return f"li{self._counter}"
-
-    def mirror(self) -> dict[str, Any] | None:
-        """This brain's own picture of the cart, in the browser's own
-        ``OrderSnapshot`` shape — the grounding fallback until (or without) a
-        ``state_sync``. ``None`` when nothing has been ordered yet."""
-        if not self.items:
-            return None
-        rows = [
-            {
-                "id": row.id,
-                "spoken_text": row.spoken_text,
-                "status": row.status,
-                "sku_code": row.sku.code if row.sku else None,
-                "sku_name": row.sku.name if row.sku else None,
-                "pack_size": row.sku.pack_size if row.sku else None,
-                "quantity": row.quantity,
-                "source": row.source,
-                "candidate_codes": [sku.code for sku in row.candidates],
-            }
-            for row in self.items.values()
-        ]
-        total = sum(
-            (row.sku.mrp if row.sku else 0.0) * (row.quantity or 0) for row in self.items.values()
-        )
-        return {
-            "screen": "order",
-            "items": rows,
-            "total_mrp": round(total, 2),
-            "item_count": len(rows),
-            "confirmed": False,
-        }
 
     def absorb(self, live: dict[str, dict[str, Any]] | None) -> None:
         """Fold the browser's own per-row facts — the SKU, the quantity, the surviving
@@ -601,27 +593,104 @@ class OrderDesk:
         goes ``matched``, its candidates and question spent — otherwise a later
         ``change_variant`` would re-resolve from the family he already moved off, which
         is a wrong medicine, not a stale label. Anything the catalog cannot confirm is
-        left alone: the mirror never invents a SKU the browser merely asserted."""
-        if not live:
+        left alone: the mirror never invents a SKU the browser merely asserted.
+
+        A row the browser minted (``m1``, ``m2``… — the search panel) is **adopted**
+        rather than skipped, and one the snapshot no longer carries is dropped. The
+        mirror is the only picture of the cart the model gets, so a row missing from
+        it is a row every tool is blind to."""
+        if live is None:
             return
+        for row_id in [i for i in self.items if i not in live]:
+            gone = self.items.pop(row_id)
+            self._note_change(f"{gone.id} ({gone.spoken_text}) removed by hand")
         for row_id, seen in live.items():
             row = self.items.get(row_id)
             if row is None:
+                if adopted := self._adopt(row_id, seen):
+                    self._note_change(f"{adopted.id} ({adopted.spoken_text}) added by hand")
                 continue
-            quantity = seen.get("quantity")
-            if isinstance(quantity, int | float) and not isinstance(quantity, bool):
-                row.quantity = int(quantity) or None
-            if self._relock(row, str(seen.get("sku_code") or "").strip()):
-                continue  # re-locked: there is no candidate set left to narrow
-            if not row.candidates:
-                continue
-            codes = {str(c) for c in (seen.get("candidate_codes") or []) if c}
-            held = {sku.code for sku in row.candidates}
-            if not codes or not codes < held:
-                continue
-            row.candidates = [sku for sku in row.candidates if sku.code in codes]
-            row.question = None
-            self._narrowed.add(row_id)
+            before = (row.quantity, row.sku.code if row.sku else None, len(row.candidates))
+            self._absorb_row(row, seen)
+            self._describe(row, before)
+
+    def _absorb_row(self, row: LineItemView, seen: dict[str, Any]) -> None:
+        """Fold one browser row into its mirror row. See :meth:`absorb` for the
+        ownership split this implements."""
+        quantity = seen.get("quantity")
+        if isinstance(quantity, int | float) and not isinstance(quantity, bool):
+            row.quantity = int(quantity) or None
+        if self._relock(row, str(seen.get("sku_code") or "").strip()):
+            return  # re-locked: there is no candidate set left to narrow
+        if not row.candidates:
+            return
+        codes = {str(c) for c in (seen.get("candidate_codes") or []) if c}
+        held = {sku.code for sku in row.candidates}
+        if not codes or not codes < held:
+            return
+        row.candidates = [sku for sku in row.candidates if sku.code in codes]
+        row.question = None
+        self._narrowed.add(row.id)
+
+    def _adopt(self, row_id: str, seen: dict[str, Any]) -> LineItemView | None:
+        """Take a row the browser minted — a pick out of the search panel — into the
+        mirror.
+
+        Without this the row is on screen and invisible to every tool: `_row_for`,
+        `pending` and `absorb` all read ``self.items``, so a correction aimed at a
+        hand-added row either missed outright or landed on a different row that
+        happened to answer to the same product name."""
+        code = str(seen.get("sku_code") or "").strip()
+        sku: SkuWire | None = None
+        if code:
+            try:
+                found = self.catalog.sku_by_code(code)
+            except Exception as exc:
+                logger.warning("orderdesk: sku_by_code({!r}) failed: {}", code, exc)
+                found = None
+            sku = _sku_wire(found) if found is not None else None
+        name = str(seen.get("sku_name") or seen.get("spoken_text") or "").strip()
+        if not name and sku is None:
+            return None
+        quantity = seen.get("quantity")
+        row = LineItemView(
+            id=row_id,
+            spoken_text=name or (sku.name if sku else row_id),
+            status="matched" if sku else "resolving",
+            sku=sku,
+            family=sku.family if sku else None,
+            quantity=(
+                int(quantity) or None
+                if isinstance(quantity, int | float) and not isinstance(quantity, bool)
+                else None
+            ),
+            source="manual",
+        )
+        self.items[row_id] = row
+        return row
+
+    def _note_change(self, text: str) -> None:
+        """Record something the pharmacist did, and put the model out of date.
+
+        Only his edits land here. A change this brain made itself is already in the
+        tool result the model just read, so re-reporting it would send the model
+        back to the screen for news it already has."""
+        self.version += 1
+        self._changes.append(text)
+
+    def _describe(self, row: LineItemView, before: tuple[int | None, str | None, int]) -> None:
+        after = (row.quantity, row.sku.code if row.sku else None, len(row.candidates))
+        if after == before:
+            return
+        if after[0] != before[0]:
+            self._note_change(f"{row.id} ({row.spoken_text}) quantity set to {row.quantity}")
+        if after[1] != before[1]:
+            name = row.sku.name if row.sku else "a different variant"
+            self._note_change(f"{row.id} ({row.spoken_text}) switched to {name}")
+        if after[2] != before[2]:
+            self._note_change(
+                f"{row.id} ({row.spoken_text}) narrowed to {after[2]} candidates by hand"
+            )
 
     def _relock(self, row: LineItemView, code: str) -> bool:
         """Move ``row`` onto the SKU the browser says it is on. ``True`` if it moved.
@@ -955,6 +1024,58 @@ class OrderDesk:
 
     # ─── tools ──────────────────────────────────────────────────────────────
 
+    def take_changes(self) -> str | None:
+        """One line naming what the pharmacist just changed, or ``None``.
+
+        Deliberately thin — *what* changed, never the contents. The moment this
+        carries values it is the old screen dump again and the model starts
+        reasoning from a note instead of from the screen."""
+        if not self._changes:
+            return None
+        changes, self._changes = self._changes, []
+        return _CHANGE_HEADER + "; ".join(changes) + _CHANGE_FOOTER
+
+    def _stale(self) -> dict[str, Any] | None:
+        """Refuse a tool aimed at a screen the pharmacist has changed since the model
+        last read it.
+
+        This is the enforcement, and it is deliberately not prompt text: a model that
+        does not re-read is now holding row ids and quantities that may name the wrong
+        medicine. It is also why the read is cheap — the version only moves when *he*
+        edits, so the common turn, where nothing changed, pays nothing at all."""
+        if self._read_version == self.version:
+            return None
+        return {"error": _STALE_SCREEN, "screen_version": self.version}
+
+    async def read_screen(self) -> dict[str, Any]:
+        """What is on his screen right now: every row, its quantity, and what each
+        unresolved row is still waiting on.
+
+        Call it before acting on anything he points at ("the second one", "that one",
+        "the Dolo"), and whenever you are told he changed the screen himself. It is
+        free — it reads this session's own state, takes no floor, says nothing, and
+        moves nothing on screen."""
+        self._read_version = self.version
+        rows = [
+            {
+                "id": row.id,
+                "product": row.spoken_text,
+                "status": row.status,
+                "sku": row.sku.name if row.sku else None,
+                "pack_size": row.sku.pack_size if row.sku else None,
+                "quantity": row.quantity,
+                "added_by": row.source,
+            }
+            for row in self.items.values()
+        ]
+        logger.info("orderdesk: read_screen -> {} rows (v{})", len(rows), self.version)
+        return {
+            "items": rows,
+            "item_count": len(rows),
+            "pending": self.pending(None),
+            "screen_version": self.version,
+        }
+
     async def add_items(self, items: list[SpokenItem]) -> dict[str, Any]:
         """Add every product the pharmacist just named to the order, and resolve each
         against the MedSetu catalog.
@@ -980,6 +1101,8 @@ class OrderDesk:
         Args:
             items: The products he just named, in spoken order.
         """
+        if stale := self._stale():
+            return stale
         briefs: list[dict[str, Any]] = []
         for item in items:
             row = LineItemView(
@@ -1009,6 +1132,8 @@ class OrderDesk:
             item_id: The row's id, e.g. "li3".
             query: The corrected product name in English letters, e.g. "abiways".
         """
+        if stale := self._stale():
+            return stale
         if problem := _check_english("query", query):
             return {"error": problem}
         row = self.items.get(item_id)
@@ -1048,6 +1173,8 @@ class OrderDesk:
             question: The question as the screen shows it, short English, e.g. "Which Telma line?".
             choices: 2-4 groups, each a short English label plus the candidate codes it keeps.
         """
+        if stale := self._stale():
+            return stale
         if problem := _check_english("question", question):
             return {"error": problem}
         row = self.items.get(item_id)
@@ -1145,6 +1272,8 @@ class OrderDesk:
             sku_code: The chosen SKU's catalog code.
             quantity: Strips/packs, if he said one.
         """
+        if stale := self._stale():
+            return stale
         if problem := _check_english("sku_code", sku_code):
             return {"error": problem}
         row = self.items.get(item_id)
@@ -1183,6 +1312,8 @@ class OrderDesk:
                 so — ask him which one instead of guessing.
             quantity: The new number of strips/packs/bottles.
         """
+        if stale := self._stale():
+            return stale
         row = self._row_for(item_id)
         if row is None:
             return self._ref_error(item_id)
@@ -1205,6 +1336,8 @@ class OrderDesk:
                 so — ask him which one instead of guessing.
             delta: How many strips/packs to add (positive) or drop (negative).
         """
+        if stale := self._stale():
+            return stale
         row = self._row_for(item_id)
         if row is None:
             return self._ref_error(item_id)
@@ -1240,6 +1373,8 @@ class OrderDesk:
                 the id, e.g. "volini". If the name matches two rows you will be told so.
             want: The variant he asked for, in English letters, e.g. "ointment", "100 gm".
         """
+        if stale := self._stale():
+            return stale
         if problem := _check_english("want", want):
             return {"error": problem}
         row = self._row_for(item_id)
@@ -1315,6 +1450,8 @@ class OrderDesk:
                 do not have the ids, e.g. ["volini"]. If one of them matches two rows,
                 NOTHING is removed and you are told which — ask him which one he meant.
         """
+        if stale := self._stale():
+            return stale
         rows: list[LineItemView] = []
         for ref in item_ids:
             row = self._row_for(ref)
@@ -1341,6 +1478,8 @@ class OrderDesk:
                 the id, e.g. "4 quin". If the name matches two rows you will be told so.
             note: A very short English note shown on the row, e.g. "drops or ointment?".
         """
+        if stale := self._stale():
+            return stale
         if note is not None and (problem := _check_english("note", note)):
             return {"error": problem}
         row = self._row_for(item_id)
@@ -1380,8 +1519,9 @@ class OrderDesk:
 
     @property
     def tools(self) -> list[Any]:
-        """The nine bound methods the model may call."""
+        """The ten bound methods the model may call."""
         return [
+            self.read_screen,
             self.add_items,
             self.refine_item,
             self.ask_choice,
@@ -1413,11 +1553,10 @@ class OrderDeskBrain(GeminiBrain):
         self.nudge = ""
         # The last screen+PENDING message appended to context, so a state_sync that
         # changed nothing the model needs to know about does not repeat itself.
-        self._state_message: str | None = None
 
     @property
     def tools(self) -> list[Any]:
-        """The nine bound methods AFC may call — the desk's, not this brain's own."""
+        """The ten bound methods AFC may call — the desk's, not this brain's own."""
         return self.desk.tools
 
     # ─── session start: voice, the pharmacy, then the opener ───────────────
@@ -1473,43 +1612,39 @@ class OrderDeskBrain(GeminiBrain):
     # ─── the live screen, folded into context on every state_sync ──────────
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Fold the browser's live cart into the model's context.
+        """Fold the browser's live cart into the mirror — and into the mirror only.
 
-        The browser's own ``state_sync`` snapshot (``data["screen"]``) wins — it is
-        the authoritative cart and it carries the pharmacist's manual edits (a pill
-        tapped, a quantity typed, a row deleted, Confirm pressed) — with this
-        brain's mirror as the fallback for the first beat. The PENDING line names
-        the rows still short of a SKU and the axes to ask about, so the model never
-        re-asks a question the screen already answered. Appended once, and only
-        when the picture actually changed — the context is append-only, and
-        ``state_sync`` arrives on every keystroke-adjacent change.
+        This used to dump the whole snapshot into the model's context on every
+        change. One production call put **21 full carts in 113 seconds** in front of
+        the model, ~4,700 tokens of it, each copy labelled *authoritative* with
+        nothing saying which was current. The complaint that the brain did not know
+        what was on screen after a manual edit was exactly that: it had been told,
+        twenty-one times, and could not tell which telling was now.
 
-        The snapshot's ``candidate_codes`` are folded back into the mirror first: a
-        group pill the pharmacist tapped narrows the row *here*, so the PENDING line
-        says "narrowed to 6 — ask the next question" rather than repeating the
-        question he just answered with his thumb."""
+        So the snapshot updates ``self.desk`` and stops. The model reads the cart
+        through ``read_screen``, which is local and free, and is told only that
+        something moved — one line, his edits, no contents. ``desk.version`` is what
+        makes that safe rather than hopeful: a tool aimed at a screen he has changed
+        since the model last read it refuses instead of acting on a stale row id."""
         snapshot = data.get("screen")
-        screen = snapshot if isinstance(snapshot, dict) else self.desk.mirror()
-        live: dict[str, dict[str, Any]] | None = None
         if isinstance(snapshot, dict):
-            live = {
-                str(row.get("id")): row
-                for row in (snapshot.get("items") or [])
-                if isinstance(row, dict) and row.get("id")
-            }
-            self.desk.absorb(live)
-        pending = self.desk.pending(live)
-        if not screen and not pending:
+            self.desk.absorb(
+                {
+                    str(row.get("id")): row
+                    for row in (snapshot.get("items") or [])
+                    if isinstance(row, dict) and row.get("id")
+                }
+            )
+        note = self.desk.take_changes()
+        if note is None:
             return
-        head = _SCREEN_HEADER + (
-            json.dumps(screen, ensure_ascii=False, default=str) if screen else _NOTHING_ON_SCREEN
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+        logger.info(
+            "orderdesk: state_sync v{} ({} rows) — {}",
+            self.desk.version,
+            len(self.desk.items),
+            note,
         )
-        message = f"{head}\n{pending}" if pending else head
-        if message == self._state_message:
-            return
-        self._state_message = message
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=message)]))
-        logger.info("orderdesk: state_sync ingested ({} items on screen)", len(self.desk.items))
 
     # ─── browser → brain: the manual search bar, and the live screen ───────
 

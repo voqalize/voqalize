@@ -1,7 +1,7 @@
 """The OrderDesk demo, end to end over the wire — no network, no LLM key.
 
 The real ``OrderDeskBrain`` — the shipping ``demos/orderdesk/backend/brain.py``,
-its real prompt, its real nine tools — hosted on a real ``brain_server`` socket
+its real prompt, its real ten tools — hosted on a real ``brain_server`` socket
 and driven by the conformance ``VoqalizeDriver``, with only the *model* scripted.
 See ``tests/_harness.py`` for what every demo's e2e proves.
 
@@ -19,7 +19,7 @@ Run: ``cd demos && uv run pytest tests/test_orderdesk_e2e.py``
 from __future__ import annotations
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -29,6 +29,27 @@ from voqalize_demos._loaded.orderdesk.brain import _FALLBACK_OPENER, _HELLO  # n
 
 VOICE = "omnivoice/gauri"
 LANGUAGE = "hi"
+
+# Two rows in the browser's own OrderSnapshot shape. `m1` is one the pharmacist
+# added himself out of the search panel — the browser mints the `m*` id, and the
+# desk has never seen it — which is what makes it an edit the model must be told
+# about. `li1` is the row the scripted turn below puts there.
+_MANUAL_ROW = {
+    "id": "m1",
+    "status": "matched",
+    "spoken_text": "shelcal hd",
+    "sku_code": "J0029363",
+    "sku_name": "SHELCAL HD TABLET",
+    "quantity": 5,
+}
+_TELMA_ROW = {
+    "id": "li1",
+    "status": "matched",
+    "spoken_text": "telma 40",
+    "sku_code": "J0031270",
+    "sku_name": "TELMA 40MG TABLET",
+    "quantity": 2,
+}
 
 
 def _llm() -> ScriptedGemini:
@@ -88,23 +109,23 @@ async def test_adding_and_removing_an_item_drive_the_screen() -> None:
         assert removed["ids"] == [added["id"]]
 
 
-async def test_the_browsers_screen_lands_silently_and_grounds_the_next_answer() -> None:
-    """``state_sync`` is the one client message that must **not** speak.
+async def test_a_manual_edit_is_announced_but_never_dumped() -> None:
+    """``state_sync`` is the one client message that must not speak — and, since the
+    screen moved out of the context, the one that must not describe either.
 
-    The pharmacist's own taps only reach the desk through this echo, so it has to
-    fold into context without taking the floor — a brain that answered every
-    re-send would talk over him mid-order, and one that ignored it would answer
-    "what's on screen?" from a stale or absent turn. Both halves are asserted
-    here because either one alone passes for the wrong reason."""
+    A production call put twenty-one full carts in front of the model in 113
+    seconds, each labelled authoritative and none of them dated, and the model
+    reasoned from whichever it noticed. So the snapshot now lands in the desk and
+    stops: the context gets one line saying *he changed something* and pointing at
+    ``read_screen``, with none of the cart's contents in it. Both halves are
+    asserted — a note carrying the row's SKU would be the old dump again, one line
+    at a time."""
     llm = _llm()
     async with demo("orderdesk", llm) as rig:
         await rig.driver.start_session()
         before = len(rig.driver.ui_commands)
 
-        await rig.driver.send_client_message(
-            "state_sync",
-            {"screen": {"items": [{"id": "m1", "status": "matched", "name": "Telma 40mg 15s"}]}},
-        )
+        await rig.driver.send_client_message("state_sync", {"screen": {"items": [_MANUAL_ROW]}})
         # The floor is untaken: no speech, no screen command. Frames on one
         # connection are ordered, so the sync is already ingested by the time the
         # next turn is served — which is what the assertion below proves.
@@ -115,5 +136,59 @@ async def test_the_browsers_screen_lands_silently_and_grounds_the_next_answer() 
     grounded = "".join(
         p.text or "" for c in llm.captured_contents[-1] for p in (c.parts or []) if c.role == "user"
     )
-    assert "CURRENT ORDER SCREEN" in grounded
-    assert "Telma 40mg 15s" in grounded
+    assert "m1" in grounded and "added by hand" in grounded
+    assert "read_screen" in grounded
+    assert "J0029363" not in grounded, "the change note is carrying the cart"
+    assert "CURRENT ORDER SCREEN" not in grounded, "the screen dump is back"
+
+
+async def test_a_tool_aimed_at_a_screen_he_changed_is_refused_until_it_is_read() -> None:
+    """The version gate, which is what makes read-don't-remember enforceable.
+
+    A model that skips the read is holding row ids from before his edit — and on
+    this screen a stale id is a different medicine, not a stale label. So the
+    desk refuses instead of acting, and the refusal is retriable: read, then act.
+    The scripted model here does exactly the wrong thing first."""
+    llm = ScriptedGemini(
+        {
+            "Telma 40 ki do strip de do.": [
+                reply_and_call(
+                    "Theek hai, jod rahi hoon.",
+                    "add_items",
+                    items=[{"text": "telma 40", "quantity": 2}],
+                ),
+                reply("Telma 40 jud gaya."),
+            ],
+            "Ab Telma hata do.": [
+                call("remove_items", item_ids=["li1"]),  # stale — he has edited since
+                call("read_screen"),
+                reply_and_call("Theek hai.", "remove_items", item_ids=["li1"]),
+                reply("Telma hata diya."),
+            ],
+            "Bas itna hi.": reply("Theek hai, confirm kar dijiye."),
+        }
+    )
+    async with demo("orderdesk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Telma 40 ki do strip de do.")
+
+        await rig.driver.send_client_message(
+            "state_sync", {"screen": {"items": [_TELMA_ROW, _MANUAL_ROW]}}
+        )
+        await rig.driver.user_says("Ab Telma hata do.")
+
+        removed = rig.command("remove_items")
+        assert removed["ids"] == ["li1"]
+
+        # One more turn, so the turn above's hops are in the context being asserted:
+        # under automatic function calling a whole turn is one request, and its tool
+        # results are only visible to the request that follows it.
+        await rig.driver.user_says("Bas itna hi.")
+
+    results = "".join(
+        str(p.function_response.response)
+        for c in llm.captured_contents[-1]
+        for p in (c.parts or [])
+        if p.function_response is not None
+    )
+    assert "changed the screen since you last read it" in results
