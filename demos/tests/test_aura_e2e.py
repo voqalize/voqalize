@@ -195,7 +195,7 @@ async def test_the_signin_goes_up_and_the_turn_finishes_without_it() -> None:
         assert _auth_nonce(rig)
 
     results = _tool_results(llm)
-    assert "'status': 'sign_in_opened'" in results
+    assert "the customer is NOT signed in yet" in results
     # Nothing was minted. The result talks *about* an authenticated_context — it is
     # telling the model to wait for one — but no token exists, because the customer
     # has not signed in and the brain is the only thing that can sign.
@@ -271,10 +271,11 @@ async def test_a_forged_token_is_refused_and_the_model_is_sent_back_a_step() -> 
         check_turn(rig, turn, units=2)
 
     results = _tool_results(llm)
-    assert "'status': 'not_authenticated'" in results
+    refusal = "the customer is not signed in, so this is refused"
+    assert refusal in results.lower()
     assert "call show_auth_popup()" in results.lower()
     # No balance leaked past the guard.
-    assert "balance" not in results.lower().split("'status': 'not_authenticated'")[1]
+    assert "balance" not in results.lower().split(refusal)[1]
 
 
 async def test_the_idle_window_reaches_the_wire() -> None:

@@ -112,6 +112,49 @@ def _compute_calc(kind: str, i: dict[str, float]) -> dict[str, float]:
     return {"max_emi": round(max_emi), "max_loan": round(max_loan)}
 
 
+def _num(value: float) -> str:
+    """A figure the model can read back without meeting scientific notation."""
+    return f"{value:,.0f}" if float(value).is_integer() else f"{value:,.2f}"
+
+
+def _pairs(mapping: dict[str, float]) -> str:
+    return ", ".join(f"{k.replace('_', ' ')} {_num(v)}" for k, v in mapping.items())
+
+
+_CALC_NAMES = {"emi": "EMI", "fd": "FD maturity", "eligibility": "loan eligibility"}
+
+
+def _outline(key: str, value: Any, depth: int) -> list[str]:
+    pad = "  " * depth
+    label = key.replace("_", " ")
+    if isinstance(value, dict):
+        out = [f"{pad}{label}:"]
+        for k, v in value.items():  # pyright: ignore[reportUnknownVariableType]
+            out.extend(_outline(str(k), v, depth + 1))
+        return out
+    if isinstance(value, list):
+        out = [f"{pad}{label}:"]
+        for n, item in enumerate(value, 1):  # pyright: ignore[reportUnknownVariableType]
+            out.extend(_outline(str(n), item, depth + 1))
+        return out
+    return [f"{pad}{label}: {value}"]
+
+
+def _screen_prose(where: dict[str, Any]) -> str:
+    """The screen as a sentence plus an indented outline, never a dict repr.
+
+    A tool that returns ``str({...})`` lands in the context next to the JSON
+    screen-state note, and two JSON-shaped blobs with no prose between them is
+    what made the model read the note aloud instead of answering it.
+    """
+    screen = str(where.get("screen") or "home").replace("_", " ")
+    lines = [f"The customer is on the {screen} screen."]
+    for key, value in where.items():
+        if key != "screen":
+            lines.extend(_outline(str(key), value, 0))
+    return "\n".join(lines)
+
+
 def _ticket_reference() -> str:
     return "AX" + "".join(random.choices("0123456789", k=7))
 
@@ -280,6 +323,10 @@ _NOT_SIGNED_IN = (
     "The customer is not signed in, so this is refused. Call show_auth_popup(), say one short "
     "line asking them to authorise it, and wait to be handed an authenticated_context. Do not "
     "retry this call until you have one."
+)
+_BAD_TOKEN = (
+    "That is not a valid sign-in for this call, so this is refused. The customer has not "
+    "signed in yet. Call show_auth_popup() and wait to be handed an authenticated_context."
 )
 _NO_ACCOUNT = (
     "The customer has not picked an account, so this is refused. Call "
@@ -1334,7 +1381,7 @@ class AuraBrain(GeminiInteractionsBrain):
         certain is still there."""
         where = self._screen_summary()
         logger.info("aura: get_screen_context -> {}", where.get("screen"))
-        return str(where)
+        return _screen_prose(where)
 
     # ─── Tools: calculators, applications, comparisons ──────────────────
 
@@ -1386,7 +1433,11 @@ class AuraBrain(GeminiInteractionsBrain):
         result = _compute_calc(kind, inputs)
         logger.info("aura: run_calculator {} -> {}", kind, result)
         self.session.dispatch(RunCalculator(kind=kind, inputs=inputs, result=result))
-        return str({"kind": kind, "inputs": inputs, "result": result})
+        return (
+            f"The {_CALC_NAMES.get(kind, kind)} calculator is on screen with {_pairs(inputs)}, "
+            f"working out to {_pairs(result)}. The customer can see it — say what it means "
+            "rather than reading the figures back."
+        )
 
     async def start_application(self, product: Product) -> str:
         """Begin a new-customer application — a real top-of-funnel lead, and it
@@ -1608,14 +1659,10 @@ class AuraBrain(GeminiInteractionsBrain):
         sign-in on your screen") and carry on being useful. Do not call any account
         or card tool until you hold that token, and never write one yourself."""
         if self._token:
-            return str(
-                {
-                    "status": "already_authenticated",
-                    "authenticated_context": self._token,
-                    "customer_name": _DEMO_CUSTOMER["name"],
-                    "note": "Already signed in this call — do not ask them again. Call "
-                    "choose_account(authenticated_context) so they pick which account to view.",
-                }
+            return (
+                f"{_DEMO_CUSTOMER['name']} is already signed in on this call — do not ask them "
+                f"again. Their authenticated_context is {self._token}. Call "
+                "choose_account(authenticated_context) so they pick which account to view."
             )
         nonce = self._open_dialog("auth")
         logger.info("aura: show_auth_popup -> secure sign-in on screen")
@@ -1626,14 +1673,11 @@ class AuraBrain(GeminiInteractionsBrain):
                 masked_mobile=str(_DEMO_CUSTOMER["masked_mobile"]),
             )
         )
-        return str(
-            {
-                "status": "sign_in_opened",
-                "note": "The sign-in is on screen and the customer is NOT signed in yet. You "
-                "will be told when they authorise it, and handed an authenticated_context. "
-                "Until then no account or card tool will work. Never ask them to read anything "
-                "out, and do not call this again while it is up.",
-            }
+        return (
+            "The sign-in is on screen and the customer is NOT signed in yet. You will be told "
+            "when they authorise it, and handed an authenticated_context then. Until then no "
+            "account or card tool will work. Never ask them to read anything out, and do not "
+            "call this again while it is up."
         )
 
     async def choose_account(self, authenticated_context: str) -> str:
@@ -1649,13 +1693,7 @@ class AuraBrain(GeminiInteractionsBrain):
         """
         payload = self._verify(authenticated_context)
         if not payload:
-            return str(
-                {
-                    "status": "not_authenticated",
-                    "error": "That is not a valid sign-in for this call. The customer has not "
-                    "signed in yet. Call show_auth_popup() and wait to be handed a token.",
-                }
-            )
+            return _BAD_TOKEN
         owned = set(payload.get("accounts") or [])
         accounts = [
             AccountRef.model_validate(a) for a in _DEMO_ACCOUNTS if a["account_id"] in owned
@@ -1663,14 +1701,11 @@ class AuraBrain(GeminiInteractionsBrain):
         nonce = self._open_dialog("account")
         logger.info("aura: choose_account -> picker ({} accounts)", len(accounts))
         self.session.dispatch(ChooseAccount(nonce=nonce, accounts=accounts))
-        return str(
-            {
-                "status": "picker_opened",
-                "accounts_shown": len(accounts),
-                "note": "The account picker is on screen and nothing is chosen yet. You will be "
-                "told which account the customer taps, with its account_id. Do not call "
-                "get_account_balance or get_statement until then, and do not guess an account_id.",
-            }
+        return (
+            f"The account picker is on screen with {len(accounts)} account(s), and nothing is "
+            "chosen yet. You will be told which one the customer taps, with its account_id. Do "
+            "not call get_account_balance or get_statement until then, and do not guess an "
+            "account_id."
         )
 
     async def get_account_balance(self, authenticated_context: str, account_id: str) -> str:
@@ -1686,10 +1721,10 @@ class AuraBrain(GeminiInteractionsBrain):
         """
         payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
+            return _NOT_SIGNED_IN
         acc = self._selected_account(account_id, payload)
         if not acc:
-            return str({"status": "account_not_selected", "error": _NO_ACCOUNT})
+            return _NO_ACCOUNT
         as_of = datetime.now(UTC).astimezone().strftime("%Y-%m-%d")
         logger.info("aura: get_account_balance {}", acc["account_id"])
         self.session.dispatch(
@@ -1700,18 +1735,12 @@ class AuraBrain(GeminiInteractionsBrain):
                 as_of=as_of,
             )
         )
-        return str(
-            {
-                "status": "balance",
-                "account": {
-                    "nickname": acc.get("nickname"),
-                    "masked_number": acc["masked_number"],
-                    "branch": acc["branch"],
-                },
-                "balance": acc["balance"],
-                "currency": acc["currency"],
-                "as_of": as_of,
-            }
+        nickname = acc.get("nickname") or acc["branch"]
+        return (
+            f"The balance is on screen for the {nickname} account ({acc['masked_number']}, "
+            f"{acc['branch']}): {acc['currency']} {_num(acc['balance'])} as of {as_of}. The "
+            "figure is on the card in front of them — say what it means, do not read the "
+            "digits back."
         )
 
     async def get_statement(
@@ -1735,10 +1764,10 @@ class AuraBrain(GeminiInteractionsBrain):
         """
         payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
+            return _NOT_SIGNED_IN
         acc = self._selected_account(account_id, payload)
         if not acc:
-            return str({"status": "account_not_selected", "error": _NO_ACCOUNT})
+            return _NO_ACCOUNT
         today = datetime.now(UTC).astimezone().date()
         start = _parse_date(start_date) or (today - timedelta(days=90))
         end = _parse_date(end_date) or today
@@ -1762,17 +1791,18 @@ class AuraBrain(GeminiInteractionsBrain):
                 currency=acc["currency"],
             )
         )
-        return str(
-            {
-                "status": "statement",
-                "from": start.isoformat(),
-                "to": end.isoformat(),
-                "count": len(rows),
-                "total_credits": credits,
-                "total_debits": debits,
-                "transactions": rows,
-                "currency": acc["currency"],
-            }
+        # The rows go back as lines rather than a payload: the model has to be able
+        # to say what stands out, but a JSON blob here is what the note-echo fed on.
+        listed = "\n".join(
+            f"  {r['date']}  {r['description']}  "
+            f"{'+' if r['kind'] == 'credit' else '-'}{_num(r['amount'])}"
+            for r in rows
+        )
+        return (
+            f"The statement is on screen: {len(rows)} transaction(s) from {start.isoformat()} "
+            f"to {end.isoformat()}, {acc['currency']} {_num(credits)} in and "
+            f"{_num(debits)} out.\n{listed}\n"
+            "Summarise it — how many, what stands out — and never read it out row by row."
         )
 
     async def choose_credit_card(self, authenticated_context: str) -> str:
@@ -1787,26 +1817,16 @@ class AuraBrain(GeminiInteractionsBrain):
         """
         payload = self._verify(authenticated_context)
         if not payload:
-            return str(
-                {
-                    "status": "not_authenticated",
-                    "error": "That is not a valid sign-in for this call. The customer has not "
-                    "signed in yet. Call show_auth_popup() and wait to be handed a token.",
-                }
-            )
+            return _BAD_TOKEN
         owned = set(payload.get("cards") or [])
         cards = [CardRef.model_validate(c) for c in _DEMO_CARDS if c["card_id"] in owned]
         nonce = self._open_dialog("card")
         logger.info("aura: choose_credit_card -> picker ({} cards)", len(cards))
         self.session.dispatch(ChooseCreditCard(nonce=nonce, cards=cards))
-        return str(
-            {
-                "status": "picker_opened",
-                "cards_shown": len(cards),
-                "note": "The card picker is on screen and nothing is chosen yet. You will be told "
-                "which card the customer taps, with its card_id. Do not call show_card_controls "
-                "until then, and do not guess a card_id.",
-            }
+        return (
+            f"The card picker is on screen with {len(cards)} card(s), and nothing is chosen "
+            "yet. You will be told which one the customer taps, with its card_id. Do not call "
+            "show_card_controls until then, and do not guess a card_id."
         )
 
     async def show_card_controls(self, authenticated_context: str, card_id: str) -> str:
@@ -1823,10 +1843,10 @@ class AuraBrain(GeminiInteractionsBrain):
         """
         payload = self._verify(authenticated_context)
         if not payload:
-            return str({"status": "not_authenticated", "error": _NOT_SIGNED_IN})
+            return _NOT_SIGNED_IN
         card = self._selected_card(card_id, payload)
         if not card:
-            return str({"status": "card_not_selected", "error": _NO_CARD})
+            return _NO_CARD
         controls = card["controls"]
         logger.info("aura: show_card_controls {}", card["card_id"])
         self.session.dispatch(
@@ -1836,16 +1856,18 @@ class AuraBrain(GeminiInteractionsBrain):
                 controls=CardControls.model_validate(controls),
             )
         )
-        return str(
-            {
-                "status": "controls_open",
-                "card": {"product": card["product"], "masked_number": card["masked_number"]},
-                "controls": controls,
-                "note": "The usage & limits form is now on screen for the customer to adjust and "
-                "save themselves. Do NOT read the toggles aloud — the form shows them. If the "
-                "change is about international usage, this is the moment for the trip / forex-card "
-                "cross-sell (one short line).",
-            }
+        toggles = ", ".join(
+            f"{k.removesuffix('_enabled').replace('_', ' ')} {'on' if v else 'off'}"
+            for k, v in controls.items()
+            if isinstance(v, bool)
+        )
+        limits = _pairs({k: v for k, v in controls.items() if not isinstance(v, bool)})
+        return (
+            f"The usage & limits form is on screen for the {card['product']} card "
+            f"({card['masked_number']}), currently {toggles}, with {limits}. The customer "
+            "adjusts and saves it themselves — do NOT read the toggles aloud, the form shows "
+            "them. If the change is about international usage, this is the moment for the "
+            "trip / forex-card cross-sell (one short line)."
         )
 
     # ── Screen state ──────────────────────────────────────────────────────────
