@@ -192,3 +192,67 @@ async def test_a_tool_aimed_at_a_screen_he_changed_is_refused_until_it_is_read()
         if p.function_response is not None
     )
     assert "changed the screen since you last read it" in results
+
+
+async def test_naming_something_already_on_the_order_lands_on_that_row() -> None:
+    """He repeats himself while a question about the row is still open — because
+    the answer has not come yet, which is exactly when a person repeats himself.
+
+    Every repeat used to mint a fresh row, and an unresolved row keeps
+    ``quantity=None`` forever, so the row he was actually looking at sat
+    permanently un-orderable while the disambiguation moved to a sibling. He
+    tracks products, not row ids: a quantity that never fills in reads as the
+    medicine having been deleted.
+
+    So all three turns here land on ``li1``: the second fills its quantity in
+    place, the third overwrites that quantity and says so, and there is never an
+    ``li2``. VOLINI is the real ten-SKU family, so the row stays unresolved
+    throughout — which is the case a SKU-keyed check could not have caught."""
+    llm = ScriptedGemini(
+        {
+            "Volini de do.": [
+                reply_and_call("Kaunsa Volini?", "add_items", items=[{"text": "volini"}]),
+                reply("Volini gel ya spray?"),
+            ],
+            "Volini do strip.": [
+                reply_and_call(
+                    "Theek hai.", "add_items", items=[{"text": "volini", "quantity": 2}]
+                ),
+                reply("Do strip likh liya — gel ya spray?"),
+            ],
+            "Nahin, teen strip.": [
+                reply_and_call(
+                    "Theek hai.", "add_items", items=[{"text": "volini", "quantity": 3}]
+                ),
+                reply("Do se teen kar diya."),
+            ],
+            "Bas itna hi.": reply("Theek hai."),
+        }
+    )
+    async with demo("orderdesk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Volini de do.")
+        await rig.driver.user_says("Volini do strip.")
+        await rig.driver.user_says("Nahin, teen strip.")
+        # The flush turn: under automatic function calling a turn's tool results
+        # only reach the request that follows it.
+        await rig.driver.user_says("Bas itna hi.")
+
+    rows = [
+        row
+        for c in rig.driver.ui_commands
+        if c.get("command") == "upsert_items"
+        for row in (c.get("payload") or {}).get("items", [])
+    ]
+    assert {r["id"] for r in rows} == {"li1"}, "a repeat minted a second row"
+    assert rows[-1]["quantity"] == 3
+    assert rows[-1]["status"] == "multi_variant", "the open question was answered by the repeat"
+
+    results = "".join(
+        str(p.function_response.response)
+        for c in llm.captured_contents[-1]
+        for p in (c.parts or [])
+        if p.function_response is not None
+    )
+    assert "already_on_order" in results
+    assert "he already had 2 of this" in results, "the overwrite was silent"

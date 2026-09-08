@@ -786,6 +786,28 @@ class OrderDesk:
                 return hits
         return []
 
+    def _find_duplicate(self, text: str) -> LineItemView | None:
+        """The row this spoken product is already on, if any.
+
+        Keyed on the **normalised spoken query**, not the SKU: the rows this exists
+        to catch are the ones with no SKU at all. A ``multi_variant`` row is
+        unresolved precisely because the pharmacist has not picked a pack yet, so a
+        SKU-keyed check would let him say "Dolo" a third time and mint a third
+        unanswerable question — which is what happened on the call this closes. Both
+        the original words and the current query count, so a row that was refined to
+        a better spelling still answers to what he first said.
+
+        Only one row can match: two rows carrying the same words is the state this
+        prevents, so the first is the answer and there is no ambiguity to raise."""
+        needle = " ".join(_WORD.findall((text or "").lower()))
+        if not needle:
+            return None
+        for row in self.items.values():
+            fields = (row.spoken_text, row.query)
+            if any(needle == " ".join(_WORD.findall(f.lower())) for f in fields if f):
+                return row
+        return None
+
     def _row_for(self, ref: str) -> LineItemView | None:
         """The one row ``ref`` names — ``None`` if nothing matches, and ``None`` if
         more than one does. Ambiguity is not a tie to break; it is a question to ask,
@@ -1098,6 +1120,12 @@ class OrderDesk:
         his screen), or not_found. The return value tells you, per row, which axes
         actually differ — ask ONE short question about those and nothing else.
 
+        If he names something that is already on the order — often because he repeated
+        himself while a question about it was still open — no second row is made: the
+        quantity lands on the row he already has and its brief comes back marked
+        already_on_order, carrying the question that is still open on it. Carry on with
+        that question; do not start a fresh one.
+
         Args:
             items: The products he just named, in spoken order.
         """
@@ -1105,6 +1133,9 @@ class OrderDesk:
             return stale
         briefs: list[dict[str, Any]] = []
         for item in items:
+            if (existing := self._find_duplicate(item.text)) is not None:
+                briefs.append(self._readd(existing, item))
+                continue
             row = LineItemView(
                 id=self._next_id(),
                 spoken_text=item.text,
@@ -1120,6 +1151,38 @@ class OrderDesk:
             self._note_scheme(row)
             briefs.append(self._brief(row))
         return {"items": briefs}
+
+    def _readd(self, row: LineItemView, item: SpokenItem) -> dict[str, Any]:
+        """He named something already on the order. Update that row; never mint a second.
+
+        A duplicate row is not a cosmetic defect. An unresolved one keeps
+        ``quantity=None`` forever, and the browser's ``isReady()`` needs a quantity —
+        so the pharmacist's original row sits permanently blocked while the answer
+        lands on a sibling he is not looking at. He tracks products, not row ids: a
+        product whose quantity never fills in reads as *deleted*.
+
+        So the quantity he just said lands on the row that already exists, and the
+        brief comes back as it stands — an unresolved row returns its live question
+        rather than a fresh one, so the model carries on the disambiguation it has
+        already started instead of asking a third un-narrowed version of it. Where
+        that silently overwrites a number he gave earlier, a ``note`` says so, so the
+        spoken reply can be honest about it."""
+        quantity = item.quantity or None
+        note: str | None = None
+        if quantity is not None and row.quantity not in (None, quantity):
+            note = (
+                f"he already had {row.quantity} of this; it is now {quantity}. "
+                "Say so rather than confirming it as a fresh line."
+            )
+        if quantity is not None:
+            row.quantity = quantity
+        self._upsert(row)
+        logger.info("orderdesk: add_items → existing {} ({!r})", row.id, item.text)
+        brief = self._brief(row)
+        brief["already_on_order"] = True
+        if note:
+            brief["note"] = note
+        return brief
 
     async def refine_item(self, item_id: str, query: str) -> dict[str, Any]:
         """Re-resolve one existing row with a better English query.
