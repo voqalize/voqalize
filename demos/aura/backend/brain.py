@@ -2,10 +2,10 @@
 
 A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + per-session state), ported
 verbatim from the in-process managed brain ``pygato.managed.aura`` (its ``AuraBot``).
-PyGato dials this brain's WebSocket per session; ``respond`` runs a manual Gemini
-function-calling loop where **each LLM call is one ``interaction.say()`` bracket**
-(1:1 with the wire): a hop may speak, may call tools, may do both, and a hop that
-only calls tools is silent. The prompt spends that budget on **one spoken line
+Voqalize dials this brain's WebSocket per session; ``respond`` runs a manual
+Gemini function-calling loop where **each LLM call is one speech unit** (1:1 with
+the wire's ``SpeechStart``/``SpeechEnd`` bracket): a hop may speak, may call
+tools, may do both, and a hop that only calls tools is silent. The prompt spends that budget on **one spoken line
 per customer question**, at the top, with every screen call batched underneath
 it — a hop is cheap, but an utterance is a second of the customer's attention,
 and a turn that spends five of them on one answer is the thing they remember.

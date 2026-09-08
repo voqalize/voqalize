@@ -13,7 +13,7 @@ so.
 
 ## The usage quantity
 
-`duration_secs` comes from the **voice runtime's own measurement of the call** —
+`duration_secs` comes from **Voqalize's own measurement of the call** —
 the time it actually held, not the span from when a token was minted. A session
 that was created and never answered contributes zero.
 

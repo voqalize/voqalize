@@ -18,7 +18,7 @@ Cortex only when inbound genuinely isn't possible.
 
 Cortex is a stateless, schema-free WebSocket relay with exactly two routes:
 
-- The voice runtime lands on `/?session_id={session_id}`.
+- Voqalize lands on `/?session_id={session_id}`.
 - Your brain dials *out* to `/agent`.
 
 Both legs authenticate to the same tenant-and-agent **rendezvous scope**, and Cortex

@@ -98,12 +98,12 @@ fields and a URL. When a sentence here says *create an agent* or *the agent's
 
 1. Your server mints a session and gets a token.
 2. Your page connects with that token. Media is direct UDP to a Voqalize media node.
-3. The runtime dials `{brain_url}?session_id={session_id}` — one connection, this
+3. Voqalize dials `{brain_url}?session_id={session_id}` — one connection, this
    call only. Whatever your app passed at connect arrives as `session.init`,
    forwarded untouched.
 4. Your brain greets. The caller is already connected and hearing nothing, so the
    greeting is a string — never a model call.
-5. The caller speaks. The runtime endpoints the turn, transcribes it, and hands
+5. The caller speaks. Voqalize endpoints the turn, transcribes it, and hands
    you the finalized text.
 6. You yield speech. The first word plays while you are still producing the last.
 7. If the caller interrupts, Voqalize stops mid-word and tells you where. Your

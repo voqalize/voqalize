@@ -66,7 +66,7 @@ recognizer, in a call nobody could tell had gone wrong.
 A language change that crosses the English↔Indic boundary is applied at the
 **next end-of-turn**, never mid-utterance.
 
-There are no VAD or end-of-turn knobs on the wire. The runtime keeps its own
+There are no VAD or end-of-turn knobs on the wire. Voqalize keeps its own
 tuned defaults; we widen the surface as we learn, not in advance.
 
 ## Text-to-speech

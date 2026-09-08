@@ -132,8 +132,8 @@ the agent cannot connect.
 |---|---|---|
 | `list_sessions` | `(tenant, agent_id="", state="", limit=20, cursor="") -> dict` | List calls, most recent first; filter by agent/state. Page with `next_cursor`. |
 | `get_session` | `(tenant, session_id) -> dict` | One call in full: state, timing, the resolved `config`, `init`, `metadata`, recordings summary. |
-| `get_session_events` | `(tenant, session_id, source="all", frame="", disposition="", limit=2000) -> dict` | What happened, merged: lifecycle milestones **and** the wire between runtime and brain — transcripts, replies, actions, interruptions. |
-| `get_session_logs` | `(tenant, session_id, level="INFO", service="", limit=500) -> dict` | The voice runtime's own log lines for that call. |
+| `get_session_events` | `(tenant, session_id, source="all", frame="", disposition="", limit=2000) -> dict` | What happened, merged: lifecycle milestones **and** the wire between Voqalize and your brain — transcripts, replies, actions, interruptions. |
+| `get_session_logs` | `(tenant, session_id, level="INFO", service="", limit=500) -> dict` | Voqalize's own log lines for that call. |
 | `get_recordings` | `(tenant, session_id, ttl_seconds=900) -> dict` | Audio, one track per side, each with a short-lived signed `download_url`. |
 | `get_usage` | `(tenant, period="") -> dict` | Counters for one `YYYY-MM` billing period, broken down per agent. |
 

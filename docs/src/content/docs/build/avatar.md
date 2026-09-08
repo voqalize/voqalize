@@ -18,7 +18,7 @@ per-minute avatar vendor, and no second media path.
 [`voqalize/avatar`](https://github.com/voqalize/avatar) is a separate,
 MIT-licensed library — `@voqalize/avatar` on npm and `voqalize-avatar` on PyPI,
 two ends of one wire format that publish in lockstep. It works against any
-pipecat pipeline, and the Voqalize runtime is one consumer of it.
+pipecat pipeline, and Voqalize is one consumer of it.
 
 The face is lip-synced to the audio and state-aware: it knows when the caller is
 speaking, when it has been interrupted, when a tool call is running, and when

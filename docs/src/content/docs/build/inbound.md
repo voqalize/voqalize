@@ -9,7 +9,7 @@ path. If you already run a REST API or webhooks, this is the same shape.
 
 ## The route
 
-The runtime dials `{brain_url}?session_id={session_id}` — your path, verbatim,
+Voqalize dials `{brain_url}?session_id={session_id}` — your path, verbatim,
 with the session as a query parameter. Mount **one ordinary WebSocket route**
 wherever you like, read `session_id` off the query string, then hand the socket to
 the SDK's `run_session`, which drives the whole session and returns when the call
@@ -58,7 +58,7 @@ nothing yourself. A verification failure raises `SessionRejected`; close the
 socket with code **4000**, which Voqalize treats as permanent. The claims are in
 [The wire](/reference/wire/).
 
-**The socket is the session, and it is not reconnected.** The runtime retries
+**The socket is the session, and it is not reconnected.** Voqalize retries
 the *first* connect for a few seconds — a **4000** during that window stops it
 early — and once you have answered, any close ends the call. There is nothing to
 resume: a second connection would reach a fresh session with none of the first
@@ -66,7 +66,7 @@ one's history.
 
 ## Local testing
 
-The hosted runtime must reach your brain over the public internet, so during
+Voqalize must reach your brain over the public internet, so during
 development put a tunnel in front of it:
 
 ```bash

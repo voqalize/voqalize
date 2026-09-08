@@ -57,7 +57,7 @@ same way. So `send-text` never reaches your brain as a message.
 client.sendText("where do I download my interest certificate?");
 ```
 
-Stock pipecat, no argument of ours. The runtime interrupts whatever the agent was
+Stock pipecat, no argument of ours. Voqalize interrupts whatever the agent was
 saying — the answer to the last question is over — and commits the sentence as a
 user turn. Your brain answers it in `on_user_message`, with no way to tell it was
 typed and nothing to write to receive it: a brain built before you added a text
@@ -66,7 +66,7 @@ box gains one the day you add it.
 Two flags ride pipecat's `send-text` and **neither is honoured**, deliberately
 rather than by omission. `run_immediately=false` would need a stimulus that is
 stored without minting a turn, and `audio_response=false` would need a per-turn
-gate on synthesis; the runtime has neither. Half-honouring one is worse than
+gate on synthesis; Voqalize has neither. Half-honouring one is worse than
 refusing it, because a caller who asked for silence and got speech has been told
 something false about the mechanism. **A typed question is answered aloud,
 always.**

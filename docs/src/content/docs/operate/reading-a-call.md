@@ -9,7 +9,7 @@ different kinds of thing, and the order matters.
 **`get_session_events` is the contract.** Versioned, additive-only, tenant-scoped,
 safe to assert on in a test. It answers *what happened*.
 
-**`get_session_logs` is the evidence.** The voice runtime's own lines, written in
+**`get_session_logs` is the evidence.** Voqalize's own lines, written in
 our vocabulary and free to change whenever our internals do. It answers *why*.
 
 Read events first. Interleaving the two would make the weaker half look exactly as
@@ -55,6 +55,7 @@ Every wire event carries what actually happened to that frame:
 | `received` | Decoded from your brain and pushed into the pipeline. |
 | `dropped_after_watermark` | Your brain answered a turn the caller's barge-in had already killed. A real answer, correctly thrown away. |
 | `dropped_after_barge_in` | A unit released mid-stream; the rest of its words are not relayed, because nothing downstream can attribute them. |
+| `dropped_in_drain` | The previous generation's name for both of the above. Only on calls placed before 2026-08-19; nothing writes it now. |
 
 Those last two are the usual explanation for **"my brain replied and nothing
 happened on screen."** It is correct behaviour rather than a bug, and it used to be
@@ -63,8 +64,10 @@ Filtering the wire half by `disposition` is the fastest way to see everything on
 barge-in threw away. See
 [interruption and heard truth](/design/interruption-and-heard-truth/).
 
-`frame` narrows the same half by type, named exactly as it appears on the wire
-(`VqlUserTextFrame`, `VqlLLMTextFrame`, `VqlFunctionCallsStartedFrame`).
+`frame` narrows the same half by type — `VqlUserMessageFrame`,
+`VqlSpeechChunkFrame`, `VqlFinalizeFrame`. Read the values off a call rather than
+writing them from memory: the filter matches the recorded name exactly, and calls
+placed before 2026-08-19 were recorded under the previous generation's names.
 
 ## Check availability before you conclude anything
 

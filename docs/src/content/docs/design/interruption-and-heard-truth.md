@@ -119,7 +119,7 @@ to make, and it needs its own idempotency rather than a hope about timing.
 ## Testing it without a microphone
 
 The conformance harness models playout and heard-truth finalization the way the
-runtime does, so heard truth is an assertion your brain passes rather than a
+Voqalize does, so heard truth is an assertion your brain passes rather than a
 behaviour described on a page. `VoqalizeDriver` records what was delivered per
 unit, which means a test can assert on the heard text instead of the generated
 text — and the strongest property available is the one worth asserting:

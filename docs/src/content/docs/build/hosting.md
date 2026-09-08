@@ -15,7 +15,7 @@ brain code is identical regardless. The only choice is **who dials whom**.
 
 | | Inbound server | Cortex relay |
 |---|---|---|
-| **Who dials** | The runtime dials *into* your route | Your brain dials *out* to Cortex |
+| **Who dials** | Voqalize dials *into* your route | Your brain dials *out* to Cortex |
 | **You expose** | One authenticated `wss://` route | Nothing inbound |
 | **Best for** | Any backend that can accept connections | Serverless, laptops, egress-only / air-gapped networks |
 | **Scaling** | Your own load balancer | Hand out a different Cortex URL |
