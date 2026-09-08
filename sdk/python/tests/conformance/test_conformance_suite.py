@@ -24,9 +24,9 @@ from voqalize.conformance.reference import ConformanceBrain
 from voqalize.conformance.scenarios import CATALOG
 from voqalize.sdk import (
     Brain,
-    Chunk,
     Session,
     Speech,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
     UserMessage,
@@ -124,7 +124,7 @@ class _PlainBrain(Brain):
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
         yield SpeechStart()
-        yield Chunk("One. Two. Three. That is everything I have to say.")
+        yield SpeechChunk("One. Two. Three. That is everything I have to say.")
         yield SpeechEnd()
 
 

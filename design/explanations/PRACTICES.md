@@ -24,7 +24,7 @@ become; it does not govern this file.
 ## Latency
 
 6. **Start fast, don't be short.** The interval you own is callback entry → first
-   `Chunk`. Nothing else in the product is yours. — *agreed.* → [2](02-the-turn-budget.md)
+   `SpeechChunk`. Nothing else in the product is yours. — *agreed.* → [2](02-the-turn-budget.md)
 7. **Never leave silence around a tool call.** Speak a tiny line first, then call. — *agreed.*
 8. **`greet` contains no model call.** Fixed line, or a template over `session.init`. — *agreed, enforced by the return type.*
 9. **The system prompt is the cache prefix. Write it once per session; never edit it.**

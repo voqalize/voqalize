@@ -433,7 +433,7 @@ class Greeter(Brain):
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk(f"You said: {msg.text}")
+        yield SpeechChunk(f"You said: {msg.text}")
         yield SpeechEnd()
 ```
 
@@ -445,7 +445,7 @@ class Greeter(Brain):
 | `on_rtvi` | ← `RTVIFrame` |
 | `on_finalize` | ← `Finalize` |
 | `on_error` | ← `Error` |
-| `yield SpeechStart()` / `Chunk` / `SpeechEnd()` | → `SpeechStart` / `SpeechChunk` / `SpeechEnd`, one minted `speech_id` per unit |
+| `yield SpeechStart()` / `SpeechChunk` / `SpeechEnd()` | → `SpeechStart` / `SpeechChunk` / `SpeechEnd`, one minted `speech_id` per unit |
 | `session.send_rtvi(type, data)` / `session.dispatch(action)` | → `RTVIFrame` |
 | `await session.configure(Config(...))` | → `Request`, awaited until its `Response` |
 | `session.end()` | → `End` |
@@ -455,7 +455,7 @@ class Greeter(Brain):
 turn that has nothing to retry it.
 
 The speaking callbacks are async generators, and **the generator is the mouth**:
-`SpeechStart`, `Chunk` and `SpeechEnd` are the only things they may yield,
+`SpeechStart`, `SpeechChunk` and `SpeechEnd` are the only things they may yield,
 because speech is the only output whose position on the audio timeline is its
 meaning. Awaiting between yields is how a tool call sits between two things the
 brain says. Everything else is a method on the session, callable from anywhere —

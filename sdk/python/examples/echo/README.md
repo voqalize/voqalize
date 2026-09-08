@@ -11,7 +11,7 @@ brain.py        # EchoBrain: greet returns the opening line, on_user_message ech
 ## The whole brain
 
 ```python
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 
 
 class EchoBrain(Brain):
@@ -20,7 +20,7 @@ class EchoBrain(Brain):
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()                       # open one unit of speech
-        yield Chunk(f"You said: {msg.text}")      # stream text into it
+        yield SpeechChunk(f"You said: {msg.text}")      # stream text into it
         yield SpeechEnd()                         # close it
 ```
 

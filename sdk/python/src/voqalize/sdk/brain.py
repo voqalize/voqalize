@@ -1,6 +1,6 @@
 """The Brain — callbacks in, speech and actions out.
 
-    from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+    from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 
     class Greeter(Brain):
         async def greet(self, session):
@@ -8,7 +8,7 @@
 
         async def on_user_message(self, session, msg):
             yield SpeechStart()
-            yield Chunk(f"You said: {msg.text}")
+            yield SpeechChunk(f"You said: {msg.text}")
             yield SpeechEnd()
 
 Host it from your own WebSocket route with :func:`voqalize.sdk.run_session`, or
@@ -20,7 +20,7 @@ speak, and it does that by calling one of the two speaking callbacks. There is n
 the system predictable, and everything else here follows from it.
 
 A speaking callback is an async generator, and **the generator is the mouth**:
-``SpeechStart`` / ``Chunk`` / ``SpeechEnd`` are the only things it may yield,
+``SpeechStart`` / ``SpeechChunk`` / ``SpeechEnd`` are the only things it may yield,
 because speech is the only thing whose position on the audio timeline is its
 meaning. Awaiting between them is fine — that is how a tool call sits between two
 things you say.
@@ -47,7 +47,7 @@ Mapping onto the wire:
 - ``on_user_idle``          ← ``UserIdleFrame``
 - ``on_rtvi``               ← ``RTVIFrame``
 - ``SpeechStart``/``SpeechEnd`` → ``Speech{Start,End}Frame`` (mints one ``speech_id``)
-- ``Chunk``                 → ``SpeechChunkFrame``
+- ``SpeechChunk``                 → ``SpeechChunkFrame``
 - ``on_finalize``           ← ``FinalizeFrame``
 - ``session.send_rtvi``     → ``RTVIFrame``
 - an ``Action``             → an RTVI ``ui-command``
@@ -72,11 +72,11 @@ from loguru import logger
 from .actions import Action
 from .engine import Emitter, SessionAdapter, SessionFactory
 from .events import (
-    Chunk,
     Error,
     Finalize,
     RTVIMessage,
     Speech,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
     UserIdle,
@@ -128,7 +128,7 @@ class WireError(RuntimeError):
     """A brain broke one of its four obligations:
 
     1. **Balanced brackets.** Every ``SpeechStart`` is followed by a
-       ``SpeechEnd``; a ``Chunk`` outside a unit is a wire error.
+       ``SpeechEnd``; a ``SpeechChunk`` outside a unit is a wire error.
     2. **You don't block.** A callback that stalls holds the floor open and the
        caller hears nothing.
     3. **You don't speak outside a speaking callback.**
@@ -440,14 +440,14 @@ class Brain:
 
             async def on_user_message(self, session, msg):
                 yield SpeechStart()
-                yield Chunk("Let me check that")
+                yield SpeechChunk("Let me check that")
                 yield SpeechEnd()
 
                 rows = await self.catalog.search(msg.text)
                 session.dispatch(ShowResults(rows=rows))
 
                 yield SpeechStart()
-                yield Chunk(f"I found {len(rows)}.")
+                yield SpeechChunk(f"I found {len(rows)}.")
                 yield SpeechEnd()
 
         **The generator is the mouth.** Only speech is yieldable, because only
@@ -694,9 +694,9 @@ class _BrainAdapter:
                     speech_id = session._next_speech_id()
                     self._generated[speech_id] = ""
                     self.emit(SpeechStartFrame(speech_id=speech_id, turn_id=turn_id))
-                elif isinstance(event, Chunk):
+                elif isinstance(event, SpeechChunk):
                     if speech_id is None:
-                        raise WireError("Chunk outside a speech unit")
+                        raise WireError("SpeechChunk outside a speech unit")
                     if event.text:
                         self._generated[speech_id] += event.text
                         self.emit(SpeechChunkFrame(speech_id=speech_id, text=event.text))
@@ -831,7 +831,7 @@ def _speech(result: Any) -> AsyncGenerator[Any, None]:
 async def _one_unit(opening: str) -> AsyncGenerator[Speech, None]:
     """The opening line as one speech unit."""
     yield SpeechStart()
-    yield Chunk(opening)
+    yield SpeechChunk(opening)
     yield SpeechEnd()
 
 

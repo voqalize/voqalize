@@ -14,7 +14,7 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
@@ -32,7 +32,7 @@ class SpeechResponder(Brain):
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk("hello")
+        yield SpeechChunk("hello")
         yield SpeechEnd()
 
 

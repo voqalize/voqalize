@@ -43,7 +43,7 @@ what was heard is known yet, and the record is written here or nowhere.
 Four guarantees a brain can be written against:
 
 - **Exactly one finalize per bracket you opened.** Enrolment happens at
-  `SpeechStart`, not at the first `Chunk`, so a unit you opened and closed with
+  `SpeechStart`, not at the first `SpeechChunk`, so a unit you opened and closed with
   no text in it is reported too — as `heard=""` against `generated=""`, which
   reads as complete, because nothing was cut.
 - **They arrive in the order the units opened**, oldest first.
@@ -71,7 +71,7 @@ with it.
 ```python
 from collections import deque
 
-from voqalize.sdk import Brain, Chunk, Finalize, Session, SpeechEnd, SpeechStart, UserMessage
+from voqalize.sdk import Brain, SpeechChunk, Finalize, Session, SpeechEnd, SpeechStart, UserMessage
 
 
 class Concierge(Brain):
@@ -93,7 +93,7 @@ class Concierge(Brain):
                 self._awaiting.append(unit)
                 yield SpeechStart()
             unit["text"] += piece
-            yield Chunk(piece)
+            yield SpeechChunk(piece)
         if unit is not None:
             yield SpeechEnd()
 

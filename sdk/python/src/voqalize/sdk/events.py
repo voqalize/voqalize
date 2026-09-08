@@ -4,7 +4,7 @@ Three groups, and the split between them is the whole contract:
 
 * **Triggers** — :class:`UserMessage`, :class:`UserIdle`, :class:`RTVIMessage`.
   Voqalize hands one to a callback; that callback is where the floor lives.
-* **Speech** — :class:`SpeechStart` / :class:`Chunk` / :class:`SpeechEnd`. The
+* **Speech** — :class:`SpeechStart` / :class:`SpeechChunk` / :class:`SpeechEnd`. The
   only thing a speaking callback may yield, because speech is the only thing
   whose position on the audio timeline is its meaning. Everything else — an
   action, a language switch, hanging up — is a method on the session.
@@ -24,11 +24,11 @@ from typing import Any
 from .wire import ErrorCode, RTVIType
 
 __all__ = [
-    "Chunk",
     "Error",
     "Finalize",
     "RTVIMessage",
     "Speech",
+    "SpeechChunk",
     "SpeechEnd",
     "SpeechStart",
     "UserIdle",
@@ -86,7 +86,7 @@ class SpeechStart:
 
 
 @dataclass(frozen=True)
-class Chunk:
+class SpeechChunk:
     """Text to speak, inside an open unit. Stream them as you produce them."""
 
     text: str
@@ -98,7 +98,16 @@ class SpeechEnd:
 
 
 #: One unit of speech, delimited.
-Speech = SpeechStart | Chunk | SpeechEnd
+Speech = SpeechStart | SpeechChunk | SpeechEnd
+
+#: The name this class shipped under until 2026-09-08, kept working.
+#:
+#: ``SpeechChunk`` is canonical because a name you can grep is worth more than a
+#: name that is two characters shorter: one search now finds the proto message,
+#: the wire frame, the SDK class, every demo that yields one and every recorded
+#: event, and ``Chunk`` alone found none of those. It is the same class, so
+#: ``isinstance`` and ``match`` are unaffected either way.
+Chunk = SpeechChunk
 
 
 # ─── Reports ──────────────────────────────────────────────────────────────────

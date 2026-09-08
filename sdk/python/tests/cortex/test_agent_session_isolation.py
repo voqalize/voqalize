@@ -11,7 +11,7 @@ import contextlib
 
 from tests.cortex.conftest import wait_for
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
@@ -38,7 +38,7 @@ class Echo(Brain):
     async def on_user_message(self, session, msg):
         self.seen_contexts.append(msg.text)
         yield SpeechStart()
-        yield Chunk(f"echo:{msg.text}")
+        yield SpeechChunk(f"echo:{msg.text}")
         yield SpeechEnd()
 
 

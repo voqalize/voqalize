@@ -9,7 +9,7 @@ import contextlib
 
 from tests.e2e_cortex.conftest import connect_pygato, wait_until
 from tests.fakes.cortex import FakeCortex
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.brain import _brain_factory
 from voqalize.sdk.outbound import CortexAgent
 from voqalize.sdk.wire import (
@@ -28,7 +28,7 @@ class StreamingResponder(Brain):
     async def on_user_message(self, session, msg):
         StreamingResponder.timeline.append(f"start:{msg.text}")
         yield SpeechStart()
-        yield Chunk("chunk-1")
+        yield SpeechChunk("chunk-1")
         try:
             await asyncio.Event().wait()  # block until cancelled
         except asyncio.CancelledError:

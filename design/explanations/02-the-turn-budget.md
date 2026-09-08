@@ -2,7 +2,7 @@
 
 > **The surprise.** Of everything between the caller finishing a sentence and
 > hearing a syllable, exactly one interval belongs to you — entering the callback
-> to yielding your first `Chunk` — and it is the only latency in the product your
+> to yielding your first `SpeechChunk` — and it is the only latency in the product your
 > code controls. A fast turn is not a fast turn. It is a turn that *starts* fast.
 
 ## Belief
@@ -17,10 +17,10 @@
 ## Facts
 
 - The split: endpointing + recognizer finalization (ours) → **your callback to
-  your first `Chunk`** (yours) → first audio from the speech tier + playout
+  your first `SpeechChunk`** (yours) → first audio from the speech tier + playout
   (ours).
 - The measurable name for your half: **time to first chunk**.
-- `Chunk`s stream. "Stream them as you produce them" (`sdk/events.py`) — a
+- `SpeechChunk`s stream. "Stream them as you produce them" (`sdk/events.py`) — a
   streamed sentence begins being spoken before it is finished being generated.
 - **`greet` is not a turn.** It returns `str | None`, not a generator. `async` so
   you can look up a name, "not so you can generate the sentence: this is the one
@@ -78,7 +78,7 @@
 
 - `on_finalize` fires once per unit after playout, carrying `heard` and
   `interrupted`. Stamp a monotonic clock at callback entry, close it at the first
-  `Chunk`.
+  `SpeechChunk`.
 - **`interrupted` as a rate** is the cheapest quality proxy in the product:
   callers talk over an agent that is too slow, too long, or wrong.
 - `get_session_events` over the MCP server returns our half of the same call,

@@ -61,11 +61,11 @@ from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import (
     Action,
-    Chunk,
     RTVIMessage,
     RTVIType,
     Session,
     Speech,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
     UserIdle,
@@ -350,7 +350,7 @@ class AvatarBrain(GeminiBrain):
         self._claim(None)
         self._act("GESTURE_GOODBYE")
         yield SpeechStart()
-        yield Chunk(_SIGN_OFF)
+        yield SpeechChunk(_SIGN_OFF)
         yield SpeechEnd()
         session.dispatch(ShowEndCard(reason="time_limit"))
         session.end("time_limit")

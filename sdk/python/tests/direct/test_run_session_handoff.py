@@ -20,7 +20,7 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from voqalize.sdk import Brain, Chunk, SessionRejected, SpeechEnd, SpeechStart, run_session
+from voqalize.sdk import Brain, SessionRejected, SpeechChunk, SpeechEnd, SpeechStart, run_session
 from voqalize.sdk.wire import (
     SessionStartFrame,
     SpeechChunkFrame,
@@ -37,7 +37,7 @@ class EchoBrain(Brain):
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk(f"echo: {msg.text}")
+        yield SpeechChunk(f"echo: {msg.text}")
         yield SpeechEnd()
 
 

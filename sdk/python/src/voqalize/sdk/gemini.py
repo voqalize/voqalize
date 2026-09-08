@@ -57,7 +57,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from .brain import Brain, Session
-from .events import Chunk, Finalize, Speech, SpeechEnd, SpeechStart, UserMessage
+from .events import Finalize, Speech, SpeechChunk, SpeechEnd, SpeechStart, UserMessage
 
 __all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain"]
 
@@ -236,7 +236,7 @@ class GeminiBrain(Brain):
                             yield SpeechStart()
                             self._awaiting.append(unit)
                             speaking = True
-                        yield Chunk(part.text)
+                        yield SpeechChunk(part.text)
                 if _finished(chunk):
                     if speaking:
                         yield SpeechEnd()

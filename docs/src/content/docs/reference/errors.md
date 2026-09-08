@@ -139,7 +139,7 @@ it:
 ```python
 import logging
 
-from voqalize.sdk import Brain, Chunk, RequestRejected, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, RequestRejected, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig
 
 logger = logging.getLogger(__name__)
@@ -148,7 +148,7 @@ logger = logging.getLogger(__name__)
 class Switcher(Brain):
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk("Switching to Odia.")
+        yield SpeechChunk("Switching to Odia.")
         yield SpeechEnd()
         try:
             await session.configure(
@@ -160,7 +160,7 @@ class Switcher(Brain):
         except RequestRejected as rejected:
             logger.info("configure refused: %s", rejected.detail)
             yield SpeechStart()
-            yield Chunk("I will listen in Odia and answer in Hindi.")
+            yield SpeechChunk("I will listen in Odia and answer in Hindi.")
             yield SpeechEnd()
             await session.configure(
                 Config(
@@ -205,7 +205,7 @@ Neither of these crosses the wire. They are ordinary Python exceptions in the
 process you deploy.
 
 **`WireError`** — your brain broke one of its obligations. Almost always an
-unbalanced bracket: a `Chunk` outside a speech unit, a `SpeechStart` inside an
+unbalanced bracket: a `SpeechChunk` outside a speech unit, a `SpeechStart` inside an
 open one, a `SpeechEnd` with nothing open. `send_rtvi` also raises it for a type
 the app originates, and `on_rtvi` raises it if you wrote a `yield` anywhere in
 the body, because a message from the app never takes the floor. Raised inside a

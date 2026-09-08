@@ -55,7 +55,7 @@ async def _run_rtvi(*, speak: bool) -> tuple[_Recorder, list]:
     Returns the recorder and every frame the Brain emitted back.
     """
     from voqalize.conformance import BrainServer
-    from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+    from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 
     rec = _Recorder()
 
@@ -72,7 +72,7 @@ async def _run_rtvi(*, speak: bool) -> tuple[_Recorder, list]:
             rec.seen.append((msg.type, msg.data))
             rec.got.set()
             yield SpeechStart()
-            yield Chunk("noted")
+            yield SpeechChunk("noted")
             yield SpeechEnd()
 
     server = BrainServer(

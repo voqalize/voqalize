@@ -7,7 +7,7 @@ Between a caller finishing a sentence and hearing the first syllable back, three
 things happen in order:
 
 1. Voqalize decides the caller has stopped and finalizes the recognizer's text.
-2. **Your callback runs, until it yields its first `Chunk`.**
+2. **Your callback runs, until it yields its first `SpeechChunk`.**
 3. Voqalize synthesizes that chunk and plays it out.
 
 The middle interval is the only latency in the product your code controls. It has
@@ -99,7 +99,7 @@ started.
 
 `on_finalize` fires once per speech unit after playout, carrying what was heard
 and whether it was interrupted. Stamp a monotonic clock at callback entry and
-close it at your first `Chunk`; that is your half of the budget, measured on
+close it at your first `SpeechChunk`; that is your half of the budget, measured on
 every turn, in your own process.
 
 **Interruption rate is the cheapest quality proxy in the product.** Callers talk

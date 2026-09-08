@@ -38,10 +38,10 @@ from starlette.websockets import WebSocketDisconnect
 
 from voqalize.sdk import (
     Brain,
-    Chunk,
     Session,
     SessionRejected,
     Speech,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
     UserMessage,
@@ -61,7 +61,7 @@ class EchoBrain(Brain):
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
         yield SpeechStart()
-        yield Chunk(f"You said: {msg.text}")
+        yield SpeechChunk(f"You said: {msg.text}")
         yield SpeechEnd()
 
 

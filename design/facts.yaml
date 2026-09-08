@@ -196,18 +196,21 @@ facts:
 
   sdk.python.surface.tree:
     value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage,
-            RTVIType, RequestRejected, Session, SessionRejected, Speech, SpeechEnd,
-            SpeechStart, UserIdle, UserMessage, WireError, configure_logging,
+            RTVIType, RequestRejected, Session, SessionRejected, Speech, SpeechChunk,
+            SpeechEnd, SpeechStart, UserIdle, UserMessage, WireError, configure_logging,
             run_session, serve, session_context]
     source: sdk/python/src/voqalize/sdk/__init__.py
-    verified: 2026-08-25
+    verified: 2026-09-08
     derive:
       file: sdk/python/src/voqalize/sdk/__init__.py
       within: '^__all__\s*=\s*\[(.*?)\]'
       findall: '"([^"]+)"'
     note: >-
-      Twenty-two names, read out of __all__ on 2026-08-25 — the roster this tree
-      ships as 0.1.0. It was recorded as nine on 2026-08-24 while the hardening
+      Twenty-three names, read out of __all__ on 2026-09-08 — the roster this
+      tree ships as 0.1.0. It became twenty-three when `Chunk` was renamed
+      `SpeechChunk` and the old name kept as an alias, so the published roster
+      (`sdk.python.surface.published`, still 0.2.0 on PyPI) is legitimately one
+      shorter until the next release. It was recorded as nine on 2026-08-24 while the hardening
       agent held brain.py, and the nine were the ones the board had confirmed
       rather than the whole export. Two things are NOT in it and are asked for
       often: GeminiBrain lives in voqalize.sdk.gemini behind the `gemini` extra

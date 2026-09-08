@@ -28,9 +28,9 @@ from any callback and from work that outlives one.
 | `Finalize` | dataclass | What the caller actually heard, for one speech unit. |
 | `Error` | dataclass | A signal from Voqalize. |
 | `SpeechStart` | dataclass | Opens a speech unit. |
-| `Chunk` | dataclass | Text to speak inside an open unit. |
+| `SpeechChunk` | dataclass | Text to speak inside an open unit. |
 | `SpeechEnd` | dataclass | Closes the open unit. |
-| `Speech` | type alias | `SpeechStart \| Chunk \| SpeechEnd` — what a generator may yield. |
+| `Speech` | type alias | `SpeechStart \| SpeechChunk \| SpeechEnd` — what a generator may yield. |
 | `ErrorCode` | enum | The code on an `Error`. See [Error codes](/reference/errors/). |
 | `RTVIType` | enum | The RTVI message types. See [The RTVI plane](/reference/rtvi/). |
 | `WireError` | exception | A brain broke a wire obligation. |
@@ -91,7 +91,7 @@ You write them as `async def` with `yield` in the body:
 class Concierge(Brain):
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk("Let me check that")
+        yield SpeechChunk("Let me check that")
         yield SpeechEnd()
 ```
 
@@ -289,19 +289,19 @@ be wrong.
 class SpeechStart: ...
 
 @dataclass(frozen=True)
-class Chunk:
+class SpeechChunk:
     text: str
 
 @dataclass(frozen=True)
 class SpeechEnd: ...
 
-Speech = SpeechStart | Chunk | SpeechEnd
+Speech = SpeechStart | SpeechChunk | SpeechEnd
 ```
 
 One `SpeechStart` … `SpeechEnd` pair is one unit, and a unit is the granularity
 at which Voqalize reports back what the caller heard. Yielding anything else, a
-`Chunk` outside a unit, a `SpeechStart` inside one, or a `SpeechEnd` with no unit
-open, raises `WireError`. A `Chunk` with empty text is dropped. See
+`SpeechChunk` outside a unit, a `SpeechStart` inside one, or a `SpeechEnd` with no unit
+open, raises `WireError`. A `SpeechChunk` with empty text is dropped. See
 [Speaking](/build/brain/speaking/).
 
 ## Hosting

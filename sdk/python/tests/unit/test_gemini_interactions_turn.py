@@ -38,7 +38,7 @@ from pydantic import BaseModel, Field
 from voqalize.sdk import Session
 from voqalize.sdk.actions import Action
 from voqalize.sdk.brain import _adapter_for
-from voqalize.sdk.events import Chunk, Speech, SpeechEnd, SpeechStart, UserMessage
+from voqalize.sdk.events import Speech, SpeechChunk, SpeechEnd, SpeechStart, UserMessage
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 from voqalize.sdk.wire import (
     Frame,
@@ -211,7 +211,7 @@ def _shape(events: list[Speech]) -> list[str]:
             out.append("[")
         elif isinstance(ev, SpeechEnd):
             out.append("]")
-        elif isinstance(ev, Chunk):
+        elif isinstance(ev, SpeechChunk):
             out.append(ev.text)
     return out
 
@@ -382,7 +382,7 @@ async def test_a_barge_in_mid_turn_closes_the_generator_cleanly() -> None:
     seen = []
     async for ev in gen:
         seen.append(ev)
-        if isinstance(ev, Chunk):
+        if isinstance(ev, SpeechChunk):
             break
     await gen.aclose()
 

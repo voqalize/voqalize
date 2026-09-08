@@ -18,7 +18,7 @@ from voqalize.conformance import (
 )
 from voqalize.sdk import (
     Brain,
-    Chunk,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
 )
@@ -38,7 +38,7 @@ class GoodbyeBrain(Brain):
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk("Goodbye!")
+        yield SpeechChunk("Goodbye!")
         yield SpeechEnd()
         session.end(reason="user_said_bye")
         if self._double_end:

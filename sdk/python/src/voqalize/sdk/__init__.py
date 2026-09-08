@@ -11,7 +11,7 @@ action, a language switch, hanging up — is a method on the session::
 
         async def on_user_message(self, session, msg):
             yield SpeechStart()
-            yield Chunk(await self.answer(msg.text))
+            yield SpeechChunk(await self.answer(msg.text))
             yield SpeechEnd()
 
 A brain lives inside a larger application, and there are exactly two ways that
@@ -40,6 +40,7 @@ from .events import (
     Finalize,
     RTVIMessage,
     Speech,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
     UserIdle,
@@ -62,6 +63,7 @@ __all__ = [
     "Session",
     "SessionRejected",
     "Speech",
+    "SpeechChunk",
     "SpeechEnd",
     "SpeechStart",
     "UserIdle",

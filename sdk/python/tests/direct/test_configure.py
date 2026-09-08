@@ -31,7 +31,7 @@ from voqalize.conformance import (
     generate_keypair,
     mint_voqalize_token,
 )
-from voqalize.sdk import Brain, Chunk, RequestRejected, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, RequestRejected, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
     Config,
     ConfigureFrame,
@@ -71,7 +71,7 @@ class TuningBrain(Brain):
         except TimeoutError as exc:
             outcome = f"unanswered: {exc}"
         yield SpeechStart()
-        yield Chunk(outcome)
+        yield SpeechChunk(outcome)
         yield SpeechEnd()
 
 

@@ -10,7 +10,7 @@ The whole customer surface is two callbacks:
 - ``greet`` returns the opening line. It answers no user stimulus, so it is the
   one thing the brain says without being asked.
 - ``on_user_message`` is an async generator, and the generator is the mouth:
-  ``SpeechStart`` opens a unit, ``Chunk`` streams text into it, ``SpeechEnd``
+  ``SpeechStart`` opens a unit, ``SpeechChunk`` streams text into it, ``SpeechEnd``
   closes it.
 
 No ``Vql*`` frames, no LLM credentials, no dependencies beyond the SDK itself.
@@ -23,7 +23,7 @@ from collections.abc import AsyncGenerator
 
 from loguru import logger
 
-from voqalize.sdk import Brain, Chunk, Session, Speech, SpeechEnd, SpeechStart, UserMessage
+from voqalize.sdk import Brain, Session, Speech, SpeechChunk, SpeechEnd, SpeechStart, UserMessage
 
 
 class EchoBrain(Brain):
@@ -38,5 +38,5 @@ class EchoBrain(Brain):
     ) -> AsyncGenerator[Speech, None]:
         logger.info("echo: heard {!r}", msg.text)
         yield SpeechStart()
-        yield Chunk(f"You said: {msg.text}")
+        yield SpeechChunk(f"You said: {msg.text}")
         yield SpeechEnd()

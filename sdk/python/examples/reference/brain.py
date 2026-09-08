@@ -8,7 +8,7 @@ the whole surface without a test harness in sight.
 Say                     | What it proves
 ------------------------|--------------------------------------------------
 (anything)              | ``on_user_message`` streams — the reply arrives word
-                        | by word, one ``Chunk`` each, inside one speech unit
+                        | by word, one ``SpeechChunk`` each, inside one speech unit
 "look it up"            | Two units in one turn: a filler, a pause, an answer
 "open the dashboard"    | ``session.dispatch`` — a ui-command on the RTVI lane
 "ask me something"      | An action that asks; the app's reply arrives at
@@ -44,12 +44,12 @@ from loguru import logger
 from voqalize.sdk import (
     Action,
     Brain,
-    Chunk,
     Error,
     Finalize,
     RTVIMessage,
     Session,
     Speech,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
     UserIdle,
@@ -253,5 +253,5 @@ class ReferenceBrain(Brain):
         the wire (a real brain yields whatever its model streams)."""
         yield SpeechStart()
         for word in text.split(" "):
-            yield Chunk(word + " ")
+            yield SpeechChunk(word + " ")
         yield SpeechEnd()

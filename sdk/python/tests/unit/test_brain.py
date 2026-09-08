@@ -15,11 +15,11 @@ import voqalize.sdk.brain as brain_module
 from voqalize.sdk import (
     Action,
     Brain,
-    Chunk,
     ErrorCode,
     RTVIMessage,
     RTVIType,
     Session,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
     UserIdle,
@@ -48,6 +48,7 @@ def test_the_public_surface_is_deliberate() -> None:
         "Action",
         "Brain",
         "Channel",
+        # The retired name, deliberately still exported: `Chunk is SpeechChunk`.
         "Chunk",
         "Error",
         "ErrorCode",
@@ -58,6 +59,7 @@ def test_the_public_surface_is_deliberate() -> None:
         "Session",
         "SessionRejected",
         "Speech",
+        "SpeechChunk",
         "SpeechEnd",
         "SpeechStart",
         "UserIdle",
@@ -118,7 +120,7 @@ class BrokenSetup(Brain):
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[object, None]:
         yield SpeechStart()
-        yield Chunk("still here")
+        yield SpeechChunk("still here")
         yield SpeechEnd()
 
 
@@ -152,7 +154,7 @@ class BrokenGreeting(Brain):
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[object, None]:
         yield SpeechStart()
-        yield Chunk("still here")
+        yield SpeechChunk("still here")
         yield SpeechEnd()
 
 
@@ -180,7 +182,7 @@ class Greeter(Brain):
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[object, None]:
         yield SpeechStart()
-        yield Chunk("hi")
+        yield SpeechChunk("hi")
         yield SpeechEnd()
 
 
@@ -203,7 +205,7 @@ class Chatty(Brain):
         yield SpeechStart()
         for word in msg.text.split():
             await asyncio.sleep(0.01)
-            yield Chunk(word)
+            yield SpeechChunk(word)
         yield SpeechEnd()
 
 
@@ -305,7 +307,7 @@ class Talkative(Brain):
         self, session: Session, msg: RTVIMessage
     ) -> AsyncGenerator[object, None]:
         yield SpeechStart()
-        yield Chunk("I saw you click that")
+        yield SpeechChunk("I saw you click that")
         yield SpeechEnd()
 
 

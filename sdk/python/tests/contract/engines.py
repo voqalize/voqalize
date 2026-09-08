@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field
 
 from voqalize.sdk import Brain, Session
 from voqalize.sdk.brain import _adapter_for
-from voqalize.sdk.events import Chunk, Speech, SpeechEnd, SpeechStart
+from voqalize.sdk.events import Speech, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.gemini import GeminiBrain
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 from voqalize.sdk.wire import Frame, SessionStartFrame
@@ -197,7 +197,7 @@ def shape(events: list[Speech]) -> list[str]:
             out.append("[")
         elif isinstance(ev, SpeechEnd):
             out.append("]")
-        elif isinstance(ev, Chunk):
+        elif isinstance(ev, SpeechChunk):
             out.append(ev.text)
     return out
 

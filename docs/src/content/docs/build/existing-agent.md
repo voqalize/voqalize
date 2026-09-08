@@ -40,7 +40,7 @@ record what the caller heard. Against a framework whose entrypoint is
 `async def run(text) -> AsyncIterator[str]`, that is the whole port:
 
 ```python
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 
 from myagent import Agent  # your framework, unchanged
 
@@ -55,7 +55,7 @@ class PortedBrain(Brain):
     async def on_user_message(self, session, msg):
         yield SpeechStart()
         async for piece in self.agent.run(msg.text):
-            yield Chunk(piece)
+            yield SpeechChunk(piece)
         yield SpeechEnd()
 
     async def on_finalize(self, session, fin):
@@ -63,7 +63,7 @@ class PortedBrain(Brain):
             self.agent.history.append({"role": "assistant", "content": fin.heard})
 ```
 
-`msg.text` is one finalized utterance. `SpeechStart` / `Chunk` / `SpeechEnd` are
+`msg.text` is one finalized utterance. `SpeechStart` / `SpeechChunk` / `SpeechEnd` are
 one **speech unit** — the granularity at which a caller can cut you off and the
 granularity at which Voqalize reports back what they heard. Yield the chunks as
 your framework produces them; awaiting between them is what a tool call inside a
@@ -91,7 +91,7 @@ there is something to say:
             if not speaking:
                 yield SpeechStart()
                 speaking = True
-            yield Chunk(piece)
+            yield SpeechChunk(piece)
         if speaking:
             yield SpeechEnd()
 ```

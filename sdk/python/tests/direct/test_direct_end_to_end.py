@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from voqalize.conformance import BrainServer
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.wire import (
     InterruptionFrame,
     PermanentClose,
@@ -46,7 +46,7 @@ class EchoBrain(Brain):
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk(f"echo: {msg.text}")
+        yield SpeechChunk(f"echo: {msg.text}")
         yield SpeechEnd()
 
 
@@ -56,7 +56,7 @@ class SlowBrain(Brain):
     async def on_user_message(self, session, msg):
         yield SpeechStart()
         await asyncio.sleep(5.0)  # cancelled by the interruption before this
-        yield Chunk("you should never hear this")
+        yield SpeechChunk("you should never hear this")
         yield SpeechEnd()
 
 

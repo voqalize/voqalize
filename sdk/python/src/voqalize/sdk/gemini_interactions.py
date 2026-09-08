@@ -78,7 +78,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from .brain import Brain, Session
-from .events import Chunk, Finalize, Speech, SpeechEnd, SpeechStart, UserMessage
+from .events import Finalize, Speech, SpeechChunk, SpeechEnd, SpeechStart, UserMessage
 from .gemini import DEFAULT_MODEL
 
 __all__ = ["VOICE_THINKING", "GeminiInteractionsBrain"]
@@ -252,7 +252,7 @@ class GeminiInteractionsBrain(Brain):
                             yield SpeechStart()
                             self._awaiting.append(step)
                             speaking = event.index
-                        yield Chunk(delta.text)
+                        yield SpeechChunk(delta.text)
                 elif isinstance(delta, gi.ArgumentsDelta):
                     buffered[event.index] += delta.arguments or ""
                 elif isinstance(delta, gi.ThoughtSignatureDelta) and isinstance(

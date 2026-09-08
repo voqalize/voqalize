@@ -17,7 +17,7 @@ point at something that holds more than a sentence can.
 A brain has exactly two ways to reach the caller, and the difference between them
 is audio.
 
-**Speech** is yielded from the turn. `SpeechStart`, `Chunk`, `SpeechEnd` are the
+**Speech** is yielded from the turn. `SpeechStart`, `SpeechChunk`, `SpeechEnd` are the
 only yieldable types (`sdk/events.py`), and a unit of speech is one thing the
 caller can be interrupted out of.
 

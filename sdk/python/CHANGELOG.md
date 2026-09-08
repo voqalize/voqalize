@@ -15,6 +15,17 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## Unreleased
+
+### Changed
+
+- **`Chunk` is now `SpeechChunk`, and `Chunk` stays as an alias.** One name, one
+  search: `SpeechChunk` finds the proto message, the wire frame, this class,
+  every demo that yields one and every recorded event, where `Chunk` found only
+  the last of those. It is the same class object — `Chunk is SpeechChunk` — so
+  existing brains, `isinstance` checks and `match` statements keep working
+  unchanged, and nothing needs a release to adopt it.
+
 ## 0.2.0
 
 **`Finalize` reports the evidence, and the verdict is a comparison.** The wire

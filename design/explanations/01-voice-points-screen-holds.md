@@ -21,7 +21,7 @@
 ## Facts
 
 - The brain has exactly two output channels: **speech**, which is yielded, and
-  **actions**, which are dispatched. `Speech = SpeechStart | Chunk | SpeechEnd` is
+  **actions**, which are dispatched. `Speech = SpeechStart | SpeechChunk | SpeechEnd` is
   the only yieldable type (`sdk/actions.py`, `sdk/events.py`).
 - An action is never yielded. It carries no audio, therefore holds no floor:
   `session.dispatch(action)` is callable from inside a turn, from a non-generator

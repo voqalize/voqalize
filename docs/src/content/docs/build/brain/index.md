@@ -11,7 +11,7 @@ add when you need it, and a method on `session` when it is not speech.
 class Concierge(Brain):
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk(await self.answer(msg.text))
+        yield SpeechChunk(await self.answer(msg.text))
         yield SpeechEnd()
 ```
 

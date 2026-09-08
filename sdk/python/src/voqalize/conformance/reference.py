@@ -45,12 +45,12 @@ from typing import Any
 from voqalize.sdk import (
     Action,
     Brain,
-    Chunk,
     Finalize,
     RTVIMessage,
     RTVIType,
     Session,
     Speech,
+    SpeechChunk,
     SpeechEnd,
     SpeechStart,
     UserIdle,
@@ -149,30 +149,30 @@ class ConformanceBrain(Brain):
 
         if text.startswith(SAY_PREFIX):
             yield SpeechStart()
-            yield Chunk(text[len(SAY_PREFIX) :])
+            yield SpeechChunk(text[len(SAY_PREFIX) :])
             yield SpeechEnd()
             return
 
         if text == TWO:
             yield SpeechStart()
-            yield Chunk(TWO_FIRST)
+            yield SpeechChunk(TWO_FIRST)
             yield SpeechEnd()
             yield SpeechStart()
-            yield Chunk(TWO_SECOND)
+            yield SpeechChunk(TWO_SECOND)
             yield SpeechEnd()
             return
 
         if text == COUNT_SLOWLY:
             yield SpeechStart()
-            yield Chunk("one. ")
+            yield SpeechChunk("one. ")
             await asyncio.sleep(0.05)
-            yield Chunk("two. ")
+            yield SpeechChunk("two. ")
             await asyncio.sleep(0.05)
-            yield Chunk("three. ")
+            yield SpeechChunk("three. ")
             # A long pause, then a tail: a barge-in during the pause must cut
             # this off, so BARGE_SENTINEL must never reach heard text.
             await asyncio.sleep(0.5)
-            yield Chunk(BARGE_SENTINEL)
+            yield SpeechChunk(BARGE_SENTINEL)
             yield SpeechEnd()
             return
 
@@ -181,9 +181,9 @@ class ConformanceBrain(Brain):
             # un-heard tail. If the turn is *not* interrupted, the whole story —
             # sentinel included — is heard and committed.
             yield SpeechStart()
-            yield Chunk(story_opening(text[len(STORY_PREFIX) :]))
+            yield SpeechChunk(story_opening(text[len(STORY_PREFIX) :]))
             await asyncio.sleep(0.5)
-            yield Chunk(f"{STORY_TAIL}{BARGE_SENTINEL}")
+            yield SpeechChunk(f"{STORY_TAIL}{BARGE_SENTINEL}")
             yield SpeechEnd()
             return
 
@@ -192,7 +192,7 @@ class ConformanceBrain(Brain):
             # land before any audio: heard-truth is empty ⇒ nothing committed.
             yield SpeechStart()
             await asyncio.sleep(0.5)
-            yield Chunk(f"delayed {text[len(SILENT_PREFIX) :]}")
+            yield SpeechChunk(f"delayed {text[len(SILENT_PREFIX) :]}")
             yield SpeechEnd()
             return
 
@@ -205,19 +205,19 @@ class ConformanceBrain(Brain):
             # Speak a chunk (heard-truth must survive), then raise: the bracket
             # closes and the session stays live.
             yield SpeechStart()
-            yield Chunk(text[len(SPEAK_RAISE_PREFIX) :])
+            yield SpeechChunk(text[len(SPEAK_RAISE_PREFIX) :])
             yield SpeechEnd()
             raise ReferenceBrainFault("deliberate fault after speaking")
 
         if text.startswith(DO_PREFIX):
             yield SpeechStart()
-            yield Chunk("on it")
+            yield SpeechChunk("on it")
             yield SpeechEnd()
             session.dispatch(OpenPanel())
             return
 
         yield SpeechStart()
-        yield Chunk(f"you said {text}")
+        yield SpeechChunk(f"you said {text}")
         yield SpeechEnd()
 
     async def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
@@ -225,7 +225,7 @@ class ConformanceBrain(Brain):
         # a level-tagged nudge so the driver can assert both the heard text and
         # the escalation level. No user turn is recorded — nothing was said.
         yield SpeechStart()
-        yield Chunk(f"{IDLE_NUDGE} {idle.level}")
+        yield SpeechChunk(f"{IDLE_NUDGE} {idle.level}")
         yield SpeechEnd()
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:

@@ -13,7 +13,7 @@ brain decides what to keep.
 
 ```python
 from voqalize.sdk import (
-    Brain, Chunk, RTVIMessage, RTVIType, Session, SpeechEnd, SpeechStart, UserMessage,
+    Brain, SpeechChunk, RTVIMessage, RTVIType, Session, SpeechEnd, SpeechStart, UserMessage,
 )
 
 
@@ -29,7 +29,7 @@ class Desk(Brain):
 
     async def on_user_message(self, session: Session, msg: UserMessage):
         yield SpeechStart()
-        yield Chunk(f"You are looking at {self.screen.get('page', 'nothing yet')}.")
+        yield SpeechChunk(f"You are looking at {self.screen.get('page', 'nothing yet')}.")
         yield SpeechEnd()
 ```
 

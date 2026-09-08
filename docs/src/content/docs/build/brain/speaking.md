@@ -5,29 +5,29 @@ description: Speech is the only thing you yield. The three frames, why a turn is
 
 Speech is the only thing `on_user_message` yields, because speech is the only
 thing with a position on the audio timeline. You yield `SpeechStart()`, one or
-more `Chunk(text)`, then `SpeechEnd()` — and Voqalize speaks the first sentence
+more `SpeechChunk(text)`, then `SpeechEnd()` — and Voqalize speaks the first sentence
 while you are still producing the last. Everything that is not speech is a
 method on `session`.
 
 ## The three frames
 
 ```python
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 
 class Concierge(Brain):
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk("You said: " + msg.text)
+        yield SpeechChunk("You said: " + msg.text)
         yield SpeechEnd()
 ```
 
 `SpeechStart()` opens a **speech unit** and binds it to the turn you are
-answering. `Chunk(text)` carries text inside the open unit. `SpeechEnd()` closes
+answering. `SpeechChunk(text)` carries text inside the open unit. `SpeechEnd()` closes
 it. The SDK mints the unit's id and stamps the turn on it, so you write neither.
 
 Yield anything else — an action, a bare string, a dict — and the SDK raises
 `WireError` rather than putting it on the wire. So do three shapes of unbalanced
-bracket: a `Chunk` outside a unit, a `SpeechStart` inside an open one, and a
+bracket: a `SpeechChunk` outside a unit, a `SpeechStart` inside an open one, and a
 `SpeechEnd` with nothing open. The rule the errors enforce is that every unit
 you open closes exactly once, and the
 [conformance harness](/build/testing/) checks it against your brain over the
@@ -41,10 +41,10 @@ Two behaviours you get for free:
 - **On a barge-in the generator is closed, not abandoned**, so your `finally`
   blocks run. Nothing is emitted for the dead unit.
 
-**Chunk boundaries carry no meaning of their own.** Voqalize re-segments the text
+**SpeechChunk boundaries carry no meaning of their own.** Voqalize re-segments the text
 for synthesis (`proto/voqalize/frames/frames.proto`, `message SpeechChunk`), so
 split where your model splits and do not buffer to build tidy sentences.
-`Chunk("")` puts nothing on the wire.
+`SpeechChunk("")` puts nothing on the wire.
 
 `greet` is the one place you do not write the brackets. It returns a string
 rather than yielding, and the SDK wraps that string into exactly one unit on
@@ -57,13 +57,13 @@ One call to `on_user_message` may open and close the floor several times:
 ```python
 async def on_user_message(self, session, msg):
     yield SpeechStart()
-    yield Chunk("Let me check that.")
+    yield SpeechChunk("Let me check that.")
     yield SpeechEnd()
 
     rows = await self.catalog.search(msg.text)
 
     yield SpeechStart()
-    yield Chunk(f"I found {len(rows)}.")
+    yield SpeechChunk(f"I found {len(rows)}.")
     yield SpeechEnd()
 ```
 
@@ -109,13 +109,13 @@ So say something before you await, and mean it:
 ```python
 async def on_user_message(self, session, msg):
     yield SpeechStart()
-    yield Chunk("Pulling that up now.")
+    yield SpeechChunk("Pulling that up now.")
     yield SpeechEnd()
 
     booking = await self.crm.fetch(msg.text)   # 400 ms, or 4 seconds
 
     yield SpeechStart()
-    yield Chunk(f"Your booking is {booking.reference}.")
+    yield SpeechChunk(f"Your booking is {booking.reference}.")
     yield SpeechEnd()
 ```
 
@@ -139,7 +139,7 @@ generation in silence first and then hears the same words.
 async def on_user_message(self, session, msg):
     yield SpeechStart()
     async for piece in self.model.stream(msg.text):   # your client, your model
-        yield Chunk(piece)
+        yield SpeechChunk(piece)
     yield SpeechEnd()
 ```
 

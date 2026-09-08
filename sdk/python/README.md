@@ -47,7 +47,7 @@ sentence to finish.
 
 ```python
 from collections.abc import AsyncGenerator
-from voqalize.sdk import Brain, Chunk, Session, Speech, SpeechEnd, SpeechStart, UserMessage
+from voqalize.sdk import Brain, SpeechChunk, Session, Speech, SpeechEnd, SpeechStart, UserMessage
 
 class EchoBrain(Brain):
     async def greet(self, session: Session) -> str:
@@ -57,7 +57,7 @@ class EchoBrain(Brain):
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
         yield SpeechStart()
-        yield Chunk(f"You said: {msg.text}")
+        yield SpeechChunk(f"You said: {msg.text}")
         yield SpeechEnd()
 ```
 
@@ -146,7 +146,7 @@ module.
   `Session`, the private adapter that maps wire frames ↔ callbacks, and the
   `serve` entry point for the Cortex leg.
 - `src/voqalize/sdk/events.py` — what a callback is handed and what it yields:
-  `UserMessage`/`UserIdle`/`RTVIMessage`, `SpeechStart`/`Chunk`/`SpeechEnd`,
+  `UserMessage`/`UserIdle`/`RTVIMessage`, `SpeechStart`/`SpeechChunk`/`SpeechEnd`,
   `Finalize`, `Error`.
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
   `SessionRunner` (two-lane in/out, system-first feeder, drop-newest +

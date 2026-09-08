@@ -22,7 +22,7 @@ and then fail on a name this page uses.
 Eight lines. A class, one required callback, three speech frames.
 
 ```python
-from voqalize.sdk import Brain, Chunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 
 class Concierge(Brain):
     async def greet(self, session):
@@ -30,7 +30,7 @@ class Concierge(Brain):
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield Chunk("You said: " + msg.text)
+        yield SpeechChunk("You said: " + msg.text)
         yield SpeechEnd()
 ```
 
