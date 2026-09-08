@@ -19,6 +19,10 @@ A single model parameter is the only annotation either path validates —
 ``annotation(**value)`` there, ``model_validate`` here — which is why a
 ``Literal`` written *inside* a model is safe on both.
 
+The last test here is the other half of the same rule: the one model has to be
+*complete* by the time the declaration is built, which under postponed
+annotations it is not — so :func:`~voqalize.sdk.gemini._ready` rebuilds it.
+
 These tests read upstream behaviour, not ours. When they fail because
 google-genai started coercing, the rule they justify goes with them.
 """
@@ -32,10 +36,11 @@ from typing import Literal
 from uuid import UUID
 
 import pytest
-from google.genai import _extra_utils
+from google.genai import _extra_utils, types
 from google.genai import errors as genai_errors
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from voqalize.sdk.gemini import _ready
 from voqalize.sdk.gemini_interactions import _coerce
 
 
@@ -153,3 +158,73 @@ def test_the_interactions_path_parses_the_model_and_nothing_else():
     assert isinstance(got["payload"], Payload)
     assert got["when"] == "2026-08-26"
     assert not isinstance(got["when"], date)
+
+
+# ─── The model has to be complete, not just correct ──────────────────────
+
+
+class Unrebuilt(BaseModel):
+    """A wrapper naming a row class defined below it — aura's ``compare`` shape."""
+
+    rows: list[UnrebuiltRow] = Field(default_factory=list)
+
+
+class UnrebuiltRow(BaseModel):
+    name: str
+
+
+class Rebuilt(BaseModel):
+    rows: list[RebuiltRow] = Field(default_factory=list)
+
+
+class RebuiltRow(BaseModel):
+    name: str
+
+
+def _declare(fn: object) -> types.FunctionDeclaration:
+    return types.FunctionDeclaration.from_callable_with_api_option(
+        callable=fn,  # pyright: ignore[reportArgumentType]
+        api_option="GEMINI_API",
+    )
+
+
+def test_a_model_whose_own_fields_are_still_forward_refs_does_not_declare():
+    """The failure ``_ready`` exists to prevent, one level in.
+
+    ``from __future__ import annotations`` leaves a model's *fields* as strings
+    too, and pydantic resolves them on first validation — which is long after the
+    declaration is built. google-genai reads the fields directly, so the tool
+    never reaches the turn, and the ``ValueError`` names the parameter rather than
+    the field that is actually unresolved."""
+    assert Unrebuilt.__pydantic_complete__ is False
+
+    async def compare(request: Unrebuilt) -> str:
+        """Compare rows.
+
+        Args:
+            request: The rows.
+        """
+        return ""
+
+    compare.__annotations__ = {"request": Unrebuilt, "return": str}
+    with pytest.raises(ValueError, match="Failed to parse the parameter request"):
+        _declare(compare)
+
+
+def test_ready_rebuilds_the_model_parameter_so_the_tool_declares():
+    """Same shape, handed over the way a brain hands it over."""
+
+    async def compare(request: Rebuilt) -> str:
+        """Compare rows.
+
+        Args:
+            request: The rows.
+        """
+        return ""
+
+    declaration = _declare(_ready(compare))
+    assert Rebuilt.__pydantic_complete__
+    parameters = declaration.parameters
+    assert parameters is not None
+    request = (parameters.properties or {})["request"]
+    assert (request.properties or {}).keys() == {"rows"}

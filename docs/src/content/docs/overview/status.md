@@ -19,7 +19,18 @@ Python 3.12 or later and is classified as alpha. Pin the version: the callbacks
 and wire may change before 1.0.
 
 Two Gemini integrations ship with the `gemini` extra: `GeminiBrain` and
-`GeminiInteractionsBrain`. Other agent frameworks and languages connect through
+`GeminiInteractionsBrain`.
+
+:::caution[`GeminiInteractionsBrain` is experimental]
+Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
+on 2026-09-08. Two defects are open against the interactions adapter's
+interruption path — a step interrupted before its first delta stays in the context
+forever, and text buffered during a step is discarded if a barge-in lands before
+the step closes. Build on `GeminiBrain`; this one is kept, and tested, for the
+properties it has that `generate_content` does not.
+:::
+
+Other agent frameworks and languages connect through
 the published protobuf WebSocket [wire](/reference/wire/). The English
 specification and the conformance harness are the compatibility path: implement
 the wire around the framework's own text stream, then run the harness before

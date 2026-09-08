@@ -416,6 +416,15 @@ working, and every one of those fields is computed and thrown away. The
 
 ## The two shipped adapters
 
+:::caution[`GeminiInteractionsBrain` is experimental]
+Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
+on 2026-09-08. Two defects are open against the interactions adapter's
+interruption path — a step interrupted before its first delta stays in the context
+forever, and text buffered during a step is discarded if a barge-in lands before
+the step closes. Build on `GeminiBrain`; this one is kept, and tested, for the
+properties it has that `generate_content` does not.
+:::
+
 Both are `Brain` subclasses, both are installed with the `gemini` extra
 (`pip install "voqalize-agent-sdk[gemini]==0.2.0"`), and both are hosted exactly
 like any other brain.

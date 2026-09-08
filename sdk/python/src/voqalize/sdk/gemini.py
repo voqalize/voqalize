@@ -54,6 +54,7 @@ from typing import Any, get_type_hints
 from google import genai
 from google.genai import types
 from loguru import logger
+from pydantic import BaseModel
 
 from .brain import Brain, Session
 from .events import Chunk, Finalize, Speech, SpeechEnd, SpeechStart, UserMessage
@@ -463,6 +464,15 @@ def _ready(fn: Callable[..., Any]) -> Callable[..., Any]:
     That is the whole job. The wrapper does not run a loop, collect a result or
     catch an exception; AFC still owns the turn.
 
+    The model parameter is rebuilt for the same reason, one level in. Postponed
+    annotations leave a model's *fields* as ``ForwardRef`` too, and pydantic
+    resolves them lazily — on the first validation, which is long after the
+    declaration is built. google-genai reads the fields directly, so a model
+    naming a class defined further down the brain module fails to declare with a
+    ``ValueError`` naming the parameter, and the tool the developer wrote never
+    reaches the turn. ``model_rebuild`` is a no-op on a model that is already
+    complete.
+
     Resolving the annotations onto the wrapper is the second half. Brain modules
     use ``from __future__ import annotations``, so a method's annotations are
     strings, and google-genai reads two different things: ``get_type_hints`` to
@@ -486,6 +496,9 @@ def _ready(fn: Callable[..., Any]) -> Callable[..., Any]:
 
     tool.__annotations__ = get_type_hints(fn)
     tool.__signature__ = inspect.signature(fn, eval_str=True)  # pyright: ignore[reportFunctionMemberAccess]
+    for annotation in tool.__annotations__.values():
+        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            annotation.model_rebuild()
     return tool
 
 

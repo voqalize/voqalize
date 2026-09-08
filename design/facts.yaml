@@ -374,10 +374,12 @@ facts:
   brain.frameworks.built_in:
     value: [Gemini]
     source: sdk/python/src/voqalize/sdk/gemini.py + sdk/python/src/voqalize/sdk/gemini_interactions.py
-    verified: 2026-08-28
+    verified: 2026-09-08
     note: >-
       GeminiBrain and GeminiInteractionsBrain are the two shipped adapters and
-      both are behind the gemini extra. No ADK, LangChain or OpenAI Agents
+      both are behind the gemini extra. GeminiInteractionsBrain is marked
+      experimental as of 2026-09-08 — no demo runs on it, and two defects are
+      open against its interruption path. No ADK, LangChain or OpenAI Agents
       adapter ships. Other language/framework combinations implement the public,
       language-neutral protobuf wire and prove it with the conformance suite.
 

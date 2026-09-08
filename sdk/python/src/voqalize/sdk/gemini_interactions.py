@@ -1,5 +1,15 @@
 """A Gemini-backed Brain on the **interactions** API, where we run the tool loop.
 
+**Experimental — nothing here ships on it.** Every demo brain runs on
+:class:`~voqalize.sdk.gemini.GeminiBrain`; aura, the last one that did not, moved
+across on 2026-09-08. Two defects are open against the interruption path in this
+file, both confirmed against the source: a step interrupted between its
+``step.start`` and its first delta never leaves ``_history``, because ``_reconcile``
+only sees steps that reached ``_awaiting``; and ``_hop`` buffers a step's text
+locally, so a barge-in before ``step.stop`` discards it. Prefer ``GeminiBrain``.
+The three properties below are still the reason to come back to this once those
+are fixed — they are real, and ``generate_content`` does not have them.
+
     from google import genai
     from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 
@@ -214,8 +224,11 @@ class GeminiInteractionsBrain(Brain):
         arguments still empty — and the rest lands as deltas: text, fragments of
         the arguments JSON, the thought signature. ``step.stop`` closes it.
 
-        Each step joins the context the moment it opens, so an interruption
-        leaves behind exactly what had been generated when it landed.
+        Text is buffered locally and written into the step at ``step.stop`` — so a
+        barge-in before then leaves the step in the context with the empty content
+        it opened with, rather than with what had been generated. That is a defect,
+        not the design: :class:`~voqalize.sdk.gemini.GeminiBrain` extends the step
+        object already in its history, and this should do the same.
 
         Deltas name the step they belong to by ``index``, so nothing here assumes
         one step finishes before the next begins.

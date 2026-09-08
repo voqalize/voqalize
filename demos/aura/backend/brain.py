@@ -59,13 +59,12 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
 from google import genai
-from google.genai import interactions as gi
+from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
-from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .content import AURA_FACTS
@@ -782,6 +781,73 @@ CompareKind = Literal["credit_card", "savings"]
 Channel = Literal["whatsapp", "sms"]
 
 
+# Every tool whose argument list contains one of those four takes it inside a
+# model, because a bare ``Literal`` parameter is the one shape automatic function
+# calling declares perfectly and then cannot call. The declaration is right — a
+# STRING with the enum on it, verified against the installed google-genai — but
+# ``_extra_utils.convert_argument_from_function`` coerces nothing and finishes with
+# ``isinstance(value, annotation)``, which raises ``TypeError: Subscripted generics
+# cannot be used with class and instance checks`` on every single call. Inside a
+# pydantic model the same ``Literal`` is validated by pydantic and never reaches
+# that line, so the enum still constrains the model.
+
+
+class CalculatorRequest(BaseModel):
+    """What to compute, and whichever figures the customer actually gave."""
+
+    kind: CalcKind = Field(
+        description=(
+            "'emi' for a loan repayment, 'fd' for deposit maturity, 'eligibility' for how "
+            "much they could borrow."
+        )
+    )
+    principal: float | None = Field(
+        default=None, description="Loan or deposit amount in rupees — for 'emi' and 'fd'."
+    )
+    monthly_income: float | None = Field(
+        default=None, description="Take-home monthly income in rupees — for 'eligibility'."
+    )
+    existing_emi: float | None = Field(
+        default=None, description="What they already repay each month — for 'eligibility'."
+    )
+    annual_rate: float | None = Field(
+        default=None,
+        description="Annual interest rate as a percentage. Leave unset unless they state one.",
+    )
+    tenure_months: float | None = Field(
+        default=None, description="Term in MONTHS. Leave unset unless they state one."
+    )
+
+
+class ApplicationRequest(BaseModel):
+    """Which application to open."""
+
+    product: Product = Field(description="Which application to open.")
+
+
+class ComparisonRequest(BaseModel):
+    """Two or three products side by side, and which one is starred."""
+
+    kind: CompareKind = Field(description="Which family is being compared.")
+    items: list[CompareItem] = Field(
+        default_factory=list, description="The options, with real Aura product names."
+    )
+    recommend_id: str = Field(default="", description="The id of the option you are starring.")
+    recommend_reason: str = Field(
+        default="", description="One short clause saying why, in clean English."
+    )
+
+
+class SendRequest(BaseModel):
+    """A take-away sent to the customer's phone."""
+
+    what: str = Field(
+        default="this guide", description="What you are sending, a few words in clean English."
+    )
+    channel: Channel = Field(default="whatsapp", description="Which channel to send it on.")
+    number: str = Field(default="", description="Their mobile number, if they gave one.")
+
+
 class RunCalculator(Action):
     """The calculator screen, filled in and already solved.
 
@@ -991,7 +1057,7 @@ async def _silence() -> AsyncGenerator[Any, None]:
         yield
 
 
-class AuraBrain(GeminiInteractionsBrain):
+class AuraBrain(GeminiBrain):
     """One per session. The Aura Bank L1 support assistant: LLM + help-centre /
     calculator / application / comparison / branch tools + the four secure account
     tools + the two secure credit-card tools + this session's auth/selection/screen
@@ -1215,7 +1281,7 @@ class AuraBrain(GeminiInteractionsBrain):
         goes through here reports something they did on screen. It starts no turn —
         nothing about a tap means they stopped speaking — so the model reads it on
         its next one."""
-        self.append_to_context(gi.UserInputStep(content=[gi.TextContent(text=text)]))
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
 
     # ─── Tools: the help centre ─────────────────────────────────────────
 
@@ -1357,15 +1423,7 @@ class AuraBrain(GeminiInteractionsBrain):
 
     # ─── Tools: calculators, applications, comparisons ──────────────────
 
-    async def run_calculator(
-        self,
-        kind: CalcKind,
-        principal: float | None = None,
-        monthly_income: float | None = None,
-        existing_emi: float | None = None,
-        annual_rate: float | None = None,
-        tenure_months: float | None = None,
-    ) -> str:
+    async def run_calculator(self, request: CalculatorRequest) -> str:
         """Open an on-screen calculator, fill it in and solve it.
 
         You only need the AMOUNT from the customer. Rate, tenure and existing EMIs
@@ -1374,21 +1432,15 @@ class AuraBrain(GeminiInteractionsBrain):
         caveat, and let the screen carry the working.
 
         Args:
-            kind: 'emi' for a loan repayment, 'fd' for deposit maturity,
-                'eligibility' for how much they could borrow.
-            principal: Loan or deposit amount in rupees — for 'emi' and 'fd'.
-            monthly_income: Take-home monthly income in rupees — for 'eligibility'.
-            existing_emi: What they already repay each month — for 'eligibility'.
-            annual_rate: Annual interest rate as a percentage. Leave unset unless
-                they state one.
-            tenure_months: Term in MONTHS. Leave unset unless they state one.
+            request: Which calculator, and the figures they gave.
         """
+        kind = request.kind
         given = {
-            "principal": principal,
-            "monthly_income": monthly_income,
-            "existing_emi": existing_emi,
-            "annual_rate": annual_rate,
-            "tenure_months": tenure_months,
+            "principal": request.principal,
+            "monthly_income": request.monthly_income,
+            "existing_emi": request.existing_emi,
+            "annual_rate": request.annual_rate,
+            "tenure_months": request.tenure_months,
         }
         keys = {
             "emi": ("principal", "annual_rate", "tenure_months"),
@@ -1411,14 +1463,15 @@ class AuraBrain(GeminiInteractionsBrain):
             "rather than reading the figures back."
         )
 
-    async def start_application(self, product: Product) -> str:
+    async def start_application(self, request: ApplicationRequest) -> str:
         """Begin a new-customer application — a real top-of-funnel lead, and it
         needs no login. Then prefill_field each detail they give you, and submit
         only once they clearly agree.
 
         Args:
-            product: Which application to open.
+            request: Which application to open.
         """
+        product = request.product
         logger.info("aura: start_application {}", product)
         self.session.dispatch(StartApplication(product=product))
         return f"{product} application started"
@@ -1445,36 +1498,26 @@ class AuraBrain(GeminiInteractionsBrain):
         self.session.dispatch(SubmitApplication())
         return "submitted"
 
-    async def compare(
-        self,
-        kind: CompareKind,
-        items: list[CompareItem],
-        recommend_id: str = "",
-        recommend_reason: str = "",
-    ) -> str:
+    async def compare(self, request: ComparisonRequest) -> str:
         """Put two or three real Aura products side by side and star the one that
         fits what they told you. Say only why you starred it; the table carries
         the rest.
 
         Args:
-            kind: Which family is being compared.
-            items: The options, with real Aura product names.
-            recommend_id: The id of the option you are starring.
-            recommend_reason: One short line saying why.
+            request: The family, the options, and which one is starred.
         """
-        if not items:
+        if not request.items:
             return "need items to compare"
-        kind = "savings" if kind == "savings" else "credit_card"
-        logger.info("aura: compare {} ({})", kind, len(items))
+        logger.info("aura: compare {} ({})", request.kind, len(request.items))
         self.session.dispatch(
             Compare(
-                kind=kind,
-                items=items,
-                recommend_id=recommend_id,
-                recommend_reason=recommend_reason,
+                kind=request.kind,
+                items=request.items,
+                recommend_id=request.recommend_id,
+                recommend_reason=request.recommend_reason,
             )
         )
-        return f"comparison shown, {len(items)} options, recommended {recommend_id}"
+        return f"comparison shown, {len(request.items)} options, recommended {request.recommend_id}"
 
     async def find_branch(self, pincode: str, results: list[BranchResult]) -> str:
         """Show nearby branches and ATMs for a pincode. Generate a few plausible
@@ -1500,24 +1543,18 @@ class AuraBrain(GeminiInteractionsBrain):
         self.session.dispatch(ShowChecklist(title=title, items=[str(s) for s in items]))
         return f"checklist shown, {len(items)} items"
 
-    async def send_to_phone(
-        self,
-        what: str = "this guide",
-        channel: Channel = "whatsapp",
-        number: str = "",
-    ) -> str:
+    async def send_to_phone(self, request: SendRequest) -> str:
         """'Send' the guide or steps you just walked through to their phone — a
         take-away once you have explained something.
 
         Args:
-            what: What you are sending, a few words in clean English.
-            channel: Which channel to send it on.
-            number: Their mobile number, if they gave one.
+            request: What to send, on which channel, to which number.
         """
-        channel = "sms" if channel == "sms" else "whatsapp"
-        logger.info("aura: send_to_phone {} via {}", what, channel)
-        self.session.dispatch(SendToPhone(what=what, channel=channel, number=number))
-        return f"sent on {channel}"
+        logger.info("aura: send_to_phone {} via {}", request.what, request.channel)
+        self.session.dispatch(
+            SendToPhone(what=request.what, channel=request.channel, number=request.number)
+        )
+        return f"sent on {request.channel}"
 
     async def raise_ticket(self, topic: str, summary: str = "") -> str:
         """Register a complaint or a callback request when something is genuinely

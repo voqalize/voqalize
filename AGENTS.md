@@ -165,8 +165,8 @@ configures nothing — one answer, one authority.
 `demos/tests/test_<name>_e2e.py` — all eleven. The real brain on a real
 `brain_server` socket, driven by the conformance `VoqalizeDriver`, with only the
 *model* faked: `ScriptedGemini` (`demos/voqalize_demos/testing.py`) drives all
-eleven, aura's `GeminiInteractionsBrain` included — the ADK adapter and its
-`ScriptedLlm` are gone. No network, no API key, ~33 s for the whole suite.
+eleven — the ADK adapter and its `ScriptedLlm` are gone, and so is the last
+brain on `GeminiInteractionsBrain`, which is now marked experimental. No network, no API key, ~33 s for the whole suite.
 
 `demos/tests/test_demo_voice_contract.py` is the cross-demo sweep: it asserts every
 demo puts a **matched** voice/language pair on both legs before its first audio,

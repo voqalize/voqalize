@@ -20,11 +20,9 @@ Run: ``cd demos && uv run pytest tests/test_aura_e2e.py``
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 from typing import Any
 
-from google.genai import interactions as gi
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
 
@@ -94,21 +92,19 @@ def _tool_results(llm: ScriptedGemini) -> str:
 
     A tool's outcome never reaches the wire — the customer hears only the sentence
     the model built from it — so the model's *next* prompt is the only place it is
-    visible. On the interactions engine that prompt is the ``input`` of the next
-    ``interactions.create``: the brain runs the tool itself, between hops, and
-    appends a :class:`gi.FunctionResultStep` carrying the result as
-    ``json.dumps({"result": ...})``. Unwrap that one level — asserting on the raw
-    JSON matches nothing whose result contains a quote."""
+    visible. Under automatic function calling a whole turn is one request, and the
+    calls and responses it made are filed into the context after it: they are first
+    carried by the request that follows. google-genai wraps a tool's return as
+    ``{"result": ...}``, so unwrap that one level.
+    """
     out: list[str] = []
-    for request in llm.aio.interactions.requests:
-        for step in request.get("input") or []:
-            if not isinstance(step, gi.FunctionResultStep):
-                continue
-            try:
-                payload = json.loads(str(step.result))
-            except (TypeError, ValueError):
-                payload = {"result": step.result}
-            out.append(str(payload.get("result", payload)))
+    for contents in llm.captured_contents:
+        for content in contents:
+            for part in content.parts or []:
+                if part.function_response is None:
+                    continue
+                payload = part.function_response.response or {}
+                out.append(str(payload.get("result", payload)))
     return " ".join(out)
 
 
@@ -119,10 +115,11 @@ def _context_text(llm: ScriptedGemini) -> str:
     appends a line saying what they did. It takes no floor, so it is invisible
     until the *next* request carries the whole context along with it."""
     out: list[str] = []
-    for request in llm.aio.interactions.requests:
-        for step in request.get("input") or []:
-            if isinstance(step, gi.UserInputStep):
-                out.extend(str(getattr(c, "text", "") or "") for c in (step.content or []))
+    for contents in llm.captured_contents:
+        for content in contents:
+            if content.role != "user":
+                continue
+            out.extend(part.text or "" for part in (content.parts or []))
     return " ".join(out)
 
 
@@ -198,6 +195,11 @@ async def test_the_signin_goes_up_and_the_turn_finishes_without_it() -> None:
         assert rig.actions() == ["open_auth"], rig.actions()
         assert _auth_nonce(rig)
 
+        # One more turn, so the turn above's tool results are in the context being
+        # asserted: under automatic function calling a whole turn is one request,
+        # and what it called is only visible to the request that follows it.
+        await rig.driver.user_says("Anything else I should know?")
+
     results = _tool_results(llm)
     assert "the customer is NOT signed in yet" in results
     # Nothing was minted. The result talks *about* an authenticated_context — it is
@@ -272,6 +274,9 @@ async def test_a_forged_token_is_refused_and_the_model_is_sent_back_a_step() -> 
 
         turn = await rig.driver.user_says("Just tell me the number.")
         check_turn(rig, turn, units=2)
+
+        # As above: one more turn, so the refusal is carried into a request.
+        await rig.driver.user_says("Anything else I should know?")
 
     results = _tool_results(llm)
     refusal = "the customer is not signed in, so this is refused"

@@ -18,6 +18,16 @@ have](/build/existing-agent/) is that port, and it is unchanged by voice.
 
 `tools` is a member of the **two shipped Gemini adapters**, `GeminiBrain` and
 `GeminiInteractionsBrain`, and the rest of this page is the contract they share.
+
+:::caution[`GeminiInteractionsBrain` is experimental]
+Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
+on 2026-09-08. Two defects are open against the interactions adapter's
+interruption path — a step interrupted before its first delta stays in the context
+forever, and text buffered during a step is discarded if a barge-in lands before
+the step closes. Build on `GeminiBrain`; this one is kept, and tested, for the
+properties it has that `generate_content` does not.
+:::
+
 The two run the loop in different places
 ([the Brain API](/reference/brain/#the-two-shipped-adapters) has that split), and
 they take the same list, so a brain moves between them without touching its

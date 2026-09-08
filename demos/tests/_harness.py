@@ -1,8 +1,8 @@
 """The shared per-demo e2e rig: one real demo brain on a real socket, driven by
 the conformance ``VoqalizeDriver``, with only the *model* scripted.
 
-Every demo is a ``GeminiBrain`` (or ``GeminiInteractionsBrain``) subclass now —
-ADK is gone from the repo, and every demo, travel and orderdesk included,
+Every demo is a ``GeminiBrain`` subclass now — ADK is gone from the repo, and so
+is the last brain on the experimental ``GeminiInteractionsBrain``, and every demo, travel and orderdesk included,
 is hosted through :func:`demo` with the same
 :class:`voqalize_demos.testing.ScriptedGemini` fake. The ``brain_server``
 WebSocket, the minted PyGato token, and the driver's playout/heard-truth model
