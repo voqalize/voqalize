@@ -24,7 +24,7 @@ import re
 from typing import Any
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.wire import ConfigureFrame
 
@@ -175,6 +175,115 @@ async def test_narrating_a_help_video_drives_the_screen() -> None:
         assert video["video_id"] == "add-payee"
         assert video["start_sec"] == 12
         assert rig.command("highlight_step")["index"] == 1
+
+
+#: What the browser echoes back after the customer opens an article himself. The
+#: shape is ``store.tsx``'s ``snapshot()``, trimmed to the facts a version bump is
+#: keyed on.
+_ARTICLE_SCREEN: dict[str, Any] = {
+    "screen": "article",
+    "category": "cards",
+    "article": {"id": "block-card", "title_en": "Block a card", "needs_login": False},
+    "video": {"id": "M_Oxpto2PRo", "playing": False, "step_index": 0, "total_steps": 4},
+    "application": None,
+}
+
+
+async def test_what_he_did_on_screen_is_named_and_the_screen_itself_is_never_dumped() -> None:
+    """``state_sync`` is the one client message that must not speak — and, since the
+    screen moved out of the context, the one that must not describe either.
+
+    A production call appended the whole snapshot on every change, each copy
+    prefixed *authoritative* and none of them dated, and the model streamed one to
+    the customer as speech instead of answering from it. So the snapshot stops at
+    the brain: the context gets one line naming which facts he moved and pointing
+    at ``get_screen_context``. Both halves are asserted — a note carrying the
+    article id would be the old dump again, one fact at a time."""
+    llm = _llm()
+    async with demo("aura", llm) as rig:
+        await rig.driver.start_session()
+        before = len(rig.driver.ui_commands)
+
+        # The first sync is the page as it loaded; the second is him.
+        await rig.driver.send_client_message("state_sync", {"screen_state": {"screen": "home"}})
+        await rig.driver.send_client_message("state_sync", {"screen_state": _ARTICLE_SCREEN})
+        turn = await rig.driver.user_says("What am I looking at?")
+        check_turn(rig, turn, units=1)
+        assert len(rig.driver.ui_commands) == before, "state_sync drove the screen"
+
+    context = _context_text(llm)
+    assert "just changed the screen" in context
+    assert "get_screen_context" in context
+    assert "block-card" not in context, "the change note is carrying the screen"
+    assert "CURRENT SCREEN STATE" not in context, "the screen dump is back"
+
+
+async def test_a_tool_aimed_at_a_screen_he_moved_is_refused_until_it_is_read() -> None:
+    """The version gate, which is what makes read-don't-remember enforceable.
+
+    Prompt discipline is a request; a model that skips the read is seeking in a clip
+    that is no longer the one on screen. So the tool refuses instead of acting, and
+    the refusal is retriable: read, then act. The scripted model here does exactly
+    the wrong thing first.
+
+    The other half is that the brain's own dispatches must *not* trip it. The
+    browser echoes every one of them back as a ``state_sync`` indistinguishable from
+    the customer moving the screen himself, and a change the model asked for is one
+    it has already been told about — so both echoes below are sent, exactly as the
+    browser sends them, and neither costs the model a hop."""
+    llm = ScriptedGemini(
+        {
+            "Show me how to add a payee.": [
+                reply_and_call("Here you go.", "play_help_video", video_id="add-payee"),
+                reply("It's playing now."),
+            ],
+            "Start from the beginning.": [
+                reply_and_call("Sure.", "seek_video", start_sec=0),
+                reply("From the top."),
+            ],
+            "Go back a bit.": [
+                call("seek_video", start_sec=12),  # stale — he has moved since
+                call("get_screen_context"),
+                reply_and_call("Sure.", "seek_video", start_sec=12),
+                reply("Back a bit."),
+            ],
+            "Thanks.": reply("Any time."),
+        }
+    )
+    playing = {"screen": "article", "video": {"id": "add-payee"}}
+    async with demo("aura", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.send_client_message("state_sync", {"screen_state": {"screen": "home"}})
+
+        await rig.driver.user_says("Show me how to add a payee.")
+        await rig.driver.send_client_message("state_sync", {"screen_state": playing})
+
+        # The screen moved, but the brain moved it — so this costs no read.
+        await rig.driver.user_says("Start from the beginning.")
+        assert rig.command("seek_video")["start_sec"] == 0
+        assert not _seek_refused(llm), "the brain's own dispatch bumped the version"
+        await rig.driver.send_client_message("state_sync", {"screen_state": playing})
+
+        # Now the customer navigates away himself.
+        await rig.driver.send_client_message("state_sync", {"screen_state": _ARTICLE_SCREEN})
+        await rig.driver.user_says("Go back a bit.")
+        seeks = [
+            c["payload"]["start_sec"]
+            for c in rig.driver.ui_commands
+            if c["command"] == "seek_video"
+        ]
+        assert seeks == [0, 12], seeks
+
+        # One more turn, so the turn above's hops are in the context being asserted:
+        # under automatic function calling a whole turn is one request, and its tool
+        # results are only visible to the request that follows it.
+        await rig.driver.user_says("Thanks.")
+
+    assert _seek_refused(llm)
+
+
+def _seek_refused(llm: ScriptedGemini) -> bool:
+    return "the screen moved since you last read it" in _tool_results(llm)
 
 
 async def test_the_signin_goes_up_and_the_turn_finishes_without_it() -> None:

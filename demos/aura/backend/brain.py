@@ -35,10 +35,17 @@ Two mechanics carry the demo, and both run through :meth:`on_rtvi`:
     already. What the customer did is answered on the next idle stimulus — a tap is
     an answer, but it arrives on a callback that may not speak, so ``on_user_idle``
     is where Aria takes the floor once the customer is genuinely quiet.
-  * **Silent screen-state awareness.** The browser pushes a compact ``state_sync``
-    snapshot on connect and after every change, and :meth:`_append_screen_state` folds
-    the freshest one into the context without taking the floor, so the assistant always
-    reasons from what's on screen (``get_screen_context`` reads the same snapshot).
+  * **The screen is read, never remembered.** The browser pushes a compact
+    ``state_sync`` snapshot on connect and after every change, and it stops at
+    :attr:`screen` — it is never appended to the model's context. A production
+    call that did append it put the same screen in front of the model over and over,
+    every copy labelled authoritative and none of them dated, and the model read one
+    aloud instead of answering from it. What goes into the context now is one line
+    naming *what the customer changed*, never what it now says; the screen itself is
+    read through ``get_screen_context``, which is local, free and silent.
+    ``ScreenState.version`` is what makes that safe rather than hopeful: a tool aimed
+    at a video or a form the customer has moved since the model last read refuses
+    instead of acting on it. See ``voqalize_demos.screen`` for the whole story.
 
 The LLM's ``genai.Client`` is **dependency-injected**; the brain owns the
 prompt, the tool schemas, and this session's auth/selection/screen state. The
@@ -50,7 +57,6 @@ from __future__ import annotations
 
 import contextlib
 import hmac
-import json
 import random
 import secrets
 import time
@@ -62,7 +68,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
@@ -198,6 +204,37 @@ _AUTH_TTL_SECONDS = 30 * 60
 # the tap and the acknowledgement; harmless when nothing was tapped, because
 # ``on_user_idle`` stays silent unless the screen owes the customer a reply.
 _IDLE_MS = 3000
+
+
+# ─── What counts as the customer changing the screen ───────────────────────────
+# The browser re-sends its whole snapshot on every change, so "the snapshot moved"
+# is not the same question as "he changed something". A clip advancing a chapter, a
+# calculator result landing, a ticket reference appearing — those move the snapshot
+# and are nobody's decision. What matters is the identity of what is on screen and
+# what he has chosen or typed, which is what these read out. The keys are read back
+# to the model verbatim, so they are named for a reader.
+def _screen_facts(state: dict[str, Any] | None) -> dict[str, Any]:
+    if not state:
+        return {}
+    article = state.get("article") or {}
+    video = state.get("video") or {}
+    application = state.get("application") or {}
+    return {
+        "the screen he is on": state.get("screen"),
+        "the category": state.get("category"),
+        "the open article": article.get("id") if isinstance(article, dict) else None,
+        "the clip": video.get("id") if isinstance(video, dict) else None,
+        "the application form": application.get("fields")
+        if isinstance(application, dict)
+        else None,
+        "whether it is submitted": (
+            application.get("submitted") if isinstance(application, dict) else None
+        ),
+        "the account he picked": state.get("selected_account"),
+        "the card he picked": state.get("selected_card"),
+        "his card controls": state.get("card_controls"),
+    }
+
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 # The caller picks the language on the page, before the call exists, so it rides
@@ -690,7 +727,7 @@ WORKFLOW for a typical question (e.g. "where do I download my interest certifica
 2. Stop talking. The video plays, the step list follows it, and the customer reads. Add the login caveat only if it matters, in a few words, and offer the helpline (show_contact) only if they're stuck.
 3. Say nothing else until they ask something. Silence while the customer watches is CORRECT — it is not dead air, and filling it is the single worst thing you can do here.
 
-STAY GROUNDED: the website tells you the current screen, the open article, and the video's position via state. Call get_screen_context() if you need to confirm what the customer is looking at before you reference it ("the step you're on right now…").
+STAY GROUNDED: nothing in this conversation is a picture of the customer's screen. get_screen_context() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything he points at ("the step you're on right now…", "that field", "go back a bit"), and whenever you are told he changed the screen himself — you are told THAT he changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
 
 {_ACCOUNT_GUIDE}
 
@@ -1094,11 +1131,9 @@ class AuraBrain(GeminiBrain):
         # The language this call is answered in, settled once from ``init``.
         self.language: LanguageName = _DEFAULT_LANGUAGE
 
-        # Latest screen snapshot the browser has told us about, and whether any
-        # state_sync has arrived yet.
-        self.current_state: dict[str, Any] | None = None
-        self._state_synced = False
-        self._last_state_note: str | None = None
+        # What is on the customer's screen. This is the only copy: it is read
+        # through ``get_screen_context`` and never appended to the model's context.
+        self.screen = ScreenState(_screen_facts, read_tool="get_screen_context")
 
         # Authenticated-account demo state. ``_open_dialogs`` maps the nonce of
         # each dialog now on screen to what it asks for, so a card answer cannot
@@ -1218,8 +1253,9 @@ class AuraBrain(GeminiBrain):
         which :meth:`on_user_idle` delivers once the customer is quiet:
 
         * ``state_sync`` — a compact snapshot of what's on screen (sent on connect
-          and after every change), so the assistant always knows what the customer
-          is looking at.
+          and after every change). It stops at :meth:`_ingest_state`; only a line
+          naming what the customer changed reaches the model, and the screen itself
+          is read on request.
         * ``auth_complete`` — the customer finished the on-screen sign-in. THIS is
           where the server mints the token: it is only reachable via that
           authorisation, which is why the LLM can never produce one itself. The
@@ -1238,7 +1274,6 @@ class AuraBrain(GeminiBrain):
         data = data if isinstance(data, dict) else {}
         if name == "state_sync":
             self._ingest_state(data)
-            self._append_screen_state()
         elif name == "auth_complete":
             self._complete_auth(data)
         elif name == "account_selected":
@@ -1248,31 +1283,13 @@ class AuraBrain(GeminiBrain):
         elif name in ("auth_cancelled", "account_cancelled", "card_cancelled"):
             self._cancel_pending(data)
 
-    # ─── Screen state: fold the snapshot into the context, silently ─────
+    # ─── Screen state: it stops here, and is read on request ────────────
 
-    def _append_screen_state(self) -> None:
-        """Put the freshest snapshot in front of the model, taking no floor.
-
-        The context is append-only and the browser re-sends on every change, so a
-        snapshot that has not moved is not appended twice — otherwise a five-minute
-        call puts the same screen in front of the model a hundred times over."""
-        if not self._state_synced:
-            return
-        if self.current_state is None:
-            blob = "the customer is on the Aura Bank home page."
-        else:
-            try:
-                blob = json.dumps(self.current_state, ensure_ascii=False)
-            except (TypeError, ValueError):
-                blob = str(self.current_state)
-        note = (
-            "CURRENT SCREEN STATE (authoritative — what the customer is looking at right "
-            "now; reason from this): " + blob
-        )
-        if note == self._last_state_note:
-            return
-        self._last_state_note = note
-        self._append_note(note)
+    def _show(self, action: Action) -> None:
+        """Put something on screen. Every tool that moves it comes through here, so
+        the browser's echo of our own command is not mistaken for the customer."""
+        self.screen.dispatched()
+        self.session.dispatch(action)
 
     def _append_note(self, text: str) -> None:
         """Put one line in front of the model without taking the floor.
@@ -1288,14 +1305,14 @@ class AuraBrain(GeminiBrain):
     async def open_home(self) -> str:
         """Take the customer back to the Aura Bank home page."""
         logger.info("aura: open_home")
-        self.session.dispatch(OpenHome())
+        self._show(OpenHome())
         return "home open"
 
     async def open_help_center(self) -> str:
         """Open the help centre's index of categories — for a customer who is
         browsing rather than asking one specific thing."""
         logger.info("aura: open_help_center")
-        self.session.dispatch(OpenHelpCenter())
+        self._show(OpenHelpCenter())
         return "help centre open"
 
     async def open_category(self, category: str) -> str:
@@ -1308,7 +1325,7 @@ class AuraBrain(GeminiBrain):
         if not category:
             return "need a category"
         logger.info("aura: open_category {!r}", category)
-        self.session.dispatch(OpenCategory(category=category))
+        self._show(OpenCategory(category=category))
         return f"category {category} open"
 
     async def open_article(self, article_id: str) -> str:
@@ -1324,7 +1341,7 @@ class AuraBrain(GeminiBrain):
         if not article_id:
             return "need an article_id"
         logger.info("aura: open_article {!r}", article_id)
-        self.session.dispatch(OpenArticle(article_id=article_id))
+        self._show(OpenArticle(article_id=article_id))
         return f"article {article_id} open"
 
     # ─── Tools: the video ───────────────────────────────────────────────
@@ -1347,7 +1364,7 @@ class AuraBrain(GeminiBrain):
             return "need a video_id"
         start_sec = max(0, int(start_sec))
         logger.info("aura: play_help_video {} @{}s", video_id, start_sec)
-        self.session.dispatch(PlayHelpVideo(video_id=video_id, start_sec=start_sec))
+        self._show(PlayHelpVideo(video_id=video_id, start_sec=start_sec))
         # What this returns is a rule the model reads every time, so it says the
         # cadence rule rather than restating the obvious. It used to end "now
         # narrate the steps … call highlight_step(index) as you describe each
@@ -1371,9 +1388,12 @@ class AuraBrain(GeminiBrain):
         Args:
             index: Zero-based index of the step to focus.
         """
+        stale = self.screen.stale()
+        if stale:
+            return stale
         index = int(index)
         logger.info("aura: highlight_step {}", index)
-        self.session.dispatch(HighlightStep(index=index))
+        self._show(HighlightStep(index=index))
         return f"step {index} highlighted"
 
     async def seek_video(self, start_sec: int = 0) -> str:
@@ -1383,21 +1403,30 @@ class AuraBrain(GeminiBrain):
         Args:
             start_sec: Second to jump to.
         """
+        stale = self.screen.stale()
+        if stale:
+            return stale
         start_sec = max(0, int(start_sec))
         logger.info("aura: seek_video @{}s", start_sec)
-        self.session.dispatch(SeekVideo(start_sec=start_sec))
+        self._show(SeekVideo(start_sec=start_sec))
         return f"seeked to {start_sec}s"
 
     async def pause_video(self) -> str:
         """Hold the clip where it is — they asked you to wait, or to talk."""
+        stale = self.screen.stale()
+        if stale:
+            return stale
         logger.info("aura: pause_video")
-        self.session.dispatch(PauseVideo())
+        self._show(PauseVideo())
         return "paused"
 
     async def resume_video(self) -> str:
         """Play on from where you paused."""
+        stale = self.screen.stale()
+        if stale:
+            return stale
         logger.info("aura: resume_video")
-        self.session.dispatch(ResumeVideo())
+        self._show(ResumeVideo())
         return "resumed"
 
     async def show_contact(self, topic: str = "") -> str:
@@ -1410,15 +1439,21 @@ class AuraBrain(GeminiBrain):
         """
         topic = topic.strip()
         logger.info("aura: show_contact {!r}", topic)
-        self.session.dispatch(ShowContact(topic=topic))
+        self._show(ShowContact(topic=topic))
         return "contact shown: helpline 1860-200-0100, emergency card block +91 22 2000 0200"
 
     async def get_screen_context(self) -> str:
         """What the customer is looking at right now — screen, open article, video
-        position. Call it before referring to something on screen you are not
-        certain is still there."""
+        position, and anything he has filled in or chosen.
+
+        Call it before you act on something he points at, and whenever you are told
+        he changed the screen himself. It is free — it reads this session's own
+        state, takes no floor, says nothing, and moves nothing on screen."""
+        self.screen.read()
         where = self._screen_summary()
-        logger.info("aura: get_screen_context -> {}", where.get("screen"))
+        logger.info(
+            "aura: get_screen_context -> {} (v{})", where.get("screen"), self.screen.version
+        )
         return _screen_prose(where)
 
     # ─── Tools: calculators, applications, comparisons ──────────────────
@@ -1456,7 +1491,7 @@ class AuraBrain(GeminiBrain):
                 inputs[key] = float(value)
         result = _compute_calc(kind, inputs)
         logger.info("aura: run_calculator {} -> {}", kind, result)
-        self.session.dispatch(RunCalculator(kind=kind, inputs=inputs, result=result))
+        self._show(RunCalculator(kind=kind, inputs=inputs, result=result))
         return (
             f"The {_CALC_NAMES.get(kind, kind)} calculator is on screen with {_pairs(inputs)}, "
             f"working out to {_pairs(result)}. The customer can see it — say what it means "
@@ -1473,7 +1508,7 @@ class AuraBrain(GeminiBrain):
         """
         product = request.product
         logger.info("aura: start_application {}", product)
-        self.session.dispatch(StartApplication(product=product))
+        self._show(StartApplication(product=product))
         return f"{product} application started"
 
     async def prefill_field(self, field: str, value: str = "") -> str:
@@ -1484,18 +1519,24 @@ class AuraBrain(GeminiBrain):
                 monthly_income, loan_amount, tenure_years.
             value: What to type. It renders on screen, so keep it clean English.
         """
+        stale = self.screen.stale()
+        if stale:
+            return stale
         field = field.strip()
         if not field:
             return "need a field"
         logger.info("aura: prefill_field {}", field)
-        self.session.dispatch(PrefillField(field=field, value=value))
+        self._show(PrefillField(field=field, value=value))
         return f"{field} filled"
 
     async def submit_application(self) -> str:
         """Send the open application. ONLY after the customer has clearly agreed —
         never auto-submit."""
+        stale = self.screen.stale()
+        if stale:
+            return stale
         logger.info("aura: submit_application")
-        self.session.dispatch(SubmitApplication())
+        self._show(SubmitApplication())
         return "submitted"
 
     async def compare(self, request: ComparisonRequest) -> str:
@@ -1509,7 +1550,7 @@ class AuraBrain(GeminiBrain):
         if not request.items:
             return "need items to compare"
         logger.info("aura: compare {} ({})", request.kind, len(request.items))
-        self.session.dispatch(
+        self._show(
             Compare(
                 kind=request.kind,
                 items=request.items,
@@ -1528,7 +1569,7 @@ class AuraBrain(GeminiBrain):
             results: A few nearby branches and ATMs.
         """
         logger.info("aura: find_branch {} ({})", pincode, len(results))
-        self.session.dispatch(FindBranch(pincode=pincode, results=results))
+        self._show(FindBranch(pincode=pincode, results=results))
         return f"{len(results)} results shown for {pincode}"
 
     async def show_checklist(self, title: str, items: list[str]) -> str:
@@ -1540,7 +1581,7 @@ class AuraBrain(GeminiBrain):
             items: Short lines, in clean English.
         """
         logger.info("aura: show_checklist {!r} ({})", title, len(items))
-        self.session.dispatch(ShowChecklist(title=title, items=[str(s) for s in items]))
+        self._show(ShowChecklist(title=title, items=[str(s) for s in items]))
         return f"checklist shown, {len(items)} items"
 
     async def send_to_phone(self, request: SendRequest) -> str:
@@ -1551,9 +1592,7 @@ class AuraBrain(GeminiBrain):
             request: What to send, on which channel, to which number.
         """
         logger.info("aura: send_to_phone {} via {}", request.what, request.channel)
-        self.session.dispatch(
-            SendToPhone(what=request.what, channel=request.channel, number=request.number)
-        )
+        self._show(SendToPhone(what=request.what, channel=request.channel, number=request.number))
         return f"sent on {request.channel}"
 
     async def raise_ticket(self, topic: str, summary: str = "") -> str:
@@ -1567,7 +1606,7 @@ class AuraBrain(GeminiBrain):
         """
         reference = _ticket_reference()
         logger.info("aura: raise_ticket {!r} -> {}", topic, reference)
-        self.session.dispatch(RaiseTicket(reference=reference, topic=topic, summary=summary))
+        self._show(RaiseTicket(reference=reference, topic=topic, summary=summary))
         return f"ticket raised, reference {reference}"
 
     async def spotlight(self, target: str, label: str = "") -> str:
@@ -1583,7 +1622,7 @@ class AuraBrain(GeminiBrain):
         if not target:
             return "need a target"
         logger.info("aura: spotlight {}", target)
-        self.session.dispatch(Spotlight(target=target, label=label))
+        self._show(Spotlight(target=target, label=label))
         return f"{target} spotlighted"
 
     async def show_forex_card(self) -> str:
@@ -1593,7 +1632,7 @@ class AuraBrain(GeminiBrain):
         Point at it in one short line. Do not recite the benefits; the screen
         lists them, and the customer taps 'Request this card' to register."""
         logger.info("aura: show_forex_card")
-        self.session.dispatch(ShowForexCard())
+        self._show(ShowForexCard())
         return "forex card screen up; the customer taps 'Request this card' to register interest"
 
     # ─── Tools: the six secure ones ─────────────────────────────────────
@@ -1679,7 +1718,7 @@ class AuraBrain(GeminiBrain):
             )
         nonce = self._open_dialog("auth")
         logger.info("aura: show_auth_popup -> secure sign-in on screen")
-        self.session.dispatch(
+        self._show(
             OpenAuth(
                 nonce=nonce,
                 name=str(_DEMO_CUSTOMER["name"]),
@@ -1713,7 +1752,7 @@ class AuraBrain(GeminiBrain):
         ]
         nonce = self._open_dialog("account")
         logger.info("aura: choose_account -> picker ({} accounts)", len(accounts))
-        self.session.dispatch(ChooseAccount(nonce=nonce, accounts=accounts))
+        self._show(ChooseAccount(nonce=nonce, accounts=accounts))
         return (
             f"The account picker is on screen with {len(accounts)} account(s), and nothing is "
             "chosen yet. You will be told which one the customer taps, with its account_id. Do "
@@ -1740,7 +1779,7 @@ class AuraBrain(GeminiBrain):
             return _NO_ACCOUNT
         as_of = datetime.now(UTC).astimezone().strftime("%Y-%m-%d")
         logger.info("aura: get_account_balance {}", acc["account_id"])
-        self.session.dispatch(
+        self._show(
             ShowBalance(
                 account=AccountRef.model_validate(acc),
                 balance=acc["balance"],
@@ -1795,7 +1834,7 @@ class AuraBrain(GeminiBrain):
         credits = sum(r["amount"] for r in rows if r["kind"] == "credit")
         debits = sum(r["amount"] for r in rows if r["kind"] == "debit")
         logger.info("aura: get_statement {} ({} txns)", acc["account_id"], len(rows))
-        self.session.dispatch(
+        self._show(
             ShowStatement(
                 account=AccountRef.model_validate(acc),
                 from_date=start.isoformat(),
@@ -1835,7 +1874,7 @@ class AuraBrain(GeminiBrain):
         cards = [CardRef.model_validate(c) for c in _DEMO_CARDS if c["card_id"] in owned]
         nonce = self._open_dialog("card")
         logger.info("aura: choose_credit_card -> picker ({} cards)", len(cards))
-        self.session.dispatch(ChooseCreditCard(nonce=nonce, cards=cards))
+        self._show(ChooseCreditCard(nonce=nonce, cards=cards))
         return (
             f"The card picker is on screen with {len(cards)} card(s), and nothing is chosen "
             "yet. You will be told which one the customer taps, with its card_id. Do not call "
@@ -1862,7 +1901,7 @@ class AuraBrain(GeminiBrain):
             return _NO_CARD
         controls = card["controls"]
         logger.info("aura: show_card_controls {}", card["card_id"])
-        self.session.dispatch(
+        self._show(
             ShowCardControls(
                 card=CardRef.model_validate(card),
                 credit_limit=card["credit_limit"],
@@ -1886,7 +1925,7 @@ class AuraBrain(GeminiBrain):
     # ── Screen state ──────────────────────────────────────────────────────────
 
     def _screen_summary(self) -> dict[str, Any]:
-        state = self.current_state
+        state = self.screen.snapshot
         if not state:
             return {"screen": "home", "note": "The customer is on the Aura Bank home page."}
         # The browser's state_sync snapshot already carries everything (article,
@@ -1895,12 +1934,21 @@ class AuraBrain(GeminiBrain):
         return state
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
+        """Fold the browser's snapshot into :attr:`screen` — and into it only.
+
+        This used to append the whole snapshot to the model's context on every
+        change, which is the defect ``voqalize_demos.screen`` exists to close. What
+        still reaches the context is one line naming which facts the customer
+        moved, never their values."""
         snapshot = data.get("screen_state")
-        self.current_state = snapshot if isinstance(snapshot, dict) else None
-        self._state_synced = True
+        note = self.screen.absorb(snapshot if isinstance(snapshot, dict) else None)
         logger.info(
-            "aura: state_sync ingested (screen={})", (self.current_state or {}).get("screen")
+            "aura: state_sync (screen={}, v{})",
+            (self.screen.snapshot or {}).get("screen"),
+            self.screen.version,
         )
+        if note is not None:
+            self._append_note(note)
 
     # ── Browser → brain: what the customer did on screen ──────────────────────
 
