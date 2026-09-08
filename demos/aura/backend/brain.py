@@ -14,9 +14,10 @@ This is the most complex demo — it fuses three workstreams:
 
   * **Authenticated account tools** (``show_auth_popup`` → ``choose_account`` →
     ``get_account_balance`` / ``get_statement``, plus ``choose_credit_card`` →
-    ``show_card_controls``). These are the demo's security story: a deliberately real
-    HS256 token the LLM can only *pass back* — it can never mint one, because only the
-    server signs, and only after the customer authorises the on-screen sign-in.
+    ``show_card_controls``). These are the demo's security story: a
+    sign-in handle the LLM can only *pass back* — it can never produce one, because it
+    is minted only when the customer authorises the on-screen sign-in, is held here,
+    and is checked against what this session actually minted.
   * **Journey upsell / cross-sell** — the forex-card + FD cross-sells baked into the
     system prompt.
   * **Knowledge embed** — the KB/video/facts guides plus ``aura_facts.md`` (copied
@@ -28,7 +29,7 @@ Two mechanics carry the demo, and both run through :meth:`on_rtvi`:
     ``choose_credit_card`` put a dialog on screen and return in the same breath. What
     the customer then does arrives later as a browser message, and the brain appends a
     line of context saying what happened and handing over whatever it produced — the
-    signed token, the chosen account. A tool that awaited the customer would mute their
+    sign-in handle, the chosen account. A tool that awaited the customer would mute their
     mic exactly while asking them to act, and would model a handshake that does not
     exist: they may never do it, may do it in five minutes, or may have done it
     already. What the customer did is answered on the next idle stimulus — a tap is
@@ -47,9 +48,7 @@ Gemini's working context each turn by the :class:`GeminiBrain` base.
 
 from __future__ import annotations
 
-import base64
 import contextlib
-import hashlib
 import hmac
 import json
 import random
@@ -170,14 +169,26 @@ _CALC_DEFAULTS: dict[str, dict[str, float]] = {
 
 
 # ── Authenticated account access (demo) ────────────────────────────────────────
-# A deliberately REAL HS256 token, so the demo shows the security property end to
-# end: the LLM can only *pass back* the ``authenticated_context`` it was handed —
-# it can never mint a valid one, because only the server holds the signing secret
-# and only signs after the customer authorises the on-screen sign-in. Every
-# balance/statement handler re-verifies the signature (and that the account_id is
-# one the customer actually picked) before returning a single number, so a
-# hallucinated token or account id is rejected server-side, not by the prompt.
-_AUTH_SECRET = b"aura-demo-hs256-secret-not-for-production"
+# The property being demonstrated is that the LLM can only *pass back* the
+# ``authenticated_context`` it was handed — it can never produce one, because the
+# only code path that mints one runs when the browser reports the customer
+# completed the on-screen sign-in. What the handle *is* does not carry that
+# property; being held server-side and compared by identity does.
+#
+# It was a signed HS256 JWT, and the signature bought nothing here: nothing but
+# this brain ever verifies it, and the claims are the same hardcoded demo customer
+# every call. What it cost was 324 characters the model had to reproduce byte for
+# byte across up to eight tool hops, in a context that also held the whole screen
+# state — and a call in production where the model got one character wrong, the
+# tool answered "not authenticated", and the customer heard that the sign-in they
+# had just completed had not worked. Six characters cannot drift the same way, and
+# when they do the log says which of "mangled it" and "never had one" happened.
+#
+# 32**6 is about a billion, out of reach of a model guessing inside one call, and
+# the alphabet is Crockford's — no I, L, O or U, so nothing in it can be confused
+# for a digit or spell anything.
+_HANDLE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+_HANDLE_LENGTH = 6
 _AUTH_TTL_SECONDS = 30 * 60
 
 # How long a customer has to be quiet before Aria may take the floor. This is what
@@ -340,52 +351,11 @@ _NO_CARD = (
 )
 
 
-def _b64url(raw: bytes) -> str:
-    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
-
-
-def _b64url_decode(segment: str) -> bytes:
-    return base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
-
-
-def _jwt_encode(payload: dict[str, Any]) -> str:
-    header = {"alg": "HS256", "typ": "JWT"}
-    segments = [
-        _b64url(json.dumps(header, separators=(",", ":")).encode()),
-        _b64url(json.dumps(payload, separators=(",", ":")).encode()),
-    ]
-    signing_input = ".".join(segments).encode("ascii")
-    sig = hmac.new(_AUTH_SECRET, signing_input, hashlib.sha256).digest()
-    segments.append(_b64url(sig))
-    return ".".join(segments)
-
-
-def _jwt_decode(token: str) -> dict[str, Any] | None:
-    """Verify signature + expiry; return the claims, or ``None`` if invalid."""
-    try:
-        header_b64, payload_b64, sig_b64 = token.split(".")
-    except (ValueError, AttributeError):
-        return None
-    signing_input = f"{header_b64}.{payload_b64}".encode("ascii")
-    expected = hmac.new(_AUTH_SECRET, signing_input, hashlib.sha256).digest()
-    try:
-        given = _b64url_decode(sig_b64)
-    except (ValueError, TypeError):
-        return None
-    if not hmac.compare_digest(expected, given):
-        return None
-    try:
-        payload = json.loads(_b64url_decode(payload_b64))
-    except (ValueError, TypeError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    try:
-        if int(payload.get("exp", 0)) < int(time.time()):
-            return None
-    except (TypeError, ValueError):
-        return None
-    return payload
+def _mint_handle() -> str:
+    """A fresh sign-in handle. Uniform over the alphabet, so all 32**6 are equally
+    likely — the point of the demo is that the model cannot arrive at this string
+    by reasoning, and a biased draw is a shorter string than it looks."""
+    return "".join(secrets.choice(_HANDLE_ALPHABET) for _ in range(_HANDLE_LENGTH))
 
 
 def _parse_date(value: Any) -> date | None:
@@ -1067,15 +1037,17 @@ class AuraBrain(GeminiInteractionsBrain):
         # Authenticated-account demo state. ``_open_dialogs`` maps the nonce of
         # each dialog now on screen to what it asks for, so a card answer cannot
         # close the sign-in and a stale answer is discarded; ``_token`` is the
-        # signed token once the customer has authorised the sign-in, which makes a
-        # second show_auth_popup() a no-op; ``_selected`` / ``_selected_cards``
+        # sign-in handle once the customer has authorised the sign-in, which makes
+        # a second show_auth_popup() a no-op; ``_claims`` is what it stands for,
+        # which never leaves this object; ``_selected`` / ``_selected_cards``
         # record what the customer actually picked (balance/statement/controls
-        # require it). ``_auth_salt`` binds minted tokens to this session instance.
+        # require it). The handle is bound to this session by construction: it is
+        # held here and compared by identity, so there is nothing to bind.
         self._open_dialogs: dict[str, str] = {}
         self._token: str | None = None
+        self._claims: dict[str, Any] | None = None
         self._selected: set[str] = set()
         self._selected_cards: set[str] = set()
-        self._auth_salt = secrets.token_hex(8)
 
         # Set when the customer answers a dialog and cleared the moment Aria
         # speaks to it. It is what ``on_user_idle`` reads: a tap is an answer, and
@@ -1593,22 +1565,26 @@ class AuraBrain(GeminiInteractionsBrain):
     # ``choose_credit_card`` dispatch a screen carrying a nonce and return; the
     # customer answers in their own time and ``on_rtvi`` folds the answer in.
     #
-    # What holds the order is the signatures. ``authenticated_context`` is minted
-    # in ``_complete_auth``, on the browser's report that the customer completed a
-    # real on-screen sign-in — the only path that reaches the signing key. It is
-    # never in the model's context as anything but an opaque string it was handed,
-    # so no prompt can talk the model into producing one, and every tool below
-    # re-verifies it against this session's salt before it returns a figure. The
-    # error a missing or invalid one earns is the mechanism, not an edge case: it
-    # is what pushes a model that skipped ahead back to asking the customer.
+    # What holds the order is ``authenticated_context``, minted in
+    # ``_complete_auth`` on the browser's report that the customer completed a real
+    # on-screen sign-in — the only path that mints one. It is never in the model's
+    # context as anything but an opaque string it was handed, so no prompt can talk
+    # the model into producing one, and every tool below re-checks it against the
+    # one this session actually minted before it returns a figure. The error a
+    # missing or invalid one earns is the mechanism, not an edge case: it is what
+    # pushes a model that skipped ahead back to asking the customer.
 
     def _verify(self, token: str) -> dict[str, Any] | None:
-        """Return the token claims iff ``token`` is a valid, unexpired token minted
-        for THIS session; else None."""
-        payload = _jwt_decode(str(token or "").strip())
-        if not payload or payload.get("sid") != self._auth_salt:
+        """Return the claims iff ``token`` is the handle THIS session minted and it
+        has not expired; else None."""
+        given = str(token or "").strip().upper()
+        if not self._token or not self._claims:
             return None
-        return payload
+        if not hmac.compare_digest(given, self._token):
+            return None
+        if int(self._claims.get("exp", 0)) < int(time.time()):
+            return None
+        return self._claims
 
     def _selected_account(self, account_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         """The account for ``account_id``, iff it belongs to the token AND the
@@ -1903,23 +1879,21 @@ class AuraBrain(GeminiInteractionsBrain):
 
     def _complete_auth(self, data: dict[str, Any]) -> None:
         """The browser reports the customer finished the on-screen sign-in. THIS is
-        where the server mints the token — only reachable after that authorisation,
-        which is why the LLM can never produce one itself."""
+        where the handle is minted — only reachable after that authorisation, which
+        is why the LLM can never produce one itself."""
         if not self._close_dialog(data, "auth"):
             return
         now = int(time.time())
-        self._token = _jwt_encode(
-            {
-                "sub": _DEMO_CUSTOMER["id"],
-                "name": _DEMO_CUSTOMER["name"],
-                "accounts": [a["account_id"] for a in _DEMO_ACCOUNTS],
-                "cards": [c["card_id"] for c in _DEMO_CARDS],
-                "sid": self._auth_salt,
-                "iat": now,
-                "exp": now + _AUTH_TTL_SECONDS,
-            }
-        )
-        logger.info("aura: auth_complete -> token minted for {}", _DEMO_CUSTOMER["name"])
+        self._token = _mint_handle()
+        self._claims = {
+            "sub": _DEMO_CUSTOMER["id"],
+            "name": _DEMO_CUSTOMER["name"],
+            "accounts": [a["account_id"] for a in _DEMO_ACCOUNTS],
+            "cards": [c["card_id"] for c in _DEMO_CARDS],
+            "iat": now,
+            "exp": now + _AUTH_TTL_SECONDS,
+        }
+        logger.info("aura: auth_complete -> handle minted for {}", _DEMO_CUSTOMER["name"])
         self._append_note(
             "The customer has just authorised the secure sign-in, so they are now signed in. "
             f"Their authenticated_context is {self._token} — pass it back exactly as written to "

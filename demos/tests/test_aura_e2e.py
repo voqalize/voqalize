@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from typing import Any
 
 from google.genai import interactions as gi
@@ -38,14 +39,17 @@ from voqalize_demos._loaded.aura.brain import _GREETING, _IDLE_MS  # noqa: E402
 VOICE = "omnivoice/gauri"
 LANGUAGE = "en"
 
-#: The header every token the brain mints starts with — HS256, JWT — base64url'd.
-#: Its presence in a blob means something got signed.
-_JWT_HEAD = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+#: A sign-in handle in the line of context that hands one over. Matching the
+#: sentence and not just the shape is the point: six Crockford characters on their
+#: own would find any word in the blob, and what is being asserted is that the
+#: brain minted one and gave it to the model.
+_HANDED_OVER = re.compile(r"authenticated_context is ([0-9A-HJKMNP-TV-Z]{6}) ")
 
-#: A well-formed JWT the brain never signed — our header, junk signature. What the
-#: model would produce if it filled the parameter in rather than wait to be handed
-#: one.
-FORGED = _JWT_HEAD + "eyJzdWIiOiJjdXNfMSJ9.not_our_signature"
+#: A well-formed handle this brain never minted. What the model would produce if it
+#: filled the parameter in rather than wait to be handed one — and, since the brain
+#: compares against the one handle it actually holds, what it produces cannot
+#: matter: before the sign-in there is nothing to match at all.
+FORGED = "7Q2XKD"
 
 
 def _llm() -> ScriptedGemini:
@@ -199,17 +203,17 @@ async def test_the_signin_goes_up_and_the_turn_finishes_without_it() -> None:
     # Nothing was minted. The result talks *about* an authenticated_context — it is
     # telling the model to wait for one — but no token exists, because the customer
     # has not signed in and the brain is the only thing that can sign.
-    assert _JWT_HEAD not in results
+    assert not _HANDED_OVER.search(results)
 
 
 async def test_signing_in_hands_the_model_a_token_it_could_not_have_written() -> None:
-    """The browser reports the sign-in, and the token appears in the *context*.
+    """The browser reports the sign-in, and the handle appears in the *context*.
 
-    The server — not the model — mints it, in ``_complete_auth``, on the browser's
+    The brain — not the model — mints it, in ``_complete_auth``, on the browser's
     report that the customer completed a real on-screen authorisation. That is the
-    property the whole design rests on: the signing key is reachable by exactly one
-    path, and it does not run through the model. What the model gets is an opaque
-    string it was handed, in a line of context describing what the customer did."""
+    property the whole design rests on: one path mints one, and it does not run
+    through the model. What the model gets is an opaque string it was handed, in a
+    line of context describing what the customer did."""
     llm = _llm()
     async with demo("aura", llm) as rig:
         await rig.driver.start_session()
@@ -226,8 +230,7 @@ async def test_signing_in_hands_the_model_a_token_it_could_not_have_written() ->
 
     context = _context_text(llm)
     assert "authorised the secure sign-in" in context
-    # A JWT the model never wrote: our header, three dot-separated segments.
-    assert f"authenticated_context is {_JWT_HEAD}" in context
+    assert _HANDED_OVER.search(context)
 
 
 async def test_a_dismissed_signin_tells_the_model_so_instead_of_stalling() -> None:
@@ -250,7 +253,7 @@ async def test_a_dismissed_signin_tells_the_model_so_instead_of_stalling() -> No
 
     context = _context_text(llm)
     assert "closed the secure sign-in without signing in" in context
-    assert _JWT_HEAD not in context
+    assert not _HANDED_OVER.search(context)
 
 
 async def test_a_forged_token_is_refused_and_the_model_is_sent_back_a_step() -> None:
@@ -258,9 +261,9 @@ async def test_a_forged_token_is_refused_and_the_model_is_sent_back_a_step() -> 
 
     With nothing blocking, a model is perfectly able to call ``get_account_balance``
     the moment it sees the sign-in go up, filling in a plausible-looking token. The
-    signature is what stops it: the parameter is mandatory, the brain verifies it
-    against this session's salt, and a forgery earns an error naming the step that
-    has not happened. The failure path *is* the enforcement — so it is asserted as
+    handle is what stops it: the parameter is mandatory, the brain checks it against
+    the one this session minted — before the sign-in, none — and a forgery earns an
+    error naming the step that has not happened. The failure path *is* the enforcement — so it is asserted as
     a completed, speaking turn, not merely as a status string."""
     llm = _llm()
     async with demo("aura", llm) as rig:
@@ -317,7 +320,7 @@ async def test_a_tap_is_answered_on_the_next_idle() -> None:
     # the note the tap wrote, and it carries the token she was handed.
     context = _context_text(llm)
     assert "authorised the secure sign-in" in context
-    assert f"authenticated_context is {_JWT_HEAD}" in context
+    assert _HANDED_OVER.search(context)
 
 
 async def test_a_quiet_customer_with_nothing_pending_is_left_alone() -> None:
