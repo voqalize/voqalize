@@ -12,14 +12,18 @@ Two things worth calling out about how per-session state flows in:
     generated: the advisor is already logged in, so there is no first-token wait.
   * **state_sync** — the console is the source of truth for the open case and the
     approvals queue; it echoes a compact ``state_sync`` snapshot on every change.
-    :meth:`ServicingBrain.on_rtvi` folds it in *silently* — no floor taken, no
-    turn — so the next turn (and ``get_advisor_context``) always reasons from the
-    real on-screen state.
+    :meth:`ServicingBrain.on_rtvi` folds it into :attr:`ServicingBrain.screen` and
+    nowhere else — no floor taken, no turn, and no snapshot in the context. What
+    reaches the model is one line naming which facts the advisor moved; the
+    workspace itself is read through ``get_advisor_context``.
+    ``ScreenState.version`` makes that safe rather than hopeful: a tool aimed at a
+    packet or a blocker the advisor has moved since the desk last read refuses
+    instead of acting. See ``voqalize_demos.screen``.
 
 Fourteen of the fifteen tools dispatch a :class:`~voqalize.sdk.Action` that IS the
 tool's own parameter — the LLM generates the substantive data (payoff figures,
 rate offers, drafts, packet fields) as the action's fields, and the tool body is
-mostly one ``self.session.dispatch(action)`` line. ``get_advisor_context`` is the
+mostly one ``self._show(action)`` line. ``get_advisor_context`` is the
 one exception: it is read-only (no action, no screen draw), and exists so the
 copilot can answer about the console without moving it.
 
@@ -32,14 +36,13 @@ the browser keys its rows by — the model is never asked to invent one.
 
 from __future__ import annotations
 
-import json
 from typing import Any, Literal
 
 from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -71,7 +74,7 @@ VOICE STYLE:
 
 YOU CONTROL THE SCREEN. Whenever you talk about a case, a tab, an assignment, or a draft, call the matching tool so the advisor SEES it. Open the case, switch the tab, move the card, draft the item — never just describe it in words.
 
-KNOW WHERE THE ADVISOR IS ("voice also"). The console continuously tells you the current on-screen state. Before you reference what is on screen, you may call get_advisor_context to confirm exactly which case and tab the advisor is looking at, and ground your answer in it (e.g. "I see you're on Cho's pricing tab — his rate is seven-point-one percent"). Voice augments the screen; it does not replace it.
+KNOW WHERE THE ADVISOR IS ("voice also"). Nothing in this conversation is a picture of the console. get_advisor_context() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you reference or act on anything on screen, and whenever you are told the advisor moved it themselves — you are told THAT they moved it, never what it now says. Ground your answer in what it returns (e.g. "I see you're on Cho's pricing tab — his rate is seven-point-one percent"). If a tool refuses because the console moved under you, that is not something to report or apologise for: read it and make the call again. Voice augments the screen; it does not replace it.
 
 THE BIG IDEA — WORKING ONE CASE DOESN'T FREEZE THE OTHERS. The advisor can keep working a case on screen while you PREPARE A DIFFERENT CASE in the background. When the advisor asks you to "get a case ready" / "take" / "work on" / "work up" another case, call prepare_case for that case. That kicks off background prep jobs that run on their own while the advisor keeps clicking and talking on whatever they have open. Do NOT pull the advisor away from what they're doing — prepare the other case quietly and tell them when it's ready. They are never blocked.
 
@@ -393,6 +396,32 @@ def _assign_ids(items: list[Any], prefix: str) -> None:
             item.id = f"{prefix}{i + 1}"
 
 
+def _screen_facts(state: dict[str, Any] | None) -> dict[str, Any]:
+    """The parts of the workspace snapshot that are somebody's decision.
+
+    Out of it: ``preparing`` and ``archive_search`` status, which move on the
+    console's own clock as a workup or a lookup finishes. Bumping the version for
+    those would cost the desk a re-read on work it started itself."""
+    if not state:
+        return {}
+    case = state.get("active_case")
+    case = case if isinstance(case, dict) else {}
+    return {
+        "the view they are on": state.get("view"),
+        "the tab": state.get("tab"),
+        "the open case": case.get("ref"),
+        "its stage": case.get("stage"),
+        "who it is assigned to": case.get("assignee"),
+        "its blocker": case.get("blocker"),
+        "its packet": case.get("packet"),
+        "the workup findings": case.get("findings"),
+        "the notes on it": case.get("notes"),
+        "the approvals waiting": case.get("pending_approvals"),
+        "the approvals blocked": case.get("blocked_approvals"),
+        "the case board": state.get("cases"),
+    }
+
+
 class ServicingBrain(GeminiBrain):
     """One per session. The Meridian Servicing Console copilot: LLM + case/board
     screen-driving tools + this session's advisor + live workspace state."""
@@ -404,8 +433,9 @@ class ServicingBrain(GeminiBrain):
         self.advisor_role = "Servicing Advisor"
         # Latest workspace snapshot the browser has told us about (authoritative;
         # source of truth lives in the browser, this is the brain's view of it).
-        self.current_state: dict[str, Any] | None = None
-        self._state_message: str | None = None
+        # What is on the advisor's console. This is the only copy: it is read
+        # through ``get_advisor_context`` and never appended to the model's context.
+        self.screen = ScreenState(_screen_facts, read_tool="get_advisor_context", actor="advisor")
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -436,40 +466,32 @@ class ServicingBrain(GeminiBrain):
         """Browser→brain message. ``state_sync`` carries a compact snapshot of the
         workspace — which case/tab is on screen, pending approvals, and a lean
         view of the cases. Ingested *silently* (no floor taken, no turn); the next
-        turn's working context carries it, so the assistant always knows the live
-        on-screen state, and it backs ``get_advisor_context``."""
+        turn carries at most one line saying which of those moved."""
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         if msg.data.get("t") == "state_sync":
             self._ingest_state(msg.data.get("d") or {})
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Fold the latest workspace snapshot into the context so every turn
-        reasons from the authoritative on-screen state.
+        """Fold the console's snapshot into :attr:`screen` — and into it only.
 
-        The console re-sends the snapshot on every change, and many are the same
-        workspace from the desk's point of view (a scroll, a re-render). Only a
-        changed snapshot is worth appending: the context is append-only, so an
-        unguarded append here would flood it with near-duplicate snapshots by the
-        end of a session."""
+        This used to append the whole workspace to the model's context on every
+        change, which is the defect ``voqalize_demos.screen`` exists to close."""
         snapshot = data.get("workspace")
-        self.current_state = snapshot if isinstance(snapshot, dict) else None
-        if self.current_state is None:
-            message = "CURRENT WORKSPACE STATE: the advisor's console is initializing."
-        else:
-            try:
-                blob = json.dumps(self.current_state, ensure_ascii=False)
-            except (TypeError, ValueError):
-                blob = str(self.current_state)
-            message = (
-                "CURRENT WORKSPACE STATE (authoritative — reflects where the advisor "
-                "is and every edit they or you have made; always reason from this): " + blob
-            )
-        if message == self._state_message:
-            return
-        self._state_message = message
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=message)]))
-        logger.info("servicing: state_sync ingested (active={})", bool(self.current_state))
+        note = self.screen.absorb(snapshot if isinstance(snapshot, dict) else None)
+        logger.info(
+            "servicing: state_sync (active={}, v{})",
+            bool(self.screen.snapshot),
+            self.screen.version,
+        )
+        if note is not None:
+            self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+
+    def _show(self, action: Action) -> None:
+        """Put something on screen. Every tool that moves it comes through here, so
+        the console's echo of our own command is not mistaken for the advisor."""
+        self.screen.dispatched()
+        self.session.dispatch(action)
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
@@ -496,35 +518,36 @@ class ServicingBrain(GeminiBrain):
 
     async def open_board(self) -> str:
         """Show the advisor's case board (the worklist of all their cases)."""
-        self.session.dispatch(OpenBoard())
+        self._show(OpenBoard())
         return "board open"
 
     async def open_case(self, action: OpenCase) -> str:
         """Open a case by its reference and make it the active case on screen.
         Use when the advisor says 'open Cho's case' or 'pull up MS-1057'."""
         action.ref = action.ref.strip().upper()
-        self.session.dispatch(action)
+        self._show(action)
         return f"opened {action.ref}"
 
     async def set_tab(self, action: SetTab) -> str:
         """Switch the tab within the open case so the advisor sees the right panel."""
-        self.session.dispatch(action)
+        self._show(action)
         return f"showing {action.tab}"
 
     async def get_advisor_context(self) -> str:
         """Read where the advisor is right now — which case and tab is on screen,
-        plus a snapshot of that case and any pending approvals. Call this to
-        ground a turn in what the advisor is currently looking at before you
-        reference it."""
-        state = self.current_state or {}
-        return str(
-            {
-                "view": state.get("view"),
-                "active_case": state.get("active_case"),
-                "tab": state.get("tab"),
-                "pending_approvals": state.get("pending_approvals"),
-            }
+        that case in full, the board, and any pending approvals.
+
+        Call it before you reference or act on anything on screen, and whenever you
+        are told the advisor moved it themselves. It is free — it reads this
+        session's own state, takes no floor, says nothing, and moves nothing."""
+        self.screen.read()
+        snapshot = self.screen.snapshot
+        logger.info(
+            "servicing: get_advisor_context (active={}, v{})", bool(snapshot), self.screen.version
         )
+        if not snapshot:
+            return "The advisor's console is still initializing — nothing is on screen yet."
+        return screen_prose(snapshot, actor="advisor")
 
     async def assign_case(self, action: AssignCase) -> str:
         """Route a case to a person or a department (Jira-style assignment). Use
@@ -532,7 +555,7 @@ class ServicingBrain(GeminiBrain):
         <department>'. Assigning to a department moves the card to the 'with
         department' stage."""
         action.ref = action.ref.strip().upper()
-        self.session.dispatch(action)
+        self._show(action)
         label = (
             DEPARTMENTS.get(action.assignee.lower(), action.assignee)
             if action.assignee_kind == "department"
@@ -542,8 +565,11 @@ class ServicingBrain(GeminiBrain):
 
     async def move_case(self, action: MoveCase) -> str:
         """Move a case card to a different stage on the board."""
+        stale = self.screen.stale()
+        if stale:
+            return stale
         action.ref = action.ref.strip().upper()
-        self.session.dispatch(action)
+        self._show(action)
         return f"moved {action.ref} to {action.stage}"
 
     async def add_comment(self, action: AddComment) -> str:
@@ -558,7 +584,7 @@ class ServicingBrain(GeminiBrain):
         action.dept = action.dept.strip().lower()
         if not action.ref or not action.text.strip():
             return "need a case ref and note text"
-        self.session.dispatch(action)
+        self._show(action)
         dept_label = DEPARTMENTS.get(action.dept, action.dept) or None
         return f"noted on {action.ref}" + (f" ({dept_label})" if dept_label else "")
 
@@ -578,7 +604,7 @@ class ServicingBrain(GeminiBrain):
         _assign_ids(action.jobs, "j")
         _assign_ids(action.findings, "f")
         _assign_ids(action.approvals, "a")
-        self.session.dispatch(action)
+        self._show(action)
         blocker_note = f"; blocker: {action.blocker.title}" if action.blocker else ""
         return (
             f"preparing {action.ref} in the background{blocker_note} — tell the advisor when ready"
@@ -594,7 +620,7 @@ class ServicingBrain(GeminiBrain):
         if not action.ref or not action.findings:
             return "need a case ref and at least one finding"
         _assign_ids(action.findings, "f")
-        self.session.dispatch(action)
+        self._show(action)
         blocker_note = f"; blocker: {action.blocker.title}" if action.blocker else ""
         return f"workup posted on {action.ref}{blocker_note}"
 
@@ -605,7 +631,7 @@ class ServicingBrain(GeminiBrain):
         did we handle X?'. This is a server-side lookup that reaches beyond
         what's on screen. Generate 2-3 believable past cases."""
         _assign_ids(action.results, "p")
-        self.session.dispatch(action)
+        self._show(action)
         return f"searched the archive — {len(action.results)} precedent(s) found"
 
     async def update_packet_field(self, action: UpdatePacketField) -> str:
@@ -614,9 +640,12 @@ class ServicingBrain(GeminiBrain):
         yourself (regenerate any figure that depends on it, like accrued
         interest, and update those fields too)."""
         action.ref = action.ref.strip().upper()
+        stale = self.screen.stale()
+        if stale:
+            return stale
         if not action.ref or not action.section.strip() or not action.field.strip():
             return "need ref, section and field"
-        self.session.dispatch(action)
+        self._show(action)
         return f"set {action.field} to {action.value!r} on {action.ref}"
 
     async def resolve_blocker(self, action: ResolveBlocker) -> str:
@@ -625,9 +654,12 @@ class ServicingBrain(GeminiBrain):
         blocker was gating so the advisor can approve and submit. Only call
         this when the blocking issue is genuinely resolved."""
         action.ref = action.ref.strip().upper()
+        stale = self.screen.stale()
+        if stale:
+            return stale
         if not action.ref:
             return "need a case ref"
-        self.session.dispatch(action)
+        self._show(action)
         return f"blocker cleared on {action.ref}"
 
     async def submit_packet(self, action: SubmitPacket) -> str:
@@ -637,9 +669,12 @@ class ServicingBrain(GeminiBrain):
         cleared — if something is still pending or blocked, the submission is
         refused. Confirm the advisor wants to submit before calling."""
         action.ref = action.ref.strip().upper()
+        stale = self.screen.stale()
+        if stale:
+            return stale
         if not action.ref:
             return "need a case ref"
-        self.session.dispatch(action)
+        self._show(action)
         return (
             f"submit requested for {action.ref} — the console will only submit if "
             "the advisor has approved the drafts and no blocker is open"
@@ -651,14 +686,17 @@ class ServicingBrain(GeminiBrain):
         (e.g. a rate offer for Cho). The advisor approves or declines it. You
         never execute it yourself."""
         action.ref = action.ref.strip().upper()
+        stale = self.screen.stale()
+        if stale:
+            return stale
         if not action.ref:
             return "need a case ref"
         _assign_ids([action.approval], "a")
-        self.session.dispatch(action)
+        self._show(action)
         return f"drafted '{action.approval.title}' for approval on {action.ref}"
 
     async def highlight(self, action: Highlight) -> str:
         """Scroll to and briefly highlight one section of the open case so the
         advisor's eye follows you."""
-        self.session.dispatch(action)
+        self._show(action)
         return f"highlighted {action.section}"

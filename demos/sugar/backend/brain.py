@@ -14,13 +14,17 @@ Two things worth calling out about how per-session state flows in:
     PATIENT CONTEXT into the system instruction so every turn is grounded in it.
   * **state_sync** — the browser echoes a compact ``state_sync`` snapshot of the
     patient's screen (what's logged, med ticks, taps the patient made by hand).
-    :meth:`SugarBrain.on_rtvi` folds it in *silently* — no floor taken, no turn —
-    and :meth:`SugarBrain.note` carries it into the next turn.
+    :meth:`SugarBrain.on_rtvi` folds it into :attr:`SugarBrain.screen` and nowhere
+    else — no floor taken, no turn, and no snapshot in the context. What reaches
+    the model is one line naming which facts the patient moved; the screen itself
+    is read through ``read_screen``. ``ScreenState.version`` makes that safe rather
+    than hopeful: a tool aimed at a screen the patient has moved since the coach
+    last read refuses instead of acting. See ``voqalize_demos.screen``.
 
 **The LLM generates the substantive data** (meal items, calorie estimates,
 summary lines): each tool takes one pydantic model, and for thirteen of the
 fourteen that model *is* the :class:`~voqalize.sdk.Action` the ``/sugar`` UI
-renders — so the tool body is one ``self.session.dispatch(...)`` line.
+renders — so the tool body is one ``self._show(...)`` line.
 ``switch_language`` moves both legs of the language instead of the screen.
 """
 
@@ -33,7 +37,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field, computed_field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -150,7 +154,7 @@ If the context says the patient's glucose sensor has expired, weave the replacem
 
 Skip or reorder beats the objective makes irrelevant. An onboarding call replaces beats two to five with walking through the care plan (highlight the plan section, confirm they know their meds and targets, set the daily call time expectation).
 
-STAY GROUNDED: the app tells you the current screen state (what's logged, what's ticked, what the patient tapped) via state updates. Reason from the latest one — especially for taps the patient made themselves.
+STAY GROUNDED: nothing in this conversation is a picture of the patient's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything already on screen (what's logged, what's ticked, what they tapped), and whenever you are told they changed it themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
 
 Open per TODAY'S CALL OBJECTIVE: greet by first name as their {COACH_NAME} — familiar, one or two short sentences, in the context's language, grounded in something real from their recent days."""
 
@@ -285,6 +289,27 @@ class SwitchLanguage(BaseModel):
     language: LanguageName = Field(description="Target language.")
 
 
+def _screen_facts(state: dict[str, Any] | None) -> dict[str, Any]:
+    """The parts of the screen snapshot that are somebody's decision.
+
+    Nearly all of it: on this screen everything is logged, ticked or tapped. What
+    stays out is ``video``, which the browser reports as the player moves through
+    a clip — the coach opened it, and a chapter advancing is not a change of mind.
+    """
+    if not state:
+        return {}
+    return {
+        "where they are in the call": state.get("phase"),
+        "the meals logged": state.get("meals"),
+        "the activity logged": state.get("activity"),
+        "the medication ticks": state.get("medications"),
+        "the commitment": state.get("commitment"),
+        "what is flagged for the care team": state.get("care_team_flags"),
+        "the sensor order": state.get("sensor_order"),
+        "whether the summary is up": state.get("summary_shown"),
+    }
+
+
 class SugarBrain(GeminiBrain):
     """One per session. The Sugar Coach daily check-in: LLM + habit-logging tools
     + this session's patient/screen state.
@@ -312,11 +337,9 @@ class SugarBrain(GeminiBrain):
         self.language_name = "English"
         self.talk_mode = "quiet"
         self.nudge = ""
-        # Latest screen snapshot the browser has told us about (source of truth
-        # lives in the browser; this is the brain's view of it) and the trailing
-        # user message that carries it into each turn's working context.
-        self.current_state: dict[str, Any] | None = None
-        self._state_message: str | None = None
+        # What is on the patient's screen. This is the only copy: it is read
+        # through ``read_screen`` and never appended to the model's context.
+        self.screen = ScreenState(_screen_facts, read_tool="read_screen", actor="patient")
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -373,8 +396,7 @@ class SugarBrain(GeminiBrain):
         """Browser→brain message. ``state_sync`` carries a compact snapshot of the
         patient's screen — what's logged, med ticks, video position, and taps the
         patient made by hand. Ingested *silently* (no floor taken, no turn); the
-        next turn carries it as a note, so the coach reasons from the live
-        screen."""
+        next turn carries at most one line saying which of those moved."""
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         if msg.data.get("t") == "state_sync":
@@ -383,34 +405,23 @@ class SugarBrain(GeminiBrain):
     # ─── Browser → brain: screen state sync (silent awareness) ──────────
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Put the latest screen snapshot into the context, so the next turn
-        reasons from the live screen.
+        """Fold the browser's snapshot into :attr:`screen` — and into it only.
 
-        The browser re-sends the snapshot as the patient scrolls and taps, and most
-        of those are the same screen. Only a changed one is worth appending: the
-        context is append-only, so an unguarded append here would put a hundred
-        near-identical screens in front of the model by the end of a call. The SDK
-        does not do this for us on purpose — which screens are the same is a
-        question only this brain can answer.
-        """
+        This used to append the whole screen to the model's context on every
+        change, which is the defect ``voqalize_demos.screen`` exists to close."""
         snapshot = data.get("screen")
-        self.current_state = snapshot if isinstance(snapshot, dict) else None
-        if self.current_state is None:
-            message = "CURRENT SCREEN STATE: the patient's app is initializing."
-        else:
-            try:
-                blob = json.dumps(self.current_state, ensure_ascii=False)
-            except (TypeError, ValueError):
-                blob = str(self.current_state)
-            message = (
-                "CURRENT SCREEN STATE (authoritative — reflects everything logged so far and "
-                "any taps the patient made by hand; always reason from this): " + blob
-            )
-        if message == self._state_message:
-            return
-        self._state_message = message
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=message)]))
-        logger.info("sugar: state_sync ingested (active={})", bool(self.current_state))
+        note = self.screen.absorb(snapshot if isinstance(snapshot, dict) else None)
+        logger.info(
+            "sugar: state_sync (active={}, v{})", bool(self.screen.snapshot), self.screen.version
+        )
+        if note is not None:
+            self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+
+    def _show(self, action: Action) -> None:
+        """Put something on screen. Every tool that moves it comes through here, so
+        the browser's echo of our own command is not mistaken for the patient."""
+        self.screen.dispatched()
+        self.session.dispatch(action)
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #
@@ -426,9 +437,10 @@ class SugarBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The fourteen the coach may call. Every one is `async def` and drives the
-        patient's screen through ``self.session``."""
+        """The fifteen the coach may call. Fourteen drive the patient's screen;
+        ``read_screen`` reads it back."""
         return [
+            self.read_screen,
             self.log_meal,
             self.log_activity,
             self.mark_medication,
@@ -445,54 +457,71 @@ class SugarBrain(GeminiBrain):
             self.switch_language,
         ]
 
+    async def read_screen(self) -> str:
+        """What the patient is looking at right now — everything logged today, the
+        med ticks, the sensor card, and anything they tapped by hand.
+
+        Call it before you act on or refer to something already on screen, and
+        whenever you are told they changed it themselves. It is free — it reads this
+        session's own state, takes no floor, says nothing, and moves nothing."""
+        self.screen.read()
+        snapshot = self.screen.snapshot
+        logger.info("sugar: read_screen (active={}, v{})", bool(snapshot), self.screen.version)
+        if not snapshot:
+            return "The patient's app is still initializing — nothing is on screen yet."
+        return screen_prose(snapshot, actor="patient")
+
     async def log_meal(self, meal: LogMeal) -> str:
         """Log a meal the patient just described — it appears in their food log with
         your calorie estimates. Call it the moment they finish describing it; call
         again with corrected items if they amend. Item names in English."""
-        self.session.dispatch(meal)
+        self._show(meal)
         return f"ok, {meal.total_calories} calories"
 
     async def log_activity(self, activity: LogActivity) -> str:
         """Log physical activity the patient did, or commits to doing right now —
         it appears in their activity log."""
-        self.session.dispatch(activity)
+        self._show(activity)
         return "ok"
 
     async def mark_medication(self, med: MarkMedication) -> str:
         """Mark one of today's planned medications as taken, missed, or skipped, as
         the patient confirms. Use the name exactly as it appears in the care plan.
         Call once per medication."""
-        self.session.dispatch(med)
+        stale = self.screen.stale()
+        if stale:
+            return stale
+        self._show(med)
         return "ok"
 
     async def show_glucose(self, chart: ShowGlucose) -> str:
         """Bring the day's glucose chart on screen, optionally zoomed to one event.
         Call this BEFORE asking about a reading ("what did you have around two?")
         so the patient is looking at the moment you mean."""
-        self.session.dispatch(chart)
+        self._show(chart)
         return "ok"
 
     async def play_video(self, video: PlayVideo) -> str:
         """Play a video from the in-app library (ids in the PATIENT CONTEXT) inside
         the app, with sound. Introduce it in a few words first."""
-        self.session.dispatch(video)
+        self._show(video)
         return "ok"
 
     async def pause_video(self) -> str:
         """Pause the playing video, e.g. when the patient wants to talk."""
-        self.session.dispatch(PauseVideo())
+        self._show(PauseVideo())
         return "ok"
 
     async def resume_video(self) -> str:
         """Resume the paused video."""
-        self.session.dispatch(ResumeVideo())
+        self._show(ResumeVideo())
         return "ok"
 
     async def set_commitment(self, commitment: SetCommitment) -> str:
         """Save the ONE small commitment the patient makes for tomorrow. It appears
         on their summary and you will see it in the next call's context. Their
         words, in English."""
-        self.session.dispatch(commitment)
+        self._show(commitment)
         return "ok"
 
     async def flag_for_care_team(self, flag: FlagForCareTeam) -> str:
@@ -500,33 +529,42 @@ class SugarBrain(GeminiBrain):
         you must not answer yourself (doses, symptoms, interpreting readings, diet
         changes beyond the plan). A chip appears on screen; tell the patient it has
         been flagged."""
-        self.session.dispatch(flag)
+        self._show(flag)
         return "ok"
 
     async def show_sensor_renewal(self) -> str:
         """Put the glucose-sensor replacement card on screen — only when the context
         says the sensor has expired. The patient can confirm by voice or by tapping
         the card themselves."""
-        self.session.dispatch(ShowSensorRenewal())
+        self._show(ShowSensorRenewal())
         return "ok"
 
     async def confirm_sensor_order(self) -> str:
         """Place the sensor replacement order, after the patient clearly agrees BY
         VOICE. If they tapped the card themselves the screen state shows it — do
         not call this too."""
-        self.session.dispatch(ConfirmSensorOrder())
+        stale = self.screen.stale()
+        if stale:
+            return stale
+        self._show(ConfirmSensorOrder())
         return "ok"
 
     async def show_summary(self, summary: ShowSummary) -> str:
         """Show the end-of-call summary card as you wrap up: the day in a few lines,
         plus the commitment. Call this right before your goodbye. Lines in English."""
-        self.session.dispatch(summary)
+        stale = self.screen.stale()
+        if stale:
+            return stale
+        self._show(summary)
         return "ok"
 
     async def highlight(self, target: Highlight) -> str:
         """Scroll to and briefly highlight one section of the patient's screen, so
         their eye follows you."""
-        self.session.dispatch(target)
+        stale = self.screen.stale()
+        if stale:
+            return stale
+        self._show(target)
         return "ok"
 
     async def switch_language(self, to: SwitchLanguage) -> str:

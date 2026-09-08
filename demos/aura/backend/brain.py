@@ -68,7 +68,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
@@ -126,37 +126,6 @@ def _pairs(mapping: dict[str, float]) -> str:
 
 
 _CALC_NAMES = {"emi": "EMI", "fd": "FD maturity", "eligibility": "loan eligibility"}
-
-
-def _outline(key: str, value: Any, depth: int) -> list[str]:
-    pad = "  " * depth
-    label = key.replace("_", " ")
-    if isinstance(value, dict):
-        out = [f"{pad}{label}:"]
-        for k, v in value.items():  # pyright: ignore[reportUnknownVariableType]
-            out.extend(_outline(str(k), v, depth + 1))
-        return out
-    if isinstance(value, list):
-        out = [f"{pad}{label}:"]
-        for n, item in enumerate(value, 1):  # pyright: ignore[reportUnknownVariableType]
-            out.extend(_outline(str(n), item, depth + 1))
-        return out
-    return [f"{pad}{label}: {value}"]
-
-
-def _screen_prose(where: dict[str, Any]) -> str:
-    """The screen as a sentence plus an indented outline, never a dict repr.
-
-    A tool that returns ``str({...})`` lands in the context next to the JSON
-    screen-state note, and two JSON-shaped blobs with no prose between them is
-    what made the model read the note aloud instead of answering it.
-    """
-    screen = str(where.get("screen") or "home").replace("_", " ")
-    lines = [f"The customer is on the {screen} screen."]
-    for key, value in where.items():
-        if key != "screen":
-            lines.extend(_outline(str(key), value, 0))
-    return "\n".join(lines)
 
 
 def _ticket_reference() -> str:
@@ -1454,7 +1423,7 @@ class AuraBrain(GeminiBrain):
         logger.info(
             "aura: get_screen_context -> {} (v{})", where.get("screen"), self.screen.version
         )
-        return _screen_prose(where)
+        return screen_prose(where)
 
     # ─── Tools: calculators, applications, comparisons ──────────────────
 

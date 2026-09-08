@@ -12,26 +12,32 @@ Two things worth calling out about how per-session state flows in:
     generated: the admin already tapped in, so there is no first-token wait.
   * **state_sync** — the studio is the source of truth for the open workflow; it
     echoes a compact ``state_sync`` snapshot (the open workflow, its blocks WITH
-    THEIR IDS, tests, and gaps) on every change. :meth:`ForgeBrain.on_rtvi`
-    folds it in *silently* — no floor taken, no turn — so the next turn edits
-    against the real on-screen ids.
+    THEIR IDS, tests, and gaps) on every change. :meth:`ForgeBrain.on_rtvi` folds
+    it into :attr:`ForgeBrain.screen` and nowhere else — no floor taken, no turn,
+    and no snapshot in the context. What reaches the model is one line naming
+    which facts the admin moved; the workspace is read through ``read_screen``.
+    This is the demo where ``ScreenState.version`` earns its keep: every edit tool
+    below names a block **by an id read off the screen**, so an edit issued
+    against a workspace the admin has changed since can rewire the wrong block
+    entirely. :meth:`ForgeBrain._edit` refuses it instead. See
+    ``voqalize_demos.screen``.
 
 **Twenty-one of twenty-one tools dispatch an** :class:`~voqalize.sdk.Action`
 **that IS the tool's own parameter** — Ada never free-generates infrastructure,
 so every edit the model proposes is already the exact shape the studio store
-applies, and the tool body is one ``self.session.dispatch(action)`` line.
+applies, and the tool body is one ``self._show(action)`` or ``self._edit(action)``
+line.
 """
 
 from __future__ import annotations
 
-import json
 from typing import Any, Literal
 
 from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -72,7 +78,7 @@ PUBLISH: publish_workflow makes the open version live. Say it plainly and briefl
 
 THE FINALE — run_scenario: walk a persona through the live flow from the trigger. Pass persona_label, a context JSON string, and the ordered events the persona fires (e.g. approvals). The screen lights the whole path. Great for proving an edit works, e.g. a contractor requesting a privileged app taking the new security branch.
 
-GROUNDING: a CURRENT WORKSPACE STATE snapshot is folded into your context every turn — it lists the open workflow, its blocks WITH THEIR IDS, tests, and gaps. Always use those real ids when you edit; call open_workflow first if none is open.
+GROUNDING: nothing in this conversation is a picture of the studio. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. It lists the open workflow, its blocks WITH THEIR IDS, tests, and gaps. Call it before you edit anything you did not just put there yourself, and whenever you are told the admin changed the screen themselves — you are told THAT they changed it, never what it now says. Always use those real ids when you edit; call open_workflow first if none is open. If an edit is refused because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
 
 Open with a brief greeting and ask what they'd like to build or change."""
 
@@ -262,6 +268,37 @@ class ShowCode(Action):
     id: str = Field(description="The state id whose code to reveal.")
 
 
+def _screen_facts(state: dict[str, Any] | None) -> dict[str, Any]:
+    """The parts of the studio snapshot that are somebody's decision.
+
+    ``tests`` are in here by their shape but not their outcome: a test's
+    ``status`` and ``actual`` land when the run finishes, which is the studio's
+    own clock, so they are projected out. Everything else about the open workflow
+    is an edit somebody made, and Ada names blocks by these ids."""
+    if not state:
+        return {}
+    active = state.get("active")
+    active = active if isinstance(active, dict) else {}
+    tests = active.get("tests")
+    return {
+        "the view they are on": state.get("view"),
+        "the panel": state.get("panel"),
+        "the open workflow": active.get("id"),
+        "its status": active.get("status"),
+        "its trigger": active.get("trigger"),
+        "its context fields": active.get("context"),
+        "its blocks": active.get("states"),
+        "its tests": (
+            [{k: v for k, v in t.items() if k not in ("status", "actual")} for t in tests]
+            if isinstance(tests, list)
+            else None
+        ),
+        "its open gaps": active.get("gaps"),
+        "the block selected": active.get("selected"),
+        "the workflow list": state.get("workflows"),
+    }
+
+
 class ForgeBrain(GeminiBrain):
     """One per session. Nearly stateless: the studio owns the workflow; Ada
     relays edits and grounds on the live ``state_sync`` snapshot every turn."""
@@ -269,8 +306,9 @@ class ForgeBrain(GeminiBrain):
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
         self.admin_name = "there"
-        self.current_state: dict[str, Any] | None = None
-        self._state_message: str | None = None
+        # What is on the admin's studio screen. This is the only copy: it is read
+        # through ``read_screen`` and never appended to the model's context.
+        self.screen = ScreenState(_screen_facts, read_tool="read_screen", actor="admin")
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -300,8 +338,8 @@ class ForgeBrain(GeminiBrain):
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message. ``state_sync`` carries a compact snapshot of the
         studio's workspace — the open workflow, its blocks, tests, and gaps.
-        Ingested *silently* (no floor taken, no turn); the next turn carries it
-        as a note, so Ada always edits against the real on-screen ids."""
+        Ingested *silently* (no floor taken, no turn); the next turn carries at
+        most one line saying which of those moved."""
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         if msg.data.get("t") == "state_sync":
@@ -310,33 +348,35 @@ class ForgeBrain(GeminiBrain):
     # ─── Browser → brain: workspace state sync (silent awareness) ────────
 
     def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Put the latest workspace snapshot into the context, so the next turn
-        edits against the real on-screen blocks and their ids.
+        """Fold the studio's snapshot into :attr:`screen` — and into it only.
 
-        The studio re-sends the snapshot on every change, and many are the same
-        workflow from Ada's point of view (a selection, a scroll). Only a
-        changed snapshot is worth appending: the context is append-only, so an
-        unguarded append here would put a hundred near-identical workspaces in
-        front of the model by the end of a session.
-        """
+        This used to append the whole workspace to the model's context on every
+        change, which is the defect ``voqalize_demos.screen`` exists to close."""
         snapshot = data.get("workspace")
-        self.current_state = snapshot if isinstance(snapshot, dict) else None
-        if self.current_state is None:
-            message = "CURRENT WORKSPACE STATE: the studio is on the workflow list."
-        else:
-            try:
-                blob = json.dumps(self.current_state, ensure_ascii=False)
-            except (TypeError, ValueError):
-                blob = str(self.current_state)
-            message = (
-                "CURRENT WORKSPACE STATE (authoritative — the open workflow with block ids, "
-                "tests, and gaps; always edit against these ids): " + blob
-            )
-        if message == self._state_message:
-            return
-        self._state_message = message
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=message)]))
-        logger.info("forge: state_sync ingested (active={})", bool(self.current_state))
+        note = self.screen.absorb(snapshot if isinstance(snapshot, dict) else None)
+        logger.info(
+            "forge: state_sync (active={}, v{})", bool(self.screen.snapshot), self.screen.version
+        )
+        if note is not None:
+            self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+
+    def _show(self, action: Action) -> None:
+        """Put something on screen. Every tool that moves it comes through here, so
+        the studio's echo of our own command is not mistaken for the admin."""
+        self.screen.dispatched()
+        self.session.dispatch(action)
+
+    def _edit(self, action: Action) -> str | None:
+        """Apply an edit to the open workflow, or say why it is refused.
+
+        Every edit names a block by an id Ada read off the screen, so an edit
+        issued against a workspace the admin has moved since can rewire something
+        else entirely. The refusal is retriable: read, then act."""
+        stale = self.screen.stale()
+        if stale:
+            return stale
+        self._show(action)
+        return None
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #
@@ -347,8 +387,10 @@ class ForgeBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The twenty-one Ada may call, read once per turn."""
+        """The twenty-two Ada may call, read once per turn. Twenty-one drive the
+        studio screen; ``read_screen`` reads it back."""
         return [
+            self.read_screen,
             self.open_list,
             self.open_workflow,
             self.create_workflow,
@@ -372,121 +414,124 @@ class ForgeBrain(GeminiBrain):
             self.show_code,
         ]
 
+    async def read_screen(self) -> str:
+        """What is on the admin's studio screen right now — the open workflow with
+        its blocks AND THEIR IDS, its tests, and its open gaps.
+
+        Call it before you edit anything you did not just put there yourself, and
+        whenever you are told the admin changed the screen themselves. It is free —
+        it reads this session's own state, takes no floor, says nothing, and moves
+        nothing."""
+        self.screen.read()
+        snapshot = self.screen.snapshot
+        logger.info("forge: read_screen (active={}, v{})", bool(snapshot), self.screen.version)
+        if not snapshot:
+            return "The studio is on the workflow list — nothing is open."
+        return screen_prose(snapshot, actor="admin")
+
     async def open_list(self) -> str:
         """Return to the list of all Service Request Workflows."""
-        self.session.dispatch(OpenList())
+        self._show(OpenList())
         return "done"
 
     async def open_workflow(self, action: OpenWorkflow) -> str:
         """Open a workflow by id to edit it."""
-        self.session.dispatch(action)
+        self._show(action)
         return f"opened {action.id}"
 
     async def create_workflow(self, action: CreateWorkflow) -> str:
         """Author a NEW workflow from scratch — creates a draft with a trigger
         and an end, then build it up."""
-        self.session.dispatch(action)
+        self._show(action)
         return f"created draft '{action.name}'"
 
     async def add_state(self, action: AddState) -> str:
         """Add a block into the linear spine after `after` (rewires the flow).
         For service blocks pass connector_id+action_id; for approval pass
         approver; for form pass fields; for code pass code."""
-        self.session.dispatch(action)
-        return f"added {action.kind} '{action.label}'"
+        return self._edit(action) or f"added {action.kind} '{action.label}'"
 
     async def insert_gateway(self, action: InsertGateway) -> str:
         """Splice an exclusive branch (gateway) in after `after`. The block that
         came next becomes the default path; each branch guards a route to
         another block."""
-        self.session.dispatch(action)
-        return "branch inserted"
+        return self._edit(action) or "branch inserted"
 
     async def add_branch(self, action: AddBranch) -> str:
         """Append one guarded branch to an existing gateway."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def set_route(self, action: SetRoute) -> str:
         """Rewire a block's transitions."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def update_state(self, action: UpdateState) -> str:
         """Edit a block's label / connector / approver / SLA / outcome."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def remove_state(self, action: RemoveState) -> str:
         """Delete a block and heal the flow around it."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def add_context_field(self, action: AddContextField) -> str:
         """Add a field to the request context. Set derived+expr for a
         JS-computed field."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def add_field(self, action: AddField) -> str:
         """Add one field to a form block."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def set_code(self, action: SetCode) -> str:
         """Set the JavaScript on a code block (the escape hatch)."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def add_test(self, action: AddTest) -> str:
         """Add a transition test: in given_state, on event, expect expect_state.
         `context` is a JSON object string of field values."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def run_tests(self) -> str:
         """Run all tests for the open workflow (executes the real JS guards)."""
-        self.session.dispatch(RunTests())
+        self._show(RunTests())
         return "tests running on screen"
 
     async def review_coverage(self) -> str:
         """Scan for unhandled (state, event) pairs and surface them as gap
         questions."""
-        self.session.dispatch(ReviewCoverage())
+        self._show(ReviewCoverage())
         return "coverage scanned — the gaps are on screen"
 
     async def resolve_gap(self, action: ResolveGap) -> str:
         """Mark a coverage gap handled AFTER you've wired a real handler for it
         (a route, step, branch, or code block). Identify it by its id, or by
         the state+event pair it flagged."""
-        self.session.dispatch(action)
-        return "gap cleared"
+        return self._edit(action) or "gap cleared"
 
     async def run_scenario(self, action: RunScenario) -> str:
         """THE FINALE: walk a persona through the live flow from the trigger,
         lighting the path. `context` is a JSON object string; `events` are the
         ordered events the persona fires."""
-        self.session.dispatch(action)
-        return f"walking {action.persona_label or 'the persona'} through the flow"
+        return (
+            self._edit(action)
+            or f"walking {action.persona_label or 'the persona'} through the flow"
+        )
 
     async def publish_workflow(self) -> str:
         """Publish the open workflow — makes this version live and durable."""
-        self.session.dispatch(PublishWorkflow())
-        return "published — now live and durable"
+        return self._edit(PublishWorkflow()) or "published — now live and durable"
 
     async def set_panel(self, action: SetPanel) -> str:
         """Switch the right panel."""
-        self.session.dispatch(action)
+        self._show(action)
         return "done"
 
     async def focus_state(self, action: FocusState) -> str:
         """Highlight/select one block on screen."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"
 
     async def show_code(self, action: ShowCode) -> str:
         """Open the Code panel and reveal the JavaScript behind one block (a
         decision's guards or a code step). Show the rigor; don't read it
         aloud."""
-        self.session.dispatch(action)
-        return "done"
+        return self._edit(action) or "done"

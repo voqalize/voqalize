@@ -19,7 +19,7 @@ import asyncio
 from typing import Any
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -30,11 +30,19 @@ LANGUAGE = "en"
 
 PAYLOAD: dict[str, Any] = {"advisor": {"name": "Kavita", "role": "Senior Servicing Advisor"}}
 
-WORKSPACE = {
+#: A snapshot of the shape ``store.tsx``'s ``snapshot()`` sends.
+WORKSPACE: dict[str, Any] = {
     "view": "case",
-    "active_case": "SR-4471",
     "tab": "timeline",
     "pending_approvals": 2,
+    "active_case": {
+        "ref": "SR-4471",
+        "customer": "Sharma",
+        "stage": "with department",
+        "packet": {"title": "Payoff packet", "status": "draft", "can_submit": False},
+        "blocker": {"title": "Lien not subordinated", "status": "open"},
+    },
+    "cases": [{"ref": "SR-4471", "customer": "Sharma", "stage": "with department"}],
 }
 
 
@@ -136,13 +144,38 @@ async def test_the_desk_normalizes_what_the_model_wrote() -> None:
         assert assigned["assignee"] == "underwriting"
 
 
-async def test_the_console_snapshot_is_ingested_silently_and_answers_where_am_i() -> None:
-    """``state_sync`` takes no floor, and then backs both the turn's grounding and
-    the read-only ``get_advisor_context`` tool.
+def _context_text(llm: ScriptedGemini) -> str:
+    return " ".join(
+        part.text or ""
+        for contents in llm.captured_contents
+        for content in contents
+        if content.role == "user"
+        for part in (content.parts or [])
+    )
 
-    ``get_advisor_context`` is the one tool that drives no screen — it exists so the
-    assistant can answer about the console without moving it — so its correctness
-    is only visible in what the snapshot made available."""
+
+def _tool_results(llm: ScriptedGemini) -> str:
+    """Under automatic function calling a whole turn is one request, so what it
+    called is first carried by the request that follows it."""
+    return " ".join(
+        str((part.function_response.response or {}).get("result", ""))
+        for contents in llm.captured_contents
+        for content in contents
+        for part in (content.parts or [])
+        if part.function_response is not None
+    )
+
+
+async def test_the_console_snapshot_is_read_on_request_and_never_dumped() -> None:
+    """``state_sync`` takes no floor — and, since the workspace moved out of the
+    context, it puts nothing there either.
+
+    This used to append the whole workspace on every change, prefixed
+    *authoritative*, so a session working a queue ended with a hundred
+    near-identical consoles in front of the model. Now the snapshot stops at the
+    brain and ``get_advisor_context`` — the one tool that drives no screen — is the
+    only way to it. Both halves are asserted: the case ref must be in the tool's
+    result and out of the context."""
     llm = _llm()
     async with demo("servicing", llm) as rig:
         await rig.driver.start_session(init=PAYLOAD)
@@ -158,14 +191,63 @@ async def test_the_console_snapshot_is_ingested_silently_and_answers_where_am_i(
         turn = await rig.driver.user_says("Where am I?")
         check_turn(rig, turn, units=2)
         assert len(rig.driver.ui_commands) == before, "state_sync or the read-only tool drew"
-        assert rig.brain.current_state == WORKSPACE
 
-    grounded = "".join(
-        p.text or ""
-        for c in llm.captured_contents[-1]
-        if c.role == "user"
-        for p in (c.parts or [])
-        if p.text
+        # One more turn, so the turn above's tool results are in a request.
+        await rig.driver.user_says("Where am I?")
+
+    assert "SR-4471" in _tool_results(llm)
+    context = _context_text(llm)
+    assert "CURRENT WORKSPACE STATE" not in context, "the workspace dump is back"
+    assert "SR-4471" not in context, "the workspace reached the context anyway"
+
+
+async def test_a_packet_edit_on_a_console_the_advisor_moved_is_refused_until_it_is_read() -> None:
+    """The version gate, which is what makes read-don't-remember enforceable.
+
+    The advisor works the console with their own hands while talking, so a packet
+    field the desk sets from a workspace it read two turns ago can land on a
+    different case entirely. Prompt discipline is a request; this refuses instead,
+    and the refusal is retriable: read, then act."""
+    llm = ScriptedGemini(
+        {
+            "Set the payoff date to month-end.": [
+                # Stale — the advisor moved the console since. Then the retry.
+                call(
+                    "update_packet_field",
+                    action={
+                        "ref": "sr-4471",
+                        "section": "Payoff",
+                        "field": "Payoff date",
+                        "value": "30 Sep",
+                    },
+                ),
+                call("get_advisor_context"),
+                reply_and_call(
+                    "Setting it.",
+                    "update_packet_field",
+                    action={
+                        "ref": "sr-4471",
+                        "section": "Payoff",
+                        "field": "Payoff date",
+                        "value": "30 Sep",
+                    },
+                ),
+                reply("Payoff date is month-end."),
+            ],
+            "Thanks.": reply("Any time."),
+        }
     )
-    assert "CURRENT WORKSPACE STATE" in grounded
-    assert "SR-4471" in grounded
+    async with demo("servicing", llm) as rig:
+        await rig.driver.start_session(init=PAYLOAD)
+        await rig.driver.send_client_message("state_sync", {"workspace": {"view": "board"}})
+        await rig.driver.send_client_message("state_sync", {"workspace": WORKSPACE})
+        await asyncio.sleep(0.1)
+
+        await rig.driver.user_says("Set the payoff date to month-end.")
+        # Exactly one edit reached the console: the stale call drew nothing.
+        assert rig.actions() == ["update_packet_field"], rig.actions()
+
+        # One more turn, so the turn above's hops are in the context being asserted.
+        await rig.driver.user_says("Thanks.")
+
+    assert "the screen moved since you last read it" in _tool_results(llm)

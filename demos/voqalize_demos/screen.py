@@ -36,6 +36,11 @@ Three things a brain has to supply, because only it can:
     The name of the tool that serves this object, so the note and the refusal can
     both point at it.
 
+``actor``
+    Who is on the other side of the screen — the word the change note uses for
+    them. A bank customer in one demo, the travel agent running the call in
+    another; the note reads back to the model, so it has to name the right person.
+
 :meth:`dispatched`
     Called whenever the brain itself moves the screen. The browser echoes those
     back as syncs indistinguishable from the customer's own, and a change the model
@@ -56,11 +61,12 @@ Facts = Callable[[dict[str, Any] | None], dict[str, Any]]
 class ScreenState:
     """The live screen, held on the brain and read on request."""
 
-    def __init__(self, facts: Facts, *, read_tool: str) -> None:
+    def __init__(self, facts: Facts, *, read_tool: str, actor: str = "customer") -> None:
         self.snapshot: dict[str, Any] | None = None
         self.version = 0
         self._facts = facts
         self._read_tool = read_tool
+        self._actor = actor
         self._read_version = 0
         self._synced = False
         self._echo = False
@@ -95,7 +101,7 @@ class ScreenState:
             return None
         self.version += 1
         return (
-            "The customer just changed the screen: "
+            f"The {self._actor} just changed the screen: "
             + ", ".join(changed)
             + f". Call {self._read_tool}() before you act on anything on it."
         )
@@ -112,3 +118,34 @@ class ScreenState:
             "the screen moved since you last read it, so the ids and figures you are "
             f"working from may no longer be right — call {self._read_tool}() and try again"
         )
+
+
+def _outline(key: str, value: Any, depth: int) -> list[str]:
+    pad = "  " * depth
+    label = key.replace("_", " ")
+    if isinstance(value, dict):
+        out = [f"{pad}{label}:"]
+        for k, v in value.items():  # pyright: ignore[reportUnknownVariableType]
+            out.extend(_outline(str(k), v, depth + 1))
+        return out
+    if isinstance(value, list):
+        out = [f"{pad}{label}:"]
+        for n, item in enumerate(value, 1):  # pyright: ignore[reportUnknownVariableType]
+            out.extend(_outline(str(n), item, depth + 1))
+        return out
+    return [f"{pad}{label}: {value}"]
+
+
+def screen_prose(where: dict[str, Any], *, actor: str = "customer") -> str:
+    """The screen as a sentence plus an indented outline, never a dict repr.
+
+    A tool that returns ``str({...})`` reads as one more JSON blob in a context
+    that already had several, and two of those with no prose between them is what
+    made a model read the screen aloud instead of answering from it.
+    """
+    screen = str(where.get("screen") or "home").replace("_", " ")
+    lines = [f"The {actor} is on the {screen} screen."]
+    for key, value in where.items():
+        if key != "screen":
+            lines.extend(_outline(str(key), value, 0))
+    return "\n".join(lines)

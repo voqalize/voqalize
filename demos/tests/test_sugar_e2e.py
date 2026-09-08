@@ -21,8 +21,10 @@ Run: ``cd demos && uv run pytest tests/test_sugar_e2e.py``
 
 from __future__ import annotations
 
+from typing import Any
+
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import (
     check_configured_at_connect,
@@ -152,3 +154,98 @@ async def test_switching_language_mid_call_moves_both_halves() -> None:
         # No ui_command: switching language is a wire change, not a screen change.
         assert rig.actions() == [], rig.actions()
         check_voice_pair(rig, voice=VOICE, language="hi")
+
+
+#: A snapshot of the shape ``store.tsx``'s ``snapshot()`` sends.
+_TAPPED: dict[str, Any] = {
+    "phase": "call",
+    "meals": [{"meal": "dinner", "time": "8:00 PM", "total_kcal": 420}],
+    "medications": [{"name": "Metformin", "status": "pending"}],
+    "sensor_order": "ordered",
+    "summary_shown": False,
+}
+
+
+def _context_text(llm: ScriptedGemini) -> str:
+    return " ".join(
+        part.text or ""
+        for contents in llm.captured_contents
+        for content in contents
+        if content.role == "user"
+        for part in (content.parts or [])
+    )
+
+
+def _tool_results(llm: ScriptedGemini) -> str:
+    """Under automatic function calling a whole turn is one request, so what it
+    called is first carried by the request that follows it."""
+    return " ".join(
+        str((part.function_response.response or {}).get("result", ""))
+        for contents in llm.captured_contents
+        for content in contents
+        for part in (content.parts or [])
+        if part.function_response is not None
+    )
+
+
+async def test_what_the_patient_tapped_is_named_and_the_screen_is_never_dumped() -> None:
+    """``state_sync`` is the one client message that must not speak — and, since the
+    screen moved out of the context, the one that must not describe either.
+
+    This brain used to append the whole screen on every change, prefixed
+    *authoritative*, so a call that logs a dozen things ended with a dozen
+    near-identical screens in front of the model. Now the snapshot stops at the
+    brain: the context gets one line naming which facts the patient moved and
+    pointing at ``read_screen``. Both halves are asserted — a note carrying the
+    sensor state would be the old dump again, one fact at a time."""
+    llm = ScriptedGemini({"What have I got logged?": reply("It is all on your screen.")})
+    async with demo("sugar", llm) as rig:
+        await rig.driver.start_session(init={"scenario": SCENARIO})
+        before = len(rig.driver.ui_commands)
+
+        # The first sync is the app as it loaded; the second is the patient's tap.
+        await rig.driver.send_client_message("state_sync", {"screen": {"phase": "call"}})
+        await rig.driver.send_client_message("state_sync", {"screen": _TAPPED})
+        turn = await rig.driver.user_says("What have I got logged?")
+        check_turn(rig, turn, units=1)
+        assert len(rig.driver.ui_commands) == before, "state_sync drove the screen"
+
+    context = _context_text(llm)
+    assert "just changed the screen" in context
+    assert "read_screen" in context
+    assert "ordered" not in context, "the change note is carrying the screen"
+    assert "CURRENT SCREEN STATE" not in context, "the screen dump is back"
+
+
+async def test_a_tool_aimed_at_a_screen_the_patient_moved_is_refused_until_it_is_read() -> None:
+    """The version gate, which is what makes read-don't-remember enforceable.
+
+    ``confirm_sensor_order`` is the tool this matters most for: its own description
+    tells the coach not to place an order the patient already placed by hand, and
+    that instruction is worth nothing if the coach is reasoning from a screen taken
+    before the tap. So the tool refuses instead of ordering twice, and the refusal
+    is retriable: read, then act."""
+    llm = ScriptedGemini(
+        {
+            "Yes, order it.": [
+                call("confirm_sensor_order"),  # stale — he tapped it himself
+                call("read_screen"),
+                reply("You have already ordered it — nothing more to do."),
+            ],
+            "Thanks.": reply("Any time."),
+        }
+    )
+    async with demo("sugar", llm) as rig:
+        await rig.driver.start_session(init={"scenario": SCENARIO})
+        await rig.driver.send_client_message("state_sync", {"screen": {"phase": "call"}})
+        await rig.driver.send_client_message("state_sync", {"screen": _TAPPED})
+
+        await rig.driver.user_says("Yes, order it.")
+        assert rig.actions() == [], "the order went through on a screen never read"
+
+        # One more turn, so the turn above's hops are in the context being asserted.
+        await rig.driver.user_says("Thanks.")
+
+    results = _tool_results(llm)
+    assert "the screen moved since you last read it" in results
+    assert "sensor order: ordered" in results, "read_screen did not serve the tap"
