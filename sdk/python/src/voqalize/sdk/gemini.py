@@ -106,6 +106,35 @@ class _Unit:
     content: types.Content
 
 
+def _log_usage(
+    model: str,
+    hops: int,
+    usage: types.GenerateContentResponseUsageMetadata | None,
+) -> None:
+    """What one turn cost, in tokens — the only direct measure of context growth.
+
+    Under automatic function calling a turn is several requests, each re-sending
+    the whole context plus the hop before it, so ``prompt`` here is the **last and
+    largest** of them and ``hops`` says how many there were. A context quietly
+    filling up with screen snapshots shows as a rising prompt long before it shows
+    as a slow turn, and that is a thing we have already had to reconstruct from a
+    production transcript once.
+
+    Counts only. A token count is not speech, and speech is never a log field.
+    """
+    if usage is None:
+        return
+    logger.info(
+        "turn: model={} hops={} prompt={} cached={} output={} thoughts={}",
+        model,
+        hops,
+        usage.prompt_token_count or 0,
+        usage.cached_content_token_count or 0,
+        usage.candidates_token_count or 0,
+        usage.thoughts_token_count or 0,
+    )
+
+
 class GeminiBrain(Brain):
     """Base for a Gemini-backed brain. Override the prompt, the greeting and
     :attr:`tools`; the turn shape and the context come from here. The tools
@@ -218,12 +247,16 @@ class GeminiBrain(Brain):
         answered = 0
         unit: _Unit | None = None
         speaking = False
+        usage: types.GenerateContentResponseUsageMetadata | None = None
+        hops = 0
         try:
             async for chunk in await self._client.aio.models.generate_content_stream(
                 model=self._model, contents=contents, config=self._turn_config()
             ):
                 folded, taken = self._fold_results(chunk, folded)
                 answered += taken
+                if chunk.usage_metadata is not None:
+                    usage = chunk.usage_metadata
                 for part in _parts(chunk):
                     if unit is None:
                         unit = self._open_unit()
@@ -238,6 +271,7 @@ class GeminiBrain(Brain):
                             speaking = True
                         yield SpeechChunk(part.text)
                 if _finished(chunk):
+                    hops += 1
                     if speaking:
                         yield SpeechEnd()
                     unit, speaking = None, False
@@ -250,6 +284,7 @@ class GeminiBrain(Brain):
             # GeneratorExit at the yield above, and an async generator that
             # yields while closing raises instead of tearing down.
             self._drop_unanswered(calls[answered:])
+            _log_usage(self._model, hops, usage)
 
     # ─── Tools ──────────────────────────────────────────────────────────
 

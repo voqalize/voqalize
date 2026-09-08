@@ -34,6 +34,7 @@ from typing import Any, Literal
 import pytest
 from google import genai
 from google.genai import types
+from loguru import logger
 from pydantic import BaseModel, Field
 
 from voqalize.sdk import Session
@@ -537,3 +538,49 @@ async def test_a_tool_that_drives_the_screen_is_stamped_with_the_turn_it_ran_in(
     assert wire.frames.index(commands[0]) < next(
         i for i, f in enumerate(wire.frames) if isinstance(f, SpeechStartFrame)
     )
+
+
+async def test_a_turn_reports_what_it_cost_and_never_what_was_said() -> None:
+    """The only direct measure of context growth, and the one we did not have.
+
+    A 123-second production call was found to be re-sending twenty-one full cart
+    snapshots — ~4,700 tokens of them — and the only way to know that was to
+    reconstruct the context from a transcript afterwards. One INFO line per turn
+    makes it a number instead. ``hops`` is on it because under automatic function
+    calling a turn is several requests and ``prompt`` is only the last, largest
+    one; the two together say whether a turn is wide or merely long.
+
+    The line carries counts and nothing else — speech is never a log field."""
+    lines: list[str] = []
+    sink = logger.add(lines.append, level="INFO", format="{message}")
+    try:
+        script = [*_calls("ping"), *_text("Pong.")]
+        script[-1].usage_metadata = types.GenerateContentResponseUsageMetadata(
+            prompt_token_count=1400,
+            cached_content_token_count=1024,
+            candidates_token_count=17,
+            thoughts_token_count=42,
+        )
+        brain, session = await _brain(script)
+        await _drain(brain, session)
+    finally:
+        logger.remove(sink)
+
+    turn = next(line for line in lines if line.startswith("turn:"))
+    assert "hops=2" in turn and "prompt=1400" in turn
+    assert "cached=1024" in turn and "output=17" in turn and "thoughts=42" in turn
+    assert "hello" not in turn and "Pong" not in turn, "speech reached the log"
+
+
+async def test_a_turn_the_model_reported_nothing_for_logs_nothing() -> None:
+    """A count we do not have is not a zero. Logging ``prompt=0`` for a turn whose
+    usage the API simply did not report would put a made-up number in the one
+    place we go to read real ones."""
+    lines: list[str] = []
+    sink = logger.add(lines.append, level="INFO", format="{message}")
+    try:
+        brain, session = await _brain(_text("Hi."))
+        await _drain(brain, session)
+    finally:
+        logger.remove(sink)
+    assert not [line for line in lines if line.startswith("turn:")]
