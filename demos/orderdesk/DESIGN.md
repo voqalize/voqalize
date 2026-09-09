@@ -257,8 +257,10 @@ matched ⇒ `{status:"matched", name, pack_size, mrp, scheme}`; not_found ⇒ su
   quantities, and the `PENDING:` line of unresolved ids/questions). `OrderDesk.version` is
   bumped only by his edits, and every mutating tool refuses on a version staler than the last
   `read_screen` — so the extra hop is paid only when he has actually moved something.
-- `on_client_message`: `catalog_search` → `search()` → floor-free `show_search_results`;
-  everything else → `super()` (keeps state_sync default).
+- `on_rtvi`, floor-free throughout: a name in the `desk_events.py` registry →
+  `_on_desk_event`; `state_sync` → `_ingest_state`; `catalog_search` and `list_variants` →
+  a session-scoped action. It never calls `super()` — the SDK has no `state_sync` default,
+  only a docstring recipe, which is the gap tracker row 31 names.
 - Greeting: instant Hindi hello + generated opener continuing from `joined_from_nudge`
   (morning order prompt), grounded in prior calls + order history.
 - Pipeline/language: STT `vql-stt` `hi`, TTS `omnivoice/gauri` `hi` (set in frontend config).

@@ -330,9 +330,18 @@ Three decisions taken on it the same day, also verbatim:
 > objects in the reverse direction, decide if we need a wire change. Start small and
 > then work upwards.
 
-So the order of work is fixed: **demo first, SDK second, wire last and only if the first
-two earn it.** An `Action`-symmetric type in `sdk/python` is not to be written until
-OrderDesk has shown which events a real screen actually needs.
+So the order of work is fixed: **demo first, SDK second.** An `Action`-symmetric type in
+`sdk/python` is not to be written until OrderDesk has shown which events a real screen
+actually needs.
+
+**There is no third step — the wire cannot earn one** (traced 2026-09-09, once the demo cut
+was in). `state_sync` is a string a demo invented: it appears nowhere in `proto/`, the
+control plane or PyGato. The browser sends it with stock `client.sendClientMessage`, which
+makes it an RTVI `client-message` whose payload the wire carries as an opaque JSON string,
+and the typed events ride that identical envelope. Even moving them onto the reserved
+`ui-event` / `ui-snapshot` types is an SDK choice, not a proto edit — both are already
+defined, already whitelisted app→V→B, and both unused. The whole gap is in `sdk/python`;
+detail in `platform/docs/demo-quality-tracker.md` row 31.
 
 **A demo defect is a platform question until proven otherwise.** The demos are ours;
 a workaround written inside one is a bill the next developer pays in full, and the
