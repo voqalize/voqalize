@@ -24,6 +24,7 @@ discover()
 from voqalize_demos._loaded.orderdesk.brain import OrderDesk, SpokenItem  # noqa: E402
 from voqalize_demos._loaded.orderdesk.desk_events import (  # noqa: E402
     DESK_EVENTS,
+    CatalogSearched,
     FamilyChosen,
     OrderConfirmed,
     QuantitySet,
@@ -31,6 +32,7 @@ from voqalize_demos._loaded.orderdesk.desk_events import (  # noqa: E402
     RowAdded,
     RowRemoved,
     SkuChosen,
+    VariantsOpened,
 )
 
 from voqalize.sdk import Action, RTVIMessage, RTVIType, Session  # noqa: E402
@@ -78,6 +80,8 @@ def test_every_gesture_this_desk_knows_is_in_the_vocabulary() -> None:
         "family_chosen",
         "quantity_set",
         "order_confirmed",
+        "catalog_searched",
+        "variants_opened",
     }
 
 
@@ -235,6 +239,23 @@ async def test_confirm_is_the_one_event_that_is_not_about_a_row() -> None:
 
     desk.apply_event(OrderConfirmed(order_no="MS-0930-1", item_count=1, total_mrp=1234.5))
     assert "he tapped Confirm — order MS-0930-1, 1 rows" in (desk.take_changes() or "")
+
+
+@pytest.mark.asyncio
+async def test_looking_is_not_editing() -> None:
+    """The search bar and Change variant ride the same envelope as everything else,
+    but they *ask* rather than edit: the brain answers each with a screen action, so
+    the order has not moved and there is nothing to tell the model on the next turn.
+    A change note here would report a keystroke as an edit he made."""
+    desk = _desk()
+    await desk.add_items([SpokenItem(text="telma 40", quantity=10)])
+    (row,) = desk.items.values()
+    desk.take_changes()
+
+    desk.apply_event(CatalogSearched(query="cetaphil"))
+    desk.apply_event(VariantsOpened(item_id=row.id, family="TELMA"))
+    assert desk.take_changes() is None
+    assert desk.version == 0
 
 
 @pytest.mark.asyncio

@@ -147,7 +147,7 @@ from the other, and there is no merge to get wrong.
 | `remove_items` | `ids: string[]` | agent removed items |
 | `highlight_item` | `id: string; note: string \| null` | agent is asking about this row ("Which Quin?") |
 | `show_search_results` | `query: string; results: SkuWire[]` | reply to the manual search bar |
-| `show_variants` | `item_id: string; family: string; results: SkuWire[]; differing_axes: string[]` | reply to `list_variants` — the siblings for one row's inline **Change variant** strip (`results` capped at 24, `differing_axes` labels the pills) |
+| `show_variants` | `item_id: string; family: string; results: SkuWire[]; differing_axes: string[]` | reply to `variants_opened` — the siblings for one row's inline **Change variant** strip (`results` capped at 24, `differing_axes` labels the pills) |
 | `order_note` | `text: string` | one-line banner (e.g. scheme/stock callout) |
 
 `row_matched` is the only action carrying a `sku`, and every row action except `row_quantity`
@@ -167,8 +167,8 @@ missing from this union is a gesture the brain never learns about.
 
 `DeskEvent` is a union, not a base class, so the `match` in `OrderDesk.apply_event` is checked for
 exhaustiveness: a gesture added and left unhandled is a pyright error rather than a warning nobody
-reads. `frontend/src/clientMessages.ts` is now only the two *requests* below and the shape of the
-channel — the event union it used to hold by hand is generated.
+reads. There is no second envelope and no hand-kept mirror of this table in the browser: the union
+below is generated, and `ui-event` is the only thing the screen puts on the wire.
 
 | wire name | fields | the gesture |
 |---|---|---|
@@ -179,6 +179,8 @@ channel — the event union it used to hold by hand is generated.
 | `family_chosen` | `item_id; family; surviving_codes` | he picked a brand card. Nobody asked, so it is not an answer |
 | `quantity_set` | `item_id; quantity` | he typed or stepped a quantity |
 | `order_confirmed` | `order_no; item_count; total_mrp` | he tapped Confirm |
+| `catalog_searched` | `query` | manual search bar keystrokes (debounced ~300 ms, ≥2 chars). He is *looking*, so the brain answers with `show_search_results` and the order does not move |
+| `variants_opened` | `item_id; family` | the **Change variant** control on a settled row; answered with `show_variants`. Empty `results` is a legitimate answer. The row is untouched until he picks — the pick is a local re-lock (new `sku`, **quantity preserved**) and reaches the brain as `sku_chosen` with `via: "variant"` (§7-bis) |
 
 `surviving_codes` only ever **narrows** a row: the candidate set is the brain's fact, and a code the
 row never held is ignored. Being told a set does not make it authoritative.
@@ -187,15 +189,9 @@ Receiving an event does not oblige the brain to do anything with it. `OrderDeskB
 moves the mirror and lets the change note carry the sentence into context on the next turn; another
 brain may inject it as speech, drive its own model, or drop it.
 
-### Browser → brain: requests (silent client messages)
-- `catalog_search` `{ query: string }` — manual search bar keystrokes (debounced ~300 ms, ≥2 chars).
-  Brain answers floor-free with a `show_search_results` action (session-scoped, no speech).
-- `list_variants` `{ item_id: string, family: string }` — the **Change variant** control on a
-  matched row. Brain answers floor-free with `show_variants` (session-scoped, no inference, no
-  speech — a tap must never make the agent talk over him). Empty `results` is a legitimate answer,
-  same contract as the search bar; the brain never raises here. The row is untouched until he
-  picks: the pick is a local re-lock (new `sku`, **quantity preserved**), and the agent learns of
-  it as `sku_chosen` with `via: "variant"` (§7-bis).
+The last two *ask* rather than edit, which is the only thing separating them: the brain answers
+each with a session-scoped action instead of moving the mirror, floor-free like everything else on
+this envelope — neither a keystroke nor a tap may make the agent talk over him.
 
 ### Confirm
 Manual only. Confirm button enables when every item is `matched` with quantity ≥ 1 (blocked rows
@@ -260,10 +256,9 @@ matched ⇒ `{status:"matched", name, pack_size, mrp, scheme}`; not_found ⇒ su
   quantities, and the `PENDING:` line of unresolved ids/questions). `OrderDesk.version` is
   bumped only by his edits, and every mutating tool refuses on a version staler than the last
   `read_screen` — so the extra hop is paid only when he has actually moved something.
-- `on_rtvi`, floor-free throughout: a name in the `desk_events.py` registry → `_on_desk_event`;
-  `catalog_search` and `list_variants` → a session-scoped action. It never calls `super()` — the
-  SDK has no typed browser→brain shape at all, only a docstring recipe, which is the gap tracker
-  row 31 names.
+- `on_rtvi`, floor-free throughout: one `DESK_EVENTS.parse`, then a `match` — `catalog_searched`
+  and `variants_opened` answer with a session-scoped action, everything else moves the mirror. It
+  never calls `super()`: there is nothing on a second envelope to fall through to.
 - Greeting: instant Hindi hello + generated opener continuing from `joined_from_nudge`
   (morning order prompt), grounded in prior calls + order history.
 - Pipeline/language: STT `vql-stt` `hi`, TTS `omnivoice/gauri` `hi` (set in frontend config).
@@ -297,7 +292,7 @@ lang section and lead_qual `brain.py:74-77`)
      presenter hints are romanized Hinglish ("Volini de do"), never Devanagari.**
   2. **IncomingSequence** — sugar's lock-screen push notification verbatim in spirit: 9:02 AM
      clock, MedSetu notification card, chime, "Join call" / "Snooze".
-  3. **OrderScreen** — the product: search bar (manual `catalog_search` round trip), line-item
+  3. **OrderScreen** — the product: search bar (manual `catalog_searched` round trip), line-item
      list, sticky cart bar (items/total/Confirm). **All UI text English.**
   4. **Order-placed screen** + EndedScreen.
 - **Line-item row is the hero.** Status-driven presentation:
@@ -386,7 +381,7 @@ The naive UX for 20 matches is 20 pills. We never do that. Contract:
   that family whole; anything else falls back to the scoped search panel **and the card must say
   so** (`Search N SKUs 🔍` vs `N SKUs →`). A control must never look like a pick and behave like
   a search.
-- **Inline variant edit on a matched row** (`list_variants` → `show_variants`, §3): the family is
+- **Inline variant edit on a matched row** (`variants_opened` → `show_variants`, §3): the family is
   usually right and only the variant wrong. A quiet *Change variant* control opens a strip **on
   that row** — siblings as pills labelled by `differing_axes`, current SKU marked, scrollable past
   ~8, dismissable. `PILL_CAP` governs *questions*; this is a deliberate browse he asked for. The

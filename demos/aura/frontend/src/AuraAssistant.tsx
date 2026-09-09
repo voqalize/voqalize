@@ -80,7 +80,7 @@
  *
  * Aura's HMAC-authenticated sign-in handshake (the browser answering a
  * dispatched `open_auth` with a signed nonce) rides this same `ui-command` /
- * `client-message` pair and needs nothing extra here — the store's
+ * `ui-event` pair and needs nothing extra here — the store's
  * `confirmAuth`/`cancelAuth` already echo the nonce back over `agentSend`.
  */
 

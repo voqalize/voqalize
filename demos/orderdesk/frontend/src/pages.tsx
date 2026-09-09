@@ -1087,7 +1087,7 @@ function EmptyOrder() {
   );
 }
 
-// ── Search (catalog_search → show_search_results) ────────────────────────────
+// ── Search (catalog_searched → show_search_results) ──────────────────────────
 
 function SearchBar() {
   const { searchQuery, setSearchQuery, searching, closeSearch, searchOpen } = useOrderDesk();

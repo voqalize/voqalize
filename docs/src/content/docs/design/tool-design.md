@@ -100,7 +100,7 @@ undo.
 
 ## Some tools must not take the floor
 
-`orderdesk` answers the manual search bar's `catalog_search` and `list_variants`
+`orderdesk` answers the manual search bar's `catalog_searched` and `variants_opened`
 **floor-free** — session-scoped, no inference, no speech. The caller is typing in
 a search box; a keystroke must not make the agent start talking over them.
 

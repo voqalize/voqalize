@@ -36,7 +36,6 @@ import {
 } from "react";
 import { buildBrainPayload, pharmacyById, scenarioById } from "./data";
 import { sendAppEvent, type AppEvent } from "./actions.gen";
-import { CLIENT_MESSAGE, type AgentSend } from "./clientMessages";
 import {
   asUiAction,
   unhandledUiAction,
@@ -69,7 +68,7 @@ export interface HighlightState {
 
 /**
  * The inline "Change variant" strip, open on exactly one matched row at a time.
- * Opening sends `list_variants`; `show_variants` fills it in. It is a *browse*,
+ * Opening sends `variants_opened`; `show_variants` fills it in. It is a *browse*,
  * not a question — the pharmacist asked to see the siblings — so it is capped by
  * scrolling rather than by `PILL_CAP`, and it never speaks or infers.
  */
@@ -81,6 +80,13 @@ export interface VariantStrip {
   /** Waiting on `show_variants`; the strip shows a placeholder line meanwhile. */
   loading: boolean;
 }
+
+/**
+ * The store's one channel to the brain — a pipecat client's `sendUIEvent`, or
+ * null before the call is live. Every gesture goes out on it as one typed
+ * {@link AppEvent}; nothing comes back this way.
+ */
+export type AgentSend = ((event: string, payload?: unknown) => void) | null;
 
 interface OrderDeskStore {
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -137,7 +143,7 @@ interface OrderDeskStore {
   removeItem: (itemId: string) => void;
   confirmOrder: () => void;
 
-  // ── Inline variant edit (list_variants → show_variants) ────────────────────
+  // ── Inline variant edit (variants_opened → show_variants) ──────────────────
   /** The one row whose variant strip is open, or null. */
   variantStrip: VariantStrip | null;
   /** "Change variant" on a matched row: ask the brain for the family's siblings. */
@@ -146,7 +152,7 @@ interface OrderDeskStore {
   /** Pick a sibling: re-lock the row on it, keeping the quantity already ordered. */
   pickVariant: (itemId: string, sku: SkuWire) => void;
 
-  // ── Manual search (catalog_search → show_search_results) ───────────────────
+  // ── Manual search (catalog_searched → show_search_results) ─────────────────
   searchQuery: string;
   searchResults: SkuWire[];
   searching: boolean;
@@ -412,7 +418,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
    * genuinely nobody to tell: before the call is live the brain has not been born
    * yet, and it starts from an empty order when it is.
    */
-  const emit = useCallback((event: AppEvent) => sendAppEvent(agentSendRef.current?.tell, event), []);
+  const emit = useCallback((event: AppEvent) => sendAppEvent(agentSendRef.current, event), []);
 
   // ── Navigation ──────────────────────────────────────────────────────────
   const startScenario = useCallback((scenarioId: string) => {
@@ -581,7 +587,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * `show_variants` — the answer to one row's `list_variants`. It fills the strip
+   * `show_variants` — the answer to one row's `variants_opened`. It fills the strip
    * that is already open and nothing else: a late answer to a strip the pharmacist
    * has since dismissed (or reopened on another row) is dropped, never reopens.
    * No `bump()` — this changed the display, not the cart.
@@ -722,12 +728,14 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
     [emit, items, patchRow],
   );
 
-  const runCatalogSearch = useCallback((query: string) => {
-    const send = agentSendRef.current;
-    if (!send || query.trim().length < SEARCH_MIN_CHARS) return;
-    setSearching(true);
-    send.ask(CLIENT_MESSAGE.catalogSearch, { query: query.trim() });
-  }, []);
+  const runCatalogSearch = useCallback(
+    (query: string) => {
+      if (!agentSendRef.current || query.trim().length < SEARCH_MIN_CHARS) return;
+      setSearching(true);
+      emit({ event: "catalog_searched", payload: { query: query.trim() } });
+    },
+    [emit],
+  );
 
   const setSearchQuery = useCallback(
     (query: string) => {
@@ -802,14 +810,16 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
    * "Change variant" on a matched row. The family is already established and
    * stays established — this asks only for its siblings, so the pharmacist can
    * fix the variant without deleting and re-dictating the line. Silent, like
-   * `catalog_search`: with no live call there is nobody to ask, so it no-ops.
+   * `catalog_searched`: with no live call there is nobody to ask, so it no-ops.
    */
-  const openVariants = useCallback((itemId: string, family: string) => {
-    const send = agentSendRef.current;
-    if (!send || !family) return;
-    setVariantStrip({ itemId, family, results: [], differingAxes: [], loading: true });
-    send.ask(CLIENT_MESSAGE.listVariants, { item_id: itemId, family });
-  }, []);
+  const openVariants = useCallback(
+    (itemId: string, family: string) => {
+      if (!agentSendRef.current || !family) return;
+      setVariantStrip({ itemId, family, results: [], differingAxes: [], loading: true });
+      emit({ event: "variants_opened", payload: { item_id: itemId, family } });
+    },
+    [emit],
+  );
 
   const closeVariants = useCallback(() => setVariantStrip(null), []);
 

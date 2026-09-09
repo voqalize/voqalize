@@ -36,6 +36,7 @@ from voqalize.sdk import AppEvent, AppEvents
 
 __all__ = [
     "DESK_EVENTS",
+    "CatalogSearched",
     "DeskEvent",
     "FamilyChosen",
     "OrderConfirmed",
@@ -44,6 +45,7 @@ __all__ = [
     "RowAdded",
     "RowRemoved",
     "SkuChosen",
+    "VariantsOpened",
 ]
 
 
@@ -112,6 +114,22 @@ class OrderConfirmed(AppEvent):
     total_mrp: float = 0.0
 
 
+class CatalogSearched(AppEvent):
+    """He typed in the manual search bar. Not an edit — he is *looking*, and the
+    brain answers by putting rows on the panel rather than by moving the order."""
+
+    query: str
+
+
+class VariantsOpened(AppEvent):
+    """He tapped **Change variant** on a settled row: show me this family's
+    siblings. The row is unchanged until he picks one, so like
+    :class:`CatalogSearched` this asks rather than edits."""
+
+    item_id: str
+    family: str
+
+
 #: One thing the pharmacist did. A union rather than a base class, so a ``match``
 #: over it is checked for exhaustiveness — a gesture added here and not handled in
 #: :meth:`OrderDesk.apply_event` fails pyright rather than the call.
@@ -123,6 +141,8 @@ type DeskEvent = (
     | FamilyChosen
     | QuantitySet
     | OrderConfirmed
+    | CatalogSearched
+    | VariantsOpened
 )
 
 #: The vocabulary this brain speaks, and the only thing that reads it. Scoped
@@ -136,4 +156,6 @@ DESK_EVENTS = AppEvents[DeskEvent](
     FamilyChosen,
     QuantitySet,
     OrderConfirmed,
+    CatalogSearched,
+    VariantsOpened,
 )

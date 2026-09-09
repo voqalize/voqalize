@@ -352,8 +352,10 @@ same workaround appearing in two demos is a feature the SDK owes them.
 `RTVIMessage.data: Any`, an untyped dict the developer dug through by string key; it
 is now `AppEvent` + `AppEvents` in `sdk/python`, `Action`'s mirror image, riding
 RTVI's own `ui-event`, with `voqalize types` generating both unions out of the one
-module. Every demo with a screen is now a user. `client-message`/`{t, d}` still parses,
-forever, for a page written before it.
+module. Every demo with a screen is now a user, and no demo calls `sendClientMessage`
+any more — OrderDesk's last two untyped requests became `catalog_searched` and
+`variants_opened` on 2026-09-09, so app→brain is one envelope. `client-message`/`{t, d}`
+still parses, forever, for a page written before it.
 The SDK docstrings and `docs/src/content/docs/build/brain/{context,typescript}.md`
 carry the detail; do not restate it here.
 

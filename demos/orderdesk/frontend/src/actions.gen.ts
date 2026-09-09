@@ -87,7 +87,7 @@ export interface HighlightItem {
   note: string | null;
 }
 
-/** The floor-free answer to the manual search bar's `catalog_search`. */
+/** The floor-free answer to the manual search bar's `catalog_searched`. */
 export interface ShowSearchResults {
   query: string;
 
@@ -95,7 +95,7 @@ export interface ShowSearchResults {
 }
 
 /**
- * The floor-free answer to a row's `list_variants` — the siblings of one
+ * The floor-free answer to a row's `variants_opened` — the siblings of one
  * matched SKU, for the inline "Change variant" strip.
  *
  * Deliberately not one of the `Row*` actions: the row is unchanged until he
@@ -119,6 +119,14 @@ export interface ShowVariants {
 /** One-line banner above the list — a scheme or stock callout. */
 export interface OrderNote {
   text: string;
+}
+
+/**
+ * He typed in the manual search bar. Not an edit — he is *looking*, and the
+ * brain answers by putting rows on the panel rather than by moving the order.
+ */
+export interface CatalogSearched {
+  query: string;
 }
 
 /**
@@ -203,6 +211,17 @@ export interface SkuChosen {
   sku_name?: string;
 
   via?: 'pill' | 'variant' | 'search';
+}
+
+/**
+ * He tapped **Change variant** on a settled row: show me this family's
+ * siblings. The row is unchanged until he picks one, so like
+ * `CatalogSearched` this asks rather than edits.
+ */
+export interface VariantsOpened {
+  item_id: string;
+
+  family: string;
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
@@ -332,17 +351,20 @@ export function unhandledUiAction(action: never): never {
 
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
+  | { event: 'catalog_searched'; payload: CatalogSearched }
   | { event: 'family_chosen'; payload: FamilyChosen }
   | { event: 'order_confirmed'; payload: OrderConfirmed }
   | { event: 'quantity_set'; payload: QuantitySet }
   | { event: 'question_answered'; payload: QuestionAnswered }
   | { event: 'row_added'; payload: RowAdded }
   | { event: 'row_removed'; payload: RowRemoved }
-  | { event: 'sku_chosen'; payload: SkuChosen };
+  | { event: 'sku_chosen'; payload: SkuChosen }
+  | { event: 'variants_opened'; payload: VariantsOpened };
 
 export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'catalog_searched',
   'family_chosen',
   'order_confirmed',
   'quantity_set',
@@ -350,6 +372,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'row_added',
   'row_removed',
   'sku_chosen',
+  'variants_opened',
 ];
 
 /**

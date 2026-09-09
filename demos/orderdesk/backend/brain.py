@@ -75,11 +75,12 @@ from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, hello_for
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .desk_events import (
     DESK_EVENTS,
+    CatalogSearched,
     DeskEvent,
     FamilyChosen,
     OrderConfirmed,
@@ -88,14 +89,8 @@ from .desk_events import (
     RowAdded,
     RowRemoved,
     SkuChosen,
+    VariantsOpened,
 )
-
-# The two browser→brain requests that are not acts on the order (DESIGN §3) — they
-# ask a question and get an action back. Both floor-free, like the events: a thumb on
-# the screen can never interrupt the call.
-CATALOG_SEARCH = "catalog_search"
-# The inline "Change variant" control on a matched row: show me this family's siblings.
-LIST_VARIANTS = "list_variants"
 
 LANGUAGE = "Hindi"
 
@@ -495,14 +490,14 @@ class HighlightItem(Action):
 
 
 class ShowSearchResults(Action):
-    """The floor-free answer to the manual search bar's ``catalog_search``."""
+    """The floor-free answer to the manual search bar's ``catalog_searched``."""
 
     query: str
     results: list[SkuWire]
 
 
 class ShowVariants(Action):
-    """The floor-free answer to a row's ``list_variants`` — the siblings of one
+    """The floor-free answer to a row's ``variants_opened`` — the siblings of one
     matched SKU, for the inline "Change variant" strip.
 
     Deliberately not one of the ``Row*`` actions: the row is unchanged until he
@@ -840,6 +835,11 @@ class OrderDesk:
                 self._note_change(
                     f"he tapped Confirm — order {event.order_no}, {event.item_count} rows"
                 )
+            case CatalogSearched() | VariantsOpened():
+                # Looking is not editing. He asked the screen to show him something and
+                # the brain answers with an action; the order did not move, so there is
+                # nothing here to record and nothing to tell the model on the next turn.
+                return
 
     def _narrow(self, row: LineItemView, codes: list[str]) -> bool:
         """Keep only ``codes`` of the row's candidates. ``True`` if the set shrank.
@@ -1890,7 +1890,7 @@ class OrderDeskBrain(GeminiBrain):
         caller heard anything."""
         return f"{_HELLO} {_FALLBACK_OPENER}"
 
-    # ─── browser → brain: the manual search bar, and the live screen ───────
+    # ─── browser → brain: one typed event per thing he did ─────────────────
 
     def _on_desk_event(self, event: DeskEvent) -> None:
         """What this brain does with one thing the pharmacist did.
@@ -1910,8 +1910,8 @@ class OrderDeskBrain(GeminiBrain):
         he has changed since the model last read it refuses instead of acting on a
         stale row id.
 
-        Floor-free like the other two: a thumb on the screen never makes the agent
-        start talking over him."""
+        Floor-free, like everything else on this envelope: a thumb on the screen never
+        makes the agent start talking over him."""
         self.desk.apply_event(event)
         note = self.desk.take_changes()
         if note is None:
@@ -1922,43 +1922,38 @@ class OrderDeskBrain(GeminiBrain):
         )
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Everything the browser tells the desk, all floor-free.
+        """Everything the browser tells the desk — one envelope, all floor-free.
 
-        ``catalog_search`` is the search bar mid-keystroke; ``list_variants`` is the
-        Change-variant control on a matched row — both answered with a session-scoped
-        action, no inference, no speech, so neither a keystroke nor a tap can make
-        the agent start talking over him.
-
-        Everything else he does to the screen arrives *named*, on RTVI's own
-        ``ui-event``, as one of the typed shapes in ``desk_events.py`` — ``li3
-        quantity set to 5`` rather than a cart to be diffed. There is no snapshot behind them and no repair channel: an act the
+        Every gesture arrives *named*, on RTVI's own ``ui-event``, as one of the typed
+        shapes in ``desk_events.py`` — ``li3 quantity set to 5`` rather than a cart to
+        be diffed. There is no snapshot behind them and no repair channel: an act the
         screen does not send is an act the brain never learns about, which makes the
-        event set's completeness the thing the tests hold, and makes it obvious in a
-        log rather than silently reconciled a beat later."""
-        if (event := DESK_EVENTS.parse(msg)) is not None:
-            logger.info("orderdesk: {} — {}", type(event).__voqal_event__, event)
-            self._on_desk_event(event)
+        event set's completeness the thing the tests hold, and makes a gap obvious in a
+        log rather than silently reconciled a beat later.
+
+        Two of them ask instead of edit — the search bar mid-keystroke and the
+        Change-variant control on a settled row — so they are answered here with a
+        session-scoped action rather than passed to the mirror. That is the only thing
+        separating them from the rest; they are not a second kind of message, and they
+        do not ride a second envelope. Floor-free like all the others: neither a
+        keystroke nor a tap can make the agent start talking over him."""
+        if (event := DESK_EVENTS.parse(msg)) is None:
             return
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
-            return
-        kind = msg.data.get("t")
-        raw_payload = msg.data.get("d")
-        payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else {}
-        if kind == CATALOG_SEARCH:
-            query = str(payload.get("query") or "").strip()
-            results = self.desk.search_rows(query)
-            logger.info("orderdesk: catalog_search {!r} → {} rows", query, len(results))
-            session.dispatch(ShowSearchResults(query=query, results=results))
-            return
-        if kind == LIST_VARIANTS:
-            item_id = str(payload.get("item_id") or "").strip()
-            family = str(payload.get("family") or "").strip()
-            action = self.desk.variant_rows(item_id, family)
-            logger.info(
-                "orderdesk: list_variants {!r} on {!r} → {} rows",
-                family,
-                item_id,
-                len(action.results),
-            )
-            session.dispatch(action)
-            return
+        match event:
+            case CatalogSearched():
+                query = event.query.strip()
+                results = self.desk.search_rows(query)
+                logger.info("orderdesk: catalog_searched {!r} → {} rows", query, len(results))
+                session.dispatch(ShowSearchResults(query=query, results=results))
+            case VariantsOpened():
+                action = self.desk.variant_rows(event.item_id, event.family)
+                logger.info(
+                    "orderdesk: variants_opened {!r} on {!r} → {} rows",
+                    event.family,
+                    event.item_id,
+                    len(action.results),
+                )
+                session.dispatch(action)
+            case _:
+                logger.info("orderdesk: {} — {}", type(event).__voqal_event__, event)
+                self._on_desk_event(event)

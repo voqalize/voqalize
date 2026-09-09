@@ -21,10 +21,9 @@
  *   - every `ui-command` (`RTVIEvent.UICommand`, `{ command, payload }`) replays
  *     onto the store's one reducer, typed against `actions.gen.ts`, so line
  *     items resolve on screen;
- *   - `registerAgentSend` hands the store its two channels out — a request on
- *     `client-message`, a gesture on `ui-event` — so a pill, a quantity or a delete
- *     reaches the brain named and one at a time. Nothing echoes a cart back: there
- *     is no snapshot in either direction.
+ *   - `registerAgentSend` hands the store its one channel out — RTVI's `ui-event`
+ *     — so a pill, a quantity or a delete reaches the brain named and one at a
+ *     time. Nothing echoes a cart back: there is no snapshot in either direction.
  */
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
@@ -133,14 +132,11 @@ function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => voi
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("idle"), []));
 
-  // Register the store's two channels to the brain once the call is live. Both are
-  // stock pipecat: a request is a `client-message`, a gesture is RTVI's `ui-event`.
+  // Register the store's channel to the brain once the call is live — stock pipecat,
+  // one envelope: every gesture is a typed RTVI `ui-event`.
   useEffect(() => {
     if (!isLive || !client) return;
-    registerAgentSend({
-      ask: (type, data) => client.sendClientMessage(type, data),
-      tell: (event, payload) => client.sendUIEvent(event, payload),
-    });
+    registerAgentSend((event, payload) => client.sendUIEvent(event, payload));
     return () => registerAgentSend(null);
   }, [isLive, client, registerAgentSend]);
 

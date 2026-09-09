@@ -25,7 +25,7 @@
  *     generated shape). A section command carries an id and a heading, not prose
  *     — the page already holds every word, and two copies of a paragraph is how a
  *     page linked from a README stops being readable on its own.
- *   * **screen → brain**, as one RTVI `client-message`. `ready` says the data
+ *   * **screen → brain**, as one typed RTVI `ui-event`. `ready` says the data
  *     channel exists, which is what the opening wave waits for — a brain is
  *     dialled before this page has one, and a gesture sent then goes nowhere.
  *

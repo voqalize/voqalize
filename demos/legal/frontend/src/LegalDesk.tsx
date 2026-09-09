@@ -24,8 +24,8 @@
  *
  * Two bridges tie the call to the shared store: every `ui-command` replays onto
  * it (so the assistant drives the document), and the store's silent
- * `clause_focus` reading position goes back the other way as an RTVI
- * `client-message`. Mounted once inside the `LegalProvider`.
+ * `clause_focus` reading position goes back the other way as a typed RTVI
+ * `ui-event`. Mounted once inside the `LegalProvider`.
  */
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
