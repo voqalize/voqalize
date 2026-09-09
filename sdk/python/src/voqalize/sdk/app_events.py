@@ -58,9 +58,12 @@ sends::
     # → {"event": "quantity_set", "payload": {...}}
 
 :meth:`AppEvents.parse` also reads a ``client-message`` carrying ``{"t": name,
-"d": payload}``, which is what apps written before ``ui-event`` send and what the
-generated ``sendAppEvent`` falls back to. Both keep working; ``ui-event`` is what
-we teach.
+"d": payload}``, which is what apps written before ``ui-event`` send. **That path
+is deprecated on arrival** — kept so a page already built on
+``client.sendClientMessage`` can be picked up by a new brain without a rewrite,
+not so anything new can be built on it. It warns once per process and will be
+removed; move the page to ``sendUIEvent`` and there is nothing to migrate on this
+side, because both arrive as the same typed event.
 
 ## Names are scoped to the set that declares them
 
@@ -72,6 +75,7 @@ means what your brain says it means and nothing leaks in from an import.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from loguru import logger
@@ -86,6 +90,27 @@ if TYPE_CHECKING:  # pragma: no cover
     from .events import RTVIMessage
 
 __all__ = ["AppEvent", "AppEvents"]
+
+#: Said once per process, not once per tap: this fires on a live call, and a
+#: deprecation the developer has already read is noise on every keystroke after.
+_client_message_warned = False
+
+
+def _warn_client_message(kind: str) -> None:
+    """Both channels, once: a ``DeprecationWarning`` so a test suite run with
+    ``-W error`` fails on it, and a log line because that is what anyone actually
+    watching a deployed brain will see."""
+    global _client_message_warned
+    if _client_message_warned:
+        return
+    _client_message_warned = True
+    message = (
+        f"{kind!r} arrived on the deprecated 'client-message' envelope. Send it with "
+        "client.sendUIEvent(name, payload) instead — it parses to the same typed event, "
+        "and this path will be removed."
+    )
+    warnings.warn(message, DeprecationWarning, stacklevel=2)
+    logger.warning(message)
 
 
 class AppEvent(BaseModel):
@@ -139,8 +164,12 @@ class AppEvents[E: AppEvent]:
     def parse(self, msg: RTVIMessage) -> E | None:
         """The event this message names, or ``None``.
 
-        Reads RTVI's ``ui-event`` (``{"event": …, "payload": …}``) and, for apps
-        that predate it, a ``client-message`` carrying ``{"t": …, "d": …}``.
+        Reads RTVI's ``ui-event`` (``{"event": …, "payload": …}``) and, deprecated,
+        a ``client-message`` carrying ``{"t": …, "d": …}`` — see the module
+        docstring for why that one is still here and why it should not be reached
+        for. It warns once per process, on the first ``client-message`` that
+        actually resolves to an event: a name it does not know on that channel is
+        your app's own business, not a deprecated event.
 
         Nothing here raises. An unknown name on ``ui-event`` is an app a deploy
         ahead of its brain naming an act this brain has never heard of — a real
@@ -163,7 +192,10 @@ class AppEvents[E: AppEvent]:
             log("no app event answers to {!r}; the app knows an act this brain does not", kind)
             return None
         try:
-            return event.model_validate(raw if isinstance(raw, dict) else {})
+            parsed = event.model_validate(raw if isinstance(raw, dict) else {})
         except ValidationError as exc:
             logger.warning("{} did not fit {}: {}", kind, event.__name__, exc.errors())
             return None
+        if not dedicated:
+            _warn_client_message(kind)
+        return parsed

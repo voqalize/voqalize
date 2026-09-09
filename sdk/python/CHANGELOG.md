@@ -17,6 +17,29 @@ kept for the history, and nothing installable was ever cut from them.
 
 ## Unreleased
 
+### Deprecated
+
+- **`client-message` as a carrier for app events.** `AppEvents.parse` still reads
+  `{"t": name, "d": payload}` off `client-message` and still returns the same
+  typed event, so a page already built on `client.sendClientMessage` can be picked
+  up by a new brain without being rewritten first. That is the only reason it is
+  there. It now warns once per process — a `DeprecationWarning` so a suite run
+  with `-W error` fails on it, and a log line because that is what anyone watching
+  a deployed brain actually sees — and it will be removed.
+
+  The warning fires only on a `client-message` that *resolves to an event*. Your
+  app's own requests share that channel and a name this set does not hold is none
+  of the SDK's business.
+
+  Migrating is a one-line change on the page and none in the brain:
+  `sendClientMessage(name, payload)` → `sendUIEvent(name, payload)`. Both arrive
+  at `parse` as the same typed event.
+
+  `RTVIType.CLIENT_MESSAGE` itself is **not** deprecated. It is RTVI's envelope,
+  not ours; every pipecat client ships `sendClientMessage()`, and an app is
+  entitled to use it for its own messages. What is deprecated is carrying an
+  *app event* on it.
+
 ### Added
 
 - **`AppEvent` and `AppEvents` — `Action`'s mirror image, browser to brain.**
@@ -30,8 +53,8 @@ kept for the history, and nothing installable was ever cut from them.
   not be able to end a call.
 
   It reads RTVI's own `ui-event` (`client.sendUIEvent(name, payload)`) and, for
-  apps written before that, a `client-message` carrying `{"t", "d"}`. **Both keep
-  working**; `ui-event` is what we teach. Nothing on the wire changed.
+  apps written before that, a `client-message` carrying `{"t", "d"}` — the second
+  one deprecated on arrival, see below. Nothing on the wire changed.
 
   The registry is scoped to the set rather than global, deliberately: several
   brains share one process, and two of them are entitled to both call something

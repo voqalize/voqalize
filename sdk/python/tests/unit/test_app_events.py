@@ -9,12 +9,21 @@ deploy ahead of its brain must not be able to end a call.
 
 from __future__ import annotations
 
+import warnings
+
 import pytest
 from pydantic import Field
 
-from voqalize.sdk import AppEvent, AppEvents
+from voqalize.sdk import AppEvent, AppEvents, app_events
 from voqalize.sdk.events import RTVIMessage
 from voqalize.sdk.wire import RTVIType
+
+
+@pytest.fixture(autouse=True)
+def _unwarned() -> None:
+    """The deprecation is once *per process*, so without this the second test to
+    touch it would pass by inheriting the first one's silence."""
+    app_events._client_message_warned = False
 
 
 class QuantitySet(AppEvent):
@@ -56,10 +65,32 @@ def test_an_event_arrives_typed_from_the_channel_we_teach() -> None:
     assert event == QuantitySet(item_id="li3", quantity=5)
 
 
-def test_the_older_channel_keeps_working() -> None:
-    """``client-message`` predates RTVI's ``ui-event``; apps on it must not break."""
-    event = EVENTS.parse(_client("quantity_set", {"item_id": "li3", "quantity": 5}))
+def test_the_older_channel_still_parses_but_says_so() -> None:
+    """``client-message`` predates RTVI's ``ui-event``. A page already built on it
+    must not break — that is the whole reason the arm is still here — but nothing
+    new should be built on it, so it is deprecated rather than silently equal."""
+    with pytest.deprecated_call(match="sendUIEvent"):
+        event = EVENTS.parse(_client("quantity_set", {"item_id": "li3", "quantity": 5}))
     assert event == QuantitySet(item_id="li3", quantity=5)
+
+
+def test_the_deprecation_is_said_once_not_once_per_tap() -> None:
+    """It fires on a live call. A developer who has read it once does not need it
+    again on every keystroke for the rest of the session."""
+    with pytest.deprecated_call():
+        EVENTS.parse(_client("quantity_set", {"item_id": "li3", "quantity": 5}))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert EVENTS.parse(_client("quantity_set", {"item_id": "li3", "quantity": 6}))
+
+
+def test_a_message_that_was_never_an_event_is_not_a_deprecation() -> None:
+    """Your app's own requests share that channel. Warning about a name this set
+    does not hold would be scolding an app for a message that has nothing to do
+    with app events."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert EVENTS.parse(_client("open_the_pod_bay_doors", {})) is None
 
 
 @pytest.mark.parametrize(

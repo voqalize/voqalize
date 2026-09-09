@@ -35,7 +35,7 @@ which is the contract of record.
 | Type | What it is |
 |---|---|
 | `ui-event` | A named event with an app-defined payload — one gesture the person made. |
-| `client-message` | The older untyped envelope, `{t, d}`. Still carried, still parsed; new pages send `ui-event`. |
+| `client-message` | The older untyped envelope, `{t, d}`. **Deprecated.** Still carried and still parsed, so a page already built on `sendClientMessage` keeps working; new pages send `ui-event`. |
 | `ui-snapshot` | The page's accessibility tree, whole, each time. |
 | `ui-cancel-job-group` | Cancel an in-flight job group, by its `job_id`. |
 

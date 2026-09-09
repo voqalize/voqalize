@@ -49,7 +49,10 @@ client.sendUIEvent("quantity_set", { item_id: "li3", quantity: 5 });
 ```
 
 `sendUIEvent(event, payload)` sends an RTVI `ui-event`; `AppEvents.parse` reads
-that and, for pages written before it, a `client-message` carrying `{ t, d }`. It
+that and, deprecated, a `client-message` carrying `{ t, d }` — kept so a page
+already built on `sendClientMessage` can be picked up by a new brain without a
+rewrite, and it warns once per process. Both arrive as the same typed event, so
+moving a page to `sendUIEvent` changes nothing on the brain side. `parse`
 returns `None` — never an exception — for a name it does not know, a payload that
 does not fit, or a message that was never an event, because a page one deploy
 ahead of its brain must not be able to end a call.
@@ -116,8 +119,8 @@ The enumeration is `RTVIType` in
 split into two sets the SDK names `RTVI_TO_BRAIN` and `RTVI_TO_APP` in
 `voqalize.sdk.wire.frames`.
 
-Your page may send `client-message`, `ui-event`, `ui-snapshot` and
-`ui-cancel-job-group`. Your brain may send `server-message`, `server-response`,
+Your page may send `ui-event`, `ui-snapshot`, `ui-cancel-job-group` and the
+deprecated `client-message`. Your brain may send `server-message`, `server-response`,
 `error-response`, `ui-command` and `ui-job-group`. What each one is for is in
 [the RTVI plane](/reference/rtvi/); `ui-command` is what `session.dispatch`
 rides, and `ui-event` is what `sendAppEvent` rides back.
