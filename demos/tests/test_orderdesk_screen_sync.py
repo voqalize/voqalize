@@ -171,3 +171,38 @@ async def test_a_spoken_correction_finds_the_row_by_what_he_called_it() -> None:
     assert "error" not in fixed, fixed
     assert fixed["id"] == row.id
     assert row.query == "abiways"
+
+
+@pytest.mark.asyncio
+async def test_a_row_already_waiting_on_an_answer_is_not_handed_its_table_again() -> None:
+    """He says the same medicine twice while a question about it is still on screen.
+
+    The second ``add_items`` lands on the row he already has (the dedupe), and used to
+    answer with the whole twenty-four-line candidate table a second time — a kilobyte
+    the model had already been given, folded into the history verbatim, for a row whose
+    only news is that nobody has answered yet. It is also how a third question gets
+    phrased with no record of the two before it."""
+    desk, _ = _desk()
+    (brief,) = (await desk.add_items([SpokenItem(text="telma")]))["items"]
+    (row,) = desk.items.values()
+    assert brief["candidate_count"] >= 5, "need a row wide enough for a table"
+    assert brief["candidates"], "the first briefing is the table"
+
+    codes = [sku.code for sku in row.candidates]
+    await desk.read_screen()
+    asked = await desk.ask_choice(
+        row.id,
+        "Which Telma line?",
+        [
+            Choice(label="plain", sku_codes=codes[: len(codes) // 2]),
+            Choice(label="combination", sku_codes=codes[len(codes) // 2 :]),
+        ],
+    )
+    assert "error" not in asked, asked
+
+    again = (await desk.add_items([SpokenItem(text="telma")]))["items"][0]
+    assert "candidates" not in again, "the table was handed over a second time"
+    assert again["asked"] == "Which Telma line?"
+    assert [group["label"] for group in again["groups"]] == ["plain", "combination"]
+    assert sorted(code for group in again["groups"] for code in group["codes"]) == sorted(codes)
+    assert len(desk.items) == 1, "and it is still one row"

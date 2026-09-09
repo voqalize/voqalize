@@ -1077,9 +1077,36 @@ class OrderDesk:
         them to **partition**, not to recite: codes it must quote back in ``ask_choice``,
         and the axes it can split on. The guidance says both halves of §7-bis's quality
         bar — split evenly, on the axis that partitions — because the brain can validate
-        the shape of a choice set but not its sharpness."""
+        the shape of a choice set but not its sharpness.
+
+        Twice, though: a row that is still waiting on an answer gets what it is waiting
+        for instead of the table again."""
         count = len(row.candidates)
         axes = ["family"] if row.status == "multi_family" else row.differing_axes
+        # A row with an open question has already been handed this table, and every
+        # path that changes `row.candidates` clears `row.question` — so a question
+        # still standing means the set below is exactly the one it was asked over.
+        # Re-tabling it buys nothing and costs the same kilobyte again on a row that
+        # is only waiting for him to answer; worse, it is how the model came to phrase
+        # a third question with no record of the two it had already asked.
+        if row.question is not None:
+            return {
+                "id": row.id,
+                "status": row.status,
+                "family": row.family,
+                "candidate_count": count,
+                "asked": row.question.text,
+                "groups": [
+                    {"label": choice.label, "codes": choice.narrows_to}
+                    for choice in row.question.choices
+                ],
+                "guidance": (
+                    "You already asked this and he has not answered. Do not ask again and "
+                    "do not list anything: say the same question once more only if he "
+                    "seems not to have heard it, and otherwise wait. His answer picks one "
+                    "group; call choose with a code from it."
+                ),
+            }
         return {
             "id": row.id,
             "status": row.status,
