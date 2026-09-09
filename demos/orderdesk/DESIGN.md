@@ -259,8 +259,11 @@ matched ⇒ `{status:"matched", name, pack_size, mrp, scheme}`; not_found ⇒ su
   never performs the name→id translation it could get wrong; a reference that no longer names one
   row comes back naming the rows that do exist. There was a version gate here until 2026-09-09 —
   every mutating tool refused after any hand edit until the model re-read — and it was charging a
-  full hop (~1.15 s) per edit to re-establish what the change note had already said, for a hazard
-  the tool signatures had already retired. `OrderDesk.version` survives it as a log field.
+  full hop per edit to re-establish what the change note had already said, for a hazard the tool
+  signatures had already retired. Measured before and after against the real API, four passes each:
+  the turn after a thumb edit went 3 hops → 2 in every run, and 3537 ms → 2281 ms to first word.
+  The spoken turn *before* any hand edit moved −46 ms, which is to say not at all.
+  `OrderDesk.version` survives it as a log field.
 - **A row opens and settles in the same tick, and the UI never paints the gap.** `_place` dispatches
   `row_opened` — the create, carrying `spoken_text`/`query`/`quantity` so no later action has to
   repeat them — `_resolve_into` runs, and `_settle` dispatches the verdict. That resolver is
