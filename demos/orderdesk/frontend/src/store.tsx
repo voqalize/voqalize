@@ -255,11 +255,20 @@ const LOCAL_PILL_CAP = 4;
  * `upsertItems`; the caller supplies the fresh `nonce`). The brain re-sends whole
  * render state, so this is a merge by id, not a patch — and three things the
  * browser owns survive it: a quantity the pharmacist typed, a choice they tapped
- * (`pinned`, overridable only by an explicit agent `matched`), and a narrowing
- * they tapped, against the agent's stale re-send of the question they just answered.
+ * (`pinned`, overridable by an explicit agent `matched` or by a re-resolve that no
+ * longer offers what they tapped), and a narrowing they tapped, against the agent's
+ * stale re-send of the question they just answered.
  */
 export function mergeItem(cur: LineItem, view: LineItemView): LineItem {
-  const keepChoice = cur.pinned && view.status !== "matched";
+  // The pin exists to survive the agent's *lagging* re-send of the round the tap just
+  // ended — and that re-send still offers the SKU they tapped, because it was one of
+  // the pills. A view that no longer contains it is not that race: it is a correction
+  // they just spoke ("abevia nahi, abiways"), and holding the pin against it leaves the
+  // screen on the medicine they rejected while the agent says it changed.
+  const offersPin =
+    cur.sku === null ||
+    [...view.variants, ...view.candidates].some((s) => s.code === cur.sku?.code);
+  const keepChoice = cur.pinned && view.status !== "matched" && offersPin;
   // A question the pharmacist already answered by tapping, re-sent over a candidate
   // set no smaller than the one on screen, is the agent echoing the round that just
   // ended — keep the narrowing. A new question, or the same one over the remainder,

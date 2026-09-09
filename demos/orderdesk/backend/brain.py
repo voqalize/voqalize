@@ -610,6 +610,7 @@ class OrderDesk:
             return
         for row_id in [i for i in self.items if i not in live]:
             gone = self.items.pop(row_id)
+            self._narrowed.discard(row_id)
             self._note_change(f"{gone.id} ({gone.spoken_text}) removed by hand")
         for row_id, seen in live.items():
             row = self.items.get(row_id)
