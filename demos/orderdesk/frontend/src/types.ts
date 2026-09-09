@@ -17,13 +17,18 @@ export type {
 import type { DisambigQuestion, FamilyWire, SkuWire } from "./actions.gen";
 
 /**
- * "resolving" — just heard, free text, grey and shimmering; "multi_family" —
- * 2-5 candidate families as option cards; "multi_variant" — one family,
- * several SKUs, pills on the differing axes; "matched" — locked to a SKU,
- * qty stepper live; "not_found" — no catalog hit, manual search affordance.
+ * The catalog's verdict on a row. "multi_family" — 2-5 candidate families as option
+ * cards; "multi_variant" — one family, several SKUs, pills on the differing axes;
+ * "matched" — locked to a SKU, qty stepper live; "not_found" — no catalog hit,
+ * manual search affordance.
+ *
+ * `null` is a row with no verdict yet — opened, not yet looked at. There is no
+ * "resolving" member and no shimmer: the brain's resolver is synchronous and
+ * in-process, so `row_opened` and the row's outcome arrive in the same tick. The
+ * grey "Looking up…" state was measured at 0.06–0.3 ms, a fraction of one frame,
+ * and was never once painted.
  */
 export type LineItemStatus =
-  | "resolving"
   | "multi_family"
   | "multi_variant"
   | "matched"
@@ -47,7 +52,8 @@ export interface LineItem {
   /** The English query the row was last resolved on. */
   query: string;
   quantity: number | null;
-  status: LineItemStatus;
+  /** The catalog's verdict; `null` until one lands. See {@link LineItemStatus}. */
+  status: LineItemStatus | null;
   sku: SkuWire | null;
   family: string | null;
   /** Leaf pills: ≤4 SKUs the pharmacist can settle the row by pointing at. */

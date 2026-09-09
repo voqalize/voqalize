@@ -136,8 +136,7 @@ from the other, and there is no merge to get wrong.
 ### Typed Actions (Python `Action` subclasses in brain.py → `frontend/src/actions.gen.ts`, generated)
 | wire name | fields | when |
 |---|---|---|
-| `row_opened` | `id; spoken_text; query; quantity` | a row he just named — greyed, before the catalog is asked |
-| `row_resolving` | `id` | the row went back to grey; a re-resolve started on it |
+| `row_opened` | `id; spoken_text; query; quantity` | a row he just named — the create, carrying what he said. The verdict follows in the same tick |
 | `row_matched` | `id; sku: SkuWire; family` | it settled on one SKU. Everything the ambiguity left behind is spent |
 | `row_families` | `id; families: FamilyWire[]; candidates: SkuWire[]; differing_axes` | 2–5 brands could match — the option cards |
 | `row_variants` | `id; family; variants: SkuWire[]; candidates: SkuWire[]; differing_axes` | one brand, several SKUs — leaf pills under the floor, a candidate set above it (§7-bis) |
@@ -206,7 +205,7 @@ when it next speaks.
 | tool | signature | behavior |
 |---|---|---|
 | `add_items` | `(items: list[SpokenItem]) -> dict` | For each: assign id, emit `row_opened` (greyed, before the catalog work), then run `resolve()` (real, fast) and emit the outcome — `row_matched`, `row_families`, `row_variants` or `row_not_found`. Return per-item compact summary (below). |
-| `refine_item` | `(item_id: str, query: str) -> dict` | re-resolve with a better English query; emits `row_resolving`, then the outcome |
+| `refine_item` | `(item_id: str, query: str) -> dict` | re-resolve with a better English query; emits the outcome |
 | `choose` | `(item_id: str, sku_code: str, quantity: int \| None) -> dict` | verbal confirm ⇒ `matched`; emits `row_matched` |
 | `ask_choice` | `(item_id: str, question: str, choices: list[Choice]) -> dict` | the sharpest question on a row with ≥5 candidates (§7-bis); validated, emits `row_question` — and nothing else, so a late one cannot un-match the row |
 | `set_quantity` | `(item_id: str, quantity: int) -> dict` | absolute quantity; emits `row_quantity` |
@@ -262,6 +261,16 @@ matched ⇒ `{status:"matched", name, pack_size, mrp, scheme}`; not_found ⇒ su
   every mutating tool refused after any hand edit until the model re-read — and it was charging a
   full hop (~1.15 s) per edit to re-establish what the change note had already said, for a hazard
   the tool signatures had already retired. `OrderDesk.version` survives it as a log field.
+- **A row opens and settles in the same tick, and the UI never paints the gap.** `_place` dispatches
+  `row_opened` — the create, carrying `spoken_text`/`query`/`quantity` so no later action has to
+  repeat them — `_resolve_into` runs, and `_settle` dispatches the verdict. That resolver is
+  synchronous, in-process, no `await` and no network: measured on the real catalog it takes
+  0.06–0.3 ms, against a 16.7 ms frame. There was a `resolving` status and a `row_resolving` action
+  here until 2026-09-09, with a grey shimmering row behind them, and no eye ever saw it. What
+  replaced them is `status: null` — a row nobody has looked at yet, plain-framed and chipless, a
+  state the types have to admit and the screen never shows. If the catalog ever moves behind a
+  network call this comes back, and it comes back as a real await, not as a state that resolves
+  before it renders.
 - `on_rtvi`, floor-free throughout: one `DESK_EVENTS.parse`, then a `match` — `catalog_searched`
   and `variants_opened` answer with a session-scoped action, everything else moves the mirror. It
   never calls `super()`: there is nothing on a second envelope to fall through to.
@@ -302,7 +311,6 @@ lang section and lead_qual `brain.py:74-77`)
      list, sticky cart bar (items/total/Confirm). **All UI text English.**
   4. **Order-placed screen** + EndedScreen.
 - **Line-item row is the hero.** Status-driven presentation:
-  - `resolving`: greyed row, spoken text, shimmer.
   - `multi_variant`: row shows family name + amber "choose" state; **pills** for the differing
     axes (each pill = one SkuWire; label = only what differs, e.g. `DROPS 5ML ₹160` vs `OINTMENT 5GM ₹142`).
   - `multi_family`: 2–5 option cards (family + hint line).
@@ -316,7 +324,7 @@ lang section and lead_qual `brain.py:74-77`)
   Hindi pipeline hints.
 - Visual identity: NOT sugar's evergreen. B2B distributor tone — think dense, capable, trade-app:
   deep blue/slate + saffron accent, Inter + Noto Sans Devanagari stack (presenter panel shows
-  Hindi hints). Status colors: grey resolving / amber ambiguous / green matched.
+  Hindi hints). Status colors: amber ambiguous / green matched.
 - Env/config: copy sugar's `config.ts` shape; `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY` generic
   names (build.mjs maps `VITE_ORDERDESK_AGENT` / `VITE_ORDERDESK_PK`).
 - Dev affordance: `window.__orderdesk.ui(...)` / `.sendText(...)` in DEV.

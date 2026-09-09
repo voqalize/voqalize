@@ -326,7 +326,7 @@ class FamilyWire(BaseModel):
     hint: str = ""
 
 
-LineItemStatus = Literal["resolving", "multi_family", "multi_variant", "matched", "not_found"]
+LineItemStatus = Literal["multi_family", "multi_variant", "matched", "not_found"]
 
 # The axes `resolve()` may report as differing, in the order a question reads best.
 _AXES = ("variant_label", "form", "strength", "pack_size")
@@ -387,7 +387,10 @@ class LineItemView(BaseModel):
     spoken_text: str = ""
     query: str = ""
     quantity: int | None = None
-    status: LineItemStatus = "resolving"
+    #: The catalog's verdict, or ``None`` before there is one. There is no
+    #: "resolving" member: :meth:`_resolve_into` is synchronous and in-process, so a
+    #: row without a verdict is one nobody has looked at yet, not one being worked on.
+    status: LineItemStatus | None = None
     sku: SkuWire | None = None
     family: str | None = None
     variants: list[SkuWire] = []
@@ -419,12 +422,6 @@ class RowOpened(Action):
     spoken_text: str
     query: str
     quantity: int | None
-
-
-class RowResolving(Action):
-    """The row went back to grey — a re-resolve started on it."""
-
-    id: str
 
 
 class RowMatched(Action):
@@ -729,7 +726,7 @@ class OrderDesk:
             id=event.item_id,
             spoken_text=name or (sku.name if sku else event.item_id),
             query=event.query.strip(),
-            status="matched" if sku else "resolving",
+            status="matched" if sku else None,
             sku=sku,
             family=sku.family if sku else None,
             quantity=event.quantity or None,
@@ -870,7 +867,7 @@ class OrderDesk:
         bits: list[str] = []
         for row in self.items.values():
             status = row.status
-            if status in ("matched", "resolving"):
+            if status in ("matched", None):
                 continue
             if row.question is not None:
                 waiting = f"awaiting answer to: {row.question.text}"
@@ -1129,8 +1126,6 @@ class OrderDesk:
                         differing_axes=row.differing_axes,
                     )
                 )
-            case "resolving":
-                self._dispatch(RowResolving(id=row.id))
             case _:
                 self._dispatch(RowNotFound(id=row.id))
 
@@ -1321,7 +1316,7 @@ class OrderDesk:
         strength_hint only if he said one ("40 mg", "650", "50 mcg"); leave both empty
         otherwise. Never guess a quantity, a form or a strength.
 
-        Each row appears greyed while it resolves, then settles to matched (green),
+        Each row settles as it lands — matched (green),
         multi_variant / multi_family (a question — the choices become pills or cards on
         his screen), or not_found. The return value tells you, per row, which axes
         actually differ — ask ONE short question about those and nothing else.
@@ -1345,7 +1340,6 @@ class OrderDesk:
                 spoken_text=item.text,
                 query=item.text,
                 quantity=item.quantity or None,
-                status="resolving",
             )
             self._place(row)
             self._resolve_into(row, item.text, item)
@@ -1407,9 +1401,11 @@ class OrderDesk:
         row = self._row_for(item_id)
         if row is None:
             return self._ref_error(item_id)
-        row.status = "resolving"
         row.note = None
-        self._dispatch(RowResolving(id=row.id))
+        # No "now re-resolving" action first. `_resolve_into` is synchronous, so the
+        # outcome below lands in the same tick — announcing the attempt only blanks
+        # the row for less than a frame, and a blank row he *can* catch is worse than
+        # no blank at all.
         self._resolve_into(row, query.strip())
         self._settle(row)
         self._note_scheme(row)

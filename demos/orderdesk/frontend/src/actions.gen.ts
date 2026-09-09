@@ -15,11 +15,6 @@ export interface RowOpened {
   quantity: number | null;
 }
 
-/** The row went back to grey — a re-resolve started on it. */
-export interface RowResolving {
-  id: string;
-}
-
 /** The row settled on one SKU. Everything the ambiguity left behind is spent. */
 export interface RowMatched {
   id: string;
@@ -298,7 +293,6 @@ export interface SkuWire {
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
   | { command: 'row_opened'; payload: RowOpened }
-  | { command: 'row_resolving'; payload: RowResolving }
   | { command: 'row_matched'; payload: RowMatched }
   | { command: 'row_families'; payload: RowFamilies }
   | { command: 'row_variants'; payload: RowVariants }
@@ -315,7 +309,6 @@ export type UiActionCommand = UiAction['command'];
 
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'row_opened',
-  'row_resolving',
   'row_matched',
   'row_families',
   'row_variants',

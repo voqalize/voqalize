@@ -10,7 +10,6 @@
  * chime → Join call → the order screen, where every spoken line lands as a
  * free-text row and walks a *visible* state machine to a confirmed SKU:
  *
- *     resolving  → grey, shimmering, the catalog is still working
  *     multi_variant → amber, pills labelled only by what actually differs
  *     multi_family  → amber, 2–5 option cards
  *     matched    → green, priced, a quantity stepper, orderable
@@ -1268,15 +1267,17 @@ function PanelEmpty({ text }: { text: string }) {
 // ── The line-item row — the state machine, made visible ──────────────────────
 
 const STATUS_STYLE: Record<
-  LineItem["status"],
+  NonNullable<LineItem["status"]>,
   { border: string; bg: string; accent: string; label: string }
 > = {
-  resolving: { border: LINE, bg: CARD, accent: GREY, label: "Looking up…" },
   multi_family: { border: AMBER_LINE, bg: AMBER_TINT, accent: AMBER, label: "Which brand?" },
   multi_variant: { border: AMBER_LINE, bg: AMBER_TINT, accent: AMBER, label: "Choose one" },
   matched: { border: GREEN_LINE, bg: CARD, accent: GREEN, label: "Matched" },
   not_found: { border: LINE, bg: GREY_TINT, accent: INK_FAINT, label: "Not in catalog" },
 };
+
+/** A row whose verdict has not landed. Plain frame, no chip — see `LineItemStatus`. */
+const NO_VERDICT = { border: LINE, bg: CARD, accent: GREY, label: "" };
 
 /** Which axis of a SkuWire each `differing_axes` entry reads. */
 const AXIS_VALUE: Record<string, (s: SkuWire) => string> = {
@@ -1346,7 +1347,9 @@ function stockLine(stock: number): { text: string; color: string } {
 function LineItemRow({ item }: { item: LineItem }) {
   const { highlight, removeItem, choosePill, chooseChoice, chooseFamily, narrowToFamily } =
     useOrderDesk();
-  const s = STATUS_STYLE[item.status];
+  // A row with no verdict yet borrows the plain frame and shows no chip. It is not a
+  // state anyone sees — see LineItemStatus — only one the types have to admit.
+  const s = item.status === null ? NO_VERDICT : STATUS_STYLE[item.status];
   const hot = highlight?.id === item.id;
   // The agent's one sharp question supersedes the raw pill/card rendering: while a
   // question is on the row, THAT is the only thing to answer (DESIGN §7-bis).
@@ -1388,7 +1391,7 @@ function LineItemRow({ item }: { item: LineItem }) {
               gap: 6,
             }}
           >
-            <span className={item.status === "resolving" ? "od-blink" : undefined}>{s.label}</span>
+            <span>{s.label}</span>
             {item.source === "manual" && (
               <span style={{ color: INK_FAINT, fontWeight: 700, letterSpacing: ".06em" }}>· added by hand</span>
             )}
@@ -1469,13 +1472,6 @@ function LineItemRow({ item }: { item: LineItem }) {
         >
           <span aria-hidden style={{ opacity: 0.7 }}>💬</span>
           {item.note}
-        </div>
-      )}
-
-      {item.status === "resolving" && (
-        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-          <div className="od-shimmer" style={{ height: 9, borderRadius: 5, width: "72%" }} />
-          <div className="od-shimmer" style={{ height: 9, borderRadius: 5, width: "44%" }} />
         </div>
       )}
 

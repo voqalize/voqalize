@@ -34,7 +34,6 @@ from voqalize_demos._loaded.orderdesk.brain import (  # noqa: E402
     RowOpened,
     RowQuantity,
     RowQuestion,
-    RowResolving,
     RowVariants,
     SpokenItem,
 )
@@ -43,7 +42,6 @@ from voqalize.sdk import Action, Session  # noqa: E402
 
 _ROW_ACTIONS = [
     RowOpened,
-    RowResolving,
     RowMatched,
     RowFamilies,
     RowVariants,
@@ -173,10 +171,11 @@ async def test_a_quantity_change_moves_the_quantity_and_leaves_the_row_alone() -
 
 
 @pytest.mark.asyncio
-async def test_a_re_resolve_greys_the_row_before_it_settles_it_again() -> None:
-    """A spoken correction is the same two beats as a fresh row: back to grey while
-    the catalog is asked, then the new outcome. Nothing in between describes the row
-    as it was, so the screen never shows the medicine he has just rejected."""
+async def test_a_re_resolve_settles_the_row_and_says_nothing_before_that() -> None:
+    """A spoken correction is one beat, not two. `_resolve_into` is synchronous, so an
+    action announcing the attempt would blank the row for a fraction of a frame and then
+    overwrite itself — the row goes straight from the rejected medicine to the new
+    outcome, and the screen never shows an empty one in between."""
     desk, screen = _desk()
     await desk.add_items([SpokenItem(text="abevia")])
     (row,) = desk.items.values()
@@ -184,6 +183,7 @@ async def test_a_re_resolve_greys_the_row_before_it_settles_it_again() -> None:
 
     fixed = await desk.refine_item(row.id, "abiways")
     assert "error" not in fixed, fixed
-    assert _commands(screen)[0] == "row_resolving"
-    assert isinstance(screen.drawn[0], RowResolving)
-    assert _commands(screen)[-1].startswith("row_")
+    commands = _commands(screen)
+    assert len(commands) == 1, f"a correction should be one action, got {commands}"
+    assert commands[0].startswith("row_")
+    assert commands[0] != "row_opened", "the row already exists; this is a verdict"

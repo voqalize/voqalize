@@ -478,7 +478,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
               spoken_text: row.spoken_text,
               query: row.query,
               quantity: row.quantity,
-              status: "resolving",
+              status: null,
               sku: null,
               family: null,
               source: "agent",
@@ -486,12 +486,6 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
           ],
     );
   }, []);
-
-  /** `row_resolving` — a re-resolve started; the row goes back to grey and empty. */
-  const rowResolving = useCallback(
-    (id: string) => patchRow(id, (it) => ({ ...it, ...SETTLED, status: "resolving", sku: null })),
-    [patchRow],
-  );
 
   const rowMatched = useCallback(
     (row: RowMatched) =>
@@ -624,9 +618,6 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
         case "row_opened":
           rowOpened(action.payload);
           break;
-        case "row_resolving":
-          rowResolving(action.payload.id);
-          break;
         case "row_matched":
           rowMatched(action.payload);
           break;
@@ -668,7 +659,6 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
     },
     [
       rowOpened,
-      rowResolving,
       rowMatched,
       rowFamilies,
       rowVariants,

@@ -6,7 +6,6 @@
  * with a saffron accent (the brand, and every "act now" affordance), and three
  * status colours that carry the whole line-item state machine:
  *
- *     grey  → resolving (the catalog is still thinking)
  *     amber → ambiguous (multi_variant / multi_family — a tap or a word is needed)
  *     green → matched   (locked to a SKU, priced, orderable)
  *
