@@ -39,13 +39,18 @@ run the same guard in-body and answer with the same message.
 **The screen is read, never remembered.** Everything the pharmacist does with his
 thumb — a pill, a brand card, a manual add, a quantity, a delete, Confirm — arrives
 *named*, as one of the typed shapes in :mod:`desk_events` (``li3 quantity set to 5``),
-and moves :class:`OrderDesk` and nothing else. The model sees one line saying *he
-changed something*, and reads the cart itself through :meth:`OrderDesk.read_screen`.
-The old shape put the whole cart in the context on every change — 21 copies in one
-113-second production call, each labelled authoritative, none of them dated — and the
-model reasoned from whichever it noticed. ``OrderDesk.version``, bumped only by his
-edits, is what makes reading-instead-of-remembering enforceable rather than merely
-requested: a tool aimed at a screen he has changed since the last read refuses.
+and moves :class:`OrderDesk` and nothing else. The model sees one line naming what
+changed, and reads the rest of the cart through :meth:`OrderDesk.read_screen` when it
+needs it. The old shape put the whole cart in the context on every change — 21 copies
+in one 113-second production call, each labelled authoritative, none of them dated —
+and the model reasoned from whichever it noticed.
+
+What keeps the model off a stale row is not a gate but the tool signatures. Every row
+tool takes the product name as well as the id and resolves it through
+:meth:`OrderDesk._row_for` against the cart as it stands, so the one translation the
+model could get wrong — a name it heard into an id it remembered — is a translation it
+never performs. A name that no longer names one row comes back as an error saying so,
+which is more useful than a refusal, because it names the rows that do exist.
 
 There is no snapshot behind those events. ``state_sync`` — a whole cart, debounced —
 is gone in both directions, and so is everything the browser grew to defend itself
@@ -115,10 +120,10 @@ LANGUAGE — TOOL ARGUMENTS ARE ENGLISH, ALWAYS:
 
 THE SCREEN — READ IT, NEVER REMEMBER IT:
 - Nothing in this conversation is a picture of his screen. read_screen() is the only one. It is free and silent: it takes no floor, says nothing, and moves nothing.
-- Call read_screen BEFORE you act on anything he points at — "दूसरा वाला", "वो वाला", "टेल्मा हटा दो", a quantity change, a removal, a variant swap. The row ids and quantities you saw earlier may have moved since.
+- You never have to remember a row id. Every row tool takes the product name as well as the id and resolves it against the screen as it stands right now, so an edit cannot land on a row he has moved since — if the name no longer names one row you are told exactly that, with the ids that do exist.
+- Call read_screen when you need the screen ITSELF: anything positional ("दूसरा वाला", "वो वाला"), or when you want the rows he has that you were never told about.
 - You do not need it right after your own tool call. Your own tools tell you what they did; only HIS edits change the screen behind your back.
-- When you are told he changed something himself, read_screen and then act. You are told THAT he changed it, never what it now says.
-- If a tool refuses because the screen moved under you, that is not something to report or apologise for — call read_screen and make the call again.
+- When you are told he changed something himself, you are told which row and what it now says. Act on that directly — read_screen only if you need more of the screen than the one line gave you.
 
 THE TTS CANNOT PRONOUNCE MEDICINE NAMES. This is the single most important speaking rule:
 - Minimise saying brand names out loud. The screen already shows them, spelled correctly.
@@ -161,7 +166,7 @@ CORRECTIONS:
 - A QUANTITY TWEAK IS NEVER A RE-ADD. An absolute number ("बारह कर दो") is set_quantity; a relative one ("दस और डाल दो", "थोड़ा कम कर दो", "double कर दो") is adjust_quantity with a delta — plus ten is 10, "ten less" is -10. If he wants none of it, that is remove_items, not a delta down to zero.
 - A VARIANT SWAP IS NEVER A RE-ADD EITHER. The brand is already right and only the variant is wrong ("ऑइंटमेंट वाला कर दो", "सौ ग्राम वाला", "फोर्टी कर दो") → change_variant on that row, with the variant in English ("ointment", "100 gm", "40 mg"). It stays inside the brand already on the row and keeps the quantity. Never remove the row and add it again — he loses his place on the screen.
 - If you do not have the row id to hand, pass the product name instead of the id — every row tool accepts either. If the name matches two rows you will be told so; ask him which one rather than guessing.
-- By hand: he also taps the screen — picks a pill, edits a quantity, deletes a row, adds something from the search bar. You are told that he changed something; read_screen to see what it is now. Acknowledge in three words if it is worth acknowledging ("देख लिया") and NEVER redo what he already did himself.
+- By hand: he also taps the screen — picks a pill, edits a quantity, deletes a row, adds something from the search bar. You are told which row he changed and what it now says; read_screen only if you need more than that. Acknowledge in three words if it is worth acknowledging ("देख लिया") and NEVER redo what he already did himself.
 
 THE REGULAR ORDER:
 - If he says "मेरा रेगुलर ऑर्डर लगा दो" or similar, do NOT make him list it. Take his usual items from the PHARMACY CONTEXT (usual_items, else order_history) and add them in ONE add_items call, with the quantities from history. Then say in one line that his usual basket is on screen and ask what to change.
@@ -194,21 +199,15 @@ _PENDING_HEADER = (
     "PENDING (rows still waiting on you — ask ONE short question each, about the named axes only): "
 )
 
-# What a desk event puts in front of the model. It names *what* he changed and
-# nothing else: the screen itself is read through `read_screen`, so this line is a
-# nudge, never a picture. Carrying values here is how the old screen dump started.
+# What a desk event puts in front of the model: the row he touched and what it now
+# says, and nothing about any other row. One line per gesture is not the old screen
+# dump — what made that a dump was carrying the whole cart, not carrying a value.
 _CHANGE_HEADER = "THE PHARMACIST JUST CHANGED THE SCREEN HIMSELF: "
-_CHANGE_FOOTER = ". Call read_screen() before you act on any row."
 
 # How a `SkuChosen` reads back to the model. Three gestures put one medicine on one
 # row, and which one he used is the difference between "that's the one I offered you"
 # and "you changed your mind about a row that was already settled".
 _CHOSE = {"pill": "picked", "variant": "switched to", "search": "picked out of search:"}
-
-_STALE_SCREEN = (
-    "He has changed the screen since you last read it, so this is refused — the row ids and "
-    "quantities you are working from may no longer be right. Call read_screen() and try again."
-)
 
 # Spoken instantly at session start, before the model has produced a token.
 _HELLO = hello_for(LANGUAGE)
@@ -654,7 +653,6 @@ class OrderDesk:
         # so a model that just moved a row itself is not sent back to re-read it. That
         # is what keeps the read conditional rather than a hop on every turn.
         self.version = 0
-        self._read_version = 0
         self._changes: list[str] = []
 
     @property
@@ -741,11 +739,15 @@ class OrderDesk:
         return row
 
     def _note_change(self, text: str) -> None:
-        """Record something the pharmacist did, and put the model out of date.
+        """Record something the pharmacist did, in words that name it completely.
 
         Only his edits land here. A change this brain made itself is already in the
         tool result the model just read, so re-reporting it would send the model
-        back to the screen for news it already has."""
+        back to the screen for news it already has.
+
+        ``version`` moves with it. Nothing gates on that any more — it is the count of
+        how often he reached past the agent, which is worth a log line and worth
+        watching, and it is not worth a hop."""
         self.version += 1
         self._changes.append(text)
 
@@ -1272,29 +1274,17 @@ class OrderDesk:
         if not self._changes:
             return None
         changes, self._changes = self._changes, []
-        return _CHANGE_HEADER + "; ".join(changes) + _CHANGE_FOOTER
-
-    def _stale(self) -> dict[str, Any] | None:
-        """Refuse a tool aimed at a screen the pharmacist has changed since the model
-        last read it.
-
-        This is the enforcement, and it is deliberately not prompt text: a model that
-        does not re-read is now holding row ids and quantities that may name the wrong
-        medicine. It is also why the read is cheap — the version only moves when *he*
-        edits, so the common turn, where nothing changed, pays nothing at all."""
-        if self._read_version == self.version:
-            return None
-        return {"error": _STALE_SCREEN, "screen_version": self.version}
+        return _CHANGE_HEADER + "; ".join(changes) + "."
 
     async def read_screen(self) -> dict[str, Any]:
         """What is on his screen right now: every row, its quantity, and what each
         unresolved row is still waiting on.
 
-        Call it before acting on anything he points at ("the second one", "that one",
-        "the Dolo"), and whenever you are told he changed the screen himself. It is
-        free — it reads this session's own state, takes no floor, says nothing, and
-        moves nothing on screen."""
-        self._read_version = self.version
+        Call it for anything positional — "the second one", "that one" — where only
+        the order of the rows can tell you which he means. You do NOT need it to act
+        on a row he named: pass "the Dolo" to the tool itself and it resolves the name
+        against these same rows. It is free — it reads this session's own state, takes
+        no floor, says nothing, and moves nothing on screen."""
         rows = [
             {
                 "id": row.id,
@@ -1312,7 +1302,6 @@ class OrderDesk:
             "items": rows,
             "item_count": len(rows),
             "pending": self.pending(),
-            "screen_version": self.version,
         }
 
     async def add_items(self, items: list[SpokenItem]) -> dict[str, Any]:
@@ -1346,8 +1335,6 @@ class OrderDesk:
         Args:
             items: The products he just named, in spoken order.
         """
-        if stale := self._stale():
-            return stale
         briefs: list[dict[str, Any]] = []
         for item in items:
             if (existing := self._find_duplicate(item.text)) is not None:
@@ -1411,8 +1398,6 @@ class OrderDesk:
                 the id, e.g. "abevia". If the name matches two rows you will be told so.
             query: The corrected product name in English letters, e.g. "abiways".
         """
-        if stale := self._stale():
-            return stale
         if problem := _check_english("query", query):
             return {"error": problem}
         # By name as well as by id: this is the tool a spoken correction reaches for,
@@ -1456,8 +1441,6 @@ class OrderDesk:
             question: The question as the screen shows it, short English, e.g. "Which Telma line?".
             choices: 2-4 groups, each a short English label plus the candidate codes it keeps.
         """
-        if stale := self._stale():
-            return stale
         if problem := _check_english("question", question):
             return {"error": problem}
         row = self.items.get(item_id)
@@ -1555,8 +1538,6 @@ class OrderDesk:
             sku_code: The chosen SKU's catalog code.
             quantity: Strips/packs, if he said one.
         """
-        if stale := self._stale():
-            return stale
         if problem := _check_english("sku_code", sku_code):
             return {"error": problem}
         row = self.items.get(item_id)
@@ -1595,8 +1576,6 @@ class OrderDesk:
                 so — ask him which one instead of guessing.
             quantity: The new number of strips/packs/bottles.
         """
-        if stale := self._stale():
-            return stale
         row = self._row_for(item_id)
         if row is None:
             return self._ref_error(item_id)
@@ -1619,8 +1598,6 @@ class OrderDesk:
                 so — ask him which one instead of guessing.
             delta: How many strips/packs to add (positive) or drop (negative).
         """
-        if stale := self._stale():
-            return stale
         row = self._row_for(item_id)
         if row is None:
             return self._ref_error(item_id)
@@ -1656,8 +1633,6 @@ class OrderDesk:
                 the id, e.g. "volini". If the name matches two rows you will be told so.
             want: The variant he asked for, in English letters, e.g. "ointment", "100 gm".
         """
-        if stale := self._stale():
-            return stale
         if problem := _check_english("want", want):
             return {"error": problem}
         row = self._row_for(item_id)
@@ -1733,8 +1708,6 @@ class OrderDesk:
                 do not have the ids, e.g. ["volini"]. If one of them matches two rows,
                 NOTHING is removed and you are told which — ask him which one he meant.
         """
-        if stale := self._stale():
-            return stale
         rows: list[LineItemView] = []
         for ref in item_ids:
             row = self._row_for(ref)
@@ -1761,8 +1734,6 @@ class OrderDesk:
                 the id, e.g. "4 quin". If the name matches two rows you will be told so.
             note: A very short English note shown on the row, e.g. "drops or ointment?".
         """
-        if stale := self._stale():
-            return stale
         if note is not None and (problem := _check_english("note", note)):
             return {"error": problem}
         row = self._row_for(item_id)
@@ -1904,11 +1875,9 @@ class OrderDeskBrain(GeminiBrain):
 
         What used to sit here was a whole cart on every change: one production call put
         21 full carts, ~4,700 tokens, in front of the model in 113 seconds, each copy
-        labelled *authoritative* with nothing saying which was current. The model reads
-        the cart through ``read_screen`` instead, which is local and free, and
-        ``desk.version`` makes that safe rather than hopeful — a tool aimed at a screen
-        he has changed since the model last read it refuses instead of acting on a
-        stale row id.
+        labelled *authoritative* with nothing saying which was current. This line names one
+        row, and ``read_screen`` — local, free, silent — is there for when the model
+        wants the rest.
 
         Floor-free, like everything else on this envelope: a thumb on the screen never
         makes the agent start talking over him."""

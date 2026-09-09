@@ -136,7 +136,6 @@ async def test_a_question_put_on_a_row_says_only_that() -> None:
     codes = [sku.code for sku in row.candidates]
     assert brief["candidate_count"] >= 5, "need a row wide enough for a table"
 
-    await desk.read_screen()
     screen.drawn.clear()
     asked = await desk.ask_choice(
         row.id,
@@ -162,7 +161,6 @@ async def test_a_quantity_change_moves_the_quantity_and_leaves_the_row_alone() -
     desk, screen = _desk()
     await desk.add_items([SpokenItem(text="telma 40", quantity=2)])
     (row,) = desk.items.values()
-    await desk.read_screen()
     screen.drawn.clear()
 
     await desk.set_quantity(row.id, 7)
@@ -182,7 +180,6 @@ async def test_a_re_resolve_greys_the_row_before_it_settles_it_again() -> None:
     desk, screen = _desk()
     await desk.add_items([SpokenItem(text="abevia")])
     (row,) = desk.items.values()
-    await desk.read_screen()
     screen.drawn.clear()
 
     fixed = await desk.refine_item(row.id, "abiways")

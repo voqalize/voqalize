@@ -71,7 +71,6 @@ async def test_a_brand_picked_by_thumb_is_a_brand_the_voice_path_can_use() -> No
     assert [sku.code for sku in (row.variants or row.candidates)] == ring
     assert "variant_label" not in row.differing_axes, "asking about what they agree on"
 
-    await desk.read_screen()
     settled = await desk.change_variant(row.id, "5 gm")
     assert "error" not in settled, settled
     assert row.status == "matched"
@@ -94,7 +93,6 @@ async def test_the_narrowed_row_is_reported_as_narrowed_not_as_empty() -> None:
     assert f"narrowed to {len(ring)}" in (desk.pending() or "")
     assert f"narrowed to RING by hand — {len(ring)} left" in (desk.take_changes() or "")
 
-    await desk.read_screen()
     split = await desk.ask_choice(
         row.id,
         "Which pack?",
@@ -160,7 +158,6 @@ async def test_a_row_already_waiting_on_an_answer_is_not_handed_its_table_again(
     assert brief["candidates"], "the first briefing is the table"
 
     codes = [sku.code for sku in row.candidates]
-    await desk.read_screen()
     asked = await desk.ask_choice(
         row.id,
         "Which Telma line?",

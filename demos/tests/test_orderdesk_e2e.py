@@ -110,9 +110,12 @@ async def test_a_manual_edit_is_announced_but_never_dumped() -> None:
     A production call put twenty-one full carts in front of the model in 113
     seconds, each labelled authoritative and none of them dated, and the model
     reasoned from whichever it noticed. So the event lands in the desk and stops:
-    the context gets one line naming what he did and pointing at ``read_screen``,
-    with none of the row's contents in it. Both halves are asserted — a note
-    carrying the row's SKU would be the old dump again, one line at a time."""
+    the context gets one line naming the row he touched and what it now says, with
+    nothing about any other row in it. Both halves are asserted — a note carrying the
+    row's SKU *code* would be the old dump again, one line at a time.
+
+    It also does not send the model to ``read_screen``. It used to, in its own footer,
+    and that cost a hop to be told what the line had just said."""
     llm = _llm()
     async with demo("orderdesk", llm) as rig:
         await rig.driver.start_session()
@@ -130,18 +133,25 @@ async def test_a_manual_edit_is_announced_but_never_dumped() -> None:
         p.text or "" for c in llm.captured_contents[-1] for p in (c.parts or []) if c.role == "user"
     )
     assert "m1" in grounded and "added by hand" in grounded
-    assert "read_screen" in grounded
+    assert "read_screen" not in grounded, "the note is spending a hop on what it just said"
     assert "J0029363" not in grounded, "the change note is carrying the row"
     assert "CURRENT ORDER SCREEN" not in grounded, "the screen dump is back"
 
 
-async def test_a_tool_aimed_at_a_screen_he_changed_is_refused_until_it_is_read() -> None:
-    """The version gate, which is what makes read-don't-remember enforceable.
+async def test_a_row_he_took_away_answers_with_the_rows_that_are_left() -> None:
+    """What stands where the version gate stood.
 
-    A model that skips the read is holding row ids from before his edit — and on
-    this screen a stale id is a different medicine, not a stale label. So the
-    desk refuses instead of acting, and the refusal is retriable: read, then act.
-    The scripted model here does exactly the wrong thing first."""
+    The gate refused *every* tool after *any* hand edit, so a model that had just been
+    told "li1 removed by hand" still paid a hop to read that back. It was standing in
+    for one real hazard: a name the model heard, translated into an id it remembered,
+    aimed at a row that is no longer the medicine it was.
+
+    The tool signatures already retire that hazard. Every row tool resolves its
+    reference here, against the cart as it stands — so the translation the model could
+    get wrong is one it never performs, and a reference that no longer names a row
+    comes back saying which rows there are. That is a better answer than a refusal: it
+    names the way forward instead of only naming the problem, and it costs the model
+    nothing on the far more common turn where he has changed nothing at all."""
     llm = ScriptedGemini(
         {
             "Telma 40 ki do strip de do.": [
@@ -153,10 +163,10 @@ async def test_a_tool_aimed_at_a_screen_he_changed_is_refused_until_it_is_read()
                 reply("Telma 40 jud gaya."),
             ],
             "Ab Telma hata do.": [
-                call("remove_items", item_ids=["li1"]),  # stale — he has edited since
-                call("read_screen"),
-                reply_and_call("Theek hai.", "remove_items", item_ids=["li1"]),
-                reply("Telma hata diya."),
+                # He deleted it with his thumb between the two turns, so this id is
+                # from before. The desk does not refuse it — it says what is there.
+                call("remove_items", item_ids=["li1"]),
+                reply("Woh to aapne khud hata diya."),
             ],
             "Bas itna hi.": reply("Theek hai, confirm kar dijiye."),
         }
@@ -166,10 +176,8 @@ async def test_a_tool_aimed_at_a_screen_he_changed_is_refused_until_it_is_read()
         await rig.driver.user_says("Telma 40 ki do strip de do.")
 
         await rig.driver.send_ui_event("row_added", _MANUAL_ROW)
+        await rig.driver.send_ui_event("row_removed", {"item_id": "li1"})
         await rig.driver.user_says("Ab Telma hata do.")
-
-        removed = rig.command("remove_items")
-        assert removed["ids"] == ["li1"]
 
         # One more turn, so the turn above's hops are in the context being asserted:
         # under automatic function calling a whole turn is one request, and its tool
@@ -182,7 +190,9 @@ async def test_a_tool_aimed_at_a_screen_he_changed_is_refused_until_it_is_read()
         for p in (c.parts or [])
         if p.function_response is not None
     )
-    assert "changed the screen since you last read it" in results
+    assert "none of those ids are on the order" in results
+    assert "'known_ids': ['m1']" in results, "the error did not name the row that is there"
+    assert "changed the screen since you last read it" not in results, "the gate is back"
 
 
 async def test_naming_something_already_on_the_order_lands_on_that_row() -> None:

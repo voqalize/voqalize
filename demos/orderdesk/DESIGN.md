@@ -251,11 +251,17 @@ matched ⇒ `{status:"matched", name, pack_size, mrp, scheme}`; not_found ⇒ su
 - Session payload (from frontend `buildBrainPayload`) → system instruction at session start,
   sugar-style: scenario JSON appended as `PHARMACY CONTEXT (authoritative...)`.
 - **The screen is read, never remembered.** A desk event moves `OrderDesk` and stops there; the
-  context gets one line naming what the pharmacist changed by hand, never the cart. The model
-  reads the cart through the `read_screen` tool (rows,
-  quantities, and the `PENDING:` line of unresolved ids/questions). `OrderDesk.version` is
-  bumped only by his edits, and every mutating tool refuses on a version staler than the last
-  `read_screen` — so the extra hop is paid only when he has actually moved something.
+  context gets one line naming the row he changed by hand and what it now says, never the cart.
+  The model reads the rest through the `read_screen` tool (rows, quantities, and the `PENDING:`
+  line of unresolved ids/questions) when it needs it — positional references above all, since
+  only the row order can settle "the second one".
+- **A stale row id is designed out, not gated out.** Every row tool takes the product name as
+  well as the id and resolves it through `_row_for` against the cart as it stands, so the model
+  never performs the name→id translation it could get wrong; a reference that no longer names one
+  row comes back naming the rows that do exist. There was a version gate here until 2026-09-09 —
+  every mutating tool refused after any hand edit until the model re-read — and it was charging a
+  full hop (~1.15 s) per edit to re-establish what the change note had already said, for a hazard
+  the tool signatures had already retired. `OrderDesk.version` survives it as a log field.
 - `on_rtvi`, floor-free throughout: one `DESK_EVENTS.parse`, then a `match` — `catalog_searched`
   and `variants_opened` answer with a session-scoped action, everything else moves the mirror. It
   never calls `super()`: there is nothing on a second envelope to fall through to.
