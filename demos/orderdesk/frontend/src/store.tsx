@@ -8,10 +8,11 @@
  *     brain.py's six `Action` classes, so a payload needs no coercion and the
  *     `default` arm is an exhaustiveness check — and line items appear as free
  *     text, resolve, and settle on a SKU;
- *   - `snapshot()` goes back out as `state_sync` (`{ screen: OrderSnapshot }`) on
- *     every `rev` bump, so the agent's grounding always shows the *authoritative*
- *     cart — including everything the pharmacist tapped by hand (a variant pill,
- *     a quantity, a delete, a manual search add, Confirm).
+ *   - every gesture the pharmacist makes goes out *named*, as a typed
+ *     {@link DeskEvent} — `quantity_set`, `sku_chosen`, `row_removed` — the instant
+ *     he makes it, so the agent is told what he did rather than left to spot it in
+ *     a cart. `snapshot()` still goes out as `state_sync` (`{ screen: OrderSnapshot }`)
+ *     on every `rev` bump, debounced, as the repair channel behind them.
  *
  * The cart is keyed by line-item id: the brain numbers its own rows (`li1`…) and
  * re-sends each row's full render state, which this store diffs in by id; rows the
@@ -31,7 +32,7 @@ import {
   type ReactNode,
 } from "react";
 import { buildBrainPayload, pharmacyById, scenarioById } from "./data";
-import { CLIENT_MESSAGE } from "./clientMessages";
+import { CLIENT_MESSAGE, sendDeskEvent, type AgentSend, type DeskEvent } from "./clientMessages";
 import { asUiAction, unhandledUiAction } from "./actions.gen";
 import type {
   DisambigChoice,
@@ -43,8 +44,6 @@ import type {
   Scenario,
   SkuWire,
 } from "./types";
-
-type AgentSend = ((type: string, data: unknown) => void) | null;
 
 /**
  * A line item as this screen holds it: the brain's render state plus the two
@@ -457,6 +456,29 @@ function ambiguousCodes(it: LineItemView): string[] {
   return pool.map((s) => s.code);
 }
 
+/**
+ * What a local narrowing tap *was*, told apart by where it left the row.
+ *
+ * `applyChoice` and `applyFamily` both have three outcomes, and only two of them
+ * are a narrowing: a tap that leaves exactly one SKU standing has settled the row,
+ * and reporting that as "narrowed to 1" would be describing the arithmetic instead
+ * of the act. So a settling tap is a `sku_chosen` like any other pill, and only a
+ * tap that genuinely left a choice open reports what survived it.
+ */
+export function tapEvent(
+  before: LineItem,
+  after: LineItem,
+  narrowed: (survivingCodes: string[]) => DeskEvent,
+): DeskEvent {
+  if (after.status === "matched" && after.sku && after.sku.code !== before.sku?.code) {
+    return {
+      t: "sku_chosen",
+      d: { item_id: after.id, sku_code: after.sku.code, sku_name: after.sku.name, via: "pill" },
+    };
+  }
+  return narrowed(ambiguousCodes(after));
+}
+
 function orderNumber(seq: number): string {
   const now = new Date();
   const hhmm = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
@@ -491,6 +513,13 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
 
   const pharmacy = scenario ? pharmacyById(scenario.pharmacy_id) : null;
   const bump = useCallback(() => setRev((r) => r + 1), []);
+
+  /**
+   * Tell the brain what he just did, the instant he does it. Silent by design —
+   * before the call is live there is nobody to tell, and the `state_sync` that
+   * fires on connect carries the whole cart anyway.
+   */
+  const emit = useCallback((event: DeskEvent) => sendDeskEvent(agentSendRef.current, event), []);
 
   // ── Navigation ──────────────────────────────────────────────────────────
   const startScenario = useCallback((scenarioId: string) => {
@@ -661,6 +690,10 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
 
   const choosePill = useCallback(
     (itemId: string, sku: SkuWire) => {
+      emit({
+        t: "sku_chosen",
+        d: { item_id: itemId, sku_code: sku.code, sku_name: sku.name, via: "pill" },
+      });
       setItems((prev) =>
         prev.map((it) =>
           it.id === itemId
@@ -681,16 +714,30 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       );
       bump();
     },
-    [bump],
+    [bump, emit],
   );
 
   /**
-   * A tap on a question pill ({@link applyChoice}). `rev` bumps either way, so
-   * `state_sync` carries the surviving `candidate_codes` — that is how the agent
-   * *sees* the tap and knows what to ask next.
+   * A tap on a question pill ({@link applyChoice}). Local-first, so the row moves
+   * before the agent knows — and {@link tapEvent} is what tells it *what he did*
+   * rather than leaving it to spot a smaller candidate set in the next snapshot.
    */
   const chooseChoice = useCallback(
     (itemId: string, choice: DisambigChoice) => {
+      const cur = items.find((it) => it.id === itemId);
+      if (cur) {
+        emit(
+          tapEvent(cur, applyChoice(cur, choice), (surviving_codes) => ({
+            t: "question_answered",
+            d: {
+              item_id: itemId,
+              question: cur.question?.text ?? "",
+              answer: choice.label,
+              surviving_codes,
+            },
+          })),
+        );
+      }
       setItems((prev) =>
         prev.map((it) =>
           it.id === itemId ? { ...applyChoice(it, choice), nonce: ++nonceRef.current } : it,
@@ -698,7 +745,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       );
       bump();
     },
-    [bump],
+    [bump, emit, items],
   );
 
   const runCatalogSearch = useCallback((query: string) => {
@@ -764,6 +811,12 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
         chooseFamily(itemId, family);
         return;
       }
+      emit(
+        tapEvent(row, applyFamily(row, family), (surviving_codes) => ({
+          t: "family_chosen",
+          d: { item_id: itemId, family, surviving_codes },
+        })),
+      );
       setItems((prev) =>
         prev.map((it) =>
           it.id === itemId ? { ...applyFamily(it, family), nonce: ++nonceRef.current } : it,
@@ -771,7 +824,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       );
       bump();
     },
-    [bump, chooseFamily, items],
+    [bump, chooseFamily, emit, items],
   );
 
   // ── Inline variant edit ─────────────────────────────────────────────────
@@ -799,6 +852,10 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
    */
   const pickVariant = useCallback(
     (itemId: string, sku: SkuWire) => {
+      emit({
+        t: "sku_chosen",
+        d: { item_id: itemId, sku_code: sku.code, sku_name: sku.name, via: "variant" },
+      });
       setItems((prev) =>
         prev.map((it) =>
           it.id === itemId
@@ -823,13 +880,17 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       setVariantStrip(null);
       bump();
     },
-    [bump],
+    [bump, emit],
   );
 
   const pickFromSearch = useCallback(
     (sku: SkuWire) => {
       const target = searchTarget;
       if (target) {
+        emit({
+          t: "sku_chosen",
+          d: { item_id: target, sku_code: sku.code, sku_name: sku.name, via: "search" },
+        });
         setItems((prev) =>
           prev.map((it) =>
             it.id === target
@@ -853,6 +914,16 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
         );
       } else {
         const id = `m${++manualSeqRef.current}`;
+        emit({
+          t: "row_added",
+          d: {
+            item_id: id,
+            sku_code: sku.code,
+            sku_name: sku.name,
+            query: searchQuery.trim(),
+            quantity: 1,
+          },
+        });
         setItems((prev) => [
           ...prev,
           {
@@ -879,25 +950,31 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       closeSearch();
       bump();
     },
-    [bump, closeSearch, searchQuery, searchTarget],
+    [bump, closeSearch, emit, searchQuery, searchTarget],
   );
 
   const setQuantity = useCallback(
     (itemId: string, quantity: number) => {
       const q = Math.max(1, Math.min(999, Math.round(quantity)));
+      emit({ t: "quantity_set", d: { item_id: itemId, quantity: q } });
       setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, quantity: q } : it)));
       bump();
     },
-    [bump],
+    [bump, emit],
   );
 
   const removeItem = useCallback(
     (itemId: string) => {
+      const gone = items.find((it) => it.id === itemId);
+      emit({
+        t: "row_removed",
+        d: { item_id: itemId, spoken_text: gone?.spoken_text ?? "" },
+      });
       setItems((prev) => prev.filter((it) => it.id !== itemId));
       setVariantStrip((cur) => (cur && cur.itemId === itemId ? null : cur));
       bump();
     },
-    [bump],
+    [bump, emit, items],
   );
 
   const blockedIds = useMemo(() => items.filter((it) => !isReady(it)).map((it) => it.id), [items]);
@@ -909,10 +986,19 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
 
   const confirmOrder = useCallback(() => {
     if (items.length === 0 || blockedIds.length > 0 || confirmed) return;
+    const orderNumberNow = orderNumber(++orderSeqRef.current);
     setConfirmed(true);
-    setOrderNo(orderNumber(++orderSeqRef.current));
-    bump(); // state_sync carries `screen: "confirmed"` — the agent closes on it
-  }, [blockedIds.length, bump, confirmed, items.length]);
+    setOrderNo(orderNumberNow);
+    emit({
+      t: "order_confirmed",
+      d: {
+        order_no: orderNumberNow,
+        item_count: items.length,
+        total_mrp: items.reduce((sum, it) => sum + (it.sku ? it.sku.mrp * (it.quantity ?? 0) : 0), 0),
+      },
+    });
+    bump(); // `state_sync` still carries `screen: "confirmed"` behind this
+  }, [blockedIds.length, bump, confirmed, emit, items]);
 
   /**
    * The authoritative cart, exactly as `OrderSnapshot` (types.ts / DESIGN §3).

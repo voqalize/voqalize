@@ -148,16 +148,43 @@ All strings on the wire are **English only** (screen is always English).
 | `show_variants` | `item_id: string; family: string; results: SkuWire[]; differing_axes: string[]` | reply to `list_variants` — the siblings for one row's inline **Change variant** strip (`results` capped at 24, `differing_axes` labels the pills) |
 | `order_note` | `text: string` | one-line banner (e.g. scheme/stock callout) |
 
-### Browser → brain (silent client messages)
+### Browser → brain: typed events (`backend/desk_events.py` ↔ `frontend/src/clientMessages.ts`)
+
+Everything the pharmacist does with his thumb goes out **named and id-addressed**, the instant he
+does it — the mirror of the Actions above. `DeskEvent` subclasses take their wire name from the
+class name exactly as `Action` does, and an unknown name or a payload that does not fit is logged
+and dropped, never raised: a browser one deploy ahead must degrade to `state_sync`, not end the call.
+
+| wire name | fields | the gesture |
+|---|---|---|
+| `sku_chosen` | `item_id; sku_code; sku_name; via: "pill" \| "variant" \| "search"` | he put one medicine on one row. `via` is which control he used — "that's the one I offered you" and "you changed your mind about a settled row" are different things to say back |
+| `row_added` | `item_id; sku_code; sku_name; query; quantity` | a row he minted himself out of the search panel (`m1`…) |
+| `row_removed` | `item_id; spoken_text` | he deleted a row. Carries the name because the mirror has nothing left to look it up from |
+| `question_answered` | `item_id; question; answer; surviving_codes` | he tapped a pill on the agent's question. Only when a choice is left standing — a tap that settles the row is a `sku_chosen` |
+| `family_chosen` | `item_id; family; surviving_codes` | he picked a brand card. Nobody asked, so it is not an answer |
+| `quantity_set` | `item_id; quantity` | he typed or stepped a quantity |
+| `order_confirmed` | `order_no; item_count; total_mrp` | he tapped Confirm |
+
+`surviving_codes` only ever **narrows** a row: the candidate set is the brain's fact, and a code the
+row never held is ignored. Being told a set does not make it authoritative.
+
+Receiving an event does not oblige the brain to do anything with it. `OrderDeskBrain._on_desk_event`
+moves the mirror and lets the change note carry the sentence into context on the next turn; another
+brain may inject it as speech, drive its own model, or drop it.
+
+### Browser → brain: `state_sync`, the repair channel (deprecated as the news)
 - `state_sync` `{ screen: OrderSnapshot }` — debounced 250 ms, on connect + every store `rev` bump.
   ```ts
   OrderSnapshot = { screen: "order" | "confirmed";
     items: { id; spoken_text; status; sku_code; sku_name; pack_size; quantity; source }[];
     total_mrp: number; item_count: number; confirmed: boolean }
   ```
-  Browser snapshot is the **authoritative cart** (travel pattern) — it also carries manual taps
-  (pill choice, manual add, qty edit, delete, confirm). Pill tap = frontend locally promotes the
-  item to `matched` using the candidate SkuWire it already holds, bumps rev.
+  Still the **authoritative cart**, and still what a reconnect resyncs from. But it names no change,
+  so `OrderDesk.absorb` has to infer which act produced the difference — and by the time it lands
+  the event has already applied it, so its diff finds nothing and one thumb is one line in context.
+  That idempotence is what makes an event dropped on the wire a 250 ms delay rather than a loss.
+
+### Browser → brain: requests (silent client messages)
 - `catalog_search` `{ query: string }` — manual search bar keystrokes (debounced ~300 ms, ≥2 chars).
   Brain answers floor-free with a `show_search_results` action (session-scoped, no speech).
 - `list_variants` `{ item_id: string, family: string }` — the **Change variant** control on a
@@ -165,11 +192,11 @@ All strings on the wire are **English only** (screen is always English).
   speech — a tap must never make the agent talk over him). Empty `results` is a legitimate answer,
   same contract as the search bar; the brain never raises here. The row is untouched until he
   picks: the pick is a local re-lock (new `sku`, **quantity preserved**, `pinned`, rev bump), and
-  the agent learns of it through `state_sync`'s `sku_code` (§7-bis, absorb).
+  the agent learns of it as `sku_chosen` with `via: "variant"` (§7-bis, absorb).
 
 ### Confirm
 Manual only. Confirm button enables when every item is `matched` with quantity ≥ 1 (blocked rows
-listed). Tap → store sets `confirmed: true`, state_sync fires, UI shows order-placed screen
+listed). Tap → store sets `confirmed: true`, `order_confirmed` fires, UI shows order-placed screen
 (order no. `MS-<hhmm>-<n>`). Agent sees `screen:"confirmed"` in grounding and closes in one line
 when it next speaks.
 
