@@ -290,6 +290,41 @@ derived from this tree; they carry the command that re-earns the stamp, and
 want the retired synonyms too — mostly ordinary English, so it is advisory and a
 person reads it.
 
+## Standing direction: the app→brain leg is a platform gap, not a demo problem
+
+Recorded verbatim (corrected for grammar) on 2026-09-09, and binding on anything
+that touches the screen↔voice seam:
+
+> This is the crux, isn't it? The root cause of state mismatch is a coarse full-state
+> push. This also causes context bloat and reconciliation errors.
+>
+> Let's step back and fix this the right way. The right way is to send small,
+> incremental and *semantic* updates to the brain. This then plays nicely with the
+> LLM context as well — because the LLM sees "Change quantity for volini to 3" or
+> "Selected variant 150g from Volini gel" or similar, along with id information.
+>
+> And this opens up the other question as well — are we doing typed updates in the
+> UI → brain direction? Because this change requires it, and if our infrastructure
+> doesn't provide it, it is a gap.
+>
+> So I want to zoom out and solve the larger problem first. As always, demos are a
+> way to get to the root of the issue at the platform level — always remember that.
+> We cannot brush this off as a demo issue (we own them). Ask the five whys — and ask
+> specifically what the platform should do so that they become cheaper in the client
+> implementation.
+
+**A demo defect is a platform question until proven otherwise.** The demos are ours;
+a workaround written inside one is a bill the next developer pays in full, and the
+same workaround appearing in two demos is a feature the SDK owes them.
+
+The asymmetry this names, as the tree stands: brain→app is `Action` — a pydantic
+class whose fields are the payload, `extra="forbid"`, wire name derived from the
+class name, JSON Schema exported so the TypeScript half is *generated*. app→brain is
+`RTVIMessage.data: Any`, an untyped JSON dict the developer digs through by string
+key. `demos/orderdesk/frontend/src/clientMessages.ts` says it out loud: the brain→app
+half "is generated … nothing about it is written down twice. These three are this
+side's own, so they are."
+
 ## Hard rules
 
 - Python 3.12, uv, ruff, pyright, pytest. pnpm for the frontends.
