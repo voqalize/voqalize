@@ -1,6 +1,6 @@
 ---
 title: Recordings
-description: Off by default, decided per call, one audio track per side. Who is allowed to turn recording on, and why a publishable key is not.
+description: Off by default, decided per call, one audio track per role. Who is allowed to turn recording on, why a publishable key is not, and what each recording state says is in storage.
 ---
 
 Recording is **off by default** and is decided for each call, at the moment the
@@ -39,19 +39,54 @@ See [keys and authentication](/build/keys/).
 
 ## What you get back
 
-`get_recordings(tenant, session_id)` returns one track **per side**: `role` is
-`user` (the caller's microphone) or `agent` (what was spoken back).
+`get_recordings(tenant, session_id)` returns one entry **per role**: `role` is
+`user` (the caller's microphone) or `agent` (what was spoken back). Every role
+reports one entry, whatever happened to it.
 
 Separate tracks let you inspect the caller and agent channels independently. This
 distinguishes missing agent audio from missing caller audio.
 
-Each track carries its state, duration, size, content type, and a
+Each entry carries its state, duration, size, content type, and a
 `failure_reason` if it has one.
+
+## Recording runs in two passes
+
+During the session the node writes the raw RTP of both tracks to disk, undecoded
+— no codec work and no timestamp arithmetic on the call path. At teardown it
+renders one WebM track per role, `user.webm` and `agent.webm`, each running from
+the session's start to its end: gaps are padded with silence and the two tracks
+are sample-aligned, so both come out the same length and one offset names the
+same instant in both.
+
+The raw capture uploads beside the tracks as `capture.tar.gz` —
+`capture-user.rtpcap`, `capture-agent.rtpcap`, `events.jsonl` and `render.json`
+— so a recording can be rendered again later.
+
+## What each state says is in storage
+
+| `state` | What is in storage |
+|---|---|
+| `completed` | The rendered track. This is the one to listen to. |
+| `unrendered` | The capture, and no usable rendered track. `failure_reason` says why the render produced none, and a later re-render recovers the audio from the capture. |
+| `failed` | Nothing. The upload to storage failed. |
+
+`capture_bucket` and `capture_object` are on every entry whose capture uploaded,
+`completed` included: the capture is the source and a rendered track is derived
+from it, so a track that plays back fine is still re-renderable.
+
+A render that produced a partial file uploads it as `{role}.failed.webm`, so
+neither a listing of the prefix nor a download mistakes it for the rendered
+track.
+
+`truncated` reads on sessions recorded before 2026-09-09 and is no longer
+produced.
 
 ## The download URL is a credential
 
-A track in state `completed` carries a `download_url`: a short-lived signed URL you
-fetch with a plain unauthenticated `GET`.
+An entry in state `completed` carries a `download_url`: a short-lived signed URL
+you fetch with a plain unauthenticated `GET`. An `unrendered` entry carries one
+only when the render left a `{role}.failed.webm` behind, and that file is the
+partial one rather than the track.
 
 It carries its own credential, so treat it as a secret. Do not write it anywhere
 durable — not a ticket, not a log line, not a spreadsheet. `ttl_seconds` sets its
