@@ -466,20 +466,26 @@ class Brain:
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """The app said something — a tap, a keystroke, a question::
 
-            EVENTS = AppEvents(QuantitySet, RowRemoved)
+            EVENTS = AppEvents[QuantitySet | RowRemoved | CatalogSearched](
+                QuantitySet, RowRemoved, CatalogSearched
+            )
 
             async def on_rtvi(self, session, msg):
                 match EVENTS.parse(msg):
                     case QuantitySet() as e:
                         self.cart[e.item_id] = e.quantity
-                        return
                     case RowRemoved() as e:
                         del self.cart[e.item_id]
-                        return
-                if msg.type is RTVIType.CLIENT_MESSAGE:
-                    kind, payload = msg.data["t"], msg.data.get("d") or {}
-                    if kind == "catalog_search":
-                        session.dispatch(ShowSearchResults(rows=self.search(payload["query"])))
+                    case CatalogSearched() as e:
+                        session.dispatch(ShowSearchResults(rows=self.search(e.query)))
+
+        **One envelope.** A gesture that asks — a search box, a "show me the
+        alternatives" control — is still one typed event; what makes it different is
+        only that you answer it with a :class:`~voqalize.sdk.actions.Action` instead
+        of moving your model. Reaching past ``parse`` for a raw ``client-message``
+        buys an untyped dict and a second shape to keep in your head. Type the union
+        rather than the base class and this ``match`` is checked for exhaustiveness,
+        so a gesture you add and forget to handle is an error, not a silent drop.
 
         **Name what changed; never push the whole screen.** An
         :class:`~voqalize.sdk.app_events.AppEvent` is one act, typed and addressed
