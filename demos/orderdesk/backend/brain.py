@@ -655,15 +655,21 @@ class OrderDesk:
         the **axes**, still describing the wider set, so the next spoken question is
         about something the survivors agree on;
 
-        and the **pills**, because under :data:`_QUESTION_FLOOR` a brief reads
+        the **pills**, because under :data:`_QUESTION_FLOOR` a brief reads
         ``variants`` and the narrowed set is in ``candidates`` — the browser regrows
         the leaf pills locally at exactly this point, and the model was being handed
-        an empty options list for a row showing three of them."""
+        an empty options list for a row showing three of them;
+
+        and the **cards**, when a group pill split a wide ``multi_family`` row without
+        settling it — two brands are left on screen and the model was still being
+        offered all five to ask about, three of which he has just ruled out."""
         families = {sku.family for sku in row.candidates if sku.family}
         if len(families) == 1:
             row.family = families.pop()
             row.families = []
             row.status = "multi_variant"
+        elif families:
+            row.families = [fam for fam in row.families if fam.family in families]
         if 0 < len(row.candidates) < _QUESTION_FLOOR:
             row.variants, row.candidates = row.candidates, []
         row.differing_axes = _differing_axes(row.variants or row.candidates)
@@ -1236,16 +1242,21 @@ class OrderDesk:
         its id and quantity and re-renders with the new outcome.
 
         Args:
-            item_id: The row's id, e.g. "li3".
+            item_id: The row's id, e.g. "li3", or what he called it if you do not have
+                the id, e.g. "abevia". If the name matches two rows you will be told so.
             query: The corrected product name in English letters, e.g. "abiways".
         """
         if stale := self._stale():
             return stale
         if problem := _check_english("query", query):
             return {"error": problem}
-        row = self.items.get(item_id)
+        # By name as well as by id: this is the tool a spoken correction reaches for,
+        # and he says "abevia nahi, abiways" — he does not say "li3". Every other
+        # row-editing tool already takes either; this one costing a turn to look the
+        # id up was the correction path being more expensive than the mistake.
+        row = self._row_for(item_id)
         if row is None:
-            return {"error": f"no such item {item_id!r}", "known_ids": list(self.items)}
+            return self._ref_error(item_id)
         row.status = "resolving"
         row.note = None
         self._upsert(row)

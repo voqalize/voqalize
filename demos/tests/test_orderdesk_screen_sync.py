@@ -135,3 +135,39 @@ async def test_a_narrow_the_row_never_held_changes_nothing() -> None:
     assert [sku.code for sku in row.candidates] == before
     assert row.status == "multi_family"
     assert desk.version == 0, "nothing changed, so the model is not sent to re-read"
+
+
+@pytest.mark.asyncio
+async def test_a_group_pill_that_rules_out_brands_rules_them_off_the_briefing() -> None:
+    """A wide ``multi_family`` row gets a candidate table and a splitting question, so
+    the group he taps can leave several brands standing rather than one. The cards on
+    his screen shrink to those; the model was still being handed all five to ask
+    about, three of them brands he had just ruled out."""
+    desk, _ = _desk()
+    await desk.add_items([SpokenItem(text="kof")])
+    (row,) = desk.items.values()
+    offered = [fam.family for fam in row.families]
+    assert len(offered) >= 4, offered
+
+    keeping = set(offered[:2])
+    desk.absorb(
+        _snapshot(desk, **{row.id: [s.code for s in row.candidates if s.family in keeping]})
+    )
+
+    assert row.status == "multi_family", "two brands left is still a brand question"
+    assert [fam.family for fam in row.families] == offered[:2]
+
+
+@pytest.mark.asyncio
+async def test_a_spoken_correction_finds_the_row_by_what_he_called_it() -> None:
+    """ "Abevia nahi, abiways" — he names the product, not the row id. Every other
+    row-editing tool already took either; ``refine_item``, the one a spoken
+    correction actually reaches for, used to cost a turn looking the id up."""
+    desk, _ = _desk()
+    await desk.add_items([SpokenItem(text="abevia")])
+    (row,) = desk.items.values()
+
+    fixed = await desk.refine_item("abevia", "abiways")
+    assert "error" not in fixed, fixed
+    assert fixed["id"] == row.id
+    assert row.query == "abiways"
