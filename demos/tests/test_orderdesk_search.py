@@ -526,3 +526,59 @@ def test_resolve_is_fast_when_warm():
         resolve(query)
     average_ms = (time.perf_counter() - started) / len(PROBES) * 1000
     assert average_ms < 50, f"resolve() averaged {average_ms:.1f} ms — the call cannot wait"
+
+
+def test_a_form_he_said_can_refuse_an_answer_but_never_assert_one():
+    """The whole utterance has to be explained before anything is asserted.
+
+    Form words are stripped from every scoring field on purpose — they are not
+    brands, and they must not cost a miss penalty or push the brand out of the
+    head position. The cost of that, until now, was that a half-explained
+    utterance came back *matched*: "paste guard cream" is judged as the single
+    word GUARD, which GUARD-OR MOUTHWASH explains perfectly, so no quality term
+    ever fired and a mouthwash was added to the order in silence. Nothing on
+    screen and nothing in the call could correct it, because nothing knew.
+
+    A form he actually said is the cheapest contradiction available, and the
+    outcome it buys is the one that costs five seconds to fix: a question.
+    """
+    assert resolve("paste guard cream").status != "matched"
+    assert resolve("guard").sku.name == "GUARD-OR MOUTHWASH"  # the brand alone still lands
+
+    # …and the refusal is coarse on purpose. A pharmacist asks for the "syrup" and
+    # takes the suspension; a form word standing in the product's own name ("digene
+    # gel", a suspension) was never a request for a form at all. Vetoing either
+    # spends the answer he asked for to prevent nothing.
+    assert resolve("augmentin es 600 syrup").status == "matched"
+    assert resolve("digene gel mint flavour").status == "multi_variant"
+    assert resolve("ciplox eye drops").family == "CIPLOX"
+
+
+def test_words_the_index_found_whole_are_not_second_guessed():
+    """``_quality`` measures the spoken brand against the family *head*, which is
+    the wrong question for a brand whose head is not the word he said.
+
+    "guard cream" is heard perfectly and answered correctly by RING GUARD CREAM
+    and ITCH GUARD PLUS CREAM — and scored 0.22 against the head RING, under the
+    floor, so the engine threw both away and said not_found. A gate built to
+    distrust the phonetic net must not fire on a hit the net never made.
+
+    The exemption is for *spelled-out* hits only. The word index matches on
+    prefixes, so "muv" completes against MUVERA without being it — which is
+    exactly the guess the quality term exists to catch."""
+    guard = resolve("guard cream")
+    assert guard.status == "multi_family"
+    assert {family.family for family in guard.families} == {"RING", "ITCH"}
+
+    assert resolve("muv").status != "matched"
+
+
+def test_one_family_left_is_a_card_to_tap_not_a_miss():
+    """A lone family that sounds close enough to show but not close enough to
+    assert used to be dropped as not_found, which hands him nothing to point at.
+    Offered as a single card it is a yes/no he can answer with a thumb, and
+    saying no to a card costs exactly what not_found already cost him."""
+    omni = resolve("omniguel")
+    assert omni.status == "multi_family"
+    assert [family.family for family in omni.families] == ["OMNIGEL"]
+    assert omni.confidence < 0.5  # nothing downstream may read this as settled

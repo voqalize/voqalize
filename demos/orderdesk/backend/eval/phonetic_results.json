@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-08-03T14:10:24+00:00",
+    "generated_at": "2026-09-09T02:03:41+00:00",
     "corpus_files": [
       "corpus_p1.json",
       "corpus_p2.json",
@@ -15,53 +15,53 @@
       "overall": {
         "total": 1258,
         "counts": {
-          "T1": 556,
-          "T2": 546,
+          "T1": 555,
+          "T2": 554,
           "T3": 2,
-          "MISS": 154
+          "MISS": 147
         },
-        "pass_rate": 0.876
+        "pass_rate": 0.8816
       },
       "by_bucket": {
         "dentals-aspiration-numbers": {
           "total": 315,
           "counts": {
             "T1": 204,
-            "T2": 76,
+            "T2": 78,
             "T3": 0,
-            "MISS": 35
+            "MISS": 33
           },
-          "pass_rate": 0.8889
+          "pass_rate": 0.8952
         },
         "sibilants-zjxq-phf": {
           "total": 346,
           "counts": {
             "T1": 169,
-            "T2": 126,
+            "T2": 129,
             "T3": 0,
-            "MISS": 51
+            "MISS": 48
           },
-          "pass_rate": 0.8526
+          "pass_rate": 0.8613
         },
         "vowels-compounds-suffixes": {
           "total": 296,
           "counts": {
-            "T1": 156,
-            "T2": 84,
+            "T1": 155,
+            "T2": 86,
             "T3": 2,
-            "MISS": 54
+            "MISS": 53
           },
-          "pass_rate": 0.8108
+          "pass_rate": 0.8142
         },
         "vw-vowels-clusters": {
           "total": 301,
           "counts": {
             "T1": 27,
-            "T2": 260,
+            "T2": 261,
             "T3": 0,
-            "MISS": 14
+            "MISS": 13
           },
-          "pass_rate": 0.9535
+          "pass_rate": 0.9568
         }
       }
     },
@@ -3952,9 +3952,12 @@
       "expect": "family",
       "devanagari": "ऑम्निगेल",
       "query": "omniguel",
-      "tier": "MISS",
+      "tier": "T2",
       "returned": {
-        "status": "not_found"
+        "status": "multi_family",
+        "families": [
+          "OMNIGEL"
+        ]
       }
     },
     {
@@ -6607,9 +6610,12 @@
       "expect": "sku",
       "devanagari": "तायरोनार्म ५० एमसीजी",
       "query": "tayronarm 50 mcg",
-      "tier": "MISS",
+      "tier": "T2",
       "returned": {
-        "status": "not_found"
+        "status": "multi_family",
+        "families": [
+          "THYRONORM"
+        ]
       }
     },
     {
@@ -7271,9 +7277,12 @@
       "query": "d y t o r chalis tablet",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "PROD6232",
-        "family": "YES"
+        "status": "multi_family",
+        "families": [
+          "YES",
+          "YAMOO",
+          "YPAN"
+        ]
       }
     },
     {
@@ -9382,9 +9391,10 @@
       "query": "d e f c o r t six tablet",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "J0044660",
-        "family": "MOXIKIND"
+        "status": "multi_family",
+        "families": [
+          "MOXIKIND"
+        ]
       }
     },
     {
@@ -9410,9 +9420,12 @@
       "expect": "sku",
       "devanagari": "डेफ्कोर्छै",
       "query": "defkorchhai",
-      "tier": "MISS",
+      "tier": "T2",
       "returned": {
-        "status": "not_found"
+        "status": "multi_family",
+        "families": [
+          "DEFCORT"
+        ]
       }
     },
     {
@@ -9761,9 +9774,10 @@
       "query": "d o m s t a l ten tablet",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "PROD8135",
-        "family": "DIGENE"
+        "status": "multi_family",
+        "families": [
+          "DIGENE"
+        ]
       }
     },
     {
@@ -10156,9 +10170,12 @@
       "query": "d i l z e m sixty tablet",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "PROD6952",
-        "family": "FRIDO"
+        "status": "multi_family",
+        "families": [
+          "FRIDO",
+          "IRIVISC",
+          "LUPI"
+        ]
       }
     },
     {
@@ -11359,9 +11376,12 @@
       "query": "d y n a g l i p t tablet",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "PROD6232",
-        "family": "YES"
+        "status": "multi_family",
+        "families": [
+          "YES",
+          "YAMOO",
+          "YPAN"
+        ]
       }
     },
     {
@@ -13389,9 +13409,14 @@
       "query": "char q in drop",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "J0026822",
-        "family": "Q SERA"
+        "status": "multi_family",
+        "families": [
+          "CHARCAPS",
+          "CHARMOIST",
+          "COLGATE",
+          "DENTE",
+          "VI JOHN"
+        ]
       }
     },
     {
@@ -15677,9 +15702,10 @@
       "query": "s h i g r u tablet",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "PROD6181",
-        "family": "MELTS"
+        "status": "multi_family",
+        "families": [
+          "MELTS"
+        ]
       }
     },
     {
@@ -16438,9 +16464,12 @@
       "expect": "sku",
       "devanagari": "फ़िनरगन टेन",
       "query": "finargan ten",
-      "tier": "MISS",
+      "tier": "T2",
       "returned": {
-        "status": "not_found"
+        "status": "multi_family",
+        "families": [
+          "PHENERGAN"
+        ]
       }
     },
     {
@@ -16879,14 +16908,15 @@
       "expect": "sku",
       "devanagari": "अबीवेज़ हंड्रेड कैप्सूल",
       "query": "abiways hundred capsule",
-      "tier": "MISS",
+      "tier": "T2",
       "returned": {
-        "status": "multi_variant",
-        "family": "ABIWAYS",
-        "variant_codes": [
-          "J0002149",
-          "J0050079",
-          "J0038036"
+        "status": "multi_family",
+        "families": [
+          "AVESSA",
+          "ABIWAYS",
+          "BRIVEPSY",
+          "ABEVIA",
+          "ABVIDA"
         ]
       }
     },
@@ -16956,14 +16986,14 @@
       "expect": "sku",
       "devanagari": "अबिवे सौ कैप्सूल",
       "query": "abive sau capsule",
-      "tier": "MISS",
+      "tier": "T2",
       "returned": {
-        "status": "multi_variant",
-        "family": "ABIWAYS",
-        "variant_codes": [
-          "J0002149",
-          "J0050079",
-          "J0038036"
+        "status": "multi_family",
+        "families": [
+          "ABIWAYS",
+          "ABEVIA",
+          "ABVIDA",
+          "BRIVEPSY"
         ]
       }
     },
@@ -16977,12 +17007,9 @@
       "query": "abiway 100 capsule",
       "tier": "MISS",
       "returned": {
-        "status": "multi_variant",
-        "family": "ABIWAYS",
-        "variant_codes": [
-          "J0002149",
-          "J0050079",
-          "J0038036"
+        "status": "multi_family",
+        "families": [
+          "ABIWAYS"
         ]
       }
     },
@@ -17372,8 +17399,8 @@
         "status": "multi_family",
         "families": [
           "Z D",
-          "SIZODON",
-          "ZADY"
+          "ZADY",
+          "SIZODON"
         ]
       }
     },
@@ -17814,8 +17841,8 @@
           "SANA",
           "Z D",
           "A TO Z",
-          "HB SONE",
-          "Q SONE"
+          "TONACT",
+          "HB SONE"
         ]
       }
     },
@@ -18894,9 +18921,14 @@
       "query": "pen mps au suspension",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "PROD5819",
-        "family": "MSPS"
+        "status": "multi_family",
+        "families": [
+          "MSPS",
+          "MMS",
+          "MIS",
+          "LUPISULIN",
+          "BASALOG"
+        ]
       }
     },
     {
@@ -19609,12 +19641,9 @@
       "query": "augmentin is 600 syrup",
       "tier": "T2",
       "returned": {
-        "status": "multi_variant",
-        "family": "AUGMENTIN",
-        "variant_codes": [
-          "J0004505",
-          "J0004503"
-        ]
+        "status": "matched",
+        "sku_code": "J0004503",
+        "family": "AUGMENTIN"
       }
     },
     {
@@ -19670,10 +19699,10 @@
       "expect": "sku",
       "devanagari": "आगमेंटिन एस छह सौ का सिरप",
       "query": "aagmentin es chhah sau ka syrup",
-      "tier": "T1",
+      "tier": "T2",
       "returned": {
         "status": "matched",
-        "sku_code": "J0004505",
+        "sku_code": "J0004503",
         "family": "AUGMENTIN"
       }
     },
@@ -21121,9 +21150,14 @@
       "query": "dyzine jal mint flavour suspension",
       "tier": "MISS",
       "returned": {
-        "status": "matched",
-        "sku_code": "J0021158",
-        "family": "MINT"
+        "status": "multi_family",
+        "families": [
+          "MINT",
+          "MIENTA",
+          "MONIT",
+          "DIZONE",
+          "FX MONT"
+        ]
       }
     },
     {
@@ -22099,9 +22133,12 @@
       "expect": "sku",
       "devanagari": "मॉक्सीकाइन्डसीवी छैपच्चीस",
       "query": "moxikaindcv chhaipachchis",
-      "tier": "MISS",
+      "tier": "T2",
       "returned": {
-        "status": "not_found"
+        "status": "multi_family",
+        "families": [
+          "MOXIKIND"
+        ]
       }
     },
     {
@@ -27346,9 +27383,12 @@
           "expect": "family",
           "devanagari": "ऑम्निगेल",
           "query": "omniguel",
-          "tier": "MISS",
+          "tier": "T2",
           "returned": {
-            "status": "not_found"
+            "status": "multi_family",
+            "families": [
+              "OMNIGEL"
+            ]
           }
         },
         {
@@ -30992,9 +31032,12 @@
           "expect": "sku",
           "devanagari": "तायरोनार्म ५० एमसीजी",
           "query": "tayronarm 50 mcg",
-          "tier": "MISS",
+          "tier": "T2",
           "returned": {
-            "status": "not_found"
+            "status": "multi_family",
+            "families": [
+              "THYRONORM"
+            ]
           }
         },
         {
@@ -31958,9 +32001,12 @@
           "query": "d y t o r chalis tablet",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "PROD6232",
-            "family": "YES"
+            "status": "multi_family",
+            "families": [
+              "YES",
+              "YAMOO",
+              "YPAN"
+            ]
           }
         },
         {
@@ -34975,9 +35021,10 @@
           "query": "d e f c o r t six tablet",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "J0044660",
-            "family": "MOXIKIND"
+            "status": "multi_family",
+            "families": [
+              "MOXIKIND"
+            ]
           }
         },
         {
@@ -35019,9 +35066,12 @@
           "expect": "sku",
           "devanagari": "डेफ्कोर्छै",
           "query": "defkorchhai",
-          "tier": "MISS",
+          "tier": "T2",
           "returned": {
-            "status": "not_found"
+            "status": "multi_family",
+            "families": [
+              "DEFCORT"
+            ]
           }
         },
         {
@@ -35534,9 +35584,10 @@
           "query": "d o m s t a l ten tablet",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "PROD8135",
-            "family": "DIGENE"
+            "status": "multi_family",
+            "families": [
+              "DIGENE"
+            ]
           }
         },
         {
@@ -36111,9 +36162,12 @@
           "query": "d i l z e m sixty tablet",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "PROD6952",
-            "family": "FRIDO"
+            "status": "multi_family",
+            "families": [
+              "FRIDO",
+              "IRIVISC",
+              "LUPI"
+            ]
           }
         },
         {
@@ -37857,9 +37911,12 @@
           "query": "d y n a g l i p t tablet",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "PROD6232",
-            "family": "YES"
+            "status": "multi_family",
+            "families": [
+              "YES",
+              "YAMOO",
+              "YPAN"
+            ]
           }
         },
         {
@@ -40611,9 +40668,14 @@
           "query": "char q in drop",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "J0026822",
-            "family": "Q SERA"
+            "status": "multi_family",
+            "families": [
+              "CHARCAPS",
+              "CHARMOIST",
+              "COLGATE",
+              "DENTE",
+              "VI JOHN"
+            ]
           }
         },
         {
@@ -43833,9 +43895,10 @@
           "query": "s h i g r u tablet",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "PROD6181",
-            "family": "MELTS"
+            "status": "multi_family",
+            "families": [
+              "MELTS"
+            ]
           }
         },
         {
@@ -44914,9 +44977,12 @@
           "expect": "sku",
           "devanagari": "फ़िनरगन टेन",
           "query": "finargan ten",
-          "tier": "MISS",
+          "tier": "T2",
           "returned": {
-            "status": "not_found"
+            "status": "multi_family",
+            "families": [
+              "PHENERGAN"
+            ]
           }
         },
         {
@@ -45537,14 +45603,15 @@
           "expect": "sku",
           "devanagari": "अबीवेज़ हंड्रेड कैप्सूल",
           "query": "abiways hundred capsule",
-          "tier": "MISS",
+          "tier": "T2",
           "returned": {
-            "status": "multi_variant",
-            "family": "ABIWAYS",
-            "variant_codes": [
-              "J0002149",
-              "J0050079",
-              "J0038036"
+            "status": "multi_family",
+            "families": [
+              "AVESSA",
+              "ABIWAYS",
+              "BRIVEPSY",
+              "ABEVIA",
+              "ABVIDA"
             ]
           }
         },
@@ -45645,14 +45712,14 @@
           "expect": "sku",
           "devanagari": "अबिवे सौ कैप्सूल",
           "query": "abive sau capsule",
-          "tier": "MISS",
+          "tier": "T2",
           "returned": {
-            "status": "multi_variant",
-            "family": "ABIWAYS",
-            "variant_codes": [
-              "J0002149",
-              "J0050079",
-              "J0038036"
+            "status": "multi_family",
+            "families": [
+              "ABIWAYS",
+              "ABEVIA",
+              "ABVIDA",
+              "BRIVEPSY"
             ]
           }
         },
@@ -45666,12 +45733,9 @@
           "query": "abiway 100 capsule",
           "tier": "MISS",
           "returned": {
-            "status": "multi_variant",
-            "family": "ABIWAYS",
-            "variant_codes": [
-              "J0002149",
-              "J0050079",
-              "J0038036"
+            "status": "multi_family",
+            "families": [
+              "ABIWAYS"
             ]
           }
         },
@@ -46228,8 +46292,8 @@
             "status": "multi_family",
             "families": [
               "Z D",
-              "SIZODON",
-              "ZADY"
+              "ZADY",
+              "SIZODON"
             ]
           }
         },
@@ -46865,8 +46929,8 @@
               "SANA",
               "Z D",
               "A TO Z",
-              "HB SONE",
-              "Q SONE"
+              "TONACT",
+              "HB SONE"
             ]
           }
         },
@@ -48469,9 +48533,14 @@
           "query": "pen mps au suspension",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "PROD5819",
-            "family": "MSPS"
+            "status": "multi_family",
+            "families": [
+              "MSPS",
+              "MMS",
+              "MIS",
+              "LUPISULIN",
+              "BASALOG"
+            ]
           }
         },
         {
@@ -49529,12 +49598,9 @@
           "query": "augmentin is 600 syrup",
           "tier": "T2",
           "returned": {
-            "status": "multi_variant",
-            "family": "AUGMENTIN",
-            "variant_codes": [
-              "J0004505",
-              "J0004503"
-            ]
+            "status": "matched",
+            "sku_code": "J0004503",
+            "family": "AUGMENTIN"
           }
         },
         {
@@ -49620,10 +49686,10 @@
           "expect": "sku",
           "devanagari": "आगमेंटिन एस छह सौ का सिरप",
           "query": "aagmentin es chhah sau ka syrup",
-          "tier": "T1",
+          "tier": "T2",
           "returned": {
             "status": "matched",
-            "sku_code": "J0004505",
+            "sku_code": "J0004503",
             "family": "AUGMENTIN"
           }
         },
@@ -51698,9 +51764,14 @@
           "query": "dyzine jal mint flavour suspension",
           "tier": "MISS",
           "returned": {
-            "status": "matched",
-            "sku_code": "J0021158",
-            "family": "MINT"
+            "status": "multi_family",
+            "families": [
+              "MINT",
+              "MIENTA",
+              "MONIT",
+              "DIZONE",
+              "FX MONT"
+            ]
           }
         },
         {
@@ -53155,9 +53226,12 @@
           "expect": "sku",
           "devanagari": "मॉक्सीकाइन्डसीवी छैपच्चीस",
           "query": "moxikaindcv chhaipachchis",
-          "tier": "MISS",
+          "tier": "T2",
           "returned": {
-            "status": "not_found"
+            "status": "multi_family",
+            "families": [
+              "MOXIKIND"
+            ]
           }
         },
         {

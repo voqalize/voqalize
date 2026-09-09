@@ -1,6 +1,6 @@
 # Phonetic search eval — orderdesk catalog
 
-1258 romanizations · 600 variants · 4 corpus files · 3.1s
+1258 romanizations · 600 variants · 4 corpus files · 3.2s
 
 No LLM in this loop — every romanized string goes straight to `search.resolve()`. Tiers: **T1** exact SKU (or right family when the entry only expects a family), **T2** right family surfaced some other way (matched-wrong-sku, multi_variant, multi_family, or the sku code present among returned variants), **T3** a near-family neighbour came back in a multi_family result but not the right one, **MISS** nothing useful. Pass = T1 + T2.
 
@@ -8,17 +8,17 @@ No LLM in this loop — every romanized string goes straight to `search.resolve(
 
 | level | total | T1 | T2 | T3 | MISS | pass (T1+T2) |
 | --- | --- | --- | --- | --- | --- | --- |
-| per-romanization (strict) | 1258 | 556 | 546 | 2 | 154 | **87.6%** |
+| per-romanization (strict) | 1258 | 555 | 554 | 2 | 147 | **88.2%** |
 | per-variant (any romanization) | 600 | 370 | 229 | 0 | 1 | **99.8%** |
 
 ## Per bucket
 
 | bucket | variants | var pass | rom | rom pass |
 | --- | --- | --- | --- | --- |
-| `dentals-aspiration-numbers` | 150 | 100.0% | 315 | 88.9% |
-| `sibilants-zjxq-phf` | 150 | 100.0% | 346 | 85.3% |
-| `vowels-compounds-suffixes` | 150 | 100.0% | 296 | 81.1% |
-| `vw-vowels-clusters` | 150 | 99.3% | 301 | 95.3% |
+| `dentals-aspiration-numbers` | 150 | 100.0% | 315 | 89.5% |
+| `sibilants-zjxq-phf` | 150 | 100.0% | 346 | 86.1% |
+| `vowels-compounds-suffixes` | 150 | 100.0% | 296 | 81.4% |
+| `vw-vowels-clusters` | 150 | 99.3% | 301 | 95.7% |
 
 ## Full failure table (1 variants at T3/MISS)
 

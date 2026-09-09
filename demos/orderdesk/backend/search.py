@@ -53,6 +53,7 @@ from typing import Any
 try:  # package import (brain) vs flat import (script / test harness)
     from .normalize import (
         FORM_WORDS,
+        ROUTE_WORDS,
         canonical_form,
         canonical_strength,
         fts_terms,
@@ -71,6 +72,7 @@ except ImportError:  # pragma: no cover — the flat-import path
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from normalize import (  # type: ignore[no-redef]
         FORM_WORDS,
+        ROUTE_WORDS,
         canonical_form,
         canonical_strength,
         fts_terms,
@@ -337,6 +339,7 @@ class _Query:
     brandish: list[str]  # every probe the phonetic net gets: words, grams, stems
     words: list[str]  # just the brand-ish words, in the order they were said
     grams: frozenset[str]  # the probes that join words the speaker said apart
+    forms: frozenset[str]  # the forms he actually said out loud ("CREAM", "EYE DROPS")
     span: int  # characters of spoken brand a probe has to account for
 
 
@@ -358,6 +361,29 @@ def _split_digit_tail(token: str) -> list[str]:
     if not match or match[1] in _UNIT_TOKENS or match[1] in FORM_WORDS:
         return [token]
     return [match[1], match[2]]
+
+
+#: A form word the pharmacist said out loud, with the route word in front of it
+#: folded in the way ``parse_name`` folds it on the catalog side, so "EYE DROPS"
+#: is compared against "EYE DROPS" and not against "DROPS".
+def _spoken_forms(tokens: list[str]) -> frozenset[str]:
+    """The forms named in this utterance — evidence, never a probe.
+
+    These words are stripped from every other field of :class:`_Query` on purpose
+    (they are not brands, and they must not cost ``_MISS`` or displace the brand
+    from the head position). Keeping them *here* costs nothing in scoring and buys
+    the one thing their absence made impossible: noticing that the answer is not
+    the kind of thing he asked for.
+    """
+    forms: set[str] = set()
+    for idx, tok in enumerate(tokens):
+        if tok not in FORM_WORDS:
+            continue
+        canonical = FORM_WORDS[tok]
+        if idx and tokens[idx - 1] in ROUTE_WORDS:
+            canonical = f"{tokens[idx - 1]} {canonical}"
+        forms.add(canonical)
+    return frozenset(forms)
 
 
 def _parse_query(query: str) -> _Query:
@@ -401,6 +427,7 @@ def _parse_query(query: str) -> _Query:
         brandish=list(dict.fromkeys([*words, *pairs, *stems])),
         words=words,
         grams=frozenset(pairs),
+        forms=_spoken_forms(tokens),
         # Every spoken word counts against coverage, including the ones that are
         # too short or too numeric to be probed on their own — "chhah tan" is
         # eight characters of brand however the six is spelled, and a family that
@@ -869,6 +896,8 @@ class _Candidates:
     rows: list[sqlite3.Row]
     stage: str  # "name" | "fts" | "phonetic" | "none"
     phonetic: dict[str, _PhonHit]  # per-family bonus for the rows that came from the net
+    #: The word index accounted for every word he said — a literal match, not a recovery.
+    complete: bool = False
 
     def hit(self, family: str) -> _PhonHit | None:
         return self.phonetic.get(family)
@@ -901,7 +930,7 @@ def _gather(conn: sqlite3.Connection, q: _Query) -> _Candidates:
         return _Candidates(rows=rows, stage="name", phonetic={})
     fts_rows, complete = _fts_relaxed(conn, q)
     if fts_rows and complete:
-        return _Candidates(rows=fts_rows, stage="fts", phonetic={})
+        return _Candidates(rows=fts_rows, stage="fts", phonetic={}, complete=True)
     families = _phonetic_families(conn, q)
     if families:
         best = dict(sorted(families.items(), key=lambda kv: (-kv[1].score, kv[0]))[:_MAX_FAMILIES])
@@ -1014,25 +1043,45 @@ def _resolve_once(
 
     scored = _narrow(
         [(_row_score(row, q, found), row) for row in found.rows],
+        q,
         form_hint,
         strength_hint,
     )
-
     best = max(score for score, _ in scored)
     survivors = sorted((it for it in scored if it[0] >= best - _BAND), key=_variant_key)
 
     families = list(dict.fromkeys(row["family"] for _, row in survivors))
     stage = found.stage_of(families[0])
-    # A name-stage hit *is* the brand, spelled the way the catalog spells it —
-    # there is nothing left for a similarity term to second-guess.
-    quality = 1.0 if stage == "name" else _quality(q, families[0])
+    # A name-stage hit *is* the brand, spelled the way the catalog spells it — there
+    # is nothing left for a similarity term to second-guess. A word-index hit can be
+    # the same claim by a different route, and `_quality` cannot see it, because it
+    # compares what was said against the family *head*: "guard cream", heard perfectly
+    # and answered correctly by RING GUARD CREAM, scored 0.22 against the head RING
+    # and was thrown away as a skeleton collision. A gate built to distrust the
+    # phonetic net must not fire on a hit the net never made.
+    #
+    # But only a *spelled-out* one. The word index matches on prefixes, so a complete
+    # AND is not the same claim as a complete spelling — "muv" completes against
+    # MUVERA and is exactly the guess the quality term exists to catch.
+    literal = stage == "name" or (stage == "fts" and found.complete and _spelled_out(q, survivors))
+    quality = 1.0 if literal else _quality(q, families[0])
     hit = found.hit(families[0])
     # A *stem* probe ("volnijel" → VOLNI) is a word somebody said with a form
     # word peeled off it; a *gram* is two words the engine decided were one.
     # Only the second is a guess about what was meant.
     floor = _QUALITY_FUSED if hit is not None and hit.probe in q.grams else _QUALITY_FLOOR
+    # He said "cream" and this family has no cream in it. Form words are stripped from
+    # every scoring field on purpose, and that is what let a half-explained utterance
+    # come back asserted: "paste guard cream" is judged as the single word GUARD, which
+    # GUARD-OR MOUTHWASH explains perfectly, so no quality term ever fires and a
+    # mouthwash is added silently. A form he actually said is the cheapest
+    # contradiction there is, and a contradicted answer is not one to assert — it is
+    # one to ask about, because a question is the only outcome he can correct.
+    contradicted = _contradicts(
+        [row for _, row in survivors if row["family"] == families[0]], q.forms
+    )
 
-    if len(families) == 1 and quality >= floor:
+    if len(families) == 1 and quality >= floor and not contradicted:
         shown = sorted(survivors[:_MAX_VARIANTS], key=_pill_key)
         variants = [_sku(row) for _, row in shown]
         if len(variants) == 1:
@@ -1054,7 +1103,7 @@ def _resolve_once(
     # without enough of the spoken word in it to be said out loud. Both are the
     # same answer — a question — so both are built the same way.
     ranked = _ranked_families(survivors if len(families) > 1 else scored)[: _MAX_FAMILIES * 3]
-    quality_of = {family: _quality(q, family) for family in ranked}
+    quality_of = {family: 1.0 if literal else _quality(q, family) for family in ranked}
     if max(quality_of.values(), default=0.0) < _QUALITY_MIN:
         # Nothing here a pharmacist would recognise as what they said. A card of
         # five brands that all sound wrong is worse than admitting the miss.
@@ -1062,16 +1111,30 @@ def _resolve_once(
     # Score picks the options; quality decides which of them gets to lead. The
     # two disagree exactly when a deep or short family outscores a better-sounding
     # thin one, and on a card of options the better-sounding one belongs first.
-    ranked.sort(key=lambda family: quality_of[family] < _QUALITY_MIN)
+    honours_of = dict.fromkeys(ranked, False)
+    for _, row in scored:
+        if row["family"] in honours_of and _honours(row, q.forms):
+            honours_of[row["family"]] = True
+    ranked.sort(key=lambda family: (quality_of[family] < _QUALITY_MIN, not honours_of[family]))
+    # One card is still a card. A lone family that cleared _QUALITY_MIN but not the
+    # assertion floor used to be dropped as not_found, which hands the pharmacist
+    # nothing to point at; offered as a single card it is a yes/no he can answer with
+    # a thumb. On the corpus that is 5 brands recovered against 4 he now declines —
+    # and declining a card costs what not_found already cost him.
     ranked = ranked[:_MAX_FAMILIES]
-    if len(ranked) < 2:
-        return Resolution(status="not_found")
 
     return Resolution(
         status="multi_family",
         families=[_family_view(conn, family) for family in ranked],
         confidence=_confidence(found.stage_of(ranked[0]), "multi_family", quality_of[ranked[0]]),
     )
+
+
+def _spelled_out(q: _Query, survivors: list[tuple[float, sqlite3.Row]]) -> bool:
+    """Is every word he said a whole word of one of these names, rather than a prefix
+    of one? The difference between a hit that needs no second-guessing and a guess."""
+    said = set(q.tokens)
+    return any(said <= set(str(row["name_clean"]).split()) for _, row in survivors)
 
 
 def _row_score(row: sqlite3.Row, q: _Query, found: _Candidates) -> float:
@@ -1100,6 +1163,7 @@ def _ranked_families(scored: list[tuple[float, sqlite3.Row]]) -> list[str]:
 
 def _narrow(
     scored: list[tuple[float, sqlite3.Row]],
+    q: _Query,
     form_hint: str | None,
     strength_hint: str | None,
 ) -> list[tuple[float, sqlite3.Row]]:
@@ -1108,6 +1172,13 @@ def _narrow(
     if form:
         kept = [it for it in scored if _form_matches(it[1]["form"], form)]
         scored = kept or scored
+    elif q.forms:
+        # The same narrowing from the words themselves, for the turns where the model
+        # passed no hint — but **within** each family rather than across them. A form
+        # is evidence about which of a brand's SKUs he meant; it is not evidence about
+        # which brand, and across the pool it silently deletes the brand he actually
+        # said in favour of whatever else happens to make a cream.
+        scored = [it for family in _by_family(scored).values() for it in _prefer(family, q.forms)]
     strength = canonical_strength(strength_hint or "")
     if strength:
         number = strength_number(strength)
@@ -1119,6 +1190,81 @@ def _narrow(
         ]
         scored = kept or scored
     return scored
+
+
+def _by_family(
+    scored: list[tuple[float, sqlite3.Row]],
+) -> dict[str, list[tuple[float, sqlite3.Row]]]:
+    grouped: dict[str, list[tuple[float, sqlite3.Row]]] = {}
+    for it in scored:
+        grouped.setdefault(it[1]["family"], []).append(it)
+    return grouped
+
+
+def _prefer(
+    scored: list[tuple[float, sqlite3.Row]], forms: frozenset[str]
+) -> list[tuple[float, sqlite3.Row]]:
+    """The rows here that are one of the kinds of thing he named — or, if none are,
+    all of them. A wrong inference must cost nothing."""
+    return [it for it in scored if _honours(it[1], forms)] or scored
+
+
+def _honours(row: sqlite3.Row, forms: frozenset[str]) -> bool:
+    """Is this row exactly one of the forms he named? The preference test."""
+    return any(_form_matches(row["form"], want) for want in forms)
+
+
+#: Forms one word of counter Hindi covers at once. A pharmacist asks for the "syrup"
+#: and takes the suspension; asks for the "cream" and takes the ointment. Only the
+#: coarse test below consults this — narrowing still prefers the exact form, and a
+#: brand's own cream still beats its ointment when it has both.
+_FORM_CLASS = {
+    "SUSPENSION": "SYRUP",
+    "SOLUTION": "SYRUP",
+    "LIQUID": "SYRUP",
+    "EMULSION": "SYRUP",
+    "OINTMENT": "CREAM",
+    "GEL": "CREAM",
+    "EMULGEL": "CREAM",
+    "LOTION": "CREAM",
+    "BALM": "CREAM",
+    "PASTE": "TOOTHPASTE",
+    "SACHET": "POWDER",
+    "GRANULES": "POWDER",
+    "FACEWASH": "WASH",
+    "BAR": "SOAP",
+}
+
+
+def _form_class(form: str) -> str:
+    """The kind of thing this is, coarsely. The head word carries it — "EYE DROPS",
+    "EAR DROPS" and the catalog's own "EYE/EAR DROPS" are all drops, and the route in
+    front is a detail to *ask* about, never grounds to refuse an answer."""
+    head = form.split()[-1] if form else ""
+    return _FORM_CLASS.get(head, head)
+
+
+def _contradicts(rows: list[sqlite3.Row], forms: frozenset[str]) -> bool:
+    """He named a kind of product and not one of these is that kind of thing.
+
+    Deliberately coarse, and deliberately forgiving of a row whose form the catalog
+    never recorded: this is a veto on asserting an answer, and a veto that fires on a
+    spelling difference costs more than the silence it prevents.
+    """
+    if not forms:
+        return False
+    wanted = {_form_class(want) for want in forms}
+    return not any(_kind_of(row, forms, wanted) for row in rows)
+
+
+def _kind_of(row: sqlite3.Row, forms: frozenset[str], wanted: set[str]) -> bool:
+    if not row["form"] or _form_class(row["form"]) in wanted:
+        return True
+    # DIGENE GEL MINT FLAVOUR SUSPENSION is a suspension, and "digene gel" is its
+    # name. A form word standing in the product's own name was not a request for a
+    # form at all, and reading it as one refuses the very row he asked for.
+    words = set(str(row["name_clean"]).split())
+    return any(set(want.split()) <= words for want in forms)
 
 
 def _form_matches(form: str, wanted: str) -> bool:

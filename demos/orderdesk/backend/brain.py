@@ -997,6 +997,10 @@ class OrderDesk:
                 "guidance": (f"Ask ONE short question about: {words}. The options are on screen."),
             }
         if row.status == "multi_family":
+            # One card is not a choice between brands, it is a guess offered for
+            # confirmation — "Zandu wala?" — and asking "which brand" over a single
+            # card reads as a question he has already answered.
+            single = len(row.families) == 1
             return {
                 "id": row.id,
                 "status": "multi_family",
@@ -1004,7 +1008,11 @@ class OrderDesk:
                 "ask_about": ["family"],
                 "options": [f"{fam.family} — {fam.hint}" for fam in row.families[:5]],
                 "guidance": (
-                    "Ask ONE short question about: which brand. The options are on screen."
+                    f"Only {row.families[0].family} came close. Ask if that is the one, "
+                    "in four words. If he says no, do not offer another brand — ask him "
+                    "to say it again and call refine_item."
+                    if single
+                    else "Ask ONE short question about: which brand. The options are on screen."
                 ),
             }
         return {
