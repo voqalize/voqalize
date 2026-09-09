@@ -484,6 +484,13 @@ def _candidate_line(sku: SkuWire) -> str:
     return f"{line} · ₹{sku.mrp:g}" if sku.mrp else line
 
 
+def _open(row: LineItemView) -> int:
+    """How many options this row still has in play — pills or candidate table. The
+    two hold the same set at different sizes (:data:`_QUESTION_FLOOR`), and a count
+    that reads only one of them reports zero for a row full of choices."""
+    return len(row.variants) or len(row.candidates)
+
+
 def _differing_axes(skus: list[SkuWire]) -> list[str]:
     """The axes that actually take more than one value across ``skus``.
 
@@ -610,7 +617,7 @@ class OrderDesk:
                 if adopted := self._adopt(row_id, seen):
                     self._note_change(f"{adopted.id} ({adopted.spoken_text}) added by hand")
                 continue
-            before = (row.quantity, row.sku.code if row.sku else None, len(row.candidates))
+            before = (row.quantity, row.sku.code if row.sku else None, _open(row))
             self._absorb_row(row, seen)
             self._describe(row, before)
 
@@ -631,6 +638,35 @@ class OrderDesk:
         row.candidates = [sku for sku in row.candidates if sku.code in codes]
         row.question = None
         self._narrowed.add(row.id)
+        self._resettle(row)
+
+    def _resettle(self, row: LineItemView) -> None:
+        """Bring the rest of the row into line with the candidates he just left it.
+
+        A narrow by thumb is an answer, and every tool that reads this row has to see
+        the answer, not the question it replaced. Three things went stale otherwise,
+        and all three put the two correction paths at odds:
+
+        the **brand**, when the survivors are all one family — he picked it off a
+        card, and until this the mirror still said ``multi_family`` with no family at
+        all, so ``change_variant`` told him there was no brand settled on a row whose
+        brand he had just settled;
+
+        the **axes**, still describing the wider set, so the next spoken question is
+        about something the survivors agree on;
+
+        and the **pills**, because under :data:`_QUESTION_FLOOR` a brief reads
+        ``variants`` and the narrowed set is in ``candidates`` — the browser regrows
+        the leaf pills locally at exactly this point, and the model was being handed
+        an empty options list for a row showing three of them."""
+        families = {sku.family for sku in row.candidates if sku.family}
+        if len(families) == 1:
+            row.family = families.pop()
+            row.families = []
+            row.status = "multi_variant"
+        if 0 < len(row.candidates) < _QUESTION_FLOOR:
+            row.variants, row.candidates = row.candidates, []
+        row.differing_axes = _differing_axes(row.variants or row.candidates)
 
     def _adopt(self, row_id: str, seen: dict[str, Any]) -> LineItemView | None:
         """Take a row the browser minted — a pick out of the search panel — into the
@@ -679,7 +715,7 @@ class OrderDesk:
         self._changes.append(text)
 
     def _describe(self, row: LineItemView, before: tuple[int | None, str | None, int]) -> None:
-        after = (row.quantity, row.sku.code if row.sku else None, len(row.candidates))
+        after = (row.quantity, row.sku.code if row.sku else None, _open(row))
         if after == before:
             return
         if after[0] != before[0]:
@@ -736,7 +772,7 @@ class OrderDesk:
             if row.question is not None:
                 waiting = f"awaiting answer to: {row.question.text}"
             elif row.id in self._narrowed:
-                waiting = f"narrowed to {len(row.candidates)} — ask the next question or choose"
+                waiting = f"narrowed to {_open(row)} — ask the next question or choose"
             elif len(row.candidates) >= _QUESTION_FLOOR:
                 waiting = f"{len(row.candidates)} candidates — call ask_choice with ONE question"
             elif status == "not_found":
