@@ -158,11 +158,11 @@ async def test_a_photo_lands_silently_and_the_next_idle_answers_it() -> None:
         await rig.driver.user_says("The Sonic buds. I want to send them back.")
         before = len(rig.driver.ui_commands)
 
-        await rig.driver.send_client_message(
-            "photo_upload",
+        await rig.driver.send_ui_event(
+            "photo_uploaded",
             {"image": PHOTO_DATA_URL, "item_id": "buds-sonic"},
         )
-        assert len(rig.driver.ui_commands) == before, "photo_upload drove the screen"
+        assert len(rig.driver.ui_commands) == before, "photo_uploaded drove the screen"
         await asyncio.sleep(0.1)
 
         # The shopper says nothing at all — they uploaded, and that is their answer.
@@ -204,8 +204,8 @@ async def test_the_photo_turn_is_prompted_over_the_heard_transcript() -> None:
     async with demo("support", llm) as rig:
         await rig.driver.start_session()
         await rig.driver.user_says("The Sonic buds. I want to send them back.")
-        await rig.driver.send_client_message(
-            "photo_upload",
+        await rig.driver.send_ui_event(
+            "photo_uploaded",
             {"image": PHOTO_DATA_URL, "item_id": "buds-sonic"},
         )
         await asyncio.sleep(0.1)

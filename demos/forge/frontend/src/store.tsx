@@ -9,16 +9,22 @@
  *     (state, event) pairs;
  *   • **publish → live**, which mints a running instance with a durable history.
  *
- * The voice contract is one method: `handleUiCommand(command, payload)` narrows
- * the pair against the generated `actions.gen.ts` and maps it to an op, so each
- * op reads its payload typed and `default` is an exhaustiveness check — add an
- * `Action` to the brain and this file stops compiling until it is handled.
- * `snapshot()` sends the workspace back so the LLM stays grounded;
- * `registerAgentSend` lets the UI push state on change.
+ * The voice contract runs both ways, and both are typed off `actions.gen.ts`.
+ * Inbound, `handleUiCommand(command, payload)` narrows the pair to a `UiAction`,
+ * so each op reads its payload typed and `default` is an exhaustiveness check —
+ * add an `Action` to the brain and this file stops compiling until it is handled.
+ * Outbound, `byHand.*` is what the admin's own controls call: the same mutation,
+ * plus the one `AppEvent` that says who moved the screen. Which of the two moved
+ * it is not a flag on a message — it is which function was called, so Ada's own
+ * commands can never be mistaken for the admin's.
+ *
+ * Four things the studio computes for itself — a test run's verdicts, the
+ * coverage linter's gaps, where a persona run rested, the run id a publish mints
+ * — also go back, because the interpreter is the only place they exist.
  */
 
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ADMIN, CONNECTORS, SEED_WORKFLOWS, connectorActionLabel } from './data';
+import { ADMIN, CONNECTORS, SEED_WORKFLOWS } from './data';
 import {
   KIND_EVENTS,
   type Branch,
@@ -34,7 +40,9 @@ import {
 } from './types';
 import {
   asUiAction,
+  sendAppEvent,
   unhandledUiAction,
+  type AppEvent,
   type AddBranch,
   type AddContextField,
   type AddField,
@@ -340,7 +348,6 @@ interface Model {
   codeStateId: string | null; // which block's JS is shown in the code viewer
   sim: Simulation | null;
   deployment: Deployment | null;
-  rev: number; // bumps whenever the brain should re-ground
 }
 
 let seq = 1000;
@@ -357,12 +364,11 @@ function freshModel(): Model {
     codeStateId: null,
     sim: null,
     deployment: null,
-    rev: 0,
   };
 }
 
-/** The agent-send channel: `(type, data)` → an RTVI app message to the brain. */
-export type AgentSend = (type: string, data: Record<string, unknown>) => void;
+/** The agent-send channel: a pipecat client's `sendUIEvent`. */
+export type AgentSend = (event: string, payload?: unknown) => void;
 
 export interface ForgeStore {
   model: Model;
@@ -375,18 +381,26 @@ export interface ForgeStore {
   setConnectionState: (s: ConnStatus) => void;
   // the live activity feed (what Ada is doing right now)
   activities: ActivityItem[];
-  // navigation
+  /** What the admin's own controls call — the mutation *and* the event. */
+  byHand: ByHand;
+  /** Convenience for the UI's own buttons — dispatches like a brain command. */
+  dispatch: (action: UiAction) => void;
+  // the voice contract
+  handleUiCommand: (command: string, payload: unknown) => void;
+  registerAgentSend: (fn: AgentSend | null) => void;
+}
+
+/**
+ * The admin's own hand. Every one of these does what the copilot's twin does and
+ * then says so — one gesture, one event. Ada is told *that* they moved the screen,
+ * never what it now says: she reads that back through `read_screen`.
+ */
+export interface ByHand {
   openList: () => void;
   openWorkflow: (id: string) => void;
   setPanel: (p: Panel) => void;
   focusState: (id: string | null) => void;
   showCode: (id: string | null) => void;
-  /** Convenience for the UI's own buttons — dispatches like a brain command. */
-  dispatch: (action: UiAction) => void;
-  // the voice contract
-  handleUiCommand: (command: string, payload: unknown) => void;
-  snapshot: () => Record<string, unknown>;
-  registerAgentSend: (fn: AgentSend | null) => void;
 }
 
 const Ctx = createContext<ForgeStore | null>(null);
@@ -456,19 +470,13 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     return m.workflows.find((w) => w.id === m.activeId) ?? null;
   };
 
-  /** Bump rev so the widget re-pushes state_sync, then re-render. */
-  const commit = () => {
-    ref.current.rev++;
-    render();
-  };
-
   // ── navigation ──
   const openList = () => {
     clearTimers();
     ref.current.view = 'list';
     ref.current.activeId = null;
     ref.current.sim = null;
-    commit();
+    render();
   };
   const openWorkflow = (id: string) => {
     clearTimers();
@@ -481,11 +489,11 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     m.codeStateId = null;
     m.sim = null;
     m.deployment = null;
-    commit();
+    render();
   };
   const setPanel = (p: Panel) => {
     ref.current.panel = p;
-    commit();
+    render();
   };
   const focusState = (id: string | null) => {
     ref.current.selectedId = id;
@@ -494,7 +502,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   const showCode = (id: string | null) => {
     ref.current.codeStateId = id;
     if (id) ref.current.panel = 'code';
-    commit();
+    render();
   };
 
   // ── edit ops ──
@@ -574,7 +582,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     ref.current.selectedId = id;
     if (st.kind === 'code' && st.code) ref.current.codeStateId = id;
     markFresh(wf, id);
-    commit();
+    render();
   };
 
   /** THE HERO EDIT: splice an exclusive gateway in after `after`. */
@@ -603,7 +611,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     touch(wf);
     ref.current.selectedId = id;
     markFresh(wf, id);
-    commit();
+    render();
   };
 
   const addBranch = (p: AddBranch) => {
@@ -620,7 +628,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     });
     touch(wf);
     ref.current.selectedId = gate.id;
-    commit();
+    render();
   };
 
   // Every leg is optional and arrives as `''` when the copilot left it alone —
@@ -634,7 +642,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     if (p.reject_to) s.rejectTo = p.reject_to;
     if (p.otherwise) s.else = p.otherwise;
     touch(wf);
-    commit();
+    render();
   };
 
   // Same shape as `setRoute`: a partial edit, so only what was actually named
@@ -653,7 +661,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     if (p.outcome) s.outcome = p.outcome;
     touch(wf);
     ref.current.selectedId = s.id;
-    commit();
+    render();
   };
 
   const removeState = (p: RemoveState) => {
@@ -672,7 +680,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     wf.states = wf.states.filter((s) => s.id !== id);
     touch(wf);
     ref.current.selectedId = null;
-    commit();
+    render();
   };
 
   const addContextField = (p: AddContextField) => {
@@ -680,7 +688,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     if (!wf) return;
     wf.context.push(toContextField(p));
     touch(wf);
-    commit();
+    render();
   };
 
   const addField = (p: AddField) => {
@@ -692,7 +700,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     s.fields.push(toFormField(p.field));
     touch(wf);
     ref.current.selectedId = s.id;
-    commit();
+    render();
   };
 
   const setCode = (p: SetCode) => {
@@ -706,7 +714,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     ref.current.selectedId = s.id;
     ref.current.codeStateId = s.id;
     ref.current.panel = 'code';
-    commit();
+    render();
   };
 
   // ── tests ──
@@ -725,7 +733,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     wf.tests.push(t);
     touch(wf);
     ref.current.panel = 'tests';
-    commit();
+    render();
   };
 
   const runTests = () => {
@@ -734,7 +742,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     clearTimers();
     ref.current.panel = 'tests';
     wf.tests.forEach((t) => (t.status = 'idle'));
-    commit();
+    render();
     wf.tests.forEach((t, i) => {
       later(() => {
         t.status = 'running';
@@ -744,9 +752,24 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
         const { restedAt } = runTransition(wf, t.givenState, t.event, t.context);
         t.actualState = restedAt ?? undefined;
         t.status = restedAt === t.expectState ? 'pass' : 'fail';
-        commit();
+        render();
       }, 220 * i + 360);
     });
+    // The verdicts are the interpreter's, arrived at on its own clock. Nobody
+    // decided them and nowhere else holds them, so they go back once the last
+    // one has landed — see `ScreenState.happened` on the other side.
+    later(() => {
+      emit({
+        event: 'tests_finished',
+        payload: {
+          tests: wf.tests.map((t) => ({
+            name: t.name,
+            passed: t.status === 'pass',
+            rested_at: t.actualState ?? '',
+          })),
+        },
+      });
+    }, 220 * wf.tests.length + 420);
   };
 
   // ── coverage linter ──
@@ -768,17 +791,21 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     }
     wf.gaps = gaps;
     ref.current.panel = 'tests';
-    commit();
+    render();
+    emit({
+      event: 'coverage_scanned',
+      payload: {
+        gaps: gaps.map((g) => ({ state: g.state, event: g.event, question: g.question })),
+      },
+    });
   };
 
   const resolveGap = (p: ResolveGap) => {
     const wf = activeWf();
     if (!wf) return;
-    const g = wf.gaps.find(
-      (x) => (p.id && x.id === p.id) || (x.state === p.state && x.event === p.event),
-    );
+    const g = wf.gaps.find((x) => x.state === p.state && x.event === p.event);
     if (g) g.resolved = true;
-    commit();
+    render();
   };
 
   // ── persona run (the finale) ──
@@ -817,7 +844,7 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
       done: false,
     };
     ref.current.selectedId = null;
-    commit();
+    render();
 
     // Reveal the trail one node at a time.
     full.forEach((id, i) => {
@@ -828,6 +855,10 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
         if (i === full.length - 1) {
           sim.restedAt = id;
           sim.done = true;
+          emit({
+            event: 'scenario_finished',
+            payload: { persona: sim.personaLabel, rested_at: id },
+          });
         }
         render();
       }, 620 * (i + 1));
@@ -849,7 +880,11 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     ];
     ref.current.deployment = { workflowId: wf.id, runId, version: wf.version, status: 'live', history };
     ref.current.panel = 'runtime';
-    commit();
+    render();
+    emit({
+      event: 'workflow_published',
+      payload: { id: wf.id, version: wf.version, run_id: runId },
+    });
   };
 
   // ── the voice contract ──
@@ -923,50 +958,33 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
     if (action) dispatch(action);
   };
 
-  const snapshot = (): Record<string, unknown> => {
-    const m = ref.current;
-    const wf = activeWf();
-    const base = {
-      view: m.view,
-      panel: m.panel,
-      admin: m.admin.name,
-      workflows: m.workflows.map((w) => ({ id: w.id, name: w.name, category: w.category, status: w.status })),
-    };
-    if (!wf) return base;
-    return {
-      ...base,
-      active: {
-        id: wf.id,
-        name: wf.name,
-        status: wf.status,
-        version: wf.version,
-        trigger: wf.trigger,
-        context: wf.context.map((c) => ({ key: c.key, type: c.type, derived: !!c.derived, enumValues: c.enumValues })),
-        states: wf.states.map((s) => ({
-          id: s.id,
-          kind: s.kind,
-          label: s.label,
-          next: s.next,
-          rejectTo: s.rejectTo,
-          else: s.else,
-          approver: s.approver,
-          connector: s.connectorId ? connectorActionLabel(s.connectorId, s.actionId) : undefined,
-          branches: s.branches?.map((b) => ({ label: b.label, guard: b.guard, to: b.to })),
-        })),
-        tests: wf.tests.map((t) => ({
-          name: t.name,
-          given: t.givenState,
-          event: t.event,
-          expect: t.expectState,
-          status: t.status,
-          actual: t.actualState,
-        })),
-        gaps: wf.gaps.filter((g) => !g.resolved).map((g) => ({ state: g.state, event: g.event, question: g.question })),
-        selected: m.selectedId,
-      },
-      sim: m.sim ? { persona: m.sim.personaLabel, restedAt: m.sim.restedAt, done: m.sim.done } : null,
-      deployment: m.deployment ? { runId: m.deployment.runId, version: m.deployment.version } : null,
-    };
+  const emit = (event: AppEvent) => sendAppEvent(sendRef.current, event);
+
+  // ── the admin's own hand ──
+  // Each of these is the copilot's op plus the one line that says who did it.
+  // The emit lives here rather than inside the op precisely so Ada's own
+  // dispatch of the same op sends nothing: there is no echo to suppress.
+  const byHand: ByHand = {
+    openList: () => {
+      openList();
+      emit({ event: 'list_opened', payload: {} });
+    },
+    openWorkflow: (id) => {
+      openWorkflow(id);
+      emit({ event: 'workflow_opened', payload: { id } });
+    },
+    setPanel: (p) => {
+      setPanel(p);
+      emit({ event: 'panel_opened', payload: { panel: p } });
+    },
+    focusState: (id) => {
+      focusState(id);
+      if (id) emit({ event: 'block_focused', payload: { id } });
+    },
+    showCode: (id) => {
+      showCode(id);
+      if (id) emit({ event: 'code_opened', payload: { id } });
+    },
   };
 
   const registerAgentSend = (fn: AgentSend | null) => {
@@ -989,19 +1007,14 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
       get activities() {
         return activitiesRef.current;
       },
-      openList,
-      openWorkflow,
-      setPanel,
-      focusState,
-      showCode,
+      byHand,
       dispatch,
       handleUiCommand,
-      snapshot,
       registerAgentSend,
     }),
     // The store methods are ref-backed, but the Provider value must change
     // identity on each commit — otherwise a stable value + the children-as-props
-    // bailout means consumers never re-render. `tick` bumps on every commit();
+    // bailout means consumers never re-render. `tick` bumps on every render();
     // botState/connectionState are proper React state, so they belong here too.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tick, botState, connectionState],

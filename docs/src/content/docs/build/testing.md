@@ -56,7 +56,7 @@ off.
 | `user_says("…")` | One user turn, played out and finalized. | `Turn` |
 | `barge_in("…")` | Start a turn, let the brain speak, interrupt, finalize the cut with partial heard-truth. | `Turn` |
 | `user_idle(level=1, idle_ms=30000)` | An idle trigger; plays out `on_user_idle`. | `Turn` |
-| `send_rtvi(type, data)` / `send_client_message(t, d)` | One app→brain RTVI message, delivered to `on_rtvi`. That callback cannot speak and opens no turn, so there is nothing to wait for. | — |
+| `send_ui_event(event, payload)` / `send_rtvi(type, data)` | One app→brain RTVI message, delivered to `on_rtvi`. That callback cannot speak and opens no turn, so there is nothing to wait for. | — |
 | `collect_ui_commands(min_count=1)` | Waits for and returns the `ui-command` bodies the brain fired — `{"command": …, "payload": {…}}`. | `list[dict]` |
 | `end_session()` / `send_cancel()` / `aclose()` | `End`, `Cancel`, teardown. | — |
 

@@ -79,10 +79,10 @@ function PriorityDot({ p }: { p: Priority }) {
 // `presence` is the voice layer's one control, handed up from `ServicingDesk` so
 // the desk reads as part of Meridian's own chrome rather than a bolted-on widget.
 function TopBar({ presence }: { presence?: ReactNode }) {
-  const { advisor, view, active, openBoard } = useServicing();
+  const { advisor, view, active, byHand } = useServicing();
   return (
     <header className="svc-topbar">
-      <div className="svc-brand" onClick={openBoard} role="button">
+      <div className="svc-brand" onClick={byHand.openBoard} role="button">
         <span className="svc-brand-mark">M</span>
         <div className="svc-brand-text">
           <strong>Meridian</strong>
@@ -91,7 +91,7 @@ function TopBar({ presence }: { presence?: ReactNode }) {
       </div>
 
       <nav className="svc-crumbs">
-        <button className="svc-crumb" onClick={openBoard}>
+        <button className="svc-crumb" onClick={byHand.openBoard}>
           Cases
         </button>
         {view === 'case' && active && (
@@ -132,7 +132,7 @@ function TopBar({ presence }: { presence?: ReactNode }) {
  * works elsewhere on screen; finished prep surfaces as "needs approval".
  */
 function AssistantTray() {
-  const { preparing, pendingApprovals, openCase } = useServicing();
+  const { preparing, pendingApprovals, byHand } = useServicing();
   const [open, setOpen] = useState(false);
   const activeCount = preparing.length;
 
@@ -174,7 +174,7 @@ function AssistantTray() {
           )}
 
           {preparing.map((c) => (
-            <button key={c.id} className="svc-tray-row" onClick={() => openCase(c.ref)}>
+            <button key={c.id} className="svc-tray-row" onClick={() => byHand.openCase(c.ref)}>
               <div className="svc-tray-row-head">
                 <span className="svc-mono">{c.ref}</span>
                 <span className="svc-tray-row-name">{c.customer.name}</span>
@@ -207,7 +207,7 @@ function AssistantTray() {
 
 // ── left rail ─────────────────────────────────────────────────────────────────
 function LeftRail() {
-  const { cases, filter, setFilter, openBoard, view, departments, advisor, needsApprovalCount } =
+  const { cases, filter, byHand, view, departments, advisor, needsApprovalCount } =
     useServicing();
   const mine = cases.filter((c) => c.assignee.kind === 'person' && c.assignee.id === advisor.id);
   const deptCount = (id: string) =>
@@ -215,10 +215,7 @@ function LeftRail() {
   // A rail item is "active" only on the board and when its filter is selected.
   const onBoard = view === 'board';
   const isActive = (pred: boolean) => (onBoard && pred ? 'svc-rail-active' : '');
-  const go = (f: Parameters<typeof setFilter>[0]) => {
-    setFilter(f);
-    openBoard();
-  };
+  const go = byHand.setFilter;
 
   return (
     <aside className="svc-rail">
@@ -271,7 +268,7 @@ function LeftRail() {
 
 // ── board ─────────────────────────────────────────────────────────────────────
 function BoardPage() {
-  const { cases, filter, advisor, departments, openCase } = useServicing();
+  const { cases, filter, advisor, departments, byHand } = useServicing();
   const visible = cases.filter((c) => {
     switch (filter.kind) {
       case 'mine':
@@ -315,7 +312,7 @@ function BoardPage() {
               </div>
               <div className="svc-col-body">
                 {col.map((c) => (
-                  <CaseCard key={c.id} c={c} onOpen={() => openCase(c.ref)} />
+                  <CaseCard key={c.id} c={c} onOpen={() => byHand.openCase(c.ref)} />
                 ))}
                 {col.length === 0 && <div className="svc-col-empty">—</div>}
               </div>
@@ -360,7 +357,7 @@ const TABS: { id: CaseTab; label: string }[] = [
 ];
 
 function CasePage({ c }: { c: Case }) {
-  const { tab, setTab, highlighted, openBoard } = useServicing();
+  const { tab, highlighted, byHand } = useServicing();
 
   // highlight: scroll to + flash a section when the assistant calls highlight().
   useEffect(() => {
@@ -379,7 +376,7 @@ function CasePage({ c }: { c: Case }) {
     <div className="svc-case">
       <div className="svc-case-main">
         <div className="svc-case-head">
-          <button className="svc-back" onClick={openBoard}>
+          <button className="svc-back" onClick={byHand.openBoard}>
             ← Board
           </button>
           <span className="svc-type-badge">{TYPE_ABBR[c.type] ?? '··'}</span>
@@ -398,7 +395,7 @@ function CasePage({ c }: { c: Case }) {
             <button
               key={t.id}
               className={`svc-tab ${tab === t.id ? 'svc-tab-active' : ''}`}
-              onClick={() => setTab(t.id)}
+              onClick={() => byHand.setTab(t.id)}
             >
               {t.label}
               {t.id === 'overview' && pending > 0 && <span className="svc-tab-badge">{pending}</span>}
@@ -539,7 +536,7 @@ function WorkupPanel({ c }: { c: Case }) {
 }
 
 function BlockerCard({ c, b }: { c: Case; b: Blocker }) {
-  const { assignCase } = useServicing();
+  const { byHand } = useServicing();
   const resolved = b.status === 'resolved';
   return (
     <div className={`svc-blocker svc-blocker-${resolved ? 'resolved' : b.severity}`}>
@@ -555,7 +552,7 @@ function BlockerCard({ c, b }: { c: Case; b: Blocker }) {
             <span className="svc-muted">Clear via {b.suggestedRoute}</span>
             <button
               className="svc-btn svc-btn-route"
-              onClick={() => assignCase(c.ref, 'department', b.suggestedRoute!)}
+              onClick={() => byHand.routeCase(c.ref, b.suggestedRoute!)}
             >
               Route to {b.suggestedRoute}
             </button>
@@ -568,7 +565,7 @@ function BlockerCard({ c, b }: { c: Case; b: Blocker }) {
 
 /** The regulated packet (multi-step form) the desk filled — approve-gated submit. */
 function PacketPanel({ c }: { c: Case }) {
-  const { submitPacket, canSubmitPacket } = useServicing();
+  const { byHand, canSubmitPacket } = useServicing();
   const packet = c.packet as Packet;
   const submitted = packet.status === 'submitted';
   const submitting = packet.status === 'submitting';
@@ -630,7 +627,7 @@ function PacketPanel({ c }: { c: Case }) {
             <button
               className="svc-btn svc-btn-approve"
               disabled={!canSubmit || submitting}
-              onClick={() => submitPacket(c.ref)}
+              onClick={() => byHand.submitPacket(c.ref)}
             >
               {submitting ? 'Submitting…' : 'Submit packet'}
             </button>
@@ -643,7 +640,7 @@ function PacketPanel({ c }: { c: Case }) {
 }
 
 function ApprovalCard({ caseRef, a }: { caseRef: string; a: Approval }) {
-  const { decideApproval } = useServicing();
+  const { byHand } = useServicing();
   return (
     <div className={`svc-approval svc-approval-${a.status}`}>
       <div className="svc-approval-icon">{APPROVAL_ICON[a.kind] ?? '◦'}</div>
@@ -669,13 +666,13 @@ function ApprovalCard({ caseRef, a }: { caseRef: string; a: Approval }) {
           <div className="svc-approval-actions">
             <button
               className="svc-btn svc-btn-approve"
-              onClick={() => decideApproval(caseRef, a.id, 'approved')}
+              onClick={() => byHand.decideApproval(caseRef, a, 'approved')}
             >
               Approve
             </button>
             <button
               className="svc-btn svc-btn-decline"
-              onClick={() => decideApproval(caseRef, a.id, 'declined')}
+              onClick={() => byHand.decideApproval(caseRef, a, 'declined')}
             >
               Decline
             </button>
@@ -711,15 +708,13 @@ function timeAgo(ts: number): string {
  * optional "Route to" tags the note with that department and routes the case.
  */
 function NotesPanel({ c }: { c: Case }) {
-  const { departments, addComment, assignCase } = useServicing();
+  const { departments, byHand } = useServicing();
   const [text, setText] = useState('');
   const [dept, setDept] = useState('');
 
   const submit = () => {
-    const body = text.trim();
-    if (!body) return;
-    addComment(c.ref, body, 'advisor', dept || undefined);
-    if (dept) assignCase(c.ref, 'department', dept);
+    if (!text.trim()) return;
+    byHand.addNote(c.ref, text, dept || undefined);
     setText('');
     setDept('');
   };
@@ -920,7 +915,7 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
  * as "the desk reached beyond the screen", with a real "searching…" beat.
  */
 function ArchiveResults() {
-  const { archiveSearch, dismissSearch, openCase } = useServicing();
+  const { archiveSearch, byHand } = useServicing();
   if (!archiveSearch) return null;
   const searching = archiveSearch.status === 'searching';
   return (
@@ -930,7 +925,7 @@ function ArchiveResults() {
           <span className="svc-archive-kicker">Archive search</span>
           <span className="svc-archive-query">“{archiveSearch.query}”</span>
         </div>
-        <button onClick={dismissSearch} title="Dismiss">
+        <button onClick={byHand.dismissSearch} title="Dismiss">
           ✕
         </button>
       </div>
@@ -955,7 +950,7 @@ function ArchiveResults() {
               </div>
             </div>
           ))}
-          <button className="svc-archive-foot" onClick={() => openCase(archiveSearch.results[0].ref)}>
+          <button className="svc-archive-foot" onClick={() => byHand.openCase(archiveSearch.results[0].ref)}>
             Open {archiveSearch.results[0].ref}
           </button>
         </div>

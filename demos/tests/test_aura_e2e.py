@@ -177,42 +177,28 @@ async def test_narrating_a_help_video_drives_the_screen() -> None:
         assert rig.command("highlight_step")["index"] == 1
 
 
-#: What the browser echoes back after the customer opens an article himself. The
-#: shape is ``store.tsx``'s ``snapshot()``, trimmed to the facts a version bump is
-#: keyed on.
-_ARTICLE_SCREEN: dict[str, Any] = {
-    "screen": "article",
-    "category": "cards",
-    "article": {"id": "block-card", "title_en": "Block a card", "needs_login": False},
-    "video": {"id": "M_Oxpto2PRo", "playing": False, "step_index": 0, "total_steps": 4},
-    "application": None,
-}
-
-
 async def test_what_he_did_on_screen_is_named_and_the_screen_itself_is_never_dumped() -> None:
-    """``state_sync`` is the one client message that must not speak — and, since the
-    screen moved out of the context, the one that must not describe either.
+    """A gesture is named in the context; the screen it produced is not.
 
-    A production call appended the whole snapshot on every change, each copy
-    prefixed *authoritative* and none of them dated, and the model streamed one to
-    the customer as speech instead of answering from it. So the snapshot stops at
-    the brain: the context gets one line naming which facts he moved and pointing
-    at ``get_screen_context``. Both halves are asserted — a note carrying the
-    article id would be the old dump again, one fact at a time."""
+    A production call appended the whole browser snapshot on every change, each
+    copy prefixed *authoritative* and none of them dated, and the model streamed
+    one to the customer as speech instead of answering from it. There is now
+    nothing to stream: the browser sends ``article_opened``, and the context gets
+    one line saying he opened an article and to go read the screen. Both halves
+    are asserted — a note carrying the article id would be the old dump again,
+    arriving one fact at a time."""
     llm = _llm()
     async with demo("aura", llm) as rig:
         await rig.driver.start_session()
         before = len(rig.driver.ui_commands)
 
-        # The first sync is the page as it loaded; the second is him.
-        await rig.driver.send_client_message("state_sync", {"screen_state": {"screen": "home"}})
-        await rig.driver.send_client_message("state_sync", {"screen_state": _ARTICLE_SCREEN})
+        await rig.driver.send_ui_event("article_opened", {"article_id": "block-card"})
         turn = await rig.driver.user_says("What am I looking at?")
         check_turn(rig, turn, units=1)
-        assert len(rig.driver.ui_commands) == before, "state_sync drove the screen"
+        assert len(rig.driver.ui_commands) == before, "a gesture drove the screen"
 
     context = _context_text(llm)
-    assert "just changed the screen" in context
+    assert "opened a help article themselves" in context
     assert "get_screen_context" in context
     assert "block-card" not in context, "the change note is carrying the screen"
     assert "CURRENT SCREEN STATE" not in context, "the screen dump is back"
@@ -226,11 +212,12 @@ async def test_a_tool_aimed_at_a_screen_he_moved_is_refused_until_it_is_read() -
     the refusal is retriable: read, then act. The scripted model here does exactly
     the wrong thing first.
 
-    The other half is that the brain's own dispatches must *not* trip it. The
-    browser echoes every one of them back as a ``state_sync`` indistinguishable from
-    the customer moving the screen himself, and a change the model asked for is one
-    it has already been told about — so both echoes below are sent, exactly as the
-    browser sends them, and neither costs the model a hop."""
+    The other half is that the brain's own dispatches must *not* trip it. That
+    used to need a flag, because the browser echoed every command back as a
+    snapshot indistinguishable from the customer moving the screen himself. Now it
+    needs nothing: a dispatch is not a gesture, so the browser sends no event for
+    one, and the two ``seek_video`` calls the brain makes below cost the model no
+    hop at all."""
     llm = ScriptedGemini(
         {
             "Show me how to add a payee.": [
@@ -250,22 +237,18 @@ async def test_a_tool_aimed_at_a_screen_he_moved_is_refused_until_it_is_read() -
             "Thanks.": reply("Any time."),
         }
     )
-    playing = {"screen": "article", "video": {"id": "add-payee"}}
     async with demo("aura", llm) as rig:
         await rig.driver.start_session()
-        await rig.driver.send_client_message("state_sync", {"screen_state": {"screen": "home"}})
 
         await rig.driver.user_says("Show me how to add a payee.")
-        await rig.driver.send_client_message("state_sync", {"screen_state": playing})
 
         # The screen moved, but the brain moved it — so this costs no read.
         await rig.driver.user_says("Start from the beginning.")
         assert rig.command("seek_video")["start_sec"] == 0
         assert not _seek_refused(llm), "the brain's own dispatch bumped the version"
-        await rig.driver.send_client_message("state_sync", {"screen_state": playing})
 
         # Now the customer navigates away himself.
-        await rig.driver.send_client_message("state_sync", {"screen_state": _ARTICLE_SCREEN})
+        await rig.driver.send_ui_event("article_opened", {"article_id": "block-card"})
         await rig.driver.user_says("Go back a bit.")
         seeks = [
             c["payload"]["start_sec"]
@@ -330,9 +313,9 @@ async def test_signing_in_hands_the_model_a_token_it_could_not_have_written() ->
         await rig.driver.start_session()
         await rig.driver.user_says("What's my balance?")
 
-        await rig.driver.send_client_message("auth_complete", {"nonce": _auth_nonce(rig)})
-        # `send_client_message` returns once the frame is sent, not once `on_rtvi`
-        # has run it (it takes no floor, so there is nothing to await) — give the
+        await rig.driver.send_ui_event("auth_completed", {"nonce": _auth_nonce(rig)})
+        # `send_ui_event` returns once the frame is sent, not once `on_rtvi` has
+        # run it (it takes no floor, so there is nothing to await) — give the
         # append a beat before the next turn's prompt is built.
         await asyncio.sleep(0.1)
 
@@ -356,7 +339,7 @@ async def test_a_dismissed_signin_tells_the_model_so_instead_of_stalling() -> No
         await rig.driver.start_session()
         await rig.driver.user_says("What's my balance?")
 
-        await rig.driver.send_client_message("auth_cancelled", {"nonce": _auth_nonce(rig)})
+        await rig.driver.send_ui_event("auth_cancelled", {"nonce": _auth_nonce(rig)})
         await asyncio.sleep(0.1)
 
         turn = await rig.driver.user_says("Anything else I should know?")
@@ -423,7 +406,7 @@ async def test_a_tap_is_answered_on_the_next_idle() -> None:
         await rig.driver.start_session()
         await rig.driver.user_says("What's my balance?")
 
-        await rig.driver.send_client_message("auth_complete", {"nonce": _auth_nonce(rig)})
+        await rig.driver.send_ui_event("auth_completed", {"nonce": _auth_nonce(rig)})
         await asyncio.sleep(0.1)
 
         # The customer says nothing at all from here on.
@@ -462,7 +445,7 @@ async def test_answering_out_loud_settles_the_debt() -> None:
         await rig.driver.start_session()
         await rig.driver.user_says("What's my balance?")
 
-        await rig.driver.send_client_message("auth_complete", {"nonce": _auth_nonce(rig)})
+        await rig.driver.send_ui_event("auth_completed", {"nonce": _auth_nonce(rig)})
         await asyncio.sleep(0.1)
 
         turn = await rig.driver.user_says("Anything else I should know?")

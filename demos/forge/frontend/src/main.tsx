@@ -5,7 +5,9 @@
  * "Ada". The studio UI and the voice widget share one `ForgeProvider`, so the
  * copilot and the human drive the same screen; the workflow is a block-based
  * statechart the copilot assembles, tests (real JS guards), and publishes live.
- * Two-way `ui_command` / `state_sync` keeps them in lockstep.
+ * Two-way and typed both ways: `ui-command` carries Ada's edits down,
+ * `ui-event` carries the admin's own gestures — and the interpreter's own
+ * answers — back.
  */
 
 import { StrictMode, type ReactNode } from "react";

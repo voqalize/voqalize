@@ -10,12 +10,20 @@ output** before it reaches the console: case refs are upper-cased, and the jobs
 and findings the model invents are given stable ids the browser keys its rows by.
 Both are invisible in the reply and load-bearing on screen.
 
+It is also the widest browser→brain vocabulary in the fleet, because the advisor
+is a colleague with both hands on the same screen: he opens cases, routes them,
+signs off drafts and submits packets while talking. Each of those arrives as a
+typed ``ui-event`` naming the *act*, and the board itself rides ``session.init``
+— the browser never pushes a workspace, so there is nothing to diff and nothing
+to go stale in the context.
+
 Run: ``cd demos && uv run pytest tests/test_servicing_e2e.py``
 """
 
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 from typing import Any
 
 from voqalize_demos.discovery import discover
@@ -28,22 +36,47 @@ discover()
 VOICE = "omnivoice/gauri"
 LANGUAGE = "en"
 
-PAYLOAD: dict[str, Any] = {"advisor": {"name": "Kavita", "role": "Senior Servicing Advisor"}}
-
-#: A snapshot of the shape ``store.tsx``'s ``snapshot()`` sends.
-WORKSPACE: dict[str, Any] = {
-    "view": "case",
-    "tab": "timeline",
-    "pending_approvals": 2,
-    "active_case": {
+#: The board as ``data.ts``'s ``boardSeed()`` sends it — the worklist the advisor
+#: logged in to, handed over once in ``init`` instead of pushed on every change.
+BOARD: list[dict[str, Any]] = [
+    {
         "ref": "SR-4471",
         "customer": "Sharma",
-        "stage": "with department",
-        "packet": {"title": "Payoff packet", "status": "draft", "can_submit": False},
-        "blocker": {"title": "Lien not subordinated", "status": "open"},
+        "type": "hardship",
+        "title": "Hardship review",
+        "stage": "in_progress",
+        "priority": "high",
+        "assignee": "Kavita",
+        "findings": [],
+        "blocker": None,
+        "packet": None,
+        "pending_approvals": ["Payoff release"],
+        "notes": [],
     },
-    "cases": [{"ref": "SR-4471", "customer": "Sharma", "stage": "with department"}],
-}
+    {
+        "ref": "SR-4482",
+        "customer": "Iyer",
+        "type": "rate_change",
+        "title": "Rate reduction request",
+        "stage": "new",
+        "priority": "normal",
+        "assignee": "Marcus Bell",
+        "findings": [],
+        "blocker": None,
+        "packet": None,
+        "pending_approvals": [],
+        "notes": [],
+    },
+]
+
+
+def _payload() -> dict[str, Any]:
+    """A fresh init each time — the brain patches the board it is handed in place,
+    exactly as it would patch the console."""
+    return {
+        "advisor": {"name": "Kavita", "role": "Senior Servicing Advisor"},
+        "cases": deepcopy(BOARD),
+    }
 
 
 def _llm() -> ScriptedGemini:
@@ -106,7 +139,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     """The desk opens with a fixed line — no model call on the start path — and
     its declared voice lands on **both** legs first."""
     async with demo("servicing", _llm()) as rig:
-        greeting = await rig.driver.start_session(init=PAYLOAD)
+        greeting = await rig.driver.start_session(init=_payload())
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text.startswith("Hi there — Servicing Desk here.")
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
@@ -122,7 +155,7 @@ async def test_the_desk_normalizes_what_the_model_wrote() -> None:
     both failures the assistant's spoken reply is perfectly correct, so only the
     ``ui_command`` shows it."""
     async with demo("servicing", _llm()) as rig:
-        await rig.driver.start_session(init=PAYLOAD)
+        await rig.driver.start_session(init=_payload())
 
         t1 = await rig.driver.user_says("Pull up the Sharma escalation.")
         check_turn(rig, t1, units=2)
@@ -166,39 +199,56 @@ def _tool_results(llm: ScriptedGemini) -> str:
     )
 
 
-async def test_the_console_snapshot_is_read_on_request_and_never_dumped() -> None:
-    """``state_sync`` takes no floor — and, since the workspace moved out of the
-    context, it puts nothing there either.
+async def test_a_gesture_is_named_in_the_context_and_the_board_never_follows_it() -> None:
+    """What the advisor did with his own hand reaches the model as one line; what
+    is *on* the case reaches it only through the tool.
 
     This used to append the whole workspace on every change, prefixed
     *authoritative*, so a session working a queue ended with a hundred
-    near-identical consoles in front of the model. Now the snapshot stops at the
-    brain and ``get_advisor_context`` — the one tool that drives no screen — is the
-    only way to it. Both halves are asserted: the case ref must be in the tool's
-    result and out of the context."""
+    near-identical consoles in front of the model. Now the gesture is typed, the
+    line names the act, and the board — which the desk was handed once, in
+    ``init`` — is read through ``get_advisor_context``, the one tool that drives
+    no screen. Both halves are asserted: the customer and the draft's title must
+    be in the tool's result and out of the context."""
     llm = _llm()
     async with demo("servicing", llm) as rig:
-        await rig.driver.start_session(init=PAYLOAD)
+        await rig.driver.start_session(init=_payload())
         before = len(rig.driver.ui_commands)
 
-        await rig.driver.send_client_message("state_sync", {"workspace": WORKSPACE})
-        # `send_client_message` returns once the frame is sent, not once
-        # `on_rtvi` has run it (it takes no floor, so there is nothing to
-        # await) — give the ingestion a beat before the next turn's prompt is
-        # built, or the model call can race it. See orderdesk's identical wait.
+        await rig.driver.send_ui_event("case_opened", {"ref": "sr-4471"})
+        await rig.driver.send_ui_event(
+            "approval_decided",
+            {
+                "ref": "SR-4471",
+                "approval_id": "ap-1",
+                "decision": "approved",
+                "title": "Payoff release",
+            },
+        )
+        # `send_ui_event` returns once the frame is sent, not once `on_rtvi` has
+        # run it (it takes no floor, so there is nothing to await) — give the
+        # ingestion a beat before the next turn's prompt is built, or the model
+        # call can race it.
         await asyncio.sleep(0.1)
 
         turn = await rig.driver.user_says("Where am I?")
         check_turn(rig, turn, units=2)
-        assert len(rig.driver.ui_commands) == before, "state_sync or the read-only tool drew"
+        assert len(rig.driver.ui_commands) == before, "a gesture or the read-only tool drew"
 
         # One more turn, so the turn above's tool results are in a request.
         await rig.driver.user_says("Where am I?")
 
-    assert "SR-4471" in _tool_results(llm)
     context = _context_text(llm)
+    # The ref is the handle the next tool call needs; the case behind it is not.
+    assert "The advisor opened SR-4471 himself." in context, context
+    assert "approved a draft on SR-4471 himself — his call, never yours" in context, context
     assert "CURRENT WORKSPACE STATE" not in context, "the workspace dump is back"
-    assert "SR-4471" not in context, "the workspace reached the context anyway"
+    assert "Sharma" not in context, "the board reached the context anyway"
+    assert "Payoff release" not in context, "the draft's title followed the gesture in"
+
+    results = _tool_results(llm)
+    assert "Sharma" in results, results
+    assert "approved: Payoff release" in results, results
 
 
 async def test_a_packet_edit_on_a_console_the_advisor_moved_is_refused_until_it_is_read() -> None:
@@ -238,9 +288,8 @@ async def test_a_packet_edit_on_a_console_the_advisor_moved_is_refused_until_it_
         }
     )
     async with demo("servicing", llm) as rig:
-        await rig.driver.start_session(init=PAYLOAD)
-        await rig.driver.send_client_message("state_sync", {"workspace": {"view": "board"}})
-        await rig.driver.send_client_message("state_sync", {"workspace": WORKSPACE})
+        await rig.driver.start_session(init=_payload())
+        await rig.driver.send_ui_event("case_opened", {"ref": "SR-4471"})
         await asyncio.sleep(0.1)
 
         await rig.driver.user_says("Set the payoff date to month-end.")

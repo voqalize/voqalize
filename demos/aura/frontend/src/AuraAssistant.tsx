@@ -9,9 +9,10 @@
  *   - the assistant's `ui-command` server messages (`{ command, payload }`)
  *     replay onto the shared Aura store, so the agent drives the help centre
  *     and the video;
- *   - a debounced `state_sync` echoes a compact `screen_state` snapshot back
- *     (via `client.sendClientMessage`) so the assistant always knows what's on
- *     screen.
+ *   - the customer's own gestures leave as `ui-event` messages
+ *     (`client.sendUIEvent`), one at a time, which is what the store's `byHand`
+ *     wraps. The screen itself is never echoed back — Aria reads it with
+ *     `get_screen_context` when she needs it.
  *
  * This is exactly the surface an external developer embeds: one `fetch` for
  * `sessions.connect`, handed to `PipecatAppBase`, driven by a publishable
@@ -328,7 +329,7 @@ function AuraSession({
   onFailed: () => void;
   children: (presence: ReactNode) => ReactNode;
 }) {
-  const { handleUiCommand, registerAgentSend, snapshot, rev } = useAura();
+  const { handleUiCommand, registerAgentSend } = useAura();
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
   const { isConnected, isConnecting } = usePipecatConnectionState();
@@ -355,26 +356,20 @@ function AuraSession({
     ),
   );
 
-  const sendMessage = useCallback((type: string, data: unknown) => client?.sendClientMessage(type, data), [client]);
+  const sendEvent = useCallback(
+    (event: string, payload?: unknown) => client?.sendUIEvent(event, payload),
+    [client],
+  );
 
-  // Once live: open the mic and register the store's agent-send channel (the
-  // store echoes `auth_complete` / `card_selected` / etc. through it — including
-  // Aura's HMAC sign-in nonce).
+  // Once live: open the mic and register the channel the store's `byHand`
+  // gestures leave by — including the sign-in and picker answers, which carry
+  // Aria's own handshake nonce back to her.
   useEffect(() => {
     if (!isConnected) return;
     client?.enableMic(true);
-    registerAgentSend(sendMessage);
+    registerAgentSend(sendEvent);
     return () => registerAgentSend(null);
-  }, [isConnected, client, registerAgentSend, sendMessage]);
-
-  // Debounced `state_sync`: whenever the on-screen state revision bumps, echo a
-  // compact snapshot back to the assistant so it always knows what's on screen.
-  useEffect(() => {
-    if (!isConnected) return;
-    const t = setTimeout(() => sendMessage('state_sync', { screen_state: snapshot() }), 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, rev]);
+  }, [isConnected, client, registerAgentSend, sendEvent]);
 
   // Dev-only: drive the flow without a mic.
   //   window.__aura.ui('open_article', {article_id: 'interest-certificate'})

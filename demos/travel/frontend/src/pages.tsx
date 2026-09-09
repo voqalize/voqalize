@@ -313,7 +313,7 @@ function TravelStyles() {
 // Carries the wordmark, the breadcrumb, and the one voice affordance — the
 // presence control the voice layer hands up, so the desk reads as product chrome.
 function TopBar({ presence }: { presence: ReactNode }) {
-  const { active, view, openDashboard } = useTravel();
+  const { active, view, byHand } = useTravel();
   return (
     <div className="tv-topbar">
       <div className="tv-brand">
@@ -321,7 +321,7 @@ function TopBar({ presence }: { presence: ReactNode }) {
         <span className="sub">B2B Itineraries</span>
       </div>
       <div className="tv-crumbs">
-        <a onClick={openDashboard}>Itineraries</a>
+        <a onClick={byHand.openDashboard}>Itineraries</a>
         {active && view !== 'dashboard' && (
           <>
             <span className="sep">/</span>
@@ -345,7 +345,7 @@ function TopBar({ presence }: { presence: ReactNode }) {
 // visible proof that long-running work doesn't block the conversation — the
 // behaviour the desk will keep when real fare/hotel APIs are wired in behind it.
 function TaskTray() {
-  const { tasks, openTaskTarget } = useTravel();
+  const { tasks, byHand } = useTravel();
   if (tasks.length === 0) return null;
   return (
     <div className="tv-tasktray">
@@ -358,7 +358,7 @@ function TaskTray() {
             type="button"
             className={`tv-task ${t.status}`}
             disabled={!done}
-            onClick={done ? () => openTaskTarget(t) : undefined}
+            onClick={done ? () => byHand.openTaskTarget(t) : undefined}
             title={done ? 'Open' : 'Running…'}
           >
             <span className="tick" aria-hidden>
@@ -375,7 +375,7 @@ function TaskTray() {
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function DashboardPage() {
-  const { itineraries, openItinerary, newBlankItinerary } = useTravel();
+  const { itineraries, byHand } = useTravel();
   return (
     <div className="tv-wrap">
       <h1 className="tv-h1">My Itineraries</h1>
@@ -388,7 +388,7 @@ function DashboardPage() {
           No itineraries yet. Tap <b>Ask the Travel Desk</b> and say something like “एक नई itinerary
           बनाओ — Poddar family का Vietnam group trip”.
           <div style={{ marginTop: 16 }}>
-            <button className="tv-btn ghost" onClick={newBlankItinerary}>
+            <button className="tv-btn ghost" onClick={byHand.newTrip}>
               + Start a blank itinerary
             </button>
           </div>
@@ -396,7 +396,7 @@ function DashboardPage() {
       ) : (
         <div className="tv-grid">
           {itineraries.map((it) => (
-            <button key={it.id} className="tv-tripcard" onClick={() => openItinerary(it.id)}>
+            <button key={it.id} className="tv-tripcard" onClick={() => byHand.openTrip(it.id)}>
               <div className="nm">{it.name}</div>
               <div className="ds">{it.destination || '—'}</div>
               <div className="meta">
@@ -406,7 +406,7 @@ function DashboardPage() {
               </div>
             </button>
           ))}
-          <button className="tv-newcard" onClick={newBlankItinerary}>
+          <button className="tv-newcard" onClick={byHand.newTrip}>
             <span style={{ fontSize: 22 }}>+</span>
             New itinerary
           </button>
@@ -434,7 +434,7 @@ function SpecialChips({ active }: { active: Itinerary }) {
 }
 
 function LegRow({ leg }: { leg: Leg }) {
-  const { viewFlights } = useTravel();
+  const { byHand } = useTravel();
   const sel = selectedFlight(leg);
   return (
     <div className="tv-row">
@@ -453,7 +453,7 @@ function LegRow({ leg }: { leg: Leg }) {
           )}
         </div>
         {(leg.options?.length ?? 0) > 0 && (
-          <button className="tv-btn quiet sm" onClick={() => viewFlights(leg.id)}>
+          <button className="tv-btn quiet sm" onClick={() => byHand.viewFlights(leg)}>
             {sel ? 'Change' : 'Choose'}
           </button>
         )}
@@ -463,7 +463,7 @@ function LegRow({ leg }: { leg: Leg }) {
 }
 
 function HotelRow({ city, stay }: { city: string; stay: HotelStay }) {
-  const { viewHotels } = useTravel();
+  const { byHand } = useTravel();
   const sel = selectedHotel(stay);
   return (
     <div className="tv-row">
@@ -482,7 +482,7 @@ function HotelRow({ city, stay }: { city: string; stay: HotelStay }) {
           )}
         </div>
         {(stay.options?.length ?? 0) > 0 && (
-          <button className="tv-btn quiet sm" onClick={() => viewHotels(city)}>
+          <button className="tv-btn quiet sm" onClick={() => byHand.viewHotels(city)}>
             {sel ? 'Change' : 'Choose'}
           </button>
         )}
@@ -636,7 +636,7 @@ function OverviewPage({ active }: { active: Itinerary }) {
 
 // ── Flights screen ────────────────────────────────────────────────────────────
 function FlightCard({ leg, opt }: { leg: Leg; opt: FlightOption }) {
-  const { selectFlight } = useTravel();
+  const { byHand } = useTravel();
   const isSel = leg.selectedId === opt.id;
   return (
     <div className={`tv-opt${isSel ? ' sel' : ''}`}>
@@ -660,7 +660,7 @@ function FlightCard({ leg, opt }: { leg: Leg; opt: FlightOption }) {
           {INR(opt.price)}
           <small>per person</small>
         </div>
-        <button className={`tv-btn ${isSel ? 'ghost' : 'primary'} sm`} onClick={() => selectFlight(leg.id, opt.id)}>
+        <button className={`tv-btn ${isSel ? 'ghost' : 'primary'} sm`} onClick={() => byHand.selectFlight(leg, opt)}>
           {isSel ? '✓ Selected' : 'Select'}
         </button>
       </div>
@@ -684,7 +684,7 @@ function Searching({ label }: { label: string }) {
 }
 
 function FlightsPage({ active }: { active: Itinerary }) {
-  const { flightsLeg, openItinerary, tasks } = useTravel();
+  const { flightsLeg, byHand, tasks } = useTravel();
   const leg = active.legs.find((l) => l.id === flightsLeg) ?? active.legs[0];
   if (!leg) return <div className="tv-wrap tv-muted">No flight leg selected.</div>;
   const searching = tasks.some(
@@ -694,7 +694,7 @@ function FlightsPage({ active }: { active: Itinerary }) {
   return (
     <div className="tv-wrap">
       <div className="tv-scrh">
-        <button className="tv-btn ghost sm" onClick={() => openItinerary(active.id)}>
+        <button className="tv-btn ghost sm" onClick={byHand.backToOverview}>
           ← Back
         </button>
         <div>
@@ -720,9 +720,9 @@ function FlightsPage({ active }: { active: Itinerary }) {
 }
 
 // ── Hotels screen ─────────────────────────────────────────────────────────────
-function HotelCard({ city, opt, selectedId }: { city: string; opt: HotelOption; selectedId?: string }) {
-  const { selectHotel } = useTravel();
-  const isSel = selectedId === opt.id;
+function HotelCard({ stay, opt }: { stay: HotelStay; opt: HotelOption }) {
+  const { byHand } = useTravel();
+  const isSel = stay.selectedId === opt.id;
   return (
     <div className={`tv-opt${isSel ? ' sel' : ''}`}>
       <div className="main">
@@ -752,7 +752,7 @@ function HotelCard({ city, opt, selectedId }: { city: string; opt: HotelOption; 
           {INR(opt.price_per_night)}
           <small>per night</small>
         </div>
-        <button className={`tv-btn ${isSel ? 'ghost' : 'primary'} sm`} onClick={() => selectHotel(city, opt.id)}>
+        <button className={`tv-btn ${isSel ? 'ghost' : 'primary'} sm`} onClick={() => byHand.selectHotel(stay, opt)}>
           {isSel ? '✓ Selected' : 'Select'}
         </button>
       </div>
@@ -761,7 +761,7 @@ function HotelCard({ city, opt, selectedId }: { city: string; opt: HotelOption; 
 }
 
 function HotelsPage({ active }: { active: Itinerary }) {
-  const { hotelsCity, openItinerary, tasks } = useTravel();
+  const { hotelsCity, byHand, tasks } = useTravel();
   const stay = active.hotels.find((h) => h.city === hotelsCity) ?? active.hotels[0];
   if (!stay) return <div className="tv-wrap tv-muted">No hotel stay selected.</div>;
   const searching = tasks.some(
@@ -771,7 +771,7 @@ function HotelsPage({ active }: { active: Itinerary }) {
   return (
     <div className="tv-wrap">
       <div className="tv-scrh">
-        <button className="tv-btn ghost sm" onClick={() => openItinerary(active.id)}>
+        <button className="tv-btn ghost sm" onClick={byHand.backToOverview}>
           ← Back
         </button>
         <div>
@@ -788,7 +788,7 @@ function HotelsPage({ active }: { active: Itinerary }) {
       ) : (
         <div className="tv-optgrid">
           {options.map((opt) => (
-            <HotelCard key={opt.id} city={stay.city} opt={opt} selectedId={stay.selectedId} />
+            <HotelCard key={opt.id} stay={stay} opt={opt} />
           ))}
         </div>
       )}
@@ -840,7 +840,7 @@ function whatsappText(it: Itinerary): string {
 }
 
 function WhatsAppModal({ active }: { active: Itinerary }) {
-  const { closeWhatsApp, sendWhatsApp } = useTravel();
+  const { closeWhatsApp, byHand } = useTravel();
   const sent = Boolean(active.whatsapp);
   const recipient = active.whatsapp?.recipient || active.coordinator || 'Coordinator';
   return (
@@ -871,7 +871,7 @@ function WhatsAppModal({ active }: { active: Itinerary }) {
             <button
               className="tv-btn primary"
               style={{ width: '100%' }}
-              onClick={() => sendWhatsApp(active.whatsapp?.to || '', recipient)}
+              onClick={() => byHand.shareQuote(active.whatsapp?.to || '', recipient)}
             >
               Send to {recipient}
             </button>

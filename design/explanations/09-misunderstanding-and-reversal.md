@@ -59,8 +59,8 @@ the taxonomy exists — not tidiness, orientation.
 ## Proof — withheld authority
 
 - `orderdesk`: "**You have no confirm tool and no confirm authority.**" The
-  pharmacist presses Confirm; the brain sees `screen: "confirmed"` arrive in its
-  grounding and closes in one line.
+  pharmacist presses Confirm; that gesture arrives as its own event and the brain
+  closes in one line.
 - `servicing`: `submit_packet` only goes through after the advisor approves.
 - `aura`: `authenticate` is the one blocking tool in the demo set, and it blocks
   precisely because it is waiting on a human decision.
@@ -70,10 +70,10 @@ the taxonomy exists — not tidiness, orientation.
 ## Proof — correction by hand is a supported path, not an escape hatch
 
 The pharmacist can tap a variant pill, type a quantity, delete a row, add from the
-search bar. All of it arrives as `state_sync` and is authoritative
-([7](07-who-owns-which-state.md)). The brain's mirror yields to it, and
-`candidate_codes` narrowing is how the agent *notices* a correction it never
-heard.
+search bar. Each of those is its own typed event, and each says what it was
+([7](07-who-owns-which-state.md)) — so a correction the agent never heard arrives
+named rather than inferred from a diff. "Chose the 150 g gel for li3" is a
+sentence the model can act on; "the cart is different now" is not.
 
 ## Gap
 

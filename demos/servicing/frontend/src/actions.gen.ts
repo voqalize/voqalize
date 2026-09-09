@@ -132,6 +132,72 @@ export interface Highlight {
   section: 'summary' | 'loan' | 'payments' | 'documents' | 'approvals' | 'notes' | 'activity';
 }
 
+/**
+ * The advisor approved or declined a draft — the maker-checker half that is
+ * his alone. The desk must never claim it decided one.
+ */
+export interface ApprovalDecided {
+  ref: string;
+
+  approval_id: string;
+
+  decision: 'approved' | 'declined';
+
+  title?: string;
+}
+
+/** The advisor filtered the board — which cases he is now looking at. */
+export interface BoardFiltered {
+  showing: string;
+}
+
+/** The advisor went back to the case board. No case is open. */
+export type BoardOpened = Record<string, never>;
+
+/**
+ * The advisor opened a case himself — off the board, the approvals tray, or a
+ * precedent result.
+ */
+export interface CaseOpened {
+  ref: string;
+}
+
+/** The advisor routed a case to a department queue himself. */
+export interface CaseRouted {
+  ref: string;
+
+  to: string;
+}
+
+/**
+ * The advisor wrote a note on a case, optionally routing it to a department.
+ *
+ * The text rides the event because the desk's mirror is its only view of the
+ * console: what the advisor typed exists nowhere else the desk can reach. It
+ * goes into the mirror, not the context — read through `get_advisor_context`
+ * like everything else on screen.
+ */
+export interface NoteAdded {
+  ref: string;
+
+  text?: string;
+
+  dept?: string;
+}
+
+/** The advisor submitted a regulated packet himself. */
+export interface PacketSubmitted {
+  ref: string;
+}
+
+/** The advisor closed the precedent-search panel. */
+export type SearchDismissed = Record<string, never>;
+
+/** The advisor switched tabs on the open case. */
+export interface TabOpened {
+  tab: 'overview' | 'payments' | 'documents' | 'activity';
+}
+
 // ── Shapes used by the messages above ──────────────────────────────
 
 /** A draft item dropped into the advisor's 'Needs your approval' queue. */
@@ -323,4 +389,45 @@ export function asUiAction(command: string, payload: unknown): UiAction | null {
  */
 export function unhandledUiAction(action: never): never {
   throw new Error(`Unhandled action: ${JSON.stringify(action)}`);
+}
+
+/** Everything the person can do on screen, discriminated by `event`. */
+export type AppEvent =
+  | { event: 'approval_decided'; payload: ApprovalDecided }
+  | { event: 'board_filtered'; payload: BoardFiltered }
+  | { event: 'board_opened'; payload: BoardOpened }
+  | { event: 'case_opened'; payload: CaseOpened }
+  | { event: 'case_routed'; payload: CaseRouted }
+  | { event: 'note_added'; payload: NoteAdded }
+  | { event: 'packet_submitted'; payload: PacketSubmitted }
+  | { event: 'search_dismissed'; payload: SearchDismissed }
+  | { event: 'tab_opened'; payload: TabOpened };
+
+export type AppEventName = AppEvent['event'];
+
+export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'approval_decided',
+  'board_filtered',
+  'board_opened',
+  'case_opened',
+  'case_routed',
+  'note_added',
+  'packet_submitted',
+  'search_dismissed',
+  'tab_opened',
+];
+
+/**
+ * Send one thing the person did. `send` is a pipecat client's `sendUIEvent`,
+ * or null before the call connects — a gesture made off-call is dropped,
+ * which is right: there is no brain that missed it.
+ *
+ * The name picks the payload type, so a field renamed in Python stops
+ * compiling here rather than arriving as a shape the brain discards.
+ */
+export function sendAppEvent(
+  send: ((event: string, payload?: unknown) => void) | null | undefined,
+  event: AppEvent,
+): void {
+  send?.(event.event, event.payload);
 }

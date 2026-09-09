@@ -12,9 +12,10 @@
  *     `@voqalize/demo-kit`);
  *   - the brain's `ui-command` RTVI messages replay onto the store (add a
  *     step, insert a decision, run the tests, publish live…);
- *   - a compact workspace snapshot is echoed back (`state_sync`) on connect
- *     and after every change, so Ada always knows the open workflow, its
- *     steps, tests, and gaps — including edits the admin makes by hand.
+ *   - the studio's own half of the contract goes back the other way as typed
+ *     `ui-event`s: what the admin did by hand, and what the interpreter worked
+ *     out for itself. The catalog itself rides `session.init`, once — the
+ *     studio already has it, so there is nothing to be gained by pushing it.
  *
  * The presence control lives in the app's top bar (rendered via the `children`
  * render-prop so the studio owns its own chrome): a single mic affordance that
@@ -38,7 +39,7 @@ import { AmbientPresence, DemoGate, type AmbientPresencePalette } from "@voqaliz
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { useForge, type BotState, type ConnStatus } from "./store";
 import { ActivityFeed } from "./ActivityFeed";
-import { ADMIN } from "./data";
+import { ADMIN, studioSeed } from "./data";
 import { connectRequest, withRealHeaders } from "./config";
 
 // Flowforge's reading of the shared presence ring: violet is the build surface,
@@ -129,7 +130,7 @@ function CallInner({
   onDisconnect?: () => void | Promise<void>;
   children: (presence: ReactNode) => ReactNode;
 }) {
-  const { setBotState, setConnectionState, handleUiCommand, registerAgentSend, snapshot, model } = useForge();
+  const { setBotState, setConnectionState, handleUiCommand, registerAgentSend } = useForge();
 
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
@@ -168,18 +169,9 @@ function CallInner({
   useEffect(() => {
     if (!isConnected || !client) return;
     client.enableMic(true);
-    registerAgentSend((type, data) => client.sendClientMessage(type, data));
+    registerAgentSend((event, payload) => client.sendUIEvent(event, payload));
     return () => registerAgentSend(null);
   }, [isConnected, client, registerAgentSend]);
-
-  // Debounced snapshot push: on connect and after every change (rev), so Ada stays
-  // in sync with edits the admin makes by hand too.
-  useEffect(() => {
-    if (!isConnected || !client) return;
-    const t = setTimeout(() => client.sendClientMessage("state_sync", { workspace: snapshot() }), 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, client, model.rev]);
 
   // Dev-only: drive the flow from the console without a mic.
   useEffect(() => {
@@ -231,7 +223,14 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
   // No pipeline override: this agent's voice and language are declared on its
   // brain (backend/brain.py), which is the only place they belong.
   const params = useMemo(
-    () => connectRequest({ surface: "forge-web", admin: { name: ADMIN.name, role: ADMIN.role } }),
+    () =>
+      connectRequest({
+        surface: "forge-web",
+        admin: { name: ADMIN.name, role: ADMIN.role },
+        // The catalog, handed over once. Ada patches it from here — her own
+        // edits as she dispatches them, everything else as an event.
+        workflows: studioSeed(),
+      }),
     [],
   );
 

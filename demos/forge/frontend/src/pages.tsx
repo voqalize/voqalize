@@ -15,7 +15,7 @@ import { CATEGORY_LABEL, KIND_META, TYPE_LABEL, type ContextField, type Workflow
 // ─── List view ───────────────────────────────────────────────────────────────────
 
 export function ListView() {
-  const { model, openWorkflow, dispatch } = useForge();
+  const { model, byHand, dispatch } = useForge();
   return (
     <div className="ff-list">
       <div className="ff-list-head">
@@ -27,7 +27,7 @@ export function ListView() {
       </div>
       <div className="ff-grid">
         {model.workflows.map((w) => (
-          <button key={w.id} className="ff-card" onClick={() => openWorkflow(w.id)}>
+          <button key={w.id} className="ff-card" onClick={() => byHand.openWorkflow(w.id)}>
             <div className="ff-card-top">
               <span className={`ff-tag ff-tag-${w.category}`}>{CATEGORY_LABEL[w.category]}</span>
               <span className={`ff-status ff-status-${w.status}`}>{w.status}</span>
@@ -71,14 +71,14 @@ export function ListView() {
 // ─── Editor shell ────────────────────────────────────────────────────────────────
 
 export function Editor() {
-  const { active, model, openList, setPanel, dispatch } = useForge();
+  const { active, model, byHand, dispatch } = useForge();
   if (!active) return null;
   const wf = active;
 
   return (
     <div className="ff-editor">
       <header className="ff-ehead">
-        <button className="ff-back" onClick={openList}>
+        <button className="ff-back" onClick={byHand.openList}>
           ‹ Workflows
         </button>
         <div className="ff-ehead-mid">
@@ -103,7 +103,7 @@ export function Editor() {
         <section className="ff-right">
           <nav className="ff-tabs">
             {(['flow', 'code', 'tests', 'runtime'] as Panel[]).map((p) => (
-              <button key={p} className={model.panel === p ? 'ff-tab ff-tab-on' : 'ff-tab'} onClick={() => setPanel(p)}>
+              <button key={p} className={model.panel === p ? 'ff-tab ff-tab-on' : 'ff-tab'} onClick={() => byHand.setPanel(p)}>
                 {p === 'flow' ? 'Inspector' : p === 'runtime' ? 'Live' : p[0].toUpperCase() + p.slice(1)}
               </button>
             ))}

@@ -85,7 +85,7 @@ function Logo() {
 // down by AuraAssistant) — bank chrome, not a floating widget. The header is
 // sticky, so the affordance stays reachable anywhere on the page, phone included.
 function Header({ presence }: { presence?: ReactNode }) {
-  const { openHome, openHelpCenter } = useAura();
+  const { byHand } = useAura();
   return (
     <header style={{ position: 'sticky', top: 0, zIndex: 40 }}>
       <div
@@ -99,7 +99,7 @@ function Header({ presence }: { presence?: ReactNode }) {
           gap: 24,
         }}
       >
-        <button onClick={openHome} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+        <button onClick={byHand.openHome} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           <Logo />
         </button>
         <div className="aura-personas" style={{ display: 'flex', gap: 22, fontSize: 13.5, fontWeight: 600, opacity: 0.95 }}>
@@ -111,7 +111,7 @@ function Header({ presence }: { presence?: ReactNode }) {
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18, fontSize: 13.5 }}>
           <button
-            onClick={openHelpCenter}
+            onClick={byHand.openHelpCenter}
             className="aura-hdr-link"
             style={{ background: 'none', border: 'none', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13.5 }}
           >
@@ -157,7 +157,7 @@ function Header({ presence }: { presence?: ReactNode }) {
           ))}
         </div>
         <button
-          onClick={openHelpCenter}
+          onClick={byHand.openHelpCenter}
           className="aura-nav-help"
           style={{
             background: 'none',
@@ -268,7 +268,7 @@ function Markdown({ text }: { text: string }) {
 
 // ── Home ──────────────────────────────────────────────────────────────────────
 function HomePage() {
-  const { openHelpCenter, openArticle } = useAura();
+  const { byHand } = useAura();
   return (
     <div>
       <section
@@ -288,7 +288,7 @@ function HomePage() {
             Voice support that doesn’t just tell you — it shows you.
           </p>
           <button
-            onClick={openHelpCenter}
+            onClick={byHand.openHelpCenter}
             style={{
               marginTop: 24,
               background: PRIMARY,
@@ -315,7 +315,7 @@ function HomePage() {
           {heroArticles().map((a) => (
             <button
               key={a.id}
-              onClick={() => openArticle(a.id)}
+              onClick={() => byHand.openArticle(a.id)}
               style={{
                 textAlign: 'left',
                 background: PAPER,
@@ -357,15 +357,15 @@ function HomePage() {
 
 // ── Help Center ─────────────────────────────────────────────────────────────
 const QUICK_TOOLS: { label: string; sub: string; run: (s: ReturnType<typeof useAura>) => void }[] = [
-  { label: 'EMI Calculator', sub: 'Loan EMI', run: (s) => s.runCalculator('emi', { principal: 500000, annual_rate: 10.5, tenure_months: 60 }) },
-  { label: 'FD Calculator', sub: 'Maturity value', run: (s) => s.runCalculator('fd', { principal: 100000, annual_rate: 7.1, tenure_months: 60 }) },
-  { label: 'Loan Eligibility', sub: 'How much can I borrow', run: (s) => s.runCalculator('eligibility', { monthly_income: 90000, existing_emi: 0, annual_rate: 10.5, tenure_months: 60 }) },
-  { label: 'Open an Account', sub: 'Start online', run: (s) => s.startApplication('savings') },
+  { label: 'EMI Calculator', sub: 'Loan EMI', run: (s) => s.byHand.runCalculator('emi', { principal: 500000, annual_rate: 10.5, tenure_months: 60 }) },
+  { label: 'FD Calculator', sub: 'Maturity value', run: (s) => s.byHand.runCalculator('fd', { principal: 100000, annual_rate: 7.1, tenure_months: 60 }) },
+  { label: 'Loan Eligibility', sub: 'How much can I borrow', run: (s) => s.byHand.runCalculator('eligibility', { monthly_income: 90000, existing_emi: 0, annual_rate: 10.5, tenure_months: 60 }) },
+  { label: 'Open an Account', sub: 'Start online', run: (s) => s.byHand.startApplication('savings') },
 ];
 
 function HelpCenterPage() {
   const store = useAura();
-  const { openCategory, openArticle } = store;
+  const { byHand } = store;
   return (
     <div className="aura-page" style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 24px' }}>
       <h1 className="aura-h1" style={{ fontSize: 30, color: INK, fontWeight: 800, margin: '0 0 6px' }}>
@@ -379,7 +379,7 @@ function HelpCenterPage() {
         {CATEGORIES.map((c) => (
           <button
             key={c.id}
-            onClick={() => openCategory(c.id)}
+            onClick={() => byHand.openCategory(c.id)}
             style={{
               textAlign: 'left',
               background: PAPER,
@@ -417,7 +417,7 @@ function HelpCenterPage() {
         {heroArticles().map((a) => (
           <button
             key={a.id}
-            onClick={() => openArticle(a.id)}
+            onClick={() => byHand.openArticle(a.id)}
             style={{
               textAlign: 'left',
               background: PAPER,
@@ -441,17 +441,17 @@ function HelpCenterPage() {
 
 // ── Category ──────────────────────────────────────────────────────────────────
 function CategoryPage({ category }: { category: CategoryId }) {
-  const { openArticle, openHelpCenter } = useAura();
+  const { byHand } = useAura();
   const cat = CATEGORIES.find((c) => c.id === category);
   return (
     <div className="aura-page" style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
-      <Breadcrumb items={[{ label: 'Help & Support', onClick: openHelpCenter }, { label: cat?.title ?? category }]} />
+      <Breadcrumb items={[{ label: 'Help & Support', onClick: byHand.openHelpCenter }, { label: cat?.title ?? category }]} />
       <h1 style={{ fontSize: 26, color: INK, fontWeight: 800, margin: '6px 0 16px' }}>{cat?.title}</h1>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {articlesIn(category).map((a) => (
           <button
             key={a.id}
-            onClick={() => openArticle(a.id)}
+            onClick={() => byHand.openArticle(a.id)}
             style={{
               textAlign: 'left',
               background: PAPER,
@@ -527,7 +527,7 @@ function loadYT(): Promise<void> {
 // The hero player — large, in the main content column. Muted, agent-driven, with
 // a lower-third caption overlay that names the step the muted video is showing.
 function VideoStage() {
-  const { videoId, videoCmd, currentStep, playing, setPlaybackTime, pauseVideo, resumeVideo } = useAura();
+  const { videoId, videoCmd, currentStep, playing, setPlaybackTime, byHand } = useAura();
   const video = getVideo(videoId ?? undefined);
   const playerRef = useRef<any>(null);
   const readyRef = useRef(false);
@@ -687,7 +687,7 @@ function VideoStage() {
         </span>
         {video?.channel && <span style={{ fontSize: 12, color: MUTED }}>· {video.channel}</span>}
         <div style={{ marginLeft: 'auto' }}>
-          <SmallBtn onClick={() => (playing ? pauseVideo() : resumeVideo())}>{playing ? 'Pause' : 'Play'}</SmallBtn>
+          <SmallBtn onClick={() => (playing ? byHand.pauseVideo() : byHand.resumeVideo())}>{playing ? 'Pause' : 'Play'}</SmallBtn>
         </div>
       </div>
     </div>
@@ -698,7 +698,7 @@ function VideoStage() {
 // The step rail — the active step pulses and auto-scrolls into view as the agent
 // narrates / the muted video plays.
 function StepList() {
-  const { videoId, currentStep, seekVideo } = useAura();
+  const { videoId, currentStep, byHand } = useAura();
   const video = getVideo(videoId ?? undefined);
   const activeRef = useRef<HTMLLIElement | null>(null);
 
@@ -715,7 +715,7 @@ function StepList() {
           <li key={i} ref={active ? activeRef : undefined}>
             <button
               className={active ? 'aura-step-active' : undefined}
-              onClick={() => (active ? undefined : seekVideo(chapter.start))}
+              onClick={() => (active ? undefined : byHand.seekVideo(chapter.start, i))}
               style={{
                 width: '100%',
                 textAlign: 'left',
@@ -791,7 +791,7 @@ function fmt(s: number): string {
 
 // ── Article ─────────────────────────────────────────────────────────────────
 function RelatedAndBody({ article }: { article: Article }) {
-  const { openArticle } = useAura();
+  const { byHand } = useAura();
   return (
     <>
       <Markdown text={article.body} />
@@ -805,7 +805,7 @@ function RelatedAndBody({ article }: { article: Article }) {
               .map((a) => (
                 <button
                   key={a.id}
-                  onClick={() => openArticle(a.id)}
+                  onClick={() => byHand.openArticle(a.id)}
                   style={{ fontSize: 13, color: PRIMARY, background: '#EEF0FE', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 600 }}
                 >
                   {a.title_en}
@@ -819,7 +819,7 @@ function RelatedAndBody({ article }: { article: Article }) {
 }
 
 function ArticlePage({ article }: { article: Article }) {
-  const { openHelpCenter, openCategory } = useAura();
+  const { byHand } = useAura();
   const cat = CATEGORIES.find((c) => c.id === article.category);
   const hasVideo = Boolean(article.video && getVideo(article.video));
 
@@ -827,8 +827,8 @@ function ArticlePage({ article }: { article: Article }) {
     <div className="aura-page" style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 60px' }}>
       <Breadcrumb
         items={[
-          { label: 'Help & Support', onClick: openHelpCenter },
-          { label: cat?.title ?? article.category, onClick: () => openCategory(article.category) },
+          { label: 'Help & Support', onClick: byHand.openHelpCenter },
+          { label: cat?.title ?? article.category, onClick: () => byHand.openCategory(article.category) },
           { label: article.title_en ?? article.title },
         ]}
       />

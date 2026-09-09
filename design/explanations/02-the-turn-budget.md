@@ -94,8 +94,5 @@ and hands over instruments. Numbers land here when the harness exists.
 - `voqalize_demos/_gemini.py:59` refers to reading "`_TurnClock` think= numbers on
   a real deployed call". **`_TurnClock` does not exist in this repo.** Either it
   is in the platform, or the comment is stale. Resolve before citing it.
-- **`GoogleADKBrain.grounding()` currently rewrites the system instruction every
-  call**, which is item 6 above, committed. Fix before this page tells anyone not
-  to do it.
 - **Open:** is a latency page with no numbers credible? My position: more credible
   than one with unmeasured numbers, and the page should say why there are none.

@@ -1,17 +1,18 @@
 """The Travel Desk demo, end to end over the wire — no network, no LLM key.
 
 The real ``TravelBrain`` — the shipping ``demos/travel/backend/brain_gemini.py``,
-its real prompt, its real ten tools — hosted on a real ``brain_server`` socket and
-driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. See
-``tests/_harness.py`` for what every demo's e2e proves.
+its real prompt, its real eleven tools — hosted on a real ``brain_server`` socket
+and driven by the conformance ``VoqalizeDriver``, with only the *model* scripted.
+See ``tests/_harness.py`` for what every demo's e2e proves.
 
-Travel is the demo whose screen state can change **by the travel agent's own
-hand**, not just by Priya's tools — the ``/travel`` UI echoes a ``state_sync``
-snapshot of the active itinerary on connect and after every change, and that echo
-is the only place "what's on screen" can include a hand edit. It must fold into
-context **without** taking the floor, exactly like legal's ``clause_focus``, and
-**without** the itinerary itself following it in: the screen is read through
-``read_screen``, never remembered.
+Travel is the demo whose screen can move **by the travel agent's own hand**, not
+just by Priya's tools. Each of those gestures reaches the brain as one typed
+``ui-event`` — ``trip_opened``, ``flights_viewed``, ``flight_selected`` — and the
+two properties asserted here are the ones that make that worth having:
+
+* the context gets **one line naming the act**, never the itinerary behind it, and
+* the version gate costs a hop **only when the agent moved the screen** — Priya's
+  own dispatches are not events, so they can never bill her for a re-read.
 
 Run: ``cd demos && uv run pytest tests/test_travel_e2e.py``
 """
@@ -121,25 +122,25 @@ async def test_creating_a_trip_and_searching_flights_drive_the_screen() -> None:
         assert searched["options"][0]["airline"] == "IndiGo"
 
 
-#: A snapshot of the shape ``store.tsx``'s ``snapshot()`` sends, trimmed to the
-#: facts a version bump is keyed on.
+#: The overview a ``trip_opened`` carries — the handover, and the only event that
+#: brings a whole itinerary. Everything the brain learns after this is a patch.
 _PODDAR: dict[str, Any] = {
     "name": "Poddar Vietnam",
-    "screen": "flights",
-    "screen_context": "blr-out",
+    "coordinator": "Anjali Poddar",
     "destination": "Ho Chi Minh City",
     "dates": "12 Aug 2026 to 18 Aug 2026",
-    "legs": [{"id": "blr-out", "label": "Bangalore → Ho Chi Minh", "selected": None}],
-    "hotels": [],
-    "days": [],
+    "pax": "6 adults, 2 children",
+    "families": ["Poddar (4)", "Bhandari (4)"],
+    "legs": [{"id": "blr-out", "label": "Bangalore \u2192 Ho Chi Minh", "date": "12 Aug 2026"}],
+    "hotels": [{"city": "Ho Chi Minh City"}],
 }
 
 
 def _context_text(llm: ScriptedGemini) -> str:
     """Everything the brain appended to the context as the agent's own words.
 
-    A hand edit on the /travel screen reaches the model exactly one way: ``on_rtvi``
-    appends a line saying which decisions moved. It takes no floor, so it is
+    A gesture on the /travel screen reaches the model exactly one way: ``on_rtvi``
+    appends a line saying what the agent just did. It takes no floor, so it is
     invisible until the *next* request carries the whole context along with it."""
     return " ".join(
         part.text or ""
@@ -153,9 +154,10 @@ def _context_text(llm: ScriptedGemini) -> str:
 def _tool_results(llm: ScriptedGemini) -> str:
     """Every tool result the brain put in front of the model, as one blob.
 
-    Under automatic function calling a whole turn is one request, so the calls it
-    made are first carried by the request that *follows* it. google-genai wraps a
-    tool's return as ``{"result": ...}``."""
+    Under automatic function calling a whole turn is one request, so the results of
+    the calls it made are first carried by the request that *follows* it —
+    which is why the assertions below are one turn behind the act they are about.
+    google-genai wraps a tool's return as ``{"result": ...}``."""
     out: list[str] = []
     for contents in llm.captured_contents:
         for content in contents:
@@ -165,61 +167,64 @@ def _tool_results(llm: ScriptedGemini) -> str:
     return " ".join(out)
 
 
-async def test_what_the_agent_changed_is_named_and_the_itinerary_is_never_dumped() -> None:
-    """``state_sync`` is the one client message that must not speak — and, since the
-    itinerary moved out of the context, the one that must not describe either.
+def _refused(llm: ScriptedGemini) -> bool:
+    return "the screen moved since you last read it" in _tool_results(llm)
 
-    This used to append the whole itinerary on every change, prefixed
-    *authoritative* and undated, so a long call ended with a hundred near-identical
-    screens in front of the model. Now the snapshot stops at the brain: the context
-    gets one line naming which decisions the agent moved and pointing at
-    ``read_screen``. Both halves are asserted — a note carrying the leg id would be
-    the old dump again, one fact at a time."""
+
+async def test_a_gesture_is_named_in_the_context_and_the_itinerary_never_follows_it() -> None:
+    """The two halves of what a typed event bought.
+
+    **Named**: the note says the act — "opened the flight options for the outbound
+    leg" — where the diff it replaced could only ever say that *something* moved.
+    **Never dumped**: the itinerary that came with ``trip_opened`` stops at the
+    brain's mirror. A note carrying the dates or the coordinator would be the old
+    snapshot push arriving one fact at a time, going stale in the context exactly
+    the same way."""
     llm = _llm()
     async with demo("travel", llm) as rig:
         await rig.driver.start_session()
         before = len(rig.driver.ui_commands)
 
-        # The first sync is the page as it loaded; the second is the agent.
-        await rig.driver.send_client_message(
-            "state_sync", {"itinerary": {"name": "Poddar Vietnam"}}
+        await rig.driver.send_ui_event("trip_opened", _PODDAR)
+        await rig.driver.send_ui_event(
+            "flights_viewed", {"leg_id": "blr-out", "leg_label": "the outbound leg"}
         )
-        await rig.driver.send_client_message("state_sync", {"itinerary": _PODDAR})
-        # Frames on one connection are ordered, so both syncs are ingested by the
-        # time the next turn is served.
+        # Frames on one connection are ordered, so both are folded in by the time
+        # the next turn is served.
         turn = await rig.driver.user_says("What's on screen right now?")
         check_turn(rig, turn, units=1)
-        assert len(rig.driver.ui_commands) == before, "state_sync drove the screen"
+        assert len(rig.driver.ui_commands) == before, "an app event drove the screen"
 
     context = _context_text(llm)
-    assert "just changed the screen" in context
+    assert "The travel agent opened the Poddar Vietnam itinerary." in context
+    assert "opened the flight options for the outbound leg" in context
     assert "read_screen" in context
-    assert "blr-out" not in context, "the change note is carrying the screen"
+    assert "12 Aug 2026" not in context, "the note is carrying the itinerary"
+    assert "Anjali" not in context, "the note is carrying the itinerary"
     assert "ON SCREEN RIGHT NOW" not in context, "the itinerary dump is back"
 
 
-async def test_a_tool_aimed_at_a_leg_the_agent_moved_is_refused_until_it_is_read() -> None:
+async def test_only_a_gesture_costs_a_re_read_and_priyas_own_dispatch_never_does() -> None:
     """The version gate, which is what makes read-don't-remember enforceable.
 
     Prompt discipline is a request; a model that skips the read is selecting an
     option id from a search that is no longer the one on screen. So the tool refuses
     instead of acting, and the refusal is retriable: read, then act.
 
-    The other half is that Priya's own dispatches must *not* trip it. The browser
-    echoes every one of them back as a ``state_sync`` indistinguishable from the
-    agent moving the screen by hand, and a change the model asked for is one it has
-    already been told about — so the echo below is sent exactly as the browser sends
-    it, and costs the model no hop."""
+    The half that used to need a flag is now free. The browser echoed every one of
+    Priya's own commands back as a snapshot indistinguishable from the agent moving
+    the screen by hand, so the brain had to suppress its own echo to avoid billing
+    itself a hop. Emits now live at the agent's call site, so a dispatch is simply
+    not an event — ``show_flights`` below costs the ``select_flight`` after it
+    nothing, and the ``overview_viewed`` after *that* costs exactly one read."""
     llm = ScriptedGemini(
         {
+            "What's on screen?": [call("read_screen"), reply("The Poddar Vietnam trip.")],
             "Bring the outbound options back up.": [
                 reply_and_call("Sure.", "show_flights", action={"leg_id": "blr-out"}),
                 reply("They're up."),
             ],
             "Take the IndiGo one.": [
-                # Stale — the agent has moved the screen since. Then the retry.
-                call("select_flight", action={"leg_id": "blr-out", "option_id": "f1"}),
-                call("read_screen"),
                 reply_and_call(
                     "Locking that in.",
                     "select_flight",
@@ -227,32 +232,43 @@ async def test_a_tool_aimed_at_a_leg_the_agent_moved_is_refused_until_it_is_read
                 ),
                 reply("IndiGo is in."),
             ],
+            "And the Rex for the hotel.": [
+                # Stale — the agent has moved the screen since. Then the retry.
+                call("select_hotel", action={"city": "Ho Chi Minh City", "option_id": "h1"}),
+                call("read_screen"),
+                reply_and_call(
+                    "Done.",
+                    "select_hotel",
+                    action={"city": "Ho Chi Minh City", "option_id": "h1"},
+                ),
+                reply("The Rex it is."),
+            ],
             "Thanks.": reply("Any time."),
         }
     )
     async with demo("travel", llm) as rig:
         await rig.driver.start_session()
-        await rig.driver.send_client_message(
-            "state_sync", {"itinerary": {"name": "Poddar Vietnam"}}
-        )
+        await rig.driver.send_ui_event("trip_opened", _PODDAR)
 
-        # The screen moves, but Priya moved it — so this costs no read.
+        # Opening a trip is the agent's gesture, so it bills the read it should:
+        # the model has never seen this itinerary.
+        await rig.driver.user_says("What's on screen?")
+
+        # Two turns Priya drives herself. Neither comes back as an event, so
+        # neither can make the other stale.
         await rig.driver.user_says("Bring the outbound options back up.")
-        assert rig.actions() == ["show_flights"], rig.actions()
-        assert not _select_refused(llm), "the brain's own dispatch bumped the version"
-        await rig.driver.send_client_message("state_sync", {"itinerary": _PODDAR})
-
-        # Now the agent edits the itinerary by hand.
-        moved = {**_PODDAR, "days": [{"day": 1, "date": "12 Aug 2026", "title": "Arrival"}]}
-        await rig.driver.send_client_message("state_sync", {"itinerary": moved})
         await rig.driver.user_says("Take the IndiGo one.")
         assert rig.actions() == ["show_flights", "select_flight"], rig.actions()
+
+        # Now the agent moves the screen by hand.
+        await rig.driver.send_ui_event("overview_viewed", {})
+        await rig.driver.user_says("And the Rex for the hotel.")
+        assert rig.actions() == ["show_flights", "select_flight", "select_hotel"], rig.actions()
+        # ``show_flights`` and ``select_flight`` have both reported back by now;
+        # ``select_hotel``'s refusal has not.
+        assert not _refused(llm), "the brain's own dispatch bumped the version"
 
         # One more turn, so the turn above's hops are in the context being asserted.
         await rig.driver.user_says("Thanks.")
 
-    assert _select_refused(llm)
-
-
-def _select_refused(llm: ScriptedGemini) -> bool:
-    return "the screen moved since you last read it" in _tool_results(llm)
+    assert _refused(llm)

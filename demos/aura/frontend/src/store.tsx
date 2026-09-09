@@ -1,15 +1,24 @@
 /**
  * AuraStore — the single source of truth for the Aura Bank L1-support demo.
  *
- * Both the human (clicking the help centre) and the voice assistant (via
- * `ui_command` RTVI messages) call the SAME actions, so the screen stays
- * consistent whoever is driving. Navigation is plain React state — never the
- * router — so the `PipecatClient` mounted alongside never unmounts and the call
- * stays live across screens.
+ * Both the customer (clicking the help centre) and Aria (via `ui-command` RTVI
+ * messages) call the SAME actions, so the screen stays consistent whoever is
+ * driving. Navigation is plain React state — never the router — so the
+ * `PipecatClient` mounted alongside never unmounts and the call stays live
+ * across screens.
  *
- * Every change bumps `rev`; the voice widget watches `rev` and echoes a compact
- * `screen_state` snapshot back to the agent (`state_sync`) so the assistant
- * always knows which screen / article / video the customer is looking at.
+ * Both directions are typed and fine-grained. Aria's half arrives as
+ * `UiAction`s and is replayed by `handleUiCommand`; the customer's half leaves
+ * as `AppEvent`s over `ui-event`, one gesture at a time, through `byHand`. The
+ * screen is never echoed back — a whole-state push has to be diffed to find out
+ * what changed, and every diff is a place the two pictures can part company.
+ *
+ * `byHand` is the customer's side of that, and it is why echo suppression is not
+ * a thing here: an emit lives at the call site a person actually reaches, never
+ * inside the mutation Aria shares with them. What only the browser holds — the
+ * calculator it re-solved, the forex reference it minted — rides along; what is
+ * merely on screen does not, because Aria reads that back with
+ * `get_screen_context`.
  */
 
 import {
@@ -21,7 +30,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { asUiAction, unhandledUiAction } from './actions.gen';
+import { asUiAction, sendAppEvent, unhandledUiAction, type AppEvent } from './actions.gen';
 import { chapterAt, getArticle, getVideo } from './kb';
 import type {
   Account,
@@ -50,7 +59,7 @@ import type {
   VideoCommand,
 } from './types';
 
-export type AgentSend = (type: string, data: unknown) => void;
+export type AgentSend = (event: string, payload?: unknown) => void;
 
 // ── Calculator maths (kept identical to the brain's Python so a spoken figure
 //    and an edited-on-screen figure always agree) ─────────────────────────────
@@ -206,11 +215,35 @@ export interface AuraStore extends AuraActions {
   selectedCard: Card | null;
   cardControls: CardControlsView | null;
   forex: ForexView | null;
-  rev: number;
   agentSend: AgentSend | null;
+  byHand: ByHand;
   registerAgentSend: (fn: AgentSend | null) => void;
-  snapshot: () => Record<string, unknown>;
   handleUiCommand: (command: string, payload: unknown) => void;
+}
+
+/**
+ * The customer's own hand, on everything Aria can drive too. Each one does what
+ * her twin does and then says so — one gesture, one event. She is told *that*
+ * they moved the screen, never what it now says: she reads that back with
+ * `get_screen_context`.
+ *
+ * The gestures only a person can make — closing the helpline panel, answering a
+ * sign-in, saving card controls — emit from the action itself, since there is no
+ * twin of Aria's to confuse them with.
+ */
+export interface ByHand {
+  openHome: () => void;
+  openHelpCenter: () => void;
+  openCategory: (category: string) => void;
+  openArticle: (articleId: string) => void;
+  pauseVideo: () => void;
+  resumeVideo: () => void;
+  /** Tapping a step in the list, which is what jumps the clip. */
+  seekVideo: (startSec: number, stepIndex: number) => void;
+  runCalculator: (kind: CalcKind, inputs: Record<string, number>) => void;
+  startApplication: (product: Product) => void;
+  prefillField: (id: string, value: string) => void;
+  submitApplication: () => void;
 }
 
 const Ctx = createContext<AuraStore | null>(null);
@@ -244,13 +277,15 @@ export function AuraProvider({ children }: { children: ReactNode }) {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [cardControls, setCardControls] = useState<CardControlsView | null>(null);
   const [forex, setForex] = useState<ForexView | null>(null);
-  const [rev, setRev] = useState(0);
   const agentSendRef = useRef<AgentSend | null>(null);
   const [, forceTick] = useState(0);
   const nonceRef = useRef(0);
   const nextNonce = () => (nonceRef.current += 1);
+  // The step Aria was last told the clip had reached, so the player's per-second
+  // tick costs her one event per chapter rather than one per second.
+  const stepRef = useRef(-1);
 
-  const bump = useCallback(() => setRev((r) => r + 1), []);
+  const emit = useCallback((event: AppEvent) => sendAppEvent(agentSendRef.current, event), []);
 
   const registerAgentSend = useCallback((fn: AgentSend | null) => {
     agentSendRef.current = fn;
@@ -260,23 +295,20 @@ export function AuraProvider({ children }: { children: ReactNode }) {
   const openHome = useCallback(() => {
     setScreen('home');
     setContactOpen(false);
-    bump();
-  }, [bump]);
+  }, []);
 
   const openHelpCenter = useCallback(() => {
     setScreen('help');
     setContactOpen(false);
-    bump();
-  }, [bump]);
+  }, []);
 
   const openCategory = useCallback(
     (cat: string) => {
       setCategory(cat as CategoryId);
       setScreen('category');
       setContactOpen(false);
-      bump();
     },
-    [bump],
+    [],
   );
 
   const openArticle = useCallback(
@@ -294,9 +326,8 @@ export function AuraProvider({ children }: { children: ReactNode }) {
       setPlaying(false);
       setExplicitStep(0);
       setPlaybackTimeState(0);
-      bump();
     },
-    [bump],
+    [],
   );
 
   const playVideo = useCallback(
@@ -315,9 +346,8 @@ export function AuraProvider({ children }: { children: ReactNode }) {
       }
       setContactOpen(false);
       setVideoCmd({ action: 'play', videoId: vid, startSec, nonce: nextNonce() });
-      bump();
     },
-    [bump],
+    [],
   );
 
   const seekVideo = useCallback(
@@ -327,44 +357,39 @@ export function AuraProvider({ children }: { children: ReactNode }) {
       setPlaybackTimeState(startSec);
       setPlaying(true);
       setVideoCmd({ action: 'seek', startSec, nonce: nextNonce() });
-      bump();
     },
-    [bump, videoId],
+    [videoId],
   );
 
   const highlightStep = useCallback(
     (index: number) => {
       setExplicitStep(index);
-      bump();
     },
-    [bump],
+    [],
   );
 
   const pauseVideo = useCallback(() => {
     setPlaying(false);
     setVideoCmd({ action: 'pause', nonce: nextNonce() });
-    bump();
-  }, [bump]);
+  }, []);
 
   const resumeVideo = useCallback(() => {
     setPlaying(true);
     setVideoCmd({ action: 'resume', nonce: nextNonce() });
-    bump();
-  }, [bump]);
+  }, []);
 
   const showContact = useCallback(
     (topic: string) => {
       setContactTopic(topic);
       setContactOpen(true);
-      bump();
     },
-    [bump],
+    [],
   );
 
   const closeContact = useCallback(() => {
     setContactOpen(false);
-    bump();
-  }, [bump]);
+    emit({ event: 'contact_closed', payload: {} });
+  }, [emit]);
 
   // ── interactive tools ───────────────────────────────────────────────────────
   const runCalculator = useCallback(
@@ -372,27 +397,28 @@ export function AuraProvider({ children }: { children: ReactNode }) {
       const merged = { ...CALC_DEFAULTS[kind], ...inputs };
       setCalc({ kind, inputs: merged, result: result ?? computeCalc(kind, merged) });
       setScreen('calculator');
-      bump();
     },
-    [bump],
+    [],
   );
 
-  // Human edits an input → recompute live (UI source of truth after a manual edit).
+  // Customer edits an input → recompute live. This figure exists nowhere but the
+  // page, so unlike a navigation gesture the event carries it.
   const recomputeCalc = useCallback(
     (inputs: Record<string, number>) => {
-      setCalc((c) => (c ? { ...c, inputs, result: computeCalc(c.kind, inputs) } : c));
-      bump();
+      if (!calc) return;
+      const result = computeCalc(calc.kind, inputs);
+      setCalc({ ...calc, inputs, result });
+      emit({ event: 'calculator_changed', payload: { inputs, result } });
     },
-    [bump],
+    [calc, emit],
   );
 
   const startApplication = useCallback(
     (product: Product) => {
       setApply({ product, fields: APPLY_TEMPLATES[product].map((f) => ({ ...f })), submitted: false });
       setScreen('apply');
-      bump();
     },
-    [bump],
+    [],
   );
 
   const prefillField = useCallback(
@@ -400,102 +426,90 @@ export function AuraProvider({ children }: { children: ReactNode }) {
       setApply((a) =>
         a ? { ...a, fields: a.fields.map((f) => (f.id === id ? { ...f, value } : f)) } : a,
       );
-      bump();
     },
-    [bump],
+    [],
   );
 
   const submitApplication = useCallback(() => {
     setApply((a) => (a ? { ...a, submitted: true } : a));
-    bump();
-  }, [bump]);
+  }, []);
 
   const showCompare = useCallback(
     (state: CompareState) => {
       setCompare(state);
       setScreen('compare');
-      bump();
     },
-    [bump],
+    [],
   );
 
   const showLocator = useCallback(
     (pincode: string, results: LocatorState['results']) => {
       setLocator({ pincode, results });
       setScreen('locator');
-      bump();
     },
-    [bump],
+    [],
   );
 
   const showChecklist = useCallback(
     (title: string, items: string[]) => {
       setChecklist({ title, items });
       setScreen('checklist');
-      bump();
     },
-    [bump],
+    [],
   );
 
   const sendToPhone = useCallback(
     (what: string, channel: 'whatsapp' | 'sms', number: string) => {
       setSentToPhone({ what, channel, number, nonce: nextNonce() });
-      bump();
     },
-    [bump],
+    [],
   );
   const closeSentToPhone = useCallback(() => setSentToPhone(null), []);
 
   const raiseTicket = useCallback(
     (reference: string, topic: string, summary: string) => {
       setTicket({ reference, topic, summary });
-      bump();
     },
-    [bump],
+    [],
   );
   const closeTicket = useCallback(() => setTicket(null), []);
 
   const spotlight = useCallback(
     (target: string, label: string) => {
       setSpotlightState({ target, label, nonce: nextNonce() });
-      bump();
     },
-    [bump],
+    [],
   );
 
   // ── authenticated account access ────────────────────────────────────────────
   const openAuth = useCallback(
     (prompt: AuthPrompt) => {
       setAuthPrompt(prompt);
-      bump();
     },
-    [bump],
+    [],
   );
 
   // Customer authorises the on-screen sign-in: tell the server (it mints the token
   // only on receiving this) and reflect the signed-in identity locally.
   const confirmAuth = useCallback(() => {
     if (!authPrompt) return;
-    agentSendRef.current?.('auth_complete', { nonce: authPrompt.nonce });
+    emit({ event: 'auth_completed', payload: { nonce: authPrompt.nonce } });
     setAuthSession({ name: authPrompt.name });
     setAuthPrompt(null);
-    bump();
-  }, [authPrompt, bump]);
+  }, [authPrompt, emit]);
 
   // Customer declines the sign-in: tell the server, so the agent hears they closed
   // it rather than going on believing a sheet is still up in front of them.
   const cancelAuth = useCallback(() => {
-    if (authPrompt) agentSendRef.current?.('auth_cancelled', { nonce: authPrompt.nonce });
+    if (authPrompt) emit({ event: 'auth_cancelled', payload: { nonce: authPrompt.nonce } });
     setAuthPrompt(null);
-    bump();
-  }, [authPrompt, bump]);
+  }, [authPrompt, emit]);
 
   const openAccountPicker = useCallback(
     (picker: AccountPicker) => {
       setAccountPicker(picker);
-      bump();
     },
-    [bump],
+    [],
   );
 
   // Customer picks an account: tell the server (account_selected) and record it so
@@ -503,29 +517,29 @@ export function AuraProvider({ children }: { children: ReactNode }) {
   const selectAccount = useCallback(
     (account: Account) => {
       if (accountPicker) {
-        agentSendRef.current?.('account_selected', { nonce: accountPicker.nonce, account_id: account.account_id });
+        emit({
+          event: 'account_selected',
+          payload: { nonce: accountPicker.nonce, account_id: account.account_id },
+        });
       }
       setAccountPicker(null);
       setSelectedAccount(account);
-      bump();
     },
-    [accountPicker, bump],
+    [accountPicker, emit],
   );
 
   const cancelAccount = useCallback(() => {
-    if (accountPicker) agentSendRef.current?.('account_cancelled', { nonce: accountPicker.nonce });
+    if (accountPicker) emit({ event: 'account_cancelled', payload: { nonce: accountPicker.nonce } });
     setAccountPicker(null);
-    bump();
-  }, [accountPicker, bump]);
+  }, [accountPicker, emit]);
 
   const showBalance = useCallback(
     (view: BalanceView) => {
       setBalance(view);
       setSelectedAccount(view.account);
       setScreen('balance');
-      bump();
     },
-    [bump],
+    [],
   );
 
   const showStatement = useCallback(
@@ -533,18 +547,16 @@ export function AuraProvider({ children }: { children: ReactNode }) {
       setStatement(view);
       setSelectedAccount(view.account);
       setScreen('statement');
-      bump();
     },
-    [bump],
+    [],
   );
 
   // ── credit-card controls + forex cross-sell ─────────────────────────────────
   const openCardPicker = useCallback(
     (picker: CardPicker) => {
       setCardPicker(picker);
-      bump();
     },
-    [bump],
+    [],
   );
 
   // Customer picks a card: tell the server (card_selected) and record it so the
@@ -552,59 +564,63 @@ export function AuraProvider({ children }: { children: ReactNode }) {
   const selectCard = useCallback(
     (c: Card) => {
       if (cardPicker) {
-        agentSendRef.current?.('card_selected', { nonce: cardPicker.nonce, card_id: c.card_id });
+        emit({ event: 'card_selected', payload: { nonce: cardPicker.nonce, card_id: c.card_id } });
       }
       setCardPicker(null);
       setSelectedCard(c);
-      bump();
     },
-    [cardPicker, bump],
+    [cardPicker, emit],
   );
 
   const cancelCard = useCallback(() => {
-    if (cardPicker) agentSendRef.current?.('card_cancelled', { nonce: cardPicker.nonce });
+    if (cardPicker) emit({ event: 'card_cancelled', payload: { nonce: cardPicker.nonce } });
     setCardPicker(null);
-    bump();
-  }, [cardPicker, bump]);
+  }, [cardPicker, emit]);
 
   const showCardControls = useCallback(
     (view: CardControlsView) => {
       setCardControls(view);
       setSelectedCard(view.card);
       setScreen('card_controls');
-      bump();
     },
-    [bump],
+    [],
   );
 
   const saveCardControls = useCallback(
     (controls: CardControls) => {
       setCardControls((c) => (c ? { ...c, controls, saved: true } : c));
-      bump();
+      emit({ event: 'card_controls_saved', payload: controls });
     },
-    [bump],
+    [emit],
   );
 
   const showForexCard = useCallback(() => {
     setForex({ submitted: false });
     setScreen('forex');
-    bump();
-  }, [bump]);
+  }, []);
 
   const submitForexLead = useCallback(() => {
-    setForex((f) =>
-      f
-        ? { ...f, submitted: true, reference: `FX${Math.floor(1_000_000 + Math.random() * 8_999_999)}` }
-        : f,
-    );
-    bump();
-  }, [bump]);
+    // Minted here rather than inside the setter so it can ride the event: the
+    // page is the only place this reference exists.
+    const reference = `FX${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
+    setForex((f) => (f ? { ...f, submitted: true, reference } : f));
+    emit({ event: 'forex_lead_submitted', payload: { reference } });
+  }, [emit]);
 
   // Playback time drives chapter auto-highlight; throttle re-renders to whole
   // seconds so the muted video keeps the step list in sync without churn.
-  const setPlaybackTime = useCallback((t: number) => {
-    setPlaybackTimeState((prev) => (Math.floor(prev) === Math.floor(t) ? prev : t));
-  }, []);
+  const setPlaybackTime = useCallback(
+    (t: number) => {
+      setPlaybackTimeState((prev) => (Math.floor(prev) === Math.floor(t) ? prev : t));
+      const v = getVideo(videoId ?? undefined);
+      if (!v) return;
+      const step = chapterAt(v, t);
+      if (step === stepRef.current) return;
+      stepRef.current = step;
+      emit({ event: 'video_progressed', payload: { step_index: step } });
+    },
+    [emit, videoId],
+  );
 
   const video = getVideo(videoId ?? undefined);
   const currentStep = useMemo(() => {
@@ -612,81 +628,73 @@ export function AuraProvider({ children }: { children: ReactNode }) {
     return explicitStep;
   }, [playing, video, playbackTime, explicitStep]);
 
-  const snapshot = useCallback((): Record<string, unknown> => {
-    const article = articleId ? getArticle(articleId) : undefined;
-    const v = getVideo(videoId ?? undefined);
-    return {
-      screen,
-      category,
-      article: article ? { id: article.id, title_en: article.title_en, needs_login: article.needs_login } : null,
-      video: v
-        ? {
-            id: v.youtube_id,
-            playing,
-            step_index: currentStep,
-            step: v.chapters[currentStep]?.label,
-            total_steps: v.chapters.length,
-          }
-        : null,
-      contact_open: contactOpen,
-      // Active interactive tool (so the agent can speak the figure / read the form back).
-      calculator: calc ? { kind: calc.kind, inputs: calc.inputs, result: calc.result } : null,
-      application: apply
-        ? {
-            product: apply.product,
-            submitted: apply.submitted,
-            fields: Object.fromEntries(apply.fields.map((f) => [f.id, f.value])),
-            missing: apply.fields.filter((f) => !f.value).map((f) => f.id),
-          }
-        : null,
-      compare: compare
-        ? { kind: compare.kind, options: compare.items.map((it) => it.name), recommended: compare.recommend_id }
-        : null,
-      locator: locator ? { pincode: locator.pincode, count: locator.results.length } : null,
-      checklist: checklist ? { title: checklist.title, items: checklist.items.length } : null,
-      last_ticket: ticket ? ticket.reference : null,
-      sent_to_phone: sentToPhone ? { what: sentToPhone.what, channel: sentToPhone.channel } : null,
-      // Authenticated-account state, so the agent knows where it is in the flow.
-      authenticated: !!authSession,
-      customer_name: authSession?.name ?? null,
-      selected_account: selectedAccount
-        ? { account_id: selectedAccount.account_id, nickname: selectedAccount.nickname, masked_number: selectedAccount.masked_number }
-        : null,
-      selected_card: selectedCard
-        ? { card_id: selectedCard.card_id, product: selectedCard.product, masked_number: selectedCard.masked_number }
-        : null,
-      card_controls: cardControls
-        ? {
-            product: cardControls.card.product,
-            international_enabled: cardControls.controls.international_enabled,
-            domestic_enabled: cardControls.controls.domestic_enabled,
-            contactless_enabled: cardControls.controls.contactless_enabled,
-            saved: cardControls.saved,
-          }
-        : null,
-      forex_lead: forex ? { submitted: forex.submitted, reference: forex.reference ?? null } : null,
-    };
-  }, [
-    screen,
-    category,
-    articleId,
-    videoId,
-    playing,
-    currentStep,
-    contactOpen,
-    calc,
-    apply,
-    compare,
-    locator,
-    checklist,
-    ticket,
-    sentToPhone,
-    authSession,
-    selectedAccount,
-    selectedCard,
-    cardControls,
-    forex,
-  ]);
+  const byHand: ByHand = useMemo(
+    () => ({
+      openHome: () => {
+        openHome();
+        emit({ event: 'home_opened', payload: {} });
+      },
+      openHelpCenter: () => {
+        openHelpCenter();
+        emit({ event: 'help_center_opened', payload: {} });
+      },
+      openCategory: (cat) => {
+        openCategory(cat);
+        emit({ event: 'category_opened', payload: { category: cat } });
+      },
+      openArticle: (id) => {
+        openArticle(id);
+        emit({ event: 'article_opened', payload: { article_id: id } });
+      },
+      pauseVideo: () => {
+        pauseVideo();
+        emit({ event: 'video_paused', payload: {} });
+      },
+      resumeVideo: () => {
+        resumeVideo();
+        emit({ event: 'video_resumed', payload: {} });
+      },
+      seekVideo: (startSec, stepIndex) => {
+        seekVideo(startSec);
+        stepRef.current = stepIndex;
+        emit({ event: 'video_seeked', payload: { start_sec: startSec, step_index: stepIndex } });
+      },
+      runCalculator: (kind, inputs) => {
+        // The figures come off a quick link on the page, so Aria cannot know
+        // them: solve here and send both sides.
+        const merged = { ...CALC_DEFAULTS[kind], ...inputs };
+        const result = computeCalc(kind, merged);
+        runCalculator(kind, merged, result);
+        emit({ event: 'calculator_opened', payload: { kind, inputs: merged, result } });
+      },
+      startApplication: (product) => {
+        startApplication(product);
+        emit({ event: 'application_started', payload: { product } });
+      },
+      prefillField: (id, value) => {
+        prefillField(id, value);
+        emit({ event: 'field_filled', payload: { field: id, value } });
+      },
+      submitApplication: () => {
+        submitApplication();
+        emit({ event: 'application_submitted', payload: {} });
+      },
+    }),
+    [
+      emit,
+      openHome,
+      openHelpCenter,
+      openCategory,
+      openArticle,
+      pauseVideo,
+      resumeVideo,
+      seekVideo,
+      runCalculator,
+      startApplication,
+      prefillField,
+      submitApplication,
+    ],
+  );
 
   const handleUiCommand = useCallback(
     (command: string, payload: unknown) => {
@@ -844,10 +852,9 @@ export function AuraProvider({ children }: { children: ReactNode }) {
     selectedCard,
     cardControls,
     forex,
-    rev,
     agentSend: agentSendRef.current,
+    byHand,
     registerAgentSend,
-    snapshot,
     handleUiCommand,
     openHome,
     openHelpCenter,

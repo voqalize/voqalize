@@ -130,13 +130,13 @@ async def test_it_greets_with_a_wave_and_its_voice_reaches_the_wire() -> None:
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
         assert _actions(rig) == [], "nothing may be gestured before the page is on"
 
-        await rig.driver.send_client_message("ready", {})
+        await rig.driver.send_ui_event("ready", {})
         await _settle()
         assert _actions(rig) == ["GESTURE_GREET"], _avatar_messages(rig)
 
         # Once per session: a client that reconnects and re-announces must not
         # re-greet in the middle of a sentence.
-        await rig.driver.send_client_message("ready", {})
+        await rig.driver.send_ui_event("ready", {})
         await _settle()
         assert _actions(rig) == ["GESTURE_GREET"], _avatar_messages(rig)
 
@@ -250,7 +250,7 @@ async def test_the_strip_cannot_move_the_voice_once_the_call_is_up() -> None:
         await rig.driver.start_session()
         before = len([r for r in rig.driver.requests if isinstance(r, ConfigureFrame)])
 
-        await rig.driver.send_client_message("pick_avatar", {"key": "naina"})
+        await rig.driver.send_ui_event("pick_avatar", {"key": "naina"})
         await _settle()
 
         after = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]

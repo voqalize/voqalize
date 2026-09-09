@@ -73,6 +73,7 @@ from voqalize.sdk import (
 )
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
+from .app_events import AVATAR_EVENTS, Ready
 from .content import (
     AVATARS_BY_KEY,
     BACKGROUND,
@@ -515,7 +516,7 @@ class AvatarBrain(GeminiBrain):
         gesture sent from :meth:`greet` is dropped where nothing can see it —
         silently, while the greeting audio plays normally, because the transport
         queues audio and not server messages."""
-        if msg.data.get("t") != "ready":
+        if not isinstance(AVATAR_EVENTS.parse(msg), Ready):
             return
         # Once per session: a reconnecting client would otherwise re-greet in the
         # middle of a sentence.

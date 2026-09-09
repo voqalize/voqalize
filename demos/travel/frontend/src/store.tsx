@@ -7,16 +7,24 @@
  * `PipecatClient` mounted alongside never unmounts and the call stays live.
  *
  * Itineraries persist to localStorage (build-from-scratch: trips created during a
- * call survive a reload, so "open Poddar's Vietnam trip" works later). Every data
- * mutation bumps `rev`; the voice widget watches `rev` and echoes a compact
- * snapshot back to the agent (`state_sync`) so the AI always knows the active
- * itinerary and its state — including edits the travel agent makes by hand.
+ * call survive a reload, so "open Poddar's Vietnam trip" works later) — which is
+ * why the brain has never seen a saved draft until one is opened, and why
+ * `trip_opened` carries the whole overview while every other event carries only
+ * what moved.
  *
- * The agent's half of that is `handleUiCommand` at the bottom, narrowing on
- * `actions.gen.ts` — generated from the `Action` classes in
- * `demos/travel/backend/brain_gemini.py`, so each payload arrives typed and the
- * `default` arm is an exhaustiveness check. `TravelAdvisor` subscribes to
- * pipecat's `RTVIEvent.UICommand` once and hands every envelope here.
+ * **Who is driving is not a flag on a message — it is which function you called.**
+ * `byHand` is the travel agent's own surface: each entry does the mutation and
+ * then tells the brain what they just did. `handleUiCommand` calls the same
+ * mutations without the telling, because a command the brain sent is one it
+ * already knows about. That split is what replaced the debounced whole-itinerary
+ * push the brain used to have to diff against its last copy to guess what
+ * changed.
+ *
+ * Both halves are typed off `actions.gen.ts`, generated from the `Action` and
+ * `AppEvent` classes in `demos/travel/backend/brain_gemini.py`: each `ui-command`
+ * payload arrives typed and the `default` arm is an exhaustiveness check, and
+ * each event leaves typed. `TravelAdvisor` subscribes to pipecat's
+ * `RTVIEvent.UICommand` once and hands every envelope here.
  */
 
 import {
@@ -47,9 +55,12 @@ import {
 } from './types';
 import {
   asUiAction,
+  sendAppEvent,
   unhandledUiAction,
+  type AppEvent,
   type Itinerary as ItineraryWire,
   type SetTripStructure,
+  type TripOpened,
 } from './actions.gen';
 import { SEED_ITINERARIES } from './data';
 
@@ -106,7 +117,8 @@ function now(): number {
   return Date.now();
 }
 
-export type AgentSend = (type: string, data: unknown) => void;
+/** A pipecat client's `sendUIEvent`, or null before the call connects. */
+export type AgentSend = ((event: string, payload?: unknown) => void) | null;
 
 /**
  * What `createItinerary` needs: the wire shell, or just a name.
@@ -149,6 +161,92 @@ export interface TravelActions {
   viewHotels: (city: string) => void;
 }
 
+/**
+ * The travel agent's own gestures. Each mutates the screen and then names the
+ * act for the brain — the two halves of one thing, so a page cannot do the first
+ * and forget the second. `handleUiCommand` drives the same mutations without the
+ * telling: the brain does not need to be told what it asked for.
+ */
+export interface ByHand {
+  openDashboard: () => void;
+  /** Open a saved draft — the brain's first sight of it, so the overview goes too. */
+  openTrip: (idOrName: string) => void;
+  newTrip: () => void;
+  backToOverview: () => void;
+  viewFlights: (leg: Leg) => void;
+  viewHotels: (city: string) => void;
+  selectFlight: (leg: Leg, opt: FlightOption) => void;
+  selectHotel: (stay: HotelStay, opt: HotelOption) => void;
+  shareQuote: (to: string, recipient: string) => void;
+  openTaskTarget: (task: Task) => void;
+}
+
+/**
+ * The itinerary as the overview shows it — the payload of `trip_opened`.
+ *
+ * Picks and counts, never the option lists: this is the brain's mirror of a
+ * screen, not a copy of the store. What the agent chose is here; the fares they
+ * did not choose are the browser's business.
+ */
+function overviewOf(it: Itinerary): TripOpened {
+  return {
+    name: it.name,
+    coordinator: it.coordinator,
+    destination: it.destination,
+    dates: [it.start_date, it.end_date].filter(Boolean).join(' – '),
+    pax: paxSummary(it),
+    families: it.families.map(familyLine),
+    special_requests: it.specialRequests.map((r) => `${r.label}${r.detail ? ` (${r.detail})` : ''}`),
+    legs: it.legs.map((l) => ({
+      id: l.id,
+      label: l.label,
+      date: l.date,
+      options_shown: l.options?.length ?? 0,
+      selected: flightLine(selectedFlight(l)),
+    })),
+    hotels: it.hotels.map((h) => ({
+      city: h.city,
+      options_shown: h.options?.length ?? 0,
+      selected: hotelLine(selectedHotel(h)),
+    })),
+    days: it.days.map((d) => `Day ${d.day}${d.date ? ` · ${d.date}` : ''} · ${d.title}`),
+    inclusions: it.inclusions,
+    exclusions: it.exclusions,
+    terms_set: it.terms.length > 0,
+    whatsapp_sent: Boolean(it.whatsapp),
+  };
+}
+
+/** One family, worded the way the brain words it from its own `set_trip_structure`. */
+function familyLine(f: Family): string {
+  const heads = [
+    f.adults ? `${f.adults} adults` : '',
+    f.children ? `${f.children} children` : '',
+    f.infants ? `${f.infants} infants` : '',
+  ].filter(Boolean);
+  return [
+    f.label,
+    f.origin ? `from ${f.origin}` : '',
+    heads.join(', '),
+    f.meal && f.meal !== 'mixed' ? f.meal : '',
+    f.assistance ?? '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** A picked flight, worded as the brain words it. */
+function flightLine(opt: FlightOption | undefined): string {
+  if (!opt) return '';
+  const head = [opt.airline, opt.flight_no].filter(Boolean).join(' ');
+  return opt.depart || opt.arrive ? `${head} ${opt.depart}→${opt.arrive}` : head;
+}
+
+/** A picked hotel, worded as the brain words it. */
+function hotelLine(opt: HotelOption | undefined): string {
+  return opt ? `${opt.name} (${opt.stars ?? 5}★)` : '';
+}
+
 export interface TravelStore extends TravelActions {
   itineraries: Itinerary[];
   active: Itinerary | null;
@@ -161,12 +259,12 @@ export interface TravelStore extends TravelActions {
   tasks: Task[];
   /** Open the screen a finished task produced (click-through from the task tray). */
   openTaskTarget: (task: Task) => void;
-  /** Bumps on every data mutation; the voice widget syncs state to the agent on change. */
+  /** Bumps on every data mutation; the UI re-renders off it. */
   rev: number;
-  agentSend: AgentSend | null;
-  registerAgentSend: (fn: AgentSend | null) => void;
-  /** Compact snapshot of the active itinerary for `state_sync` (null on dashboard). */
-  snapshot: () => Record<string, unknown> | null;
+  agentSend: AgentSend;
+  registerAgentSend: (fn: AgentSend) => void;
+  /** The travel agent's own gestures: mutate the screen, then say what they did. */
+  byHand: ByHand;
   /** Dispatch a `ui-command` RTVI event's `{ command, payload }` from the agent. */
   handleUiCommand: (command: string, payload: unknown) => void;
 }
@@ -180,6 +278,9 @@ function normalizeOptionsIds<T extends { id?: string }>(items: T[], prefix: stri
 // Background-task cadence. Searches feel like a real fare/hotel API call; the
 // day-plan build runs a touch longer. A finished task lingers in the tray so the
 // agent can see it land before it fades. (Mirrors the servicing prep cadence.)
+/** What the "New trip" button names a draft; the brain mirrors the same name. */
+const BLANK_TRIP_NAME = 'Untitled trip';
+
 const TASK_LEAD = 350;
 const SEARCH_RUN_MIN = 3200;
 const SEARCH_RUN_VAR = 1600; // flights/hotels ≈ 3.2–4.8s
@@ -233,7 +334,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [rev, setRev] = useState(0);
-  const agentSendRef = useRef<AgentSend | null>(null);
+  const agentSendRef = useRef<AgentSend>(null);
   const [, forceTick] = useState(0);
 
   // Background-task timers (search / build animation), cleared on unmount.
@@ -249,12 +350,14 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   const activeIdRef = useRef<string | null>(activeId);
   activeIdRef.current = activeId;
 
-  const registerAgentSend = useCallback((fn: AgentSend | null) => {
+  const registerAgentSend = useCallback((fn: AgentSend) => {
     agentSendRef.current = fn;
     forceTick((t) => t + 1);
   }, []);
 
-  // Apply a change to the active itinerary, persist, and bump rev (→ state_sync).
+  const emit = useCallback((event: AppEvent) => sendAppEvent(agentSendRef.current, event), []);
+
+  // Apply a change to the active itinerary, persist, and bump rev.
   const mutateActive = useCallback(
     (fn: (it: Itinerary) => Itinerary) => {
       setItineraries((list) => {
@@ -309,10 +412,17 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       setActiveId(id);
       setView('overview');
       setWhatsappOpen(false);
-      persist(list ?? itineraries, id);
+      const all = list ?? itineraries;
+      persist(all, id);
       setRev((r) => r + 1);
+      // The handover, and the one event that carries a whole screen: these drafts
+      // live in this browser, so until now the brain did not know this trip
+      // exists. It goes whoever opened it — the brain asking for it by name has
+      // no more idea what is in it than the agent's own click does.
+      const opened = all.find((it) => it.id === id);
+      if (opened) emit({ event: 'trip_opened', payload: overviewOf(opened) });
     },
-    [itineraries],
+    [itineraries, emit],
   );
 
   const createItinerary = useCallback((wire: NewItinerary) => {
@@ -332,7 +442,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const newBlankItinerary = useCallback(() => {
-    createItinerary({ name: 'Untitled trip' });
+    createItinerary({ name: BLANK_TRIP_NAME });
   }, [createItinerary]);
 
   const openItinerary = useCallback(
@@ -601,6 +711,8 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   const openWhatsAppPreview = useCallback(() => setWhatsappOpen(true), []);
   const closeWhatsApp = useCallback(() => setWhatsappOpen(false), []);
 
+  const viewOverview = useCallback(() => setView('overview'), []);
+
   const viewFlights = useCallback((legId: string) => {
     setFlightsLeg(legId);
     setView('flights');
@@ -615,58 +727,6 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     () => itineraries.find((it) => it.id === activeId) ?? null,
     [itineraries, activeId],
   );
-
-  const snapshot = useCallback((): Record<string, unknown> | null => {
-    if (!active) return null;
-    return {
-      name: active.name,
-      // Where the agent is, plus any searches still running — so the assistant can
-      // ground a turn ("you're on the Phu Quoc hotels screen") and know whether a
-      // search has finished before it tries to select.
-      screen: view,
-      screen_context:
-        view === 'flights' ? flightsLeg : view === 'hotels' ? hotelsCity : null,
-      tasks: tasks
-        .filter((t) => t.itineraryId === active.id)
-        .map((t) => ({ kind: t.kind, label: t.label, status: t.status })),
-      coordinator: active.coordinator,
-      destination: active.destination,
-      dates: [active.start_date, active.end_date].filter(Boolean).join(' – '),
-      pax: paxSummary(active),
-      families: active.families.map((f) => ({
-        label: f.label,
-        origin: f.origin,
-        meal: f.meal,
-        infants: f.infants,
-        assistance: f.assistance,
-      })),
-      special_requests: active.specialRequests.map((r) => `${r.label}${r.detail ? ` (${r.detail})` : ''}`),
-      legs: active.legs.map((l) => {
-        const sel = selectedFlight(l);
-        return {
-          id: l.id,
-          label: l.label,
-          date: l.date,
-          options_shown: l.options?.length ?? 0,
-          selected: sel ? `${sel.airline} ${sel.flight_no ?? ''} ${sel.depart}→${sel.arrive}`.trim() : null,
-        };
-      }),
-      hotels: active.hotels.map((h) => {
-        const sel = selectedHotel(h);
-        return {
-          city: h.city,
-          options_shown: h.options?.length ?? 0,
-          selected: sel ? `${sel.name} (${sel.stars ?? 5}★)` : null,
-        };
-      }),
-      days: active.days.map((d) => ({ day: d.day, date: d.date, title: d.title })),
-      inclusions: active.inclusions,
-      exclusions: active.exclusions,
-      terms_set: active.terms.length > 0,
-      whatsapp_sent: Boolean(active.whatsapp),
-      patch_note: active.patchNote,
-    };
-  }, [active, view, flightsLeg, hotelsCity, tasks]);
 
   // The agent's ten commands. Each payload is the shape its Python `Action`
   // emits, so there is nothing left to coerce or null-check, and the exhausted
@@ -724,6 +784,81 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     ],
   );
 
+  // ── The travel agent's own hands ─────────────────────────────────────────
+  // Every one of these is a mutation plus the sentence that names it. Nothing
+  // here is reachable from `handleUiCommand`, which is the whole point: an event
+  // is always the agent, so the brain never has to work out whether a change it
+  // is being told about is its own command coming home.
+  const byHand: ByHand = useMemo(
+    () => ({
+      openDashboard: () => {
+        openDashboard();
+        emit({ event: 'dashboard_opened', payload: {} });
+      },
+      openTrip: openItinerary,
+      newTrip: () => {
+        newBlankItinerary();
+        emit({ event: 'trip_opened', payload: { name: BLANK_TRIP_NAME } });
+      },
+      backToOverview: () => {
+        viewOverview();
+        emit({ event: 'overview_viewed', payload: {} });
+      },
+      viewFlights: (leg) => {
+        viewFlights(leg.id);
+        emit({ event: 'flights_viewed', payload: { leg_id: leg.id, leg_label: leg.label } });
+      },
+      viewHotels: (city) => {
+        viewHotels(city);
+        emit({ event: 'hotels_viewed', payload: { city } });
+      },
+      selectFlight: (leg, opt) => {
+        selectFlight(leg.id, opt.id);
+        emit({
+          event: 'flight_selected',
+          payload: { leg_id: leg.id, option_id: opt.id, summary: flightLine(opt) },
+        });
+      },
+      selectHotel: (stay, opt) => {
+        selectHotel(stay.city, opt.id);
+        emit({
+          event: 'hotel_selected',
+          payload: { city: stay.city, option_id: opt.id, summary: hotelLine(opt) },
+        });
+      },
+      shareQuote: (to, recipient) => {
+        sendWhatsApp(to, recipient);
+        emit({ event: 'quote_shared', payload: { to, recipient } });
+      },
+      openTaskTarget: (task) => {
+        openTaskTarget(task);
+        // Where the tray click lands. `openTaskTarget` may switch itinerary on the
+        // way, and that sends its own `trip_opened` — this names the screen it
+        // settled on.
+        if (task.kind === 'flights' && task.target?.legId) {
+          emit({ event: 'flights_viewed', payload: { leg_id: task.target.legId } });
+        } else if (task.kind === 'hotels' && task.target?.city) {
+          emit({ event: 'hotels_viewed', payload: { city: task.target.city } });
+        } else {
+          emit({ event: 'overview_viewed', payload: {} });
+        }
+      },
+    }),
+    [
+      emit,
+      openDashboard,
+      openItinerary,
+      newBlankItinerary,
+      viewOverview,
+      viewFlights,
+      viewHotels,
+      selectFlight,
+      selectHotel,
+      sendWhatsApp,
+      openTaskTarget,
+    ],
+  );
+
   // Rebuilt each render (like the orders store) so `agentSend` always reflects
   // the latest registered channel.
   const store: TravelStore = {
@@ -739,7 +874,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     rev,
     agentSend: agentSendRef.current,
     registerAgentSend,
-    snapshot,
+    byHand,
     handleUiCommand,
     openDashboard,
     newBlankItinerary,

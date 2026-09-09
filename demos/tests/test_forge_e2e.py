@@ -5,19 +5,21 @@ prompt, its real twenty-one tools — hosted on a real ``brain_server`` socket a
 driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. See
 ``tests/_harness.py`` for what every demo's e2e proves.
 
-Forge inverts the usual ownership: the **studio** owns the workflow and Ada only
-relays edits, grounded on the ``state_sync`` snapshot it pushes. So the two things
-worth pinning are that a tool call reaches the studio with its arguments intact
-(each tool's parameter *is* the ``Action`` dispatched — a rename in either repo
-silently drops the edit), and that the snapshot lands **on the brain and not in
-the prompt**: it is read through ``read_screen``, and an edit against a workspace
-the admin moved since is refused rather than applied to the wrong block.
+Three things are worth pinning here. A tool call has to reach the studio with its
+arguments intact — each tool's parameter *is* the ``Action`` dispatched, so a
+rename in either repo silently drops the edit. What the admin does by hand has to
+reach the context as the *act* and nowhere near it as a value. And forge's own
+third case: what the studio's interpreter works out for itself — a test run's
+verdicts — has to come back **carrying its result**, because Ada has no other way
+to learn it.
 
 Run: ``cd demos && uv run pytest tests/test_forge_e2e.py``
 """
 
 from __future__ import annotations
 
+import asyncio
+from copy import deepcopy
 from typing import Any
 
 from voqalize_demos.discovery import discover
@@ -30,22 +32,32 @@ discover()
 VOICE = "omnivoice/gauri"
 LANGUAGE = "en"
 
-PAYLOAD: dict[str, Any] = {"admin": {"name": "Nadia"}}
-
-#: A snapshot of the shape ``store.tsx``'s ``snapshot()`` sends.
-WORKSPACE: dict[str, Any] = {
-    "view": "editor",
-    "panel": "blocks",
-    "active": {
+#: The catalog as ``data.ts``'s ``studioSeed()`` hands it over — the studio
+#: already has it, so it rides ``init`` rather than being pushed back.
+CATALOG: list[dict[str, Any]] = [
+    {
         "id": "guest-wifi",
         "name": "Guest Wi-Fi",
+        "category": "ITSM",
         "status": "draft",
-        "states": [
-            {"id": "s1", "kind": "form", "label": "Request details"},
-            {"id": "s2", "kind": "end", "label": "Done"},
+        "version": 1,
+        "trigger": "A sponsor requests guest access",
+        "the request context": [],
+        "the blocks": [
+            {"id": "s1", "kind": "form", "label": "Request details", "next": "s2"},
+            {"id": "s2", "kind": "end", "label": "Done", "outcome": "Complete"},
         ],
+        "the tests": [
+            {"name": "Sponsor submits", "given": "s1", "event": "submit", "expect": "s2"},
+        ],
+        "the open gaps": [],
     },
-}
+]
+
+
+def _payload() -> dict[str, Any]:
+    """A fresh catalog per test — the brain patches the workflows it is handed."""
+    return {"admin": {"name": "Nadia"}, "workflows": deepcopy(CATALOG)}
 
 
 def _llm() -> ScriptedGemini:
@@ -81,7 +93,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     """Ada opens with a fixed line — no model call on the start path — and her
     declared voice lands on **both** legs before that audio."""
     async with demo("forge", _llm()) as rig:
-        greeting = await rig.driver.start_session(init=PAYLOAD)
+        greeting = await rig.driver.start_session(init=_payload())
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text.startswith("Hi there — Ada here.")
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
@@ -93,9 +105,11 @@ async def test_edits_reach_the_studio_with_their_arguments_intact() -> None:
 
     That is the whole contract, and it is one rename away from breaking silently —
     the model still calls the tool, Ada still says "added", and the block never
-    appears. So assert the payload key by key rather than just the action."""
+    appears. So assert the payload key by key rather than just the action. The one
+    field the model did not fill is ``id``: Ada mints it before dispatch, because a
+    block the studio named is a block only the studio can name again."""
     async with demo("forge", _llm()) as rig:
-        await rig.driver.start_session(init=PAYLOAD)
+        await rig.driver.start_session(init=_payload())
 
         t1 = await rig.driver.user_says("Open the guest wifi workflow.")
         check_turn(rig, t1, units=2)
@@ -111,17 +125,17 @@ async def test_edits_reach_the_studio_with_their_arguments_intact() -> None:
         assert added["label"] == "Manager approval"
         assert added["approver"] == "Reporting manager"
         assert added["sla_hours"] == 24
+        assert added["id"].startswith("s_a"), added["id"]
 
 
-async def test_the_workspace_is_read_on_request_and_never_dumped() -> None:
-    """``state_sync`` takes no floor — and, since the workspace moved out of the
-    context, it puts nothing there either.
+async def test_a_gesture_is_named_in_the_context_and_the_workflow_is_read_instead() -> None:
+    """What the admin did reaches the context; what the screen says does not.
 
     This used to append the whole workspace on every change, prefixed
     *authoritative*, so a session that edits twenty blocks ended with twenty
-    near-identical workspaces in front of the model. Now the snapshot stops at the
-    brain and ``read_screen`` is the only way to it — including the block ids,
-    which are what every edit has to name."""
+    near-identical workspaces in front of the model. Now the gesture arrives typed,
+    the context gets one line naming it, and ``read_screen`` is the only way to the
+    blocks — which are what every edit has to name."""
     llm = ScriptedGemini(
         {
             "What's on screen?": [
@@ -132,35 +146,67 @@ async def test_the_workspace_is_read_on_request_and_never_dumped() -> None:
         }
     )
     async with demo("forge", llm) as rig:
-        await rig.driver.start_session(init=PAYLOAD)
+        await rig.driver.start_session(init=_payload())
         before = len(rig.driver.ui_commands)
 
-        # The first sync is the studio as it loaded; the second is the admin.
-        await rig.driver.send_client_message("state_sync", {"workspace": {"view": "list"}})
-        await rig.driver.send_client_message("state_sync", {"workspace": WORKSPACE})
+        await rig.driver.send_ui_event("workflow_opened", {"id": "guest-wifi"})
+        await rig.driver.send_ui_event("block_focused", {"id": "s1"})
+        await asyncio.sleep(0.1)
 
         turn = await rig.driver.user_says("What's on screen?")
         check_turn(rig, turn, units=2)
-        assert len(rig.driver.ui_commands) == before, "state_sync or read_screen drew"
+        assert len(rig.driver.ui_commands) == before, "a gesture or read_screen drew"
 
         # One more turn, so the turn above's tool results are in a request.
         await rig.driver.user_says("Thanks.")
 
     results = _tool_results(llm)
     assert "s1" in results, "read_screen did not serve the block ids"
+    assert "Request details" in results
+
     context = _user_text([c for cs in llm.captured_contents for c in cs])
-    assert "just changed the screen" in context
+    assert "The admin opened a workflow themselves." in context
+    assert "The admin selected a block themselves." in context
     assert "read_screen" in context
-    assert "CURRENT WORKSPACE STATE" not in context, "the workspace dump is back"
-    assert "Request details" not in context, "the workspace reached the context anyway"
+    assert "Request details" not in context, "the workflow reached the context anyway"
+    assert "guest-wifi" not in context, "the gesture carried its value"
 
 
-async def test_an_edit_against_a_workspace_the_admin_moved_is_refused_until_it_is_read() -> None:
+async def test_the_studio_s_own_answer_carries_its_result() -> None:
+    """A test run is not somebody's gesture, and it is the one thing that has to
+    arrive valued.
+
+    Nobody decided the verdicts — the studio's interpreter computed them, on its
+    own clock, and the browser is the only place they exist. So unlike a gesture
+    this line carries what it found. It still bumps the screen version, so the next
+    edit reads before it acts."""
+    llm = ScriptedGemini({"Thanks.": reply("Any time."), "And?": reply("All good.")})
+    async with demo("forge", llm) as rig:
+        await rig.driver.start_session(init=_payload())
+        await rig.driver.send_ui_event("workflow_opened", {"id": "guest-wifi"})
+        await rig.driver.send_ui_event(
+            "tests_finished",
+            {
+                "tests": [
+                    {"name": "Sponsor submits", "passed": False, "rested_at": "s1"},
+                ]
+            },
+        )
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Thanks.")
+        await rig.driver.user_says("And?")
+
+    context = _user_text([c for cs in llm.captured_contents for c in cs])
+    assert "The test run finished: 0 of 1 passing." in context
+    assert "'Sponsor submits' rested at s1." in context
+
+
+async def test_an_edit_against_a_workflow_the_admin_moved_is_refused_until_it_is_read() -> None:
     """The version gate, which is what makes read-don't-remember enforceable.
 
     Forge is where this matters most: every edit names a block by an id Ada read
     off the screen, and the admin is editing the same canvas with their own hands.
-    An ``add_state`` after ``s1`` issued against a workspace two edits old rewires
+    An ``add_state`` after ``s1`` issued against a workflow two edits old rewires
     whatever now sits at ``s1``. So it refuses, and the refusal is retriable: read,
     then act. The scripted model here does exactly the wrong thing first."""
     edit: dict[str, Any] = {
@@ -181,9 +227,9 @@ async def test_an_edit_against_a_workspace_the_admin_moved_is_refused_until_it_i
         }
     )
     async with demo("forge", llm) as rig:
-        await rig.driver.start_session(init=PAYLOAD)
-        await rig.driver.send_client_message("state_sync", {"workspace": {"view": "list"}})
-        await rig.driver.send_client_message("state_sync", {"workspace": WORKSPACE})
+        await rig.driver.start_session(init=_payload())
+        await rig.driver.send_ui_event("workflow_opened", {"id": "guest-wifi"})
+        await asyncio.sleep(0.1)
 
         await rig.driver.user_says("Add a manager approval after the form.")
         # Exactly one block was added: the stale call rewired nothing.

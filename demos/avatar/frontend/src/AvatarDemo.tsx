@@ -61,7 +61,7 @@ import "@pipecat-ai/voice-ui-kit/styles.scoped";
 import { Avatar } from "@voqalize/avatar/react";
 import type { AvatarFactory, AvatarOptions } from "@voqalize/avatar";
 import { Github, PhoneOff } from "lucide-react";
-import { asUiAction, unhandledUiAction } from "./actions.gen";
+import { asUiAction, sendAppEvent, unhandledUiAction } from "./actions.gen";
 import { connectRequest, demo, withRealHeaders } from "./config";
 import { DOC_SECTIONS } from "./docs";
 import { DEFAULT_AVATAR, ROSTER, ROSTER_BY_KEY } from "./roster";
@@ -451,7 +451,7 @@ function Stage({
     enableMic(true);
     setActivity("listening");
     startedAt.current = Date.now();
-    client?.sendClientMessage("ready", {});
+    sendAppEvent((event, payload) => client?.sendUIEvent(event, payload), { event: "ready", payload: {} });
   }, [isConnected, enableMic, client]);
 
   useEffect(() => {

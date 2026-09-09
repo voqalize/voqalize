@@ -9,7 +9,7 @@
 
 | Share | Where it lives | Cost |
 |---|---|---|
-| **80%** | In the system prompt (**written once**) plus grounding at the tail | tokens only |
+| **80%** | In the system prompt (**written once**) plus the change note at the tail | tokens only |
 | **10%** | One fast tool call away — in-memory, no network | a model round trip |
 | **10%** | Genuinely slow — remote, expensive | **must be designed with feedback**: it becomes a background workstream, not a wait |
 
@@ -25,8 +25,8 @@ answer to "what does the caller hear meanwhile?" ([4](04-parallel-workstreams.md
    edited. See the facts below — this is the single cheapest latency win available
    and the easiest one to throw away by accident.
 3. **Be told where it is.** The agent must have a way to know what is on screen
-   *right now* — normally a tool that reads an in-memory structure kept current by
-   incoming `state_sync`, or grounding folded in for free.
+   *right now* — a tool that reads a mirror the brain owns, kept current by the
+   typed events the page sends as the person acts.
 4. **Track a task list.** The agent holds several open threads; the prompt has to
    name them and say how they close.
 5. **Assume it misheard.** Correction paths are first-class instructions, not an
@@ -34,27 +34,29 @@ answer to "what does the caller hear meanwhile?" ([4](04-parallel-workstreams.md
 
 ## Facts — the seams the SDK gives you
 
-- **`grounding()`** is the mechanism for keeping bucket one fresh without a round
-  trip. `GeminiBrain.grounding()` returns a note "inserted **just before the
-  latest user turn**, so an ambiguous question is grounded in what the caller is
-  looking at."
+- **`ScreenState`** (`demos/voqalize_demos/screen.py`) is the mechanism for
+  bucket one. Two lines cross per gesture and no more: `moved(what)` names the act
+  ("The customer changed a quantity") and points at the read tool; `stale()`
+  refuses a mutation aimed at a screen the model has not re-read. The screen
+  itself never enters the context.
 - **The system prompt is the cache prefix, and it is written once.** Everything
   volatile goes at the *tail*, immediately before the latest user turn: the prefix
   stays byte-identical turn after turn, so it stays cached, and the only thing the
   provider re-reads is the small new suffix. A prompt that is rebuilt every turn is
   a prompt that is never cached, and the caller pays for it in silence.
-- **`GoogleADKBrain.grounding()` appends to the system instruction on every model
-  call — root agent and every sub-agent.** That is the wrong end of the context.
-  It is a defect in our own SDK, not a stylistic difference from the Gemini seam.
-- The ADK docstring argues the case for us, and it is the sharpest sentence we
-  have written on the subject: *"Why not a tool the model can call for the same
-  data: a tool is only as fresh as the model's decision to call it, so the model
-  can answer 'what's on screen?' from a stale turn. Grounding costs no round-trip
-  and cannot be forgotten."*
-- Returning `None` appends **nothing at all** — no header, no empty block. A brain
-  with no screen yet has no screen section, rather than an empty one the model has
-  to interpret.
-- `browser_state` is the default `state_sync` parking spot; grounding reads it.
+- **The note goes at the tail, never into the system instruction.** Appending to
+  the instruction on every model call is the wrong end of the context: it breaks
+  the cache prefix for a sentence that was only ever about the last few seconds.
+- **A note alone is not enough, which is why `stale()` exists.** A tool is only as
+  fresh as the model's decision to call it, so a model that never re-reads answers
+  "what's on screen?" from a stale turn. Prompt discipline is a request; the
+  version refusal is a rule, and it is retriable — read, then act.
+- An event that changes nothing appends **nothing at all** — `apply_event` returns
+  `None` and the context is untouched, rather than gaining an empty note the model
+  has to interpret.
+- `version` is what makes the read enforceable rather than merely requested, and it
+  moves only when the *person* moves the screen — so an ordinary turn pays no
+  extra hop.
 - **Thinking level is part of the prompt budget**, and it is model-specific — see
   [2](02-the-turn-budget.md) for the measured trap.
 
@@ -77,12 +79,13 @@ answer to "what does the caller hear meanwhile?" ([4](04-parallel-workstreams.md
 - `aura`: "Speak a short line first, then call the tool."
 
 **Knowing where it is**
-- `aura`: `get_screen_context` reads the same `state_sync` snapshot; `servicing`:
-  `get_advisor_context` reads which case and which tab is open.
-- `orderdesk`'s grounding header is literally
-  `"CURRENT ORDER SCREEN (authoritative, reflects manual edits): "` plus a
-  **PENDING** line "naming the rows still short of a SKU and the axes to ask
-  about, so the model never re-asks a question the screen already answered."
+- Every demo that has a screen worth reading names its read tool to `ScreenState`
+  and nothing else: `aura` `get_screen_context`, `servicing` `get_advisor_context`,
+  `legal` `get_reading_position`, `forge`/`sugar`/`travel` `read_screen`.
+- `orderdesk` keeps one derived line in the context — **PENDING**, naming the rows
+  still short of a SKU and the axes to ask about, so the model never re-asks a
+  question the screen already answered. It is not the screen; it is the list of
+  open questions, which is conversation state and therefore the brain's.
 
 **The strongest single artifact: `orderdesk`'s disambiguation block.** It is a
 prompt fragment that survived an offline eval, and it teaches an *information-
@@ -95,14 +98,14 @@ theoretic* rule in plain language:
 - "**TWO ROUNDS AT MOST.**"
 - With a worked example (twenty-four TELMA SKUs → four groups → three strengths)
   and an explicit *what you must NOT do* list.
-- And the closing loop back to the screen: "If he taps a group pill himself, your
-  screen grounding shows fewer candidates on that row. Do not repeat the question."
+- And the closing loop back to the screen: "If he taps a group pill himself, the
+  PENDING line shows fewer candidates on that row. Do not repeat the question."
 
-**Grounding beats memory.** `orderdesk` holds a mirror of the cart *and* prefers
-the browser's snapshot over it on every call, keeping the mirror only "as the
-fallback for the first beat." The authority is the screen, not the agent's memory.
-The reciprocal instruction is in the prompt: "**NEVER redo what he already did
-himself.**"
+**The mirror is the authority, because the events keep it true.** `orderdesk`
+holds the cart and patches it from both sides — its own dispatches and the
+pharmacist's typed gestures — so there is no snapshot to prefer over it and no
+diff to infer from. The reciprocal instruction is still in the prompt: "**NEVER
+redo what he already did himself.**"
 
 **Structure the model cannot get wrong.** `ask_choice` is validated for 2–4
 choices, known codes, and total coverage; a bad set is rejected with a retriable
@@ -111,10 +114,6 @@ is the model's" ([6](06-tool-design.md)).
 
 ## Gap
 
-- **Fix `GoogleADKBrain.grounding()` before this page ships.** It should append a
-  tail `Content` in the `before_model_callback`, not rewrite the system
-  instruction. Today we would be documenting a practice our own SDK violates, and
-  the violation is invisible until someone reads a cache-hit metric.
 - We publish **no** prompt guidance. Every demo re-derives the same six rules.
   This page's job is to hoist them once.
 - **Open:** the 80/10/10 numbers are a conviction, not a measurement. State them

@@ -20,7 +20,7 @@ that sentence reads as obvious, the page is wrong, not the sentence.
 | 4 | [Parallel workstreams](04-parallel-workstreams.md) | Voice is fast only because the caller can say five things without waiting. An agent that handles one at a time gives that speed straight back. |
 | 5 | [Prompt design for voice](05-prompt-design.md) | 80% of what the agent needs must already be in the prompt, because every lookup is silence the caller sits through. |
 | 6 | [Tool design for voice](06-tool-design.md) | A tool that waits is a bug. Tools return immediately, are never cancelled, and are undone by a compensating call. |
-| 7 | [Who owns which state](07-who-owns-which-state.md) | We own the conversation state and you own everything else, so every turn is a merge — and the merge is your code. |
+| 7 | [Who owns which state](07-who-owns-which-state.md) | We own the conversation state and you own everything else — and the merge you were about to write between them is the bug you were about to ship. |
 | 8 | [Getting information to the model](08-getting-information-to-the-model.md) | There are four places a fact can live, and choosing wrong costs either latency or accuracy on every turn. |
 | 9 | [Misunderstanding and reversal](09-misunderstanding-and-reversal.md) | The caller will be misheard and will correct themselves mid-sentence. Irreversible actions are committed by a click, never by the agent. |
 | 10 | [The framework boundary](10-the-framework-boundary.md) | The best thing we can do for your tools is nothing. Whatever agentic framework you brought already runs them. |

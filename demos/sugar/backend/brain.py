@@ -12,14 +12,16 @@ Two things worth calling out about how per-session state flows in:
     logs, CGM status, prior-call summaries, TODAY'S CALL OBJECTIVE) arrives per
     session as ``session.init``. :meth:`SugarBrain.on_session_start` folds the
     PATIENT CONTEXT into the system instruction so every turn is grounded in it.
-  * **state_sync** — the browser echoes a compact ``state_sync`` snapshot of the
-    patient's screen (what's logged, med ticks, taps the patient made by hand).
-    :meth:`SugarBrain.on_rtvi` folds it into :attr:`SugarBrain.screen` and nowhere
-    else — no floor taken, no turn, and no snapshot in the context. What reaches
-    the model is one line naming which facts the patient moved; the screen itself
-    is read through ``read_screen``. ``ScreenState.version`` makes that safe rather
-    than hopeful: a tool aimed at a screen the patient has moved since the coach
-    last read refuses instead of acting. See ``voqalize_demos.screen``.
+  * **the screen** — the brain keeps its own picture of the patient's phone. It is
+    seeded from that same ``session.init`` (the day's meals, ticks and sensor are
+    already in it), patched on every command this brain dispatches, and patched
+    again when the patient does one of the two things they can do by hand — see
+    ``app_events.py``. Nothing about the screen is pushed and nothing is appended
+    to the context: :meth:`SugarBrain.on_rtvi` adds one line naming the *act*, and
+    the screen itself is read through ``read_screen``. ``ScreenState.version``
+    makes that safe rather than hopeful: a tool aimed at a screen the patient has
+    moved since the coach last read refuses instead of acting. See
+    ``voqalize_demos.screen``.
 
 **The LLM generates the substantive data** (meal items, calorie estimates,
 summary lines): each tool takes one pydantic model, and for thirteen of the
@@ -39,8 +41,10 @@ from loguru import logger
 from pydantic import BaseModel, Field, computed_field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+
+from .app_events import SUGAR_EVENTS, SensorOrderConfirmed, SugarEvent, VideoClosed
 
 COACH_NAME = "Sugar Coach"
 
@@ -289,24 +293,48 @@ class SwitchLanguage(BaseModel):
     language: LanguageName = Field(description="Target language.")
 
 
-def _screen_facts(state: dict[str, Any] | None) -> dict[str, Any]:
-    """The parts of the screen snapshot that are somebody's decision.
+type ScreenMove = (
+    LogMeal
+    | LogActivity
+    | MarkMedication
+    | ShowGlucose
+    | PlayVideo
+    | PauseVideo
+    | ResumeVideo
+    | SetCommitment
+    | FlagForCareTeam
+    | ShowSensorRenewal
+    | ConfirmSensorOrder
+    | ShowSummary
+    | Highlight
+)
+"""Every command that moves the patient's phone.
 
-    Nearly all of it: on this screen everything is logged, ticked or tapped. What
-    stays out is ``video``, which the browser reports as the player moves through
-    a clip — the coach opened it, and a chapter advancing is not a change of mind.
-    """
-    if not state:
-        return {}
+Narrower than ``Action`` on purpose: :meth:`SugarBrain._mirror` matches on this,
+so a fourteenth command added and not mirrored is a type error rather than a
+picture that has quietly stopped agreeing with the screen."""
+
+
+def _meal_line(meal: LogMeal) -> dict[str, Any]:
+    """A logged meal as the food log shows it — the items, not their calories."""
     return {
-        "where they are in the call": state.get("phase"),
-        "the meals logged": state.get("meals"),
-        "the activity logged": state.get("activity"),
-        "the medication ticks": state.get("medications"),
-        "the commitment": state.get("commitment"),
-        "what is flagged for the care team": state.get("care_team_flags"),
-        "the sensor order": state.get("sensor_order"),
-        "whether the summary is up": state.get("summary_shown"),
+        "meal": meal.meal_type,
+        "time": meal.time_label,
+        "items": [f"{i.name} \u00d7 {i.quantity}" for i in meal.items],
+        "total_kcal": meal.total_calories,
+    }
+
+
+def _blank_screen() -> dict[str, Any]:
+    return {
+        "the meals logged": [],
+        "the activity logged": [],
+        "the medication ticks": [],
+        "the commitment": None,
+        "what is flagged for the care team": [],
+        "the sensor order": "none",
+        "the video": None,
+        "whether the summary is up": False,
     }
 
 
@@ -315,9 +343,9 @@ class SugarBrain(GeminiBrain):
     + this session's patient/screen state.
 
     The per-scenario patient picture arrives as ``session.init`` and is folded
-    into the system instruction in :meth:`on_session_start`. The browser echoes a
-    ``state_sync`` snapshot to :meth:`on_rtvi`; a note carries it into
-    every turn so the coach reasons from the live screen."""
+    into the system instruction in :meth:`on_session_start`. The patient's own
+    taps reach :meth:`on_rtvi` as typed events, one gesture at a time, and the
+    coach reads the screen back when she needs it."""
 
     # This coach's language is the patient's own LanguageToggle choice, and the
     # page sends it at connect: ``config`` moves both legs of the wire before
@@ -339,7 +367,10 @@ class SugarBrain(GeminiBrain):
         self.nudge = ""
         # What is on the patient's screen. This is the only copy: it is read
         # through ``read_screen`` and never appended to the model's context.
-        self.screen = ScreenState(_screen_facts, read_tool="read_screen", actor="patient")
+        self.screen = ScreenState(read_tool="read_screen", actor="patient")
+        #: The brain's own picture of the phone — seeded from ``session.init``,
+        #: patched by :meth:`_mirror` and :meth:`apply_event`.
+        self.mirror = _blank_screen()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -369,6 +400,17 @@ class SugarBrain(GeminiBrain):
         # continues naturally from it (it also cued them on what to say).
         self.nudge = str(scenario.get("joined_from_nudge", "")).strip()
 
+        # The day the patient walks in with. It is already in front of us — the
+        # page put it in ``init`` — so the mirror is built from it rather than
+        # waiting for the browser to hand back what it was given.
+        raw_today = scenario.get("today")
+        today: dict[str, Any] = raw_today if isinstance(raw_today, dict) else {}
+        self.mirror = _blank_screen() | {
+            "the meals logged": today.get("logged_meals") or [],
+            "the activity logged": today.get("logged_activity") or [],
+            "the medication ticks": today.get("medications") or [],
+        }
+
         # Fold the whole per-scenario picture into the system instruction: it is
         # true for the whole call and never changes, so it belongs where it is
         # written once, not in an append that would sit in the context.
@@ -393,35 +435,90 @@ class SugarBrain(GeminiBrain):
         return _GREETING[self.language_name]
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Browser→brain message. ``state_sync`` carries a compact snapshot of the
-        patient's screen — what's logged, med ticks, video position, and taps the
-        patient made by hand. Ingested *silently* (no floor taken, no turn); the
-        next turn carries at most one line saying which of those moved."""
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+        """Browser→brain message: one thing the patient just did with their thumb.
+
+        Silent by construction — the mirror moves and one line goes into the
+        context, but no floor is taken and no turn starts. A tap does not mean
+        they stopped talking."""
+        event = SUGAR_EVENTS.parse(msg)
+        if event is None:
             return
-        if msg.data.get("t") == "state_sync":
-            self._ingest_state(msg.data.get("d") or {})
+        logger.info("sugar: {}", type(event).__voqal_event__)
+        note = self.apply_event(event)
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
 
-    # ─── Browser → brain: screen state sync (silent awareness) ──────────
+    # ─── Browser → brain: what the patient did by hand ──────────────────
 
-    def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Fold the browser's snapshot into :attr:`screen` — and into it only.
+    def apply_event(self, event: SugarEvent) -> str:
+        """Fold one gesture into the mirror and say what to tell the model.
 
-        This used to append the whole screen to the model's context on every
-        change, which is the defect ``voqalize_demos.screen`` exists to close."""
-        snapshot = data.get("screen")
-        note = self.screen.absorb(snapshot if isinstance(snapshot, dict) else None)
-        logger.info(
-            "sugar: state_sync (active={}, v{})", bool(self.screen.snapshot), self.screen.version
-        )
-        if note is not None:
-            self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+        The note names the act and never its values — the screen behind it is read
+        through ``read_screen``, which is what keeps it from going stale in the
+        context. No fallback arm: a gesture added to :data:`SugarEvent` and not
+        handled here is a type error rather than a silent drop."""
+        match event:
+            case SensorOrderConfirmed():
+                self.mirror["the sensor order"] = "ordered"
+                return self.screen.moved("confirmed the sensor order by tapping the card")
+            case VideoClosed():
+                self.mirror["the video"] = None
+                return self.screen.moved("closed the video")
 
-    def _show(self, action: Action) -> None:
-        """Put something on screen. Every tool that moves it comes through here, so
-        the browser's echo of our own command is not mistaken for the patient."""
-        self.screen.dispatched()
+    def _show(self, action: ScreenMove) -> None:
+        """Put something on screen — and into the mirror, in the same breath.
+
+        Nothing comes back to say a command landed, and nothing needs to. That is
+        also why a gesture can be taken at face value: an event is always the
+        patient, never this brain's own command echoing home."""
+        self._mirror(action)
         self.session.dispatch(action)
+
+    def _mirror(self, action: ScreenMove) -> None:
+        """Move the mirror the way this dispatch is about to move the phone."""
+        match action:
+            case LogMeal():
+                meals = self.mirror["the meals logged"]
+                line = _meal_line(action)
+                # A re-log of the same meal is a correction, exactly as the
+                # browser treats it — it replaces, rather than logging twice.
+                for i, m in enumerate(meals):
+                    if m.get("meal") == action.meal_type:
+                        meals[i] = line
+                        break
+                else:
+                    meals.append(line)
+            case LogActivity():
+                self.mirror["the activity logged"].append(
+                    f"{action.kind}, {action.duration_min} min ({action.time_label})"
+                )
+            case MarkMedication():
+                wanted = action.name.lower()
+                for med in self.mirror["the medication ticks"]:
+                    name = str(med.get("name", "")).lower()
+                    if name and (name in wanted or wanted in name):
+                        med["status"] = action.status
+            case SetCommitment():
+                self.mirror["the commitment"] = {"text": action.text, "when": action.when}
+            case FlagForCareTeam():
+                self.mirror["what is flagged for the care team"].append(action.topic)
+            case ShowSensorRenewal():
+                if self.mirror["the sensor order"] != "ordered":
+                    self.mirror["the sensor order"] = "offered"
+            case ConfirmSensorOrder():
+                self.mirror["the sensor order"] = "ordered"
+            case ShowSummary():
+                self.mirror["whether the summary is up"] = True
+            case PlayVideo():
+                self.mirror["the video"] = {"id": action.video_id, "playing": True}
+            case PauseVideo():
+                if isinstance(video := self.mirror["the video"], dict):
+                    video["playing"] = False
+            case ResumeVideo():
+                if isinstance(video := self.mirror["the video"], dict):
+                    video["playing"] = True
+            case ShowGlucose() | Highlight():
+                # Where the eye is pointed, not what anyone decided.
+                pass
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #
@@ -465,11 +562,8 @@ class SugarBrain(GeminiBrain):
         whenever you are told they changed it themselves. It is free — it reads this
         session's own state, takes no floor, says nothing, and moves nothing."""
         self.screen.read()
-        snapshot = self.screen.snapshot
-        logger.info("sugar: read_screen (active={}, v{})", bool(snapshot), self.screen.version)
-        if not snapshot:
-            return "The patient's app is still initializing — nothing is on screen yet."
-        return screen_prose(snapshot, actor="patient")
+        logger.info("sugar: read_screen (v{})", self.screen.version)
+        return screen_prose({"screen": "check-in", **self.mirror}, actor="patient")
 
     async def log_meal(self, meal: LogMeal) -> str:
         """Log a meal the patient just described — it appears in their food log with

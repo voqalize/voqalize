@@ -171,14 +171,15 @@ export type RunTests = Record<string, never>;
 /** Scan for unhandled (state, event) pairs. No fields. */
 export type ReviewCoverage = Record<string, never>;
 
+/**
+ * Clear one gap once it is really handled. Name it by the pair read_screen
+ * shows — the state id and the event.
+ */
 export interface ResolveGap {
-  /** The gap id, if known. */
-  id: string;
-
-  /** Gap's state id (with `event`) if no id. */
+  /** The gap's state id. */
   state: string;
 
-  /** Gap's event (with `state`) if no id. */
+  /** The gap's event. */
   event: string;
 }
 
@@ -206,6 +207,63 @@ export interface FocusState {
 export interface ShowCode {
   /** The state id whose code to reveal. */
   id: string;
+}
+
+/** The admin selected a block — which one they are pointing at, not a change. */
+export interface BlockFocused {
+  id: string;
+}
+
+/** The admin opened one block's code. */
+export interface CodeOpened {
+  id: string;
+}
+
+/**
+ * A `review_coverage` came back. The gaps are read off the spec by the
+ * studio's interpreter, so a question Ada never thought to ask still shows up —
+ * which is the whole point of the linter, and why this is an event and not a
+ * tool result.
+ */
+export interface CoverageScanned {
+  gaps?: GapSpec[];
+}
+
+/** The admin went back to the workflow list. Nothing is open. */
+export type ListOpened = Record<string, never>;
+
+/** The admin switched panels on the open workflow. */
+export interface PanelOpened {
+  panel: 'flow' | 'code' | 'tests' | 'runtime';
+}
+
+/** A persona run finished walking the flow — where it came to rest. */
+export interface ScenarioFinished {
+  persona?: string;
+
+  rested_at?: string;
+}
+
+/**
+ * A `run_tests` came back. The outcomes are the interpreter's, on its own
+ * clock, and arrive only here — there is no other way for Ada to learn them.
+ */
+export interface TestsFinished {
+  tests?: TestOutcome[];
+}
+
+/** The admin opened a workflow themselves, off the list. */
+export interface WorkflowOpened {
+  id: string;
+}
+
+/** The publish landed: the version that went live and the run id it minted. */
+export interface WorkflowPublished {
+  id: string;
+
+  version?: number;
+
+  run_id?: string;
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
@@ -251,6 +309,25 @@ export interface FormFieldSpec {
   type: 'string' | 'boolean' | 'number' | 'enum' | 'user';
 
   enum_values: string[];
+}
+
+/** One unhandled `(state, event)` pair the coverage linter found. */
+export interface GapSpec {
+  state: string;
+
+  event: string;
+
+  question?: string;
+}
+
+/** One test as the interpreter settled it. */
+export interface TestOutcome {
+  name: string;
+
+  passed: boolean;
+
+  /** Where the run actually came to rest. */
+  rested_at?: string;
 }
 
 /** Everything the brain can put on screen, discriminated by `command`. */
@@ -321,4 +398,45 @@ export function asUiAction(command: string, payload: unknown): UiAction | null {
  */
 export function unhandledUiAction(action: never): never {
   throw new Error(`Unhandled action: ${JSON.stringify(action)}`);
+}
+
+/** Everything the person can do on screen, discriminated by `event`. */
+export type AppEvent =
+  | { event: 'block_focused'; payload: BlockFocused }
+  | { event: 'code_opened'; payload: CodeOpened }
+  | { event: 'coverage_scanned'; payload: CoverageScanned }
+  | { event: 'list_opened'; payload: ListOpened }
+  | { event: 'panel_opened'; payload: PanelOpened }
+  | { event: 'scenario_finished'; payload: ScenarioFinished }
+  | { event: 'tests_finished'; payload: TestsFinished }
+  | { event: 'workflow_opened'; payload: WorkflowOpened }
+  | { event: 'workflow_published'; payload: WorkflowPublished };
+
+export type AppEventName = AppEvent['event'];
+
+export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'block_focused',
+  'code_opened',
+  'coverage_scanned',
+  'list_opened',
+  'panel_opened',
+  'scenario_finished',
+  'tests_finished',
+  'workflow_opened',
+  'workflow_published',
+];
+
+/**
+ * Send one thing the person did. `send` is a pipecat client's `sendUIEvent`,
+ * or null before the call connects — a gesture made off-call is dropped,
+ * which is right: there is no brain that missed it.
+ *
+ * The name picks the payload type, so a field renamed in Python stops
+ * compiling here rather than arriving as a shape the brain discards.
+ */
+export function sendAppEvent(
+  send: ((event: string, payload?: unknown) => void) | null | undefined,
+  event: AppEvent,
+): void {
+  send?.(event.event, event.payload);
 }

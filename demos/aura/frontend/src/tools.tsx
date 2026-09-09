@@ -11,7 +11,8 @@
  *   - Spotlight       : general-purpose ring around any [data-aura-spotlight] element
  *
  * Each is driven by the shared store (so the human or the agent can drive), which
- * the voice widget feeds via `ui_command` and reads back via `state_sync`.
+ * the voice widget drives via `ui-command`, and whose own gestures leave as
+ * typed `ui-event`s through the store's `byHand`.
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
@@ -28,10 +29,10 @@ const PAPER = '#FFFFFF';
 const inr = (n: number): string => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 function PageShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
-  const { openHelpCenter } = useAura();
+  const { byHand } = useAura();
   return (
     <div className="aura-page" style={{ maxWidth: 1000, margin: '0 auto', padding: '28px 24px 60px' }}>
-      <button onClick={openHelpCenter} style={{ background: 'none', border: 'none', color: PRIMARY, cursor: 'pointer', fontSize: 13, padding: 0, marginBottom: 8 }}>
+      <button onClick={byHand.openHelpCenter} style={{ background: 'none', border: 'none', color: PRIMARY, cursor: 'pointer', fontSize: 13, padding: 0, marginBottom: 8 }}>
         ← Help &amp; Support
       </button>
       <h1 style={{ fontSize: 27, color: INK, fontWeight: 800, margin: '2px 0 2px' }}>{title}</h1>
@@ -136,7 +137,7 @@ const PRODUCT_TITLE: Record<Product, { title: string; subtitle: string }> = {
 };
 
 export function ApplyPage() {
-  const { apply, prefillField, submitApplication } = useAura();
+  const { apply, byHand } = useAura();
   if (!apply) return null;
   const meta = PRODUCT_TITLE[apply.product];
 
@@ -163,13 +164,13 @@ export function ApplyPage() {
             <input
               type={f.type}
               value={f.value}
-              onChange={(e) => prefillField(f.id, e.target.value)}
+              onChange={(e) => byHand.prefillField(f.id, e.target.value)}
               style={{ width: '100%', fontSize: 15, color: INK, padding: '10px 12px', border: `1.5px solid ${f.value ? ACCENT : BORDER}`, borderRadius: 10, outline: 'none', transition: 'border-color .2s' }}
             />
           </label>
         ))}
         <button
-          onClick={submitApplication}
+          onClick={byHand.submitApplication}
           style={{ marginTop: 6, background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, padding: '12px 22px', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}
         >
           Submit application

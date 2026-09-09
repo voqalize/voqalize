@@ -6,7 +6,7 @@
  * exact step, and narrating. The page and the voice layer share one
  * `AuraProvider`, so the assistant and the customer drive the same screen:
  * the agent drives via `ui_command` and stays aware of the on-screen state via
- * a silent `state_sync`. Navigation is React state, so the live call survives
+ * typed `ui-event`s. Navigation is React state, so the live call survives
  * screen changes.
  *
  * `AuraAssistant` owns the session and wraps the page, handing its one presence

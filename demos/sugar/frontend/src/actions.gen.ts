@@ -104,6 +104,16 @@ export interface Highlight {
   section: 'glucose' | 'meals' | 'activity' | 'meds' | 'plan' | 'summary';
 }
 
+/**
+ * The patient tapped Confirm on the sensor-replacement card themselves,
+ * rather than agreeing out loud. The order is placed; the coach must not call
+ * `confirm_sensor_order` on top of it.
+ */
+export type SensorOrderConfirmed = Record<string, never>;
+
+/** The patient shut the video the coach opened. Nothing is playing. */
+export type VideoClosed = Record<string, never>;
+
 // ── Shapes used by the messages above ──────────────────────────────
 
 export interface MealItem {
@@ -169,4 +179,31 @@ export function asUiAction(command: string, payload: unknown): UiAction | null {
  */
 export function unhandledUiAction(action: never): never {
   throw new Error(`Unhandled action: ${JSON.stringify(action)}`);
+}
+
+/** Everything the person can do on screen, discriminated by `event`. */
+export type AppEvent =
+  | { event: 'sensor_order_confirmed'; payload: SensorOrderConfirmed }
+  | { event: 'video_closed'; payload: VideoClosed };
+
+export type AppEventName = AppEvent['event'];
+
+export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'sensor_order_confirmed',
+  'video_closed',
+];
+
+/**
+ * Send one thing the person did. `send` is a pipecat client's `sendUIEvent`,
+ * or null before the call connects — a gesture made off-call is dropped,
+ * which is right: there is no brain that missed it.
+ *
+ * The name picks the payload type, so a field renamed in Python stops
+ * compiling here rather than arriving as a shape the brain discards.
+ */
+export function sendAppEvent(
+  send: ((event: string, payload?: unknown) => void) | null | undefined,
+  event: AppEvent,
+): void {
+  send?.(event.event, event.payload);
 }

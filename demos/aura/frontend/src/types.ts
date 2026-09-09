@@ -7,9 +7,9 @@
  * index files carry front-matter + a fenced ```json``` block of timed chapters
  * derived from the real Aura video transcripts.
  *
- * The voice agent drives the on-screen state through `ui_command` RTVI messages,
- * and the browser echoes a compact `screen_state` snapshot back (`state_sync`) so
- * the assistant always knows what the customer is looking at.
+ * The voice agent drives the on-screen state through `ui-command` RTVI messages,
+ * and the customer's own gestures leave as typed `ui-event`s. Neither direction
+ * carries the screen: the agent reads it back with `get_screen_context`.
  *
  * **What the agent puts on screen is not declared here.** `actions.gen.ts` is
  * generated from the brain's `Action` classes by `voqalize types`, and the

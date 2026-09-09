@@ -29,7 +29,7 @@
   the screen without waiting for the agent to stop talking.
 - Dispatch is **one-way**: nothing is returned and nothing is awaited. A brain
   that needs an answer gets it the way it gets every other tap — as a
-  `client-message` at `on_rtvi`, whenever the app has one. That removes the
+  typed `AppEvent` at `on_rtvi`, whenever the app has one. That removes the
   temptation the old handle created, of awaiting a browser while holding the
   floor with nothing to say.
 - `on_rtvi` is deliberately **not** a generator (`brain.py`). The app pushing

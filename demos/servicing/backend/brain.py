@@ -10,15 +10,16 @@ Two things worth calling out about how per-session state flows in:
   * **init** — the advisor's name and role (``session.init["advisor"]``), folded
     into the opening greeting. :meth:`ServicingBrain.greet` is written, not
     generated: the advisor is already logged in, so there is no first-token wait.
-  * **state_sync** — the console is the source of truth for the open case and the
-    approvals queue; it echoes a compact ``state_sync`` snapshot on every change.
-    :meth:`ServicingBrain.on_rtvi` folds it into :attr:`ServicingBrain.screen` and
-    nowhere else — no floor taken, no turn, and no snapshot in the context. What
-    reaches the model is one line naming which facts the advisor moved; the
-    workspace itself is read through ``get_advisor_context``.
-    ``ScreenState.version`` makes that safe rather than hopeful: a tool aimed at a
-    packet or a blocker the advisor has moved since the desk last read refuses
-    instead of acting. See ``voqalize_demos.screen``.
+  * **the workspace** — the desk keeps its own picture of the console. It is built
+    from ``session.init["cases"]`` (the board arrives with the advisor, before
+    the first word), patched on every command this brain dispatches, and patched
+    again on each thing the advisor does with his own hand — see ``app_events.py``.
+    Nothing is pushed and nothing is appended to the context:
+    :meth:`ServicingBrain.on_rtvi` adds one line naming the *act*, and the
+    workspace itself is read through ``get_advisor_context``. ``ScreenState.version``
+    makes that safe rather than hopeful: a tool aimed at a packet or a blocker the
+    advisor has moved since the desk last read refuses instead of acting. See
+    ``voqalize_demos.screen``.
 
 Fourteen of the fifteen tools dispatch a :class:`~voqalize.sdk.Action` that IS the
 tool's own parameter — the LLM generates the substantive data (payoff figures,
@@ -44,8 +45,22 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+
+from .app_events import (
+    SERVICING_EVENTS,
+    ApprovalDecided,
+    BoardFiltered,
+    BoardOpened,
+    CaseOpened,
+    CaseRouted,
+    NoteAdded,
+    PacketSubmitted,
+    SearchDismissed,
+    ServicingEvent,
+    TabOpened,
+)
 
 DESK_NAME = "Servicing Desk"
 BANK_NAME = "Meridian Home Loans"
@@ -396,29 +411,46 @@ def _assign_ids(items: list[Any], prefix: str) -> None:
             item.id = f"{prefix}{i + 1}"
 
 
-def _screen_facts(state: dict[str, Any] | None) -> dict[str, Any]:
-    """The parts of the workspace snapshot that are somebody's decision.
+type ScreenMove = (
+    OpenBoard
+    | OpenCase
+    | SetTab
+    | AssignCase
+    | MoveCase
+    | AddComment
+    | PrepareCase
+    | PostWorkup
+    | LookupPrecedent
+    | UpdatePacketField
+    | ResolveBlocker
+    | SubmitPacket
+    | DraftApproval
+    | Highlight
+)
+"""Every command that moves the advisor's console.
 
-    Out of it: ``preparing`` and ``archive_search`` status, which move on the
-    console's own clock as a workup or a lookup finishes. Bumping the version for
-    those would cost the desk a re-read on work it started itself."""
-    if not state:
-        return {}
-    case = state.get("active_case")
-    case = case if isinstance(case, dict) else {}
+Narrower than ``Action`` on purpose: :meth:`ServicingBrain._mirror` matches on
+this, so a fifteenth command added and not mirrored is a type error rather than a
+picture that has quietly stopped agreeing with the screen."""
+
+
+def _find(rows: list[Any], ref: str) -> dict[str, Any] | None:
+    """The case row for ``ref``, or ``None`` — refs are the console's own ids."""
+    wanted = ref.strip().upper()
+    for row in rows:
+        if isinstance(row, dict) and str(row.get("ref", "")).upper() == wanted:
+            return row  # pyright: ignore[reportUnknownVariableType]
+    return None
+
+
+def _blank_workspace() -> dict[str, Any]:
     return {
-        "the view they are on": state.get("view"),
-        "the tab": state.get("tab"),
-        "the open case": case.get("ref"),
-        "its stage": case.get("stage"),
-        "who it is assigned to": case.get("assignee"),
-        "its blocker": case.get("blocker"),
-        "its packet": case.get("packet"),
-        "the workup findings": case.get("findings"),
-        "the notes on it": case.get("notes"),
-        "the approvals waiting": case.get("pending_approvals"),
-        "the approvals blocked": case.get("blocked_approvals"),
-        "the case board": state.get("cases"),
+        "the view they are on": "board",
+        "the tab": "overview",
+        "the board filter": "all",
+        "the open case": None,
+        "the cases": [],
+        "the last precedent search": None,
     }
 
 
@@ -431,11 +463,12 @@ class ServicingBrain(GeminiBrain):
         # Advisor identity, filled for real in on_session_start from the init payload.
         self.advisor_name = "there"
         self.advisor_role = "Servicing Advisor"
-        # Latest workspace snapshot the browser has told us about (authoritative;
-        # source of truth lives in the browser, this is the brain's view of it).
         # What is on the advisor's console. This is the only copy: it is read
         # through ``get_advisor_context`` and never appended to the model's context.
-        self.screen = ScreenState(_screen_facts, read_tool="get_advisor_context", actor="advisor")
+        self.screen = ScreenState(read_tool="get_advisor_context", actor="advisor")
+        #: The desk's own picture of the console — seeded from ``session.init``,
+        #: patched by :meth:`_mirror` and :meth:`apply_event`.
+        self.workspace = _blank_workspace()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -445,6 +478,15 @@ class ServicingBrain(GeminiBrain):
         advisor = raw_advisor if isinstance(raw_advisor, dict) else {}
         self.advisor_name = str(advisor.get("name") or "").strip() or "there"
         self.advisor_role = str(advisor.get("role") or "").strip() or "Servicing Advisor"
+        # The board the advisor logged in to. It rides ``init`` because the console
+        # already has it — there is nothing to be gained by having the browser
+        # hand back, over the wire, the worklist it was itself given.
+        raw_cases = payload.get("cases")
+        self.workspace = _blank_workspace() | {
+            "the cases": [c for c in raw_cases if isinstance(c, dict)]
+            if isinstance(raw_cases, list)
+            else []
+        }
         # The desk's own voice — settled here rather than sent with the connect
         # request, since this is an internal console with no caller to ask.
         await session.configure(
@@ -463,35 +505,158 @@ class ServicingBrain(GeminiBrain):
         return f"Hi there — {DESK_NAME} here. What would you like to start on?"
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Browser→brain message. ``state_sync`` carries a compact snapshot of the
-        workspace — which case/tab is on screen, pending approvals, and a lean
-        view of the cases. Ingested *silently* (no floor taken, no turn); the next
-        turn carries at most one line saying which of those moved."""
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+        """Browser→brain message: one thing the advisor just did on the console.
+
+        Silent by construction — the picture moves and one line goes into the
+        context, but no floor is taken and no turn starts. Nothing about a click
+        means he stopped talking."""
+        event = SERVICING_EVENTS.parse(msg)
+        if event is None:
             return
-        if msg.data.get("t") == "state_sync":
-            self._ingest_state(msg.data.get("d") or {})
+        logger.info("servicing: {} — {}", type(event).__voqal_event__, event)
+        note = self.apply_event(event)
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
 
-    def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Fold the console's snapshot into :attr:`screen` — and into it only.
+    # ─── Browser → brain: what the advisor did himself ──────────────────
 
-        This used to append the whole workspace to the model's context on every
-        change, which is the defect ``voqalize_demos.screen`` exists to close."""
-        snapshot = data.get("workspace")
-        note = self.screen.absorb(snapshot if isinstance(snapshot, dict) else None)
-        logger.info(
-            "servicing: state_sync (active={}, v{})",
-            bool(self.screen.snapshot),
-            self.screen.version,
-        )
-        if note is not None:
-            self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+    def apply_event(self, event: ServicingEvent) -> str:
+        """Fold one gesture into the picture and say what to tell the model.
 
-    def _show(self, action: Action) -> None:
-        """Put something on screen. Every tool that moves it comes through here, so
-        the console's echo of our own command is not mistaken for the advisor."""
-        self.screen.dispatched()
+        The note names the act and never its values — the case behind it is read
+        through ``get_advisor_context``, which is what keeps it from going stale in
+        the context. No fallback arm: a gesture added to :data:`ServicingEvent` and
+        not handled here is a type error rather than a silent drop."""
+        rows = self.workspace["the cases"]
+        match event:
+            case BoardOpened():
+                self.workspace["the view they are on"] = "board"
+                self.workspace["the open case"] = None
+                return self.screen.moved("went back to the case board")
+            case CaseOpened():
+                ref = event.ref.strip().upper()
+                self.workspace["the view they are on"] = "case"
+                self.workspace["the open case"] = ref
+                self.workspace["the tab"] = "overview"
+                return self.screen.moved(f"opened {ref} himself")
+            case TabOpened():
+                self.workspace["the tab"] = event.tab
+                return self.screen.moved(f"switched to the {event.tab} tab")
+            case BoardFiltered():
+                self.workspace["the view they are on"] = "board"
+                self.workspace["the board filter"] = event.showing
+                return self.screen.moved(f"filtered the board to {event.showing}")
+            case CaseRouted():
+                ref = event.ref.strip().upper()
+                if (row := _find(rows, ref)) is not None:
+                    row["assignee"] = event.to
+                    if row.get("stage") != "done":
+                        row["stage"] = "with_dept"
+                return self.screen.moved(f"routed {ref} to another queue himself")
+            case NoteAdded():
+                ref = event.ref.strip().upper()
+                if (row := _find(rows, ref)) is not None:
+                    row.setdefault("notes", []).append(
+                        {"author": self.advisor_name, "text": event.text}
+                    )
+                    if event.dept and row.get("stage") != "done":
+                        row["stage"] = "with_dept"
+                return self.screen.moved(f"wrote a note on {ref}")
+            case ApprovalDecided():
+                ref = event.ref.strip().upper()
+                if (row := _find(rows, ref)) is not None:
+                    pending = row.get("pending_approvals") or []
+                    row["pending_approvals"] = [t for t in pending if t != event.title]
+                    row.setdefault("signed off", []).append(f"{event.decision}: {event.title}")
+                return self.screen.moved(
+                    f"{event.decision} a draft on {ref} himself — his call, never yours"
+                )
+            case PacketSubmitted():
+                ref = event.ref.strip().upper()
+                if (row := _find(rows, ref)) is not None:
+                    if isinstance(packet := row.get("packet"), dict):
+                        packet["status"] = "submitted"
+                    row["stage"] = "with_dept"
+                return self.screen.moved(f"submitted the packet on {ref} himself")
+            case SearchDismissed():
+                self.workspace["the last precedent search"] = None
+                return self.screen.moved("closed the precedent search")
+
+    def _show(self, action: ScreenMove) -> None:
+        """Put something on screen — and into the picture, in the same breath.
+
+        Nothing comes back to say a command landed, and nothing needs to. That is
+        also why a gesture can be taken at face value: an event is always the
+        advisor, never this brain's own command echoing home."""
+        self._mirror(action)
         self.session.dispatch(action)
+
+    def _mirror(self, action: ScreenMove) -> None:
+        """Move the picture the way this dispatch is about to move the console."""
+        rows = self.workspace["the cases"]
+        match action:
+            case OpenBoard():
+                self.workspace["the view they are on"] = "board"
+                self.workspace["the open case"] = None
+            case OpenCase():
+                self.workspace["the view they are on"] = "case"
+                self.workspace["the open case"] = action.ref
+                self.workspace["the tab"] = "overview"
+            case SetTab():
+                self.workspace["the tab"] = action.tab
+            case AssignCase():
+                if (row := _find(rows, action.ref)) is not None:
+                    row["assignee"] = DEPARTMENTS.get(action.assignee.lower(), action.assignee)
+                    if action.assignee_kind == "department" and row.get("stage") != "done":
+                        row["stage"] = "with_dept"
+            case MoveCase():
+                if (row := _find(rows, action.ref)) is not None:
+                    row["stage"] = action.stage
+            case AddComment():
+                if (row := _find(rows, action.ref)) is not None:
+                    row.setdefault("notes", []).append(
+                        {"author": "Servicing desk", "text": action.text}
+                    )
+            case PrepareCase():
+                if (row := _find(rows, action.ref)) is not None:
+                    row["findings"] = [f.label for f in action.findings]
+                    row["blocker"] = (
+                        {"title": action.blocker.title, "status": "open"}
+                        if action.blocker
+                        else None
+                    )
+                    if action.packet is not None:
+                        row["packet"] = {"title": action.packet.title, "status": "draft"}
+                    row["pending_approvals"] = [a.title for a in action.approvals]
+            case PostWorkup():
+                if (row := _find(rows, action.ref)) is not None:
+                    row["findings"] = [f.label for f in action.findings]
+                    if action.blocker is not None:
+                        row["blocker"] = {"title": action.blocker.title, "status": "open"}
+            case LookupPrecedent():
+                self.workspace["the last precedent search"] = {
+                    "query": action.query,
+                    "results": len(action.results),
+                }
+            case UpdatePacketField():
+                row = _find(rows, action.ref)
+                if row is not None and isinstance(packet := row.get("packet"), dict):
+                    packet.setdefault("fields set", []).append(action.field)
+            case ResolveBlocker():
+                row = _find(rows, action.ref)
+                if row is not None and isinstance(blocker := row.get("blocker"), dict):
+                    blocker["status"] = "resolved"
+            case SubmitPacket():
+                # The console gates this one itself (maker-checker), so the
+                # picture only records that it was asked for.
+                row = _find(rows, action.ref)
+                if row is not None and isinstance(packet := row.get("packet"), dict):
+                    packet["status"] = "submitting"
+            case DraftApproval():
+                if (row := _find(rows, action.ref)) is not None:
+                    row.setdefault("pending_approvals", []).append(action.approval.title)
+            case Highlight():
+                # Where the eye is pointed, not what anyone decided.
+                pass
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
@@ -541,13 +706,15 @@ class ServicingBrain(GeminiBrain):
         are told the advisor moved it themselves. It is free — it reads this
         session's own state, takes no floor, says nothing, and moves nothing."""
         self.screen.read()
-        snapshot = self.screen.snapshot
-        logger.info(
-            "servicing: get_advisor_context (active={}, v{})", bool(snapshot), self.screen.version
-        )
-        if not snapshot:
-            return "The advisor's console is still initializing — nothing is on screen yet."
-        return screen_prose(snapshot, actor="advisor")
+        logger.info("servicing: get_advisor_context (v{})", self.screen.version)
+        rows = self.workspace["the cases"]
+        ref = self.workspace["the open case"]
+        where = {
+            "screen": self.workspace["the view they are on"],
+            **self.workspace,
+            "the open case": _find(rows, ref) if isinstance(ref, str) else None,
+        }
+        return screen_prose(where, actor="advisor")
 
     async def assign_case(self, action: AssignCase) -> str:
         """Route a case to a person or a department (Jira-style assignment). Use

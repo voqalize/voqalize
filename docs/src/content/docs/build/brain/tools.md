@@ -253,17 +253,26 @@ each turn as its own task and each RTVI message as an ambient one
 ```python
 import asyncio
 import uuid
+from typing import Literal
 
 from google import genai
 from pydantic import BaseModel
 
-from voqalize.sdk import Action, RTVIType
+from voqalize.sdk import Action, AppEvent, AppEvents
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 
 
 class OpenConfirm(Action):
     nonce: str
     summary: str
+
+
+class ConfirmAnswered(AppEvent):
+    nonce: str
+    answer: Literal["yes", "no"]
+
+
+EVENTS = AppEvents(ConfirmAnswered)
 
 
 class ConfirmArgs(BaseModel):
@@ -303,14 +312,11 @@ class Booking(GeminiInteractionsBrain):
         return "The caller declined. Acknowledge it and offer another slot."
 
     async def on_rtvi(self, session, msg) -> None:
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
-            return
-        if msg.data.get("t") != "confirm_answer":
-            return
-        data = msg.data.get("d") or {}
-        pending = self._pending.get(data.get("nonce", ""))
-        if pending is not None and not pending.done():
-            pending.set_result(data.get("answer", "no"))
+        match EVENTS.parse(msg):
+            case ConfirmAnswered() as e:
+                pending = self._pending.get(e.nonce)
+                if pending is not None and not pending.done():
+                    pending.set_result(e.answer)
 ```
 
 Three things in there are load-bearing. The **nonce** binds this dialog to this
@@ -330,8 +336,8 @@ commands = await driver.collect_ui_commands(min_count=1)
 assert commands[0]["command"] == "open_confirm"
 assert not in_flight.done(), "the tool returned before the caller answered"
 
-await driver.send_client_message(
-    "confirm_answer", {"nonce": commands[0]["payload"]["nonce"], "answer": "yes"}
+await driver.send_ui_event(
+    "confirm_answered", {"nonce": commands[0]["payload"]["nonce"], "answer": "yes"}
 )
 turn = await in_flight
 assert turn.completed

@@ -89,6 +89,11 @@ export interface SummarizeSession {
   open_items: string[];
 }
 
+/** The lawyer scrolled, and this clause is now centred in their viewport. */
+export interface ClauseFocused {
+  clause_id: string;
+}
+
 // ── Shapes used by the messages above ──────────────────────────────
 
 /**
@@ -211,4 +216,29 @@ export function asUiAction(command: string, payload: unknown): UiAction | null {
  */
 export function unhandledUiAction(action: never): never {
   throw new Error(`Unhandled action: ${JSON.stringify(action)}`);
+}
+
+/** Everything the person can do on screen, discriminated by `event`. */
+export type AppEvent =
+  | { event: 'clause_focused'; payload: ClauseFocused };
+
+export type AppEventName = AppEvent['event'];
+
+export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'clause_focused',
+];
+
+/**
+ * Send one thing the person did. `send` is a pipecat client's `sendUIEvent`,
+ * or null before the call connects — a gesture made off-call is dropped,
+ * which is right: there is no brain that missed it.
+ *
+ * The name picks the payload type, so a field renamed in Python stops
+ * compiling here rather than arriving as a shape the brain discards.
+ */
+export function sendAppEvent(
+  send: ((event: string, payload?: unknown) => void) | null | undefined,
+  event: AppEvent,
+): void {
+  send?.(event.event, event.payload);
 }

@@ -14,10 +14,10 @@
  *   - the assistant's `ui-command` server messages (`{ command, payload }`)
  *     replay onto the shared servicing store, so the assistant drives the
  *     console;
- *   - a compact workspace snapshot is echoed back to the assistant
- *     (`state_sync`) on connect and after every change — so it always knows
- *     where the advisor is and what's pending, including the advisor's own
- *     edits (approvals, assignments).
+ *   - the advisor's own gestures go the other way as typed `ui-event`s — he
+ *     opened a case, decided a draft, submitted a packet — each named rather
+ *     than inferred from a re-sent workspace. The store's `byHand` decides
+ *     which of the two moved the screen; this file only carries the message.
  *
  * This is exactly the surface an external developer embeds: one `fetch` for
  * `sessions.connect`, handed to `PipecatAppBase`, driven by a publishable
@@ -43,7 +43,7 @@ import {
   type AmbientPresencePalette,
 } from "@voqalize/demo-kit";
 import { useServicing } from "./store";
-import { ADVISOR } from "./data";
+import { ADVISOR, boardSeed } from "./data";
 import { connectRequest, withRealHeaders } from "./config";
 
 // Meridian's reading of the shared presence ring: the console's own "Blueprint"
@@ -133,11 +133,16 @@ function LiveControls({
 // ── Session owner ─────────────────────────────────────────────────────────────
 
 export function ServicingDesk({ children }: { children: (presence: ReactNode) => ReactNode }) {
-  // The logged-in advisor rides the session's `init` payload — the desk greets
-  // them by name. No `config`: this agent's voice and language are declared on
-  // its brain (backend/brain.py), which is the only place they belong.
+  // The logged-in advisor and their board ride the session's `init` payload —
+  // the desk greets them by name and starts the call already holding the
+  // worklist. No `config`: this agent's voice and language are declared on its
+  // brain (backend/brain.py), which is the only place they belong.
   const init = useMemo(
-    () => ({ surface: "servicing-web", advisor: { name: ADVISOR.name, role: ADVISOR.role } }),
+    () => ({
+      surface: "servicing-web",
+      advisor: { name: ADVISOR.name, role: ADVISOR.role },
+      cases: boardSeed(),
+    }),
     [],
   );
   const params = useMemo(() => connectRequest(init), [init]);
@@ -175,7 +180,7 @@ function ServicingSession({
   onDisconnect: () => void | Promise<void>;
   children: (presence: ReactNode) => ReactNode;
 }) {
-  const { handleUiCommand, registerAgentSend, rev, activeRef, tab, snapshot } = useServicing();
+  const { handleUiCommand, registerAgentSend } = useServicing();
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
   const { isConnected, isConnecting } = usePipecatConnectionState();
@@ -205,27 +210,13 @@ function ServicingSession({
     ),
   );
 
-  const sendMessage = useCallback(
-    (type: string, data: Record<string, unknown>) => client?.sendClientMessage(type, data),
-    [client],
-  );
-
   // Register the store's agent-send channel and open the mic once live.
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !client) return;
     enableMic(true);
-    registerAgentSend(sendMessage);
+    registerAgentSend((event, payload) => client.sendUIEvent(event, payload));
     return () => registerAgentSend(null);
-  }, [isConnected, enableMic, registerAgentSend, sendMessage]);
-
-  // Debounced snapshot push: on connect and after every change (rev / active ref /
-  // tab), so the assistant stays in sync with edits the advisor makes by hand too.
-  useEffect(() => {
-    if (!isConnected) return;
-    const t = setTimeout(() => sendMessage("state_sync", { workspace: snapshot() }), 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, rev, activeRef, tab]);
+  }, [isConnected, client, enableMic, registerAgentSend]);
 
   // Dev-only: expose the live client for driving the flow without a mic in tests.
   useEffect(() => {

@@ -34,13 +34,13 @@ which is the contract of record.
 
 | Type | What it is |
 |---|---|
-| `client-message` | Anything the app wants to tell the brain — a tap, a keystroke, a state push. |
-| `ui-event` | A named event with an app-defined payload. |
+| `ui-event` | A named event with an app-defined payload — one gesture the person made. |
+| `client-message` | The older untyped envelope, `{t, d}`. Still carried, still parsed; new pages send `ui-event`. |
 | `ui-snapshot` | The page's accessibility tree, whole, each time. |
 | `ui-cancel-job-group` | Cancel an in-flight job group, by its `job_id`. |
 
 Only two of these have a Voqalize method behind them: `ui-command` is what
-`session.dispatch` rides, and `client-message` is what most apps send back. The
+`session.dispatch` rides, and `ui-event` is what `AppEvents.parse` reads. The
 rest of the `ui-*` family is pipecat's own, defined and implemented by its client
 and its server-side workers; we carry them and interpret nothing. The
 descriptions above are what pipecat's client does with them, and pipecat's
@@ -111,10 +111,13 @@ ours.
 
 ```python
 async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-    if msg.type is not RTVIType.CLIENT_MESSAGE:
-        return
-    ...
+    match EVENTS.parse(msg):
+        case QuantitySet() as e:
+            ...
 ```
+
+`AppEvents.parse` is the typed reader — it takes both envelopes and returns
+`None` for anything it does not know. See [context](/build/brain/context/).
 
 `on_rtvi` is **not a generator**, and that is deliberate. A click can update the
 screen or end the call; it cannot make the agent start talking over the person
@@ -131,8 +134,8 @@ resolves.
 
 Nothing else is correlated for you. `dispatch` is one-way — nothing is returned
 and nothing is awaited — so a brain that needs an answer gets it the way it gets
-every other tap: as an ordinary `client-message`, correlated by whatever your app
-put in it. See [parallel workstreams](/design/parallel-workstreams/).
+every other tap: as an ordinary `ui-event`, correlated by whatever your app put
+in it. See [parallel workstreams](/design/parallel-workstreams/).
 
 One field never reaches the app: `turn_id` annotates traces on the way out and is
 stripped before delivery.

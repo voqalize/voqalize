@@ -570,6 +570,11 @@ class VoqalizeDriver:
         wait for here. No ``turn_id``: an app message opens no turn."""
         await self._send(RTVIFrame(type=type, data=data, id=id))
 
+    async def send_ui_event(self, event: str, payload: dict | None = None) -> None:
+        """Send one app→brain ``ui-event`` — what ``client.sendUIEvent`` puts on the
+        wire, and what :class:`~voqalize.sdk.AppEvents` reads."""
+        await self.send_rtvi(RTVIType.UI_EVENT, {"event": event, "payload": payload or {}})
+
     async def send_client_message(self, t: str, d: dict | None = None) -> None:
         """Send an RTVI ``client-message`` in the ``{"t": ..., "d": ...}`` shape a
         stock pipecat client sends."""

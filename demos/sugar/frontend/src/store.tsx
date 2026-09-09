@@ -2,16 +2,20 @@
  * Shared state for the Sugar Coach demo — the patient's phone and the voice
  * call drive one store, so the agent and the patient see the same screen.
  *
- * Same two-way pattern as travel/servicing:
+ * Same two-way pattern as travel/servicing, and both halves are generated from
+ * the brain's own Python in `actions.gen.ts`:
  *   - `handleUiCommand(command, payload)` replays the brain's RTVI `ui-command`
  *     frames onto this store (meals appear, meds tick, the chart zooms, videos
- *     play). It narrows the pair through `asUiAction` from the generated
- *     `actions.gen.ts`, so each case reads its payload typed and the `default`
- *     arm is an exhaustiveness check — add an `Action` to the brain and this
- *     file stops compiling until it is handled;
- *   - `snapshot()` is echoed back as `state_sync` (`{ screen: ... }`) so the
- *     brain always knows what's on screen — including taps the patient makes
- *     by hand (confirming the sensor order).
+ *     play). It narrows the pair through `asUiAction`, so each case reads its
+ *     payload typed and the `default` arm is an exhaustiveness check — add an
+ *     `Action` to the brain and this file stops compiling until it is handled;
+ *   - `byHand` is the other direction: the two things the *patient* can do with
+ *     their thumb, each a mutation plus the typed `AppEvent` that names it.
+ *
+ * Who is driving is not a flag on a message — it is which function you called.
+ * `handleUiCommand` cannot reach `byHand`, so an event is always the patient and
+ * the coach's own commands can never be mistaken for one. Nothing pushes the
+ * screen; the brain keeps its own picture and reads it back through `read_screen`.
  *
  * Navigation (picker → incoming call → live call → ended) is React state, so
  * the live call survives every screen change.
@@ -26,7 +30,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { asUiAction, unhandledUiAction, type Highlight } from './actions.gen';
+import {
+  asUiAction,
+  sendAppEvent,
+  unhandledUiAction,
+  type AppEvent,
+  type Highlight,
+} from './actions.gen';
 import { buildBrainPayload, buildSessionConfig, patientById, scenarioById, videoById } from './data';
 import type {
   ActivityEntry,
@@ -45,7 +55,7 @@ import type {
   VideoCommand,
 } from './types';
 
-type AgentSend = ((type: string, data: unknown) => void) | null;
+type AgentSend = ((event: string, payload?: unknown) => void) | null;
 
 interface GlucoseFocus {
   time_label?: string;
@@ -94,17 +104,20 @@ interface SugarStore {
   videoOpen: boolean;
   videoTitle: string | null;
   videoCmd: VideoCommand | null;
-  closeVideo: () => void;
 
   // ── Bridges ───────────────────────────────────────────────────────────────
   handleUiCommand: (command: string, payload: unknown) => void;
-  snapshot: () => Record<string, unknown>;
   registerAgentSend: (fn: AgentSend) => void;
-  /** Patient taps the sensor-renewal card by hand; the agent sees it via state_sync. */
-  tapSensorOrder: () => void;
+  /** What the patient does with their thumb. Every one of these tells the coach. */
+  byHand: ByHand;
+}
 
-  /** Bumped on every state change the agent should hear about. */
-  rev: number;
+/** The patient's own hand. Each mutates the screen and names the act to the coach. */
+interface ByHand {
+  /** Confirm the sensor replacement off the card, instead of saying yes. */
+  confirmSensorOrder: () => void;
+  /** Shut the video the coach opened. */
+  closeVideo: () => void;
 }
 
 const Ctx = createContext<SugarStore | null>(null);
@@ -137,14 +150,13 @@ export function SugarProvider({ children }: { children: ReactNode }) {
   const [videoOpen, setVideoOpen] = useState(false);
   const [videoTitle, setVideoTitle] = useState<string | null>(null);
   const [videoCmd, setVideoCmd] = useState<VideoCommand | null>(null);
-  const [rev, setRev] = useState(0);
 
   const agentSendRef = useRef<AgentSend>(null);
   const nonceRef = useRef(0);
   const highlightTimer = useRef<number | null>(null);
 
   const patient = scenario ? patientById(scenario.patient_id) : null;
-  const bump = useCallback(() => setRev((r) => r + 1), []);
+  const emit = useCallback((event: AppEvent) => sendAppEvent(agentSendRef.current, event), []);
 
   // ── Navigation ──────────────────────────────────────────────────────────
   const startScenario = useCallback((scenarioId: string) => {
@@ -278,45 +290,29 @@ export function SugarProvider({ children }: { children: ReactNode }) {
         default:
           return unhandledUiAction(action);
       }
-      bump();
     },
-    [bump, flashHighlight],
+    [flashHighlight],
   );
 
   // ── Screen → agent ──────────────────────────────────────────────────────
-  const snapshot = useCallback((): Record<string, unknown> => {
-    return {
-      phase,
-      meals: meals.map((m) => ({
-        meal: m.meal_type,
-        time: m.time_label,
-        items: m.items.map((i) => `${i.name} × ${i.quantity}`),
-        total_kcal: m.total_calories,
-      })),
-      activity: activities.map((a) => `${a.kind}, ${a.duration_min} min (${a.time_label})`),
-      medications: meds.map((m) => ({ name: m.name, status: m.status })),
-      commitment,
-      care_team_flags: flags.map((f) => f.topic),
-      sensor_order: sensorOrder,
-      video: videoOpen ? { title: videoTitle, open: true } : null,
-      summary_shown: Boolean(summary),
-    };
-  }, [phase, meals, activities, meds, commitment, flags, sensorOrder, videoOpen, videoTitle, summary]);
-
   const registerAgentSend = useCallback((fn: AgentSend) => {
     agentSendRef.current = fn;
   }, []);
 
-  const tapSensorOrder = useCallback(() => {
-    setSensorOrder('ordered');
-    bump(); // state_sync carries the tap to the agent
-  }, [bump]);
-
-  const closeVideo = useCallback(() => {
-    setVideoOpen(false);
-    setVideoCmd({ action: 'pause', nonce: ++nonceRef.current });
-    bump();
-  }, [bump]);
+  const byHand = useMemo<ByHand>(
+    () => ({
+      confirmSensorOrder: () => {
+        setSensorOrder('ordered');
+        emit({ event: 'sensor_order_confirmed', payload: {} });
+      },
+      closeVideo: () => {
+        setVideoOpen(false);
+        setVideoCmd({ action: 'pause', nonce: ++nonceRef.current });
+        emit({ event: 'video_closed', payload: {} });
+      },
+    }),
+    [emit],
+  );
 
   const value = useMemo<SugarStore>(
     () => ({
@@ -347,18 +343,15 @@ export function SugarProvider({ children }: { children: ReactNode }) {
       videoOpen,
       videoTitle,
       videoCmd,
-      closeVideo,
       handleUiCommand,
-      snapshot,
       registerAgentSend,
-      tapSensorOrder,
-      rev,
+      byHand,
     }),
     [
       phase, language, talkMode, startScenario, acceptCall, declineCall, endCall, backToPicker,
       scenario, patient, brainPayload, sessionConfig, meals, activities, meds, glucose, glucoseFocus,
       commitment, flags, summary, sensorOrder, highlightSection, videoOpen, videoTitle,
-      videoCmd, closeVideo, handleUiCommand, snapshot, registerAgentSend, tapSensorOrder, rev,
+      videoCmd, handleUiCommand, registerAgentSend, byHand,
     ],
   );
 

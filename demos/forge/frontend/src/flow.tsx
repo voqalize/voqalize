@@ -33,7 +33,7 @@ function buildSpine(wf: Workflow): string[] {
 }
 
 export function FlowView() {
-  const { active, model, focusState, showCode } = useForge();
+  const { active, model, byHand } = useForge();
   if (!active) return null;
   const wf = active;
   const sim = model.sim;
@@ -73,8 +73,8 @@ export function FlowView() {
               lit={isLit(id)}
               current={isCurrent(id)}
               selected={model.selectedId === id}
-              onClick={() => focusState(id)}
-              onCode={() => showCode(id)}
+              onClick={() => byHand.focusState(id)}
+              onCode={() => byHand.showCode(id)}
             />
 
             {/* guarded side-lanes that rejoin the spine */}
@@ -103,8 +103,8 @@ export function FlowView() {
                       lit={isLit(c.id)}
                       current={isCurrent(c.id)}
                       selected={model.selectedId === c.id}
-                      onClick={() => focusState(c.id)}
-                      onCode={() => showCode(c.id)}
+                      onClick={() => byHand.focusState(c.id)}
+                      onCode={() => byHand.showCode(c.id)}
                     />
                   ))}
                   {rejoin && <div className="ff-rejoin">↩ rejoins at “{rejoin.label}”</div>}

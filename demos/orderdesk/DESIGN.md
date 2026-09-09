@@ -11,7 +11,7 @@ visible state machine to a confirmed SKU. Ambiguity becomes on-screen pills or o
 question. The pharmacist confirms the order manually.
 
 Patterns: sugar (persona picker, push-notification call start, per-session system prompt),
-travel (AdkBrain + typed `Action` + `useUiCommand` + `state_sync` grounding),
+travel (AdkBrain + typed `Action` + `useUiCommand` + typed `AppEvent` grounding),
 legal (task-tray *feel* — but our resolution is real backend work, not client-paced fiction).
 
 ---

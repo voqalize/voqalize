@@ -120,7 +120,7 @@ Your page may send `client-message`, `ui-event`, `ui-snapshot` and
 `ui-cancel-job-group`. Your brain may send `server-message`, `server-response`,
 `error-response`, `ui-command` and `ui-job-group`. What each one is for is in
 [the RTVI plane](/reference/rtvi/); `ui-command` is what `session.dispatch`
-rides, and `client-message` is what most pages send back.
+rides, and `ui-event` is what `sendAppEvent` rides back.
 
 `send-text` is on the page's half too, and is the one type that reaches you as
 something other than a message: a typed sentence commits as a **user turn**, so
@@ -149,7 +149,7 @@ we said something.
 
 An RTVI payload is bounded at **64 KiB** — the wire field and its semantics are
 in [the wire](/reference/wire/). It is the limit the pipecat client enforces on
-its own side: `sendClientMessage` throws there and fires `onError`,
+its own side: `sendUIEvent` throws there and fires `onError`,
 and nothing reaches the wire. Over it, brain to page, the message is refused at
 the wire and you get the non-fatal error frame. A page-to-brain message that gets
 past the browser anyway is dropped on our side with a log line and nothing else,

@@ -7,9 +7,12 @@
  * the router — so the `PipecatClient` mounted alongside never unmounts and the
  * call stays live as the shopper moves between pages.
  *
- * The store also holds an `agentSend` channel: the voice widget registers a way
- * to push RTVI client messages to the bot, and the return form uses it to send
- * a captured photo (`photo_upload`) and the final submission (`return_submitted`).
+ * The store also holds the shopper's own outbound channel: the voice widget
+ * registers a way to send RTVI `ui-event`s, and `emit` puts the two typed
+ * gestures on it — the captured photo (`photo_uploaded`) and the final
+ * submission (`return_submitted`). Both are declared in the brain's
+ * `app_events.py` and generated into `actions.gen.ts` alongside the actions, so
+ * a gesture the brain does not know cannot be sent.
  *
  * What the assistant can say is `actions.gen.ts`, generated from the brain's
  * `Action` classes — so `handleUiCommand` narrows on `command`, reads each
@@ -27,7 +30,9 @@ import {
 import { getOrder } from './catalog';
 import {
   asUiAction,
+  sendAppEvent,
   unhandledUiAction,
+  type AppEvent,
   type FillReturnForm,
   type RecordDiagnostic,
 } from './actions.gen';
@@ -103,7 +108,7 @@ const INITIAL: State = {
   ret: null,
 };
 
-export type AgentSend = (type: string, data: unknown) => void;
+export type AgentSend = (event: string, payload?: unknown) => void;
 
 export interface OrdersActions {
   openOrders: () => void;
@@ -125,8 +130,8 @@ export interface OrdersActions {
 }
 
 export interface OrdersStore extends State, OrdersActions {
-  /** Push an RTVI client message to the bot (null until the call connects). */
-  agentSend: AgentSend | null;
+  /** Report one of the shopper's own gestures. A no-op until the call connects. */
+  emit: (event: AppEvent) => void;
   registerAgentSend: (fn: AgentSend | null) => void;
   /** Dispatch a `ui-command` event's `{ command, payload }` from the agent. */
   handleUiCommand: (command: string, payload: unknown) => void;
@@ -143,6 +148,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>(INITIAL);
   const agentSendRef = useRef<AgentSend | null>(null);
   const [, forceTick] = useState(0);
+
+  const emit = useCallback((event: AppEvent) => sendAppEvent(agentSendRef.current, event), []);
 
   const registerAgentSend = useCallback((fn: AgentSend | null) => {
     agentSendRef.current = fn;
@@ -355,12 +362,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  // Built fresh each render (like the shopping store) so `agentSend` always
-  // reflects the latest registered channel — `registerAgentSend` bumps a tick
-  // to force the re-render when the call connects or drops.
   const store: OrdersStore = {
     ...state,
-    agentSend: agentSendRef.current,
+    emit,
     registerAgentSend,
     openOrders,
     openOrder,

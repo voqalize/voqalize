@@ -30,8 +30,8 @@ become; it does not govern this file.
 9. **The system prompt is the cache prefix. Write it once per session; never edit it.**
    Volatile context goes at the **tail**, immediately before the latest user turn.
    Rebuilding the prompt each turn is a self-inflicted cache miss, invisible in
-   every transcript. — ***violated*** *by `GoogleADKBrain.grounding()`, which appends
-   to the system instruction on every model call.* → [5](05-prompt-design.md), [8](08-getting-information-to-the-model.md)
+   every transcript. — *agreed, and now uniform: what goes at the tail is one line
+   naming what changed, never the screen itself.* → [5](05-prompt-design.md), [8](08-getting-information-to-the-model.md)
 10. **Thinking budget is a latency setting and it is model-specific.** A level a
     model *accepts* is not one it *acts at*. Re-measure on every model change. — *agreed, and measured (`_gemini.py`, 2026-08-14).*
 
@@ -90,7 +90,7 @@ become; it does not govern this file.
 ## Getting information to the model
 
 27. **Four tiers, chosen by "when does the model need to know?"** Turn-driving user
-    message · tail grounding · tool over memory · tool over I/O. — *agreed.* → [8](08-getting-information-to-the-model.md)
+    message · a tail note naming the change · tool over memory · tool over I/O. — *agreed.* → [8](08-getting-information-to-the-model.md)
 28. **Grounding beats a tool for anything on screen.** A tool is only as fresh as
     the model's decision to call it. — *agreed; the argument is already written in
     the ADK docstring.*
@@ -100,11 +100,11 @@ become; it does not govern this file.
 30. **An application-triggered turn is a *user message*, not a new frame type.**
     The user uploaded a photo, pressed a button, picked from a list: still the user
     acting, only the modality differs. `sendUserMessage` versus `sendAppMessage` is
-    the application declaring which. — *agreed;* ***unfinished***: *wire frame exists
-    (`UserMessage`, text-only, "richer content gets new fields"), `on_user_message`
-    receives it, browser half not plumbed — the browser has only pipecat's
-    `sendClientMessage`, and since `sdk/react` was deleted there is no wrapper of
-    ours to put `sendUserMessage` on.*
+    the application declaring which. — *agreed;* ***partly unfinished***: *the text
+    path works today — `client.sendText(...)` commits a user turn and reaches
+    `on_user_message`. The frame is text-only ("richer content gets new fields"),
+    so the motivating cases — a photo, a picked item — still arrive as an
+    `AppEvent` and are answered on the next turn the person opens.*
 
 ## The framework boundary
 
@@ -152,10 +152,11 @@ become; it does not govern this file.
     initialisation and nothing else; everything after it is stock pipecat —
     client-js, client-react, voice-ui-kit. — *agreed, and the package is already
     down to four facts.* → [11](11-the-browser-is-pipecats.md)
-45. **All server communication is over stock pipecat.** RTVI `client-message`,
+45. **All server communication is over stock pipecat.** RTVI `ui-event`,
     `server-message` and `ui-command`, on the data channel the transport already
     has. No second channel and no envelope of ours. — *agreed, and sugar has no
-    Voqalize channel in it.*
+    Voqalize channel in it. What is ours is the generated TypeScript, not a
+    channel.*
 46. **A library is a promise to version something; the connection step is a
     schema.** Four facts — path, header, body, response shape — belong in a
     snippet a reader cannot skip, not in a package they must resolve. — *agreed;*
@@ -187,14 +188,15 @@ become; it does not govern this file.
 ## What we have not settled
 
 - Whether the SDK should own an **on-screen task list** (four demos hand-rolled one).
-- **Who owns the shadow copy** — brain or SDK. The mechanism is settled (#26); the
-  ownership is not. *(Current position: document it as a mechanism and let brains
-  build it, because a helper that guesses the merge rule is worse than none. Worth
-  revisiting once a second demo needs one.)*
+- **Who owns the shadow copy** — brain or SDK. *Settled: the SDK owns the
+  transport (`AppEvent` / `AppEvents`), the brain owns the mirror, and the shared
+  discipline lives in `demos/voqalize_demos/screen.py` because the read tool's name
+  and the actor's word are things only a brain can supply.*
 - Whether **withheld authority should be declarable** rather than achieved by not
   writing the tool. Today it is invisible to a reviewer.
-- **Conflict semantics** when a `state_sync` and an action cross on the wire.
-  Convention today: diff by id, last write wins per row. Unstated, untested.
+- **Conflict semantics** — *no longer open. Two writers to one mirror in one event
+  loop, each naming exactly what it changed, cannot produce the crossing case a
+  snapshot and a dispatch used to.*
 - Whether the framework boundary **generalises past one vendor**. Everything in
   [10](10-the-framework-boundary.md) is exercised by every demo now, but
   through `GeminiBrain` and `GeminiInteractionsBrain` — two clients of the same
@@ -212,10 +214,8 @@ become; it does not govern this file.
   the same vendor (the `interactions` API, stateless + streaming + AFC) is the
   cheapest test we have of which.
 - Whether there is a **fifth tier** — facts the screen may show and the model may
-  not see. (Prices the agent must not read out are exactly this, and today they
-  *are* in the grounding.)
-- **When a grounding snapshot gets big enough that a tool wins.** No measurement,
-  no guidance.
+  not see. (Prices the agent must not read out are exactly this. They are out of
+  the context now, but the read tool still serves them.)
 
 ## Known holes in the evidence
 

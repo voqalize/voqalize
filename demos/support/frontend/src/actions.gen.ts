@@ -68,6 +68,23 @@ export interface FillReturnForm {
   notes: string;
 }
 
+/** The shopper photographed the item they are returning. */
+export interface PhotoUploaded {
+  item_id?: string;
+
+  /** A data: URL — the captured frame, base64 in its tail. */
+  image?: string;
+}
+
+/** The shopper tapped submit, and the browser minted the confirmation number. */
+export interface ReturnSubmitted {
+  order_id?: string;
+
+  item_id?: string;
+
+  rma?: string;
+}
+
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
   | { command: 'open_orders'; payload: OpenOrders }
@@ -114,4 +131,31 @@ export function asUiAction(command: string, payload: unknown): UiAction | null {
  */
 export function unhandledUiAction(action: never): never {
   throw new Error(`Unhandled action: ${JSON.stringify(action)}`);
+}
+
+/** Everything the person can do on screen, discriminated by `event`. */
+export type AppEvent =
+  | { event: 'photo_uploaded'; payload: PhotoUploaded }
+  | { event: 'return_submitted'; payload: ReturnSubmitted };
+
+export type AppEventName = AppEvent['event'];
+
+export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'photo_uploaded',
+  'return_submitted',
+];
+
+/**
+ * Send one thing the person did. `send` is a pipecat client's `sendUIEvent`,
+ * or null before the call connects — a gesture made off-call is dropped,
+ * which is right: there is no brain that missed it.
+ *
+ * The name picks the payload type, so a field renamed in Python stops
+ * compiling here rather than arriving as a shape the brain discards.
+ */
+export function sendAppEvent(
+  send: ((event: string, payload?: unknown) => void) | null | undefined,
+  event: AppEvent,
+): void {
+  send?.(event.event, event.payload);
 }

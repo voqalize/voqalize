@@ -7,15 +7,18 @@ short string — the model calls the method, the method dispatches the
 ``ui-command``, ``self.session`` is simply there because a brain is one
 instance per call.
 
-**The screen is read, never remembered.** The ``/travel`` UI pushes a compact
-``state_sync`` snapshot of the active itinerary on connect and after every
-change — including edits the travel agent makes by hand. That snapshot lands in
-:attr:`TravelBrain.screen` and nowhere else; what reaches the model is one line
-naming which decisions the agent moved, and the itinerary itself is read through
-``read_screen``, which is local, free and silent. ``ScreenState.version`` is what
-makes that safe rather than hopeful: a tool aimed at a leg or a city the agent
-has moved since Priya last read refuses instead of acting on it. See
-``voqalize_demos.screen`` for the whole story.
+**The screen is read, never remembered.** The itinerary Priya reasons from is
+:attr:`TravelBrain.trip` — the brain's own mirror, built by its own dispatches and
+patched by the agent's typed gestures (``app_events.py``), never a snapshot the
+browser pushes. It is read through ``read_screen``, which is local, free and
+silent, and it never enters the context: what goes in is one line naming what the
+agent just did. ``ScreenState.version`` is what makes that safe rather than
+hopeful — a tool aimed at a leg or a city the agent has moved since Priya last
+read refuses instead of acting on it. See ``voqalize_demos.screen``.
+
+The drafts themselves live in the browser's localStorage, so ``TripOpened`` hands
+the itinerary over the first time one is opened. That is the handover, not the old
+push: everything after it is a patch.
 """
 
 from __future__ import annotations
@@ -28,8 +31,21 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+
+from .app_events import (
+    TRAVEL_EVENTS,
+    DashboardOpened,
+    FlightSelected,
+    FlightsViewed,
+    HotelSelected,
+    HotelsViewed,
+    OverviewViewed,
+    QuoteShared,
+    TravelEvent,
+    TripOpened,
+)
 
 _SYSTEM_INSTRUCTION = """You are Priya, the Travel Desk assistant — a voice copilot for a professional travel agent building trip itineraries for their clients. The agent talks to you live and YOU DRIVE THEIR SCREEN as you talk.
 
@@ -47,42 +63,11 @@ Open with a brief greeting and ask which trip they want to work on."""
 
 _GREETING = "नमस्ते, मैं प्रिया हूँ ट्रैवल डेस्क से। हम किस ट्रिप पर काम करें?"
 
+#: How the overview joins a trip's two dates. The browser prints the same one, so
+#: the mirror reads the same whether the trip was built on this call or loaded.
+_DATE_RANGE = " – "  # noqa: RUF001 — an en dash, as the screen has it
+
 _NOTHING_ON_SCREEN = "No itinerary is open yet — the agent is on the dashboard of saved drafts."
-
-
-def _screen_facts(state: dict[str, Any] | None) -> dict[str, Any]:
-    """The parts of the itinerary snapshot that are somebody's decision.
-
-    Deliberately not in here: ``tasks`` (a search finishing is the browser's own
-    clock), ``options_shown`` (results landing is not a choice) and ``patch_note``
-    (it moves whenever anything else does). Bumping the version for those would
-    cost Priya a re-read on every search she herself started."""
-    if not state:
-        return {}
-    legs = state.get("legs")
-    hotels = state.get("hotels")
-    return {
-        "the open itinerary": state.get("name"),
-        "the screen they are on": state.get("screen"),
-        "which leg or city is up": state.get("screen_context"),
-        "the destination": state.get("destination"),
-        "the dates": state.get("dates"),
-        "the travelling families": state.get("families"),
-        "the special requests": state.get("special_requests"),
-        "the flights picked": (
-            {leg.get("id"): leg.get("selected") for leg in legs if isinstance(leg, dict)}
-            if isinstance(legs, list)
-            else None
-        ),
-        "the hotels picked": (
-            {h.get("city"): h.get("selected") for h in hotels if isinstance(h, dict)}
-            if isinstance(hotels, list)
-            else None
-        ),
-        "the day plan": state.get("days"),
-        "the inclusions": state.get("inclusions"),
-        "the exclusions": state.get("exclusions"),
-    }
 
 
 # ─── Tool argument shapes ───────────────────────────────────────────────────
@@ -232,6 +217,108 @@ class SelectHotel(Action):
     option_id: str
 
 
+def _family_line(family: Family) -> str:
+    """One travelling family as the overview lists them.
+
+    The browser sends the same sentence in :class:`TripOpened`, so the mirror
+    reads the same whether the structure was set on this call or loaded with a
+    draft — one shape, not two that have to be told apart downstream."""
+    parts = [family.label]
+    if family.origin:
+        parts.append(f"from {family.origin}")
+    heads = [
+        f"{family.adults} adults" if family.adults else "",
+        f"{family.children} children" if family.children else "",
+        f"{family.infants} infants" if family.infants else "",
+    ]
+    if any(heads):
+        parts.append(", ".join(h for h in heads if h))
+    if family.meal != "mixed":
+        parts.append(family.meal)
+    if family.assistance:
+        parts.append(family.assistance)
+    return " · ".join(parts)
+
+
+def _leg_line(leg: Leg) -> dict[str, Any]:
+    """One flight leg as the overview lists it."""
+    return {
+        "id": leg.id,
+        "label": leg.label or f"{leg.from_} → {leg.to}".strip(" →"),
+        "date": leg.date,
+        "options_shown": 0,
+        "selected": "",
+    }
+
+
+def _flight_line(option: FlightOption) -> str:
+    """A picked flight, the way the overview prints it."""
+    return " ".join(p for p in (option.airline, option.flight_no) if p) + (
+        f" {option.depart}→{option.arrive}" if option.depart or option.arrive else ""
+    )
+
+
+def _hotel_line(option: HotelOption) -> str:
+    """A picked hotel, the way the overview prints it."""
+    return f"{option.name} ({option.stars}★)"
+
+
+def _find[T](rows: list[T], key: str, value: str) -> T | None:
+    return next((r for r in rows if isinstance(r, dict) and r.get(key) == value), None)  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+
+
+def _patch(rows: list[Any], key: str, value: str, fields: dict[str, Any]) -> None:
+    """Update one row of the mirror in place, if it is there."""
+    row = _find(rows, key, value)
+    if isinstance(row, dict):
+        row.update(fields)  # pyright: ignore[reportUnknownMemberType]
+
+
+def _upsert(rows: list[Any], key: str, value: str, row: dict[str, Any]) -> None:
+    """Add a row to the mirror, or leave the one already there alone."""
+    if _find(rows, key, value) is None:
+        rows.append(row)
+
+
+def _blank_trip(name: str) -> dict[str, Any]:
+    """An itinerary the brain knows the name of and nothing else — what
+    ``open_itinerary`` has until the browser hands the draft over."""
+    return {
+        "name": name,
+        "coordinator": "",
+        "destination": "",
+        "dates": "",
+        "pax": "",
+        "families": [],
+        "special_requests": [],
+        "legs": [],
+        "hotels": [],
+        "days": [],
+        "inclusions": [],
+        "exclusions": [],
+        "terms_set": False,
+        "whatsapp_sent": False,
+    }
+
+
+#: Everything this brain puts on screen. A union rather than :class:`Action`, so
+#: :meth:`TravelBrain._mirror` is checked for exhaustiveness — an eleventh command
+#: that forgets to move the mirror is a pyright error rather than a screen the
+#: model reads wrong once, on a call.
+type ScreenMove = (
+    OpenDashboard
+    | OpenItinerary
+    | CreateItinerary
+    | SetTripStructure
+    | SearchFlights
+    | ShowFlights
+    | SelectFlight
+    | SearchHotels
+    | ShowHotels
+    | SelectHotel
+)
+
+
 # ─── The brain ───────────────────────────────────────────────────────────────
 
 
@@ -244,11 +331,17 @@ class TravelBrain(GeminiBrain):
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
-        # What is on the agent's screen. This is the only copy: it is read
-        # through ``read_screen`` and never appended to the model's context. The
-        # browser's echo is the one place "what's on screen" can include the
-        # travel agent's own hand edits, so it stays the source of truth.
-        self.screen = ScreenState(_screen_facts, read_tool="read_screen", actor="travel agent")
+        self.screen = ScreenState(read_tool="read_screen", actor="travel agent")
+        #: The itinerary as the overview shows it, or ``None`` on the dashboard.
+        #: The brain's own copy — its dispatches move it, the agent's typed
+        #: gestures patch it, and ``read_screen`` is the only thing that reads it.
+        self.trip: dict[str, Any] | None = None
+        self.view = "dashboard"
+        self.view_of = ""
+        #: What each search put on screen, so a pick can be named without asking
+        #: the browser what it is looking at.
+        self._flights: dict[str, dict[str, FlightOption]] = {}
+        self._hotels: dict[str, dict[str, HotelOption]] = {}
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -264,35 +357,156 @@ class TravelBrain(GeminiBrain):
         return _GREETING
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Browser→brain message. ``state_sync`` carries a compact snapshot of
-        the itinerary currently on screen — including edits the travel agent
-        makes by hand. Ingested silently (no floor taken, no turn); the next
-        turn carries at most one line saying which decisions moved."""
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+        """Browser→brain message: one thing the travel agent just did on screen.
+
+        Silent by construction — the mirror moves and one line goes into the
+        context, but no floor is taken and no turn starts. Nothing about a tap
+        means the agent stopped talking."""
+        event = TRAVEL_EVENTS.parse(msg)
+        if event is None:
             return
-        if msg.data.get("t") == "state_sync":
-            self._ingest_state(msg.data.get("d") or {})
+        logger.info("travel: {} — {}", type(event).__voqal_event__, event)
+        note = self.apply_event(event)
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
 
-    def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Fold the browser's snapshot into :attr:`screen` — and into it only.
+    def apply_event(self, event: TravelEvent) -> str:
+        """Fold one gesture into the mirror and say what to tell the model.
 
-        This used to append the whole itinerary to the model's context on every
-        change, which is the defect ``voqalize_demos.screen`` exists to close."""
-        snapshot = data.get("itinerary")
-        note = self.screen.absorb(snapshot if isinstance(snapshot, dict) else None)
-        logger.info(
-            "travel: state_sync (active={}, v{})",
-            bool(self.screen.snapshot),
-            self.screen.version,
-        )
-        if note is not None:
-            self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+        The note names the act and never its values: "picked a flight for the
+        outbound leg", not the flight. A note carrying values is the snapshot dump
+        arriving one fact at a time, and it goes stale in the context the same way.
 
-    def _show(self, action: Action) -> None:
-        """Put something on screen. Every tool that moves it comes through here, so
-        the browser's echo of our own command is not mistaken for the agent."""
-        self.screen.dispatched()
+        No fallback arm: ``TravelEvent`` is a union, so a gesture added to it and
+        not handled here is a pyright error rather than a warning nobody reads."""
+        trip = self.trip
+        match event:
+            case TripOpened():
+                self.trip = event.model_dump(mode="json")
+                self.view, self.view_of = "overview", ""
+                return self.screen.moved(f"opened the {event.name} itinerary")
+            case DashboardOpened():
+                self.trip, self.view, self.view_of = None, "dashboard", ""
+                return self.screen.moved("closed the trip and went back to the drafts list")
+            case OverviewViewed():
+                self.view, self.view_of = "overview", ""
+                return self.screen.moved("went back to the itinerary overview")
+            case FlightsViewed():
+                self.view, self.view_of = "flights", event.leg_id
+                return self.screen.moved(
+                    f"opened the flight options for {event.leg_label or event.leg_id}"
+                )
+            case HotelsViewed():
+                self.view, self.view_of = "hotels", event.city
+                return self.screen.moved(f"opened the hotel options for {event.city}")
+            case FlightSelected():
+                if trip is not None:
+                    _patch(trip["legs"], "id", event.leg_id, {"selected": event.summary})
+                self.view, self.view_of = "overview", ""
+                return self.screen.moved(f"picked a flight for the {event.leg_id} leg himself")
+            case HotelSelected():
+                if trip is not None:
+                    _patch(trip["hotels"], "city", event.city, {"selected": event.summary})
+                self.view, self.view_of = "overview", ""
+                return self.screen.moved(f"picked a hotel in {event.city} himself")
+            case QuoteShared():
+                if trip is not None:
+                    trip["whatsapp_sent"] = True
+                return self.screen.moved(
+                    f"sent the quote on WhatsApp to {event.recipient or event.to or 'the client'}"
+                )
+
+    def _show(self, action: ScreenMove) -> None:
+        """Put something on screen — and into the mirror, in the same breath.
+
+        The mirror is the brain's own picture, so a dispatch has to move it here;
+        nothing comes back to say it landed, and nothing needs to. That is also
+        why the agent's gestures can be taken at face value: an event is always
+        the agent, never this brain's own command echoing home."""
+        self._mirror(action)
         self.session.dispatch(action)
+
+    def _mirror(self, action: ScreenMove) -> None:
+        """Move the mirror the way this dispatch is about to move the screen."""
+        trip = self.trip
+        match action:
+            case OpenDashboard():
+                self.trip, self.view, self.view_of = None, "dashboard", ""
+            case OpenItinerary():
+                if trip is None or trip["name"] != action.name:
+                    self.trip = _blank_trip(action.name)
+                self.view, self.view_of = "overview", ""
+            case CreateItinerary():
+                it = action.itinerary
+                self.trip = _blank_trip(it.name) | {
+                    "coordinator": it.coordinator,
+                    "destination": it.destination,
+                    "dates": _DATE_RANGE.join(d for d in (it.start_date, it.end_date) if d),
+                    "families": [_family_line(f) for f in it.families],
+                    "legs": [_leg_line(leg) for leg in it.legs],
+                    "hotels": [
+                        {"city": c.city, "options_shown": 0, "selected": ""}
+                        for c in it.hotel_cities
+                    ],
+                }
+                self.view, self.view_of = "overview", ""
+            case SetTripStructure():
+                if trip is None:
+                    return
+                if action.families:
+                    trip["families"] = [_family_line(f) for f in action.families]
+                for leg in action.legs:
+                    _upsert(trip["legs"], "id", leg.id, _leg_line(leg))
+                for city in action.hotel_cities:
+                    _upsert(
+                        trip["hotels"],
+                        "city",
+                        city.city,
+                        {"city": city.city, "options_shown": 0, "selected": ""},
+                    )
+            case SearchFlights():
+                self._flights[action.leg_id] = {o.id: o for o in action.options}
+                if trip is not None:
+                    _patch(
+                        trip["legs"], "id", action.leg_id, {"options_shown": len(action.options)}
+                    )
+                self.view, self.view_of = "flights", action.leg_id
+            case ShowFlights():
+                self.view, self.view_of = "flights", action.leg_id
+            case SelectFlight():
+                if trip is not None:
+                    picked = self._flights.get(action.leg_id, {}).get(action.option_id)
+                    _patch(
+                        trip["legs"],
+                        "id",
+                        action.leg_id,
+                        {"selected": _flight_line(picked) if picked else action.option_id},
+                    )
+                self.view, self.view_of = "overview", ""
+            case SearchHotels():
+                self._hotels[action.city] = {o.id: o for o in action.options}
+                if trip is not None:
+                    _upsert(
+                        trip["hotels"],
+                        "city",
+                        action.city,
+                        {"city": action.city, "options_shown": 0, "selected": ""},
+                    )
+                    _patch(
+                        trip["hotels"], "city", action.city, {"options_shown": len(action.options)}
+                    )
+                self.view, self.view_of = "hotels", action.city
+            case ShowHotels():
+                self.view, self.view_of = "hotels", action.city
+            case SelectHotel():
+                if trip is not None:
+                    stayed = self._hotels.get(action.city, {}).get(action.option_id)
+                    _patch(
+                        trip["hotels"],
+                        "city",
+                        action.city,
+                        {"selected": _hotel_line(stayed) if stayed else action.option_id},
+                    )
+                self.view, self.view_of = "overview", ""
 
     # ─── Tools ────────────────────────────────────────────────────────────
 
@@ -322,11 +536,11 @@ class TravelBrain(GeminiBrain):
         they changed the screen themselves. It is free — it reads this session's own
         state, takes no floor, says nothing, and moves nothing on screen."""
         self.screen.read()
-        snapshot = self.screen.snapshot
-        logger.info("travel: read_screen (active={}, v{})", bool(snapshot), self.screen.version)
-        if not snapshot:
+        logger.info("travel: read_screen (active={}, v{})", bool(self.trip), self.screen.version)
+        if self.trip is None:
             return _NOTHING_ON_SCREEN
-        return screen_prose(snapshot, actor="travel agent")
+        where = {"screen": self.view, "screen_context": self.view_of or None, **self.trip}
+        return screen_prose(where, actor="travel agent")
 
     async def open_dashboard(self) -> str:
         """Open the dashboard of saved draft trips."""

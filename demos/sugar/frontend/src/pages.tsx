@@ -872,7 +872,7 @@ function GlucoseChart({ glucose, focusLabel, focusNote }: { glucose: GlucoseDay;
 }
 
 function SensorRenewalCard() {
-  const { sensorOrder, tapSensorOrder } = useSugar();
+  const { sensorOrder, byHand } = useSugar();
   if (sensorOrder === 'ordered') {
     return (
       <div className="sugar-fresh" style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', background: GREEN_TINT, borderRadius: 14, padding: '11px 13px' }}>
@@ -894,7 +894,7 @@ function SensorRenewalCard() {
         <div style={{ fontSize: 11.5, color: INK_SOFT }}>₹3,999 · ships tomorrow</div>
       </div>
       <button
-        onClick={tapSensorOrder}
+        onClick={byHand.confirmSensorOrder}
         style={{ border: 'none', background: GREEN, color: '#fff', borderRadius: 10, padding: '8px 13px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: BODY }}
       >
         Order
@@ -1126,7 +1126,7 @@ function loadYT(): Promise<void> {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function VideoOverlay() {
-  const { videoCmd, videoTitle, closeVideo } = useSugar();
+  const { videoCmd, videoTitle, byHand } = useSugar();
   const playerRef = useRef<any>(null);
   const readyRef = useRef(false);
   const lastNonce = useRef(0);
@@ -1192,7 +1192,7 @@ function VideoOverlay() {
     <div style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(12,20,17,.88)', backdropFilter: 'blur(6px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 14, animation: 'sugarFadeUp .35s ease both' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff', padding: '0 4px 10px' }}>
         <div style={{ fontSize: 13.5, fontWeight: 700 }}>{videoTitle}</div>
-        <button onClick={closeVideo} style={{ background: 'rgba(255,255,255,.16)', border: 'none', color: '#fff', borderRadius: 9, width: 27, height: 27, cursor: 'pointer', fontSize: 13 }} aria-label="Close video">
+        <button onClick={byHand.closeVideo} style={{ background: 'rgba(255,255,255,.16)', border: 'none', color: '#fff', borderRadius: 9, width: 27, height: 27, cursor: 'pointer', fontSize: 13 }} aria-label="Close video">
           ✕
         </button>
       </div>

@@ -209,7 +209,7 @@ Footguns found writing them (see `demos/tests/_harness.py`):
 - **Nothing blocks on the customer**, and the tests have to be written that way.
   aura's `show_auth_popup` dispatches the sign-in and returns, so the turn
   completes on its own; the customer's answer is a separate step — read the nonce
-  off `rig.command("open_auth")`, `send_client_message`, then
+  off `rig.command("open_auth")`, `send_ui_event`, then
   `await asyncio.sleep(0.1)` before the next turn, since `on_rtvi` takes no floor
   and there is nothing to await. What the customer did is never on the wire: it
   reaches the model as context, so assert on the *next* request's `input`.
@@ -332,7 +332,8 @@ Three decisions taken on it the same day, also verbatim:
 
 So the order of work was fixed: **demo first, SDK second** — the `Action`-symmetric
 type was not written until OrderDesk had shown which events a real screen actually
-needs. Both steps have shipped; the fleet's other eight demos still teach `state_sync`.
+needs. All three steps have shipped: the demo cut, the SDK type, and the fleet —
+`state_sync` is gone from every demo, and every app→brain gesture is a typed event.
 
 **There is no third step — the wire cannot earn one** (traced 2026-09-09, once the demo cut
 was in). `state_sync` is a string a demo invented: it appears nowhere in `proto/`, the
@@ -351,7 +352,8 @@ same workaround appearing in two demos is a feature the SDK owes them.
 `RTVIMessage.data: Any`, an untyped dict the developer dug through by string key; it
 is now `AppEvent` + `AppEvents` in `sdk/python`, `Action`'s mirror image, riding
 RTVI's own `ui-event`, with `voqalize types` generating both unions out of the one
-module. OrderDesk is the first user. `client-message`/`{t, d}` still parses, forever.
+module. Every demo with a screen is now a user. `client-message`/`{t, d}` still parses,
+forever, for a page written before it.
 The SDK docstrings and `docs/src/content/docs/build/brain/{context,typescript}.md`
 carry the detail; do not restate it here.
 

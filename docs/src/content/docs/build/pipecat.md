@@ -31,9 +31,9 @@ the hooks, and `@pipecat-ai/voice-ui-kit` for components. What every demo uses i
 declared in [`demos/shared/package.json`](https://github.com/voqalize/voqalize/blob/main/demos/shared/package.json).
 
 Everything you learn here transfers. `usePipecatConversation` for the transcript,
-`useUICommandHandler` for inbound actions, `sendClientMessage` for outbound
-context — those are pipecat's APIs, documented by pipecat, and they behave the
-same against any pipecat server.
+`useUICommandHandler` for inbound actions, `sendUIEvent` for outbound context —
+those are pipecat's APIs, documented by pipecat, and they behave the same against
+any pipecat server.
 
 ## Web, React Native and native mobile
 

@@ -5,7 +5,8 @@
  * and the in-call bar share one `SugarProvider`, so the coach and the patient
  * drive the same screen; state-based navigation keeps the live call alive across
  * screens. The coach generates all logged data (meals, calories, summaries) and
- * stays aware of the live screen via two-way `ui-command` / `state_sync`.
+ * stays aware of the live screen through two-way typed messages — `ui-command`
+ * out, `ui-event` back.
  */
 
 import { StrictMode, useState } from "react";

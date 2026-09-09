@@ -184,7 +184,7 @@ Footguns found writing them (see `demos/tests/_harness.py`):
 - **Nothing blocks on the customer**, and the tests have to be written that way.
   aura's `show_auth_popup` dispatches the sign-in and returns, so the turn
   completes on its own; the customer's answer is a separate step — read the nonce
-  off `rig.command("open_auth")`, `send_client_message`, then
+  off `rig.command("open_auth")`, `send_ui_event`, then
   `await asyncio.sleep(0.1)` before the next turn, since `on_rtvi` takes no floor
   and there is nothing to await. What the customer did is never on the wire: it
   reaches the model as context, so assert on the *next* request's `input`.

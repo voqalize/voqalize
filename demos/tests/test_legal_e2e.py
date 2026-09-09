@@ -5,7 +5,7 @@ prompt, its real eight tools, its real MSA — hosted on a real ``brain_server``
 socket and driven by the conformance ``VoqalizeDriver``, with only the *model*
 scripted. See ``tests/_harness.py`` for what every demo's e2e proves.
 
-Legal is the demo that earns a **silent** browser→brain test: ``clause_focus``
+Legal is the demo that earns a **silent** browser→brain test: ``clause_focused``
 carries the lawyer's reading position and must fold into context **without**
 taking the floor. A copilot that answered every scroll would talk over its user,
 and a copilot that ignored the message would answer "what does this mean?" about
@@ -102,31 +102,30 @@ async def test_pointing_and_redlining_drive_the_document() -> None:
 
 
 async def test_the_reading_position_lands_silently_and_grounds_the_next_answer() -> None:
-    """``clause_focus`` is the one client message that must **not** speak.
+    """``clause_focused`` is the one app event that must **not** speak.
 
     The lawyer scrolling is not a question: the brain records the position and
-    stays quiet, and only the next spoken turn shows it took — the clause on
-    screen is in the prompt, so "what does this mean?" has a referent. Both halves
-    are asserted here because either one alone passes for the wrong reason: a
-    brain that ignored the message is also silent."""
+    stays quiet, and only the next spoken turn shows it took — one line saying
+    they moved, pointing at the tool that reads back *where*. Both halves are
+    asserted because either alone passes for the wrong reason: a brain that
+    ignored the event is also silent, and the clause is nowhere in the context as
+    a blob, which is the whole point of the read tool."""
     llm = _llm()
     async with demo("legal", llm) as rig:
         await rig.driver.start_session()
         before = len(rig.driver.ui_commands)
 
-        await rig.driver.send_client_message(
-            "clause_focus",
-            {"clause_id": CLAUSE, "heading": "Term & Termination"},
-        )
+        await rig.driver.send_ui_event("clause_focused", {"clause_id": CLAUSE})
         # The floor is untaken: no speech, no screen command. Frames on one
         # connection are ordered, so the focus is already ingested by the time the
         # next turn is served — which is what the assertion below proves.
         turn = await rig.driver.user_says("What does this mean?")
         check_turn(rig, turn, units=1)
-        assert len(rig.driver.ui_commands) == before, "clause_focus drove the screen"
+        assert len(rig.driver.ui_commands) == before, "clause_focused drove the screen"
 
     grounded = "".join(
         p.text or "" for c in llm.captured_contents[-1] for p in (c.parts or []) if c.role == "user"
     )
-    assert "LAWYER IS CURRENTLY VIEWING" in grounded
-    assert CLAUSE in grounded
+    assert "scrolled to a different clause" in grounded
+    assert "get_reading_position" in grounded
+    assert "LAWYER IS CURRENTLY VIEWING" not in grounded

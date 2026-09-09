@@ -194,6 +194,147 @@ export interface ShowCardControls {
   controls: CardControls;
 }
 
+/** The customer dismissed the account picker. */
+export interface AccountCancelled {
+  nonce: string;
+}
+
+/** The customer tapped an account in the picker. */
+export interface AccountSelected {
+  nonce: string;
+
+  account_id: string;
+}
+
+/** The customer started an application themselves, off a quick link. */
+export interface ApplicationStarted {
+  /** One of savings, credit_card, loan. */
+  product?: string;
+}
+
+/** The customer submitted the open application themselves. */
+export type ApplicationSubmitted = Record<string, never>;
+
+/** The customer opened one help article themselves. */
+export interface ArticleOpened {
+  article_id: string;
+}
+
+/** The customer closed the sign-in without signing in — an answer too. */
+export interface AuthCancelled {
+  nonce: string;
+}
+
+/**
+ * The customer authorised the secure sign-in. THIS is what mints the handle,
+ * server-side, which is why the model can never produce one itself.
+ */
+export interface AuthCompleted {
+  nonce: string;
+}
+
+/** The customer edited a calculator input, and the page re-solved it. */
+export interface CalculatorChanged {
+  inputs?: Record<string, number>;
+
+  result?: Record<string, number>;
+}
+
+/**
+ * The customer opened a calculator off the help page's quick links, which
+ * arrives already filled in with that link's figures and solved.
+ */
+export interface CalculatorOpened {
+  /** One of emi, fd, eligibility. */
+  kind?: string;
+
+  inputs?: Record<string, number>;
+
+  result?: Record<string, number>;
+}
+
+/** The customer dismissed the card picker. */
+export interface CardCancelled {
+  nonce: string;
+}
+
+/**
+ * The customer saved the usage & limits form. The values are theirs — they
+ * edited the toggles and sliders on screen, and this is the only copy.
+ */
+export interface CardControlsSaved {
+  domestic_enabled?: boolean;
+
+  international_enabled?: boolean;
+
+  contactless_enabled?: boolean;
+
+  online_enabled?: boolean;
+
+  domestic_limit?: number;
+
+  international_limit?: number;
+
+  atm_cash_limit?: number;
+}
+
+/** The customer tapped a card in the picker. */
+export interface CardSelected {
+  nonce: string;
+
+  card_id: string;
+}
+
+/** The customer opened one help-centre category themselves. */
+export interface CategoryOpened {
+  category: string;
+}
+
+/** The customer closed the helpline panel. */
+export type ContactClosed = Record<string, never>;
+
+/** The customer typed into one field of the open application. */
+export interface FieldFilled {
+  field: string;
+
+  value?: string;
+}
+
+/**
+ * The customer requested the forex card. The page mints the reference, so it
+ * rides along — there is nowhere else Aria could read it.
+ */
+export interface ForexLeadSubmitted {
+  reference?: string;
+}
+
+/** The customer opened the help centre's category index. */
+export type HelpCenterOpened = Record<string, never>;
+
+/** The customer went back to the Aura Bank home page. */
+export type HomeOpened = Record<string, never>;
+
+/** The customer paused the clip. */
+export type VideoPaused = Record<string, never>;
+
+/**
+ * The clip crossed into its next chapter — the page's own clock, not a
+ * gesture. Folded into the mirror in silence; see the module docstring.
+ */
+export interface VideoProgressed {
+  step_index?: number;
+}
+
+/** The customer started the clip playing again. */
+export type VideoResumed = Record<string, never>;
+
+/** The customer tapped a step in the list, which jumps the clip to it. */
+export interface VideoSeeked {
+  start_sec?: number;
+
+  step_index?: number;
+}
+
 // ── Shapes used by the messages above ──────────────────────────────
 
 /**
@@ -363,4 +504,71 @@ export function asUiAction(command: string, payload: unknown): UiAction | null {
  */
 export function unhandledUiAction(action: never): never {
   throw new Error(`Unhandled action: ${JSON.stringify(action)}`);
+}
+
+/** Everything the person can do on screen, discriminated by `event`. */
+export type AppEvent =
+  | { event: 'account_cancelled'; payload: AccountCancelled }
+  | { event: 'account_selected'; payload: AccountSelected }
+  | { event: 'application_started'; payload: ApplicationStarted }
+  | { event: 'application_submitted'; payload: ApplicationSubmitted }
+  | { event: 'article_opened'; payload: ArticleOpened }
+  | { event: 'auth_cancelled'; payload: AuthCancelled }
+  | { event: 'auth_completed'; payload: AuthCompleted }
+  | { event: 'calculator_changed'; payload: CalculatorChanged }
+  | { event: 'calculator_opened'; payload: CalculatorOpened }
+  | { event: 'card_cancelled'; payload: CardCancelled }
+  | { event: 'card_controls_saved'; payload: CardControlsSaved }
+  | { event: 'card_selected'; payload: CardSelected }
+  | { event: 'category_opened'; payload: CategoryOpened }
+  | { event: 'contact_closed'; payload: ContactClosed }
+  | { event: 'field_filled'; payload: FieldFilled }
+  | { event: 'forex_lead_submitted'; payload: ForexLeadSubmitted }
+  | { event: 'help_center_opened'; payload: HelpCenterOpened }
+  | { event: 'home_opened'; payload: HomeOpened }
+  | { event: 'video_paused'; payload: VideoPaused }
+  | { event: 'video_progressed'; payload: VideoProgressed }
+  | { event: 'video_resumed'; payload: VideoResumed }
+  | { event: 'video_seeked'; payload: VideoSeeked };
+
+export type AppEventName = AppEvent['event'];
+
+export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'account_cancelled',
+  'account_selected',
+  'application_started',
+  'application_submitted',
+  'article_opened',
+  'auth_cancelled',
+  'auth_completed',
+  'calculator_changed',
+  'calculator_opened',
+  'card_cancelled',
+  'card_controls_saved',
+  'card_selected',
+  'category_opened',
+  'contact_closed',
+  'field_filled',
+  'forex_lead_submitted',
+  'help_center_opened',
+  'home_opened',
+  'video_paused',
+  'video_progressed',
+  'video_resumed',
+  'video_seeked',
+];
+
+/**
+ * Send one thing the person did. `send` is a pipecat client's `sendUIEvent`,
+ * or null before the call connects — a gesture made off-call is dropped,
+ * which is right: there is no brain that missed it.
+ *
+ * The name picks the payload type, so a field renamed in Python stops
+ * compiling here rather than arriving as a shape the brain discards.
+ */
+export function sendAppEvent(
+  send: ((event: string, payload?: unknown) => void) | null | undefined,
+  event: AppEvent,
+): void {
+  send?.(event.event, event.payload);
 }

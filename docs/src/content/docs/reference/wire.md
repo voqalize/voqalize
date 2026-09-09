@@ -370,7 +370,7 @@ type:
 | Direction | Types |
 |---|---|
 | Brain → Voqalize → app | `server-message`, `server-response`, `error-response`, `ui-command`, `ui-job-group` |
-| App → Voqalize → brain | `client-message`, `ui-event`, `ui-snapshot`, `ui-cancel-job-group` |
+| App → Voqalize → brain | `ui-event`, `client-message`, `ui-snapshot`, `ui-cancel-job-group` |
 
 `send-text` is on the app's half of the whitelist and is not in that row on
 purpose: it is the one type that does not cross as a message. A typed sentence
@@ -464,8 +464,8 @@ including from the callbacks that are not generators at all.
 `session.dispatch(action)` is sugar over `send_rtvi`: it serializes an action
 onto RTVI's own `ui-command` as `{"command": "show_results", "payload": {…fields}}`,
 which a pipecat client reads with `useUICommandHandler`. Nothing comes back — if
-the app has an answer it sends an ordinary `client-message`, correlated by
-whatever the app puts in it.
+the app has an answer it sends an ordinary `ui-event`, correlated by whatever
+the app puts in it.
 
 `configure` is awaited because Voqalize answers it. Awaiting is how a language
 Voqalize cannot serve becomes an exception the brain handles, rather than a call

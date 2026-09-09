@@ -16,9 +16,8 @@
  * tie the call to the on-screen portal:
  *   - the agent's `ui-command` server messages replay onto the shared travel
  *     store, so the agent drives the portal;
- *   - a compact snapshot of the active itinerary is echoed back to the agent
- *     (`state_sync`) on connect and after every change — so the AI always knows
- *     the current state, including edits the travel agent makes by hand.
+ *   - the travel agent's own edits leave as typed `ui-event`s, one at a time, so
+ *     the AI hears what a human changed rather than diffing a whole itinerary.
  *
  * Mounted once inside the `TravelProvider`, without `connectOnMount` — the call
  * only opens once a visitor has passed the `DemoGate` below, so the demo's own
@@ -181,7 +180,7 @@ function TravelSession({
   handleDisconnect?: () => void | Promise<void>;
   children: (presence: ReactNode) => ReactNode;
 }) {
-  const { handleUiCommand, registerAgentSend, rev, active, snapshot, highlighted } = useTravel();
+  const { handleUiCommand, registerAgentSend, highlighted } = useTravel();
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
 
@@ -207,22 +206,15 @@ function TravelSession({
     ),
   );
 
-  // Register the store's agent-send channel and open the mic once live.
+  // Register the store's channel back to Priya and open the mic once live. The
+  // store sends one message per gesture, so there is no push loop here to debounce
+  // — nothing is on a timer, and nothing goes out that the agent did not do.
   useEffect(() => {
     if (!isConnected || !client) return;
     client.enableMic(true);
-    registerAgentSend((type, data) => client.sendClientMessage(type, data));
+    registerAgentSend((event, payload) => client.sendUIEvent(event, payload));
     return () => registerAgentSend(null);
   }, [isConnected, client, registerAgentSend]);
-
-  // Debounced snapshot push: on connect and after every change (rev / active id),
-  // so the agent stays in sync with edits the travel agent makes by hand too.
-  useEffect(() => {
-    if (!isConnected || !client) return;
-    const t = setTimeout(() => client.sendClientMessage("state_sync", { itinerary: snapshot() }), 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, rev, active?.id]);
 
   // Dev-only: expose the live client for driving the flow without a mic in tests.
   useEffect(() => {

@@ -5,7 +5,8 @@
  * and the voice widget share one `TravelProvider`, so the agent and the human
  * travel agent drive the same screen; state-based navigation keeps the live call
  * alive across screens. The agent generates all flight/hotel/activity data and
- * stays aware of the active itinerary via two-way `ui_command` / `state_sync`.
+ * stays aware of the active itinerary through two-way typed messages —
+ * `ui-command` out, `ui-event` back.
  */
 
 import { StrictMode } from "react";

@@ -264,7 +264,7 @@ function CallBridge({
   // return form can push the captured photo + submission back to the bot.
   useEffect(() => {
     if (!isLive || !client) return;
-    registerAgentSend((type, data) => client.sendClientMessage(type, data as Record<string, unknown>));
+    registerAgentSend((event, payload) => client.sendUIEvent(event, payload));
     return () => registerAgentSend(null);
   }, [isLive, client, registerAgentSend]);
 

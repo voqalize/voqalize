@@ -27,9 +27,8 @@
  * Two bridges tie the call to the screen:
  *   - every `ui-command` replays onto the shared sugar store, so the coach drives
  *     the screen;
- *   - a compact `{ screen: snapshot() }` is echoed back to the coach
- *     (`state_sync`) on connect and after every change — so she always knows
- *     what's logged, including taps the patient makes by hand.
+ *   - each thing the patient does with their thumb goes back as one typed
+ *     `ui-event` naming that act — nothing is pushed, and nothing is diffed.
  */
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
@@ -143,7 +142,7 @@ function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => voi
   const transportState = usePipecatClientTransportState();
   const { isConnected: isLive } = usePipecatConnectionState();
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
-  const { endCall, handleUiCommand, registerAgentSend, rev, snapshot } = useSugar();
+  const { endCall, handleUiCommand, registerAgentSend } = useSugar();
   const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
 
   // Screen ← coach. The brain's `session.dispatch(LogMeal(...))` lands here as
@@ -165,22 +164,14 @@ function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => voi
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("idle"), []));
 
-  // Register the store's coach-send channel once the call is live.
+  // Screen → coach. One RTVI `ui-event` per thing the patient does with their
+  // thumb, sent from the store's `byHand`. Nothing is pushed on a timer and
+  // nothing is diffed: the brain keeps its own picture of this screen.
   useEffect(() => {
     if (!isLive || !client) return;
-    registerAgentSend((type, data) => client.sendClientMessage(type, data));
+    registerAgentSend((event, payload) => client.sendUIEvent(event, payload));
     return () => registerAgentSend(null);
   }, [isLive, client, registerAgentSend]);
-
-  // Debounced snapshot push: on connect and after every change (rev), so the
-  // coach stays in sync with taps the patient makes by hand too. The sugar brain
-  // reads `data.screen` (see SugarBrain._ingest_state).
-  useEffect(() => {
-    if (!isLive || !client) return;
-    const t = setTimeout(() => client.sendClientMessage("state_sync", { screen: snapshot() }), 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLive, client, rev]);
 
   // Dev-only: drive the flow without a mic.
   //   window.__sugar.ui('log_meal', {meal_type:'dinner', time_label:'8 PM', items:[...], total_calories: 500})

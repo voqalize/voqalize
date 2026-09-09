@@ -5,8 +5,8 @@
  * assistant. The console UI and the voice layer share one `ServicingProvider`,
  * so the assistant and the human advisor drive the same screen; state-based
  * navigation keeps the live call alive across screens. The assistant generates
- * all workup/packet/draft data and stays aware of the live workspace via two-way
- * `ui_command` / `state_sync`.
+ * all workup/packet/draft data and stays aware of the live workspace through
+ * two-way typed messages — `ui-command` out, `ui-event` back.
  *
  * `ServicingDesk` owns the session and hands its one presence control back as a
  * render-prop, which the console mounts in its own top bar — the voice layer is

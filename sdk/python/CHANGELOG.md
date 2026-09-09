@@ -48,6 +48,10 @@ kept for the history, and nothing installable was ever cut from them.
   A module declaring only events now generates; the "no actions" error became "no
   Action or AppEvent subclasses".
 
+- **`VoqalizeDriver.send_ui_event(event, payload)`** — the conformance driver's
+  half of the same envelope, so an e2e test drives a brain the way the shipping
+  page does. `send_client_message` stays for the older shape.
+
 ### Changed
 
 - **The `state_sync` recipe is retired from every docstring, the README and the

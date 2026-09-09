@@ -217,13 +217,12 @@ why the API has that shape. Preconditions before the step, failure modes at the 
 produces them. No persuasion, no adjectives of quality, no forward reference the reader
 cannot act on.
 
-> ### Read the user's screen
+> ### Tell the brain what the user did
 >
-> Send a `state_sync` message from the browser whenever your store changes, debounced to
-> around 250 ms:
+> Send one event at the moment the person acts, naming the act:
 >
 > ```ts
-> sendMessage("state_sync", { workspace: snapshot() })
+> client.sendUIEvent("quantity_set", { item_id: "li3", quantity: 5 })
 > ```
 >
 > The brain receives it in `on_rtvi`. This callback is not a generator: it can
@@ -231,8 +230,9 @@ cannot act on.
 > arrives while the user is still talking, and an agent that answers a click talks over
 > the person making it.
 >
-> Keep the payload to the fields that change the answer. The model sees this on the next
-> turn, and everything you add costs tokens and latency on every turn after it.
+> Send the change, not the screen. A whole-store snapshot names nothing, so the brain has
+> to diff two pictures and guess which act produced the difference — and the model reads
+> every copy you appended.
 
 Three moves in one snippet: code first, a load-bearing absence, and the clock.
 

@@ -35,17 +35,19 @@ Two mechanics carry the demo, and both run through :meth:`on_rtvi`:
     already. What the customer did is answered on the next idle stimulus — a tap is
     an answer, but it arrives on a callback that may not speak, so ``on_user_idle``
     is where Aria takes the floor once the customer is genuinely quiet.
-  * **The screen is read, never remembered.** The browser pushes a compact
-    ``state_sync`` snapshot on connect and after every change, and it stops at
-    :attr:`screen` — it is never appended to the model's context. A production
-    call that did append it put the same screen in front of the model over and over,
-    every copy labelled authoritative and none of them dated, and the model read one
-    aloud instead of answering from it. What goes into the context now is one line
-    naming *what the customer changed*, never what it now says; the screen itself is
-    read through ``get_screen_context``, which is local, free and silent.
+  * **The screen is read, never remembered.** Aria keeps her own mirror of the
+    page — patched by :meth:`_mirror` on her own commands and by :meth:`apply_event`
+    on the customer's typed gestures — and it is never appended to the model's
+    context. A production call that did append the browser's snapshot put the same
+    screen in front of the model over and over, every copy labelled authoritative and
+    none of them dated, and the model read one aloud instead of answering from it.
+    What goes into the context now is one line naming *what the customer did*, never
+    what the screen now says; the screen itself is read through
+    ``get_screen_context``, which is local, free and silent.
     ``ScreenState.version`` is what makes that safe rather than hopeful: a tool aimed
     at a video or a form the customer has moved since the model last read refuses
-    instead of acting on it. See ``voqalize_demos.screen`` for the whole story.
+    instead of acting on it. See ``voqalize_demos.screen`` for the whole story, and
+    ``app_events.py`` for the gestures themselves.
 
 The LLM's ``genai.Client`` is **dependency-injected**; the brain owns the
 prompt, the tool schemas, and this session's auth/selection/screen state. The
@@ -70,9 +72,35 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
+from .app_events import (
+    AURA_EVENTS,
+    AccountCancelled,
+    AccountSelected,
+    ApplicationStarted,
+    ApplicationSubmitted,
+    ArticleOpened,
+    AuraEvent,
+    AuthCancelled,
+    AuthCompleted,
+    CalculatorChanged,
+    CalculatorOpened,
+    CardCancelled,
+    CardControlsSaved,
+    CardSelected,
+    CategoryOpened,
+    ContactClosed,
+    FieldFilled,
+    ForexLeadSubmitted,
+    HelpCenterOpened,
+    HomeOpened,
+    VideoPaused,
+    VideoProgressed,
+    VideoResumed,
+    VideoSeeked,
+)
 from .content import AURA_FACTS
 
 AGENT_NAME = "Aria"
@@ -175,34 +203,58 @@ _AUTH_TTL_SECONDS = 30 * 60
 _IDLE_MS = 3000
 
 
-# ─── What counts as the customer changing the screen ───────────────────────────
-# The browser re-sends its whole snapshot on every change, so "the snapshot moved"
-# is not the same question as "he changed something". A clip advancing a chapter, a
-# calculator result landing, a ticket reference appearing — those move the snapshot
-# and are nobody's decision. What matters is the identity of what is on screen and
-# what he has chosen or typed, which is what these read out. The keys are read back
-# to the model verbatim, so they are named for a reader.
-def _screen_facts(state: dict[str, Any] | None) -> dict[str, Any]:
-    if not state:
-        return {}
-    article = state.get("article") or {}
-    video = state.get("video") or {}
-    application = state.get("application") or {}
+# ─── Aria's mirror of the page ─────────────────────────────────────────────────
+# The one copy of what is on screen, patched from both directions and read back by
+# ``get_screen_context``. The keys go to the model verbatim, so they are written as
+# a reader would say them; ``_trim`` drops the ones that are not there at all, so a
+# home page does not read as a list of fourteen empty tools.
+def _blank_screen() -> dict[str, Any]:
+    """Where every call starts: the Aura Bank home page, nothing else open."""
     return {
-        "the screen he is on": state.get("screen"),
-        "the category": state.get("category"),
-        "the open article": article.get("id") if isinstance(article, dict) else None,
-        "the clip": video.get("id") if isinstance(video, dict) else None,
-        "the application form": application.get("fields")
-        if isinstance(application, dict)
-        else None,
-        "whether it is submitted": (
-            application.get("submitted") if isinstance(application, dict) else None
-        ),
-        "the account he picked": state.get("selected_account"),
-        "the card he picked": state.get("selected_card"),
-        "his card controls": state.get("card_controls"),
+        "screen": "home",
+        "the category": None,
+        "the open article": None,
+        "the clip": None,
+        "the helpline panel": None,
+        "the calculator": None,
+        "the application": None,
+        "the comparison": None,
+        "the branch results": None,
+        "the checklist": None,
+        "what we sent to their phone": None,
+        "the ticket we raised": None,
+        "signed in": "no",
+        "their name": None,
+        "the account they picked": None,
+        "the card they picked": None,
+        "the card controls": None,
+        "the forex card": None,
     }
+
+
+# The fields each application form renders, in order — the same templates the
+# browser holds, for the same reason ``_compute_calc`` is duplicated above: a form
+# Aria describes and a form the customer sees must be the same form, and the
+# browser is where it is drawn.
+_APPLY_FIELDS: dict[str, list[str]] = {
+    "savings": ["name", "mobile", "email", "city", "pan"],
+    "credit_card": ["name", "mobile", "email", "employment", "monthly_income"],
+    "loan": ["name", "mobile", "loan_amount", "monthly_income", "tenure_years"],
+}
+
+
+def _trim(row: Any) -> Any:
+    """The same row with everything empty taken out, recursively.
+
+    An empty field read back as a fact is how a model comes to talk about a form
+    that is not on screen. ``False`` and ``0`` survive — a limit of zero and a
+    toggle that is off are both answers."""
+    if isinstance(row, dict):
+        out = {k: _trim(v) for k, v in row.items()}  # pyright: ignore[reportUnknownVariableType]
+        return {k: v for k, v in out.items() if v is not None and v != "" and v != [] and v != {}}
+    if isinstance(row, list):
+        return [_trim(v) for v in row]  # pyright: ignore[reportUnknownVariableType]
+    return row
 
 
 # ─── Language ──────────────────────────────────────────────────────────────────
@@ -1057,6 +1109,63 @@ class ShowCardControls(Action):
     controls: CardControls
 
 
+def _blank_form(product: str) -> dict[str, Any]:
+    """The application form as the browser draws it the moment it opens."""
+    return {
+        "product": product,
+        "fields": dict.fromkeys(_APPLY_FIELDS.get(product, []), ""),
+        "submitted": False,
+    }
+
+
+def _account_line(account: AccountRef) -> dict[str, Any]:
+    """An account as the mirror holds it — what the screen headers, no money."""
+    return {
+        "account id": account.account_id,
+        "type": account.type,
+        "number": account.masked_number,
+    }
+
+
+def _card_line(card: CardRef) -> dict[str, Any]:
+    """A card as the mirror holds it."""
+    return {"card id": card.card_id, "product": card.product, "number": card.masked_number}
+
+
+# Every action Aria can put on screen. Writing them as one union is what makes
+# ``_mirror`` exhaustive: add a screen action and forget to mirror it and pyright
+# says so, rather than Aria reading a page one command behind her own last word.
+type ScreenMove = (
+    OpenHome
+    | OpenHelpCenter
+    | OpenCategory
+    | OpenArticle
+    | PlayHelpVideo
+    | HighlightStep
+    | SeekVideo
+    | PauseVideo
+    | ResumeVideo
+    | ShowContact
+    | RunCalculator
+    | StartApplication
+    | PrefillField
+    | SubmitApplication
+    | Compare
+    | FindBranch
+    | ShowChecklist
+    | SendToPhone
+    | RaiseTicket
+    | Spotlight
+    | ShowForexCard
+    | OpenAuth
+    | ChooseAccount
+    | ShowBalance
+    | ShowStatement
+    | ChooseCreditCard
+    | ShowCardControls
+)
+
+
 async def _silence() -> AsyncGenerator[Any, None]:
     """Yields nothing: an idle tick the assistant has no reason to answer."""
     for _ in ():
@@ -1100,9 +1209,12 @@ class AuraBrain(GeminiBrain):
         # The language this call is answered in, settled once from ``init``.
         self.language: LanguageName = _DEFAULT_LANGUAGE
 
-        # What is on the customer's screen. This is the only copy: it is read
-        # through ``get_screen_context`` and never appended to the model's context.
-        self.screen = ScreenState(_screen_facts, read_tool="get_screen_context")
+        # What is on the customer's screen. ``view`` is the only copy of it —
+        # patched by ``_mirror`` on Aria's own commands and by ``apply_event`` on
+        # the customer's; read through ``get_screen_context`` and never appended to
+        # the model's context. ``screen`` is only the staleness clock over it.
+        self.screen = ScreenState(read_tool="get_screen_context")
+        self.view: dict[str, Any] = _blank_screen()
 
         # Authenticated-account demo state. ``_open_dialogs`` maps the nonce of
         # each dialog now on screen to what it asks for, so a card answer cannot
@@ -1216,49 +1328,249 @@ class AuraBrain(GeminiBrain):
         return self.respond(session)
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Browser→Brain client message. This is where everything the customer does
-        on screen arrives, and none of it takes the floor here — each folds a line
-        into the context, and an answered dialog also marks that Aria owes a reply,
-        which :meth:`on_user_idle` delivers once the customer is quiet:
+        """Browser→brain message: one thing the customer just did on screen.
 
-        * ``state_sync`` — a compact snapshot of what's on screen (sent on connect
-          and after every change). It stops at :meth:`_ingest_state`; only a line
-          naming what the customer changed reaches the model, and the screen itself
-          is read on request.
-        * ``auth_complete`` — the customer finished the on-screen sign-in. THIS is
-          where the server mints the token: it is only reachable via that
-          authorisation, which is why the LLM can never produce one itself. The
-          token goes into the context as something the model was handed.
-        * ``account_selected`` / ``card_selected`` — the customer picked one in the
-          on-screen picker; recorded here, and named in the context so the model
-          knows what it may now read.
-        * ``auth_cancelled`` / ``account_cancelled`` / ``card_cancelled`` — the
-          customer dismissed the dialog, which is an answer too: the context says so
-          and the model asks rather than assuming.
-        """
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+        None of it takes the floor here — a click must never put Aria's voice over
+        the person clicking. Each event folds into her mirror and, unless it is the
+        clip's own clock, puts one line in front of the model; an answered dialog
+        also marks that Aria owes a reply, which :meth:`on_user_idle` delivers once
+        the customer is genuinely quiet."""
+        event = AURA_EVENTS.parse(msg)
+        if event is None:
             return
-        name = msg.data.get("t")
-        data = msg.data.get("d")
-        data = data if isinstance(data, dict) else {}
-        if name == "state_sync":
-            self._ingest_state(data)
-        elif name == "auth_complete":
-            self._complete_auth(data)
-        elif name == "account_selected":
-            self._complete_account(data)
-        elif name == "card_selected":
-            self._complete_card(data)
-        elif name in ("auth_cancelled", "account_cancelled", "card_cancelled"):
-            self._cancel_pending(data)
+        logger.info("aura: {} — {}", type(event).__voqal_event__, event)
+        note = self.apply_event(event)
+        if note is not None:
+            self._append_note(note)
 
-    # ─── Screen state: it stops here, and is read on request ────────────
+    # ─── Browser → brain: the customer's hand, and their answers ────────
 
-    def _show(self, action: Action) -> None:
-        """Put something on screen. Every tool that moves it comes through here, so
-        the browser's echo of our own command is not mistaken for the customer."""
-        self.screen.dispatched()
+    def apply_event(self, event: AuraEvent) -> str | None:
+        """Fold one thing the customer did into the mirror; say what to tell Aria.
+
+        A gesture is *named* and never valued — what they opened is read back
+        through ``get_screen_context``, which is what keeps it from going stale in
+        the context. Values the browser alone holds (the calculator they edited, the
+        forex reference the page minted) go into the mirror, not the note. ``None``
+        means fold it and say nothing, which is only ever the clip crossing a
+        chapter: nobody decided it, and a note per chapter would refuse every video
+        tool for the rest of the clip. No fallback arm — an event added to
+        :data:`AuraEvent` and not handled here is a type error, not a silent drop."""
+        view = self.view
+        match event:
+            # ── moving around ──
+            case HomeOpened():
+                view["screen"] = "home"
+                view["the helpline panel"] = None
+                return self.screen.moved("went back to the Aura Bank home page")
+            case HelpCenterOpened():
+                view["screen"] = "help"
+                view["the helpline panel"] = None
+                return self.screen.moved("opened the help centre themselves")
+            case CategoryOpened():
+                view["screen"] = "category"
+                view["the category"] = event.category
+                view["the helpline panel"] = None
+                return self.screen.moved("opened a help-centre category themselves")
+            case ArticleOpened():
+                view["screen"] = "article"
+                view["the open article"] = event.article_id
+                view["the clip"] = None
+                view["the helpline panel"] = None
+                return self.screen.moved("opened a help article themselves")
+            case ContactClosed():
+                view["the helpline panel"] = None
+                return self.screen.moved("closed the helpline panel")
+
+            # ── the clip ──
+            case VideoPaused():
+                self._clip("playing", False)
+                return self.screen.moved("paused the clip")
+            case VideoResumed():
+                self._clip("playing", True)
+                return self.screen.moved("started the clip playing again")
+            case VideoSeeked():
+                self._clip("at second", event.start_sec)
+                self._clip("step index", event.step_index)
+                self._clip("playing", True)
+                return self.screen.moved("tapped a step in the list, which jumped the clip to it")
+            case VideoProgressed():
+                self._clip("step index", event.step_index)
+                return None
+
+            # ── what only the browser holds ──
+            case CalculatorOpened():
+                view["screen"] = "calculator"
+                view["the calculator"] = {
+                    "kind": event.kind,
+                    "inputs": dict(event.inputs),
+                    "result": dict(event.result),
+                }
+                return self.screen.moved("opened a calculator themselves off the help page")
+            case CalculatorChanged():
+                calc = view["the calculator"]
+                if isinstance(calc, dict):
+                    calc["inputs"] = dict(event.inputs)
+                    calc["result"] = dict(event.result)
+                return self.screen.moved("changed the calculator's figures themselves")
+            case ApplicationStarted():
+                view["screen"] = "apply"
+                view["the application"] = _blank_form(event.product)
+                return self.screen.moved("started an application themselves off the help page")
+            case FieldFilled():
+                form = view["the application"]
+                if isinstance(form, dict):
+                    fields = form["fields"]
+                    if isinstance(fields, dict):
+                        fields[event.field] = event.value  # pyright: ignore[reportUnknownMemberType]
+                return self.screen.moved("typed into the application themselves")
+            case ApplicationSubmitted():
+                form = view["the application"]
+                if isinstance(form, dict):
+                    form["submitted"] = True
+                return self.screen.moved("submitted the application themselves")
+            case CardControlsSaved():
+                view["the card controls"] = event.model_dump() | {"saved": True}
+                return self.screen.moved(
+                    "saved their card controls — read them back before you describe them"
+                )
+            case ForexLeadSubmitted():
+                view["screen"] = "forex"
+                view["the forex card"] = {"requested": True, "reference": event.reference}
+                return self.screen.moved("requested the forex card themselves")
+
+            # ── an answer to a dialog Aria opened ──
+            case AuthCompleted():
+                return self._complete_auth(event)
+            case AccountSelected():
+                return self._complete_account(event)
+            case CardSelected():
+                return self._complete_card(event)
+            case AuthCancelled() | AccountCancelled() | CardCancelled():
+                return self._cancel_pending(event.nonce)
+
+    def _clip(self, key: str, value: Any) -> None:
+        """Patch one field of the clip, if there is one on screen.
+
+        Every clip event can arrive after the customer has navigated away from the
+        article — the player emits its last tick on the way out — so this is a
+        no-op rather than a resurrection."""
+        clip = self.view["the clip"]
+        if isinstance(clip, dict):
+            clip[key] = value  # pyright: ignore[reportUnknownMemberType]
+
+    # ─── Brain → browser: the mirror moves first ────────────────────────
+
+    def _show(self, action: ScreenMove) -> None:
+        """Put something on screen: patch Aria's picture, then dispatch.
+
+        Both, in that order, and only here — a dispatch that skipped the mirror
+        would leave her reading a page one command behind her own last word. The
+        browser never echoes this back: a brain's own dispatch is not an event."""
+        self._mirror(action)
         self.session.dispatch(action)
+
+    def _mirror(self, action: ScreenMove) -> None:
+        """Apply one of Aria's own commands to her picture of the page.
+
+        Each arm follows what ``store.tsx`` actually does with that command, which
+        is why the two are read together. The dialogs mirror nothing: what they put
+        on screen is a question, and the answer arrives as an event."""
+        view = self.view
+        match action:
+            case OpenHome():
+                view["screen"] = "home"
+                view["the helpline panel"] = None
+            case OpenHelpCenter():
+                view["screen"] = "help"
+                view["the helpline panel"] = None
+            case OpenCategory():
+                view["screen"] = "category"
+                view["the category"] = action.category
+                view["the helpline panel"] = None
+            case OpenArticle():
+                view["screen"] = "article"
+                view["the open article"] = action.article_id
+                view["the clip"] = None
+                view["the helpline panel"] = None
+            case PlayHelpVideo():
+                view["screen"] = "article"
+                view["the clip"] = {
+                    "id": action.video_id,
+                    "playing": True,
+                    "at second": action.start_sec,
+                    "step index": 0,
+                }
+                view["the helpline panel"] = None
+            case HighlightStep():
+                self._clip("step index", action.index)
+            case SeekVideo():
+                self._clip("at second", action.start_sec)
+                self._clip("playing", True)
+            case PauseVideo():
+                self._clip("playing", False)
+            case ResumeVideo():
+                self._clip("playing", True)
+            case ShowContact():
+                view["the helpline panel"] = action.topic
+            case RunCalculator():
+                view["screen"] = "calculator"
+                view["the calculator"] = {
+                    "kind": action.kind,
+                    "inputs": dict(action.inputs),
+                    "result": dict(action.result),
+                }
+            case StartApplication():
+                view["screen"] = "apply"
+                view["the application"] = _blank_form(action.product)
+            case PrefillField():
+                form = view["the application"]
+                if isinstance(form, dict):
+                    fields = form["fields"]
+                    if isinstance(fields, dict):
+                        fields[action.field] = action.value  # pyright: ignore[reportUnknownMemberType]
+            case SubmitApplication():
+                form = view["the application"]
+                if isinstance(form, dict):
+                    form["submitted"] = True
+            case Compare():
+                view["screen"] = "compare"
+                view["the comparison"] = {
+                    "kind": action.kind,
+                    "options": [item.name for item in action.items],
+                    "starred": action.recommend_id,
+                }
+            case FindBranch():
+                view["screen"] = "locator"
+                view["the branch results"] = {
+                    "pincode": action.pincode,
+                    "found": len(action.results),
+                }
+            case ShowChecklist():
+                view["screen"] = "checklist"
+                view["the checklist"] = {"title": action.title, "lines": len(action.items)}
+            case SendToPhone():
+                view["what we sent to their phone"] = {
+                    "what": action.what,
+                    "channel": action.channel,
+                }
+            case RaiseTicket():
+                view["the ticket we raised"] = action.reference
+            case ShowForexCard():
+                view["screen"] = "forex"
+                view["the forex card"] = {"requested": False}
+            case ShowBalance():
+                view["screen"] = "balance"
+                view["the account they picked"] = _account_line(action.account)
+            case ShowStatement():
+                view["screen"] = "statement"
+                view["the account they picked"] = _account_line(action.account)
+            case ShowCardControls():
+                view["screen"] = "card_controls"
+                view["the card they picked"] = _card_line(action.card)
+                view["the card controls"] = action.controls.model_dump() | {"saved": False}
+            case Spotlight() | OpenAuth() | ChooseAccount() | ChooseCreditCard():
+                pass
 
     def _append_note(self, text: str) -> None:
         """Put one line in front of the model without taking the floor.
@@ -1412,18 +1724,17 @@ class AuraBrain(GeminiBrain):
         return "contact shown: helpline 1860-200-0100, emergency card block +91 22 2000 0200"
 
     async def get_screen_context(self) -> str:
-        """What the customer is looking at right now — screen, open article, video
-        position, and anything he has filled in or chosen.
+        """What the customer is looking at right now — the screen, the open article,
+        where the clip is, and anything they have filled in or chosen.
 
-        Call it before you act on something he points at, and whenever you are told
-        he changed the screen himself. It is free — it reads this session's own
-        state, takes no floor, says nothing, and moves nothing on screen."""
+        Call it before you act on something they point at, and whenever you are told
+        they changed the screen themselves. It is free — it reads this session's own
+        mirror, takes no floor, says nothing, and moves nothing on screen."""
         self.screen.read()
-        where = self._screen_summary()
         logger.info(
-            "aura: get_screen_context -> {} (v{})", where.get("screen"), self.screen.version
+            "aura: get_screen_context -> {} (v{})", self.view["screen"], self.screen.version
         )
-        return screen_prose(where)
+        return screen_prose(_trim(self.view))
 
     # ─── Tools: calculators, applications, comparisons ──────────────────
 
@@ -1657,13 +1968,14 @@ class AuraBrain(GeminiBrain):
         self._open_dialogs[nonce] = kind
         return nonce
 
-    def _close_dialog(self, data: dict[str, Any], kind: str) -> bool:
-        """True iff ``data`` answers a dialog of ``kind`` that is actually open.
+    def _close_dialog(self, nonce: str, kind: str) -> bool:
+        """True iff ``nonce`` answers a dialog of ``kind`` that is actually open.
 
         The nonce is what makes a browser message trustworthy: it was minted here,
         went out with the dialog, and closes that one dialog once. A replay, or a
-        card answer arriving for a sign-in, matches nothing and is dropped."""
-        nonce = str(data.get("nonce", ""))
+        card answer arriving for a sign-in, matches nothing and is dropped. It is a
+        handshake token for a question the customer was asked, not the whole-state
+        reconciliation nonce that died with ``state_sync``."""
         if self._open_dialogs.get(nonce) != kind:
             logger.info("aura: {} for an unknown or stale dialog", kind)
             return False
@@ -1891,52 +2203,23 @@ class AuraBrain(GeminiBrain):
             "trip / forex-card cross-sell (one short line)."
         )
 
-    # ── Screen state ──────────────────────────────────────────────────────────
+    # ── The dialogs Aria opened, answered ─────────────────────────────────────
 
-    def _screen_summary(self) -> dict[str, Any]:
-        state = self.screen.snapshot
-        if not state:
-            return {"screen": "home", "note": "The customer is on the Aura Bank home page."}
-        # The browser's state_sync snapshot already carries everything (article,
-        # video position, and the active tool: calculator / application / compare /
-        # locator / checklist / ticket), so return it as-is.
-        return state
-
-    def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Fold the browser's snapshot into :attr:`screen` — and into it only.
-
-        This used to append the whole snapshot to the model's context on every
-        change, which is the defect ``voqalize_demos.screen`` exists to close. What
-        still reaches the context is one line naming which facts the customer
-        moved, never their values."""
-        snapshot = data.get("screen_state")
-        note = self.screen.absorb(snapshot if isinstance(snapshot, dict) else None)
-        logger.info(
-            "aura: state_sync (screen={}, v{})",
-            (self.screen.snapshot or {}).get("screen"),
-            self.screen.version,
-        )
-        if note is not None:
-            self._append_note(note)
-
-    # ── Browser → brain: what the customer did on screen ──────────────────────
-
-    def _cancel_pending(self, data: dict[str, Any]) -> None:
+    def _cancel_pending(self, nonce: str) -> str | None:
         """The customer closed a dialog without answering it — which is an answer."""
-        nonce = str(data.get("nonce", ""))
         kind = self._open_dialogs.pop(nonce, None)
         if kind is None:
-            return
+            return None
         logger.info("aura: {} dialog dismissed by the customer", kind)
-        self._append_note(_DISMISSED[kind])
         self._owed_a_reply = True
+        return _DISMISSED[kind]
 
-    def _complete_auth(self, data: dict[str, Any]) -> None:
+    def _complete_auth(self, event: AuthCompleted) -> str | None:
         """The browser reports the customer finished the on-screen sign-in. THIS is
         where the handle is minted — only reachable after that authorisation, which
         is why the LLM can never produce one itself."""
-        if not self._close_dialog(data, "auth"):
-            return
+        if not self._close_dialog(event.nonce, "auth"):
+            return None
         now = int(time.time())
         self._token = _mint_handle()
         self._claims = {
@@ -1948,48 +2231,58 @@ class AuraBrain(GeminiBrain):
             "exp": now + _AUTH_TTL_SECONDS,
         }
         logger.info("aura: auth_complete -> handle minted for {}", _DEMO_CUSTOMER["name"])
-        self._append_note(
+        self.view["signed in"] = "yes"
+        self.view["their name"] = _DEMO_CUSTOMER["name"]
+        self._owed_a_reply = True
+        return (
             "The customer has just authorised the secure sign-in, so they are now signed in. "
             f"Their authenticated_context is {self._token} — pass it back exactly as written to "
             "every account and card tool, and never alter it. Next, call "
             "choose_account(authenticated_context) if they want a balance or statement, or "
             "choose_credit_card(authenticated_context) if they want card controls."
         )
-        self._owed_a_reply = True
 
-    def _complete_account(self, data: dict[str, Any]) -> None:
+    def _complete_account(self, event: AccountSelected) -> str | None:
         """The customer tapped an account in the picker."""
-        if not self._close_dialog(data, "account"):
-            return
-        account_id = str(data.get("account_id", ""))
-        acc = _account_by_id(account_id)
+        if not self._close_dialog(event.nonce, "account"):
+            return None
+        acc = _account_by_id(event.account_id)
         if acc is None:
-            logger.info("aura: account_selected names no account we hold ({})", account_id)
-            return
-        self._selected.add(account_id)
-        logger.info("aura: account_selected -> {}", account_id)
-        self._append_note(
+            logger.info("aura: account_selected names no account we hold ({})", event.account_id)
+            return None
+        self._selected.add(event.account_id)
+        logger.info("aura: account_selected -> {}", event.account_id)
+        self.view["the account they picked"] = {
+            "account id": acc["account_id"],
+            "type": acc["type"],
+            "number": acc["masked_number"],
+        }
+        self._owed_a_reply = True
+        return (
             f"The customer has just picked their {acc['type']} account "
             f"({acc['masked_number']}, {acc['branch']}). Its account_id is "
             f"{acc['account_id']} — you may now call get_account_balance or get_statement "
             "with it and the authenticated_context."
         )
-        self._owed_a_reply = True
 
-    def _complete_card(self, data: dict[str, Any]) -> None:
+    def _complete_card(self, event: CardSelected) -> str | None:
         """The customer tapped a card in the picker."""
-        if not self._close_dialog(data, "card"):
-            return
-        card_id = str(data.get("card_id", ""))
-        card = _card_by_id(card_id)
+        if not self._close_dialog(event.nonce, "card"):
+            return None
+        card = _card_by_id(event.card_id)
         if card is None:
-            logger.info("aura: card_selected names no card we hold ({})", card_id)
-            return
-        self._selected_cards.add(card_id)
-        logger.info("aura: card_selected -> {}", card_id)
-        self._append_note(
+            logger.info("aura: card_selected names no card we hold ({})", event.card_id)
+            return None
+        self._selected_cards.add(event.card_id)
+        logger.info("aura: card_selected -> {}", event.card_id)
+        self.view["the card they picked"] = {
+            "card id": card["card_id"],
+            "product": card["product"],
+            "number": card["masked_number"],
+        }
+        self._owed_a_reply = True
+        return (
             f"The customer has just picked their {card['product']} card "
             f"({card['network']}, {card['masked_number']}). Its card_id is {card['card_id']} — "
             "you may now call show_card_controls with it and the authenticated_context."
         )
-        self._owed_a_reply = True

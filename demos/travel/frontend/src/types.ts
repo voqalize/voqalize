@@ -4,9 +4,9 @@
  * Unlike the orders demo (which mirrors a fixed Python catalog), there is no
  * catalog here: flights, hotels, and activities are INVENTED by the agent and
  * arrive as full objects inside `ui_command` payloads. The browser store is the
- * source of truth for the itinerary; it persists to localStorage and echoes a
- * compact snapshot back to the agent (`state_sync`) so the AI always knows the
- * current on-screen state — including edits the travel agent makes by hand.
+ * source of truth for the itinerary; it persists to localStorage and reports the
+ * travel agent's own edits as typed `ui-event`s, one at a time, so the AI hears
+ * what a human changed without either side pushing a whole itinerary.
  */
 
 /**

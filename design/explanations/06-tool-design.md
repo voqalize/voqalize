@@ -27,8 +27,7 @@
 - `session.dispatch(...)` **never blocks and returns nothing**. There is no handle
   to await, no result correlation and no timeout: the brain says what it wants
   rendered and moves on. An answer, if the app has one, arrives later as an
-  ordinary `client-message` at `on_rtvi`, correlated by whatever the app put in
-  it — which is exactly how every other tap already arrives.
+  ordinary `AppEvent` at `on_rtvi`, correlated by whatever the app put in it — which is exactly how every other tap already arrives.
 - The action rides RTVI's own `ui-command`, `{"command": …, "payload": {…}}`, so a
   stock pipecat client reads it with `useUICommandHandler` and no adapter of ours.
   The payload is **nested**, so no field can shadow the envelope and there is no

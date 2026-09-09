@@ -118,7 +118,7 @@ async def test_a_manual_edit_is_announced_but_never_dumped() -> None:
         await rig.driver.start_session()
         before = len(rig.driver.ui_commands)
 
-        await rig.driver.send_client_message("row_added", _MANUAL_ROW)
+        await rig.driver.send_ui_event("row_added", _MANUAL_ROW)
         # The floor is untaken: no speech, no screen command. Frames on one
         # connection are ordered, so the event is already applied by the time the
         # next turn is served — which is what the assertion below proves.
@@ -165,7 +165,7 @@ async def test_a_tool_aimed_at_a_screen_he_changed_is_refused_until_it_is_read()
         await rig.driver.start_session()
         await rig.driver.user_says("Telma 40 ki do strip de do.")
 
-        await rig.driver.send_client_message("row_added", _MANUAL_ROW)
+        await rig.driver.send_ui_event("row_added", _MANUAL_ROW)
         await rig.driver.user_says("Ab Telma hata do.")
 
         removed = rig.command("remove_items")

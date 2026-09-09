@@ -238,8 +238,8 @@ Implement it if the screen carries state the caller acts on. See
 ## The page answers back
 
 Nothing is returned and nothing is awaited, so an action that asks a question
-gets its answer the way every other tap arrives: as an ordinary `client-message`
-at `on_rtvi`, correlated by whatever your app put in it. The dispatch that asked
+gets its answer the way every other tap arrives: as an ordinary `ui-event` at
+`on_rtvi`, correlated by whatever your app put in it. The dispatch that asked
 is long over by then.
 
 That direction is [context and history](/build/brain/context/).

@@ -14,8 +14,9 @@
  * unknown command is a no-op by design: the brain and this page ship separately.
  *
  * The browser silently tells the assistant which clause is in view by sending
- * `clause_focus` as an RTVI `client-message`, so it always knows where the
- * lawyer is reading.
+ * a typed `clause_focused` event over RTVI's `ui-event`. That is the whole of
+ * the screen→brain direction: one gesture with one id, never a picture of the
+ * page. Ada reads the position back with `get_reading_position`.
  *
  * What this store deliberately does **not** hold is what the assistant is
  * doing. Presence is a rendering of pipecat's own state, never a second copy of
@@ -35,7 +36,9 @@ import {
 import { CLAUSES, CLAUSES_BY_ID, type Clause, type ClauseId } from './content';
 import {
   asUiAction,
+  sendAppEvent,
   unhandledUiAction,
+  type AppEvent,
   type AddComment,
   type DiligenceJob,
   type InsertClause,
@@ -132,7 +135,7 @@ interface PointerEvent_ {
   nonce: number;
 }
 
-type AgentSend = (type: string, data: Record<string, unknown>) => void;
+export type AgentSend = (event: string, payload?: unknown) => void;
 
 export interface LegalStore {
   clauses: Clause[];
@@ -212,18 +215,11 @@ export function LegalProvider({ children }: { children: ReactNode }) {
     agentSendRef.current = fn;
   }, []);
 
+  // Only the id: the contract is static and already in Ada's prompt, so the
+  // number and the heading would be the page telling her what she already knows.
   const sendClauseFocus = useCallback((clauseId: ClauseId) => {
-    const clause = CLAUSES_BY_ID[clauseId];
-    if (!agentSendRef.current) return;
-    try {
-      agentSendRef.current('clause_focus', {
-        clause_id: clause.id,
-        number: clause.number,
-        heading: clause.heading,
-      });
-    } catch {
-      /* ignore */
-    }
+    const event: AppEvent = { event: 'clause_focused', payload: { clause_id: clauseId } };
+    sendAppEvent(agentSendRef.current, event);
   }, []);
 
   const pointToClause = useCallback((clauseId: ClauseId, reason: string) => {

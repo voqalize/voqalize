@@ -4,12 +4,17 @@
  * One React context drives both the console UI and the voice widget, so the
  * advisor and the "servicing desk" assistant work the same screen. The assistant
  * mutates state via `ui-command` RTVI messages, `{ command, payload }`
- * (handleUiCommand); the browser echoes a compact workspace snapshot back to
- * the assistant via `state_sync` (snapshot) so it always knows where the
- * advisor is and what's pending. The pair is narrowed against the generated
+ * (handleUiCommand); the advisor's own gestures go back the other way as typed
+ * `ui-event`s — `byHand`, below. Both halves are narrowed against the generated
  * `actions.gen.ts`, so each case reads its payload typed and `default` is an
- * exhaustiveness check — add an `Action` to the brain and this file stops
- * compiling until it is handled.
+ * exhaustiveness check — add an `Action` or an `AppEvent` to the brain and this
+ * file stops compiling until it is handled.
+ *
+ * Which of the two moved the screen is not a flag on a message — it is which
+ * function was called. `byHand.openCase` is the advisor clicking a row and it
+ * emits; `openCase` is the desk's own `open_case` command and it does not. So
+ * the desk never has to work out whether an event is its own command echoing
+ * home, because it cannot be.
  *
  * The `norm*` functions below are not validation. They are the one real
  * translation in this demo: the desk sends a *specification* and the console
@@ -53,7 +58,9 @@ import {
 } from './types';
 import {
   asUiAction,
+  sendAppEvent,
   unhandledUiAction,
+  type AppEvent,
   type ApprovalSpec,
   type BlockerSpec,
   type FindingSpec,
@@ -65,7 +72,7 @@ import {
 } from './actions.gen';
 import { DEPARTMENTS, TEAM, WORKSPACE } from './data';
 
-type AgentSend = (type: string, data: Record<string, unknown>) => void;
+type AgentSend = (event: string, payload?: unknown) => void;
 
 interface HighlightState {
   section: HighlightAction['section'];
@@ -89,7 +96,6 @@ export interface ServicingStore {
   tab: CaseTab;
   filter: BoardFilter;
   highlighted: HighlightState | null;
-  rev: number;
 
   active: Case | null;
   pendingApprovals: number;
@@ -134,9 +140,40 @@ export interface ServicingStore {
   canSubmitPacket: (c: Case) => boolean;
 
   // bridges
-  snapshot: () => Record<string, unknown>;
+  /** What the advisor does with his own hand: the same mutation, plus the event
+   *  that tells the desk which act it was. UI controls call these; the desk's
+   *  `ui-command` dispatch calls the plain ones above. */
+  byHand: ByHand;
   handleUiCommand: (command: string, payload: unknown) => void;
   registerAgentSend: (fn: AgentSend | null) => void;
+}
+
+export interface ByHand {
+  openBoard: () => void;
+  openCase: (ref: string) => void;
+  setTab: (tab: CaseTab) => void;
+  setFilter: (f: BoardFilter) => void;
+  /** Route a case to a department queue — the blocker card's suggested route. */
+  routeCase: (ref: string, dept: string) => void;
+  /** Write a note, optionally handing the case to a department with it. */
+  addNote: (ref: string, text: string, dept?: string) => void;
+  decideApproval: (ref: string, approval: Approval, decision: ApprovalStatus) => void;
+  submitPacket: (ref: string) => void;
+  dismissSearch: () => void;
+}
+
+/** How a board filter reads back to the desk — the words, not the shape. */
+function filterProse(f: BoardFilter): string {
+  switch (f.kind) {
+    case 'mine':
+      return 'his own cases';
+    case 'all':
+      return 'every case on the desk';
+    case 'needs_approval':
+      return 'the cases waiting on his approval';
+    case 'department':
+      return DEPARTMENTS.find((d) => d.id === f.dept)?.label ?? f.dept;
+  }
 }
 
 const Ctx = createContext<ServicingStore | null>(null);
@@ -265,7 +302,6 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
   const [filter, setFilterState] = useState<BoardFilter>({ kind: 'mine' });
   const [highlighted, setHighlighted] = useState<HighlightState | null>(null);
   const [archiveSearch, setArchiveSearch] = useState<ArchiveSearch | null>(null);
-  const [rev, setRev] = useState(0);
 
   const agentSendRef = useRef<AgentSend | null>(null);
   const timersRef = useRef<number[]>([]);
@@ -278,15 +314,9 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const bump = useCallback(() => setRev((r) => r + 1), []);
-
-  const mutateCase = useCallback(
-    (ref: string, fn: (c: Case) => Case) => {
-      setCases((list) => list.map((c) => (c.ref === ref ? fn(c) : c)));
-      bump();
-    },
-    [bump],
-  );
+  const mutateCase = useCallback((ref: string, fn: (c: Case) => Case) => {
+    setCases((list) => list.map((c) => (c.ref === ref ? fn(c) : c)));
+  }, []);
 
   const logActivity = (c: Case, actor: 'agent' | 'advisor' | 'system', text: string): Case => ({
     ...c,
@@ -297,48 +327,22 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
   const openBoard = useCallback(() => {
     setView('board');
     setActiveRef(null);
-    bump();
-  }, [bump]);
+  }, []);
 
-  const openCase = useCallback(
-    (ref: string) => {
-      const r = ref.trim().toUpperCase();
-      setCases((list) => {
-        if (!list.some((c) => c.ref === r)) return list;
-        return list;
-      });
-      setActiveRef(r);
-      setView('case');
-      setTabState('overview');
-      bump();
-    },
-    [bump],
-  );
+  const openCase = useCallback((ref: string) => {
+    setActiveRef(ref.trim().toUpperCase());
+    setView('case');
+    setTabState('overview');
+  }, []);
 
-  const setTab = useCallback(
-    (t: CaseTab) => {
-      setTabState(t);
-      bump();
-    },
-    [bump],
-  );
+  const setTab = useCallback((t: CaseTab) => setTabState(t), []);
 
-  const setFilter = useCallback(
-    (f: BoardFilter) => {
-      setFilterState(f);
-      bump();
-    },
-    [bump],
-  );
+  const setFilter = useCallback((f: BoardFilter) => setFilterState(f), []);
 
-  const highlight = useCallback(
-    (section: HighlightAction['section']) => {
-      setView('case');
-      setHighlighted({ section, nonce: Date.now() });
-      bump();
-    },
-    [bump],
-  );
+  const highlight = useCallback((section: HighlightAction['section']) => {
+    setView('case');
+    setHighlighted({ section, nonce: Date.now() });
+  }, []);
 
   // ── board / jira ──────────────────────────────────────────────────────────
   const assignCase = useCallback(
@@ -528,21 +532,16 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
       const q = query || 'similar cases';
       const results = rawResults.map(normPrecedent);
       setArchiveSearch({ query: q, status: 'searching', results: [] });
-      bump();
       timersRef.current.push(
         window.setTimeout(() => {
           setArchiveSearch({ query: q, status: 'done', results });
-          bump();
         }, SEARCH_DELAY),
       );
     },
-    [bump],
+    [],
   );
 
-  const dismissSearch = useCallback(() => {
-    setArchiveSearch(null);
-    bump();
-  }, [bump]);
+  const dismissSearch = useCallback(() => setArchiveSearch(null), []);
 
   const updatePacketField = useCallback(
     (ref: string, section: string, field: string, value: string, note?: string) => {
@@ -694,69 +693,85 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
   );
   const preparing = useMemo(() => cases.filter((c) => c.preparing), [cases]);
 
-  // ── state_sync snapshot (lean view for the assistant) ──────────────────────
-  const snapshot = useCallback((): Record<string, unknown> => {
-    const a = cases.find((c) => c.ref === activeRef) ?? null;
-    return {
-      advisor: { name: WORKSPACE.advisor.name, role: WORKSPACE.advisor.role },
-      view,
-      tab,
-      pending_approvals: cases.reduce(
-        (n, c) => n + c.approvals.filter((x) => x.status === 'pending').length,
-        0,
-      ),
-      preparing: cases.filter((c) => c.preparing).map((c) => c.ref),
-      active_case: a
-        ? {
-            ref: a.ref,
-            customer: a.customer.name,
-            type: a.type,
-            title: a.title,
-            stage: a.stage,
-            assignee: a.assignee.label,
-            rate: a.customer.rate,
-            balance: a.customer.balance,
-            monthly_payment: a.customer.monthlyPayment,
-            tenure_years: a.customer.tenureYears,
-            preparing: a.preparing,
-            findings: a.findings.map((f) => ({ label: f.label, value: f.value, flag: f.flag })),
-            blocker: a.blocker
-              ? { title: a.blocker.title, severity: a.blocker.severity, status: a.blocker.status }
-              : null,
-            packet: a.packet
-              ? {
-                  title: a.packet.title,
-                  status: a.packet.status,
-                  blocked_sections: a.packet.sections.filter((s) => s.status === 'blocked').length,
-                  can_submit: packetSubmittable(a),
-                }
-              : null,
-            pending_approvals: a.approvals
-              .filter((x) => x.status === 'pending')
-              .map((x) => x.title),
-            blocked_approvals: a.approvals
-              .filter((x) => x.status === 'blocked')
-              .map((x) => x.title),
-            notes: a.comments.map((cm) => ({
-              author: cm.author,
-              text: cm.text,
-              dept: cm.deptLabel,
-            })),
-          }
-        : null,
-      archive_search: archiveSearch
-        ? { query: archiveSearch.query, status: archiveSearch.status, results: archiveSearch.results.length }
-        : null,
-      cases: cases.map((c) => ({
-        ref: c.ref,
-        customer: c.customer.name,
-        type: c.type,
-        stage: c.stage,
-        assignee: c.assignee.label,
-        priority: c.priority,
-      })),
-    };
-  }, [cases, activeRef, view, tab, archiveSearch]);
+  // ── the advisor's own hand (browser → brain) ──────────────────────────────
+  const emit = useCallback((event: AppEvent) => sendAppEvent(agentSendRef.current, event), []);
+
+  const byHand = useMemo<ByHand>(
+    () => ({
+      openBoard: () => {
+        openBoard();
+        emit({ event: 'board_opened', payload: {} });
+      },
+      openCase: (ref) => {
+        openCase(ref);
+        emit({ event: 'case_opened', payload: { ref: ref.trim().toUpperCase() } });
+      },
+      setTab: (t) => {
+        setTab(t);
+        emit({ event: 'tab_opened', payload: { tab: t } });
+      },
+      // The rail's filters double as navigation — one gesture, one event.
+      setFilter: (f) => {
+        setFilter(f);
+        openBoard();
+        emit({ event: 'board_filtered', payload: { showing: filterProse(f) } });
+      },
+      routeCase: (ref, dept) => {
+        assignCase(ref, 'department', dept);
+        emit({
+          event: 'case_routed',
+          payload: { ref: ref.trim().toUpperCase(), to: findDept(dept)?.label ?? dept },
+        });
+      },
+      addNote: (ref, text, dept) => {
+        const body = text.trim();
+        if (!body) return;
+        addComment(ref, body, 'advisor', dept);
+        if (dept) assignCase(ref, 'department', dept);
+        emit({
+          event: 'note_added',
+          payload: {
+            ref: ref.trim().toUpperCase(),
+            text: body,
+            dept: dept ? (findDept(dept)?.label ?? dept) : '',
+          },
+        });
+      },
+      decideApproval: (ref, approval, decision) => {
+        decideApproval(ref, approval.id, decision);
+        emit({
+          event: 'approval_decided',
+          payload: {
+            ref: ref.trim().toUpperCase(),
+            approval_id: approval.id,
+            // Only the advisor signs off, so only these two ever reach the wire.
+            decision: decision === 'approved' ? 'approved' : 'declined',
+            title: approval.title,
+          },
+        });
+      },
+      submitPacket: (ref) => {
+        submitPacket(ref);
+        emit({ event: 'packet_submitted', payload: { ref: ref.trim().toUpperCase() } });
+      },
+      dismissSearch: () => {
+        dismissSearch();
+        emit({ event: 'search_dismissed', payload: {} });
+      },
+    }),
+    [
+      emit,
+      openBoard,
+      openCase,
+      setTab,
+      setFilter,
+      assignCase,
+      addComment,
+      decideApproval,
+      submitPacket,
+      dismissSearch,
+    ],
+  );
 
   // ── ui-command dispatch (assistant drives the screen) ──────────────────────
   const handleUiCommand = useCallback(
@@ -848,14 +863,11 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
   //   __servicing.handleUiCommand('prepare_case', { ref: 'MS-1057', jobs: [...] })
   useEffect(() => {
     if (!import.meta.env.DEV) return;
-    (window as unknown as { __servicing?: unknown }).__servicing = {
-      handleUiCommand,
-      snapshot,
-    };
+    (window as unknown as { __servicing?: unknown }).__servicing = { handleUiCommand, byHand };
     return () => {
       delete (window as unknown as { __servicing?: unknown }).__servicing;
     };
-  }, [handleUiCommand, snapshot]);
+  }, [handleUiCommand, byHand]);
 
   const value: ServicingStore = {
     advisor: WORKSPACE.advisor,
@@ -867,7 +879,6 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
     tab,
     filter,
     highlighted,
-    rev,
     active,
     pendingApprovals,
     needsApprovalCount,
@@ -891,7 +902,7 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
     resolveBlocker,
     submitPacket,
     canSubmitPacket,
-    snapshot,
+    byHand,
     handleUiCommand,
     registerAgentSend,
   };

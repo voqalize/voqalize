@@ -28,7 +28,7 @@ ours is the sentence that turns a publishable key into an address.
 2. **Everything after that is stock pipecat** — `@pipecat-ai/client-js`,
    `@pipecat-ai/client-react`, and `@pipecat-ai/voice-ui-kit`. Not "mostly", not
    "with a thin wrapper".
-3. **All server communication is over stock pipecat.** RTVI's `client-message`,
+3. **All server communication is over stock pipecat.** RTVI's `ui-event`,
    `server-message` and `ui-command`, on the data channel the transport already
    has. No second channel, no envelope of ours.
 4. **Presence is built on pipecat states.** Not on a state machine of ours that
@@ -76,8 +76,10 @@ ours is the sentence that turns a publishable key into an address.
 - **Server communication is already all stock.** Screen ← coach is
   `RTVIEvent.UICommand` carrying `{command, payload}`, which is RTVI's own
   `ui-command` — the brain's `session.dispatch(...)` puts it there. Coach ← screen
-  is `client.sendClientMessage("state_sync", {screen})` and `client.sendText(...)`,
-  both RTVI `client-message`. There is no Voqalize channel in the page.
+  is `client.sendUIEvent(event, payload)` on RTVI's own `ui-event`, and
+  `client.sendText(...)` for a typed sentence. There is no Voqalize channel in the
+  page. What *is* ours is the TypeScript: `voqalize types` generates both unions
+  out of the brain module, so neither direction is hand-copied.
 - **The mint is stock pipecat too, and this is the part that is easy to miss.**
   `VoqalStartBotRequest` is *structurally pipecat's `APIRequest`*, and
   `PipecatAppBase` performs pipecat's own two-step connect with it: `startBot`

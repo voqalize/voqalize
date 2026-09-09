@@ -565,3 +565,35 @@ export const WORKSPACE: Workspace = {
   departments: DEPARTMENTS,
   cases: CASES,
 };
+
+/**
+ * The worklist as the desk's brain first sees it — it rides `session.init`, so
+ * the copilot starts the call already holding the board instead of the browser
+ * pushing it back over the wire a moment later.
+ *
+ * Lean on purpose: what a case is, whose it is, where it stands. Everything the
+ * desk itself puts on a case — findings, a blocker, a packet, drafts awaiting
+ * sign-off — starts empty here and the brain fills it in as it works, which is
+ * why those keys are present rather than absent.
+ */
+export function boardSeed(): Record<string, unknown>[] {
+  return CASES.map((c) => ({
+    ref: c.ref,
+    customer: c.customer.name,
+    type: c.type,
+    title: c.title,
+    summary: c.summary,
+    stage: c.stage,
+    priority: c.priority,
+    assignee: c.assignee.label,
+    balance: c.customer.balance,
+    rate: c.customer.rate,
+    monthly_payment: c.customer.monthlyPayment,
+    tenure_years: c.customer.tenureYears,
+    findings: [],
+    blocker: null,
+    packet: null,
+    pending_approvals: [],
+    notes: c.comments.map((cm) => ({ author: cm.author, text: cm.text, dept: cm.deptLabel })),
+  }));
+}

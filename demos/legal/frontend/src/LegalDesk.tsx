@@ -502,11 +502,11 @@ function Desk({
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity('speaking'), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity('idle'), []));
 
-  // Assistant ← screen. The store's silent `clause_focus` rides an RTVI
-  // client-message once the call is live.
+  // Assistant ← screen. The store's silent `clause_focused` rides RTVI's
+  // `ui-event` once the call is live.
   useEffect(() => {
     if (!isLive || !client) return;
-    registerAgentSend((type, data) => client.sendClientMessage(type, data));
+    registerAgentSend((event, payload) => client.sendUIEvent(event, payload));
     return () => registerAgentSend(null);
   }, [isLive, client, registerAgentSend]);
 

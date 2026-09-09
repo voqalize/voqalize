@@ -7,10 +7,14 @@ closes the session with a summary.
 
 Two things worth calling out about how per-session state flows in:
 
-  * **clause_focus** — the browser streams the clause centered in the lawyer's
-    viewport. :meth:`LegalBrain.on_rtvi` folds it in *silently* — no floor taken,
-    no turn — and :meth:`LegalBrain.note` carries it into the next turn, so
-    "what does this mean" is answered about the clause on screen.
+  * **where the lawyer is reading** — whichever clause crosses the middle of
+    their viewport arrives as a typed ``ClauseFocused`` (see ``app_events.py``).
+    :meth:`LegalBrain.on_rtvi` folds it into a mirror Ada owns — no floor taken,
+    no turn — and puts one line in front of the model saying they moved. The
+    clause itself is read back with ``get_reading_position``, so "what does this
+    mean" is answered about what is on screen *now* rather than about whichever
+    of a dozen appended copies the model happened to notice. See
+    ``voqalize_demos.screen`` for why it is shaped that way.
   * **the matter is static** — the contract, the playbook, the data room and the
     prior deals are the same for every session, so they are compiled into the
     system instruction once at import.
@@ -23,7 +27,6 @@ one ``self.session.dispatch(...)`` line.
 
 from __future__ import annotations
 
-import json
 from typing import Any, Literal
 
 from google import genai
@@ -31,10 +34,12 @@ from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos.screen import ScreenState
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
+from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
+from .app_events import LEGAL_EVENTS, ClauseFocused, LegalEvent
 from .content import (
     CLAUSES,
     CLAUSES_BY_ID,
@@ -324,16 +329,16 @@ class LegalBrain(GeminiBrain):
     """One per session. The Docket contract-review copilot: LLM + document tools +
     this session's reading position.
 
-    The browser streams the clause centered in the lawyer's viewport to
-    :meth:`on_rtvi`; a note carries it into the next turn, so an ambiguous
-    question is answered about the clause on screen."""
+    Where the lawyer is reading arrives on :meth:`on_rtvi` as a typed gesture; a
+    note says they moved and ``get_reading_position`` says where to, so an
+    ambiguous question is answered about the clause on screen."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
-        # Latest reading position the browser pushed. Ephemeral in memory — the
-        # browser is the source of truth and re-sends on every scroll.
-        self.current_focus: dict[str, Any] | None = None
-        self._last_focus_clause_id: str | None = None
+        self.screen = ScreenState(read_tool="get_reading_position", actor="lawyer")
+        # Ada's own mirror of the one thing about this screen that moves. Both
+        # sides patch it: the lawyer's scroll, and her own `point_to_clause`.
+        self.current_focus: dict[str, str] | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -356,44 +361,41 @@ class LegalBrain(GeminiBrain):
         return _GREETING
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Browser→brain message. ``clause_focus`` carries the clause centered in the
-        lawyer's viewport. Ingested *silently* — no floor taken, no turn; the next
-        turn carries it as a note."""
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+        """Browser→brain gesture. Folded in *silently* — no floor taken, no turn;
+        the next turn carries the line it produced."""
+        event = LEGAL_EVENTS.parse(msg)
+        if event is None:
             return
-        if msg.data.get("t") == "clause_focus":
-            self._ingest_focus(msg.data.get("d") or {})
+        logger.info("legal: {} — {}", type(event).__voqal_event__, event)
+        note = self.apply_event(event)
+        if note is not None:
+            self._append_note(note)
 
-    # ─── Browser → brain: reading-position sync (silent awareness) ──────
+    # ─── Browser → brain: reading position ──────────────────────────────
 
-    def _ingest_focus(self, data: dict[str, Any]) -> None:
-        clause_id = str(data.get("clause_id") or "").strip()
-        self.current_focus = data if clause_id in CLAUSES_BY_ID else None
-        if self.current_focus is None:
-            return
-        # Only append when the position actually changes clause — the browser
-        # re-sends the same one as the lawyer reads within a section, and the
-        # context is append-only, so an unguarded append would put the same clause
-        # in front of the model a hundred times over a call.
-        if clause_id == self._last_focus_clause_id:
-            return
-        self._last_focus_clause_id = clause_id
-        try:
-            blob = json.dumps(self.current_focus, ensure_ascii=False)
-        except (TypeError, ValueError):
-            blob = str(self.current_focus)
-        self.append_to_context(
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part(
-                        text="LAWYER IS CURRENTLY VIEWING (authoritative — ground ambiguous "
-                        "questions in this clause): " + blob
-                    )
-                ],
-            )
-        )
-        logger.info("legal: clause_focus ingested (clause_id={})", clause_id)
+    def apply_event(self, event: LegalEvent) -> str | None:
+        """Patch the mirror; return the line the model should see, or ``None``.
+
+        The observer that raises these fires on a crossing, but Ada's own
+        ``point_to_clause`` scrolls the page too and trips the same observer. She
+        has already been told about that one — she asked for it — so a gesture
+        naming the clause the mirror already holds is silent. It is why this
+        returns ``str | None`` rather than always a note."""
+        match event:
+            case ClauseFocused():
+                clause = CLAUSES_BY_ID.get(event.clause_id)
+                if clause is None or clause is self.current_focus:
+                    return None
+                self.current_focus = clause
+                return self.screen.moved("scrolled to a different clause")
+
+    def _append_note(self, text: str) -> None:
+        """Put one line in front of the model without taking the floor.
+
+        Appended as the lawyer's own content, which is what it is. It starts no
+        turn — nothing about a scroll means they stopped speaking — so the model
+        reads it on its next one."""
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #
@@ -408,9 +410,10 @@ class LegalBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The eight the copilot may call. Every one drives the lawyer's screen
-        through ``self.session``."""
+        """The nine the copilot may call. Every one but the first drives the
+        lawyer's screen through ``self.session``."""
         return [
+            self.get_reading_position,
             self.point_to_clause,
             self.add_comment,
             self.propose_redline,
@@ -421,10 +424,24 @@ class LegalBrain(GeminiBrain):
             self.summarize_session,
         ]
 
+    async def get_reading_position(self) -> str:
+        """Which clause the lawyer is looking at right now. Call this whenever they
+        say "this clause", "that one", "here" — anything that means the thing on
+        their screen rather than a clause they named."""
+        self.screen.read()
+        if self.current_focus is None:
+            return "The lawyer has not settled on a clause yet — nothing is centred on screen."
+        c = self.current_focus
+        return f"The lawyer is reading clause {c['number']} — {c['heading']} (clause_id {c['id']})."
+
     async def point_to_clause(self, target: PointToClause) -> str:
         """Bring a clause on screen — smooth-scrolls the document to it and briefly
         highlights it. Call this BEFORE or WHILE discussing any clause that isn't
         already the one the lawyer is looking at."""
+        # Her own scroll moves the reading position as surely as theirs does, so
+        # the mirror follows it — and the observer's report of the same clause is
+        # then nothing new.
+        self.current_focus = CLAUSES_BY_ID.get(target.clause_id)
         self.session.dispatch(target)
         return "ok"
 

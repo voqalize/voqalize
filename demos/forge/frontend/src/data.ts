@@ -362,3 +362,58 @@ export const SEED_WORKFLOWS: Workflow[] = [accessRequest, onboarding, offboardin
 
 /** The signed-in admin (greeted by name). */
 export const ADMIN = { name: 'Priya', role: 'Workflow Administrator' };
+
+/**
+ * The catalog as Ada's picture of it — handed over in `session.init`, once,
+ * before the first word. She patches it from there: her own edits as she
+ * dispatches them, and everything else through the events in `app_events.py`.
+ * The key names are hers, because the outline she reads back is prose.
+ */
+export function studioSeed(): Record<string, unknown>[] {
+  return SEED_WORKFLOWS.map((w) => ({
+    id: w.id,
+    name: w.name,
+    category: w.category,
+    status: w.status,
+    version: w.version,
+    trigger: w.trigger,
+    'the request context': w.context.map((c) => ({
+      key: c.key,
+      label: c.label,
+      type: c.type,
+      'one of': c.enumValues ?? [],
+      derived: !!c.derived,
+      expr: c.expr ?? '',
+      note: c.note ?? '',
+    })),
+    'the blocks': w.states.map((s) => ({
+      id: s.id,
+      kind: s.kind,
+      label: s.label,
+      subtitle: s.subtitle ?? '',
+      next: s.next ?? '',
+      'rejects to': s.rejectTo ?? '',
+      otherwise: s.else ?? '',
+      approver: s.approver ?? '',
+      connector: [s.connectorId, s.actionId].filter(Boolean).join(' '),
+      branches: (s.branches ?? []).map((b) => ({ label: b.label, guard: b.guard, to: b.to })),
+      collects: (s.fields ?? []).map((f) => ({
+        key: f.key,
+        label: f.label,
+        type: f.type,
+        'one of': f.enumValues ?? [],
+      })),
+      code: s.code ?? '',
+      'sla hours': s.slaHours ?? 0,
+      outcome: s.outcome ?? '',
+    })),
+    'the tests': w.tests.map((t) => ({
+      name: t.name,
+      given: t.givenState,
+      event: t.event,
+      expect: t.expectState,
+      status: t.status,
+    })),
+    'the open gaps': [],
+  }));
+}

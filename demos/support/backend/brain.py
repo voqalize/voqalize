@@ -10,7 +10,8 @@ renders) and returns the order/return data the model needs.
 
 The browser also reaches the brain outside any turn, over
 :meth:`~voqalize.sdk.Brain.on_rtvi` — a photo the shopper captures, and the tap
-that submits the form. Neither takes the floor there: an upload must never put
+that submits the form, each a typed :class:`~voqalize.sdk.AppEvent` (see
+``app_events.py``). Neither takes the floor there: an upload must never put
 the assistant's voice over someone still working the screen, so both fold into
 the context via :meth:`~voqalize.sdk.GeminiBrain.append_to_context` and mark
 that a word is owed. :meth:`~SupportBrain.on_user_idle` pays it — the shopper
@@ -35,9 +36,10 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
+from .app_events import SUPPORT_EVENTS, PhotoUploaded, ReturnSubmitted, SupportEvent
 from .catalog import ORDERS, get_item, get_order, order_detail, orders_for_prompt
 
 STORE_NAME = "Voqal Mobile"
@@ -364,28 +366,30 @@ class SupportBrain(GeminiBrain):
         return self.respond(session)
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """Browser→brain message. Both the photo the shopper captures and the
+        """Browser→brain gesture. Both the photo the shopper captures and the
         submit tap fold into the context without taking the floor — an upload is
         not an interruption — and mark that the assistant owes a word about it,
         which :meth:`on_user_idle` delivers once the shopper is quiet."""
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
+        event = SUPPORT_EVENTS.parse(msg)
+        if event is None:
             return
-        kind = msg.data.get("t")
-        payload = msg.data.get("d") or {}
-        if kind == "photo_upload":
-            self._ingest_photo(payload)
-        elif kind == "return_submitted":
-            self._ingest_submission(payload)
+        self.apply_event(event)
 
     # ─── Browser → brain: photo + submission, folded into the context ───
 
-    def _ingest_photo(self, data: dict[str, Any]) -> None:
+    def apply_event(self, event: SupportEvent) -> None:
+        match event:
+            case PhotoUploaded():
+                self._ingest_photo(event)
+            case ReturnSubmitted():
+                self._ingest_submission(event)
+
+    def _ingest_photo(self, event: PhotoUploaded) -> None:
         """Decode the browser-captured photo and fold it into the context as a
         final user turn: the image plus a verification instruction, ahead of the
         turn ``on_user_idle`` opens once the shopper stops fiddling with the
         camera."""
-        data_url = str(data.get("image") or "")
-        header, _, b64 = data_url.partition(",")
+        header, _, b64 = event.image.partition(",")
         if not b64:
             logger.warning("support: photo_upload had no image data")
             return
@@ -398,7 +402,7 @@ class SupportBrain(GeminiBrain):
             logger.error("support: photo_upload decode failed: {}", exc)
             return
 
-        item_id = str(data.get("item_id") or self._active_item_id or "")
+        item_id = event.item_id or self._active_item_id or ""
         item = get_item(item_id)
         item_name = item["name"] if item else "the item being returned"
         logger.info(
@@ -423,10 +427,10 @@ class SupportBrain(GeminiBrain):
         )
         self._owed_a_reply = True
 
-    def _ingest_submission(self, data: dict[str, Any]) -> None:
+    def _ingest_submission(self, event: ReturnSubmitted) -> None:
         """Fold the confirmation number into the context so the next turn — the one
         ``on_user_idle`` opens once the shopper is quiet — can close warmly."""
-        rma = str(data.get("rma") or "")
+        rma = event.rma
         logger.info("support: return_submitted rma={}", rma)
         note = (
             f"The shopper just submitted the return (confirmation {rma}). Next time "

@@ -11,8 +11,8 @@ Ask, of every change in the environment: **when does the model need to know?**
 | Answer | Tier | Mechanism | Cost |
 |---|---|---|---|
 | **Right now** — it must produce a turn | Send it as a **user message** | `sendUserMessage` → `UserMessage` frame → `on_user_message` | a whole turn, and the floor |
-| **By the next turn** | Fold into the next model call, **at the tail** | `grounding()` | tokens only — cache-safe |
-| **When the model asks** | In-memory structure behind a tool | tool reading `browser_state` | one model round trip |
+| **By the next turn** | Append one line at the **tail** naming what changed | `ScreenState.moved` / `happened` | tokens only — cache-safe |
+| **When the model asks** | The mirror those events keep true, behind a tool | tool reading the brain's own state | one model round trip |
 | **When the model asks, and it can wait** | Don't store it — fetch on demand | tool doing I/O | a round trip **plus** the fetch |
 
 **Nothing in this table ever writes to the system prompt.** That is tier zero, and
@@ -21,7 +21,8 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
 - The tiers are cheap to get right and expensive to get wrong in a way that never
   shows up as an error. Tier-4 data placed in tier 2 makes every prompt bigger and
   every turn slower. Tier-2 data placed in tier 3 makes the model answer "what's on
-  screen?" from a stale turn.
+  screen?" from a stale turn — which is why tier 2 carries the *notice* and tier 3
+  serves the *content*, and neither does the other's job.
 - **Tier 1 is the dangerous one, and the wire makes you say so.** There is no way
   to trigger a turn by accident: to get one you must send a *user message*, which
   is the application declaring "this is a stimulus, the same kind a spoken
@@ -35,18 +36,19 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
 
 ## Facts
 
-- **Tier 2, and why it beats tier 3 for anything on screen.** From
-  `GoogleADKBrain.grounding()`: *"Why not a tool the model can call for the same
-  data: a tool is only as fresh as the model's decision to call it, so the model
-  can answer 'what's on screen?' from a stale turn. Grounding costs no round-trip
-  and cannot be forgotten."*
-- **Placement is the whole design, and there is a right answer.** `GeminiBrain`
-  inserts the note as a user turn **just before the latest user turn** — so the
-  entire prefix stays byte-identical and stays cached. `GoogleADKBrain` appends it
-  to the **system instruction**, which rewrites the prefix on every single call
-  and throws the cache away. Same name, opposite cost. The Gemini placement is the
-  standard; the ADK one is a defect ([2](02-the-turn-budget.md), and see the
-  practices list).
+- **Tiers 2 and 3 are one mechanism, split by cost.** Tier 2 is a sentence the
+  model cannot fail to see and cannot mistake for data — "The customer changed a
+  quantity. Call `read_screen()` before you act on anything on screen." Tier 3 is
+  that tool. The notice is unforgettable and nearly free; the content is exact and
+  costs a round trip, and is fetched only when it matters.
+- **The notice names, it never values.** `ScreenState.moved` takes a verb phrase
+  completing "The <actor> …" — "picked a flight for the outbound leg", never the
+  flight. A note carrying values is the old snapshot dump arriving one fact at a
+  time, and it goes stale in the context the same way.
+- **Placement is the whole design.** The note goes in as a user turn **just before
+  the latest user turn**, so the entire prefix stays byte-identical and stays
+  cached. Anything written into the system instruction rewrites the prefix on
+  every call and throws the cache away ([2](02-the-turn-budget.md)).
 - **Tier 1 is first-class on the wire.** `UserMessage { string text }` is a V→B
   frame in `proto/voqalize/frames/frames.proto`, described there as a "**Committed
   user stimulus. Text-only today; richer content gets new fields.**" It lands on
@@ -56,11 +58,14 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
   drives a turn) versus a browser message (tier 2/3, mute). That is what makes the
   split routable without the runtime interpreting payloads — it never has to guess
   whether a payload is worth speaking about, because the sender already said.
-- **`None` appends nothing** — no header, no empty block. A conditional tier-2 fact
-  is genuinely absent when it does not apply.
-- **Tier 3's structure is kept current by `state_sync`.** Incoming app messages
-  update an in-memory object; the tool reads that object synchronously. The tool is
-  a *read of local memory*, which is why it belongs in tier 3 and not tier 4.
+- **`None` appends nothing** — no header, no empty block. An event that changes
+  nothing the model would act on folds into the mirror in silence.
+- **Tier 3's structure is kept current by typed `AppEvent`s.** Each gesture patches
+  the mirror; the tool reads that object synchronously. The tool is a *read of
+  local memory*, which is why it belongs in tier 3 and not tier 4.
+- **`ScreenState.version` makes the read enforceable.** A tool aimed at a screen
+  the model has not re-read since it moved refuses, with a retriable reason.
+  Prompt discipline is a request; this is a rule.
 - **`on_rtvi` is not a generator** — a state push cannot become a turn by
   accident, and an app message mints no turn. Tier 1 is therefore an explicit act, never a side effect.
 - Conversation history is the third home for a fact, and what goes in it must be
@@ -68,22 +73,22 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
 
 ## Proof
 
-- **Tier 2, done conditionally:** `forge` — "before any snapshot arrives there is
-  deliberately no workspace grounding." `orderdesk` — "`None` (nothing appended)
-  until there is anything at all."
-- **Tier 2 carrying derived guidance, not just data:** `orderdesk`'s grounding is
-  the cart snapshot **plus** a PENDING line "naming the rows still short of a SKU
-  and the axes to ask about, so the model never re-asks a question the screen
-  already answered." The tier-2 payload does work the prompt would otherwise have
-  to teach.
-- **Tier 3, three times:** `aura`'s `get_screen_context`, `servicing`'s
-  `get_advisor_context`, `orderdesk`'s `catalog_search` — each a tool over an
-  in-memory structure fed by `state_sync`.
+- **Tier 2, done conditionally:** an event that moves nothing appends nothing —
+  `aura` folds a video's chapter tick into the mirror silently, because the clip
+  reaching chapter three is not something the model needs woken for.
+- **Tier 2 carrying derived guidance, not data:** `orderdesk`'s PENDING line names
+  the rows still short of a SKU and the axes to ask about, so the model never
+  re-asks a question the screen already answered. It is not the screen — it is the
+  list of open questions, which is conversation state and therefore the brain's.
+- **Tier 3, four times:** `aura`'s `get_screen_context`, `servicing`'s
+  `get_advisor_context`, `legal`'s `get_reading_position`, `orderdesk`'s
+  `catalog_search` — each a tool over the brain's own mirror.
 - **Tier 4 handled as a workstream, not a wait:** `servicing`'s `prepare_case`
   returns `preparing_in_background` immediately ([6](06-tool-design.md)).
-- **`state_sync` explicitly takes no floor:** `sugar` — "silently, no turn is
-  triggered by a `state_sync`"; the servicing e2e asserts it: "`state_sync` takes
-  no floor, and then backs both the turn's grounding and…".
+- **An app event explicitly takes no floor**, and three e2e suites assert it:
+  `legal`'s `clause_focused` drives no screen command and mints no turn, `support`'s
+  `photo_uploaded` the same, and the answer arrives on the next turn the person
+  opens.
 - **Tier 1, as a worked case:** the returns flow in `shopping` is the documented
   motivating example (dated — it predates this wire, and the demo as it stands is
   a catalog, not a returns desk). Worth re-reading before the page cites it.
@@ -100,27 +105,23 @@ Tier choice is the concrete form of the 80/10/10 split in
 
 ## Gap
 
-- **`GoogleADKBrain.grounding()` writes to the system instruction and must stop.**
-  This is not a documentation gap, it is a latency bug in shipping SDK code: it
-  invalidates the prompt cache on every turn of every session. Fix is to append a
-  `Content` at the tail in the `before_model_callback` instead. Until then the
-  docstring's own argument for grounding ("costs no round-trip") is only half
-  true — it costs no round-trip and a full cache miss.
-- **Tier 1's browser half is not plumbed.** The wire frame exists, `on_user_message`
-  receives it, and the name is chosen — but the browser has only pipecat's own
-  `sendClientMessage(type, data)`, which is the app-message leg. Nothing sends a
-  `UserMessage`. There is no wrapper of ours left to add one either: `sdk/react`
-  was deleted on 2026-08-24, so plumbing this tier means either a pipecat-side
-  call or a documented `sendClientMessage` convention the brain unpacks. So the
-  tier is wire-supported and unfinished on the browser side — say that plainly
-  rather than describing it as if a customer could use it today.
+- **Tier 1's browser half is text-shaped only.** `client.sendText(...)` commits a
+  typed sentence as a user turn and reaches `on_user_message`, so the tier is
+  usable today — for text. The motivating cases are not text, which is the next
+  gap.
+- **Tier 2's helper is not in the SDK.** `AppEvent` / `AppEvents` ship in
+  `sdk/python`; `ScreenState` lives in `demos/voqalize_demos/screen.py` because the
+  read tool's name and the actor's word are things only a brain can supply. Whether
+  that stays a demo helper is open — the discipline it encodes is not.
 - **The `UserMessage` frame is text-only.** The motivating cases (an uploaded
   photo, a picked item) are not text, and the proto says so: "richer content gets
   new fields." The tier-1 story is honest only if the page says the frame will
   grow.
 - **Open:** is there a fifth tier — a fact the model should never see, only the
-  screen? (Prices the agent must not read out are exactly this, and today they
-  *are* in the grounding.)
-- **Open:** grounding cost. Folding a full cart snapshot into every call is tokens
-  on every turn. We have no guidance on when a snapshot gets big enough that tier
-  3 wins, and no measurement to draw the line.
+  screen? (Prices the agent must not read out are exactly this. Since the screen
+  left the context they are no longer in front of the model on every turn, but the
+  read tool still serves them, so the question stands.)
+- **Settled by measurement:** tier-2 cost. A 123-second production call put
+  twenty-one full carts in front of one model — about 4,700 tokens, each labelled
+  authoritative, none dated. A named change is one line. There is no snapshot size
+  at which the snapshot wins.

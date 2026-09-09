@@ -411,7 +411,7 @@ function FieldRow({ label, value, muted }: { label: string; value: string; muted
 }
 
 function PhotoSection({ item }: { item: Item }) {
-  const { ret, setPhoto, agentSend } = useOrders();
+  const { ret, setPhoto, emit } = useOrders();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -426,7 +426,7 @@ function PhotoSection({ item }: { item: Item }) {
     try {
       const dataUrl = await downscaleToDataUrl(file);
       setPhoto(dataUrl);
-      agentSend?.('photo_upload', { item_id: ret.itemId, image: dataUrl });
+      emit({ event: 'photo_uploaded', payload: { item_id: ret.itemId, image: dataUrl } });
     } catch {
       /* ignore — shopper can retry */
     } finally {
@@ -510,7 +510,7 @@ function checkBox(bg: string, color: string): React.CSSProperties {
 }
 
 function ReturnPage() {
-  const { ret, orderId, agentSend, submitReturn, openOrder } = useOrders();
+  const { ret, orderId, emit, submitReturn, openOrder } = useOrders();
   const item = ret ? getItem(ret.itemId) : undefined;
 
   useEffect(() => {
@@ -523,8 +523,14 @@ function ReturnPage() {
   const canSubmit = !!form && !!photoCheck?.passed && !submitted;
 
   const onSubmit = () => {
-    const id = submitReturn();
-    agentSend?.('return_submitted', { order_id: ret.orderId, item_id: ret.itemId, rma: id });
+    // `submitReturn` returns null when there was nothing to submit; the typed
+    // event has nowhere to put that, which is the right answer — say nothing.
+    const rmaId = submitReturn();
+    if (!rmaId) return;
+    emit({
+      event: 'return_submitted',
+      payload: { order_id: ret.orderId, item_id: ret.itemId, rma: rmaId },
+    });
   };
 
   if (submitted) {
