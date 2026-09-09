@@ -313,6 +313,27 @@ that touches the screen↔voice seam:
 > specifically what the platform should do so that they become cheaper in the client
 > implementation.
 
+Three decisions taken on it the same day, also verbatim:
+
+> **On whether events mutate the brain's model:** not really. The brain receives the
+> typed message, then decides if it wants to inject it into the LLM context, or update
+> its model, or ignore it, or whatever else it wants to do with it. Not our decision to
+> make.
+>
+> **On the wire:** I want the wire to be backward compatible, but it is okay to
+> deprecate and recommend something better.
+>
+> **On scope:** OrderDesk should be the first to implement, without changing the wire
+> today. Let's learn what works and what doesn't. Then we extract what works into the
+> platform in a better way. Which means the first cut is purely an OrderDesk change. In
+> other words — we start from the demo, prove out the concept, generalize to typed
+> objects in the reverse direction, decide if we need a wire change. Start small and
+> then work upwards.
+
+So the order of work is fixed: **demo first, SDK second, wire last and only if the first
+two earn it.** An `Action`-symmetric type in `sdk/python` is not to be written until
+OrderDesk has shown which events a real screen actually needs.
+
 **A demo defect is a platform question until proven otherwise.** The demos are ours;
 a workaround written inside one is a bill the next developer pays in full, and the
 same workaround appearing in two demos is a feature the SDK owes them.
