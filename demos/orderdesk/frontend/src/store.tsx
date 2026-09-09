@@ -2,21 +2,24 @@
  * Shared state for the OrderDesk demo — the pharmacist's phone and the voice call
  * drive one store, so the agent and the pharmacist edit the same cart.
  *
- * Two bridges, the travel/sugar pattern:
+ * Two bridges, both fine-grained and typed (CLAUDE.md), and neither carrying a cart:
  *   - the brain's `ui_command`s land on {@link OrderDeskStore.handleUiCommand},
  *     which narrows on `command` against `actions.gen.ts` — generated from
- *     brain.py's six `Action` classes, so a payload needs no coercion and the
- *     `default` arm is an exhaustiveness check — and line items appear as free
- *     text, resolve, and settle on a SKU;
+ *     brain.py's `Action` classes, so a payload needs no coercion and the `default`
+ *     arm is an exhaustiveness check. Each one names one row and carries only what
+ *     moved on it: `row_opened`, then `row_matched` / `row_variants` /
+ *     `row_families` / `row_not_found`, with `row_question` and `row_quantity`
+ *     between. That is why this store has no merge and no pin — a `row_question`
+ *     that arrives after the pharmacist already settled the row puts a question
+ *     back and nothing else, because it carries no SKU to un-settle it with;
  *   - every gesture the pharmacist makes goes out *named*, as a typed
  *     {@link DeskEvent} — `quantity_set`, `sku_chosen`, `row_removed` — the instant
- *     he makes it, so the agent is told what he did rather than left to spot it in
- *     a cart. `snapshot()` still goes out as `state_sync` (`{ screen: OrderSnapshot }`)
- *     on every `rev` bump, debounced, as the repair channel behind them.
+ *     he makes it. There is no snapshot behind them: an act this screen does not
+ *     send is an act the brain never learns about, so the event set has to be
+ *     complete, and a gap shows up as a gap rather than being quietly reconciled.
  *
- * The cart is keyed by line-item id: the brain numbers its own rows (`li1`…) and
- * re-sends each row's full render state, which this store diffs in by id; rows the
- * pharmacist adds from the search bar are numbered `m1`… on this side.
+ * The cart is keyed by line-item id: the brain numbers its own rows (`li1`…); rows
+ * the pharmacist adds from the search bar are numbered `m1`… on this side.
  *
  * Navigation (picker → push notification → live call → ended) is React state, so
  * the call survives every screen change.
@@ -33,36 +36,28 @@ import {
 } from "react";
 import { buildBrainPayload, pharmacyById, scenarioById } from "./data";
 import { CLIENT_MESSAGE, sendDeskEvent, type AgentSend, type DeskEvent } from "./clientMessages";
-import { asUiAction, unhandledUiAction } from "./actions.gen";
+import {
+  asUiAction,
+  unhandledUiAction,
+  type RowFamilies,
+  type RowMatched,
+  type RowOpened,
+  type RowQuantity,
+  type RowQuestion,
+  type RowVariants,
+} from "./actions.gen";
 import type {
   DisambigChoice,
+  DisambigQuestion,
   FamilyWire,
-  LineItemView,
-  OrderSnapshot,
+  LineItem,
   Pharmacy,
   Phase,
   Scenario,
   SkuWire,
 } from "./types";
 
-/**
- * A line item as this screen holds it: the brain's render state plus the two
- * things only the browser knows — whether a tap on this screen locked the row
- * (so a late, stale agent upsert cannot un-lock it), and a nonce that re-triggers
- * the row's entry animation when it changes.
- */
-export interface LineItem extends LineItemView {
-  pinned: boolean;
-  nonce: number;
-  /**
-   * The `question.text` the pharmacist has already answered by tapping a pill.
-   * A late agent `upsert_items` still carrying that same question over the *wider*
-   * candidate set is a stale echo of the tap and is dropped, so a narrowing never
-   * flickers back open. The agent's NEXT question (new text, or the same text over
-   * a subset) lands normally.
-   */
-  answered: string | null;
-}
+export type { LineItem };
 
 /** The row the agent is asking about right now (`highlight_item`). */
 export interface HighlightState {
@@ -114,15 +109,15 @@ interface OrderDeskStore {
   /** Order value at PTR — the number a pharmacist actually cares about. */
   totalPtr: number;
 
-  // ── Manual edits (each bumps `rev`, so the agent hears about it) ───────────
+  // ── Manual edits (each goes out as its own typed DeskEvent) ───────────────
   /** Tap a variant pill: promote the row to `matched` on the SkuWire it already holds. */
   choosePill: (itemId: string, sku: SkuWire) => void;
   /**
    * Tap a pill on the agent's disambiguation question (DESIGN §7-bis). Local-first:
    * a leaf answers the row outright, a group narrows the candidate set on this
    * screen and — when few enough remain — grows the leaf pills here, without a
-   * round trip. Either way `rev` bumps, so `state_sync` tells the agent what the
-   * pharmacist just pointed at (`candidate_codes`).
+   * round trip. Either way a `question_answered` goes out naming what survived, so
+   * the agent asks about what is left rather than repeating itself.
    */
   chooseChoice: (itemId: string, choice: DisambigChoice) => void;
   /**
@@ -165,11 +160,7 @@ interface OrderDeskStore {
   // ── Bridges ───────────────────────────────────────────────────────────────
   /** Replay one `ui-command` onto the screen; also the DEV console's `window.__orderdesk.ui`. */
   handleUiCommand: (command: string, payload: unknown) => void;
-  snapshot: () => OrderSnapshot;
   registerAgentSend: (fn: AgentSend) => void;
-
-  /** Bumped on every change the agent should hear about. */
-  rev: number;
 }
 
 const Ctx = createContext<OrderDeskStore | null>(null);
@@ -187,33 +178,24 @@ const SEARCH_MIN_CHARS = 2;
 const HIGHLIGHT_MS = 3000;
 
 /** A row is order-ready only when it is locked to a SKU with a real quantity. */
-export function isReady(item: LineItemView): boolean {
+export function isReady(item: LineItem): boolean {
   return item.status === "matched" && item.sku !== null && (item.quantity ?? 0) >= 1;
 }
 
-/** Defensive fill — the brain emits every field, but a row must never render half-formed. */
-function toItem(v: LineItemView): LineItemView {
-  const question = v.question ?? null;
-  return {
-    id: String(v.id),
-    spoken_text: v.spoken_text ?? "",
-    query: v.query ?? "",
-    quantity: typeof v.quantity === "number" ? v.quantity : null,
-    status: v.status ?? "resolving",
-    sku: v.sku ?? null,
-    family: v.family ?? null,
-    variants: v.variants ?? [],
-    families: v.families ?? [],
-    candidates: v.candidates ?? [],
-    // A question with no choices is not a question — never render an empty pill row.
-    question: question && Array.isArray(question.choices) && question.choices.length > 0
-      ? { text: question.text ?? "", choices: question.choices }
-      : null,
-    differing_axes: v.differing_axes ?? [],
-    note: v.note ?? null,
-    source: v.source ?? "agent",
-  };
+/** A question with no choices is not a question — never render an empty pill row. */
+function asQuestion(q: DisambigQuestion | null): DisambigQuestion | null {
+  return q && Array.isArray(q.choices) && q.choices.length > 0 ? q : null;
 }
+
+/** Everything an ambiguity leaves behind, cleared in one place. */
+const SETTLED = {
+  variants: [] as SkuWire[],
+  families: [] as FamilyWire[],
+  candidates: [] as SkuWire[],
+  question: null,
+  differing_axes: [] as string[],
+  note: null,
+} as const;
 
 /** The four axes a pill label may read (DESIGN §7-bis: labels say only what differs). */
 const AXES = ["variant_label", "form", "strength", "pack_size"] as const;
@@ -239,73 +221,19 @@ export function differingAxes(skus: SkuWire[]): string[] {
   });
 }
 
-/** `a` covers every code in `b` — how a stale, wider re-send of a question is spotted. */
-function coversAll(a: SkuWire[], b: SkuWire[]): boolean {
-  if (a.length < b.length) return false;
-  const have = new Set(a.map((s) => s.code));
-  return b.every((s) => have.has(s.code));
-}
-
 /** How many leaf pills a row may grow locally before it needs another question. */
 const LOCAL_PILL_CAP = 4;
 
 /**
- * One row's `upsert_items` merge (the pure half of {@link OrderDeskProvider}'s
- * `upsertItems`; the caller supplies the fresh `nonce`). The brain re-sends whole
- * render state, so this is a merge by id, not a patch — and three things the
- * browser owns survive it: a quantity the pharmacist typed, a choice they tapped
- * (`pinned`, overridable by an explicit agent `matched` or by a re-resolve that no
- * longer offers what they tapped), and a narrowing they tapped, against the agent's
- * stale re-send of the question they just answered.
- */
-export function mergeItem(cur: LineItem, view: LineItemView): LineItem {
-  // The pin exists to survive the agent's *lagging* re-send of the round the tap just
-  // ended — and that re-send still offers the SKU they tapped, because it was one of
-  // the pills. A view that no longer contains it is not that race: it is a correction
-  // they just spoke ("abevia nahi, abiways"), and holding the pin against it leaves the
-  // screen on the medicine they rejected while the agent says it changed.
-  const offersPin =
-    cur.sku === null ||
-    [...view.variants, ...view.candidates].some((s) => s.code === cur.sku?.code);
-  const keepChoice = cur.pinned && view.status !== "matched" && offersPin;
-  // A question the pharmacist already answered by tapping, re-sent over a candidate
-  // set no smaller than the one on screen, is the agent echoing the round that just
-  // ended — keep the narrowing. A new question, or the same one over the remainder,
-  // is the next round and lands.
-  const staleQuestion =
-    cur.answered !== null &&
-    view.question !== null &&
-    view.question.text === cur.answered &&
-    coversAll(view.candidates, cur.candidates);
-  const keepNarrowing = keepChoice || staleQuestion;
-  return {
-    ...view,
-    quantity: view.quantity ?? cur.quantity,
-    status: keepNarrowing ? cur.status : view.status,
-    sku: keepChoice ? cur.sku : view.sku,
-    family: keepChoice ? cur.family : view.family,
-    variants: keepNarrowing && cur.variants.length ? cur.variants : view.variants,
-    families: keepChoice && cur.families.length ? cur.families : view.families,
-    candidates: keepNarrowing && cur.candidates.length ? cur.candidates : view.candidates,
-    question: keepNarrowing ? cur.question : view.question,
-    differing_axes: keepNarrowing ? cur.differing_axes : view.differing_axes,
-    note: keepNarrowing && view.note === null ? cur.note : view.note,
-    pinned: cur.pinned,
-    answered: view.question !== null && !staleQuestion ? null : cur.answered,
-    nonce: cur.nonce,
-  };
-}
-
-/**
- * A tap on one of the question's pills, as a pure row transition (the caller
- * supplies the fresh `nonce`). DESIGN §7-bis, local-first:
+ * A tap on one of the question's pills, as a pure row transition. DESIGN §7-bis,
+ * local-first:
  *
- *   leaf pill  → this choice IS a SKU: lock the row on it, pinned, exactly like a
- *                variant pill. No round trip, no waiting on the agent.
+ *   leaf pill  → this choice IS a SKU: lock the row on it, exactly like a variant
+ *                pill. No round trip, no waiting on the agent.
  *   group pill → keep only `narrows_to` of the candidates and drop the question.
  *                ≤4 left → the pills regrow here as leaves, labelled off the axes
  *                that still differ; more than that → say how many are left and let
- *                the agent's next `ask_choice` (a plain `upsert_items`) take over.
+ *                the agent's next `row_question` take over.
  */
 export function applyChoice(it: LineItem, choice: DisambigChoice): LineItem {
   const pool = it.candidates.length ? it.candidates : it.variants;
@@ -313,31 +241,16 @@ export function applyChoice(it: LineItem, choice: DisambigChoice): LineItem {
   const remaining = choice.sku_code
     ? pool.filter((s) => s.code === choice.sku_code)
     : pool.filter((s) => keep.has(s.code));
-  // What the pharmacist just answered — a late re-send of it is no longer news.
-  const answered = it.question?.text ?? it.answered;
 
   // Leaf — or a group that happens to leave exactly one SKU standing.
   if (remaining.length === 1) {
     const sku = remaining[0];
-    return {
-      ...it,
-      status: "matched",
-      sku,
-      family: sku.family || it.family,
-      variants: [],
-      families: [],
-      candidates: [],
-      question: null,
-      differing_axes: [],
-      note: null,
-      pinned: true,
-      answered,
-    };
+    return { ...it, ...SETTLED, status: "matched", sku, family: sku.family || it.family };
   }
 
   // The choice named codes this screen doesn't hold — don't silently empty the
   // row; drop the question and let the agent (or the search bar) re-ask.
-  if (remaining.length === 0) return { ...it, question: null, answered };
+  if (remaining.length === 0) return { ...it, question: null };
 
   // Few enough left to answer by pointing: grow the leaf pills right here.
   if (remaining.length <= LOCAL_PILL_CAP) {
@@ -350,7 +263,6 @@ export function applyChoice(it: LineItem, choice: DisambigChoice): LineItem {
       question: null,
       differing_axes: differingAxes(remaining),
       note: null,
-      answered,
     };
   }
 
@@ -364,7 +276,6 @@ export function applyChoice(it: LineItem, choice: DisambigChoice): LineItem {
     question: null,
     differing_axes: differingAxes(remaining),
     note: null,
-    answered,
   };
 }
 
@@ -381,17 +292,16 @@ export function applyChoice(it: LineItem, choice: DisambigChoice): LineItem {
  * have. Whole → the card narrows in place. Anything less → the card opens the
  * scoped search panel, and (crucially) says so on its face.
  */
-export function familyHeldWhole(it: LineItemView, f: FamilyWire): boolean {
+export function familyHeldWhole(it: LineItem, f: FamilyWire): boolean {
   if (f.sku_count <= 0) return false;
   return it.candidates.filter((c) => c.family === f.family).length === f.sku_count;
 }
 
 /**
- * A tap on a family card, as a pure row transition (the caller supplies the fresh
- * `nonce`) — the local-narrow twin of {@link applyChoice}, and the same three
- * outcomes:
+ * A tap on a family card, as a pure row transition — the local-narrow twin of
+ * {@link applyChoice}, and the same three outcomes:
  *
- *   1 survivor → this family has one SKU: lock the row on it, pinned, like a leaf.
+ *   1 survivor → this family has one SKU: lock the row on it, like a leaf.
  *   ≤4         → the leaf pills grow right here, labelled off the axes that still
  *                differ *within the brand* (usually far fewer than across brands).
  *   more       → "Narrowed — N left", and the agent's next question takes over.
@@ -403,26 +313,10 @@ export function familyHeldWhole(it: LineItemView, f: FamilyWire): boolean {
 export function applyFamily(it: LineItem, family: string): LineItem {
   const remaining = it.candidates.filter((c) => c.family === family);
   if (remaining.length === 0) return it;
-  // A family card is not a question, but a row can carry both; the tap answers
-  // whatever was on screen, so a late re-send of it is no longer news.
-  const answered = it.question?.text ?? it.answered;
 
   if (remaining.length === 1) {
     const sku = remaining[0];
-    return {
-      ...it,
-      status: "matched",
-      sku,
-      family: sku.family || family,
-      variants: [],
-      families: [],
-      candidates: [],
-      question: null,
-      differing_axes: [],
-      note: null,
-      pinned: true,
-      answered,
-    };
+    return { ...it, ...SETTLED, status: "matched", sku, family: sku.family || family };
   }
 
   // Inside one brand now, either way: the cards are spent, and the row's title
@@ -436,7 +330,6 @@ export function applyFamily(it: LineItem, family: string): LineItem {
     question: null,
     differing_axes: differingAxes(remaining),
     note: null,
-    answered,
   };
 
   return remaining.length <= LOCAL_PILL_CAP
@@ -445,12 +338,13 @@ export function applyFamily(it: LineItem, family: string): LineItem {
 }
 
 /**
- * The codes still in play on a row, for `state_sync`. Settled rows (matched, or
- * nothing in the catalog to point at) report `[]`; an ambiguous row reports its
- * live candidate set — the full one the agent sent, or the leaf pills on screen
- * when the set was small enough to skip the question.
+ * The codes still in play on a row — what a narrowing tap reports as having
+ * survived it. Settled rows (matched, or nothing in the catalog to point at)
+ * report `[]`; an ambiguous row reports its live candidate set, the full one the
+ * agent sent or the leaf pills on screen when the set was small enough to skip
+ * the question.
  */
-function ambiguousCodes(it: LineItemView): string[] {
+function ambiguousCodes(it: LineItem): string[] {
   if (it.status === "matched" || it.status === "not_found") return [];
   const pool = it.candidates.length ? it.candidates : it.variants;
   return pool.map((s) => s.code);
@@ -502,8 +396,6 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
   const [searchTarget, setSearchTarget] = useState<string | null>(null);
   const [variantStrip, setVariantStrip] = useState<VariantStrip | null>(null);
 
-  const [rev, setRev] = useState(0);
-
   const agentSendRef = useRef<AgentSend>(null);
   const nonceRef = useRef(0);
   const manualSeqRef = useRef(0);
@@ -512,12 +404,12 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
   const highlightTimer = useRef<number | null>(null);
 
   const pharmacy = scenario ? pharmacyById(scenario.pharmacy_id) : null;
-  const bump = useCallback(() => setRev((r) => r + 1), []);
 
   /**
-   * Tell the brain what he just did, the instant he does it. Silent by design —
-   * before the call is live there is nobody to tell, and the `state_sync` that
-   * fires on connect carries the whole cart anyway.
+   * Tell the brain what he just did, the instant he does it. This is the only
+   * channel — nothing else carries his edits — so it is silent only when there is
+   * genuinely nobody to tell: before the call is live the brain has not been born
+   * yet, and it starts from an empty order when it is.
    */
   const emit = useCallback((event: DeskEvent) => sendDeskEvent(agentSendRef.current, event), []);
 
@@ -557,56 +449,125 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
   // ── Agent → screen ──────────────────────────────────────────────────────
 
   /**
-   * `upsert_items` — the brain re-sends a row's whole render state, so this is a
-   * merge by id, not a patch. Two things the browser owns survive the merge: a
-   * quantity the pharmacist typed (an agent re-render that carries none must not
-   * wipe it) and a choice the pharmacist tapped (`pinned`), which only an explicit
-   * agent `matched` may override.
+   * Move one row, by id. Every `row_*` command routes through here, which is why
+   * none of them can touch a row they do not name and none of them can undo a part
+   * of the row they say nothing about. A command for a row this screen does not
+   * hold is dropped — `row_opened` is the only one that may create one.
    */
-  const upsertItems = useCallback(
-    (incoming: LineItemView[]) => {
-      if (!Array.isArray(incoming) || incoming.length === 0) return;
-      setItems((prev) => {
-        const next = [...prev];
-        for (const raw of incoming) {
-          const view = toItem(raw);
-          const i = next.findIndex((it) => it.id === view.id);
-          if (i < 0) {
-            next.push({ ...view, pinned: false, answered: null, nonce: ++nonceRef.current });
-            continue;
-          }
-          next[i] = { ...mergeItem(next[i], view), nonce: ++nonceRef.current };
-        }
-        return next;
-      });
-      bump();
-    },
-    [bump],
+  const patchRow = useCallback((id: string, patch: (it: LineItem) => LineItem) => {
+    setItems((prev) => prev.map((it) => (it.id === id ? patch(it) : it)));
+  }, []);
+
+  /** `row_opened` — a row he just named, greyed, before the catalog work lands. */
+  const rowOpened = useCallback((row: RowOpened) => {
+    setItems((prev) =>
+      prev.some((it) => it.id === row.id)
+        ? prev
+        : [
+            ...prev,
+            {
+              ...SETTLED,
+              id: row.id,
+              spoken_text: row.spoken_text,
+              query: row.query,
+              quantity: row.quantity,
+              status: "resolving",
+              sku: null,
+              family: null,
+              source: "agent",
+            },
+          ],
+    );
+  }, []);
+
+  /** `row_resolving` — a re-resolve started; the row goes back to grey and empty. */
+  const rowResolving = useCallback(
+    (id: string) => patchRow(id, (it) => ({ ...it, ...SETTLED, status: "resolving", sku: null })),
+    [patchRow],
   );
 
-  const removeIds = useCallback(
-    (ids: string[]) => {
-      const drop = new Set(ids ?? []);
-      setItems((prev) => prev.filter((it) => !drop.has(it.id)));
-      // A strip belongs to its row; the row going away takes it along.
-      setVariantStrip((cur) => (cur && drop.has(cur.itemId) ? null : cur));
-      bump();
-    },
-    [bump],
+  const rowMatched = useCallback(
+    (row: RowMatched) =>
+      patchRow(row.id, (it) => ({
+        ...it,
+        ...SETTLED,
+        status: "matched",
+        sku: row.sku,
+        family: row.sku.family || row.family || it.family,
+      })),
+    [patchRow],
   );
+
+  const rowFamilies = useCallback(
+    (row: RowFamilies) =>
+      patchRow(row.id, (it) => ({
+        ...it,
+        ...SETTLED,
+        status: "multi_family",
+        sku: null,
+        families: row.families,
+        candidates: row.candidates,
+        differing_axes: row.differing_axes,
+      })),
+    [patchRow],
+  );
+
+  const rowVariants = useCallback(
+    (row: RowVariants) =>
+      patchRow(row.id, (it) => ({
+        ...it,
+        ...SETTLED,
+        status: "multi_variant",
+        sku: null,
+        family: row.family,
+        variants: row.variants,
+        candidates: row.candidates,
+        differing_axes: row.differing_axes,
+      })),
+    [patchRow],
+  );
+
+  const rowNotFound = useCallback(
+    (id: string) => patchRow(id, (it) => ({ ...it, ...SETTLED, status: "not_found", sku: null })),
+    [patchRow],
+  );
+
+  /**
+   * `row_question` — the agent's one splitting question, and *only* that. This is
+   * where the old whole-row push hurt most: a question re-sent after the pharmacist
+   * had already tapped past it used to reset the row's SKU and status with it, so a
+   * settled row flickered back open and the browser grew a pin to stop it. A late
+   * one now puts a question on a matched row at worst, which the row itself declines
+   * to render (`pages.tsx`: a matched row has nothing left to ask about).
+   */
+  const rowQuestion = useCallback(
+    (row: RowQuestion) =>
+      patchRow(row.id, (it) => ({ ...it, question: asQuestion(row.question), note: null })),
+    [patchRow],
+  );
+
+  /** `row_quantity` — how many, and nothing else. The one row action that keeps the note. */
+  const rowQuantity = useCallback(
+    (row: RowQuantity) => patchRow(row.id, (it) => ({ ...it, quantity: row.quantity })),
+    [patchRow],
+  );
+
+  const removeIds = useCallback((ids: string[]) => {
+    const drop = new Set(ids ?? []);
+    setItems((prev) => prev.filter((it) => !drop.has(it.id)));
+    // A strip belongs to its row; the row going away takes it along.
+    setVariantStrip((cur) => (cur && drop.has(cur.itemId) ? null : cur));
+  }, []);
 
   const highlightItem = useCallback(
     (id: string, itemNote: string | null) => {
       setHighlight({ id, note: itemNote ?? null, nonce: ++nonceRef.current });
       // The note also sticks to the row, so it survives the pulse.
-      if (itemNote) {
-        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, note: itemNote } : it)));
-      }
+      if (itemNote) patchRow(id, (it) => ({ ...it, note: itemNote }));
       if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
       highlightTimer.current = window.setTimeout(() => setHighlight(null), HIGHLIGHT_MS);
-      bump();
     },
-    [bump],
+    [patchRow],
   );
 
   const showSearchResults = useCallback((query: string, results: SkuWire[]) => {
@@ -641,26 +602,41 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const showNote = useCallback(
-    (text: string) => {
-      setNote(text || null);
-      bump();
-    },
-    [bump],
-  );
+  const showNote = useCallback((text: string) => setNote(text || null), []);
 
   const dismissNote = useCallback(() => setNote(null), []);
 
-  // The brain's six commands. Each payload is the shape its Python `Action`
-  // emits, so there is nothing left to coerce or null-check, and adding a
-  // seventh `Action` fails to compile here until it is handled.
+  // The brain's commands. Each payload is the shape its Python `Action` emits, so
+  // there is nothing left to coerce or null-check, and adding one more `Action`
+  // fails to compile here until it is handled.
   const handleUiCommand = useCallback(
     (command: string, payload: unknown) => {
       const action = asUiAction(command, payload);
       if (!action) return;
       switch (action.command) {
-        case "upsert_items":
-          upsertItems(action.payload.items);
+        case "row_opened":
+          rowOpened(action.payload);
+          break;
+        case "row_resolving":
+          rowResolving(action.payload.id);
+          break;
+        case "row_matched":
+          rowMatched(action.payload);
+          break;
+        case "row_families":
+          rowFamilies(action.payload);
+          break;
+        case "row_variants":
+          rowVariants(action.payload);
+          break;
+        case "row_not_found":
+          rowNotFound(action.payload.id);
+          break;
+        case "row_question":
+          rowQuestion(action.payload);
+          break;
+        case "row_quantity":
+          rowQuantity(action.payload);
           break;
         case "remove_items":
           removeIds(action.payload.ids);
@@ -683,7 +659,21 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
           unhandledUiAction(action);
       }
     },
-    [upsertItems, removeIds, highlightItem, showSearchResults, showVariants, showNote],
+    [
+      rowOpened,
+      rowResolving,
+      rowMatched,
+      rowFamilies,
+      rowVariants,
+      rowNotFound,
+      rowQuestion,
+      rowQuantity,
+      removeIds,
+      highlightItem,
+      showSearchResults,
+      showVariants,
+      showNote,
+    ],
   );
 
   // ── Screen → agent ──────────────────────────────────────────────────────
@@ -694,27 +684,15 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
         t: "sku_chosen",
         d: { item_id: itemId, sku_code: sku.code, sku_name: sku.name, via: "pill" },
       });
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === itemId
-            ? {
-                ...it,
-                status: "matched",
-                sku,
-                family: sku.family || it.family,
-                families: [],
-                candidates: [],
-                question: null,
-                note: null,
-                pinned: true,
-                nonce: ++nonceRef.current,
-              }
-            : it,
-        ),
-      );
-      bump();
+      patchRow(itemId, (it) => ({
+        ...it,
+        ...SETTLED,
+        status: "matched",
+        sku,
+        family: sku.family || it.family,
+      }));
     },
-    [bump, emit],
+    [emit, patchRow],
   );
 
   /**
@@ -738,14 +716,9 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
           })),
         );
       }
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === itemId ? { ...applyChoice(it, choice), nonce: ++nonceRef.current } : it,
-        ),
-      );
-      bump();
+      patchRow(itemId, (it) => applyChoice(it, choice));
     },
-    [bump, emit, items],
+    [emit, items, patchRow],
   );
 
   const runCatalogSearch = useCallback((query: string) => {
@@ -799,10 +772,10 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
   /**
    * A family card the browser holds whole: narrow the row's candidates to that
    * family on this screen ({@link applyFamily}), the way a group choice pill
-   * already narrows. `rev` bumps, so `state_sync` carries the surviving
-   * `candidate_codes` — that is how the agent *sees* the tap and knows what to
-   * ask next. If the row turns out to hold nothing of that family after all,
-   * this degrades to the scoped search rather than emptying the row.
+   * already narrows. A `family_chosen` goes out naming what survived — that is how
+   * the agent sees the tap and knows what to ask next. If the row turns out to hold
+   * nothing of that family after all, this degrades to the scoped search rather
+   * than emptying the row.
    */
   const narrowToFamily = useCallback(
     (itemId: string, family: string) => {
@@ -817,14 +790,9 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
           d: { item_id: itemId, family, surviving_codes },
         })),
       );
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === itemId ? { ...applyFamily(it, family), nonce: ++nonceRef.current } : it,
-        ),
-      );
-      bump();
+      patchRow(itemId, (it) => applyFamily(it, family));
     },
-    [bump, chooseFamily, emit, items],
+    [chooseFamily, emit, items, patchRow],
   );
 
   // ── Inline variant edit ─────────────────────────────────────────────────
@@ -846,9 +814,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
 
   /**
    * Tap a sibling: the row re-locks on the new SKU with the quantity already
-   * ordered intact — the whole point of the strip — and `pinned`, so a late agent
-   * echo of the old SKU cannot undo it. `rev` bumps; `state_sync` then carries the
-   * new `sku_code`, which is what keeps the brain's mirror off a stale family.
+   * ordered intact — the whole point of the strip. A `sku_chosen` (`via: "variant"`)
+   * goes out, which is what keeps the brain's mirror off a stale family.
    */
   const pickVariant = useCallback(
     (itemId: string, sku: SkuWire) => {
@@ -856,31 +823,17 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
         t: "sku_chosen",
         d: { item_id: itemId, sku_code: sku.code, sku_name: sku.name, via: "variant" },
       });
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === itemId
-            ? {
-                ...it,
-                status: "matched",
-                sku,
-                family: sku.family || it.family,
-                variants: [],
-                families: [],
-                candidates: [],
-                question: null,
-                differing_axes: [],
-                note: null,
-                quantity: it.quantity ?? 1,
-                pinned: true,
-                nonce: ++nonceRef.current,
-              }
-            : it,
-        ),
-      );
+      patchRow(itemId, (it) => ({
+        ...it,
+        ...SETTLED,
+        status: "matched",
+        sku,
+        family: sku.family || it.family,
+        quantity: it.quantity ?? 1,
+      }));
       setVariantStrip(null);
-      bump();
     },
-    [bump, emit],
+    [emit, patchRow],
   );
 
   const pickFromSearch = useCallback(
@@ -891,27 +844,14 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
           t: "sku_chosen",
           d: { item_id: target, sku_code: sku.code, sku_name: sku.name, via: "search" },
         });
-        setItems((prev) =>
-          prev.map((it) =>
-            it.id === target
-              ? {
-                  ...it,
-                  status: "matched",
-                  sku,
-                  family: sku.family || it.family,
-                  variants: [],
-                  families: [],
-                  candidates: [],
-                  question: null,
-                  differing_axes: [],
-                  note: null,
-                  quantity: it.quantity ?? 1,
-                  pinned: true,
-                  nonce: ++nonceRef.current,
-                }
-              : it,
-          ),
-        );
+        patchRow(target, (it) => ({
+          ...it,
+          ...SETTLED,
+          status: "matched",
+          sku,
+          family: sku.family || it.family,
+          quantity: it.quantity ?? 1,
+        }));
       } else {
         const id = `m${++manualSeqRef.current}`;
         emit({
@@ -927,6 +867,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
         setItems((prev) => [
           ...prev,
           {
+            ...SETTLED,
             id,
             spoken_text: sku.name,
             query: searchQuery.trim(),
@@ -934,33 +875,22 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
             status: "matched",
             sku,
             family: sku.family,
-            variants: [],
-            families: [],
-            candidates: [],
-            question: null,
-            differing_axes: [],
-            note: null,
             source: "manual",
-            pinned: true,
-            answered: null,
-            nonce: ++nonceRef.current,
           },
         ]);
       }
       closeSearch();
-      bump();
     },
-    [bump, closeSearch, emit, searchQuery, searchTarget],
+    [closeSearch, emit, patchRow, searchQuery, searchTarget],
   );
 
   const setQuantity = useCallback(
     (itemId: string, quantity: number) => {
       const q = Math.max(1, Math.min(999, Math.round(quantity)));
       emit({ t: "quantity_set", d: { item_id: itemId, quantity: q } });
-      setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, quantity: q } : it)));
-      bump();
+      patchRow(itemId, (it) => ({ ...it, quantity: q }));
     },
-    [bump, emit],
+    [emit, patchRow],
   );
 
   const removeItem = useCallback(
@@ -972,9 +902,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       });
       setItems((prev) => prev.filter((it) => it.id !== itemId));
       setVariantStrip((cur) => (cur && cur.itemId === itemId ? null : cur));
-      bump();
     },
-    [bump, emit, items],
+    [emit, items],
   );
 
   const blockedIds = useMemo(() => items.filter((it) => !isReady(it)).map((it) => it.id), [items]);
@@ -997,43 +926,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
         total_mrp: items.reduce((sum, it) => sum + (it.sku ? it.sku.mrp * (it.quantity ?? 0) : 0), 0),
       },
     });
-    bump(); // `state_sync` still carries `screen: "confirmed"` behind this
-  }, [blockedIds.length, bump, confirmed, emit, items]);
-
-  /**
-   * The authoritative cart, exactly as `OrderSnapshot` (types.ts / DESIGN §3).
-   * `total_mrp` is the MRP-denominated order value the field name promises; the
-   * cart bar on screen shows the PTR total instead (`totalPtr`), because that is
-   * the number the pharmacist is actually buying at.
-   *
-   * `candidate_codes` is the sharpest-question feedback channel: while a row is
-   * still ambiguous it carries the codes still standing, so a pill tap the agent
-   * never heard shows up on its next grounding as a *smaller* set — that is how
-   * it knows to ask the next question, or that the row already answered itself.
-   */
-  const snapshot = useCallback((): OrderSnapshot => {
-    const total = items.reduce(
-      (sum, it) => sum + (it.sku ? it.sku.mrp * (it.quantity ?? 0) : 0),
-      0,
-    );
-    return {
-      screen: confirmed ? "confirmed" : "order",
-      items: items.map((it) => ({
-        id: it.id,
-        spoken_text: it.spoken_text,
-        status: it.status,
-        sku_code: it.sku?.code ?? null,
-        sku_name: it.sku?.name ?? null,
-        pack_size: it.sku?.pack_size ?? null,
-        quantity: it.quantity,
-        source: it.source,
-        candidate_codes: ambiguousCodes(it),
-      })),
-      total_mrp: Math.round(total * 100) / 100,
-      item_count: items.length,
-      confirmed,
-    };
-  }, [confirmed, items]);
+  }, [blockedIds.length, confirmed, emit, items]);
 
   const registerAgentSend = useCallback((fn: AgentSend) => {
     agentSendRef.current = fn;
@@ -1079,9 +972,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       closeSearch,
       pickFromSearch,
       handleUiCommand,
-      snapshot,
       registerAgentSend,
-      rev,
     }),
     [
       phase, scenario, pharmacy, brainPayload, startScenario, acceptCall, declineCall, endCall,
@@ -1090,7 +981,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       removeItem, confirmOrder,
       variantStrip, openVariants, closeVariants, pickVariant,
       searchQuery, searchResults, searching, searchOpen, searchTarget, setSearchQuery,
-      closeSearch, pickFromSearch, handleUiCommand, snapshot, registerAgentSend, rev,
+      closeSearch, pickFromSearch, handleUiCommand, registerAgentSend,
     ],
   );
 

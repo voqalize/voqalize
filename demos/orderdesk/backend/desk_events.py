@@ -6,18 +6,18 @@ validated at the call site, and whose TypeScript twin is generated rather than
 written. This is that, mirrored — so ``on_rtvi`` narrows on a *type* instead of
 reading ``msg.data["t"]`` and hoping about ``msg.data["d"]``.
 
-Why it had to exist. ``state_sync`` carries a whole cart, so neither end ever
-*names* a change: the mirror diffs its old picture against the new one and infers
-which act produced the difference. Every inference is a place the two pictures
-can part company, and the best the model can then be told is that *something*
-moved — which is why it must go and read the screen before it may act. ``li3
-quantity set to 5`` needs no diff, no inference, and no round trip to interpret.
+Why it had to exist. The shape this replaced carried a whole cart, debounced, so
+neither end ever *named* a change: the mirror diffed its old picture against the
+new one and inferred which act produced the difference. Every inference is a place
+the two pictures can part company, and the best the model could then be told is
+that *something* moved. ``li3 quantity set to 5`` needs no diff, no inference, and
+no round trip to interpret.
 
-``state_sync`` has not gone anywhere; it is the repair channel now. It still
-arrives debounced with the whole cart, :meth:`OrderDesk.absorb` still folds it in
-— and finds the change already applied, so it reports nothing a second time. An
-event dropped on the wire is therefore repaired within 250 ms instead of lost,
-which is what makes this safe to try without touching the wire contract at all.
+Nothing arrives behind these events. There is no snapshot and no repair channel,
+so **completeness** is the property to hold: a gesture missing from this union is a
+gesture the brain never learns about, which shows up as a gap in a log rather than
+being quietly reconciled a beat later by a cart nobody reads. Adding one is adding
+a class here and a member of the union in ``frontend/src/clientMessages.ts``.
 
 Nothing here decides what the brain *does* with an event. Parsing is this
 module's whole job; injecting into the model's context, moving the mirror, or
@@ -145,8 +145,8 @@ def parse_event(kind: str, payload: dict[str, Any]) -> DeskEvent | None:
     payload does not fit it.
 
     Both misses are logged and neither raises. A browser one deploy ahead of this
-    brain must degrade to the ``state_sync`` it still sends, not take the call
-    down — that is the whole of the backward-compatibility promise."""
+    brain names acts this brain has never heard of; that is a real gap in the mirror,
+    and a gap is worth a loud log — never an exception on a live call."""
     cls = _REGISTRY.get(kind)
     if cls is None:
         return None

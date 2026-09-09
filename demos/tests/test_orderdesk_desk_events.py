@@ -1,23 +1,20 @@
-"""The screen naming what he did, instead of the brain inferring it from a cart.
+"""The screen naming what he did — the browser→brain half of the contract.
 
-``state_sync`` carries a whole ``OrderSnapshot``, so neither end ever names a
-change: :meth:`OrderDesk.absorb` diffs its old picture against the new one and
-infers which act produced the difference. A :mod:`desk_events` message says it
-outright — ``li3 quantity set to 5``, addressed by row id.
+A :mod:`desk_events` message says the act outright: ``li3 quantity set to 5``,
+addressed by row id. Nothing is inferred because nothing is diffed — there is no
+snapshot behind these events, and no repair channel behind that.
 
-The property that lets both live at once, and the one most of this file is about:
-an event and the snapshot behind it must not report the same thumb twice. The
-snapshot still arrives 250 ms later with everything in it; by then the change is
-applied, its diff finds nothing, and the model is told once. That is what makes
-this safe to add without touching the wire — and it is also the repair path, so
-an event dropped on the way is recovered rather than lost.
+So the property this file holds is **completeness**, not idempotence. An act the
+screen does not send is an act the brain never learns about, which makes the
+inventory below the contract itself: one test per gesture, each asserting that the
+mirror moved and that the sentence handed to the model is the one he would use.
 
 Run: ``cd demos && uv run pytest tests/test_orderdesk_desk_events.py``
 """
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 import pytest
 from voqalize_demos.discovery import discover
@@ -53,24 +50,6 @@ def _desk() -> OrderDesk:
     return desk
 
 
-def _snapshot(desk: OrderDesk, **narrowed: list[str]) -> dict[str, dict[str, Any]]:
-    """The browser's own snapshot of what is on screen — the debounced repair
-    channel, exactly as ``state_sync`` sends it after the event has landed."""
-    return {
-        row.id: {
-            "id": row.id,
-            "status": row.status,
-            "spoken_text": row.spoken_text,
-            "sku_code": row.sku.code if row.sku else None,
-            "quantity": row.quantity,
-            "candidate_codes": narrowed.get(
-                row.id, [sku.code for sku in (row.candidates or row.variants)]
-            ),
-        }
-        for row in desk.items.values()
-    }
-
-
 # ─── the vocabulary ────────────────────────────────────────────────────────────
 
 
@@ -86,9 +65,9 @@ def test_the_wire_name_of_an_event_is_its_class_name() -> None:
 
 
 def test_a_message_this_brain_cannot_read_is_not_a_crash() -> None:
-    """A browser one deploy ahead has to degrade to the ``state_sync`` it still
-    sends. An unknown name and a payload that does not fit are both a ``None`` and
-    a log line — never an exception on a live call."""
+    """A browser one deploy ahead names an act this brain has never heard of. That
+    is a gap in the mirror — a real one, since nothing arrives later to close it —
+    but a gap is a log line, never an exception on a live call."""
     assert parse_event("teleport_row", {"item_id": "li1"}) is None
     assert parse_event("quantity_set", {"item_id": "li1"}) is None  # no quantity
     assert parse_event("quantity_set", {"item_id": "li1", "quantity": 5, "colour": "red"}) is None
@@ -98,10 +77,9 @@ def test_a_message_this_brain_cannot_read_is_not_a_crash() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_quantity_he_typed_arrives_named_and_the_snapshot_does_not_repeat_it() -> None:
-    """The event names the row and the number. The snapshot that follows carries
-    the same number, finds the mirror already holding it, and says nothing — so one
-    thumb is one line in the model's context, not two."""
+async def test_a_quantity_he_typed_arrives_named() -> None:
+    """The event names the row and the number, so one thumb is one line in the
+    model's context — no diff to run and nothing to infer it from."""
     desk = _desk()
     await desk.add_items([SpokenItem(text="telma 40", quantity=10)])
     (row,) = desk.items.values()
@@ -110,9 +88,7 @@ async def test_a_quantity_he_typed_arrives_named_and_the_snapshot_does_not_repea
     assert row.quantity == 5
     note = desk.take_changes() or ""
     assert f"{row.id} ({row.spoken_text}) quantity set to 5" in note
-
-    desk.absorb(_snapshot(desk))
-    assert desk.take_changes() is None, "the repair channel repeated the news"
+    assert desk.take_changes() is None, "the same news twice"
 
 
 @pytest.mark.asyncio
@@ -138,9 +114,6 @@ async def test_the_gesture_that_chose_a_sku_is_part_of_what_the_model_is_told() 
     assert row.sku is not None and row.sku.code == second.code
     assert f"switched to {second.name}" in (desk.take_changes() or "")
 
-    desk.absorb(_snapshot(desk))
-    assert desk.take_changes() is None
-
 
 @pytest.mark.asyncio
 async def test_an_answered_question_says_what_was_asked_and_what_survived() -> None:
@@ -163,9 +136,6 @@ async def test_an_answered_question_says_what_was_asked_and_what_survived() -> N
     note = desk.take_changes() or ""
     assert "'RING'" in note and "'Which brand?'" in note
 
-    desk.absorb(_snapshot(desk, **{row.id: ring}))
-    assert desk.take_changes() is None
-
 
 @pytest.mark.asyncio
 async def test_a_brand_he_picked_unasked_is_not_reported_as_an_answer() -> None:
@@ -185,10 +155,10 @@ async def test_a_brand_he_picked_unasked_is_not_reported_as_an_answer() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_narrow_the_row_never_held_changes_nothing_by_event_either() -> None:
-    """The candidate set is still the brain's fact and still only ever narrows.
-    Being *told* a set does not make it authoritative — the ownership rule is one
-    rule, and both paths go through it."""
+async def test_a_narrow_the_row_never_held_changes_nothing() -> None:
+    """The candidate set is the brain's fact and only ever narrows. Being *told* a
+    set does not make it authoritative: a code the row does not hold is a stale or
+    confused browser, and folding it in would delete the answer he is looking at."""
     desk = _desk()
     await desk.add_items([SpokenItem(text="guard cream")])
     (row,) = desk.items.values()
@@ -196,13 +166,15 @@ async def test_a_narrow_the_row_never_held_changes_nothing_by_event_either() -> 
 
     desk.apply_event(FamilyChosen(item_id=row.id, family="RING", surviving_codes=["J9999999"]))
     assert [sku.code for sku in row.candidates] == before
+    assert row.status == "multi_family"
     assert desk.version == 0, "nothing changed, so the model is not sent to re-read"
 
 
 @pytest.mark.asyncio
 async def test_a_row_he_added_from_search_is_a_row_the_tools_can_see() -> None:
     """A hand-added row the mirror never adopted is on screen and invisible to every
-    tool. The event adopts it the instant he taps, rather than a debounce later."""
+    tool. The event adopts it the instant he taps, and it is the only thing that
+    will — nothing arrives behind it to notice the row later."""
     desk = _desk()
     await desk.add_items([SpokenItem(text="telma 40", quantity=10)])
     sku = desk.search_rows("volini")[0]
@@ -215,9 +187,6 @@ async def test_a_row_he_added_from_search_is_a_row_the_tools_can_see() -> None:
     assert added.sku is not None and added.sku.code == sku.code
     assert added.quantity == 2
     assert "added by hand from search" in (desk.take_changes() or "")
-
-    desk.absorb(_snapshot(desk))
-    assert desk.take_changes() is None
 
 
 @pytest.mark.asyncio
@@ -233,9 +202,6 @@ async def test_a_deleted_row_is_named_after_it_is_gone() -> None:
     assert row.id not in desk.items
     assert f"({row.spoken_text}) removed by hand" in (desk.take_changes() or "")
 
-    desk.absorb(_snapshot(desk))
-    assert desk.take_changes() is None
-
 
 @pytest.mark.asyncio
 async def test_confirm_is_the_one_event_that_is_not_about_a_row() -> None:
@@ -248,8 +214,9 @@ async def test_confirm_is_the_one_event_that_is_not_about_a_row() -> None:
 
 @pytest.mark.asyncio
 async def test_an_event_for_a_row_that_is_not_there_is_ignored() -> None:
-    """Events race the snapshot both ways. One aimed at a row the mirror does not
-    hold is dropped, not invented — the snapshot behind it is what adopts rows."""
+    """A row id this mirror does not hold is a browser and a brain that have parted
+    company. Dropped, not invented — there is nothing to invent it *from*, and a row
+    conjured out of an id would be a row no tool could ever resolve."""
     desk = _desk()
     desk.apply_event(QuantitySet(item_id="li99", quantity=3))
     desk.apply_event(SkuChosen(item_id="li99", sku_code="J0000001", via="pill"))

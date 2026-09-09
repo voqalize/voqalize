@@ -8,7 +8,8 @@
  * the catalog is ambiguous, one short question where it isn't enough.
  *
  * The screen and the call share one `OrderDeskProvider`, so agent-driven rows and
- * hand-tapped edits are the same cart: `ui_command` in, `state_sync` out.
+ * hand-tapped edits build the same order: one `ui_command` per thing that changed
+ * in, one named event per thing he did out. Neither direction carries a cart.
  */
 
 import { StrictMode, useState } from "react";

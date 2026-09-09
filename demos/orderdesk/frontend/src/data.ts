@@ -325,7 +325,7 @@ export const SCENARIOS: Scenario[] = [
     ],
     usual_items: [],
     objective:
-      "MOMENTUM CALL — the order is bigger this week, more lines than the first two calls, and Priya sounds noticeably more confident on the phone now. Take Crocin 650, Dolo 650, and Volini Gel 75gm as clean matches. At some point she'll ask for \"Coldact\" — this is NOT in the catalog; resolve it as not_found and point her at the manual search bar rather than guessing a substitute. She may also try the manual search bar herself this time (e.g. typing \"cetaphil lotion\") — when a `catalog_search` message arrives, that's her doing it, not a tool call from you; just acknowledge the add if it lands via state_sync. Close with Shelcal-500 as one more addition, then confirm once the cart is fully green.",
+      "MOMENTUM CALL — the order is bigger this week, more lines than the first two calls, and Priya sounds noticeably more confident on the phone now. Take Crocin 650, Dolo 650, and Volini Gel 75gm as clean matches. At some point she'll ask for \"Coldact\" — this is NOT in the catalog; resolve it as not_found and point her at the manual search bar rather than guessing a substitute. She may also try the manual search bar herself this time (e.g. typing \"cetaphil lotion\") — when a `catalog_search` message arrives, that's her doing it, not a tool call from you; just acknowledge the add when the row lands. Close with Shelcal-500 as one more addition, then confirm once the cart is fully green.",
     nudge: "Aaj ka order thoda bada hai, Priya ji — join whenever ready.",
   },
 ];

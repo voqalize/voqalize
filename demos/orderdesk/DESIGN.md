@@ -122,38 +122,46 @@ phonetic "abevia"/"abeyvee", pack-size disambiguation, hint narrowing.
 
 All strings on the wire are **English only** (screen is always English).
 
-### LineItemView (the render state each action carries; see types.ts)
-```ts
-{ id: string;                       // "li1", "li2" — brain is the numbering authority for agent items
-  spoken_text: string;              // English transliteration of what was heard, e.g. "volini spray"
-  query: string;                    // search string actually used
-  quantity: number | null;
-  status: "resolving" | "multi_family" | "multi_variant" | "matched" | "not_found";
-  sku: SkuWire | null;
-  family: string | null;
-  variants: SkuWire[];              // pill choices when multi_variant
-  families: FamilyWire[];           // option cards when multi_family
-  differing_axes: string[];
-  note: string | null;              // short agent note, e.g. "eye drops or ointment?"
-  source: "agent" | "manual"; }
-```
+**Nothing on this wire is a whole row, in either direction.** Each message names one row and
+carries only what moved on it (CLAUDE.md, *typed and fine-grained, in both directions*). That is
+what makes a late message harmless: a `row_question` puts a question back and *cannot* un-match a
+row, because it has no `sku` field to un-match it with. The whole-row push it replaced had to be
+guarded against on the browser side — `pinned`, `keepChoice`, `offersPin`, all now gone, retired by
+being made unnecessary rather than by settling their semantics.
+
+The two pictures of a row — `LineItemView` in `brain.py`, `LineItem` in `frontend/src/types.ts` —
+are each end's own model, built from the same messages. Neither is sent, so neither is generated
+from the other, and there is no merge to get wrong.
 
 ### Typed Actions (Python `Action` subclasses in brain.py → `frontend/src/actions.gen.ts`, generated)
 | wire name | fields | when |
 |---|---|---|
-| `upsert_items` | `items: LineItemView[]` | add or update line items (full render state, frontend diffs by id) |
+| `row_opened` | `id; spoken_text; query; quantity` | a row he just named — greyed, before the catalog is asked |
+| `row_resolving` | `id` | the row went back to grey; a re-resolve started on it |
+| `row_matched` | `id; sku: SkuWire; family` | it settled on one SKU. Everything the ambiguity left behind is spent |
+| `row_families` | `id; families: FamilyWire[]; candidates: SkuWire[]; differing_axes` | 2–5 brands could match — the option cards |
+| `row_variants` | `id; family; variants: SkuWire[]; candidates: SkuWire[]; differing_axes` | one brand, several SKUs — leaf pills under the floor, a candidate set above it (§7-bis) |
+| `row_not_found` | `id` | nothing in the catalog answers to what he said |
+| `row_question` | `id; question: DisambigQuestion` | one splitting question on the row, rendered as pills instead of its candidates |
+| `row_quantity` | `id; quantity` | how many of that row he wants. The only row action that leaves a `note` standing |
 | `remove_items` | `ids: string[]` | agent removed items |
 | `highlight_item` | `id: string; note: string \| null` | agent is asking about this row ("Which Quin?") |
 | `show_search_results` | `query: string; results: SkuWire[]` | reply to the manual search bar |
 | `show_variants` | `item_id: string; family: string; results: SkuWire[]; differing_axes: string[]` | reply to `list_variants` — the siblings for one row's inline **Change variant** strip (`results` capped at 24, `differing_axes` labels the pills) |
 | `order_note` | `text: string` | one-line banner (e.g. scheme/stock callout) |
 
+`row_matched` is the only action carrying a `sku`, and every row action except `row_quantity`
+clears the row's `note` — the note belongs to the question that has just been answered.
+
 ### Browser → brain: typed events (`backend/desk_events.py` ↔ `frontend/src/clientMessages.ts`)
 
 Everything the pharmacist does with his thumb goes out **named and id-addressed**, the instant he
 does it — the mirror of the Actions above. `DeskEvent` subclasses take their wire name from the
 class name exactly as `Action` does, and an unknown name or a payload that does not fit is logged
-and dropped, never raised: a browser one deploy ahead must degrade to `state_sync`, not end the call.
+and dropped, never raised — a browser one deploy ahead of this brain must not end the call. Nothing
+arrives behind these events, so that drop is a real gap in the mirror, which is why it is logged
+loudly and why **completeness** (not idempotence) is what `tests/test_orderdesk_desk_events.py`
+holds: a gesture missing from this union is a gesture the brain never learns about.
 
 | wire name | fields | the gesture |
 |---|---|---|
@@ -172,18 +180,6 @@ Receiving an event does not oblige the brain to do anything with it. `OrderDeskB
 moves the mirror and lets the change note carry the sentence into context on the next turn; another
 brain may inject it as speech, drive its own model, or drop it.
 
-### Browser → brain: `state_sync`, the repair channel (deprecated as the news)
-- `state_sync` `{ screen: OrderSnapshot }` — debounced 250 ms, on connect + every store `rev` bump.
-  ```ts
-  OrderSnapshot = { screen: "order" | "confirmed";
-    items: { id; spoken_text; status; sku_code; sku_name; pack_size; quantity; source }[];
-    total_mrp: number; item_count: number; confirmed: boolean }
-  ```
-  Still the **authoritative cart**, and still what a reconnect resyncs from. But it names no change,
-  so `OrderDesk.absorb` has to infer which act produced the difference — and by the time it lands
-  the event has already applied it, so its diff finds nothing and one thumb is one line in context.
-  That idempotence is what makes an event dropped on the wire a 250 ms delay rather than a loss.
-
 ### Browser → brain: requests (silent client messages)
 - `catalog_search` `{ query: string }` — manual search bar keystrokes (debounced ~300 ms, ≥2 chars).
   Brain answers floor-free with a `show_search_results` action (session-scoped, no speech).
@@ -191,8 +187,8 @@ brain may inject it as speech, drive its own model, or drop it.
   matched row. Brain answers floor-free with `show_variants` (session-scoped, no inference, no
   speech — a tap must never make the agent talk over him). Empty `results` is a legitimate answer,
   same contract as the search bar; the brain never raises here. The row is untouched until he
-  picks: the pick is a local re-lock (new `sku`, **quantity preserved**, `pinned`, rev bump), and
-  the agent learns of it as `sku_chosen` with `via: "variant"` (§7-bis, absorb).
+  picks: the pick is a local re-lock (new `sku`, **quantity preserved**), and the agent learns of
+  it as `sku_chosen` with `via: "variant"` (§7-bis).
 
 ### Confirm
 Manual only. Confirm button enables when every item is `matched` with quantity ≥ 1 (blocked rows
@@ -206,13 +202,13 @@ when it next speaks.
 
 | tool | signature | behavior |
 |---|---|---|
-| `add_items` | `(items: list[SpokenItem]) -> dict` | For each: assign id, emit `upsert_items` with status `resolving`, then run `resolve()` (real, fast), emit `upsert_items` again with the outcome. Return per-item compact summary (below). |
-| `refine_item` | `(item_id: str, query: str) -> dict` | re-resolve with a better English query; emits `upsert_items` |
-| `choose` | `(item_id: str, sku_code: str, quantity: int \| None) -> dict` | verbal confirm ⇒ `matched`; emits `upsert_items` |
-| `ask_choice` | `(item_id: str, question: str, choices: list[Choice]) -> dict` | the sharpest question on a row with ≥5 candidates (§7-bis); validated, emits `upsert_items` |
-| `set_quantity` | `(item_id: str, quantity: int) -> dict` | absolute quantity; emits `upsert_items` |
-| `adjust_quantity` | `(item_id: str, delta: int) -> dict` | **relative** quantity ("दस और डाल दो"), clamped at 1 — zero is `remove_items`, and the docstring says so; emits `upsert_items` |
-| `change_variant` | `(item_id: str, want: str) -> dict` | swap the SKU **within the row's family**, quantity kept. Ranks `skus_in_family(family)` by `want` (never a fresh `resolve()`, so it cannot jump brands): one hit ⇒ re-lock; several ⇒ back onto the row as variants/candidates so the normal pill/question machinery takes over; none ⇒ retriable error naming the family's axes, row left **unchanged** and said to be unchanged. Emits `upsert_items` |
+| `add_items` | `(items: list[SpokenItem]) -> dict` | For each: assign id, emit `row_opened` (greyed, before the catalog work), then run `resolve()` (real, fast) and emit the outcome — `row_matched`, `row_families`, `row_variants` or `row_not_found`. Return per-item compact summary (below). |
+| `refine_item` | `(item_id: str, query: str) -> dict` | re-resolve with a better English query; emits `row_resolving`, then the outcome |
+| `choose` | `(item_id: str, sku_code: str, quantity: int \| None) -> dict` | verbal confirm ⇒ `matched`; emits `row_matched` |
+| `ask_choice` | `(item_id: str, question: str, choices: list[Choice]) -> dict` | the sharpest question on a row with ≥5 candidates (§7-bis); validated, emits `row_question` — and nothing else, so a late one cannot un-match the row |
+| `set_quantity` | `(item_id: str, quantity: int) -> dict` | absolute quantity; emits `row_quantity` |
+| `adjust_quantity` | `(item_id: str, delta: int) -> dict` | **relative** quantity ("दस और डाल दो"), clamped at 1 — zero is `remove_items`, and the docstring says so; emits `row_quantity` |
+| `change_variant` | `(item_id: str, want: str) -> dict` | swap the SKU **within the row's family**, quantity kept. Ranks `skus_in_family(family)` by `want` (never a fresh `resolve()`, so it cannot jump brands): one hit ⇒ re-lock; several ⇒ back onto the row as variants/candidates so the normal pill/question machinery takes over; none ⇒ retriable error naming the family's axes, row left **unchanged** and said to be unchanged. Emits the row's new outcome |
 | `remove_items` | `(item_ids: list[str]) -> dict` | emits `remove_items`. An ambiguous reference removes **nothing** |
 | `highlight` | `(item_id: str, note: str \| None) -> dict` | emits `highlight_item` |
 
@@ -251,16 +247,16 @@ matched ⇒ `{status:"matched", name, pack_size, mrp, scheme}`; not_found ⇒ su
   `agent` access). `routes.py`: `NAME = "orderdesk"`, `build(llm)`, `router = make_brain_router(...)`.
 - Session payload (from frontend `buildBrainPayload`) → system instruction at session start,
   sugar-style: scenario JSON appended as `PHARMACY CONTEXT (authoritative...)`.
-- **The screen is read, never remembered.** `state_sync` folds the browser snapshot into
-  `OrderDesk` and stops there; the context gets one line naming what the pharmacist changed
-  by hand, never the cart. The model reads the cart through the `read_screen` tool (rows,
+- **The screen is read, never remembered.** A desk event moves `OrderDesk` and stops there; the
+  context gets one line naming what the pharmacist changed by hand, never the cart. The model
+  reads the cart through the `read_screen` tool (rows,
   quantities, and the `PENDING:` line of unresolved ids/questions). `OrderDesk.version` is
   bumped only by his edits, and every mutating tool refuses on a version staler than the last
   `read_screen` — so the extra hop is paid only when he has actually moved something.
-- `on_rtvi`, floor-free throughout: a name in the `desk_events.py` registry →
-  `_on_desk_event`; `state_sync` → `_ingest_state`; `catalog_search` and `list_variants` →
-  a session-scoped action. It never calls `super()` — the SDK has no `state_sync` default,
-  only a docstring recipe, which is the gap tracker row 31 names.
+- `on_rtvi`, floor-free throughout: a name in the `desk_events.py` registry → `_on_desk_event`;
+  `catalog_search` and `list_variants` → a session-scoped action. It never calls `super()` — the
+  SDK has no typed browser→brain shape at all, only a docstring recipe, which is the gap tracker
+  row 31 names.
 - Greeting: instant Hindi hello + generated opener continuing from `joined_from_nudge`
   (morning order prompt), grounded in prior calls + order history.
 - Pipeline/language: STT `vql-stt` `hi`, TTS `omnivoice/gauri` `hi` (set in frontend config).
@@ -308,7 +304,8 @@ lang section and lead_qual `brain.py:74-77`)
 - Store: sugar-style context + reducer; one `handleUiCommand` narrowing on `command`
   against the generated `actions.gen.ts` — every field non-optional, `default` exhaustive.
 - Session: `useVoqalSession` like sugar's `SugarCoach.tsx` (connect on mount at call phase,
-  `enableMic`, register agentSend, debounced state_sync on rev). Hindi pipeline hints.
+  `enableMic`, register agentSend — and nothing debounced, because nothing is pushed).
+  Hindi pipeline hints.
 - Visual identity: NOT sugar's evergreen. B2B distributor tone — think dense, capable, trade-app:
   deep blue/slate + saffron accent, Inter + Noto Sans Devanagari stack (presenter panel shows
   Hindi hints). Status colors: grey resolving / amber ambiguous / green matched.
@@ -367,15 +364,15 @@ The naive UX for 20 matches is 20 pills. We never do that. Contract:
   most 2 rounds to a leaf for ≤24 candidates (log₄ bound).
 - **Pill tap (frontend, local-first):** leaf pill → matched instantly. Group pill → narrow
   `candidates` to `narrows_to`; if ≤4 remain, synthesize leaf pills locally (labels from the
-  axes that still differ); else show "N left — answer or tap" and let state_sync
-  (`candidate_codes` per item) tell the agent to fire the next `ask_choice`.
+  axes that still differ); else show "N left — answer or tap" and let the `question_answered`
+  event's `surviving_codes` tell the agent to fire the next `ask_choice`.
 - **Family card tap = the same local narrow, not a search.** A `multi_family` row's brand cards
   look like a picker, so they must behave like one. The brain therefore populates
   `row.candidates` with the union of the candidate families' SKUs **regardless of the question
   floor** (`_widen`, still capped at 24) — the ≥5 floor governs only what the *model* is told
   (`_brief` reads the candidate table from 5 up; under it a `multi_family` row still gets "ask
   which brand"). Tapping a card filters `candidates` to `sku.family === family` and reuses the
-  post-narrow rule above; rev bumps so `state_sync` carries the new `candidate_codes`.
+  post-narrow rule above, and sends `family_chosen` with the survivors.
   The one honest exception: the candidate set is capped, so a family whose SKUs were truncated
   cannot be narrowed locally. Derived, no new wire field —
   `candidates.filter(c => c.family === f.family).length === f.sku_count` means the browser holds
@@ -386,14 +383,15 @@ The naive UX for 20 matches is 20 pills. We never do that. Contract:
   usually right and only the variant wrong. A quiet *Change variant* control opens a strip **on
   that row** — siblings as pills labelled by `differing_axes`, current SKU marked, scrollable past
   ~8, dismissable. `PILL_CAP` governs *questions*; this is a deliberate browse he asked for. The
-  pick re-locks locally (quantity preserved, rev bump). By voice the same edit is
-  `change_variant` (§4).
-- **Manual edits propagate through `absorb`.** `state_sync`'s per-row `sku_code`, `quantity` and
-  `candidate_codes` are all folded back into the brain's mirror. Trust follows ownership: the
-  candidate set is the brain's fact and only ever narrows (an unknown code is ignored), while the
-  SKU and quantity are the browser's — a row naming a different code is re-locked from the catalog
-  and goes `matched`, candidates and question spent. Without that fold a later `change_variant`
-  would re-resolve from the family he already moved off.
+  pick re-locks locally (quantity preserved) and sends `sku_chosen` with `via: "variant"`. By
+  voice the same edit is `change_variant` (§4).
+- **Manual edits propagate as named events.** Each gesture moves the brain's mirror through
+  `apply_event`, and trust follows ownership: the candidate set is the brain's fact and only ever
+  narrows (an unknown code is ignored), while the SKU and quantity are the browser's — a
+  `sku_chosen` is re-locked from the catalog and goes `matched`, candidates and question spent.
+  Without that a later `change_variant` would re-resolve from the family he already moved off.
+  There is no snapshot behind any of it, so a gesture the browser does not send is one the brain
+  never learns about: completeness of the event set is the property, and the tests hold it.
 - **Verbal answer path:** the agent maps the spoken answer to the same narrowing and either
   `choose()`s a leaf or `ask_choice()`s again on the remainder.
 - **Eval (real Gemini, `gemini-3.1-flash-lite`):** `backend/eval/disambig_eval.py` replays

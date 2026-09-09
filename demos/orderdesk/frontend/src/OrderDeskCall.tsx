@@ -21,9 +21,9 @@
  *   - every `ui-command` (`RTVIEvent.UICommand`, `{ command, payload }`) replays
  *     onto the store's one reducer, typed against `actions.gen.ts`, so line
  *     items resolve on screen;
- *   - a debounced `state_sync` echoes the store's `OrderSnapshot` back, so the
- *     agent's grounding always shows the authoritative cart — including the pills,
- *     quantities and deletes the pharmacist tapped by hand.
+ *   - `registerAgentSend` hands the store the channel its typed `DeskEvent`s go
+ *     out on, so a pill, a quantity or a delete reaches the brain named and one at
+ *     a time. Nothing echoes a cart back: there is no snapshot in either direction.
  */
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
@@ -112,12 +112,12 @@ function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => voi
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
   const { isConnected: isLive } = usePipecatConnectionState();
-  const { endCall, handleUiCommand, registerAgentSend, rev, snapshot } = useOrderDesk();
+  const { endCall, handleUiCommand, items, registerAgentSend } = useOrderDesk();
   const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
 
-  // Screen ← desk. The brain's `session.dispatch(UpsertItems(...))` lands here as
-  // `{ command: "upsert_items", payload: {...} }`. Subscribing to the event
-  // rather than registering six `useUICommandHandler`s: the store is one
+  // Screen ← desk. The brain's `session.dispatch(RowMatched(...))` lands here as
+  // `{ command: "row_matched", payload: {...} }`. Subscribing to the event rather
+  // than registering one `useUICommandHandler` per command: the store is one
   // reducer, and an unknown command is a no-op there by design.
   useRTVIClientEvent(
     RTVIEvent.UICommand,
@@ -140,31 +140,21 @@ function CallBar({ error, onRetry }: { error: string | null; onRetry?: () => voi
     return () => registerAgentSend(null);
   }, [isLive, client, registerAgentSend]);
 
-  // Debounced snapshot push: on connect and after every change (rev), so the desk
-  // stays in sync with taps the pharmacist makes by hand too. DESIGN §3: the brain
-  // reads this snapshot as the authoritative cart.
-  useEffect(() => {
-    if (!isLive || !client) return;
-    const t = setTimeout(() => client.sendClientMessage("state_sync", { screen: snapshot() }), 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLive, client, rev]);
-
   // Dev-only: drive the flow without a mic.
-  //   window.__orderdesk.ui('upsert_items', {items:[{id:'li1', spoken_text:'volini spray', …}]})
+  //   window.__orderdesk.ui('row_opened', {id:'li1', spoken_text:'volini spray', query:'volini spray', quantity:2})
   //   window.__orderdesk.sendText('do volini spray aur paanch telma chalis bhej do')
   useEffect(() => {
     if (!import.meta.env.DEV || !client) return;
     (window as unknown as { __orderdesk?: unknown }).__orderdesk = {
       client,
       ui: handleUiCommand,
-      snapshot,
+      items: () => items,
       sendText: (t: string) => client.sendText(t),
     };
     return () => {
       delete (window as unknown as { __orderdesk?: unknown }).__orderdesk;
     };
-  }, [client, handleUiCommand, snapshot]);
+  }, [client, handleUiCommand, items]);
 
   const hangUp = async () => {
     await client?.disconnect();

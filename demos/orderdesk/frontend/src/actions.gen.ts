@@ -1,12 +1,78 @@
-// Generated from orderdesk/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
-//   voqalize types orderdesk/backend/brain.py -o orderdesk/frontend/src/actions.gen.ts
+// Generated from demos/orderdesk/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
+//   voqalize types demos/orderdesk/backend/brain.py -o demos/orderdesk/frontend/src/actions.gen.ts
 //
 // Every field is present on the wire, `null` included, so nothing here is
 // optional and no runtime validation is needed to narrow on `command`.
 
-/** Add or update rows — the browser diffs by id and re-renders each. */
-export interface UpsertItems {
-  items: LineItemView[];
+/** A row he just named — greyed and shimmering, before the catalog work runs. */
+export interface RowOpened {
+  id: string;
+
+  spoken_text: string;
+
+  query: string;
+
+  quantity: number | null;
+}
+
+/** The row went back to grey — a re-resolve started on it. */
+export interface RowResolving {
+  id: string;
+}
+
+/** The row settled on one SKU. Everything the ambiguity left behind is spent. */
+export interface RowMatched {
+  id: string;
+
+  sku: SkuWire;
+
+  family: string;
+}
+
+/** Two to five brands could match — the option cards. */
+export interface RowFamilies {
+  id: string;
+
+  families: FamilyWire[];
+
+  candidates: SkuWire[];
+
+  differing_axes: string[];
+}
+
+/**
+ * One brand, several SKUs — leaf pills under `_QUESTION_FLOOR`, a
+ * candidate set above it (DESIGN §7-bis).
+ */
+export interface RowVariants {
+  id: string;
+
+  family: string | null;
+
+  variants: SkuWire[];
+
+  candidates: SkuWire[];
+
+  differing_axes: string[];
+}
+
+/** Nothing in the catalog answers to what he said. */
+export interface RowNotFound {
+  id: string;
+}
+
+/** One splitting question on a row, rendered as pills instead of its candidates. */
+export interface RowQuestion {
+  id: string;
+
+  question: DisambigQuestion;
+}
+
+/** How many of one row he wants. The only row action that leaves a note standing. */
+export interface RowQuantity {
+  id: string;
+
+  quantity: number | null;
 }
 
 /** The agent dropped rows from the order. */
@@ -32,8 +98,9 @@ export interface ShowSearchResults {
  * The floor-free answer to a row's `list_variants` — the siblings of one
  * matched SKU, for the inline "Change variant" strip.
  *
- * Deliberately *not* an `UpsertItems`: the row is unchanged until he picks one,
- * so this carries the family's SKUs beside the row rather than through it. The
+ * Deliberately not one of the `Row*` actions: the row is unchanged until he
+ * picks one, so this carries the family's SKUs beside the row rather than through
+ * it. The
  * family is usually right and only the variant wrong, and deleting a row to re-add
  * it is the painful path this exists to remove. `differing_axes` is what the
  * strip labels its pills by, so a family that differs only on pack size reads
@@ -96,42 +163,6 @@ export interface FamilyWire {
 }
 
 /**
- * The full render state of one order row — the payload `upsert_items` carries.
- *
- * The frontend diffs by `id` and re-renders the row from this alone, so every
- * action carries the *whole* row rather than a patch.
- */
-export interface LineItemView {
-  id: string;
-
-  spoken_text: string;
-
-  query: string;
-
-  quantity: number | null;
-
-  status: 'resolving' | 'multi_family' | 'multi_variant' | 'matched' | 'not_found';
-
-  sku: SkuWire | null;
-
-  family: string | null;
-
-  variants: SkuWire[];
-
-  families: FamilyWire[];
-
-  candidates: SkuWire[];
-
-  question: DisambigQuestion | null;
-
-  differing_axes: string[];
-
-  note: string | null;
-
-  source: 'agent' | 'manual';
-}
-
-/**
  * One catalog SKU as the browser renders it — `SkuView.wire()` from
  * `search.py` (DESIGN §2), validated into a shape this file owns.
  */
@@ -163,7 +194,14 @@ export interface SkuWire {
 
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
-  | { command: 'upsert_items'; payload: UpsertItems }
+  | { command: 'row_opened'; payload: RowOpened }
+  | { command: 'row_resolving'; payload: RowResolving }
+  | { command: 'row_matched'; payload: RowMatched }
+  | { command: 'row_families'; payload: RowFamilies }
+  | { command: 'row_variants'; payload: RowVariants }
+  | { command: 'row_not_found'; payload: RowNotFound }
+  | { command: 'row_question'; payload: RowQuestion }
+  | { command: 'row_quantity'; payload: RowQuantity }
   | { command: 'remove_items'; payload: RemoveItems }
   | { command: 'highlight_item'; payload: HighlightItem }
   | { command: 'show_search_results'; payload: ShowSearchResults }
@@ -173,7 +211,14 @@ export type UiAction =
 export type UiActionCommand = UiAction['command'];
 
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
-  'upsert_items',
+  'row_opened',
+  'row_resolving',
+  'row_matched',
+  'row_families',
+  'row_variants',
+  'row_not_found',
+  'row_question',
+  'row_quantity',
   'remove_items',
   'highlight_item',
   'show_search_results',

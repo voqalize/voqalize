@@ -1874,8 +1874,8 @@ function SchemeBadge({ scheme, small }: { scheme: string; small?: boolean }) {
 /**
  * Quantity in strips. Typing is the fast path for a bulk order (nobody taps `+`
  * fifty times), so the field keeps a local draft while it is being edited and
- * commits any legible number straight to the store — which is what fires
- * `state_sync`, so the desk hears the change as you type it.
+ * commits any legible number straight to the store — which sends `quantity_set`,
+ * so the desk hears that one number as you type it.
  */
 function QtyStepper({ item }: { item: LineItem }) {
   const { setQuantity } = useOrderDesk();

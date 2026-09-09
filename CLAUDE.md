@@ -355,6 +355,32 @@ key. `demos/orderdesk/frontend/src/clientMessages.ts` says it out loud: the brai
 half "is generated … nothing about it is written down twice. These three are this
 side's own, so they are."
 
+### Typed and fine-grained, in both directions
+
+Recorded verbatim on 2026-09-09, and binding on every screen↔voice seam we build:
+
+> a11y tree is the WRONG abstraction in general. That's the whole point on why
+> voqalize works the way it does. Don't build generic tools; instead, build typed
+> and application specific fine grained events in both directions.
+
+A generic screen abstraction — an a11y tree, a DOM snapshot, a `state_sync` blob — is
+the coarse full-state push wearing a different hat, and it fails the same way in both
+directions. app→brain it bloats the context and reconciles wrongly; brain→app it makes
+every update a whole-row rewrite, which is why OrderDesk grew `pinned`, `keepChoice`
+and `offersPin` to defend the screen from its own brain. Those guards are not the fix;
+fine granularity is, because a `RowQuestion` that carries only a question cannot
+un-match a row no matter how stale it is. RTVI reserves `ui-snapshot` for exactly the
+generic streamer we are declining — it stays unused.
+
+**A session starts from first principles, not from a screen.** When a call opens the
+brain reconstructs its model from backend state — empty, if that is what the backend
+says. The app does not load a view from an API and hand it to the brain to seed it.
+
+**Backward compatibility binds the SDK and the wire, and nothing else.** A demo owes
+compatibility to no one: `state_sync` was a string a demo invented, so a demo could
+delete it outright. `client-message` and its `{t, d}` payload keep working forever
+because they are SDK surface; what changes is what we teach.
+
 ## Hard rules
 
 - Python 3.12, uv, ruff, pyright, pytest. pnpm for the frontends.

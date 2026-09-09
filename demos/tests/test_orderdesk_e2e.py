@@ -30,25 +30,16 @@ from voqalize_demos._loaded.orderdesk.brain import _FALLBACK_OPENER, _HELLO  # n
 VOICE = "omnivoice/gauri"
 LANGUAGE = "hi"
 
-# Two rows in the browser's own OrderSnapshot shape. `m1` is one the pharmacist
-# added himself out of the search panel — the browser mints the `m*` id, and the
-# desk has never seen it — which is what makes it an edit the model must be told
-# about. `li1` is the row the scripted turn below puts there.
+# One `row_added` payload, exactly as the browser sends it when the pharmacist
+# picks a medicine out of the search panel himself: the browser mints the `m*` id
+# and the desk has never seen the row, which is what makes it an edit the model
+# must be told about.
 _MANUAL_ROW = {
-    "id": "m1",
-    "status": "matched",
-    "spoken_text": "shelcal hd",
+    "item_id": "m1",
     "sku_code": "J0029363",
     "sku_name": "SHELCAL HD TABLET",
+    "query": "shelcal",
     "quantity": 5,
-}
-_TELMA_ROW = {
-    "id": "li1",
-    "status": "matched",
-    "spoken_text": "telma 40",
-    "sku_code": "J0031270",
-    "sku_name": "TELMA 40MG TABLET",
-    "quantity": 2,
 }
 
 
@@ -86,59 +77,61 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
 
 async def test_adding_and_removing_an_item_drive_the_screen() -> None:
     """One tool round-trip resolves a spoken product against the real catalog and
-    locks it to a SKU — the row lands twice (greyed, then matched), both as
-    ``upsert_items`` — and a second turn removes it by the id the first turn
-    minted."""
+    locks it to a SKU, and the screen hears about it twice: ``row_opened`` the
+    instant he says it, greyed, then ``row_matched`` when the catalog answers. Two
+    actions, not one row pushed twice — the second carries the SKU and nothing
+    else. A second turn then removes it by the id the first turn minted."""
     async with demo("orderdesk", _llm()) as rig:
         await rig.driver.start_session()
 
         t1 = await rig.driver.user_says("Telma 40 ki do strip de do.")
         check_turn(rig, t1, units=2)
 
-        upserts = [c for c in rig.driver.ui_commands if c.get("command") == "upsert_items"]
-        assert len(upserts) == 2, rig.actions()
-        added = upserts[-1]["payload"]["items"][0]
-        assert added["status"] == "matched"
-        assert added["quantity"] == 2
-        assert added["sku"]["code"] == "J0031270"
+        opened = rig.command("row_opened")
+        assert opened["spoken_text"] == "telma 40"
+        assert opened["quantity"] == 2
+
+        matched = rig.command("row_matched")
+        assert matched["id"] == opened["id"]
+        assert matched["sku"]["code"] == "J0031270"
+        assert "quantity" not in matched, "the match is carrying the whole row again"
 
         t2 = await rig.driver.user_says("Ab Telma hata do.")
         check_turn(rig, t2, units=2)
 
         removed = rig.command("remove_items")
-        assert removed["ids"] == [added["id"]]
+        assert removed["ids"] == [opened["id"]]
 
 
 async def test_a_manual_edit_is_announced_but_never_dumped() -> None:
-    """``state_sync`` is the one client message that must not speak — and, since the
+    """A desk event is the one client message that must not speak — and, since the
     screen moved out of the context, the one that must not describe either.
 
     A production call put twenty-one full carts in front of the model in 113
     seconds, each labelled authoritative and none of them dated, and the model
-    reasoned from whichever it noticed. So the snapshot now lands in the desk and
-    stops: the context gets one line saying *he changed something* and pointing at
-    ``read_screen``, with none of the cart's contents in it. Both halves are
-    asserted — a note carrying the row's SKU would be the old dump again, one line
-    at a time."""
+    reasoned from whichever it noticed. So the event lands in the desk and stops:
+    the context gets one line naming what he did and pointing at ``read_screen``,
+    with none of the row's contents in it. Both halves are asserted — a note
+    carrying the row's SKU would be the old dump again, one line at a time."""
     llm = _llm()
     async with demo("orderdesk", llm) as rig:
         await rig.driver.start_session()
         before = len(rig.driver.ui_commands)
 
-        await rig.driver.send_client_message("state_sync", {"screen": {"items": [_MANUAL_ROW]}})
+        await rig.driver.send_client_message("row_added", _MANUAL_ROW)
         # The floor is untaken: no speech, no screen command. Frames on one
-        # connection are ordered, so the sync is already ingested by the time the
+        # connection are ordered, so the event is already applied by the time the
         # next turn is served — which is what the assertion below proves.
         turn = await rig.driver.user_says("Screen par kya hai?")
         check_turn(rig, turn, units=1)
-        assert len(rig.driver.ui_commands) == before, "state_sync drove the screen"
+        assert len(rig.driver.ui_commands) == before, "a desk event drove the screen"
 
     grounded = "".join(
         p.text or "" for c in llm.captured_contents[-1] for p in (c.parts or []) if c.role == "user"
     )
     assert "m1" in grounded and "added by hand" in grounded
     assert "read_screen" in grounded
-    assert "J0029363" not in grounded, "the change note is carrying the cart"
+    assert "J0029363" not in grounded, "the change note is carrying the row"
     assert "CURRENT ORDER SCREEN" not in grounded, "the screen dump is back"
 
 
@@ -172,9 +165,7 @@ async def test_a_tool_aimed_at_a_screen_he_changed_is_refused_until_it_is_read()
         await rig.driver.start_session()
         await rig.driver.user_says("Telma 40 ki do strip de do.")
 
-        await rig.driver.send_client_message(
-            "state_sync", {"screen": {"items": [_TELMA_ROW, _MANUAL_ROW]}}
-        )
+        await rig.driver.send_client_message("row_added", _MANUAL_ROW)
         await rig.driver.user_says("Ab Telma hata do.")
 
         removed = rig.command("remove_items")
@@ -238,15 +229,21 @@ async def test_naming_something_already_on_the_order_lands_on_that_row() -> None
         # only reach the request that follows it.
         await rig.driver.user_says("Bas itna hi.")
 
-    rows = [
-        row
+    drawn = [
+        (c["command"], c.get("payload") or {})
         for c in rig.driver.ui_commands
-        if c.get("command") == "upsert_items"
-        for row in (c.get("payload") or {}).get("items", [])
+        if str(c.get("command", "")).startswith("row_")
     ]
-    assert {r["id"] for r in rows} == {"li1"}, "a repeat minted a second row"
-    assert rows[-1]["quantity"] == 3
-    assert rows[-1]["status"] == "multi_variant", "the open question was answered by the repeat"
+    assert {payload["id"] for _, payload in drawn} == {"li1"}, "a repeat minted a second row"
+    assert [command for command, _ in drawn] == [
+        "row_opened",
+        "row_variants",
+        "row_quantity",
+        "row_quantity",
+    ], drawn
+    # The repeats say one thing each — how many he wants. Neither touches the open
+    # question, which is why the row he is looking at is still the row being settled.
+    assert drawn[-1][1]["quantity"] == 3
 
     results = "".join(
         str(p.function_response.response)

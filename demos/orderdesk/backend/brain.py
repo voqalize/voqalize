@@ -47,12 +47,16 @@ model reasoned from whichever it noticed. ``OrderDesk.version``, bumped only by 
 edits, is what makes reading-instead-of-remembering enforceable rather than merely
 requested: a tool aimed at a screen he has changed since the last read refuses.
 
-``state_sync`` still pushes the whole cart behind those events, debounced, and is
-still folded in by :meth:`OrderDeskBrain.on_rtvi`. It is the **repair** channel now
-rather than the news: by the time it lands the change is applied, its diff finds
-nothing, and one thumb is one line. That is also what makes a dropped event harmless.
+There is no snapshot behind those events. ``state_sync`` — a whole cart, debounced —
+is gone in both directions, and so is everything the browser grew to defend itself
+from it. **Fine-grained and typed, both ways** (CLAUDE.md): a row learns about one
+change at a time, so a message that arrives late puts a question back but cannot
+un-match a row, because it carries no SKU to un-match it with. The cost is that
+completeness is now the property that matters — an act the screen does not send is an
+act the brain never learns about — which is exactly what the tests hold, and what a
+log shows plainly instead of a reconciler papering over it a beat later.
 
-Both halves of the screen contract are declared shapes now: the six ``ui_command``s
+Both halves of the screen contract are declared shapes: the thirteen ``ui_command``s
 are :class:`voqalize.sdk.Action` subclasses with ``frontend/src/actions.gen.ts``
 generated from them, and the seven events are :class:`desk_events.DeskEvent`
 subclasses whose TypeScript twin in ``frontend/src/clientMessages.ts`` is still
@@ -87,9 +91,9 @@ from .desk_events import (
     parse_event,
 )
 
-# The browser→brain messages (DESIGN §3). `state_sync` is the SDK's own convention
-# and is handled by the base. Both of these are answered floor-free — no inference,
-# no speech — so a thumb on the screen can never interrupt the call.
+# The two browser→brain requests that are not acts on the order (DESIGN §3) — they
+# ask a question and get an action back. Both floor-free, like the events: a thumb on
+# the screen can never interrupt the call.
 CATALOG_SEARCH = "catalog_search"
 # The inline "Change variant" control on a matched row: show me this family's siblings.
 LIST_VARIANTS = "list_variants"
@@ -196,7 +200,7 @@ _PENDING_HEADER = (
     "PENDING (rows still waiting on you — ask ONE short question each, about the named axes only): "
 )
 
-# What a `state_sync` puts in front of the model. It names *what* he changed and
+# What a desk event puts in front of the model. It names *what* he changed and
 # nothing else: the screen itself is read through `read_screen`, so this line is a
 # nudge, never a picture. Carrying values here is how the old screen dump started.
 _CHANGE_HEADER = "THE PHARMACIST JUST CHANGED THE SCREEN HIMSELF: "
@@ -379,10 +383,12 @@ class DisambigQuestion(BaseModel):
 
 
 class LineItemView(BaseModel):
-    """The full render state of one order row — the payload ``upsert_items`` carries.
+    """The brain's mirror of one order row — its own model, not a wire shape.
 
-    The frontend diffs by ``id`` and re-renders the row from this alone, so every
-    action carries the *whole* row rather than a patch."""
+    Nothing sends this. The screen learns about a row through the ``Row*`` actions
+    below, each carrying only what it changed, and keeps its own row object; this
+    is what the tools read and reason over. The two are built from the same events
+    and are deliberately not the same type."""
 
     id: str
     spoken_text: str = ""
@@ -406,10 +412,74 @@ class LineItemView(BaseModel):
 # ─── The screen contract: one Action per ui_command (DESIGN §3) ────────────────
 
 
-class UpsertItems(Action):
-    """Add or update rows — the browser diffs by id and re-renders each."""
+# Every action below names one row and carries only what moved on it. That is the
+# whole defence against a stale message: a `RowQuestion` that arrives after the row
+# was matched puts a question back and nothing else, because it has no `sku` field to
+# undo the match with. A whole-row push had to be guarded against on the browser side
+# (`pinned`, `keepChoice`, `offersPin`); this shape has nothing to guard.
 
-    items: list[LineItemView]
+
+class RowOpened(Action):
+    """A row he just named — greyed and shimmering, before the catalog work runs."""
+
+    id: str
+    spoken_text: str
+    query: str
+    quantity: int | None
+
+
+class RowResolving(Action):
+    """The row went back to grey — a re-resolve started on it."""
+
+    id: str
+
+
+class RowMatched(Action):
+    """The row settled on one SKU. Everything the ambiguity left behind is spent."""
+
+    id: str
+    sku: SkuWire
+    family: str
+
+
+class RowFamilies(Action):
+    """Two to five brands could match — the option cards."""
+
+    id: str
+    families: list[FamilyWire]
+    candidates: list[SkuWire]
+    differing_axes: list[str]
+
+
+class RowVariants(Action):
+    """One brand, several SKUs — leaf pills under :data:`_QUESTION_FLOOR`, a
+    candidate set above it (DESIGN §7-bis)."""
+
+    id: str
+    family: str | None
+    variants: list[SkuWire]
+    candidates: list[SkuWire]
+    differing_axes: list[str]
+
+
+class RowNotFound(Action):
+    """Nothing in the catalog answers to what he said."""
+
+    id: str
+
+
+class RowQuestion(Action):
+    """One splitting question on a row, rendered as pills instead of its candidates."""
+
+    id: str
+    question: DisambigQuestion
+
+
+class RowQuantity(Action):
+    """How many of one row he wants. The only row action that leaves a note standing."""
+
+    id: str
+    quantity: int | None
 
 
 class RemoveItems(Action):
@@ -436,8 +506,9 @@ class ShowVariants(Action):
     """The floor-free answer to a row's ``list_variants`` — the siblings of one
     matched SKU, for the inline "Change variant" strip.
 
-    Deliberately *not* an ``UpsertItems``: the row is unchanged until he picks one,
-    so this carries the family's SKUs beside the row rather than through it. The
+    Deliberately not one of the ``Row*`` actions: the row is unchanged until he
+    picks one, so this carries the family's SKUs beside the row rather than through
+    it. The
     family is usually right and only the variant wrong, and deleting a row to re-add
     it is the painful path this exists to remove. ``differing_axes`` is what the
     strip labels its pills by, so a family that differs only on pack size reads
@@ -580,13 +651,13 @@ class OrderDesk:
         # SKU codes whose scheme banner has already been shown, so a re-resolve of the
         # same row does not re-announce the same deal.
         self._noted: set[str] = set()
-        # Rows the pharmacist narrowed himself by tapping a group pill (seen in the
-        # browser snapshot, folded in by `absorb`). PENDING names them differently: the
+        # Rows the pharmacist narrowed himself by tapping a group pill, told to us by
+        # a `QuestionAnswered` / `FamilyChosen`. PENDING names them differently: the
         # question was answered, the row is smaller, and the NEXT question is due.
         self._narrowed: set[str] = set()
         # What the pharmacist has changed on screen, and whether the model has read
-        # it since. Bumped **only** by `absorb` — never by this brain's own tools, so
-        # a model that just moved a row itself is not sent back to re-read it. That
+        # it since. Bumped **only** by `apply_event` — never by this brain's own tools,
+        # so a model that just moved a row itself is not sent back to re-read it. That
         # is what keeps the read conditional rather than a hop on every turn.
         self.version = 0
         self._read_version = 0
@@ -606,56 +677,6 @@ class OrderDesk:
     def _next_id(self) -> str:
         self._counter += 1
         return f"li{self._counter}"
-
-    def absorb(self, live: dict[str, dict[str, Any]] | None) -> None:
-        """Fold the browser's own per-row facts — the SKU, the quantity, the surviving
-        candidates — back into the mirror.
-
-        Trust is split by ownership. The **candidate set** is the brain's fact, so it
-        only ever narrows: a group pill is tapped locally (DESIGN §7-bis — the frontend
-        owns the narrow, so the screen never waits on a round trip) and the shrunken set
-        arrives on the next ``state_sync``; seeing fewer codes than it holds, the mirror
-        narrows to match and drops the question — it was answered by thumb — so the next
-        model call is told to ask about *what is left* rather than repeating itself. A
-        snapshot naming a code the row never had is ignored, not trusted.
-
-        The **SKU and the quantity** are the browser's, because his thumb can change
-        either: an inline variant swap, a pick out of the search panel, a typed number.
-        A row whose snapshot names a different code is re-locked from the catalog and
-        goes ``matched``, its candidates and question spent — otherwise a later
-        ``change_variant`` would re-resolve from the family he already moved off, which
-        is a wrong medicine, not a stale label. Anything the catalog cannot confirm is
-        left alone: the mirror never invents a SKU the browser merely asserted.
-
-        A row the browser minted (``m1``, ``m2``… — the search panel) is **adopted**
-        rather than skipped, and one the snapshot no longer carries is dropped. The
-        mirror is the only picture of the cart the model gets, so a row missing from
-        it is a row every tool is blind to."""
-        if live is None:
-            return
-        for row_id in [i for i in self.items if i not in live]:
-            gone = self.items.pop(row_id)
-            self._narrowed.discard(row_id)
-            self._note_change(f"{gone.id} ({gone.spoken_text}) removed by hand")
-        for row_id, seen in live.items():
-            row = self.items.get(row_id)
-            if row is None:
-                if adopted := self._adopt(row_id, seen):
-                    self._note_change(f"{adopted.id} ({adopted.spoken_text}) added by hand")
-                continue
-            before = (row.quantity, row.sku.code if row.sku else None, _open(row))
-            self._absorb_row(row, seen)
-            self._describe(row, before)
-
-    def _absorb_row(self, row: LineItemView, seen: dict[str, Any]) -> None:
-        """Fold one browser row into its mirror row. See :meth:`absorb` for the
-        ownership split this implements."""
-        quantity = seen.get("quantity")
-        if isinstance(quantity, int | float) and not isinstance(quantity, bool):
-            row.quantity = int(quantity) or None
-        if self._relock(row, str(seen.get("sku_code") or "").strip()):
-            return  # re-locked: there is no candidate set left to narrow
-        self._narrow(row, [str(c) for c in (seen.get("candidate_codes") or []) if c])
 
     def _resettle(self, row: LineItemView) -> None:
         """Bring the rest of the row into line with the candidates he just left it.
@@ -691,15 +712,16 @@ class OrderDesk:
             row.variants, row.candidates = row.candidates, []
         row.differing_axes = _differing_axes(row.variants or row.candidates)
 
-    def _adopt(self, row_id: str, seen: dict[str, Any]) -> LineItemView | None:
+    def _adopt(self, event: RowAdded) -> LineItemView | None:
         """Take a row the browser minted — a pick out of the search panel — into the
         mirror.
 
-        Without this the row is on screen and invisible to every tool: `_row_for`,
-        `pending` and `absorb` all read ``self.items``, so a correction aimed at a
-        hand-added row either missed outright or landed on a different row that
-        happened to answer to the same product name."""
-        code = str(seen.get("sku_code") or "").strip()
+        Without this the row is on screen and invisible to every tool: `_row_for` and
+        `pending` both read ``self.items``, so a correction aimed at a hand-added row
+        either missed outright or landed on a different row that happened to answer to
+        the same product name. Nothing arrives later to notice it, so this is the only
+        moment the brain has to learn the row exists."""
+        code = event.sku_code.strip()
         sku: SkuWire | None = None
         if code:
             try:
@@ -708,24 +730,20 @@ class OrderDesk:
                 logger.warning("orderdesk: sku_by_code({!r}) failed: {}", code, exc)
                 found = None
             sku = _sku_wire(found) if found is not None else None
-        name = str(seen.get("sku_name") or seen.get("spoken_text") or "").strip()
+        name = event.sku_name.strip()
         if not name and sku is None:
             return None
-        quantity = seen.get("quantity")
         row = LineItemView(
-            id=row_id,
-            spoken_text=name or (sku.name if sku else row_id),
+            id=event.item_id,
+            spoken_text=name or (sku.name if sku else event.item_id),
+            query=event.query.strip(),
             status="matched" if sku else "resolving",
             sku=sku,
             family=sku.family if sku else None,
-            quantity=(
-                int(quantity) or None
-                if isinstance(quantity, int | float) and not isinstance(quantity, bool)
-                else None
-            ),
+            quantity=event.quantity or None,
             source="manual",
         )
-        self.items[row_id] = row
+        self.items[event.item_id] = row
         return row
 
     def _note_change(self, text: str) -> None:
@@ -736,20 +754,6 @@ class OrderDesk:
         back to the screen for news it already has."""
         self.version += 1
         self._changes.append(text)
-
-    def _describe(self, row: LineItemView, before: tuple[int | None, str | None, int]) -> None:
-        after = (row.quantity, row.sku.code if row.sku else None, _open(row))
-        if after == before:
-            return
-        if after[0] != before[0]:
-            self._note_change(f"{row.id} ({row.spoken_text}) quantity set to {row.quantity}")
-        if after[1] != before[1]:
-            name = row.sku.name if row.sku else "a different variant"
-            self._note_change(f"{row.id} ({row.spoken_text}) switched to {name}")
-        if after[2] != before[2]:
-            self._note_change(
-                f"{row.id} ({row.spoken_text}) narrowed to {after[2]} candidates by hand"
-            )
 
     def _relock(self, row: LineItemView, code: str) -> bool:
         """Move ``row`` onto the SKU the browser says it is on. ``True`` if it moved.
@@ -778,20 +782,17 @@ class OrderDesk:
     # ─── mirror, told rather than inferred ──────────────────────────────────
 
     def apply_event(self, event: DeskEvent) -> None:
-        """Move the mirror because the screen said what he did, not because a
-        snapshot came out different.
+        """Move the mirror because the screen said what he did.
 
-        Same destination as :meth:`absorb`, reached without the inference: the row
-        is named, so nothing has to be found by diffing; the act is named, so
-        nothing has to be guessed from the difference; and the sentence handed to
-        the model is the one he would use. Every branch reuses the mutators
-        ``absorb`` already had — the *applying* was never the weak part, being
-        *told* was.
+        This is the only way a thumb reaches the brain — there is no snapshot behind
+        it and nothing to diff. The row is named, so nothing has to be found; the act
+        is named, so nothing has to be inferred from a difference; and the sentence
+        handed to the model is the one he would use.
 
-        Idempotent against the ``state_sync`` that follows 250 ms later, and that
-        is load-bearing rather than incidental: each mutator below is a no-op when
-        the row already holds what it is being moved to, so the snapshot's own diff
-        finds nothing and the model is not told twice about one thumb."""
+        Completeness is therefore the property that matters, not idempotence: an act
+        the screen does not send is an act the brain never learns about. Every branch
+        that changes something calls :meth:`_note_change`, so the model is told once,
+        on the next turn, that the screen moved."""
         match event:
             case QuantitySet():
                 row = self.items.get(event.item_id)
@@ -808,12 +809,7 @@ class OrderDesk:
             case RowAdded():
                 if event.item_id in self.items:
                     return
-                seen = {
-                    "sku_code": event.sku_code,
-                    "sku_name": event.sku_name,
-                    "quantity": event.quantity,
-                }
-                if (added := self._adopt(event.item_id, seen)) is not None:
+                if (added := self._adopt(event)) is not None:
                     self._note_change(f"{added.id} ({added.spoken_text}) added by hand from search")
             case RowRemoved():
                 gone = self.items.pop(event.item_id, None)
@@ -849,8 +845,8 @@ class OrderDesk:
         """Keep only ``codes`` of the row's candidates. ``True`` if the set shrank.
 
         The candidate set is the brain's fact, so it only ever narrows and a code
-        the row never held is ignored — the same ownership rule :meth:`absorb`
-        applies, stated once and used by both paths."""
+        the row never held is ignored: the screen may tell us he answered, it may not
+        tell us he found a new medicine."""
         keep = {str(code) for code in codes if code}
         held = {sku.code for sku in row.candidates}
         if not keep or not keep < held:
@@ -861,21 +857,17 @@ class OrderDesk:
         self._resettle(row)
         return True
 
-    def pending(self, live: dict[str, dict[str, Any]] | None) -> str | None:
+    def pending(self) -> str | None:
         """The PENDING line: every row still short of a SKU, and what it is waiting for.
 
-        ``live`` is the browser's own ``id -> {status, candidate_codes}`` map when a
-        snapshot has arrived — so a row the pharmacist resolved by tapping a pill, or
-        deleted, is not asked about again. A row with a question on it is *awaiting an
-        answer* (never a fresh question); a row he narrowed by tapping a group is
-        awaiting the NEXT question. ``None`` when nothing is pending."""
+        It reads the mirror alone, because the mirror is now current by construction —
+        a pill he tapped arrived as an event and moved the row before this ran. A row
+        with a question on it is *awaiting an answer* (never a fresh question); a row he
+        narrowed by tapping a group is awaiting the NEXT question. ``None`` when nothing
+        is pending."""
         bits: list[str] = []
         for row in self.items.values():
             status = row.status
-            if live is not None:
-                if row.id not in live:
-                    continue  # deleted by hand
-                status = str(live[row.id].get("status") or status)
             if status in ("matched", "resolving"):
                 continue
             if row.question is not None:
@@ -1090,10 +1082,55 @@ class OrderDesk:
         )
         self.session.dispatch(action)
 
-    def _upsert(self, row: LineItemView) -> None:
-        """Put one row on screen (add or replace) and keep the mirror in step."""
+    def _place(self, row: LineItemView) -> None:
+        """Take a new row into the mirror and put it on screen, greyed, before the
+        catalog work runs — the screen keeps up with his voice, not with the resolver."""
         self.items[row.id] = row
-        self._dispatch(UpsertItems(items=[row]))
+        self._dispatch(
+            RowOpened(
+                id=row.id,
+                spoken_text=row.spoken_text,
+                query=row.query,
+                quantity=row.quantity,
+            )
+        )
+
+    def _settle(self, row: LineItemView) -> None:
+        """Put the row's outcome on screen as the one thing about it that changed.
+
+        One action per outcome, each carrying that outcome's fields and no others. The
+        matched branch also spends the mirror's leftovers, so the two pictures agree on
+        what a matched row is: one SKU and nothing pending behind it."""
+        match row.status:
+            case "matched" if row.sku is not None:
+                row.variants, row.families, row.candidates = [], [], []
+                row.differing_axes = []
+                self._dispatch(
+                    RowMatched(id=row.id, sku=row.sku, family=row.sku.family or row.family or "")
+                )
+            case "multi_family":
+                self._dispatch(
+                    RowFamilies(
+                        id=row.id,
+                        families=row.families,
+                        candidates=row.candidates,
+                        differing_axes=row.differing_axes,
+                    )
+                )
+            case "multi_variant":
+                self._dispatch(
+                    RowVariants(
+                        id=row.id,
+                        family=row.family,
+                        variants=row.variants,
+                        candidates=row.candidates,
+                        differing_axes=row.differing_axes,
+                    )
+                )
+            case "resolving":
+                self._dispatch(RowResolving(id=row.id))
+            case _:
+                self._dispatch(RowNotFound(id=row.id))
 
     def _note_scheme(self, row: LineItemView) -> None:
         """Fire the banner when a matched SKU carries a supplier scheme.
@@ -1274,7 +1311,7 @@ class OrderDesk:
         return {
             "items": rows,
             "item_count": len(rows),
-            "pending": self.pending(None),
+            "pending": self.pending(),
             "screen_version": self.version,
         }
 
@@ -1323,11 +1360,9 @@ class OrderDesk:
                 quantity=item.quantity or None,
                 status="resolving",
             )
-            # Land the row instantly (greyed, shimmering) so the screen keeps up with
-            # his voice, THEN do the (fast, deterministic) catalog work.
-            self._upsert(row)
+            self._place(row)
             self._resolve_into(row, item.text, item)
-            self._upsert(row)
+            self._settle(row)
             self._note_scheme(row)
             briefs.append(self._brief(row))
         return {"items": briefs}
@@ -1356,7 +1391,7 @@ class OrderDesk:
             )
         if quantity is not None:
             row.quantity = quantity
-        self._upsert(row)
+            self._dispatch(RowQuantity(id=row.id, quantity=row.quantity))
         logger.info("orderdesk: add_items → existing {} ({!r})", row.id, item.text)
         brief = self._brief(row)
         brief["already_on_order"] = True
@@ -1389,9 +1424,9 @@ class OrderDesk:
             return self._ref_error(item_id)
         row.status = "resolving"
         row.note = None
-        self._upsert(row)
+        self._dispatch(RowResolving(id=row.id))
         self._resolve_into(row, query.strip())
-        self._upsert(row)
+        self._settle(row)
         self._note_scheme(row)
         return self._brief(row)
 
@@ -1491,7 +1526,7 @@ class OrderDesk:
         )
         row.note = None
         self._narrowed.discard(row.id)
-        self._upsert(row)
+        self._dispatch(RowQuestion(id=row.id, question=row.question))
         return {
             "ok": True,
             "asked": question.strip(),
@@ -1566,7 +1601,7 @@ class OrderDesk:
         if row is None:
             return self._ref_error(item_id)
         row.quantity = quantity
-        self._upsert(row)
+        self._dispatch(RowQuantity(id=row.id, quantity=row.quantity))
         return {"id": row.id, "status": row.status, "quantity": row.quantity}
 
     async def adjust_quantity(self, item_id: str, delta: int) -> dict[str, Any]:
@@ -1593,7 +1628,7 @@ class OrderDesk:
         # Clamped, not floored at zero: a row on the order is a row he wants at least
         # one of, and "make it none" is a removal he should hear confirmed as one.
         row.quantity = max(1, before + delta)
-        self._upsert(row)
+        self._dispatch(RowQuantity(id=row.id, quantity=row.quantity))
         return {
             "id": row.id,
             "status": row.status,
@@ -1670,7 +1705,7 @@ class OrderDesk:
         else:
             row.variants, row.candidates = [], hits[:_MAX_CANDIDATES]
         row.differing_axes = _differing_axes(row.variants or row.candidates)
-        self._upsert(row)
+        self._settle(row)
         return self._brief(row)
 
     async def _lock(self, row: LineItemView, sku: SkuWire) -> dict[str, Any]:
@@ -1686,7 +1721,7 @@ class OrderDesk:
         row.differing_axes = []
         row.note = None
         self._narrowed.discard(row.id)
-        self._upsert(row)
+        self._settle(row)
         self._note_scheme(row)
         return self._brief(row)
 
@@ -1799,8 +1834,6 @@ class OrderDeskBrain(GeminiBrain):
         self.scenario: dict[str, Any] = {}
         self.pharmacy: dict[str, Any] = {}
         self.nudge = ""
-        # The last screen+PENDING message appended to context, so a state_sync that
-        # changed nothing the model needs to know about does not repeat itself.
 
     @property
     def tools(self) -> list[Any]:
@@ -1857,58 +1890,36 @@ class OrderDeskBrain(GeminiBrain):
         caller heard anything."""
         return f"{_HELLO} {_FALLBACK_OPENER}"
 
-    # ─── the live screen, folded into context on every state_sync ──────────
-
-    def _ingest_state(self, data: dict[str, Any]) -> None:
-        """Fold the browser's live cart into the mirror — and into the mirror only.
-
-        This used to dump the whole snapshot into the model's context on every
-        change. One production call put **21 full carts in 113 seconds** in front of
-        the model, ~4,700 tokens of it, each copy labelled *authoritative* with
-        nothing saying which was current. The complaint that the brain did not know
-        what was on screen after a manual edit was exactly that: it had been told,
-        twenty-one times, and could not tell which telling was now.
-
-        So the snapshot updates ``self.desk`` and stops. The model reads the cart
-        through ``read_screen``, which is local and free, and is told only that
-        something moved — one line, his edits, no contents. ``desk.version`` is what
-        makes that safe rather than hopeful: a tool aimed at a screen he has changed
-        since the model last read it refuses instead of acting on a stale row id."""
-        snapshot = data.get("screen")
-        if isinstance(snapshot, dict):
-            self.desk.absorb(
-                {
-                    str(row.get("id")): row
-                    for row in (snapshot.get("items") or [])
-                    if isinstance(row, dict) and row.get("id")
-                }
-            )
-        note = self.desk.take_changes()
-        if note is None:
-            return
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
-        logger.info(
-            "orderdesk: state_sync v{} ({} rows) — {}",
-            self.desk.version,
-            len(self.desk.items),
-            note,
-        )
-
     # ─── browser → brain: the manual search bar, and the live screen ───────
 
     def _on_desk_event(self, event: DeskEvent) -> None:
         """What this brain does with one thing the pharmacist did.
 
         The choice is here on purpose. An event is a fact about the screen, not an
-        instruction to the brain — the platform's job is to deliver it typed, and
-        what happens next is per-brain. This one moves the mirror and lets the
-        change note carry the sentence into context on the next turn; another brain
-        might inject it as speech, drive its own model, or drop it. Nothing above
-        this line assumes any of that.
+        instruction to the brain — the platform's job is to deliver it typed, and what
+        happens next is per-brain. This one moves the mirror and puts one thin line
+        into context — *what* changed, never the contents; another brain might inject
+        it as speech, drive its own model, or drop it. Nothing above this line assumes
+        any of that.
+
+        What used to sit here was a whole cart on every change: one production call put
+        21 full carts, ~4,700 tokens, in front of the model in 113 seconds, each copy
+        labelled *authoritative* with nothing saying which was current. The model reads
+        the cart through ``read_screen`` instead, which is local and free, and
+        ``desk.version`` makes that safe rather than hopeful — a tool aimed at a screen
+        he has changed since the model last read it refuses instead of acting on a
+        stale row id.
 
         Floor-free like the other two: a thumb on the screen never makes the agent
         start talking over him."""
         self.desk.apply_event(event)
+        note = self.desk.take_changes()
+        if note is None:
+            return
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
+        logger.info(
+            "orderdesk: screen v{} ({} rows) — {}", self.desk.version, len(self.desk.items), note
+        )
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Everything the browser tells the desk, all floor-free.
@@ -1919,19 +1930,16 @@ class OrderDeskBrain(GeminiBrain):
         the agent start talking over him.
 
         Everything else he does to the screen arrives *named*, as one of the typed
-        shapes in ``desk_events.py`` — ``li3 quantity set to 5`` rather than a cart
-        to be diffed. ``state_sync`` still carries the whole cart behind them and is
-        still folded in by :meth:`_ingest_state`, but it is the repair channel now,
-        not the news: by the time it lands the change has already been applied and
-        its own diff finds nothing to report."""
+        shapes in ``desk_events.py`` — ``li3 quantity set to 5`` rather than a cart to
+        be diffed. There is no snapshot behind them and no repair channel: an act the
+        screen does not send is an act the brain never learns about, which makes the
+        event set's completeness the thing the tests hold, and makes it obvious in a
+        log rather than silently reconciled a beat later."""
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         kind = msg.data.get("t")
         raw_payload = msg.data.get("d")
         payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else {}
-        if kind == "state_sync":
-            self._ingest_state(payload)
-            return
         if isinstance(kind, str) and (event := parse_event(kind, payload)) is not None:
             logger.info("orderdesk: {} — {}", kind, event)
             self._on_desk_event(event)

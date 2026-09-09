@@ -1,21 +1,20 @@
 // Shared shapes for OrderDesk. Owned by the integration contract (DESIGN.md §1);
 // both the UI (pages/store) and the scenario data (data.ts) import from here.
 //
-// The catalog and line-item shapes are not written here at all: they come off
-// `actions.gen.ts`, generated from backend/brain.py's Actions, and are
-// re-exported below so a reader of this file still sees the whole contract.
-// What stays hand-written is what the browser owns — the snapshot it sends
-// back, the scenario data, and the app's own phases.
+// The catalog shapes are not written here at all: `SkuWire`, `FamilyWire` and the
+// question shapes come off `actions.gen.ts`, generated from backend/brain.py's
+// Actions, and are re-exported below so a reader of this file still sees the whole
+// contract. What stays hand-written is what the browser owns — the row it renders,
+// the scenario data, and the app's own phases.
 
 export type {
   DisambigChoice,
   DisambigQuestion,
   FamilyWire,
-  LineItemView,
   SkuWire,
 } from "./actions.gen";
 
-import type { LineItemView } from "./actions.gen";
+import type { DisambigQuestion, FamilyWire, SkuWire } from "./actions.gen";
 
 /**
  * "resolving" — just heard, free text, grey and shimmering; "multi_family" —
@@ -23,31 +22,45 @@ import type { LineItemView } from "./actions.gen";
  * several SKUs, pills on the differing axes; "matched" — locked to a SKU,
  * qty stepper live; "not_found" — no catalog hit, manual search affordance.
  */
-export type LineItemStatus = LineItemView["status"];
+export type LineItemStatus =
+  | "resolving"
+  | "multi_family"
+  | "multi_variant"
+  | "matched"
+  | "not_found";
 
-export type LineItemSource = LineItemView["source"];
+export type LineItemSource = "agent" | "manual";
 
-// ---------- browser -> brain snapshot (state_sync) ----------
-
-export interface SnapshotItem {
+/**
+ * One order row, as this screen holds it.
+ *
+ * It is deliberately **not** a generated type. Nothing sends a whole row: the brain
+ * has its own mirror and tells this screen one change at a time (`row_matched`,
+ * `row_question`, `row_quantity`…), and the pharmacist's thumb moves rows here
+ * without asking anyone. Both pictures are built from the same events; neither is a
+ * copy of the other, and there is no merge to get wrong.
+ */
+export interface LineItem {
   id: string;
+  /** What was heard, before any catalog work — the row's title until it matches. */
   spoken_text: string;
-  status: LineItemStatus;
-  sku_code: string | null;
-  sku_name: string | null;
-  pack_size: string | null;
+  /** The English query the row was last resolved on. */
+  query: string;
   quantity: number | null;
+  status: LineItemStatus;
+  sku: SkuWire | null;
+  family: string | null;
+  /** Leaf pills: ≤4 SKUs the pharmacist can settle the row by pointing at. */
+  variants: SkuWire[];
+  /** Brand cards, when several families could answer to what he said. */
+  families: FamilyWire[];
+  /** The full candidate set behind a question, once a row is too wide for pills. */
+  candidates: SkuWire[];
+  question: DisambigQuestion | null;
+  differing_axes: string[];
+  /** The agent's short aside on this row (`highlight_item`), until the row moves. */
+  note: string | null;
   source: LineItemSource;
-  candidate_codes: string[];   // current candidate sku_codes when ambiguous (lets the
-                               // agent see a pill-tap narrowing and ask the next question)
-}
-
-export interface OrderSnapshot {
-  screen: "order" | "confirmed";
-  items: SnapshotItem[];
-  total_mrp: number;
-  item_count: number;
-  confirmed: boolean;
 }
 
 // ---------- scenarios (data.ts) ----------
