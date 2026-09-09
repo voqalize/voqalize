@@ -225,18 +225,26 @@ class GeminiBrain(Brain):
     def append_to_context(self, content: types.Content) -> None:
         """Add to the conversation the model sees, in Gemini's own type.
 
-        For context the app knows and the conversation does not — typically the
-        live screen state pushed to :meth:`~voqalize.sdk.Brain.on_rtvi`, which
-        takes no floor and starts no turn::
+        For context the app knows and the conversation does not — typically what
+        the person just did on screen, arriving at
+        :meth:`~voqalize.sdk.Brain.on_rtvi` as a typed
+        :class:`~voqalize.sdk.app_events.AppEvent`, which takes no floor and
+        starts no turn::
 
             async def on_rtvi(self, session, msg):
-                if msg.data.get("t") == "state_sync":
-                    self.append_to_context(
-                        types.Content(
-                            role="user",
-                            parts=[types.Part(text="ON SCREEN: " + json.dumps(msg.data["d"]))],
+                match EVENTS.parse(msg):
+                    case QuantitySet() as e:
+                        self.append_to_context(
+                            types.Content(
+                                role="user",
+                                parts=[types.Part(text=f"HE SET {e.item_id} TO {e.quantity}")],
+                            )
                         )
-                    )
+
+        Append the **act**, not the screen. One named sentence is what a model can
+        act on; a whole-state blob appended on a debounce is a context full of
+        near-identical copies, none of them dated, and a model reasoning from
+        whichever it noticed.
 
         A ``Content`` is whatever Gemini takes, so handing the model a screenshot
         or a PDF is this same call with a different part. The role must be

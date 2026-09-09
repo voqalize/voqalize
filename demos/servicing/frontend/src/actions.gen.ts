@@ -1,8 +1,8 @@
 // Generated from servicing/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types servicing/backend/brain.py -o servicing/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 /** Show the advisor's case board (the worklist of all their cases). No fields. */
 export type OpenBoard = Record<string, never>;
@@ -132,7 +132,7 @@ export interface Highlight {
   section: 'summary' | 'loan' | 'payments' | 'documents' | 'approvals' | 'notes' | 'activity';
 }
 
-// ── Shapes used by the actions above ───────────────────────────────
+// ── Shapes used by the messages above ──────────────────────────────
 
 /** A draft item dropped into the advisor's 'Needs your approval' queue. */
 export interface ApprovalSpec {

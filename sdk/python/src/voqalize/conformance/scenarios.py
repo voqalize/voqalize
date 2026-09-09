@@ -411,13 +411,13 @@ async def scn_app_message_delivery(ctx: ScenarioContext) -> None:
     (the update-internal-state path)."""
     driver = await ctx.connect()
     await driver.start_session()
-    await driver.send_client_message("state_sync", {"page": "checkout"})
+    await driver.send_client_message("cart_opened", {"page": "checkout"})
     state = await driver.dump_conversation()
     events = state.get("app_messages", [])
-    matched = [e for e in events if e.get("name") == "state_sync"]
+    matched = [e for e in events if e.get("name") == "cart_opened"]
     checks.require(
         len(matched) == 1 and matched[0].get("data") == {"page": "checkout"},
-        f"client message 'state_sync' not delivered to the brain: {events}",
+        f"client message 'cart_opened' not delivered to the brain: {events}",
     )
 
 

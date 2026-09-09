@@ -1,8 +1,8 @@
 // Generated from aura/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types aura/backend/brain.py -o aura/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 /** Back to the Aura Bank home page. */
 export type OpenHome = Record<string, never>;
@@ -194,7 +194,7 @@ export interface ShowCardControls {
   controls: CardControls;
 }
 
-// ── Shapes used by the actions above ───────────────────────────────
+// ── Shapes used by the messages above ──────────────────────────────
 
 /**
  * An account as the picker and the balance card show it — the projection of

@@ -464,18 +464,29 @@ class Brain:
         return _nothing()
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """The app said something — a tap, a keystroke, a state push::
+        """The app said something — a tap, a keystroke, a question::
+
+            EVENTS = AppEvents(QuantitySet, RowRemoved)
 
             async def on_rtvi(self, session, msg):
-                if msg.type is not RTVIType.CLIENT_MESSAGE:
-                    return
-                kind, payload = msg.data["t"], msg.data.get("d") or {}
-                if kind == "state_sync":
-                    self.screen = payload
-                elif kind == "catalog_search":
-                    session.dispatch(ShowSearchResults(rows=self.search(payload["query"])))
-                elif kind == "hang_up":
-                    session.end(reason="user tapped hang up")
+                match EVENTS.parse(msg):
+                    case QuantitySet() as e:
+                        self.cart[e.item_id] = e.quantity
+                        return
+                    case RowRemoved() as e:
+                        del self.cart[e.item_id]
+                        return
+                if msg.type is RTVIType.CLIENT_MESSAGE:
+                    kind, payload = msg.data["t"], msg.data.get("d") or {}
+                    if kind == "catalog_search":
+                        session.dispatch(ShowSearchResults(rows=self.search(payload["query"])))
+
+        **Name what changed; never push the whole screen.** An
+        :class:`~voqalize.sdk.app_events.AppEvent` is one act, typed and addressed
+        — ``li3 quantity set to 5`` — which the model can read as a sentence and
+        this side can apply without diffing. A periodic whole-state push is the
+        shape to avoid: nothing in it names a change, so every change has to be
+        inferred, and it fills the model's context with copies of itself.
 
         Not a generator, which is the whole point: a click can update the screen
         or end the call, but it cannot make the agent start talking over the

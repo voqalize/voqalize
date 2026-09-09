@@ -104,24 +104,37 @@ Two things carry most of what a real agent needs beyond its tools.
 `system_instruction` is settable, so facts known only once the session opens — who
 called, which tenant — go in from `on_session_start`. And `append_to_context()`
 adds to the conversation the model sees, for context the app knows and the
-conversation does not — typically the live screen state pushed to `on_rtvi`, which
-takes no floor and starts no turn:
+conversation does not — typically what the person just did on screen, arriving at
+`on_rtvi` as a typed `AppEvent`, which takes no floor and starts no turn:
 
 ```python
-import json
-
 from google.genai import types
-from voqalize.sdk import RTVIMessage, Session
+from voqalize.sdk import AppEvent, AppEvents, RTVIMessage, Session
+
+
+class QuantitySet(AppEvent):
+    item_id: str
+    quantity: int
+
+
+EVENTS = AppEvents(QuantitySet)
+
 
 async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-    if msg.data.get("t") == "state_sync":
-        self.append_to_context(
-            types.Content(
-                role="user",
-                parts=[types.Part(text="ON SCREEN: " + json.dumps(msg.data["d"]))],
+    match EVENTS.parse(msg):
+        case QuantitySet() as e:
+            self.append_to_context(
+                types.Content(
+                    role="user",
+                    parts=[types.Part(text=f"HE SET {e.item_id} TO {e.quantity}")],
+                )
             )
-        )
 ```
+
+An `AppEvent` is `Action`'s mirror image: your fields are the payload, the class
+name is the wire name, and `voqalize types` generates the TypeScript half of both
+unions from the one module. On the browser side it is stock pipecat —
+`client.sendUIEvent("quantity_set", { item_id, quantity })`.
 
 It takes the provider's own type on purpose — a `Content` here, a `UserInputStep`
 on `GeminiInteractionsBrain`. **Voqalize owns the wire; the provider owns the
@@ -132,8 +145,10 @@ screenshot or a PDF is this same call with a different part, rather than a secon
 method we would have had to invent for it.
 
 It appends where you call it, once. Nothing debounces or diffs for you — the
-context only ever grows, which is what makes it cacheable, so append what
-*changed* rather than the whole screen every time.
+context only ever grows, which is what makes it cacheable, so append the *act*
+rather than the whole screen every time. A whole-state push appended on a debounce
+is a context full of near-identical copies, none of them dated, and a model
+reasoning from whichever it noticed.
 
 `import voqalize.sdk` pulls no model vendor: nothing in the core SDK imports this
 module.

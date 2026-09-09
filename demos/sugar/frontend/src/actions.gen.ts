@@ -1,8 +1,8 @@
 // Generated from sugar/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types sugar/backend/brain.py -o sugar/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 export interface LogMeal {
   /** Which meal of the day this is. */
@@ -104,7 +104,7 @@ export interface Highlight {
   section: 'glucose' | 'meals' | 'activity' | 'meds' | 'plan' | 'summary';
 }
 
-// ── Shapes used by the actions above ───────────────────────────────
+// ── Shapes used by the messages above ──────────────────────────────
 
 export interface MealItem {
   /** Food item in clean English, e.g. 'Roti' or 'Dal (katori)'. */

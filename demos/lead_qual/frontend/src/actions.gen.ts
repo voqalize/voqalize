@@ -1,8 +1,8 @@
 // Generated from lead_qual/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types lead_qual/backend/brain.py -o lead_qual/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 /**
  * Rendered by the `/lead_qual` end screen. `branch` is set only for a
@@ -16,7 +16,7 @@ export interface CallEnded {
   branch: Branch | null;
 }
 
-// ── Shapes used by the actions above ───────────────────────────────
+// ── Shapes used by the messages above ──────────────────────────────
 
 /** The nearest Auric branch, from the enquiry payload the page sent. */
 export interface Branch {

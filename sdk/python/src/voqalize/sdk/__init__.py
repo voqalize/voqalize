@@ -33,6 +33,7 @@ class; nothing here imports it.
 
 from ._logging import configure_logging, session_context
 from .actions import Action
+from .app_events import AppEvent, AppEvents
 from .brain import Brain, RequestRejected, Session, WireError, serve
 from .events import (
     Chunk,
@@ -51,6 +52,8 @@ from .wire import ErrorCode, RTVIType
 
 __all__ = [
     "Action",
+    "AppEvent",
+    "AppEvents",
     "Brain",
     "Channel",
     "Chunk",

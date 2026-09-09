@@ -25,7 +25,7 @@ from voqalize.sdk.wire import (
     WireSerializer,
 )
 
-MSG_DATA = {"t": "state_sync", "d": {"screen": "cart", "items": [1, 2, 3]}}
+MSG_DATA = {"t": "cart_opened", "d": {"screen": "cart", "items": [1, 2, 3]}}
 
 
 async def test_unknown_envelope_body_is_skipped_not_raised() -> None:

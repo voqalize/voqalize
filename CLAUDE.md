@@ -330,9 +330,9 @@ Three decisions taken on it the same day, also verbatim:
 > objects in the reverse direction, decide if we need a wire change. Start small and
 > then work upwards.
 
-So the order of work is fixed: **demo first, SDK second.** An `Action`-symmetric type in
-`sdk/python` is not to be written until OrderDesk has shown which events a real screen
-actually needs.
+So the order of work was fixed: **demo first, SDK second** — the `Action`-symmetric
+type was not written until OrderDesk had shown which events a real screen actually
+needs. Both steps have shipped; the fleet's other eight demos still teach `state_sync`.
 
 **There is no third step — the wire cannot earn one** (traced 2026-09-09, once the demo cut
 was in). `state_sync` is a string a demo invented: it appears nowhere in `proto/`, the
@@ -347,13 +347,13 @@ detail in `platform/docs/demo-quality-tracker.md` row 31.
 a workaround written inside one is a bill the next developer pays in full, and the
 same workaround appearing in two demos is a feature the SDK owes them.
 
-The asymmetry this names, as the tree stands: brain→app is `Action` — a pydantic
-class whose fields are the payload, `extra="forbid"`, wire name derived from the
-class name, JSON Schema exported so the TypeScript half is *generated*. app→brain is
-`RTVIMessage.data: Any`, an untyped JSON dict the developer digs through by string
-key. `demos/orderdesk/frontend/src/clientMessages.ts` says it out loud: the brain→app
-half "is generated … nothing about it is written down twice. These three are this
-side's own, so they are."
+**The asymmetry it named is closed** (2026-09-09). app→brain was
+`RTVIMessage.data: Any`, an untyped dict the developer dug through by string key; it
+is now `AppEvent` + `AppEvents` in `sdk/python`, `Action`'s mirror image, riding
+RTVI's own `ui-event`, with `voqalize types` generating both unions out of the one
+module. OrderDesk is the first user. `client-message`/`{t, d}` still parses, forever.
+The SDK docstrings and `docs/src/content/docs/build/brain/{context,typescript}.md`
+carry the detail; do not restate it here.
 
 ### Typed and fine-grained, in both directions
 

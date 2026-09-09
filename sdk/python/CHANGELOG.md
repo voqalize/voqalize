@@ -17,7 +17,46 @@ kept for the history, and nothing installable was ever cut from them.
 
 ## Unreleased
 
+### Added
+
+- **`AppEvent` and `AppEvents` — `Action`'s mirror image, browser to brain.**
+  Declare what the person can do on screen the way you declare what the brain can
+  draw: subclass `AppEvent`, and the fields are the payload, the class name is the
+  wire name. `AppEvents(QuantitySet, RowRemoved)` is the vocabulary of one brain
+  and the only thing that reads it — `parse(msg)` returns your union, typed, so a
+  `match` over it is checked for exhaustiveness. A name it does not know, a
+  payload that does not fit, or a message that was never an event are all `None`
+  and a log line, never an exception: an app one deploy ahead of its brain must
+  not be able to end a call.
+
+  It reads RTVI's own `ui-event` (`client.sendUIEvent(name, payload)`) and, for
+  apps written before that, a `client-message` carrying `{"t", "d"}`. **Both keep
+  working**; `ui-event` is what we teach. Nothing on the wire changed.
+
+  The registry is scoped to the set rather than global, deliberately: several
+  brains share one process, and two of them are entitled to both call something
+  `RowAdded`.
+
+- **`voqalize types` generates both directions from the one module.** The same
+  run that emits the `UiAction` union now emits an `AppEvent` union discriminated
+  by `event`, an `APP_EVENT_NAMES` array, and a `sendAppEvent(send, event)` helper
+  typed against a pipecat client's `sendUIEvent`. New `--event-union-name` flag,
+  `AppEvent` by default. Action shapes stay total — `Action` emits every field —
+  while event shapes read `required`, because the browser builds those and
+  pydantic fills the defaults on arrival.
+
+  A module declaring only events now generates; the "no actions" error became "no
+  Action or AppEvent subclasses".
+
 ### Changed
+
+- **The `state_sync` recipe is retired from every docstring, the README and the
+  docs.** Pushing a whole screen on a debounce names no change, so the brain has
+  to diff and infer which act produced the difference, and appending it fills a
+  model's context with undated copies of itself. `Brain.on_rtvi`,
+  `GeminiBrain.append_to_context` and `GeminiInteractionsBrain.append_to_context`
+  now teach a named event instead. Nothing was removed from the SDK — `state_sync`
+  was only ever a string an app chose.
 
 - **`Chunk` is now `SpeechChunk`, and `Chunk` stays as an alias.** One name, one
   search: `SpeechChunk` finds the proto message, the wire frame, this class,

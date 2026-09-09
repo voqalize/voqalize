@@ -1,8 +1,8 @@
 // Generated from support/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types support/backend/brain.py -o support/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 export type OpenOrders = Record<string, never>;
 

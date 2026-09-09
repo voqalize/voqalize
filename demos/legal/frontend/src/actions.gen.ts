@@ -1,8 +1,8 @@
 // Generated from legal/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types legal/backend/brain.py -o legal/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 export interface PointToClause {
   /** The clause to bring on screen. */
@@ -89,7 +89,7 @@ export interface SummarizeSession {
   open_items: string[];
 }
 
-// ── Shapes used by the actions above ───────────────────────────────
+// ── Shapes used by the messages above ──────────────────────────────
 
 /**
  * One background angle. Flat rather than a shape per kind: Gemini handles a

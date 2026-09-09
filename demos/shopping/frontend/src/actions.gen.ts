@@ -1,8 +1,8 @@
 // Generated from shopping/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types shopping/backend/brain.py -o shopping/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 export interface ShowSearch {
   query: string;

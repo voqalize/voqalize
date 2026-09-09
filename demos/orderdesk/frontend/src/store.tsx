@@ -13,7 +13,7 @@
  *     that arrives after the pharmacist already settled the row puts a question
  *     back and nothing else, because it carries no SKU to un-settle it with;
  *   - every gesture the pharmacist makes goes out *named*, as a typed
- *     {@link DeskEvent} — `quantity_set`, `sku_chosen`, `row_removed` — the instant
+ *     `AppEvent` — `quantity_set`, `sku_chosen`, `row_removed` — the instant
  *     he makes it. There is no snapshot behind them: an act this screen does not
  *     send is an act the brain never learns about, so the event set has to be
  *     complete, and a gap shows up as a gap rather than being quietly reconciled.
@@ -35,7 +35,8 @@ import {
   type ReactNode,
 } from "react";
 import { buildBrainPayload, pharmacyById, scenarioById } from "./data";
-import { CLIENT_MESSAGE, sendDeskEvent, type AgentSend, type DeskEvent } from "./clientMessages";
+import { sendAppEvent, type AppEvent } from "./actions.gen";
+import { CLIENT_MESSAGE, type AgentSend } from "./clientMessages";
 import {
   asUiAction,
   unhandledUiAction,
@@ -109,7 +110,7 @@ interface OrderDeskStore {
   /** Order value at PTR — the number a pharmacist actually cares about. */
   totalPtr: number;
 
-  // ── Manual edits (each goes out as its own typed DeskEvent) ───────────────
+  // ── Manual edits (each goes out as its own typed AppEvent) ───────────────
   /** Tap a variant pill: promote the row to `matched` on the SkuWire it already holds. */
   choosePill: (itemId: string, sku: SkuWire) => void;
   /**
@@ -362,12 +363,12 @@ function ambiguousCodes(it: LineItem): string[] {
 export function tapEvent(
   before: LineItem,
   after: LineItem,
-  narrowed: (survivingCodes: string[]) => DeskEvent,
-): DeskEvent {
+  narrowed: (survivingCodes: string[]) => AppEvent,
+): AppEvent {
   if (after.status === "matched" && after.sku && after.sku.code !== before.sku?.code) {
     return {
-      t: "sku_chosen",
-      d: { item_id: after.id, sku_code: after.sku.code, sku_name: after.sku.name, via: "pill" },
+      event: "sku_chosen",
+      payload: { item_id: after.id, sku_code: after.sku.code, sku_name: after.sku.name, via: "pill" },
     };
   }
   return narrowed(ambiguousCodes(after));
@@ -411,7 +412,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
    * genuinely nobody to tell: before the call is live the brain has not been born
    * yet, and it starts from an empty order when it is.
    */
-  const emit = useCallback((event: DeskEvent) => sendDeskEvent(agentSendRef.current, event), []);
+  const emit = useCallback((event: AppEvent) => sendAppEvent(agentSendRef.current?.tell, event), []);
 
   // ── Navigation ──────────────────────────────────────────────────────────
   const startScenario = useCallback((scenarioId: string) => {
@@ -681,8 +682,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
   const choosePill = useCallback(
     (itemId: string, sku: SkuWire) => {
       emit({
-        t: "sku_chosen",
-        d: { item_id: itemId, sku_code: sku.code, sku_name: sku.name, via: "pill" },
+        event: "sku_chosen",
+        payload: { item_id: itemId, sku_code: sku.code, sku_name: sku.name, via: "pill" },
       });
       patchRow(itemId, (it) => ({
         ...it,
@@ -706,8 +707,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       if (cur) {
         emit(
           tapEvent(cur, applyChoice(cur, choice), (surviving_codes) => ({
-            t: "question_answered",
-            d: {
+            event: "question_answered",
+            payload: {
               item_id: itemId,
               question: cur.question?.text ?? "",
               answer: choice.label,
@@ -725,7 +726,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
     const send = agentSendRef.current;
     if (!send || query.trim().length < SEARCH_MIN_CHARS) return;
     setSearching(true);
-    send(CLIENT_MESSAGE.catalogSearch, { query: query.trim() });
+    send.ask(CLIENT_MESSAGE.catalogSearch, { query: query.trim() });
   }, []);
 
   const setSearchQuery = useCallback(
@@ -786,8 +787,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       }
       emit(
         tapEvent(row, applyFamily(row, family), (surviving_codes) => ({
-          t: "family_chosen",
-          d: { item_id: itemId, family, surviving_codes },
+          event: "family_chosen",
+          payload: { item_id: itemId, family, surviving_codes },
         })),
       );
       patchRow(itemId, (it) => applyFamily(it, family));
@@ -807,7 +808,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
     const send = agentSendRef.current;
     if (!send || !family) return;
     setVariantStrip({ itemId, family, results: [], differingAxes: [], loading: true });
-    send(CLIENT_MESSAGE.listVariants, { item_id: itemId, family });
+    send.ask(CLIENT_MESSAGE.listVariants, { item_id: itemId, family });
   }, []);
 
   const closeVariants = useCallback(() => setVariantStrip(null), []);
@@ -820,8 +821,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
   const pickVariant = useCallback(
     (itemId: string, sku: SkuWire) => {
       emit({
-        t: "sku_chosen",
-        d: { item_id: itemId, sku_code: sku.code, sku_name: sku.name, via: "variant" },
+        event: "sku_chosen",
+        payload: { item_id: itemId, sku_code: sku.code, sku_name: sku.name, via: "variant" },
       });
       patchRow(itemId, (it) => ({
         ...it,
@@ -841,8 +842,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       const target = searchTarget;
       if (target) {
         emit({
-          t: "sku_chosen",
-          d: { item_id: target, sku_code: sku.code, sku_name: sku.name, via: "search" },
+          event: "sku_chosen",
+          payload: { item_id: target, sku_code: sku.code, sku_name: sku.name, via: "search" },
         });
         patchRow(target, (it) => ({
           ...it,
@@ -855,8 +856,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
       } else {
         const id = `m${++manualSeqRef.current}`;
         emit({
-          t: "row_added",
-          d: {
+          event: "row_added",
+          payload: {
             item_id: id,
             sku_code: sku.code,
             sku_name: sku.name,
@@ -887,7 +888,7 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
   const setQuantity = useCallback(
     (itemId: string, quantity: number) => {
       const q = Math.max(1, Math.min(999, Math.round(quantity)));
-      emit({ t: "quantity_set", d: { item_id: itemId, quantity: q } });
+      emit({ event: "quantity_set", payload: { item_id: itemId, quantity: q } });
       patchRow(itemId, (it) => ({ ...it, quantity: q }));
     },
     [emit, patchRow],
@@ -897,8 +898,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
     (itemId: string) => {
       const gone = items.find((it) => it.id === itemId);
       emit({
-        t: "row_removed",
-        d: { item_id: itemId, spoken_text: gone?.spoken_text ?? "" },
+        event: "row_removed",
+        payload: { item_id: itemId, spoken_text: gone?.spoken_text ?? "" },
       });
       setItems((prev) => prev.filter((it) => it.id !== itemId));
       setVariantStrip((cur) => (cur && cur.itemId === itemId ? null : cur));
@@ -919,8 +920,8 @@ export function OrderDeskProvider({ children }: { children: ReactNode }) {
     setConfirmed(true);
     setOrderNo(orderNumberNow);
     emit({
-      t: "order_confirmed",
-      d: {
+      event: "order_confirmed",
+      payload: {
         order_no: orderNumberNow,
         item_count: items.length,
         total_mrp: items.reduce((sum, it) => sum + (it.sku ? it.sku.mrp * (it.quantity ?? 0) : 0), 0),

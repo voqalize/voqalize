@@ -23,6 +23,7 @@ discover()
 
 from voqalize_demos._loaded.orderdesk.brain import OrderDesk, SpokenItem  # noqa: E402
 from voqalize_demos._loaded.orderdesk.desk_events import (  # noqa: E402
+    DESK_EVENTS,
     FamilyChosen,
     OrderConfirmed,
     QuantitySet,
@@ -30,10 +31,9 @@ from voqalize_demos._loaded.orderdesk.desk_events import (  # noqa: E402
     RowAdded,
     RowRemoved,
     SkuChosen,
-    parse_event,
 )
 
-from voqalize.sdk import Action, Session  # noqa: E402
+from voqalize.sdk import Action, RTVIMessage, RTVIType, Session  # noqa: E402
 
 
 class _Screen:
@@ -53,24 +53,49 @@ def _desk() -> OrderDesk:
 # ─── the vocabulary ────────────────────────────────────────────────────────────
 
 
+def _ui_event(name: str, payload: dict[str, object]) -> RTVIMessage:
+    """What ``client.sendUIEvent(name, payload)`` puts on the wire."""
+    return RTVIMessage(type=RTVIType.UI_EVENT, data={"event": name, "payload": payload})
+
+
 def test_the_wire_name_of_an_event_is_its_class_name() -> None:
     """The same contract ``Action`` has in the other direction: the class name *is*
     the wire name, so nothing about it is written down twice."""
     assert SkuChosen.__voqal_event__ == "sku_chosen"
     assert QuestionAnswered.__voqal_event__ == "question_answered"
     assert OrderConfirmed.__voqal_event__ == "order_confirmed"
-    assert parse_event("quantity_set", {"item_id": "li1", "quantity": 5}) == QuantitySet(
-        item_id="li1", quantity=5
-    )
+
+
+def test_every_gesture_this_desk_knows_is_in_the_vocabulary() -> None:
+    """:data:`DESK_EVENTS` is what ``on_rtvi`` reads and what ``actions.gen.ts`` is
+    generated from, so a class declared and left out of it is a gesture the screen
+    can send and the brain silently drops."""
+    assert {e.__voqal_event__ for e in DESK_EVENTS} == {
+        "sku_chosen",
+        "row_added",
+        "row_removed",
+        "question_answered",
+        "family_chosen",
+        "quantity_set",
+        "order_confirmed",
+    }
+
+
+def test_a_gesture_arrives_typed_off_the_wire() -> None:
+    parsed = DESK_EVENTS.parse(_ui_event("quantity_set", {"item_id": "li1", "quantity": 5}))
+    assert parsed == QuantitySet(item_id="li1", quantity=5)
 
 
 def test_a_message_this_brain_cannot_read_is_not_a_crash() -> None:
     """A browser one deploy ahead names an act this brain has never heard of. That
     is a gap in the mirror — a real one, since nothing arrives later to close it —
     but a gap is a log line, never an exception on a live call."""
-    assert parse_event("teleport_row", {"item_id": "li1"}) is None
-    assert parse_event("quantity_set", {"item_id": "li1"}) is None  # no quantity
-    assert parse_event("quantity_set", {"item_id": "li1", "quantity": 5, "colour": "red"}) is None
+    assert DESK_EVENTS.parse(_ui_event("teleport_row", {"item_id": "li1"})) is None
+    assert DESK_EVENTS.parse(_ui_event("quantity_set", {"item_id": "li1"})) is None  # no quantity
+    assert (
+        DESK_EVENTS.parse(_ui_event("quantity_set", {"item_id": "li1", "quantity": 5, "c": "red"}))
+        is None
+    )
 
 
 # ─── the mirror, told rather than inferred ─────────────────────────────────────

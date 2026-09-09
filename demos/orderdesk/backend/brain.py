@@ -56,12 +56,11 @@ completeness is now the property that matters — an act the screen does not sen
 act the brain never learns about — which is exactly what the tests hold, and what a
 log shows plainly instead of a reconciler papering over it a beat later.
 
-Both halves of the screen contract are declared shapes: the thirteen ``ui_command``s
-are :class:`voqalize.sdk.Action` subclasses with ``frontend/src/actions.gen.ts``
-generated from them, and the seven events are :class:`desk_events.DeskEvent`
-subclasses whose TypeScript twin in ``frontend/src/clientMessages.ts`` is still
-written by hand — which is the open question this experiment exists to answer.
-DESIGN.md §3 is the written contract for all of it.
+Both halves of the screen contract are declared shapes, and both are generated into
+``frontend/src/actions.gen.ts`` by one ``voqalize types`` run: the thirteen
+``ui_command``s are :class:`voqalize.sdk.Action` subclasses, and the seven events
+are :class:`voqalize.sdk.AppEvent` subclasses in :mod:`desk_events`. Nothing about
+either direction is written down twice. DESIGN.md §3 is the written contract.
 """
 
 from __future__ import annotations
@@ -80,6 +79,7 @@ from voqalize.sdk import Action, RTVIMessage, RTVIType, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .desk_events import (
+    DESK_EVENTS,
     DeskEvent,
     FamilyChosen,
     OrderConfirmed,
@@ -88,7 +88,6 @@ from .desk_events import (
     RowAdded,
     RowRemoved,
     SkuChosen,
-    parse_event,
 )
 
 # The two browser→brain requests that are not acts on the order (DESIGN §3) — they
@@ -792,7 +791,10 @@ class OrderDesk:
         Completeness is therefore the property that matters, not idempotence: an act
         the screen does not send is an act the brain never learns about. Every branch
         that changes something calls :meth:`_note_change`, so the model is told once,
-        on the next turn, that the screen moved."""
+        on the next turn, that the screen moved.
+
+        No fallback arm: ``DeskEvent`` is a union, so a gesture added to it and not
+        handled here is a pyright error rather than a warning nobody reads."""
         match event:
             case QuantitySet():
                 row = self.items.get(event.item_id)
@@ -838,8 +840,6 @@ class OrderDesk:
                 self._note_change(
                     f"he tapped Confirm — order {event.order_no}, {event.item_count} rows"
                 )
-            case _:
-                logger.warning("orderdesk: no handler for {}", type(event).__name__)
 
     def _narrow(self, row: LineItemView, codes: list[str]) -> bool:
         """Keep only ``codes`` of the row's candidates. ``True`` if the set shrank.
@@ -1929,21 +1929,21 @@ class OrderDeskBrain(GeminiBrain):
         action, no inference, no speech, so neither a keystroke nor a tap can make
         the agent start talking over him.
 
-        Everything else he does to the screen arrives *named*, as one of the typed
-        shapes in ``desk_events.py`` — ``li3 quantity set to 5`` rather than a cart to
-        be diffed. There is no snapshot behind them and no repair channel: an act the
+        Everything else he does to the screen arrives *named*, on RTVI's own
+        ``ui-event``, as one of the typed shapes in ``desk_events.py`` — ``li3
+        quantity set to 5`` rather than a cart to be diffed. There is no snapshot behind them and no repair channel: an act the
         screen does not send is an act the brain never learns about, which makes the
         event set's completeness the thing the tests hold, and makes it obvious in a
         log rather than silently reconciled a beat later."""
+        if (event := DESK_EVENTS.parse(msg)) is not None:
+            logger.info("orderdesk: {} — {}", type(event).__voqal_event__, event)
+            self._on_desk_event(event)
+            return
         if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
             return
         kind = msg.data.get("t")
         raw_payload = msg.data.get("d")
         payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else {}
-        if isinstance(kind, str) and (event := parse_event(kind, payload)) is not None:
-            logger.info("orderdesk: {} — {}", kind, event)
-            self._on_desk_event(event)
-            return
         if kind == CATALOG_SEARCH:
             query = str(payload.get("query") or "").strip()
             results = self.desk.search_rows(query)

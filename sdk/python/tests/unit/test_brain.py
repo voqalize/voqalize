@@ -46,6 +46,8 @@ def test_the_public_surface_is_deliberate() -> None:
     """A helper becomes API the moment ``from voqalize.sdk import *`` names it."""
     assert sdk.__all__ == [
         "Action",
+        "AppEvent",
+        "AppEvents",
         "Brain",
         "Channel",
         # The retired name, deliberately still exported: `Chunk is SpeechChunk`.

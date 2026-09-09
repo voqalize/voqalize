@@ -1,8 +1,8 @@
 // Generated from travel/backend/brain_gemini.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types travel/backend/brain_gemini.py -o travel/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 /** Show the dashboard of saved draft trips. No arguments. */
 export type OpenDashboard = Record<string, never>;
@@ -55,7 +55,7 @@ export interface SelectHotel {
   option_id: string;
 }
 
-// ── Shapes used by the actions above ───────────────────────────────
+// ── Shapes used by the messages above ──────────────────────────────
 
 /** One hotel city and how many nights the group stays there. */
 export interface CityNights {

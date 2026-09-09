@@ -131,19 +131,27 @@ class GeminiInteractionsBrain(Brain):
     def append_to_context(self, step: gi.UserInputStep) -> None:
         """Add to the conversation the model sees, in the interactions API's own type.
 
-        For context the app knows and the conversation does not — typically the
-        live screen state pushed to :meth:`~voqalize.sdk.Brain.on_rtvi`, which
-        takes no floor and starts no turn::
+        For context the app knows and the conversation does not — typically what
+        the person just did on screen, arriving at
+        :meth:`~voqalize.sdk.Brain.on_rtvi` as a typed
+        :class:`~voqalize.sdk.app_events.AppEvent`, which takes no floor and
+        starts no turn::
 
             async def on_rtvi(self, session, msg):
-                if msg.data.get("t") == "state_sync":
-                    self.append_to_context(
-                        gi.UserInputStep(
-                            content=[
-                                gi.TextContent(text="ON SCREEN: " + json.dumps(msg.data["d"]))
-                            ]
+                match EVENTS.parse(msg):
+                    case QuantitySet() as e:
+                        self.append_to_context(
+                            gi.UserInputStep(
+                                content=[
+                                    gi.TextContent(text=f"HE SET {e.item_id} TO {e.quantity}")
+                                ]
+                            )
                         )
-                    )
+
+        Append the **act**, not the screen. One named sentence is what a model can
+        act on; a whole-state blob appended on a debounce is a context full of
+        near-identical copies, none of them dated, and a model reasoning from
+        whichever it noticed.
 
         A ``UserInputStep`` holds whatever the API takes, so handing the model a
         screenshot or a PDF is this same call with different content. It is the

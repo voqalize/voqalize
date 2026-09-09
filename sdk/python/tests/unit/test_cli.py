@@ -147,13 +147,13 @@ def test_the_header_names_the_source_and_the_command(ts: str) -> None:
     assert "voqalize types" in ts.splitlines()[1]
 
 
-def test_a_module_with_no_actions_is_an_error(tmp_path: Path) -> None:
+def test_a_module_declaring_nothing_is_an_error(tmp_path: Path) -> None:
     """Silence here would write an empty union, and an empty union makes every
     branch in the browser unreachable — a build that fails everywhere for a
     reason that is nowhere."""
     empty = tmp_path / "empty.py"
     empty.write_text("x = 1\n")
-    with pytest.raises(SystemExit, match="no Action subclasses"):
+    with pytest.raises(SystemExit, match="no Action or AppEvent subclasses"):
         main(["types", str(empty)])
 
 

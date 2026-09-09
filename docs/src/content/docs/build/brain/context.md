@@ -4,46 +4,73 @@ description: What the caller did in the app arrives as context, so the two of yo
 ---
 
 A voice agent that cannot see what the caller just clicked is talking past them.
-Your page pushes what it chooses to push, `on_rtvi` delivers it, and the floor
-stays where it was. **We do not observe the screen.** Nothing on our side reads
-your DOM, your store or your routes: your app decides what to send, and your
-brain decides what to keep.
+Your page names what the person did, `on_rtvi` delivers it, and the floor stays
+where it was. **We do not observe the screen.** Nothing on our side reads your
+DOM, your store or your routes: your app decides what to send, and your brain
+decides what to keep.
 
-## The reverse channel
+## Name the act; never push the screen
+
+An app event is one thing the person did, typed and addressed — `li3 quantity set
+to 5`. Declare it the way you declare an action, and the fields are the payload:
 
 ```python
-from voqalize.sdk import (
-    Brain, SpeechChunk, RTVIMessage, RTVIType, Session, SpeechEnd, SpeechStart, UserMessage,
-)
+from voqalize.sdk import AppEvent, AppEvents, Brain, RTVIMessage, Session
+
+
+class QuantitySet(AppEvent):
+    item_id: str
+    quantity: int
+
+
+class RowRemoved(AppEvent):
+    item_id: str
+
+
+EVENTS = AppEvents(QuantitySet, RowRemoved)
 
 
 class Desk(Brain):
     def __init__(self) -> None:
-        self.screen: dict = {}
+        self.cart: dict[str, int] = {}
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        if msg.type is not RTVIType.CLIENT_MESSAGE or not isinstance(msg.data, dict):
-            return
-        if msg.data.get("t") == "state_sync":
-            self.screen = msg.data.get("d") or {}
-
-    async def on_user_message(self, session: Session, msg: UserMessage):
-        yield SpeechStart()
-        yield SpeechChunk(f"You are looking at {self.screen.get('page', 'nothing yet')}.")
-        yield SpeechEnd()
+        match EVENTS.parse(msg):
+            case QuantitySet() as e:
+                self.cart[e.item_id] = e.quantity
+            case RowRemoved() as e:
+                self.cart.pop(e.item_id, None)
 ```
 
-The page half is one line, debounced to around 250 ms so a re-render does not
-send a message per keystroke:
+The page half is stock pipecat, one line at the moment the person acts:
 
 ```ts
-client.sendClientMessage("state_sync", { page: "cart", items: snapshot() });
+client.sendUIEvent("quantity_set", { item_id: "li3", quantity: 5 });
 ```
 
-`sendClientMessage(type, data)` is pipecat's own client method and it sends an
-RTVI `client-message` whose payload is `{ t: type, d: data }` — which is why the
-handler above reads `msg.data["t"]` and `msg.data["d"]`. Both halves of that
-convention are yours: we carry the payload verbatim and interpret nothing in it.
+`sendUIEvent(event, payload)` sends an RTVI `ui-event`; `AppEvents.parse` reads
+that and, for pages written before it, a `client-message` carrying `{ t, d }`. It
+returns `None` — never an exception — for a name it does not know, a payload that
+does not fit, or a message that was never an event, because a page one deploy
+ahead of its brain must not be able to end a call.
+
+`voqalize types` generates the TypeScript half of *both* directions out of the one
+module, so the union above and the union your page sends from stay one thing. See
+[actions](/build/brain/actions/).
+
+**The shape to avoid is the whole-screen push.** A snapshot on a debounce names no
+change, so your brain has to diff its old picture against the new one and infer
+which act produced the difference — and every inference is a place the two
+pictures part company. Appended to a model's context it is worse: one production
+call put twenty-one full carts in front of one model in 113 seconds, each labelled
+authoritative, none of them dated, and the model reasoned from whichever it
+noticed. `li3 quantity set to 5` needs no diff, no inference, and no round trip to
+interpret.
+
+The trade is deliberate: nothing arrives behind these events to repair them, so an
+act your page does not send is an act your brain never learns about. That shows up
+as a gap in a log rather than being quietly papered over a beat later, which is
+the failure you want of the two.
 
 ## `on_rtvi` is not a generator
 
@@ -64,7 +91,7 @@ contract violation is refused whole rather than half-honoured.
 Everything a message *can* do is a method on the session, callable from here:
 
 ```python
-session.dispatch(ShowCart(items=self.screen["items"]))   # render
+session.dispatch(ShowCart(items=list(self.cart)))          # render
 session.send_rtvi(RTVIType.SERVER_RESPONSE, {"ok": True}, id=msg.id)  # answer
 session.end(reason="user tapped hang up")               # hang up
 ```
@@ -136,9 +163,13 @@ the two unbounded flows on the wire, so they are the only two frames a full lane
 drops; everything else is bounded by turns taken and units spoken and queues
 however deep the backlog runs. A drop delivers one non-fatal `OVERLOAD` error to
 `on_error` per congestion episode per direction, and the session is never killed
-for it. If your context can go stale invisibly, send a whole snapshot each time
-rather than a delta — a lost snapshot is corrected by the next one, and a lost
-delta is wrong until the call ends.
+for it.
+
+A dropped event is a real gap, and the answer is not to start pushing snapshots
+again — it is to make the current state **readable** rather than remembered. Give
+the model a tool that returns what is on screen now, and let it read that when it
+needs the truth; your `on_rtvi` state is then a cache the model can bypass rather
+than the only copy. That also keeps the context small enough to stay cacheable.
 
 ## `session.init`
 
@@ -191,9 +222,9 @@ recordings afterwards; [reading a call](/operate/reading-a-call/) is how you get
 them back.
 
 One clock note before you grow the payload. Everything you fold into context is
-read on every turn after this one, and paid for on every one of them: keep a
-snapshot to the fields that change the answer, and let the rest live in the store
-you already query.
+read on every turn after this one, and paid for on every one of them: append the
+*act* rather than the screen, and let the rest live in the store you already
+query.
 
 ## Read next
 

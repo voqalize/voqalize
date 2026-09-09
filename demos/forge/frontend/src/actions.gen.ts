@@ -1,8 +1,8 @@
 // Generated from forge/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
 //   voqalize types forge/backend/brain.py -o forge/frontend/src/actions.gen.ts
 //
-// Every field is present on the wire, `null` included, so nothing here is
-// optional and no runtime validation is needed to narrow on `command`.
+// Every field of an action is present on the wire, `null` included, so nothing
+// there is optional and no runtime validation is needed to narrow on `command`.
 
 /** Return to the list of all Service Request Workflows. No fields. */
 export type OpenList = Record<string, never>;
@@ -208,7 +208,7 @@ export interface ShowCode {
   id: string;
 }
 
-// ── Shapes used by the actions above ───────────────────────────────
+// ── Shapes used by the messages above ──────────────────────────────
 
 /** One guarded branch of a gateway. */
 export interface BranchSpec {
