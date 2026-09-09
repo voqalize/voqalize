@@ -572,10 +572,58 @@ async def test_a_turn_reports_what_it_cost_and_never_what_was_said() -> None:
     assert "hello" not in turn and "Pong" not in turn, "speech reached the log"
 
 
-async def test_a_turn_the_model_reported_nothing_for_logs_nothing() -> None:
+def _millis(turn: str, field: str) -> int | None:
+    """The value of one ``field=…ms`` on the turn line, or None for ``none``."""
+    value = next(part for part in turn.split() if part.startswith(f"{field}=")).split("=")[1]
+    return None if value == "none" else int(value.removesuffix("ms"))
+
+
+async def test_a_turn_reports_the_silence_the_caller_sat_through() -> None:
+    """Row 18 of the demo-quality tracker — 2.9 to 5.2 seconds of brain before the
+    first word — was measured off a transcript, because the brain itself said
+    nothing about time. ``speak`` is that number at the source, and it sits beside
+    ``hops`` and ``prompt`` so a slow turn can be attributed rather than guessed at:
+    one slow round trip and three fast ones re-sending a bloated context look
+    identical from the outside and are different bugs.
+
+    ``open`` is separate from ``speak`` on purpose. A turn that calls a tool first
+    starts streaming at once and still says nothing for another hop."""
+    lines: list[str] = []
+    sink = logger.add(lines.append, level="INFO", format="{message}")
+    try:
+        brain, session = await _brain([*_calls("ping"), *_text("Pong.")])
+        await _drain(brain, session)
+    finally:
+        logger.remove(sink)
+
+    turn = next(line for line in lines if line.startswith("turn:"))
+    open_ms, speak_ms, total_ms = (_millis(turn, f) for f in ("open", "speak", "total"))
+    assert open_ms is not None and speak_ms is not None and total_ms is not None
+    assert 0 <= open_ms <= speak_ms <= total_ms
+
+
+async def test_a_turn_that_never_spoke_reports_no_time_to_speech() -> None:
+    """A moment that never came is not a zero either. A tool-only hop, or a turn a
+    barge-in cut before the first word, has no time-to-speech to report."""
+    lines: list[str] = []
+    sink = logger.add(lines.append, level="INFO", format="{message}")
+    try:
+        brain, session = await _brain(_calls("ping"))
+        await _drain(brain, session)
+    finally:
+        logger.remove(sink)
+    turn = next(line for line in lines if line.startswith("turn:"))
+    assert _millis(turn, "speak") is None
+    assert _millis(turn, "open") is not None
+
+
+async def test_a_turn_the_model_reported_no_counts_for_still_reports_its_time() -> None:
     """A count we do not have is not a zero. Logging ``prompt=0`` for a turn whose
-    usage the API simply did not report would put a made-up number in the one
-    place we go to read real ones."""
+    usage the API simply did not report would put a made-up number in the one place
+    we go to read real ones — so the counts clause is dropped, not filled in.
+
+    The times are ours and always known, and a turn the API declined to account for
+    is not one to go quiet about: it may be exactly the pathological one."""
     lines: list[str] = []
     sink = logger.add(lines.append, level="INFO", format="{message}")
     try:
@@ -583,4 +631,8 @@ async def test_a_turn_the_model_reported_nothing_for_logs_nothing() -> None:
         await _drain(brain, session)
     finally:
         logger.remove(sink)
-    assert not [line for line in lines if line.startswith("turn:")]
+    turn = next(line for line in lines if line.startswith("turn:"))
+    assert "no usage reported" in turn
+    assert "prompt=" not in turn and "cached=" not in turn
+    assert _millis(turn, "speak") is not None
+    assert "Hi" not in turn, "speech reached the log"

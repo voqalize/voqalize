@@ -46,6 +46,7 @@ from __future__ import annotations
 import functools
 import inspect
 import os
+import time
 from collections import deque
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
@@ -106,12 +107,49 @@ class _Unit:
     content: types.Content
 
 
-def _log_usage(
+@dataclass
+class _Clock:
+    """When a turn's two moments happened, relative to asking for it.
+
+    ``speak`` is the one the caller experiences: everything before it is silence
+    they are sitting in. It is not the same as ``open`` — a turn that calls a tool
+    first starts streaming promptly and still says nothing for another round trip,
+    which is the shape a tool-heavy turn has and the reason both are recorded.
+
+    A moment that never came reads ``none``, not a number: a turn cut short by a
+    barge-in, or one that only ran tools, genuinely has no time-to-speech, and a
+    zero there would be a measurement nobody took.
+    """
+
+    started: float
+    open: float | None = None
+    speak: float | None = None
+
+    def mark_open(self) -> None:
+        if self.open is None:
+            self.open = time.monotonic()
+
+    def mark_speak(self) -> None:
+        if self.speak is None:
+            self.speak = time.monotonic()
+
+    def _since(self, at: float | None) -> str:
+        return "none" if at is None else f"{round((at - self.started) * 1000)}ms"
+
+    def __str__(self) -> str:
+        return (
+            f"open={self._since(self.open)} speak={self._since(self.speak)} "
+            f"total={self._since(time.monotonic())}"
+        )
+
+
+def _log_turn(
     model: str,
     hops: int,
     usage: types.GenerateContentResponseUsageMetadata | None,
+    clock: _Clock,
 ) -> None:
-    """What one turn cost, in tokens — the only direct measure of context growth.
+    """What one turn cost, in tokens and in silence.
 
     Under automatic function calling a turn is several requests, each re-sending
     the whole context plus the hop before it, so ``prompt`` here is the **last and
@@ -120,14 +158,26 @@ def _log_usage(
     as a slow turn, and that is a thing we have already had to reconstruct from a
     production transcript once.
 
-    Counts only. A token count is not speech, and speech is never a log field.
+    The times are on the same line so that "the brain took four seconds" stops
+    being an observation and becomes an attribution: ``speak`` is dead air the
+    caller heard, and read against ``hops`` and ``prompt`` beside it, it says
+    whether the cost was one slow round trip or three fast ones re-sending a
+    context that had grown too big.
+
+    Times are always known here; counts are the API's to report, and a count we do
+    not have is not a zero — the clause is dropped rather than filled with one.
+
+    Counts and durations only. A token count is not speech, a millisecond is not
+    speech, and speech is never a log field.
     """
     if usage is None:
+        logger.info("turn: model={} hops={} {} — no usage reported", model, hops, clock)
         return
     logger.info(
-        "turn: model={} hops={} prompt={} cached={} output={} thoughts={}",
+        "turn: model={} hops={} {} prompt={} cached={} output={} thoughts={}",
         model,
         hops,
+        clock,
         usage.prompt_token_count or 0,
         usage.cached_content_token_count or 0,
         usage.candidates_token_count or 0,
@@ -249,10 +299,12 @@ class GeminiBrain(Brain):
         speaking = False
         usage: types.GenerateContentResponseUsageMetadata | None = None
         hops = 0
+        clock = _Clock(started=time.monotonic())
         try:
             async for chunk in await self._client.aio.models.generate_content_stream(
                 model=self._model, contents=contents, config=self._turn_config()
             ):
+                clock.mark_open()
                 folded, taken = self._fold_results(chunk, folded)
                 answered += taken
                 if chunk.usage_metadata is not None:
@@ -265,6 +317,7 @@ class GeminiBrain(Brain):
                         calls.append((unit, part))
                     # `thought` parts carry text that is reasoning, not speech.
                     if part.text and not part.thought:
+                        clock.mark_speak()
                         if not speaking:
                             yield SpeechStart()
                             self._awaiting.append(unit)
@@ -284,7 +337,7 @@ class GeminiBrain(Brain):
             # GeneratorExit at the yield above, and an async generator that
             # yields while closing raises instead of tearing down.
             self._drop_unanswered(calls[answered:])
-            _log_usage(self._model, hops, usage)
+            _log_turn(self._model, hops, usage, clock)
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
