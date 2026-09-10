@@ -34,10 +34,10 @@ discover()
 from voqalize_demos._loaded.avatar import brain as brain_module  # noqa: E402
 from voqalize_demos._loaded.avatar.brain import _GREETING, _SIGN_OFF  # noqa: E402
 
-# The default avatar is `arjun`, and `arjun` is male — so the call opens on the
-# male reference clip, which is also the voice the agent is provisioned with, and
-# any switch to a female avatar has to move it.
-VOICE = "omnivoice/gaurav"
+# The default avatar is `tara`, and `tara` is female — so a call that names no
+# face opens on the female reference clip, which is not the voice the agent is
+# provisioned with (``omnivoice/gaurav``): the brain has to move it.
+VOICE = "omnivoice/gauri"
 LANGUAGE = "en"
 
 
@@ -121,8 +121,8 @@ async def test_it_greets_with_a_wave_and_its_voice_reaches_the_wire() -> None:
     the bug would have been invisible: the greeting would still be heard. So the
     page says it is listening and the wave answers that, once.
 
-    The male English pair lands on both legs before the greeting audio,
-    because the call opens on ``arjun``."""
+    The female English pair lands on both legs before the greeting audio,
+    because the call opens on ``tara``."""
     async with demo("avatar", _llm()) as rig:
         greeting = await rig.driver.start_session()
         check_greeting(rig, greeting)
@@ -165,25 +165,25 @@ async def test_a_question_scrolls_the_page_to_the_section_it_is_answered_from() 
 async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() -> None:
     """The pairing, asserted where it is actually decided.
 
-    Nine faces share two recorded reference speakers, so a face and a voice are
+    Ten faces share two recorded reference speakers, so a face and a voice are
     one choice. The visitor makes it on the strip before dialling and it rides
     the connect request; the brain has to apply it before the opener is
     synthesised, because a greeting in the other speaker's voice is the whole
     defect this arrangement exists to remove.
 
-    ``meera`` is female, and the agent this demo runs on is provisioned male —
-    so a brain that ignored ``init`` and let the agent's own voice stand would
-    still produce audio, and this is the assertion that catches it."""
+    ``arjun`` is male and the default face is female — so a brain that ignored
+    ``init`` and dressed every call as the default would still produce audio,
+    and this is the assertion that catches it."""
     async with demo("avatar", _llm()) as rig:
-        greeting = await rig.driver.start_session(init={"surface": "avatar-web", "avatar": "meera"})
+        greeting = await rig.driver.start_session(init={"surface": "avatar-web", "avatar": "arjun"})
         assert greeting is not None and greeting.text == _GREETING
-        check_voice_pair(rig, voice="omnivoice/gauri", language="en")
+        check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
 
         # Exactly one, and before the greeting. A second would mean something
         # still moves the voice mid-call, which is the thing that was removed.
         configs = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]
         voices = [c.tts.voice for c in configs if c.tts and c.tts.voice]
-        assert voices == ["omnivoice/gauri"], voices
+        assert voices == ["omnivoice/gaurav"], voices
         # Both language legs, because `Config` refuses a half-stated pair and
         # this is the check that the demo did not learn to send one anyway.
         only = configs[0]
@@ -191,15 +191,14 @@ async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() ->
         assert only.tts.language == "en" and only.stt.language == "en"
 
 
-async def test_an_unknown_face_falls_back_to_one_the_agent_can_already_speak() -> None:
+async def test_an_unknown_face_wears_the_default_in_its_own_voice() -> None:
     """The payload is browser-supplied on a public page, so a stale build or a
     hand-edited request must produce a working call rather than a failed one —
-    and the fallback must not itself be a mismatch. ``arjun`` is the default
-    precisely because the agent is provisioned with the voice it is paired
-    with."""
+    and the face it falls back to must arrive with that face's voice, not the
+    agent's."""
     async with demo("avatar", _llm()) as rig:
         await rig.driver.start_session(init={"avatar": "not-a-face"})
-        check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
+        check_voice_pair(rig, voice="omnivoice/gauri", language="en")
 
 
 async def test_the_deliberate_dig_claims_working_out_loud_and_clears_it() -> None:

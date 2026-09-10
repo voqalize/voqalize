@@ -386,8 +386,13 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
           its own entry point, so you only pay for the one you import. Swapping is a remount.
         </p>
         <p>
+          Tara, the face this page opens on, is the tenth and the exception: a premium 3-D avatar
+          from Voqalize, rendered with three.js on the same mixer and the same wire. Her code and
+          artwork are proprietary and are not part of the open-source library.
+        </p>
+        <p>
           This demo still asks you to choose before you dial, and that is a speech constraint rather
-          than a rendering one. Nine faces share two recorded reference voices, so picking a face
+          than a rendering one. Ten faces share two recorded reference voices, so picking a face
           picks a voice. Changing it halfway through an answer is the one thing a listener always
           notices, so the strip locks once the call is up.
         </p>

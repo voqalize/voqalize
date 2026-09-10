@@ -1,4 +1,4 @@
-"""What the avatar demo knows: the eight documentation sections, the nine
+"""What the avatar demo knows: the eight documentation sections, the ten
 avatars, and the background the model answers from.
 
 Kept out of ``brain.py`` because it is *content* — it is edited when the avatar
@@ -130,9 +130,12 @@ SECTIONS: tuple[Section, ...] = (
         title="Choose a face, or ship your own",
         notes=(
             "Nine ship today: three line-art faces and six painted ones, all on the same "
-            "rig and the same wire. Swapping one for another is a remount and nothing "
+            "rig and the same wire. Tara, the one this page opens on, is a tenth: a "
+            "premium 3-D avatar from Voqalize on that same mixer and wire, whose code and "
+            "artwork are proprietary rather than part of the library. Swapping one for "
+            "another is a remount and nothing "
             "else, which is why this demo asks you to choose before you dial rather than "
-            "during the call: nine faces share two recorded voices, so the face and the "
+            "during the call: ten faces share two recorded voices, so the face and the "
             "voice are a single choice, and a voice that changes halfway through an "
             "answer is the thing a listener notices. The part worth knowing is the "
             "smoothing: every channel has its own time constant and "
@@ -178,6 +181,7 @@ SECTIONS_BY_ID: dict[str, Section] = {section.id: section for section in SECTION
 # ─── The avatars ──────────────────────────────────────────────────────────────
 
 AvatarKey = Literal[
+    "tara",
     "peep",
     "wren",
     "myna",
@@ -189,14 +193,10 @@ AvatarKey = Literal[
     "naina",
 ]
 
-#: The face a call gets when the visitor did not pick one, and the one constraint
-#: on choosing it: it must be a face whose gender matches the voice the *agent* is
-#: provisioned with (``omnivoice/gaurav``). Every other face arrives in the
-#: connect request and is configured before a word is spoken, so it needs no such
-#: agreement — this one is the fallback for a payload that named nothing, and a
-#: fallback that disagreed with the agent's own voice would be the exact defect
-#: the pre-call choice exists to remove.
-DEFAULT_AVATAR: AvatarKey = "arjun"
+#: The face the strip starts on (``DEFAULT_AVATAR`` in ``frontend/src/roster.ts``),
+#: and what a payload that named no face wears. Its voice is configured in
+#: ``on_session_start`` before a word is spoken, exactly as a picked face's is.
+DEFAULT_AVATAR: AvatarKey = "tara"
 
 
 @dataclass(frozen=True)
@@ -216,9 +216,21 @@ class AvatarIdentity:
     renderer: str
     blurb: str
     voice: Voice
+    #: False for a face whose code and artwork are proprietary. The model is told,
+    #: because a face that claims to be MIT on npm when it is not is a promise
+    #: the visitor will try to collect on.
+    open_source: bool = True
 
 
 AVATARS: tuple[AvatarIdentity, ...] = (
+    AvatarIdentity(
+        key="tara",
+        name="Tara",
+        renderer="premium 3-D",
+        blurb="The default here, and not open source: a Voqalize premium avatar rendered with three.js on the library's own mixer and wire.",
+        voice=Voice.OMNIVOICE_GAURI,
+        open_source=False,
+    ),
     AvatarIdentity(
         key="myna",
         name="Myna",
@@ -315,10 +327,11 @@ FACTS ABOUT THE LIBRARY — answer from these, and say you are not sure if it is
 - The browser half is one mount call. You give it the pipecat client you already connected with, and there is nothing else to configure.
 - It works against any pipecat pipeline. Voqalize is one consumer of it, not the only one.
 - Nine avatars ship today: three line-art faces and six painted ones. You can ship your own: an avatar is any module that exports createAvatar, and there is no registry and no renderer interface to implement.
+- Tara, the face this page opens on, is NOT one of the nine and NOT open source. She is a premium Voqalize avatar, rendered in 3-D with three.js on the library's own mixer and wire, but her code and artwork are proprietary and she is not on npm or GitHub. If anyone asks for her source or how to install her, say that plainly once.
 - Backchannels — the small acknowledgements, "mm-hm", "one moment", a nod — were the part the brief called out as mattering most, because a face listens far more than it speaks.
 
 FACTS ABOUT THIS CALL — the same again, for how you are being run right now:
 - Your voice, your ears and this call's audio are Voqalize. You are a brain: a WebSocket on the other side of it, holding the model and the prompt and these tools, dialled once when the call started.
-- The face you are wearing is the open-source library, driven over that same call's data channel.
+- The face you are wearing is driven by the open-source library's mixer and wire, over that same call's data channel.
 - Voqalize is what you would use to put a voice on your own agent. The avatar library is free either way, and it is yours whether or not you ever use us.
 """

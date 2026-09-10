@@ -1,5 +1,10 @@
 /**
- * The nine avatars, and how a page mounts one.
+ * The ten avatars, and how a page mounts one.
+ *
+ * Nine come from the open-source `@voqalize/avatar`. The tenth, tara, is a
+ * premium 3-D avatar whose code and artwork are proprietary: she is vendored as
+ * a built artifact in `vendor/tara/` under her own LICENSE, not installed from
+ * npm, and nothing in this repository is her source.
  *
  * Two shapes ship in `@voqalize/avatar`, and this file's job is to make them one
  * shape. A line-art face is a *drawing* handed to the bundled SVG avatar; a
@@ -9,7 +14,7 @@
  * branches again.
  *
  * Every entry is loaded on demand. Six of these carry wardrobe images, and a
- * page that imported all nine up front would put megabytes in front of the
+ * page that imported all ten up front would put megabytes in front of the
  * greeting for eight faces nobody is looking at.
  *
  * **The name, the blurb and the voice are the brain's** (`backend/content.py`).
@@ -23,19 +28,17 @@
 import { createAvatar as createSvgAvatar } from "@voqalize/avatar";
 import type { AvatarFactory, AvatarOptions, Face } from "@voqalize/avatar";
 
-/** The face the strip starts on, and the one a call gets if nothing was picked.
- *  Must equal `DEFAULT_AVATAR` in `backend/content.py`, which explains why it is
- *  this one: an unpicked call is the only call whose voice was not chosen with
- *  its face, so the default has to be a face the agent's own voice already
- *  fits. */
-export const DEFAULT_AVATAR = "arjun";
+/** The face the strip starts on, and so the one a call opens on unless the
+ *  visitor picks another. Must equal `DEFAULT_AVATAR` in `backend/content.py`. */
+export const DEFAULT_AVATAR = "tara";
 
 export interface RosterEntry {
   /** The key the brain uses, and the one sent back when a visitor clicks. */
   key: string;
   /** Shown on the chip. */
   name: string;
-  /** "line art" or "painted" — the one thing worth saying on a chip that small. */
+  /** "premium", "line art" or "painted" — the one thing worth saying on a chip
+   *  that small. */
   kind: string;
   /** Load this avatar's implementation. Resolved once and cached by the bundler. */
   load: () => Promise<AvatarFactory<AvatarOptions>>;
@@ -55,6 +58,12 @@ function fromFace(
 }
 
 export const ROSTER: readonly RosterEntry[] = [
+  {
+    key: "tara",
+    name: "Tara",
+    kind: "premium",
+    load: () => import("./vendor/tara/tara.js").then((m) => m.createAvatar),
+  },
   {
     key: "myna",
     name: "Myna",

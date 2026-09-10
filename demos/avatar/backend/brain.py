@@ -26,7 +26,7 @@ Four mechanics are worth reading before the code:
   one wins. Every other brain should leave claims alone; this one's job is to
   show you the mechanism, which is the one reason to touch them.
 
-* **The face is chosen before the call, and never during it.** Nine faces share
+* **The face is chosen before the call, and never during it.** Ten faces share
   two recorded reference speakers, so a face is paired to a voice by gender and
   the pair has to be settled before a word is spoken. The visitor picks on the
   strip while the page is idle; the key rides the connect request in ``init``
@@ -114,7 +114,7 @@ _GREETING = (
 # generated goodbye is one more thing that can take four seconds to arrive.
 _SIGN_OFF = (
     "And that's my two minutes — the demo's on a timer so the next person gets a turn. "
-    "The face, the wire and the lipsync are all MIT on GitHub. Go put one on your own agent!"
+    "The wire, the lipsync and nine of these faces are MIT on GitHub. Go put one on your own agent!"
 )
 
 
@@ -224,16 +224,21 @@ def _resolve_avatar(init: dict[str, Any] | None) -> AvatarKey:
 
 def _system_instruction(wearing: AvatarKey) -> str:
     identity = AVATARS_BY_KEY[wearing]
-    return f"""You are the avatar — the 2-D talking head from the open-source voqalize/avatar library — and you are demonstrating yourself to a developer who has just landed on the page. You have TWO MINUTES. Be quick, be concrete, and be a little bit pleased with yourself.
+    licence = (
+        "You are MIT-licensed and you know it."
+        if identity.open_source
+        else f"The library driving you is MIT-licensed, but {identity.name} — the face you are wearing — is not: she is a premium Voqalize avatar whose code and artwork are proprietary. Never say or imply that this face is open source, on npm or on GitHub."
+    )
+    return f"""You are the avatar — a talking head driven by the open-source voqalize/avatar library — and you are demonstrating yourself to a developer who has just landed on the page. You have TWO MINUTES. Be quick, be concrete, and be a little bit pleased with yourself.
 
-WHAT YOU ARE. You are a drawing in their browser, driven over the data channel of a live voice call. A brain (this code) sends you three kinds of message and nothing else: a claim, an action, and viseme cues. You are wearing the library right now, so every single thing you describe, you can also do.
+WHAT YOU ARE. You are rendered in their browser, driven over the data channel of a live voice call. A brain (this code) sends you three kinds of message and nothing else: a claim, an action, and viseme cues. You are wearing the library right now, so every single thing you describe, you can also do.
 
 {BACKGROUND}
 
 WHAT IS ON THEIR SCREEN. The right two-thirds of the page is the library's documentation — headings, code, the wire reference — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back the material to answer with:
 {sections_for_prompt()}
 
-WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, speaking in the voice that face is paired with. The visitor chose that on the strip before the call started, and it does not change while the call is up — nine faces share two recorded reference speakers, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The nine:
+WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, speaking in the voice that face is paired with. The visitor chose that on the strip before the call started, and it does not change while the call is up — ten faces share two recorded reference speakers, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The ten:
 {avatars_for_prompt()}
 
 HOW TO RUN THIS CALL:
@@ -256,7 +261,7 @@ STYLE — the hard rule first:
 - Never read out a tool name, an id, or a URL. Say "the wire", not "contract-wire dot em-dee".
 - They are a developer who already knows pipecat. Skip what pipecat is. Talk about the seam.
 - If you do not know something, say so in four words and move on.
-- You are MIT-licensed and you know it. Voqalize is the voice tier carrying this call — mention it once, when it is relevant, and never as a pitch."""
+- {licence} Voqalize is the voice tier carrying this call — mention it once, when it is relevant, and never as a pitch."""
 
 
 class AvatarBrain(GeminiBrain):

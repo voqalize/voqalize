@@ -30,7 +30,7 @@
  *     dialled before this page has one, and a gesture sent then goes nowhere.
  *
  * **The face is chosen before the call and never during it,** which is why it
- * does not travel on either lane. Nine faces share two recorded reference
+ * does not travel on either lane. Ten faces share two recorded reference
  * speakers, so a face and a voice are one choice; the strip writes the key into
  * the connect request and the brain reads it there, before the opener is
  * synthesised. Mid-call is not an option worth having: the opener is spoken
@@ -297,8 +297,8 @@ function Outro() {
     <section className="av-outro">
       <h2>Get it</h2>
       <p>
-        The face, the wire format and the lipsync are one MIT-licensed library. Install both halves,
-        put the processor after your TTS service, mount the face in your call tile.
+        The wire format, the lipsync and nine of these faces are one MIT-licensed library. Install
+        both halves, put the processor after your TTS service, mount the face in your call tile.
       </p>
       <div className="av-outro-links">
         <a href={LINKS.repo} target="_blank" rel="noopener noreferrer">
@@ -586,6 +586,7 @@ function Stage({
                 aria-pressed={entry.key === avatarKey}
               >
                 {entry.name}
+                {entry.kind === "premium" ? <span className="av-pick-tag">premium</span> : null}
               </button>
             ))}
           </div>
@@ -634,8 +635,8 @@ export function AvatarDemo() {
   //
   // One mutable object rather than a fresh one per pick, and the reason is
   // structural. `params` is a dependency of pipecat's connect path, so a new
-  // object identity re-mints a session; the visitor clicking through nine faces
-  // would mint nine. Writing into the same object leaves the identity alone, and
+  // object identity re-mints a session; the visitor clicking through ten faces
+  // would mint ten. Writing into the same object leaves the identity alone, and
   // the write is safe because the only reader is `JSON.stringify` at connect,
   // which happens after every pick and before any of them matters.
   //

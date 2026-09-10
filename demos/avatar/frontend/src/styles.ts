@@ -7,7 +7,7 @@
  *
  * The design, in one paragraph, because the rules below are easier to keep
  * honest with it written down. **The page is paper and the face has its own
- * field.** Nine avatars ship with their own colour, so a page that competes with
+ * field.** Ten avatars come with their own colour, so a page that competes with
  * them makes every face look wrong in a different way — the drawing therefore
  * sits on a fixed stage the size and shape it will really live at in a call, and
  * everything around it is a light, cool paper carrying documentation. The stage
@@ -230,9 +230,15 @@ export const STYLES = `
   }
   .av-pick:hover:not(:disabled) { color: var(--ink); border-color: var(--graphite); }
   .av-pick.is-on { color: var(--chalk); background: var(--ink); border-color: var(--ink); }
+  /* tara is not part of the open-source library, and the strip is where a
+     visitor would otherwise assume she is. */
+  .av-pick-tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+    text-transform: uppercase; margin-left: 6px; opacity: .7;
+  }
   /* Locked for the length of the call, because a face carries a voice and the
      voice cannot move mid-answer. The chosen one stays fully legible — it is
-     what the visitor is looking at — and only the eight they can no longer
+     what the visitor is looking at — and only the ones they can no longer
      reach recede. */
   .av-pick:disabled { cursor: default; }
   .av-picker.is-locked .av-pick:not(.is-on) { opacity: .38; }
