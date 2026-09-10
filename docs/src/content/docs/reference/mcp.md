@@ -167,9 +167,18 @@ raw value appears only on the response that minted it.
 ### Calls (observability)
 
 A session row is `id`, `state`, `agent_id`, `agent_name`, `display_name`,
-`created_at`, `started_at`, `ended_at`, `duration_secs`, `disconnect_reason`,
-`error`. `state` is one of `starting`, `active`, `ending`, `ended`, `expired`,
-`failed`.
+`created_at`, `started_at`, `ended_at`, `duration_secs`, `end_reason`,
+`end_detail`, `error`. `state` is one of `starting`, `active`, `ending`,
+`ended`, `expired`, `failed`. `end_reason` is `null` while `state` is
+`starting`, `active` or `ending` — a live call has no reason yet, and it is
+never `unknown` just because the call has not ended. Once the call is over it
+is `token_expired` when the session never connected and only expired, or one
+of `user_hung_up`, `agent_hung_up`, `idle_timeout`, `brain_disconnected`,
+`brain_unreachable`, `never_connected`, `terminated`, `runtime_error`, or
+`unknown` when none of those apply. `end_detail` is one line of evidence for
+that reason — the raw signal, not a sentence for a person. `disconnect_reason`
+is deprecated: it still appears on the row but `end_reason` is the field to
+read.
 
 | Tool | Signature | Does |
 |---|---|---|
