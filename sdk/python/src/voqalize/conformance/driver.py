@@ -401,11 +401,7 @@ class VoqalizeDriver:
         bracket it opened has closed, and it has then stayed quiet for ``quiet_for``
         (a multi-unit turn opens the next bracket immediately after closing the
         last, so a closed bracket alone is not enough). A brain with a watchdog that
-        speaks late needs a window longer than that watchdog — and so does one whose
-        tools are marked :func:`~voqalize.sdk.gemini.speaks`, which acknowledges on
-        the call and is then silent for the whole round trip the tool hop costs.
-        A ``quiet_for`` shorter than a hop ends such a turn at the acknowledgement
-        and never sees the answer."""
+        speaks late needs a window longer than that watchdog."""
         await self._wait_for(
             lambda: (io := self.turns.get(turn_id)) is not None and io.completed,
             timeout=timeout,

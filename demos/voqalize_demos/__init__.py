@@ -17,7 +17,7 @@ base. The demos dogfood the article a customer installs.
 See ``demos/README.md`` for the routing contract and the add-a-demo checklist.
 """
 
-from voqalize.sdk.gemini import DEFAULT_MODEL, VOICE_THINKING, GeminiBrain, speaks
+from voqalize.sdk.gemini import DEFAULT_MODEL, VOICE_THINKING, GeminiBrain
 from voqalize_demos.greeting import hello_for
 from voqalize_demos.screen import ScreenState, screen_prose
 
@@ -28,5 +28,4 @@ __all__ = [
     "ScreenState",
     "hello_for",
     "screen_prose",
-    "speaks",
 ]

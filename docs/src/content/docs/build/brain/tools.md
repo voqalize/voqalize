@@ -231,46 +231,6 @@ belongs where the model reads it — **the docstring, which is the description**
         pause. …"""
 ```
 
-### `@speaks` says it without waiting for the model to decide
-
-The docstring above is an instruction, and an instruction can be declined. Across
-four runs of each shape it was taken 4/4 on two of them and **0/4** on a
-read-then-edit turn, which gained nothing.
-
-`GeminiBrain` can say it from the call itself instead. Mark a tool with
-`@speaks` and the brain speaks that phrase the moment the model names the tool —
-before the tool runs, before the model has decided how the turn ends:
-
-```python
-from voqalize.sdk.gemini import speaks
-
-    @speaks("Checking")
-    async def check_stock(self, args: Item) -> dict[str, Any]: ...
-```
-
-It is worth a whole round trip, because the model names the tool on its **first**
-hop and does not produce a word until its **last**. On the OrderDesk turn where
-the pharmacist names two products, same build, same tools, the same three hops
-and the same answer, time to first word went **3808 ms → 1224 ms** (n=6 each,
-interleaved) — and in every acknowledged run the first word left the brain on the
-first chunk of the stream.
-
-Three rules, and they are all about not talking over the answer:
-
-- **Once a turn, and only while the turn is still silent.** Two tool hops are not
-  two announcements, and a turn that has already spoken has nothing to buy.
-- **True of the attempt, never of the outcome.** The phrase is chosen before the
-  tool runs. "Checking" survives finding nothing; "Found it" does not.
-- **In the session's language**, because nothing translates it — it is spoken
-  verbatim.
-
-It is opt-in per tool: an unmarked tool stays silent, which is what a tool the
-caller should not hear about wants. `GeminiInteractionsBrain` does not have it.
-
-The acknowledgement is real speech, so it is finalized and reconciled to heard
-truth like any other unit, and it goes into the context on the unit that made the
-call — a model that does not know it already said "Checking" says it again.
-
 The second lever is the screen. `session.dispatch(...)` never blocks and holds
 no floor, so a tool can move the display on its first line and let the caller
 read while the voice is still working — [Actions](/build/brain/actions/) owns

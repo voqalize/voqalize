@@ -40,8 +40,8 @@ from pydantic import BaseModel, Field
 from voqalize.sdk import Session
 from voqalize.sdk.actions import Action
 from voqalize.sdk.brain import _adapter_for
-from voqalize.sdk.events import Finalize, Speech, SpeechChunk, SpeechEnd, SpeechStart, UserMessage
-from voqalize.sdk.gemini import GeminiBrain, speaks
+from voqalize.sdk.events import Speech, SpeechChunk, SpeechEnd, SpeechStart, UserMessage
+from voqalize.sdk.gemini import GeminiBrain
 from voqalize.sdk.wire import (
     Frame,
     RTVIFrame,
@@ -236,7 +236,7 @@ async def _turn(brain: _Coach, text: str = "hello") -> None:
         await asyncio.gather(*list(adapter._turns))  # pyright: ignore[reportPrivateUsage]
 
 
-async def _drain(brain: GeminiBrain, session: Session) -> list[Speech]:
+async def _drain(brain: _Coach, session: Session) -> list[Speech]:
     return [ev async for ev in brain.on_user_message(session, UserMessage(text="hello"))]
 
 
@@ -252,7 +252,7 @@ def _shape(events: list[Speech]) -> list[str]:
     return out
 
 
-def _history(brain: GeminiBrain) -> list[str]:
+def _history(brain: _Coach) -> list[str]:
     """History as ``role: what-is-in-it``, enough to read the shape at a glance."""
     out = []
     for content in brain._history:
@@ -636,122 +636,3 @@ async def test_a_turn_the_model_reported_no_counts_for_still_reports_its_time() 
     assert "prompt=" not in turn and "cached=" not in turn
     assert _millis(turn, "speak") is not None
     assert "Hi" not in turn, "speech reached the log"
-
-
-# ─── Speaking from the call ───────────────────────────────────────────────────
-
-
-class _Aide(GeminiBrain):
-    """A brain whose slow tool says what it is doing, and whose quiet one does
-    not."""
-
-    def __init__(self, client: Any) -> None:
-        super().__init__(client=client, system_instruction="be brief")
-
-    @property
-    def tools(self) -> list[Any]:
-        return [self.look_up, self.log_it]
-
-    @speaks("Checking")
-    async def look_up(self) -> str:
-        """Go and find out."""
-        return "found"
-
-    async def log_it(self) -> str:
-        """Write it down where the caller cannot see."""
-        return "noted"
-
-
-async def _aide(script: list[types.GenerateContentResponse]) -> tuple[_Aide, Session]:
-    brain, _, session = await _open(_Aide(_ScriptedClient(script)))
-    return brain, session
-
-
-async def test_a_declared_tool_speaks_the_moment_it_is_called() -> None:
-    """The whole point: the call's name arrives on the first hop and the model's
-    first word does not arrive until its last, so the acknowledgement is spoken
-    a round trip — measured at ~2.2 s — before there is anything to say."""
-    brain, session = await _aide(_calls("look_up") + _text("Two are left."))
-
-    assert _shape(await _drain(brain, session)) == [
-        "[",
-        "Checking",
-        "]",
-        "[",
-        "Two are left.",
-        "]",
-    ]
-
-
-async def test_an_undeclared_tool_stays_silent() -> None:
-    """Opt-in, because a tool the caller should not hear about is a real case."""
-    brain, session = await _aide(_calls("log_it") + _text("Done."))
-
-    assert _shape(await _drain(brain, session)) == ["[", "Done.", "]"]
-
-
-async def test_the_acknowledgement_is_spoken_once_a_turn() -> None:
-    """Two tool hops are not two announcements. The wait is one wait, and
-    "Checking… checking…" is a stutter, not information."""
-    script = _calls("look_up") + _calls("look_up") + _text("Both are in.")
-    brain, session = await _aide(script)
-
-    assert _shape(await _drain(brain, session)).count("Checking") == 1
-
-
-async def test_a_turn_that_already_spoke_does_not_go_back_and_acknowledge() -> None:
-    """The acknowledgement buys the *first* word of a turn. Once the caller is
-    being spoken to, it buys nothing and only interrupts."""
-    script = _text("Let me see.", done=True) + _calls("look_up") + _text("Two are left.")
-    brain, session = await _aide(script)
-
-    assert "Checking" not in _shape(await _drain(brain, session))
-
-
-async def test_the_acknowledgement_is_in_the_context_on_the_unit_that_called() -> None:
-    """Speech the model did not write is speech the model does not know about —
-    and a model that does not know it already said "Checking" says it again. It
-    goes on the calling unit rather than a unit of its own, because a model turn
-    inserted between a ``function_call`` and its ``function_response`` is not a
-    conversation Gemini takes back."""
-    brain, session = await _aide(_calls("look_up") + _text("Two are left."))
-    await _drain(brain, session)
-
-    assert _history(brain)[1:] == [
-        "model: call:look_up|Checking",
-        "user: resp:look_up",
-        "model: Two are left.",
-    ]
-
-
-async def test_the_acknowledgement_awaits_its_own_finalize() -> None:
-    """It is real speech, so Voqalize reports it like any other unit — and
-    ``on_finalize`` pops one unit per report. A unit spoken but not enqueued
-    would hand the acknowledgement's report to the *answer*, and rewrite the
-    answer down to "Checking"."""
-    brain, session = await _aide(_calls("look_up") + _text("Two are left."))
-    await _drain(brain, session)
-
-    await brain.on_finalize(session, Finalize(speech_id=1, heard="Check", generated="Checking"))
-    await brain.on_finalize(
-        session, Finalize(speech_id=2, heard="Two are left.", generated="Two are left.")
-    )
-
-    assert _history(brain)[1:] == [
-        "model: call:look_up|Check",
-        "user: resp:look_up",
-        "model: Two are left.",
-    ]
-
-
-def test_the_mark_never_reaches_the_model() -> None:
-    """It is ours, not a field of the declaration: the schema google-genai builds
-    is the name, the docstring and the parameter, and an extra attribute on the
-    closure changes none of them."""
-    brain = _Aide(_ScriptedClient([]))
-
-    assert brain._acks(brain.tools) == {"look_up": "Checking"}  # pyright: ignore[reportPrivateUsage]
-
-    declared = list(brain._turn_config().tools or [])  # pyright: ignore[reportPrivateUsage]
-    schema = types.GenerateContentConfig(tools=declared)
-    assert "Checking" not in str(schema.tools)

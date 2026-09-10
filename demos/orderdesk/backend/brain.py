@@ -78,7 +78,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, hello_for, speaks
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, hello_for
 
 from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -1299,7 +1299,6 @@ class OrderDesk:
             "pending": self.pending(),
         }
 
-    @speaks("जोड़ रही हूँ")
     async def add_items(self, items: list[SpokenItem]) -> dict[str, Any]:
         """Add every product the pharmacist just named to the order, and resolve each
         against the MedSetu catalog.
@@ -1381,7 +1380,6 @@ class OrderDesk:
             brief["note"] = note
         return brief
 
-    @speaks("देख रही हूँ")
     async def refine_item(self, item_id: str, query: str) -> dict[str, Any]:
         """Re-resolve one existing row with a better English query.
 
@@ -1611,7 +1609,6 @@ class OrderDesk:
             "quantity": row.quantity,
         }
 
-    @speaks("बदल रही हूँ")
     async def change_variant(self, item_id: str, want: str) -> dict[str, Any]:
         """Swap one row onto a different variant of the SAME brand, keeping its quantity.
 
@@ -1699,7 +1696,6 @@ class OrderDesk:
         self._note_scheme(row)
         return self._brief(row)
 
-    @speaks("हटा रही हूँ")
     async def remove_items(self, item_ids: list[str]) -> dict[str, Any]:
         """Drop one or more rows from the order ("वोलिनी हटा दो").
 
