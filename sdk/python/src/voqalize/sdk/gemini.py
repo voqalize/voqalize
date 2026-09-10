@@ -50,7 +50,7 @@ import time
 from collections import deque
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
-from typing import Any, get_type_hints
+from typing import Any, TypeVar, get_type_hints
 
 from google import genai
 from google.genai import types
@@ -60,7 +60,9 @@ from pydantic import BaseModel
 from .brain import Brain, Session
 from .events import Finalize, Speech, SpeechChunk, SpeechEnd, SpeechStart, UserMessage
 
-__all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain"]
+__all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain", "speaks"]
+
+_Tool = TypeVar("_Tool", bound=Callable[..., Any])
 
 # Overridable because free-tier Gemini quotas are per model — when one model's
 # daily bucket is spent (an eval run, a long demo day), pointing the process at a
@@ -93,6 +95,40 @@ DEFAULT_MODEL = os.environ.get("VOQAL_GEMINI_MODEL", "gemini-3.5-flash")
 # read the think= numbers on a real deployed call — a one-shot TTFT probe
 # understates a turn that carries history and screen grounding.
 VOICE_THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
+
+
+def speaks(phrase: str) -> Callable[[_Tool], _Tool]:
+    """What the caller hears the instant this tool is called, before it runs.
+
+    A turn costs one round trip per tool hop — ~1.15 s each, measured, and the
+    same on a second provider, so it is the model's floor and not ours. All of
+    that is silence, because the model does not produce a word until its last
+    hop. But it names the tool on its *first*: measured across every tool-calling
+    shape, the function call's name arrives at ~1.09 s while the first spoken
+    word arrives at ~3.27 s.
+
+    So the brain can speak from the call itself::
+
+        @speaks("Adding that")
+        async def add_items(self, items: SpokenItems) -> dict[str, Any]: ...
+
+    The verb belongs on the method for the same reason the schema does — the
+    method is the declaration, and nothing is declared twice. It is opt-in: a
+    tool without it stays silent, which is right for one the caller should not
+    hear about.
+
+    This is not the model narrating. It is not a guess about what the model will
+    decide either, the way a filler chosen from a partial transcript is — the
+    call has already been made, so the phrase cannot contradict the turn it
+    introduces. Keep it short and true of the *attempt*, never of the outcome:
+    "Checking" survives finding nothing, "Found it" does not.
+    """
+
+    def mark(fn: _Tool) -> _Tool:
+        fn.__voqal_speaks__ = phrase  # pyright: ignore[reportFunctionMemberAccess]
+        return fn
+
+    return mark
 
 
 @dataclass
@@ -287,6 +323,11 @@ class GeminiBrain(Brain):
           eagerly per hop is what used to emit an empty ``SpeechStart`` /
           ``SpeechEnd`` pair around a silent tool call.
 
+        A tool marked with :func:`speaks` opens one anyway, on its call rather
+        than on text — once per turn, and only while the turn is still silent, so
+        the caller hears the acknowledgement in place of the wait and never
+        instead of an answer.
+
         The context is written from both sides of the seam and neither alone:
         the **order** comes from the stream, where every part arrives in the order
         the model produced it, and the tool **responses** come from AFC's own
@@ -305,12 +346,14 @@ class GeminiBrain(Brain):
         answered = 0
         unit: _Unit | None = None
         speaking = False
+        spoke = False
         usage: types.GenerateContentResponseUsageMetadata | None = None
         hops = 0
         clock = _Clock(started=time.monotonic())
+        acks = self._acks(tools := self.tools)
         try:
             async for chunk in await self._client.aio.models.generate_content_stream(
-                model=self._model, contents=contents, config=self._turn_config()
+                model=self._model, contents=contents, config=self._turn_config(tools)
             ):
                 clock.mark_open()
                 folded, taken = self._fold_results(chunk, folded)
@@ -323,6 +366,17 @@ class GeminiBrain(Brain):
                     self._extend_unit(unit, part)
                     if part.function_call:
                         calls.append((unit, part))
+                        phrase = acks.get(part.function_call.name or "")
+                        if phrase and not spoke:
+                            # Speech the model did not write, so the context has
+                            # to be told: append it to the calling unit, where it
+                            # reconciles and is dropped like any other unit's.
+                            clock.mark_speak()
+                            self._extend_unit(unit, types.Part(text=phrase))
+                            yield SpeechStart()
+                            self._awaiting.append(unit)
+                            speaking = spoke = True
+                            yield SpeechChunk(phrase)
                     # `thought` parts carry text that is reasoning, not speech.
                     if part.text and not part.thought:
                         clock.mark_speak()
@@ -330,6 +384,7 @@ class GeminiBrain(Brain):
                             yield SpeechStart()
                             self._awaiting.append(unit)
                             speaking = True
+                        spoke = True
                         yield SpeechChunk(part.text)
                 if _finished(chunk):
                     hops += 1
@@ -385,9 +440,16 @@ class GeminiBrain(Brain):
         """
         return []
 
-    def _turn_config(self) -> types.GenerateContentConfig:
-        """This turn's config, carrying this turn's tools."""
-        tools = self.tools
+    def _turn_config(
+        self, tools: list[Callable[..., Any]] | None = None
+    ) -> types.GenerateContentConfig:
+        """This turn's config, carrying this turn's tools.
+
+        Takes the list when the caller has already read it — :attr:`tools` is
+        read *once* per turn by contract, and :meth:`respond` needs the same list
+        the model gets to know what each call is allowed to say.
+        """
+        tools = self.tools if tools is None else tools
         if not tools:
             return self._config
         return self._config.model_copy(
@@ -396,6 +458,17 @@ class GeminiBrain(Brain):
                 "automatic_function_calling": self._afc,
             }
         )
+
+    @staticmethod
+    def _acks(tools: list[Callable[..., Any]]) -> dict[str, str]:
+        """Tool name → what to say the moment the model calls it.
+
+        Takes the list the turn already read, because :attr:`tools` is read once
+        per turn by contract and may depend on the caller.
+        """
+        return {
+            fn.__name__: phrase for fn in tools if (phrase := getattr(fn, "__voqal_speaks__", None))
+        }
 
     def _fold_results(self, chunk: types.GenerateContentResponse, folded: int) -> tuple[int, int]:
         """Move AFC's own function responses into the context as they appear.
