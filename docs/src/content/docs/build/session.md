@@ -71,8 +71,8 @@ agent](/build/keys/), and the raw key is stored only as a hash.
 
 **The agent record says where the brain lives and whether recording defaults to
 on.** It carries no voice, language, recognizer or idle settings — those depend
-on *this* caller. Our own lead-qualification brain reads a state from the
-enquiry form and answers a caller in Tamil Nadu in Tamil, which is a fact that
+on *this* user. Our own lead-qualification brain reads a state from the
+enquiry form and answers a user in Tamil Nadu in Tamil, which is a fact that
 does not exist until the call starts. Step 6 holds that call's configuration.
 
 ## What happens on every call
@@ -95,7 +95,7 @@ sequenceDiagram
   B-->>V: a greeting, as a string
   V-->>P: the greeting, spoken
   loop every turn
-    P->>V: the caller speaks
+    P->>V: the user speaks
     V->>B: finalized text
     B-->>V: speech units, and actions
     V-->>P: audio, and RTVI on the data channel
@@ -143,7 +143,7 @@ Content-Type: application/json
 
 **`idle.timeout_ms` defaults to `0`, which is off** — `on_user_idle` never fires
 until something sets a timeout, because a nudge nobody asked for talks over a
-caller who was thinking.
+user who was thinking.
 
 **`config` is how this call sounds and listens.** It is the same `Config` the
 brain sends mid-call, parsed as proto3 JSON — enum members are their names, and
@@ -161,7 +161,7 @@ on — [recordings](/operate/recordings/) says why.
 
 **`init` is what your brain gets and nobody else reads.** It arrives at
 `session.init` under that exact name, uninterpreted by everything in between:
-the account this caller is signed into, the order they are asking about, the
+the account this user is signed into, the order they are asking about, the
 plan they are on. It is stored on the session record, so send identifiers rather
 than personal data.
 
@@ -208,25 +208,25 @@ proxies the audio.
 Voqalize builds the pipeline, dials your brain, and sends `SessionStart` with
 `init` on it. Your brain returns a greeting.
 
-The caller is connected and hearing silence while that call returns, which is
+The user is connected and hearing silence while that call returns, which is
 why a greeting is a **string** — a fixed line, or a template over what `init`
 carried. A model call here is a second and a half of nothing, at the one moment
-a caller has no idea whether the call is working.
+a user has no idea whether the call is working.
 
 `on_session_start` runs alongside it, and it is where a brain sets the voice and
-language for this caller with `session.configure(...)`.
+language for this user with `session.configure(...)`.
 
 ### 9. The turn loop
 
-The caller speaks. Voqalize decides when they have finished and hands your brain
+The user speaks. Voqalize decides when they have finished and hands your brain
 the finalized text.
 
 Your brain yields speech in **units**. Speaking starts on the first unit, so the
 reply begins before it has finished being generated, and each unit is one thing
-the caller can be interrupted out of. When they do interrupt, the audio stops and
+the user can be interrupted out of. When they do interrupt, the audio stops and
 the in-flight turn is cancelled.
 
-At the end of each unit your brain is told what the caller actually **heard**.
+At the end of each unit your brain is told what the user actually **heard**.
 A reply that generated three sentences and was cut after one is remembered as
 one — that reconciliation is the brain's job, and the SDK keeps no history for
 you. [Interruption and heard truth](/design/interruption-and-heard-truth/)
@@ -239,10 +239,10 @@ audio is still flowing.
 
 **Brain to page:** `session.dispatch(SomeAction(...))` sends a typed message your
 page receives as an event — a form to open, a row to highlight, a total to
-update. A number the caller has to hold in their head is a number that belongs
+update. A number the user has to hold in their head is a number that belongs
 on the screen.
 
-**Page to brain:** pipecat's own client methods send back what the caller
+**Page to brain:** pipecat's own client methods send back what the user
 clicked or typed, and it arrives at `on_rtvi` while the floor stays where it
 was. That callback cannot speak, so an agent cannot talk over the person who
 just clicked.
@@ -252,7 +252,7 @@ is the list, and says which of them are pipecat's rather than ours.
 
 ### 11. The call ends
 
-Either side ends it: `session.end()` from the brain, or the caller hangs up.
+Either side ends it: `session.end()` from the brain, or the user hangs up.
 `on_session_end` is where you write your own record of what happened.
 
 Ours is readable back through the MCP server or the API — the

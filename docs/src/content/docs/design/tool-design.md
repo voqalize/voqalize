@@ -32,15 +32,15 @@ dispatch plus a background workstream, and report the result the way
 Barge-in cancels the turn. It does not cancel a tool call already running, and it
 does not un-dispatch an action already sent.
 
-This sounds untidy and is correct: the caller interrupted the *speech*. They did
+This sounds untidy and is correct: the user interrupted the *speech*. They did
 not interrupt the lookup, and half-applied work is worse to reason about than
 completed work. The screen showing what they asked for is right, whether or not
 the sentence describing it finished. See
 [interruption and heard truth](/design/interruption-and-heard-truth/).
 
 Tools also run **one at a time, in the order the model produced them**. Two tools
-racing would put the caller's display in an order the model never asked for, and
-the screen is the thing the caller is reading.
+racing would put the user's display in an order the model never asked for, and
+the screen is the thing the user is reading.
 
 ## A tool is undone by another tool
 
@@ -56,7 +56,7 @@ gives the model six edit tools and shouts why:
 > again — he loses his place on the screen.
 
 The reason in that second line is the general rule. Each of these preserves the
-identity of the row it touches, so the display updates in place and the caller's
+identity of the row it touches, so the display updates in place and the user's
 eye keeps its position. A re-add is correct in the database and wrong on the
 screen.
 
@@ -75,7 +75,7 @@ names is the one that reaches production:
 > `is_error` is the half the automatic path has no room for: there a failure
 > reaches the model as an ordinary payload, and the model narrates it as success.
 
-An agent cheerfully telling a caller their order is placed, because the failure
+An agent cheerfully telling a user their order is placed, because the failure
 came back as `{"error": …}` and looked like data, is the shape of the worst bug in
 this category.
 
@@ -101,7 +101,7 @@ undo.
 ## Some tools must not take the floor
 
 `orderdesk` answers the manual search bar's `catalog_searched` and `variants_opened`
-**floor-free** — session-scoped, no inference, no speech. The caller is typing in
+**floor-free** — session-scoped, no inference, no speech. The user is typing in
 a search box; a keystroke must not make the agent start talking over them.
 
 If a tool exists to serve the screen rather than the conversation, say so
@@ -110,7 +110,7 @@ category.
 
 ## The one blocking tool that is allowed
 
-`aura`'s `authenticate` awaits a future resolved when the caller taps consent. It
+`aura`'s `authenticate` awaits a future resolved when the user taps consent. It
 blocks because it is waiting on a human decision, and there is nothing else the
 agent could truthfully be doing.
 

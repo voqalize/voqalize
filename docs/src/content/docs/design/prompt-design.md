@@ -1,13 +1,13 @@
 ---
 title: Prompt design for voice
-description: Every lookup the agent has to make is silence the caller sits through. A voice prompt is a latency budget written in English.
+description: Every lookup the agent has to make is silence the user sits through. A voice prompt is a latency budget written in English.
 ---
 
 A chat prompt can afford to be thin. The model can look things up, and the reader
 watches a spinner while it does — a two-second tool call reads as work happening.
 
 Say the same two seconds out loud. Nothing happens, on a channel where nothing
-happening is the one thing a caller reacts to. So the arithmetic changes: what the
+happening is the one thing a user reacts to. So the arithmetic changes: what the
 agent needs, it should mostly already have.
 
 That is the whole design rule, and it is not "be concise."
@@ -18,7 +18,7 @@ That is the whole design rule, and it is not "be concise."
 |---|---|---|
 | 80% | In the prompt already | tokens |
 | 10% | One fast tool call away — in your process, no network | a model round trip |
-| 10% | Genuinely slow — remote, expensive | a background workstream, with an answer to "what does the caller hear meanwhile" |
+| 10% | Genuinely slow — remote, expensive | a background workstream, with an answer to "what does the user hear meanwhile" |
 
 These numbers are a design target we hold to, not a ratio we have instrumented.
 Their job is the third row: anything that lands there needs a plan for the
@@ -46,14 +46,14 @@ See [voice points, the screen holds](/design/speech-vs-screen/).
 
 The system prompt is the cache prefix. Set it once per session and it matches
 turn after turn; rebuild it — even to append one fresh line — and the provider
-re-reads the whole thing on every turn, which the caller pays for in silence.
+re-reads the whole thing on every turn, which the user pays for in silence.
 
 Volatile context goes at the tail, next to the latest user message, where a change
 costs the provider only the small new suffix. This is the cheapest latency win
 available and the easiest to throw away by accident, because nothing in a
 transcript shows it.
 
-### 3. Know where the caller is
+### 3. Know where the user is
 
 The agent needs a way to answer "what is on screen right now," and the answer has
 to be current rather than remembered. Two demos do the same thing: the page keeps
@@ -61,7 +61,7 @@ pushing its state, the brain parks the latest snapshot, and a tool reads it on
 demand — `aura`'s `get_screen_context`, `servicing`'s `get_advisor_context`.
 
 The reciprocal instruction matters as much. The screen is authoritative over the
-agent's own memory of it, because the caller has hands: `orderdesk`'s prompt ends
+agent's own memory of it, because the user has hands: `orderdesk`'s prompt ends
 that thought with "**NEVER redo what he already did himself.**"
 
 ### 4. Track a task list
@@ -113,7 +113,7 @@ as a model of how specific this gets:
 
 Three things to take from it. It names the threshold at which machinery starts
 (five). It gives the model a decision rule rather than an example. And it caps the
-interaction in turns, because a turn is the unit the caller feels.
+interaction in turns, because a turn is the unit the user feels.
 
 The wording of the question is the model's; the *shape* is not. `ask_choice`
 rejects a set that has fewer than two or more than four choices, or that leaves a

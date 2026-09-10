@@ -138,7 +138,7 @@ async def test_switching_language_mid_call_moves_both_halves() -> None:
 
     ``switch_language`` is one ``session.configure`` call precisely so it cannot
     half-apply. Moving only the TTS leg leaves the recognizer hearing Hindi as
-    English — the caller is then mis-transcribed for the rest of the call, and the
+    English — the user is then mis-transcribed for the rest of the call, and the
     reply, generated from that wrong transcript, is merely *odd* rather than
     obviously broken. Assert the pair, on the frames."""
     async with demo("sugar", _llm()) as rig:

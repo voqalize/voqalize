@@ -78,7 +78,7 @@ in your logs usually means an oversized payload. See
 Voqalize speaks first, and the version it speaks is stamped on `SessionStart`.
 If it is not the version your SDK speaks — in either direction, higher or lower —
 the SDK emits a fatal `wire_version` error and ends the session before your
-`greet` runs. Nothing has been synthesized at that point and the caller has heard
+`greet` runs. Nothing has been synthesized at that point and the user has heard
 nothing, which is the only moment refusing is free.
 
 You do not write this check and you cannot switch it off. A lower version is not
@@ -120,14 +120,14 @@ already came back accepted, and this is the correction arriving behind it.
 From your brain: `on_session_start` or `greet` raised. The SDK emits a **fatal**
 `internal` error naming the hook, and ends the session without greeting. Both
 halves of that are deliberate. A greeting spoken over state that was never built
-promises a working agent the caller then talks to; a session whose greeting never
+promises a working agent the user then talks to; a session whose greeting never
 arrives is dead air on the one turn nothing will retry. The failure goes on the
 wire instead, where the browser's `onError` shows it and the call ends.
 
 A callback that raises **after** the session has opened does not do this. An
 exception inside `on_user_message`, `on_user_idle`, `on_rtvi` or `on_finalize` is
 logged in your process and goes no further: the turn stops producing, the socket
-stays up, and the next turn runs. What the caller hears in that case is the last
+stays up, and the next turn runs. What the user hears in that case is the last
 section on this page.
 
 ## A rejected request comes back on the request
@@ -171,7 +171,7 @@ class Switcher(Brain):
 ```
 
 Speak before you await. The `configure` is a round trip to Voqalize, and an
-`await` with no speech in front of it is dead air the caller sits in.
+`await` with no speech in front of it is dead air the user sits in.
 
 **A rejection is all-or-nothing, and it is an answer rather than a broken
 session.** Nothing in the request applied — a `Config` naming `tts`, `stt` and
@@ -216,7 +216,7 @@ propagates into your own code. The obligations are listed in
 **`SessionRejected`** — the brain-connection token on the incoming socket failed
 verification. `run_session` raises it before your brain is constructed, so no
 session exists and no callback has run. Close the socket with code **4000**; the
-wiring is in [Inbound server](/build/inbound/), and what the caller hears when
+wiring is in [Inbound server](/build/inbound/), and what the user hears when
 you do is below.
 
 ## Refused before your brain is dialled
@@ -235,7 +235,7 @@ A session is minted by `sessions.connect`, and its status table is in
   [outbound over Cortex](/build/outbound/).
 
   This used to succeed. An unconfigured agent's empty `brain_url` was filled with
-  a hosted `welcome` brain, so the call connected and your caller was greeted —
+  a hosted `welcome` brain, so the call connected and your user was greeted —
   by us, saying words you had never written. It worked, which is precisely what
   made it worth removing: a setup step you can skip without seeing anything break
   is a step that gets skipped.
@@ -266,15 +266,15 @@ that does not exist. The wire used to carry `voice`, `language` and `model` as
 free-text strings, and a language with no recorded clip behind it was read in
 the English clip's voice with nothing reporting it.
 
-## What your caller hears
+## What your user hears
 
 Nothing above describes the failure the way the person on the phone experiences
-it. Voqalize speaks two fixed lines to the caller, off two thresholds, and these
+it. Voqalize speaks two fixed lines to the user, off two thresholds, and these
 are the only sentences it ever puts in your agent's mouth.
 
 **A brain it could not reach.** Voqalize retries the first connect from 100 ms
 out, and gives up after **10 seconds** — about as long as a person will hold a
-silent line before deciding the thing is broken. Then the caller hears:
+silent line before deciding the thing is broken. Then the user hears:
 
 > Sorry — I can't reach the assistant right now. Please try again shortly.
 
@@ -286,7 +286,7 @@ you closed **4000**, which is read as permanent and stops the retries at once.
 
 **A turn that produced no audio.** Once a committed user message has been sent to
 your brain, Voqalize starts a **10-second** watchdog. If the turn has produced no
-text by then, the caller hears:
+text by then, the user hears:
 
 > Sorry — that's taking longer than I expected.
 
@@ -308,7 +308,7 @@ deliberate: a brain learning that a sentence it never generated was said would b
 new wire vocabulary for a fact it cannot act on, against a history already
 degraded because the turn produced nothing.
 
-**So this is what your caller hears when your brain is down**: a ten-second
+**So this is what your user hears when your brain is down**: a ten-second
 silence, one apology, and — on the unreachable path — a call that ends six
 seconds after it. Every callback that raises after the session opened lands in
 the second line, because from Voqalize's seat a brain that raised, a brain

@@ -36,7 +36,7 @@ class Concierge(Brain):
 
 `msg.text` is the finalized transcript of one turn. The three frames are one
 **speech unit** — a thing with a start, a middle you can stream, and an end that
-lets the caller interrupt cleanly. Replace the middle with your model's stream
+lets the user interrupt cleanly. Replace the middle with your model's stream
 and this is a real agent. See [Your first brain](/build/brain/).
 
 ## 3. Serve it

@@ -50,7 +50,7 @@ export const demo: DemoConfig = {
  *
  * `init` is the opaque blob the brain reads back as `session.init` — flat, and
  * uninterpreted by everything between here and there. This page's enquiry form
- * is exactly that: the caller's language choice rides here by name, and
+ * is exactly that: the user's language choice rides here by name, and
  * `LeadQualBrain.on_session_start` is the only thing that resolves it into the
  * wire's `Config`.
  *

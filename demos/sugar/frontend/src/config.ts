@@ -55,7 +55,7 @@ export const demo: DemoConfig = {
  * and `idle` sections plus `record`, as canonical proto3 JSON. This page sends
  * none — voice and language belong to the brain, which is the layer that knows
  * who is calling. Pass one when the page knows something first: a consent
- * answer to report, or a language the caller chose before the call began.
+ * answer to report, or a language the user chose before the call began.
  *
  * Both are stored on the session and served to the voice runtime over its own
  * authenticated call, so send identifiers rather than personal data. A `config`

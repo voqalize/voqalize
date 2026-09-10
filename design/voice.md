@@ -118,7 +118,7 @@ Every capability arrives with its position on the audio timeline or its cost in
 milliseconds. Latency is the physics of this product, so it belongs in the grammar rather
 than in a performance section at the bottom of the page.
 
-> `greet` is the one moment a connected caller is sitting there hearing nothing, so no
+> `greet` is the one moment a connected user is sitting there hearing nothing, so no
 > model call belongs in it. A fixed line, or a template over `session.init` — `f"Hi
 > {name}, how can I help?"` — and the `async` is there so you can look up that name.
 
@@ -185,7 +185,7 @@ A voice made only of restrictions produces prose that is safe and forgettable. T
 licensed, with their edges.
 
 **Be vivid about the ear.** Describe what a broken call sounds like, concretely: the agent
-references a sentence it never finished saying; the caller hears nothing on the one turn
+references a sentence it never finished saying; the user hears nothing on the one turn
 nothing will retry; the answer arrives after the user has already repeated the question.
 *Edge:* the sound follows from a mechanism named in the same paragraph. Sensory writing
 with nothing under it is atmosphere.
@@ -197,7 +197,7 @@ the shape of the workload, never about the reader.
 
 **Be dry.** Understatement is the entire humor budget, and it works because the facts
 carry themselves: *"Our own demos run that way in 33 seconds."* Numbers we earned —
-1,143 simultaneous, ~50,000 interviews, 18 MCP tools, English plus 22 Indic languages on
+1,143 simultaneous, ~50,000 interviews, 28 MCP tools, English plus 22 Indic languages on
 our own GPUs — are stated flat and take no adjective, because the adjective is what makes
 a reader suspect the number. No exclamation, no wink, no emoji, no joke at a named
 product's expense; we build on Pipecat and we say so.
@@ -251,19 +251,21 @@ needs no other change.
 
 **SDK docstrings** are where the point of view becomes enforceable, because the reader is
 in the editor with the decision in front of them. State the rule, then its consequence in
-the caller's ear. The `greet` and `Session.dispatch` docstrings are the reference
+the user's ear. The `greet` and `Session.dispatch` docstrings are the reference
 standard; read them before writing a new one.
 
 **MCP server instructions and tool descriptions** are read by an autonomous agent that
-follows them literally, across 18 tools on a hosted endpoint. Imperative, one tool per
+follows them literally, across 28 tools on a hosted endpoint. Imperative, one tool per
 description, preconditions stated, every description ending in the call to make next. No
 "simply", no "just", no persuasion — there is nobody to persuade. Name the silent failure
 explicitly, because an agent cannot hear something being wrong.
 
-> `create_agent` — Creates the agent record and returns its id and publishable key. Call
-> `update_agent` with `brain_url` next: an agent whose `brain_url` is empty still connects
-> and still greets, using the hosted welcome brain, so a session that answers is not
-> evidence that your brain is wired.
+> `create_agent` — Creates the agent record and returns it with a one-time `sk_` session
+> key. Call `update_agent` with `brain_url` next, or `create_agent_credentials` to dial out:
+> until one of the two, the agent has no mode and `sessions.connect` refuses it. A
+> `brain_url` nothing listens on is the silent case — the session connects, the user
+> hears nothing, and `stage` stays `configured`; it reads `verified` only after a real
+> call has reached your brain, so call `get_agent` after the first call, not before.
 
 **Changelog entries** are dated, present tense, written from the reader's migration
 inward. First sentence: what is now true. Second: what the reader does. A breaking change
@@ -320,6 +322,8 @@ A new term is added to this table first and to the SDK second.
 | The relay for egress-only networks | **Cortex** | tunnel, proxy |
 | The compatibility suite | **the conformance harness** | test kit, test suite |
 | The 2-D talking head | **the avatar** | video agent, digital human |
+| The account that owns agents, keys and sessions | **tenant** | workspace |
+| The person on the call | **user** | caller |
 
 **We never describe Voqalize as a platform.** Our argument is that intelligence should not
 live on a platform, and the word contradicts the product in the reader's ear. Internal

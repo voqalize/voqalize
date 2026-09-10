@@ -125,7 +125,7 @@ class Finalize:
     ``generated`` is the text this end put on the wire for that unit, kept by the
     SDK so you do not have to keep it yourself. ``heard`` is a verbatim prefix of
     it, which is what makes :attr:`interrupted` a comparison rather than a claim:
-    equal means the unit played out, shorter means the caller cut it off, and
+    equal means the unit played out, shorter means the user cut it off, and
     empty against a unit that sent text means nothing reached the ear. Voqalize
     used to send the verdict alongside the evidence; it stopped, because a copy of
     a derivable fact is one more thing that can be wrong.
@@ -140,7 +140,7 @@ class Finalize:
 
     @property
     def interrupted(self) -> bool:
-        """``True`` when the caller talked over this unit and it was cut short."""
+        """``True`` when the user talked over this unit and it was cut short."""
         return self.heard != self.generated
 
 

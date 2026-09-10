@@ -87,8 +87,8 @@ cannot change mid-session. [Voice and language](/reference/catalog/) and
 Calls are processed and stored in India today. A United States region is
 planned and is not available for selection yet.
 
-Developer-preview workspaces may be rate-limited and have concurrent-call
-ceilings. The ceilings are assigned per workspace and no public number is
+Developer-preview tenants may be rate-limited and have concurrent-call
+ceilings. The ceilings are assigned per tenant and no public number is
 committed. Ask before a pilot or launch that needs a specific concurrency
 level.
 

@@ -1,12 +1,12 @@
 ---
 title: Tools
-description: Tool calls are local function calls in your process. What that changes, and what a voice tool owes the caller that a chat tool does not.
+description: Tool calls are local function calls in your process. What that changes, and what a voice tool owes the user that a chat tool does not.
 ---
 
 The boundary Voqalize holds is text, so what generates the text is yours — and so
 are the tools. A tool call is an ordinary function call in the process you
 deploy: you keep the stack trace, the connection pool and the secret. What
-changes for voice is not the mechanism but the clock, because a caller is
+changes for voice is not the mechanism but the clock, because a user is
 listening to silence while the tool runs.
 
 ## `Brain` has no tools property
@@ -71,12 +71,12 @@ class Coach(GeminiBrain):
         return [self.show, self.log_meal]
 
     async def show(self, args: Section) -> str:
-        """Put a section of the screen in front of the caller."""
+        """Put a section of the screen in front of the user."""
         self.session.dispatch(ShowSection(name=args.name))
         return "shown"
 
     async def log_meal(self) -> str:
-        """Record that the caller ate, now."""
+        """Record that the user ate, now."""
         await self.meals.record(self.session.id)
         return "logged"
 ```
@@ -106,7 +106,7 @@ path, `_declare` on the interactions path. So a sync tool is not an import
 error and not a startup error: the session opens, the greeting plays, and the
 `TypeError` lands on the first turn that reads `tools`. The turn task catches
 it, writes `brain: turn failed` to your log, and produces no speech
-(`sdk/python/src/voqalize/sdk/brain.py`, `_run_turn`). The caller asked a
+(`sdk/python/src/voqalize/sdk/brain.py`, `_run_turn`). The user asked a
 question and heard nothing back.
 
 Drive one turn in [the conformance harness](/build/testing/) and assert
@@ -127,7 +127,7 @@ On the automatic path google-genai checks each flat argument with `isinstance`
 and coerces nothing. A bare `Literal` raises immediately — `isinstance` refuses a
 subscripted generic — and a bare `Enum`, `date`, `Decimal` or `UUID` is rejected
 as the JSON string it still is. Both are caught into `{'error': …}` and handed to
-the model, which narrates it to the caller as success. The tool never ran, the
+the model, which narrates it to the user as success. The tool never ran, the
 schema was right, the stream was well-formed, and nothing on the wire says
 otherwise.
 
@@ -143,7 +143,7 @@ the same field is the version that breaks:
 ```python
     # Declares a correct schema, then fails to execute on the automatic path.
     async def show(self, section: Literal["glucose", "meals"]) -> str:
-        """Put a section of the screen in front of the caller."""
+        """Put a section of the screen in front of the user."""
 ```
 
 ### `session` is never a parameter
@@ -168,7 +168,7 @@ plain function is what goes over and the brain stays here
 ### The property is read once per turn
 
 Once, at the top of the turn, and fixed for its length however many hops it
-takes. So the list can depend on this caller and on what has happened so far in
+takes. So the list can depend on this user and on what has happened so far in
 the session:
 
 ```python
@@ -204,7 +204,7 @@ and a line in your log.
 
 ## Silence during a tool call is dead air
 
-The model cannot speak while it waits for a result it asked for, and the caller
+The model cannot speak while it waits for a result it asked for, and the user
 has no spinner. So the first thing a voice tool needs is a sentence in front of
 it.
 
@@ -232,7 +232,7 @@ belongs where the model reads it — **the docstring, which is the description**
 ```
 
 The second lever is the screen. `session.dispatch(...)` never blocks and holds
-no floor, so a tool can move the display on its first line and let the caller
+no floor, so a tool can move the display on its first line and let the user
 read while the voice is still working — [Actions](/build/brain/actions/) owns
 that channel. A tool that is slower than a sentence should return a note instead
 of a result; [tool design for voice](/design/tool-design/) is that argument, and
@@ -276,7 +276,7 @@ EVENTS = AppEvents(ConfirmAnswered)
 
 
 class ConfirmArgs(BaseModel):
-    """The booking to confirm, in one line the caller can read."""
+    """The booking to confirm, in one line the user can read."""
 
     summary: str
 
@@ -294,7 +294,7 @@ class Booking(GeminiInteractionsBrain):
         return [self.confirm_on_screen]
 
     async def confirm_on_screen(self, args: ConfirmArgs) -> str:
-        """Put the booking in front of the caller and wait for them to tap
+        """Put the booking in front of the user and wait for them to tap
         Confirm. This opens a sheet and waits, so say one short line first
         ("let me put that on screen for you") and expect a pause."""
         nonce = uuid.uuid4().hex
@@ -304,12 +304,12 @@ class Booking(GeminiInteractionsBrain):
         try:
             answer = await asyncio.wait_for(pending, 90)
         except TimeoutError:
-            return "The caller never answered the sheet. Offer to try again."
+            return "The user never answered the sheet. Offer to try again."
         finally:
             self._pending.pop(nonce, None)
         if answer == "yes":
             return "confirmed"
-        return "The caller declined. Acknowledge it and offer another slot."
+        return "The user declined. Acknowledge it and offer another slot."
 
     async def on_rtvi(self, session, msg) -> None:
         match EVENTS.parse(msg):
@@ -321,10 +321,10 @@ class Booking(GeminiInteractionsBrain):
 
 Three things in there are load-bearing. The **nonce** binds this dialog to this
 future; without it the app's answer resolves nothing and the turn runs out its
-timeout while the caller sits in silence. The **cancel path** — a `"no"` the app sends when
-the caller dismisses the sheet — is what stops a dismissed dialog going silent
+timeout while the user sits in silence. The **cancel path** — a `"no"` the app sends when
+the user dismisses the sheet — is what stops a dismissed dialog going silent
 for the length of the timeout, so give the app something to send and handle it.
-And the **timeout** is a backstop, not the escape hatch; the caller pressing
+And the **timeout** is a backstop, not the escape hatch; the user pressing
 something is.
 
 Test it with the turn in flight, because the turn does not finish until the tool
@@ -334,7 +334,7 @@ returns:
 in_flight = asyncio.create_task(driver.user_says("Book the nine o'clock."))
 commands = await driver.collect_ui_commands(min_count=1)
 assert commands[0]["command"] == "open_confirm"
-assert not in_flight.done(), "the tool returned before the caller answered"
+assert not in_flight.done(), "the tool returned before the user answered"
 
 await driver.send_ui_event(
     "confirm_answered", {"nonce": commands[0]["payload"]["nonce"], "answer": "yes"}
@@ -355,7 +355,7 @@ function result and the model decides what to say about it, on the hop after
 `sdk/python/src/voqalize/sdk/gemini_interactions.py`, `_run`).
 
 That absence is why a tool returning a row set has not decided anything. Eleven
-rows read out loud is a caller with no memory of row four; the rows go to the
+rows read out loud is a user with no memory of row four; the rows go to the
 screen with `session.dispatch(...)` and the return value tells the model what to
 say about them — how many there are, which one is the answer, what to ask next.
 Write the return value as the sentence's raw material rather than as the

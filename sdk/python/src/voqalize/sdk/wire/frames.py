@@ -8,7 +8,7 @@ dataclasses, never in protobuf objects.
 :class:`Frame` marker, so the SDK carries no pipecat dependency. Only protobuf
 ``Envelope`` bytes cross the wire; Python class identity never does.
 
-The wire has two planes. The voice plane — turns, speech units, what the caller
+The wire has two planes. The voice plane — turns, speech units, what the user
 heard, the control leg — is Voqalize's own. The RTVI plane is a tunnel:
 :class:`RTVIFrame` carries one whitelisted pipecat RTVI message verbatim.
 

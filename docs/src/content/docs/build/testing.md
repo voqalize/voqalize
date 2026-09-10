@@ -162,16 +162,19 @@ Once a human has actually talked to the agent, read the call back over the
 
 ```
 list_sessions(tenant, agent_id=…, limit=20)              # find it — most recent first
-get_session_events(tenant, session_id)                   # what was said and done, in order
+get_call_record(tenant, session_id)                      # what was said and heard, as turns
 get_session_logs(tenant, session_id, level="WARNING")    # why, when the above isn't enough
 ```
 
-Events first: they carry both the lifecycle (created / connected / ended) and the
-wire itself — each transcript, each piece of the reply, each action, each
-interruption — and they are versioned contract, so a test may assert on them. Logs
-are evidence, not contract: read them to understand a call, never to assert on one.
+The record first: it carries every turn — what was asked, what your brain
+generated, what the user actually heard, and what each interruption threw away —
+and it is versioned contract, so a test may assert on it. Logs are evidence, not
+contract: read them to understand a call, never to assert on one.
+`get_session_events(tenant, session_id)` is the third read, the lifecycle
+milestones (created / connected / ended), and the only one written while the
+call is still running.
 
-A call still running has no wire bundle yet, so check the `wire` field before
+A call still running has no record yet, so check the `record` field before
 concluding it was silent — `missing` is a different fact from an empty list. And
 these are **Voqalize's** records; your brain logs in your own environment. The
 id joining the two sides is `session.id`, the same string in both.
@@ -183,7 +186,7 @@ next scenario. Reproduce it offline first, then fix it.
 
 - **[Interruption and heard truth](/design/interruption-and-heard-truth/)** —
   what the harness is modelling when it replays a barge-in, and why your history
-  holds what the caller heard rather than what you generated.
+  holds what the user heard rather than what you generated.
 - **[Reading a call back](/operate/reading-a-call/)** — the same events and logs
   against a real call, and what to check before concluding one was silent.
 - **[MCP server](/reference/mcp/)** — the observability tools, and the agent

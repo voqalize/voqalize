@@ -187,7 +187,7 @@ def token_rows(conn: sqlite3.Connection) -> list[tuple[str, int]]:
 
     Splitting goes through :func:`normalize.fts_terms`, the *same* function
     ``search.py`` splits a query with, so "TELMA 40/6.25" is stored as 40, 6 and
-    25 and a caller asking for "6.25" asks for tokens that can exist.
+    25 and a user asking for "6.25" asks for tokens that can exist.
     """
     rows: set[tuple[str, int]] = set()
     for ref, name_clean, family, form in conn.execute(
@@ -204,7 +204,7 @@ def phonetic_rows(families: set[str]) -> list[tuple[str, str, str, int]]:
     key it can be heard under*.
 
     Multi-word roots also get a squashed row ("4 QUIN" → token ``4QUIN``) so a
-    caller who runs the words together still lands on the family.
+    user who runs the words together still lands on the family.
 
     Keys come from :func:`normalize.phonetic_keys` — the canonical key (``alt``
     0) plus the alternates that a confusion the coder deliberately does not fold

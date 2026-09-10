@@ -41,7 +41,7 @@ pip install "voqalize-agent-sdk[examples]"   # + deps used only by examples/
 
 ## The smallest complete brain
 
-One method is required. It is handed what the caller said and yields speech; the
+One method is required. It is handed what the user said and yields speech; the
 brackets are what let the runtime start and stop audio without waiting for the
 sentence to finish.
 
@@ -61,14 +61,14 @@ class EchoBrain(Brain):
         yield SpeechEnd()
 ```
 
-`greet` returns a **string, not a model call** — the caller is already on the line
+`greet` returns a **string, not a model call** — the user is already on the line
 and the first word has to arrive now. A template is as clever as it gets.
 
 ## Let a model do the talking: `GeminiBrain`
 
 `GeminiBrain` (`[gemini]` extra) fills in the parts every model-backed brain
 writes the same way: the context, the streaming, the tool hops, and the rewrite at
-the end that makes the context say what the caller *heard*. You bring the
+the end that makes the context say what the user *heard*. You bring the
 system instruction and the tools.
 
 ```python
@@ -248,7 +248,7 @@ module.
   user utterance when the stimulus arrives, and one assistant message per speech
   unit — from its *heard* text, at finalize. `GeminiBrain` does this for you. A
   reply that generated three sentences and was cut after one is remembered as one,
-  which is the only version the caller and the model can both agree on.
+  which is the only version the user and the model can both agree on.
 
 ## Read next
 

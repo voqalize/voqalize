@@ -488,7 +488,7 @@ def _fts_relaxed(conn: sqlite3.Connection, q: _Query) -> tuple[list[sqlite3.Row]
 
     Dropping the tail is a different thing entirely. It answers a question
     nobody asked — the first word or two of a damaged brand — and until the
-    caller was told so, that answer short-circuited the phonetic stage: a query
+    user was told so, that answer short-circuited the phonetic stage: a query
     whose brand was mangled beyond its second syllable would find some unrelated
     catalog word sharing its first three letters and never reach the net built
     to recover it.

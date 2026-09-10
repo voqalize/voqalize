@@ -67,7 +67,7 @@ Two flags ride pipecat's `send-text` and **neither is honoured**, deliberately
 rather than by omission. `run_immediately=false` would need a stimulus that is
 stored without minting a turn, and `audio_response=false` would need a per-turn
 gate on synthesis; Voqalize has neither. Half-honouring one is worse than
-refusing it, because a caller who asked for silence and got speech has been told
+refusing it, because a user who asked for silence and got speech has been told
 something false about the mechanism. **A typed question is answered aloud,
 always.**
 

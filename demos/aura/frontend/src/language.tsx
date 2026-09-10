@@ -1,8 +1,8 @@
 /**
- * The language the caller picks before the call exists.
+ * The language the user picks before the call exists.
  *
  * Aura is an Indian retail bank, so the language is a property of the *call*,
- * chosen the way a caller picks a queue on an IVR — and it is settled here,
+ * chosen the way a user picks a queue on an IVR — and it is settled here,
  * before anything connects, rather than switched mid-sentence. The name rides
  * the connect request in `init`; the brain reads it once in `on_session_start`
  * and moves all three things that have to move together (the recognizer, the

@@ -97,7 +97,7 @@ discovers backends and each frontend declares its own connection wiring. To add
    and a unique dev `port`) / `tsconfig.json` / `index.html` / `.env.example`, and
    a `src/config.ts` declaring only the connection wiring. **Voice and language do
    not live here** — the agent record carries the default and the brain overrides
-   it per caller (`await session.configure(Config(stt=…, tts=…))`), because that is
+   it per user (`await session.configure(Config(stt=…, tts=…))`), because that is
    the only place the STT and TTS legs move together. Setting one leg from the page is the
    half-applied-pair bug, and it is silent: the words stay right and only the
    speaker is wrong.

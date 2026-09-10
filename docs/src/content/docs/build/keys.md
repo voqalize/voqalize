@@ -3,7 +3,7 @@ title: Keys and authentication
 description: Two kinds of key, both scoped to one agent. Which one your backend holds, which one ships in page source, and what the origin allowlist is actually doing.
 ---
 
-Every Voqalize credential names one agent. There is no workspace-wide key, and
+Every Voqalize credential names one agent. There is no tenant-wide key, and
 there is no key that can mint a session for an agent it does not name — a
 credential whose blast radius can only be discovered by reading code is a
 credential nobody can reason about.

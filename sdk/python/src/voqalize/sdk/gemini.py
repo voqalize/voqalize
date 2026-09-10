@@ -38,7 +38,7 @@ result is one call from here, not a loop. We take the record it kept
 unit of speech goes into the context as it streams, then
 :meth:`~voqalize.sdk.Brain.on_finalize` rewrites it to the delivered prefix. A
 reply that generated three sentences and was cut after one is remembered as one —
-which is the only version the caller and the model can both agree on.
+which is the only version the user and the model can both agree on.
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ __all__ = ["DEFAULT_MODEL", "VOICE_THINKING", "GeminiBrain"]
 DEFAULT_MODEL = os.environ.get("VOQAL_GEMINI_MODEL", "gemini-3.5-flash")
 
 # The least thinking this model allows, for lowest voice latency: on a voice turn
-# a reasoning budget is spent in silence the caller sits through, and the thought
+# a reasoning budget is spent in silence the user sits through, and the thought
 # parts are never spoken, so the cost has no audible half at all.
 #
 # BOTH HALVES OF THIS LINE ARE MODEL-SPECIFIC — measure, do not assume, when you
@@ -111,7 +111,7 @@ class _Unit:
 class _Clock:
     """When a turn's two moments happened, relative to asking for it.
 
-    ``speak`` is the one the caller experiences: everything before it is silence
+    ``speak`` is the one the user experiences: everything before it is silence
     they are sitting in. It is not the same as ``open`` — a turn that calls a tool
     first starts streaming promptly and still says nothing for another round trip,
     which is the shape a tool-heavy turn has and the reason both are recorded.
@@ -160,7 +160,7 @@ def _log_turn(
 
     The times are on the same line so that "the brain took four seconds" stops
     being an observation and becomes an attribution: ``speak`` is dead air the
-    caller heard, and read against ``hops`` and ``prompt`` beside it, it says
+    user heard, and read against ``hops`` and ``prompt`` beside it, it says
     whether the cost was one slow round trip or three fast ones re-sending a
     context that had grown too big.
 
@@ -362,7 +362,7 @@ class GeminiBrain(Brain):
         A plain list of callables is what google-genai takes — and ADK, and every
         other agentic framework — so a brain's tools go where the brain goes and
         there is no decorator to learn. It is read per turn, so the list can
-        depend on the caller.
+        depend on the user.
 
         **The method is the declaration.** Its name is the name the model calls,
         its docstring is the description the model reads, and its single pydantic
@@ -428,7 +428,7 @@ class GeminiBrain(Brain):
                     and "error" in response.response
                 ):
                     # google-genai hands the model `{'error': ...}` and the model
-                    # will tell the caller it did the thing. This is the only
+                    # will tell the user it did the thing. This is the only
                     # place that failure is visible on our side of the seam.
                     logger.warning("tool {} failed: {}", response.name, response.response["error"])
         return len(record), taken
@@ -455,7 +455,7 @@ class GeminiBrain(Brain):
     def system_instruction(self) -> str:
         """The prompt every call carries. Settable from
         :meth:`~voqalize.sdk.Brain.on_session_start`, where the facts that are
-        true for this caller and no other — who they are, what they are calling
+        true for this user and no other — who they are, what they are calling
         about, what your system already knows — are finally in hand. Setting it
         replaces the prompt for the rest of the session; the tools and the model
         stay as constructed.
@@ -470,12 +470,12 @@ class GeminiBrain(Brain):
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         """Rewrite the unit Voqalize just finished playing down to what the
-        caller actually heard.
+        user actually heard.
 
         A unit this brain never opened is the greeting: `greet` returns a string
         the SDK speaks, so the only record of it anywhere is what comes back
         here — already heard-truth, already cut to the delivered prefix if the
-        caller talked over it. Without this the model does not know it greeted,
+        user talked over it. Without this the model does not know it greeted,
         and asks its opening question a second time.
         """
         if not self._awaiting:

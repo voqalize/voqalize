@@ -64,8 +64,8 @@ repeat it.
 
 Creating an agent, pointing its `brain_url` at your route, minting and revoking
 keys, listing sessions, reading logs and usage — every one of those is an MCP
-tool, authenticated over OAuth, rate limited at **300 requests per minute per
-workspace**. [The MCP server](/reference/mcp/) is the reference for all of them.
+tool, authenticated over OAuth, rate limited at **120 tool calls per minute per
+tenant**. [The MCP server](/reference/mcp/) is the reference for all of them.
 
 This is not a workaround. The audience for a management API is a developer and
 the developer's coding agent, and MCP is the surface an agent already holds:

@@ -1,9 +1,9 @@
 ---
 title: Context and history
-description: What the caller did in the app arrives as context, so the two of you work together rather than past each other. The reverse channel, and what your brain remembers.
+description: What the user did in the app arrives as context, so the two of you work together rather than past each other. The reverse channel, and what your brain remembers.
 ---
 
-A voice agent that cannot see what the caller just clicked is talking past them.
+A voice agent that cannot see what the user just clicked is talking past them.
 Your page names what the person did, `on_rtvi` delivers it, and the floor stays
 where it was. **We do not observe the screen.** Nothing on our side reads your
 DOM, your store or your routes: your app decides what to send, and your brain
@@ -158,7 +158,7 @@ the wire and you get the non-fatal error frame. A page-to-brain message that get
 past the browser anyway is dropped on our side with a log line and nothing else,
 because the page is not a wire peer and there is no error frame that reaches it.
 Both refusals are bugs in the page rather than conditions your brain can act on.
-That is the failure with no sound — the caller taps, the screen does nothing, and
+That is the failure with no sound — the user taps, the screen does nothing, and
 on the next turn the agent answers about a screen that has moved.
 
 Congestion sheds the same class of message. Speech chunks and RTVI messages are
@@ -216,9 +216,9 @@ That leaves you three places, and the split is the whole arrangement:
 - **`on_session_start`** is where a logical conversation spanning several sockets
   picks up: read your own identifier out of `session.init` and load your own
   history. Nothing about it leaves your environment.
-- **`on_rtvi`** is where what the caller did in the app folds in.
+- **`on_rtvi`** is where what the user did in the app folds in.
 - **`on_finalize`** is where the turn is written back, and it must be recorded as
-  what the caller *heard* — see [transcripts](/build/brain/transcripts/).
+  what the user *heard* — see [transcripts](/build/brain/transcripts/).
 
 What we hold is the call while it is up, and the session record, events and
 recordings afterwards; [reading a call](/operate/reading-a-call/) is how you get

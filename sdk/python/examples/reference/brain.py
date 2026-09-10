@@ -13,7 +13,7 @@ Say                     | What it proves
 "open the dashboard"    | ``session.dispatch`` — a ui-command on the RTVI lane
 "ask me something"      | An action that asks; the app's reply arrives at
                         | ``on_rtvi`` and is voiced on the next turn
-"what did you hear"     | Heard-text reconciliation: what the caller actually
+"what did you hear"     | Heard-text reconciliation: what the user actually
                         | received, which is not what was generated if you barged in
 "speak hindi"           | ``session.configure`` — both legs, TTS and STT
 "speak english"         | back again
@@ -104,7 +104,7 @@ class ReferenceBrain(Brain):
     voice = Voice.OMNIVOICE_GAURI
 
     def __init__(self) -> None:
-        #: speech_id → what the caller actually heard. Written in on_finalize.
+        #: speech_id → what the user actually heard. Written in on_finalize.
         self.heard: dict[int, str] = {}
         #: speech_id → what this brain generated for that unit. The SDK hands
         #: it back on the finalize, so pairing the two is not the brain's job.
@@ -153,7 +153,7 @@ class ReferenceBrain(Brain):
             # The generator body resumes only once the SDK has consumed
             # everything yielded, so writing it in this order IS the ordering:
             # the goodbye is spoken before the hang-up frame goes out.
-            session.end("caller said goodbye")
+            session.end("user said goodbye")
             return
 
         if "dashboard" in said:
@@ -229,11 +229,11 @@ class ReferenceBrain(Brain):
             self._pending_answer = choice
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
-        """What the caller actually heard — the only place the brain learns it.
+        """What the user actually heard — the only place the brain learns it.
 
         On a clean unit this equals what was generated. On a barge-in it is the
         played prefix, and *that* is what belongs in history: a model that is told
-        it said three sentences the caller never heard will answer the next turn
+        it said three sentences the user never heard will answer the next turn
         as if they landed.
         """
         self.heard[fin.speech_id] = fin.heard

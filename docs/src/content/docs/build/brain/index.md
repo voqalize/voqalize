@@ -31,7 +31,7 @@ generator at all.
 
 `greet` returns a string or `None`. It is `async` so you can look something up —
 `session.init` carries whatever your page passed at connect — **not so you can
-generate the sentence.** The caller is connected and hearing nothing while it
+generate the sentence.** The user is connected and hearing nothing while it
 runs, so a model call here is dead air before the first word.
 
 ## The callbacks
@@ -39,16 +39,16 @@ runs, so a model call here is dead air before the first word.
 Eight, and `on_user_message` is the only one you must implement. Two are
 generators — they are the two moments the floor is yours — and the other six
 return `None`, which is what stops a click or an error from talking over the
-caller.
+user.
 
 | Callback | Fires | Yields |
 |---|---|---|
 | `on_session_start(session)` | Once, before `greet`. Load history, [configure the voice](/reference/catalog/). | — |
 | `greet(session)` | Once, after it. Return a string or `None`. | — |
-| `on_user_message(session, msg)` | The caller finished a turn. `msg.text` is the finalized transcript. | speech |
-| `on_user_idle(session, idle)` | The caller went quiet. `idle.level` counts escalations, so nudge at 1 and wrap up at 3. | speech |
+| `on_user_message(session, msg)` | The user finished a turn. `msg.text` is the finalized transcript. | speech |
+| `on_user_idle(session, idle)` | The user went quiet. `idle.level` counts escalations, so nudge at 1 and wrap up at 3. | speech |
 | `on_rtvi(session, msg)` | The app said something — a tap, a keystroke, a [state sync](/build/brain/context/). | — |
-| `on_finalize(session, fin)` | One speech unit finished playing. `fin.heard` is what the caller actually got. | — |
+| `on_finalize(session, fin)` | One speech unit finished playing. `fin.heard` is what the user actually got. | — |
 | `on_error(session, error)` | Voqalize signalled something. The session is never killed by it. | — |
 | `on_session_end(session)` | Once, for any reason. Best-effort; it never blocks the close. | — |
 
@@ -72,7 +72,7 @@ Signatures, types and the exact shape of every argument are in
 | [Speaking](/build/brain/speaking/) | The three frames, why a turn is many units, what streaming buys. |
 | [Actions](/build/brain/actions/) | The second channel — typed, rendered, never spoken. |
 | [Tools](/build/brain/tools/) | Local function calls, and what the clock costs you. |
-| [Context and history](/build/brain/context/) | What the caller does in the app, flowing back. |
+| [Context and history](/build/brain/context/) | What the user does in the app, flowing back. |
 | [Transcripts](/build/brain/transcripts/) | What was heard, which is not what you sent. |
 
 ## Read next

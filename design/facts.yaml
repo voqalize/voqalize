@@ -500,20 +500,40 @@ facts:
       is that a short imperative may not land** — "stop" is exactly the shape
       that stays below the bar. Not a knob: it is paired with the speech tier's
       own barge-in setting and moving one alone desynchronises them. An idle
-      caller is unaffected; any speech starts a fresh turn instantly.
+      user is unaffected; any speech starts a fresh turn instantly.
 
   mcp.tools.rpm:
-    value: 300
-    source: platform/backend/controlplane/app/platform/ratelimit.py:59 MCP_TOOL_RPM
-    verified: 2026-08-26
+    value: 120
+    source: platform/backend/controlplane/app/platform/ratelimit.py:65 MCP_TOOL_RPM
+    verified: 2026-09-10
     reproduce: >-
       grep -rn 'MCP_TOOL_RPM' ../platform/backend/controlplane/app/
     note: >-
-      Per workspace, per minute, on the MCP surface's own key namespace —
+      Per tenant, per minute, on the MCP surface's own key namespace —
       charged at the membership check, so it lands only after membership is
       proven and an agent looping over sessions cannot spend the budget a page
-      needs to start a call. The two unscoped tools (`whoami`, `list_tenants`)
-      take no `tenant` and are not metered here.
+      needs to start a call. The three unscoped tools (`whoami`, `list_tenants`,
+      `create_tenant`) take no `tenant` and are not metered here. 120, down
+      from 300 on 2026-08-29: an agent driving tools in a loop is serial by
+      construction, and reference/mcp.md said 300 until 2026-09-10.
+    forbid:
+      - '\b300 (tool calls|requests) per minute\b'
+
+  mcp.tools.count:
+    value: 28
+    source: platform/backend/controlplane/app/entrypoints/mcp/tools.py register_tools
+    verified: 2026-09-10
+    reproduce: >-
+      grep -c '^    @tool$' ../platform/backend/controlplane/app/entrypoints/mcp/tools.py
+    note: >-
+      Every `@tool` in register_tools, and nothing else registers one. The
+      docs said "eighteen" from the day the server pivoted to OAuth until
+      2026-09-10, across ten tools that had shipped since (unarchive_agent,
+      update_api_key_origins, get_call_record, the three session lifecycle
+      tools and the four member tools) — the count is a sentence a reader
+      checks against the tool list, so it is a fact here rather than a word.
+    forbid:
+      - '\b(18|[Ee]ighteen) (MCP )?tools\b'
 
   session.metadata.max_keys:
     value: 10
@@ -537,8 +557,8 @@ facts:
       ../platform/backend/pygato/src/pygato/session_config.py
     note: >-
       **Idle detection is off unless you ask for it.** Zero, because a nudge
-      nobody asked for talks over a caller who was thinking. The ceiling is
-      300000 ms — past a few minutes the caller has gone and the lever that
+      nobody asked for talks over a user who was thinking. The ceiling is
+      300000 ms — past a few minutes the user has gone and the lever that
       helps is ending the session. Every page that prints `idle.timeout_ms`
       owes the reader the default, or `on_user_idle` reads like a callback that
       fires on its own.
@@ -696,7 +716,7 @@ facts:
     verified: 2026-08-28
     note: >-
       Planned, not available. A page must keep the future tense and must not
-      imply that a caller can select a US region today.
+      imply that a user can select a US region today.
 
   session.data.stored:
     value: [session record, init, events, transcripts, logs, optional audio recordings]
@@ -737,7 +757,7 @@ facts:
     source: product decision 2026-08-28
     verified: 2026-08-28
     note: >-
-      Workspaces may be rate-limited and concurrent-call ceilings apply, but no
+      Tenants may be rate-limited and concurrent-call ceilings apply, but no
       public number exists. Ask before a pilot or launch; never print a guessed
       tier table.
 

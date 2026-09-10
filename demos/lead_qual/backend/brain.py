@@ -16,7 +16,7 @@ The three tools are:
 The LLM's ``genai.Client`` is **dependency-injected**; the brain owns
 only the prompt, the tools, and this session's language/payload state.
 
-**One advisor, nine languages, chosen per caller.** The enquiry form's state
+**One advisor, nine languages, chosen per user.** The enquiry form's state
 (Tamil Nadu → Tamil) does not exist until the session opens, so no agent-level
 default could ever be right — :meth:`on_session_start` resolves it and calls
 ``session.configure`` before the greeting is spoken, and ``switch_language``
@@ -57,7 +57,7 @@ LanguageName = Literal[
     "Hindi", "Telugu", "Tamil", "Kannada", "Malayalam", "Marathi", "Gujarati", "Bengali"
 ]
 
-# Enquiry-form state → the language its callers are answered in.
+# Enquiry-form state → the language its users are answered in.
 _STATE_LANG: dict[str, LanguageName] = {
     "Andhra Pradesh": "Telugu",
     "Telangana": "Telugu",
@@ -83,7 +83,7 @@ def _config(language_name: LanguageName) -> Config:
 
 
 def _resolve_initial_language(payload: dict[str, Any]) -> LanguageName:
-    """The caller's own choice wins; otherwise the enquiry form's state picks it;
+    """The user's own choice wins; otherwise the enquiry form's state picks it;
     otherwise Hindi."""
     override = str(payload.get("language", "")).strip()
     if override in _LANG_BY_NAME:
@@ -319,7 +319,7 @@ class LeadQualBrain(GeminiBrain):
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        """Resolve the caller's language from the enquiry-form payload and
+        """Resolve the user's language from the enquiry-form payload and
         configure both legs of the wire before the greeting is spoken — this
         brain is the only thing that knows it, since Tamil Nadu → Tamil does
         not exist until this session starts, so no agent-level default could

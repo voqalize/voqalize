@@ -461,7 +461,7 @@ class VoqalizeDriver:
         against the text it generated, so a unit whose every chunk reached the
         driver before the watermark landed reads as *complete* on the brain's side
         even though :attr:`Turn.interrupted` is set here. Pass ``heard_prefix`` to
-        model a unit the caller genuinely talked over mid-playout.
+        model a unit the user genuinely talked over mid-playout.
 
         Timing knobs, from earliest cut to latest:
 

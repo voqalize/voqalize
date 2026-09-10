@@ -1854,7 +1854,7 @@ class OrderDeskBrain(GeminiBrain):
         fixed fallback line is what that generation used to fall back to anyway
         when the model was unavailable, so nothing about the call's reliability
         changes — only the one case that used to cost a round trip before the
-        caller heard anything."""
+        user heard anything."""
         return f"{_HELLO} {_FALLBACK_OPENER}"
 
     # ─── browser → brain: one typed event per thing he did ─────────────────

@@ -7,7 +7,7 @@ An action is a command to the app, declared as a shape. It renders; it never
 speaks. It carries no audio and holds no floor, which is why it is never yielded
 — it is `session.dispatch(...)`, callable from inside a turn, from a callback
 that is not a generator, or from work that finished long after the turn that
-started it. A number the caller would have to hold in their head belongs on the
+started it. A number the user would have to hold in their head belongs on the
 screen.
 
 ```python
@@ -232,7 +232,7 @@ async def on_error(self, session, error):
         logger.warning("session {}: {}", session.id, error.message)
 ```
 
-Implement it if the screen carries state the caller acts on. See
+Implement it if the screen carries state the user acts on. See
 [error codes](/reference/errors/).
 
 ## The page answers back

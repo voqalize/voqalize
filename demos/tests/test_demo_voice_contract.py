@@ -7,7 +7,7 @@ that has broken repeatedly and that nothing else can see:
 * both halves of the language landed (TTS ``language`` *and* STT ``language_hint``),
   agreeing, before the greeting audio;
 * every value is one vql-speech actually serves;
-* and where the *page* settles the language instead — it knows the caller's
+* and where the *page* settles the language instead — it knows the user's
   choice before the call exists, so it rides the connect request — that the brain
   configured nothing, so one layer owns the answer rather than two.
 
@@ -20,7 +20,7 @@ nothing.
 Why this needs its own file rather than a line in each demo's tests: the failures
 it catches are **silent**. A demo speaking Devanagari through the English
 reference clip transcribes perfectly — the words are right and only the speaker is
-wrong — so WER, logs, and every automated score stay green while the caller hears
+wrong — so WER, logs, and every automated score stay green while the user hears
 a foreign accent. And a value naming an engine that was deleted a release ago is
 not a soft failure at all: it is an HTTP 403 at connect. Both have shipped to
 production, from three different owners of one field. This file is the guard for
@@ -58,7 +58,7 @@ discover()
 class Expected:
     """One demo's declared voice/language, and the payload that resolves it.
 
-    ``payload`` matters for the demos that pick a language per caller — which is
+    ``payload`` matters for the demos that pick a language per user — which is
     the whole reason the value lives in the brain and not on the agent record: one
     record holds one language, and Tamil Nadu wants Tamil while Gujarat wants
     Gujarati.
@@ -98,7 +98,7 @@ DEMOS: dict[str, Expected] = {
     "avatar": Expected(voice="omnivoice/gauri", language="en"),
     # Aria takes the language from the connect request's ``init`` and configures
     # both legs from it, so the brain still owns the answer — nothing in the
-    # payload ⇒ English. The per-caller case is asserted below.
+    # payload ⇒ English. The per-user case is asserted below.
     "aura": Expected(voice="omnivoice/gauri", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
@@ -142,7 +142,7 @@ def test_every_discovered_demo_has_a_row() -> None:
 async def test_demo_puts_a_complete_voice_pair_on_the_wire(name: str) -> None:
     """Open a real session against the demo and read the settings frames.
 
-    This is the whole contract: the caller heard *something*, and the recognizer
+    This is the whole contract: the user heard *something*, and the recognizer
     and the reference clip were told the same language before they did."""
     expected = DEMOS[name]
     async with _open(name, expected) as rig:
@@ -170,7 +170,7 @@ async def test_a_language_in_the_payload_is_not_a_second_authority() -> None:
 
 
 async def test_a_per_caller_language_follows_the_enquiry_state() -> None:
-    """Auric resolves the caller's language from the enquiry form's state — one
+    """Auric resolves the user's language from the enquiry form's state — one
     agent, nine languages, which no single agent-record field could hold."""
     async with demo("lead_qual", ScriptedGemini()) as rig:
         await rig.driver.start_session(init={"name": "Meera", "state": "Tamil Nadu"})
@@ -196,7 +196,7 @@ async def test_an_unknown_language_falls_back_rather_than_refusing() -> None:
     """A stale page against a new brain answers in English, and answers.
 
     The page offers a closed list, so a name outside it is a version skew rather
-    than a caller's choice. A demo that greets in the wrong language is
+    than a user's choice. A demo that greets in the wrong language is
     recoverable in front of a room; one that refuses to connect is not.
     """
     async with demo("aura", ScriptedGemini()) as rig:

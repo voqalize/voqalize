@@ -76,6 +76,14 @@ terms:
     word: the avatar
     retired: [video agent, digital human]
 
+  - concept: The account that owns agents, keys and sessions
+    word: tenant
+    retired: [workspace]
+
+  - concept: The person on the call
+    word: user
+    retired: [caller]
+
 # Internal service and repository names. `voice.md` says these never appear in
 # customer-facing text; until 2026-08-25 nothing checked it, and three had
 # reached the docs site — one of them into a filename a reader types.

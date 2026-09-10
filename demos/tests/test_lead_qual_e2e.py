@@ -7,7 +7,7 @@ only the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e
 proves.
 
 Auric is the demo that most nearly proves why the language belongs in the brain:
-**one** advisor answers callers in nine languages, chosen from the enquiry form's
+**one** advisor answers users in nine languages, chosen from the enquiry form's
 state, which does not exist until the session opens. No agent-level setting could
 hold that — it holds one value, and Tamil Nadu wants Tamil while Gujarat wants
 Gujarati. So the resolution is tested here, on the frames, for both the state
@@ -74,7 +74,7 @@ def _llm() -> ScriptedGemini:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """A caller with no state match gets the Hindi default — the fixed opener,
+    """A user with no state match gets the Hindi default — the fixed opener,
     voice and recognizer hint all landing before that audio, with no model call
     on the start path."""
     async with demo("lead_qual", _llm()) as rig:
@@ -100,7 +100,7 @@ async def test_the_enquiry_state_picks_the_language_for_the_greeting() -> None:
 
 
 async def test_an_explicit_language_beats_the_state() -> None:
-    """The caller's own selection wins over the state's default — a Tamil Nadu
+    """The user's own selection wins over the state's default — a Tamil Nadu
     customer who asked for Hindi is answered in Hindi."""
     async with demo("lead_qual", _llm()) as rig:
         await rig.driver.start_session(init={**TAMIL_LEAD, "language": "Hindi"})

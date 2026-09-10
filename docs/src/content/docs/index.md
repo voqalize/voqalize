@@ -44,7 +44,7 @@ Voqalize runs the media and voice path:
 WebRTC, echo cancellation, voice activity detection, endpointing, speech-to-text,
 text-to-speech, turn-taking, interruption, recording.
 
-Your brain decides what to say, what to do, and what the caller is allowed to
+Your brain decides what to say, what to do, and what the user is allowed to
 commit — written in the language and framework you already use, running where
 your backend already runs.
 
@@ -82,7 +82,7 @@ SmallWebRTC surfaces; Voqalize currently ships complete examples for web.
 
 | Term | Definition |
 |---|---|
-| **Brain** | Your code. One WebSocket endpoint. Receives what the caller said, sends back what to say. |
+| **Brain** | Your code. One WebSocket endpoint. Receives what the user said, sends back what to say. |
 | **Agent** | A record on our side, holding that endpoint's URL and the recording default. Configuration, not intelligence. |
 | **Session** | One call. One connection, opened when it starts and closed when it ends. |
 | **Action** | A typed message from the brain to the page. It renders; it is never spoken. |
@@ -101,12 +101,12 @@ fields and a URL. When a sentence here says *create an agent* or *the agent's
 3. Voqalize dials `{brain_url}?session_id={session_id}` — one connection, this
    call only. Whatever your app passed at connect arrives as `session.init`,
    forwarded untouched.
-4. Your brain greets. The caller is already connected and hearing nothing, so the
+4. Your brain greets. The user is already connected and hearing nothing, so the
    greeting is a string — never a model call.
-5. The caller speaks. Voqalize endpoints the turn, transcribes it, and hands
+5. The user speaks. Voqalize endpoints the turn, transcribes it, and hands
    you the finalized text.
 6. You yield speech. The first word plays while you are still producing the last.
-7. If the caller interrupts, Voqalize stops mid-word and tells you where. Your
+7. If the user interrupts, Voqalize stops mid-word and tells you where. Your
    history holds what was heard, not what you intended to say.
 8. The connection closes. Events, logs and the recording are readable by
    `session_id`.

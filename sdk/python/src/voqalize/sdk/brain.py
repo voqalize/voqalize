@@ -130,9 +130,9 @@ class WireError(RuntimeError):
     1. **Balanced brackets.** Every ``SpeechStart`` is followed by a
        ``SpeechEnd``; a ``SpeechChunk`` outside a unit is a wire error.
     2. **You don't block.** A callback that stalls holds the floor open and the
-       caller hears nothing.
+       user hears nothing.
     3. **You don't speak outside a speaking callback.**
-    4. **``greet`` is fast.** It runs before the caller has heard anything.
+    4. **``greet`` is fast.** It runs before the user has heard anything.
 
     Almost always the first: an unbalanced bracket, or speech yielded from a
     callback that holds no floor.
@@ -260,7 +260,7 @@ class Session:
 
         The session opened on the configuration supplied to ``sessions.connect``,
         resolved over Voqalize's defaults. The brain may change it from
-        ``on_session_start`` or later — the caller switched language, the line
+        ``on_session_start`` or later — the user switched language, the line
         got noisy, this one needs longer to think. By the time the brain runs,
         the pipeline is already built::
 
@@ -361,7 +361,7 @@ class Brain:
                 )
 
     A hook, not a class attribute, because the language is often *this* call's:
-    the caller's own, or the connecting page's, neither of which a value fixed at
+    the user's own, or the connecting page's, neither of which a value fixed at
     import time can name. A brain that has no such choice to make writes the
     constant here and pays nothing for it.
 
@@ -426,7 +426,7 @@ class Brain:
         **No model call belongs here.** A fixed line, or at most a template over
         ``session.init`` — ``f"Hi {name}, how can I help?"`` — and nothing else.
         It is ``async`` so you can look up that name, not so you can generate the
-        sentence: this is the one moment where the caller is sitting on a
+        sentence: this is the one moment where the user is sitting on a
         connected session hearing nothing, and a round-trip here is the single
         most expensive latency in the product.
         """
@@ -640,7 +640,7 @@ class _BrainAdapter:
             self._abort(session, "greet", exc)
             return
         if opening:
-            # A turn like any other: `SessionStart` is turn 1, and a caller who
+            # A turn like any other: `SessionStart` is turn 1, and a user who
             # talks over the greeting interrupts it through that turn.
             self._spawn_turn(session, frame.turn_id, _one_unit(opening))
 
@@ -649,7 +649,7 @@ class _BrainAdapter:
 
         Voqalize speaks first, so this is the last moment either end can refuse
         before a call is running, and it is the only one where refusing costs
-        nothing: no audio has been synthesized and the caller has heard nothing.
+        nothing: no audio has been synthesized and the user has heard nothing.
         A version that differs in either direction means the two ends do not
         agree on what the bytes mean, and guessing is the thing a version exists
         to prevent.
@@ -676,7 +676,7 @@ class _BrainAdapter:
 
         The two ways to open a session fail differently and both end here. A
         greeting spoken over state that was never built promises a working agent
-        the caller then talks to; a session whose greeting never arrives is dead
+        the user then talks to; a session whose greeting never arrives is dead
         air on the one turn nothing will retry. Neither is a state to keep a call
         alive in, and both are invisible to every check we have — the context
         is empty and no error surfaces. So the failure goes on the wire, fatal,

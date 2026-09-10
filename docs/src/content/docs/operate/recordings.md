@@ -10,7 +10,7 @@ is a real answer rather than a missing one.
 ## Who decides
 
 The session creator's explicit `record` value takes precedence over the agent
-default. This lets your backend apply the caller's consent for each call.
+default. This lets your backend apply the user's consent for each call.
 
 | What the mint request says | What happens |
 |---|---|
@@ -40,11 +40,11 @@ See [keys and authentication](/build/keys/).
 ## What you get back
 
 `get_recordings(tenant, session_id)` returns one entry **per role**: `role` is
-`user` (the caller's microphone) or `agent` (what was spoken back). Every role
+`user` (the user's microphone) or `agent` (what was spoken back). Every role
 reports one entry, whatever happened to it.
 
-Separate tracks let you inspect the caller and agent channels independently. This
-distinguishes missing agent audio from missing caller audio.
+Separate tracks let you inspect the user and agent channels independently. This
+distinguishes missing agent audio from missing user audio.
 
 Each entry carries its state, duration, size, content type, and a
 `failure_reason` if it has one.
@@ -113,5 +113,5 @@ need to know whether any exist.
 
 ## Read next
 
-- [Reading a call back](/operate/reading-a-call/) — events first, logs second, audio last.
+- [Reading a call back](/operate/reading-a-call/) — the record first, logs second, audio last.
 - [Keys and authentication](/build/keys/) — why the key you hold changes what you may ask for.

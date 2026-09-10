@@ -22,10 +22,10 @@ from any callback and from work that outlives one.
 | `Brain` | class | The callback surface. Subclass it. |
 | `Session` | class | The per-call capability handle every callback is handed. |
 | `Action` | class | Base for a typed command to the app. See [Actions](/build/brain/actions/). |
-| `UserMessage` | dataclass | The caller finished an utterance. |
-| `UserIdle` | dataclass | The caller went quiet past the idle timeout. |
+| `UserMessage` | dataclass | The user finished an utterance. |
+| `UserIdle` | dataclass | The user went quiet past the idle timeout. |
 | `RTVIMessage` | dataclass | One message from the app. |
-| `Finalize` | dataclass | What the caller actually heard, for one speech unit. |
+| `Finalize` | dataclass | What the user actually heard, for one speech unit. |
 | `Error` | dataclass | A signal from Voqalize. |
 | `SpeechStart` | dataclass | Opens a speech unit. |
 | `SpeechChunk` | dataclass | Text to speak inside an open unit. |
@@ -119,13 +119,13 @@ async def greet(self, session: Session) -> str | None: ...
 
 Returns the opening line as one string, or `None` — the default — to open
 silently. The SDK speaks the string as one speech unit bound to the session's
-first turn, so a caller who talks over the greeting interrupts it like any other
+first turn, so a user who talks over the greeting interrupts it like any other
 turn.
 
 **No model call belongs here.** A fixed line, or at most a template over
 `session.init` — `f"Hi {name}, how can I help?"` — and nothing else. It is
 `async` so you can look that name up, not so you can generate the sentence: this
-is the one moment a connected caller is sitting there hearing nothing.
+is the one moment a connected user is sitting there hearing nothing.
 
 ### Failure at the two opening hooks
 
@@ -160,7 +160,7 @@ lifetime is exactly the socket's.
 
 | Attribute | Type | What it holds |
 |---|---|---|
-| `id` | `str` | The session id Voqalize assigned — the same string in `?session_id=`, in your logs, and in [the event stream](/operate/reading-a-call/). |
+| `id` | `str` | The session id Voqalize assigned — the same string in `?session_id=`, in your logs, and in [the call record](/operate/reading-a-call/). |
 | `init` | `dict[str, Any]` | The opaque init data handed to Voqalize at connect. Read your own keys out of it; the SDK interprets none of it. |
 
 There is no `SessionStart` object in the SDK. The frame's payload arrives as
@@ -260,7 +260,7 @@ class Error:
     fatal: bool = False
 ```
 
-`idle.level` resets the moment the caller says something, so a brain can nudge at
+`idle.level` resets the moment the user says something, so a brain can nudge at
 1 and wrap up at 3.
 
 `fin.heard` is the one to record. See [Transcripts](/build/brain/transcripts/).
@@ -277,7 +277,7 @@ carries different names, and a reader moving between this page and
 | — | `interrupted` | Not on the wire either: `heard != generated`. |
 
 `heard` is a verbatim prefix of `generated`, so equal means the unit played out
-and shorter means the caller cut it off. Voqalize used to send that verdict as
+and shorter means the user cut it off. Voqalize used to send that verdict as
 well — a `FinalizeReason` — and stopped, because the end that generated the text
 can work it out, and a copy of a fact you can derive is one more thing that can
 be wrong.
@@ -299,7 +299,7 @@ Speech = SpeechStart | SpeechChunk | SpeechEnd
 ```
 
 One `SpeechStart` … `SpeechEnd` pair is one unit, and a unit is the granularity
-at which Voqalize reports back what the caller heard. Yielding anything else, a
+at which Voqalize reports back what the user heard. Yielding anything else, a
 `SpeechChunk` outside a unit, a `SpeechStart` inside one, or a `SpeechEnd` with no unit
 open, raises `WireError`. A `SpeechChunk` with empty text is dropped. See
 [Speaking](/build/brain/speaking/).
@@ -452,7 +452,7 @@ and offer the same members to override, read or call:
 | Member | Kind | What it does |
 |---|---|---|
 | `tools` | property | The tools the model may call, read once per turn. A list of bound `async def` methods. |
-| `system_instruction` | property, settable | The prompt every hop carries. Set it from `on_session_start`, where this caller's facts are in hand. |
+| `system_instruction` | property, settable | The prompt every hop carries. Set it from `on_session_start`, where this user's facts are in hand. |
 | `append_to_context(…)` | method | Add to the conversation the model sees, in the provider's own type. |
 | `respond(session)` | async generator | Stream one turn, however many tool hops it takes. |
 
@@ -464,7 +464,7 @@ is the one place a brain written for one does not paste into the other.
 
 `DEFAULT_MODEL` reads `VOQAL_GEMINI_MODEL` from the environment, falling back to
 `gemini-3.5-flash`. Both classes force the model's minimum reasoning level: a
-thinking budget on a voice turn is spent in silence the caller sits through, and
+thinking budget on a voice turn is spent in silence the user sits through, and
 the thought parts are never spoken. Moving models means re-measuring both the
 knob and the model's willingness to call tools at a level it accepts.
 

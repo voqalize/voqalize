@@ -84,7 +84,7 @@ from .gemini import DEFAULT_MODEL
 __all__ = ["VOICE_THINKING", "GeminiInteractionsBrain"]
 
 # The same bet as :data:`voqalize.sdk.gemini.VOICE_THINKING`, in this API's units:
-# on a voice turn a reasoning budget is spent in silence the caller sits through,
+# on a voice turn a reasoning budget is spent in silence the user sits through,
 # and thought steps are never spoken. Read that constant's comment before moving
 # models — both the floor and the model's willingness to *act* at a level it
 # accepts are model-specific, and were measured, not assumed. Here the knob is a
@@ -194,7 +194,7 @@ class GeminiInteractionsBrain(Brain):
         ``max_tool_hops`` times without one, the last hop is run with
         ``tool_choice="none"``: the declarations stay in place, so the context
         still reads, and the model has to answer. A turn that spends its whole
-        budget still ends in something the caller hears.
+        budget still ends in something the user hears.
 
         Speech comes off the stream as it arrives. A ``model_output`` step opens
         a unit on its first text and closes it at ``step.stop``; every other kind
@@ -293,7 +293,7 @@ class GeminiInteractionsBrain(Brain):
         here, in the brain, and never on Google's side. That is the same
         bargain every other brain in this SDK makes, and it is what lets
         :meth:`~voqalize.sdk.Brain.on_finalize` rewrite a turn after the fact —
-        server-side state cannot be told that the caller only heard half of it.
+        server-side state cannot be told that the user only heard half of it.
         """
         request: dict[str, Any] = {
             "model": self._model,
@@ -347,7 +347,7 @@ class GeminiInteractionsBrain(Brain):
         """Run this hop's calls and write each result into the context.
 
         In the order the model produced them, one at a time. Tools drive the
-        screen, and two of them racing would put the caller's display in an order
+        screen, and two of them racing would put the user's display in an order
         the model never asked for.
 
         A tool that raises is reported as one — ``is_error`` on the step, and a
@@ -400,7 +400,7 @@ class GeminiInteractionsBrain(Brain):
     def system_instruction(self) -> str:
         """The prompt every hop carries. Settable from
         :meth:`~voqalize.sdk.Brain.on_session_start`, where the facts that are
-        true for this caller and no other — who they are, what they are calling
+        true for this user and no other — who they are, what they are calling
         about, what your system already knows — are finally in hand. Setting it
         replaces the prompt for the rest of the session; the tools and the model
         stay as constructed.
@@ -415,12 +415,12 @@ class GeminiInteractionsBrain(Brain):
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         """Rewrite the step Voqalize just finished playing down to what the
-        caller actually heard.
+        user actually heard.
 
         A unit this brain never opened is the greeting: `greet` returns a string
         the SDK speaks, so the only record of it anywhere is what comes back
         here — already heard-truth, already cut to the delivered prefix if the
-        caller talked over it. Without this the model does not know it greeted,
+        user talked over it. Without this the model does not know it greeted,
         and asks its opening question a second time.
         """
         if not self._awaiting:

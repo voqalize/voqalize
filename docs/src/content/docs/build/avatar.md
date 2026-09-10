@@ -20,7 +20,7 @@ MIT-licensed library — `@voqalize/avatar` on npm and `voqalize-avatar` on PyPI
 two ends of one wire format that publish in lockstep. It works against any
 pipecat pipeline, and Voqalize is one consumer of it.
 
-The face is lip-synced to the audio and state-aware: it knows when the caller is
+The face is lip-synced to the audio and state-aware: it knows when the user is
 speaking, when it has been interrupted, when a tool call is running, and when
 the microphone is muted. Most of that comes from frames a pipecat pipeline
 already emits, which is why the integration takes an argument at neither end.
@@ -84,7 +84,7 @@ Three commands cross: a `claim` (a candidate durable state), an `action`
 text-to-speech context).
 
 Observed playout outranks all of them. What pipecat reports about the audio —
-that the bot started speaking, that the caller did, that the microphone is muted
+that the bot started speaking, that the user did, that the microphone is muted
 — is a fact, and a server claim is a candidate underneath it. The face can be
 told what to consider; it cannot be told what is happening.
 

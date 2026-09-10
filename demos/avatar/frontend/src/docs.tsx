@@ -312,7 +312,7 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
         />
         <p>
           Precedence runs one way, and this is the part to remember. What the browser observes about
-          the audio is a fact: the bot started speaking, the caller started speaking, the microphone
+          the audio is a fact: the bot started speaking, the user started speaking, the microphone
           is muted. Facts win. Your claim sits underneath them and is dropped as soon as a fact
           arrives. You can tell the face what to consider. You cannot tell it what is happening.
         </p>

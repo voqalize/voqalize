@@ -30,13 +30,13 @@ The boundary Voqalize holds is text. Nothing in the wire declares a tool,
 carries a schema or names a model: `proto/voqalize/frames/frames.proto` has
 frames for speech, transcripts, configuration, RTVI and errors, and there is no
 tool frame in it. So there is nothing for an adapter to sit between — your
-stream of strings goes out as speech, and the caller's finalized text comes back
+stream of strings goes out as speech, and the user's finalized text comes back
 in.
 
 ## The port, in three steps
 
 Subclass `Brain`, call your existing entrypoint from `on_user_message`, and
-record what the caller heard. Against a framework whose entrypoint is
+record what the user heard. Against a framework whose entrypoint is
 `async def run(text) -> AsyncIterator[str]`, that is the whole port:
 
 ```python
@@ -64,7 +64,7 @@ class PortedBrain(Brain):
 ```
 
 `msg.text` is one finalized utterance. `SpeechStart` / `SpeechChunk` / `SpeechEnd` are
-one **speech unit** — the granularity at which a caller can cut you off and the
+one **speech unit** — the granularity at which a user can cut you off and the
 granularity at which Voqalize reports back what they heard. Yield the chunks as
 your framework produces them; awaiting between them is what a tool call inside a
 turn looks like. [Speaking](/build/brain/speaking/) owns the frames.
@@ -73,14 +73,14 @@ You host this the same way as any other brain, and the choice is unrelated to
 the port — [Where the brain runs](/build/hosting/). The class is what you hand
 over, not an instance: the SDK constructs one per session, so a framework object
 built in `__init__` belongs to that call and leaks nothing into the next.
-Per-caller setup that needs an identifier goes in `on_session_start`, which reads
+Per-user setup that needs an identifier goes in `on_session_start`, which reads
 `session.init` and runs before the greeting —
 [Context and history](/build/brain/context/).
 
 ### One turn, several units
 
 The fence above opens a unit before your framework has produced anything. If
-`run()` calls a tool before its first token, the caller is holding an open unit
+`run()` calls a tool before its first token, the user is holding an open unit
 and hearing nothing. Open lazily instead, and the turn mints a unit only when
 there is something to say:
 
@@ -102,7 +102,7 @@ opens a unit at all. Opening one per hop is what used to emit an empty
 (`sdk/python/src/voqalize/sdk/gemini.py`, `respond`).
 
 Lazy opening removes the empty bracket. It does not remove the silence: the tool
-runs for as long as it runs and the caller sits through it either way, and the
+runs for as long as it runs and the user sits through it either way, and the
 fix for that is to say what you are doing before you do it, or to move the screen
 while the voice waits. [The turn budget](/design/turn-budget/) is the argument;
 [Tools](/build/brain/tools/) is the mechanism.
@@ -128,7 +128,7 @@ already reaches.
 Your framework almost certainly appends the assistant message from what the
 model returned. That is the wrong record for a call.
 
-A caller can interrupt mid-word. What your model generated and what the caller
+A user can interrupt mid-word. What your model generated and what the user
 heard are then two different strings, and only one of them is a thing the two
 parties can both refer to. `on_finalize` hands you the delivered prefix as
 `fin.heard`, per unit, after playout — long after the generator that produced it
@@ -144,7 +144,7 @@ returned (`sdk/python/src/voqalize/sdk/events.py`, `Finalize`). So:
 
 This failure produces no error, no log line and no metric. The call sounds fine,
 the transcript is a real transcript, and three turns later the agent references
-something it never finished saying — and the caller is the only instrument that
+something it never finished saying — and the user is the only instrument that
 saw it. [Transcripts and heard truth](/build/brain/transcripts/) has the
 watermark and the ordering rules;
 [Interruption and heard truth](/design/interruption-and-heard-truth/) is the
@@ -170,7 +170,7 @@ opening question a second time.
 
 If your framework holds history on the provider's server — a stored conversation
 id that each call continues — heard truth cannot be applied to it. A server-side
-conversation cannot be told that the caller only heard half of the last sentence.
+conversation cannot be told that the user only heard half of the last sentence.
 `GeminiInteractionsBrain` sends `store=False` and no `previous_interaction_id`
 for that reason, and carries the whole context on every call
 (`sdk/python/src/voqalize/sdk/gemini_interactions.py`, `_stream`). Port to a
@@ -206,7 +206,7 @@ interactions API, which declares tools and nothing else — no field takes a
 callable, so this class runs the loop itself: declare, stream, call, answer,
 stream again, up to `max_tool_hops`, and the last hop runs with
 `tool_choice="none"` so a turn that spends its whole budget still ends in
-something the caller hears. Because the loop is ours, step boundaries arrive
+something the user hears. Because the loop is ours, step boundaries arrive
 bracketed rather than inferred from a `finish_reason`, a call and its result are
 linked by id rather than by position, and the whole context is re-read on every
 hop — so an append that lands while a tool is running is in front of the model
@@ -217,7 +217,7 @@ for the sentence that follows it.
 Nothing above touches the prompt, and the prompt is where a ported agent
 actually goes wrong first. A chat prompt can afford a lookup, because the reader
 watches a spinner while it happens. Said out loud, the same two seconds are
-silence on a channel where silence is the one thing a caller reacts to — so what
+silence on a channel where silence is the one thing a user reacts to — so what
 the agent needs, it should mostly already have, and what it says has to survive
 having no scrollback.
 
@@ -228,5 +228,5 @@ That is a design problem rather than an SDK one, and it has its own section:
 ## Read next
 
 - [Your first brain](/build/brain/) — the callbacks you are subclassing.
-- [Tools](/build/brain/tools/) — what a voice tool owes the caller.
+- [Tools](/build/brain/tools/) — what a voice tool owes the user.
 - [Testing a brain](/build/testing/) — port it, then prove it without a microphone.

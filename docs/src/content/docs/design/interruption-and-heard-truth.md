@@ -1,13 +1,13 @@
 ---
 title: Interruption and heard truth
-description: The caller heard the part that finished playing. If you record what your brain generated, you have written down a call that never happened.
+description: The user heard the part that finished playing. If you record what your brain generated, you have written down a call that never happened.
 ---
 
-Your brain yields three sentences. The caller cuts in after the first one.
+Your brain yields three sentences. The user cuts in after the first one.
 
-What the caller knows is one sentence. What your code produced is three. If the
+What the user knows is one sentence. What your code produced is three. If the
 three go into history, every later turn is planned against a version of the call
-that never happened — the agent thanks the caller for a detail they never gave,
+that never happened — the agent thanks the user for a detail they never gave,
 or declines to repeat something it believes it already covered.
 
 Nothing catches this. There is no error, no dropped frame, no latency spike, no
@@ -17,10 +17,10 @@ that went fine.
 
 ## Interruption is the normal case
 
-On any turn longer than a sentence, a caller who cuts in is a caller working
+On any turn longer than a sentence, a user who cuts in is a user working
 correctly: they got what they needed and moved on. Building for it as an
 exception gets the arithmetic backwards — the uninterrupted turn is the one worth
-treating as a special case, because it is the one where the caller had nothing to
+treating as a special case, because it is the one where the user had nothing to
 add.
 
 ## `on_finalize` hands you the prefix
@@ -34,7 +34,7 @@ async def on_finalize(self, session: Session, fin: Finalize) -> None:
 
 `Finalize` carries three things: `speech_id`, `heard`, and `generated`.
 
-`heard` is **the delivered prefix** — the text that reached the caller's ear, not
+`heard` is **the delivered prefix** — the text that reached the user's ear, not
 the text you yielded. `generated` is the text you yielded, kept by the SDK so the
 two can be set side by side; `fin.interrupted` is that comparison and nothing
 more. This is the
@@ -55,7 +55,7 @@ yielded, and not from the accumulated chunks.
 Two places it bites, and they are the same lie twice:
 
 1. **History for the next model call.** The model plans its next turn against what
-   the caller knows.
+   the user knows.
 2. **Everything downstream of the transcript** — summaries, QA scoring, handoff
    notes, the "what did we tell this customer" audit that someone runs six months
    later during a dispute.
@@ -64,7 +64,7 @@ The second is worse, because by then the recording is gone.
 
 ## Not everything that makes noise is an interruption
 
-A caller who says "mm-hm" while your agent is talking is agreeing, not cutting
+A user who says "mm-hm" while your agent is talking is agreeing, not cutting
 in, and an agent that stops dead for every backchannel is unusable. So barge-in
 is gated on a **confidence that ramps with how long real speech has been
 sustained** — a phantom detection or a one-word garble stays under the bar, a
@@ -77,17 +77,17 @@ knobs you can turn:
 **A short imperative may not land.** "Stop" shouted over a long answer is exactly
 the shape that stays below the bar — brief, and over before confidence has
 climbed. That is the accepted cost of not stopping for "mm-hm", and it is a
-reason to keep a spoken answer short enough that the caller does not need to
+reason to keep a spoken answer short enough that the user does not need to
 shout it down. See [the turn budget](/design/turn-budget/).
 
-**An idle caller is a different case.** When your agent is not speaking, any
+**An idle user is a different case.** When your agent is not speaking, any
 speech starts a turn instantly — the bar applies only to cutting off speech in
 progress.
 
-**While a tool call runs, the caller is muted, and that is not configurable.** A
+**While a tool call runs, the user is muted, and that is not configurable.** A
 round trip cannot be barged into. This is the mechanical reason the clock is
 yours during a tool call: say something before you make the call, because the
-caller cannot take the floor to ask what happened.
+user cannot take the floor to ask what happened.
 
 ## What happens to a turn that gets cut
 
@@ -108,7 +108,7 @@ from a dead turn cannot leak a sentence into its successor.
 ## What interruption does not undo
 
 An action already dispatched has already arrived. The screen does not roll back
-when the caller cuts in, and it should not: the itinerary they are looking at is
+when the user cuts in, and it should not: the itinerary they are looking at is
 the itinerary they asked for, whether or not the sentence describing it finished.
 See [voice points, the screen holds](/design/speech-vs-screen/).
 

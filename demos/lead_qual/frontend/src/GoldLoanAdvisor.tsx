@@ -35,7 +35,7 @@ const LEAD = demo;
 
 // ── Language config ───────────────────────────────────────────────────────────
 // The demo is Indic multi-language, but the page does not map a language to a
-// recognizer or a voice — it sends the caller's choice by NAME in the payload and
+// recognizer or a voice — it sends the user's choice by NAME in the payload and
 // the brain resolves both halves (backend/brain.py, `_LANG_BY_NAME`). One owner,
 // one mapping.
 
@@ -200,7 +200,7 @@ export function GoldLoanAdvisor() {
   };
 
   // ── Connection ─────────────────────────────────────────────────────────────
-  // Voice and language: the caller's choice rides `init` and
+  // Voice and language: the user's choice rides `init` and
   // `LeadQualBrain.on_session_start` is the only thing that turns it into a
   // wire `Config` — this page sends no `config` of its own (`src/config.ts`'s
   // `connectRequest` says why: one owner, never two).
@@ -332,7 +332,7 @@ export function GoldLoanAdvisor() {
 
 // ── Call session ─────────────────────────────────────────────────────────────
 // The whole of this page's Voqalize-specific plumbing: a `PipecatAppBase`
-// mounted only once the caller has cleared the call-gate, wrapping one inner
+// mounted only once the user has cleared the call-gate, wrapping one inner
 // component that owns everything needing the live pipecat client — connection
 // state, RTVI events, mic control — and lifts only `activity`/`transportState`
 // back out to the page chrome that renders around the call (AmbientPresence).

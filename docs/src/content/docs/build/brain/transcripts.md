@@ -1,12 +1,12 @@
 ---
 title: Transcripts and heard truth
-description: Your history holds what the caller heard, not what you intended to say. Where the finalized text comes from and where the record lives.
+description: Your history holds what the user heard, not what you intended to say. Where the finalized text comes from and where the record lives.
 ---
 
 A reply that generated three sentences and was cut after one is remembered as
-one. At the end of each speech unit Voqalize tells your brain what the caller
+one. At the end of each speech unit Voqalize tells your brain what the user
 actually **heard**, and that — not what your model produced — is what belongs in
-history. Get this wrong and the next turn argues with the caller about something
+history. Get this wrong and the next turn argues with the user about something
 they were never told.
 
 ## `on_finalize`, once per unit, after playout
@@ -20,10 +20,10 @@ async def on_finalize(self, session: Session, fin: Finalize) -> None:
 
 | Field | What it is |
 |---|---|
-| `heard` | The delivered prefix of that unit's text — what reached the caller's ear. |
+| `heard` | The delivered prefix of that unit's text — what reached the user's ear. |
 | `generated` | The text you emitted for that unit, kept by the SDK so you need not. |
 | `speech_id` | The unit this reports on. |
-| `interrupted` | `heard != generated`. `True` when the caller talked over it, `False` when it played to its end. |
+| `interrupted` | `heard != generated`. `True` when the user talked over it, `False` when it played to its end. |
 
 `heard` is a verbatim prefix of `generated`, which is what makes `interrupted` a
 comparison rather than a claim: equal means the unit played out, shorter means it
@@ -47,7 +47,7 @@ Four guarantees a brain can be written against:
   no text in it is reported too — as `heard=""` against `generated=""`, which
   reads as complete, because nothing was cut.
 - **They arrive in the order the units opened**, oldest first.
-- **A unit the caller never heard is still reported**, as `heard=""` against the
+- **A unit the user never heard is still reported**, as `heard=""` against the
   text you generated. Generated ahead of playout and beaten to the speaker.
 - **A finalize with nothing of yours waiting is the greeting.** `greet` returns a
   string the SDK speaks for you, so this callback is the only record of it that
@@ -160,7 +160,7 @@ makes `on_finalize` the one place the record is written.
 
 Record what you generated and the next turn is planned against a version of the
 call that never happened. The model refers back to a sentence it did not finish,
-re-uses a number the caller never got, or declines to repeat something it
+re-uses a number the user never got, or declines to repeat something it
 believes it already covered.
 
 Nothing downstream can tell. Your model's output is a plausible record of what it
@@ -170,7 +170,7 @@ artifact that disagrees is the [recording](/operate/recordings/), and nobody
 plays the recording of a call that went fine. The full argument is in
 [interruption and heard truth](/design/interruption-and-heard-truth/).
 
-## What the caller said
+## What the user said
 
 `msg.text` in `on_user_message` is the recognizer's **committed** transcript for
 one turn. Nothing partial reaches a brain — there is no interim-transcript frame
@@ -182,19 +182,19 @@ Endpointing decides where that turn ends, and it decides twice:
 - **While you are speaking**, a start of speech takes the floor only once it is
   sustained enough to be a real barge-in. A backchannel — "mm", "haan", a
   one-word garble — does not cut you off and does not become a `UserMessage`.
-- **When the caller stops**, the turn is committed either because the end of turn
+- **When the user stops**, the turn is committed either because the end of turn
   was confident, or because silence forced the close first. A silence-forced
   close that transcribed nothing is dropped rather than handed to you: there is
   no question in it to answer.
 
 So a committed turn is not always a finished thought. Silence forces the close on
 8.6% of real turns, measured over 14 days of production, and answering the
-fragment is the cheaper mistake — a caller who was mid-thought resumes, and
+fragment is the cheaper mistake — a user who was mid-thought resumes, and
 resuming inside a few seconds of their own turn ending interrupts you at once.
 Write your brain so a short reply to a fragment is survivable, rather than so it
 never happens.
 
-What you record for the caller's side is `msg.text` verbatim. It arrived
+What you record for the user's side is `msg.text` verbatim. It arrived
 finalized, so there is nothing to reconcile on that leg.
 
 ## The durable copy is ours; the working copy is yours

@@ -118,7 +118,7 @@ Each half fails on its own, quietly, in a different way:
 | Half wrong | What you get | How you find out |
 |---|---|---|
 | `tts.language` | The right words in the wrong speaker — Hindi read by the English reference clip sounds like a non-native accent | **By ear only.** The words are correct, so transcription-based scoring is blind to it |
-| `stt.language` | Whatever the caller says is transcribed by the English recognizer | Garbled transcripts, blamed on the model |
+| `stt.language` | Whatever the user says is transcribed by the English recognizer | Garbled transcripts, blamed on the model |
 
 The first is the reason this page leads with a rule instead of a menu. A demo
 shipped with Devanagari read in an English voice for weeks: every test was green,
@@ -156,7 +156,7 @@ speech unit, never mid-utterance.
 
 The agent record holds a connection `mode`, a `brain_url` and a recording
 default. It holds no voice,
-language or idle setting — an agent-level language cannot depend on the caller,
+language or idle setting — an agent-level language cannot depend on the user,
 and `lead_qual` is the proof: it resolves a language from an enquiry form that
 does not exist until the session starts.
 
@@ -166,7 +166,7 @@ browser that asks its own backend to start the session supplies no Voqalize
 configuration itself; the backend holding the `sk_` makes that request. The
 separate recording rule is on [recordings](/operate/recordings/).
 
-The `lead_qual` demo resolves its language per caller and then switches mid-call
+The `lead_qual` demo resolves its language per user and then switches mid-call
 across eight Indic languages — a worked example of both.
 
 ## Why there is no provider slot
@@ -193,8 +193,8 @@ that voice is cloned from, and how long silence runs before the brain gets the
 floor back.
 
 **`idle.timeout_ms` defaults to `0`, which is off.** A nudge nobody asked for
-talks over a caller who was thinking, so `on_user_idle` never fires until you
-set a timeout. The ceiling is `300000` — past a few minutes the caller has gone,
+talks over a user who was thinking, so `on_user_idle` never fires until you
+set a timeout. The ceiling is `300000` — past a few minutes the user has gone,
 and the lever that helps is ending the session rather than nudging it. Setting
 it back to `0` mid-call switches idle detection off again.
 
@@ -215,7 +215,7 @@ never names one.
 
 We run it because of the roster. Assamese, Bodo, Dogri, Konkani, Maithili,
 Manipuri, Santali and Sindhi are the languages a hosted catalog tends to be short
-of, and they are the ones our callers speak. Running the tier is what puts them
+of, and they are the ones our users speak. Running the tier is what puts them
 in the enum.
 
 ### What the absence buys

@@ -258,10 +258,10 @@ def _trim(row: Any) -> Any:
 
 
 # ─── Language ──────────────────────────────────────────────────────────────────
-# The caller picks the language on the page, before the call exists, so it rides
+# The user picks the language on the page, before the call exists, so it rides
 # the connect request in ``init`` and this brain reads it once in
 # ``on_session_start``. There is no mid-call switch and no ``switch_language``
-# tool: the language is a property of the call, chosen the way a caller picks a
+# tool: the language is a property of the call, chosen the way a user picks a
 # queue on an IVR, and moving it mid-sentence would change the voice in the
 # customer's ear halfway through an answer.
 #
@@ -683,10 +683,10 @@ GOLDEN RULE: help first, sell second, one offer at a time. If a cross-sell doesn
 
 
 def _language_rules(language: LanguageName) -> str:
-    """The LANGUAGE block, which is the only part of this prompt the caller moves.
+    """The LANGUAGE block, which is the only part of this prompt the user moves.
 
     Two rules do the work, and they pull in opposite directions on purpose.
-    *Speak* in the caller's language, in its own script — a Latin transliteration
+    *Speak* in the user's language, in its own script — a Latin transliteration
     is read aloud by TTS as English and lands as gibberish. *Render* every
     argument that reaches the screen in English, because the screen is Aura's
     real help site and it is in English: the articles, the videos, the step
@@ -1193,7 +1193,7 @@ class AuraBrain(GeminiBrain):
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(
             client=client,
-            # Replaced in ``on_session_start`` once the caller's language is in
+            # Replaced in ``on_session_start`` once the user's language is in
             # hand; English is what it stays for an English call.
             system_instruction=_system_instruction(_DEFAULT_LANGUAGE),
             model=model,

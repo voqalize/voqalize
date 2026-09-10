@@ -1,6 +1,6 @@
 ---
 title: Speaking
-description: Speech is the only thing you yield. The three frames, why a turn is many units, and what streaming buys the caller.
+description: Speech is the only thing you yield. The three frames, why a turn is many units, and what streaming buys the user.
 ---
 
 Speech is the only thing `on_user_message` yields, because speech is the only
@@ -71,12 +71,12 @@ Two units, one turn. Write it as one unit spanning the `await` and Voqalize
 reports both back as one `Finalize` — the filler and the answer become a single
 entry in your history, under a single heard prefix.
 
-**The unit is the grain of everything downstream.** It is what a caller can be
+**The unit is the grain of everything downstream.** It is what a user can be
 cut out of mid-word, and it is what Voqalize reports heard truth against — one
 `Finalize` per unit that produced audio, never a concatenation across units. So
 a unit opens on the first thing you actually say and closes when you stop:
 
-- speech either side of a tool call is two units, because the caller can
+- speech either side of a tool call is two units, because the user can
   interrupt between them and Voqalize needs somewhere to stop
   (`sdk/python/tests/contract/test_brain_contract.py:120`);
 - a hop that only calls a tool opens no unit at all. An empty
@@ -102,7 +102,7 @@ That is the whole guarantee, and its edge is the thing to design around. Once
 your first chunk is out, the turn is unwatched. Silence between unit one and
 unit two is invisible: there is no error, no dropped frame, no failed check, and
 your logs show a turn that answered. The only instrument that sees it is the
-caller, sitting through a database query with the floor held by nobody.
+user, sitting through a database query with the floor held by nobody.
 
 So say something before you await, and mean it:
 
@@ -131,8 +131,8 @@ A generator lets audio start before your model has finished.
 Voqalize aggregates the chunks of an open unit and hands each completed sentence
 to the speech tier as it forms, rather than waiting for `SpeechEnd`. So the first
 syllable is spoken at the first sentence boundary in the text you have yielded so
-far. Stream from your model and the caller's ear and your model's output run
-concurrently; build the whole reply and `return` it, and the caller pays for the
+far. Stream from your model and the user's ear and your model's output run
+concurrently; build the whole reply and `return` it, and the user pays for the
 generation in silence first and then hears the same words.
 
 ```python
@@ -151,7 +151,7 @@ The corollary is worth knowing before it bites: text with no sentence boundary i
 it waits. A unit that is one long unpunctuated clause is synthesized when
 `SpeechEnd` flushes it, however early you yielded the chunks.
 
-The second thing the generator buys is a place to stop. When the caller cuts in,
+The second thing the generator buys is a place to stop. When the user cuts in,
 the SDK closes your generator at the `yield` it is sitting on, so your model stops
 producing a reply nobody is listening to any more. A body that builds the whole
 string and returns it has already finished by then, and there is nothing left to
@@ -172,9 +172,9 @@ Python decides generator-or-coroutine from the source, so that body is an
 ordinary coroutine however it is annotated. The SDK runs it either way. Leave the
 `yield` out when you have nothing to say; `on_user_idle` says nothing by default.
 
-## What the caller heard is not what you sent
+## What the user heard is not what you sent
 
-A unit you generated in full and the caller cut after four words is four words in
+A unit you generated in full and the user cut after four words is four words in
 their memory of the call. Voqalize reports that back per unit, after playout, at
 `on_finalize` — long after the generator that produced it returned. Record the
 delivered prefix rather than what you yielded:

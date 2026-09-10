@@ -326,7 +326,7 @@ class TravelBrain(GeminiBrain):
     """One per session. The travel-desk copilot: LLM + ten screen-driving tools.
 
     Priya's own voice — not the connecting page's to choose, since this is a
-    professional tool the travel agent opens, not a caller-facing surface — so
+    professional tool the travel agent opens, not a user-facing surface — so
     it is settled here rather than sent with the connect request."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:

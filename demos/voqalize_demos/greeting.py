@@ -1,6 +1,6 @@
 """A one-word hello per demo language.
 
-A greeting is a fixed line — the first thing the caller hears, before any model
+A greeting is a fixed line — the first thing the user hears, before any model
 has run — so it is written, not generated. This is the interjection half; a demo
 composes the rest of its opener around it.
 """

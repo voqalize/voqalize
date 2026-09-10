@@ -1,7 +1,7 @@
 # Voqalize
 
 **A voice operator that lives inside your app.** You write the *brain* — an agent
-that receives the caller's words and drives two channels back, **speech** and
+that receives the user's words and drives two channels back, **speech** and
 **actions that drive the screen** — and Voqalize runs the voice stack: WebRTC, VAD,
 speech-to-text, text-to-speech, interruption handling, recording. Your code never
 touches audio.

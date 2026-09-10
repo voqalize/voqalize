@@ -17,7 +17,7 @@ What every demo's e2e must prove, and why each one is here:
   This is the check that would have caught the OrderDesk Hindi-in-an-English-voice
   bug, and the invalid ``stt.model`` that took prod down: neither is visible in a
   transcript, so no amount of conversational assertion finds them. Where the page
-  settles the language instead — it knows the caller's choice before the call
+  settles the language instead — it knows the user's choice before the call
   exists — the same fact is asserted the other way round, with
   :func:`check_configured_at_connect`: the brain sent nothing, so there is one
   authority for it and not two.
@@ -245,7 +245,7 @@ def check_greeting(rig: DemoRig, turn: Any) -> None:
     checks.check_greeting(rig.driver, turn)
     checks.require(
         bool(turn is not None and turn.text.strip()),
-        f"{rig.name}: greeted with no text — the caller hears dead air on connect",
+        f"{rig.name}: greeted with no text — the user hears dead air on connect",
     )
 
 

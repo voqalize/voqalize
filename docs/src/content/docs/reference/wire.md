@@ -29,7 +29,7 @@ one of these.
 
 ## Two planes on one socket
 
-**The voice plane is ours**: turns, speech units, what the caller actually heard,
+**The voice plane is ours**: turns, speech units, what the user actually heard,
 and the control leg. Voqalize mints the turn because Voqalize decides when a turn
 commits, and speech names the turn it answers.
 
@@ -39,7 +39,7 @@ verbatim in both directions between the app and the brain. Voqalize moves the
 whitelisted types and interprets nothing else about them.
 
 The two planes share the socket and nothing else. A message on the RTVI plane
-never mints a turn, never takes the floor, and never changes what the caller
+never mints a turn, never takes the floor, and never changes what the user
 hears.
 
 ## The shape of a session
@@ -98,11 +98,11 @@ everything, and there is no second place to look.
 
 **`turn_id` is Voqalize-minted and session-monotonic.** `SessionStart` *is* turn
 1, and after it exactly two messages mint a turn: `UserMessage` and `UserIdle`.
-So the first thing the caller says is turn 2.
+So the first thing the user says is turn 2.
 
 A turn is a permission to speak. The brain names it on every `SpeechStart`, and
 that is what lets Voqalize tell speech that answers the current stimulus from
-speech still arriving for one the caller has already talked over.
+speech still arriving for one the user has already talked over.
 
 Nothing else mints a turn. An `RTVIFrame` from the app does not — the app tapping
 a button is not the app taking the floor.
@@ -127,7 +127,7 @@ version 3.**
 A brain whose build speaks a different version refuses the session outright: a
 fatal `Error`, then `End`, before it has greeted. Voqalize speaks first, so that is
 the last moment either end can refuse and the only one where refusing is free —
-nothing has been synthesized and the caller has heard nothing.
+nothing has been synthesized and the user has heard nothing.
 
 The comparison is `!=`, not `<`. A lower version is not a subset of a higher
 one; the arms it names may mean something else underneath it. Refusing in both
@@ -144,7 +144,7 @@ guess.
 | `SessionStart` | `turn_id`, `session_id`, `init` *(JSON)*, `wire_version` | First envelope of the session, and its first turn. `init` is your opaque init data, whatever the session was minted with, and reaches your brain as `session.init`. Who the agent is arrives on the connection's credential, verified, and never here. |
 | `UserMessage` | `turn_id`, `text` | The human finished an utterance. A new turn: the floor is the brain's. |
 | `UserIdle` | `turn_id`, `level`, `idle_ms` | The human has been silent past the configured timeout. Also a new turn. `level` counts consecutive escalations with no intervening speech (1 is the first nudge) and resets when they speak; `idle_ms` is the silence elapsed when it fired. |
-| `Interruption` | `through_turn` | Everything up to and including `through_turn` is dead — the caller will not hear it. Stop generating for it. |
+| `Interruption` | `through_turn` | Everything up to and including `through_turn` is dead — the user will not hear it. Stop generating for it. |
 | `Finalize` | `speech_id`, `heard_text` | What the human actually heard of one speech unit. |
 | `Response` | `request_id`, `status`, `detail` | The answer to one `Request`. |
 | `RTVIFrame` | `type`, `data` *(JSON)*, `id` | The app said something. Delivered verbatim; Voqalize never decides whether it deserves a reply. |
@@ -173,7 +173,7 @@ the SDK. The wire has no `Struct` dependency; opaque payloads stay opaque.
 `Finalize.heard_text` is the **delivered prefix** — what was actually played,
 not what was generated. It is a *verbatim* prefix of that unit's own text, never
 a concatenation across units, which is what makes it the whole report: equal to
-what you sent means the unit played out, shorter means the caller cut it off, and
+what you sent means the unit played out, shorter means the user cut it off, and
 empty against chunks you sent means nothing reached the ear.
 
 So the message carries no verdict. Tag 3 held a `FinalizeReason` until

@@ -488,7 +488,7 @@ class ServicingBrain(GeminiBrain):
             else []
         }
         # The desk's own voice — settled here rather than sent with the connect
-        # request, since this is an internal console with no caller to ask.
+        # request, since this is an internal console with no user to ask.
         await session.configure(
             Config(
                 stt=SttConfig(language=Language.EN),

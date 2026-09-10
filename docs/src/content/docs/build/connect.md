@@ -101,18 +101,18 @@ page, a support widget anyone may use.
 ### Path B — your backend decides who may call
 
 The moment starting a call depends on something the browser must not be trusted
-with — who the caller is, whether their subscription is current, which agent they
+with — who the user is, whether their subscription is current, which agent they
 are entitled to — the decision belongs on your server, and so does the key.
 
 Three hops, and only the middle one is ours:
 
 1. **Your page asks your backend for connect params** — on page load, or when the
-   caller presses the button. **How that request is authenticated is entirely
+   user presses the button. **How that request is authenticated is entirely
    yours.** Session cookie, bearer token, signed URL, whatever your app already
    does. That trust boundary is yours; we never see it and have no opinion about
    it.
 2. **Your backend calls `sessions.connect` with a secret key** (`sk_…`), naming
-   whatever `agent_id` and `init` it decided *this* caller gets.
+   whatever `agent_id` and `init` it decided *this* user gets.
 3. **Your backend returns that JSON body to the browser, verbatim.**
 
 ```ts
@@ -223,7 +223,7 @@ write reaches a browser as "Bad Request". Branch on `error.code`; show a person
 | --- | --- |
 | `401` | No `Authorization` header, or a key we don't recognise. |
 | `403` | A `pk_` from an origin it isn't allowlisted for — or one with no allowlist at all. |
-| `404` | No such agent in this key's workspace. A key is scoped to exactly one. |
+| `404` | No such agent in this key's tenant. A key is scoped to exactly one. |
 | `400` `recording_not_permitted` | `config.record: true` on a publishable key. See below. |
 | `500` `missing_connect_params` | The session was minted but no worker is running for that agent. |
 
@@ -234,7 +234,7 @@ language settings. Omit it and the call does whatever the agent is configured
 for. That is the common case: the agent's owner made the decision once, in a
 place they control.
 
-**`config.record: false` is always honoured.** A caller who declines is not recorded,
+**`config.record: false` is always honoured.** A user who declines is not recorded,
 even on an agent that records by default, on either path.
 
 **`config.record: true` is refused on a publishable key** — `400`, and no call starts, so
@@ -245,7 +245,7 @@ the agent default, MCP, the console, or a backend request authenticated with an
 `sk_`.
 
 On Path B, `config.record: true` with an `sk_` is fine and is the right way to express
-per-caller consent. Your backend is the party that actually knows the caller
+per-user consent. Your backend is the party that actually knows the user
 agreed.
 
 ## Integration constraints

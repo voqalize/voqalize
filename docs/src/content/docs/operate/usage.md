@@ -3,11 +3,11 @@ title: Usage and limits
 description: What Voqalize counts, how call duration is measured, and the one gap that tells you your embed is broken.
 ---
 
-`get_usage(tenant, period="")` returns one workspace's counters for one billing
+`get_usage(tenant, period="")` returns one tenant's counters for one billing
 period. `period` is `YYYY-MM` in UTC; empty means the current month.
 
 These are counters maintained as the calls happen rather than a scan of your
-history, so the answer costs the same in a workspace's fortieth month as in its
+history, so the answer costs the same in a tenant's fortieth month as in its
 first, and a period with no calls returns zeros rather than taking longer to say
 so.
 
@@ -27,7 +27,7 @@ what the planned minute includes.
 ## The gap that tells you something
 
 `sessions_created` minus `sessions_started` is the calls **nobody ever answered**:
-a session was minted, and no caller ever connected to it.
+a session was minted, and no user ever connected to it.
 
 A few of those are normal — someone opened the page and left. A wide gap is a
 broken embed rather than a broken agent, and it is the one number here worth an
@@ -40,14 +40,14 @@ before the transport starts.
 
 ## Limits
 
-Every workspace has limits, including concurrent-call and API rate limits.
-During developer preview they are set per workspace rather than published as a
+Every tenant has limits, including concurrent-call and API rate limits.
+During developer preview they are set per tenant rather than published as a
 tier table; no public concurrency number is committed. The preview also has no
 availability guarantee. Ask before a pilot or launch that needs a specific
 ceiling.
 
 One is worth knowing about because it shapes how you poll: the management API is
-rate limited per workspace. A dashboard that fires a burst of reads per page is
+rate limited per tenant. A dashboard that fires a burst of reads per page is
 well inside it; a loop that reads every session every minute is not the shape to
 build. Read a call when something happened to it, which is what the `session_id`
 join is for.

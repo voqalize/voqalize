@@ -1,12 +1,12 @@
 ---
 title: Misunderstanding and reversal
-description: The caller will be misheard and will change their mind mid-sentence. The design question is how fast a mistake becomes visible and how cheap it is to undo.
+description: The user will be misheard and will change their mind mid-sentence. The design question is how fast a mistake becomes visible and how cheap it is to undo.
 ---
 
 Three things go wrong on every voice deployment, and none of them are going away.
 
 The recognizer mishears. The model misinterprets what it heard correctly. And the
-caller changes their mind halfway through the sentence — which is not an error at
+user changes their mind halfway through the sentence — which is not an error at
 all. It is how people talk, and a system that treats it as a fault is a system
 that argues with its user.
 
@@ -43,7 +43,7 @@ None of that is possible if the screen only shows conclusions. See
 
 By voice, correction is a taxonomy of tools rather than one re-add:
 
-| What the caller says | Tool | What it preserves |
+| What the user says | Tool | What it preserves |
 |---|---|---|
 | "make it three" | `set_quantity` | the row |
 | "one more" | `adjust_quantity` | the row, and the distinction between delta and absolute |
@@ -52,7 +52,7 @@ By voice, correction is a taxonomy of tools rather than one re-add:
 | "drop that" | `remove_items` | — |
 | picking from options | `choose` | the row |
 
-The shared property is identity. The row stays where it is, so the caller's eye
+The shared property is identity. The row stays where it is, so the user's eye
 does not have to re-find it. `orderdesk`'s prompt gives the reason in five words:
 remove and re-add, and "he loses his place on the screen."
 
@@ -78,8 +78,8 @@ it.
 
 **Why a click and not a spoken "yes."** A spoken yes can be misheard. It can be
 background noise the recognizer resolved into a word. It can be a genuine yes to a
-question the caller only half-heard, because they started talking over the second
-half of it — and [what the caller heard](/design/interruption-and-heard-truth/)
+question the user only half-heard, because they started talking over the second
+half of it — and [what the user heard](/design/interruption-and-heard-truth/)
 is the part that finished playing, which your agent does not know at the moment it
 asks. A click has none of those failure modes, and it lands on a screen showing
 exactly what is being agreed to.

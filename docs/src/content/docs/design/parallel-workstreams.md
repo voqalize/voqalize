@@ -1,11 +1,11 @@
 ---
 title: Parallel workstreams
-description: A caller can say five things in one breath. An agent that handles them one at a time gives back the only speed advantage voice has.
+description: A user can say five things in one breath. An agent that handles them one at a time gives back the only speed advantage voice has.
 ---
 
 A form makes you wait for each field. You type, it validates, it renders the next
 one, and the round trip repeats until the form is done. Speech has no such
-round trip: a caller can name six items in one breath and stop, having spent four
+round trip: a user can name six items in one breath and stop, having spent four
 seconds on what the form spends four minutes on.
 
 That burst is where the speed comes from. It is also the thing an agent gives back
@@ -13,7 +13,7 @@ first. Handle the six items one at a time — ask, resolve, confirm, ask again �
 and you have rebuilt the form, out loud, at the pace of a conversation. Slower
 than the form it replaced, because now every field costs a spoken turn.
 
-So parallelism is not a later optimization here. Without it the caller's natural
+So parallelism is not a later optimization here. Without it the user's natural
 behaviour becomes your worst case.
 
 ## Take the burst whole
@@ -28,7 +28,7 @@ will take one item and stop:
 One tool call, six items, six independent pieces of work in flight. The rows enter
 as `resolving` and settle one at a time — matched, or ambiguous between two pack
 sizes, or not stocked — each on its own timeline, in whatever order the lookups
-come back. The caller is still talking while they settle.
+come back. The user is still talking while they settle.
 
 ## Work that outlives its turn
 
@@ -62,8 +62,8 @@ not equally priced:
 | Way | When to use it | Shipped in |
 |---|---|---|
 | A row changes on screen, silently | The result is legible and unambiguous | `orderdesk`, `forge` |
-| One short spoken line | It changes what the caller should do next | `servicing` |
-| A spoken question | Genuinely ambiguous, and only the caller can resolve it | `orderdesk` |
+| One short spoken line | It changes what the user should do next | `servicing` |
+| A spoken question | Genuinely ambiguous, and only the user can resolve it | `orderdesk` |
 
 The default is the first, and `forge`'s prompt tells the model to trust it:
 
@@ -72,7 +72,7 @@ The default is the first, and `forge`'s prompt tells the model to trust it:
 > stay quiet.
 
 Speaking costs a turn, so the second and third rows are spent, not spread. When
-several rows do turn out to need the caller, batch them the way you batched the
+several rows do turn out to need the user, batch them the way you batched the
 intake — `orderdesk` again:
 
 > Batch your questions. Let him finish his run of items, then at the natural
@@ -81,11 +81,11 @@ intake — `orderdesk` again:
 ## The exception is a human, not a machine
 
 `aura` has one blocking tool. `authenticate` awaits a future that resolves when
-the caller taps consent on their own screen, and the turn genuinely waits.
+the user taps consent on their own screen, and the turn genuinely waits.
 
 That is the rule, drawn tightly: machine work never blocks a turn; waiting on a
 person sometimes has to, because there is nothing else the agent could
-truthfully be doing. Even then it is worth a spoken line first, so the caller
+truthfully be doing. Even then it is worth a spoken line first, so the user
 knows the silence is theirs to end.
 
 ## Two things to decide for yourself
@@ -97,7 +97,7 @@ that works, and it is the one to copy until the SDK reserves something better.
 
 **Failure.** Every worked example here succeeds. A fan-out where one branch fails
 is the case you will hit first in production, and the failed row still has to
-reach the caller through one of the three ways above — most often the first, as a
+reach the user through one of the three ways above — most often the first, as a
 row that says so.
 
 ## Read next
