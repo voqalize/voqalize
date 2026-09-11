@@ -24,7 +24,7 @@
  * control only ever appears to someone who has already consented.
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import {
   useRTVIClientEvent,
@@ -40,7 +40,7 @@ import {
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
 } from "@voqalize/demo-kit";
-import { useTravel } from "./store";
+import { draftsOf, useTravel } from "./store";
 import { connectRequest, withRealHeaders } from "./config";
 
 // A connection can also be in the state PipecatAppBase's own `error` prop
@@ -273,7 +273,28 @@ function TravelSession({
 export function TravelAdvisor({ children }: { children: (presence: ReactNode) => ReactNode }) {
   // No pipeline override: this agent's voice and language are declared on its
   // brain (backend/brain_gemini.py), which is the only place they belong.
-  const params = useMemo(() => connectRequest({ surface: "travel-web" }), []);
+  //
+  // The saved drafts ride `init`: they live in this browser, so it is the only
+  // way the brain learns which exist and their ids — the way forge's page hands
+  // over its workflows. A getter, not a memo on the list: PipecatAppBase rebuilds
+  // its client, dropping a live call, whenever `startBotParams` changes identity,
+  // and pipecat serializes `requestData` only when the request goes out — so the
+  // brain gets the drafts as they are at connect, including last call's.
+  const { itineraries } = useTravel();
+  const latest = useRef(itineraries);
+  useEffect(() => {
+    latest.current = itineraries;
+  }, [itineraries]);
+  const params = useMemo(
+    () =>
+      connectRequest({
+        surface: "travel-web",
+        get drafts() {
+          return draftsOf(latest.current);
+        },
+      }),
+    [],
+  );
 
   return (
     <PipecatAppBase

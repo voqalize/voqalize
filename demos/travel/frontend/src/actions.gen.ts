@@ -7,7 +7,16 @@
 /** Show the dashboard of saved draft trips. No arguments. */
 export type OpenDashboard = Record<string, never>;
 
+/**
+ * Open one saved draft. `id` is what the page keys it by; `name` is the
+ * draft's own name, filled in by the brain, which is all a page that predates
+ * ids matches on.
+ */
 export interface OpenItinerary {
+  /** The draft's id, exactly as read_screen lists it. */
+  id: string;
+
+  /** Leave empty — the desk fills in the draft's name. */
   name: string;
 }
 
@@ -95,6 +104,20 @@ export interface HotelsViewed {
 }
 
 /**
+ * An `open_itinerary` named a draft this browser does not hold, by id or by
+ * name, so the screen did not move.
+ *
+ * Nobody's gesture — the page's answer to a command, and the only place it
+ * exists: the drafts live in this browser, and a command the page cannot resolve
+ * otherwise leaves the brain's mirror on an overview the screen never showed.
+ */
+export interface ItineraryNotFound {
+  id?: string;
+
+  name?: string;
+}
+
+/**
  * The agent came back to the itinerary overview from a flights or hotels
  * screen.
  */
@@ -115,6 +138,9 @@ export interface QuoteShared {
  * built from it. Every later change is a patch.
  */
 export interface TripOpened {
+  /** The draft's id — what open_itinerary names it by. Empty from an older page. */
+  id?: string;
+
   name: string;
 
   coordinator?: string;
@@ -220,6 +246,9 @@ export interface HotelOption {
 
 /** The itinerary shell `create_itinerary` puts on screen. */
 export interface Itinerary {
+  /** Leave empty — the desk assigns it. */
+  id: string;
+
   name: string;
 
   coordinator: string;
@@ -329,6 +358,7 @@ export type AppEvent =
   | { event: 'flights_viewed'; payload: FlightsViewed }
   | { event: 'hotel_selected'; payload: HotelSelected }
   | { event: 'hotels_viewed'; payload: HotelsViewed }
+  | { event: 'itinerary_not_found'; payload: ItineraryNotFound }
   | { event: 'overview_viewed'; payload: OverviewViewed }
   | { event: 'quote_shared'; payload: QuoteShared }
   | { event: 'trip_opened'; payload: TripOpened };
@@ -341,6 +371,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'flights_viewed',
   'hotel_selected',
   'hotels_viewed',
+  'itinerary_not_found',
   'overview_viewed',
   'quote_shared',
   'trip_opened',

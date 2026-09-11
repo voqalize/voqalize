@@ -37,6 +37,7 @@ __all__ = [
     "FlightsViewed",
     "HotelSelected",
     "HotelsViewed",
+    "ItineraryNotFound",
     "LegLine",
     "OverviewViewed",
     "QuoteShared",
@@ -71,6 +72,10 @@ class TripOpened(AppEvent):
     trip: it carries the itinerary as the overview shows it, and the mirror is
     built from it. Every later change is a patch."""
 
+    id: str = Field(
+        "",
+        description="The draft's id — what open_itinerary names it by. Empty from an older page.",
+    )
     name: str
     coordinator: str = ""
     destination: str = ""
@@ -85,6 +90,18 @@ class TripOpened(AppEvent):
     exclusions: list[str] = Field(default_factory=list)
     terms_set: bool = False
     whatsapp_sent: bool = False
+
+
+class ItineraryNotFound(AppEvent):
+    """An ``open_itinerary`` named a draft this browser does not hold, by id or by
+    name, so the screen did not move.
+
+    Nobody's gesture — the page's answer to a command, and the only place it
+    exists: the drafts live in this browser, and a command the page cannot resolve
+    otherwise leaves the brain's mirror on an overview the screen never showed."""
+
+    id: str = ""
+    name: str = ""
 
 
 class DashboardOpened(AppEvent):
@@ -139,6 +156,7 @@ class QuoteShared(AppEvent):
 #: handled in :meth:`TravelBrain.apply_event` fails pyright rather than the call.
 type TravelEvent = (
     TripOpened
+    | ItineraryNotFound
     | DashboardOpened
     | OverviewViewed
     | FlightsViewed
@@ -153,6 +171,7 @@ type TravelEvent = (
 #: and another one is entitled to its own ``TripOpened``.
 TRAVEL_EVENTS = AppEvents[TravelEvent](
     TripOpened,
+    ItineraryNotFound,
     DashboardOpened,
     OverviewViewed,
     FlightsViewed,

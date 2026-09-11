@@ -132,7 +132,8 @@ export type NewItinerary = Partial<ItineraryWire> & { name: string };
 export interface TravelActions {
   openDashboard: () => void;
   newBlankItinerary: () => void;
-  openItinerary: (idOrName: string) => void;
+  /** Open the draft `ref` names — id first, then name. False when none matches. */
+  openItinerary: (ref: string | undefined) => boolean;
   /** Build and open a new itinerary. `name` is all the agent must send. */
   createItinerary: (wire: NewItinerary) => void;
   setTripStructure: (args: SetTripStructure) => void;
@@ -190,6 +191,7 @@ export interface ByHand {
  */
 function overviewOf(it: Itinerary): TripOpened {
   return {
+    id: it.id,
     name: it.name,
     coordinator: it.coordinator,
     destination: it.destination,
@@ -215,6 +217,53 @@ function overviewOf(it: Itinerary): TripOpened {
     terms_set: it.terms.length > 0,
     whatsapp_sent: Boolean(it.whatsapp),
   };
+}
+
+/** One saved draft as the brain's catalog lists it. */
+export interface DraftLine {
+  id: string;
+  name: string;
+  destination: string;
+  dates: string;
+}
+
+/**
+ * The saved drafts, for the connect request's `init`. They live in this browser,
+ * so this is the only way the brain learns which exist and what each is keyed by
+ * — without the ids, `open_itinerary` is a guess at a name.
+ */
+export function draftsOf(list: Itinerary[]): DraftLine[] {
+  return list.map((it) => ({
+    id: it.id,
+    name: it.name,
+    destination: it.destination ?? '',
+    dates: [it.start_date, it.end_date].filter(Boolean).join(' – '),
+  }));
+}
+
+/**
+ * A name the way it is said rather than typed: NFKC-normalized, lower-cased,
+ * one space between words. The brain folds the same way.
+ */
+function spoken(s: string): string {
+  return s.normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The draft `ref` names: its exact id, then its id or name as spoken, then its
+ * slug — the order the brain resolves in. `slugify` falls back to `'trip'` for a
+ * name with no Latin letters, so that fallback never counts as a match.
+ */
+function findDraft(list: Itinerary[], ref: string | undefined): Itinerary | undefined {
+  const needle = (ref ?? '').trim();
+  if (!needle) return undefined;
+  const said = spoken(needle);
+  const slug = slugify(needle);
+  return (
+    list.find((it) => it.id === needle) ??
+    list.find((it) => spoken(it.id) === said || spoken(it.name) === said) ??
+    (slug !== 'trip' ? list.find((it) => it.id === slug) : undefined)
+  );
 }
 
 /** One family, worded the way the brain words it from its own `set_trip_structure`. */
@@ -294,7 +343,9 @@ const searchRunMs = (): number => SEARCH_RUN_MIN + Math.floor(Math.random() * SE
 function buildItinerary(wire: NewItinerary): Itinerary {
   const name = wire.name || 'Untitled trip';
   return {
-    id: slugify(name),
+    // The brain mints the id (unique, and numbered for a name with no Latin
+    // letters); the slug is for the "New trip" button and an older brain.
+    id: wire.id || slugify(name),
     name,
     coordinator: wire.coordinator,
     destination: wire.destination,
@@ -428,7 +479,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   const createItinerary = useCallback((wire: NewItinerary) => {
     const built = buildItinerary(wire);
     setItineraries((list) => {
-      // Replace any existing itinerary with the same slug (re-create), else add.
+      // Replace any existing itinerary with the same id (re-create), else add.
       const exists = list.some((it) => it.id === built.id);
       const next = exists ? list.map((it) => (it.id === built.id ? built : it)) : [built, ...list];
       persist(next, built.id);
@@ -446,12 +497,10 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   }, [createItinerary]);
 
   const openItinerary = useCallback(
-    (idOrName: string) => {
-      const needle = idOrName.toLowerCase().trim();
-      const match = itineraries.find(
-        (it) => it.id === needle || it.id === slugify(idOrName) || it.name.toLowerCase() === needle,
-      );
+    (ref: string | undefined) => {
+      const match = findDraft(itineraries, ref);
       if (match) setActive(match.id);
+      return match !== undefined;
     },
     [itineraries, setActive],
   );
@@ -739,9 +788,16 @@ export function TravelProvider({ children }: { children: ReactNode }) {
         case 'open_dashboard':
           openDashboard();
           break;
-        case 'open_itinerary':
-          openItinerary(action.payload.name);
+        case 'open_itinerary': {
+          // The id first; `name` is all an older brain sends. A draft this
+          // browser does not hold is answered, not dropped: the brain has
+          // already moved its mirror to an overview the screen never showed.
+          const { id, name } = action.payload;
+          if (!openItinerary(id) && !openItinerary(name)) {
+            emit({ event: 'itinerary_not_found', payload: { id: id ?? '', name: name ?? '' } });
+          }
           break;
+        }
         case 'create_itinerary':
           createItinerary(action.payload.itinerary);
           break;
@@ -771,6 +827,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       }
     },
     [
+      emit,
       openDashboard,
       openItinerary,
       createItinerary,
@@ -798,7 +855,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       openTrip: openItinerary,
       newTrip: () => {
         newBlankItinerary();
-        emit({ event: 'trip_opened', payload: { name: BLANK_TRIP_NAME } });
+        emit({ event: 'trip_opened', payload: { id: slugify(BLANK_TRIP_NAME), name: BLANK_TRIP_NAME } });
       },
       backToOverview: () => {
         viewOverview();

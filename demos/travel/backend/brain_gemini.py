@@ -23,7 +23,9 @@ push: everything after it is a patch.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+import re
+import unicodedata
+from typing import Any, Literal, cast
 
 from google import genai
 from google.genai import types
@@ -41,6 +43,7 @@ from .app_events import (
     FlightsViewed,
     HotelSelected,
     HotelsViewed,
+    ItineraryNotFound,
     OverviewViewed,
     QuoteShared,
     TravelEvent,
@@ -57,7 +60,7 @@ YOU INVENT THE DATA. There is no live inventory. Generate realistic options your
 
 STAY GROUNDED: nothing in this conversation is a picture of the agent's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything they point at ("that leg", "the second one", "the hotel we picked"), and whenever you are told they changed the screen themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
 
-WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure with the families, flight legs, and hotel cities. For each flight leg speak a line then call search_flights with 3 invented options; select_flight once picked. For each hotel city call search_hotels with 3 options; select_hotel once picked. Use show_flights / show_hotels to bring a leg/city back on screen, and open_itinerary / open_dashboard to navigate.
+WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure with the families, flight legs, and hotel cities. For each flight leg speak a line then call search_flights with 3 invented options; select_flight once picked. For each hotel city call search_hotels with 3 options; select_hotel once picked. Use show_flights / show_hotels to bring a leg/city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's id exactly as read_screen lists it — never a name you made up.
 
 Open with a brief greeting and ask which trip they want to work on."""
 
@@ -143,6 +146,7 @@ class HotelOption(BaseModel):
 class Itinerary(BaseModel):
     """The itinerary shell ``create_itinerary`` puts on screen."""
 
+    id: str = Field("", description="Leave empty — the desk assigns it.")
     name: str
     coordinator: str = ""
     destination: str = ""
@@ -176,7 +180,12 @@ class OpenDashboard(Action):
 
 
 class OpenItinerary(Action):
-    name: str
+    """Open one saved draft. ``id`` is what the page keys it by; ``name`` is the
+    draft's own name, filled in by the brain, which is all a page that predates
+    ids matches on."""
+
+    id: str = Field(description="The draft's id, exactly as read_screen lists it.")
+    name: str = Field("", description="Leave empty — the desk fills in the draft's name.")
 
 
 class CreateItinerary(Action):
@@ -280,10 +289,67 @@ def _upsert(rows: list[Any], key: str, value: str, row: dict[str, Any]) -> None:
         rows.append(row)
 
 
-def _blank_trip(name: str) -> dict[str, Any]:
-    """An itinerary the brain knows the name of and nothing else — what
+def _slug(name: str) -> str:
+    """The page's own slug for a name, or ``""`` when nothing Latin is left.
+
+    The same algorithm as ``slugify`` in the page's ``types.ts``, so an id this
+    brain mints and one a page that predates ids derives from the name agree."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower().strip()).strip("-")
+
+
+def _spoken(text: str) -> str:
+    """A name the way it is said rather than typed: NFKC-normalized, case-folded,
+    one space between words. The page matches on the same fold."""
+    return " ".join(unicodedata.normalize("NFKC", text).casefold().split())
+
+
+def _mint_id(name: str, taken: set[str]) -> str:
+    """A draft id no saved draft has. A name with no Latin letters in it — a
+    Devanagari one — slugs to nothing, so it is numbered instead of colliding."""
+    base = _slug(name) or "trip"
+    if base not in taken:
+        return base
+    n = 2
+    while f"{base}-{n}" in taken:
+        n += 1
+    return f"{base}-{n}"
+
+
+def _draft(raw: object) -> dict[str, str] | None:
+    """One saved draft as the page lists it, or ``None`` for a row with no id."""
+    if not isinstance(raw, dict):
+        return None
+    row = cast(dict[str, Any], raw)
+    draft_id = str(row.get("id") or "").strip()
+    if not draft_id:
+        return None
+    return {
+        "id": draft_id,
+        "name": str(row.get("name") or "").strip(),
+        "destination": str(row.get("destination") or "").strip(),
+        "dates": str(row.get("dates") or "").strip(),
+    }
+
+
+def _find_draft(drafts: list[dict[str, str]], ref: str) -> dict[str, str] | None:
+    """The draft ``ref`` names: its exact id, then its id or name as spoken, then
+    its slug — the order the page resolves in, so the two never disagree."""
+    ref = ref.strip()
+    if not ref:
+        return None
+    spoken, slug = _spoken(ref), _slug(ref)
+    return (
+        next((d for d in drafts if d["id"] == ref), None)
+        or next((d for d in drafts if spoken in (_spoken(d["id"]), _spoken(d["name"]))), None)
+        or next((d for d in drafts if slug and d["id"] == slug), None)
+    )
+
+
+def _blank_trip(draft_id: str, name: str) -> dict[str, Any]:
+    """An itinerary the brain knows the id and name of and nothing else — what
     ``open_itinerary`` has until the browser hands the draft over."""
     return {
+        "id": draft_id,
         "name": name,
         "coordinator": "",
         "destination": "",
@@ -338,6 +404,14 @@ class TravelBrain(GeminiBrain):
         self.trip: dict[str, Any] | None = None
         self.view = "dashboard"
         self.view_of = ""
+        #: Every saved draft, by id — the page's catalog, handed over at connect
+        #: and kept current by this brain's own creates and the page's opens.
+        #: ``None`` when the page sent none: it predates ids, and matches
+        #: ``open_itinerary`` on the name alone.
+        self.drafts: list[dict[str, str]] | None = None
+        #: The mirror as it stood before the last ``open_itinerary``, restored if
+        #: the page answers that it holds no such draft.
+        self._before_open: tuple[dict[str, Any] | None, str, str] | None = None
         #: What each search put on screen, so a pick can be named without asking
         #: the browser what it is looking at.
         self._flights: dict[str, dict[str, FlightOption]] = {}
@@ -346,6 +420,13 @@ class TravelBrain(GeminiBrain):
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
+        # The drafts live in the browser's localStorage, so the page hands over
+        # what it holds with the connect request, the way forge hands over its
+        # workflows: without the ids, open_itinerary is a guess at a name.
+        raw = dict(session.init or {}).get("drafts")
+        if isinstance(raw, list):
+            rows = cast(list[object], raw)
+            self.drafts = [d for d in map(_draft, rows) if d is not None]
         await session.configure(
             Config(
                 stt=SttConfig(language=Language.HI),
@@ -383,7 +464,27 @@ class TravelBrain(GeminiBrain):
             case TripOpened():
                 self.trip = event.model_dump(mode="json")
                 self.view, self.view_of = "overview", ""
+                self._before_open = None
+                self._remember(
+                    {
+                        "id": event.id,
+                        "name": event.name,
+                        "destination": event.destination,
+                        "dates": event.dates,
+                    }
+                )
                 return self.screen.moved(f"opened the {event.name} itinerary")
+            case ItineraryNotFound():
+                # The screen never left where it was, so neither does the mirror.
+                if self._before_open is not None:
+                    self.trip, self.view, self.view_of = self._before_open
+                    self._before_open = None
+                if self.drafts is not None and event.id:
+                    self.drafts = [d for d in self.drafts if d["id"] != event.id]
+                return self.screen.happened(
+                    f"The screen could not open {event.name or event.id!r}: this browser "
+                    "holds no such draft, so nothing moved."
+                )
             case DashboardOpened():
                 self.trip, self.view, self.view_of = None, "dashboard", ""
                 return self.screen.moved("closed the trip and went back to the drafts list")
@@ -415,6 +516,17 @@ class TravelBrain(GeminiBrain):
                     f"sent the quote on WhatsApp to {event.recipient or event.to or 'the client'}"
                 )
 
+    def _remember(self, row: dict[str, str]) -> None:
+        """Add a draft to the catalog, or refresh the one with its id."""
+        draft = _draft(row)
+        if self.drafts is None or draft is None:
+            return
+        self.drafts = [d for d in self.drafts if d["id"] != draft["id"]] + [draft]
+
+    def _draft_list(self) -> str:
+        """The saved drafts as one line — id, then name — for a refusal to cite."""
+        return "; ".join(f"{d['id']} ({d['name']})" for d in self.drafts or []) or "none"
+
     def _show(self, action: ScreenMove) -> None:
         """Put something on screen — and into the mirror, in the same breath.
 
@@ -432,15 +544,20 @@ class TravelBrain(GeminiBrain):
             case OpenDashboard():
                 self.trip, self.view, self.view_of = None, "dashboard", ""
             case OpenItinerary():
-                if trip is None or trip["name"] != action.name:
-                    self.trip = _blank_trip(action.name)
+                self._before_open = (trip, self.view, self.view_of)
+                if trip is None or (trip["id"], trip["name"]) != (action.id, action.name):
+                    self.trip = _blank_trip(action.id, action.name)
                 self.view, self.view_of = "overview", ""
             case CreateItinerary():
                 it = action.itinerary
-                self.trip = _blank_trip(it.name) | {
+                dates = _DATE_RANGE.join(d for d in (it.start_date, it.end_date) if d)
+                self._remember(
+                    {"id": it.id, "name": it.name, "destination": it.destination, "dates": dates}
+                )
+                self.trip = _blank_trip(it.id, it.name) | {
                     "coordinator": it.coordinator,
                     "destination": it.destination,
-                    "dates": _DATE_RANGE.join(d for d in (it.start_date, it.end_date) if d),
+                    "dates": dates,
                     "families": [_family_line(f) for f in it.families],
                     "legs": [_leg_line(leg) for leg in it.legs],
                     "hotels": [
@@ -537,9 +654,21 @@ class TravelBrain(GeminiBrain):
         state, takes no floor, says nothing, and moves nothing on screen."""
         self.screen.read()
         logger.info("travel: read_screen (active={}, v{})", bool(self.trip), self.screen.version)
+        # Every draft, on every screen: "open the Bali one" is said from an
+        # overview as often as from the dashboard, and the id is what opens it.
+        drafts = {
+            d["id"]: " · ".join(v for v in (d["name"], d["destination"], d["dates"]) if v)
+            for d in self.drafts or []
+        }
         if self.trip is None:
-            return _NOTHING_ON_SCREEN
+            if self.drafts is None:
+                return _NOTHING_ON_SCREEN
+            return screen_prose(
+                {"screen": "dashboard", "saved_drafts": drafts or "none"}, actor="travel agent"
+            )
         where = {"screen": self.view, "screen_context": self.view_of or None, **self.trip}
+        if self.drafts is not None:
+            where["saved_drafts"] = drafts or "none"
         return screen_prose(where, actor="travel agent")
 
     async def open_dashboard(self) -> str:
@@ -548,16 +677,34 @@ class TravelBrain(GeminiBrain):
         return "dashboard open"
 
     async def open_itinerary(self, action: OpenItinerary) -> str:
-        """Open a saved itinerary by name."""
-        self._show(action)
-        return f"opened {action.name}"
+        """Open one saved draft by its id, exactly as read_screen lists it under the
+        saved drafts. Read the screen first if you do not have the id."""
+        if self.drafts is None:
+            # A page that sent no catalog predates ids and matches on the name.
+            legacy = action.model_copy(update={"name": action.name or action.id})
+            self._show(legacy)
+            return f"opened {legacy.name}"
+        draft = _find_draft(self.drafts, action.id) or _find_draft(self.drafts, action.name)
+        if draft is None:
+            return (
+                f"no saved draft has the id {action.id!r}, so nothing opened. The saved "
+                f"drafts are: {self._draft_list()}. Call open_itinerary again with one of "
+                "those ids, or ask which trip they mean."
+            )
+        self._show(OpenItinerary(id=draft["id"], name=draft["name"]))
+        return f"opened {draft['name']}"
 
     async def create_itinerary(self, action: CreateItinerary) -> str:
         """Create a new itinerary SHELL and open its overview. Just the
         headline fields (name, destination, dates); add travellers, flight
         legs and hotel cities with set_trip_structure next."""
-        self._show(action)
-        return f"created '{action.itinerary.name}'"
+        # One numbering authority, as with legs and options: the id goes on screen
+        # and into the catalog from here, so open_itinerary can name this draft.
+        taken = {d["id"] for d in self.drafts or []}
+        it = action.itinerary
+        it = it.model_copy(update={"id": _mint_id(it.name, taken)})
+        self._show(action.model_copy(update={"itinerary": it}))
+        return f"created '{it.name}' (id {it.id})"
 
     async def set_trip_structure(self, action: SetTripStructure) -> str:
         """Fill in the active itinerary's travelling families, flight legs

@@ -272,3 +272,206 @@ async def test_only_a_gesture_costs_a_re_read_and_priyas_own_dispatch_never_does
         await rig.driver.user_says("Thanks.")
 
     assert _refused(llm)
+
+
+# ─── Opening a draft: by the id the page handed over ─────────────────────────
+
+_IYER = "Iyer Family — Dubai"
+#: A Devanagari name slugs to nothing, so the page keys it by the fallback id. The
+#: first letter is the precomposed ज़ (U+095B), which NFKC decomposes.
+_ZAKIR = "ज़ाकिर हनीमून"
+
+#: The page's catalog as ``TravelAdvisor`` sends it in ``init``. The drafts live
+#: in the browser's localStorage, so this is the only way the brain learns them.
+_DRAFTS: list[dict[str, str]] = [
+    {"id": "poddar-vietnam", "name": "Poddar Vietnam", "destination": "Ho Chi Minh City"},
+    {"id": "iyer-family-dubai", "name": _IYER, "destination": "Dubai"},
+    {"id": "trip", "name": _ZAKIR, "destination": "Bali"},
+]
+
+
+def _results(llm: ScriptedGemini, tool: str) -> list[str]:
+    """What each call of ``tool`` returned, in order — read off the last request,
+    which carries the whole context."""
+    return [
+        str((part.function_response.response or {}).get("result", ""))
+        for content in llm.captured_contents[-1]
+        for part in content.parts or []
+        if part.function_response is not None and part.function_response.name == tool
+    ]
+
+
+def _opened(rig: Any) -> list[dict[str, Any]]:
+    return [dict(c["payload"]) for c in rig.driver.ui_commands if c["command"] == "open_itinerary"]
+
+
+async def test_open_itinerary_goes_by_the_id_the_page_handed_over() -> None:
+    """The defect this closes: the brain opened a draft by a name it guessed
+    ("Dubai Trip"), the page matched exactly, and the miss did nothing at all.
+
+    Now the page hands its drafts over at connect, ``read_screen`` lists them by
+    id on the dashboard, and the command carries the id the page keys on — with
+    the draft's own name beside it, which is all a page that predates ids reads."""
+    llm = ScriptedGemini(
+        {
+            "Open the Dubai trip.": [
+                call("read_screen"),
+                reply_and_call("Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}),
+                reply("It's open."),
+            ],
+            "Thanks.": reply("Any time."),
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("Open the Dubai trip.")
+        await rig.driver.user_says("Thanks.")
+        assert _opened(rig) == [{"id": "iyer-family-dubai", "name": _IYER}]
+
+    (served,) = _results(llm, "read_screen")
+    assert "The travel agent is on the dashboard screen." in served
+    assert f"iyer-family-dubai: {_IYER} · Dubai" in served
+    assert f"trip: {_ZAKIR} · Bali" in served
+
+
+async def test_a_name_where_the_id_goes_resolves_as_spoken() -> None:
+    """A model that says the name instead of the id still lands on the right
+    draft: case, spacing and Unicode form fold away, Devanagari included, and the
+    page receives the canonical id and name either way."""
+    decomposed = "ज़ाकिर  हनीमून"
+    llm = ScriptedGemini(
+        {
+            "Open the Dubai trip.": [
+                reply_and_call(
+                    "Opening it.", "open_itinerary", action={"id": "  iyer FAMILY —   dubai "}
+                ),
+                reply("It's open."),
+            ],
+            "Now the honeymoon.": [
+                reply_and_call("Sure.", "open_itinerary", action={"id": decomposed}),
+                reply("It's open."),
+            ],
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("Open the Dubai trip.")
+        await rig.driver.user_says("Now the honeymoon.")
+        assert _opened(rig) == [
+            {"id": "iyer-family-dubai", "name": _IYER},
+            {"id": "trip", "name": _ZAKIR},
+        ]
+
+
+async def test_an_unknown_id_is_refused_with_the_drafts_that_exist() -> None:
+    """A draft the catalog does not hold is refused before anything reaches the
+    screen, and the refusal names every draft by id, so the retry is one hop."""
+    llm = ScriptedGemini(
+        {
+            "Open the Dubai trip.": [
+                call("open_itinerary", action={"id": "dubai-trip"}),
+                reply_and_call("Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}),
+                reply("It's open."),
+            ],
+            "Thanks.": reply("Any time."),
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("Open the Dubai trip.")
+        await rig.driver.user_says("Thanks.")
+        assert _opened(rig) == [{"id": "iyer-family-dubai", "name": _IYER}]
+
+    refused, opened = _results(llm, "open_itinerary")
+    assert "no saved draft has the id 'dubai-trip'" in refused
+    assert f"iyer-family-dubai ({_IYER})" in refused
+    assert opened == f"opened {_IYER}"
+
+
+async def test_a_created_draft_gets_an_id_it_can_be_opened_by() -> None:
+    """The brain mints the id of a draft it creates — unique against the catalog,
+    and numbered for a name with no Latin letters in it — and the draft joins the
+    catalog, so opening it later goes by that id."""
+    llm = ScriptedGemini(
+        {
+            "Start a Poddar Vietnam trip.": [
+                reply_and_call(
+                    "Creating it.",
+                    "create_itinerary",
+                    action={"itinerary": {"name": "Poddar Vietnam", "id": "made-up"}},
+                ),
+                reply("Created."),
+            ],
+            "And a Devanagari one.": [
+                reply_and_call(
+                    "Creating it.", "create_itinerary", action={"itinerary": {"name": _ZAKIR}}
+                ),
+                reply("Created."),
+            ],
+            "Back to the first new one.": [
+                reply_and_call("Sure.", "open_itinerary", action={"id": "poddar-vietnam-2"}),
+                reply("It's open."),
+            ],
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("Start a Poddar Vietnam trip.")
+        await rig.driver.user_says("And a Devanagari one.")
+        await rig.driver.user_says("Back to the first new one.")
+        created = [
+            c["payload"]["itinerary"]["id"]
+            for c in rig.driver.ui_commands
+            if c["command"] == "create_itinerary"
+        ]
+        assert created == ["poddar-vietnam-2", "trip-2"]
+        assert _opened(rig) == [{"id": "poddar-vietnam-2", "name": "Poddar Vietnam"}]
+
+
+async def test_a_draft_the_page_does_not_hold_puts_the_mirror_back() -> None:
+    """The page answers ``itinerary_not_found`` rather than doing nothing, and the
+    brain puts its mirror back where the screen still is — the overview it was on,
+    not the draft it asked for — and stops listing the draft the page denied."""
+    poddar = {**_PODDAR, "id": "poddar-vietnam"}
+    llm = ScriptedGemini(
+        {
+            "Open the Dubai trip.": [
+                reply_and_call("Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}),
+                reply("It's open."),
+            ],
+            "What's on screen?": [call("read_screen"), reply("Still Poddar.")],
+            "Thanks.": reply("Any time."),
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.send_ui_event("trip_opened", poddar)
+        await rig.driver.user_says("Open the Dubai trip.")
+        await rig.driver.send_ui_event(
+            "itinerary_not_found", {"id": "iyer-family-dubai", "name": _IYER}
+        )
+        await rig.driver.user_says("What's on screen?")
+        await rig.driver.user_says("Thanks.")
+
+    assert f"The screen could not open '{_IYER}'" in _context_text(llm)
+    (served,) = _results(llm, "read_screen")
+    assert "The travel agent is on the overview screen." in served
+    assert "name: Poddar Vietnam" in served
+    assert "iyer-family-dubai" not in served
+
+
+async def test_a_page_with_no_catalog_still_gets_a_name() -> None:
+    """A page that predates ids sends no drafts and matches on ``name`` alone, so
+    the brain passes the model's value through there rather than refusing it."""
+    llm = ScriptedGemini(
+        {
+            "Open the Dubai trip.": [
+                reply_and_call("Opening it.", "open_itinerary", action={"id": _IYER}),
+                reply("It's open."),
+            ],
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Open the Dubai trip.")
+        assert _opened(rig) == [{"id": _IYER, "name": _IYER}]

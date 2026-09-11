@@ -39,7 +39,8 @@ export const demo: DemoConfig = {
 /**
  * The request that starts a call — pipecat's `APIRequest`, filled in with the
  * bearer and agent id every session needs. `init` is whatever the page has
- * decided by connect time (here, just the calling surface); Travel Desk's voice
+ * decided by connect time (here, the calling surface and the saved drafts, which
+ * live in this browser and nowhere else); Travel Desk's voice
  * and language are declared on the brain itself (`backend/brain_gemini.py`), so
  * there is no `config` leg to pass.
  */
