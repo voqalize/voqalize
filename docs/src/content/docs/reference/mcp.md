@@ -128,8 +128,8 @@ that is the session's, set at connect and by the brain.
 | `get_agent` | `(tenant, agent_id) -> agent` | One agent, as above. |
 | `list_agents` | `(tenant, status=None, limit=20, cursor="") -> {agents, next_cursor}` | List agents, archived included. `status` is an exact match on `active` or `archived`; anything else is **refused** — it used to return an empty list, which reads exactly like a tenant whose agents have gone. `limit` is capped at 100; a null `next_cursor` is the last page. |
 | `update_agent` | `(tenant, agent_id, name="", description="", brain_url="", mode="", recording=None) -> agent` | Rename, re-describe, point the brain at a WS URL, or set the agent's [recording](/operate/recordings/) default. Empty means unchanged; `recording=None` means unchanged too. A `brain_url` implies `mode="inbound"`; `mode="cortex"` drops the `brain_url`. You rarely pass `mode` yourself. |
-| `archive_agent` | `(tenant, agent_id) -> agent` | Retire the record while keeping it. It does **not** take the agent out of service: a live `sk_` or `pk_` still starts sessions against it and they still reach its `brain_url`. What archiving refuses is new credentials. To stop an agent serving, `list_api_keys` and `revoke_api_key` every key whose `agent_id` is this one. |
-| `unarchive_agent` | `(tenant, agent_id) -> agent` | Put an archived agent back. |
+| `archive_agent` | `(tenant, agent_id) -> agent` | Refuse new sessions with `agent_archived` while retaining the agent and its history. Sessions already in progress continue. Existing credentials remain valid and work again after `unarchive_agent`; new credentials are refused while archived. |
+| `unarchive_agent` | `(tenant, agent_id) -> agent` | Admit new sessions again with the agent's existing credentials. |
 
 There is no separate `set_brain_url` tool — pass `brain_url` to `create_agent` up
 front, or set it later with `update_agent`. It must be `wss://` (`ws://` only for

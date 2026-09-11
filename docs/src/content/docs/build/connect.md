@@ -225,6 +225,8 @@ write reaches a browser as "Bad Request". Branch on `error.code`; show a person
 | `403` | A `pk_` from an origin it isn't allowlisted for — or one with no allowlist at all. |
 | `404` | No such agent in this key's tenant. A key is scoped to exactly one. |
 | `400` `recording_not_permitted` | `config.record: true` on a publishable key. See below. |
+| `409` `agent_not_configured` | The agent has no brain URL. Configure inbound or mint Cortex credentials before starting a session. |
+| `409` `agent_archived` | The agent is archived. Restore it before starting a new session. Sessions already in progress continue. |
 | `500` `missing_connect_params` | The session was minted but no worker is running for that agent. |
 
 ## Recording is a per-call decision

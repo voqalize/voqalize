@@ -240,6 +240,11 @@ A session is minted by `sessions.connect`, and its status table is in
   made it worth removing: a setup step you can skip without seeing anything break
   is a step that gets skipped.
 
+- **An archived agent admits no new sessions.** The mint is a `409` with code
+  `agent_archived`, before quota or a session record is spent. Restore the agent
+  to start sessions with its existing credentials. Sessions already in progress
+  continue, and history remains readable.
+
 Two more are about the session's configuration rather than the key:
 
 - **The control plane parses `config` as canonical proto3 JSON.** An unknown
