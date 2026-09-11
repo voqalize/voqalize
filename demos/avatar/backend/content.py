@@ -61,13 +61,13 @@ class Section:
 SECTIONS: tuple[Section, ...] = (
     Section(
         id="overview",
-        title="A face for AI voice calls",
+        title="Avatars for Pipecat Voice Agents",
         notes=(
-            "I am a face for AI voice calls. "
-            "My lips follow the voice you hear. "
-            "I listen while you talk, and look busy while I work. "
-            "The library is free and open source. "
-            "A developer adds me to a voice agent in a few lines."
+            "This is an avatar library for Pipecat voice agents. "
+            "The server turns the TTS audio into mouth shapes. "
+            "The browser animates the face from them, in time with the audio. "
+            "There is no video stream and no GPU. "
+            "The library is open source, under the MIT licence."
         ),
     ),
     Section(
@@ -78,15 +78,15 @@ SECTIONS: tuple[Section, ...] = (
             "They sit right after text to speech, and so do I. "
             "They send the audio to their servers and send video back. "
             "I send the browser a few small instructions, and it draws me. "
-            "So there is no new service, no video stream and no avatar bill. "
+            "So there is no extra service and no video stream. "
             "A new face starts from one picture, made into a 2.5-D model in Blender. "
             "The server side stays the same; only the browser's file changes. "
-            "The fair trade: they look like real video, and I do not."
+            "They look like real video. I do not."
         ),
     ),
     Section(
         id="quickstart",
-        title="Add it to a pipecat app",
+        title="Add it to a Pipecat app",
         notes=(
             "Install two packages. "
             "Put one processor right after text to speech. "
@@ -98,12 +98,11 @@ SECTIONS: tuple[Section, ...] = (
         id="states",
         title="What the avatar shows between turns",
         notes=(
-            "Speaking and listening are easy. "
-            "The hard part is the silence in between. "
-            "A blank face there looks like a dropped call. "
-            "So I show thinking, working or straining instead. "
-            "The pipeline knows when a reply is owed. "
-            "It cannot see a tool running in your brain, so you send working."
+            "Speaking and listening come from the audio. "
+            "Between turns, I show thinking, working or straining. "
+            "An idle face there can look like a dropped call. "
+            "The pipeline knows when a reply is due, so it sends thinking. "
+            "It cannot see a tool that runs outside it, so you send working."
         ),
     ),
     Section(
@@ -125,7 +124,7 @@ SECTIONS: tuple[Section, ...] = (
             "The clock starts at the first sound of the reply. "
             "So it does not matter when a cue arrives. "
             "A fast guess from the text starts the mouth at once. "
-            "An accurate pass from the real audio then replaces it, unseen."
+            "A second pass from the audio then replaces those guesses."
         ),
     ),
     Section(
@@ -140,18 +139,18 @@ SECTIONS: tuple[Section, ...] = (
     ),
     Section(
         id="custom",
-        title="Ship your own avatar",
+        title="Build your own avatar",
         notes=(
             "Any module that exports create avatar is an avatar. "
             "There is no registry to join. "
-            "Redraw a shipped face in an afternoon. "
+            "You can draw a new face on the shipped rig. "
             "Or write your own renderer, in canvas, S-V-G or W-e-b-G-L. "
             "You get the same pose numbers the shipped faces get."
         ),
     ),
     Section(
         id="limits",
-        title="What it does not do",
+        title="Limits",
         notes=(
             "It is not photoreal video. "
             "Only English mouth shapes are accurate. "

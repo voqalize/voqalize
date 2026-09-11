@@ -298,8 +298,8 @@ function Outro() {
     <section className="av-outro">
       <h2>Get it</h2>
       <p>
-        The wire format, the lipsync and nine of these faces are one MIT-licensed library. Install
-        both halves, put the processor after your TTS service, mount the face in your call tile.
+        The library is MIT-licensed. Install both packages, add the processor after your TTS
+        service, and mount the avatar in your call UI.
       </p>
       <div className="av-outro-links">
         <a href={LINKS.repo} target="_blank" rel="noopener noreferrer">
@@ -313,8 +313,8 @@ function Outro() {
         </a>
       </div>
       <p style={{ marginTop: 22 }}>
-        The voice carrying this call is <a href={LINKS.voqalize}>Voqalize</a> — the voice tier for
-        an agent you already have. The avatar library is yours either way.
+        This demo’s voice call runs on <a href={LINKS.voqalize}>Voqalize</a>. The avatar library
+        works with any Pipecat pipeline.
       </p>
     </section>
   );
@@ -500,8 +500,8 @@ function Stage({
             <div className="av-end">
               <h2>{ended === "time_limit" ? "That’s the two minutes." : "Call ended."}</h2>
               <p>
-                The documentation is still here — everything it said is written out beside you. The
-                library is <a href={LINKS.repo}>MIT on GitHub</a>.
+                The documentation is still on this page. The library is{" "}
+                <a href={LINKS.repo}>MIT on GitHub</a>.
               </p>
               <button type="button" className="av-again" onClick={() => window.location.reload()}>
                 Call again
@@ -527,8 +527,8 @@ function Stage({
               {isConnecting ? "Connecting…" : "Talk to it"}
             </button>
             <p>
-              A two-minute voice call in your browser. Ask it anything, and it shows you the answer
-              on this page as it speaks.
+              A two-minute voice call in your browser. Ask a question. The avatar answers and
+              scrolls this page to the matching section.
             </p>
           </div>
         ) : null}
