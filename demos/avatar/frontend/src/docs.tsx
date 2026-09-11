@@ -6,9 +6,17 @@
  * loud is written here first, and the voice is a fast path through it rather
  * than the only way in.
  *
- * Written to the Google developer documentation style guide and the plain-language
- * principles of ISO 24495-1, for one reader — an engineer who already runs a
- * pipecat pipeline:
+ * **The first screen is for anyone; everything after it is for an engineer.**
+ * People reach this page who have never heard of pipecat, and an opening written
+ * for the engineer told them nothing — "your pipeline already streams speech"
+ * means something only to someone who has one. So the overview opens by saying
+ * what a visitor is looking at in words anyone uses, and the technical account
+ * starts under its own "For developers" heading, where the reader who wants it
+ * goes looking.
+ *
+ * Past that heading it is written to the Google developer documentation style
+ * guide and the plain-language principles of ISO 24495-1, for one reader — an
+ * engineer who already runs a pipecat pipeline:
  *
  *   * **Headings name a task**, in sentence case, in the words the reader would
  *     use ("Add it to a pipecat app", not "Integration").
@@ -22,7 +30,7 @@
  *     the features — not softened and not buried.
  *
  * The `id`s below are the wire: the brain's `show_section` names one and the page
- * scrolls to it (`backend/content.py` holds the same eight, and the same order).
+ * scrolls to it (`backend/content.py` holds the same nine, and the same order).
  * Adding a section here means adding it there, and the `SectionId` literal in the
  * brain is what makes the mismatch a type error rather than a dead scroll.
  */
@@ -79,6 +87,49 @@ function Grid({ head, rows }: { head: [string, string]; rows: [string, ReactNode
   );
 }
 
+/** Three columns: a question, the video-avatar answer, and ours. The one table
+ *  on the page that compares against something outside the library, because
+ *  "how is this different from HeyGen?" is the first question people ask. */
+function Compare({
+  head,
+  rows,
+}: {
+  head: [string, string, string];
+  rows: [string, ReactNode, ReactNode][];
+}) {
+  return (
+    <div className="doc-scroll">
+      <table className="doc-grid doc-compare">
+        <thead>
+          <tr>
+            {head.map((label) => (
+              <th key={label}>{label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([key, theirs, ours]) => (
+            <tr key={key}>
+              <th scope="row">{key}</th>
+              <td data-label={head[1]}>{theirs}</td>
+              <td data-label={head[2]}>{ours}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** The pipecat integration page for each video avatar service in the comparison. */
+const VIDEO_SERVICES: [string, string][] = [
+  ["HeyGen", "heygen"],
+  ["Anam", "anam"],
+  ["Protoface", "protoface"],
+  ["Simli", "simli"],
+  ["Tavus", "tavus"],
+];
+
 function Note({ children }: { children: ReactNode }) {
   return <p className="doc-note">{children}</p>;
 }
@@ -96,24 +147,33 @@ function Step({ n, children }: { n: string; children: ReactNode }) {
   );
 }
 
-// ── The eight sections ──────────────────────────────────────────────────────
+// ── The nine sections ──────────────────────────────────────────────────────
 
 export const DOC_SECTIONS: DocSection[] = [
   {
     id: "overview",
-    title: "A talking head for pipecat agents",
+    title: "A face for AI voice calls",
     rail: "Overview",
     body: (
       <>
         <p className="doc-lede">
-          Your pipeline already streams speech to the browser. This library draws a face that moves
-          with it. The mouth follows the audio, and the expression follows what the agent is doing:
-          listening, thinking, running a tool, or being interrupted.
+          When you talk to an AI on a call, this gives it a face. The lips move with the voice. The
+          face listens while you speak, and shows when it is working on an answer.
         </p>
         <p>
-          There is no video track. The face rides the RTVI data channel your client already has
-          open, at a few hundred bytes a second. Nothing renders on a server, so there is no
-          per-minute avatar vendor between you and the picture.
+          Press <strong>Talk to it</strong> and ask a question. The avatar answers out loud and
+          scrolls this page to the part it is talking about.
+        </p>
+        <p>
+          The library and nine of its faces are free and open source. Tara, the face this page
+          opens on, is a premium Voqalize avatar built on the same library.
+        </p>
+
+        <h3>For developers</h3>
+        <p>
+          The avatar is a face for pipecat voice agents. There is no video track: the face rides
+          the RTVI data channel your client already has open, at a few hundred bytes a second, and
+          the browser draws it.
         </p>
         <Grid
           head={["Package", "What it does"]}
@@ -143,6 +203,89 @@ export const DOC_SECTIONS: DocSection[] = [
           Needs pipecat-ai 1.4 or later, Python 3.12+, and Node 20+. Any transport works: neither
           package names one.
         </p>
+      </>
+    ),
+  },
+
+  {
+    id: "compare",
+    title: "Compared with video avatar services",
+    rail: "Compare",
+    body: (
+      <>
+        <p className="doc-lede">
+          HeyGen, Anam, Protoface, Simli and Tavus stream a video of a face. This library sends the
+          browser a few instructions, and the browser draws the face itself.
+        </p>
+        <p>
+          All six sit in the same place in a pipecat pipeline: right after text-to-speech. A video
+          avatar service sends the speech audio to its own servers, renders a face saying it, and
+          sends synchronized video and audio back through your transport. This library reads the
+          same audio inside your pipeline, works out the mouth shapes, and sends the browser a
+          handful of small messages: which shape, when, and what the face is doing.
+        </p>
+        <Compare
+          head={["", "Video avatar services", "voqalize/avatar"]}
+          rows={[
+            [
+              "What the browser receives",
+              <>A video track, plus the audio that came back with it.</>,
+              <>Your TTS audio as it left the TTS, plus a few hundred bytes a second of cues.</>,
+            ],
+            [
+              "Where the face is made",
+              <>On the service’s servers, for every second of every call.</>,
+              <>In the user’s browser.</>,
+            ],
+            [
+              "Added to each call",
+              <>One more hosted service, with its own account and API key.</>,
+              <>
+                Nothing. Turning TTS audio into mouth shapes runs inside your pipecat pipeline, on
+                the CPU it already has.
+              </>,
+            ],
+            [
+              "Running cost",
+              <>The service’s price for the minutes it renders.</>,
+              <>No new runtime, so nothing beyond the pipeline you already run.</>,
+            ],
+            [
+              "A new avatar",
+              <>Created on the service’s own platform, then selected by avatar ID.</>,
+              <>
+                Voqalize turns one picture into a 2.5-D model in Blender that runs in three.js. The
+                backend stays the same; only the frontend asset changes. You can also draw your own
+                on the open-source rig.
+              </>,
+            ],
+            [
+              "How it looks",
+              <>Photoreal video of a person.</>,
+              <>A drawn, painted or 2.5-D face, rendered live.</>,
+            ],
+          ]}
+        />
+        <p>
+          Each service’s pipecat integration:{" "}
+          {VIDEO_SERVICES.map(([name, slug], i) => (
+            <span key={slug}>
+              {i > 0 ? ", " : null}
+              <a
+                href={`https://docs.pipecat.ai/api-reference/server/services/video/${slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {name}
+              </a>
+            </span>
+          ))}
+          .
+        </p>
+        <Note>
+          Choose a video service when the face has to look like real video. Choose this library when
+          you want a face on every call with nothing new in the audio path.
+        </Note>
       </>
     ),
   },

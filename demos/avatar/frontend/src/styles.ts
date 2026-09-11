@@ -365,6 +365,18 @@ export const STYLES = `
   }
   .doc-grid td code, .doc-grid tbody th code { background: none; padding: 0; }
 
+  /* The comparison: three columns in the reading column. The row labels are
+     plain questions, not identifiers, so they drop the mono. On a phone the
+     rows stack instead — a sideways scroll would hide the column the table is
+     for — and each answer carries its column name from \`data-label\`. */
+  .doc-scroll { overflow-x: auto; margin: 0 0 18px; }
+  .doc-scroll .doc-grid { margin: 0; }
+  .doc-compare tbody th {
+    font-family: var(--sans); font-size: 13.5px; font-weight: 500; white-space: normal; width: 24%;
+  }
+  .doc-compare td { width: 38%; padding-right: 14px; }
+  .doc-compare td:last-child { color: var(--ink); padding-right: 0; }
+
   .doc-note {
     border-left: 2px solid var(--indigo); padding: 2px 0 2px 14px;
     font-size: 14px; color: var(--graphite);
@@ -401,6 +413,18 @@ export const STYLES = `
     .av-rail { display: none; }
     .doc-code code { font-size: 11.5px; }
     .doc-section.is-current h2::before { left: -12px; }
+  }
+
+  @media (max-width: 560px) {
+    .doc-compare thead { display: none; }
+    .doc-compare, .doc-compare tbody, .doc-compare tr,
+    .doc-compare tbody th, .doc-compare td { display: block; width: auto; }
+    .doc-compare tr { border-bottom: 1px solid var(--rule); padding: 10px 0; }
+    .doc-compare tbody th, .doc-compare td { border: 0; padding: 3px 0; }
+    .doc-compare td::before {
+      content: attr(data-label); display: block;
+      font-size: 11.5px; color: var(--graphite); font-weight: 500;
+    }
   }
 
   @media (max-width: 760px) {

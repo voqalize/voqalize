@@ -1,4 +1,4 @@
-"""What the avatar demo knows: the eight documentation sections, the ten
+"""What the avatar demo knows: the nine documentation sections, the ten
 avatars, and the background the model answers from.
 
 Kept out of ``brain.py`` because it is *content* — it is edited when the avatar
@@ -10,9 +10,15 @@ documentation; this file holds its index and what to say about it.** The model
 scrolls the reader to a section and then answers with that section open, so a
 visitor who asks "how does the lipsync stay in step?" gets the cue timeline in
 front of them rather than instead of the answer. The prose here is written to be
-*spoken* — short clauses, no bullet grammar, no symbols a synthesizer has to
+*spoken* — short sentences, no bullet grammar, no symbols a synthesizer has to
 guess at — and it deliberately does not repeat the page's sentences, because the
 page is already being read.
+
+**Every note is a handful of short sentences, and that is the length control.**
+The prompt asks for two short sentences a turn, and the model obeyed it until a
+tool handed back a paragraph: whatever arrives as the answer's material is what
+gets read aloud, at whatever length it arrived. So a note here is a set of
+lines to pick one or two from, each under about twelve words.
 """
 
 from __future__ import annotations
@@ -26,6 +32,7 @@ from voqalize.sdk.wire import Voice
 
 SectionId = Literal[
     "overview",
+    "compare",
     "quickstart",
     "states",
     "wire",
@@ -54,123 +61,102 @@ class Section:
 SECTIONS: tuple[Section, ...] = (
     Section(
         id="overview",
-        title="A talking head for pipecat agents",
+        title="A face for AI voice calls",
         notes=(
-            "It is a two-D face, drawn in the browser, driven over the data channel your "
-            "pipecat call already has open. There is no video track and no per-minute "
-            "avatar vendor — the bytes on the wire are a few hundred a second, not a "
-            "second video stream. Two packages, one wire format: a pipecat frame "
-            "processor on the server, one mount call in the browser. It is MIT, and it "
-            "works against any pipecat pipeline."
+            "I am a face for AI voice calls. "
+            "My lips follow the voice you hear. "
+            "I listen while you talk, and look busy while I work. "
+            "The library is free and open source. "
+            "A developer adds me to a voice agent in a few lines."
+        ),
+    ),
+    Section(
+        id="compare",
+        title="Compared with video avatar services",
+        notes=(
+            "HeyGen, Anam, Protoface, Simli and Tavus stream video of a face. "
+            "They sit right after text to speech, and so do I. "
+            "They send the audio to their servers and send video back. "
+            "I send the browser a few small instructions, and it draws me. "
+            "So there is no new service, no video stream and no avatar bill. "
+            "A new face starts from one picture, made into a 2.5-D model in Blender. "
+            "The server side stays the same; only the browser's file changes. "
+            "The fair trade: they look like real video, and I do not."
         ),
     ),
     Section(
         id="quickstart",
         title="Add it to a pipecat app",
         notes=(
-            "Three steps and they are all on screen. Install both halves — they are ends "
-            "of one wire format, so they version together. Put the processor between "
-            "text-to-speech and the transport, with no arguments: from that seat it can "
-            "see the audio about to play, which is what the mouth needs. Then mount it in "
-            "the browser with the pipecat client you already connected with. That is the "
-            "whole integration. Everything after it is optional."
+            "Install two packages. "
+            "Put one processor right after text to speech. "
+            "Mount the face with the pipecat client you already have. "
+            "That is the whole integration."
         ),
     ),
     Section(
         id="states",
         title="What the avatar shows between turns",
         notes=(
-            "Listening and speaking are the easy states. Everything between them is "
-            "inference, and getting it wrong is expensive: a face that goes blank while a "
-            "model is mid-inference reads as a dropped connection. So idle is the wrong "
-            "answer to almost all of the silence in a call. Three claims cover it. "
-            "Thinking means a reply is outstanding. Working means a tool is running. "
-            "Straining means nothing came back at all. The split is about who can see "
-            "what — the processor arms thinking itself, because it watches the turn "
-            "boundaries and knows a reply is owed. It cannot see a tool running inside a "
-            "brain on the far side of a socket, so working is one line you send, and this "
-            "demo sends it out loud when you ask it to dig something up."
+            "Speaking and listening are easy. "
+            "The hard part is the silence in between. "
+            "A blank face there looks like a dropped call. "
+            "So I show thinking, working or straining instead. "
+            "The pipeline knows when a reply is owed. "
+            "It cannot see a tool running in your brain, so you send working."
         ),
     ),
     Section(
         id="wire",
         title="Drive the avatar from your own code",
         notes=(
-            "The whole server-to-avatar vocabulary is three commands. A claim is a "
-            "durable candidate state, and exactly one is in flight at a time, so a later "
-            "claim replaces the earlier one. An action is a point-in-time behaviour that "
-            "completes on its own and leaves no state behind — a wave, a nod, a wait "
-            "gesture. Cues are viseme letters with millisecond offsets, which is the "
-            "mouth. All three ride one message on the channel that is already open. The "
-            "precedence runs one way and it is the part worth remembering: what the "
-            "browser observes about the audio is a fact and it wins, and your claim sits "
-            "underneath every fact and retires the moment one arrives. So you can tell "
-            "the face what to consider. You cannot tell it what is happening."
+            "A server can say three things to me. "
+            "A claim is a state to hold, like working. "
+            "An action is a gesture that finishes by itself, like a wave. "
+            "Cues are mouth shapes on a timeline. "
+            "What the browser actually hears always beats a claim."
         ),
     ),
     Section(
         id="lipsync",
         title="How the mouth stays in sync",
         notes=(
-            "Cues are never a play-this-now command, and that is the design. Each cue is "
-            "a time in milliseconds, a mouth letter from A to H, and optionally a "
-            "loudness. Zero on that clock is the first audio sample of the turn, so "
-            "arrival time carries no meaning at all — a patch usually lands before the "
-            "audio it describes. Two legs write the same track. A fast leg predicts "
-            "shapes from the text the moment there is text, so the mouth moves the "
-            "instant audio starts. An accurate leg comes in behind it from the real "
-            "waveform and splices: from underscore m s says discard the track at and "
-            "after this offset, then append these. That one primitive is the whole "
-            "correction mechanism, and if it is working you never see the second leg "
-            "arrive."
+            "Each cue is a time and a mouth shape. "
+            "The clock starts at the first sound of the reply. "
+            "So it does not matter when a cue arrives. "
+            "A fast guess from the text starts the mouth at once. "
+            "An accurate pass from the real audio then replaces it, unseen."
         ),
     ),
     Section(
         id="faces",
-        title="Choose a face, or ship your own",
+        title="Choose a face",
         notes=(
-            "Nine ship today: three line-art faces and six painted ones, all on the same "
-            "rig and the same wire. Tara, the one this page opens on, is a tenth: a "
-            "premium 3-D avatar from Voqalize on that same mixer and wire, whose code and "
-            "artwork are proprietary rather than part of the library. Swapping one for "
-            "another is a remount and nothing "
-            "else, which is why this demo asks you to choose before you dial rather than "
-            "during the call: ten faces share two recorded voices, so the face and the "
-            "voice are a single choice, and a voice that changes halfway through an "
-            "answer is the thing a listener notices. The part worth knowing is the "
-            "smoothing: every channel has its own time constant and "
-            "the head's is about a hundred and sixty milliseconds, so keyframes are not "
-            "what the face does — the smoothing between them is. Blinking, breathing, "
-            "gaze and idle sway are the renderer's own and are never sent by anybody, "
-            "because a server that had to send a blink would be sending it late."
+            "Nine faces are open source: three drawn and six painted. "
+            "Tara is a tenth, a premium Voqalize face, and not open source. "
+            "Each face comes with its own voice, so you pick before the call. "
+            "Blinks and breathing happen in the browser. Nobody sends them."
         ),
     ),
     Section(
         id="custom",
         title="Ship your own avatar",
         notes=(
-            "An avatar is any module that exports a create avatar function. There is no "
-            "registry to add yourself to and no renderer interface to implement, on "
-            "purpose — you get a canvas and the same pose numbers the shipped faces get, "
-            "and what you draw with them is yours. Two ways in. Start from a shipped "
-            "face and change the drawing, which keeps the rig and takes an afternoon. Or "
-            "write the render function yourself, in canvas, S-V-G, W-e-b-G-L or anything "
-            "else that can paint sixty times a second. Either way you handle three "
-            "things: mouth shape, which arrives as one of eight letters, plus head turn "
-            "and eye state. Everything else has a sensible resting value, so a face that "
-            "only does the mouth still works."
+            "Any module that exports create avatar is an avatar. "
+            "There is no registry to join. "
+            "Redraw a shipped face in an afternoon. "
+            "Or write your own renderer, in canvas, S-V-G or W-e-b-G-L. "
+            "You get the same pose numbers the shipped faces get."
         ),
     ),
     Section(
         id="limits",
         title="What it does not do",
         notes=(
-            "Four honest ones. It is two-D and vector — it is not photoreal, and it is "
-            "not trying to be. Only English is aligned right now, because the aligner's "
-            "acoustic model is English. The Python wheel carries a compiled aligner, so "
-            "if you install from source instead you lose exactly one thing: the mouth "
-            "stops moving, and everything else keeps working. And it needs a pipecat "
-            "pipeline — there is no standalone player."
+            "It is not photoreal video. "
+            "Only English mouth shapes are accurate. "
+            "Without the compiled aligner, the mouth stays still and the rest works. "
+            "And it needs a pipecat pipeline."
         ),
     ),
 )
@@ -322,16 +308,15 @@ def sections_for_prompt() -> str:
 BACKGROUND = """\
 FACTS ABOUT THE LIBRARY — answer from these, and say you are not sure if it is not here:
 - It is called voqalize/avatar. MIT-licensed, on GitHub, and published as @voqalize/avatar on npm and voqalize-avatar on PyPI. The two are ends of one wire format and publish together.
-- It is a 2-D talking head, drawn in the browser. There is no video track, no per-minute avatar vendor and no second media path — the face rides the data channel that is already open.
-- The backend half is one pipecat frame processor. It sits between text-to-speech and the transport, and from that seat it publishes the state it infers and the visemes for the audio about to play.
-- The browser half is one mount call. You give it the pipecat client you already connected with, and there is nothing else to configure.
-- It works against any pipecat pipeline. Voqalize is one consumer of it, not the only one.
-- Nine avatars ship today: three line-art faces and six painted ones. You can ship your own: an avatar is any module that exports createAvatar, and there is no registry and no renderer interface to implement.
-- Tara, the face this page opens on, is NOT one of the nine and NOT open source. She is a premium Voqalize avatar, rendered in 3-D with three.js on the library's own mixer and wire, but her code and artwork are proprietary and she is not on npm or GitHub. If anyone asks for her source or how to install her, say that plainly once.
-- Backchannels — the small acknowledgements, "mm-hm", "one moment", a nod — were the part the brief called out as mattering most, because a face listens far more than it speaks.
+- It is a face drawn in the browser. There is no video track — the face rides the data channel the call already has open, at a few hundred bytes a second.
+- The backend half is one pipecat frame processor. It sits right after text-to-speech, and from there it sends the state it infers and the mouth shapes for the audio about to play. Turning audio into mouth shapes is a little CPU work inside that pipeline, so there is no new service to run or pay for.
+- The browser half is one mount call, given the pipecat client you already connected with.
+- It works with any pipecat pipeline. Voqalize is one user of it, not the only one.
+- Nine avatars ship: three line-art faces and six painted ones. Anyone can ship their own: an avatar is any module that exports createAvatar.
+- Tara, the face this page opens on, is NOT one of the nine and NOT open source. She is a premium Voqalize avatar, rendered in 2.5-D with three.js on the library's own mixer and wire. Her code and artwork are proprietary. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes.
+- HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They also sit right after text-to-speech, but they send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. This library sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
 
-FACTS ABOUT THIS CALL — the same again, for how you are being run right now:
-- Your voice, your ears and this call's audio are Voqalize. You are a brain: a WebSocket on the other side of it, holding the model and the prompt and these tools, dialled once when the call started.
-- The face you are wearing is driven by the open-source library's mixer and wire, over that same call's data channel.
-- Voqalize is what you would use to put a voice on your own agent. The avatar library is free either way, and it is yours whether or not you ever use us.
+FACTS ABOUT THIS CALL:
+- Your voice, your ears and this call's audio are Voqalize. You are a brain: a WebSocket on the other side of it, holding the model, the prompt and these tools.
+- The face you are wearing is driven by the open-source library's mixer and wire, over this call's data channel.
 """

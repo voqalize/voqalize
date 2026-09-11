@@ -95,12 +95,13 @@ export const LINKS = {
 };
 
 /** What to ask, for a visitor who has never met a voice demo and has two
- *  minutes. Each one lands a different mechanism, and each one moves the page. */
+ *  minutes. Each one moves the page to a different section. The first two are
+ *  for anyone; the technical ones come after, as they do in the documentation. */
 const OPENERS = [
-  "How does the lipsync work?",
+  "What are you?",
+  "How are you different from HeyGen?",
   "Show me what working looks like.",
-  "What else can you look like?",
-  "What are the limits?",
+  "How does the lipsync work?",
 ];
 
 type Activity = "offline" | "listening" | "thinking" | "speaking" | "working";
@@ -526,8 +527,8 @@ function Stage({
               {isConnecting ? "Connecting…" : "Talk to it"}
             </button>
             <p>
-              Two minutes, in your browser, using your microphone. Ask it anything on this page and
-              it scrolls you to the answer as it speaks.
+              A two-minute voice call in your browser. Ask it anything, and it shows you the answer
+              on this page as it speaks.
             </p>
           </div>
         ) : null}

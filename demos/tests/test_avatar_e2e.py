@@ -19,6 +19,7 @@ Run: ``cd demos && uv run pytest tests/test_avatar_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
 import pytest
@@ -33,6 +34,7 @@ discover()
 
 from voqalize_demos._loaded.avatar import brain as brain_module  # noqa: E402
 from voqalize_demos._loaded.avatar.brain import _GREETING, _SIGN_OFF  # noqa: E402
+from voqalize_demos._loaded.avatar.content import SECTIONS  # noqa: E402
 
 # The default avatar is `tara`, and `tara` is female — so a call that names no
 # face opens on the female reference clip, which is not the voice the agent is
@@ -105,6 +107,12 @@ def _llm() -> ScriptedGemini:
                 call("perform", request={"gesture": "wave_hello"}),
                 reply("An action. It completes on its own and leaves nothing behind."),
             ],
+            "How are you different from HeyGen?": [
+                reply_and_call(
+                    "Here's the comparison.", "show_section", request={"section": "compare"}
+                ),
+                reply("They stream video. I send the browser a few instructions."),
+            ],
             "Anything at all.": reply("Ask me how the mouth stays in step."),
         }
     )
@@ -160,6 +168,32 @@ async def test_a_question_scrolls_the_page_to_the_section_it_is_answered_from() 
         assert section["title"] == "How the mouth stays in sync"
         # The prose stays on the page: nothing but the id and the heading travels.
         assert set(section) == {"id", "title"}, section
+
+
+async def test_the_video_avatar_question_scrolls_to_the_comparison() -> None:
+    """ "How is this different from HeyGen?" is the first question people ask, so
+    it has its own section and the brain can scroll to it by id."""
+    async with demo("avatar", _llm()) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("How are you different from HeyGen?")
+        check_turn(rig, turn, units=2)
+        section = rig.command("show_section")
+        assert section == {"id": "compare", "title": "Compared with video avatar services"}
+
+
+def test_everything_the_brain_is_handed_to_say_is_short_sentences() -> None:
+    """The length control, pinned where it actually lives.
+
+    The prompt asks for short sentences, and the model kept to it until a tool
+    handed back a paragraph — the material an answer arrives with is what gets
+    read aloud, at the length it arrived. So the fixed lines and every section's
+    notes stay short enough that reading them verbatim is still a short turn."""
+    lines = {"greeting": _GREETING, "sign-off": _SIGN_OFF}
+    lines.update({f"notes[{s.id}]": s.notes for s in SECTIONS})
+    for name, text in lines.items():
+        for sentence in re.split(r"(?<=[.!?])\s+", text.strip()):
+            words = len(sentence.split())
+            assert words <= 14, f"{name}: {words} words — {sentence!r}"
 
 
 async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() -> None:
