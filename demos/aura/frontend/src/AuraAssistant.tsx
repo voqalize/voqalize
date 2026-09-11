@@ -66,7 +66,7 @@
  *     recognizer, the reference clip and the prompt together; the page names a
  *     language and configures nothing (see `language.tsx`, and `backend/brain.py`
  *     → the Language section, which is the authority);
- *   - **the meeting tile**, `@voqalize/avatar`'s `myna` rig driven by the
+ *   - **the meeting tile**, Voqalize's premium avatar tara, driven by the
  *     runtime's own `avatar` messages on the data channel the transcript already
  *     rides, framed as the picture-in-picture window of a video call — name
  *     plate, running timer, captions, and the call's controls beneath it;
