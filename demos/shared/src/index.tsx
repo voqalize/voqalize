@@ -80,6 +80,22 @@ export interface DemoGateProps {
   joinLabel?: string;
   /** True while the gate is connecting, where the gate connects directly. */
   busy?: boolean;
+  /**
+   * False until `onJoin` can connect. Where the gate connects directly this is
+   * `handleConnect !== undefined`: pipecat builds its client after the transport
+   * module loads, and until it has, `handleConnect` is undefined and a press
+   * would close the gate onto no session. Default `true`, which is right where
+   * joining only uncovers the demo.
+   */
+  ready?: boolean;
+  /**
+   * The consent box, held by the demo. Hold it above `PipecatAppBase` wherever
+   * the gate renders inside it: that subtree remounts once, when the client
+   * arrives, and a gate that keeps its own box loses a tick made before then.
+   */
+  agreed?: boolean;
+  /** Called with the box's new value, when `agreed` is held by the demo. */
+  onAgreedChange?: (agreed: boolean) => void;
   /** A failed connect's message, so it stays visible in the gate. */
   error?: string | null;
   /** Tint, to sit inside the host demo's palette rather than on top of it. */
@@ -107,14 +123,21 @@ export interface DemoGateProps {
  *
  * @example
  * ```tsx
+ * // Above <PipecatAppBase>: its children remount once, when the client arrives.
  * const [joined, setJoined] = useState(false);
+ * const [agreed, setAgreed] = useState(false);
+ *
+ * // Inside its render prop, where `handleConnect` is undefined until then:
  * <DemoGate
  *   open={!joined}
  *   title="Travel Desk"
  *   blurb="Plan a trip out loud and watch the itinerary build itself on screen."
+ *   agreed={agreed}
+ *   onAgreedChange={setAgreed}
+ *   ready={handleConnect !== undefined}
  *   busy={transportState === "connecting"}
  *   error={error}
- *   onJoin={async () => { await connect(); setJoined(true); }}
+ *   onJoin={async () => { await handleConnect?.(); setJoined(true); }}
  * />
  * ```
  */
@@ -125,6 +148,9 @@ export function DemoGate({
   onJoin,
   joinLabel = "Join call",
   busy,
+  ready,
+  agreed,
+  onAgreedChange,
   error,
   accent,
   theme = "dark",
@@ -142,6 +168,9 @@ export function DemoGate({
       footnote={FOOTNOTE}
       joinLabel={joinLabel}
       busy={busy}
+      ready={ready}
+      agreed={agreed}
+      onAgreedChange={onAgreedChange}
       error={error}
       accent={accent}
       theme={theme}

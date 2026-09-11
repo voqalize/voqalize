@@ -16,8 +16,11 @@
  * default consent copy would be writing a legal position on their behalf. This
  * one ships the mechanism and none of the language.
  *
- * Two things it does enforce, because they are the whole point:
- *   - `onJoin` cannot fire until the consent box is ticked, and
+ * Three things it does enforce, because they are the whole point:
+ *   - `onJoin` cannot fire until the consent box is ticked,
+ *   - `onJoin` cannot fire while the caller says it cannot connect yet
+ *     (`ready={false}`), so a press never lands on a connect that does not exist
+ *     and closes the gate onto no session, and
  *   - nothing behind the gate is reachable while it is open (`inert` on the app
  *     is the caller's job; the overlay covers and traps focus).
  *
@@ -74,6 +77,28 @@ export interface PreCallGateProps {
   busy?: boolean;
   /** Button text while connecting. Default `"Connecting…"`. */
   busyLabel?: string;
+  /**
+   * Whether pressing join can do anything yet. Default `true`. Pass `false`
+   * while the thing `onJoin` calls does not exist — pipecat's `handleConnect`
+   * is `undefined` until the transport module has loaded and the client is
+   * built, which on a cold load is a second or more after the gate appears.
+   * Until then the button stays disabled and reads {@link preparingLabel}, so
+   * a press cannot land on a no-op and close the gate onto no session. The
+   * consent box stays usable the whole time.
+   */
+  ready?: boolean;
+  /** Button text while {@link ready} is false. Default `"Getting ready…"`. */
+  preparingLabel?: string;
+  /**
+   * The consent box, controlled. Leave both unset and the gate keeps it
+   * itself. Hold it in the host instead wherever the gate can remount before
+   * the visitor joins — anything rendered inside `PipecatAppBase` does, once,
+   * when the client arrives — or a box ticked in that window comes back
+   * unticked.
+   */
+  agreed?: boolean;
+  /** Called with the box's new value, when {@link agreed} is controlled. */
+  onAgreedChange?: (agreed: boolean) => void;
   /** Error to show in the gate — pass `session.error` to keep a failure visible. */
   error?: string | null;
   /**
@@ -208,6 +233,10 @@ export function PreCallGate({
   onJoin,
   busy = false,
   busyLabel = "Connecting…",
+  ready = true,
+  preparingLabel = "Getting ready…",
+  agreed: agreedProp,
+  onAgreedChange,
   error = null,
   footnote,
   dismissible = false,
@@ -218,7 +247,12 @@ export function PreCallGate({
   zIndex = 1000,
   children,
 }: PreCallGateProps) {
-  const [agreed, setAgreed] = useState(false);
+  const [ownAgreed, setOwnAgreed] = useState(false);
+  const agreed = agreedProp ?? ownAgreed;
+  const setAgreed = (value: boolean) => {
+    if (agreedProp === undefined) setOwnAgreed(value);
+    onAgreedChange?.(value);
+  };
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -268,7 +302,7 @@ export function PreCallGate({
   if (!open) return null;
 
   const join = async () => {
-    if (!agreed || working) return;
+    if (!agreed || working || !ready) return;
     setFailure(null);
     setPending(true);
     try {
@@ -357,9 +391,10 @@ export function PreCallGate({
             type="button"
             className="vq-gate-join"
             onClick={() => void join()}
-            disabled={!agreed || working}
+            disabled={!agreed || working || !ready}
+            aria-busy={working || !ready}
           >
-            {working ? busyLabel : joinLabel}
+            {working ? busyLabel : ready ? joinLabel : preparingLabel}
           </button>
           {dismissible ? (
             <button type="button" className="vq-gate-skip" onClick={() => onDismiss?.()}>

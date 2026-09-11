@@ -119,15 +119,28 @@ function LiveControls({ onEnd }: { onEnd?: () => void | Promise<void> }) {
 // here has a client from the first render — connectOnMount is deliberately
 // off; DemoGate's `onJoin` is what actually starts the call.
 
+// Nothing opens a microphone until the visitor has read the notice and joined.
+// The gate's state is held above `PipecatAppBase`, because everything below it
+// remounts once, when the client arrives — and on a cold load a visitor has
+// ticked the box by then.
+interface GateState {
+  joined: boolean;
+  setJoined: (joined: boolean) => void;
+  agreed: boolean;
+  setAgreed: (agreed: boolean) => void;
+}
+
 function CallInner({
   error,
   onConnect,
   onDisconnect,
+  gate,
   children,
 }: {
   error: string | null;
   onConnect?: () => void | Promise<void>;
   onDisconnect?: () => void | Promise<void>;
+  gate: GateState;
   children: (presence: ReactNode) => ReactNode;
 }) {
   const { setBotState, setConnectionState, handleUiCommand, registerAgentSend } = useForge();
@@ -182,9 +195,6 @@ function CallInner({
     };
   }, [client]);
 
-  // Nothing opens a microphone until the visitor has read the notice and joined.
-  const [joined, setJoined] = useState(false);
-
   const presence = isConnected ? (
     <LiveControls onEnd={onDisconnect} />
   ) : (
@@ -194,15 +204,18 @@ function CallInner({
   return (
     <>
       <DemoGate
-        open={!joined}
+        open={!gate.joined}
         title="Forge"
         blurb="Build an internal app by talking to Ada — describe what you want and watch the flow assemble itself on screen."
         accent={PRESENCE.listening}
+        agreed={gate.agreed}
+        onAgreedChange={gate.setAgreed}
+        ready={onConnect !== undefined}
         busy={status === "connecting"}
         error={status === "error" ? error || "Connection issue" : null}
         onJoin={async () => {
           await onConnect?.();
-          setJoined(true);
+          gate.setJoined(true);
         }}
       />
       <AmbientPresence
@@ -220,6 +233,10 @@ function CallInner({
 }
 
 export function VoiceLayer({ children }: { children: (presence: ReactNode) => ReactNode }) {
+  const [joined, setJoined] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const gate = useMemo(() => ({ joined, setJoined, agreed, setAgreed }), [joined, agreed]);
+
   // No pipeline override: this agent's voice and language are declared on its
   // brain (backend/brain.py), which is the only place they belong.
   const params = useMemo(
@@ -242,7 +259,7 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
       startBotResponseTransformer={withRealHeaders}
     >
       {({ error, handleConnect, handleDisconnect }) => (
-        <CallInner error={error ?? null} onConnect={handleConnect} onDisconnect={handleDisconnect}>
+        <CallInner error={error ?? null} onConnect={handleConnect} onDisconnect={handleDisconnect} gate={gate}>
           {children}
         </CallInner>
       )}

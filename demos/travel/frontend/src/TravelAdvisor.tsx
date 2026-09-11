@@ -173,11 +173,13 @@ function TravelSession({
   error,
   handleConnect,
   handleDisconnect,
+  gate,
   children,
 }: {
   error: string | null;
   handleConnect?: () => void | Promise<void>;
   handleDisconnect?: () => void | Promise<void>;
+  gate: GateState;
   children: (presence: ReactNode) => ReactNode;
 }) {
   const { handleUiCommand, registerAgentSend, highlighted } = useTravel();
@@ -231,11 +233,6 @@ function TravelSession({
     await handleConnect?.();
   };
 
-  // Nothing opens a microphone until the visitor has read the notice and joined.
-  // The gate is the first thing on screen; `begin` runs from inside it, so the
-  // demo's own control only ever appears to someone who has already consented.
-  const [joined, setJoined] = useState(false);
-
   const presence = isConnected ? (
     <LiveControls activity={activity} onEnd={() => handleDisconnect?.()} />
   ) : (
@@ -245,15 +242,18 @@ function TravelSession({
   return (
     <>
       <DemoGate
-        open={!joined}
+        open={!gate.joined}
         title="Travel Desk"
         blurb="Plan a trip out loud — say where you want to go and watch the itinerary build itself on screen."
         accent={PRESENCE.listening}
+        agreed={gate.agreed}
+        onAgreedChange={gate.setAgreed}
+        ready={handleConnect !== undefined}
         busy={connectionState === "connecting"}
         error={connectionState === "error" ? error || "Connection issue" : null}
         onJoin={async () => {
           await begin();
-          setJoined(true);
+          gate.setJoined(true);
         }}
       />
       <AmbientPresence
@@ -269,8 +269,26 @@ function TravelSession({
   );
 }
 
+// Nothing opens a microphone until the visitor has read the notice and joined.
+// The gate is the first thing on screen; `begin` runs from inside it, so the
+// demo's own control only ever appears to someone who has already consented.
+//
+// Its state is held by `TravelAdvisor`, above `PipecatAppBase`, because
+// everything below that remounts once, when the client arrives — and on a cold
+// load a visitor has ticked the box by then.
+interface GateState {
+  joined: boolean;
+  setJoined: (joined: boolean) => void;
+  agreed: boolean;
+  setAgreed: (agreed: boolean) => void;
+}
+
 // ── Session owner ─────────────────────────────────────────────────────────────
 export function TravelAdvisor({ children }: { children: (presence: ReactNode) => ReactNode }) {
+  const [joined, setJoined] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const gate = useMemo(() => ({ joined, setJoined, agreed, setAgreed }), [joined, agreed]);
+
   // No pipeline override: this agent's voice and language are declared on its
   // brain (backend/brain_gemini.py), which is the only place they belong.
   //
@@ -308,6 +326,7 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
           error={error ?? null}
           handleConnect={handleConnect}
           handleDisconnect={handleDisconnect}
+          gate={gate}
         >
           {children}
         </TravelSession>

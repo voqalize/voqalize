@@ -231,6 +231,9 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
   const [language, setLanguage] = useState<LanguageName>(init.language);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [wantCall, setWantCall] = useState(false);
+  // The consent box, for the same reason: a tick made before the client
+  // arrives would otherwise come back unticked.
+  const [agreed, setAgreed] = useState(false);
   const flags = useMemo(readFlags, []);
 
   const openSheet = useCallback(() => setSheetOpen(true), []);
@@ -269,6 +272,8 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
           onCloseSheet={() => setSheetOpen(false)}
           wantCall={wantCall}
           onWantCall={() => setWantCall(true)}
+          agreed={agreed}
+          onAgreedChange={setAgreed}
           onLive={onLive}
           onFailed={onFailed}
         >
@@ -309,6 +314,8 @@ function AuraSession({
   onCloseSheet,
   wantCall,
   onWantCall,
+  agreed,
+  onAgreedChange,
   onLive,
   onFailed,
   children,
@@ -325,6 +332,8 @@ function AuraSession({
   onCloseSheet: () => void;
   wantCall: boolean;
   onWantCall: () => void;
+  agreed: boolean;
+  onAgreedChange: (agreed: boolean) => void;
   onLive: () => void;
   onFailed: () => void;
   children: (presence: ReactNode) => ReactNode;
@@ -432,6 +441,8 @@ function AuraSession({
         accent={PRESENCE.listening}
         theme="light"
         joinLabel="Start call"
+        agreed={agreed}
+        onAgreedChange={onAgreedChange}
         busy={wantCall || status === 'connecting'}
         error={status === 'error' ? error || 'Connection issue' : null}
         dismissible

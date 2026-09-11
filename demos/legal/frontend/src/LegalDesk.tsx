@@ -449,6 +449,9 @@ function LiveLayer() {
   // re-mint a session. No pipeline override — this agent's voice and language
   // are declared on its brain (backend/brain.py), the only place they belong.
   const params = useMemo(() => connectRequest({ surface: 'legal-web' }), []);
+  const [joined, setJoined] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const gate = useMemo(() => ({ joined, setJoined, agreed, setAgreed }), [joined, agreed]);
 
   return (
     <PipecatAppBase
@@ -458,10 +461,21 @@ function LiveLayer() {
       startBotResponseTransformer={withRealHeaders}
     >
       {({ error, handleConnect, handleDisconnect }) => (
-        <Desk error={error ?? null} onBegin={handleConnect} onEnd={handleDisconnect} />
+        <Desk error={error ?? null} onBegin={handleConnect} onEnd={handleDisconnect} gate={gate} />
       )}
     </PipecatAppBase>
   );
+}
+
+// Nothing opens a microphone until the visitor has read the notice and joined.
+// The gate's state is held above `PipecatAppBase`, because everything below it
+// remounts once, when the client arrives — and on a cold load a visitor has
+// ticked the box by then.
+interface GateState {
+  joined: boolean;
+  setJoined: (joined: boolean) => void;
+  agreed: boolean;
+  setAgreed: (agreed: boolean) => void;
 }
 
 /** The desk chrome, the presence ring, and the two bridges to the store. */
@@ -469,10 +483,12 @@ function Desk({
   error,
   onBegin,
   onEnd,
+  gate,
 }: {
   error: string | null;
   onBegin?: () => void | Promise<void>;
   onEnd?: () => void | Promise<void>;
+  gate: GateState;
 }) {
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
@@ -525,20 +541,21 @@ function Desk({
     };
   }, [client, handleUiCommand]);
 
-  const [joined, setJoined] = useState(false);
-
   return (
     <>
       <DemoGate
-        open={!joined}
+        open={!gate.joined}
         title="Legal Desk"
         blurb="Review a contract with counsel out loud — ask what's risky in it and watch the clauses and obligations light up on screen."
         accent={PRESENCE.listening}
+        agreed={gate.agreed}
+        onAgreedChange={gate.setAgreed}
+        ready={onBegin !== undefined}
         busy={status === 'connecting'}
         error={status === 'error' ? error || 'Connection issue' : null}
         onJoin={async () => {
           await onBegin?.();
-          setJoined(true);
+          gate.setJoined(true);
         }}
       />
       <AmbientPresence

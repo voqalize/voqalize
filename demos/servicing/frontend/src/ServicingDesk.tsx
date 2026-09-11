@@ -146,6 +146,9 @@ export function ServicingDesk({ children }: { children: (presence: ReactNode) =>
     [],
   );
   const params = useMemo(() => connectRequest(init), [init]);
+  const [joined, setJoined] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const gate = useMemo(() => ({ joined, setJoined, agreed, setAgreed }), [joined, agreed]);
 
   return (
     <PipecatAppBase
@@ -159,6 +162,8 @@ export function ServicingDesk({ children }: { children: (presence: ReactNode) =>
           error={error ?? null}
           onConnect={handleConnect ?? (async () => {})}
           onDisconnect={handleDisconnect ?? (async () => {})}
+          ready={handleConnect !== undefined}
+          gate={gate}
         >
           {children}
         </ServicingSession>
@@ -167,17 +172,33 @@ export function ServicingDesk({ children }: { children: (presence: ReactNode) =>
   );
 }
 
+// Nothing opens a microphone until the visitor has read the notice and joined.
+// The gate's state is held above `PipecatAppBase`, because everything below it
+// remounts once, when the client arrives — and on a cold load a visitor has
+// ticked the box by then.
+interface GateState {
+  joined: boolean;
+  setJoined: (joined: boolean) => void;
+  agreed: boolean;
+  setAgreed: (agreed: boolean) => void;
+}
+
 // Rendered inside `PipecatAppBase`'s own `PipecatClientProvider`, so every
 // pipecat hook below sees the live client the moment one exists.
 function ServicingSession({
   error,
   onConnect,
   onDisconnect,
+  ready,
+  gate,
   children,
 }: {
   error: string | null;
   onConnect: () => void | Promise<void>;
   onDisconnect: () => void | Promise<void>;
+  /** False until `PipecatAppBase` has a client, and `onConnect` is a no-op. */
+  ready: boolean;
+  gate: GateState;
   children: (presence: ReactNode) => ReactNode;
 }) {
   const { handleUiCommand, registerAgentSend } = useServicing();
@@ -227,9 +248,6 @@ function ServicingSession({
     };
   }, [client]);
 
-  // Nothing opens a microphone until the visitor has read the notice and joined.
-  const [joined, setJoined] = useState(false);
-
   const presence = isConnected ? (
     <LiveControls activity={activity} onEnd={onDisconnect} />
   ) : (
@@ -239,15 +257,18 @@ function ServicingSession({
   return (
     <>
       <DemoGate
-        open={!joined}
+        open={!gate.joined}
         title="Servicing Desk"
         blurb="Call your bank's servicing desk — ask about a card, a payment or a dispute and watch the account respond on screen."
         accent={PRESENCE.listening}
+        agreed={gate.agreed}
+        onAgreedChange={gate.setAgreed}
+        ready={ready}
         busy={isConnecting}
         error={status === "error" ? error || "Connection issue" : null}
         onJoin={async () => {
           await onConnect();
-          setJoined(true);
+          gate.setJoined(true);
         }}
       />
       {/* The desk as a property of the whole console — a calm, slightly thinner

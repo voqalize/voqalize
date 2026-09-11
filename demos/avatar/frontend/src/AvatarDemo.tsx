@@ -522,9 +522,11 @@ function Stage({
               type="button"
               className="av-start"
               onClick={() => void onBegin?.()}
-              disabled={isConnecting}
+              // `onBegin` is undefined until pipecat has built its client, and a
+              // press before then would connect nothing.
+              disabled={isConnecting || onBegin === undefined}
             >
-              {isConnecting ? "Connecting…" : "Talk to it"}
+              {isConnecting ? "Connecting…" : onBegin === undefined ? "Getting ready…" : "Talk to it"}
             </button>
             <p>
               A two-minute voice call in your browser. Ask a question. The avatar answers and
