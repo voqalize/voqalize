@@ -753,13 +753,21 @@ facts:
       The price per minute is unset.
 
   limits.concurrent_calls:
-    value: limited during developer preview; number unset
-    source: product decision 2026-08-28
-    verified: 2026-08-28
+    value: not enforced during developer preview; number unset
+    source: platform/backend/controlplane/app/runtime/bootstrap.py NoOpQuotaService
+    verified: 2026-09-11
+    reproduce: >-
+      grep -n 'QuotaService' ../platform/backend/controlplane/app/runtime/bootstrap.py
     note: >-
-      Tenants may be rate-limited and concurrent-call ceilings apply, but no
-      public number exists. Ask before a pilot or launch; never print a guessed
-      tier table.
+      Session limits, per day and concurrent, are written but not wired: the
+      control plane constructs a quota service that allows every session. The
+      one limit a tenant meets is the per-tenant API rate limit, a `429` with
+      `Retry-After`. Until 2026-09-11 this entry said ceilings applied, and the
+      usage and status pages repeated it. Ask before a pilot or launch; never
+      print a guessed tier table, and never say a ceiling applies until the
+      source line above changes.
+    forbid:
+      - '\bconcurrent-call ceilings\b'
 
   support.paid_direction:
     value: ticket support on paid plans; custom support contracts for enterprise plans

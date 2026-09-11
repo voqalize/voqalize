@@ -87,8 +87,9 @@ cannot change mid-session. [Voice and language](/reference/catalog/) and
 Calls are processed and stored in India today. A United States region is
 planned and is not available for selection yet.
 
-Developer-preview tenants may be rate-limited and have concurrent-call
-ceilings. The ceilings are assigned per tenant and no public number is
+The management API is rate limited per tenant; a refused request is a `429`
+with a `Retry-After` header. Session limits, per day and concurrent, are not
+enforced during developer preview, and no public concurrency number is
 committed. Ask before a pilot or launch that needs a specific concurrency
 level.
 
