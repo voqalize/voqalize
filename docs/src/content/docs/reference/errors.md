@@ -221,21 +221,23 @@ you do is below.
 
 ## Refused before your brain is dialled
 
-Some failures end a call before there is a socket to report them on. Your brain
+Some failures end a session before there is a socket to report them on. Your brain
 sees nothing at all — no `SessionStart`, no `on_session_end`, no log line — so
 the place to look is the connect response the browser or your server got.
 
 A session is minted by `sessions.connect`, and its status table is in
-[Connect a browser](/build/connect/). One refusal is about the *agent*:
+[Connect a browser](/build/connect/), with the refusals about the key — `401`,
+and `403` `origin_not_allowed` for a `pk_` used from an origin it does not list.
+Two are about the *agent*:
 
-- **An agent with no brain cannot take a call.** If nobody has said how the agent
+- **An agent with no brain cannot take a session.** If nobody has said how the agent
   is reached — no `brain_url`, and no Cortex credentials minted for it — the mint
   is a `409` with code `agent_not_configured`, before any quota is spent. Set a
   brain URL to run [inbound](/build/inbound/), or mint credentials to run
   [outbound over Cortex](/build/outbound/).
 
   This used to succeed. An unconfigured agent's empty `brain_url` was filled with
-  a hosted `welcome` brain, so the call connected and your user was greeted —
+  a hosted `welcome` brain, so the session connected and your user was greeted —
   by us, saying words you had never written. It worked, which is precisely what
   made it worth removing: a setup step you can skip without seeing anything break
   is a step that gets skipped.

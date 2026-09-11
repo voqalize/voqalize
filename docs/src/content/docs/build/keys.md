@@ -36,7 +36,9 @@ reads view-source has it.
 
 The only thing separating "our page using our key" from "anyone who copied it" is
 the **origin allowlist**, which every `pk_` key carries and which the API enforces
-against the request's `Origin` header. The list must be non-empty — an empty list
+against the request's `Origin` header. A request from an origin not on the list —
+or with no `Origin` header, which is what a server sends — is `403`
+`origin_not_allowed`. The list must be non-empty — an empty list
 is rejected at creation rather than treated as "any origin," because the version
 of that rule that silently meant *any* is the version that was shipping.
 
@@ -58,13 +60,16 @@ create_api_key(tenant, agent_id, label, kind="publishable",
                allowed_origins=["https://app.example.com"])
 ```
 
-Or in the console, under Settings → API keys. `list_api_keys` returns prefixes
+Or in the console: an agent's **Connect** tab creates an `sk_` for it in one step,
+next to the snippets that read it, and **Settings → API keys** creates either kind.
+A new workspace's first agent is created holding an `sk_` that nothing returns, so
+the key you use is always one you minted. `list_api_keys` returns prefixes
 only (`sk_live_AbC12…`), each with the agent it names; `revoke_api_key` takes the
 key id.
 
 ## The management API takes neither
 
-Creating agents, minting keys, reading calls — none of it is driven by an API key.
+Creating agents, minting keys, reading sessions — none of it is driven by an API key.
 Developer tooling authenticates interactively over OAuth, which is what the MCP
 server does when you connect it. There is no third key kind to manage, and no
 long-lived admin credential to leak.

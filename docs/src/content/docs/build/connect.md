@@ -1,9 +1,9 @@
 ---
 title: Connections and the handshake
-description: How a browser starts a Voqalize call — one HTTP request for the connect params, then stock pipecat. With a publishable key, or through your own backend.
+description: How a browser starts a Voqalize session — one HTTP request for the connect params, then stock pipecat. With a publishable key, or through your own backend.
 ---
 
-A call is two things: one HTTP request that starts it, and a WebRTC connection
+A session is two things: one HTTP request that starts it, and a WebRTC connection
 your browser negotiates **straight to the machine that will run it**. Nothing of
 ours sits between those two. The audio is direct UDP, and the control messages —
 transcripts, the agent's UI commands, your client messages — ride RTVI on that
@@ -17,7 +17,7 @@ POST /sessions.connect  ──▶  { where to send the offer, what to present on
                               └─▶  client.connect(params)  ──▶  WebRTC, direct
 ```
 
-## The one call
+## The one request
 
 ```http
 POST https://app.voqalize.com/api/v1/sessions.connect
@@ -41,7 +41,7 @@ The same value arrives as `session.init`. It is stored on the session and
 readable by anyone who can read the session, so send identifiers instead of
 personal data.
 
-`config` is how this call sounds and listens — `tts`, `stt`, `idle`, and
+`config` is how this session sounds and listens — `tts`, `stt`, `idle`, and
 `record`. Recording lives here rather than beside `init` because it is not the
 brain's business. Most pages should set none of it; see
 [voice and language](/reference/catalog/) for who sets what, and
@@ -63,7 +63,7 @@ Three things follow from that body being this short.
 
 **The endpoint is a machine, not a load balancer.** A node is chosen when the
 session is minted and the token is minted for that node, so the address is
-different from one call to the next and cannot be a constant in your page. That
+different from one session to the next and cannot be a constant in your page. That
 is why it comes back in the response rather than being something you configure
 once.
 
@@ -89,18 +89,20 @@ request and who makes it.
 `pk_live_…` ships in your page source and the browser calls `sessions.connect`
 directly, cross-origin. CORS is open on this route for exactly that reason.
 
-A publishable key can start a call and do nothing else. It is bound to an
+A publishable key can start a session and do nothing else. It is bound to an
 allowlist of origins, and **an empty allowlist denies rather than permits** — a
 key readable by anyone who opens view-source has to fail closed. Add every site
 that embeds it when you create the key, including the `http://localhost:5173`
-you develop against; a request from anywhere else is `403`.
+you develop against. A request from anywhere else is `403` `origin_not_allowed`,
+and so is one with no `Origin` header at all — which is what a server sends. A
+`pk_` works only from a browser page; from a server, use an `sk_`.
 
-Choose this when starting a call needs no decision: a public demo, a marketing
+Choose this when starting a session needs no decision: a public demo, a marketing
 page, a support widget anyone may use.
 
-### Path B — your backend decides who may call
+### Path B — your backend decides who gets a session
 
-The moment starting a call depends on something the browser must not be trusted
+The moment starting a session depends on something the browser must not be trusted
 with — who the user is, whether their subscription is current, which agent they
 are entitled to — the decision belongs on your server, and so does the key.
 
@@ -140,7 +142,7 @@ the returned endpoint or credential.
 
 The `sk_` never reaches the browser. Neither does anything else of ours: your
 page talks to your origin, and the only Voqalize address it ever learns is the
-node it is about to call.
+node it is about to connect to.
 
 ## Connecting
 
@@ -217,29 +219,29 @@ Every error is the same envelope:
 reader: pipecat's client, which on a failed start does
 `errResp.info ?? errResp.detail ?? e.statusText`. Without it, every sentence we
 write reaches a browser as "Bad Request". Branch on `error.code`; show a person
-`info`; quote `correlation_id` when you ask us about a call.
+`info`; quote `correlation_id` when you ask us about a session.
 
 | Status | What happened |
 | --- | --- |
-| `401` | No `Authorization` header, or a key we don't recognise. |
-| `403` | A `pk_` from an origin it isn't allowlisted for — or one with no allowlist at all. |
+| `401` | No `Authorization` header, a value that is not an `sk_` or `pk_` key, or a key that was revoked or belongs to another environment. |
+| `403` `origin_not_allowed` | A `pk_` from an origin not on its allowlist, from a request with no `Origin` header (a server — use an `sk_`), or with an empty allowlist. The message names the origin it saw and never lists the allowed ones. |
 | `404` | No such agent in this key's tenant. A key is scoped to exactly one. |
 | `400` `recording_not_permitted` | `config.record: true` on a publishable key. See below. |
 | `409` `agent_not_configured` | The agent has no brain URL. Configure inbound or mint Cortex credentials before starting a session. |
 | `409` `agent_archived` | The agent is archived. Restore it before starting a new session. Sessions already in progress continue. |
 | `500` `missing_connect_params` | The session was minted but no worker is running for that agent. |
 
-## Recording is a per-call decision
+## Recording is a per-session decision
 
 Recording is `config.record`, a boolean in the same block as the voice and
-language settings. Omit it and the call does whatever the agent is configured
+language settings. Omit it and the session does whatever the agent is configured
 for. That is the common case: the agent's owner made the decision once, in a
 place they control.
 
 **`config.record: false` is always honoured.** A user who declines is not recorded,
 even on an agent that records by default, on either path.
 
-**`config.record: true` is refused on a publishable key** — `400`, and no call starts, so
+**`config.record: true` is refused on a publishable key** — `400`, and no session starts, so
 nothing is minted and nothing is billed. A `pk_` ships in page source; if it could
 turn recording *on*, anyone holding it could write voice into your storage, on
 your bill, for an agent whose owner chose not to record. Enable recording through
@@ -266,7 +268,7 @@ agreed.
 
 ## Read next
 
-- **[The wire](/reference/wire/)** — the frames underneath the call, and the
+- **[The wire](/reference/wire/)** — the frames underneath the session, and the
   contract they keep.
 - **[Voice & language catalog](/reference/catalog/)** — why the brain, and
   not the page, sets how an agent sounds.
