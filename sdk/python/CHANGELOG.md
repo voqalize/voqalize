@@ -92,6 +92,22 @@ kept for the history, and nothing installable was ever cut from them.
   existing brains, `isinstance` checks and `match` statements keep working
   unchanged, and nothing needs a release to adopt it.
 
+### Fixed
+
+- **`GeminiBrain` never speaks a function call the model wrote out as text.** At
+  `MINIMAL` thinking a Gemini model sometimes writes its call as words —
+  `certain_tool_call "name": "default_api:read_screen" …` — instead of a
+  `function_call` part. Automatic function calling sees no call and ends the
+  stream, so those words went to TTS and no tool ran. `respond()` now holds back
+  the opening of each unit while it could still be a call. An opening that starts
+  with a letter, a digit or Devanagari and is not the start of a call marker goes
+  out as it arrives. An opening such as `{` or `Tool` waits at most until its hop
+  ends. A unit that is a call is never spoken and leaves the context. A hop that
+  ends in `MALFORMED_FUNCTION_CALL` counts as the same failure. Either way, the
+  turn asks the model once more, with a note sent on that request only and never
+  stored. Only the opening is checked: a call written after speech has started
+  in the same unit is still spoken.
+
 ## 0.2.0
 
 **`Finalize` reports the evidence, and the verdict is a comparison.** The wire

@@ -46,10 +46,11 @@ from __future__ import annotations
 import functools
 import inspect
 import os
+import re
 import time
 from collections import deque
-from collections.abc import AsyncGenerator, Callable
-from dataclasses import dataclass
+from collections.abc import AsyncGenerator, Callable, Iterator
+from dataclasses import dataclass, field
 from typing import Any, get_type_hints
 
 from google import genai
@@ -94,6 +95,49 @@ DEFAULT_MODEL = os.environ.get("VOQAL_GEMINI_MODEL", "gemini-3.5-flash")
 # understates a turn that carries history and screen grounding.
 VOICE_THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
 
+# How a function call the model wrote out as TEXT begins. At MINIMAL thinking a
+# Gemini model occasionally emits its call as words instead of as a
+# `function_call` part — `certain_tool_call\n  "name": "default_api:read_screen"`
+# was one, on a live travel session — and text is speech, so the user heard it
+# read aloud and no tool ran. Ordinary speech, in any language, opens with none of
+# these; a unit that opens with one is held until it is known, and never spoken.
+_CALL_HEADS = (
+    "```",
+    "tool_call",
+    "tool_code",
+    "tool_use",
+    "certain_tool_call",
+    "function_call",
+    "functions.",
+    "default_api",
+    "print(default_api",
+)
+
+# The key that names a call once the text opens a JSON object, a list or a tag.
+_CALL_KEYS = frozenset(
+    {"name", "function", "tool", "call", "args", "arguments", "action", "parameters"}
+)
+
+_WRAPPERS = "{[<\"'"
+_IDENTIFIER = re.compile(r"[a-z_][a-z0-9_]*")
+
+# Sent on the one retry, after the model's function call came out as text or
+# malformed. It goes on that request only and never into the context, so the
+# conversation reads as though the model answered well the first time.
+_RETRY_NOTE = types.Content(
+    role="user",
+    parts=[
+        types.Part(
+            text=(
+                "Your last reply tried to call a function but wrote the call as text, or "
+                "wrote it malformed. No function ran, and the user heard none of that "
+                "text. Make the call through function calling now, or answer in speech. "
+                "Do not mention this note."
+            )
+        )
+    ],
+)
+
 
 @dataclass
 class _Unit:
@@ -102,9 +146,62 @@ class _Unit:
     ``types.Content`` is a pydantic model, so two of them compare equal whenever
     their fields do — and two freshly opened, still-empty turns always do. The
     queue and the context therefore track *this*, never the content itself.
+
+    It also holds back the unit's opening while that opening could still be a
+    function call the model wrote out as text — see :func:`_looks_like_call`.
     """
 
     content: types.Content
+    #: Text not yet spoken, because the opening is still undecided.
+    held: list[str] = field(default_factory=lambda: list[str]())
+    #: ``None`` while undecided, ``False`` once it is speech, ``True`` once it is
+    #: a function call written out as text and will never be spoken.
+    leaked: bool | None = None
+    #: The hop ended in ``MALFORMED_FUNCTION_CALL``: the call it tried to make
+    #: never ran.
+    malformed: bool = False
+    #: The model made a real function call in this unit, so AFC hops again.
+    called: bool = False
+    #: A ``SpeechStart`` for this unit has gone out, and a ``SpeechEnd`` is owed.
+    speaking: bool = False
+
+    def release(self, text: str) -> list[str]:
+        """Take one piece of text; return what may be spoken now.
+
+        Speech passes straight through once the unit is known to be speech. Until
+        then it is held, and the whole held opening is released the moment one
+        more piece settles it."""
+        if self.leaked is False:
+            return [text]
+        if self.leaked:
+            return []
+        self.held.append(text)
+        self.leaked = _looks_like_call("".join(self.held))
+        if self.leaked is False:
+            out, self.held = self.held, []
+            return out
+        return []
+
+    def settle(self, *, malformed: bool) -> list[str]:
+        """Close the unit; return held text that turned out to be speech.
+
+        An opening still undecided when the hop ends is speech: the model stopped
+        writing, and nothing it wrote is a call. A hop that ended in
+        ``MALFORMED_FUNCTION_CALL`` speaks nothing more, whatever it held."""
+        self.malformed = malformed
+        if malformed and self.leaked is None:
+            self.leaked = True
+        if self.leaked is None:
+            self.leaked = False
+            out, self.held = self.held, []
+            return out
+        return []
+
+    @property
+    def failed_call(self) -> bool:
+        """The model tried to call a tool here, nothing ran, and it did not go on
+        to make a real call — so the turn is still waiting on it."""
+        return bool(self.leaked or self.malformed) and not self.called
 
 
 @dataclass
@@ -296,56 +393,139 @@ class GeminiBrain(Brain):
         heard truth applies per *turn*, not per hop. A turn is a couple of seconds,
         and a unit's heard truth is not known until it has finished playing anyway
         — which is usually after the whole turn generated.
+
+        **A function call written as text is never spoken.** At low thinking a
+        model sometimes writes its call out as words (``default_api:read_screen``,
+        ``{"name": …}``) instead of making it. That text would be read aloud and
+        nothing would run. So a unit's opening is held only while it could still
+        be one: a sentence that opens with a letter, a digit or Devanagari
+        passes on its first piece, and an ambiguous opening waits one more piece,
+        or until its hop ends. A unit that is a call written as text, or a hop
+        that ends in ``MALFORMED_FUNCTION_CALL``, speaks nothing and leaves the
+        context. If the turn ends waiting on it, the request goes once more, with
+        a note that is not kept in the context.
         """
-        contents = list(self._history)
-        # The head of AFC's record is what we just handed it, so folding starts
-        # past our own contents.
-        folded = len(contents)
+        config = self._turn_config()
         calls: list[tuple[_Unit, types.Part]] = []
         answered = 0
         unit: _Unit | None = None
-        speaking = False
         usage: types.GenerateContentResponseUsageMetadata | None = None
         hops = 0
         clock = _Clock(started=time.monotonic())
         try:
-            async for chunk in await self._client.aio.models.generate_content_stream(
-                model=self._model, contents=contents, config=self._turn_config()
-            ):
-                clock.mark_open()
-                folded, taken = self._fold_results(chunk, folded)
-                answered += taken
-                if chunk.usage_metadata is not None:
-                    usage = chunk.usage_metadata
-                for part in _parts(chunk):
-                    if unit is None:
-                        unit = self._open_unit()
-                    self._extend_unit(unit, part)
-                    if part.function_call:
-                        calls.append((unit, part))
-                    # `thought` parts carry text that is reasoning, not speech.
-                    if part.text and not part.thought:
+            for attempt in range(2):
+                contents = list(self._history)
+                if attempt:
+                    contents.append(_RETRY_NOTE)
+                # The head of AFC's record is what we just handed it, so folding
+                # starts past our own contents.
+                folded = len(contents)
+                # The turn is waiting on a call that never ran, and nothing since
+                # has spoken or called.
+                stranded = False
+                async for chunk in await self._client.aio.models.generate_content_stream(
+                    model=self._model, contents=contents, config=config
+                ):
+                    clock.mark_open()
+                    folded, taken = self._fold_results(chunk, folded)
+                    answered += taken
+                    if chunk.usage_metadata is not None:
+                        usage = chunk.usage_metadata
+                    speak: list[str] = []
+                    for part in _parts(chunk):
+                        if unit is None:
+                            unit = self._open_unit()
+                        self._extend_unit(unit, part)
+                        if part.function_call:
+                            calls.append((unit, part))
+                            unit.called, stranded = True, False
+                        # `thought` parts carry text that is reasoning, not speech.
+                        if part.text and not part.thought:
+                            speak += unit.release(part.text)
+                    finished, malformed = _finished(chunk), _malformed(chunk)
+                    if finished and unit is not None:
+                        speak += unit.settle(malformed=malformed)
+                    if speak and unit is not None:
                         clock.mark_speak()
-                        if not speaking:
-                            yield SpeechStart()
-                            self._awaiting.append(unit)
-                            speaking = True
-                        yield SpeechChunk(part.text)
-                if _finished(chunk):
-                    hops += 1
-                    if speaking:
+                        stranded = False
+                        for event in self._speak(unit, speak):
+                            yield event
+                    if finished:
+                        hops += 1
+                        if unit is not None:
+                            if unit.speaking:
+                                yield SpeechEnd()
+                            stranded = self._close(unit) or stranded
+                        elif malformed:
+                            # A malformed call usually arrives with no parts at
+                            # all, so it never opened a unit.
+                            stranded = True
+                        unit = None
+                if unit is not None:
+                    # The stream ended without a finish_reason. Close the unit
+                    # anyway: a SpeechStart with no SpeechEnd is a wire violation.
+                    speak = unit.settle(malformed=False)
+                    if speak:
+                        clock.mark_speak()
+                        stranded = False
+                        for event in self._speak(unit, speak):
+                            yield event
+                    if unit.speaking:
                         yield SpeechEnd()
-                    unit, speaking = None, False
-            if speaking:
-                # The stream ended without a finish_reason. Close the unit anyway:
-                # a SpeechStart with no SpeechEnd is a wire violation.
-                yield SpeechEnd()
+                    stranded = self._close(unit) or stranded
+                    unit = None
+                self._drop_unanswered(calls[answered:])
+                calls, answered = [], 0
+                if not stranded:
+                    break
+                logger.warning(
+                    "turn: model={} wrote a function call as text or malformed; none of it "
+                    "was spoken and nothing ran — {}",
+                    self._model,
+                    "asking once more" if attempt == 0 else "the turn ends without it",
+                )
         finally:
             # Never yield here — a barge-in closes this generator by throwing
             # GeneratorExit at the yield above, and an async generator that
             # yields while closing raises instead of tearing down.
             self._drop_unanswered(calls[answered:])
+            if unit is not None and unit.leaked is not False:
+                # Cut while an opening was held: none of it was heard.
+                self._unsay(unit)
             _log_turn(self._model, hops, usage, clock)
+
+    def _speak(self, unit: _Unit, pieces: list[str]) -> Iterator[Speech]:
+        """Released text as speech, opening the unit on its first piece.
+
+        A plain generator, so the unit is enqueued for its finalize only once the
+        consumer has taken the ``SpeechStart``: a barge-in that lands on that
+        yield leaves nothing awaiting a finalize that will never come."""
+        if not unit.speaking:
+            yield SpeechStart()
+            self._awaiting.append(unit)
+            unit.speaking = True
+        for piece in pieces:
+            yield SpeechChunk(piece)
+
+    def _close(self, unit: _Unit) -> bool:
+        """Finish a unit; return whether the turn is stranded on a call that
+        never ran.
+
+        A leaked unit leaves the context. The user heard none of it, and a model
+        that reads its own call-as-text back as something it said writes the
+        next one the same way."""
+        if unit.leaked:
+            self._unsay(unit)
+        return unit.failed_call
+
+    def _unsay(self, unit: _Unit) -> None:
+        """Take out everything a unit wrote except its real function calls, which
+        AFC ran and answers. Its text, its thoughts and its signature-only parts
+        go with it: none of it was heard, and a model turn with nothing left in
+        it is not a turn."""
+        unit.content.parts = [p for p in unit.content.parts or [] if p.function_call]
+        if not unit.content.parts:
+            self._history = [c for c in self._history if c is not unit.content]
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
@@ -602,3 +782,53 @@ def _finished(chunk: types.GenerateContentResponse) -> bool:
     """True on the last chunk of a hop. google-genai yields every chunk of every
     hop through one iterator, so this is the only boundary between them."""
     return any(c.finish_reason is not None for c in chunk.candidates or [])
+
+
+def _malformed(chunk: types.GenerateContentResponse) -> bool:
+    """True when the hop ended because the model's function call did not parse.
+    AFC finds no call to run, so the stream just ends — with nothing said."""
+    return any(
+        c.finish_reason == types.FinishReason.MALFORMED_FUNCTION_CALL
+        for c in chunk.candidates or []
+    )
+
+
+def _looks_like_call(text: str) -> bool | None:
+    """Whether a unit that opens with ``text`` is a function call written as text.
+
+    ``True`` and ``False`` are verdicts. ``None`` means the opening is still a
+    prefix of one, and the next piece decides.
+
+    The verdict comes from the opening only, so ordinary speech costs nothing:
+    a sentence that opens with a letter, a digit or any non-Latin script is
+    ``False`` on its first piece, whatever it goes on to say — "tool", braces and
+    underscores mid-sentence included. Only an opening that is a strict prefix of
+    a call head (``"Default"``, ``"Tool"``, ``"{"``) waits, and the piece after it
+    settles it. Text that opens a JSON object, list, tag or quote waits for its
+    first key and is a call only if that key names one (``{"name": …``).
+    """
+    s = text.lstrip().casefold()
+    if not s:
+        return None
+    if s.startswith(_CALL_HEADS):
+        return True
+    if any(head.startswith(s) for head in _CALL_HEADS):
+        return None
+    wrapped = s[0] in _WRAPPERS
+    if wrapped:
+        s = s.lstrip(_WRAPPERS + " \t\r\n")
+        if not s:
+            return None
+        if s.startswith(_CALL_HEADS):
+            return True
+    word = _IDENTIFIER.match(s)
+    if word is None:
+        return False
+    if "_" in word.group():
+        # `read_screen(`, `open_itinerary:` — nobody says an underscore.
+        return True
+    if not wrapped:
+        return False
+    if word.end() == len(s):
+        return None
+    return word.group() in _CALL_KEYS and s[word.end()] in "\"':"
