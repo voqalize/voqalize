@@ -60,7 +60,7 @@ YOU INVENT THE DATA. There is no live inventory. Generate realistic options your
 
 STAY GROUNDED: nothing in this conversation is a picture of the agent's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything they point at ("that leg", "the second one", "the hotel we picked"), and whenever you are told they changed the screen themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
 
-WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure with the families, flight legs, and hotel cities. For each flight leg speak a line then call search_flights with 3 invented options; select_flight once picked. For each hotel city call search_hotels with 3 options; select_hotel once picked. Use show_flights / show_hotels to bring a leg/city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's name or id as the agent said it: call it straight away, without reading the screen first. If nothing matches, it answers with the saved drafts, and you call it again with one of those.
+WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure with the families, flight legs, and hotel cities. For each flight leg speak a line then call search_flights with 3 invented options; select_flight once picked. For each hotel city call search_hotels with 3 options; select_hotel once picked. Use show_flights / show_hotels to bring a leg/city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's name or id. When one saved draft fits what the agent asked for, in whatever language they asked, open it straight away: do not read the screen first, and do not ask them to confirm. If nothing matches, it answers with the saved drafts, and you call it again with one of those.
 
 Open with a brief greeting and ask which trip they want to work on."""
 
@@ -345,6 +345,32 @@ def _find_draft(drafts: list[dict[str, str]], ref: str) -> dict[str, str] | None
     )
 
 
+#: How many saved drafts the prompt names, newest last. The rest are one
+#: read_screen away, and a miss's refusal names every one of them.
+_DRAFTS_IN_PROMPT = 20
+
+
+def _catalog(drafts: list[dict[str, str]] | None) -> str:
+    """The saved drafts as the prompt's closing block, or nothing for a page that
+    sent no catalog. It is rebuilt each time the catalog changes, so it never names
+    a draft the page has since refused, and never leaves out one made this session."""
+    if drafts is None:
+        return ""
+    if not drafts:
+        return "\n\nSAVED DRAFTS: none yet."
+    shown = drafts[-_DRAFTS_IN_PROMPT:]
+    lines = [
+        f"- {d['id']}: " + " · ".join(v for v in (d["name"], d["destination"], d["dates"]) if v)
+        for d in shown
+    ]
+    if older := len(drafts) - len(shown):
+        lines.append(f"- and {older} older ones, which read_screen lists.")
+    return (
+        "\n\nSAVED DRAFTS, as this browser holds them now. open_itinerary takes any of "
+        "these names or ids:\n" + "\n".join(lines)
+    )
+
+
 def _blank_trip(draft_id: str, name: str) -> dict[str, Any]:
     """An itinerary the brain knows the id and name of and nothing else — what
     ``open_itinerary`` has until the browser hands the draft over."""
@@ -404,11 +430,8 @@ class TravelBrain(GeminiBrain):
         self.trip: dict[str, Any] | None = None
         self.view = "dashboard"
         self.view_of = ""
-        #: Every saved draft, by id — the page's catalog, handed over at connect
-        #: and kept current by this brain's own creates and the page's opens.
-        #: ``None`` when the page sent none: it predates ids, and matches
-        #: ``open_itinerary`` on the name alone.
-        self.drafts: list[dict[str, str]] | None = None
+        #: Behind :attr:`drafts`. The prompt starts without a catalog block.
+        self._drafts: list[dict[str, str]] | None = None
         #: The mirror as it stood before the last ``open_itinerary``, restored if
         #: the page answers that it holds no such draft.
         self._before_open: tuple[dict[str, Any] | None, str, str] | None = None
@@ -416,6 +439,23 @@ class TravelBrain(GeminiBrain):
         #: the browser what it is looking at.
         self._flights: dict[str, dict[str, FlightOption]] = {}
         self._hotels: dict[str, dict[str, HotelOption]] = {}
+
+    @property
+    def drafts(self) -> list[dict[str, str]] | None:
+        """Every saved draft, by id — the page's catalog, handed over at connect and
+        kept current by this brain's own creates and the page's opens and refusals.
+        ``None`` when the page sent none: it predates ids, and matches
+        ``open_itinerary`` on the name alone.
+
+        Setting it rewrites the prompt's closing block, so every turn carries the
+        catalog as it stands. A line in the context would outlive the draft it names.
+        The block sits last, so the prompt before it stays the same on every request."""
+        return self._drafts
+
+    @drafts.setter
+    def drafts(self, drafts: list[dict[str, str]] | None) -> None:
+        self._drafts = drafts
+        self.system_instruction = _SYSTEM_INSTRUCTION + _catalog(drafts)
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 

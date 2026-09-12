@@ -512,7 +512,7 @@ async def test_the_draft_the_agent_names_opens_without_a_read(
 
     assert _results(llm, "read_screen") == []
     assert _results(llm, "open_itinerary") == [f"opened {draft['name']}"]
-    assert "name or id as the agent said it" in llm.captured_system_instructions[-1]
+    assert "open it straight away" in llm.captured_system_instructions[-1]
 
 
 async def test_a_name_no_draft_has_is_refused_with_the_ones_that_do() -> None:
@@ -538,3 +538,82 @@ async def test_a_name_no_draft_has_is_refused_with_the_ones_that_do() -> None:
     for d in _DRAFTS:
         assert f"{d['id']} ({d['name']})" in refused
     assert _results(llm, "read_screen") == []
+
+
+async def test_a_devanagari_request_opens_by_the_name_the_prompt_gave() -> None:
+    """The second smoke failure: asked "दुबई वाली ट्रिप खोलिए", the model had no draft
+    names, read the screen for them, then asked to confirm and never opened. The
+    prompt names every saved draft from the first request, so the model matches
+    the Devanagari request to "Iyer Family — Dubai" and opens it in one call."""
+    llm = ScriptedGemini(
+        {
+            "दुबई वाली ट्रिप खोलिए": [
+                reply_and_call("खोल रही हूँ।", "open_itinerary", action={"id": _IYER}),
+                reply("खुल गई।"),
+            ],
+            "Thanks.": reply("Any time."),
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("दुबई वाली ट्रिप खोलिए")
+        await rig.driver.user_says("Thanks.")
+        assert _opened(rig) == [{"id": "iyer-family-dubai", "name": _IYER}]
+
+    first = llm.captured_system_instructions[0]
+    assert f"- iyer-family-dubai: {_IYER} · Dubai" in first
+    assert f"- trip: {_ZAKIR} · Bali" in first
+    assert _results(llm, "read_screen") == []
+
+
+async def test_the_prompts_drafts_follow_the_ones_made_and_lost_this_session() -> None:
+    """The catalog in the prompt is rebuilt when the catalog changes. A draft made
+    this session joins it before the next request, and one the page answers
+    ``itinerary_not_found`` for leaves it, so the prompt never contradicts the
+    brain."""
+    llm = ScriptedGemini(
+        {
+            "Start a Goa trip.": [
+                reply_and_call(
+                    "Creating it.", "create_itinerary", action={"itinerary": {"name": "Mehta Goa"}}
+                ),
+                reply("Created."),
+            ],
+            "Open the Dubai trip.": [
+                reply_and_call("Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}),
+                reply("It's open."),
+            ],
+            "Thanks.": reply("Any time."),
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("Start a Goa trip.")
+        await rig.driver.user_says("Open the Dubai trip.")
+        await rig.driver.send_ui_event(
+            "itinerary_not_found", {"id": "iyer-family-dubai", "name": _IYER}
+        )
+        await rig.driver.user_says("Thanks.")
+
+    first, after_create, last = (llm.captured_system_instructions[i] for i in (0, 1, -1))
+    assert "- mehta-goa: Mehta Goa" not in first
+    assert "- mehta-goa: Mehta Goa" in after_create
+    assert "- iyer-family-dubai:" in after_create
+    assert "- iyer-family-dubai:" not in last
+    assert "- mehta-goa: Mehta Goa" in last
+
+
+async def test_the_prompt_names_at_most_twenty_drafts() -> None:
+    """The block is bounded: the newest twenty, and a count of the rest, which
+    read_screen and a miss's refusal still list."""
+    many = [{"id": f"d-{i}", "name": f"Draft {i}"} for i in range(25)]
+    llm = ScriptedGemini({"Hello.": reply("Hi.")})
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": many})
+        await rig.driver.user_says("Hello.")
+
+    (prompt,) = llm.captured_system_instructions
+    assert "- d-24: Draft 24" in prompt
+    assert "- d-5: Draft 5" in prompt
+    assert "- d-4:" not in prompt
+    assert "- and 5 older ones, which read_screen lists." in prompt
