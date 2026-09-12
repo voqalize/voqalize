@@ -121,9 +121,45 @@ _CALL_KEYS = frozenset(
 _WRAPPERS = "{[<\"'"
 _IDENTIFIER = re.compile(r"[a-z_][a-z0-9_]*")
 
+# How a function call written as text begins *after speech has started* in the
+# same unit — "Opening it now. certain_tool_call …". Narrower than the opening
+# heads on purpose: a sentence already under way may say "tool call", or even
+# "default_api", and cutting it there would silence real speech. These are the
+# forms no sentence carries: a code fence, a call tag, the leaked-call prefix,
+# `default_api` followed by the `:` or `.` that names a function, and a JSON
+# object whose first key names a call.
+_SPOKEN_CALL_HEADS = (
+    "```",
+    "<tool_call",
+    "<tool_code",
+    "<function_call",
+    "certain_tool_call",
+    "default_api:",
+    "default_api.",
+)
+_SPOKEN_CALL_KEYS = "|".join(sorted(_CALL_KEYS))
+_SPOKEN_CALL = re.compile(
+    r"```|<(?:tool_call|tool_code|function_call)"
+    r"|(?<!\w)(?:certain_tool_call|default_api[:.])"
+    rf"|\{{\s*[\"'](?:{_SPOKEN_CALL_KEYS})[\"']\s*:",
+    re.IGNORECASE,
+)
+# A JSON object's opening that could still grow into `{"name":` — the brace, the
+# quote, and the letters of a key so far.
+_JSON_OPENING = re.compile(r"""\{\s*(?:(["'])([a-z]*)(?:\1\s*)?)?""", re.IGNORECASE)
+_WORD = re.compile(r"\w")
+# Where a held tail can start. Nothing in Devanagari or any other script is here,
+# so speech in those holds nothing at all.
+_TAIL_STARTS = frozenset("`<{cCdD")
+# A tail is a head's length at most, bar whitespace inside a JSON opening such as
+# `{  "na`; this caps the look-back, and so the hold, even then.
+_TAIL_SCAN = 64
+
 # Sent on the one retry, after the model's function call came out as text or
 # malformed. It goes on that request only and never into the context, so the
-# conversation reads as though the model answered well the first time.
+# conversation reads as though the model answered well the first time. When the
+# call came after words were spoken, those words are already in the context as
+# the model's own, which is how it knows what not to say again.
 _RETRY_NOTE = types.Content(
     role="user",
     parts=[
@@ -131,8 +167,10 @@ _RETRY_NOTE = types.Content(
             text=(
                 "Your last reply tried to call a function but wrote the call as text, or "
                 "wrote it malformed. No function ran, and the user heard none of that "
-                "text. Make the call through function calling now, or answer in speech. "
-                "Do not mention this note."
+                "text: only the words before it, if there were any, which are above as "
+                "your own. Make the call through function calling now, or answer in "
+                "speech, and do not say again what was already said. Do not mention "
+                "this note."
             )
         )
     ],
@@ -148,14 +186,17 @@ class _Unit:
     queue and the context therefore track *this*, never the content itself.
 
     It also holds back the unit's opening while that opening could still be a
-    function call the model wrote out as text — see :func:`_looks_like_call`.
+    function call the model wrote out as text — see :func:`_looks_like_call` —
+    and, once it is speaking, the short tail that could still be the start of one
+    — see :data:`_SPOKEN_CALL`.
     """
 
     content: types.Content
     #: Text not yet spoken, because the opening is still undecided.
     held: list[str] = field(default_factory=lambda: list[str]())
     #: ``None`` while undecided, ``False`` once it is speech, ``True`` once it is
-    #: a function call written out as text and will never be spoken.
+    #: a function call written out as text — from its opening, or from a point
+    #: after speech began — and nothing more of it will be spoken.
     leaked: bool | None = None
     #: The hop ended in ``MALFORMED_FUNCTION_CALL``: the call it tried to make
     #: never ran.
@@ -164,38 +205,77 @@ class _Unit:
     called: bool = False
     #: A ``SpeechStart`` for this unit has gone out, and a ``SpeechEnd`` is owed.
     speaking: bool = False
+    #: The end of speech under way that could still be the start of a call written
+    #: as text — ``"default"``, ``'{"na'``, one backtick. Never longer than a head.
+    tail: str = ""
+    #: Every piece released to be spoken, in order. A call written as text after
+    #: speech began cuts the unit's text in the context down to exactly this.
+    said: list[str] = field(default_factory=lambda: list[str]())
 
     def release(self, text: str) -> list[str]:
         """Take one piece of text; return what may be spoken now.
 
-        Speech passes straight through once the unit is known to be speech. Until
-        then it is held, and the whole held opening is released the moment one
-        more piece settles it."""
-        if self.leaked is False:
-            return [text]
+        Until the opening is known it is held, and the whole held opening is
+        released the moment one more piece settles it. After that each piece goes
+        out as it arrives, less a tail that could be the start of a call."""
         if self.leaked:
             return []
-        self.held.append(text)
-        self.leaked = _looks_like_call("".join(self.held))
-        if self.leaked is False:
-            out, self.held = self.held, []
-            return out
-        return []
+        if self.leaked is None:
+            self.held.append(text)
+            self.leaked = _looks_like_call("".join(self.held))
+            if self.leaked is not False:
+                return []
+            pieces, self.held = self.held, []
+        else:
+            pieces = [text]
+        out: list[str] = []
+        for piece in pieces:
+            out += self._scan(piece)
+        return out
 
     def settle(self, *, malformed: bool) -> list[str]:
         """Close the unit; return held text that turned out to be speech.
 
-        An opening still undecided when the hop ends is speech: the model stopped
-        writing, and nothing it wrote is a call. A hop that ended in
-        ``MALFORMED_FUNCTION_CALL`` speaks nothing more, whatever it held."""
+        An opening still undecided when the hop ends is speech, and so is a held
+        tail: the model stopped writing, and nothing it wrote is a call. A hop
+        that ended in ``MALFORMED_FUNCTION_CALL`` speaks nothing more, whatever
+        it held."""
         self.malformed = malformed
         if malformed and self.leaked is None:
             self.leaked = True
+        out: list[str] = []
         if self.leaked is None:
             self.leaked = False
-            out, self.held = self.held, []
-            return out
-        return []
+            held, self.held = self.held, []
+            for piece in held:
+                out += self._scan(piece)
+        if self.tail and self.leaked is False and not malformed:
+            out.append(self.tail)
+            self.said.append(self.tail)
+        self.tail = ""
+        return out
+
+    def _scan(self, text: str) -> list[str]:
+        """Speech under way: ``text`` less anything from a call marker on, and less
+        the tail that could still become one.
+
+        The released text keeps the piece boundaries it arrived with — the old
+        tail, then the new piece — so nothing is merged that was not held."""
+        if self.leaked:
+            return []
+        # The character before the tail, so a marker must start a word.
+        context = self.said[-1][-1:] if self.said else ""
+        full = context + self.tail + text
+        start, split = len(context), len(context) + len(self.tail)
+        hit = _SPOKEN_CALL.search(full, start)
+        if hit is not None:
+            end, self.leaked, self.tail = hit.start(), True, ""
+        else:
+            end = _tail_start(full, start)
+            self.tail = full[end:]
+        out = [p for p in (full[start : min(end, split)], full[split:end]) if p]
+        self.said += out
+        return out
 
     @property
     def failed_call(self) -> bool:
@@ -404,6 +484,25 @@ class GeminiBrain(Brain):
         that ends in ``MALFORMED_FUNCTION_CALL``, speaks nothing and leaves the
         context. If the turn ends waiting on it, the request goes once more, with
         a note that is not kept in the context.
+
+        **A call written after speech began is cut where it begins.** A speaking
+        unit's text is watched for the forms no sentence carries
+        (:data:`_SPOKEN_CALL`: a fence, a call tag, ``certain_tool_call``,
+        ``default_api:``, ``{"name":``), including one split across chunks. The
+        only text held is a tail that could still be the start of one —
+        ``"default"`` at the end of a chunk, one backtick — never a sentence, and
+        speech in Devanagari holds nothing. From the marker on, nothing is
+        spoken; the speech ends there, and the unit keeps in the context exactly
+        the words that went out.
+
+        The turn then asks once more, as it does for a leaked opening. That is a
+        choice. The words before such a call are nearly always the model
+        announcing it ("Opening it now."), so a turn that ends there has told the
+        user something is happening and then done nothing. The retry needs no
+        extra bookkeeping to avoid repeating itself: the words the user heard are
+        already in the context as the model's own, and the note asks it not to
+        say them again. Once only: a model that leaks twice in a row is not
+        converging, and a third request is more silence for the user to sit in.
         """
         config = self._turn_config()
         calls: list[tuple[_Unit, types.Part]] = []
@@ -450,6 +549,17 @@ class GeminiBrain(Brain):
                         stranded = False
                         for event in self._speak(unit, speak):
                             yield event
+                    if unit is not None and unit.leaked and unit.speaking:
+                        # The model began writing a call as text mid-speech. What
+                        # went out stays said; nothing after it will be, so the
+                        # speech ends now rather than when the hop does.
+                        logger.warning(
+                            "turn: model={} wrote a function call as text after speech "
+                            "began; the words before it were spoken and none of the call was",
+                            self._model,
+                        )
+                        yield SpeechEnd()
+                        unit.speaking = False
                     if finished:
                         hops += 1
                         if unit is not None:
@@ -479,8 +589,8 @@ class GeminiBrain(Brain):
                 if not stranded:
                     break
                 logger.warning(
-                    "turn: model={} wrote a function call as text or malformed; none of it "
-                    "was spoken and nothing ran — {}",
+                    "turn: model={} wrote a function call as text or malformed; none of the "
+                    "call was spoken and nothing ran — {}",
                     self._model,
                     "asking once more" if attempt == 0 else "the turn ends without it",
                 )
@@ -490,8 +600,9 @@ class GeminiBrain(Brain):
             # yields while closing raises instead of tearing down.
             self._drop_unanswered(calls[answered:])
             if unit is not None and unit.leaked is not False:
-                # Cut while an opening was held: none of it was heard.
-                self._unsay(unit)
+                # Cut while an opening was held, or while a leaked call was still
+                # streaming: none of the call was heard.
+                self._strip(unit)
             _log_turn(self._model, hops, usage, clock)
 
     def _speak(self, unit: _Unit, pieces: list[str]) -> Iterator[Speech]:
@@ -515,8 +626,29 @@ class GeminiBrain(Brain):
         that reads its own call-as-text back as something it said writes the
         next one the same way."""
         if unit.leaked:
-            self._unsay(unit)
+            self._strip(unit)
         return unit.failed_call
+
+    def _strip(self, unit: _Unit) -> None:
+        """Take a call written as text out of the context, and keep what the unit
+        said before it. A unit that said nothing leaves entirely."""
+        if not unit.said:
+            self._unsay(unit)
+            return
+        # The speech is in the context as the model's own, cut to what went out;
+        # heard truth cuts it further when Voqalize reports what played. Calls,
+        # thoughts and signatures keep their identity and their order.
+        said = "".join(unit.said)
+        kept: list[types.Part] = []
+        placed = False
+        for part in unit.content.parts or []:
+            if not part.text or part.thought:
+                kept.append(part)
+            elif not placed:
+                part.text = said
+                kept.append(part)
+                placed = True
+        unit.content.parts = kept
 
     def _unsay(self, unit: _Unit) -> None:
         """Take out everything a unit wrote except its real function calls, which
@@ -832,3 +964,40 @@ def _looks_like_call(text: str) -> bool | None:
     if word.end() == len(s):
         return None
     return word.group() in _CALL_KEYS and s[word.end()] in "\"':"
+
+
+def _tail_start(text: str, start: int) -> int:
+    """Where the end of ``text`` could still be the start of a call written as
+    text, or ``len(text)`` when it cannot — so a piece that ends on a space, a
+    full stop or any Devanagari holds nothing back.
+
+    A letter head (``certain_tool_call``, ``default_api:``) counts only where it
+    starts a word; ``text[start - 1]`` is the character already spoken before
+    it."""
+    for i in range(max(start, len(text) - _TAIL_SCAN), len(text)):
+        ch = text[i]
+        if ch not in _TAIL_STARTS:
+            continue
+        if ch.isalpha() and i and _WORD.match(text[i - 1]):
+            continue
+        if _may_open_spoken_call(text[i:]):
+            return i
+    return len(text)
+
+
+def _may_open_spoken_call(s: str) -> bool:
+    """Whether ``s`` is a strict prefix of a :data:`_SPOKEN_CALL` marker: the next
+    piece could complete it."""
+    low = s.lower()
+    if any(head.startswith(low) for head in _SPOKEN_CALL_HEADS):
+        return True
+    opening = _JSON_OPENING.fullmatch(s)
+    if opening is None:
+        return False
+    key = opening.group(2)
+    if key is None:
+        return True
+    if opening.end(2) < len(s):
+        # The key's closing quote has come; only a call's key can still become one.
+        return key.lower() in _CALL_KEYS
+    return any(k.startswith(key.lower()) for k in _CALL_KEYS)

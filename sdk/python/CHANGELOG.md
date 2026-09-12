@@ -105,8 +105,21 @@ kept for the history, and nothing installable was ever cut from them.
   ends. A unit that is a call is never spoken and leaves the context. A hop that
   ends in `MALFORMED_FUNCTION_CALL` counts as the same failure. Either way, the
   turn asks the model once more, with a note sent on that request only and never
-  stored. Only the opening is checked: a call written after speech has started
-  in the same unit is still spoken.
+  stored.
+- **A call written as text after speech has started is cut where it begins.**
+  `respond()` watches a speaking unit for a code fence, a call tag,
+  `certain_tool_call`, `default_api:` and `{"name":`, including one split across
+  chunks. The only text it holds is a tail that could still be the start of one —
+  `default` at the end of a chunk, a single backtick — so ordinary speech goes
+  out as it arrives, and speech in Devanagari holds nothing. From the marker on,
+  nothing is spoken: the speech ends there, the unit keeps exactly the words that
+  went out in the context, and a warning is logged without the model's text. The
+  turn then asks once more, as it does for a leaked opening, because the words
+  before such a call are nearly always the model announcing it, and a turn that
+  ends there has promised the user something and done nothing. The note tells the
+  model not to repeat what it already said. A unit that also made a real call is
+  not asked again. If your brain relies on a phrase such as `default_api:` being
+  spoken, it no longer is.
 
 ## 0.2.0
 
