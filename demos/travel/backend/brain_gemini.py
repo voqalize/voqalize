@@ -60,7 +60,7 @@ YOU INVENT THE DATA. There is no live inventory. Generate realistic options your
 
 STAY GROUNDED: nothing in this conversation is a picture of the agent's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything they point at ("that leg", "the second one", "the hotel we picked"), and whenever you are told they changed the screen themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
 
-WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure with the families, flight legs, and hotel cities. For each flight leg speak a line then call search_flights with 3 invented options; select_flight once picked. For each hotel city call search_hotels with 3 options; select_hotel once picked. Use show_flights / show_hotels to bring a leg/city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's id exactly as read_screen lists it — never a name you made up.
+WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure with the families, flight legs, and hotel cities. For each flight leg speak a line then call search_flights with 3 invented options; select_flight once picked. For each hotel city call search_hotels with 3 options; select_hotel once picked. Use show_flights / show_hotels to bring a leg/city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's name or id as the agent said it: call it straight away, without reading the screen first. If nothing matches, it answers with the saved drafts, and you call it again with one of those.
 
 Open with a brief greeting and ask which trip they want to work on."""
 
@@ -180,11 +180,11 @@ class OpenDashboard(Action):
 
 
 class OpenItinerary(Action):
-    """Open one saved draft. ``id`` is what the page keys it by; ``name`` is the
-    draft's own name, filled in by the brain, which is all a page that predates
-    ids matches on."""
+    """Open one saved draft. The model puts the name or id it heard in ``id``; the
+    brain resolves that against the catalog and dispatches the draft's own id, with
+    its own name in ``name``, which is all a page that predates ids matches on."""
 
-    id: str = Field(description="The draft's id, exactly as read_screen lists it.")
+    id: str = Field(description="The draft's name or id, as the agent said it.")
     name: str = Field("", description="Leave empty — the desk fills in the draft's name.")
 
 
@@ -677,8 +677,9 @@ class TravelBrain(GeminiBrain):
         return "dashboard open"
 
     async def open_itinerary(self, action: OpenItinerary) -> str:
-        """Open one saved draft by its id, exactly as read_screen lists it under the
-        saved drafts. Read the screen first if you do not have the id."""
+        """Open one saved draft by its name or its id, as the agent said it. Call it
+        straight away: a name is matched however it is cased, spaced or written,
+        and a miss answers with every saved draft there is."""
         if self.drafts is None:
             # A page that sent no catalog predates ids and matches on the name.
             legacy = action.model_copy(update={"name": action.name or action.id})
@@ -687,9 +688,9 @@ class TravelBrain(GeminiBrain):
         draft = _find_draft(self.drafts, action.id) or _find_draft(self.drafts, action.name)
         if draft is None:
             return (
-                f"no saved draft has the id {action.id!r}, so nothing opened. The saved "
-                f"drafts are: {self._draft_list()}. Call open_itinerary again with one of "
-                "those ids, or ask which trip they mean."
+                f"no saved draft has the name or id {action.id!r}, so nothing opened. The "
+                f"saved drafts are: {self._draft_list()}. Call open_itinerary again with "
+                "one of those, or ask which trip they mean."
             )
         self._show(OpenItinerary(id=draft["id"], name=draft["name"]))
         return f"opened {draft['name']}"

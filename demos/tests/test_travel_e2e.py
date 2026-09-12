@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
@@ -383,7 +384,7 @@ async def test_an_unknown_id_is_refused_with_the_drafts_that_exist() -> None:
         assert _opened(rig) == [{"id": "iyer-family-dubai", "name": _IYER}]
 
     refused, opened = _results(llm, "open_itinerary")
-    assert "no saved draft has the id 'dubai-trip'" in refused
+    assert "no saved draft has the name or id 'dubai-trip'" in refused
     assert f"iyer-family-dubai ({_IYER})" in refused
     assert opened == f"opened {_IYER}"
 
@@ -475,3 +476,65 @@ async def test_a_page_with_no_catalog_still_gets_a_name() -> None:
         await rig.driver.start_session()
         await rig.driver.user_says("Open the Dubai trip.")
         assert _opened(rig) == [{"id": _IYER, "name": _IYER}]
+
+
+@pytest.mark.parametrize(
+    ("said", "draft"),
+    [
+        ("ज़ाकिर हनीमून", {"id": "trip", "name": _ZAKIR}),
+        ("iyer family dubai", {"id": "iyer-family-dubai", "name": _IYER}),
+        ("poddar-vietnam", {"id": "poddar-vietnam", "name": "Poddar Vietnam"}),
+    ],
+    ids=["devanagari-name", "english-name", "id"],
+)
+async def test_the_draft_the_agent_names_opens_without_a_read(
+    said: str, draft: dict[str, str]
+) -> None:
+    """The smoke failure this closes: told that open_itinerary wanted an id "as
+    read_screen lists it", the model spent a hop reading the screen, and on that
+    hop wrote the call out as text. The name as the agent said it — Devanagari,
+    English, or the id itself — now opens the draft in one call, and the page
+    still receives the canonical id and name."""
+    llm = ScriptedGemini(
+        {
+            "Open that trip.": [
+                reply_and_call("Opening it.", "open_itinerary", action={"id": said}),
+                reply("It's open."),
+            ],
+            "Thanks.": reply("Any time."),
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("Open that trip.")
+        await rig.driver.user_says("Thanks.")
+        assert _opened(rig) == [draft]
+
+    assert _results(llm, "read_screen") == []
+    assert _results(llm, "open_itinerary") == [f"opened {draft['name']}"]
+    assert "name or id as the agent said it" in llm.captured_system_instructions[-1]
+
+
+async def test_a_name_no_draft_has_is_refused_with_the_ones_that_do() -> None:
+    """A miss opens nothing and puts nothing on screen; the refusal names every
+    saved draft, so the next call is one hop away without reading the screen."""
+    llm = ScriptedGemini(
+        {
+            "Open the Goa trip.": [
+                call("open_itinerary", action={"id": "गोवा ट्रिप"}),
+                reply("There's no Goa trip saved. Which one did you mean?"),
+            ],
+            "Never mind.": reply("Sure."),
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("Open the Goa trip.")
+        await rig.driver.user_says("Never mind.")
+        assert _opened(rig) == []
+
+    (refused,) = _results(llm, "open_itinerary")
+    assert "no saved draft has the name or id 'गोवा ट्रिप', so nothing opened" in refused
+    for d in _DRAFTS:
+        assert f"{d['id']} ({d['name']})" in refused
+    assert _results(llm, "read_screen") == []
