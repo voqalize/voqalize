@@ -168,17 +168,26 @@ raw value appears only on the response that minted it.
 
 A session row is `id`, `state`, `agent_id`, `agent_name`, `display_name`,
 `created_at`, `started_at`, `ended_at`, `duration_secs`, `end_reason`,
-`end_detail`, `error`. `state` is one of `starting`, `active`, `ending`,
-`ended`, `expired`, `failed`. `end_reason` is `null` while `state` is
-`starting`, `active` or `ending` — a live call has no reason yet, and it is
-never `unknown` just because the call has not ended. Once the call is over it
-is `token_expired` when the session never connected and only expired, or one
-of `user_hung_up`, `agent_hung_up`, `idle_timeout`, `brain_disconnected`,
-`brain_unreachable`, `never_connected`, `terminated`, `runtime_error`, or
-`unknown` when none of those apply. `end_detail` is one line of evidence for
-that reason — the raw signal, not a sentence for a person. `disconnect_reason`
-is deprecated: it still appears on the row but `end_reason` is the field to
-read.
+`end_detail`, `error`. `state` is one of six:
+
+| `state` | Means |
+|---|---|
+| `starting` | The session token is minted and nobody has connected yet. |
+| `active` | The user is connected. |
+| `ended` | The session ended cleanly; `end_reason` says why. |
+| `failed` | The session ended on a failure; `end_reason` says which. |
+| `expired` | The session token lapsed before anyone connected. |
+| `lost` | The session connected, and the voice tier never reported how it ended. It was still `active` five minutes past the one-hour cap. |
+
+`end_reason` is set on `ended` and `failed` and is `null` on the other four:
+`starting` and `active` have not ended, and `expired` and `lost` are
+conclusions from a deadline, with nothing observed to name. It is one of
+`user_hung_up`, `agent_hung_up`, `idle_timeout`, `max_duration` (the session
+reached the one-hour cap), `brain_disconnected`, `brain_unreachable`,
+`never_connected` or `runtime_error`. `end_detail` is one line of evidence for
+that reason — the raw signal, not a sentence for a person. A report that
+arrives after a session read `expired` or `lost` replaces that state with what
+it observed.
 
 | Tool | Signature | Does |
 |---|---|---|

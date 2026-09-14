@@ -548,6 +548,26 @@ facts:
       "a place to keep application state", which is the caller's own database's
       job. `metadata` is not queryable, which is the other half of that line.
 
+  session.max_duration_secs:
+    value: 3600
+    source: platform/backend/controlplane/app/domains/sessions/state_machine.py:76 MAX_SESSION_SECS
+    verified: 2026-09-15
+    reproduce: >-
+      grep -n 'MAX_SESSION_SECS = \|LOST_GRACE_SECS = \|EXPIRY_GRACE_SECS = '
+      ../platform/backend/controlplane/app/domains/sessions/state_machine.py
+    note: >-
+      One hour. The voice tier ends every session at the cap with
+      `end_reason` `max_duration`. A session still `active` five minutes past it
+      (LOST_GRACE_SECS = 300) reads `lost`: the voice tier never reported how it
+      ended. Six states — starting, active, ended, failed, expired, lost — and
+      eight reasons, set on `ended` and `failed` only. `ending`, `terminated`,
+      `token_expired`, `unknown` and `ended_by` left the record on 2026-09-15
+      with `sessions.end` and `sessions.terminate`.
+    forbid_literal:
+      - '\btoken_expired\b'
+      - '\bended_by\b'
+      - '\bsessions\.(end|terminate)\b'
+
   speech.idle.default_ms:
     value: 0
     source: platform/backend/pygato/src/pygato/session_config.py:108 DEFAULT_IDLE_TIMEOUT_MS
