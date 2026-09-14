@@ -82,7 +82,7 @@ working call in the wrong voice. No call since carries it, because an agent with
 no brain is refused at `sessions.connect` rather than answered by us.
 
 Each event carries `actor_id` — the raw id of what caused it — and `actor`, that
-person as `{id, email, name}` when a person did it (a `terminate_session`, say)
+person as `{id, email, name}` when a person did it (an `archive_session`, say)
 and `null` when Voqalize itself did.
 
 Because they are written during the call, the milestones are the cheap answer to

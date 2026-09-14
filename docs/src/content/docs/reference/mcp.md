@@ -195,8 +195,7 @@ read.
 | Tool | Signature | Does |
 |---|---|---|
 | `update_session` | `(tenant, session_id, display_name="", metadata=None) -> session` | Label a session for a person, and set your own `metadata` — a customer reference, a build number. `metadata` is a **replace**: send the whole map back, or the keys you left out are gone. |
-| `terminate_session` | `(tenant, session_id, reason="") -> session` | Hang up on a live session, without warning and with no goodbye. Recorded as `failed`, not `ended`, with `reason` beside it — so it is absent from a list filtered on `ended`. A session already over is refused. |
-| `archive_session` | `(tenant, session_id) -> session` | Take a finished session out of the working list. Record, events and recordings are all kept. A session still in progress is refused — `terminate_session` is the way to end one. |
+| `archive_session` | `(tenant, session_id) -> session` | Take a finished session out of the working list. Record, events and recordings are all kept. A session still in progress is refused. A session ends when the user hangs up, your brain ends it, or Voqalize does; no tool reaches into one once it has started. |
 
 ### Members
 

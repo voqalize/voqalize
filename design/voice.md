@@ -197,7 +197,7 @@ the shape of the workload, never about the reader.
 
 **Be dry.** Understatement is the entire humor budget, and it works because the facts
 carry themselves: *"Our own demos run that way in 33 seconds."* Numbers we earned —
-1,143 simultaneous, ~50,000 interviews, 28 MCP tools, English plus 22 Indic languages on
+1,143 simultaneous, ~50,000 interviews, 27 MCP tools, English plus 22 Indic languages on
 our own GPUs — are stated flat and take no adjective, because the adjective is what makes
 a reader suspect the number. No exclamation, no wink, no emoji, no joke at a named
 product's expense; we build on Pipecat and we say so.
@@ -255,7 +255,7 @@ the user's ear. The `greet` and `Session.dispatch` docstrings are the reference
 standard; read them before writing a new one.
 
 **MCP server instructions and tool descriptions** are read by an autonomous agent that
-follows them literally, across 28 tools on a hosted endpoint. Imperative, one tool per
+follows them literally, across 27 tools on a hosted endpoint. Imperative, one tool per
 description, preconditions stated, every description ending in the call to make next. No
 "simply", no "just", no persuasion — there is nobody to persuade. Name the silent failure
 explicitly, because an agent cannot hear something being wrong.
