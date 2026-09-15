@@ -98,12 +98,31 @@ on `get_session_logs`:
 | Value | What it means |
 |---|---|
 | `found` | The file was read. |
-| `missing` | No file at all — the call is still running, the voice tier died before teardown, or the upload failed. |
+| `missing` | No file at all — the call is still running, the upload has not finished, or it failed. `files` on `get_session` says which. |
 | `unavailable` | The store itself could not be read — or, for the record, the file is a version this control plane does not implement, which `detail` names. |
 
 **An empty list is not the same fact as any of those**, and treating it as "the
 call was silent" is the mistake this field exists to prevent. When the record is
 `missing`, read the milestones: they say whether anything ever connected.
+
+## Whether each file arrived
+
+`get_session` carries `files` once the session ends — one entry each for
+`call_record`, `logs` and `recording`:
+
+| `status` | What it means |
+|---|---|
+| `expected` | Voqalize owes this file and has not yet said what became of it. |
+| `uploaded` | The file is in storage; `size_bytes` is its size. |
+| `failed` | The upload did not succeed; `reason` says why. |
+| `skipped` | There was never going to be a file — recording was off, or nothing connected; `reason` says which. |
+| `lost` | An hour after the session ended, nothing had reported the file and storage did not hold it. |
+
+The overall `status` is `pending` while any file is `expected`, `complete` when
+every file is `uploaded` or `skipped`, and `incomplete` when one is `failed` or
+`lost`. `deadline_at` is when an `expected` file is looked up in storage;
+`settled_at` is when the last file settled. A report that arrives after that
+lookup replaces what it inferred.
 
 ## Reading the logs
 

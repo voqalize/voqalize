@@ -52,8 +52,8 @@ Each entry carries its state, duration, size, content type, and a
 ## Recording runs in two passes
 
 During the session the node writes the raw RTP of both tracks to disk, undecoded
-— no codec work and no timestamp arithmetic on the call path. At teardown it
-renders one WebM track per role, `user.webm` and `agent.webm`, each running from
+— no codec work and no timestamp arithmetic on the call path. When the session
+ends it renders one WebM track per role, `user.webm` and `agent.webm`, each running from
 the session's start to its end: gaps are padded with silence and the two tracks
 are sample-aligned, so both come out the same length and one offset names the
 same instant in both.
@@ -78,8 +78,20 @@ A render that produced a partial file uploads it as `{role}.failed.webm`, so
 neither a listing of the prefix nor a download mistakes it for the rendered
 track.
 
-`truncated` reads on sessions recorded before 2026-09-09 and is no longer
-produced.
+## Whether the recording arrived
+
+```python
+get_session(tenant, session_id)["files"]["recording"]
+# {"status": "uploaded", "reason": null, "size_bytes": 412331, "updated_at": "…"}
+```
+
+`status` is `expected` until Voqalize says what became of the recording, then
+`uploaded`, `failed` or `skipped`. `failed` and `skipped` carry a `reason`:
+`skipped` means there was never going to be a recording — it was off, or the
+session never connected. An `expected` recording is looked up in storage an hour
+after the session ends, and reads `uploaded` if it is there and `lost` if it is
+not. Read this before concluding that an empty `get_recordings` list means the
+call was not recorded. See [reading a call back](/operate/reading-a-call/).
 
 ## The download URL is a credential
 

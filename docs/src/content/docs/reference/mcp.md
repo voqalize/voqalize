@@ -192,7 +192,7 @@ it observed.
 | Tool | Signature | Does |
 |---|---|---|
 | `list_sessions` | `(tenant, agent_id="", state=None, since=None, until=None, include_archived=False, limit=20, cursor="") -> {sessions, next_cursor}` | List sessions, most recent first; filter by agent, by one `state`, and by `created_at` (`since` inclusive, `until` exclusive, ISO-8601 with an offset). Archived sessions are left out unless `include_archived=true`; `get_session` reads one by id either way. `limit` is capped at 100, and a page can come back short while `next_cursor` is set — only a null `next_cursor` is the last page. |
-| `get_session` | `(tenant, session_id) -> session` | One call in full: the row above plus `brain_url_defaulted`, `started_by`, `metadata`, the resolved `config`, `init`, and a `recordings` summary (`id`, `role`, `state`, `duration_secs`, `failure_reason`). |
+| `get_session` | `(tenant, session_id) -> session` | One call in full: the row above plus `brain_url_defaulted`, `started_by`, `metadata`, the resolved `config`, `init`, a `recordings` summary (`id`, `role`, `state`, `duration_secs`, `failure_reason`), and `files`: what became of the `call_record`, the `logs` and the `recording`, each `{status, reason, size_bytes, updated_at}` with `status` one of `expected`, `uploaded`, `failed`, `skipped`, `lost`, under an overall `status` (`pending`, `complete`, `incomplete`), `deadline_at` and `settled_at`. `files` is null until the session ends. |
 | `get_session_events` | `(tenant, session_id) -> {session_id, events: [{occurred_at, event_type, id, actor_id, actor, payload}]}` | Voqalize's own milestones — created, connected, ended; about five, written **while the session runs**, so they answer for a call still in progress and for one nothing connected to. `actor` is the person as `{id, email, name}` when a person did it, `null` when Voqalize did. This says how far the call got, not what was said. |
 | `get_call_record` | `(tenant, session_id, limit=2000, include_events=False) -> {session_id, record, turns, pace, meta, …}` | **The contract.** What the two halves exchanged, as turns: each `asked` question with its `asked_at`, the `units` your brain spoke with what it `generated`, what the user `heard` and an `outcome` (`spoken`, `cut_short`, `never_spoken`, `unknown`), the `gaps` where the wire was quiet, and the `marks`. `record` is `found`, `missing` or `unavailable` — read it before concluding a call was silent. `include_events` adds the raw records under the turns; `limit` bounds those and never the turns. |
 | `get_session_logs` | `(tenant, session_id, level="INFO", service="", limit=500) -> {session_id, logs, logs_availability, truncated}` | Voqalize's own log lines for that call. `level` is a floor (`DEBUG` … `CRITICAL`); `service` matches one process's lines exactly; `limit` is capped at 5000. |
@@ -236,9 +236,10 @@ they are properties of the tools rather than of the workflow:
   assert on one.
 - **Milestones arrive during the call; the record and the logs arrive when it
   ends.** `get_session_events` answers for a session still in progress.
-  `get_call_record` and `get_session_logs` are uploaded at teardown, so a call
+  `get_call_record` and `get_session_logs` are uploaded after it ends, so a call
   still running has neither: check `record` and `logs_availability` before
-  concluding anything from an empty list.
+  concluding anything from an empty list, and `files` on `get_session` for
+  whether each file arrived.
 - **Every read is keyed on a session you are authorized to see.** There is no
   free-text log search and no arbitrary time range, on purpose.
 
