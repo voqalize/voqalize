@@ -88,7 +88,11 @@ get_session(tenant, session_id)["files"]["recording"]
 `status` is `expected` until Voqalize says what became of the recording, then
 `uploaded`, `failed` or `skipped`. `failed` and `skipped` carry a `reason`:
 `skipped` means there was never going to be a recording — it was off, or the
-session never connected. An `expected` recording is looked up in storage an hour
+session never connected. An `uploaded` recording carries a `reason` when the
+session was interrupted and the recording was rebuilt from what had been
+captured: it plays, and it may end before the session did. A recording that read
+`failed` changes to `uploaded` if it is rebuilt later; an `uploaded` one never
+changes back. An `expected` recording is looked up in storage an hour
 after the session ends, and reads `uploaded` if it is there and `lost` if it is
 not. Read this before concluding that an empty `get_recordings` list means the
 call was not recorded. See [reading a call back](/operate/reading-a-call/).

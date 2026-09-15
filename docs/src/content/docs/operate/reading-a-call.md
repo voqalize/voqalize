@@ -113,8 +113,8 @@ call was silent" is the mistake this field exists to prevent. When the record is
 | `status` | What it means |
 |---|---|
 | `expected` | Voqalize owes this file and has not yet said what became of it. |
-| `uploaded` | The file is in storage; `size_bytes` is its size. |
-| `failed` | The upload did not succeed; `reason` says why. |
+| `uploaded` | The file is in storage; `size_bytes` is its size. A recording rebuilt after the session was interrupted carries a `reason`: it may end early. |
+| `failed` | There is no usable file: the upload did not succeed, or nothing recorded could be read. `reason` says which. |
 | `skipped` | There was never going to be a file — recording was off, or nothing connected; `reason` says which. |
 | `lost` | An hour after the session ended, nothing had reported the file and storage did not hold it. |
 
