@@ -53,10 +53,12 @@ Each entry carries its state, duration, size, content type, and a
 
 During the session the node writes the raw RTP of both tracks to disk, undecoded
 — no codec work and no timestamp arithmetic on the call path. When the session
-ends it renders one WebM track per role, `user.webm` and `agent.webm`, each running from
-the session's start to its end: gaps are padded with silence and the two tracks
-are sample-aligned, so both come out the same length and one offset names the
-same instant in both.
+ends it renders one WebM track per role, `user.webm` and `agent.webm`, each
+running from the moment the call connected to the moment it ended: gaps are
+padded with silence and the two tracks are sample-aligned, so both come out the
+same length and one offset names the same instant in both. Those are the two
+instants `duration_secs` is measured between, so a completed track is as long as
+the session it came from — see [usage and limits](/operate/usage/).
 
 The raw capture uploads beside the tracks as `capture.tar.gz` —
 `capture-user.rtpcap`, `capture-agent.rtpcap`, `events.jsonl` and `render.json`

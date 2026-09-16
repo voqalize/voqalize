@@ -14,8 +14,14 @@ so.
 ## The usage quantity
 
 `duration_secs` comes from **Voqalize's own measurement of the session** —
-the time it actually held, not the span from when a token was minted. A session
-that was created and never answered contributes zero.
+the time it actually held, not the span from when a token was minted. It runs
+from the moment the call connects to the moment it ends. A session that was
+created and never answered contributes zero.
+
+That span is what a recording is cut to, so the number counted here is the
+length of the audio you can play back. Silence inside a call is inside both: a
+caller who stops talking has not ended the session, and the track carries those
+seconds as silence.
 
 Developer preview is free. Future paid pricing is planned per session minute,
 with the developer's LLM billed separately by its provider; prices have not
