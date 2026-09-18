@@ -10,6 +10,9 @@ import { defineConfig, searchForWorkspaceRoot } from "vite";
 // `TARA_VENDORED=1` runs the dev server against the vendored build instead.
 const AVATAR = fileURLToPath(new URL("../../../../avatar", import.meta.url));
 const TARA_SOURCE = `${AVATAR}/packages/avatar-3d/src/tara.ts`;
+// EXPERIMENT (uncommitted): the second 3-D character, dev-only. There is no
+// vendored build of him, so `vite build` cannot resolve `?avatar=tushar`.
+const TUSHAR_SOURCE = `${AVATAR}/packages/avatar-3d/src/tushar.ts`;
 
 // This demo is a self-contained single-page app. It builds under the relative
 // base `/demos/aura/` so the assembled MPA serves it at
@@ -19,11 +22,18 @@ export default defineConfig(({ command }) => {
   const fromSource = command === "serve" && !process.env.TARA_VENDORED && existsSync(TARA_SOURCE);
   return {
     base: "/demos/aura/",
+    // The gallery's favicon, in ONE place. Every demo builds under its own
+    // `base`, so vite rewrites the root-relative hrefs in index.html to
+    // `/demos/<name>/favicon.ico` and each demo ships its own copy of the file —
+    // but there is only one file in the tree to keep current. A demo that wants
+    // assets of its own points this at a directory beside its index.html.
+    publicDir: "../../public",
     plugins: [react()],
     resolve: fromSource
       ? {
           alias: [
             { find: /^\.\/vendor\/tara\/tara\.js$/, replacement: TARA_SOURCE },
+            { find: /^\.\/vendor\/tushar\/tushar\.js$/, replacement: TUSHAR_SOURCE },
             // The mixer's TypeScript rather than its tsc output, which would
             // otherwise need a build to show a change.
             {

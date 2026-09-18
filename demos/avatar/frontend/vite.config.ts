@@ -12,6 +12,12 @@ import { defineConfig } from "vite";
 // would put megabytes in front of the greeting.
 export default defineConfig({
   base: "/demos/avatar/",
+  // The gallery's favicon, in ONE place. Every demo builds under its own
+  // `base`, so vite rewrites the root-relative hrefs in index.html to
+  // `/demos/<name>/favicon.ico` and each demo ships its own copy of the file —
+  // but there is only one file in the tree to keep current. A demo that wants
+  // assets of its own points this at a directory beside its index.html.
+  publicDir: "../../public",
   plugins: [react()],
   optimizeDeps: {
     // A canvas avatar locates its rig JSON and wardrobe images with

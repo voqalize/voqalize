@@ -7,6 +7,12 @@ import { defineConfig } from "vite";
 // drops the built `dist/` into `dist/demos/lead_qual/`.
 export default defineConfig({
   base: "/demos/lead_qual/",
+  // The gallery's favicon, in ONE place. Every demo builds under its own
+  // `base`, so vite rewrites the root-relative hrefs in index.html to
+  // `/demos/<name>/favicon.ico` and each demo ships its own copy of the file —
+  // but there is only one file in the tree to keep current. A demo that wants
+  // assets of its own points this at a directory beside its index.html.
+  publicDir: "../../public",
   plugins: [react()],
   server: {
     // Vite rejects unknown Host headers; allow the local nginx front.
