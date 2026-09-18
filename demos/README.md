@@ -50,6 +50,10 @@ demos/
   manifest.json          # the demo directory: name + title + tagline per demo;
                          #   shipped inside the web artifact so marketing renders /demos
   build.mjs              # builds every UI → assembles demos/dist/demos/<name>/
+  public/                # the gallery's shared static assets — today, the favicon.
+                         #   Every frontend points `publicDir` here, so each demo
+                         #   still SHIPS its own copy under /demos/<name>/ while
+                         #   there is one file in the tree to keep current.
   Dockerfile                # brains-only Python image (no Node stage)
   cloudbuild.brains-vm.yaml # Build A: brains image → pygato node (public repo trigger)
   cloudbuild.web.yaml       # Build B: UIs + docs → versioned web artifact in GCS
@@ -94,7 +98,8 @@ discovers backends and each frontend declares its own connection wiring. To add
    Discovery asserts `NAME` equals the folder name.
 2. **Frontend** — `demos/<name>/frontend/`: a standalone Vite app. Copy an
    existing demo's `package.json` / `vite.config.ts` (set `base: "/demos/<name>/"`
-   and a unique dev `port`) / `tsconfig.json` / `index.html` / `.env.example`, and
+   and a unique dev `port`; keep `publicDir: "../../public"`, which is where the
+   gallery's favicon lives) / `tsconfig.json` / `index.html` / `.env.example`, and
    a `src/config.ts` declaring only the connection wiring. **Voice and language do
    not live here** — the agent record carries the default and the brain overrides
    it per user (`await session.configure(Config(stt=…, tts=…))`), because that is

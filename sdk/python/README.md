@@ -1,3 +1,5 @@
+<img src="https://docs.voqalize.com/logo-light-256.png" alt="" width="76" height="76">
+
 # Voqalize Agent SDK (Python)
 
 **You bring the brain, we bring the voice.**

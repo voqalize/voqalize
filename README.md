@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://docs.voqalize.com/logo-dark-256.png">
+  <img src="https://docs.voqalize.com/logo-light-256.png" alt="" width="76" height="76">
+</picture>
+
 # Voqalize
 
 **A voice operator that lives inside your app.** You write the *brain* — an agent
