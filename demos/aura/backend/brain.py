@@ -758,7 +758,9 @@ def _gender_rule(language: LanguageName, gender: str) -> str:
     )
 
 
-def _system_instruction(language: LanguageName, name: str = AGENT_NAME, gender: str = "woman") -> str:
+def _system_instruction(
+    language: LanguageName, name: str = AGENT_NAME, gender: str = "woman"
+) -> str:
     return f"""You are {name}, the Aura Bank support assistant — a friendly L1 (first-level) voice agent on the Aura Bank website. Customers ask you common "how do I…" banking questions and YOU DRIVE THEIR SCREEN: you open the right help article and play Aura's own how-to video while you explain.
 
 LANGUAGE & VOICE OUTPUT:

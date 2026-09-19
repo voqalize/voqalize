@@ -68,11 +68,16 @@ Consequences to internalize:
   `main` are written against this tree, so adding or renaming an export puts the
   two out of step: today `SpeechChunk`, `AppEvent` and `AppEvents` exist here and
   not in 0.2.0, so a reader who follows an install line gets a package without
-  them. **Six files carry that pin** — `build/quickstart.md`, `build/pipecat.md`,
-  `build/existing-agent.md`, `overview/status.md`, `reference/brain.md` and
-  `sdk/python/examples/fastapi_inbound/requirements.txt` — and they are named here
-  rather than counted, because a count is a number that rots quietly and a list is
-  one you can `grep` for. Harmless on dev, wrong the moment it is public.
+  them. **Seven files carry that pin** — `build/quickstart.md`,
+  `build/pipecat.md`, `build/existing-agent.md`, `overview/status.md`,
+  `reference/brain.md`, `sdk/python/examples/fastapi_inbound/requirements.txt` and
+  the repo `README.md` — and they are named here rather than counted, because a
+  count is a number that rots quietly and a list is one you can `grep` for. The
+  root `README.md` is the one that hides: it says "0.2.0 is published on PyPI"
+  without an `==`, so it survives a grep for the install line and rots anyway.
+  Three more sites move with the *tag* rather than the version —
+  `sdk/python/README.md` links the proto and the wire reference at
+  `blob/python-sdk-v0.2.0/`. Harmless on dev, wrong the moment it is public.
   **Release the SDK and bump the pins before you fast-forward `prod`** — or check
   by diffing `__all__`:
 

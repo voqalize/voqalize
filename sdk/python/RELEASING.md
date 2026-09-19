@@ -31,11 +31,16 @@ release python sdk → Run workflow**, picking the *tag* as the ref.
 
 ## Versioning
 
-The public series starts at `0.0.1`. Versions `0.1.0`–`0.3.0` in the changelog
-were never published — they were installed from a path by the single host that
-used the SDK — and starting the PyPI history at the bottom says plainly that
-nothing is promised yet. Until the package reaches `1.0`, treat every minor
-release as potentially breaking and let consumers pin narrowly.
+The public series starts at `0.0.1`, and PyPI now serves `0.0.1`, `0.0.2`,
+`0.0.3`, `0.1.0` and `0.2.0`. The changelog sections suffixed **`(pre-restart)`**
+— `0.1.0`, `0.2.0` and `0.3.0` — were never published: they were installed from a
+path by the single host that used the SDK, and restarting the public history at
+the bottom said plainly that nothing was promised yet. The numbers were then
+reused, so the changelog holds two `0.1.0` sections and two `0.2.0` sections and
+only the unsuffixed one is on PyPI. The release guard greps `^## <tag>$`, which
+matches the unsuffixed heading and never the pre-restart one. Until the package
+reaches `1.0`, treat every minor release as potentially breaking and let
+consumers pin narrowly.
 
 The **wire** is the exception and always has been: the `.proto` contract does not
 break on a version bump, and the changelog calls out explicitly when a release
