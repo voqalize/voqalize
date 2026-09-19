@@ -15,11 +15,12 @@
     "@pipecat-ai/client-react": "^1.8.0",
     "@pipecat-ai/small-webrtc-transport": "^1.10.6",
     "@pipecat-ai/voice-ui-kit": "^0.13.0",
-    "@voqalize/avatar": "^0.3.0",
+    "@voqalize/avatar": "^0.4.0",
     "@voqalize/demo-kit": "file:../../shared",
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "three": "^0.186.0"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

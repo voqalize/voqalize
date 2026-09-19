@@ -191,9 +191,9 @@ export const DOC_SECTIONS: DocSection[] = [
           It scrolls this page to the section it is talking about.
         </p>
         <p>
-          The library and nine of its faces are open source, under the MIT licence. Tara, the face
-          this page opens on, is a Voqalize premium avatar. Its code and artwork are not open
-          source.
+          The library and every face it ships are open source, under the MIT licence — including
+          Tara, the 2.5-D face this page opens on. The character binaries the 2.5-D faces load are
+          artwork rather than code, and carry CC-BY 4.0.
         </p>
 
         <h3>The two packages</h3>
@@ -535,14 +535,16 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
     body: (
       <>
         <p className="doc-lede">
-          The library ships nine faces: three SVG line drawings and six painted Canvas2D faces. Each
-          face has its own entry point, so you load only the one you import. To switch faces,
-          remount the avatar.
+          The library ships twelve faces: three SVG line drawings, six painted Canvas2D faces, and
+          three 2.5-D characters rendered with three.js. Each face has its own entry point, so you
+          load only the one you import. To switch faces, remount the avatar.
         </p>
         <p>
-          Tara, the face this page opens on, is a three.js avatar built in Blender. It is a
-          Voqalize premium avatar. It uses the same mixer and the same protocol as the open-source
-          faces. Its code and artwork are not part of the open-source library.
+          Tara, the face this page opens on, is one of the three: a head built in Blender and
+          loaded as a character binary. It uses the same mixer and the same protocol as the
+          drawings, so nothing above the renderer knows there is a GPU involved. A 2.5-D face is
+          the only kind that needs <code>three</code>, which the package declares as an optional
+          peer — a drawing never pays for it.
         </p>
         <p>
           In this demo, each face is paired with one of two recorded voices. So you choose the face,
@@ -552,7 +554,10 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
 import { peep } from '@voqalize/avatar/faces/peep';
 
 // painted: arjun, meera, vikram, ishita, kabir, naina
-import { createAvatar } from '@voqalize/avatar/avatars/meera';`}</Code>
+import { createAvatar } from '@voqalize/avatar/avatars/meera';
+
+// 2.5-D: tara, tushar, tanya — these need \`three\` installed
+import { createAvatar } from '@voqalize/avatar/avatars/tara';`}</Code>
         <p>
           Each face has three layers. The mixer combines idle movement, gaze, gestures and the
           mouth. The rig turns the result into about thirty pose values. The face draws those

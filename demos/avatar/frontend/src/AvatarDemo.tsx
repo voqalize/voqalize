@@ -589,7 +589,6 @@ function Stage({
                 aria-pressed={entry.key === avatarKey}
               >
                 {entry.name}
-                {entry.kind === "premium" ? <span className="av-pick-tag">premium</span> : null}
               </button>
             ))}
           </div>

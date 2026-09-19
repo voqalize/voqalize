@@ -230,12 +230,6 @@ export const STYLES = `
   }
   .av-pick:hover:not(:disabled) { color: var(--ink); border-color: var(--graphite); }
   .av-pick.is-on { color: var(--chalk); background: var(--ink); border-color: var(--ink); }
-  /* tara is not part of the open-source library, and the strip is where a
-     visitor would otherwise assume she is. */
-  .av-pick-tag {
-    font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
-    text-transform: uppercase; margin-left: 6px; opacity: .7;
-  }
   /* Locked for the length of the call, because a face carries a voice and the
      voice cannot move mid-answer. The chosen one stays fully legible — it is
      what the visitor is looking at — and only the ones they can no longer

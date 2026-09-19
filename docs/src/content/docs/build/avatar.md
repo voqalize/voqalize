@@ -17,8 +17,9 @@ per-minute avatar vendor, and no second media path.
 
 [`voqalize/avatar`](https://github.com/voqalize/avatar) is a separate,
 MIT-licensed library — `@voqalize/avatar` on npm and `voqalize-avatar` on PyPI,
-two ends of one wire format that publish in lockstep. It works against any
-pipecat pipeline, and Voqalize is one consumer of it.
+two ends of one wire format. They version independently and the wire is what
+keeps them compatible. It works against any pipecat pipeline, and Voqalize is one
+consumer of it.
 
 The face is lip-synced to the audio and state-aware: it knows when the user is
 speaking, when it has been interrupted, when a tool call is running, and when
@@ -56,7 +57,7 @@ same shape:
 ```python
 session.send_rtvi(
     RTVIType.SERVER_MESSAGE,
-    {"type": "avatar", "cmd": "action", "id": "GESTURE_GREET"},
+    {"type": "avatar", "cmd": "action", "id": "ACKNOWLEDGE"},
 )
 ```
 
@@ -65,12 +66,18 @@ crosses without anything special. The action ids are the avatar library's, and
 [`contract-wire.md`](https://github.com/voqalize/avatar/blob/main/docs/contract-wire.md)
 is the list of record.
 
-**Send actions, and leave claims alone.** An action is a point-in-time behaviour
-that completes on its own and establishes no state — a nod, a greeting, a wait
-gesture. A `claim` is durable, one is in flight at a time, and a later one
-replaces the earlier: the voice tier's processor is already claiming, so a claim
-from your brain is a race with it, and whichever arrives last wins. Actions
-compose with what the processor is doing; claims contest it.
+**The action id is open, and two names are required of every face**:
+`ACKNOWLEDGE` (the whole backchannel family in one word) and
+`RESPONSE_INTERRUPTED`. Anything else belongs to the face that is mounted, and a
+name it does not know is ignored rather than an error — so a brain can address a
+motion only one avatar has without checking which one is on screen.
+
+**Send actions, and leave state alone.** An action is a point-in-time behaviour
+that completes on its own and establishes no state — a nod, a receipt, a wait
+gesture. A `state` is durable, one is in flight at a time, and a later one
+replaces the earlier: the voice tier's processor is already sending state, so
+state from your brain is a race with it, and whichever arrives last wins. Actions
+compose with what the processor is doing; state contests it.
 
 There is a floor rule here too, and it is the same one everywhere else: an RTVI
 message carries no audio, so `send_rtvi` needs no floor and can be called from
@@ -79,13 +86,15 @@ anywhere — including work that outlives the turn that started it. See
 
 ## What the face is told, and what it decides
 
-Three commands cross: a `claim` (a candidate durable state), an `action`
-(one self-completing behaviour), and `cues` (a viseme splice correlated to a
-text-to-speech context).
+Three commands cross: a `state` (a candidate durable state, `null` to clear it),
+an `action` (one self-completing behaviour), and `cues` (a viseme splice
+correlated to a text-to-speech context). `state` was spelled `claim` before the
+library's 0.4.0; the browser still accepts the old spelling at its parse
+boundary.
 
 Observed playout outranks all of them. What pipecat reports about the audio —
 that the bot started speaking, that the user did, that the microphone is muted
-— is a fact, and a server claim is a candidate underneath it. The face can be
+— is a fact, and a state the server sends is a candidate underneath it. The face can be
 told what to consider; it cannot be told what is happening.
 
 Blink, breath, gaze aversion and idle motion are the renderer's own and are

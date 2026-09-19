@@ -1,17 +1,22 @@
 /**
  * The ten avatars, and how a page mounts one.
  *
- * Nine come from the open-source `@voqalize/avatar`. The tenth, tara, is a
- * premium 3-D avatar whose code and artwork are proprietary: she is vendored as
- * a built artifact in `vendor/tara/` under her own LICENSE, not installed from
- * npm, and nothing in this repository is her source.
+ * All ten come from `@voqalize/avatar`, installed from npm — including tara, who
+ * used to be vendored here as a proprietary build. Since 0.4.0 the 2.5-D
+ * characters ship in the package like every other face: MIT code, and their
+ * character binaries under CC-BY 4.0. Nothing in this repository is anyone's
+ * source any more, and there is no second copy of a face to keep in step.
  *
- * Two shapes ship in `@voqalize/avatar`, and this file's job is to make them one
+ * Three shapes ship in `@voqalize/avatar`, and this file's job is to make them one
  * shape. A line-art face is a *drawing* handed to the bundled SVG avatar; a
- * canvas avatar is a whole `createAvatar` module of its own. The published
- * interface is the module (`createAvatar({mount, client}) -> {destroy()}`), so
- * the three faces are wrapped into that same interface here and the page never
- * branches again.
+ * canvas avatar and a 2.5-D character are each a whole `createAvatar` module of
+ * their own. The published interface is the module
+ * (`createAvatar({mount, client}) -> {destroy()}`), so the drawings are wrapped
+ * into that same interface here and the page never branches again.
+ *
+ * The package ships two more 2.5-D characters, tushar and tanya, that this strip
+ * does not carry — a face on the strip needs a name, a blurb and a paired voice
+ * in `backend/content.py`, which is an editorial choice and not an import.
  *
  * Every entry is loaded on demand. Six of these carry wardrobe images, and a
  * page that imported all ten up front would put megabytes in front of the
@@ -37,7 +42,7 @@ export interface RosterEntry {
   key: string;
   /** Shown on the chip. */
   name: string;
-  /** "premium", "line art" or "painted" — the one thing worth saying on a chip
+  /** "2.5-D", "line art" or "painted" — the one thing worth saying on a chip
    *  that small. */
   kind: string;
   /** Load this avatar's implementation. Resolved once and cached by the bundler. */
@@ -61,8 +66,8 @@ export const ROSTER: readonly RosterEntry[] = [
   {
     key: "tara",
     name: "Tara",
-    kind: "premium",
-    load: () => import("./vendor/tara/tara.js").then((m) => m.createAvatar),
+    kind: "2.5-D",
+    load: () => import("@voqalize/avatar/avatars/tara").then((m) => m.createAvatar),
   },
   {
     key: "myna",

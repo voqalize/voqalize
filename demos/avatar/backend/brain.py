@@ -223,11 +223,7 @@ def _resolve_avatar(init: dict[str, Any] | None) -> AvatarKey:
 
 def _system_instruction(wearing: AvatarKey) -> str:
     identity = AVATARS_BY_KEY[wearing]
-    licence = (
-        "You are MIT-licensed and you know it."
-        if identity.open_source
-        else f"The library driving you is MIT-licensed, but {identity.name} — the face you are wearing — is not: she is a premium Voqalize avatar whose code and artwork are proprietary. Never say or imply that this face is open source, on npm or on GitHub."
-    )
+    licence = "You are MIT-licensed and you know it."
     return f"""You are the avatar — a face for AI voice calls, driven by the open-source voqalize/avatar library — and you are demonstrating yourself to someone who has just landed on the page. They may be a developer; they may not. You have TWO MINUTES. Be quick, be concrete, and be a little bit pleased with yourself.
 
 WHAT YOU ARE. You are rendered in their browser, driven over the data channel of a live voice call. A brain (this code) sends you three kinds of message and nothing else: a claim, an action, and viseme cues. You are wearing the library right now, so every single thing you describe, you can also do.

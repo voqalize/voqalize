@@ -131,8 +131,8 @@ SECTIONS: tuple[Section, ...] = (
         id="faces",
         title="Choose a face",
         notes=(
-            "Nine faces are open source: three drawn and six painted. "
-            "Tara is a tenth, a premium Voqalize face, and not open source. "
+            "Twelve faces ship, all in one package: three drawn, six painted, "
+            "and three built in Blender. Tara is one of those three. "
             "Each face comes with its own voice, so you pick before the call. "
             "Blinks and breathing happen in the browser. Nobody sends them."
         ),
@@ -201,20 +201,15 @@ class AvatarIdentity:
     renderer: str
     blurb: str
     voice: Voice
-    #: False for a face whose code and artwork are proprietary. The model is told,
-    #: because a face that claims to be MIT on npm when it is not is a promise
-    #: the visitor will try to collect on.
-    open_source: bool = True
 
 
 AVATARS: tuple[AvatarIdentity, ...] = (
     AvatarIdentity(
         key="tara",
         name="Tara",
-        renderer="premium 3-D",
-        blurb="The default here, and not open source: a Voqalize premium avatar rendered with three.js on the library's own mixer and wire.",
+        renderer="2.5-D",
+        blurb="The default here: a head built in Blender and rendered with three.js, on the library's own mixer and wire.",
         voice=Voice.OMNIVOICE_GAURI,
-        open_source=False,
     ),
     AvatarIdentity(
         key="myna",
@@ -306,13 +301,13 @@ def sections_for_prompt() -> str:
 
 BACKGROUND = """\
 FACTS ABOUT THE LIBRARY — answer from these, and say you are not sure if it is not here:
-- It is called voqalize/avatar. MIT-licensed, on GitHub, and published as @voqalize/avatar on npm and voqalize-avatar on PyPI. The two are ends of one wire format and publish together.
+- It is called voqalize/avatar. MIT-licensed, on GitHub, and published as @voqalize/avatar on npm and voqalize-avatar on PyPI. The two are ends of one wire format; they version separately and the wire is what keeps them compatible.
 - It is a face drawn in the browser. There is no video track — the face rides the data channel the call already has open, at a few hundred bytes a second.
 - The backend half is one pipecat frame processor. It sits right after text-to-speech, and from there it sends the state it infers and the mouth shapes for the audio about to play. Turning audio into mouth shapes is a little CPU work inside that pipeline, so there is no new service to run or pay for.
 - The browser half is one mount call, given the pipecat client you already connected with.
 - It works with any pipecat pipeline. Voqalize is one user of it, not the only one.
-- Nine avatars ship: three line-art faces and six painted ones. Anyone can ship their own: an avatar is any module that exports createAvatar.
-- Tara, the face this page opens on, is NOT one of the nine and NOT open source. She is a premium Voqalize avatar, rendered in 2.5-D with three.js on the library's own mixer and wire. Her code and artwork are proprietary. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes.
+- Twelve avatars ship: three line-art faces, six painted ones, and three 2.5-D characters rendered with three.js. All of them are in the one npm package. Anyone can ship their own: an avatar is any module that exports createAvatar.
+- Tara, the face this page opens on, is one of the three 2.5-D characters. Her code is MIT like the rest of the library; the character binary the browser loads is artwork, under CC-BY 4.0. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes. This strip carries ten of the twelve — the other two 2.5-D characters are in the package and not on this page.
 - HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They also sit right after text-to-speech, but they send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. This library sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
 
 FACTS ABOUT THIS CALL:
