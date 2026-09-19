@@ -1,0 +1,17 @@
+The two portraits in this directory (tara-portrait.png, tushar-portrait.png) are
+square crops of the reference images the 2.5-D characters are built from, and
+they are the still the launcher wears before the call — nothing mounts a rig to
+draw a button.
+
+They are the same artwork that ships inside `@voqalize/avatar`'s character
+binaries (`assets/tara.glb`, `assets/tushar.glb`), where it is licensed
+CC-BY 4.0, and they carry that licence here:
+
+  Character artwork © 2026 Voqalize Technologies Private Limited,
+  licensed under CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+  Generated with AI image models.
+
+This directory used to be `vendor/`, and used to hold a built tara bundle under a
+proprietary licence. It does not any more: her code is MIT and her artwork is
+CC-BY 4.0 in the published package, so there is nothing to vendor and nothing to
+license separately — only these two crops, which the package does not ship.

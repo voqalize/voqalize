@@ -3,23 +3,23 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 
-// The avatar checkout beside this one, in the four-sibling layout. When it is
-// there, `vite dev` serves tara from its source instead of the vendored build,
-// so an edit to her rig or to the mixer shows on the next reload with nothing
-// rebuilt. `vite build` never looks at it: what ships is always `vendor/tara/`.
-// `TARA_VENDORED=1` runs the dev server against the vendored build instead.
+// The private avatar checkout beside this one, in the four-sibling layout. When
+// it is there, `vite dev` resolves the characters and the mixer from its
+// TypeScript instead of the installed `@voqalize/avatar`, so an edit to a rig or
+// to the mixer shows on the next reload with nothing built or published — this
+// is the loop the private repo's CLAUDE.md sends you here for. `vite build`
+// never looks at it, and neither does a contributor without that checkout: both
+// get the package from npm. `AVATAR_FROM_NPM=1` forces that in dev too.
 const AVATAR = fileURLToPath(new URL("../../../../avatar", import.meta.url));
-const TARA_SOURCE = `${AVATAR}/packages/avatar-3d/src/tara.ts`;
-// EXPERIMENT (uncommitted): the second 3-D character, dev-only. There is no
-// vendored build of him, so `vite build` cannot resolve `?avatar=tushar`.
-const TUSHAR_SOURCE = `${AVATAR}/packages/avatar-3d/src/tushar.ts`;
+const CHARACTERS = `${AVATAR}/packages/avatar/client/three`;
 
 // This demo is a self-contained single-page app. It builds under the relative
 // base `/demos/aura/` so the assembled MPA serves it at
 // `https://<host>/demos/aura` with correct asset URLs; the demos umbrella
 // drops the built `dist/` into `dist/demos/aura/`.
 export default defineConfig(({ command }) => {
-  const fromSource = command === "serve" && !process.env.TARA_VENDORED && existsSync(TARA_SOURCE);
+  const fromSource =
+    command === "serve" && !process.env.AVATAR_FROM_NPM && existsSync(`${CHARACTERS}/tara.ts`);
   return {
     base: "/demos/aura/",
     // The gallery's favicon, in ONE place. Every demo builds under its own
@@ -32,17 +32,19 @@ export default defineConfig(({ command }) => {
     resolve: fromSource
       ? {
           alias: [
-            { find: /^\.\/vendor\/tara\/tara\.js$/, replacement: TARA_SOURCE },
-            { find: /^\.\/vendor\/tushar\/tushar\.js$/, replacement: TUSHAR_SOURCE },
-            // The mixer's TypeScript rather than its tsc output, which would
-            // otherwise need a build to show a change.
-            {
-              find: /^@voqalize\/avatar\/internal$/,
-              replacement: `${AVATAR}/packages/avatar/client/internal.ts`,
-            },
+            { find: /^@voqalize\/avatar\/avatars\/tara$/, replacement: `${CHARACTERS}/tara.ts` },
+            { find: /^@voqalize\/avatar\/avatars\/tushar$/, replacement: `${CHARACTERS}/tushar.ts` },
+            // Two entries and no third: a character imports the mixer by
+            // relative path, so aliasing the character brings that checkout's
+            // mixer, rig and clips with it. `@voqalize/avatar/react` stays on the
+            // installed package, which is the half a consumer would use anyway.
           ],
         }
       : undefined,
+    // The characters fetch their GLB with `new URL("…", import.meta.url)`, which
+    // esbuild's dependency pre-bundling cannot follow — it inlines a path that
+    // is not there. Excluding the package keeps Vite serving its real files.
+    optimizeDeps: { exclude: ["@voqalize/avatar"] },
     build: {
       // voice-ui-kit's scoped stylesheet is authored with native CSS nesting.
       // Vite's default CSS target (safari14) cannot lower one of its rules and

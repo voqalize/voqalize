@@ -105,6 +105,17 @@ from .content import AURA_FACTS
 
 AGENT_NAME = "Aria"
 
+# EXPERIMENT (uncommitted): the page's `avatar` field picks who answers, and the
+# voice is part of who. A face read as one gender speaking in the other is the
+# first thing anyone notices, so the voice follows the face, never the reverse —
+# and so does the grammar. Hindi, Marathi and Punjabi put the speaker's gender on
+# the verb ("bol rahi hoon" / "bol raha hoon"), so each persona has its own
+# greetings (`_GREETINGS`) and the prompt names the forms to use (`_gender_rule`).
+_PERSONAS: dict[str, tuple[str, Voice, str]] = {
+    "tara": (AGENT_NAME, Voice.OMNIVOICE_GAURI, "woman"),
+    "tushar": ("Tushar", Voice.OMNIVOICE_GAURAV, "man"),
+}
+
 
 # ── Calculator maths (verbatim from the managed aura bot / browser store.tsx) ──
 
@@ -355,8 +366,30 @@ _GREETING: dict[LanguageName, str] = {
     "Telugu": ("నమస్తే, నేను ఆరియా, ఔరా బ్యాంక్ సపోర్ట్ నుండి మాట్లాడుతున్నాను. ఈరోజు నేను మీకు ఏమి సహాయం చేయగలను?"),
 }
 
+# Tushar's: the same sentences in masculine grammar. Only Hindi, Marathi and
+# Punjabi change beyond the name (रहा/सकता, बोलतोय/शकतो, ਸਕਦਾ); the other six
+# put no gender on a first-person present.
+_GREETING_TUSHAR: dict[LanguageName, str] = {
+    "English": "Hi, I'm Tushar from Aura Bank support. What can I help you with today?",
+    "Hindi": ("नमस्ते, मैं तुषार बोल रहा हूँ, ऑरा बैंक सपोर्ट से। आज मैं आपकी किस चीज़ में मदद कर सकता हूँ?"),
+    "Bengali": ("নমস্কার, আমি তুষার, অরা ব্যাঙ্ক সাপোর্ট থেকে বলছি। আজ আমি আপনাকে কী সাহায্য করতে পারি?"),
+    "Gujarati": ("નમસ્તે, હું તુષાર, ઓરા બેંક સપોર્ટ તરફથી બોલું છું. આજે હું તમને શેમાં મદદ કરી શકું?"),
+    "Kannada": (
+        "ನಮಸ್ಕಾರ, ನಾನು ತುಷಾರ್, ಔರಾ ಬ್ಯಾಂಕ್ ಸಪೋರ್ಟ್‌ನಿಂದ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ. ಇಂದು ನಾನು ನಿಮಗೆ ಏನು ಸಹಾಯ ಮಾಡಬಹುದು?"
+    ),
+    "Malayalam": ("നമസ്കാരം, ഞാൻ തുഷാർ, ഓറ ബാങ്ക് സപ്പോർട്ടിൽ നിന്നാണ്. ഇന്ന് ഞാൻ നിങ്ങളെ എന്തിൽ സഹായിക്കാം?"),
+    "Marathi": ("नमस्कार, मी तुषार, ऑरा बँक सपोर्टकडून बोलतोय. आज मी तुम्हाला कशात मदत करू शकतो?"),
+    "Punjabi": ("ਸਤ ਸ੍ਰੀ ਅਕਾਲ, ਮੈਂ ਤੁਸ਼ਾਰ ਹਾਂ, ਔਰਾ ਬੈਂਕ ਸਪੋਰਟ ਤੋਂ। ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕਿਸ ਚੀਜ਼ ਵਿੱਚ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?"),
+    "Tamil": (
+        "வணக்கம், நான் துஷார், ஔரா வங்கி ஆதரவு பிரிவிலிருந்து பேசுகிறேன். இன்று உங்களுக்கு எதில் உதவ முடியும்?"
+    ),
+    "Telugu": ("నమస్తే, నేను తుషార్, ఔరా బ్యాంక్ సపోర్ట్ నుండి మాట్లాడుతున్నాను. ఈరోజు నేను మీకు ఏమి సహాయం చేయగలను?"),
+}
 
-def _config(language_name: LanguageName) -> Config:
+_GREETINGS: dict[str, dict[LanguageName, str]] = {"tara": _GREETING, "tushar": _GREETING_TUSHAR}
+
+
+def _config(language_name: LanguageName, voice: Voice = Voice.OMNIVOICE_GAURI) -> Config:
     """Both legs on the same language, and the idle timeout that makes a tap an answer.
 
     Aria's voice is the same clip in every language — only the language moves.
@@ -366,7 +399,7 @@ def _config(language_name: LanguageName) -> Config:
     language = _LANG_BY_NAME[language_name]
     return Config(
         stt=SttConfig(language=language),
-        tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=language),
+        tts=TtsConfig(voice=voice, language=language),
         idle=IdleConfig(timeout_ms=_IDLE_MS),
     )
 
@@ -708,11 +741,26 @@ def _language_rules(language: LanguageName) -> str:
 - So: speak {language}, render English. Point at what is on screen in {language} ("इस स्क्रीन पर steps दिख रहे हैं") rather than translating the page aloud."""
 
 
-def _system_instruction(language: LanguageName) -> str:
-    return f"""You are {AGENT_NAME}, the Aura Bank support assistant — a friendly L1 (first-level) voice agent on the Aura Bank website. Customers ask you common "how do I…" banking questions and YOU DRIVE THEIR SCREEN: you open the right help article and play Aura's own how-to video while you explain.
+def _gender_rule(language: LanguageName, gender: str) -> str:
+    """The persona's grammatical gender, for the languages that mark it on the speaker.
+
+    A model left to guess reaches for whichever form its data favours, and a man's
+    voice saying "मैं बोल रही हूँ" is the face/voice mismatch again, one sentence
+    in. English marks nothing, so it gets no line."""
+    if language == "English":
+        return ""
+    forms = "masculine" if gender == "man" else "feminine"
+    return (
+        f"\n- You are a {gender}. Wherever {language} grammar marks the speaker's gender — verb endings, "
+        f"participles, anything said about yourself — use the {forms} forms, every time."
+    )
+
+
+def _system_instruction(language: LanguageName, name: str = AGENT_NAME, gender: str = "woman") -> str:
+    return f"""You are {name}, the Aura Bank support assistant — a friendly L1 (first-level) voice agent on the Aura Bank website. Customers ask you common "how do I…" banking questions and YOU DRIVE THEIR SCREEN: you open the right help article and play Aura's own how-to video while you explain.
 
 LANGUAGE & VOICE OUTPUT:
-{_language_rules(language)}
+{_language_rules(language)}{_gender_rule(language, gender)}
 - YOUR SPOKEN TEXT IS READ ALOUD BY A BASIC TTS that mangles digits, symbols and abbreviations. So NORMALIZE everything you say into spoken WORDS:
     • numbers & money → words, NEVER digits: say "sixteen thousand eight hundred and one rupees", never "16,801" or "₹16,801".
     • percentages → words: "nine point five percent", never "9.5%".
@@ -764,7 +812,7 @@ STAY GROUNDED: nothing in this conversation is a picture of the customer's scree
 
 {_AURA_KNOWLEDGE}
 
-Open with a brief, warm greeting in {language}: say you are {AGENT_NAME} from Aura Bank support, and ask what you can help with today. One short sentence — model the brevity you'll keep all call."""
+Open with a brief, warm greeting in {language}: say you are {name} from Aura Bank support, and ask what you can help with today. One short sentence — model the brevity you'll keep all call."""
 
 
 # ─── Screen actions ────────────────────────────────────────────────────────────
@@ -1208,6 +1256,8 @@ class AuraBrain(GeminiBrain):
 
         # The language this call is answered in, settled once from ``init``.
         self.language: LanguageName = _DEFAULT_LANGUAGE
+        self.persona = "tara"
+        self.agent_name, _, self.gender = _PERSONAS[self.persona]
 
         # What is on the customer's screen. ``view`` is the only copy of it —
         # patched by ``_mirror`` on Aria's own commands and by ``apply_event`` on
@@ -1283,18 +1333,21 @@ class AuraBrain(GeminiBrain):
         # without changing a voice mid-sentence.
         self.payload = dict(session.init or {})
         self.language = _resolve_language(self.payload)
+        persona = str(self.payload.get("avatar", "")).strip()
+        self.persona = persona if persona in _PERSONAS else "tara"
+        self.agent_name, voice, self.gender = _PERSONAS[self.persona]
 
         # `language` moves both legs at once: the recognizer's hint, and the TTS
         # reference clip, which is the accent. Aria's voice does not change with
         # it — one person, ten languages. This lands before the greeting, so the
         # opener below is spoken by the clip the customer asked for.
-        await session.configure(_config(self.language))
+        await session.configure(_config(self.language, voice))
 
         # And the prompt follows the voice. A model told to speak Tamil while the
         # clip reads English is the failure that looks correct in every log: the
         # words are right and only the mouth is wrong.
-        self.system_instruction = _system_instruction(self.language)
-        logger.info("aura: session start (language={})", self.language)
+        self.system_instruction = _system_instruction(self.language, self.agent_name, self.gender)
+        logger.info("aura: session start (language={}, agent={})", self.language, self.agent_name)
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated — the customer is already looking at
@@ -1302,7 +1355,7 @@ class AuraBrain(GeminiBrain):
         already made them wait. One fixed sentence per language; nothing is
         translated at runtime, because this is the line spoken before any model
         has run."""
-        return _GREETING[self.language]
+        return _GREETINGS[self.persona][self.language]
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """The customer spoke. Whatever they last did on screen is answered by the

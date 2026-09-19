@@ -66,7 +66,7 @@
  *     recognizer, the reference clip and the prompt together; the page names a
  *     language and configures nothing (see `language.tsx`, and `backend/brain.py`
  *     → the Language section, which is the authority);
- *   - **the meeting tile**, Voqalize's premium avatar tara, driven by the
+ *   - **the meeting tile**, one of `@voqalize/avatar`'s 2.5-D characters, driven by the
  *     runtime's own `avatar` messages on the data channel the transcript already
  *     rides, framed as the picture-in-picture window of a video call — name
  *     plate, running timer, captions, and the call's controls beneath it;
@@ -101,6 +101,7 @@ import {
 import { useAura } from './store';
 import { connectRequest, withRealHeaders } from './config';
 import { AuraDock } from './AuraDock';
+import { agentName, PAGE_FACE, type AuraFace } from './persona';
 import { DEFAULT_LANGUAGE, LanguagePicker, type LanguageName } from './language';
 
 const PRIMARY = '#4F46E5';
@@ -149,11 +150,11 @@ const STATE_LABEL: Record<AmbientPresenceActivity, string> = {
  * bank site that gives no sign of it in its own chrome is worse than one that
  * does. It reads the same `activity` the ring and the tile read.
  */
-function LiveStatus({ activity }: { activity: AmbientPresenceActivity }) {
+function LiveStatus({ name, activity }: { name: string; activity: AmbientPresenceActivity }) {
   return (
     <div className="aura-presence">
       <span className={`aura-presence-live is-${activity}`} aria-hidden />
-      <span className="aura-presence-label">Live with Aria · {STATE_LABEL[activity]}</span>
+      <span className="aura-presence-label">Live with {name} · {STATE_LABEL[activity]}</span>
     </div>
   );
 }
@@ -195,6 +196,8 @@ function PresenceStyles() {
 interface AuraInit extends Record<string, unknown> {
   surface: string;
   language: LanguageName;
+  /** Which character answers; the brain gives each its own name and voice. */
+  avatar: AuraFace;
 }
 
 /**
@@ -211,7 +214,7 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
   // join itself. Nothing reads this object until `connect` serializes it, which
   // is after the picker has written to it, so the mutation is invisible to
   // everything except the request that carries it.
-  const init = useRef<AuraInit>({ surface: 'aura-web', language: DEFAULT_LANGUAGE }).current;
+  const init = useRef<AuraInit>({ surface: 'aura-web', language: DEFAULT_LANGUAGE, avatar: readFlags().face }).current;
   const params = useMemo(() => connectRequest(init), [init]);
 
   // **Everything the customer has decided lives here, above `PipecatAppBase`,
@@ -293,11 +296,12 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
  * thing being shown; the chat is off, because a text box the visitor never asked
  * for reads as an admission that the voice is not enough.
  */
-function readFlags(): { avatar: boolean; chat: boolean } {
+function readFlags(): { avatar: boolean; chat: boolean; face: AuraFace } {
   const q = new URLSearchParams(window.location.search);
   const off = (v: string | null) => v === '0' || v === 'false';
   const on = (v: string | null) => v === '' || v === '1' || v === 'true';
-  return { avatar: !off(q.get('avatar')), chat: q.has('chat') && on(q.get('chat')) };
+  // `?avatar=tushar` is on, and names the character (`./persona`).
+  return { avatar: !off(q.get('avatar')), chat: q.has('chat') && on(q.get('chat')), face: PAGE_FACE };
 }
 
 // Rendered inside `PipecatAppBase`'s own `PipecatClientProvider`, so every
@@ -324,7 +328,7 @@ function AuraSession({
   /** `undefined` until `PipecatAppBase` has a client — see the reconciler below. */
   onConnect: (() => void | Promise<void>) | undefined;
   onDisconnect: () => void | Promise<void>;
-  flags: { avatar: boolean; chat: boolean };
+  flags: { avatar: boolean; chat: boolean; face: AuraFace };
   language: LanguageName;
   onPickLanguage: (name: LanguageName) => void;
   sheetOpen: boolean;
@@ -430,13 +434,14 @@ function AuraSession({
     if (error) onFailed();
   }, [error, onFailed]);
 
-  const presence = isConnected ? <LiveStatus activity={activity} /> : null;
+  const name = agentName(flags.face);
+  const presence = isConnected ? <LiveStatus name={name} activity={activity} /> : null;
 
   return (
     <>
       <DemoGate
         open={sheetOpen}
-        title="Talk to Aria"
+        title={`Talk to ${name}`}
         blurb="Aura's support line, answered by voice. Ask a question and watch the help centre work the answer out on screen."
         accent={PRESENCE.listening}
         theme="light"
@@ -458,6 +463,7 @@ function AuraSession({
         client={client ?? null}
         activity={activity}
         avatar={flags.avatar}
+        face={flags.face}
         chat={flags.chat}
         phase={isConnected ? 'live' : status === 'connecting' || wantCall ? 'connecting' : 'idle'}
         onStart={onOpenSheet}

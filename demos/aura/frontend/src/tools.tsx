@@ -17,6 +17,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAura } from './store';
+import { AGENT_NAME } from './persona';
 import type { CalcKind, CardControls, Product } from './types';
 
 const PRIMARY = '#4F46E5';
@@ -427,8 +428,8 @@ export function AuthDialog() {
             </div>
           </div>
           <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.55, margin: '0 0 18px' }}>
-            Allow <strong style={{ color: INK }}>Aria, Aura Support</strong> to <strong style={{ color: INK }}>view</strong> your account
-            balance and statement for this call. Aria can never move money, and never sees your OTP, PIN or password.
+            Allow <strong style={{ color: INK }}>{AGENT_NAME}, Aura Support</strong> to <strong style={{ color: INK }}>view</strong> your account
+            balance and statement for this call. {AGENT_NAME} can never move money, and never sees your OTP, PIN or password.
           </p>
           <button
             onClick={confirmAuth}
@@ -559,7 +560,7 @@ export function StatementPage() {
           </div>
         ))}
       </div>
-      <div style={{ fontSize: 11.5, color: MUTED, marginTop: 12 }}>🔒 Secure session · view only. Aria cannot move money.</div>
+      <div style={{ fontSize: 11.5, color: MUTED, marginTop: 12 }}>🔒 Secure session · view only. {AGENT_NAME} cannot move money.</div>
     </PageShell>
   );
 }
@@ -692,7 +693,7 @@ export function CardControlsPage() {
           <span style={{ fontSize: 13.5, fontWeight: 700, color: '#1B7A38' }}>✓ Controls updated</span>
         )}
       </div>
-      <div style={{ fontSize: 11.5, color: MUTED, marginTop: 10 }}>🔒 Secure session · you set and save these yourself. Aria only opens the controls.</div>
+      <div style={{ fontSize: 11.5, color: MUTED, marginTop: 10 }}>🔒 Secure session · you set and save these yourself. {AGENT_NAME} only opens the controls.</div>
     </PageShell>
   );
 }

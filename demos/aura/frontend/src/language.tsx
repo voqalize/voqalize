@@ -20,6 +20,8 @@
  * actually is.
  */
 
+import { AGENT_NAME } from './persona';
+
 /** A language name, spelled exactly as the brain's `LanguageName` spells it. */
 export type LanguageName = (typeof LANGUAGES)[number]['name'];
 
@@ -79,7 +81,7 @@ export function LanguagePicker({
           </button>
         ))}
       </div>
-      <p className="aura-lang-note">Aria speaks your language; the help centre stays in English.</p>
+      <p className="aura-lang-note">{AGENT_NAME} speaks your language; the help centre stays in English.</p>
       <style>{`
         .aura-lang { border: 0; margin: 0; padding: 0; min-width: 0; }
         .aura-lang legend {

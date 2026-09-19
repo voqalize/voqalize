@@ -33,24 +33,26 @@
  * different questions: `size` (`compact` shrinks the face when the page matters
  * more than the presenter) and `chat` (the transcript column, off by default).
  *
- * **The face.** Tara, Voqalize's premium 3-D avatar, mounted through
- * `@voqalize/avatar`'s `<Avatar create>`. Her code and artwork are proprietary:
- * she is vendored as a built artifact in `vendor/tara/` under her own LICENSE,
- * not installed from npm, and it is the same build the avatar demo serves
- * (`demos/avatar/frontend/src/vendor/tara/`) — refresh the two together. She
+ * **The face.** Tara, one of the library's 2.5-D characters, mounted through
+ * `@voqalize/avatar`'s `<Avatar create>` and imported from the package like any
+ * other face — `@voqalize/avatar/avatars/tara`, installed from npm. She used to
+ * be vendored here as a proprietary build; as of 0.4.0 her code is MIT and her
+ * character binary is CC-BY 4.0 in the published package, so there is no second
+ * copy of her in this repository to keep in step. She
  * takes one prop that matters — the live `PipecatClient` — and drives herself
  * off the `avatar` server messages Voqalize's runtime already sends over the
  * same data channel the transcript rides. There is nothing to configure and no
  * second stream: no video track, no talking-head vendor, no per-minute cost. The
  * rig only renders; the server owns the intent.
  *
- * Her bundle carries three.js, so it is loaded on demand. The bank page does not
- * pay for it until the customer clicks the launcher, and the pre-call sheet
- * covers the load.
+ * Her module carries three.js and her character binary, so it is loaded on
+ * demand — `three` is an optional peer of the package and only a 2.5-D character
+ * asks for it. The bank page does not pay for it until the customer clicks the
+ * launcher, and the pre-call sheet covers the load.
  *
  * Before the call there is no client to embody, so the launcher wears a **still**
- * of her — `vendor/tara/tara-portrait.png`, a square crop of the reference she is
- * built from.
+ * of her — `portraits/tara-portrait.png`, a square crop of the reference she is
+ * built from. The package does not ship portraits, so that crop stays here.
  *
  * **The transcript and the composer are voice-ui-kit's**, not ours. `Conversation`
  * renders Aria's half in *karaoke*: the words TTS has already spoken in full ink,
@@ -89,7 +91,9 @@ import '@pipecat-ai/voice-ui-kit/styles.scoped';
 import { Avatar } from '@voqalize/avatar/react';
 import { Maximize2, MessageSquare, Minimize2, PhoneOff } from 'lucide-react';
 import type { AmbientPresenceActivity } from '@voqalize/demo-kit';
-import portrait from './vendor/tara/tara-portrait.png';
+import taraPortrait from './portraits/tara-portrait.png';
+import tusharPortrait from './portraits/tushar-portrait.png';
+import { agentName, type AuraFace } from './persona';
 
 const PRIMARY = '#4F46E5';
 const ACCENT = '#8B5CF6';
@@ -97,7 +101,18 @@ const ACCENT = '#8B5CF6';
 /** Tara's module. Called by the launcher to start the download and by the tile
  *  to mount her; the bundler resolves it once. */
 const loadTara = (): Promise<AvatarFactory<AvatarOptions>> =>
-  import('./vendor/tara/tara.js').then((m) => m.createAvatar);
+  import('@voqalize/avatar/avatars/tara').then((m) => m.createAvatar);
+
+/** `?avatar=tushar` puts the second 2.5-D character in the tile (`./persona`).
+ *  Both are subpath exports of the one package now, so this is a second import
+ *  and nothing else. */
+const FACES: Record<AuraFace, { portrait: string; load: () => Promise<AvatarFactory<AvatarOptions>> }> = {
+  tara: { portrait: taraPortrait, load: loadTara },
+  tushar: {
+    portrait: tusharPortrait,
+    load: () => import('@voqalize/avatar/avatars/tushar').then((m) => m.createAvatar),
+  },
+};
 
 const ACTIVITY_LABEL: Record<AmbientPresenceActivity, string> = {
   idle: 'Listening',
@@ -119,6 +134,8 @@ export interface AuraDockProps {
   activity: AmbientPresenceActivity;
   /** Whether to mount the avatar rig. `?avatar=0` turns it off. */
   avatar: boolean;
+  /** Which character, and so which name. */
+  face: AuraFace;
   /** Whether the chat column starts open. `?chat=1` opens it. */
   chat: boolean;
   /**
@@ -133,7 +150,8 @@ export interface AuraDockProps {
   onEnd: () => void;
 }
 
-export function AuraDock({ client, activity, avatar, chat, phase, onStart, onEnd }: AuraDockProps) {
+export function AuraDock({ client, activity, avatar, face, chat, phase, onStart, onEnd }: AuraDockProps) {
+  const name = agentName(face);
   const [chatOpen, setChatOpen] = useState(chat);
   const [size, setSize] = useState<'compact' | 'full'>('full');
 
@@ -142,7 +160,7 @@ export function AuraDock({ client, activity, avatar, chat, phase, onStart, onEnd
   if (phase !== 'live') {
     return (
       <>
-        <Launcher connecting={phase === 'connecting'} onStart={onStart} />
+        <Launcher face={face} connecting={phase === 'connecting'} onStart={onStart} />
         <DockStyles />
       </>
     );
@@ -154,17 +172,17 @@ export function AuraDock({ client, activity, avatar, chat, phase, onStart, onEnd
           variables and utilities apply inside this element and nowhere else. */}
       <aside
         className={`vkui-root aura-tile is-${size} is-${activity}${chatOpen ? ' has-chat' : ''}`}
-        aria-label="Call with Aria"
+        aria-label={`Call with ${name}`}
       >
         {avatar ? (
           <div className="aura-tile-stage">
-            <Face client={client} />
+            <Face face={face} client={client} />
             <div className="aura-tile-chip">
               <span className={`aura-tile-dot is-${activity}`} aria-hidden />
               <span>{ACTIVITY_LABEL[activity]}</span>
               <CallTimer />
             </div>
-            <span className="aura-tile-plate">Aria · Aura Support</span>
+            <span className="aura-tile-plate">{name} · Aura Support</span>
             {/* The caption band: Aria's current sentence, word by word, over the
                 picture. The chat column below is the history; this is the
                 sentence in flight, and it is the half a customer glances at. */}
@@ -175,7 +193,7 @@ export function AuraDock({ client, activity, avatar, chat, phase, onStart, onEnd
         ) : (
           <header className="aura-tile-head">
             <span className={`aura-tile-dot is-${activity}`} aria-hidden />
-            <span className="aura-tile-name">Aria</span>
+            <span className="aura-tile-name">{name}</span>
             <span className="aura-tile-state">{ACTIVITY_LABEL[activity]}</span>
             <CallTimer />
           </header>
@@ -199,7 +217,7 @@ export function AuraDock({ client, activity, avatar, chat, phase, onStart, onEnd
                 className={`aura-tile-btn${size === 'compact' ? ' is-on' : ''}`}
                 onClick={() => setSize(size === 'full' ? 'compact' : 'full')}
                 aria-pressed={size === 'compact'}
-                title={size === 'full' ? 'Shrink Aria' : 'Enlarge Aria'}
+                title={size === 'full' ? `Shrink ${name}` : `Enlarge ${name}`}
               >
                 {size === 'full' ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </button>
@@ -223,7 +241,7 @@ export function AuraDock({ client, activity, avatar, chat, phase, onStart, onEnd
           <div className="aura-tile-chat">
             <div className="aura-tile-log">
               <Conversation
-                assistantLabel="Aria"
+                assistantLabel={name}
                 clientLabel="You"
                 textRenderMode="karaoke"
                 noFunctionCalls
@@ -247,19 +265,19 @@ export function AuraDock({ client, activity, avatar, chat, phase, onStart, onEnd
  * Until the module is here the stage shows its own ground, which is what it
  * shows behind her anyway.
  */
-function Face({ client }: { client: PipecatClient | null }) {
+function Face({ face, client }: { face: AuraFace; client: PipecatClient | null }) {
   const [create, setCreate] = useState<AvatarFactory<AvatarOptions> | null>(null);
   useEffect(() => {
     let live = true;
-    void loadTara().then((factory) => {
+    void FACES[face].load().then((factory) => {
       if (live) setCreate(() => factory);
     });
     return () => {
       live = false;
     };
-  }, []);
-  if (!create) return <div role="img" aria-label="Aria" />;
-  return <Avatar create={create} client={client} aria-label="Aria" />;
+  }, [face]);
+  if (!create) return <div role="img" aria-label={agentName(face)} />;
+  return <Avatar create={create} client={client} aria-label={agentName(face)} />;
 }
 
 /**
@@ -296,7 +314,7 @@ function CallTimer() {
  * execution was not — a bust drawn for a 4:3 call tile, scaled 1.9× and clipped
  * to a 52 px circle, is a floating head, and one that blinks at you while you
  * are reading about interest certificates. A still portrait, cropped square at
- * the source (`vendor/tara/tara-portrait.png`), is the same promise made quietly.
+ * the source (`portraits/tara-portrait.png`), is the same promise made quietly.
  *
  * It says "Talk to Aria" rather than "Chat with us" because it is a *voice*
  * assistant and a customer who expects a text box and is asked for a microphone
@@ -304,23 +322,25 @@ function CallTimer() {
  * — this button never connects on its own; the microphone opens one deliberate
  * step later, behind the notice.
  */
-function Launcher({ connecting, onStart }: { connecting: boolean; onStart: () => void }) {
+function Launcher({ face, connecting, onStart }: { face: AuraFace; connecting: boolean; onStart: () => void }) {
+  const { portrait, load } = FACES[face];
+  const name = agentName(face);
   return (
     <button
       type="button"
       className={`aura-aria-launch${connecting ? ' is-busy' : ''}`}
       onClick={() => {
-        void loadTara();
+        void load();
         onStart();
       }}
       disabled={connecting}
-      aria-label={connecting ? 'Connecting to Aria' : 'Talk to Aria, the voice assistant'}
+      aria-label={connecting ? `Connecting to ${name}` : `Talk to ${name}, the voice assistant`}
     >
       <span className="aura-aria-launch-face">
         <img src={portrait} alt="" width={52} height={52} />
       </span>
       <span className="aura-aria-launch-copy">
-        <span className="aura-aria-launch-title">{connecting ? 'Connecting…' : 'Talk to Aria'}</span>
+        <span className="aura-aria-launch-title">{connecting ? 'Connecting…' : `Talk to ${name}`}</span>
         <span className="aura-aria-launch-sub">
           {connecting ? 'One moment' : 'Aura’s voice assistant'}
         </span>
