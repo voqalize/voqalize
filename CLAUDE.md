@@ -60,6 +60,21 @@ Consequences to internalize:
 - **A dev deploy is now the thing that proves a change**, not a hope. `main` lands
   on `brain.dev.voqalize.com`; exercise it at `dev.voqalize.com/demos/*` before you
   fast-forward `prod`.
+- **The docs pin the version PyPI serves, so a renamed export blocks the promote.**
+  Every install line — `build/quickstart.md`, `build/pipecat.md`,
+  `overview/status.md`, `examples/fastapi_inbound/requirements.txt` — names the
+  *published* release, and gets bumped in a commit of its own once PyPI has it
+  (`8104298`, "point the install lines at 0.2.0, now that PyPI serves it"). Docs on
+  `main` are written against this tree, so adding or renaming an export puts the
+  two out of step: today `SpeechChunk`, `AppEvent` and `AppEvents` exist here and
+  not in 0.2.0, and nineteen pages tell a reader to `pip install
+  voqalize-agent-sdk==0.2.0` and then import a name it does not have. Harmless on
+  dev, wrong the moment it is public. **Release the SDK and bump the pins before
+  you fast-forward `prod`** — or check by diffing `__all__`:
+
+  ```sh
+  git show python-sdk-v0.2.0:sdk/python/src/voqalize/sdk/__init__.py | grep -A40 __all__
+  ```
 - The web half is a two-step: `build-demos-web` only *stages* an artifact and moves
   `latest.json`. The apex site (`voqalize.com`) picks it up on the **next**
   `deploy-marketing-prod` run (fired by `voqalcloud`'s `prod` branch), which reads
