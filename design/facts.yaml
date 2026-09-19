@@ -139,17 +139,20 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.2.0'
+    value: '0.3.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-08-27
+    verified: 2026-09-20
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.2.0 on 2026-08-27, and the minor rather than the patch for the
-      same reason 0.1.0 was: the surface breaks. FinalizeReason is gone and
-      Finalize carries a third field, so a caller that constructs one no longer
-      compiles. Under 1.0 that is what a minor is for. Derived, so this line
+      Bumped to 0.3.0 on 2026-09-20, and the minor rather than the patch even
+      though the surface only grows — AppEvent, AppEvents and SpeechChunk are
+      additions and Chunk stays as an alias. The minor is for behaviour, not
+      shape: GeminiBrain now withholds text that parses as a leaked function
+      call, so a brain that relied on the model speaking `default_api:` no
+      longer hears it, and carrying an app event on `client-message` starts
+      warning. Under 1.0 that is what a minor is for. Derived, so this line
       cannot drift from pyproject.toml — but the number it should be compared
       against is sdk.python.version.published, not this one, and the two are
       deliberately apart between a bump and the tag that publishes it.
