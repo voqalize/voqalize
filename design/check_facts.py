@@ -30,9 +30,15 @@ of how quietly each one fails:
 
 4. **Retired vocabulary**, from ``lexicon.yaml``: the word for a concept that has
    two names, the outcome words, the contrast grammar, and ``internal_names`` —
-   the service and repository names that are never right in customer prose. Design notes are
-   exempt by ``scope.reasoning_only`` — reasoning argues by contrast — except for
-   ``platform``, which leaks.
+   the service and repository names that are never right in customer prose.
+
+   ``scope.governed`` is the whole scan set. ``scope.reasoning_only`` is a
+   *description*, not a second set the code reads: design notes, ``AGENTS.md`` and
+   ``CLAUDE.md`` are simply not scanned, because reasoning argues by contrast and
+   internal engineering prose is exactly what ``allowed_in`` permits — 23 of the
+   bare ``platform`` uses in those files today are legal by that rule. The word is
+   still the author's judgement there, and the rule that matters is that it must
+   not be copied from one of those files into anything a customer reads.
 
 Checks 1 and 2 are errors: the record disagrees with itself. Checks 3 and 4 are
 findings against prose, and a finding is a sentence for a human to rewrite.
@@ -283,9 +289,19 @@ def scan(files: list[Path], facts: dict, lexicon: dict, sweep: bool) -> tuple[li
         )
 
     for pr in lexicon.get("prohibited", []):
-        rules.append(
-            (re.compile(rf"\b{re.escape(pr['word'])}\b", re.I), "never used of Voqalize", [])
-        )
+        # A prohibited word may have exactly one phrase it is right in — `platform`
+        # is only ever the approved category phrase, entire. Split that phrase on
+        # the word and guard both sides, so a bare use still fires and the whole
+        # phrase passes. Both guards are fixed-width, which Python's lookbehind needs.
+        word = re.escape(pr["word"])
+        if allowed := pr.get("allowed_pattern"):
+            before, after = (re.escape(part) for part in allowed.split(pr["word"], 1))
+            rx = re.compile(rf"(?<!{before})\b{word}\b(?!{after})", re.I)
+            why = f"only ever qualified, as {allowed!r}"
+        else:
+            rx = re.compile(rf"\b{word}\b", re.I)
+            why = "never used of Voqalize"
+        rules.append((rx, why, []))
 
     # Advisory: true often enough to print, not often enough to fail a build.
     # Contrast between two things inside our own system is allowed — that is how

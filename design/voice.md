@@ -7,7 +7,8 @@ at this one.
 
 Internal engineering and strategy documents are outside this standard — design notes and
 decision records are reasoning, and reasoning argues by contrast. One rule reaches them
-anyway: **nothing we write calls Voqalize a platform**, because a word we use internally
+anyway: **the word *platform* only ever appears inside the full phrase "a developer
+platform for in-app voice agents"**, never bare, because a word we use loosely internally
 is a word that leaks.
 
 *This document teaches with contrast, prohibition and failing examples. The copy it
@@ -310,6 +311,7 @@ A new term is added to this table first and to the SDK second.
 
 | Concept | Word | Retired |
 |---|---|---|
+| What Voqalize is | **a developer platform for in-app voice agents** | a voice platform, voice infrastructure, a voice API |
 | The developer's WebSocket agent | **brain** | agent backend, bot, handler |
 | One call, one socket | **session** | meeting, conversation, call, room |
 | What Voqalize runs below text | **the voice tier** | the platform, the runtime, voice infrastructure |
@@ -325,9 +327,11 @@ A new term is added to this table first and to the SDK second.
 | The account that owns agents, keys and sessions | **tenant** | workspace |
 | The person on the call | **user** | caller |
 
-**We never describe Voqalize as a platform.** Our argument is that intelligence should not
-live on a platform, and the word contradicts the product in the reader's ear. Internal
-engineering documents still use it; nothing a customer reads does. **Internal service and
+**The word *platform* is only ever qualified.** The approved phrase is *a developer
+platform for in-app voice agents*, whole; the qualifier is the load-bearing part. Bare, the
+word names the thing that runs the customer's agent, which is exactly what we are not — so
+never "our platform runs your agent", never "the platform", and never *voice agent*
+unqualified by *in-app* or *inside your application*. **Internal service and
 repository names never appear in customer-facing text either** — the end that dials the
 brain is **Voqalize**, whatever the process is called in our own logs.
 

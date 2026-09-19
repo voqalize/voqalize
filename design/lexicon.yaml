@@ -28,6 +28,10 @@ source_of_truth_for: design/voice.md '## Mechanics and lexicon' table
 # a person. The words that are never right in any sentence — `retired_words`
 # below, and `platform` — run every time.
 terms:
+  - concept: What Voqalize is
+    word: a developer platform for in-app voice agents
+    retired: [a voice platform, voice infrastructure, a voice API]
+
   - concept: The developer's WebSocket agent
     word: brain
     retired: [agent backend, bot, handler]
@@ -112,18 +116,20 @@ internal_names:
   - name: voqalcloud
     say_instead: Voqalize
 
-# The word we never use for ourselves, kept separate because the rule has
+# The word we only ever use qualified, kept separate because the rule has
 # exceptions the table cannot carry.
 prohibited:
   - word: platform
     why: >-
-      Our argument is that intelligence should not live on a platform, so the
-      word contradicts the product in the reader's ear. Internal engineering
-      documents still use it; nothing a customer reads does.
+      Bare, the word names the thing that runs the customer's agent, which is
+      exactly what we are not. Qualified, it is our category: the approved phrase
+      is "a developer platform for in-app voice agents", whole, and the qualifier
+      is the load-bearing part.
+    allowed_pattern: 'developer platform for in-app voice agents'
     allowed_in:
+      - the approved category phrase, entire (`allowed_pattern`)
       - internal engineering and strategy documents
       - a competitor category, where it names their thing and not ours
-      - a sentence that disclaims it ("before we ever described it as a platform")
       - a third party's own name (Google Cloud Platform)
 
 # Retired vocabulary. Not synonyms for anything — words that assert an outcome
