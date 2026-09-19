@@ -8,7 +8,7 @@ proves.
 
 Avatar is the demo that earns its own **server-message** assertions. Everything
 that makes it worth linking from the library's front door — the greeting wave,
-the working claim held across a deliberate pause, the voice that moves with the
+the WORKING state held across a deliberate pause, the voice that moves with the
 face — is a message on a lane nothing else in this suite reads. None of it is
 visible in a transcript: a call where the wave never fired and the face sat
 still transcribes exactly like a call where it worked.
@@ -58,8 +58,8 @@ def _avatar_messages(rig: DemoRig) -> list[dict[str, Any]]:
     ]
 
 
-def _claims(rig: DemoRig) -> list[str | None]:
-    return [m.get("state") for m in _avatar_messages(rig) if m.get("cmd") == "claim"]
+def _states(rig: DemoRig) -> list[str | None]:
+    return [m.get("state") for m in _avatar_messages(rig) if m.get("cmd") == "state"]
 
 
 def _actions(rig: DemoRig) -> list[str]:
@@ -101,7 +101,7 @@ def _llm() -> ScriptedGemini:
             ],
             "Show me thinking.": [
                 reply_and_call("Here it is.", "demonstrate", request={"state": "THINKING"}),
-                reply("That's a claim — durable, and any fact outranks it."),
+                reply("That's a state — durable, and any fact outranks it."),
             ],
             "Wave at me.": [
                 call("perform", request={"gesture": "wave_hello"}),
@@ -235,12 +235,12 @@ async def test_an_unknown_face_wears_the_default_in_its_own_voice() -> None:
         check_voice_pair(rig, voice="omnivoice/gauri", language="en")
 
 
-async def test_the_deliberate_dig_claims_working_out_loud_and_clears_it() -> None:
+async def test_the_deliberate_dig_says_working_out_loud_and_clears_it() -> None:
     """The beat the whole demo is built around, asserted as a sequence.
 
-    The holding line is spoken *before* the claim goes out — a silent pause is
-    the thing this replaces — and the claim is cleared explicitly rather than
-    left for the next factual boundary to retire, because a claim left standing
+    The holding line is spoken *before* the state goes out — a silent pause is
+    the thing this replaces — and the state is cleared explicitly rather than
+    left for the next factual boundary to retire, because a state left standing
     while the model is silent is a face that never comes back."""
     async with demo("avatar", _llm()) as rig:
         await rig.driver.start_session()
@@ -248,27 +248,27 @@ async def test_the_deliberate_dig_claims_working_out_loud_and_clears_it() -> Non
         check_turn(rig, turn, units=2)
 
         assert turn.units[0].text.startswith("Give me a second")
-        assert _claims(rig) == ["WORKING", None], _avatar_messages(rig)
+        assert _states(rig) == ["WORKING", None], _avatar_messages(rig)
         assert rig.command("working_on")["topic"] == "who can see what"
         # The dig ends on the section it dug through, so the answer has the
         # documentation for it open in front of the visitor.
         assert rig.command("show_section")["id"] == "states"
 
 
-async def test_claims_and_actions_are_two_different_things_on_the_wire() -> None:
-    """A demonstrated state is a claim; a gesture is an action. Both go out on the
-    same lane under the same envelope, and the demo's whole explanation of the
-    difference is only true if the messages differ."""
+async def test_states_and_actions_are_two_different_things_on_the_wire() -> None:
+    """A demonstrated state is durable; a gesture completes on its own. Both go
+    out on the same lane under the same envelope, and the demo's whole
+    explanation of the difference is only true if the messages differ."""
     async with demo("avatar", _llm()) as rig:
         await rig.driver.start_session()
         await rig.driver.user_says("Show me thinking.")
-        assert _claims(rig) == ["THINKING", None], _avatar_messages(rig)
+        assert _states(rig) == ["THINKING", None], _avatar_messages(rig)
 
         await rig.driver.user_says("Wave at me.")
         # No greeting wave in this test (the page never announced itself), so
-        # this is the only action on the wire — and no further claims.
+        # this is the only action on the wire — and no further states.
         assert _actions(rig) == ["GESTURE_GREET"]
-        assert _claims(rig) == ["THINKING", None]
+        assert _states(rig) == ["THINKING", None]
 
 
 async def test_the_strip_cannot_move_the_voice_once_the_call_is_up() -> None:

@@ -15,11 +15,15 @@ per-minute avatar vendor, and no second media path.
 
 ## What it is
 
-[`voqalize/avatar`](https://github.com/voqalize/avatar) is a separate,
-MIT-licensed library — `@voqalize/avatar` on npm and `voqalize-avatar` on PyPI,
-two ends of one wire format. They version independently and the wire is what
-keeps them compatible. It works against any pipecat pipeline, and Voqalize is one
-consumer of it.
+[`voqalize/avatar`](https://github.com/voqalize/avatar) is a separate library
+— `@voqalize/avatar` on npm and `voqalize-avatar` on PyPI, two ends of one wire
+format. They version independently and the wire is what keeps them compatible.
+It works against any pipecat pipeline, and Voqalize is one consumer of it.
+
+The code is MIT. The character binaries the 2.5-D faces load are artwork rather
+than code and carry CC-BY 4.0, which asks for attribution and nothing else; the
+npm manifest declares the pair as `MIT AND CC-BY-4.0`, so that is what a licence
+scanner reports.
 
 The face is lip-synced to the audio and state-aware: it knows when the user is
 speaking, when it has been interrupted, when a tool call is running, and when

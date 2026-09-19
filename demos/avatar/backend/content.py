@@ -99,7 +99,7 @@ SECTIONS: tuple[Section, ...] = (
         title="What the avatar shows between turns",
         notes=(
             "Speaking and listening come from the audio. "
-            "Between turns, I show thinking, working or straining. "
+            "Between turns, I show thinking, working, or that I cannot hear you. "
             "An idle face there can look like a dropped call. "
             "The pipeline knows when a reply is due, so it sends thinking. "
             "It cannot see a tool that runs outside it, so you send working."
@@ -110,10 +110,10 @@ SECTIONS: tuple[Section, ...] = (
         title="Drive the avatar from your own code",
         notes=(
             "A server can say three things to me. "
-            "A claim is a state to hold, like working. "
+            "A state is one I hold, like working. "
             "An action is a gesture that finishes by itself, like a wave. "
             "Cues are mouth shapes on a timeline. "
-            "What the browser actually hears always beats a claim."
+            "What the browser actually hears always beats what you send."
         ),
     ),
     Section(
@@ -131,8 +131,8 @@ SECTIONS: tuple[Section, ...] = (
         id="faces",
         title="Choose a face",
         notes=(
-            "Twelve faces ship, all in one package: three drawn, six painted, "
-            "and three built in Blender. Tara is one of those three. "
+            "Twelve faces ship, all in one package. "
+            "Three drawn, six painted, three built in Blender. Tara is one of those. "
             "Each face comes with its own voice, so you pick before the call. "
             "Blinks and breathing happen in the browser. Nobody sends them."
         ),

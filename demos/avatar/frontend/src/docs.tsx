@@ -217,8 +217,9 @@ export const DOC_SECTIONS: DocSection[] = [
           ]}
         />
         <p>
-          Both packages are released together, from the same version tag. Both use the MIT licence,
-          so you can use them in closed-source products.
+          The two packages release independently, from their own version tags — the wire is what
+          keeps them compatible, not a shared number. Both are MIT, so you can use them in
+          closed-source products.
         </p>
         <p className="doc-req">
           Requirements: pipecat-ai 1.4 or later, Python 3.12 or later, and Node 20 or later. Any
@@ -402,7 +403,7 @@ import { wren } from '@voqalize/avatar/faces/wren';
                 tools that run elsewhere, your code sends it.
               </>,
             ],
-            ["STRAINING", <>Your code, when something you are waiting on has not responded.</>],
+            ["CANT_HEAR", <>Your code, when something you are waiting on has not responded.</>],
           ]}
         />
         <p>
@@ -433,25 +434,28 @@ import { wren } from '@voqalize/avatar/faces/wren';
 await say({"type": "avatar", "cmd": "action", "id": "GESTURE_GREET"})
 
 # a state, held until you clear it or an observed event replaces it
-await say({"type": "avatar", "cmd": "claim", "state": "WORKING"})
-await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
+await say({"type": "avatar", "cmd": "state", "state": "WORKING"})
+await say({"type": "avatar", "cmd": "state", "state": None})`}</Code>
         <Grid
           head={["Command", "Meaning"]}
           rows={[
             [
-              "claim",
+              "state",
               <>
-                Sets a state: <code>THINKING</code>, <code>WORKING</code>, <code>STRAINING</code>,
-                or <code>null</code> to clear it. A new claim replaces the previous one.
+                Sets a state: <code>THINKING</code>, <code>WORKING</code>, <code>CANT_HEAR</code>,
+                or <code>null</code> to clear it. A new one replaces the previous one. Before the
+                library’s 0.4.0 this command was spelled <code>claim</code>, and the browser still
+                accepts that spelling.
               </>,
             ],
             [
               "action",
               <>
-                Plays one gesture that ends on its own: <code>ACK_RECEIVE</code>,{" "}
-                <code>ACK_NOD</code>, <code>RESPONSE_INTERRUPTED</code>, <code>GESTURE_GREET</code>,{" "}
-                <code>GESTURE_GOODBYE</code>, <code>GESTURE_APPROVE</code>,{" "}
-                <code>GESTURE_WAIT</code>.
+                Plays one gesture that ends on its own. Two names are required of every face:{" "}
+                <code>ACKNOWLEDGE</code> — the whole backchannel family in one word, and the face
+                picks which shape it makes — and <code>RESPONSE_INTERRUPTED</code>. Any other name
+                belongs to the face that is mounted, and one it does not know is ignored rather
+                than an error.
               </>,
             ],
             [
@@ -464,13 +468,15 @@ await say({"type": "avatar", "cmd": "claim", "state": None})`}</Code>
           ]}
         />
         <p>
-          Observed events take priority over claims. The browser observes when the bot starts
-          speaking, when the user starts speaking, and when the microphone is muted. When one of
-          these happens, that state is shown and the claim is dropped.
+          Observed events take priority. A state you send is a candidate; the browser observes when
+          the bot starts speaking, when the user starts speaking, and when the microphone is muted,
+          and when one of those happens that fact is shown and your candidate is dropped.
         </p>
         <p>
-          Messages have no version field. The browser ignores commands it does not recognise, so an
-          older page still works with a newer server.
+          Messages have no version field: the browser ignores a command or an action id it does not
+          recognise. That keeps a newer server from breaking an older page, but it is not an
+          upgrade plan — a command the old page drops is a behaviour it silently stops showing, so
+          move browsers to a new version before the pipeline that speaks it.
         </p>
         <p>
           The full protocol is in <Ext href={REF.wire}>contract-wire.md</Ext>.

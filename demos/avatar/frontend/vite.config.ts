@@ -6,8 +6,8 @@ import { defineConfig } from "vite";
 // `https://<host>/demos/avatar` with correct asset URLs; the demos umbrella
 // drops the built `dist/` into `dist/demos/avatar/`.
 //
-// The nine avatars are dynamically imported, one module each, so a visitor
-// downloads the face they are looking at rather than all nine — six of them are
+// The ten avatars are dynamically imported, one module each, so a visitor
+// downloads the face they are looking at rather than all ten — six of them are
 // canvas avatars carrying wardrobe images, and shipping every one up front
 // would put megabytes in front of the greeting.
 export default defineConfig({

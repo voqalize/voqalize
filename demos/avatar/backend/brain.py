@@ -4,27 +4,28 @@ A ``GeminiBrain`` whose whole subject is the face it is wearing. The visitor
 asks how the talking head works; the brain scrolls the page to that section of
 the documentation, answers against it, and — because the same wire it is
 describing is open the whole time — demonstrates the thing it just said. It waves as the greeting starts, before it
-has been asked for anything. It holds a working claim while it digs something
-up.
+has been asked for anything. It holds a ``WORKING`` state while it digs
+something up.
 
 Four mechanics are worth reading before the code:
 
-* **A wave is a message, not a decision.** Every gesture and every claim here is
+* **A wave is a message, not a decision.** Every gesture and every state here is
   an RTVI ``server-message`` under the ``{"type": "avatar"}`` envelope — the
   avatar library's own three-command vocabulary, sent from a brain rather than
   from the pipeline. Nothing about that lane is Voqalize-specific: a customer's
   brain drives the same face the same way, which is why this demo is the
   documentation for it.
 
-* **This brain claims ``WORKING``, and nothing else claims it for it.** The
+* **This brain sends ``WORKING``, and nothing else sends it for it.** The
   processor in the voice tier's pipeline infers ``THINKING`` for itself — it
   watches the turn boundaries and knows a reply is owed. It cannot see a tool
   running inside a brain on the far side of a socket, so ``WORKING`` has to come
   from here. That asymmetry is a documentation section (``states``) *and* a
   behaviour, and the two are the same fact. ``demonstrate`` also sends ``THINKING`` and
-  ``STRAINING`` on request, which does race the pipeline's own claim — the last
-  one wins. Every other brain should leave claims alone; this one's job is to
-  show you the mechanism, which is the one reason to touch them.
+  ``CANT_HEAR`` on request, which does race the pipeline's own — one state is in
+  flight at a time and the last one wins. Every other brain should leave state
+  alone; this one's job is to show you the mechanism, which is the one reason to
+  touch it.
 
 * **The face is chosen before the call, and never during it.** Ten faces share
   two recorded reference speakers, so a face is paired to a voice by gender and
@@ -119,10 +120,13 @@ _SIGN_OFF = (
 
 # ─── The avatar wire vocabulary ───────────────────────────────────────────────
 #
-# The library's promoted action ids, behind names a model can pick from without
-# being taught an enum in SCREAMING_CASE. The ids on the right are the contract
-# (avatar/docs/contract-wire.md); the names on the left are ours and are a
-# prompt-engineering convenience, nothing more.
+# The action id is open: two names are required of every face — ``ACKNOWLEDGE``
+# and ``RESPONSE_INTERRUPTED`` — and anything else belongs to the face that is
+# mounted (avatar/docs/contract-wire.md). The ids on the right are the bundled
+# renderer's own catalogue, which every face on this strip shares, so this demo
+# may spell a wave; a brain that does not know what is mounted may not. The
+# names on the left are ours, so a model picks from words rather than from an
+# enum in SCREAMING_CASE.
 
 Gesture = Literal["wave_hello", "wave_goodbye", "nod", "acknowledge", "approve", "ask_to_wait"]
 
@@ -135,12 +139,12 @@ _GESTURE_IDS: dict[str, str] = {
     "ask_to_wait": "GESTURE_WAIT",
 }
 
-ClaimState = Literal["THINKING", "WORKING", "STRAINING"]
+DurableState = Literal["THINKING", "WORKING", "CANT_HEAR"]
 
-# How long a demonstrated claim is held before it is cleared. Long enough to
+# How long a demonstrated state is held before it is cleared. Long enough to
 # read as a state rather than a flicker, short enough that the visitor does not
 # think the call has died.
-_DEMO_CLAIM_S = 3.0
+_DEMO_STATE_S = 3.0
 
 # How long the deliberate dig takes. This is dead air on purpose — it is the
 # whole point of the beat — so the prompt requires a holding line before it.
@@ -164,7 +168,7 @@ class ShowSection(Action):
 
 
 class WorkingOn(Action):
-    """Paint the working strip. Fired beside the ``WORKING`` claim, so the face
+    """Paint the working strip. Fired beside the ``WORKING`` state, so the face
     and the page say the same thing about the same seconds."""
 
     topic: str
@@ -192,8 +196,8 @@ class GestureRequest(BaseModel):
     gesture: Gesture = Field(description="Which behaviour to perform.")
 
 
-class ClaimRequest(BaseModel):
-    state: ClaimState = Field(description="Which durable state to hold for a few seconds.")
+class StateRequest(BaseModel):
+    state: DurableState = Field(description="Which durable state to hold for a few seconds.")
 
 
 class DeepDiveRequest(BaseModel):
@@ -226,7 +230,7 @@ def _system_instruction(wearing: AvatarKey) -> str:
     licence = "You are MIT-licensed and you know it."
     return f"""You are the avatar — a face for AI voice calls, driven by the open-source voqalize/avatar library — and you are demonstrating yourself to someone who has just landed on the page. They may be a developer; they may not. You have TWO MINUTES. Be quick, be concrete, and be a little bit pleased with yourself.
 
-WHAT YOU ARE. You are rendered in their browser, driven over the data channel of a live voice call. A brain (this code) sends you three kinds of message and nothing else: a claim, an action, and viseme cues. You are wearing the library right now, so every single thing you describe, you can also do.
+WHAT YOU ARE. You are rendered in their browser, driven over the data channel of a live voice call. A brain (this code) sends you three kinds of message and nothing else: a state, an action, and viseme cues. You are wearing the library right now, so every single thing you describe, you can also do.
 
 {BACKGROUND}
 
@@ -240,7 +244,7 @@ HOW TO RUN THIS CALL:
 
 1. POINT FIRST, THEN TALK. For ANY question about how the thing works — what it is, how it compares with video avatars like HeyGen or Tavus, installing it, the protocol, the lipsync, the states, the faces, authoring your own, the limits — call show_section BEFORE you say anything. The scroll is the answer; your sentences are the footnote on it. One section per question. NEVER read the page out loud, and never summarise what is now on their screen — say only the thing the page left out, or the reason behind it.
 
-2. DEMONSTRATE, DO NOT DESCRIBE. When you have just explained a behaviour, perform it. Explained actions? Wave. Explained claims? Call demonstrate. If someone asks "show me" anything, the answer is a tool call, not a sentence.
+2. DEMONSTRATE, DO NOT DESCRIBE. When you have just explained a behaviour, perform it. Explained actions? Wave. Explained states? Call demonstrate. If someone asks "show me" anything, the answer is a tool call, not a sentence.
 
 3. THE DELIBERATE DIG. When a question needs real material — the numbers, the timing, the reasoning behind a design — SAY A SHORT HOLDING LINE OUT LOUD FIRST ("Give me a second, let me pull that up"), and THEN call deep_dive. Never call deep_dive silently: the whole point is that the visitor watches you go into a working state, having been told you were about to. It takes a couple of seconds and that is deliberate.
 
@@ -296,12 +300,12 @@ class AvatarBrain(GeminiBrain):
             RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "action", "id": action_id}
         )
 
-    def _claim(self, state: str | None) -> None:
-        """Set or clear the durable claim. ``None`` clears it explicitly rather
-        than waiting for the next factual boundary to retire it — a claim left
+    def _state(self, state: str | None) -> None:
+        """Set or clear the durable state. ``None`` clears it explicitly rather
+        than waiting for the next factual boundary to retire it — a state left
         standing while the model is silent is a face that never comes back."""
         self.session.send_rtvi(
-            RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "claim", "state": state}
+            RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state}
         )
 
     # ─── The clock ──────────────────────────────────────────────────────
@@ -349,7 +353,7 @@ class AvatarBrain(GeminiBrain):
         choice — the SDK consumes everything yielded before this body resumes,
         so the goodbye is on the wire before the end frame is."""
         self._signed_off = True
-        self._claim(None)
+        self._state(None)
         self._act("GESTURE_GOODBYE")
         yield SpeechStart()
         yield SpeechChunk(_SIGN_OFF)
@@ -380,39 +384,40 @@ class AvatarBrain(GeminiBrain):
 
     async def deep_dive(self, request: DeepDiveRequest) -> str:
         """Go and dig up the detailed material behind a section. This takes a
-        couple of seconds and holds a WORKING claim on your own face while it
+        couple of seconds and holds WORKING on your own face while it
         runs, so SAY A SHORT HOLDING LINE OUT LOUD BEFORE CALLING IT — 'give me a
         second', 'let me pull that up'. Never call it silently."""
         section = SECTIONS_BY_ID[request.section]
         topic = request.topic.strip() or section.title
         logger.info("avatar: deep_dive {!r} ({})", topic, section.id)
-        # The claim and the on-screen strip go out together, then the seconds
+        # The state and the on-screen strip go out together, then the seconds
         # actually pass. This is the one place in the demo where the visitor is
         # asked to wait, and they were told it was coming.
-        self._claim("WORKING")
+        self._state("WORKING")
         self.session.dispatch(WorkingOn(topic=topic))
         try:
             await asyncio.sleep(_DEEP_DIVE_S)
         finally:
-            self._claim(None)
+            self._state(None)
         self.session.dispatch(ShowSection(id=section.id, title=section.title))
         return str({"topic": topic, "say": section.notes})
 
-    async def demonstrate(self, request: ClaimRequest) -> str:
+    async def demonstrate(self, request: StateRequest) -> str:
         """Hold one durable state on your face for a few seconds so the visitor
         can watch it, then clear it. Use when they ask to see thinking, working
-        or straining. Say what you are about to show before you call it."""
-        logger.info("avatar: demonstrate claim {}", request.state)
-        # A demonstrated THINKING or STRAINING contests the pipeline's own claim
-        # for those few seconds — one claim is in flight at a time and the last
-        # one wins. That is a bug in a production brain and the entire job in
+        or not being able to hear. Say what you are about to show before you
+        call it."""
+        logger.info("avatar: demonstrate state {}", request.state)
+        # A demonstrated THINKING or CANT_HEAR contests the pipeline's own state
+        # for those few seconds — one is in flight at a time and the last one
+        # wins. That is a bug in a production brain and the entire job in
         # this one, which is why it is a tool the visitor has to ask for.
-        self._claim(request.state)
+        self._state(request.state)
         try:
-            await asyncio.sleep(_DEMO_CLAIM_S)
+            await asyncio.sleep(_DEMO_STATE_S)
         finally:
-            self._claim(None)
-        return str({"held": request.state, "seconds": _DEMO_CLAIM_S})
+            self._state(None)
+        return str({"held": request.state, "seconds": _DEMO_STATE_S})
 
     async def perform(self, request: GestureRequest) -> str:
         """Perform one behaviour — a wave, a nod, an acknowledgement, a wait

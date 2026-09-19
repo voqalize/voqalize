@@ -97,7 +97,8 @@ one, and nothing in your dependency tree has an opinion about audio.
 rather than by a video track. `AvatarProcessor` sits in the pipeline between
 text-to-speech and the output transport and emits lipsync metadata as one custom
 RTVI message; the browser package renders it. It works against any pipecat
-pipeline, not only ours, and it is MIT-licensed.
+pipeline, not only ours. Its code is MIT; the character binaries the 2.5-D
+faces load are CC-BY 4.0.
 
 ## We ship no client library
 
