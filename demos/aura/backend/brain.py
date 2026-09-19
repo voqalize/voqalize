@@ -1,7 +1,8 @@
 """AuraBrain — the Aura Bank L1 banking support assistant, hosted in the control plane.
 
-A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + per-session state), ported
-verbatim from the in-process managed brain ``pygato.managed.aura`` (its ``AuraBot``).
+A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + per-session state). It began
+as a verbatim port of an in-process brain that ran inside the voice runtime; that
+runtime is gone, and a brain has been a WebSocket the runtime dials ever since.
 Voqalize dials this brain's WebSocket per session; ``respond`` runs a manual
 Gemini function-calling loop where **each LLM call is one speech unit** (1:1 with
 the wire's ``SpeechStart``/``SpeechEnd`` bracket): a hop may speak, may call
@@ -21,7 +22,8 @@ This is the most complex demo — it fuses three workstreams:
   * **Journey upsell / cross-sell** — the forex-card + FD cross-sells baked into the
     system prompt.
   * **Knowledge embed** — the KB/video/facts guides plus ``aura_facts.md`` (copied
-    verbatim; the control plane cannot import pygato) interpolated into the prompt.
+    verbatim, because a brain shares no code with the voice runtime) interpolated
+    into the prompt.
 
 Two mechanics carry the demo, and both run through :meth:`on_rtvi`:
 

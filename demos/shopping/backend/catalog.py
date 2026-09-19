@@ -1,4 +1,4 @@
-"""Canonical mobile-phone catalog for the ``shopping`` managed brain.
+"""Canonical mobile-phone catalog for the ``shopping`` demo brain.
 
 This is the single source of truth the LLM reasons over: the full catalog is
 rendered into the system prompt (so the agent knows every product cold) and the
