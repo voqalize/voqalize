@@ -1,5 +1,5 @@
-// Generated from demos/avatar/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
-//   voqalize types demos/avatar/backend/brain.py -o demos/avatar/frontend/src/actions.gen.ts
+// Generated from avatar/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
+//   voqalize types avatar/backend/brain.py -o avatar/frontend/src/actions.gen.ts
 //
 // Every field of an action is present on the wire, `null` included, so nothing
 // there is optional and no runtime validation is needed to narrow on `command`.

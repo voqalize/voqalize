@@ -8,12 +8,12 @@
 export type OpenDashboard = Record<string, never>;
 
 /**
- * Open one saved draft. `id` is what the page keys it by; `name` is the
- * draft's own name, filled in by the brain, which is all a page that predates
- * ids matches on.
+ * Open one saved draft. The model puts the name or id it heard in `id`; the
+ * brain resolves that against the catalog and dispatches the draft's own id, with
+ * its own name in `name`, which is all a page that predates ids matches on.
  */
 export interface OpenItinerary {
-  /** The draft's id, exactly as read_screen lists it. */
+  /** The draft's name or id, as the agent said it. */
   id: string;
 
   /** Leave empty — the desk fills in the draft's name. */

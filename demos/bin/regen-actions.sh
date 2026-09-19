@@ -17,5 +17,14 @@ for out in */frontend/src/actions.gen.ts; do
     echo "::error::$out has no source line — regenerate it by hand" >&2
     exit 1
   fi
+  # The source line is whatever path `voqalize types` was handed, so running it
+  # from the repo root instead of here writes a `demos/`-prefixed path that only
+  # resolves from where it was run. Say that, rather than letting the tool report
+  # a missing file nobody expected to be missing.
+  if [ ! -f "$src" ]; then
+    echo "::error::$out names $src, which does not exist under demos/." >&2
+    echo "::error::Paths on that line are relative to demos/ — rerun from here." >&2
+    exit 1
+  fi
   uv run voqalize types "$src" -o "$out"
 done
