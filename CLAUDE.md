@@ -172,6 +172,22 @@ read out of the proto descriptor rather than written down twice;
 `tests/wire/test_catalog_matches_proto.py` fails if they drift, and
 `tests/wire/test_config_pairing.py` pins the rule.
 
+It is **one request, not three**: a language change has to move both legs at
+once, and splitting it would put a turn boundary — and a possible refusal —
+between the halves.
+
+```python
+class MyBrain(GeminiBrain):
+    async def on_session_start(self, session):
+        # The enquiry form said Tamil Nadu. Both legs, before the first word:
+        await session.configure(
+            Config(
+                stt=SttConfig(language=Language.TA),
+                tts=TtsConfig(language=Language.TA, voice=Voice.OMNIVOICE_GAURI),
+            )
+        )
+```
+
 **A brain that wants its own voice says so in `on_session_start`**, which runs
 before `greet`. The `Brain.voice` / `Brain.language` ClassVars and the
 `_apply_declared_voice` step that applied them are gone: a value fixed at import

@@ -32,7 +32,7 @@
 ## Facts
 
 - **Conversation state is ours, delivered as events.** `Finalize(speech_id,
-  heard, generated)` after playout ([3](03-interruption-and-heard-truth.md)) —
+  heard, generated)` after playout ([3](../../docs/src/content/docs/design/interruption-and-heard-truth.md)) —
   and `heard` is the one of the three you cannot compute, which is why it is the
   only one that travels.
 - **Screen state is yours, delivered one gesture at a time as a typed
@@ -44,7 +44,7 @@
   gesture is applied: `apply_event` patches the one mirror, the brain's own
   dispatches patch it too, and the model reads that mirror through a tool. What
   reaches the context is one line saying what moved
-  ([5](05-prompt-design.md), [8](08-getting-information-to-the-model.md)).
+  ([5](../../docs/src/content/docs/design/prompt-design.md), [8](08-getting-information-to-the-model.md)).
 - **`session_id` is the join key** across both halves; `get_session_events(source=…)`
   over the MCP server returns our side of the same session.
 - **An action carries the whole row, not a patch** — so a re-render is idempotent

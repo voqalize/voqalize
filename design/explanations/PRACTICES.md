@@ -14,7 +14,7 @@ become; it does not govern this file.
 
 1. **Speak the pointer, render the payload.** Voice carries intent,
    acknowledgement, and the one number that matters. The screen carries the
-   record. — *agreed, and every demo enforces it by hand.* → [1](01-voice-points-screen-holds.md)
+   record. — *agreed, and every demo enforces it by hand.* → [1](../../docs/src/content/docs/design/speech-vs-screen.md)
 2. **Never recite what is on screen.** Lists, prices, ids, SKUs, units: gesture at
    them. — *agreed; eleven prompts say it eleven ways.*
 3. **Never narrate your own actions.** The action already painted the screen. — *agreed.*
@@ -24,21 +24,21 @@ become; it does not govern this file.
 ## Latency
 
 6. **Start fast, don't be short.** The interval you own is callback entry → first
-   `SpeechChunk`. Nothing else in the product is yours. — *agreed.* → [2](02-the-turn-budget.md)
+   `SpeechChunk`. Nothing else in the product is yours. — *agreed.* → [2](../../docs/src/content/docs/design/turn-budget.md)
 7. **Never leave silence around a tool call.** Speak a tiny line first, then call. — *agreed.*
 8. **`greet` contains no model call.** Fixed line, or a template over `session.init`. — *agreed, enforced by the return type.*
 9. **The system prompt is the cache prefix. Write it once per session; never edit it.**
    Volatile context goes at the **tail**, immediately before the latest user turn.
    Rebuilding the prompt each turn is a self-inflicted cache miss, invisible in
    every transcript. — *agreed, and now uniform: what goes at the tail is one line
-   naming what changed, never the screen itself.* → [5](05-prompt-design.md), [8](08-getting-information-to-the-model.md)
+   naming what changed, never the screen itself.* → [5](../../docs/src/content/docs/design/prompt-design.md), [8](08-getting-information-to-the-model.md)
 10. **Thinking budget is a latency setting and it is model-specific.** A level a
     model *accepts* is not one it *acts at*. Re-measure on every model change. — *agreed, and measured (`_gemini.py`, 2026-08-14).*
 
 ## Tools
 
 11. **A tool that waits is a bug.** Return immediately; if the work is slow, return
-    a promise and a note telling the model how to behave meanwhile. — *agreed.* → [6](06-tool-design.md)
+    a promise and a note telling the model how to behave meanwhile. — *agreed.* → [6](../../docs/src/content/docs/design/tool-design.md)
 12. **Tools are uninterruptible.** Barge-in cancels the *speech*, not the work.
     Half-applied work is worse than completed work.  — *agreed.*
 13. **Undo is a compensating call, not a rollback.** If a tool is expensive enough
@@ -54,12 +54,12 @@ become; it does not govern this file.
 15. **Validate the shape, let the model write the words.** `ask_choice` guarantees
     2–4 covering choices; the phrasing stays the model's. — *agreed, and generalisable.*
 16. **A correction preserves identity.** A quantity tweak is never a re-add; a
-    variant swap is never a re-add. The row must not move on screen. — *agreed.* → [9](09-misunderstanding-and-reversal.md)
+    variant swap is never a re-add. The row must not move on screen. — *agreed.* → [9](../../docs/src/content/docs/design/misunderstanding-and-reversal.md)
 
 ## Parallelism
 
 17. **Accept the burst, fan it out.** The caller says five things without waiting;
-    an agent that serialises them gives back the only speed advantage voice has. — *agreed.* → [4](04-parallel-workstreams.md)
+    an agent that serialises them gives back the only speed advantage voice has. — *agreed.* → [4](../../docs/src/content/docs/design/parallel-workstreams.md)
 18. **Results surface on screen by default.** Speaking a result is the exception
     and costs a turn. — *agreed.*
 19. **The one thing worth blocking on is a human decision.** `aura`'s `authenticate`
@@ -140,7 +140,7 @@ become; it does not govern this file.
     truth; tool calls are not.** AFC's record says what was generated, never what
     was heard, so handing the tool loop to the framework retires none of the
     reconciliation. — *agreed, and it survived the argument that tried to kill it.*
-    → [3](03-interruption-and-heard-truth.md)
+    → [3](../../docs/src/content/docs/design/interruption-and-heard-truth.md)
 43. **A wrapper's failure mode is silence.** Tools running on a deep-copied clone
     of the brain would have dispatched to nothing and told the model `ok`. It
     crashed only because our client holds an uncopyable lock. — *agreed, and the
@@ -181,7 +181,7 @@ become; it does not govern this file.
 32. **A click, not a spoken "yes."** A spoken yes can be misheard, can be barge-in
     noise, and can answer a question the caller only half-heard. — *agreed.*
 33. **Record what was heard, never what was generated.** — *agreed in principle;
-    mechanism being ratified in parallel.* → [3](03-interruption-and-heard-truth.md)
+    mechanism being ratified in parallel.* → [3](../../docs/src/content/docs/design/interruption-and-heard-truth.md)
 
 ---
 

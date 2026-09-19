@@ -16,7 +16,7 @@ Ask, of every change in the environment: **when does the model need to know?**
 | **When the model asks, and it can wait** | Don't store it — fetch on demand | tool doing I/O | a round trip **plus** the fetch |
 
 **Nothing in this table ever writes to the system prompt.** That is tier zero, and
-tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
+tier zero is immutable for the whole session — see [2](../../docs/src/content/docs/design/turn-budget.md).
 
 - The tiers are cheap to get right and expensive to get wrong in a way that never
   shows up as an error. Tier-4 data placed in tier 2 makes every prompt bigger and
@@ -48,7 +48,7 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
 - **Placement is the whole design.** The note goes in as a user turn **just before
   the latest user turn**, so the entire prefix stays byte-identical and stays
   cached. Anything written into the system instruction rewrites the prefix on
-  every call and throws the cache away ([2](02-the-turn-budget.md)).
+  every call and throws the cache away ([2](../../docs/src/content/docs/design/turn-budget.md)).
 - **Tier 1 is first-class on the wire.** `UserMessage { string text }` is a V→B
   frame in `proto/voqalize/frames/frames.proto`, described there as a "**Committed
   user stimulus. Text-only today; richer content gets new fields.**" It lands on
@@ -69,7 +69,7 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
 - **`on_rtvi` is not a generator** — a state push cannot become a turn by
   accident, and an app message mints no turn. Tier 1 is therefore an explicit act, never a side effect.
 - Conversation history is the third home for a fact, and what goes in it must be
-  the **heard** text ([3](03-interruption-and-heard-truth.md)).
+  the **heard** text ([3](../../docs/src/content/docs/design/interruption-and-heard-truth.md)).
 
 ## Proof
 
@@ -84,7 +84,7 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
   `get_advisor_context`, `legal`'s `get_reading_position`, `orderdesk`'s
   `catalog_search` — each a tool over the brain's own mirror.
 - **Tier 4 handled as a workstream, not a wait:** `servicing`'s `prepare_case`
-  returns `preparing_in_background` immediately ([6](06-tool-design.md)).
+  returns `preparing_in_background` immediately ([6](../../docs/src/content/docs/design/tool-design.md)).
 - **An app event explicitly takes no floor**, and three e2e suites assert it:
   `legal`'s `clause_focused` drives no screen command and mints no turn, `support`'s
   `photo_uploaded` the same, and the answer arrives on the next turn the person
@@ -100,7 +100,7 @@ tier zero is immutable for the whole session — see [2](02-the-turn-budget.md).
 ## Cross-cutting
 
 Tier choice is the concrete form of the 80/10/10 split in
-[5](05-prompt-design.md): tiers 1–2 are the 80%, tier 3 is the 10%, tier 4 is the
+[5](../../docs/src/content/docs/design/prompt-design.md): tiers 1–2 are the 80%, tier 3 is the 10%, tier 4 is the
 10% that must be designed with feedback.
 
 ## Gap

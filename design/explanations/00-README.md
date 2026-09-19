@@ -1,8 +1,9 @@
 # `/docs/design/` — the outlines
 
-Eleven explanation pages, one conviction each. These are **reference outlines, not
+Eleven convictions, one per page. Seven of them have been written and **ship on
+the docs site**; the four still unwritten are here as **reference outlines, not
 drafts**: facts, proof points and the top-down belief, gathered so the narrative
-can be shaped once. Prose comes later.
+can be shaped once.
 
 ## The rule for every page
 
@@ -10,19 +11,28 @@ can be shaped once. Prose comes later.
 reason to exist. Each outline states its surprise in one sentence at the top; if
 that sentence reads as obvious, the page is wrong, not the sentence.
 
-## The eleven
+## Written — read the page, not an outline
+
+The outlines for these were deleted on 2026-09-19, once the page superseded them;
+`git log -- design/explanations/` has them if the reasoning is ever wanted. The
+page is now the only statement, and edits go there.
 
 | # | Page | The surprise |
 |---|---|---|
-| 1 | [Voice points, the screen holds](01-voice-points-screen-holds.md) | Voice is the fastest way for a human to express dense intent and the worst way to receive it. |
-| 2 | [The turn budget](02-the-turn-budget.md) | You own one interval of the turn — callback to first chunk — and it is the only latency in the product your code controls. |
-| 3 | [Interruption and heard truth](03-interruption-and-heard-truth.md) | The caller did not hear what your agent said. Recording what it *generated* corrupts the conversation silently. |
-| 4 | [Parallel workstreams](04-parallel-workstreams.md) | Voice is fast only because the caller can say five things without waiting. An agent that handles one at a time gives that speed straight back. |
-| 5 | [Prompt design for voice](05-prompt-design.md) | 80% of what the agent needs must already be in the prompt, because every lookup is silence the caller sits through. |
-| 6 | [Tool design for voice](06-tool-design.md) | A tool that waits is a bug. Tools return immediately, are never cancelled, and are undone by a compensating call. |
+| 1 | [Voice points, the screen holds](../../docs/src/content/docs/design/speech-vs-screen.md) | Voice is the fastest way for a human to express dense intent and the worst way to receive it. |
+| 2 | [The turn budget](../../docs/src/content/docs/design/turn-budget.md) | You own one interval of the turn — callback to first chunk — and it is the only latency in the product your code controls. |
+| 3 | [Interruption and heard truth](../../docs/src/content/docs/design/interruption-and-heard-truth.md) | The caller did not hear what your agent said. Recording what it *generated* corrupts the conversation silently. |
+| 4 | [Parallel workstreams](../../docs/src/content/docs/design/parallel-workstreams.md) | Voice is fast only because the caller can say five things without waiting. An agent that handles one at a time gives that speed straight back. |
+| 5 | [Prompt design for voice](../../docs/src/content/docs/design/prompt-design.md) | 80% of what the agent needs must already be in the prompt, because every lookup is silence the caller sits through. |
+| 6 | [Tool design for voice](../../docs/src/content/docs/design/tool-design.md) | A tool that waits is a bug. Tools return immediately, are never cancelled, and are undone by a compensating call. |
+| 9 | [Misunderstanding and reversal](../../docs/src/content/docs/design/misunderstanding-and-reversal.md) | The caller will be misheard and will correct themselves mid-sentence. Irreversible actions are committed by a click, never by the agent. |
+
+## Still outlines
+
+| # | Page | The surprise |
+|---|---|---|
 | 7 | [Who owns which state](07-who-owns-which-state.md) | We own the conversation state and you own everything else — and the merge you were about to write between them is the bug you were about to ship. |
 | 8 | [Getting information to the model](08-getting-information-to-the-model.md) | There are four places a fact can live, and choosing wrong costs either latency or accuracy on every turn. |
-| 9 | [Misunderstanding and reversal](09-misunderstanding-and-reversal.md) | The caller will be misheard and will correct themselves mid-sentence. Irreversible actions are committed by a click, never by the agent. |
 | 10 | [The framework boundary](10-the-framework-boundary.md) | The best thing we can do for your tools is nothing. Whatever agentic framework you brought already runs them. |
 | 11 | [The browser is pipecat's](11-the-browser-is-pipecats.md) | We ship no client library. The only Voqalize-specific code in your page is one HTTP request. |
 
