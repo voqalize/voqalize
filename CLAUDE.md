@@ -67,10 +67,14 @@ Consequences to internalize:
   (`8104298`, "point the install lines at 0.2.0, now that PyPI serves it"). Docs on
   `main` are written against this tree, so adding or renaming an export puts the
   two out of step: today `SpeechChunk`, `AppEvent` and `AppEvents` exist here and
-  not in 0.2.0, and nineteen pages tell a reader to `pip install
-  voqalize-agent-sdk==0.2.0` and then import a name it does not have. Harmless on
-  dev, wrong the moment it is public. **Release the SDK and bump the pins before
-  you fast-forward `prod`** — or check by diffing `__all__`:
+  not in 0.2.0, so a reader who follows an install line gets a package without
+  them. **Six files carry that pin** — `build/quickstart.md`, `build/pipecat.md`,
+  `build/existing-agent.md`, `overview/status.md`, `reference/brain.md` and
+  `sdk/python/examples/fastapi_inbound/requirements.txt` — and they are named here
+  rather than counted, because a count is a number that rots quietly and a list is
+  one you can `grep` for. Harmless on dev, wrong the moment it is public.
+  **Release the SDK and bump the pins before you fast-forward `prod`** — or check
+  by diffing `__all__`:
 
   ```sh
   git show python-sdk-v0.2.0:sdk/python/src/voqalize/sdk/__init__.py | grep -A40 __all__
