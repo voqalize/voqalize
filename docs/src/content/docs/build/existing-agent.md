@@ -104,7 +104,7 @@ opens a unit at all. Opening one per hop is what used to emit an empty
 Lazy opening removes the empty bracket. It does not remove the silence: the tool
 runs for as long as it runs and the user sits through it either way, and the
 fix for that is to say what you are doing before you do it, or to move the screen
-while the voice waits. [The turn budget](/design/turn-budget/) is the argument;
+while the voice waits. [The turn budget](/design/#the-turn-budget) is the argument;
 [Tools](/build/brain/tools/) is the mechanism.
 
 Every unit that emitted text gets exactly one `on_finalize`, in the order the
@@ -147,7 +147,7 @@ the transcript is a real transcript, and three turns later the agent references
 something it never finished saying — and the user is the only instrument that
 saw it. [Transcripts and heard truth](/build/brain/transcripts/) has the
 watermark and the ordering rules;
-[Interruption and heard truth](/design/interruption-and-heard-truth/) is the
+[Interruption and heard truth](/design/#interruption-and-heard-truth) is the
 argument under them.
 
 `GeminiBrain.on_finalize` is a shipped implementation of exactly this: it pops
@@ -223,7 +223,7 @@ having no scrollback.
 
 That is a design problem rather than an SDK one, and it has its own section:
 [Designing for voice](/design/), starting with
-[Prompt design for voice](/design/prompt-design/).
+[Prompt design for voice](/design/#prompt-design-for-voice).
 
 ## Read next
 

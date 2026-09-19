@@ -232,5 +232,5 @@ query.
 ## Read next
 
 - [Actions](/build/brain/actions/) — the outbound half of the same channel.
-- [Misunderstanding and reversal](/design/misunderstanding-and-reversal/).
+- [Misunderstanding and reversal](/design/#misunderstanding-and-reversal).
 - [The RTVI plane](/reference/rtvi/) — the whitelist, type by type.

@@ -121,8 +121,8 @@ async def on_user_message(self, session, msg):
 
 An `await` with no speech in front of it is dead air you chose. Work that can
 start early should start early — see
-[parallel workstreams](/design/parallel-workstreams/) — and what a tool costs the
-turn is [tool design for voice](/design/tool-design/).
+[parallel workstreams](/design/#parallel-workstreams) — and what a tool costs the
+turn is [tool design for voice](/design/#tool-design-for-voice).
 
 ## Why speech is a yield and not a return
 
@@ -145,7 +145,7 @@ async def on_user_message(self, session, msg):
 
 Nothing in a transcript distinguishes those two calls. The words are identical,
 the recording is not, and the number that moved is
-[time to first chunk](/design/turn-budget/).
+[time to first chunk](/design/#the-turn-budget).
 
 The corollary is worth knowing before it bites: text with no sentence boundary in
 it waits. A unit that is one long unpunctuated clause is synthesized when
@@ -183,5 +183,5 @@ delivered prefix rather than what you yielded:
 ## Read next
 
 - [Actions](/build/brain/actions/) — the second channel, which does not speak.
-- [The turn budget](/design/turn-budget/) — how long a unit may be.
-- [Interruption and heard truth](/design/interruption-and-heard-truth/).
+- [The turn budget](/design/#the-turn-budget) — how long a unit may be.
+- [Interruption and heard truth](/design/#interruption-and-heard-truth).

@@ -61,6 +61,15 @@ LIST_ITEM = re.compile(r"^\s*(?:[-*]|\d+\.)\s")
 RETIRED = re.compile(r'^\s*"(/[^"]+)":\s*"(/[^"]*)"', re.M)
 
 
+ID_ATTR = re.compile(r'\sid="([^"]+)"')
+
+
+def page_anchors(dist: Path, page: str) -> set[str]:
+    """Every id a browser could jump to on one rendered page."""
+    html = dist / page.strip("/") / "index.html"
+    return set(ID_ATTR.findall(html.read_text())) if html.is_file() else set()
+
+
 def fail(problems: list[str]) -> None:
     for problem in problems:
         print(f"  {problem}", file=sys.stderr)
@@ -167,9 +176,20 @@ def main() -> int:
             problems.append(f"{old} redirects for a human but 404s as markdown")
         if not (dist / old.lstrip("/") / "index.html").is_file():
             problems.append(f"{old} has a markdown stub but no redirect for a browser")
-        target = "index.md" if new == "/" else f"{new.lstrip('/')}.md"
+        # A redirect may name a heading rather than a page — that is how a page
+        # that was folded into another keeps a copied link useful. Split the
+        # fragment off before resolving, then hold the fragment to the same
+        # standard: an anchor that does not exist lands the reader at the top of
+        # a long page with no sign that anything is missing, which is worse than
+        # a 404 because it looks like it worked. The ids come out of the
+        # rendered HTML rather than a slug rule of our own, because the browser
+        # jumps to what the renderer emitted and not to what we predicted.
+        page, _, anchor = new.partition("#")
+        target = "index.md" if page == "/" else f"{page.strip('/')}.md"
         if target not in twins:
             problems.append(f"{old} redirects to {new}, which does not exist")
+        elif anchor and anchor not in page_anchors(dist, page):
+            problems.append(f"{old} redirects to {new}, but that page has no #{anchor}")
 
     # ── nothing is orphaned ──────────────────────────────────────────────────
     for path in sorted(twins - reachable - stubs):

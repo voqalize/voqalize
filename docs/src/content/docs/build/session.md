@@ -229,7 +229,7 @@ the in-flight turn is cancelled.
 At the end of each unit your brain is told what the user actually **heard**.
 A reply that generated three sentences and was cut after one is remembered as
 one — that reconciliation is the brain's job, and the SDK keeps no history for
-you. [Interruption and heard truth](/design/interruption-and-heard-truth/)
+you. [Interruption and heard truth](/design/#interruption-and-heard-truth)
 is the long version.
 
 ### 10. Both directions on the data channel
@@ -298,4 +298,4 @@ None of this is needed for a first call, and each has a page:
 - [Connections and the handshake](/build/connect/) — steps 5 to 7, in full, both credential paths.
 - [Testing a brain](/build/testing/) — step 3, which is where the day is actually spent.
 - [The wire](/reference/wire/) — the contract both ends are held to.
-- [Designing for voice](/design/turn-budget/) — what changes once it works.
+- [Designing for voice](/design/#the-turn-budget) — what changes once it works.

@@ -86,7 +86,7 @@ compose with what the processor is doing; state contests it.
 There is a floor rule here too, and it is the same one everywhere else: an RTVI
 message carries no audio, so `send_rtvi` needs no floor and can be called from
 anywhere — including work that outlives the turn that started it. See
-[parallel workstreams](/design/parallel-workstreams/).
+[parallel workstreams](/design/#parallel-workstreams).
 
 ## What the face is told, and what it decides
 

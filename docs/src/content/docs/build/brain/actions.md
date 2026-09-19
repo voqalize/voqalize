@@ -247,5 +247,5 @@ That direction is [context and history](/build/brain/context/).
 ## Read next
 
 - [TypeScript types](/build/brain/typescript/) — the browser half, generated.
-- [Voice points, the screen holds](/design/speech-vs-screen/) — what goes where.
+- [Voice points, the screen holds](/design/#voice-points-the-screen-holds) — what goes where.
 - [The RTVI plane](/reference/rtvi/) — the message whitelist, both directions.

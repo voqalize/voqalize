@@ -199,7 +199,7 @@ your retrieval, your database session and your connection pool are reached by
 `self`, from a coroutine running in the turn's own task — no serialization, no
 second set of credentials, no schema of yours living somewhere you do not
 deploy. What happens when one of those raises is
-[tool design for voice](/design/tool-design/); it is a result the model reads,
+[tool design for voice](/design/#tool-design-for-voice); it is a result the model reads,
 and a line in your log.
 
 ## Silence during a tool call is dead air
@@ -235,12 +235,12 @@ The second lever is the screen. `session.dispatch(...)` never blocks and holds
 no floor, so a tool can move the display on its first line and let the user
 read while the voice is still working — [Actions](/build/brain/actions/) owns
 that channel. A tool that is slower than a sentence should return a note instead
-of a result; [tool design for voice](/design/tool-design/) is that argument, and
-[parallel workstreams](/design/parallel-workstreams/) is where the slow half
+of a result; [tool design for voice](/design/#tool-design-for-voice) is that argument, and
+[parallel workstreams](/design/#parallel-workstreams) is where the slow half
 goes.
 
 Every hop is a model round trip, and `max_tool_hops` (default 6) is how many of
-them may call a tool. Count them against [the turn budget](/design/turn-budget/).
+them may call a tool. Count them against [the turn budget](/design/#the-turn-budget).
 
 ## A blocking tool needs the turn in flight
 
@@ -369,5 +369,5 @@ reaches the model as that `repr` and the model reads it aloud as a fact
 
 ## Read next
 
-- [Tool design for voice](/design/tool-design/) — the argument, at length.
-- [Parallel workstreams](/design/parallel-workstreams/) — work that outlives a turn.
+- [Tool design for voice](/design/#tool-design-for-voice) — the argument, at length.
+- [Parallel workstreams](/design/#parallel-workstreams) — work that outlives a turn.

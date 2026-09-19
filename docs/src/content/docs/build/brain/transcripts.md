@@ -168,7 +168,7 @@ meant to say, your transcript agrees with your logs, your evals pass, and no
 error, dropped frame or latency spike marks the moment it went wrong. The one
 artifact that disagrees is the [recording](/operate/recordings/), and nobody
 plays the recording of a call that went fine. The full argument is in
-[interruption and heard truth](/design/interruption-and-heard-truth/).
+[interruption and heard truth](/design/#interruption-and-heard-truth).
 
 ## What the user said
 
@@ -208,6 +208,6 @@ in it. See [reading a call back](/operate/reading-a-call/).
 
 ## Read next
 
-- [Interruption and heard truth](/design/interruption-and-heard-truth/) — the argument.
+- [Interruption and heard truth](/design/#interruption-and-heard-truth) — the argument.
 - [The wire](/reference/wire/) — the frames that carry it.
 - [Testing a brain](/build/testing/) — assert on the heard text, without a microphone.

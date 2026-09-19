@@ -184,7 +184,7 @@ next scenario. Reproduce it offline first, then fix it.
 
 ## Read next
 
-- **[Interruption and heard truth](/design/interruption-and-heard-truth/)** —
+- **[Interruption and heard truth](/design/#interruption-and-heard-truth)** —
   what the harness is modelling when it replays a barge-in, and why your history
   holds what the user heard rather than what you generated.
 - **[Reading a call back](/operate/reading-a-call/)** — the same events and logs
