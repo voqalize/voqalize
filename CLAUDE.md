@@ -94,7 +94,7 @@ differ between a `main` push and its promotion:
 for h in brain.dev.voqalize.com brain.voqalize.com; do curl -fsS https://$h/_healthz; echo; done
 ```
 
-## Voice and language: the record holds the default, the brain overrides
+## Voice and language: the brain owns it, per session
 
 `tts.language` selects the **voice-cloning reference clip**; `stt.language`
 selects the **recognizer**. They are one setting with two legs, and moving only
@@ -104,36 +104,33 @@ clip scores identically and sounds like a foreigner reading Devanagari. That was
 real production bug on `/demos/orderdesk`, and it is the reason every rule below
 exists.
 
-**This section was rewritten on 2026-08-24 and describes where the work is
-going.** The old rule — *"the agent record deliberately carries no stt/tts blocks"*
-— cut too far, and the ClassVars it forced are what this stream is removing. The
-analysis and the board are `skill-rewrite/BRAIN-SIMPLIFICATION.md`; read it before
-touching any of this. What is *shipping* today is the last subsection.
+**The agent record does not carry voice, language or STT/TTS models.** It says
+where the brain lives — `deployment.brain_url` — and carries the recording
+default, and that is all. The `stt`/`tts` blocks it used to hold were removed;
+legacy keys in stored documents are ignored and dropped on read
+(`controlplane/app/domains/agents/configuration.py`).
 
-**The agent record carries the configuration, and it is the default.** It is what
-shapes the pipeline, which the runtime builds before it ever dials the brain. The
-brain overrides at runtime, and an override then means what it says: a condition
-changed during this call. The record's value is not a lesser thing the brain
-routinely replaces — it is where a default belongs, because a default is not a
-runtime event.
-
-The record stores the **same protobuf messages** the wire carries, as canonical
-proto3 JSON. One definition, so the record and the wire cannot drift. Enums spell
-by value name there (`"language": "LANGUAGE_HI"`, not `"hi"`) — that is proto3's
-JSON mapping, not a choice we made.
+The record is the wrong owner because a language usually depends on *this*
+caller, who does not exist until the session starts. The hosted lead-qual brain
+is the proof: it picks the language from the enquiry form's state (Tamil Nadu →
+Tamil), so the record's `tts.language: hi` was wrong for every non-Hindi customer
+it served. **A brain sets it in `on_session_start`**, which lands in time for the
+greeting; a browser client with no brain of its own sends it with the connect
+request instead. One answer, one authority, chosen per call.
 
 **Two rules keep the silent bug dead, and they are enforced in different places
 on purpose:**
 
 - **The pairing rule**, checked where the configuration is *written* — the SDK
-  raises before the request leaves, and the control plane raises on record
-  write. Both legs keep their own `language` field, because `omnivoice` has
-  reference clips for ten of the 23 languages `vql-stt` serves, so understanding
-  Odia while speaking with the Hindi clip is a real, legitimate configuration.
-  The guard is therefore not equality but **statedness**: naming a language on
-  one leg and not the other is **rejected**. Changing only the voice touches no
-  language field and is unaffected. This is a property of the message, which is
-  why it needs nothing from the far end to decide.
+  raises `ConfigError` before the request leaves the process
+  (`sdk/python/src/voqalize/sdk/wire/frames.py`). Both legs keep their own
+  `language` field, because `omnivoice` has reference clips for ten of the 23
+  languages `vql-stt` serves, so understanding Odia while speaking with the Hindi
+  clip is a real, legitimate configuration. The guard is therefore not equality
+  but **statedness**: naming a language on one leg and not the other is
+  **rejected**. Changing only the voice touches no language field and is
+  unaffected. This is a property of the message, which is why it needs nothing
+  from the far end to decide.
 - **No silent substitution**, checked where the configuration is *used*. A
   `tts.language` the speech tier has no clip for is **rejected**, not quietly
   served with the Hindi clip. To run an Odia call you write `stt.language = OR,
@@ -141,8 +138,16 @@ on purpose:**
   languages have clips is *not* in the proto and must not go there: it is a
   capability of the speech tier, it moves when a clip is recorded, and a wire
   contract that froze today's roster would take a proto release, an SDK release
-  and a redeploy to add a language. The runtime answers it at the moment it is
-  asked, in the `Response`.
+  and a redeploy to add a language.
+
+**Both of those live in PyGato, in one validator, and fail the session at
+connect** (`pygato/session_config.py`, with the clip roster in
+`pygato/speech/clip_languages.json`). The control plane never learns either rule.
+It *parses* the config — proto3 JSON, so an unknown enum fails for free with no
+second copy of the catalog to keep in step — and parsing is not validating; its
+own `platform/wire/__init__.py` says so at length. The roster is duplicated into
+PyGato deliberately, so the rejection happens at connect rather than at first
+speech.
 
 **A page still never sets either.** That part of the old rule was right and stays.
 
@@ -161,7 +166,7 @@ comments, and `buf lint`'s `COMMENTS` category fails the build if one is
 missing. protoc carries those into `SourceCodeInfo`, so they are the contract's
 documentation for every consumer, not just for whoever opens the file.
 
-### The runtime half, as it stands in the tree
+### The call a brain actually makes
 
 `await session.configure(Config(tts=…, stt=…, idle=…))` — one method, one wire
 op, three optional sections. `Config.__post_init__` raises `ConfigError` on the
@@ -188,13 +193,10 @@ class MyBrain(GeminiBrain):
         )
 ```
 
-**A brain that wants its own voice says so in `on_session_start`**, which runs
-before `greet`. The `Brain.voice` / `Brain.language` ClassVars and the
-`_apply_declared_voice` step that applied them are gone: a value fixed at import
-time cannot name the language of *this* call, which is what the question usually
-turns out to be. A demo whose page settles the language before the call exists
-sends it with the connect request instead and configures nothing — one answer,
-one authority.
+`on_session_start` runs before `greet`. The `Brain.voice` / `Brain.language`
+ClassVars and the `_apply_declared_voice` step that applied them are gone, for
+the same reason the record no longer carries a language: a value fixed at import
+time cannot name the language of *this* call.
 
 `tests/direct/test_configure.py` pins the ordering that makes the hook enough: a
 request from `on_session_start` reaches the wire before the first

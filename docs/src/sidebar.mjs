@@ -74,7 +74,8 @@
  * bearer-key HTTP API the control plane does not have. That decision was taken
  * on 2026-08-26 — MCP is the programmatic management surface, the console is
  * the interactive one, and the page now says so and explains why `ak_` was
- * removed rather than renamed. See `skill-rewrite/DOCS-AUTOMATION.md` §2.
+ * removed rather than renamed — see that page's "Why not a REST
+ * management API".
  *
  * `build/quickstart` left the list on 2026-08-25; the other eight —
  * `build/brain/{speaking,actions,tools,context,transcripts}`,
@@ -85,7 +86,7 @@
  * and authoring a face (held on `@voqalize/avatar` 0.3.0 — writing three pages
  * against the component about to be replaced is work done twice); two of the
  * eleven design outlines. "The framework boundary" waits for a second engine to
- * exist. The board is `skill-rewrite/SURFACE-BOARD.md`.
+ * exist.
  */
 export const sidebar = [
   {
