@@ -158,23 +158,27 @@ facts:
       deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
-    value: '0.2.0'
+    value: '0.3.0'
     source: https://pypi.org/pypi/voqalize-agent-sdk/json
-    verified: 2026-08-27
+    verified: 2026-09-20
     reproduce: >-
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
-      Published 2026-08-27 by the `python-sdk-v0.2.0` tag, and level with
-      sdk.python.version.tree again. 0.2.0 retires FinalizeReason and gives
-      Finalize its third field; 0.1.0 was the first published version of the
-      Brain, run_session and serve surface, and 0.0.3 exposed the incompatible
-      Interaction, Conversation, serve_direct and serve_auto API. Documentation
-      install lines stay pinned to the published number so examples and
-      installed code cannot silently drift apart — move them with this line.
-      The control plane resolves the SDK from PyPI rather than from the sibling
-      tree, so this number is also what unblocks a platform proto change: until
-      it moves, the two copies of the wire stub in that repo cannot agree.
+      Published 2026-09-20 by the `python-sdk-v0.3.0` tag, and level with
+      sdk.python.version.tree again. 0.3.0 adds AppEvent, AppEvents and
+      SpeechChunk and starts warning on an app event carried by client-message;
+      the minor is for behaviour rather than shape, because GeminiBrain now
+      withholds text that parses as a leaked function call. 0.2.0 retired
+      FinalizeReason and gave Finalize its third field; 0.1.0 was the first
+      published version of the Brain, run_session and serve surface, and 0.0.3
+      exposed the incompatible Interaction, Conversation, serve_direct and
+      serve_auto API. Documentation install lines stay pinned to the published
+      number so examples and installed code cannot silently drift apart — move
+      them with this line. The control plane resolves the SDK from PyPI rather
+      than from the sibling tree, so this number is also what unblocks a
+      platform proto change: until it moves, the two copies of the wire stub in
+      that repo cannot agree.
 
   sdk.python.stability:
     value: alpha; Python >=3.12; pre-1.0 surface may change
@@ -190,12 +194,22 @@ facts:
       1.0.
 
   sdk.python.surface.published:
-    value: [Action, Brain, Channel, Chunk, Error, ErrorCode, Finalize, RTVIMessage,
-            RTVIType, RequestRejected, Session, SessionRejected, Speech, SpeechEnd,
-            SpeechStart, UserIdle, UserMessage, WireError, configure_logging,
-            run_session, serve, session_context]
-    source: https://pypi.org/pypi/voqalize-agent-sdk/0.2.0/json
-    verified: 2026-08-27
+    value: [Action, AppEvent, AppEvents, Brain, Channel, Chunk, Error, ErrorCode,
+            Finalize, RTVIMessage, RTVIType, RequestRejected, Session, SessionRejected,
+            Speech, SpeechChunk, SpeechEnd, SpeechStart, UserIdle, UserMessage,
+            WireError, configure_logging, run_session, serve, session_context]
+    source: https://pypi.org/pypi/voqalize-agent-sdk/0.3.0/json
+    verified: 2026-09-20
+    reproduce: >-
+      uv venv /tmp/v -q --python 3.12
+      && VIRTUAL_ENV=/tmp/v uv pip install -q voqalize-agent-sdk==0.3.0
+      && /tmp/v/bin/python -c "import voqalize.sdk as s;print(sorted(s.__all__))"
+    note: >-
+      Read out of the installed 0.3.0 wheel on 2026-09-20, not out of the tree
+      and not out of the release notes: this fact exists to catch the case where
+      what PyPI serves is not what this repo thinks it published. Level with
+      sdk.python.surface.tree as of that release, and expected to fall behind it
+      again the moment an export lands on main.
 
   sdk.python.surface.tree:
     value: [Action, AppEvent, AppEvents, Brain, Channel, Chunk, Error, ErrorCode,
@@ -213,9 +227,9 @@ facts:
       tree ships as 0.1.0. It became twenty-three when `Chunk` was renamed
       `SpeechChunk` and the old name kept as an alias, and twenty-five when
       `AppEvent`/`AppEvents` landed as `Action`'s symmetric twin for the
-      app→brain direction, so the published roster
-      (`sdk.python.surface.published`, still 0.2.0 on PyPI) is legitimately
-      behind until the next release. It was recorded as nine on 2026-08-24 while the hardening
+      app→brain direction. All twenty-five shipped in 0.3.0 on 2026-09-20, so
+      `sdk.python.surface.published` is level with this list again; it falls
+      behind whenever an export lands on main, and that is not a defect. It was recorded as nine on 2026-08-24 while the hardening
       agent held brain.py, and the nine were the ones the board had confirmed
       rather than the whole export. Two things are NOT in it and are asked for
       often: GeminiBrain lives in voqalize.sdk.gemini behind the `gemini` extra

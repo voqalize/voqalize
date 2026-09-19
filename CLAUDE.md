@@ -66,23 +66,24 @@ Consequences to internalize:
   *published* release, and gets bumped in a commit of its own once PyPI has it
   (`8104298`, "point the install lines at 0.2.0, now that PyPI serves it"). Docs on
   `main` are written against this tree, so adding or renaming an export puts the
-  two out of step: today `SpeechChunk`, `AppEvent` and `AppEvents` exist here and
-  not in 0.2.0, so a reader who follows an install line gets a package without
-  them. **Seven files carry that pin** — `build/quickstart.md`,
+  two out of step, and a reader who follows an install line then gets a package
+  without the name the page just used. **They are level as of 0.3.0, released
+  2026-09-20**, which is the normal state right after a release and not the
+  normal state. **Seven files carry that pin** — `build/quickstart.md`,
   `build/pipecat.md`, `build/existing-agent.md`, `overview/status.md`,
   `reference/brain.md`, `sdk/python/examples/fastapi_inbound/requirements.txt` and
   the repo `README.md` — and they are named here rather than counted, because a
   count is a number that rots quietly and a list is one you can `grep` for. The
-  root `README.md` is the one that hides: it says "0.2.0 is published on PyPI"
+  root `README.md` is the one that hides: it says "0.3.0 is published on PyPI"
   without an `==`, so it survives a grep for the install line and rots anyway.
   Three more sites move with the *tag* rather than the version —
   `sdk/python/README.md` links the proto and the wire reference at
-  `blob/python-sdk-v0.2.0/`. Harmless on dev, wrong the moment it is public.
+  `blob/python-sdk-v0.3.0/`. Harmless on dev, wrong the moment it is public.
   **Release the SDK and bump the pins before you fast-forward `prod`** — or check
   by diffing `__all__`:
 
   ```sh
-  git show python-sdk-v0.2.0:sdk/python/src/voqalize/sdk/__init__.py | grep -A40 __all__
+  git show python-sdk-v0.3.0:sdk/python/src/voqalize/sdk/__init__.py | grep -A40 __all__
   ```
 - The web half is a two-step: `build-demos-web` only *stages* an artifact and moves
   `latest.json`. The apex site (`voqalize.com`) picks it up on the **next**
