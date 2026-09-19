@@ -28,8 +28,11 @@ source_of_truth_for: design/voice.md '## Mechanics and lexicon' table
 # a person. The words that are never right in any sentence — `retired_words`
 # below, and `platform` — run every time.
 terms:
+  # The homepage is the positioning; this is its hero, verbatim. "A developer
+  # platform for in-app voice agents" is internal shorthand only (owner ruling,
+  # 2026-09-19) and is deliberately NOT the approved word here.
   - concept: What Voqalize is
-    word: a developer platform for in-app voice agents
+    word: voice mode for your app
     retired: [a voice platform, voice infrastructure, a voice API]
 
   - concept: The developer's WebSocket agent
@@ -121,13 +124,11 @@ internal_names:
 prohibited:
   - word: platform
     why: >-
-      Bare, the word names the thing that runs the customer's agent, which is
-      exactly what we are not. Qualified, it is our category: the approved phrase
-      is "a developer platform for in-app voice agents", whole, and the qualifier
-      is the load-bearing part.
-    allowed_pattern: 'developer platform for in-app voice agents'
+      The word names the thing that runs the customer's agent, which is exactly
+      what we are not. "A developer platform for in-app voice agents" is internal
+      shorthand only (owner ruling, 2026-09-19) — it is not an exception here,
+      because no customer-facing surface uses it and the homepage does not.
     allowed_in:
-      - the approved category phrase, entire (`allowed_pattern`)
       - internal engineering and strategy documents
       - a competitor category, where it names their thing and not ours
       - a third party's own name (Google Cloud Platform)

@@ -7,9 +7,8 @@ at this one.
 
 Internal engineering and strategy documents are outside this standard — design notes and
 decision records are reasoning, and reasoning argues by contrast. One rule reaches them
-anyway: **the word *platform* only ever appears inside the full phrase "a developer
-platform for in-app voice agents"**, never bare, because a word we use loosely internally
-is a word that leaks.
+anyway: **nothing a customer reads calls Voqalize a platform**, because a word we use
+loosely internally is a word that leaks.
 
 *This document teaches with contrast, prohibition and failing examples. The copy it
 governs uses none of those.*
@@ -311,7 +310,7 @@ A new term is added to this table first and to the SDK second.
 
 | Concept | Word | Retired |
 |---|---|---|
-| What Voqalize is | **a developer platform for in-app voice agents** | a voice platform, voice infrastructure, a voice API |
+| What Voqalize is | **voice mode for your app** | a voice platform, voice infrastructure, a voice API |
 | The developer's WebSocket agent | **brain** | agent backend, bot, handler |
 | One call, one socket | **session** | meeting, conversation, call, room |
 | What Voqalize runs below text | **the voice tier** | the platform, the runtime, voice infrastructure |
@@ -327,11 +326,13 @@ A new term is added to this table first and to the SDK second.
 | The account that owns agents, keys and sessions | **tenant** | workspace |
 | The person on the call | **user** | caller |
 
-**The word *platform* is only ever qualified.** The approved phrase is *a developer
-platform for in-app voice agents*, whole; the qualifier is the load-bearing part. Bare, the
-word names the thing that runs the customer's agent, which is exactly what we are not — so
-never "our platform runs your agent", never "the platform", and never *voice agent*
-unqualified by *in-app* or *inside your application*. **Internal service and
+**We never describe Voqalize as a platform.** The word names the thing that runs the
+customer's agent, which is exactly what we are not — so never "our platform runs your
+agent", never "the platform", and never *voice agent* unqualified by *in-app* or *inside
+your application*. *"A developer platform for in-app voice agents" is internal shorthand
+only* (owner ruling, 2026-09-19): it names the category in a strategy conversation, and no
+customer-facing surface uses it. Internal engineering documents still use the word; nothing
+a customer reads does. **Internal service and
 repository names never appear in customer-facing text either** — the end that dials the
 brain is **Voqalize**, whatever the process is called in our own logs.
 
