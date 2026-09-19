@@ -48,7 +48,7 @@ back. Each carries:
   is the **wasted work**, and the usual explanation for **"my brain replied and
   nothing happened on screen."** It used to be invisible — the frame simply did
   not appear. It appears now, marked as discarded. See
-  [interruption and heard truth](/design/interruption-and-heard-truth/).
+  [interruption and heard truth](/design/#interruption-and-heard-truth).
 - **`gaps`** — stretches where your brain sent nothing. Named for what a record
   can see: a gap may be a model thinking, a tool running or a socket stalled, and
   nothing here tells them apart. It is *the wire was quiet*, never *the brain was

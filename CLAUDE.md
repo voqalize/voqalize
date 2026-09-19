@@ -323,6 +323,17 @@ derived from this tree; they carry the command that re-earns the stamp, and
 want the retired synonyms too — mostly ordinary English, so it is advisory and a
 person reads it.
 
+`design/practices.md` is the other half, and it is internal: forty-nine numbered
+rules for designing a voice agent, each marked *agreed*, *contested* or
+*violated*, plus the reasoning the public page argues from — the six moving parts
+and why there is no merge, the four tiers, the two clocks, and the six questions
+to ask before wrapping anything. `voice.md` governs how we write; `practices.md`
+is what we know. It replaced `design/explanations/` on 2026-09-20, when the seven
+shipped design pages became one page and the outlines behind them stopped having
+a separate job. Read it before you argue a design decision from first principles —
+most of them have already been argued once, and the file says which ones are still
+open.
+
 ## Standing direction: the app→brain leg is a platform gap, not a demo problem
 
 Recorded verbatim (corrected for grammar) on 2026-09-09, and binding on anything

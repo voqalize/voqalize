@@ -12,7 +12,7 @@ becomes a user turn rather than arriving as a message.
 
 This is the second channel of a call. The first one is speech, and it holds the
 floor; this one does not. See
-[voice points, the screen holds](/design/speech-vs-screen/).
+[voice points, the screen holds](/design/#voice-points-the-screen-holds).
 
 ## The whitelist
 
@@ -27,7 +27,7 @@ which is the contract of record.
 | `server-message` | An unsolicited message to the app. |
 | `server-response` | An answer to a message the app sent, quoting its `id`. |
 | `error-response` | The same, when the answer is a failure. |
-| `ui-command` | An [action](/design/speech-vs-screen/) — `{"command": …, "payload": {…}}`. |
+| `ui-command` | An [action](/design/#voice-points-the-screen-holds) — `{"command": …, "payload": {…}}`. |
 | `ui-job-group` | Lifecycle envelopes for a group of jobs — started, update, completed — keyed by a shared `job_id`. |
 
 **Page → brain**
@@ -135,7 +135,7 @@ resolves.
 Nothing else is correlated for you. `dispatch` is one-way — nothing is returned
 and nothing is awaited — so a brain that needs an answer gets it the way it gets
 every other tap: as an ordinary `ui-event`, correlated by whatever your app put
-in it. See [parallel workstreams](/design/parallel-workstreams/).
+in it. See [parallel workstreams](/design/#parallel-workstreams).
 
 One field never reaches the app: `turn_id` annotates traces on the way out and is
 stripped before delivery.

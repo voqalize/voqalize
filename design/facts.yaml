@@ -615,15 +615,20 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 41
+    value: 34
     source: docs/src/content/docs/
-    verified: 2026-08-26
+    verified: 2026-09-20
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
-      Forty-one pages, each served twice — rendered, and as the `.md` twin an
-      agent reads — plus llms.txt and 404.html. It was 26 on the morning of
-      2026-08-25 and the growth is not new writing: the tree was rebuilt
+      Thirty-four pages, each served twice — rendered, and as the `.md` twin an
+      agent reads — plus llms.txt and 404.html. It was 41 until 2026-09-20, when
+      the seven pages under `design/` became seven sections of `design/index.md`:
+      they were one argument seen from seven sides, every one of them opened by
+      restating the other six, and each old URL now redirects to the heading it
+      became. A section count is not a page count, so this number went down while
+      the writing did not. It was 26 on the morning of
+      2026-08-25 and that growth was not new writing either: the tree was rebuilt
       top-down from the MCP handshake into an evaluation section plus four task
       sections whose names are their URL namespaces (Build, Designing for
       voice, Operate, Reference), which

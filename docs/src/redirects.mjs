@@ -42,9 +42,23 @@ export const redirects = {
   "/client/react": "/build/connect",
 
   // Slugs that read wrong without their page open.
-  "/design/voice-points-screen-holds": "/design/speech-vs-screen",
-  "/design/the-turn-budget": "/design/turn-budget",
   "/operate/logs": "/operate/reading-a-call",
+
+  // The seven Design pages became seven sections of the one page they were
+  // always arguing with each other across, on 2026-09-20. Each redirect names
+  // the heading it became, so a copied link still lands on the paragraph it was
+  // copied for. `voice-points-screen-holds` and `the-turn-budget` are older
+  // renames of two of those pages; they now point at the section directly
+  // rather than chaining through a hop that no longer exists.
+  "/design/voice-points-screen-holds": "/design#voice-points-the-screen-holds",
+  "/design/speech-vs-screen": "/design#voice-points-the-screen-holds",
+  "/design/the-turn-budget": "/design#the-turn-budget",
+  "/design/turn-budget": "/design#the-turn-budget",
+  "/design/interruption-and-heard-truth": "/design#interruption-and-heard-truth",
+  "/design/misunderstanding-and-reversal": "/design#misunderstanding-and-reversal",
+  "/design/parallel-workstreams": "/design#parallel-workstreams",
+  "/design/prompt-design": "/design#prompt-design-for-voice",
+  "/design/tool-design": "/design#tool-design-for-voice",
 
   // Folded into the page it was arguing with.
   "/reference/no-provider-slot": "/reference/catalog",

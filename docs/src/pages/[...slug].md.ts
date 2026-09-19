@@ -51,8 +51,13 @@ export const GET: APIRoute = ({ props }) => {
   if (moved) {
     // Both URLs, because the agent that asked for markdown wants markdown and
     // whoever it is working for may want the page. `markdownUrl` takes an id,
-    // not a path, so the leading slash comes off first.
-    const id = moved.replace(/^\//, "");
+    // not a path, so the leading slash comes off first — and the fragment comes
+    // off with it, or `.md` would land after the anchor and name no file. A
+    // destination may carry one: a page folded into a section of another keeps
+    // the heading in its redirect so a copied link still lands on the paragraph
+    // it was copied for.
+    const [path, fragment = ""] = moved.split("#");
+    const id = path.replace(/^\//, "");
     return markdown(
       [
         "---",
@@ -60,7 +65,7 @@ export const GET: APIRoute = ({ props }) => {
         `source: ${pageUrl(id)}`,
         "---",
         "",
-        `This page moved to [${moved}](${markdownUrl(id)}).`,
+        `This page moved to [${moved}](${markdownUrl(id)}${fragment ? `#${fragment}` : ""}).`,
         "",
       ].join("\n"),
     );

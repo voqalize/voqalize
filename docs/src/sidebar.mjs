@@ -84,9 +84,24 @@
  *
  * Still unwritten and not yet listed: the avatar's browser surface, the faces
  * and authoring a face (held on `@voqalize/avatar` 0.3.0 — writing three pages
- * against the component about to be replaced is work done twice); two of the
- * eleven design outlines. "The framework boundary" waits for a second engine to
- * exist.
+ * against the component about to be replaced is work done twice).
+ *
+ * ── Design is one page, and that is deliberate ──────────────────────────────
+ *
+ * It had seven under it until 2026-09-20. They were one argument seen from
+ * seven sides — the two channels, the turn budget, heard truth, reversal,
+ * parallelism, the prompt, the tool — and every one of them opened by restating
+ * the other six before it could start, because none of them stands up alone.
+ * Splitting an argument across seven URLs made the sidebar look like a
+ * curriculum and made the writing repeat itself. So the section is one page
+ * with seven headings, each old URL redirects to the heading it became
+ * (`src/redirects.mjs`), and the sidebar entry is the page rather than a hub
+ * over pages.
+ *
+ * This is not the rule for the other sections. Build and Reference are lookup:
+ * a reader arrives knowing which page they want and a URL per topic is what
+ * they need. Design is read once, in order, by someone who does not yet know
+ * what they are looking for.
  */
 export const sidebar = [
   {
@@ -127,14 +142,7 @@ export const sidebar = [
   {
     label: "Improve the agent",
     items: [
-      { label: "Overview", slug: "design" },
-      { label: "Voice points, the screen holds", slug: "design/speech-vs-screen" },
-      { label: "The turn budget", slug: "design/turn-budget" },
-      { label: "Interruption and heard truth", slug: "design/interruption-and-heard-truth" },
-      { label: "Misunderstanding and reversal", slug: "design/misunderstanding-and-reversal" },
-      { label: "Parallel workstreams", slug: "design/parallel-workstreams" },
-      { label: "Prompt design for voice", slug: "design/prompt-design" },
-      { label: "Tool design for voice", slug: "design/tool-design" },
+      { label: "Designing for voice", slug: "design" },
     ],
   },
   {
