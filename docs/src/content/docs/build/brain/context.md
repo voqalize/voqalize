@@ -63,7 +63,7 @@ module, so the union above and the union your page sends from stay one thing. Se
 
 **The shape to avoid is the whole-screen push.** A snapshot on a debounce names no
 change, so your brain has to diff its old picture against the new one and infer
-which act produced the difference — and every inference is a place the two
+which act produced the difference — and every inference is a place the
 pictures part company. Appended to a model's context it is worse: one production
 call put twenty-one full carts in front of one model in 113 seconds, each labelled
 authoritative, none of them dated, and the model reasoned from whichever it
@@ -73,7 +73,7 @@ interpret.
 The trade is deliberate: nothing arrives behind these events to repair them, so an
 act your page does not send is an act your brain never learns about. That shows up
 as a gap in a log rather than being quietly papered over a beat later, which is
-the failure you want of the two.
+the failure worth having.
 
 ## `on_rtvi` is not a generator
 
@@ -103,8 +103,8 @@ See [actions](/build/brain/actions/) for the typed outbound half, and quote
 `msg.id` back when the message carried one — that is what resolves the client's
 pending request.
 
-**Each message is handled in its own task, off the floor.** Two consequences you
-can rely on: a barge-in cancels the turns through its watermark and does not
+**Each message is handled in its own task, off the floor.** What you can rely
+on: a barge-in cancels the turns through its watermark and does not
 touch a message being handled, because a message carries no audio and nothing
 about it is dead; and an exception in your handler is logged and contained, so
 the session survives it. One consequence to design around: handlers begin in
@@ -116,7 +116,7 @@ matter.
 
 The enumeration is `RTVIType` in
 [`proto/voqalize/frames/frames.proto`](https://github.com/voqalize/voqalize/blob/main/proto/voqalize/frames/frames.proto),
-split into two sets the SDK names `RTVI_TO_BRAIN` and `RTVI_TO_APP` in
+split into the sets the SDK names `RTVI_TO_BRAIN` and `RTVI_TO_APP` in
 `voqalize.sdk.wire.frames`.
 
 Your page may send `ui-event`, `ui-snapshot`, `ui-cancel-job-group` and the
@@ -136,10 +136,10 @@ stopped — and a brain must not be able to forge one. State it positively: your
 page can trust `bot-started-speaking`, because only the process that moved the
 audio can emit it.
 
-Two enforcement points, and they fail differently:
+The enforcement points fail differently:
 
 - `session.send_rtvi` with a type the app originates raises `WireError` before
-  anything reaches the socket, naming the five types you may send.
+  anything reaches the socket, naming the types you may send.
 - A brain that reaches the wire another way is refused there. Voqalize sends back
   a non-fatal error frame, which arrives at `on_error` (see
   [error codes](/reference/errors/)), and the page is sent nothing at all.
@@ -162,7 +162,7 @@ That is the failure with no sound — the user taps, the screen does nothing, an
 on the next turn the agent answers about a screen that has moved.
 
 Congestion sheds the same class of message. Speech chunks and RTVI messages are
-the two unbounded flows on the wire, so they are the only two frames a full lane
+the unbounded flows on the wire, so they are the only frames a full lane
 drops; everything else is bounded by turns taken and units spoken and queues
 however deep the backlog runs. A drop delivers one non-fatal `OVERLOAD` error to
 `on_error` per congestion episode per direction, and the session is never killed
@@ -211,7 +211,7 @@ socket — the in-flight request ids — and stops there, because conversation
 history, model context and domain state have a different lifetime and may outlive
 the call. They are yours, in your process, on your schema.
 
-That leaves you three places, and the split is the whole arrangement:
+That leaves you these places, and the split is the whole arrangement:
 
 - **`on_session_start`** is where a logical conversation spanning several sockets
   picks up: read your own identifier out of `session.init` and load your own

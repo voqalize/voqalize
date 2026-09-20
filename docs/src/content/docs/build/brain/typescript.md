@@ -19,7 +19,7 @@ event, an interface per nested model, a union over `command` and a union over
 
 ## What the copy costs
 
-Two failures, and neither of them says anything at the time.
+Neither of the failures says anything at the time.
 
 **Rename a field in Python** and the hand-written interface goes on compiling.
 The browser reads `cmd.mealType`, gets `undefined`, coerces it to `''`, and draws
@@ -178,7 +178,7 @@ imports, and a process-wide registry cannot say which app speaks what. Anything
 the module names — declared there or imported into it — is in; nothing else is.
 That is the same scoping `AppEvents` uses at runtime, for the same reason.
 
-Three flags, and that is the whole surface:
+The flags are the whole surface:
 
 | | |
 |---|---|
@@ -186,7 +186,7 @@ Three flags, and that is the whole surface:
 | `--union-name` | name of the action union, `UiAction` by default |
 | `--event-union-name` | name of the event union, `AppEvent` by default |
 
-Rename a union when one frontend talks to two brains: everything derived from it
+Rename a union when one frontend talks to more than one brain: everything derived from it
 follows, so `--union-name DeskAction` gives you `DeskAction`,
 `DESK_ACTION_COMMANDS`, `asDeskAction` and `unhandledDeskAction`.
 

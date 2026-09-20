@@ -9,10 +9,10 @@ otherwise. The brain may change the recognizer language, speaking voice and idle
 timeout while the call runs. This page is the catalog of allowed values, and the
 one rule that makes them safe to change.
 
-:::caution[A language has two legs, and you set both]
+:::caution[Set both legs of a language, always]
 `stt.language` picks the **recognizer**. `tts.language` picks the language the
 voice reads in — which, for a cloned voice, is a different recorded speaker.
-They are one setting with two halves, so the SDK requires both together and
+They are one setting with a leg each way, so the SDK requires both together and
 refuses a configuration that names a language on one leg alone:
 
 ```python
@@ -27,7 +27,7 @@ async def on_session_start(self, session):
     )
 ```
 
-One request, three optional sections — `tts`, `stt`, `idle` — because a language
+One request, with optional `tts`, `stt` and `idle` sections, because a language
 change has to move both legs at once. The same call switches language mid-call.
 
 **A half-applied language is silent.** The words stay right and only the speaker
@@ -136,26 +136,27 @@ Each half fails on its own, quietly, in a different way:
 | `tts.language` | The right words in the wrong speaker — Hindi read by the English reference clip sounds like a non-native accent | **By ear only.** The words are correct, so transcription-based scoring is blind to it |
 | `stt.language` | Whatever the user says is transcribed by the English recognizer | Garbled transcripts, blamed on the model |
 
-The first is the reason this page leads with a rule instead of a menu. A demo
+The `tts.language` half is the reason this page leads with a rule instead of a
+menu. A demo
 shipped with Devanagari read in an English voice for weeks: every test was green,
 every log line looked right, and every automated score was unchanged, because
 none of them can hear.
 
-Two rules kill it, and they are checked in two different places:
+The rules that kill it are checked in different places:
 
-1. **State both legs or neither.** Not that the two agree — that you said both.
-   Changing only the voice touches no language field and is unaffected. `Config`
-   raises `ConfigError` on this one at the call site, before anything reaches
-   the socket: it is a property of the request, so nothing needs to be asked.
-2. **No silent substitution.** A language the chosen voice does not speak is
-   refused, so the Hindi fallback can only be something you asked for. Voqalize
-   answers this one, because which voice speaks what is the speech tier's own
-   record and it moves as voices are added — at connect if the configuration
-   arrived there, and as a rejected response if your brain sent it mid-call.
+- **State both legs or neither.** Not that the legs agree — that you said both.
+  Changing only the voice touches no language field and is unaffected. `Config`
+  raises `ConfigError` on this one at the call site, before anything reaches
+  the socket: it is a property of the request, so nothing needs to be asked.
+- **No silent substitution.** A language the chosen voice does not speak is
+  refused, so the Hindi fallback can only be something you asked for. Voqalize
+  answers this one, because which voice speaks what is the speech tier's own
+  record and it moves as voices are added — at connect if the configuration
+  arrived there, and as a rejected response if your brain sent it mid-call.
 
 ## Where it is set
 
-There is **one message**, `Config`, and it is set from two sides. Whoever calls
+There is **one message**, `Config`, and it is set from either side. Whoever calls
 `sessions.connect` sends it as proto3 JSON; your brain sends the same message as
 a Python object with `session.configure(...)`. Same fields, same rules, same
 rejections — a `config` block in an HTTP body and a `Config(...)` in a callback
@@ -184,7 +185,7 @@ configuration itself; the backend holding the `sk_` makes that request. The
 separate recording rule is on [recordings](/operate/recordings/).
 
 The `lead_qual` demo resolves its language per user and then switches mid-call
-across eight Indic languages — a worked example of both.
+across Indic languages — a worked example of both rules.
 
 ## Why there is no provider slot
 

@@ -16,7 +16,7 @@ per-minute avatar vendor, and no second media path.
 ## What it is
 
 [`voqalize/avatar`](https://github.com/voqalize/avatar) is a separate library
-— `@voqalize/avatar` on npm and `voqalize-avatar` on PyPI, two ends of one wire
+— `@voqalize/avatar` on npm and `voqalize-avatar` on PyPI, each end of one wire
 format. They version independently and the wire is what keeps them compatible.
 It works against any pipecat pipeline, and Voqalize is one consumer of it.
 
@@ -34,7 +34,7 @@ The Playground in the console renders one against a live call, so you can hear
 and watch the thing before you install anything. So does
 [the avatar demo](https://voqalize.com/demos/avatar), which is the library
 explaining itself: it brings the architecture up on screen, demonstrates the
-three commands below on its own face, and changes which avatar it is while you
+commands below on its own face, and changes which avatar it is while you
 watch.
 
 ## The browser half
@@ -70,7 +70,7 @@ crosses without anything special. The action ids are the avatar library's, and
 [`contract-wire.md`](https://github.com/voqalize/avatar/blob/main/docs/contract-wire.md)
 is the list of record.
 
-**The action id is open, and two names are required of every face**:
+**The action id is open, and these names are required of every face**:
 `ACKNOWLEDGE` (the whole backchannel family in one word) and
 `RESPONSE_INTERRUPTED`. Anything else belongs to the face that is mounted, and a
 name it does not know is ignored rather than an error — so a brain can address a
@@ -90,11 +90,12 @@ anywhere — including work that outlives the turn that started it. See
 
 ## What the face is told, and what it decides
 
-Three commands cross: a `state` (a candidate durable state, `null` to clear it),
-an `action` (one self-completing behaviour), and `cues` (a viseme splice
-correlated to a text-to-speech context). `state` was spelled `claim` before the
-library's 0.4.0; the browser still accepts the old spelling at its parse
-boundary.
+What crosses is a `state` (a candidate durable state, `null` to clear it), an
+`action` (one self-completing behaviour), and `cues` (a viseme splice correlated
+to a text-to-speech context). `state` was spelled `claim` on the wire
+before the published line began, and the browser still accepts that spelling at
+its parse boundary for a server that has not moved; it comes out when the last
+one that sends it has shipped.
 
 Observed playout outranks all of them. What pipecat reports about the audio —
 that the bot started speaking, that the user did, that the microphone is muted

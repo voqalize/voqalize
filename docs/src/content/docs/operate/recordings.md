@@ -39,24 +39,33 @@ See [keys and authentication](/build/keys/).
 
 ## What you get back
 
-`get_recordings(tenant, session_id)` returns one entry **per role**: `role` is
-`user` (the user's microphone) or `agent` (what was spoken back). Every role
-reports one entry, whatever happened to it.
+`get_recordings(tenant, session_id)` returns one entry **per role**: `user` (the
+user's microphone), `agent` (what was spoken back) and `mixed` (those summed).
+Each of them reports an entry whatever happened to it — a caller who can only see
+the tracks that worked cannot tell "the agent never spoke" from "we never
+recorded the agent".
 
-Separate tracks let you inspect the user and agent channels independently. This
-distinguishes missing agent audio from missing user audio.
+**`mixed` is the one to play back.** The separate tracks are what you inspect
+when you need the channels apart, because missing agent audio is a different
+fault from missing user audio, and they are the primary sources `mixed` is
+rendered from. So `mixed` exists only when both of them rendered; when one did
+not, it reports the way an unrendered track does.
 
-Each entry carries its state, duration, size, content type, and a
-`failure_reason` if it has one.
+All of them carry the same `started_at`, `ended_at` and `duration_secs` — one
+anchor, read once, so you can lay them on a single timeline without first
+checking that they agree.
+
+Each entry also carries its state, size, content type, and a `failure_reason` if
+it has one.
 
 ## Recording runs in two passes
 
 During the session the node writes the raw RTP of both tracks to disk, undecoded
 — no codec work and no timestamp arithmetic on the call path. When the session
-ends it renders one WebM track per role, `user.webm` and `agent.webm`, each
-running from the moment the call connected to the moment it ended: gaps are
-padded with silence and the two tracks are sample-aligned, so both come out the
-same length and one offset names the same instant in both. Those are the two
+ends it renders `user.webm` and `agent.webm`, each running from the moment the
+call connected to the moment it ended: gaps are padded with silence and they
+are sample-aligned, so both come out the same length and one offset names the
+same instant in both. `mixed.webm` is those summed. Connect and end are the
 instants `duration_secs` is measured between, so a completed track is as long as
 the session it came from — see [usage and limits](/operate/usage/).
 

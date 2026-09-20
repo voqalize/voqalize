@@ -19,7 +19,7 @@ tools are available.
 
 ## Connect
 
-Two endpoints, one per environment:
+One endpoint per environment:
 
 | Environment | Endpoint |
 |---|---|
@@ -46,8 +46,8 @@ Or, project-scoped, drop an `.mcp.json` at your repo root:
 ```
 
 Swap in the development URL to work against dev. Every other MCP client takes
-the same two things — a name and that URL over HTTP — so the block above
-translates directly.
+the same things — a name and that URL over HTTP — so the block above translates
+directly.
 
 On first use your client runs a browser **Google sign-in** and the tools light up.
 There is **no API key, client ID, or secret to configure** — the client registers
@@ -91,7 +91,7 @@ the Voqalize control plane behind Google OAuth. Nothing to `pip`/`uvx`-install.
 
 ## Tools
 
-Twenty-eight tools. Every tool returns the control plane's raw JSON. A refused
+Every tool returns the control plane's raw JSON. A refused
 call comes back as a tool error carrying the control plane's own message —
 not a member of that tenant, role too low, no such agent or session, or bad
 input (a non-`wss://` `brain_url` on a non-loopback host, say) — so read the
@@ -144,7 +144,7 @@ hears nothing, and `stage` stays at `configured` — it reads `verified` only on
 real session has reached your brain.
 
 `create_agent_credentials` puts the agent on the relay and hands you the one URL
-your brain dials out to. [Cortex relay](/build/outbound/) has the detail — including
+your brain dials out to. [Deploy the brain](/build/hosting/#a-brain-that-dials-out) has the detail — including
 the `update_agent` round trip it used to require and no longer does. What is worth
 knowing before you call the tool: the `sk_`
 secret is shown once, never expires, and minting revokes nothing — so rotation
@@ -168,7 +168,7 @@ raw value appears only on the response that minted it.
 
 A session row is `id`, `state`, `agent_id`, `agent_name`, `display_name`,
 `created_at`, `started_at`, `ended_at`, `duration_secs`, `end_reason`,
-`end_detail`, `error`. `state` is one of six:
+`end_detail`, `error`. `state` is one of:
 
 | `state` | Means |
 |---|---|
@@ -179,7 +179,7 @@ A session row is `id`, `state`, `agent_id`, `agent_name`, `display_name`,
 | `expired` | The session token lapsed before anyone connected. |
 | `lost` | The session connected, and the voice tier never reported how it ended. It was still `active` five minutes past the one-hour cap. |
 
-`end_reason` is set on `ended` and `failed` and is `null` on the other four:
+`end_reason` is set on `ended` and `failed` and is `null` on the rest:
 `starting` and `active` have not ended, and `expired` and `lost` are
 conclusions from a deadline, with nothing observed to name. It is one of
 `user_hung_up`, `agent_hung_up`, `idle_timeout`, `max_duration` (the session
@@ -193,8 +193,8 @@ it observed.
 |---|---|---|
 | `list_sessions` | `(tenant, agent_id="", state=None, since=None, until=None, include_archived=False, limit=20, cursor="") -> {sessions, next_cursor}` | List sessions, most recent first; filter by agent, by one `state`, and by `created_at` (`since` inclusive, `until` exclusive, ISO-8601 with an offset). Archived sessions are left out unless `include_archived=true`; `get_session` reads one by id either way. `limit` is capped at 100, and a page can come back short while `next_cursor` is set — only a null `next_cursor` is the last page. |
 | `get_session` | `(tenant, session_id) -> session` | One call in full: the row above plus `brain_url_defaulted`, `started_by`, `metadata`, the resolved `config`, `init`, a `recordings` summary (`id`, `role`, `state`, `duration_secs`, `failure_reason`), and `files`: what became of the `call_record`, the `logs` and the `recording`, each `{status, reason, size_bytes, updated_at}` with `status` one of `expected`, `uploaded`, `failed`, `skipped`, `lost`, under an overall `status` (`pending`, `complete`, `incomplete`), `deadline_at` and `settled_at`. `files` is null until the session ends, and stays null on a session that never connected, which owes no file. |
-| `get_session_events` | `(tenant, session_id) -> {session_id, events: [{occurred_at, event_type, id, actor_id, actor, payload}]}` | Voqalize's own milestones — created, connected, ended; about five, written **while the session runs**, so they answer for a call still in progress and for one nothing connected to. `actor` is the person as `{id, email, name}` when a person did it, `null` when Voqalize did. This says how far the call got, not what was said. |
-| `get_call_record` | `(tenant, session_id, limit=2000, include_events=False) -> {session_id, record, turns, pace, meta, …}` | **The contract.** What the two halves exchanged, as turns: each `asked` question with its `asked_at`, the `units` your brain spoke with what it `generated`, what the user `heard` and an `outcome` (`spoken`, `cut_short`, `never_spoken`, `unknown`), the `gaps` where the wire was quiet, and the `marks`. `record` is `found`, `missing` or `unavailable` — read it before concluding a call was silent. `include_events` adds the raw records under the turns; `limit` bounds those and never the turns. |
+| `get_session_events` | `(tenant, session_id) -> {session_id, events: [{occurred_at, event_type, id, actor_id, actor, payload}]}` | Voqalize's own milestones — created, connected, ended — written **while the session runs**, so they answer for a call still in progress and for one nothing connected to. `actor` is the person as `{id, email, name}` when a person did it, `null` when Voqalize did. This says how far the call got, not what was said. |
+| `get_call_record` | `(tenant, session_id, limit=2000, include_events=False) -> {session_id, record, turns, pace, meta, …}` | **The contract.** What your brain and the user exchanged, as turns: each `asked` question with its `asked_at`, the `units` your brain spoke with what it `generated`, what the user `heard` and an `outcome` (`spoken`, `cut_short`, `never_spoken`, `unknown`), the `gaps` where the wire was quiet, and the `marks`. `record` is `found`, `missing` or `unavailable` — read it before concluding a call was silent. `include_events` adds the raw records under the turns; `limit` bounds those and never the turns. |
 | `get_session_logs` | `(tenant, session_id, level="INFO", service="", limit=500) -> {session_id, logs, logs_availability, truncated}` | Voqalize's own log lines for that call. `level` is a floor (`DEBUG` … `CRITICAL`); `service` matches one process's lines exactly; `limit` is capped at 5000. |
 | `get_recordings` | `(tenant, session_id, ttl_seconds=900) -> {session_id, recordings}` | Audio, one entry per `role` (`mixed`, `user`, `agent`), with a short-lived signed `download_url` on the entries that have a file in storage. `ttl_seconds` is 60–900. |
 | `get_usage` | `(tenant, period="") -> {duration_secs, sessions_created, sessions_started, agents, …}` | Counters for one `YYYY-MM` billing period (UTC; empty is the current month), with the same numbers per agent in `agents`, busiest first. |
@@ -227,8 +227,8 @@ every one of these tools takes.
 
 The order to read them in, what the filters are for, and why an empty list is
 not the same fact as a silent call are all in
-[Reading a call back](/operate/reading-a-call/). Three things belong here because
-they are properties of the tools rather than of the workflow:
+[Reading a call back](/operate/reading-a-call/). What belongs here instead are
+the properties of the tools rather than of the workflow:
 
 - **The record is contract, logs are evidence.** `get_call_record` is versioned,
   additive-only and safe to assert on in a test. `get_session_logs` is written in
@@ -257,9 +257,9 @@ agent in this order:
    `on_rtvi` / `on_user_idle`. See [Your first brain](/build/brain/).
 3. **Create the agent** — `create_agent(tenant, name)` → `{agent, session_key}`.
 4. **Run it and say how it is reached** — locally, `create_agent_credentials` to
-   dial out over [Cortex](/build/outbound/) (no tunnel), which sets the mode for
+   dial out over [Cortex](/build/hosting/#a-brain-that-dials-out) (no tunnel), which sets the mode for
    you; in production, `update_agent(brain_url=…)` for an
-   [inbound](/build/inbound/) route. Until you do one of the two, the agent
+   [inbound](/build/hosting/#a-route-voqalize-dials) route. Until you do one of those, the agent
    cannot take a call.
 5. **Test it unattended** — the [conformance harness](/build/testing/) drives
    the brain in text mode, with no audio and no human. Then talk to it live at the

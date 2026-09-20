@@ -1,20 +1,9 @@
 ---
-title: The management API
-description: There is no bearer-key REST API for managing your account, and that is a decision rather than a gap. MCP is the programmatic surface. One HTTP route starts a call, and it is the only one your own code calls.
+title: The HTTP API
+description: One route takes a key — sessions.connect, which starts a call. Its body, its strictness, and why management lives on MCP instead.
 ---
 
-**There is no bearer-key HTTP API for managing agents, keys or usage.** A secret
-key (`sk_…`) starts calls; it does not create agents, mint keys or read your
-account. The programmatic management surface is [the MCP
-server](/reference/mcp/), and the interactive one is the console.
-
-That is worth saying plainly, because it is the opposite of what most products
-do, and because you can waste an afternoon looking for the endpoint that would
-have done it.
-
-## The one route your own code calls
-
-Exactly one route accepts a key rather than a console session, and it does one
+One route accepts an API key rather than a console session, and it does one
 thing: start a call.
 
 ```
@@ -28,24 +17,14 @@ It answers with the pipecat transport's argument and nothing else —
 verbatim: it is what `startBotAndConnect` takes, so there is no field to pick
 out and no object to rebuild.
 
-There was once a `create_meeting` then `start_meeting` pair. It is gone: nothing
-ever created a connection and then declined to use it, and the gap between the
-two steps was a state nobody guarded. **Start one call. There is no second
-step.**
+Everything else — creating an agent, pointing its `brain_url` at your route,
+minting and revoking keys, listing sessions, reading logs and usage — is [the
+MCP server](/reference/mcp/), authenticated over OAuth.
 
-The route was called `sessions.create` until 2026-08-26. That name is **gone**,
-not aliased: it answers `404`. If you find it in an older example, change the
-word — the body and the credential are unchanged, and the response is the
-connect params rather than the whole session record every caller had to dig
-through for the three fields it wanted. If you want the record too, read it back
-with [`get_session`](/operate/reading-a-call/) — over MCP or in the console,
-where reads belong.
+## The body
 
-### The body
-
-One required field, and four optional ones. It is **strict**: an undeclared
-top-level key is a `422` naming it, rather than a session that quietly runs on
-defaults.
+It is **strict**: an undeclared top-level key is a `422` naming it, rather than a
+session that quietly runs on defaults.
 
 | Field | | |
 |---|---|---|
@@ -56,26 +35,33 @@ defaults.
 | `metadata` | optional | Your own flat string map for correlating a call with your systems. At most **10 keys**, each value at most **256 characters**. |
 
 Which key signs the request, how a publishable key differs, and what the browser
-does with the response are all on [connect a
-browser](/build/connect/) — that page owns the handshake and this one does not
-repeat it.
+does with the response are all on [connect a browser](/build/connect/) — that
+page owns the handshake and this one does not repeat it.
 
-## Everything else is MCP
+### Start one call; there is no second step
 
-Creating an agent, pointing its `brain_url` at your route, minting and revoking
-keys, listing sessions, reading logs and usage — every one of those is an MCP
-tool, authenticated over OAuth, rate limited at **120 tool calls per minute per
-tenant**. [The MCP server](/reference/mcp/) is the reference for all of them.
+There was once a `create_meeting` then `start_meeting` pair. It is gone: nothing
+ever created a connection and then declined to use it, and the gap between them
+was a state nobody guarded.
 
-This is not a workaround. The audience for a management API is a developer and
-the developer's coding agent, and MCP is the surface an agent already holds:
-the tools describe themselves, the auth is interactive and revocable, and there
-is no long-lived credential sitting in an environment variable to leak.
+The route was called `sessions.create` until 2026-08-26. That name is **gone**,
+not aliased: it answers `404`. If you find it in an older example, change the
+word — the body and the credential are unchanged, and the response is the
+connect params rather than the whole session record every caller had to dig
+through. If you want the record too, read it back with
+[`get_session`](/operate/reading-a-call/) — over MCP or in the console, where
+reads belong.
 
-## Why not a REST management API
+## Why management is MCP and not a bearer key
 
-The obvious design is a tenant-scoped bearer key. We had one, called `ak_`, and
-removed it on 2026-08-12.
+The audience for a management API is a developer and the developer's coding
+agent, and MCP is the surface an agent already holds: the tools describe
+themselves, the auth is interactive and revocable, and there is no long-lived
+credential sitting in an environment variable to leak. It is rate limited at
+**120 tool calls per minute per tenant**.
+
+The obvious alternative is a tenant-scoped bearer key. We had one, called `ak_`,
+and removed it on 2026-08-12.
 
 Every key now names an agent, of every kind. `ak_` did not, which meant a
 credential could start a session for **any** agent in the tenant — so a key
@@ -93,7 +79,7 @@ The OpenAPI document is generated by the service and served in development only,
 for the same reason: publishing a schema for routes whose only credential is a
 console cookie describes a surface nobody can call.
 
-## If you need it, say so
+## If you need HTTP access, ask
 
 This is a decision about defaults, not a refusal. If your integration genuinely
 cannot hold an OAuth client — a CI job that provisions agents, a product

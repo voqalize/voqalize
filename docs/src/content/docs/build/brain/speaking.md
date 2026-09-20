@@ -1,6 +1,6 @@
 ---
 title: Speaking
-description: Speech is the only thing you yield. The three frames, why a turn is many units, and what streaming buys the user.
+description: Speech is the only thing you yield. The frames that carry it, why a turn is many units, and what streaming buys the user.
 ---
 
 Speech is the only thing `on_user_message` yields, because speech is the only
@@ -9,7 +9,7 @@ more `SpeechChunk(text)`, then `SpeechEnd()` — and Voqalize speaks the first s
 while you are still producing the last. Everything that is not speech is a
 method on `session`.
 
-## The three frames
+## `SpeechStart`, `SpeechChunk`, `SpeechEnd`
 
 ```python
 from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
@@ -26,14 +26,14 @@ answering. `SpeechChunk(text)` carries text inside the open unit. `SpeechEnd()` 
 it. The SDK mints the unit's id and stamps the turn on it, so you write neither.
 
 Yield anything else — an action, a bare string, a dict — and the SDK raises
-`WireError` rather than putting it on the wire. So do three shapes of unbalanced
-bracket: a `SpeechChunk` outside a unit, a `SpeechStart` inside an open one, and a
+`WireError` rather than putting it on the wire. So does an unbalanced bracket:
+a `SpeechChunk` outside a unit, a `SpeechStart` inside an open one, a
 `SpeechEnd` with nothing open. The rule the errors enforce is that every unit
 you open closes exactly once, and the
 [conformance harness](/build/testing/) checks it against your brain over the
 real wire.
 
-Two behaviours you get for free:
+Behaviours you get for free:
 
 - **A unit left open by a crash is closed on the wire.** If your generator
   raises mid-unit, the SDK emits the missing `SpeechEnd` rather than leaving
@@ -143,7 +143,7 @@ async def on_user_message(self, session, msg):
     yield SpeechEnd()
 ```
 
-Nothing in a transcript distinguishes those two calls. The words are identical,
+Nothing in a transcript distinguishes those calls. The words are identical,
 the recording is not, and the number that moved is
 [time to first chunk](/design/#the-turn-budget).
 
@@ -151,7 +151,7 @@ The corollary is worth knowing before it bites: text with no sentence boundary i
 it waits. A unit that is one long unpunctuated clause is synthesized when
 `SpeechEnd` flushes it, however early you yielded the chunks.
 
-The second thing the generator buys is a place to stop. When the user cuts in,
+The generator also buys a place to stop. When the user cuts in,
 the SDK closes your generator at the `yield` it is sitting on, so your model stops
 producing a reply nobody is listening to any more. A body that builds the whole
 string and returns it has already finished by then, and there is nothing left to
@@ -182,6 +182,6 @@ delivered prefix rather than what you yielded:
 
 ## Read next
 
-- [Actions](/build/brain/actions/) — the second channel, which does not speak.
+- [Actions](/build/brain/actions/) — the channel that does not speak.
 - [The turn budget](/design/#the-turn-budget) — how long a unit may be.
 - [Interruption and heard truth](/design/#interruption-and-heard-truth).

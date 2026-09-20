@@ -1,6 +1,6 @@
-# `orderdesk/backend/eval/` — the two make-or-break evals
+# `orderdesk/backend/eval/` — the make-or-break evals
 
-OrderDesk lives or dies on two things a demo script cannot fake:
+OrderDesk lives or dies on what a demo script cannot fake:
 
 1. **Recall** — a Hindi speaker says "वोलिनी" and the ASR hands us `wolini`, `volaini`,
    `bolini`. Does the catalog still find it? → `run_phonetic_eval.py`
@@ -84,8 +84,8 @@ dataset, not a finding about the model).
 
 ### The tripwire
 
-`demos/tests/test_orderdesk_disambig.py` has two halves. The offline half tests the harness's
-own arithmetic — validation, the oracle, the log₄ bound, the seeded sample, and the CSV
+`demos/tests/test_orderdesk_disambig.py` has an offline half and a live half. The
+offline half tests the harness's own arithmetic — validation, the oracle, the log₄ bound, the seeded sample, and the CSV
 fallback's family sizes against `catalog.db` — so a bug in the *measurement* can never
 quietly pass the *measurement*. The live half runs six trials
 (TELMA 26, VOLINI 10, THYRONORM 8 × two targets, ~10 calls, ~11s) against the same

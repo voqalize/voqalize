@@ -3,9 +3,9 @@ title: Connections and the handshake
 description: How a browser starts a Voqalize session — one HTTP request for the connect params, then stock pipecat. With a publishable key, or through your own backend.
 ---
 
-A session is two things: one HTTP request that starts it, and a WebRTC connection
-your browser negotiates **straight to the machine that will run it**. Nothing of
-ours sits between those two. The audio is direct UDP, and the control messages —
+A session is one HTTP request that starts it and a WebRTC connection your
+browser negotiates **straight to the machine that will run it**. Nothing of ours
+sits between them. The audio is direct UDP, and the control messages —
 transcripts, the agent's UI commands, your client messages — ride RTVI on that
 peer connection's data channel.
 
@@ -31,9 +31,9 @@ Content-Type: application/json
 }
 ```
 
-The body is strict: an undeclared key returns a `422` naming it. Two optional
-labeling fields are also accepted: `display_name` and a bounded `metadata` map,
-described in [A session, end to end](/build/session/).
+The body is strict: an undeclared key returns a `422` naming it. `display_name`
+and a bounded `metadata` map are accepted as labels too, described in
+[A session, end to end](/build/session/).
 
 `init` is what the page hands the brain: a flat, opaque blob of business
 context, uninterpreted by everything between this request and `session.init`.
@@ -59,7 +59,7 @@ The answer is the connect params, and nothing else:
 }
 ```
 
-Three things follow from that body being this short.
+What follows from that body being this short:
 
 **The endpoint is a machine, not a load balancer.** A node is chosen when the
 session is minted and the token is minted for that node, so the address is
@@ -79,7 +79,7 @@ response, it *forwards* it. If you want the session record — status, timings,
 recordings — that is a read, asked later, and it is
 [`get_session`](/operate/reading-a-call/) rather than anything on this route.
 
-## Two ways to hold the credential
+## Where the credential lives
 
 Same route, same body, same response. The only difference is which key signs the
 request and who makes it.
@@ -106,7 +106,7 @@ The moment starting a session depends on something the browser must not be trust
 with — who the user is, whether their subscription is current, which agent they
 are entitled to — the decision belongs on your server, and so does the key.
 
-Three hops, and only the middle one is ours:
+Only the middle hop is ours:
 
 1. **Your page asks your backend for connect params** — on page load, or when the
    user presses the button. **How that request is authenticated is entirely
@@ -191,10 +191,10 @@ when it lands this line goes away and the parsed body passes straight through.
 
 ### Not `startBotAndConnect`
 
-Pipecat's `startBotAndConnect` folds the two steps into one, and it is exactly
+Pipecat's `startBotAndConnect` folds the steps into one, and it is exactly
 `connect(await startBot(params))` — the parsed response goes to the transport
-with nothing in between, so there is nowhere to put the line above. Do the two
-steps yourself. One is a `fetch` your framework already knows how to make.
+with nothing in between, so there is nowhere to put the line above. Do them
+yourself. One is a `fetch` your framework already knows how to make.
 
 The other shortcut worth naming so you don't go looking for it: the transport can
 derive an offer URL from a static `offerUrlTemplate` when the server returns only

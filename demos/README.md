@@ -10,12 +10,11 @@ demos/<name>/
   backend/    # a thin brain: brain.py (a voqalize.sdk.Brain) + a one-line routes.py
 ```
 
-Every demo does triple duty — example code, the live demos on our site, and our
-integration tests.
+Every demo is example code, a live demo on our site, and an integration test.
 
-## Two builds: brains run on the voice-runtime node, UIs ship to the apex
+## Brains run on the voice-runtime node, UIs ship to the apex
 
-A demo's two halves deploy to two different places, and that split is the whole
+A demo's halves deploy to different places, and that split is the whole
 architecture:
 
 - **The backend brains** build into **one container** and deploy onto the

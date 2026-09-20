@@ -1,31 +1,27 @@
 ---
 title: API and protocol reference
-description: The contracts. The wire, the RTVI plane, the Brain API, the voice and language catalog, error codes, the management API and the MCP server.
+description: The contracts. The wire, the RTVI plane, the Brain API, the voice and language catalog, error codes, the HTTP API and the MCP server.
 ---
 
-Use these pages to look up frame fields, callback signatures, error codes,
-catalog values and MCP tools. For task-oriented guidance, start with
-[Build an agent](/build/) or [Improve the agent](/design/).
+Look up frame fields, callback signatures, error codes, catalog values and MCP
+tools here. For task-oriented guidance, start with [Build an
+agent](/build/) or [Improve the agent](/design/).
 
-## The contracts
-
-| Page | What it holds |
-|---|---|
-| [The Brain API](/reference/brain/) | Every callback, its signature, and what it is handed. |
-| [The wire](/reference/wire/) | Every frame the two ends send, and what each obliges. |
-| [The RTVI plane](/reference/rtvi/) | The message whitelist, both directions. |
-| [Voice and language](/reference/catalog/) | The voices, the languages, and the pairing rule. |
-| [Error codes](/reference/errors/) | Every code, what raised it, and whether it ends the call. |
-| [The management API](/reference/management-api/) | The programmatic management boundary and session-start route. |
-| [The MCP server](/reference/mcp/) | The tools an agent gets, and what each one reads or writes. |
+- [The Brain API](/reference/brain/) — every callback, its signature, and what it is handed.
+- [The wire](/reference/wire/) — every frame each end sends, and what it obliges.
+- [The RTVI plane](/reference/rtvi/) — the message whitelist, both directions.
+- [Voice and language](/reference/catalog/) — the voices, the languages, and the pairing rule.
+- [Error codes](/reference/errors/) — every code, what raised it, and whether it ends the call.
+- [The HTTP API](/reference/http-api/) — `sessions.connect`, and why management is MCP instead.
+- [The MCP server](/reference/mcp/) — the tools an agent gets, and what each one reads or writes.
 
 ## What is checked
 
 Contract lists and stable product claims are checked against their sources.
 
 - The `Voice` and `Language` enums are read out of the proto descriptor by the
-  SDK rather than written down twice, and a test fails if the two drift.
-- Every number, version and count on this site lives once in a facts file next
+  SDK rather than written down twice, and a test fails if they drift.
+- Every number, version and date on this site lives once in a facts file next
   to the source it was read out of, and a checker re-reads each one from that
   source on every run. A page may also declare the sentences that are wrong
   *because* of it, and those are searched for in the prose.

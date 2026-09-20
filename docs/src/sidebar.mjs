@@ -54,7 +54,8 @@
  * but it still loses as a *slug*, because a slug is read by someone who has met
  * the concept and not the name.
  * `/deploy/cortex` became `/build/outbound` because an agent that has read only
- * the handshake has met the concept and never the name.
+ * the handshake has met the concept and never the name. It is now a section of
+ * `/build/hosting`, which is where the choice between the two paths is made.
  *
  * **A slug is read without its page.** In `llms.txt` it is a path and one line.
  * `/client/handshake` lost to `/build/connect` because "handshake" is three
@@ -72,10 +73,12 @@
  * **No page carries it today.** `reference/management-api` was the last, and
  * it was held open on a product decision rather than on effort: it described a
  * bearer-key HTTP API the control plane does not have. That decision was taken
- * on 2026-08-26 — MCP is the programmatic management surface, the console is
- * the interactive one, and the page now says so and explains why `ak_` was
- * removed rather than renamed — see that page's "Why not a REST
- * management API".
+ * on 2026-08-26 — MCP is the programmatic management surface and the console is
+ * the interactive one. The page then stayed titled after the absence and
+ * opening with it, which is a page that answers a question before establishing
+ * that anyone asked it; on 2026-09-21 it became `reference/http-api` and now
+ * opens with the route that does exist, `sessions.connect`. The `ak_` reasoning
+ * is still there, under "Why management is MCP and not a bearer key".
  *
  * `build/quickstart` left the list on 2026-08-25; the other eight —
  * `build/brain/{speaking,actions,tools,context,transcripts}`,
@@ -141,8 +144,6 @@ export const sidebar = [
       },
       { label: "Use another agent framework", slug: "build/existing-agent" },
       { label: "Deploy the brain", slug: "build/hosting" },
-      { label: "Inbound server", slug: "build/inbound" },
-      { label: "Outbound relay", slug: "build/outbound" },
       { label: "Testing a brain", slug: "build/testing" },
       { label: "Keys and authentication", slug: "build/keys" },
       { label: "Add an avatar", slug: "build/avatar" },
@@ -172,7 +173,7 @@ export const sidebar = [
       { label: "The RTVI plane", slug: "reference/rtvi" },
       { label: "Voice and language", slug: "reference/catalog" },
       { label: "Error codes", slug: "reference/errors" },
-      { label: "The management API", slug: "reference/management-api" },
+      { label: "The HTTP API", slug: "reference/http-api" },
       { label: "MCP server", slug: "reference/mcp" },
     ],
   },

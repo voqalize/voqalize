@@ -3,7 +3,7 @@ title: A session, end to end
 description: The whole path in order — the brain you write, the agent you create, the one request your server makes, and what happens while the call is up. Every step links to the page that goes deeper.
 ---
 
-A Voqalize call touches four things you own: a WebSocket route, an agent record,
+A Voqalize call rests on what you own: a WebSocket route, an agent record,
 one HTTP request from your server, and a page running
 [pipecat](/build/pipecat/). Everything else — the audio, the recognizer, the
 voice, the turn-taking — happens between them.
@@ -20,7 +20,7 @@ flowchart LR
   C --> D["Keep the sk_ key<br>shown once, at creation"]
 ```
 
-### 1. A brain is a WebSocket route
+### A brain is a WebSocket route
 
 Voqalize dials one URL, once per session:
 
@@ -29,36 +29,36 @@ Voqalize dials one URL, once per session:
 ```
 
 The connection opens when the call starts and closes when it ends. Frames are
-protobuf and the contract is published — [the wire](/reference/wire/) is
-497 lines of it. In Python that route is a `Brain` subclass and a call to
-`run_session`; the [FastAPI example](https://github.com/voqalize/voqalize/tree/main/sdk/python/examples/fastapi_inbound)
-is a working one in about sixty lines.
+protobuf and the contract is published in full — [the wire](/reference/wire/).
+In Python that route is a `Brain` subclass and a call to `run_session`; the
+[FastAPI example](https://github.com/voqalize/voqalize/tree/main/sdk/python/examples/fastapi_inbound)
+is a working one you can run.
 
 Your route needs to be reachable from us. When it cannot be — a laptop, a VPC
-with no ingress, a serverless function — [Cortex](/build/outbound/) has your
+with no ingress, a serverless function — [Cortex](/build/hosting/#a-brain-that-dials-out) has your
 brain dial out instead, and the brain code is unchanged.
 
-### 2. Behind the socket, whatever you already run
+### Behind the socket, whatever you already run
 
 The brain receives finalized text and returns the words to speak. What produces
 those words is yours: a model call, an agent framework, a state machine, a
 lookup table. `GeminiBrain` ships in the SDK for the case where you want a model
-loop already wired, and the eleven demo brains are readable source.
+loop already wired, and the demo brains are readable source.
 
 Your model, your prompts, your tools and your retrieval stay in the process you
 deploy today.
 
-### 3. Drive it before there is a call to make
+### Drive it before there is a call to make
 
 The conformance harness opens a real socket, speaks real protobuf, and drives
 your brain through the scenarios Voqalize produces — barge-in, idle, an
 abandoned turn — with no microphone and no account. This is the loop to be in
-while you are writing the brain; steps 4 onward are for when it answers
+while you are writing the brain; creating the agent is for when it answers
 correctly. See [testing a brain](/build/testing/).
 
-### 4. Create the agent
+### Create the agent
 
-Two fields matter:
+A name and a `brain_url`:
 
 ```
 create_agent(tenant, name, brain_url="https://…/voice")
@@ -73,7 +73,7 @@ agent](/build/keys/), and the raw key is stored only as a hash.
 on.** It carries no voice, language, recognizer or idle settings — those depend
 on *this* user. Our own lead-qualification brain reads a state from the
 enquiry form and answers a user in Tamil Nadu in Tamil, which is a fact that
-does not exist until the call starts. Step 6 holds that call's configuration.
+does not exist until the call starts. The connect request holds that call's configuration.
 
 ## What happens on every call
 
@@ -107,7 +107,7 @@ sequenceDiagram
   V->>B: End
 ```
 
-### 5. Your page asks your server
+### Your page asks your server
 
 The browser asks your backend for a call. How that request is authenticated is
 entirely yours — a session cookie, a bearer token, whatever your app already
@@ -120,9 +120,9 @@ browser may send the same `tts`, `stt` and `idle` configuration shown below;
 handshake](/build/connect/) covers both. The rest of this page follows the server
 path, because it is the one where you decide who may start a call.
 
-### 6. Your server starts the session
+### Your server starts the session
 
-One request, holding two named things:
+One request, carrying `config` and `init`:
 
 ```http
 POST https://app.voqalize.com/api/v1/sessions.connect
@@ -154,7 +154,7 @@ moving one leaves the call listening in a language it is answering out of. See
 [why there is no provider slot](/reference/catalog#why-there-is-no-provider-slot) for the
 question underneath it.
 
-`record` rides beside the three sections and stays out of the wire `Config`,
+`record` rides beside them and stays out of the wire `Config`,
 because its lifetime is different: `tts`, `stt` and `idle` move any time, and
 recording is decided once, here. A `pk_` key may turn it off and may not turn it
 on — [recordings](/operate/recordings/) says why.
@@ -168,7 +168,7 @@ than personal data.
 Both are optional. A request with an `agent_id` and nothing else starts a call in
 English on both legs.
 
-**Two more keys exist, and both are labels.** `display_name` is what the console
+**The remaining keys are labels.** `display_name` is what the console
 shows instead of an id, and `metadata` is a flat string→string map — at most
 **10 keys**, values at most **256 characters** — for the handful of things you
 want to recognise a call by later: a support ticket, a build, an experiment arm.
@@ -176,7 +176,7 @@ It is not queryable and it is not storage; that is your own database's job, and
 the cap is where the line is drawn. Anything the brain needs to *act* on goes in
 `init`.
 
-### 7. Your server hands the body back
+### Your server hands the body back
 
 The answer is what a pipecat transport connects with:
 
@@ -192,10 +192,10 @@ The answer is what a pipecat transport connects with:
 
 Return it to the browser unchanged and hand it to `connect`. A pipecat page
 forwards this body rather than reading it — `startBotAndConnect` is literally
-`connect(await startBot(params))` — which is why the response is these two keys
+`connect(await startBot(params))` — which is why the response is `webrtc_request_params` and `session_id`
 and no session record.
 
-Two things to know before the first call: the `endpoint` is **one machine**,
+Before the first call: the `endpoint` is **one machine**,
 chosen when the session is minted, so it cannot be a constant in your page; and
 `headers` has to be a real `Headers` object today, one line in your page, for a
 reason [the handshake](/build/connect/) writes down.
@@ -203,7 +203,7 @@ reason [the handshake](/build/connect/) writes down.
 The media is direct UDP from the browser to that machine. Nothing of ours
 proxies the audio.
 
-### 8. The greeting
+### The greeting
 
 Voqalize builds the pipeline, dials your brain, and sends `SessionStart` with
 `init` on it. Your brain returns a greeting.
@@ -213,10 +213,11 @@ why a greeting is a **string** — a fixed line, or a template over what `init`
 carried. A model call here is a second and a half of nothing, at the one moment
 a user has no idea whether the call is working.
 
-`on_session_start` runs alongside it, and it is where a brain sets the voice and
-language for this user with `session.configure(...)`.
+`on_session_start` runs first, and is awaited to completion before `greet` is
+called. That is where a brain sets the voice and language for this user with
+`session.configure(...)`, in time for the greeting to be spoken in it.
 
-### 9. The turn loop
+### The turn loop
 
 The user speaks. Voqalize decides when they have finished and hands your brain
 the finalized text.
@@ -232,7 +233,7 @@ one — that reconciliation is the brain's job, and the SDK keeps no history for
 you. [Interruption and heard truth](/design/#interruption-and-heard-truth)
 is the long version.
 
-### 10. Both directions on the data channel
+### Both directions on the data channel
 
 The same RTVI data channel carries the transcript, so both of these land while
 audio is still flowing.
@@ -247,10 +248,10 @@ clicked or typed, and it arrives at `on_rtvi` while the floor stays where it
 was. That callback cannot speak, so an agent cannot talk over the person who
 just clicked.
 
-Ten message types cross, five each way. [The RTVI plane](/reference/rtvi/)
-is the list, and says which of them are pipecat's rather than ours.
+[The RTVI plane](/reference/rtvi/) is the list of what crosses, and says which
+of them are pipecat's rather than ours.
 
-### 11. The call ends
+### The call ends
 
 Either side ends it: `session.end()` from the brain, or the user hangs up.
 `on_session_end` is where you write your own record of what happened.
@@ -262,24 +263,24 @@ Ours is readable back through the MCP server or the API — the
 
 ## Where each setting comes from
 
-Three levels, and the later one wins:
+Each of these overrides the one above it:
 
-1. **Voqalize's defaults** — English on both legs.
-2. **The session creator's `config`**, at connect. This may be your server with
-   an `sk_`, or a browser holding a publishable `pk_`.
-3. **The brain**, with `session.configure(Config(...))` — at session start, or
-   any time during the call.
+- **Voqalize's defaults** — English on both legs.
+- **The session creator's `config`**, at connect. This may be your server with
+  an `sk_`, or a browser holding a publishable `pk_`.
+- **The brain**, with `session.configure(Config(...))` — at session start, or
+  any time during the call.
 
 The brain always has the last word, because `on_session_start` runs after connect.
-Levels 2 and 3 are the same message seen from two sides: the session creator
-sets the call up immediately before it starts, and the brain moves it knowing
-how the conversation is going.
+The connect `config` and the brain's `configure` are the same message seen from
+each side: the session creator sets the call up immediately before it starts, and
+the brain moves it knowing how the conversation is going.
 
 ## The optional half
 
 None of this is needed for a first call, and each has a page:
 
-- [**Cortex**](/build/outbound/) — your brain dials out, when it cannot
+- [**Cortex**](/build/hosting/#a-brain-that-dials-out) — your brain dials out, when it cannot
   accept inbound connections.
 - [**Recording**](/operate/recordings/) — per agent as a default, per
   session as a decision.
@@ -289,13 +290,13 @@ None of this is needed for a first call, and each has a page:
 - [**Idle detection**](/reference/wire/) — `idle.timeout_ms` hands the brain
   the floor after silence, and `0` turns it off.
 - [**Voice and language**](/reference/catalog/) — the voices, the languages
-  each one speaks, and the rule that keeps a call's two legs together.
+  each one speaks, and the rule that keeps a call's legs together.
 - [**The MCP server**](/reference/mcp/) — agents, keys and sessions from
   inside your editor.
 
 ## Read next
 
-- [Connections and the handshake](/build/connect/) — steps 5 to 7, in full, both credential paths.
-- [Testing a brain](/build/testing/) — step 3, which is where the day is actually spent.
+- [Connections and the handshake](/build/connect/) — the request and the response in full, both credential paths.
+- [Testing a brain](/build/testing/) — the conformance harness, which is where the day is actually spent.
 - [The wire](/reference/wire/) — the contract both ends are held to.
 - [Designing for voice](/design/#the-turn-budget) — what changes once it works.

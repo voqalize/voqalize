@@ -16,7 +16,8 @@ async def on_finalize(self, session: Session, fin: Finalize) -> None:
     ...
 ```
 
-`Finalize` carries three fields and one thing derived from two of them:
+`Finalize` carries what was heard, what you generated, the unit it reports on,
+and a comparison of heard against generated:
 
 | Field | What it is |
 |---|---|
@@ -40,7 +41,7 @@ produced the unit returned. The turn is over when the generator returns; it does
 not wait for the audio. So there is no point in your generator's `finally` where
 what was heard is known yet, and the record is written here or nowhere.
 
-Four guarantees a brain can be written against:
+Guarantees a brain can be written against:
 
 - **Exactly one finalize per bracket you opened.** Enrolment happens at
   `SpeechStart`, not at the first `SpeechChunk`, so a unit you opened and closed with
@@ -136,7 +137,7 @@ with a cursor that only moves forward. A word that matches nothing at the cursor
 is skipped and counted in the session's own logs. Alignment drift therefore
 degrades into a number you can read back rather than into a history you cannot.
 
-Two things follow, and they are the reason to build on this:
+What follows is the reason to build on this:
 
 - **A finalize can never put words in your model's mouth.** Everything between
   your chunks and the speaker — normalization, segmentation, the synthesis

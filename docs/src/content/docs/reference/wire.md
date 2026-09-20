@@ -17,8 +17,8 @@ and nothing else is possible.
 
 A text agent is a function: request in, response out. It may take as long as it
 likes, its output is atomic, and nothing happens between the call and the return.
-A voice agent breaks all three, and every rule below is a consequence of exactly
-one of these.
+A voice agent breaks each of those, and every rule below is a consequence of
+exactly one of them.
 
 | Property of voice | What the wire does about it |
 |---|---|
@@ -27,7 +27,7 @@ one of these.
 | Silence reads as failure. | The opening line is a plain string, sent before anything else. Nothing waits on a model there. |
 | Output is a stream, not a value. | Speech arrives as chunks inside an open unit, not as one finished message. |
 
-## Two planes on one socket
+## The voice plane and the RTVI plane
 
 **The voice plane is ours**: turns, speech units, what the user actually heard,
 and the control leg. Voqalize mints the turn because Voqalize decides when a turn
@@ -38,7 +38,7 @@ commits, and speech names the turn it answers.
 verbatim in both directions between the app and the brain. Voqalize moves the
 whitelisted types and interprets nothing else about them.
 
-The two planes share the socket and nothing else. A message on the RTVI plane
+The planes share the socket and nothing else. A message on the RTVI plane
 never mints a turn, never takes the floor, and never changes what the user
 hears.
 
@@ -58,8 +58,8 @@ Everything the brain sends that is *not* speech is floor-free: an `RTVIFrame` to
 redraw the screen, a `Request` to change how the call behaves, an `End` to hang
 up. Those need no turn and are legal at any moment.
 
-If your brain reaches Voqalize through the [Cortex relay](/build/outbound),
-Cortex relays these bytes without reading them. The two ends of the wire are
+If your brain reaches Voqalize through the [Cortex relay](/build/hosting/#a-brain-that-dials-out),
+Cortex relays these bytes without reading them. The ends of the wire are
 Voqalize and the brain; nothing in between interprets the schema.
 
 ## Framing
@@ -77,7 +77,7 @@ envelope already says what it is.
 
 The 16-byte prefix on the relay leg is how one socket carries many sessions.
 Cortex adds it inbound and strips it outbound, and it is the only difference
-between the two legs — the same brain code serves both.
+between the legs — the same brain code serves both.
 
 ## The envelope
 
@@ -97,8 +97,8 @@ everything, and there is no second place to look.
 ## Turns
 
 **`turn_id` is Voqalize-minted and session-monotonic.** `SessionStart` *is* turn
-1, and after it exactly two messages mint a turn: `UserMessage` and `UserIdle`.
-So the first thing the user says is turn 2.
+1, and after it only `UserMessage` and `UserIdle` mint one. So the first thing
+the user says is turn 2.
 
 A turn is a permission to speak. The brain names it on every `SpeechStart`, and
 that is what lets Voqalize tell speech that answers the current stimulus from
@@ -231,7 +231,7 @@ A request is accepted or rejected **whole**. A rejected `Config` applies none of
 its sections, so the call is still coherent afterwards and the previous settings
 are still in force.
 
-### `Config` — one message, three sections
+### `Config` — `tts`, `stt` and `idle` in one message
 
 ```proto
 message Config {
@@ -257,9 +257,9 @@ already running. Explicit presence is what makes that readable — without it an
 unset `timeout_ms` is indistinguishable from `0`, and a delta that never
 mentioned idle detection would silently disable it.
 
-**One op, not three.** A language change has to move both legs at once. Three ops
-would put a turn boundary — and a possible refusal — between the halves, leaving
-the call heard in one language and spoken in another.
+**One op, not one per section.** A language change has to move both legs at
+once. Separate ops would put a turn boundary — and a possible refusal — between
+the halves, leaving the call heard in one language and spoken in another.
 
 The surface is deliberately narrow: voice and language, and nothing else. The
 recognizer's thresholds are not settable from here; they keep the voice tier's own
@@ -282,20 +282,20 @@ speaks the subset it was recorded or trained for, which is smaller and differs
 from voice to voice. So the legs genuinely differ — a call understood in Odia is
 spoken with the Hindi clip — and one field could not say so.
 
-Two rules follow, and they are enforced in different places on purpose:
+The rules that follow are enforced in different places on purpose:
 
-1. **Name a language on one leg and you must name it on the other.** Not that
-   they agree — that you stated both. Moving one alone is the silent failure:
-   the words stay right and only the voice is wrong, which no transcript, no WER
-   number and no automated check will ever show you. This is a property of the
-   message itself, so the SDK refuses to build it — before the request leaves.
-2. **A `tts.language` the chosen voice does not speak is rejected**, rather
-   than served by the Hindi clip. That one is not in the message; it is a
-   capability of the speech tier, it changes as voices are added and clips are
-   recorded, and it comes back as a `REJECTED` `Response` naming the languages
-   that voice does speak. A wire contract that froze today's pairings would be
-   wrong the day the next clip lands, and every SDK carrying a copy of it would
-   be wrong with it.
+- **Name a language on one leg and you must name it on the other.** Not that
+  they agree — that you stated both. Moving one alone is the silent failure:
+  the words stay right and only the voice is wrong, which no transcript, no WER
+  number and no automated check will ever show you. This is a property of the
+  message itself, so the SDK refuses to build it — before the request leaves.
+- **A `tts.language` the chosen voice does not speak is rejected**, rather
+  than served by the Hindi clip. That one is not in the message; it is a
+  capability of the speech tier, it changes as voices are added and clips are
+  recorded, and it comes back as a `REJECTED` `Response` naming the languages
+  that voice does speak. A wire contract that froze today's pairings would be
+  wrong the day the next clip lands, and every SDK carrying a copy of it would
+  be wrong with it.
 
 Write what you are actually getting:
 
@@ -333,7 +333,7 @@ enum Language {
 ```
 
 `iso_code` is not derivable from the name: the catalog mixes ISO 639-1
-two-letter codes with 639-3 three-letter ones, because six of these languages
+two-letter codes with 639-3 three-letter ones, because some of these languages
 have no two-letter code. It is here because it is the identifier a developer
 writes and reads, and every end of the wire has to spell it the same way.
 
@@ -481,24 +481,24 @@ property of the message and needs nothing from the far end to decide.
 
 Both ends rely on these, and a brain that implements the wire directly owes them:
 
-1. **`SessionStart` is first**, and nothing goes the other way before it.
-2. **Brackets balance.** Every `SpeechStart` is closed by a `SpeechEnd`; a
-   `SpeechChunk` outside an open unit is an error.
-3. **One `speech_id` per unit**, on every frame of that unit, brain-minted and
-   never reused.
-4. **Speech names its turn.** Every `SpeechStart` carries the `turn_id` of the
-   stimulus it answers, and only Voqalize mints one.
-5. **The interruption watermark is one-way** — never acknowledged, never
-   echoed, never lowered.
-6. **Exactly one `Response` per `Request`**, matching on `request_id`.
-7. **Nothing is emitted outside a turn except floor-free messages** —
-   `RTVIFrame`, `Request`, `End`, `Cancel`, `Error`.
-8. **`heard_text` is the delivered prefix**, per unit, never a concatenation,
-   and a verbatim prefix of that unit's own text.
-9. **Exactly one `Finalize` per bracket the brain opened**, in that order —
-   including for a unit that turned out silent, which reports nothing heard.
-   A brain cannot know in advance which of its units will be silent, and an
-   absent report is indistinguishable from a late one.
+- **`SessionStart` is first**, and nothing goes the other way before it.
+- **Brackets balance.** Every `SpeechStart` is closed by a `SpeechEnd`; a
+  `SpeechChunk` outside an open unit is an error.
+- **One `speech_id` per unit**, on every frame of that unit, brain-minted and
+  never reused.
+- **Speech names its turn.** Every `SpeechStart` carries the `turn_id` of the
+  stimulus it answers, and only Voqalize mints one.
+- **The interruption watermark is one-way** — never acknowledged, never
+  echoed, never lowered.
+- **Exactly one `Response` per `Request`**, matching on `request_id`.
+- **Nothing is emitted outside a turn except floor-free messages** —
+  `RTVIFrame`, `Request`, `End`, `Cancel`, `Error`.
+- **`heard_text` is the delivered prefix**, per unit, never a concatenation,
+  and a verbatim prefix of that unit's own text.
+- **Exactly one `Finalize` per bracket the brain opened**, in that order —
+  including for a unit that turned out silent, which reports nothing heard.
+  A brain cannot know in advance which of its units will be silent, and an
+  absent report is indistinguishable from a late one.
 
 ## Changing the wire
 
@@ -508,5 +508,5 @@ The schema is append-only within a version.
 - `Envelope` arms are never renumbered.
 - A message is reserved rather than removed.
 - Adding a field or an arm **does not** bump the version.
-- A bump means the two ends no longer speak the same wire, and it is meant to be
+- A bump means the ends no longer speak the same wire, and it is meant to be
   rare.

@@ -51,16 +51,14 @@ during developer preview. Nothing in the counters above counts toward a cap, and
 no public concurrency number is committed. The preview also has no availability
 guarantee. Ask before a pilot or launch that needs a specific ceiling.
 
-Two limits are enforced. A session lasts at most one hour: the voice tier ends
-it at the hour with `end_reason` `max_duration`. A session still `active` five
-minutes past the hour reads `lost`, because the voice tier never reported how it
-ended.
+A session lasts at most one hour: the voice tier ends it at the hour with
+`end_reason` `max_duration`. A session still `active` five minutes past the hour
+reads `lost`, because the voice tier never reported how it ended.
 
-The other shapes how you poll: the management API is rate
-limited per tenant. A refused request is a `429` with a `Retry-After` header;
-wait that long and send it again. A dashboard that fires a burst of reads per page is
-well inside it; a loop that reads every session every minute is not the shape to
-build. Read a session when something happened to it, which is what the `session_id`
+The MCP server is rate limited per tenant, which shapes how you poll. A refused
+request is a `429` with a `Retry-After` header; wait that long and send it
+again. A dashboard that fires a burst of reads per page is well inside it; a
+loop that reads every session every minute is not the shape to build. Read a session when something happened to it, which is what the `session_id`
 join is for.
 
 ## Read next

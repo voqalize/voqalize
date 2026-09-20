@@ -13,8 +13,9 @@ tools, your retrieval and your memory do not move.
 
 ## There is no adapter for your framework
 
-We ship two adapters and both are for Gemini. There is no ADK adapter, no
-LangChain adapter and no OpenAI Agents adapter, and none is coming.
+The adapters we ship are `GeminiBrain` and `GeminiInteractionsBrain`, both for
+Gemini. There is no ADK adapter, no LangChain adapter and no OpenAI Agents
+adapter, and none is coming.
 
 An adapter is a second surface to learn and a lag behind every release of a
 framework we do not own. Read what the Gemini ones actually spend their code on:
@@ -33,7 +34,7 @@ tool frame in it. So there is nothing for an adapter to sit between — your
 stream of strings goes out as speech, and the user's finalized text comes back
 in.
 
-## The port, in three steps
+## The port
 
 Subclass `Brain`, call your existing entrypoint from `on_user_message`, and
 record what the user heard. Against a framework whose entrypoint is
@@ -129,8 +130,8 @@ Your framework almost certainly appends the assistant message from what the
 model returned. That is the wrong record for a call.
 
 A user can interrupt mid-word. What your model generated and what the user
-heard are then two different strings, and only one of them is a thing the two
-parties can both refer to. `on_finalize` hands you the delivered prefix as
+heard are then two different strings, and only one of them is a thing both
+parties can refer to. `on_finalize` hands you the delivered prefix as
 `fin.heard`, per unit, after playout — long after the generator that produced it
 returned (`sdk/python/src/voqalize/sdk/events.py`, `Finalize`). So:
 
@@ -142,21 +143,19 @@ returned (`sdk/python/src/voqalize/sdk/events.py`, `Finalize`). So:
   speaker, and that unit belongs out of your history entirely rather than in it
   as a sentence the model believes it said.
 
-This failure produces no error, no log line and no metric. The call sounds fine,
-the transcript is a real transcript, and three turns later the agent references
-something it never finished saying — and the user is the only instrument that
-saw it. [Transcripts and heard truth](/build/brain/transcripts/) has the
-watermark and the ordering rules;
-[Interruption and heard truth](/design/#interruption-and-heard-truth) is the
-argument under them.
+Nothing reports this when you get it wrong — no error, no log line, no metric —
+and the user is the only instrument that sees it.
+[Transcripts and heard truth](/build/brain/transcripts/) has the watermark and
+the ordering rules; [Interruption and heard
+truth](/design/#interruption-and-heard-truth) is the argument under them.
 
 `GeminiBrain.on_finalize` is a shipped implementation of exactly this: it pops
 the oldest unit still awaiting a finalize, rewrites that turn's text down to
 `heard`, and drops the turn when nothing is left of it
 (`sdk/python/src/voqalize/sdk/gemini.py`, `on_finalize` and `_reconcile`).
-`sdk/python/tests/unit/test_gemini_heard_truth.py` pins the eight cases,
-including that finalizes match units in order and that a unit nobody heard leaves
-the context.
+`sdk/python/tests/unit/test_gemini_heard_truth.py` pins the cases, including
+that finalizes match units in order and that a unit nobody heard leaves the
+context.
 
 ### The greeting is also history
 
@@ -176,41 +175,19 @@ for that reason, and carries the whole context on every call
 (`sdk/python/src/voqalize/sdk/gemini_interactions.py`, `_stream`). Port to a
 local history list and the rewrite is a list mutation.
 
-## Where the two Gemini adapters fit
+## Where the Gemini adapters fit
 
 Both are worked examples of the port above, not a supported-frameworks list.
-Both are behind the `gemini` extra, because `import voqalize.sdk` pulls no model
-vendor:
+[The Brain API](/reference/brain/#the-shipped-adapters) has the constructor
+they share, the members they offer, and which of them to build on.
 
-```bash
-pip install "voqalize-agent-sdk[gemini]==0.4.0"
-```
-
-Neither is re-exported from `voqalize.sdk`; you import them from their own
-modules. Both take the same constructor and the same `tools` property of bound
-`async def` methods, so a brain moves between them without touching its tools;
-[the Brain API](/reference/brain/#the-two-shipped-adapters) lists both surfaces
-in full.
-
-**`GeminiBrain`**, in `voqalize.sdk.gemini`, runs on `generate_content` with
-google-genai's automatic function calling. The provider runs the tools and loops
-for us, so a turn that calls a tool and then speaks about the result is one call;
-the adapter takes the record google-genai kept
-(`automatic_function_calling_history`) instead of interposing to make its own.
-Two consequences fall out of that: the contents are handed over once per turn, so
-heard truth applies per turn rather than per hop, and context appended while a
-tool is running reaches the model on the turn after.
-
-**`GeminiInteractionsBrain`**, in `voqalize.sdk.gemini_interactions`, runs on the
-interactions API, which declares tools and nothing else — no field takes a
-callable, so this class runs the loop itself: declare, stream, call, answer,
-stream again, up to `max_tool_hops`, and the last hop runs with
-`tool_choice="none"` so a turn that spends its whole budget still ends in
-something the user hears. Because the loop is ours, step boundaries arrive
-bracketed rather than inferred from a `finish_reason`, a call and its result are
-linked by id rather than by position, and the whole context is re-read on every
-hop — so an append that lands while a tool is running is in front of the model
-for the sentence that follows it.
+The differences that matter while porting are in the tool loop. `GeminiBrain`
+takes the record google-genai kept for a turn
+(`automatic_function_calling_history`) rather than interposing to make its own, so heard truth applies per turn rather than per hop,
+and context appended while a tool is running reaches the model on the turn after.
+`GeminiInteractionsBrain` runs the tool loop itself and re-reads the whole
+context on every hop, so an append that lands while a tool is running is in front
+of the model for the sentence that follows it.
 
 ## What changes about the agent itself
 

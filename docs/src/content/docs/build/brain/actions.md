@@ -89,14 +89,14 @@ There is no `exclude_none`. The wire shape of an action is a function of the
 **class**, not of which fields happened to be set on one instance. That is what
 lets the app declare one total interface and handle one shape: a field that
 vanishes when it is `None` is a field the page cannot distinguish from a field
-you never sent, and the two mean different things — "no highlight" and "this
+you never sent, and those mean different things — "no highlight" and "this
 build of the brain does not know about highlights".
 
 `None` crosses as JSON `null`.
 
 ## Why pydantic rather than a dataclass
 
-Four properties the wire needs, all of which a dataclass would hand-roll
+The properties the wire needs, all of which a dataclass would hand-roll
 (`sdk/python/src/voqalize/sdk/actions.py`).
 
 **Validation at the call site.** `model_config = ConfigDict(populate_by_name=True,
@@ -162,13 +162,13 @@ async def highlight_feature(self, action: Highlight) -> str:
     return str(self.catalog.detail(action.product_id, action.feature))
 ```
 
-Four of the shopping demo's eleven tools are written this way
+Tools in the shopping demo are written this way
 (`demos/shopping/backend/brain.py`); the catalog lookup on the last line is your
 code, and what it returns is what the model reads to keep talking. The tool
 declaration contract — one `async def`, exactly one model parameter, the
 docstring as the description — is [tools](/build/brain/tools/).
 
-A `@computed_field` is the seam between the two jobs: it is absent from the
+A `@computed_field` is the seam between the jobs: it is absent from the
 schema the model is given and present in the payload the browser renders, so a
 total that must equal the sum of the rows shown under it is summed in Python and
 never asked of the model (`demos/sugar/backend/brain.py`).
@@ -215,8 +215,8 @@ already drew. Floor-free work — an `on_rtvi` handler, a callback from somethin
 that finished late — is not cancelled by a barge-in at all.
 
 **Under congestion an action can be dropped, and the call site is silent.** The
-outbound bulk lane holds 256 frames by default; when it is full, the two
-unbounded flows are shed — speech chunks and RTVI messages, actions included
+outbound bulk lane holds 256 frames by default; when it is full, the unbounded
+flows are shed — speech chunks and RTVI messages, actions included
 (`sdk/python/src/voqalize/sdk/engine.py`,
 `sdk/python/src/voqalize/sdk/wire/frames.py`). `dispatch` returns `None` either
 way, nothing raises, and the only symptom is a screen that is one render behind

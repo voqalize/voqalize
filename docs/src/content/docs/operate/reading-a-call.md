@@ -3,8 +3,8 @@ title: Reading a call back
 description: The record says what happened and is contract. Logs say why and are evidence. Milestones say how far the call got. Read them in that order, and check availability before concluding a call was silent.
 ---
 
-A call is over and something was wrong with it. There are three reads, they are
-different kinds of thing, and the order matters.
+A call is over and something was wrong with it. The reads below are different
+kinds of thing, and the order matters.
 
 **`get_call_record` is the contract.** Versioned, additive-only, tenant-scoped,
 safe to assert on in a test. It answers *what happened*: what was said, what the
@@ -13,15 +13,15 @@ user actually heard, and where the wire was quiet.
 **`get_session_logs` is the evidence.** Voqalize's own lines, written in
 our vocabulary and free to change whenever our internals do. It answers *why*.
 
-**`get_session_events` is the milestones.** Created, connected, ended — about
-five of them, written *while the call runs*. It answers *how far the call got*,
+**`get_session_events` is the milestones.** Created, connected, ended, written
+*while the call runs*. It answers *how far the call got*,
 and it is the one read that answers for a call still in progress.
 
 Read the record first. Interleaving it with the logs would make the weaker half
 look exactly as reliable as the stronger one, which is why they stay separate
 reads.
 
-All three are on [the MCP server](/reference/mcp/), and all three take the
+All of them are on [the MCP server](/reference/mcp/), and each takes the
 `session_id` you already have — the same string that was in your connect params,
 in `{brain_url}?session_id={session_id}`, and in every line your own brain logged.
 It is the join key across both sides of the call.
@@ -68,7 +68,7 @@ turns. [The wire](/reference/wire/) names every message.
 ## What the milestones contain
 
 `get_session_events` is Voqalize's own account of what it did: created,
-something connected, it ended. None is ever dropped. Two payloads on
+something connected, it ended. None is ever dropped. The payloads on
 `session.created` answer most of "the call connected and nothing I expected
 happened":
 
@@ -91,7 +91,7 @@ Because they are written during the call, the milestones are the cheap answer to
 ## Check availability before you conclude anything
 
 The record and the logs are each uploaded **when the call ends**. There is no
-tail of a live call. So a read can come back empty for three different reasons,
+tail of a live call. So a read can come back empty for more than one reason,
 and the response says which — `record` on `get_call_record`, `logs_availability`
 on `get_session_logs`:
 

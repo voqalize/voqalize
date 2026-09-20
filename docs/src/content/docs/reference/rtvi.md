@@ -39,17 +39,17 @@ which is the contract of record.
 | `ui-snapshot` | The page's accessibility tree, whole, each time. |
 | `ui-cancel-job-group` | Cancel an in-flight job group, by its `job_id`. |
 
-Only two of these have a Voqalize method behind them: `ui-command` is what
-`session.dispatch` rides, and `ui-event` is what `AppEvents.parse` reads. The
-rest of the `ui-*` family is pipecat's own, defined and implemented by its client
-and its server-side workers; we carry them and interpret nothing. The
-descriptions above are what pipecat's client does with them, and pipecat's
-documentation is the authority on all four.
+`ui-command` and `ui-event` are the ones with a Voqalize method behind them:
+`ui-command` is what `session.dispatch` rides, and `ui-event` is what
+`AppEvents.parse` reads. The rest of the `ui-*` family is pipecat's own, defined
+and implemented by its client and its server-side workers; we carry them and
+interpret nothing. The descriptions above are what pipecat's client does with
+them, and pipecat's documentation is the authority on those.
 
 ## `send-text` is a turn, not a message
 
-The fifth type your page may send is the exception, and it is the reason the
-sentence above says "verbatim" everywhere except here. A person typing a question
+`send-text` is the exception, and it is the reason the sentence above says
+"verbatim" everywhere except here. A person typing a question
 is not clicking: it is the same stimulus speaking is, and it takes the floor the
 same way. So `send-text` never reaches your brain as a message.
 
@@ -63,8 +63,8 @@ user turn. Your brain answers it in `on_user_message`, with no way to tell it wa
 typed and nothing to write to receive it: a brain built before you added a text
 box gains one the day you add it.
 
-Two flags ride pipecat's `send-text` and **neither is honoured**, deliberately
-rather than by omission. `run_immediately=false` would need a stimulus that is
+`run_immediately` and `audio_response` ride pipecat's `send-text` and **neither
+is honoured**, deliberately rather than by omission. `run_immediately=false` would need a stimulus that is
 stored without minting a turn, and `audio_response=false` would need a per-turn
 gate on synthesis; Voqalize has neither. Half-honouring one is worse than
 refusing it, because a user who asked for silence and got speech has been told

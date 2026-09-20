@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: A brain that answers, a call you can hear, in ten minutes. Install, write eight lines, create an agent, open a page.
+description: A brain that answers, a call you can hear, in ten minutes. Install, write the brain, create an agent, open a page.
 ---
 
 Ten minutes from nothing to a call you can hear. You install the SDK, write a
@@ -19,7 +19,7 @@ and then fail on a name this page uses.
 
 ## 2. Write the brain
 
-Eight lines. A class, one required callback, three speech frames.
+A class, one required callback, the speech frames.
 
 ```python
 from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
@@ -34,7 +34,7 @@ class Concierge(Brain):
         yield SpeechEnd()
 ```
 
-`msg.text` is the finalized transcript of one turn. The three frames are one
+`msg.text` is the finalized transcript of one turn. The frames bracket one
 **speech unit** — a thing with a start, a middle you can stream, and an end that
 lets the user interrupt cleanly. Replace the middle with your model's stream
 and this is a real agent. See [Your first brain](/build/brain/).
@@ -57,8 +57,8 @@ async def voice(ws: WebSocket, session_id: str):    # session_id from ?session_i
 
 `run_session` takes a **channel** — anything with `async send(bytes)` and
 `async recv() -> bytes` — so the route is your framework's, not ours.
-`_WsChannel` is the four-line adapter for whichever framework you run;
-[Inbound server](/build/inbound/) has it written out for FastAPI. The `brain=`
+`_WsChannel` is the adapter for whichever framework you run;
+[Deploy the brain](/build/hosting/#a-route-voqalize-dials) has it written out for FastAPI. The `brain=`
 is a class, constructed fresh per session, so no state leaks between calls.
 
 On a laptop or a serverless function that cannot accept inbound, `serve(...)`
@@ -94,5 +94,5 @@ continuing.
 ## Read next
 
 - [Your first brain](/build/brain/) — the callbacks, and which one is required.
-- [Where the brain runs](/build/hosting/) — the two hosting paths.
+- [Where the brain runs](/build/hosting/) — inbound, and dialling out.
 - [Connecting a page](/build/connect/) — the browser half.

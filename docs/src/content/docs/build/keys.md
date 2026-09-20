@@ -1,6 +1,6 @@
 ---
 title: Keys and authentication
-description: Two kinds of key, both scoped to one agent. Which one your backend holds, which one ships in page source, and what the origin allowlist is actually doing.
+description: The secret key and the publishable key, both scoped to one agent. Which one your backend holds, which one ships in page source, and what the origin allowlist is actually doing.
 ---
 
 Every Voqalize credential names one agent. There is no tenant-wide key, and
@@ -8,19 +8,19 @@ there is no key that can mint a session for an agent it does not name — a
 credential whose blast radius can only be discovered by reading code is a
 credential nobody can reason about.
 
-There are two kinds.
+They come in a secret kind and a publishable kind.
 
 ## `sk_` — the secret key, and the primary path
 
 Held by your backend. It starts sessions for its own agent, and it is what that
-agent's brain presents when it dials out over [Cortex](/build/outbound/).
+agent's brain presents when it dials out over [Cortex](/build/hosting/#a-brain-that-dials-out).
 
 This is the path to prefer. Your server mints the session, so it decides who is
 allowed to have one — a login, a rate limit, a paywall, a check that this
 customer is entitled to talk to this agent. None of that is expressible in a key.
 
 Several `sk_` keys can be live for one agent at once, which is what makes rotation
-a three-step with no outage:
+work with no outage:
 
 1. **Mint** a new key. Minting revokes nothing.
 2. **Deploy** it. Both keys work.
@@ -67,7 +67,7 @@ the key you use is always one you minted. `list_api_keys` returns prefixes
 only (`sk_live_AbC12…`), each with the agent it names; `revoke_api_key` takes the
 key id.
 
-## The management API takes neither
+## Managing agents and keys takes neither
 
 Creating agents, minting keys, reading sessions — none of it is driven by an API key.
 Developer tooling authenticates interactively over OAuth, which is what the MCP

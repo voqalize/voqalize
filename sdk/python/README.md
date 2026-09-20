@@ -15,7 +15,8 @@ for the contract.
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
 path. A brain is not a server: it sits inside an application you already run, and
 the SDK owns **no** WebSocket server and **no** process management. That leaves
-exactly two ways to host it, and the same `Brain` runs unchanged on either:
+your app owning the route, or a Cortex relay, and the same `Brain` runs unchanged
+on either:
 
 - **`run_session()` (`src/voqalize/sdk/session.py`) — your app owns the route.**
   Your web framework (FastAPI/Starlette, Django Channels, aiohttp) accepts the
@@ -102,8 +103,8 @@ class Concierge(GeminiBrain):
 the description the model reads, its single pydantic parameter is the schema. There
 is no registry and no decorator to forget.
 
-Two things carry most of what a real agent needs beyond its tools.
-`system_instruction` is settable, so facts known only once the session opens — who
+Beyond its tools, most of what a real agent needs is carried by
+`system_instruction` and `append_to_context()`. `system_instruction` is settable, so facts known only once the session opens — who
 called, which tenant — go in from `on_session_start`. And `append_to_context()`
 adds to the conversation the model sees, for context the app knows and the
 conversation does not — typically what the person just did on screen, arriving at
@@ -166,9 +167,9 @@ module.
   `UserMessage`/`UserIdle`/`RTVIMessage`, `SpeechStart`/`SpeechChunk`/`SpeechEnd`,
   `Finalize`, `Error`.
 - `src/voqalize/sdk/engine.py` — the pipecat-free per-session runtime:
-  `SessionRunner` (two-lane in/out, system-first feeder, drop-newest +
-  `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` / `SessionFactory` /
-  `RunnerHost` seams. **One runner drives both transports.**
+  `SessionRunner` (priority/bulk lanes each way, priority-first feeder,
+  drop-newest + `ErrorFrame`, teardown), the `Emitter` / `SessionAdapter` /
+  `SessionFactory` / `RunnerHost` seams. **One runner drives both transports.**
 - `src/voqalize/sdk/session.py` — the connection-handoff surface: the `Channel`
   protocol (`send`/`recv` bytes), `run_session()` (verify token → run one session
   over a caller-supplied channel), `serve_channel()` (the transport-neutral loop,
@@ -179,7 +180,7 @@ module.
 - `src/voqalize/sdk/_keys.py` — the embedded Voqalize public key(s)
   `run_session` verifies against by default.
 - `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
-  `is_system()`, `WireSerializer` (the protobuf serializer, no base class),
+  `is_priority()`, `WireSerializer` (the protobuf serializer, no base class),
   `Wire`/`MultiplexedWire` transport, protobuf stubs.
 - `src/voqalize/sdk/gemini.py` — `GeminiBrain` (`[gemini]` extra): the context, the
   streamed turn, the tool hops google-genai runs for us, and the finalize that
@@ -209,7 +210,7 @@ module.
   `allow_unverified=True` (local dev). A bad token raises `SessionRejected`
   (caller closes 4000). One socket = one session; framing is bare
   `[protobuf]`, session implicit in the URL.
-- **Two hosting paths, one `Brain`.** `run_session` in the route your app already
+- **Either hosting path, one `Brain`.** `run_session` in the route your app already
   owns, or `await serve(...)` over a Cortex relay when it can't accept inbound. The
   SDK reads no environment variables and owns no process management: which path you
   are on is a property of your application, not a config flip.
@@ -221,11 +222,11 @@ module.
   runs once per session, building a fresh `_BrainAdapter(Brain(), emitter)`.
   Cross-session writes are structurally unreachable. Holds identically for both
   transports — the inbound path just has one session per connection.
-- **Two lanes each way.** System frames (`SessionStart` / `Interruption` /
-  `Cancel`, per `is_system()`) ride a priority lane that bypasses queued data;
-  everything else rides a bounded normal lane (default 256) with **drop-newest**.
-  `End` is *not* system — it rides the normal lane so a session tears down only
-  after its queued data drains.
+- **A priority lane and a bulk lane, each way.** Priority frames (`SessionStart`
+  / `Interruption` / `Cancel`, per `is_priority()`) bypass queued data; everything
+  else rides the bounded bulk lane (default 256) with **drop-newest**. `End` is
+  *not* priority — it rides the bulk lane so a session tears down only after its
+  queued data drains.
 - **One sequential consumer.** The feeder takes envelopes off the inbound lane
   one at a time and awaits `adapter.handle_frame` on each, so callbacks see frames
   in wire order. A slow callback delays the callbacks behind it and nothing else —

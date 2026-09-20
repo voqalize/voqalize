@@ -28,8 +28,8 @@ export const redirects = {
   // Eight namespaces became four. `deploy` described our verb, not the
   // reader's; `client` and `brain` were component names, not places.
   "/deploy/brain-url": "/build/hosting",
-  "/deploy/inbound": "/build/inbound",
-  "/deploy/cortex": "/build/outbound",
+  "/deploy/inbound": "/build/hosting#a-route-voqalize-dials",
+  "/deploy/cortex": "/build/hosting#a-brain-that-dials-out",
   "/client/handshake": "/build/connect",
   "/client/avatar": "/build/avatar",
   "/brain/testing": "/build/testing",
@@ -62,4 +62,19 @@ export const redirects = {
 
   // Folded into the page it was arguing with.
   "/reference/no-provider-slot": "/reference/catalog",
+
+  // The hosting trio became one page on 2026-09-21. `hosting` was a chooser
+  // with nothing on it but a comparison table, and each of the other two opened
+  // by restating that same choice against the other — so the reader met the
+  // decision three times before reading a line about either path. Each redirect
+  // names the section it became.
+  "/build/inbound": "/build/hosting#a-route-voqalize-dials",
+  "/build/outbound": "/build/hosting#a-brain-that-dials-out",
+
+  // `management-api` was a page titled after a thing we do not have, and it
+  // opened by saying so. What it actually owns is the one route that takes a
+  // key — `sessions.connect` — so it is now `/reference/http-api` and leads
+  // with that. The `ak_` reasoning survives on it, further down, as the answer
+  // to the question the title used to be.
+  "/reference/management-api": "/reference/http-api",
 };

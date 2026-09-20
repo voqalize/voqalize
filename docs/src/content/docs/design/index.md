@@ -9,8 +9,8 @@ can interrupt you mid-word. The screen is right there and it holds detail the ea
 cannot.
 
 What follows is the whole argument, written from running production voice agents
-rather than from first principles. It is one page because these seven ideas are
-one idea seen from seven sides, and reading them apart made that harder to see.
+rather than from first principles. It is one page because each of these ideas is the same idea from another side,
+and reading them apart made that harder to see.
 
 ## Voice points, the screen holds
 
@@ -23,10 +23,10 @@ So the division: **voice carries intent, acknowledgement, and the one number tha
 matters. The screen carries the record.** A number the user must hold in their
 head belongs on the screen.
 
-### Two channels, and one of them holds the floor
+### Speech holds the floor; an action does not
 
-A brain has exactly two ways to reach the user, and the difference between them
-is audio.
+A brain reaches the user by speaking and by dispatching an action, and the
+difference between them is audio.
 
 **Speech** is yielded from the turn. `SpeechStart`, `SpeechChunk`, `SpeechEnd` are the
 only yieldable types (`sdk/events.py`), and a unit of speech is one thing the
@@ -44,7 +44,7 @@ agent is saying something else.
 
 ### Speak the pointer, render the payload
 
-Three shapes, all of them running today:
+All of these are running today:
 
 | Shape | What voice says |
 |---|---|
@@ -89,8 +89,8 @@ that is reading things to them.
 
 ## The turn budget
 
-Between a user finishing a sentence and hearing the first syllable back, three
-things happen in order:
+Between a user finishing a sentence and hearing the first syllable back, this
+happens in order:
 
 1. Voqalize decides the user has stopped and finalizes the recognizer's text.
 2. **Your callback runs, until it yields its first `SpeechChunk`.**
@@ -154,7 +154,7 @@ and thought tokens are never spoken, so the cost has no audible half at all. The
 SDK's `VOICE_THINKING` asks for the least thinking the default model allows
 (`sdk/gemini.py`).
 
-Both halves of that setting are model-specific, and three ways it bites were each
+Both halves of that setting are model-specific, and each way it bites below was
 verified against the live API on 2026-08-14:
 
 - **The knob moved.** `thinking_budget=0` was accepted by the 3.1 models; 3.5 and
@@ -172,7 +172,7 @@ that is all they are.
 
 ### Pace the user while the work runs
 
-Two prompt rules, both in production. `orderdesk`: *"Start every reply with a
+These are in production. `orderdesk`: *"Start every reply with a
 tiny phrase so audio begins instantly,"* and *"Say a tiny line before or while
 calling a tool — never leave silence."* `aura`: *"Speak a short line first, then
 call the tool."*
@@ -189,7 +189,7 @@ close it at your first `SpeechChunk`; that is your half of the budget, measured 
 every turn, in your own process.
 
 **Interruption rate is the cheapest quality proxy in the product.** Users talk
-over an agent that is too slow, too long, or wrong, and the three are hard to
+over an agent that is too slow, too long, or wrong, and those are hard to
 tell apart from a transcript and easy to tell apart from a clock.
 
 `get_call_record` over [the MCP server](/reference/mcp/) returns our half
@@ -237,7 +237,7 @@ async def on_finalize(self, session: Session, fin: Finalize) -> None:
     ...
 ```
 
-`Finalize` carries three things: `speech_id`, `heard`, and `generated`.
+`Finalize` carries `speech_id`, `heard` and `generated`.
 
 `heard` is **the delivered prefix** — the text that reached the user's ear, not
 the text you yielded. `generated` is the text you yielded, kept by the SDK so the
@@ -257,15 +257,15 @@ Whatever you persist as the assistant's turn — a Gemini `Content`, a row in yo
 own table, a line in a log — is built from `fin.heard`. Not from the string you
 yielded, and not from the accumulated chunks.
 
-Two places it bites, and they are the same lie twice:
+The same lie twice:
 
-1. **History for the next model call.** The model plans its next turn against what
-   the user knows.
-2. **Everything downstream of the transcript** — summaries, QA scoring, handoff
-   notes, the "what did we tell this customer" audit that someone runs six months
-   later during a dispute.
+- **History for the next model call.** The model plans its next turn against what
+  the user knows.
+- **Everything downstream of the transcript** — summaries, QA scoring, handoff
+  notes, the "what did we tell this customer" audit that someone runs six months
+  later during a dispute.
 
-The second is worse, because by then the recording is gone.
+The downstream record is worse, because by then the recording is gone.
 
 ### Not everything that makes noise is an interruption
 
@@ -276,8 +276,8 @@ sustained** — a phantom detection or a one-word garble stays under the bar, a
 sustained interruption crosses it. The bar sits just under the value the
 recognizer carries at the barge-in point, so a genuine one clears it with margin.
 
-Two things follow, and both are design constraints on what you write rather than
-knobs you can turn:
+What follows are design constraints on what you write rather than knobs you can
+turn:
 
 **A short imperative may not land.** "Stop" shouted over a long answer is exactly
 the shape that stays below the bar — brief, and over before confidence has
@@ -300,7 +300,7 @@ Voqalize sends an interruption naming the last turn it applies to. The SDK marks
 that number as a watermark, and every turn at or below it is dead: its task is
 cancelled, and any chunk still in flight from it is discarded rather than spoken.
 
-Two consequences worth knowing:
+Consequences worth knowing:
 
 **Your `finally` runs.** The generator is closed, not abandoned — the SDK calls
 `aclose()`, so cleanup, span exits and released locks all execute on an
@@ -341,7 +341,8 @@ anything that depends on its last character.
 
 ## Misunderstanding and reversal
 
-Three things go wrong on every voice deployment, and none of them are going away.
+The same things go wrong on every voice deployment, and none of them are going
+away.
 
 The recognizer mishears. The model misinterprets what it heard correctly. And the
 user changes their mind halfway through the sentence — which is not an error at
@@ -352,12 +353,13 @@ So "how do we prevent mistakes" is the wrong question to build against. The
 questions that produce a working design are: **how fast does a mistake become
 visible, and how cheap is it to undo?**
 
-Three answers follow, and the third is the one that saves you.
+The answers follow, and **withholding the authority that matters** is the one
+that saves you.
 
 ### Show what the agent believes, including that it is unsure
 
 Uncertainty is a state to render, rather than a null to hide. `orderdesk` gives
-every row on the cart one of five statuses:
+every row on the cart a status:
 
 ```python
 LineItemStatus = Literal["resolving", "multi_family", "multi_variant", "matched", "not_found"]
@@ -367,7 +369,8 @@ A row that has entered but not settled says so on screen. The pharmacist can see
 the agent is still working on item four while item five is already matched, and
 can fix item four by hand without waiting to be asked.
 
-Two more fields do the same job at a finer grain. Each row keeps `spoken_text` —
+`spoken_text` and `source` do the same job at a finer grain. Each row keeps
+`spoken_text` —
 the raw heard phrase — beside the SKU it resolved to, so the *evidence* for a
 mistake survives the resolution. Seeing "amlong" next to a row that resolved to
 the wrong brand tells the pharmacist immediately whether the recognizer or the
@@ -426,7 +429,7 @@ to the commit boundary, and the boundary is a human.
 
 ### Where the story stops
 
-Two limits, stated because a page that omits them would be selling something.
+Limits, stated because a page that omits them would be selling something.
 
 **We have no worked example of correcting something already committed.** The
 compensating-call taxonomy above runs up to the confirm click and stops. Whatever
@@ -481,7 +484,7 @@ immediately:
 The return value is not data. It is an instruction to the model about how to
 behave while waiting — the tool's answer to "what do I say now" is "carry on."
 
-Two SDK facts make this safe:
+What makes this safe:
 
 `session.dispatch(...)` never blocks and is callable from anywhere, including from
 a task that outlived the turn that started it. A background job finishing ninety
@@ -493,8 +496,8 @@ agent is mid-sentence, and neither one waits for the other.
 ### The real design question is how a result comes back
 
 Voice is one serial channel and there are now three finished jobs to report.
-Reading them out is almost never the answer. There are three ways, and they are
-not equally priced:
+Reading them out is almost never the answer. The ways back are not equally
+priced:
 
 | Way | When to use it | Shipped in |
 |---|---|---|
@@ -502,13 +505,15 @@ not equally priced:
 | One short spoken line | It changes what the user should do next | `servicing` |
 | A spoken question | Genuinely ambiguous, and only the user can resolve it | `orderdesk` |
 
-The default is the first, and `forge`'s prompt tells the model to trust it:
+The default is the silent row change, and `forge`'s prompt tells the model to
+trust it:
 
 > Every tool you call also shows up as a live task on screen (a small "activity"
 > checklist), so your actions are already acknowledged visually — trust it and
 > stay quiet.
 
-Speaking costs a turn, so the second and third rows are spent, not spread. When
+Speaking costs a turn, so a spoken line and a spoken question are spent, not
+spread. When
 several rows do turn out to need the user, batch them the way you batched the
 intake — `orderdesk` again:
 
@@ -525,7 +530,7 @@ person sometimes has to, because there is nothing else the agent could
 truthfully be doing. Even then it is worth a spoken line first, so the user
 knows the silence is theirs to end.
 
-### Two things to decide for yourself
+### Ordering and failure are yours to decide
 
 **Ordering.** Three background jobs finishing at once produce three dispatches in
 the order they completed. `orderdesk` sends the whole row rather than a patch, so
@@ -534,8 +539,8 @@ that works, and it is the one to copy until the SDK reserves something better.
 
 **Failure.** Every worked example here succeeds. A fan-out where one branch fails
 is the case you will hit first in production, and the failed row still has to
-reach the user through one of the three ways above — most often the first, as a
-row that says so.
+reach the user through one of the ways above — most often as a row that says
+so.
 
 ## Prompt design for voice
 
@@ -557,12 +562,12 @@ That is the whole design rule, and it is not "be concise."
 | 10% | Genuinely slow — remote, expensive | a background workstream, with an answer to "what does the user hear meanwhile" |
 
 These numbers are a design target we hold to, not a ratio we have instrumented.
-Their job is the third row: anything that lands there needs a plan for the
-silence, which is [parallel workstreams](#parallel-workstreams).
+Their job is the genuinely slow tenth: anything that lands there needs a plan
+for the silence, which is [parallel workstreams](#parallel-workstreams).
 
-### Five things a voice prompt does that a chat prompt need not
+### What a voice prompt does that a chat prompt need not
 
-**1. Talk less, do more.** The default reply is one short line, and everything
+**Talk less, do more.** The default reply is one short line, and everything
 longer is on the screen. The shipped prompts say it in the imperative, because a
 model's default register is a paragraph:
 
@@ -574,7 +579,7 @@ model's default register is a paragraph:
 - `support`: "Never read out ids or order numbers as raw text — say 'your order
   from May 28th' instead."
 
-**2. Hold its prompt still.** The system prompt is the cache prefix. Set it once
+**Hold its prompt still.** The system prompt is the cache prefix. Set it once
 per session and it matches turn after turn; rebuild it — even to append one fresh
 line — and the provider re-reads the whole thing on every turn, which the user
 pays for in silence. Volatile context goes at the tail, next to the latest user
@@ -582,33 +587,33 @@ message, where a change costs the provider only the small new suffix. This is th
 cheapest latency win available and the easiest to throw away by accident, because
 nothing in a transcript shows it.
 
-**3. Know where the user is.** The agent needs a way to answer "what is on screen
-right now," and the answer has to be current rather than remembered. Two demos do
-the same thing: the page keeps pushing its state, the brain parks the latest
+**Know where the user is.** The agent needs a way to answer "what is on screen
+right now," and the answer has to be current rather than remembered. Both `aura` and
+`servicing` do the same thing: the page keeps pushing its state, the brain parks the latest
 snapshot, and a tool reads it on demand — `aura`'s `get_screen_context`,
 `servicing`'s `get_advisor_context`. The reciprocal instruction matters as much.
 The screen is authoritative over the agent's own memory of it, because the user
 has hands: `orderdesk`'s prompt ends that thought with "**NEVER redo what he
 already did himself.**"
 
-**4. Track a task list.** Several threads are open at once and the prompt has to
+**Track a task list.** Several threads are open at once and the prompt has to
 name them and say how each one closes. `servicing`'s prompt is explicit that
 background prep runs while the advisor keeps working: "prepare the other case
 quietly and tell them when it's ready. They are never blocked."
 
-**5. Assume it misheard.** A recognizer on a phone line in a pharmacy will get
+**Assume it misheard.** A recognizer on a phone line in a pharmacy will get
 things wrong. Correction paths belong in the prompt as first-class instructions
 rather than as a fallback paragraph at the end — see
 [misunderstanding and reversal](#misunderstanding-and-reversal).
 
-### Never leave silence, said twice in production
+### Never leave silence, in the shipped prompts
 
 - `orderdesk`: "Say a tiny line before or while calling a tool — never leave
   silence, never speak a whole sentence about what you are doing."
 - `aura`: "opening a page or loading a video takes a moment; never leave silence.
   Say a brief line FIRST, THEN call the tool."
 
-Both of these are the prompt doing latency work.
+These are the prompt doing latency work.
 
 ### The sharpest fragment we have shipped
 
@@ -633,8 +638,8 @@ as a model of how specific this gets:
 > **TWO ROUNDS AT MOST.** Round one cuts twenty-four to a handful; round two is
 > leaf pills he can tap.
 
-Three things to take from it. It names the threshold at which machinery starts
-(five). It gives the model a decision rule rather than an example. And it caps the
+What to take from it: it names the threshold at which machinery starts (five),
+it gives the model a decision rule rather than an example, and it caps the
 interaction in turns, because a turn is the unit the user feels.
 
 The wording of the question is the model's; the *shape* is not. `ask_choice`
@@ -647,8 +652,8 @@ a rejection is a retry rather than a dead turn.
 A tool call in a chat app is a pause. A tool call in a voice call is dead air,
 because the model cannot speak while it waits for a result it asked for.
 
-That single fact reshapes every tool you write. Four properties follow from it,
-and they are properties of the tool rather than of the prompt around it.
+That single fact reshapes every tool you write, and the properties that follow
+are properties of the tool rather than of the prompt around it.
 
 ### A tool returns immediately
 
@@ -678,7 +683,7 @@ not interrupt the lookup, and half-applied work is worse to reason about than
 completed work. The screen showing what they asked for is right, whether or not
 the sentence describing it finished.
 
-Tools also run **one at a time, in the order the model produced them**. Two tools
+Tools also run **one at a time, in the order the model produced them**. Tools
 racing would put the user's display in an order the model never asked for, and
 the screen is the thing the user is reading.
 
@@ -686,7 +691,7 @@ the screen is the thing the user is reading.
 
 The undo for a voice tool is a compensating call, and the compensating calls are
 worth enumerating separately rather than collapsing into a re-add. `orderdesk`
-gives the model six edit tools and shouts why:
+gives the model an edit tool per operation and shouts why:
 
 > **A QUANTITY TWEAK IS NEVER A RE-ADD.** An absolute number is `set_quantity`; a
 > relative one is `adjust_quantity` with a delta. If he wants none of it, that is
@@ -721,8 +726,8 @@ this category.
 
 Use the same seam for validation. `orderdesk`'s `ask_choice` is rejected unless it
 has two to four choices, uses known codes, and covers every candidate; a separate
-validator rejects non-Latin labels headed for a screen that must stay Latin. Both
-come back as retriable errors, and the prompt warns the model in advance that they
+validator rejects non-Latin labels headed for a screen that must stay Latin.
+These come back as retriable errors, and the prompt warns the model in advance that they
 can. So the *shape* of the question is guaranteed even though its wording is the
 model's.
 

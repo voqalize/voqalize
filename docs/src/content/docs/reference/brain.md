@@ -1,21 +1,20 @@
 ---
 title: The Brain API
-description: Every callback a brain may implement, its signature, and what it is handed. The one that is required, and the two that are generators.
+description: Every callback a brain may implement, its signature, and what it is handed. Which one is required, and which are generators.
 ---
 
 A brain is a subclass of `Brain`. Voqalize opens one WebSocket per session, and
-what arrives on it reaches your code as one of eight callbacks, each handed the
-`Session` for that call. This page is every signature on that surface,
+what arrives on it reaches your code as a callback, each handed the `Session`
+for that call. This page is every signature on that surface,
 read out of `voqalize-agent-sdk` 0.4.0 and speaking wire version 3.
 
-Only `on_user_message` is required. Two callbacks are async generators —
-`on_user_message` and `on_user_idle` — and those two are the only moments the
-floor is yours. Everything that is not speech is a method on `session`, callable
+Only `on_user_message` is required. `on_user_message` and `on_user_idle` are
+async generators, and they are the only moments the floor is yours. Everything that is not speech is a method on `session`, callable
 from any callback and from work that outlives one.
 
 ## The import surface
 
-`voqalize.sdk` exports twenty-two names.
+`voqalize.sdk` exports these names.
 
 | Name | Kind | What it is |
 |---|---|---|
@@ -30,7 +29,10 @@ from any callback and from work that outlives one.
 | `SpeechStart` | dataclass | Opens a speech unit. |
 | `SpeechChunk` | dataclass | Text to speak inside an open unit. |
 | `SpeechEnd` | dataclass | Closes the open unit. |
+| `Chunk` | alias | The name `SpeechChunk` shipped under until 2026-09-08, kept working. Prefer `SpeechChunk`: it is the name the proto message, the wire frame and every recorded event also answer to. |
 | `Speech` | type alias | `SpeechStart \| SpeechChunk \| SpeechEnd` — what a generator may yield. |
+| `AppEvent` | class | Base for a typed thing the person did in your app. The app→brain direction of [`Action`](/build/brain/actions/). |
+| `AppEvents` | class | Your brain's app→brain vocabulary. Hand it your `AppEvent` classes, give it every `RTVIMessage`, and `parse` returns your union or `None` — it never raises on a live call. |
 | `ErrorCode` | enum | The code on an `Error`. See [Error codes](/reference/errors/). |
 | `RTVIType` | enum | The RTVI message types. See [The RTVI plane](/reference/rtvi/). |
 | `WireError` | exception | A brain broke a wire obligation. |
@@ -47,16 +49,23 @@ because the same definitions are accepted at session creation and over the
 mid-call wire:
 
 ```python
-from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk.wire import (
+    Config, ConfigError, IdleConfig, Language, SttConfig, TtsConfig, Voice
+)
 ```
 
-The two shipped model adapters are not among them either — importing
+`ConfigError` is there too, and not under `voqalize.sdk`, because it is raised by
+`Config.__post_init__` rather than by anything on the session — it is a property
+of the message, decided before the call is reached. See [why both halves
+matter](/reference/catalog/#why-both-halves-matter).
+
+The shipped model adapters are not among them either — importing
 `voqalize.sdk` pulls no model vendor, so each lives in its own module behind the
 `gemini` extra. There is no ADK adapter; that one was removed.
 
 ## `Brain`
 
-### The eight callbacks
+### The callbacks
 
 Verbatim from the base class. `self` is your brain instance; a fresh one is
 built per session, so nothing leaks between calls.
@@ -83,7 +92,7 @@ async def on_session_end(self, session: Session) -> None: ...
 | `on_error` | no | — | On an `Error` frame. The session is never killed by it. |
 | `on_session_end` | no | — | Once, for any reason, as the socket closes. |
 
-The two speaking callbacks are declared `def … -> AsyncGenerator[Speech, None]`
+The speaking callbacks are declared `def … -> AsyncGenerator[Speech, None]`
 in the base class because that is the type an async generator function returns.
 You write them as `async def` with `yield` in the body:
 
@@ -96,7 +105,7 @@ class Concierge(Brain):
 ```
 
 The base `on_user_message` raises `NotImplementedError`; the base `on_user_idle`
-returns an empty generator, which declines the floor. The other six default to
+returns an empty generator, which declines the floor. The rest default to
 doing nothing.
 
 **A speaking callback with no `yield` anywhere in its body is not a generator.**
@@ -127,7 +136,7 @@ turn.
 `async` so you can look that name up, not so you can generate the sentence: this
 is the one moment a connected user is sitting there hearing nothing.
 
-### Failure at the two opening hooks
+### Failure in `on_session_start` or `greet`
 
 An exception out of `on_session_start` or out of `greet` fails the session: the
 SDK emits a fatal `Error` naming the hook that raised and ends the call. Neither
@@ -164,7 +173,7 @@ lifetime is exactly the socket's.
 | `init` | `dict[str, Any]` | The opaque init data handed to Voqalize at connect. Read your own keys out of it; the SDK interprets none of it. |
 
 There is no `SessionStart` object in the SDK. The frame's payload arrives as
-these two attributes, and its turn id is the turn the greeting is bound to.
+these attributes, and its turn id is the turn the greeting is bound to.
 
 ### Methods
 
@@ -179,7 +188,7 @@ async def configure(self, config: Config) -> None: ...
 It rides RTVI's own `ui-command`, which a pipecat client reads with
 `useUICommandHandler`. See [Actions](/build/brain/actions/).
 
-**`send_rtvi`** sends one RTVI message. Only the five types a brain may
+**`send_rtvi`** sends one RTVI message. Only the types a brain may
 originate are accepted — `server-message`, `server-response`, `error-response`,
 `ui-command`, `ui-job-group` — and any other raises `WireError` listing them.
 Quote `id` back from the message you are answering. See
@@ -206,8 +215,8 @@ await session.configure(
 )
 ```
 
-`Config` has three sections, each optional: `tts` (`voice`, `language`), `stt`
-(`language`), `idle` (`timeout_ms`). A section left `None` is untouched, and so
+`Config` has optional `tts` (`voice`, `language`), `stt` (`language`) and
+`idle` (`timeout_ms`) sections. A section left `None` is untouched, and so
 is a field left `None` inside a section that is present.
 
 - **Naming a language on one leg and not the other raises `ConfigError`** before
@@ -347,7 +356,7 @@ Voqalize reads as permanent. The claims themselves are in
 
 `run_session` returns when the session ends or the socket errors, and it never
 closes the channel — your framework owns the socket's lifecycle. See
-[Inbound server](/build/inbound/).
+[Deploy the brain](/build/hosting/#a-route-voqalize-dials).
 
 ### `serve`
 
@@ -375,19 +384,18 @@ await serve(
 |---|---|---|
 | `version` | yes | Your agent's version string, sent as a connection header. |
 | `cortex_url` | yes | The relay URL from `create_agent_credentials`. It already ends in `/agent`; the SDK appends nothing. |
-| `api_key` | one of two | The `sk_…` agent secret, sent as `Authorization: Bearer`. |
-| `authorization_provider` | one of two | A zero-arg callable returning a fresh `"Bearer <jwt>"` per connect. |
+| `api_key` | one of these | The `sk_…` agent secret, sent as `Authorization: Bearer`. |
+| `authorization_provider` | one of these | A zero-arg callable returning a fresh `"Bearer <jwt>"` per connect. |
 | `inbound_queue_maxsize` | no | Per-session inbound backlog before shedding. |
 
 Passing both or neither of `api_key` and `authorization_provider` raises
 `ValueError`. `serve` blocks until the connection closes permanently: every
 session rides that one socket, demultiplexed by a 16-byte session prefix, and
-you decide where the call lives. See [Cortex relay](/build/outbound/).
+you decide where the call lives. See [Cortex relay](/build/hosting/#a-brain-that-dials-out).
 
 ## Logging
 
-Two pieces, and the split is deliberate: the context is always on, the sink is
-opt-in.
+The split is deliberate: the context is always on, the sink is opt-in.
 
 ```python
 @contextmanager
@@ -414,14 +422,13 @@ working, and every one of those fields is computed and thrown away. The
 `session_id` is the join key across both sides of the call — see
 [Reading a call back](/operate/reading-a-call/).
 
-## The two shipped adapters
+## The shipped adapters
 
 :::caution[`GeminiInteractionsBrain` is experimental]
 Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
-on 2026-09-08. Two defects are open against the interactions adapter's
-interruption path — a step interrupted before its first delta stays in the context
-forever, and text buffered during a step is discarded if a barge-in lands before
-the step closes. Build on `GeminiBrain`; this one is kept, and tested, for the
+on 2026-09-08. The interactions adapter's interruption path has open defects: a
+step interrupted before its first delta stays in the context forever, and text
+buffered during a step is discarded if a barge-in lands before the step closes. Build on `GeminiBrain`; this one is kept, and tested, for the
 properties it has that `generate_content` does not.
 :::
 
@@ -459,8 +466,9 @@ and offer the same members to override, read or call:
 `GeminiBrain` hands the tool loop to `google-genai` and takes the record it kept;
 `GeminiInteractionsBrain` runs the loop itself on the `interactions` API, where a
 call and its result are linked by id rather than by position. `append_to_context`
-takes a `types.Content` on the first and a `gi.UserInputStep` on the second — that
-is the one place a brain written for one does not paste into the other.
+takes a `types.Content` on `GeminiBrain` and a `gi.UserInputStep` on
+`GeminiInteractionsBrain` — that is the one place a brain written for one does
+not paste into the other.
 
 `DEFAULT_MODEL` reads `VOQAL_GEMINI_MODEL` from the environment, falling back to
 `gemini-3.5-flash`. Both classes force the model's minimum reasoning level: a

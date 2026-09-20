@@ -16,20 +16,20 @@ There is no tool frame on [the wire](/reference/wire/) and no `tools` member on
 and the SDK never sees one — [bringing an agent you already
 have](/build/existing-agent/) is that port, and it is unchanged by voice.
 
-`tools` is a member of the **two shipped Gemini adapters**, `GeminiBrain` and
+`tools` is a member of the **shipped Gemini adapters**, `GeminiBrain` and
 `GeminiInteractionsBrain`, and the rest of this page is the contract they share.
 
 :::caution[`GeminiInteractionsBrain` is experimental]
 Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
-on 2026-09-08. Two defects are open against the interactions adapter's
-interruption path — a step interrupted before its first delta stays in the context
-forever, and text buffered during a step is discarded if a barge-in lands before
-the step closes. Build on `GeminiBrain`; this one is kept, and tested, for the
+on 2026-09-08. The interactions adapter's interruption path has open defects —
+a step interrupted before its first delta stays in the context forever, and text
+buffered during a step is discarded if a barge-in lands before the step
+closes. Build on `GeminiBrain`; this one is kept, and tested, for the
 properties it has that `generate_content` does not.
 :::
 
-The two run the loop in different places
-([the Brain API](/reference/brain/#the-two-shipped-adapters) has that split), and
+They run the loop in different places
+([the Brain API](/reference/brain/#the-shipped-adapters) has that split), and
 they take the same list, so a brain moves between them without touching its
 tools.
 
@@ -86,7 +86,7 @@ docstring is the description the model reads, and its single pydantic-model
 parameter is the schema. Nothing is declared twice, so there is no second copy
 to drift (`sdk/python/src/voqalize/sdk/gemini.py`, `tools`).
 
-Four rules bite.
+These rules bite.
 
 ### `async def` is required, and it fails on the first turn
 
@@ -120,7 +120,7 @@ adapters: the schema goes over as JSON Schema with its `$defs` intact.
 
 The reason is not that flat parameters are unsupported. A flat `str`, `int`,
 `bool` or `list[str]` runs on both adapters. It is that a flat parameter is the
-one place **neither adapter parses what the model sent**, and the two get that
+one place **neither adapter parses what the model sent**, and they get that
 wrong in opposite directions.
 
 On the automatic path google-genai checks each flat argument with `isinstance`
@@ -231,7 +231,7 @@ belongs where the model reads it — **the docstring, which is the description**
         pause. …"""
 ```
 
-The second lever is the screen. `session.dispatch(...)` never blocks and holds
+The screen is the other lever. `session.dispatch(...)` never blocks and holds
 no floor, so a tool can move the display on its first line and let the user
 read while the voice is still working — [Actions](/build/brain/actions/) owns
 that channel. A tool that is slower than a sentence should return a note instead
@@ -319,7 +319,7 @@ class Booking(GeminiInteractionsBrain):
                     pending.set_result(e.answer)
 ```
 
-Three things in there are load-bearing. The **nonce** binds this dialog to this
+Each of these is load-bearing. The **nonce** binds this dialog to this
 future; without it the app's answer resolves nothing and the turn runs out its
 timeout while the user sits in silence. The **cancel path** — a `"no"` the app sends when
 the user dismisses the sheet — is what stops a dismissed dialog going silent

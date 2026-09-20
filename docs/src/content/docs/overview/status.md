@@ -10,7 +10,7 @@ service-level agreement.
 This page separates what is available today from what is planned. The
 [Python package on PyPI](https://pypi.org/project/voqalize-agent-sdk/) and
 [Pipecat's client documentation](https://docs.pipecat.ai/client/introduction)
-are the upstream records for the two SDK surfaces.
+are the upstream records for the SDK surfaces.
 
 ## Brain SDK
 
@@ -18,15 +18,14 @@ The published Python brain SDK is `voqalize-agent-sdk==0.4.0`. It requires
 Python 3.12 or later and is classified as alpha. Pin the version: the callbacks
 and wire may change before 1.0.
 
-Two Gemini integrations ship with the `gemini` extra: `GeminiBrain` and
-`GeminiInteractionsBrain`.
+The `gemini` extra ships `GeminiBrain` and `GeminiInteractionsBrain`.
 
 :::caution[`GeminiInteractionsBrain` is experimental]
 Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
-on 2026-09-08. Two defects are open against the interactions adapter's
-interruption path — a step interrupted before its first delta stays in the context
-forever, and text buffered during a step is discarded if a barge-in lands before
-the step closes. Build on `GeminiBrain`; this one is kept, and tested, for the
+on 2026-09-08. The interactions adapter's interruption path has open defects —
+a step interrupted before its first delta stays in the context forever, and text
+buffered during a step is discarded if a barge-in lands before the step
+closes. Build on `GeminiBrain`; this one is kept, and tested, for the
 properties it has that `generate_content` does not.
 :::
 
@@ -48,7 +47,7 @@ Voqalize uses Pipecat's RTVI and SmallWebRTC client surfaces directly.
 | Native iOS | Pipecat Swift with SmallWebRTC | Not yet |
 | Native Android | Pipecat Kotlin with SmallWebRTC | Not yet |
 
-All five are supported client environments. The Voqalize repository currently
+All of these are supported client environments. The Voqalize repository currently
 ships complete examples only for web. For a native client, use the official
 Pipecat client and SmallWebRTC guide; the session-connect response supplies the
 endpoint and session credential that its transport uses. The current
@@ -60,7 +59,7 @@ Both connection paths are supported and run the same brain:
 
 - An inbound WebSocket route in your application is the default deployment.
   Voqalize opens one connection per session.
-- An outbound [Cortex relay](/build/outbound/) is supported for egress-only
+- An outbound [Cortex relay](/build/hosting/#a-brain-that-dials-out) is supported for egress-only
   environments and is the default local-development path because the brain
   needs no public tunnel.
 
@@ -87,7 +86,7 @@ cannot change mid-session. [Voice and language](/reference/catalog/) and
 Calls are processed and stored in India today. A United States region is
 planned and is not available for selection yet.
 
-The management API is rate limited per tenant; a refused request is a `429`
+The MCP server is rate limited per tenant; a refused request is a `429`
 with a `Retry-After` header. Session limits, per day and concurrent, are not
 enforced during developer preview, and no public concurrency number is
 committed. Ask before a pilot or launch that needs a specific concurrency

@@ -26,8 +26,8 @@ hero:
       variant: minimal
 ---
 
-You integrate in two places. Stock pipecat client libraries on the frontend, and
-one WebSocket endpoint on your backend. Voqalize dials that endpoint when a call
+You integrate on the frontend and on the backend: stock pipecat client
+libraries in the page, and one WebSocket endpoint on your server. Voqalize dials that endpoint when a call
 starts, and closes it when the call ends.
 
 The sections below explain the responsibility on each side.
@@ -51,9 +51,9 @@ your backend already runs.
 Your code never touches audio. There is no buffer to drain, no sample rate to
 agree on, and no frame to time.
 
-## The two halves of your app
+## What each piece is called
 
-An integration touches two places you already own. They never talk to each other
+An integration touches your page and your backend, and nothing else you own. They never talk to each other
 directly; everything between them crosses our wire.
 
 | | You write | Voqalize runs |
@@ -73,7 +73,7 @@ SmallWebRTC surfaces; Voqalize currently ships complete examples for web.
 | Section | What is in it |
 |---|---|
 | **[Current status](/overview/status/)** | SDK stability, clients, regions, stored data, limits, pricing direction and support. |
-| **[Build](/build/)** | Everything you write. From a ten-minute call to the whole SDK surface — the brain, the two hosting paths, the client, tools, actions, tests. |
+| **[Build](/build/)** | Everything you write. From a ten-minute call to the whole SDK surface — the brain, where it runs, the client, tools, actions, tests. |
 | **[Improve the agent](/design/)** | How interruption, spoken output, tools and screen actions change the conversation design. |
 | **[Operate](/operate/)** | Running it in production. Reading one call back, what persists per session, keys and limits. |
 | **[API and protocols](/reference/)** | The wire, Brain API, voice catalog, errors and MCP tools. |
@@ -87,11 +87,11 @@ SmallWebRTC surfaces; Voqalize currently ships complete examples for web.
 | **Session** | One call. One connection, opened when it starts and closed when it ends. |
 | **Action** | A typed message from the brain to the page. It renders; it is never spoken. |
 | **Wire** | The protobuf frames on that connection. Versioned, and published in `proto/`. |
-| **Cortex** | The relay, for a brain that cannot accept inbound connections. Your brain dials it; Voqalize dials it; it splices the two. |
+| **Cortex** | The relay, for a brain that cannot accept inbound connections. Your brain dials it; Voqalize dials it; it splices them. |
 
 **A note on the word *agent*.** You almost certainly call your own thing an
-agent, and these pages sometimes will too. Ours is the record above — five
-fields and a URL. When a sentence here says *create an agent* or *the agent's
+agent, and these pages sometimes will too. Ours is the record above: a
+`brain_url` and a recording default. When a sentence here says *create an agent* or *the agent's
 `brain_url`*, it means the record. Your agent is the brain.
 
 ## A call, start to finish
@@ -121,8 +121,7 @@ deploy today. The brain is code in your repository, under your version control,
 and swapping the model behind it is a change we never see. Tool calls are local
 function calls in your process, not webhooks we fire at you from rotating IPs.
 
-Two Gemini adapters ship in the `gemini` extra: `GeminiBrain` and
-`GeminiInteractionsBrain`. For Google ADK, LangChain, OpenAI Agents or another
+The `gemini` extra ships `GeminiBrain` and `GeminiInteractionsBrain`. For Google ADK, LangChain, OpenAI Agents or another
 framework, connect its text stream to `Brain` or implement the language-neutral
 protobuf WebSocket contract. [Use another agent framework](/build/existing-agent/)
 shows the integration and verification path.

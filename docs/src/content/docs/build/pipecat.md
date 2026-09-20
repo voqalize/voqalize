@@ -8,7 +8,7 @@ Pipecat sits at both ends of a Voqalize call, and at neither end is it wrapped.
 In the browser it **is** your integration: one HTTP request of ours returns what a
 pipecat transport connects with, and every line after that is pipecat. Inside the
 voice tier it is what we build the pipeline out of — transport, voice activity
-detection, the speech services, the avatar processor. Between the two, its RTVI
+detection, the speech services, the avatar processor. Between them, its RTVI
 message format is what our wire carries.
 
 The one place it is absent is your server. Installing the Python SDK pulls no
@@ -16,7 +16,7 @@ pipecat at all.
 
 ## The browser half
 
-Two packages do the work:
+`@pipecat-ai/client-js` and `@pipecat-ai/small-webrtc-transport` do the work:
 
 ```bash
 pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport
@@ -26,8 +26,8 @@ pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport
 them. [The handshake](/build/connect/) is that request and the one line
 of glue around it, and it is the entire Voqalize-specific surface in your page.
 
-The demos add two more, and neither is required: `@pipecat-ai/client-react` for
-the hooks, and `@pipecat-ai/voice-ui-kit` for components. What every demo uses is
+The demos add `@pipecat-ai/client-react` for the hooks and
+`@pipecat-ai/voice-ui-kit` for components; neither is required. What every demo uses is
 declared in [`demos/shared/package.json`](https://github.com/voqalize/voqalize/blob/main/demos/shared/package.json).
 
 Everything you learn here transfers. `usePipecatConversation` for the transcript,
@@ -39,8 +39,8 @@ any pipecat server.
 
 Pipecat publishes clients for JavaScript, React, React Native, native iOS and
 native Android, with SmallWebRTC transports for each environment. Because
-Voqalize uses those Pipecat interfaces directly, all five are supported client
-environments.
+Voqalize uses those Pipecat interfaces directly, each of them is a supported
+client environment.
 
 Our runnable examples currently cover web only. For React Native, Swift or
 Kotlin, start with Pipecat's official
@@ -53,33 +53,17 @@ your target environment.
 
 An action from your brain and a click from your page are both RTVI messages —
 `{id, label, type, data}` — riding the peer connection's data channel. Our wire
-carries them verbatim in both directions and interprets nothing about them.
+carries the whitelisted types verbatim in both directions and interprets nothing
+about them.
 
-The whitelist, in both directions:
+`client.sendText(…)` is the one exception to "verbatim": a typed sentence takes
+the floor the way a spoken one does, so Voqalize commits it as a user turn and
+your brain answers it in `on_user_message` rather than receiving a message.
 
-| Brain → page | Page → brain |
-|---|---|
-| `server-message` | `client-message` |
-| `server-response` | `ui-event` |
-| `error-response` | `ui-snapshot` |
-| `ui-command` | `ui-cancel-job-group` |
-| `ui-job-group` | |
-
-`client.sendText(…)` is the sixth type your page may send and the one exception
-to "verbatim": a typed sentence takes the floor the way a spoken one does, so
-Voqalize commits it as a user turn and your brain answers it in
-`on_user_message` rather than receiving a message. See
-[the RTVI plane](/reference/rtvi/).
-
-A type absent from that list does not cross in either direction. `bot-*` and
-`llm-*` are the voice tier's own assertions about the media and the model — that
-speech started, that the model is thinking — and a brain must not be able to
-forge them. Your page can trust a `bot-started-speaking` because only Voqalize
-that moved the audio can emit one.
-
-The list is enumerated in
-[`proto/voqalize/frames/frames.proto`](https://github.com/voqalize/voqalize/blob/main/proto/voqalize/frames/frames.proto),
-which is the contract of record.
+Which types cross, which do not, and why the exclusions are what let your page
+trust `bot-started-speaking`, are [the RTVI plane](/reference/rtvi/). The
+enumeration of record is `RTVIType` in
+[`proto/voqalize/frames/frames.proto`](https://github.com/voqalize/voqalize/blob/main/proto/voqalize/frames/frames.proto).
 
 ## Your server has no pipecat in it
 
@@ -107,7 +91,7 @@ with no successor. It wrapped the connect call and re-exported hooks that were
 already pipecat's, which made it a second surface to learn and a release behind
 every pipecat version.
 
-The class of problem it existed to hide is now handled where it belongs: the two
+The class of problem it existed to hide is now handled where it belongs: the
 credential paths are [the same route with a different signer](/build/connect/),
 and a recording asked for on a key that may not record is refused when the
 session is minted rather than warned about in a console.

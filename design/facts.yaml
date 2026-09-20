@@ -69,6 +69,33 @@ facts:
       - '/s/\{session_id\}'
       - '/s/\{sid\}'
 
+  wire.close.no_agent:
+    value: 4000
+    source: sdk/python/src/voqalize/sdk/wire/transport.py:49 CLOSE_NO_AGENT
+    verified: 2026-09-21
+    derive:
+      file: sdk/python/src/voqalize/sdk/wire/transport.py
+      pattern: '^CLOSE_NO_AGENT = (\d+)'
+    note: >-
+      The one close code with a meaning: permanent, never retried, and the code
+      a brain closes with when it will not serve this session — a bad token, an
+      agent it does not host. Every other close is transient and Cortex dials
+      again. It is on four pages because it is the answer to four different
+      questions, so it is here rather than retyped from memory.
+
+  rtvi.payload.max_bytes:
+    value: 64 KiB
+    source: proto/voqalize/frames/frames.proto:481 Rtvi.payload
+    verified: 2026-09-21
+    reproduce: >-
+      grep -n 'KiB' proto/voqalize/frames/frames.proto
+    note: >-
+      The bound is the pipecat client's, not ours: the data channel decides what
+      a message may weigh and the wire carries what the client will send. An
+      oversized envelope comes back ERROR_CODE_REJECTED, which is also what a
+      type outside the RTVI whitelist gets. Written "64 KiB" wherever it
+      appears, because KiB is the unit the client's own documentation uses.
+
   # ---- configuration ownership --------------------------------------------
 
   config.agent_record:
@@ -240,6 +267,35 @@ facts:
     forbid:
       - '\bAdkBrain\b'
 
+  sdk.engine.bulk_maxsize:
+    value: 256
+    source: sdk/python/src/voqalize/sdk/engine.py:49 DEFAULT_BULK_MAXSIZE
+    verified: 2026-09-21
+    derive:
+      file: sdk/python/src/voqalize/sdk/engine.py
+      pattern: '^DEFAULT_BULK_MAXSIZE = (\d+)$'
+    note: >-
+      The bulk lane each way; the priority lane beside it is 32 and is a
+      tripwire rather than a budget — it is never expected to fill, and a full
+      one raises rather than sheds. Shedding is drop-newest and only droppable
+      frames are shed, so a full bulk lane loses new speech chunks and never an
+      End. The number reaches a reader as "the outbound bulk lane holds 256
+      frames by default", which is a sentence about backpressure, so it needs
+      the source rather than a memory of it.
+
+  gemini.max_tool_hops:
+    value: 6
+    source: sdk/python/src/voqalize/sdk/gemini_interactions.py:106 max_tool_hops
+    verified: 2026-09-21
+    derive:
+      file: sdk/python/src/voqalize/sdk/gemini_interactions.py
+      pattern: '^\s+max_tool_hops: int = (\d+),$'
+    note: >-
+      A constructor default on GeminiInteractionsBrain, which runs the tool loop
+      itself. GeminiBrain has no equivalent knob: google-genai runs the hops and
+      the limit is its own. Every hop is a model round trip, so this is a number
+      a reader counts against the turn budget.
+
   sdk.python.pipecat:
     value: none
     source: sdk/python/pyproject.toml:20
@@ -311,8 +367,17 @@ facts:
 
   repo.voqalize.licence:
     value: Apache-2.0
-    source: LICENSE
-    verified: 2026-08-24
+    source: sdk/python/pyproject.toml:6 license
+    verified: 2026-09-21
+    derive:
+      file: sdk/python/pyproject.toml
+      pattern: '^license = "(.+)"$'
+    note: >-
+      `LICENSE` at the repo root is the licence itself, and its text spells the
+      name out rather than naming the SPDX identifier a reader writes. The
+      pyproject field is that identifier, it is what PyPI publishes the package
+      under, and `license-files = ["LICENSE"]` beside it is what ties the two
+      together — so the derivable claim and the file a reader opens cannot part.
 
   # ---- the avatar library (MIT, published from the public sibling) ----------
   #
@@ -368,6 +433,20 @@ facts:
       MIT, and deliberately not Apache-2.0 like this repo. A page that states one
       licence for "our open source" is wrong about one of the two.
 
+  avatar.assets.licence:
+    value: CC-BY-4.0
+    source: avatar-public/packages/avatar/package.json:5 license
+    verified: 2026-09-21
+    reproduce: >-
+      grep -n '"license"' ../avatar-public/packages/avatar/package.json &&
+      head -1 ../avatar-public/LICENSE-CC-BY-4.0
+    note: >-
+      The character binaries the faces load are artwork, not code, and they are
+      licensed apart from the MIT library around them — the package declares
+      `MIT AND CC-BY-4.0` for exactly that reason. CC-BY asks for attribution
+      and nothing else, which is the whole of what a customer has to do. A page
+      that names one licence for the avatar is wrong about half of it.
+
   # ---- the voice tier -------------------------------------------------------
 
   pipecat.version:
@@ -395,7 +474,8 @@ facts:
       @voqalize/demo-kit, so every demo in the repo is built against it and the
       floor is exercised rather than asserted. The demos themselves resolve
       ^1.13.0 as a dev dependency; the floor is what a customer's page must
-      clear, and it is the number docs/start/pipecat.md is allowed to print.
+      clear, and it is the number docs/src/content/docs/build/pipecat.md is
+      allowed to print.
 
   pipecat.client.platforms:
     value: [JavaScript, React, React Native, iOS Swift, Android Kotlin]
@@ -572,9 +652,9 @@ facts:
       - '\b300 (tool calls|requests) per minute\b'
 
   mcp.tools.count:
-    value: 28
+    value: 27
     source: platform/backend/controlplane/app/entrypoints/mcp/tools.py register_tools
-    verified: 2026-09-10
+    verified: 2026-09-21
     reproduce: >-
       grep -c '^    @tool$' ../platform/backend/controlplane/app/entrypoints/mcp/tools.py
     note: >-
@@ -584,12 +664,14 @@ facts:
       update_api_key_origins, get_call_record, the three session lifecycle
       tools and the four member tools) — the count is a sentence a reader
       checks against the tool list, so it is a fact here rather than a word.
+      No page states it any more: `reference/mcp.md` lists the tools instead,
+      and the pattern below fails the build if one is written down again.
     forbid:
-      - '\b(18|[Ee]ighteen) (MCP )?tools\b'
+      - '\b(\d+|[Ee]ighteen|[Nn]ineteen|[Tt]wenty(-\w+)?|[Tt]hirty(-\w+)?) (MCP )?tools\b'
 
   session.metadata.max_keys:
     value: 10
-    source: platform/backend/controlplane/app/domains/sessions/documents.py:16 MAX_METADATA_KEYS
+    source: platform/backend/controlplane/app/domains/sessions/documents.py:18 MAX_METADATA_KEYS
     verified: 2026-08-26
     reproduce: >-
       grep -n 'MAX_METADATA_KEYS\|MAX_METADATA_VALUE_LENGTH'
@@ -599,6 +681,38 @@ facts:
       control — it is the line between "labels I can recognise this call by" and
       "a place to keep application state", which is the caller's own database's
       job. `metadata` is not queryable, which is the other half of that line.
+
+  brain.connect.deadline_secs:
+    value: 10.0
+    source: platform/backend/pygato/src/pygato/brain_bridge.py:251 _FIRST_CONNECT_DEADLINE_S
+    verified: 2026-09-21
+    reproduce: >-
+      grep -n '_FIRST_CONNECT_DEADLINE_S\|_DEAD_AIR_TIMEOUT_S'
+      ../platform/backend/pygato/src/pygato/brain_bridge.py &&
+      grep -n 'initial_backoff_seconds'
+      ../platform/backend/pygato/src/pygato/wire/transport.py
+    note: >-
+      How long Voqalize keeps dialling a brain that does not answer, starting
+      at 100 ms (wire/transport.py:154 initial_backoff_seconds) and backing off
+      until the deadline. _DEAD_AIR_TIMEOUT_S beside it is the same 10.0 from a
+      different constant and answers a different question — a brain that
+      connected and then said nothing — so a page that means one must not cite
+      the other. What the user hears at the end of either is the apology line,
+      not silence.
+
+  recording.url_ttl_secs:
+    value: 60 to 900, default 900
+    source: platform/backend/controlplane/app/domains/sessions/service_dtos.py:43 MAX_RECORDING_URL_TTL_SECONDS
+    verified: 2026-09-21
+    reproduce: >-
+      grep -n 'RECORDING_URL_TTL_SECONDS'
+      ../platform/backend/controlplane/app/domains/sessions/service_dtos.py
+    note: >-
+      A download URL is an unauthenticated bearer credential for call audio: it
+      works for anyone holding it and it survives wherever the URL lands, so the
+      ceiling is short and a caller asks for a fresh one. The floor is 60. Both
+      are enforced on the request DTO, so an out-of-range ttl_seconds is a 422
+      rather than a clamp.
 
   session.max_duration_secs:
     value: 3600
@@ -667,14 +781,19 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 34
+    value: 32
     source: docs/src/content/docs/
-    verified: 2026-09-20
+    verified: 2026-09-21
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
-      Thirty-four pages, each served twice — rendered, and as the `.md` twin an
-      agent reads — plus llms.txt and 404.html. It was 41 until 2026-09-20, when
+      Each page is served twice — rendered, and as the `.md` twin an agent
+      reads — plus llms.txt and 404.html. It was 34 until 2026-09-21, when the
+      hosting trio (`build/hosting`, `build/inbound`, `build/outbound`) became
+      one page and `reference/management-api` became `reference/http-api`: a
+      reader met the hosting decision three times before reading a line about
+      either path, and the management page was titled after a thing we do not
+      have. It was 41 until 2026-09-20, when
       the seven pages under `design/` became seven sections of `design/index.md`:
       they were one argument seen from seven sides, every one of them opened by
       restating the other six, and each old URL now redirects to the heading it
@@ -695,9 +814,8 @@ facts:
       last, held open on a product decision rather than on effort. So the count
       is now a claim about coverage as well as about pages. If a Scaffold aside
       reappears, the page it is on is unwritten and this note is the record of
-      what that means. Count this number the way the glob does; the four
-      unpublished design outlines are not in it, because they are outlines in
-      `design/` and not pages.
+      what that means. Count this number the way the glob does; what is in
+      `design/` is not in it, because that tree is reasoning and not pages.
 
   # ---- the two URLs a developer types first ---------------------------------
 

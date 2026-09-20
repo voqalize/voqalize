@@ -42,7 +42,7 @@ async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
 `brain_server` binds an ephemeral port, so tests never collide, and closes on the
 way out whatever the test did. It is a *test* server — production hosting is
 `run_session` in your own web framework's route (see
-[Inbound](/build/inbound/)); the SDK owns no server.
+[Deploy the brain](/build/hosting/#a-route-voqalize-dials)); the SDK owns no server.
 
 The brain verifies against the public half of the keypair and the driver signs with
 the private half, so **token verification runs for real** rather than being switched
@@ -101,7 +101,7 @@ test against the real model as a smoke check.
 
 ## The built-in conformance suite
 
-Beyond your own scenarios, the harness ships a sixteen-scenario catalog — the bar a
+Beyond your own scenarios, the harness ships a catalog of scenarios — the bar a
 brain must clear to be wire-compatible: greeting, turn- and speech-id monotonicity,
 bracket integrity, the barge-in watermark, heard-truth reconciliation across
 multiple interruptions, action-outcome correlation, RTVI delivery, idle
@@ -119,7 +119,7 @@ Add `--no-auth` instead of `--private-key` if the brain runs `allow_unverified`;
 the auth scenarios are then skipped, because an unverified brain has no bad token
 to reject.
 
-Twelve of the sixteen need a *cooperating* brain — one that speaks a private
+Most of them need a *cooperating* brain — one that speaks a private
 command grammar (`say banana`, `count slowly`) and echoes its committed state back,
 which is what `voqalize.conformance.reference.ConformanceBrain` is for. Yours
 doesn't, and shouldn't. The suite probes for that grammar on connect and **skips**
@@ -170,14 +170,14 @@ The record first: it carries every turn — what was asked, what your brain
 generated, what the user actually heard, and what each interruption threw away —
 and it is versioned contract, so a test may assert on it. Logs are evidence, not
 contract: read them to understand a call, never to assert on one.
-`get_session_events(tenant, session_id)` is the third read, the lifecycle
-milestones (created / connected / ended), and the only one written while the
-call is still running.
+`get_session_events(tenant, session_id)` reads the lifecycle milestones
+(created / connected / ended), and is the only one written while the call is
+still running.
 
 A call still running has no record yet, so check the `record` field before
 concluding it was silent — `missing` is a different fact from an empty list. And
 these are **Voqalize's** records; your brain logs in your own environment. The
-id joining the two sides is `session.id`, the same string in both.
+id joining them is `session.id`, the same string in both.
 
 When a live call misbehaves in a way the offline suite passed, that gap **is** the
 next scenario. Reproduce it offline first, then fix it.
