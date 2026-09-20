@@ -139,23 +139,22 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.3.0'
+    value: '0.4.0'
     source: sdk/python/pyproject.toml:3
     verified: 2026-09-20
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.3.0 on 2026-09-20, and the minor rather than the patch even
-      though the surface only grows — AppEvent, AppEvents and SpeechChunk are
-      additions and Chunk stays as an alias. The minor is for behaviour, not
-      shape: GeminiBrain now withholds text that parses as a leaked function
-      call, so a brain that relied on the model speaking `default_api:` no
-      longer hears it, and carrying an app event on `client-message` starts
-      warning. Under 1.0 that is what a minor is for. Derived, so this line
-      cannot drift from pyproject.toml — but the number it should be compared
-      against is sdk.python.version.published, not this one, and the two are
-      deliberately apart between a bump and the tag that publishes it.
+      Bumped to 0.4.0 on 2026-09-20, for the kokoro voices: Voice gains the
+      KOKORO_* members and frames.proto gains the voice_id enum-value option
+      the serializer now builds its tables from. The surface only grows and the
+      wire change is additive on both halves, so a brain on an older SDK is
+      understood unchanged — under 1.0 an added roster still takes the minor,
+      because the enum is a contract a developer matches on. Derived, so this
+      line cannot drift from pyproject.toml — but the number it should be
+      compared against is sdk.python.version.published, not this one, and the
+      two are deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
     value: '0.3.0'

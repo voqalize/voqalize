@@ -15,6 +15,45 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.4.0
+
+### Added
+
+- **The kokoro voices, on the wire.** `Voice` gains `KOKORO_AVA`,
+  `KOKORO_SARAH`, `KOKORO_NOAH`, `KOKORO_LEO`, `KOKORO_EMMA` and
+  `KOKORO_OLIVER` — American and British English beside the Indian-English
+  omnivoice personas. The speech tier has been serving them for weeks and no
+  client could spell one, which is the whole of what this release fixes.
+
+  The engine is still picked by the voice and by nothing else: the prefix on
+  the value (`kokoro/`, `omnivoice/`) *is* the engine selector, and the wire
+  keeps no model field.
+
+- **`voice_id`, an enum-value option on `Voice`** (`frames.proto`), carrying
+  the id the speech tier routes on. It is the join between the enum and the
+  roster the tier publishes at `/voices.json`, and CI compares the two, so a
+  voice that is served under an id no value claims is caught before it ships.
+
+  The wire change is additive on both halves — new enum values, a new option —
+  so a brain built against an older SDK keeps sending `VOICE_OMNIVOICE_GAURAV`
+  and is understood unchanged.
+
+### Changed
+
+- **`Voice` is built from the proto descriptor**, the way `Language` already
+  was. `serializer.py` reads each value's `voice_id` instead of a table
+  rewritten beside the enum, so a voice the proto declares and the SDK lacks
+  raises at import rather than mistranslating one voice on a live call.
+
+- **Which languages a voice speaks is a fact about the voice.** `TtsConfig`
+  and the `.proto` said it was a fact about the language, and it never was: a
+  cloned persona speaks the languages it has reference clips for, and a voice
+  whose accent lives in its checkpoint speaks what that checkpoint was trained
+  on. The speech tier publishes the pairing per voice, every service reads it
+  at boot, and a pairing the voice cannot speak is refused where it is set —
+  at connect, or as a rejected `ResponseFrame` naming what that voice does
+  speak. Docstrings and proto comments only; the wire is untouched.
+
 ## 0.3.0
 
 ### Deprecated
