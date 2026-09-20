@@ -67,8 +67,8 @@ recognizer, in a call nobody could tell had gone wrong.
 A language change that crosses the English↔Indic boundary is applied at the
 **next end-of-turn**, never mid-utterance.
 
-There are no VAD or end-of-turn knobs on the wire. Voqalize keeps its own
-tuned defaults; we widen the surface as we learn, not in advance.
+Voqalize keeps its own tuned defaults; we widen the surface as we learn, not in
+advance.
 
 ## Text-to-speech
 
@@ -249,9 +249,8 @@ code falling through to the English recognizer, in a call whose transcript reads
 correctly and whose logs are clean — see
 [why both halves matter](/reference/catalog/#why-both-halves-matter).
 
-**There are no VAD or end-of-turn knobs either.** Recognizer routing, the voice
-roster and the moment a turn commits are tuned together against the same calls.
-A knob on one of them is a knob on the rest.
+**Recognizer routing, the voice roster and the moment a turn commits are tuned
+together against the same calls.**
 
 **No speech vendor key sits in your deployment**, and no speech vendor's outage
 is a call you have to explain. When a voice sounds wrong, there is one place to
