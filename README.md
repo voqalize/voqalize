@@ -17,7 +17,7 @@ developer documentation. Voqalize itself — the hosted voice runtime — is a
 managed service, and everything you need to build against it is here.
 
 > **Developer preview.** The SDK surfaces and the wire are still moving.
-> `voqalize-agent-sdk` 0.4.0 is published on PyPI as an alpha with the `Brain`,
+> `voqalize-agent-sdk` 0.5.0 is published on PyPI as an alpha with the `Brain`,
 > `run_session`, and `serve` API documented here. **Pin the version you build
 > against**, because pre-1.0 releases may change the brain callbacks.
 >
