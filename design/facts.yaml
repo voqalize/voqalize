@@ -487,21 +487,30 @@ facts:
 
   speech.tts.clip_languages:
     value: 10
-    source: platform/backend/pygato/src/pygato/session_config.py:43 TTS_CLIP_LANGUAGES
-    verified: 2026-08-25
+    source: https://speech.prod.voqalize.com/voices.json — the omnivoice voices' `languages`
+    verified: 2026-09-20
     reproduce: >-
-      python3 -c "import re;t=open('../platform/backend/pygato/src/pygato/session_config.py').read();
-      print(len(re.findall(r'Language\.\w+', re.search(r'TTS_CLIP_LANGUAGES = frozenset\((.*?)\)',
-      t, re.S).group(1))))"
+      python3 -c "import json,urllib.request;
+      d=json.load(urllib.request.urlopen('https://speech.prod.voqalize.com/voices.json'));
+      print({v['id']: len(v['languages']) for v in d['voices'] if v['engine']=='omnivoice'})"
     note: >-
       **The number that makes "23 languages" a half-truth, and it has no
-      derivable source in this repo.** `vql-stt` *hears* 23; there are recorded
-      reference clips for 10 — bn, en, gu, hi, kn, ml, mr, pa, ta, te. A
-      tts.language outside that set is refused at mint with the field named, so
-      an Odia call is written `stt.language=OR, tts.language=HI` on purpose. A
-      surface that says "23 languages" without saying which half is which is
-      one clip away from the production bug this whole rule came from. Recorded
-      here because a bare 23 invites exactly that sentence.
+      derivable source in this repo.** `vql-stt` *hears* 23; the omnivoice
+      personas have recorded reference clips for 10 — bn, en, gu, hi, kn, ml,
+      mr, pa, ta, te. A tts.language a voice does not speak is refused at mint
+      with the field named, so an Odia call is written `stt.language=OR,
+      tts.language=HI` on purpose. A surface that says "23 languages" without
+      saying which half is which is one clip away from the production bug this
+      whole rule came from. Recorded here because a bare 23 invites exactly
+      that sentence.
+
+      **This is per voice, not per tier, and it stopped being a single number
+      on 2026-09-20** when the kokoro voices reached the enum: they speak `en`
+      and nothing else. Do not write it as one figure for "the synthesizer" —
+      the roster the speech tier publishes states it voice by voice and
+      `docs/.../reference/catalog.md` renders that table from it. The source
+      cited above was `pygato/session_config.py TTS_CLIP_LANGUAGES`, a copy
+      that was deleted the same day along with every other copy.
     forbid:
       # The wrong half asserted. "23 languages" alone is fine where the page
       # then says which ten are spoken — reference/catalog.md does exactly that

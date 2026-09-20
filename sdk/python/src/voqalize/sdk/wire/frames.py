@@ -185,12 +185,33 @@ class SpeechEndFrame(Frame):
 class Voice(StrEnum):
     """The voices a session can speak in.
 
-    The value is the voice id the speech tier knows. The engine is chosen by the
-    voice, not by a separate model field.
+    The value is the voice id the speech tier knows, and its prefix is what
+    picks the engine — there is no separate model field, here or on the wire.
+
+    Which languages a voice speaks is not written down here. A cloned persona
+    speaks the languages it has reference clips for; a voice whose accent comes
+    from its checkpoint speaks only what that checkpoint was trained on. The
+    speech tier publishes that per voice and the runtime reads it at boot, so a
+    pairing the voice cannot speak is refused at connect or by a rejected
+    :class:`ResponseFrame` — never from a stale copy of the roster kept here.
     """
 
+    #: Female, Indian English and the Indic languages.
     OMNIVOICE_GAURI = "omnivoice/gauri"
+    #: Male, Indian English and the Indic languages.
     OMNIVOICE_GAURAV = "omnivoice/gaurav"
+    #: American female.
+    KOKORO_AVA = "kokoro/ava"
+    #: American female.
+    KOKORO_SARAH = "kokoro/sarah"
+    #: American male.
+    KOKORO_NOAH = "kokoro/noah"
+    #: American male.
+    KOKORO_LEO = "kokoro/leo"
+    #: British female.
+    KOKORO_EMMA = "kokoro/emma"
+    #: British male.
+    KOKORO_OLIVER = "kokoro/oliver"
 
 
 class Language(StrEnum):
@@ -236,11 +257,12 @@ class TtsConfig:
     """How the session speaks. Applies to the next speech unit, never
     mid-utterance.
 
-    ``language`` names a recorded speaker, not a text tag. The speech tier has
-    reference clips for some of these languages and not others; which is which
-    is its business and it changes as clips are recorded, so a language it
-    cannot speak comes back as a rejected :class:`ResponseFrame` saying so
-    rather than being refused here from a stale copy of the roster.
+    ``language`` is the language the voice reads in, and not every voice reads
+    every language — see :class:`Voice`. Which voice speaks what is the speech
+    tier's business and it moves as voices are added, so a pairing it cannot
+    speak comes back as a rejected :class:`ResponseFrame` saying which
+    languages that voice does speak, rather than being refused here from a
+    stale copy of the roster.
     """
 
     voice: Voice | None = None

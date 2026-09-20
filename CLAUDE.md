@@ -121,9 +121,10 @@ for h in brain.dev.voqalize.com brain.voqalize.com; do curl -fsS https://$h/_hea
 
 ## Voice and language: the brain owns it, per session
 
-`tts.language` selects the **voice-cloning reference clip**; `stt.language`
-selects the **recognizer**. They are one setting with two legs, and moving only
-one is *silent*: the words stay right, only the speaker is wrong. No transcript,
+`tts.language` selects the **language the voice reads in** — for a cloned voice,
+which recorded speaker; `stt.language` selects the **recognizer**. They are one
+setting with two legs, and moving only one is *silent*: the words stay right,
+only the speaker is wrong. No transcript,
 log, metric or WER score can see it — a Hindi call read by an English reference
 clip scores identically and sounds like a foreigner reading Devanagari. That was a
 real production bug on `/demos/orderdesk`, and it is the reason every rule below
@@ -149,30 +150,32 @@ on purpose:**
 - **The pairing rule**, checked where the configuration is *written* — the SDK
   raises `ConfigError` before the request leaves the process
   (`sdk/python/src/voqalize/sdk/wire/frames.py`). Both legs keep their own
-  `language` field, because `omnivoice` has reference clips for ten of the 23
-  languages `vql-stt` serves, so understanding Odia while speaking with the Hindi
-  clip is a real, legitimate configuration. The guard is therefore not equality
+  `language` field, because a voice speaks fewer languages than `vql-stt` hears
+  — and how many fewer depends on the voice — so understanding Odia while
+  speaking with the Hindi clip is a real, legitimate configuration. The guard is therefore not equality
   but **statedness**: naming a language on one leg and not the other is
   **rejected**. Changing only the voice touches no language field and is
   unaffected. This is a property of the message, which is why it needs nothing
   from the far end to decide.
 - **No silent substitution**, checked where the configuration is *used*. A
-  `tts.language` the speech tier has no clip for is **rejected**, not quietly
+  `tts.language` the chosen voice does not speak is **rejected**, not quietly
   served with the Hindi clip. To run an Odia call you write `stt.language = OR,
   tts.language = HI` — which is what is actually going to happen. Which
-  languages have clips is *not* in the proto and must not go there: it is a
-  capability of the speech tier, it moves when a clip is recorded, and a wire
-  contract that froze today's roster would take a proto release, an SDK release
-  and a redeploy to add a language.
+  languages a voice speaks is *not* in the proto and must not go there: it is a
+  capability of the speech tier, it moves when a clip is recorded or a voice is
+  added, and a wire contract that froze today's pairings would take a proto
+  release, an SDK release and a redeploy to add a language.
 
-**Both of those live in PyGato, in one validator, and fail the session at
-connect** (`pygato/session_config.py`, with the clip roster in
-`pygato/speech/clip_languages.json`). The control plane never learns either rule.
-It *parses* the config — proto3 JSON, so an unknown enum fails for free with no
-second copy of the catalog to keep in step — and parsing is not validating; its
-own `platform/wire/__init__.py` says so at length. The roster is duplicated into
-PyGato deliberately, so the rejection happens at connect rather than at first
-speech.
+**The pairing is refused wherever a configuration is written down** — the
+control plane at `sessions.connect`, PyGato at `session_config.py`, and the
+speech tier itself as a backstop — and every tier says the same sentence,
+because none of them owns the roster. The speech tier publishes it at
+`/voices.json`; the others fetch it at boot, in the background, and a fetch that
+fails is tracked as a failure rather than as an empty catalog: a service that
+could not reach the roster lets the pairing through and lets speech answer,
+because an HTTP failure there does not predict a WebSocket one. The copies that
+used to carry the roster — `pygato/speech/clip_languages.json`, its twin in the
+control plane, and the display-name table beside it — are gone.
 
 **A page still never sets either.** That part of the old rule was right and stays.
 
@@ -181,10 +184,12 @@ languages are protobuf enums, so an unserved value is unrepresentable rather tha
 silently falling back to the English recognizer. The eleven VAD knobs left the
 wire entirely and keep their internal PyGato defaults; we widen as we learn.
 
-The catalog is small and closed: voices are `omnivoice/gauri` (female) and
-`omnivoice/gaurav` (male); `vql-stt` serves `en` plus the 22 Indic codes. An
-unknown model is **HTTP 403 at connect**, an unknown voice prefix is
-`voice not found` — both fail the session, not the sentence.
+The catalog is small and closed, and the `Voice` enum is the one copy of the
+voice half we keep on purpose — it is what gives a brain author autocompletion.
+`design/voice_catalog.py check` holds it to what the speech tier serves, and
+renders the docs table from the same fetch. `vql-stt` serves `en` plus the 22
+Indic codes. An unknown model is **HTTP 403 at connect**, an unknown voice
+prefix is `voice not found` — both fail the session, not the sentence.
 
 `frames.proto` documents every declaration in place rather than in banner
 comments, and `buf lint`'s `COMMENTS` category fails the build if one is
@@ -268,6 +273,7 @@ uv run pyright                       # whole repo, and it is clean — keep it t
 cd sdk/python && uv run pytest -q
 cd demos && uv run pytest tests/     # every demo's brain over the real wire, ~33 s
 uv run --with pyyaml python3 design/check_facts.py   # numbers and words, below
+cd sdk/python && uv run python ../../design/voice_catalog.py check   # the voice roster, below
 ```
 
 These are exactly what `.github/workflows/ci.yml` runs, in the same order, on the
@@ -326,6 +332,14 @@ checked the other way round: a fact may declare the sentences that are wrong
 *because* of it, which is how the docs site stopped saying the React client was
 "not yet on npm" three weeks after it published. `design/lexicon.yaml` is the
 same file for words, and holds `voice.md`'s table to itself row by row.
+
+**The voice roster is the same idea with the source outside this tree.**
+`design/voice_catalog.py` fetches what the speech tier is actually serving — per
+A-record, because `speech.*` is round-robin across nodes and one fetch proves
+one node — and holds the `Voice` enum's `voice_id` options to it, then renders
+`reference/catalog.md`'s table from the same document. Run `render` after adding
+a voice; `check` is what fails when somebody didn't. It needs the generated
+protobuf module, so it runs from `sdk/python`.
 
 Facts whose source is a registry or one of the three sibling repos cannot be
 derived from this tree; they carry the command that re-earns the stamp, and

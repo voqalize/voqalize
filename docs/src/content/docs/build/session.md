@@ -288,8 +288,8 @@ None of this is needed for a first call, and each has a page:
   browser-side change.
 - [**Idle detection**](/reference/wire/) — `idle.timeout_ms` hands the brain
   the floor after silence, and `0` turns it off.
-- [**Voice and language**](/reference/catalog/) — two personas, English and
-  22 Indic languages.
+- [**Voice and language**](/reference/catalog/) — the voices, the languages
+  each one speaks, and the rule that keeps a call's two legs together.
 - [**The MCP server**](/reference/mcp/) — agents, keys and sessions from
   inside your editor.
 

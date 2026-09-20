@@ -10,9 +10,10 @@ timeout while the call runs. This page is the catalog of allowed values, and the
 one rule that makes them safe to change.
 
 :::caution[A language has two legs, and you set both]
-`stt.language` picks the **recognizer**. `tts.language` picks the **reference
-clip** — which recorded speaker the voice is cloned from. They are one setting
-with two halves, so the SDK will not let you state one without the other:
+`stt.language` picks the **recognizer**. `tts.language` picks the language the
+voice reads in — which, for a cloned voice, is a different recorded speaker.
+They are one setting with two halves, so the SDK will not let you state one
+without the other:
 
 ```python
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -73,32 +74,47 @@ tuned defaults; we widen the surface as we learn, not in advance.
 
 ### Voice (`tts.voice`)
 
-The engine is **`omnivoice`**, a voice-cloning model with two personas, and the
-whole catalog is these two:
+<!-- voices:begin -->
+| `Voice` | Voice ID | Sounds like | Speaks |
+|---|---|---|---|
+| `Voice.KOKORO_AVA` | `kokoro/ava` | Ava (American female) | `en` |
+| `Voice.KOKORO_EMMA` | `kokoro/emma` | Emma (British female) | `en` |
+| `Voice.KOKORO_LEO` | `kokoro/leo` | Leo (American male) | `en` |
+| `Voice.KOKORO_NOAH` | `kokoro/noah` | Noah (American male) | `en` |
+| `Voice.KOKORO_OLIVER` | `kokoro/oliver` | Oliver (British male) | `en` |
+| `Voice.KOKORO_SARAH` | `kokoro/sarah` | Sarah (American female) | `en` |
+| `Voice.OMNIVOICE_GAURAV` | `omnivoice/gaurav` | Gaurav (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
+| `Voice.OMNIVOICE_GAURI` | `omnivoice/gauri` | Gauri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
+<!-- voices:end -->
 
-| `Voice` | Voice ID | Persona |
-|---|---|---|
-| `Voice.OMNIVOICE_GAURI` | `omnivoice/gauri` | Female |
-| `Voice.OMNIVOICE_GAURAV` | `omnivoice/gaurav` | Male |
+**That table is not written by hand.** Voqalize's speech tier publishes the
+voices its running process has loaded, and this page is generated from that
+roster — so a voice that exists here exists on the call, and one that does not
+cannot be quietly advertised for weeks.
 
-There is no separate model field: the engine is chosen entirely by the voice-id
-prefix, and `omnivoice` is the only prefix.
+There is no separate model field. The engine is chosen entirely by the prefix on
+the voice id, and that prefix is the only engine selector there is — on the
+wire, in the SDK or in the agent record.
 
 ### Language (`tts.language`)
 
-`tts.language` is **not a text tag** — it selects which recorded reference clip
-the voice is cloned from. `omnivoice/gauri` speaking `hi` and `omnivoice/gauri`
-speaking `en` are two different recorded speakers.
+`tts.language` is **not a text tag**, and what it means depends on the voice —
+which is why the table above states it per voice rather than once for all of
+them:
 
-Both personas have clips for **ten** of the 23 languages:
+- A **cloned** voice is re-recorded for each language it speaks.
+  `omnivoice/gauri` speaking `hi` and `omnivoice/gauri` speaking `en` are two
+  different recorded speakers.
+- A voice whose accent comes from its **checkpoint** speaks the language that
+  checkpoint was trained on, and no other. Asking one for a language it does not
+  speak is not a mild request: there is no accent for it to reach for.
 
-`hi`, `en`, `bn`, `gu`, `kn`, `ml`, `mr`, `pa`, `ta`, `te`
+**A pairing the voice cannot speak is rejected**, not quietly served in the
+wrong language. The rejection names the languages that voice does speak, so the
+fix is in the message. The roster is today's, not a promise frozen into the wire
+contract: it grows as voices are added and clips are recorded.
 
-**A `tts.language` outside those ten is rejected** by Voqalize, not quietly
-served by the Hindi clip. The list is the roster today, not a promise frozen
-into the wire contract: it grows as clips are recorded, and the session tells
-you when you name one it cannot speak. So an Odia call is a configuration you
-write down:
+So an Odia call is a configuration you write down:
 
 ```python
 Config(
@@ -131,10 +147,11 @@ Two rules kill it, and they are checked in two different places:
    Changing only the voice touches no language field and is unaffected. `Config`
    raises `ConfigError` on this one at the call site, before anything reaches
    the socket: it is a property of the request, so nothing needs to be asked.
-2. **No silent substitution.** A speaking language with no clip is refused, so
-   the Hindi fallback can only be something you asked for. This one comes back
-   from Voqalize as a rejected response naming the language — which clips
-   exist is the speech tier's answer, and it changes as clips are recorded.
+2. **No silent substitution.** A language the chosen voice does not speak is
+   refused, so the Hindi fallback can only be something you asked for. Voqalize
+   answers this one, because which voice speaks what is the speech tier's own
+   record and it moves as voices are added — at connect if the configuration
+   arrived there, and as a rejected response if your brain sent it mid-call.
 
 ## Where it is set
 
@@ -188,9 +205,8 @@ await session.configure(
 )
 ```
 
-Four settings: the recognizer's language, the speaking voice, the reference clip
-that voice is cloned from, and how long silence runs before the brain gets the
-floor back.
+What that sets: the recognizer's language, the speaking voice, the language that
+voice reads in, and how long silence runs before the brain gets the floor back.
 
 **`idle.timeout_ms` defaults to `0`, which is off.** A nudge nobody asked for
 talks over a user who was thinking, so `on_user_idle` never fires until you
@@ -198,20 +214,20 @@ set a timeout. The ceiling is `300000` — past a few minutes the user has gone,
 and the lever that helps is ending the session rather than nudging it. Setting
 it back to `0` mid-call switches idle detection off again.
 
-None of the four names an engine. The comment above the `Voice` enum in
+None of them names an engine. The comment above the `Voice` enum in
 [`frames.proto`](https://github.com/voqalize/voqalize/blob/main/proto/voqalize/frames/frames.proto)
 is the whole story:
 
-> The engine is chosen by the voice, not by a model field; there has never been a
-> second engine to name.
+> The engine is chosen by the voice — by the prefix on `voice_id` — and never by
+> a model field; there is no engine knob on the wire.
 
 ### We run the speech tier ourselves
 
 The recognizer covers English plus 22 Indic languages, and it runs on our own
-GPUs. Text-to-speech is one voice-cloning engine with two personas, each with
-recorded clips for a subset of that roster. Speech-to-text is a composite that
-reads the language and routes to the engine underneath, which is why a brain
-never names one.
+GPUs. Text-to-speech runs there too: a voice-cloning model whose personas are
+recorded per language, and English checkpoint voices that speak in the accent
+they were trained in. Speech-to-text is a composite that reads the language and
+routes to the engine underneath, which is why a brain never names one.
 
 We run it because of the roster. Assamese, Bodo, Dogri, Konkani, Maithili,
 Manipuri, Santali and Sindhi are the languages a hosted catalog tends to be short
@@ -225,14 +241,16 @@ environment. Two sessions cannot differ by an engine, so a change you hear
 between one call and the next is a change we shipped, and we can name it.
 
 **`Voice` and `Language` are protobuf enumerations**, so an unsupported value is
-a value you cannot construct. The failure that closes is an unserved language
+a value you cannot construct. The roster inside them is checked against what the
+speech tier serves, so a voice reaches the enum when it reaches the GPU and not
+on some other schedule. The failure that closes is an unserved language
 code falling through to the English recognizer, in a call whose transcript reads
 correctly and whose logs are clean — see
 [why both halves matter](/reference/catalog/#why-both-halves-matter).
 
-**There are no VAD or end-of-turn knobs either.** Recognizer routing, the clip
+**There are no VAD or end-of-turn knobs either.** Recognizer routing, the voice
 roster and the moment a turn commits are tuned together against the same calls.
-A knob on one of them is a knob on all three.
+A knob on one of them is a knob on the rest.
 
 **No speech vendor key sits in your deployment**, and no speech vendor's outage
 is a call you have to explain. When a voice sounds wrong, there is one place to
@@ -246,15 +264,16 @@ you have already licensed, a celebrity read, a language outside the roster — w
 are the wrong voice tier for that call today, and a hosted speech vendor with
 that voice is the right one.
 
-The catalog is two personas. A product that needs a dozen distinguishable
-speakers is ten short.
+The catalog is the table at the top of this page, and it is short. A product
+whose premise is a wide cast of distinguishable speakers will run out of it.
 
 ### The shape a second engine would arrive in
 
-New members of `Voice` and `Language`. Your brain changes by one identifier, the
-enum tells your editor what exists, and a value your SDK version has never heard
-of stays unconstructable. The wire shape is the commitment we are making here;
-the roster inside it is what moves.
+New members of `Voice` and `Language` — which is exactly how the second one
+arrived. Your brain changes by one identifier, the enum tells your editor what
+exists, and a value your SDK version has never heard of stays unconstructable.
+The wire shape is the commitment we are making here; the roster inside it is
+what moves.
 
 ### What you do choose
 

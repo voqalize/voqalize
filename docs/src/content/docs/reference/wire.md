@@ -277,10 +277,10 @@ to add than to take back.
 ### Both legs carry a language, and both must be set
 
 `Language` appears on `TtsConfig` and on `SttConfig`, and that is not
-duplication. The recognizer serves twenty-three languages; the synthesizer has a
-reference clip recorded in ten of them. So the legs genuinely differ — a call
-understood in Odia is spoken with the Hindi clip — and one field could not say
-so.
+duplication. The recognizer serves English and the Indic languages; a voice
+speaks the subset it was recorded or trained for, which is smaller and differs
+from voice to voice. So the legs genuinely differ — a call understood in Odia is
+spoken with the Hindi clip — and one field could not say so.
 
 Two rules follow, and they are enforced in different places on purpose:
 
@@ -289,12 +289,13 @@ Two rules follow, and they are enforced in different places on purpose:
    the words stay right and only the voice is wrong, which no transcript, no WER
    number and no automated check will ever show you. This is a property of the
    message itself, so the SDK refuses to build it — before the request leaves.
-2. **A `tts.language` Voqalize has no clip for is rejected**, rather than served
-   by the Hindi clip. That one is not in the message; it is a capability of the
-   speech tier, it changes as clips are recorded, and it is answered by a
-   `REJECTED` `Response` at the moment you ask. A wire contract that froze
-   today's roster would be wrong the day the next clip lands, and every SDK
-   carrying a copy of it would be wrong with it.
+2. **A `tts.language` the chosen voice does not speak is rejected**, rather
+   than served by the Hindi clip. That one is not in the message; it is a
+   capability of the speech tier, it changes as voices are added and clips are
+   recorded, and it comes back as a `REJECTED` `Response` naming the languages
+   that voice does speak. A wire contract that froze today's pairings would be
+   wrong the day the next clip lands, and every SDK carrying a copy of it would
+   be wrong with it.
 
 Write what you are actually getting:
 

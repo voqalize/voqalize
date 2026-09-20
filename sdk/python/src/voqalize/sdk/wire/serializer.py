@@ -72,16 +72,11 @@ _RTVI_TO_PB: dict[RTVIType, int] = {
 }
 _RTVI_FROM_PB: dict[int, RTVIType] = {v: k for k, v in _RTVI_TO_PB.items()}
 
-_VOICE_TO_PB: dict[Voice, int] = {
-    Voice.OMNIVOICE_GAURI: pb.VOICE_OMNIVOICE_GAURI,
-    Voice.OMNIVOICE_GAURAV: pb.VOICE_OMNIVOICE_GAURAV,
-}
-_PB_TO_VOICE: dict[int, Voice] = {v: k for k, v in _VOICE_TO_PB.items()}
-
-# Read out of the descriptor rather than written down again. `Language`'s values
-# *are* the `iso_code` option — a hand-kept table of twenty-three rows is the
-# drift the option exists to prevent, and this raises at import if the two ever
-# disagree rather than mistranslating one language at runtime.
+# Both catalogs are read out of the descriptor rather than written down again.
+# The StrEnums' values *are* the `iso_code` and `voice_id` options, and a table
+# rewritten by hand beside them is exactly the drift those options exist to
+# prevent. Built this way, a name in the proto that the SDK does not have raises
+# at import instead of mistranslating one voice or one language at runtime.
 _ISO_CODE = pb.DESCRIPTOR.extensions_by_name["iso_code"]
 _PB_TO_LANG: dict[int, Language] = {
     value.number: Language(value.GetOptions().Extensions[_ISO_CODE])
@@ -89,6 +84,14 @@ _PB_TO_LANG: dict[int, Language] = {
     if value.number != 0
 }
 _LANG_TO_PB: dict[Language, int] = {v: k for k, v in _PB_TO_LANG.items()}
+
+_VOICE_ID = pb.DESCRIPTOR.extensions_by_name["voice_id"]
+_PB_TO_VOICE: dict[int, Voice] = {
+    value.number: Voice(value.GetOptions().Extensions[_VOICE_ID])
+    for value in pb.Voice.DESCRIPTOR.values
+    if value.number != 0
+}
+_VOICE_TO_PB: dict[Voice, int] = {v: k for k, v in _PB_TO_VOICE.items()}
 
 
 class UnsupportedFrameError(Exception):

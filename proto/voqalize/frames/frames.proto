@@ -250,13 +250,16 @@ message Config {
 
 // The speaking leg. Applies to the next speech unit, never mid-utterance.
 message TtsConfig {
-  // Which recorded persona reads the text.
+  // Which voice reads the text.
   optional Voice voice = 1;
 
-  // Which reference clip that persona is cloned from — a recorded speaker, not
-  // a text tag. The speech tier has clips for some languages and not others,
-  // and which is which is its business, not the wire's: naming one it cannot
-  // speak comes back as a rejected Response saying so.
+  // Which language it reads in. Not every voice speaks every language: a
+  // cloned persona speaks the ones it has reference clips for, and a voice
+  // whose accent is baked into its checkpoint speaks only the language that
+  // checkpoint was trained on. Which is which is the speech tier's business
+  // rather than the wire's — it publishes the languages per voice, every
+  // service reads that at boot, and a pairing the voice cannot speak is
+  // refused where it is set, with a Response naming what it can speak.
   optional Language language = 2;
 }
 
@@ -287,19 +290,61 @@ extend google.protobuf.EnumValueOptions {
   // developer writes and reads, and every end of the wire has to spell it the
   // same way.
   optional string iso_code = 50001;
+
+  // The id the speech tier routes on for this voice. The prefix before the
+  // slash picks the engine — that is the only engine selector there is, on
+  // the wire or anywhere else — and the part after it is the voice's own name.
+  //
+  // Not derivable from the enum name either, for the same reason `iso_code`
+  // is not: the name is the voice, this is only its spelling.
+  optional string voice_id = 50002;
 }
 
-// The two omnivoice personas. The engine is chosen by the voice, not by a model
-// field; there has never been a second engine to name.
+// The voices the speech tier serves, across every engine it loads. The engine
+// is chosen by the voice — by the prefix on `voice_id` — and never by a model
+// field; there is no engine knob on the wire.
+//
+// Enumerated rather than a free string on purpose. It is a copy of a roster
+// that lives somewhere else, and we keep this one copy because it is what
+// gives a developer autocompletion and turns a misspelled voice into a name
+// their editor underlines rather than an error on a live call. Every *other*
+// copy is gone: the speech tier publishes the roster at `/voices.json`, each
+// service fetches it at boot, and CI compares the `voice_id` options below
+// against it, so a voice that exists there and not here is caught before it
+// ships.
+//
+// Which languages a voice speaks is not written down here, and neither is
+// which engine is loaded in a given environment. Both are per-deployment
+// facts that move when the speech tier does; a pairing the voice cannot
+// speak is refused where it is set, and in the worst case by the speech tier
+// itself, with a Response that says which languages it does speak.
 enum Voice {
   // Unset. On the wire this means leave the voice alone.
   VOICE_UNSPECIFIED = 0;
 
-  // Female.
-  VOICE_OMNIVOICE_GAURI = 1;
+  // Female, Indian English and the Indic languages.
+  VOICE_OMNIVOICE_GAURI = 1 [(voice_id) = "omnivoice/gauri"];
 
-  // Male.
-  VOICE_OMNIVOICE_GAURAV = 2;
+  // Male, Indian English and the Indic languages.
+  VOICE_OMNIVOICE_GAURAV = 2 [(voice_id) = "omnivoice/gaurav"];
+
+  // American female.
+  VOICE_KOKORO_AVA = 3 [(voice_id) = "kokoro/ava"];
+
+  // American female.
+  VOICE_KOKORO_SARAH = 4 [(voice_id) = "kokoro/sarah"];
+
+  // American male.
+  VOICE_KOKORO_NOAH = 5 [(voice_id) = "kokoro/noah"];
+
+  // American male.
+  VOICE_KOKORO_LEO = 6 [(voice_id) = "kokoro/leo"];
+
+  // British female.
+  VOICE_KOKORO_EMMA = 7 [(voice_id) = "kokoro/emma"];
+
+  // British male.
+  VOICE_KOKORO_OLIVER = 8 [(voice_id) = "kokoro/oliver"];
 }
 
 // English plus the 22 Indic languages the speech tier serves.
