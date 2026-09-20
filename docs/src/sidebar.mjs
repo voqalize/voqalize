@@ -83,8 +83,17 @@
  * written from source and verified against it on 2026-08-26.
  *
  * Still unwritten and not yet listed: the avatar's browser surface, the faces
- * and authoring a face (held on `@voqalize/avatar` 0.3.0 — writing three pages
- * against the component about to be replaced is work done twice).
+ * and authoring a face. They were held because the surface they describe was
+ * about to be replaced, and three pages written against it would have been work
+ * done twice. That replacement shipped on 2026-09-19 and every consumer moved
+ * with it, so the hold has expired: what is left is effort, not a wait, and the
+ * library's own `docs/` is what they get written from.
+ *
+ * No version appears in that sentence any more, and none should. The numbers
+ * live once in `design/facts.yaml` as `avatar.npm.version` and
+ * `avatar.pypi.version` — two facts because the two ends publish independently,
+ * so a sentence naming *the* avatar version is wrong about one of them before
+ * it is stale about both.
  *
  * ── Design is one page, and that is deliberate ──────────────────────────────
  *

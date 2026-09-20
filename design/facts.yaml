@@ -344,6 +344,11 @@ facts:
       compatible rather than a shared number — so a page that prints one version
       for "the avatar library" is wrong about one of them. A different repo, so
       no derive rule reaches it.
+    forbid_literal:
+      # A version named in a sentence, not a pin: `npm install pkg@0.4.1` is
+      # still legal, `@voqalize/avatar 0.4.1` is the claim this fact denies.
+      - '@voqalize/avatar`? \d+\.\d+\.\d+'
+      - 'voqalize-avatar`? \d+\.\d+\.\d+'
 
   avatar.pypi.version:
     value: '0.4.0'
