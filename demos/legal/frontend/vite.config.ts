@@ -14,6 +14,16 @@ export default defineConfig({
   // assets of its own points this at a directory beside its index.html.
   publicDir: "../../public",
   plugins: [react()],
+  optimizeDeps: {
+    // Tanya locates her `.glb` with `new URL('./assets/tanya.glb',
+    // import.meta.url)`. Vite's dev-time pre-bundler copies the module into
+    // `node_modules/.vite/deps/`, and that URL then resolves against the copy
+    // — the model 404s into the SPA fallback, the canvas mounts and paints
+    // nothing, and no error is thrown. Excluding the package leaves it served
+    // from its real path, where the URL is right. The avatar demo carries the
+    // same line for the same reason; the built bundle is unaffected either way.
+    exclude: ["@voqalize/avatar"],
+  },
   server: {
     // Vite rejects unknown Host headers; allow the local nginx front.
     allowedHosts: [".local.voqalize.com"],

@@ -102,7 +102,11 @@ DEMOS: dict[str, Expected] = {
     "aura": Expected(voice="omnivoice/gauri", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
-    "legal": Expected(voice="omnivoice/gauri", language="en"),
+    # Docket speaks with a kokoro checkpoint and wears the face recorded beside
+    # it — Tanya, in the dock: a Delaware-law MSA read in US commercial-contract
+    # register, where a cloned Indian-English persona was the accent of nobody in
+    # the scene. English only, which is all this voice speaks.
+    "legal": Expected(voice="kokoro/ava", language="en"),
     # Auric opens in the language of the enquiry form's state; nothing in the
     # payload ⇒ the Hindi default.
     "lead_qual": Expected(voice="omnivoice/gauri", language="hi"),
@@ -213,8 +217,10 @@ async def test_the_check_fails_when_a_half_is_wrong() -> None:
     expectation is rejected, on each half independently."""
     async with demo("legal", ScriptedGemini()) as rig:
         await rig.driver.start_session()
-        # The session really is en/gauri — so each of these must raise.
+        # The session really is en/`kokoro/ava` — so each of these must raise, and
+        # each is wrong in exactly one half, or a passing assertion would not say
+        # which half the probe can see.
         with pytest.raises(ConformanceError, match="TTS language"):
-            check_voice_pair(rig, voice="omnivoice/gauri", language="hi")
+            check_voice_pair(rig, voice="kokoro/ava", language="hi")
         with pytest.raises(ConformanceError, match="TTS voice"):
-            check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
+            check_voice_pair(rig, voice="omnivoice/gauri", language="en")

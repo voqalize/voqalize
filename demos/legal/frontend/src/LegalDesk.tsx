@@ -1,14 +1,16 @@
 /**
  * Docket — top-level layout and session wiring for the ambient contract-review
- * demo. A slim top bar carries the wordmark, matter breadcrumb, and the one
- * prominent presence control (not a bottom chat-widget dock — this is meant
- * to read as part of the product's own chrome, not a bolted-on assistant).
- * Left rail is matter detail + clause outline only. Main = DocumentViewer, ringed
- * by the shared `AmbientPresence` glow — the catalog-wide voice treatment, in
- * Docket's oxblood. TaskTray docked, quiet. When the assistant points at a
- * clause, the ring's beam layer travels from the screen edge to it. Once
- * connected the mic stays open — no push-to-talk — the presence control doubles
- * as a mute toggle, with a small secondary "end" control beside it.
+ * demo. A slim top bar carries the wordmark and the matter breadcrumb, and
+ * nothing else: the assistant and every control for her are in the bottom-left
+ * corner, at the foot of the left rail (`CounselDock`). That corner is where the
+ * orientation column already is — matter, sections, data room — and the right of
+ * the screen is spoken for by the work she produces: the task tray at the top of
+ * it, the obligations ledger at the bottom. Main = DocumentViewer, ringed by the
+ * shared `AmbientPresence` glow — the catalog-wide voice treatment, in Docket's
+ * oxblood. When the assistant points at a clause, the ring's beam layer travels
+ * from the screen edge to it. Once connected the mic stays open — no
+ * push-to-talk — the presence control doubles as a mute toggle, with a small
+ * secondary "end" control beside it.
  *
  * **This is exactly the surface an external developer embeds, and it is almost
  * entirely pipecat's.** Voice-ui-kit's `PipecatAppBase` does pipecat's whole
@@ -28,16 +30,14 @@
  * `ui-event`. Mounted once inside the `LegalProvider`.
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RTVIEvent, type UICommandData } from '@pipecat-ai/client-js';
 import {
   usePipecatClient,
-  usePipecatClientMicControl,
   usePipecatClientTransportState,
   useRTVIClientEvent,
 } from '@pipecat-ai/client-react';
 import { PipecatAppBase, usePipecatConnectionState } from '@pipecat-ai/voice-ui-kit';
-import { Mic, MicOff, PhoneOff, Loader2 } from 'lucide-react';
 import {
   AmbientPresence,
   DemoGate,
@@ -46,12 +46,14 @@ import {
 } from '@voqalize/demo-kit';
 import { useLegal } from './store';
 import { CLAUSES, DATA_ROOM, MATTER } from './content';
+import { CounselDock, type DockStatus } from './CounselDock';
 import { DocumentViewer } from './DocumentViewer';
 import { TaskTray } from './TaskTray';
 import { ObligationsPanel } from './ObligationsPanel';
 import { connectRequest, withRealHeaders } from './config';
 
-type Status = 'idle' | 'connecting' | 'live' | 'error';
+/** The dock renders the phase, so the phase is named where it is rendered. */
+type Status = DockStatus;
 
 // Docket's reading of the shared presence ring: the oxblood of a law-office desk
 // set, shifting to gold leaf while the assistant reasons. The beam that travels
@@ -63,13 +65,6 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
   speaking: '#9A3324',
   offline: '#E4E1DB',
   beam: '#9A3324',
-};
-
-const ACTIVITY_LABEL: Record<AmbientPresenceActivity, string> = {
-  idle: 'Live',
-  listening: 'Listening',
-  thinking: 'Thinking',
-  speaking: 'Speaking',
 };
 
 function ClauseNav() {
@@ -94,48 +89,13 @@ function ClauseNav() {
   );
 }
 
-// ── Top-bar presence control ──────────────────────────────────────────────────
-// The one prominent affordance for the voice layer. Idle: click to begin.
-// Live: doubles as a mute toggle; a small secondary control ends the session.
-function BeginControl({ status, error, onBegin }: { status: Status; error: string; onBegin: () => void }) {
-  return (
-    <div className="desk-presence">
-      {status === 'connecting' ? (
-        <button className="desk-presence-btn is-connecting" disabled title="Connecting…">
-          <Loader2 size={17} className="desk-spin" />
-        </button>
-      ) : (
-        <button className="desk-presence-btn" onClick={onBegin} title="Begin Review">
-          <Mic size={17} />
-        </button>
-      )}
-      <span className="desk-presence-label">
-        {status === 'connecting' ? 'Connecting…' : status === 'error' ? error || 'Connection issue' : 'Begin Review'}
-      </span>
-    </div>
-  );
-}
-
-function LiveControls({ activity, onEnd }: { activity: AmbientPresenceActivity; onEnd: () => void }) {
-  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
-  return (
-    <div className="desk-presence">
-      <span className="desk-presence-label">{isMicEnabled ? ACTIVITY_LABEL[activity] : 'Muted'}</span>
-      <button
-        className={`desk-presence-btn is-live glow-${activity} ${isMicEnabled ? '' : 'is-muted'}`}
-        onClick={() => enableMic(!isMicEnabled)}
-        title={isMicEnabled ? 'Mute' : 'Unmute'}
-      >
-        {isMicEnabled ? <Mic size={17} /> : <MicOff size={17} />}
-      </button>
-      <button className="desk-presence-end" onClick={onEnd} title="End Review">
-        <PhoneOff size={14} />
-      </button>
-    </div>
-  );
-}
-
-function TopBar({ status, children }: { status: Status; children: ReactNode }) {
+// ── The top bar ───────────────────────────────────────────────────────────────
+// Where the matter is named, and nothing more. The voice layer used to end up
+// here on the argument that it should read as the product's own chrome rather
+// than a bolted-on chat widget — which was an argument about the *shape* of a
+// bottom-right bubble, not about the corner. It is in `CounselDock` now, beside
+// the face it controls.
+function TopBar() {
   return (
     <header className="desk-topbar">
       <div className="desk-topbar-left">
@@ -147,7 +107,6 @@ function TopBar({ status, children }: { status: Status; children: ReactNode }) {
           {MATTER.client} <span className="desk-topbar-dim">vs.</span> {MATTER.counterparty}
         </span>
       </div>
-      <div className="desk-topbar-right">{children}</div>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap');
 
@@ -191,82 +150,15 @@ function TopBar({ status, children }: { status: Status; children: ReactNode }) {
           text-overflow: ellipsis;
         }
         .desk-topbar-dim { color: #8F8B85; }
-        .desk-topbar-right { flex: none; }
 
-        .desk-presence {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .desk-presence-label {
-          font-size: 12px;
-          font-weight: 600;
-          color: #706D66;
-          letter-spacing: 0.01em;
-          min-width: 62px;
-          text-align: right;
-        }
-        .desk-presence-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          border: 1.5px solid #9A3324;
-          background: #9A3324;
-          color: #FAFAF9;
-          cursor: pointer;
-          transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-          flex: none;
-        }
-        .desk-presence-btn:hover { transform: scale(1.05); }
-        .desk-presence-btn:active { transform: scale(0.97); }
-        .desk-presence-btn.is-connecting {
-          background: transparent;
-          color: #9A3324;
-          cursor: default;
-        }
-        .desk-presence-btn.is-connecting:hover { transform: none; }
-        .desk-presence-btn.is-live {
-          box-shadow: 0 0 0 4px rgba(154, 51, 36, 0.14);
-        }
-        .desk-presence-btn.is-live.glow-thinking { box-shadow: 0 0 0 4px rgba(154, 51, 36, 0.22); }
-        .desk-presence-btn.is-live.glow-speaking { box-shadow: 0 0 0 5px rgba(154, 51, 36, 0.3); }
-        .desk-presence-btn.is-muted {
-          background: #FAFAF9;
-          border-color: #CCCAC6;
-          color: #706D66;
-          box-shadow: none;
-        }
-        .desk-presence-end {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 26px;
-          height: 26px;
-          border-radius: 50%;
-          border: none;
-          background: transparent;
-          color: #AFA9A0;
-          cursor: pointer;
-          transition: color 0.15s ease, background 0.15s ease;
-          flex: none;
-        }
-        .desk-presence-end:hover { color: #9A3324; background: #F2F1F0; }
-        .desk-spin { animation: legal-spin 0.9s linear infinite; }
-        @keyframes legal-spin { to { transform: rotate(360deg); } }
-
-        /* On a phone the bar carries the wordmark and the one voice affordance.
-           The matter caption is already on the document header, and the state
-           label is redundant with the ring — both step aside for the mic. */
+        /* On a phone the bar carries the wordmark alone — the matter caption is
+           already on the document header. */
         @media (max-width: 720px) {
           .desk-topbar {
             padding: 0 14px;
           }
           .desk-topbar-sep,
-          .desk-topbar-matter,
-          .desk-presence-label {
+          .desk-topbar-matter {
             display: none;
           }
         }
@@ -306,7 +198,12 @@ function LeftRail() {
           z-index: 50;
           background: #FAFAF9;
           border-right: 1px solid #E4E1DB;
-          padding: 20px 16px;
+          /* The counsel dock is pinned to this column's floor and is a sibling,
+             not a child — it has to outrank the ambient ring, and a child of a
+             z-50 rail cannot. So the rail's own scrolling content stops above
+             it: the dock's picture, its control row, the rule between them, and
+             a gap. Keep this in step with CounselDock.tsx. */
+          padding: 20px 16px calc(132px + 50px + 1px + 20px);
           display: flex;
           flex-direction: column;
           gap: 16px;
@@ -396,6 +293,7 @@ function LeftRail() {
             bottom: auto;
             width: auto;
             height: 42px;
+            padding-bottom: 0;
             flex-direction: row;
             align-items: center;
             gap: 0;
@@ -564,14 +462,15 @@ function Desk({
         palette={PRESENCE}
         beam={pointer ? { id: pointer.nonce, targetId: `clause-${pointer.clauseId}` } : null}
       />
-      <TopBar status={status}>
-        {isLive ? (
-          <LiveControls activity={activity} onEnd={() => void onEnd?.()} />
-        ) : (
-          <BeginControl status={status} error={error ?? ''} onBegin={() => void onBegin?.()} />
-        )}
-      </TopBar>
+      <TopBar />
       <LeftRail />
+      <CounselDock
+        status={status}
+        activity={activity}
+        error={error ?? ''}
+        onBegin={() => void onBegin?.()}
+        onEnd={() => void onEnd?.()}
+      />
       <TaskTray />
       <ObligationsPanel />
       <main className="desk-main">

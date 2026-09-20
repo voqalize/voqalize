@@ -25,7 +25,7 @@ discover()
 
 from voqalize_demos._loaded.legal.brain import _GREETING  # noqa: E402
 
-VOICE = "omnivoice/gauri"
+VOICE = "kokoro/ava"
 LANGUAGE = "en"
 
 # c2 is Term & Termination in the shipped MSA. ``ClauseId`` is a Literal over the
@@ -69,7 +69,7 @@ def _llm() -> ScriptedGemini:
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
     """The copilot opens with a fixed quiet line — no model call on the start path —
-    and its declared female English voice lands on **both** legs before that audio."""
+    and its declared English voice lands on **both** legs before that audio."""
     async with demo("legal", _llm()) as rig:
         greeting = await rig.driver.start_session()
         check_greeting(rig, greeting)
