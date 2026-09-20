@@ -99,9 +99,10 @@ local dev talks to the shared dev GPU.
       - [x] unset sends nothing on either path.
 - [x] `AGENTS.md` (the `CLAUDE.md` beside it is a **symlink** — edit the AGENTS.md;
       `perl -pi` silently replaces symlinks with regular files).
-- [ ] Gates green. (ruff, pyright and the control-plane suite are green; the
-      pygato suite is mid-run — the lockfile change selects every gate, so it is
-      the ~26-minute `--gates=all` shape rather than the 56-second core.)
+- [x] Gates green. `2005 passed, 73 skipped, 8 xfailed` in 28:09, every gate RAN —
+      `journal · realtime · recording · turn · wire`. The lockfile change selects all of
+      them, so this is the `--gates=all` shape rather than the 56-second core, and the
+      run itself printed why: "a dependency or harness file changed".
 
 ## `platform/backend/controlplane/` — last code change
 
@@ -121,12 +122,31 @@ local dev talks to the shared dev GPU.
 
 The standing rule: two wire-v3 defects passed 659 tests and only a live call caught them.
 
+Platform `main` is at `e66db354` as of 2026-09-21 — the PyGato and control-plane change
+rode out with two commits that were already stacked on `origin/main` and were not mine
+(`6678f159`, `3af82c38`), as a fast-forward from `dae73ab9`. That push is what deploys the
+control plane to dev, which is what makes the items below possible at all.
+
 - [ ] A brain sets `patience` at connect; confirm the turn-end floor moved.
 - [ ] The same brain changes it mid-call; confirm the change lands on the next turn and
       the call survives.
 - [ ] An out-of-range patience comes back as a rejection the developer can read, and the
       call continues.
 - [ ] A brain that sets nothing behaves exactly as before.
+
+## The docs, in the interim
+
+The catalog page was asserting there are no end-of-turn knobs on the wire while 0.5.0 on
+PyPI already autocompleted `patience` — live and false, because `ci-web.yml` stages from
+`main` and the apex picks it up. Holding the full copy until the deploy was not the neutral
+option it looked like; it was choosing the wrong state that was already shipping. `5c7d449`
+takes the absolute claims out and leaves the policy sentences standing, which is true before
+the deploy and after it. The paragraphs that describe the knob follow with the deploy.
+
+`reference/brain.md` deliberately stays untouched until then. Its `stt` enumeration and its
+timing sentence are both descriptions of a documented surface rather than claims about the
+wire, so they say nothing false to a reader the page has not yet told about `patience` —
+adding the field early would be the same interim falsehood pointing the other way.
 
 ## After it is proven
 
