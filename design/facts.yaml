@@ -139,21 +139,21 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.4.0'
+    value: '0.5.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-09-20
+    verified: 2026-09-21
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.4.0 on 2026-09-20, for the kokoro voices: Voice gains the
-      KOKORO_* members and frames.proto gains the voice_id enum-value option
-      the serializer now builds its tables from. The surface only grows and the
-      wire change is additive on both halves, so a brain on an older SDK is
-      understood unchanged — under 1.0 an added roster still takes the minor,
-      because the enum is a contract a developer matches on. Derived, so this
-      line cannot drift from pyproject.toml — but the number it should be
-      compared against is sdk.python.version.published, not this one, and the
+      Bumped to 0.5.0 on 2026-09-21, for stt.patience: SttConfig gains the
+      field and frames.proto gains `optional uint32 patience = 2`. The surface
+      only grows and the wire change is additive on both halves, so a brain on
+      an older SDK sends no patience and is served exactly as before — under
+      1.0 an added field still takes the minor, because the dataclass is a
+      contract a developer writes against. 0.4.0 was the kokoro voices. Derived,
+      so this line cannot drift from pyproject.toml — but the number it should
+      be compared against is sdk.python.version.published, not this one, and the
       two are deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:

@@ -70,6 +70,17 @@ def _frames() -> list[Frame]:
             config=Config(stt=SttConfig(language=Language.OR), tts=TtsConfig(language=Language.HI)),
         ),
         ConfigureFrame(request_id=3, config=Config(tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV))),
+        # patience alone, with no language on either leg — the pairing rule does
+        # not apply to it, and 0 must survive as 0 rather than as "unset".
+        ConfigureFrame(request_id=4, config=Config(stt=SttConfig(patience=0))),
+        ConfigureFrame(request_id=5, config=Config(stt=SttConfig(patience=10))),
+        ConfigureFrame(
+            request_id=6,
+            config=Config(
+                stt=SttConfig(language=Language.TA, patience=3),
+                tts=TtsConfig(language=Language.TA),
+            ),
+        ),
         ResponseFrame(request_id=3, accepted=True),
         ResponseFrame(request_id=4, accepted=False, detail="no recognizer for language 'sat'"),
         EndFrame(),

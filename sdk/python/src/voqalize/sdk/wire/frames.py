@@ -252,6 +252,14 @@ class Language(StrEnum):
     UR = "ur"
 
 
+class ConfigError(ValueError):
+    """A configuration the runtime would refuse, refused here instead.
+
+    Raised where the brain wrote it rather than one round trip later, because a
+    rejected request costs a turn to find out about.
+    """
+
+
 @dataclass(frozen=True)
 class TtsConfig:
     """How the session speaks. Applies to the next speech unit, never
@@ -269,12 +277,46 @@ class TtsConfig:
     language: Language | None = None
 
 
+#: The bounds of :attr:`SttConfig.patience`. The scale is the contract; what a
+#: step of it is worth in silence belongs to the speech tier and moves with it.
+PATIENCE_MIN = 0
+PATIENCE_MAX = 10
+
+
 @dataclass(frozen=True)
 class SttConfig:
-    """How the session listens. Applies once the open turn commits, never
-    mid-utterance."""
+    """How the session listens.
+
+    ``language`` applies once the open turn commits, never mid-utterance.
+    ``patience`` applies immediately, to the pause already in progress.
+    """
 
     language: Language | None = None
+
+    #: How long the recognizer waits through a pause before deciding the caller
+    #: has finished, from ``PATIENCE_MIN`` to ``PATIENCE_MAX``. Higher waits
+    #: longer: ``0`` answers as soon as it can and will sometimes cut a slow
+    #: speaker off mid-thought; ``10`` lets a caller finish a sentence they are
+    #: still assembling, and costs a beat on every turn. Left unset, the
+    #: deployment's own calibration applies, which is ``7``.
+    #:
+    #: It is a scale, not a duration, and nothing between here and the
+    #: recognizer converts it to one. What that scale is worth in milliseconds
+    #: depends on how the recognizer segments audio, which is re-tuned without a
+    #: wire release — so a brain that wants "wait longer for this caller" says
+    #: exactly that and keeps saying it correctly.
+    patience: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.patience is None:
+            return
+        if not PATIENCE_MIN <= self.patience <= PATIENCE_MAX:
+            raise ConfigError(
+                f"stt.patience is {self.patience}, outside the range {PATIENCE_MIN} to {PATIENCE_MAX}. "
+                f"It is a scale, not a duration in milliseconds or frames: "
+                f"{PATIENCE_MIN} answers as soon as it can and {PATIENCE_MAX} waits "
+                f"longest. Unset takes the deployment's calibration, which is 7."
+            )
 
 
 @dataclass(frozen=True)
@@ -283,14 +325,6 @@ class IdleConfig:
     detection."""
 
     timeout_ms: int | None = None
-
-
-class ConfigError(ValueError):
-    """A configuration the runtime would refuse, refused here instead.
-
-    Raised where the brain wrote it rather than one round trip later, because a
-    rejected request costs a turn to find out about.
-    """
 
 
 @dataclass(frozen=True)

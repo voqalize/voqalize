@@ -15,6 +15,42 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.5.0
+
+### Added
+
+- **`stt.patience`, the turn-end pace.** `SttConfig` gains `patience`, an
+  integer from 0 to 10 saying how long the recognizer waits through a pause
+  before it decides the caller has finished. Higher waits longer: `0` answers
+  as soon as it can and will sometimes cut a slow speaker off mid-thought, `10`
+  lets a caller finish a sentence they are still assembling and costs a beat on
+  every turn. Left unset it takes the deployment's own calibration, which is
+  `7` — so every existing brain keeps the timing it has today.
+
+  ```python
+  await session.configure(Config(stt=SttConfig(patience=9)))
+  ```
+
+  It applies immediately, to the pause already in progress, unlike
+  `stt.language`, which waits for the open turn to commit.
+
+  **It is a scale, not a duration, and that is the point.** What a step of it
+  is worth in silence depends on how the recognizer segments audio, which is
+  re-tuned without a wire release; the speech tier owns the whole mapping and
+  nothing between a brain and it converts the scale to milliseconds or to
+  frames. A brain that asks to wait longer for this caller keeps asking
+  correctly after the recognizer changes underneath it.
+
+  A value outside 0–10 raises `ConfigError` where it is written, like the
+  language-pairing rule. That guard earns its place here for an extra reason:
+  the runtime's own control frame carries a bounded field, so an out-of-range
+  value is not rejected — the frame is dropped and the request is never
+  answered at all.
+
+  Additive on the wire (`optional uint32 patience = 2` on `SttConfig`), so a
+  brain built against an older SDK sends no patience and is served exactly as
+  before.
+
 ## 0.4.0
 
 ### Added

@@ -263,11 +263,31 @@ message TtsConfig {
   optional Language language = 2;
 }
 
-// The listening leg. Applies once the open turn commits, never mid-utterance.
-// Acceptance is the recognizer's own answer and is all-or-nothing.
+// The listening leg. Acceptance is the recognizer's own answer and is
+// all-or-nothing. When each field lands differs, and the field says which.
 message SttConfig {
-  // Which language the recognizer transcribes.
+  // Which language the recognizer transcribes. Applies once the open turn
+  // commits, never mid-utterance: the recognizer reads its decode language
+  // again at every segment, so switching it under a turn in progress would
+  // re-decode audio already spoken in the old language.
   optional Language language = 1;
+
+  // How long the recognizer waits through a pause before it decides the caller
+  // has finished, on a scale from 0 to 10. Higher waits longer: 0 answers as
+  // soon as it can and will sometimes cut a slow speaker off mid-thought, 10
+  // lets a caller finish a sentence they are still assembling and costs a beat
+  // on every turn. Unset takes the deployment's own calibration, which is 7.
+  //
+  // Deliberately a scale and not a duration. What a caller wants to say is
+  // "wait longer for this one", and the silence that expresses it depends on
+  // how the recognizer segments audio, which moves when the speech tier is
+  // re-tuned. The speech tier owns the whole mapping; nothing between here and
+  // there converts this to a number of milliseconds or of frames.
+  //
+  // Unlike language, this applies immediately — mid-turn, to the pause in
+  // progress. It is a bound on a counter that resets itself at every word, so
+  // there is nothing in flight for it to corrupt.
+  optional uint32 patience = 2;
 }
 
 // Idle detection: when the brain gets the floor back after silence.

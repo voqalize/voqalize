@@ -170,6 +170,8 @@ def _enc_configure(f: ConfigureFrame, env: pb.Envelope) -> None:
         m.stt.SetInParent()
         if c.stt.language is not None:
             m.stt.language = _LANG_TO_PB[c.stt.language]
+        if c.stt.patience is not None:
+            m.stt.patience = c.stt.patience
     if c.idle is not None:
         m.idle.SetInParent()
         if c.idle.timeout_ms is not None:
@@ -286,6 +288,7 @@ def _dec_configure(req: pb.Request) -> ConfigureFrame:
     if m.HasField("stt"):
         stt = SttConfig(
             language=_PB_TO_LANG[m.stt.language] if m.stt.HasField("language") else None,
+            patience=m.stt.patience if m.stt.HasField("patience") else None,
         )
     if m.HasField("idle"):
         idle = IdleConfig(
