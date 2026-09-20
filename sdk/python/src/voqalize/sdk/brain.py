@@ -277,13 +277,17 @@ class Session:
         in Odia is spoken with the Hindi clip, said out loud rather than
         substituted behind your back.
 
-        Where each section lands, since none of them is instant:
+        Where each change lands:
 
         - **tts** — the next speech unit. The synthesizer locks the voice for one
           synthesis context and Voqalize pins one context per unit, so the
           sentence being spoken finishes in the old voice.
-        - **stt** — once the open turn commits. The recognizer carries per-turn
-          decoder state, so the turn being spoken still transcribes as spoken.
+        - **stt.language** — once the open turn commits. The recognizer carries
+          per-turn decoder state, so the turn being spoken still transcribes as
+          spoken.
+        - **stt.patience** — at once, including the pause already running. It
+          bounds a silence counter that resets at every word, so there is no
+          decoder state for it to disturb.
         - **idle** — immediately. Voqalize owns that timer, and one already
           running restarts on the new duration before the answer comes back.
 

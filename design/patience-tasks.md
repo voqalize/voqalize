@@ -127,12 +127,50 @@ rode out with two commits that were already stacked on `origin/main` and were no
 (`6678f159`, `3af82c38`), as a fast-forward from `dae73ab9`. That push is what deploys the
 control plane to dev, which is what makes the items below possible at all.
 
-- [ ] A brain sets `patience` at connect; confirm the turn-end floor moved.
-- [ ] The same brain changes it mid-call; confirm the change lands on the next turn and
-      the call survives.
-- [ ] An out-of-range patience comes back as a rejection the developer can read, and the
-      call continues.
-- [ ] A brain that sets nothing behaves exactly as before.
+Driven from `platform/frontend/e2e/calls/patience.spec.ts` against dev, through the
+public Travel demo page on the apex rather than the console Playground — the dev
+console cookie has expired and the calls suite never signs in on dev by design. The
+brain is `calls/brain/e2e_brain.py`, an echo that asks for a patience only when the
+test hands it one, so nothing on the path is faked: the ask crosses the SDK, Cortex,
+PyGato and the speech tier. Two clocks per turn, both off the probe's RTVI tap:
+`speak-end` → the last `user-transcription` before the reply, and `speak-end` → the
+bot's first audio. The transcript clock is the one asserted on; the reply clock
+carries the brain, the model and the synthesizer inside it and jitters by more than a
+patience step is worth.
+
+- [x] A brain sets `patience` at connect; confirm the turn-end floor moved. Measured on
+      dev, four echo turns each, same clip, back-to-back sessions:
+      patience 0 → 532.5 ms to transcript (918 ms to reply); patience 10 → 726.5 ms to
+      transcript (1111.5 ms to reply). **Delta 194 ms**, and the reply clock moves with
+      it. Sessions `913ed317` and `f3c1d109`, both `ended` / `user_hung_up`.
+- [x] The same brain changes it mid-call; confirm the change lands on the next turn and
+      the call survives. One session, turn one at patience 0 and the brain raising it to
+      10 as that turn finishes: turn 1 → 540 ms to transcript, turns 2+ → 730 ms median.
+      **The same 190 ms, on the same socket.** The brain logged `patience-shifted 10`,
+      nothing was refused, and the call took every turn after it. Session `503dfc01`,
+      `ended` / `user_hung_up`, `error: null`, files complete.
+- [x] An out-of-range patience at `sessions.connect` comes back as a rejection the
+      developer can read. Probed on dev once `e66db354` was serving:
+      `{"stt":{"patience":99}}` returns `400 invalid_config` carrying
+      `_require_a_patience_on_the_scale`'s own sentence — "it is a scale, not a duration
+      in milliseconds" — rather than protobuf's "has no field named". Before the deploy
+      the same request returned the descriptor error, so this also dates the rollout.
+- [x] An out-of-range patience in a mid-call `Config` comes back as a readable
+      `RequestRejected` and the call continues. **Not reachable from a Python brain, and
+      that is the answer rather than a gap.** `SttConfig.__post_init__` raises
+      `ConfigError` in the brain's own process, so 99 never reaches the socket: the live
+      call proves the door a brain author actually meets, and PyGato's wire refusal is a
+      backstop for clients that are not this SDK, covered by its own unit tests. The
+      brain logged `patience-refused-locally 99` with the range in the reason, never
+      `patience-rejected`, and kept taking turns. Session `d0b39a2d`, `ended` /
+      `user_hung_up`. The docs should keep describing the wire refusal where they
+      describe the wire, and `ConfigError` where they describe the SDK — which is how
+      voqalize-83 placed it.
+- [x] A brain that sets nothing behaves exactly as before. `pnpm smoke:dev` green
+      against the deployed control plane — `2 passed in 36.8s`: the session comes up and
+      the desk speaks first, then a join, an interrupt of the greeting and two screen
+      actions. Real Chromium, real audio, real brain; the travel demo sets no patience,
+      so this is the unset path end to end.
 
 ## The docs, in the interim
 
@@ -147,6 +185,45 @@ the deploy and after it. The paragraphs that describe the knob follow with the d
 timing sentence are both descriptions of a documented surface rather than claims about the
 wire, so they say nothing false to a reader the page has not yet told about `patience` —
 adding the field early would be the same interim falsehood pointing the other way.
+
+**The interim is over.** voqalize-83 placed the full copy in `1c1bee5` on `main`, gates
+green: the field and both refusal paths in `reference/wire.md`, the enumeration and the
+split timing bullet in `reference/brain.md`, the connect JSON and its prose in
+`build/session.md`, the argument in `reference/catalog.md`, and `stt.patience`'s range and
+default in `design/facts.yaml` — the default carrying its derivation rather than the bare
+number, which is what gets it past the house rule on counts.
+
+## Found while verifying: the blanket `stt` timing claim
+
+`Session.configure`'s docstring lands the whole `stt` section "once the open turn
+commits". That is `stt.language`'s rule, and `patience` does not follow it —
+`SttConfig`'s own docstring, two modules away in the same package, says so. **Both
+sentences shipped in 0.5.0**, contradicting each other, in the method a brain author
+actually calls. `sdk/python/.../brain.py` now splits the bullet into `stt.language` and
+`stt.patience`; it is a docstring, so it carries no behaviour and renames no export.
+
+The same claim was made in two more places, both of which voqalize-83 has now fixed in
+`1c1bee5`: the "Acceptance is not audibility" bullet in `reference/brain.md`, and the
+landing-points table in `reference/wire.md`, whose timing column the copy I first sent did
+not cover — corrected to them separately and renamed rather than patched.
+
+## Found while verifying: the floor moves less than the frame arithmetic predicts
+
+Across the whole scale the measured floor moves **~190 ms**, reproducibly, on three
+separate runs and on both the connect path and the mid-call path. The configured gate
+moves 10 frames over that range, and a frame is 32 ms, so the arithmetic predicts
+~320 ms. The direction and the reproducibility are not in question; the magnitude is
+about 60% of nominal.
+
+This contradicts nothing we publish — no millisecond figure is customer-facing, by
+design, and that is exactly the kind of retune the abstract scale exists to absorb. It
+does mean the `~352..672 ms` in `eager_frames_for_patience`'s docstring describes the
+gate rather than the floor a caller experiences, which is true but reads as a promise.
+
+Unverified hypothesis, for whoever owns the speech calibration: something ends the turn
+before the eager gate at high patience — the smart-turn model, or a segment flush — so
+patience raises a ceiling the turn does not always reach, and its effect saturates. Not
+proven, and not provable from the browser: it needs the flux-side event stream.
 
 ## After it is proven
 
