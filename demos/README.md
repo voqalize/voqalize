@@ -115,6 +115,36 @@ discovers backends and each frontend declares its own connection wiring. To add
 5. **Provisioning** — create the agent and point its `brain_url` at
    `wss://{host}/<name>`.
 
+### When the page lives somewhere else
+
+`marketing` is the exception the checklist does not cover, and it is deliberate:
+it has a `backend/` and no `frontend/`. Its page is the Voqalize homepage, which
+is built from the private repo (`platform/frontend/apps/marketing`), so steps
+2–4 above do not apply to it and **it is not in `manifest.json`** — it is not a
+card on the `/demos` index, it is the agent in the homepage's corner. `build.mjs`
+walks `manifest.demos`, so leaving it out is what keeps the web build from
+looking for a `frontend/` that is not there.
+
+The seams that cross the repo boundary as a result are generated rather than
+agreed by hand:
+
+- The action and event unions the page narrows on are generated from the brain —
+  run this from `demos/` after changing either:
+
+  ```sh
+  voqalize types marketing/backend/brain.py \
+    -o ../../platform/frontend/apps/marketing/src/agent/actions.gen.ts
+  ```
+
+- Every `target` in `PointAt` names a `data-vq="…"` attribute in that page's
+  markup, and every `section` names an element id. Neither repo can check the
+  other, so the page's build does it: `apps/marketing` holds its own markup to
+  the generated union.
+
+The knowledge the brain answers from lives with the brain, in
+`marketing/backend/knowledge/` — `L1.md` is loaded into every session and the
+`l2/` deep-dives are read on demand by a tool.
+
 ## Running it
 
 `pm2 start ecosystem.config.cjs` from the repo root is the supervised path: the
