@@ -79,7 +79,9 @@ Consequences to internalize:
   the same rot in the other direction. The root `README.md` is the one that
   hides: it says "0.5.0 is published on PyPI" without an `==`, so it survives a
   grep for the install line and rots anyway. `reference/brain.md` hides the same
-  way, in the same sentence shape. More sites move with the *tag* rather than
+  way, in the same sentence shape, and `sdk/python/RELEASING.md` hides worse —
+  its published list carries neither an `==` nor a tag, so it survives both
+  greps, and saying what is published is the one job that sentence has. More sites move with the *tag* rather than
   the version — `sdk/python/README.md` links the proto and the wire reference at
   `blob/python-sdk-v0.5.0/`. Harmless on dev, wrong the moment it is public.
   **Release the SDK and bump the pins before you fast-forward `prod`** — or check

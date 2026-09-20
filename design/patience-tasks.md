@@ -16,98 +16,106 @@ deployed `update_frames=10`, and today's `eager_frames=18` is exactly patience 7
 Nothing downstream can be tested until this is deployed to speech-dev, because PyGato
 local dev talks to the shared dev GPU.
 
-- [ ] Read `git show 59d70eb` and `git show e373353` in full before writing anything.
+- [x] Read `git show 59d70eb` and `git show e373353` in full before writing anything.
       The first is a working implementation of this exact mechanism; the second is its
       clean removal and names every seat.
-- [ ] `flux/query_params.py` — `patience: int | None`, `ge=0, le=10`; add to the
+- [x] `flux/query_params.py` — `patience: int | None`, `ge=0, le=10`; add to the
       `_int_param` validator list. Amend the module docstring, which currently claims all
       turn-timing tuning is deployment-only.
-- [ ] `flux/protocol.py` — `patience` as a top-level field on `FluxConfigureFrame`, beside
+- [x] `flux/protocol.py` — `patience` as a top-level field on `FluxConfigureFrame`, beside
       `language_hints`. **Not** inside `FluxConfigureThresholds` — that stays Deepgram-pure.
-- [ ] `flux/turn_detector.py` — `TurnDetector.configure(patience=…)`, applied as
+- [x] `flux/turn_detector.py` — `TurnDetector.configure(patience=…)`, applied as
       `self._cfg = dataclasses.replace(self._cfg, eager_frames=…)` so `__post_init__`
       re-validates. Do not copy the in-place mutation used for `combine_min_frames`.
-- [ ] `server/flux_route.py` — derive `eager_frames = update_frames + 1 + patience`;
+- [x] `server/flux_route.py` — derive `eager_frames = update_frames + 1 + patience`;
       seed from the query param at connect, apply from `Configure` mid-call. Keep
       `turn_config_from_settings` the one place settings become a `TurnConfig`.
-- [ ] `server/app.py` — `_validate_turn_shape` sweeps the whole patience range, so an
+- [x] `server/app.py` — `_validate_turn_shape` sweeps the whole patience range, so an
       unhonourable range fails the container instead of some later session.
-- [ ] `server/app.py` — log the patience the configured `eager_frames` corresponds to at
+- [x] `server/app.py` — log the patience the configured `eager_frames` corresponds to at
       boot, and say so when it is not a whole patience step. An operator may legitimately
       override the calibration; when they do, "the default is 7" stops being true of that
       deployment and the startup log is where that should be visible.
-- [ ] Tests:
-      - [ ] reducer: patience changed in LISTENING / IN_TURN / ENDING, including a drop
+- [x] Tests:
+      - [x] reducer: patience changed in LISTENING / IN_TURN / ENDING, including a drop
             mid-pause where `_silence_run` already exceeds the new bar (expect
             `_enter_ending` on the next frame).
-      - [ ] the `== update_frames` flush still fires once per pause at every patience.
-      - [ ] e2e through `tests/unit/server/test_flux_configure_e2e.py` — the rig from
+      - [x] the `== update_frames` flush still fires once per pause at every patience.
+      - [x] e2e through `tests/unit/server/test_flux_configure_e2e.py` — the rig from
             `59d70eb` is still standing; a mid-call patience drop visibly speeds up
             `EagerEndOfTurn`.
-      - [ ] connect-path query param, including out-of-range → upgrade refused.
-      - [ ] an unset patience is byte-identical to today.
-- [ ] Docs: `flux-v2.md` §6 table, §11.2 (rewrite — it currently asserts the surface is
+      - [x] connect-path query param, including out-of-range → upgrade refused.
+      - [x] an unset patience is byte-identical to today.
+- [x] Docs: `flux-v2.md` §6 table, §11.2 (rewrite — it currently asserts the surface is
       Deepgram-only), §10 drift list.
-- [ ] Docs: correct the stale `2b0148f` line in `turn-detection-findings.md`, which claims
+- [x] Docs: correct the stale `2b0148f` line in `turn-detection-findings.md`, which claims
       `barge_in_ms` "and its neighbours" are already settable on the wire. They are not,
       and have not been since `e373353`.
-- [ ] Commit message cites `e373353` by hash and states that its reason — *"a knob no
+- [x] Commit message cites `e373353` by hash and states that its reason — *"a knob no
       producer writes is not a feature"* — is what has now changed.
-- [ ] `just check` green.
-- [ ] Deploy speech-dev. **Nothing downstream is testable before this.**
+- [x] `just check` green.
+- [x] Deploy speech-dev. **Nothing downstream is testable before this.**
 
 ## `voqalize/` — proto + SDK, runs in parallel with `speech/`
 
-- [ ] `proto/voqalize/frames/frames.proto` — `optional uint32 patience = 2;` on
+- [x] `proto/voqalize/frames/frames.proto` — `optional uint32 patience = 2;` on
       `SttConfig`, with the endpoints named in the comment.
-- [ ] Regenerate `proto/gen/`.
-- [ ] `sdk/python/.../wire/frames.py` — `patience: int | None` on `SttConfig`; range check
+- [x] Regenerate `proto/gen/`.
+- [x] `sdk/python/.../wire/frames.py` — `patience: int | None` on `SttConfig`; range check
       raising `ConfigError` on `SttConfig.__post_init__` (not `Config`'s — that one exists
       for a cross-section rule).
-- [ ] Docstring names both endpoints and says what unset means. A scale is meaningless
+- [x] Docstring names both endpoints and says what unset means. A scale is meaningless
       without them.
-- [ ] Tests: roundtrip, `ConfigError` at each end of the range, unset stays unset.
-- [ ] Gates: `ruff format --check`, `ruff check`, `pyright`, `pytest`.
-- [ ] **Publish the SDK to PyPI.** The vendored-proto rule: two stubs of one `.proto`
+- [x] Tests: roundtrip, `ConfigError` at each end of the range, unset stays unset.
+- [x] Gates: `ruff format --check`, `ruff check`, `pyright`, `pytest`.
+- [x] **Publish the SDK to PyPI.** The vendored-proto rule: two stubs of one `.proto`
       collide in the descriptor pool, so this lands before any consumer goes green.
 
 ## `platform/backend/pygato/` — after speech-dev is deployed and the SDK published
 
-- [ ] Refresh the vendored `src/pygato/wire/_frames_pb2.py`. Pin the SDK from PyPI at the
+- [x] Refresh the vendored `src/pygato/wire/_frames_pb2.py`. Pin the SDK from PyPI at the
       exact released version, never the sibling checkout.
-- [ ] `session_config.py` — `patience` through `refusal()` (authoritative range check,
+- [x] `session_config.py` — `patience` through `refusal()` (authoritative range check,
       worded like its `MAX_IDLE_TIMEOUT_MS` neighbour) and onto `Resolved` as
       `int | None`. Amend the `Resolved` docstring, which currently promises no unset field.
-- [ ] `stt.py`:
-      - [ ] `_build_query_string` appends `patience` when set, beside `language_hint`.
-      - [ ] the `Configure` at `:280` carries `patience` when the delta names one.
-      - [ ] **`_PendingConfigure` carries what it was about, not just a language.** Every
+- [x] `stt.py`:
+      - [x] `_build_query_string` appends `patience` when set, beside `language_hint`.
+      - [x] the `Configure` at `:280` carries `patience` when the delta names one.
+      - [x] **`_PendingConfigure` carries what it was about, not just a language.** Every
             message on the failure path currently names a language
             (`_settle_configure`, `_expire_configure`); a patience-only Configure has none.
-      - [ ] **`_settle_configure(accepted=True)` must not move `self._language` on a
+      - [x] **`_settle_configure(accepted=True)` must not move `self._language` on a
             patience-only Configure.** That field decides what a reconnect comes back in.
             This is the sharpest bug in the change.
-- [ ] `session.py` — pass resolved patience into `VqlSpeechSTTService`. Rewrite the `:549`
+- [x] `session.py` — pass resolved patience into `VqlSpeechSTTService`. Rewrite the `:549`
       comment declining client-side EOT tuning: still right about `eot_threshold`, now
       wrong about turn shape.
-- [ ] Tests:
-      - [ ] `refusal()` at each end of the range and outside it, on both the connect and
+- [x] Tests:
+      - [x] `refusal()` at each end of the range and outside it, on both the connect and
             mid-call paths.
-      - [ ] a patience-only Configure leaves the language alone.
-      - [ ] a reconnect comes back at the same patience.
-      - [ ] a rejected patience reaches the brain as `STATUS_REJECTED`, not a session end.
-      - [ ] unset sends nothing on either path.
-- [ ] `AGENTS.md` (the `CLAUDE.md` beside it is a **symlink** — edit the AGENTS.md;
+      - [x] a patience-only Configure leaves the language alone.
+      - [x] a reconnect comes back at the same patience.
+      - [x] a rejected patience reaches the brain as `STATUS_REJECTED`, not a session end.
+      - [x] unset sends nothing on either path.
+- [x] `AGENTS.md` (the `CLAUDE.md` beside it is a **symlink** — edit the AGENTS.md;
       `perl -pi` silently replaces symlinks with regular files).
-- [ ] Gates green.
+- [ ] Gates green. (ruff, pyright and the control-plane suite are green; the
+      pygato suite is mid-run — the lockfile change selects every gate, so it is
+      the ~26-minute `--gates=all` shape rather than the 56-second core.)
 
 ## `platform/backend/controlplane/` — last code change
 
-- [ ] Refresh the vendored `app/platform/wire/_frames_pb2.py`.
-- [ ] Confirm **no validator change is needed** — `parse_session_config` re-types no
+- [x] Refresh the vendored `app/platform/wire/_frames_pb2.py`.
+- [x] Confirm **no validator change is needed** — `parse_session_config` re-types no
       knowledge by design, so the field should arrive for free. Verify rather than assume.
-- [ ] Check the module docstring listing what connect validates is still accurate.
-- [ ] Gates green.
+      **Verified, and the expectation was wrong.** Parsing arrives for free: the field
+      lands with no change, because the vendored stub carries it. The *range* does not —
+      proto3 spells `uint32`, not `0..10` — so `_require_a_patience_on_the_scale` was
+      added to `session_service` beside the voice/language pairing, which is the seat
+      that already holds the rules the message cannot state. An unset patience is still
+      not filled in here; resolving it stays the speech tier's.
+- [x] Check the module docstring listing what connect validates is still accurate.
+- [x] Gates green.
 
 ## Verify on a live call
 
