@@ -329,7 +329,9 @@ A patience off the scale is refused at whichever door it arrives at, in the same
 words. At `sessions.connect` the request comes back `invalid_config` and the
 call never starts. Mid-call it comes back as a `RequestRejected` whose `detail`
 names the range, and the session continues at the patience it already had — so a
-brain that miscalculates one loses the change, not the call.
+brain that miscalculates one loses the change, not the call. A brain on the
+Python SDK meets an earlier door and never reaches this one: `SttConfig` raises
+`ConfigError` in your own process, before anything is written to the socket.
 
 ### The catalog
 
