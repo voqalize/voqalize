@@ -67,8 +67,15 @@ recognizer, in a call nobody could tell had gone wrong.
 A language change that crosses the English↔Indic boundary is applied at the
 **next end-of-turn**, never mid-utterance.
 
-Voqalize keeps its own tuned defaults; we widen the surface as we learn, not in
-advance.
+### Waiting through a pause (`stt.patience`)
+
+How long a silence has to run before the turn ends.
+[The wire reference](/reference/wire/#waiting-through-a-pause-sttpatience) carries
+the scale, what an unset value runs at, and how a value off it is refused.
+
+The recognizer's other thresholds are not settable: they hold the calibration the
+tier is tuned against. Voqalize keeps its own defaults there, and we widen the
+surface as we learn, not in advance.
 
 ## Text-to-speech
 
@@ -250,7 +257,16 @@ correctly and whose logs are clean — see
 [why both halves matter](/reference/catalog/#why-both-halves-matter).
 
 **Recognizer routing, the voice roster and the moment a turn commits are tuned
-together against the same calls.**
+together against the same calls.** A knob on one of them is a knob on the rest,
+which is why the recognizer's thresholds stay off the wire: they are numbers that
+mean something only beside the frame size and the calibration they were measured
+with, and both of those are ours to retune.
+
+`stt.patience` is the exception, and it is shaped to survive that retune. It is a
+step on a scale, so it says *wait longer for this caller* and goes on saying it
+after the tier moves underneath it. A brain asking for 900 milliseconds would be
+asking for a number it had no way to check, and would keep asking for it long
+after that number stopped being the right one.
 
 **No speech vendor key sits in your deployment**, and no speech vendor's outage
 is a call you have to explain. When a voice sounds wrong, there is one place to

@@ -133,7 +133,7 @@ Content-Type: application/json
   "agent_id": "agt_…",
   "config": {
     "tts": { "voice": "VOICE_OMNIVOICE_GAURI", "language": "LANGUAGE_TA" },
-    "stt": { "language": "LANGUAGE_TA" },
+    "stt": { "language": "LANGUAGE_TA", "patience": 9 },
     "idle": { "timeout_ms": 8000 },
     "record": false
   },
@@ -144,6 +144,13 @@ Content-Type: application/json
 **`idle.timeout_ms` defaults to `0`, which is off** — `on_user_idle` never fires
 until something sets a timeout, because a nudge nobody asked for talks over a
 user who was thinking.
+
+**`stt.patience` is a scale from 0 to 10** for how long a pause has to run before
+the turn ends. The `9` above is a choice, not the default: this caller is reading
+an order number off a printed slip. Leave the field out and the session runs the
+calibration deployment already runs, which is patience 7. A value off the scale
+comes back `invalid_config` and the call never starts. See
+[waiting through a pause](/reference/wire/#waiting-through-a-pause-sttpatience).
 
 **`config` is how this call sounds and listens.** It is the same `Config` the
 brain sends mid-call, parsed as proto3 JSON — enum members are their names, and

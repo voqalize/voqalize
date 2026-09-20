@@ -184,10 +184,13 @@ control plane, and the display-name table beside it — are gone.
 
 **A page still never sets either.** That part of the old rule was right and stays.
 
-The surface is **deliberately narrow: voice and language only.** Voices and
-languages are protobuf enums, so an unserved value is unrepresentable rather than
-silently falling back to the English recognizer. The eleven VAD knobs left the
-wire entirely and keep their internal PyGato defaults; we widen as we learn.
+The surface is **deliberately narrow: voice, language and `stt.patience`.**
+Voices and languages are protobuf enums, so an unserved value is unrepresentable
+rather than silently falling back to the English recognizer. The VAD knobs that
+left the wire in the rewrite stay off it and keep their internal PyGato
+defaults. `patience` came back in 0.5.0 as a step on a 0-to-10 scale rather than
+a duration, so it survives a retune of the tier underneath it; unset takes the
+deployment's calibration, which is 7. We widen as we learn.
 
 The catalog is small and closed, and the `Voice` enum is the one copy of the
 voice half we keep on purpose — it is what gives a brain author autocompletion.

@@ -215,8 +215,8 @@ await session.configure(
 )
 ```
 
-`Config` has optional `tts` (`voice`, `language`), `stt` (`language`) and
-`idle` (`timeout_ms`) sections. A section left `None` is untouched, and so
+`Config` has optional `tts` (`voice`, `language`), `stt` (`language`,
+`patience`) and `idle` (`timeout_ms`) sections. A section left `None` is untouched, and so
 is a field left `None` inside a section that is present.
 
 - **Naming a language on one leg and not the other raises `ConfigError`** before
@@ -227,10 +227,23 @@ is a field left `None` inside a section that is present.
 - **Rejection is all-or-nothing.** `RequestRejected` means Voqalize applied none
   of it and the call is still in the state it was in; `detail` is Voqalize's own
   reason, written to be shown.
-- **Acceptance is not audibility.** `tts` lands on the next speech unit, `stt`
-  once the open turn commits, `idle` immediately.
+- **Acceptance is not audibility.** `tts` lands on the next speech unit, `idle`
+  immediately, and the `stt` fields differ from each other: `language` waits for
+  the open turn to commit, `patience` applies at once — to the pause already
+  running. Why they differ is [the catalog's
+  argument](/reference/catalog/#what-the-absence-buys).
+- **`stt.patience` is a scale from 0 to 10**, not a duration, and a value off it
+  raises `ConfigError` where you build the `SttConfig` rather than at the far end
+  of the wire. Unset takes the deployment's own calibration, which is 7.
 - The call waits `REQUEST_TIMEOUT_S`, 10.0 seconds, then raises `TimeoutError`
   saying that whether it applied is unknown.
+
+Raise `patience` for a caller reading a number off a card, or thinking aloud in a
+language they are translating into. Lower it when the turns are short and known —
+a yes/no, a digit, a menu choice — and the wait is the only thing the caller
+notices. Most brains should leave it alone: it is a floor on how long a pause has
+to run before it counts as the end, and moving it trades one kind of wrong
+against the other rather than removing either.
 
 ## What a callback is handed
 

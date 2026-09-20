@@ -241,7 +241,7 @@ message Config {
 }
 
 message TtsConfig  { optional Voice voice = 1; optional Language language = 2; }
-message SttConfig  { optional Language language = 1; }
+message SttConfig  { optional Language language = 1; optional uint32 patience = 2; }
 message IdleConfig { optional uint32 timeout_ms = 1; }
 ```
 
@@ -261,17 +261,19 @@ mentioned idle detection would silently disable it.
 once. Separate ops would put a turn boundary — and a possible refusal — between
 the halves, leaving the call heard in one language and spoken in another.
 
-The surface is deliberately narrow: voice and language, and nothing else. The
-recognizer's thresholds are not settable from here; they keep the voice tier's own
-defaults. This widens as we learn what is worth naming, and a knob is far easier
-to add than to take back.
+The surface is deliberately narrow: the voice, the language on each leg, how
+long the recognizer waits through a pause, and the idle timeout. The
+recognizer's other thresholds are not settable from here; they keep the voice
+tier's own calibration. It widens as we learn what is worth naming, and a knob
+is far easier to add than to take back.
 
-### When each section lands
+### When each change lands
 
-| Section | Effective | Why not sooner |
+| Change | Effective | Why |
 |---|---|---|
 | `tts` | the next speech unit | The synthesizer locks the voice for one synthesis context and Voqalize pins one context per unit, so the sentence being spoken finishes in the old voice. |
-| `stt` | once the open turn commits | The recognizer carries per-turn decoder state, so the turn being spoken when the change arrives still transcribes as spoken. |
+| `stt.language` | once the open turn commits | The recognizer carries per-turn decoder state, so the turn being spoken when the change arrives still transcribes as spoken. |
+| `stt.patience` | immediately | It bounds a silence counter that resets at every word, so there is nothing in flight for it to corrupt — including the pause already running. |
 | `idle` | immediately | Voqalize owns that timer; one already running restarts on the new duration. `timeout_ms` is the silence after Voqalize stops speaking before it mints an idle turn, and `0` disables idle detection. |
 
 ### Both legs carry a language, and both must be set
@@ -306,6 +308,28 @@ tts { language: LANGUAGE_HI }   // speak with the Hindi clip
 
 Changing only the voice touches no language field and is unaffected by either
 rule.
+
+### Waiting through a pause (`stt.patience`)
+
+`patience` is a scale from 0 to 10, not a duration: `0` answers as soon as the
+recognizer can, `10` lets a caller finish a sentence they are still assembling.
+What a step is worth in silence stays ours, because the frame size and the
+calibration behind it are ours to retune — a brain that wants *wait longer for
+this caller* says that, and keeps saying it correctly across a retune it never
+hears about.
+
+Leave it unset and the session runs the calibration that deployment already
+runs, which is patience 7. That is the value the tuning was done against, and it
+is written down so the scale has a fixed point to reason from rather than one
+you have to discover. **Nothing writes a `7` onto the wire** — unset is what a
+default-patience session sends, which is why a brain on an older SDK is served
+exactly what it was served before.
+
+A patience off the scale is refused at whichever door it arrives at, in the same
+words. At `sessions.connect` the request comes back `invalid_config` and the
+call never starts. Mid-call it comes back as a `RequestRejected` whose `detail`
+names the range, and the session continues at the patience it already had — so a
+brain that miscalculates one loses the change, not the call.
 
 ### The catalog
 

@@ -452,6 +452,57 @@ facts:
 
   # ---- the voice tier -------------------------------------------------------
 
+  stt.patience.range:
+    value: 0 to 10
+    source: speech/src/vql_speech/flux/turn_detector.py:206 PATIENCE_MIN, PATIENCE_MAX
+    verified: 2026-09-21
+    reproduce: >-
+      grep -n 'PATIENCE_MIN\|PATIENCE_MAX'
+      ../speech/src/vql_speech/flux/turn_detector.py
+      ../platform/backend/controlplane/app/domains/sessions/session_service.py
+      sdk/python/src/voqalize/sdk/wire/frames.py
+    note: >-
+      The ends of the `stt.patience` scale, written out at every seat that can
+      refuse one — the speech tier that owns the mapping, the control plane at
+      `sessions.connect`, PyGato mid-call, and `SttConfig.__post_init__` in the
+      SDK. They are duplicated because protobuf cannot carry a bound on a
+      `uint32`, so unlike the languages and the voices there is no descriptor to
+      read them off; the refusal sentence is derived from the constants at each
+      seat rather than transcribed, so the seats cannot agree on the verdict and
+      disagree on the words. Prose says "0 to 10"; `0..10` belongs only in code
+      or a signature.
+    forbid:
+      - 'patience[^.]{0,40}\bscale from 0 to (?!10\b)\d+'
+      - 'patience[^.]{0,40}\brange 0 to (?!10\b)\d+'
+
+  stt.patience.default:
+    value: 7
+    source: speech/infra/deploy/env/prod.env:159,172 — derived, see note
+    verified: 2026-09-21
+    reproduce: >-
+      grep -n 'VAD_EAGER_FRAMES\|VAD_STOP_FRAMES_TO_TRIGGER_UPDATE'
+      ../speech/infra/deploy/env/prod.env ../speech/infra/deploy/env/dev.env &&
+      grep -n 'update_frames + 1 + patience'
+      ../speech/src/vql_speech/flux/turn_detector.py
+    note: >-
+      What an unset `stt.patience` runs at, and a **derived** number, so the
+      derivation is the fact: `eager_frames_for_patience` is
+      `eager_frames = update_frames + 1 + patience`, and both deployed
+      environments set `VAD_EAGER_FRAMES=18` with
+      `VAD_STOP_FRAMES_TO_TRIGGER_UPDATE=10`, giving `18 - 10 - 1 = 7`. Retune
+      the tier and this moves, which is why it is pinned here rather than
+      trusted where it is written — it is already spelled out in the SDK
+      docstring (`wire/frames.py` `SttConfig.patience`) and in vql-speech's
+      `flux/query_params.py`, and neither of those checks the other. vql-speech
+      refuses to boot on an eager gate that is not a whole step on the scale,
+      which keeps the mapping honest but says nothing about whether the number
+      we published is still the one deployed. **Nothing writes a 7 onto the
+      wire**: unset is what a default-patience session sends, which is what
+      makes the field additive for a brain on an older SDK.
+    forbid:
+      - 'calibration[^.]{0,40}\bwhich is (?!7\b)\d+'
+      - 'patience[^.]{0,30}\bdefaults? to (?!7\b)\d+'
+
   pipecat.version:
     value: '1.7.0'
     source: platform/backend/pygato/pyproject.toml:15
