@@ -68,6 +68,7 @@ except ImportError:  # pragma: no cover - environment, not logic
 DESIGN = Path(__file__).resolve().parent
 ROOT = DESIGN.parent
 
+
 def load(name: str) -> dict:
     return yaml.safe_load((DESIGN / name).read_text())
 
