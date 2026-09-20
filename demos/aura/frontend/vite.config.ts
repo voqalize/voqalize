@@ -10,7 +10,7 @@ import { defineConfig, searchForWorkspaceRoot } from "vite";
 // is the loop the private repo's CLAUDE.md sends you here for. `vite build`
 // never looks at it, and neither does a contributor without that checkout: both
 // get the package from npm. `AVATAR_FROM_NPM=1` forces that in dev too.
-const AVATAR = fileURLToPath(new URL("../../../../avatar", import.meta.url));
+const AVATAR = fileURLToPath(new URL("../../../../avatar-private", import.meta.url));
 const CHARACTERS = `${AVATAR}/packages/avatar/client/three`;
 
 // This demo is a self-contained single-page app. It builds under the relative
