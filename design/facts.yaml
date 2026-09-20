@@ -313,31 +313,51 @@ facts:
     source: LICENSE
     verified: 2026-08-24
 
-  # ---- the avatar library (sibling repo, MIT, published in lockstep) ---------
+  # ---- the avatar library (MIT, published from the public sibling) ----------
+  #
+  # The avatar line is two repos and the names invert: the published library is
+  # `avatar-public/` on disk, which is the remote `voqalize/avatar`. Every source
+  # below is that checkout, because it is what npm and PyPI are cut from —
+  # `avatar-private/` (the remote `voqalize/avatar-private`) is where the work
+  # happens and publishes nothing.
 
   avatar.npm.package:
     value: '@voqalize/avatar'
-    source: avatar/packages/avatar-js/package.json
-    verified: 2026-08-24
-    reproduce: grep '"name"' ../avatar/packages/*/package.json
+    source: avatar-public/packages/avatar/package.json
+    verified: 2026-09-20
+    reproduce: grep '"name"' ../avatar-public/packages/avatar/package.json
 
   avatar.pypi.package:
     value: voqalize-avatar
-    source: avatar/packages/avatar-py/pyproject.toml:2
-    verified: 2026-08-24
+    source: avatar-public/packages/avatar-py/pyproject.toml:2
+    verified: 2026-09-20
+    reproduce: sed -n 2p ../avatar-public/packages/avatar-py/pyproject.toml
 
-  avatar.version:
-    value: '0.3.0'
-    source: avatar/packages/avatar-py/pyproject.toml:3
-    verified: 2026-08-24
+  avatar.npm.version:
+    value: '0.4.1'
+    source: avatar-public/packages/avatar/package.json
+    verified: 2026-09-20
+    reproduce: npm view @voqalize/avatar version
     note: >-
-      The npm and PyPI packages publish in lockstep, so one number covers both.
-      A different repo, so no derive rule reaches it.
+      There is no single avatar version. npm and PyPI publish independently, from
+      `npm-v` and `py-v` tags, because the wire is what keeps the two ends
+      compatible rather than a shared number — so a page that prints one version
+      for "the avatar library" is wrong about one of them. A different repo, so
+      no derive rule reaches it.
+
+  avatar.pypi.version:
+    value: '0.4.0'
+    source: avatar-public/packages/avatar-py/pyproject.toml:3
+    verified: 2026-09-20
+    reproduce: curl -s https://pypi.org/pypi/voqalize-avatar/json | jq -r .info.version
+    note: >-
+      Behind the npm number on purpose, not by neglect; see `avatar.npm.version`.
 
   avatar.licence:
     value: MIT
-    source: avatar/LICENSE
-    verified: 2026-08-24
+    source: avatar-public/LICENSE
+    verified: 2026-09-20
+    reproduce: head -1 ../avatar-public/LICENSE
     note: >-
       MIT, and deliberately not Apache-2.0 like this repo. A page that states one
       licence for "our open source" is wrong about one of the two.
