@@ -106,6 +106,18 @@ def proto_voices() -> dict[str, str]:
     }
 
 
+def proto_languages() -> dict[str, str]:
+    """``iso_code`` → enum value name, the same join on the other axis."""
+    from voqalize.sdk.wire import _frames_pb2 as pb
+
+    option = pb.DESCRIPTOR.extensions_by_name["iso_code"]
+    return {
+        value.GetOptions().Extensions[option]: value.name
+        for value in pb.Language.DESCRIPTOR.values
+        if value.number != 0
+    }
+
+
 def table(document: dict[str, object]) -> str:
     """The docs table, as markdown, from one catalog."""
     names = proto_voices()
@@ -168,11 +180,30 @@ def cmd_check(args: argparse.Namespace) -> int:
     for voice_id in sorted(declared - served):
         problems.append(f"`Voice` claims {voice_id} and {args.host} does not serve it")
 
-    if not problems and DOCS_PAGE.read_text() != rendered_page(fetch(args.host)):
-        problems.append(
-            f"{DOCS_PAGE.relative_to(REPO)} is not what the catalog says — "
-            f"run `python3 design/voice_catalog.py render`"
-        )
+    # A voice may claim a language the enum cannot spell. Nothing crashes on
+    # it — the code simply never matches a `Language` value — so the voice
+    # quietly speaks one language fewer than it does, everywhere at once.
+    # The reverse is fine and expected: the recognizer serves languages no
+    # voice speaks, which is what makes hearing one and answering in another
+    # a real session.
+    codes = set(proto_languages())
+    for voice in rosters[first]:
+        unknown = sorted(str(code) for code in voice["languages"] if code not in codes)  # type: ignore[union-attr]
+        for code in unknown:
+            problems.append(f"{voice['id']} speaks {code!r} and no `Language` value claims it")
+
+    # The docs describe one environment, and `render` writes them from
+    # DEFAULT_HOST. Comparing them against any other node would fail on the
+    # difference the two environments are *supposed* to have, so the proto
+    # check runs everywhere and the page check runs where the page is from.
+    if args.host == DEFAULT_HOST:
+        if not problems and DOCS_PAGE.read_text() != rendered_page(fetch(args.host)):
+            problems.append(
+                f"{DOCS_PAGE.relative_to(REPO)} is not what the catalog says — "
+                f"run `python3 design/voice_catalog.py render`"
+            )
+    else:
+        print(f"  (the docs describe {DEFAULT_HOST}, so the page is not compared here)")
 
     for problem in problems:
         print(f"  ✗ {problem}")
@@ -184,10 +215,13 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default=DEFAULT_HOST, help=f"default {DEFAULT_HOST}")
+    # On the subcommand rather than ahead of it, so `check --host …` reads the
+    # way anyone would write it.
+    host = argparse.ArgumentParser(add_help=False)
+    host.add_argument("--host", default=DEFAULT_HOST, help=f"default {DEFAULT_HOST}")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("check").set_defaults(run=cmd_check)
-    sub.add_parser("render").set_defaults(run=cmd_render)
+    sub.add_parser("check", parents=[host]).set_defaults(run=cmd_check)
+    sub.add_parser("render", parents=[host]).set_defaults(run=cmd_render)
     args = parser.parse_args()
     return int(args.run(args))
 

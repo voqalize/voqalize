@@ -276,10 +276,15 @@ uv run --with pyyaml python3 design/check_facts.py   # numbers and words, below
 cd sdk/python && uv run python ../../design/voice_catalog.py check   # the voice roster, below
 ```
 
-These are exactly what `.github/workflows/ci.yml` runs, in the same order, on the
-Python version `demos/Dockerfile` ships (3.12) with `uv sync --frozen` — so a
-lockfile that has drifted from `pyproject.toml` fails CI before it fails the image
-build.
+Everything above the roster line is exactly what `.github/workflows/ci.yml` runs,
+in the same order, on the Python version `demos/Dockerfile` ships (3.12) with
+`uv sync --frozen` — so a lockfile that has drifted from `pyproject.toml` fails CI
+before it fails the image build.
+
+The roster line is the exception, and `.github/workflows/voice-catalog.yml` runs
+it on a schedule instead: it fetches a deployed speech node over the network, so
+it fails for reasons a diff cannot cause, and a merge must not wait on that. What
+it reports is a fact about the fleet. Run it yourself after adding a voice.
 
 `pyright` is strict and excludes `**/tests/**`. **A bare `uv run pyright` used to
 report ten errors**, which made a whole-repo type gate impossible — CI would have
@@ -336,10 +341,17 @@ same file for words, and holds `voice.md`'s table to itself row by row.
 **The voice roster is the same idea with the source outside this tree.**
 `design/voice_catalog.py` fetches what the speech tier is actually serving — per
 A-record, because `speech.*` is round-robin across nodes and one fetch proves
-one node — and holds the `Voice` enum's `voice_id` options to it, then renders
-`reference/catalog.md`'s table from the same document. Run `render` after adding
-a voice; `check` is what fails when somebody didn't. It needs the generated
-protobuf module, so it runs from `sdk/python`.
+one node — and holds the `Voice` enum's `voice_id` options to it, and each
+voice's languages to the `Language` enum, then renders `reference/catalog.md`'s
+table from the same document. Run `render` after adding a voice; `check` is what
+fails when somebody didn't, and `voice-catalog.yml` runs it every morning against
+each environment so nobody has to remember. It needs the generated protobuf
+module, so it runs from `sdk/python`.
+
+`--host` picks the environment and defaults to prod, which is the environment the
+docs describe — so the page is compared there and only there; everywhere else the
+proto join still runs and the page check is skipped, because dev and prod are
+*supposed* to differ between a release and its promotion.
 
 Facts whose source is a registry or one of the three sibling repos cannot be
 derived from this tree; they carry the command that re-earns the stamp, and

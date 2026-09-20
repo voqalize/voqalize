@@ -1,0 +1,59 @@
+name: Voice catalog
+
+# Does the voice roster still say the same thing everywhere?
+#
+# The speech tier is the source: it publishes what its running process has
+# loaded at `/voices.json`, and the `Voice` enum, the SDK and the docs table
+# read from that. Every one of them can go stale without anything failing —
+# a voice deployed to speech that no enum value claims is simply a voice no
+# client can ask for, and it stays that way silently until someone notices.
+# `design/voice_catalog.py check` is what notices.
+#
+# Deliberately NOT part of `ci.yml`. This reaches a deployed node over the
+# network, per A-record, so it fails for reasons that have nothing to do with
+# the commit under review — a node mid-deploy, DNS, a dropped handshake. A
+# merge must never wait on that. It runs on a schedule and on demand instead,
+# and what it reports is a fact about the fleet, not about a diff.
+#
+# It is also the seat two other files name as the signal:
+# `backend/controlplane/app/platform/speech/__init__.py` (a voice the wire
+# cannot spell is left out of `/capabilities` rather than reported there) and
+# `backend/controlplane/AGENTS.md`, both in the private platform repo.
+
+on:
+  schedule:
+    # Early UTC, after any deploy the previous working day settled.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Each environment is its own answer. A dev node that missed a deploy
+      # says nothing about prod, and stopping at the first one would hide the
+      # other — which is the same "one fetch proves one node" reasoning the
+      # tool applies to the A-records behind a single name.
+      fail-fast: false
+      matrix:
+        host:
+          - speech.dev.voqalize.com
+          - speech.prod.voqalize.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --all-packages --frozen
+
+      # The generated protobuf module is what carries `voice_id`, so this runs
+      # from the SDK's directory the same way the gate in CLAUDE.md does.
+      - name: The roster, the proto and the docs agree
+        working-directory: sdk/python
+        run: uv run python ../../design/voice_catalog.py check --host '${{ matrix.host }}'

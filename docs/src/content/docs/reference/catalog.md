@@ -12,8 +12,8 @@ one rule that makes them safe to change.
 :::caution[A language has two legs, and you set both]
 `stt.language` picks the **recognizer**. `tts.language` picks the language the
 voice reads in — which, for a cloned voice, is a different recorded speaker.
-They are one setting with two halves, so the SDK will not let you state one
-without the other:
+They are one setting with two halves, so the SDK requires both together and
+refuses a configuration that names a language on one leg alone:
 
 ```python
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
