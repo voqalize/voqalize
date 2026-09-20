@@ -17,6 +17,7 @@ import asyncio
 import contextlib
 import importlib
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import pytest
 import uvicorn
@@ -167,6 +168,28 @@ def test_healthz_reports_the_build_commit(monkeypatch: pytest.MonkeyPatch):
     finally:
         monkeypatch.undo()
         importlib.reload(umbrella)
+
+
+def test_the_gallery_is_a_subset_of_the_brains():
+    """Every card on ``/demos`` has a backend; not every backend has a card.
+
+    The two are different rosters and the direction matters. ``manifest.json`` is
+    the gallery index — ``build.mjs`` walks it looking for a ``frontend/`` — while
+    discovery serves any folder with a ``backend/routes.py``. ``marketing`` is the
+    case that separates them: her page is the Voqalize homepage, built from
+    another repo, so she is a brain with no card and must stay off the manifest.
+
+    A card naming a brain that is not there is the failure worth catching: it
+    opens onto nothing. The post-deploy gate in ``cloudbuild.brains-vm.yaml``
+    asserts the same pair against what the node actually serves; it read the
+    manifest as the roster until 2026-09-20 and failed a deploy that had worked.
+    """
+    import json
+
+    root = Path(__file__).resolve().parents[1]
+    listed = {x["name"] for x in json.loads((root / "manifest.json").read_text())["demos"]}
+    discovered = {d.name for d in discover()}
+    assert listed <= discovered, f"cards with no backend: {sorted(listed - discovered)}"
 
 
 def test_unknown_demo_has_no_backend():

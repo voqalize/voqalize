@@ -139,26 +139,40 @@ steps:
         cat /workspace/healthz.json; echo
         TAG="$$TAG" python3 - <<'PY'
         import json, os
+        from pathlib import Path
+
         d = json.load(open("/workspace/healthz.json"))
         served = set(d.get("demos") or [])
-        # The manifest is the roster of record, so the gate reads it rather than
-        # a number someone has to remember to bump. Discovery is per-directory
-        # and the app starts happily with one brain missing, so a bare 200 would
-        # let a silently-dark demo ship — and a count would only say how many
-        # are dark, never which.
-        want_demos = {x["name"] for x in json.load(open("demos/manifest.json"))["demos"]}
+        # The roster of record is the tree, read the way discovery reads it: a
+        # folder with a `backend/routes.py` is a brain, and dropping one in is
+        # the whole registration. Discovery is per-directory and the app starts
+        # happily with one brain missing, so a bare 200 would let a silently-dark
+        # demo ship — and a count would only say how many are dark, never which.
+        #
+        # This gate used to read `manifest.json` instead, which is the gallery
+        # index and a narrower thing: `marketing` is a backend whose page is the
+        # homepage, so it has no card and must not have one. Reading the manifest
+        # here failed a deploy that had in fact succeeded, and would have gone on
+        # failing every brain that does not sell itself from the /demos grid.
+        want_demos = {p.parent.parent.name for p in Path("demos").glob("*/backend/routes.py")}
         want = os.environ["TAG"]
         assert d.get("ok") is True, f"not ok: {d}"
         assert served == want_demos, (
-            f"the deployed brains do not match demos/manifest.json — "
+            f"the deployed brains do not match the backends in demos/ — "
             f"missing {sorted(want_demos - served)}, unlisted {sorted(served - want_demos)}"
+        )
+        # The gallery may be a subset of the brains; it may never name one that
+        # is not there, which is a card that opens onto nothing.
+        listed = {x["name"] for x in json.load(open("demos/manifest.json"))["demos"]}
+        assert listed <= served, (
+            f"demos/manifest.json lists brains that are not deployed: {sorted(listed - served)}"
         )
         got = d.get("git_sha")
         assert got == want, (
             f"served git_sha {got!r} != just-deployed {want!r} — the old container "
             "is still answering, so this deploy did not take"
         )
-        print(f"✓ every demo in the manifest is live at {got}: {sorted(served)}")
+        print(f"✓ every demo backend is live at {got}: {sorted(served)}")
         PY
 
 # No top-level `images:` — that pushes only AFTER every step, and the deploy step
