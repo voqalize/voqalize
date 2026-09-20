@@ -2,8 +2,8 @@
 
 The internal companion to the one public page,
 [Designing for voice](../docs/src/content/docs/design/index.md). That page is the
-argument, written for a customer and governed by `voice.md`. This is the rule set
-behind it, written for us and governed by nothing: blunt, numbered, and argued
+argument, written for a customer. This is the rule set behind it, written for us
+and governed by nothing: blunt, numbered, and argued
 with directly rather than re-derived inside each section.
 
 Every line is **agreed** (we would defend it today), **contested** (we disagree,

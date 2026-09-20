@@ -2,53 +2,48 @@
 """Hold ``facts.yaml`` and ``lexicon.yaml`` to the code, and prose to both.
 
 A facts file that nobody checks is just another page that goes stale, which is
-the exact failure it was written to stop. So this runs four checks, in the order
+the exact failure it was written to stop. So this runs these checks, in the order
 of how quietly each one fails:
 
-1. **Drift.** Every fact carrying a ``derive:`` rule is re-read out of its source
-   file. If ``facts.yaml`` says 0.3.0 and ``package.json`` says 0.4.0, the file
-   is wrong and everything citing it is wrong with it. This is the check that
-   makes the other three trustworthy.
+- **Drift.** Every fact carrying a ``derive:`` rule is re-read out of its source
+  file. If ``facts.yaml`` says 0.3.0 and ``package.json`` says 0.4.0, the file
+  is wrong and everything citing it is wrong with it. This is the check that
+  makes the rest trustworthy.
 
-2. **The mirror.** ``voice.md`` prints the lexicon as a table for people;
-   ``lexicon.yaml`` holds it for the machine. They are one record rendered twice
-   and are compared row by row, so neither can quietly gain a word.
+- **Contradicted prose.** Facts may carry ``forbid:`` — the sentences that are
+  wrong *because* of the fact. "Not yet on npm" is not a typo; it is a true
+  sentence that expired when 0.1.1 published.
 
-3. **Contradicted prose.** Facts may carry ``forbid:`` — the sentences that are
-   wrong *because* of the fact. "Not yet on npm" is not a typo; it is a true
-   sentence that expired when 0.1.1 published.
+  ``forbid:`` reads prose only: fenced blocks are skipped and inline spans are
+  blanked, because a lexicon rule is a rule about the words a human chose. A URL
+  is the opposite case — it lives in the fence precisely so a reader will paste
+  it, and a stale one there is worse than in a sentence, not exempt from it. So a
+  fact may also carry ``forbid_literal:``, checked against every line of the same
+  files with nothing stripped. Both broken links a customer hit on 2026-09-01
+  (``api.voqalize.com``, which never resolved, and a ``/mcp`` URL missing its
+  trailing slash) sat inside ```` ``` ```` blocks on the docs site, where
+  ``forbid:`` could not see them.
 
-   ``forbid:`` reads prose only: fenced blocks are skipped and inline spans are
-   blanked, because a lexicon rule is a rule about the words a human chose. A URL
-   is the opposite case — it lives in the fence precisely so a reader will paste
-   it, and a stale one there is worse than in a sentence, not exempt from it. So a
-   fact may also carry ``forbid_literal:``, checked against every line of the same
-   files with nothing stripped. Both broken links a customer hit on 2026-09-01
-   (``api.voqalize.com``, which never resolved, and a ``/mcp`` URL missing its
-   trailing slash) sat inside ```` ``` ```` blocks on the docs site, where
-   ``forbid:`` could not see them.
+- **Retired vocabulary**, from ``lexicon.yaml``: the word for a concept that has
+  two names, the outcome words, the contrast grammar, and ``internal_names`` —
+  the service and repository names that are never right in customer prose.
 
-4. **Retired vocabulary**, from ``lexicon.yaml``: the word for a concept that has
-   two names, the outcome words, the contrast grammar, and ``internal_names`` —
-   the service and repository names that are never right in customer prose.
+  ``scope.governed`` is the whole scan set. ``scope.reasoning_only`` is a
+  *description*, not a second set the code reads: design notes, ``AGENTS.md`` and
+  ``CLAUDE.md`` are simply not scanned, because reasoning argues by contrast and
+  internal engineering prose is written for a different reader. Word choice stays
+  the author's judgement there, and the rule that matters is that a phrase must
+  not be copied from one of those files into anything a customer reads.
 
-   ``scope.governed`` is the whole scan set. ``scope.reasoning_only`` is a
-   *description*, not a second set the code reads: design notes, ``AGENTS.md`` and
-   ``CLAUDE.md`` are simply not scanned, because reasoning argues by contrast and
-   internal engineering prose is exactly what ``allowed_in`` permits — 23 of the
-   bare ``platform`` uses in those files today are legal by that rule. The word is
-   still the author's judgement there, and the rule that matters is that it must
-   not be copied from one of those files into anything a customer reads.
-
-Checks 1 and 2 are errors: the record disagrees with itself. Checks 3 and 4 are
-findings against prose, and a finding is a sentence for a human to rewrite.
+Drift is an error: the record disagrees with itself. The prose checks produce
+findings, and a finding is a sentence for a human to rewrite.
 
 Facts whose source is a registry or one of the three sibling repos cannot be
 derived from this tree. They carry ``reproduce:`` instead — the command that
 re-earns the stamp — and are listed at the end as attested rather than checked,
 with the age of the stamp, so nobody mistakes one for the other.
 
-    python3 design/check_facts.py                 # drift + mirror + governed prose
+    python3 design/check_facts.py                 # drift + governed prose
     python3 design/check_facts.py --prose docs    # narrow the prose scan
     python3 design/check_facts.py --attested      # list what only a human can confirm
 
@@ -73,19 +68,11 @@ except ImportError:  # pragma: no cover - environment, not logic
 DESIGN = Path(__file__).resolve().parent
 ROOT = DESIGN.parent
 
-# The table in voice.md this file mirrors. Matched on the header so a moved
-# section still resolves, and so a *second* table cannot be mistaken for it.
-LEXICON_TABLE_HEADING = "## Mechanics and lexicon"
-TABLE_ROW = re.compile(
-    r"^\|\s*(?P<concept>[^|]+?)\s*\|\s*(?P<word>[^|]+?)\s*\|\s*(?P<retired>[^|]*?)\s*\|\s*$"
-)
-
-
 def load(name: str) -> dict:
     return yaml.safe_load((DESIGN / name).read_text())
 
 
-# --- 1. drift ---------------------------------------------------------------
+# --- drift ------------------------------------------------------------------
 
 
 def derived_value(rule: dict) -> str | list[str] | None:
@@ -150,63 +137,7 @@ def check_drift(facts: dict) -> list[str]:
     return errors
 
 
-# --- 2. the mirror ----------------------------------------------------------
-
-
-def voice_table() -> list[tuple[str, str, str]]:
-    lines = (DESIGN / "voice.md").read_text().splitlines()
-    try:
-        start = lines.index(LEXICON_TABLE_HEADING)
-    except ValueError:
-        return []
-    rows = []
-    for line in lines[start:]:
-        if line.startswith("## ") and line != LEXICON_TABLE_HEADING:
-            break
-        m = TABLE_ROW.match(line)
-        if not m:
-            continue
-        concept, word, retired = m.group("concept"), m.group("word"), m.group("retired")
-        if concept in {"Concept", "---"} or set(concept) <= {"-"}:
-            continue
-        rows.append((concept, word.strip("*"), retired))
-    return rows
-
-
-def check_mirror(lexicon: dict) -> list[str]:
-    table = voice_table()
-    if not table:
-        return [f"voice.md: no lexicon table found under {LEXICON_TABLE_HEADING!r}"]
-
-    def norm(s: str) -> str:
-        # voice.md uses typographic arrows; the yaml uses ascii.
-        return s.replace("→", "->").replace("—", "-").strip().lower()
-
-    errors = []
-    yaml_rows = {norm(t["concept"]): t for t in lexicon["terms"]}
-    md_rows = {norm(c): (w, r) for c, w, r in table}
-
-    for only_in, missing in (
-        ("lexicon.yaml", set(yaml_rows) - set(md_rows)),
-        ("voice.md", set(md_rows) - set(yaml_rows)),
-    ):
-        for c in sorted(missing):
-            errors.append(f"lexicon mirror: {c!r} is in {only_in} and not the other")
-
-    for concept in sorted(set(yaml_rows) & set(md_rows)):
-        y, (md_word, md_retired) = yaml_rows[concept], md_rows[concept]
-        if norm(y["word"]) != norm(md_word):
-            errors.append(
-                f"lexicon mirror: {concept!r} word — yaml {y['word']!r}, voice.md {md_word!r}"
-            )
-        want = [norm(x) for x in y.get("retired", [])]
-        got = [norm(x) for x in md_retired.split(",") if x.strip()]
-        if want != got:
-            errors.append(f"lexicon mirror: {concept!r} retired — yaml {want}, voice.md {got}")
-    return errors
-
-
-# --- 3 + 4. prose -----------------------------------------------------------
+# --- prose --------------------------------------------------------------------
 
 
 def governed_files(lexicon: dict, narrow: str | None) -> list[Path]:
@@ -289,10 +220,10 @@ def scan(files: list[Path], facts: dict, lexicon: dict, sweep: bool) -> tuple[li
         )
 
     for pr in lexicon.get("prohibited", []):
-        # A prohibited word may have exactly one phrase it is right in — `platform`
-        # is only ever the approved category phrase, entire. Split that phrase on
-        # the word and guard both sides, so a bare use still fires and the whole
-        # phrase passes. Both guards are fixed-width, which Python's lookbehind needs.
+        # A prohibited word may have one phrase it is right in, named by
+        # `allowed_pattern`. Split that phrase on the word and guard both sides, so
+        # a bare use still fires and the whole phrase passes. Both guards are
+        # fixed-width, which Python's lookbehind needs.
         word = re.escape(pr["word"])
         if allowed := pr.get("allowed_pattern"):
             before, after = (re.escape(part) for part in allowed.split(pr["word"], 1))
@@ -381,7 +312,7 @@ def main() -> int:
         print("\n".join(attested(facts, today)))
         return 0
 
-    errors = check_drift(facts) + check_mirror(lexicon)
+    errors = check_drift(facts)
     files = governed_files(lexicon, args.prose)
     findings, advisories = scan(files, facts, lexicon, args.sweep)
 

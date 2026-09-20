@@ -316,19 +316,13 @@ and prod.
 Each demo also runs standalone with plain `pnpm dev` (see `demos/README.md`) —
 that path needs none of the above.
 
-## Everything a developer reads is written to one standard
+## Everything a developer reads is checked
 
-`design/voice.md` is the writing standard for this repo: the docs site, the SDK
-docstrings, error messages, the wire contract's prose, the demo source, the
-changelog and commit messages. It carries the persona, five principles, four signature
-moves, a **closed lexicon** (a concept keeps one word across the proto, the SDK, the docs
-and the site), and a recognition test to run before publishing. Read it before writing
-anything a customer will see — including an error string, which is our highest-traffic
-documentation and is read at the worst possible moment.
-
-Two consequences worth knowing without opening it: **no surface calls Voqalize a
-platform**, and **internal service or repository names never appear in customer-facing
-text** — the end that dials your brain is *Voqalize*.
+The docs site, the SDK docstrings, error messages, the wire contract's prose, the
+demo source, the changelog and commit messages are all read by a customer — an
+error string most of all, which is our highest-traffic documentation and is read
+at the worst possible moment. **Internal service or repository names never appear
+in any of it**: the end that dials your brain is *Voqalize*.
 
 **A number goes in `design/facts.yaml` before it goes in a sentence.** Every
 claimable version, count, licence and date lives there once, next to the file it
@@ -337,7 +331,9 @@ source — so the facts file cannot quietly become the next stale page. Prose is
 checked the other way round: a fact may declare the sentences that are wrong
 *because* of it, which is how the docs site stopped saying the React client was
 "not yet on npm" three weeks after it published. `design/lexicon.yaml` is the
-same file for words, and holds `voice.md`'s table to itself row by row.
+same file for words — the **closed lexicon**, one word per concept across the
+proto, the SDK, the docs and the site, plus the words that are never right in
+customer prose — and `check_facts.py` reads it against every governed page.
 
 **The voice roster is the same idea with the source outside this tree.**
 `design/voice_catalog.py` fetches what the speech tier is actually serving — per
@@ -360,14 +356,13 @@ derived from this tree; they carry the command that re-earns the stamp, and
 want the retired synonyms too — mostly ordinary English, so it is advisory and a
 person reads it.
 
-`design/practices.md` is the other half, and it is internal: forty-nine numbered
-rules for designing a voice agent, each marked *agreed*, *contested* or
-*violated*, plus the reasoning the public page argues from — the six moving parts
-and why there is no merge, the four tiers, the two clocks, and the six questions
-to ask before wrapping anything. `voice.md` governs how we write; `practices.md`
-is what we know. It replaced `design/explanations/` on 2026-09-20, when the seven
-shipped design pages became one page and the outlines behind them stopped having
-a separate job. Read it before you argue a design decision from first principles —
+`design/practices.md` is the other half, and it is internal: the numbered rules
+for designing a voice agent, each marked *agreed*, *contested* or *violated*,
+plus the reasoning the public page argues from — the moving parts and why there
+is no merge, the tiers, the clocks, and the questions to ask before wrapping
+anything. `practices.md` is what we know. It replaced `design/explanations/` on
+2026-09-20, when the shipped design pages became one page and the outlines behind
+them stopped having a separate job. Read it before you argue a design decision from first principles —
 most of them have already been argued once, and the file says which ones are still
 open.
 

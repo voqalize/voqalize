@@ -1,11 +1,6 @@
-# The closed lexicon, in the form a machine can check.
-#
-# `voice.md` says the lexicon is closed and prints it as a table for people to
-# read. This file is the same table for the checker to read, and the two are held
-# equal by `design/check_facts.py` — edit here, and the check tells you the
-# moment voice.md drifts. It is a mirror rather than a second copy: there is one
-# record, rendered twice, and neither is allowed to say something the other does
-# not.
+# The closed lexicon: a concept keeps one word across the proto, the SDK, the
+# docs and the site. This file is the record, and `design/check_facts.py` is
+# what reads it — there is no second copy for it to drift against.
 #
 # A word that is retired here is a word that once shipped. Every synonym below
 # was on a real surface, which is why it is worth the machine's time: a concept
@@ -16,7 +11,6 @@
 # nobody argued about.
 
 version: 1
-source_of_truth_for: design/voice.md '## Mechanics and lexicon' table
 
 # Concept -> the one word, and the words it replaced.
 #
@@ -26,14 +20,12 @@ source_of_truth_for: design/voice.md '## Mechanics and lexicon' table
 # the concept they were retired from, and a check that flags all of them is a
 # check nobody runs twice. They are swept on demand, with `--sweep`, and read by
 # a person. The words that are never right in any sentence — `retired_words`
-# below, and `platform` — run every time.
+# below — run every time.
 terms:
-  # The homepage is the positioning; this is its hero, verbatim. "A developer
-  # platform for in-app voice agents" is internal shorthand only (owner ruling,
-  # 2026-09-19) and is deliberately NOT the approved word here.
+  # The homepage is the positioning; this is its hero, verbatim.
   - concept: What Voqalize is
     word: voice mode for your app
-    retired: [a voice platform, voice infrastructure, a voice API]
+    retired: [voice infrastructure, a voice API]
 
   - concept: The developer's WebSocket agent
     word: brain
@@ -45,7 +37,7 @@ terms:
 
   - concept: What Voqalize runs below text
     word: the voice tier
-    retired: [the platform, the runtime, voice infrastructure]
+    retired: [the runtime, voice infrastructure]
 
   - concept: The runtime that dials the brain
     word: Voqalize
@@ -91,9 +83,9 @@ terms:
     word: user
     retired: [caller]
 
-# Internal service and repository names. `voice.md` says these never appear in
-# customer-facing text; until 2026-08-25 nothing checked it, and three had
-# reached the docs site — one of them into a filename a reader types.
+# Internal service and repository names. These never appear in customer-facing
+# text; until 2026-08-25 nothing checked it, and three had reached the docs site
+# — one of them into a filename a reader types.
 #
 # This runs every time, not under `--sweep`, because there is no sentence in
 # which these are the right word for a customer. It sees prose only:
@@ -119,19 +111,6 @@ internal_names:
   - name: voqalcloud
     say_instead: Voqalize
 
-# The word we only ever use qualified, kept separate because the rule has
-# exceptions the table cannot carry.
-prohibited:
-  - word: platform
-    why: >-
-      The word names the thing that runs the customer's agent, which is exactly
-      what we are not. "A developer platform for in-app voice agents" is internal
-      shorthand only (owner ruling, 2026-09-19) — it is not an exception here,
-      because no customer-facing surface uses it and the homepage does not.
-    allowed_in:
-      - internal engineering and strategy documents
-      - a competitor category, where it names their thing and not ours
-      - a third party's own name (Google Cloud Platform)
 
 # Retired vocabulary. Not synonyms for anything — words that assert an outcome
 # the reader has not been shown.
@@ -179,7 +158,7 @@ retired_constructions:
       ordinary English; the cadence is the ban.
 
 # Where these rules apply. Design notes and decision records are reasoning, and
-# reasoning argues by contrast — so only the `platform` rule reaches them.
+# reasoning argues by contrast, so no rule here is checked against them.
 scope:
   governed:
     - docs/src/content/docs/**
