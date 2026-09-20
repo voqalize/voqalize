@@ -10,10 +10,10 @@ Everything you skip here has its own page in [Build](/build/).
 ## 1. Install
 
 ```bash
-pip install voqalize-agent-sdk==0.3.0
+pip install voqalize-agent-sdk==0.4.0
 ```
 
-No pipecat, no model SDK, no audio library. **Pin it.** 0.3.0 is where this
+No pipecat, no model SDK, no audio library. **Pin it.** 0.4.0 is where this
 surface stands; the 0.0.x on PyPI is a different one that will import cleanly
 and then fail on a name this page uses.
 

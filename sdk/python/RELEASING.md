@@ -32,10 +32,10 @@ release python sdk → Run workflow**, picking the *tag* as the ref.
 ## Versioning
 
 The public series starts at `0.0.1`, and PyPI now serves `0.0.1`, `0.0.2`,
-`0.0.3`, `0.1.0`, `0.2.0` and `0.3.0`. The changelog sections suffixed **`(pre-restart)`**
-— `0.1.0`, `0.2.0` and `0.3.0` — were never published: they were installed from a
-path by the single host that used the SDK, and restarting the public history at
-the bottom said plainly that nothing was promised yet. The numbers were then
+`0.0.3`, `0.1.0`, `0.2.0`, `0.3.0` and `0.4.0`. The changelog sections suffixed
+**`(pre-restart)`** — `0.1.0`, `0.2.0` and `0.3.0` — were never published: they
+were installed from a path by the single host that used the SDK, and restarting
+the public history at the bottom said plainly that nothing was promised yet. The numbers were then
 reused, so the changelog holds two `0.1.0` sections and two `0.2.0` sections and
 only the unsuffixed one is on PyPI. The release guard greps `^## <tag>$`, which
 matches the unsuffixed heading and never the pre-restart one. Until the package
