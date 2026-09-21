@@ -18,7 +18,7 @@ lives somewhere else".
 - **[`l2/`](l2/)** — deep dives, each read **only when a question goes past
   L1**, one per topic: `wire-and-brain`, `connect-and-clients`,
   `latency-and-failure`, `deployment-and-vpc`, `speech-and-languages`, `avatar`,
-  `observability-and-testing`, `security-and-data`, `pricing-and-preview`,
+  `observability-and-testing`, `security-and-data`, `pricing-and-plans`,
   `company-and-comparison`. Each is small enough to pull into context without
   crowding the call.
 - **[`questions.md`](questions.md)** — what a visitor actually asks, written by

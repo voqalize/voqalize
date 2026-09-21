@@ -27,7 +27,7 @@ Inspect these artifacts in order:
 - **Conversation history is yours.** We hold the call, not what your brain
   remembered about it.
 
-During developer preview, retention is not configurable or guaranteed. See
+Stored session data, recordings included, is retained for 30 days. See
 [current status and supported environments](/overview/status/) before building
 an archival or compliance workflow.
 

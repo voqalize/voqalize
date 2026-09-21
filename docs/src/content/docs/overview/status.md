@@ -1,11 +1,7 @@
 ---
 title: Current status and supported environments
-description: What is available during developer preview — SDK stability, clients, hosting, regions, stored data, limits, and the direction for pricing and support.
+description: What is available today — SDK versions, clients, hosting, regions, stored data and retention, and where plans, limits and support are set.
 ---
-
-Voqalize is in developer preview. Build and test an embedded agent now; plan for
-API changes, rate limiting and availability interruptions. The preview has no
-service-level agreement.
 
 This page separates what is available today from what is planned. The
 [Python package on PyPI](https://pypi.org/project/voqalize-agent-sdk/) and
@@ -15,8 +11,8 @@ are the upstream records for the SDK surfaces.
 ## Brain SDK
 
 The published Python brain SDK is `voqalize-agent-sdk==0.5.0`. It requires
-Python 3.12 or later and is classified as alpha. Pin the version: the callbacks
-and wire may change before 1.0.
+Python 3.12 or later. Pin the version you build against: releases before 1.0
+may change the brain callbacks.
 
 The `gemini` extra ships `GeminiBrain` and `GeminiInteractionsBrain`.
 
@@ -87,14 +83,13 @@ Calls are processed and stored in India today. A United States region is
 planned and is not available for selection yet.
 
 The MCP server is rate limited per tenant; a refused request is a `429`
-with a `Retry-After` header. Session limits, per day and concurrent, are not
-enforced during developer preview, and no public concurrency number is
-committed. Ask before a pilot or launch that needs a specific concurrency
-level.
+with a `Retry-After` header. Concurrent sessions, included minutes and storage
+are set by your plan; [pricing](https://voqalize.com/pricing) lists each plan's
+allowance. Talk to us before a launch that needs more than a plan carries.
 
 ## Stored session data
 
-| Data | Stored by Voqalize during the preview |
+| Data | Stored by Voqalize |
 |---|---|
 | Session record and `init` | Yes |
 | Lifecycle and wire events | Yes |
@@ -103,27 +98,23 @@ level.
 | Audio | Only when recording is enabled for that session |
 | Brain model history and brain logs | No; these remain in your environment |
 
-Retention is not configurable or guaranteed during developer preview. Do not
-place personal data in `init`, and do not build a compliance requirement around
-an assumed retention interval. Fine-grained retention and access controls are
-planned for paid plans; their shape and availability date are not committed.
+Stored session data, recordings included, is retained for 30 days. Send
+identifiers rather than personal data in `init`, and resolve them against your
+own store.
 
-## Pricing and support direction
+## Pricing and support
 
-The developer preview is free. Prices for paid plans are not set.
-
-Paid pricing is planned per session minute and will include speech recognition,
-speech synthesis, endpointing, WebRTC, the avatar, monitoring, observability and
-service operation. Your brain owns its model, so its LLM usage remains on your
+Voqalize is priced per conversation minute. The minute includes speech
+recognition, speech synthesis, endpointing, WebRTC, the avatar and
+observability. Your brain owns its model, so its LLM usage remains on your
 model-provider account and outside the Voqalize minute.
 
-Paid plans are planned to include ticket-based support. Enterprise plans will
-support negotiated support contracts. No response-time commitment applies
-during developer preview.
+Plans, their included minutes, the free signup credit, support and uptime
+commitments are on the [pricing page](https://voqalize.com/pricing).
 
 ## Read next
 
 - [A session, end to end](/build/session/) — the complete application path.
 - [Quickstart](/build/quickstart/) — build the first web call.
-- [Usage and limits](/operate/usage/) — the counters available during preview.
+- [Usage and limits](/operate/usage/) — the counters for your tenant.
 - [The wire](/reference/wire/) — implement and verify a brain in another language.

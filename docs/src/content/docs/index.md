@@ -32,10 +32,10 @@ starts, and closes it when the call ends.
 
 The sections below explain the responsibility on each side.
 
-:::note[Developer preview]
-The SDK and wire may change before 1.0, and the preview has no availability
-guarantee. Calls run in India today. Read [current status and supported
-environments](/overview/status/) before planning a production launch.
+:::note[Before a production launch]
+Calls run in India today, and session data is retained for 30 days. Read
+[current status and supported environments](/overview/status/) for versions,
+regions and what is stored.
 :::
 
 ## The integration boundary
@@ -72,7 +72,7 @@ SmallWebRTC surfaces; Voqalize currently ships complete examples for web.
 
 | Section | What is in it |
 |---|---|
-| **[Current status](/overview/status/)** | SDK stability, clients, regions, stored data, limits, pricing direction and support. |
+| **[Current status](/overview/status/)** | SDK versions, clients, regions, stored data and retention, and where plans and support are set. |
 | **[Build](/build/)** | Everything you write. From a ten-minute call to the whole SDK surface — the brain, where it runs, the client, tools, actions, tests. |
 | **[Improve the agent](/design/)** | How interruption, spoken output, tools and screen actions change the conversation design. |
 | **[Operate](/operate/)** | Running it in production. Reading one call back, what persists per session, keys and limits. |

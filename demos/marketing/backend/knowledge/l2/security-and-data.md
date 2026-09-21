@@ -54,9 +54,8 @@ environment, and the wire carries text and typed events, not model state.
 Guidance that follows: **`init` is stored, so send identifiers rather than PII**
 and let the brain resolve them against the customer's own database.
 
-**Retention is not configurable and not guaranteed during developer preview.**
-Do not quote a period; there is not one to quote. Anyone with a retention
-requirement should raise it before a pilot.
+**Stored session data, recordings included, is retained for 30 days.** Anyone
+with a different retention requirement should raise it before a pilot.
 
 Region: processed and stored in **India**. A US region is planned, not
 selectable, no date.

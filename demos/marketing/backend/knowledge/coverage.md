@@ -59,16 +59,16 @@ Nothing in the set needs more than one `l2/` read, and nothing is uncovered.
 | 37 | traction | L1 | Numbers, Recruit41 provenance |
 | 38 | business-model | L1 | Facts → Money |
 | 39 | moat | L1 | Objections, third bullet |
-| 40 | traction | L1 | Not known — customers outside preview are not named |
+| 40 | traction | L1 | Not known — paying customers are not named |
 | 41 | partnerships | L1 | Facts → Deployment, forward deployed — no partner is named |
 | 42 | positioning | L1 | Identity + Objections, "what a chatbot doesn't" |
 | 43 | trial | L1 | Demos |
 | 44 | pricing | L1 | Facts → Money |
 | 45 | audience | L1 | Objections, "Do I need engineers?" |
-| 46 | maturity | L1 thin | Objections, developer preview; the ordered answer is in `pricing-and-preview.md` |
+| 46 | maturity | L1 thin | Objections, production readiness; the ordered answer is in `pricing-and-plans.md` |
 | 47 | differentiation | L1 | Facts → Speech ("ours, on our own GPUs") + Objections, moat |
 | 48 | claims | L1 | Numbers, the 1,143 qualifier |
-| 49 | value | L1 thin | Facts → Money (what the minute covers) + Objections; argument in `pricing-and-preview.md` |
+| 49 | value | L1 thin | Facts → Money (what the minute covers) + Objections; argument in `pricing-and-plans.md` |
 | 50 | claims | L1 | The Page, known page defect |
 
 ---
@@ -92,7 +92,7 @@ anticipate.
 The *thin* rows are the honest edge, and they share a shape: L1 states the
 position, and the asker wants the argument behind it. Each belongs to a
 persona who will keep talking — a CTO comparing against a realtime voice API, an
-investor probing the moat, a buyer asking what preview means for their launch.
+investor probing the moat, a buyer asking which plan carries their launch.
 The agent should answer from L1 and then offer to go further, rather than
 reading the L2 file pre-emptively and burying the short answer.
 

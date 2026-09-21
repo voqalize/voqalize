@@ -123,9 +123,8 @@ anyone finds it.
 
 Ask for a fresh one rather than holding one.
 
-The URL lifetime is not a retention promise. During developer preview,
-recording retention is neither configurable nor guaranteed. Download anything
-you need to keep, and do not build around an assumed retention interval. See
+The URL lifetime is not the retention period. Recordings are retained for 30
+days; download anything you need to keep longer. See
 [current status and supported environments](/overview/status/).
 
 ## Which rule decided, after the fact

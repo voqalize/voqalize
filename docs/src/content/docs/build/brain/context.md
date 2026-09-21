@@ -199,10 +199,10 @@ anywhere saying so — which is why the request body is strict and an undeclared
 key is a 422 naming it.
 
 `init` is stored on the session record and returned to anyone who can read that
-session. During developer preview, retention is neither configurable nor
-guaranteed. **Send identifiers, not personal data**, and resolve them against
-your own store the way the snippet above does. See [current status and supported
-environments](/overview/status/) for the preview data policy.
+session, and retained for 30 days. **Send identifiers, not personal data**, and
+resolve them against your own store the way the snippet above does. See
+[current status and supported environments](/overview/status/) for what is
+stored.
 
 ## History is yours
 

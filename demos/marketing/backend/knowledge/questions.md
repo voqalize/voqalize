@@ -128,5 +128,7 @@ page and the status page all said *developer* preview. One of those words was
 wrong on the page itself, and no knowledge base should paper over it.
 
 **Fixed:** `Close.astro` says *developer preview*, and the page now uses one
-term throughout. Left here because the finding is what this file is for — it is
+term throughout. On 2026-09-21 the preview label itself left every surface —
+docs, site, console and this knowledge base — and pricing, limits and retention
+now come from the pricing page. Left here because the finding is what this file is for — it is
 the audit that built the knowledge base, not a list of open defects.

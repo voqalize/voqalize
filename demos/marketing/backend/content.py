@@ -141,7 +141,7 @@ SECTIONS: tuple[Section, ...] = (
         title="the status strip",
         answers="whether this is real, and who has been running it",
         targets=(
-            ("preview.status", "developer preview, built on the tier behind Recruit41"),
+            ("preview.status", "two years in production, powering Recruit41"),
             ("preview.stat.years", "two years in production"),
             ("preview.stat.interviews", "fifty thousand interviews"),
             ("preview.stat.concurrent", "1,143 simultaneous conversations"),
@@ -312,7 +312,7 @@ TopicId = Literal[
     "avatar",
     "observability-and-testing",
     "security-and-data",
-    "pricing-and-preview",
+    "pricing-and-plans",
     "company-and-comparison",
 ]
 """The deep dives in ``knowledge/l2/``. Each is read whole, on demand, or not at all."""
@@ -348,8 +348,8 @@ TOPICS: dict[TopicId, str] = {
         "keys and rotation, what is stored and what is not, certifications, the RTVI "
         "whitelist, why management is OAuth rather than a REST key"
     ),
-    "pricing-and-preview": (
-        "the pricing shape, what preview does and does not promise, production readiness, support"
+    "pricing-and-plans": (
+        "the plans and what each includes, limits, SLAs, retention, production readiness, support"
     ),
     "company-and-comparison": (
         "Recruit41, the moat, build-versus-buy, realtime voice APIs, "

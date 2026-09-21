@@ -69,17 +69,17 @@ def _llm() -> ScriptedGemini:
                 reply_and_call(
                     "One moment.",
                     "look_up",
-                    request={"topic": "pricing-and-preview"},
+                    request={"topic": "pricing-and-plans"},
                 ),
                 reply_and_call(
-                    "Free while it is in preview.",
+                    "Three hundred fifty free minutes to start.",
                     "show_note",
                     note={
                         "title": "Pricing shape",
-                        "markdown": "- Preview is free\n- Then: per session minute",
+                        "markdown": "- Free: 350 minutes at signup\n- Then: per conversation minute",
                     },
                 ),
-                reply("Rates land before charges do."),
+                reply("The pricing page has every plan."),
             ],
             # No `layout`. The page has to be told one, so the brain defaults it
             # rather than refusing the call — a note that does not render because
@@ -156,7 +156,7 @@ async def test_a_deeper_question_reads_one_file_and_answers_in_the_panel() -> No
         assert rig.actions() == ["show_note"], rig.actions()
         note = rig.command("show_note")
         assert note["title"] == "Pricing shape"
-        assert "per session minute" in note["markdown"]
+        assert "per conversation minute" in note["markdown"]
         # The model named no layout and the page still gets one.
         assert note["layout"] == "note"
 

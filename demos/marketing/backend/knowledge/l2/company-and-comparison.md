@@ -12,7 +12,7 @@ is the origin of the platform, not an external customer who bought it.
 So, plainly: **the headline numbers are Recruit41's, not a Voqalize customer's**,
 and the homepage attributes them there rather than implying a customer roster.
 Say it that way if asked — it is a stronger answer than a vague one, because it
-explains why a preview product has production numbers at all.
+explains why a young developer product has production numbers at all.
 
 - **2 years in production** — the voice tier, not the SDK.
 - **50,000 interviews**, with per-session context and structured output.
@@ -24,7 +24,7 @@ lucky day?"* — it was one real day, and the page does not claim otherwise. It 
 what the system actually carried, which is a different and in some ways better
 fact than a synthetic benchmark. There is no published load-test number.
 
-**Paying customers outside developer preview are not named publicly.** Don't
+**Paying customers are not named publicly.** Don't
 improvise one.
 
 ## Delivery partners

@@ -22,7 +22,7 @@
  * So: five sections, five namespaces, and their names describe the reader's
  * next decision.
  *
- *   Overview /overview/   evaluation, support and preview status
+ *   Overview /overview/   evaluation, support and current status
  *   Build    /build/      everything you write, from ten minutes to the whole
  *                         SDK surface
  *   Design   /design/     what changes when the output is spoken

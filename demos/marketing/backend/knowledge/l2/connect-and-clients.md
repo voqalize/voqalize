@@ -11,8 +11,7 @@ One HTTP call, then stock pipecat.
 
 - `agent_id` — required. Selects the brain URL and the recording default.
 - `init` — opaque blob, handed to the brain as `session.init` and stored with the
-  session. Send identifiers, not PII; it is stored, and retention is not
-  guaranteed during preview.
+  session. Send identifiers, not PII; it is stored, and retained for 30 days.
 - `config` — `tts`, `stt`, `idle`, `record`.
 - `display_name` — shown in the console.
 - `metadata` — your own tags for later filtering. Keys capped at ten, values at

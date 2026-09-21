@@ -926,27 +926,32 @@ facts:
   # ---- commercial -----------------------------------------------------------
 
   pricing.state:
-    value: free during developer preview
-    source: platform/frontend/apps/marketing/src/pages/pricing.astro
-    verified: 2026-08-24
+    value: per conversation minute, on the plans the pricing page lists
+    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    verified: 2026-09-21
+    reproduce: >-
+      sed -n '60,130p' ../platform/frontend/apps/marketing/src/data/pricing.ts
     note: >-
-      The only number on that page is $0 and it is the whole statement. There are
-      no tiers, so no surface may name one. When pricing arrives the meter is
-      session time — the seconds a session is live on the voice tier — never
-      seats, agents, requests or tokens. We never resell tokens, because the
-      brain runs in the reader's building and bills them directly.
+      The pricing page renders PLANS and writes no figure of its own, so a page
+      here quotes a plan's figure only by pointing at voqalize.com/pricing. The
+      meter is conversation minutes — never seats, agents, requests or tokens —
+      and we never resell tokens, because the brain runs in the reader's
+      building and bills them directly. The free plan is a one-off signup
+      credit, not a trial with a clock on it. Until 2026-09-21 this entry said
+      "free during developer preview"; that label is gone from every surface.
     forbid:
       - '\bper[- ]seat\b'
       - '\bfree trial\b'
+      - '(?i)\bdeveloper preview\b'
 
-  preview.service_level:
-    value: no availability guarantee; rate limiting and interruptions may occur
-    source: product decision 2026-08-28
-    verified: 2026-08-28
+  service_level:
+    value: uptime SLA on Growth and Enterprise, as the pricing page states
+    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    verified: 2026-09-21
     note: >-
-      Developer preview carries no SLA. State this before a developer treats a
-      successful prototype as a production availability commitment. Do not
-      invent an uptime percentage or a standard concurrent-call allowance.
+      The SLA is a plan feature; name it by pointing at the pricing page rather
+      than restating the percentage. Do not invent a standard concurrent-call
+      allowance beyond what a plan lists.
 
   regions.current:
     value: India
@@ -981,47 +986,42 @@ facts:
       the developer's environment.
 
   session.data.retention:
-    value: not configurable or guaranteed during developer preview
-    source: product decision 2026-08-28
-    verified: 2026-08-28
+    value: 30 days, recordings included
+    source: product decision 2026-09-21
+    verified: 2026-09-21
     note: >-
-      Do not publish current bucket lifecycle rules as a customer contract.
-      Fine-grained retention and access controls are planned for paid plans;
-      neither their shape nor their dates are committed. Until then developers
-      must avoid putting personal data in init and must not build compliance
-      assumptions on a retention interval.
+      Stored session data — the record, init, events, transcripts, logs and
+      recordings — is retained for 30 days. Developers should still send
+      identifiers rather than personal data in init. Until 2026-09-21 this said
+      retention was not configurable or guaranteed.
 
-  pricing.direction:
-    value: per session minute, all-inclusive except the developer's LLM
-    source: product decision 2026-08-28
-    verified: 2026-08-28
+  pricing.minute_includes:
+    value: STT, TTS, turn-taking, WebRTC, the avatar, observability and network; the developer's LLM excluded
+    source: platform/frontend/apps/marketing/src/data/pricing.ts INCLUDED
+    verified: 2026-09-21
     note: >-
-      Future paid pricing will include STT, TTS, endpointing, WebRTC, avatar,
-      monitoring, observability and service availability. The brain and its LLM
-      remain in the developer's environment and its model bill remains theirs.
-      The price per minute is unset.
+      Recording and storage above a plan's quota are metered on top (ADDITIONAL
+      in the same file). The brain and its LLM remain in the developer's
+      environment and its model bill remains theirs.
 
   limits.concurrent_calls:
-    value: not enforced during developer preview; number unset
-    source: platform/backend/controlplane/app/runtime/bootstrap.py NoOpQuotaService
-    verified: 2026-09-11
+    value: set per plan, as the pricing page lists
+    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    verified: 2026-09-21
     reproduce: >-
-      grep -n 'QuotaService' ../platform/backend/controlplane/app/runtime/bootstrap.py
+      grep -n 'concurrency' ../platform/frontend/apps/marketing/src/data/pricing.ts
     note: >-
-      Session limits, per day and concurrent, are written but not wired: the
-      control plane constructs a quota service that allows every session. The
-      one limit a tenant meets is the per-tenant API rate limit, a `429` with
-      `Retry-After`. Until 2026-09-11 this entry said ceilings applied, and the
-      usage and status pages repeated it. Ask before a pilot or launch; never
-      print a guessed tier table, and never say a ceiling applies until the
-      source line above changes.
+      Docs describe the product as sold and point at the pricing page for each
+      plan's concurrent sessions, minutes and storage. The per-tenant API rate
+      limit is a `429` with `Retry-After`. Until 2026-09-21 this entry said
+      session limits were not enforced during developer preview.
     forbid:
       - '\bconcurrent-call ceilings\b'
 
-  support.paid_direction:
-    value: ticket support on paid plans; custom support contracts for enterprise plans
-    source: product decision 2026-08-28
-    verified: 2026-08-28
+  support.plans:
+    value: email support on Starter; priority Slack and a forward-deployed engineer on Growth; a named account manager on Enterprise
+    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    verified: 2026-09-21
     note: >-
-      A future commercial commitment, not a developer-preview SLA. No response
-      time, severity schedule or launch date is committed yet.
+      Point at the pricing page for support by plan; no response time beyond
+      what a plan states is committed.

@@ -1,6 +1,6 @@
 ---
 title: Usage and limits
-description: What Voqalize counts, how session duration is measured, which limits apply during developer preview, and the one gap that tells you your embed is broken.
+description: What Voqalize counts, how session duration is measured, which limits apply, and the one gap that tells you your embed is broken.
 ---
 
 `get_usage(tenant, period="")` returns one tenant's counters for one billing
@@ -23,10 +23,9 @@ length of the audio you can play back. Silence inside a call is inside both: a
 caller who stops talking has not ended the session, and the track carries those
 seconds as silence.
 
-Developer preview is free. Future paid pricing is planned per session minute,
-with the developer's LLM billed separately by its provider; prices have not
-been set. See [current status and supported environments](/overview/status/) for
-what the planned minute includes.
+Voqalize is priced per conversation minute, with the developer's LLM billed
+separately by its provider. Each plan's included minutes and rate are on the
+[pricing page](https://voqalize.com/pricing).
 
 `agents` breaks the same numbers down per agent, busiest first.
 
@@ -46,10 +45,9 @@ before the transport starts.
 
 ## Limits
 
-Session limits — sessions per day and concurrent sessions — are not enforced
-during developer preview. Nothing in the counters above counts toward a cap, and
-no public concurrency number is committed. The preview also has no availability
-guarantee. Ask before a pilot or launch that needs a specific ceiling.
+Concurrent sessions, included minutes and storage are set by your plan; the
+[pricing page](https://voqalize.com/pricing) lists each plan's allowance. Talk to
+us before a launch that needs more than a plan carries.
 
 A session lasts at most one hour: the voice tier ends it at the hour with
 `end_reason` `max_duration`. A session still `active` five minutes past the hour

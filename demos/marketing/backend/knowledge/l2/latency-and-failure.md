@@ -75,10 +75,9 @@ next call rather than a wait.
   reading `active` five minutes past the cap settles as `lost`.
 - **Idle**: `idle.timeout_ms` defaults to `0`, meaning off; ceiling 300000.
   `on_user_idle` never fires until you set it.
-- **Concurrency and sessions per day**: tier limits exist in the model but are
-  **not enforced during developer preview**, and no public concurrency ceiling is
-  committed. A pilot with a known peak should be discussed before it runs rather
-  than discovered.
+- **Concurrency**: set by the plan — the pricing page lists each plan's
+  concurrent sessions. A pilot with a peak above its plan should be discussed
+  before it runs rather than discovered.
 - **Management API**: rate limited per tenant, `429` with `Retry-After`. MCP: 120
   tool calls per minute per tenant.
 

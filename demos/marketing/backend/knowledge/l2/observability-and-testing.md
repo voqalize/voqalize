@@ -22,17 +22,16 @@ platform reads are for after the fact and for operators.
 
 ## What is stored, and what is not
 
-Stored during preview: the session record and its `init` blob, lifecycle and wire
+Stored: the session record and its `init` blob, lifecycle and wire
 events, transcripts, Voqalize's own logs, and audio **only when recording was
 enabled**.
 
 Not stored: the brain's model history and the brain's logs. Those never leave the
 customer's environment, because the brain never runs here.
 
-**Retention is not configurable and not guaranteed during developer preview.**
-That is the literal position, and it has a practical reading: treat anything you
-need to keep as something to pull down and store yourself, and do not build a
-compliance process on Voqalize's copy yet. For anything else, `support@voqalize.com`.
+**Stored session data, recordings included, is retained for 30 days.** Anything
+needed for longer is something to pull down and store yourself. For a retention
+requirement beyond that, `support@voqalize.com`.
 
 Region: processed and stored in India.
 
@@ -73,6 +72,5 @@ caveat. Keep a smoke test that joins a real call.
 
 ## Usage
 
-`get_usage` returns the counters — sessions and session time. During preview they
-are a meter with no invoice attached, which is also how the planned pricing will
-be measured.
+`get_usage` returns the counters — sessions and session time. Session time is the
+unit pricing is measured in.
