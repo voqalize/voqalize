@@ -1816,10 +1816,17 @@ class OrderDeskBrain(GeminiBrain):
         Everything about the store, the previous calls, the order history and
         today's objective goes into the system prompt (not a tool the model has to
         remember to call), so even the opening line is grounded in it."""
+        # `patience` moves the least of any desk here, on purpose. A truncated
+        # turn does not merely read badly on this one — it is handed to
+        # `search.resolve` against the real catalog, so a pharma brand name cut
+        # short resolves to the wrong SKU or to nothing, and the pharmacist pays
+        # for it in a disambiguation round rather than in milliseconds. The
+        # pharmacist also rattles items off with the list in front of him, which
+        # is exactly the pause this gate exists to sit through.
         await session.configure(
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.HI),
-                stt=SttConfig(language=Language.HI),
+                stt=SttConfig(language=Language.HI, patience=5),
             )
         )
         self.desk.session = session

@@ -223,9 +223,15 @@ class MarketingBrain(GeminiBrain):
         # rather than sent with the connect request. Both language legs move
         # together because half a language is silent; `set_language` moves them
         # again if the visitor asks. This lands before the greeting.
+        #
+        # `patience` is low because this is a shop window. A visitor asks a short
+        # question about the band they are looking at and judges the product by
+        # how it answers; a pause spent guarding against a mid-sentence breath is
+        # a pause spent looking unresponsive to someone deciding whether to care.
+        # Tanya points more than she talks, so her turns are short on both sides.
         await session.configure(
             Config(
-                stt=SttConfig(language=OPENING.heard),
+                stt=SttConfig(language=OPENING.heard, patience=2),
                 tts=TtsConfig(voice=OPENING.voice, language=OPENING.spoken),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )

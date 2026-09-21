@@ -400,7 +400,12 @@ def _config(language_name: LanguageName, voice: Voice = Voice.OMNIVOICE_GAURI) -
     """
     language = _LANG_BY_NAME[language_name]
     return Config(
-        stt=SttConfig(language=language),
+        # `patience` is trimmed but not to the floor. An L1 support caller reads
+        # things aloud that must arrive whole — an account to pick, an amount, a
+        # card's last digits — and pauses mid-number while they find it. Being
+        # answered halfway through one is worse here than being answered slowly,
+        # so this keeps headroom the shorter-turn desks do not need.
+        stt=SttConfig(language=language, patience=4),
         tts=TtsConfig(voice=voice, language=language),
         idle=IdleConfig(timeout_ms=_IDLE_MS),
     )
