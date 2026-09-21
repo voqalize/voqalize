@@ -208,7 +208,9 @@ async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() ->
     ``init`` and dressed every call as the default would still produce audio,
     and this is the assertion that catches it."""
     async with demo("avatar", _llm()) as rig:
-        greeting = await rig.driver.start_session(init={"surface": "avatar-web", "avatar": "tushar"})
+        greeting = await rig.driver.start_session(
+            init={"surface": "avatar-web", "avatar": "tushar"}
+        )
         assert greeting is not None and greeting.text == _GREETING
         check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
 

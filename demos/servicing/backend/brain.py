@@ -613,9 +613,7 @@ class ServicingBrain(GeminiBrain):
                     row["stage"] = action.stage
             case AddComment():
                 if (row := _find(rows, action.ref)) is not None:
-                    row.setdefault("notes", []).append(
-                        {"author": AGENT_NAME, "text": action.text}
-                    )
+                    row.setdefault("notes", []).append({"author": AGENT_NAME, "text": action.text})
             case PrepareCase():
                 if (row := _find(rows, action.ref)) is not None:
                     row["findings"] = [f.label for f in action.findings]
