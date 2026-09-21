@@ -199,17 +199,16 @@ def test_everything_the_brain_is_handed_to_say_is_short_sentences() -> None:
 async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() -> None:
     """The pairing, asserted where it is actually decided.
 
-    Ten faces share two recorded reference speakers, so a face and a voice are
-    one choice. The visitor makes it on the strip before dialling and it rides
+    A face and a voice are one choice. The visitor makes it on the strip before dialling and it rides
     the connect request; the brain has to apply it before the opener is
     synthesised, because a greeting in the other speaker's voice is the whole
     defect this arrangement exists to remove.
 
-    ``arjun`` is male and the default face is female — so a brain that ignored
+    ``tushar`` is male and the default face is female — so a brain that ignored
     ``init`` and dressed every call as the default would still produce audio,
     and this is the assertion that catches it."""
     async with demo("avatar", _llm()) as rig:
-        greeting = await rig.driver.start_session(init={"surface": "avatar-web", "avatar": "arjun"})
+        greeting = await rig.driver.start_session(init={"surface": "avatar-web", "avatar": "tushar"})
         assert greeting is not None and greeting.text == _GREETING
         check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
 
@@ -292,7 +291,7 @@ async def test_the_strip_cannot_move_the_voice_once_the_call_is_up() -> None:
         await rig.driver.start_session()
         before = len([r for r in rig.driver.requests if isinstance(r, ConfigureFrame)])
 
-        await rig.driver.send_ui_event("pick_avatar", {"key": "naina"})
+        await rig.driver.send_ui_event("pick_avatar", {"key": "tushar"})
         await _settle()
 
         after = [r.config for r in rig.driver.requests if isinstance(r, ConfigureFrame)]

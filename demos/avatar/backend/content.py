@@ -132,7 +132,7 @@ SECTIONS: tuple[Section, ...] = (
         title="Choose a face",
         notes=(
             "Every face ships in one package. "
-            "Some are drawn, some painted, and some built in Blender. "
+            "The faces on this strip are 2.5-D characters, each built in Blender. "
             "Each face comes with its own voice, so you pick before the call. "
             "Blinks and breathing happen in the browser. Nobody sends them."
         ),
@@ -170,15 +170,6 @@ AvatarKey = Literal[
     "tess",
     "tushar",
     "tara",
-    "peep",
-    "wren",
-    "myna",
-    "arjun",
-    "meera",
-    "vikram",
-    "ishita",
-    "kabir",
-    "naina",
 ]
 
 #: The face the strip starts on (``DEFAULT_AVATAR`` in ``frontend/src/roster.ts``),
@@ -233,69 +224,6 @@ AVATARS: tuple[AvatarIdentity, ...] = (
         blurb="The first of the Blender characters, and the one the others were copied from.",
         voice=Voice.OMNIVOICE_GAURI,
     ),
-    AvatarIdentity(
-        key="myna",
-        name="Myna",
-        renderer="line art",
-        blurb="Line-art, wavy hair and hoop earrings. The drawing every rig change is judged against.",
-        voice=Voice.OMNIVOICE_GAURI,
-    ),
-    AvatarIdentity(
-        key="peep",
-        name="Peep",
-        renderer="line art",
-        blurb="The library's default face. Taper fade, polo collar, one accent colour and no strokes anywhere.",
-        voice=Voice.OMNIVOICE_GAURAV,
-    ),
-    AvatarIdentity(
-        key="wren",
-        name="Wren",
-        renderer="line art",
-        blurb="Same idiom as Peep, different person: the hair is the silhouette and the glasses are the accent.",
-        voice=Voice.OMNIVOICE_GAURI,
-    ),
-    AvatarIdentity(
-        key="arjun",
-        name="Arjun",
-        renderer="canvas",
-        blurb="Painted rather than drawn — a professional interviewer, authored to read at call-tile size.",
-        voice=Voice.OMNIVOICE_GAURAV,
-    ),
-    AvatarIdentity(
-        key="meera",
-        name="Meera",
-        renderer="canvas",
-        blurb="The painted interviewer's counterpart. Same rig, same thirty channels, a different drawing.",
-        voice=Voice.OMNIVOICE_GAURI,
-    ),
-    AvatarIdentity(
-        key="vikram",
-        name="Vikram",
-        renderer="canvas",
-        blurb="Polished and formal — the one to put in front of a customer who is buying something.",
-        voice=Voice.OMNIVOICE_GAURAV,
-    ),
-    AvatarIdentity(
-        key="ishita",
-        name="Ishita",
-        renderer="canvas",
-        blurb="Polished and formal, the other half of that pair.",
-        voice=Voice.OMNIVOICE_GAURI,
-    ),
-    AvatarIdentity(
-        key="kabir",
-        name="Kabir",
-        renderer="canvas",
-        blurb="Relaxed. Reads as a colleague rather than a desk.",
-        voice=Voice.OMNIVOICE_GAURAV,
-    ),
-    AvatarIdentity(
-        key="naina",
-        name="Naina",
-        renderer="canvas",
-        blurb="Relaxed, and the other half of that pair.",
-        voice=Voice.OMNIVOICE_GAURI,
-    ),
 )
 
 AVATARS_BY_KEY: dict[str, AvatarIdentity] = {a.key: a for a in AVATARS}
@@ -328,8 +256,8 @@ FACTS ABOUT THE LIBRARY — answer from these, and say you are not sure if it is
 - The backend half is one pipecat frame processor. It sits right after text-to-speech, and from there it sends the state it infers and the mouth shapes for the audio about to play. Turning audio into mouth shapes is a little CPU work inside that pipeline, so there is no new service to run or pay for.
 - The browser half is one mount call, given the pipecat client you already connected with.
 - It works with any pipecat pipeline. Voqalize is one user of it, not the only one.
-- The avatars that ship are line-art faces, painted ones, and 2.5-D characters rendered with three.js — Tara, Tushar, Tanya and Tess. All of them are in the one npm package. Anyone can ship their own: an avatar is any module that exports createAvatar.
-- Tanya, the face this page opens on, is a 2.5-D character. Her code is MIT like the rest of the library; the character binary the browser loads is artwork, under CC-BY 4.0. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes. Every face in the package is on this page's strip.
+- The avatars that ship are line-art faces, painted ones, and 2.5-D characters rendered with three.js — Tara, Tushar, Tanya and Tess. All of them are in the one npm package. This page's strip shows only the 2.5-D characters. Anyone can ship their own: an avatar is any module that exports createAvatar.
+- Tanya, the face this page opens on, is a 2.5-D character. Her code is MIT like the rest of the library; the character binary the browser loads is artwork, under CC-BY 4.0. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes.
 - HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They also sit right after text-to-speech, but they send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. This library sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
 
 FACTS ABOUT THIS CALL:

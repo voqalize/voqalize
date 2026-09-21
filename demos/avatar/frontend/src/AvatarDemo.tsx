@@ -630,6 +630,15 @@ function Stage({
  * client exists, not when the call goes live. `connectOnMount` is off: nothing
  * opens a microphone until the visitor asks for it.
  */
+/** The face a link asked for — `?avatar=tess`, which is how the homepage's
+ *  faces deep-link here — or the default. Read once, at mount: after that the
+ *  strip is the only thing that picks, and a key the roster does not carry is
+ *  the default rather than an error, because the URL is typed by strangers. */
+function linkedAvatar(): string {
+  const key = new URLSearchParams(window.location.search).get("avatar")?.toLowerCase();
+  return key && key in ROSTER_BY_KEY ? key : DEFAULT_AVATAR;
+}
+
 export function AvatarDemo() {
   // The face lives up here because the connect request does: it is chosen before
   // the call exists and has to be in the body that mints the session.
@@ -643,9 +652,9 @@ export function AvatarDemo() {
   //
   // No `config` — the voice belongs to the brain, which reads this same key out
   // of `init` and configures the pair itself. The page never names a voice.
-  const init = useRef({ surface: "avatar-web", avatar: DEFAULT_AVATAR }).current;
+  const init = useRef({ surface: "avatar-web", avatar: linkedAvatar() }).current;
   const params = useMemo(() => connectRequest(init), [init]);
-  const [avatarKey, setAvatarKey] = useState<string>(DEFAULT_AVATAR);
+  const [avatarKey, setAvatarKey] = useState<string>(init.avatar);
   const onPick = useCallback(
     (key: string) => {
       init.avatar = key;
