@@ -26,7 +26,7 @@ module's whole job.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from voqalize.sdk import AppEvent, AppEvents
 
@@ -50,8 +50,13 @@ __all__ = [
 class LegLine(BaseModel):
     """One flight leg as the overview lists it — the pick, never the options."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     id: str
     label: str = ""
+    # `from` is a Python keyword; the browser's key is the alias, as on ``Leg``.
+    from_: str = Field(default="", alias="from")
+    to: str = ""
     date: str = ""
     options_shown: int = 0
     selected: str = ""
@@ -61,6 +66,7 @@ class StayLine(BaseModel):
     """One hotel city as the overview lists it."""
 
     city: str
+    nights: int = 0
     options_shown: int = 0
     selected: str = ""
 
@@ -128,7 +134,7 @@ class HotelsViewed(AppEvent):
 
 
 class FlightSelected(AppEvent):
-    """The agent picked a flight himself, off the option cards. ``summary`` is
+    """The agent picked a flight themselves, off the option cards. ``summary`` is
     what the overview will now show for the leg, so the mirror needs no lookup."""
 
     leg_id: str
@@ -137,7 +143,7 @@ class FlightSelected(AppEvent):
 
 
 class HotelSelected(AppEvent):
-    """The agent picked a hotel himself, off the option cards."""
+    """The agent picked a hotel themselves, off the option cards."""
 
     city: str
     option_id: str

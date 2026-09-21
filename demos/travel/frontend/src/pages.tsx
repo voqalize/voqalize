@@ -305,6 +305,10 @@ const STYLES = `
 }
 `;
 
+function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+
 function TravelStyles() {
   return <style dangerouslySetInnerHTML={{ __html: STYLES }} />;
 }
@@ -339,7 +343,7 @@ function TopBar({ presence }: { presence: ReactNode }) {
 }
 
 // ── Background-task tray ──────────────────────────────────────────────────────
-// Searches the Travel Desk kicked off (flights, hotels, a day-plan build) show
+// Searches Tess kicked off (flights, hotels, a day-plan build) show
 // here as running spinners while the agent keeps working; when one finishes it
 // turns into a clickable "ready" chip that opens what it produced. This is the
 // visible proof that long-running work doesn't block the conversation — the
@@ -380,13 +384,13 @@ function DashboardPage() {
     <div className="tv-wrap">
       <h1 className="tv-h1">My Itineraries</h1>
       <p className="tv-sub">
-        Plan complex group trips by voice or by hand. Open the Travel Desk and say which trip to build —
-        हिंदी या English.
+        Plan complex group trips by voice or by hand. Ask Tess, the travel desk copilot, which trip to
+        build — or which to pick up.
       </p>
       {itineraries.length === 0 ? (
         <div className="tv-empty">
-          No itineraries yet. Tap <b>Ask the Travel Desk</b> and say something like “एक नई itinerary
-          बनाओ — Poddar family का Vietnam group trip”.
+          No itineraries yet. Tap <b>Ask Tess</b> and say something like “Start a new trip — the Poddar
+          family's group trip to Vietnam”.
           <div style={{ marginTop: 16 }}>
             <button className="tv-btn ghost" onClick={byHand.newTrip}>
               + Start a blank itinerary
@@ -531,10 +535,10 @@ function OverviewPage({ active }: { active: Itinerary }) {
       <div className="tv-sec" id="tv-sec-flights">
         <div className="tv-sech">
           <h2>Flights</h2>
-          <span className="ct">{active.legs.length} legs</span>
+          <span className="ct">{plural(active.legs.length, 'leg')}</span>
         </div>
         {active.legs.length === 0 ? (
-          <div className="tv-muted">No flight legs yet — ask the Travel Desk to add them.</div>
+          <div className="tv-muted">No flight legs yet — ask Tess to add them.</div>
         ) : (
           active.legs.map((leg) => <LegRow key={leg.id} leg={leg} />)
         )}
@@ -544,7 +548,7 @@ function OverviewPage({ active }: { active: Itinerary }) {
       <div className="tv-sec" id="tv-sec-hotels">
         <div className="tv-sech">
           <h2>Hotels</h2>
-          <span className="ct">{active.hotels.length} stays</span>
+          <span className="ct">{plural(active.hotels.length, 'stay')}</span>
         </div>
         {active.hotels.length === 0 ? (
           <div className="tv-muted">No hotel stays yet.</div>
@@ -557,7 +561,7 @@ function OverviewPage({ active }: { active: Itinerary }) {
       <div className="tv-sec" id="tv-sec-days">
         <div className="tv-sech">
           <h2>Day-wise Itinerary</h2>
-          <span className="ct">{active.days.length} days</span>
+          <span className="ct">{plural(active.days.length, 'day')}</span>
         </div>
         {active.days.length === 0 ? (
           <div className="tv-muted">The day-by-day plan will appear here as you build it.</div>
@@ -707,7 +711,7 @@ function FlightsPage({ active }: { active: Itinerary }) {
       {searching ? (
         <Searching label="Searching live fares for this leg…" />
       ) : options.length === 0 ? (
-        <div className="tv-muted">No options yet — ask the Travel Desk to search this leg.</div>
+        <div className="tv-muted">No options yet — ask Tess to search this leg.</div>
       ) : (
         <div className="tv-optgrid">
           {options.map((opt) => (
@@ -784,7 +788,7 @@ function HotelsPage({ active }: { active: Itinerary }) {
       {searching ? (
         <Searching label={`Searching 5-star hotels in ${stay.city}…`} />
       ) : options.length === 0 ? (
-        <div className="tv-muted">No options yet — ask the Travel Desk to search this city.</div>
+        <div className="tv-muted">No options yet — ask Tess to search this city.</div>
       ) : (
         <div className="tv-optgrid">
           {options.map((opt) => (

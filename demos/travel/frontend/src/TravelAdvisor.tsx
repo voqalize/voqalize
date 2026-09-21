@@ -25,7 +25,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
+import { RTVIEvent, type PipecatClient, type UICommandData } from "@pipecat-ai/client-js";
 import {
   useRTVIClientEvent,
   usePipecatClient,
@@ -34,6 +34,8 @@ import {
 } from "@pipecat-ai/client-react";
 import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
+import type { AvatarFactory, AvatarOptions } from "@voqalize/avatar";
+import { Avatar } from "@voqalize/avatar/react";
 import {
   AmbientPresence,
   DemoGate,
@@ -89,7 +91,7 @@ function BeginControl({
     ? "Connecting…"
     : connectionState === "error"
       ? error || "Connection issue"
-      : "Ask the Travel Desk";
+      : "Ask Tess";
   return (
     <div className="tv-presence">
       <span className="tv-presence-label" title={label}>
@@ -103,7 +105,7 @@ function BeginControl({
         <button
           className="tv-presence-btn"
           onClick={onBegin}
-          title={connectionState === "error" ? "Try again" : "Talk to the Travel Desk"}
+          title={connectionState === "error" ? "Try again" : "Talk to Tess"}
         >
           <Mic size={16} />
         </button>
@@ -158,13 +160,61 @@ const PRESENCE_STYLES = `
 .tv-presence-end:hover{color:var(--vermilion-text);background:var(--muted)}
 .tv-presence-spin{animation:tv-spin .9s linear infinite}
 
+/* Tess's tile: bottom-right, on the portal's paper, ringed in the live vermilion.
+   It renders beside \`.tv-root\`, not inside it, so it spells the portal's tokens out. */
+.tv-tess{position:fixed;right:20px;bottom:20px;z-index:40;width:200px;border-radius:14px;
+  overflow:hidden;background:#FFFDFA;border:1px solid #8C7E6A;
+  box-shadow:0 12px 32px rgba(60,40,20,.18);transition:border-color .2s,box-shadow .2s}
+.tv-tess.pstate-speaking{border-color:#E24E2A;
+  box-shadow:0 12px 32px rgba(60,40,20,.18),0 0 0 3px rgba(226,78,42,.22)}
+.tv-tess.pstate-thinking{border-color:#C9A227}
+.tv-tess-stage{position:relative;aspect-ratio:1;background:radial-gradient(circle at 50% 40%,#FBF3E6,#EADFCB 75%)}
+.tv-tess-face{position:absolute;inset:0}
+.tv-tess-caption{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  padding:8px 12px;font-size:12px;color:#6E665C;font-family:system-ui,sans-serif}
+.tv-tess-caption strong{color:#1A1613;font-size:13px;font-weight:600}
+
 @media(max-width:640px){
   .tv-presence{gap:7px}
   .tv-presence-label{font-size:11.5px;max-width:120px}
   .tv-presence-btn{flex:0 0 34px;width:34px;height:34px}
   .tv-presence-end{flex:0 0 24px;width:24px;height:24px}
+  .tv-tess{right:12px;bottom:12px;width:128px}
+  .tv-tess-caption{padding:6px 10px}
+  .tv-tess-caption span{display:none}
 }
 `;
+
+// ── Tess, on screen ───────────────────────────────────────────────────────────
+// She sits bottom-right over the portal, the way a meeting tile does, and lip-syncs
+// to the bot's own audio track. The face is a GLB, so it loads on demand: nothing
+// is fetched until a call is live.
+const loadTess = (): Promise<AvatarFactory<AvatarOptions>> =>
+  import("@voqalize/avatar/avatars/tess").then((m) => m.createAvatar);
+
+function TessTile({ client, activity }: { client: PipecatClient | null; activity: AmbientPresenceActivity }) {
+  const [create, setCreate] = useState<AvatarFactory<AvatarOptions> | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadTess().then((factory) => {
+      if (live) setCreate(() => factory);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <aside className={`tv-tess pstate-${activity}`} aria-label="Tess">
+      <div className="tv-tess-stage">
+        {create ? <Avatar create={create} client={client} className="tv-tess-face" aria-label="Tess" /> : null}
+      </div>
+      <div className="tv-tess-caption">
+        <strong>Tess</strong>
+        <span>{STATE_LABEL[activity]}</span>
+      </div>
+    </aside>
+  );
+}
 
 // ── Session bridge ────────────────────────────────────────────────────────────
 // Runs inside PipecatAppBase's render-prop children, already wrapped in its own
@@ -208,7 +258,7 @@ function TravelSession({
     ),
   );
 
-  // Register the store's channel back to Priya and open the mic once live. The
+  // Register the store's channel back to Tess and open the mic once live. The
   // store sends one message per gesture, so there is no push loop here to debounce
   // — nothing is on a timer, and nothing goes out that the agent did not do.
   useEffect(() => {
@@ -243,8 +293,8 @@ function TravelSession({
     <>
       <DemoGate
         open={!gate.joined}
-        title="Travel Desk"
-        blurb="Plan a trip out loud — say where you want to go and watch the itinerary build itself on screen."
+        title="Talk to Tess"
+        blurb="Tess is the copilot on this travel desk. Plan a group trip out loud — say where it's going, who's travelling and when — and watch her build the itinerary on screen."
         accent={PRESENCE.listening}
         agreed={gate.agreed}
         onAgreedChange={gate.setAgreed}
@@ -265,6 +315,7 @@ function TravelSession({
       />
       <style dangerouslySetInnerHTML={{ __html: PRESENCE_STYLES }} />
       {children(presence)}
+      {isConnected ? <TessTile client={client ?? null} activity={activity} /> : null}
     </>
   );
 }

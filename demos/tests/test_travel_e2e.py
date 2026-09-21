@@ -1,18 +1,21 @@
 """The Travel Desk demo, end to end over the wire — no network, no LLM key.
 
 The real ``TravelBrain`` — the shipping ``demos/travel/backend/brain_gemini.py``,
-its real prompt, its real eleven tools — hosted on a real ``brain_server`` socket
+its real prompt, its real tools — hosted on a real ``brain_server`` socket
 and driven by the conformance ``VoqalizeDriver``, with only the *model* scripted.
 See ``tests/_harness.py`` for what every demo's e2e proves.
 
 Travel is the demo whose screen can move **by the travel agent's own hand**, not
-just by Priya's tools. Each of those gestures reaches the brain as one typed
+just by Tess's tools. Each of those gestures reaches the brain as one typed
 ``ui-event`` — ``trip_opened``, ``flights_viewed``, ``flight_selected`` — and the
 two properties asserted here are the ones that make that worth having:
 
 * the context gets **one line naming the act**, never the itinerary behind it, and
-* the version gate costs a hop **only when the agent moved the screen** — Priya's
+* the version gate costs a hop **only when the agent moved the screen** — Tess's
   own dispatches are not events, so they can never bill her for a re-read.
+
+Edits are deltas: each names the one row it touches, keeps every other row as it
+was, and an id the trip does not hold is refused with the ids it does.
 
 Run: ``cd demos && uv run pytest tests/test_travel_e2e.py``
 """
@@ -31,8 +34,8 @@ discover()
 
 from voqalize_demos._loaded.travel.brain_gemini import _GREETING  # noqa: E402
 
-VOICE = "omnivoice/gauri"
-LANGUAGE = "hi"
+VOICE = "kokoro/sarah"
+LANGUAGE = "en"
 
 
 def _llm() -> ScriptedGemini:
@@ -51,6 +54,14 @@ def _llm() -> ScriptedGemini:
                             "destination": "Ho Chi Minh City",
                             "start_date": "12 Aug 2026",
                             "end_date": "18 Aug 2026",
+                            "legs": [
+                                {
+                                    "id": "blr-out",
+                                    "from": "Bangalore",
+                                    "to": "Ho Chi Minh City",
+                                    "date": "12 Aug 2026",
+                                }
+                            ],
                         }
                     },
                 ),
@@ -78,7 +89,7 @@ def _llm() -> ScriptedGemini:
                         ],
                     },
                 ),
-                reply("Two options are up — IndiGo non-stop or Vietnam Airlines."),
+                reply("Flights for the outbound leg are up — anything catch your eye?"),
             ],
             "What's on screen right now?": reply(
                 "You've got the Poddar Vietnam trip open, twelve to eighteen August."
@@ -88,8 +99,8 @@ def _llm() -> ScriptedGemini:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """The travel desk opens with a fixed Hindi line — no model call on the start
-    path — and its declared female Hindi voice lands on **both** legs before that
+    """The travel desk opens with a fixed English line — no model call on the start
+    path — and Tess's voice, in English, lands on **both** legs before that
     audio."""
     async with demo("travel", _llm()) as rig:
         greeting = await rig.driver.start_session()
@@ -132,8 +143,17 @@ _PODDAR: dict[str, Any] = {
     "dates": "12 Aug 2026 to 18 Aug 2026",
     "pax": "6 adults, 2 children",
     "families": ["Poddar (4)", "Bhandari (4)"],
-    "legs": [{"id": "blr-out", "label": "Bangalore \u2192 Ho Chi Minh", "date": "12 Aug 2026"}],
-    "hotels": [{"city": "Ho Chi Minh City"}],
+    "legs": [
+        {
+            "id": "blr-out",
+            "label": "Bangalore \u2192 Ho Chi Minh",
+            "from": "Bangalore",
+            "to": "Ho Chi Minh City",
+            "date": "12 Aug 2026",
+            "options_shown": 2,
+        }
+    ],
+    "hotels": [{"city": "Ho Chi Minh City", "options_shown": 2}],
 }
 
 
@@ -205,7 +225,7 @@ async def test_a_gesture_is_named_in_the_context_and_the_itinerary_never_follows
     assert "ON SCREEN RIGHT NOW" not in context, "the itinerary dump is back"
 
 
-async def test_only_a_gesture_costs_a_re_read_and_priyas_own_dispatch_never_does() -> None:
+async def test_only_a_gesture_costs_a_re_read_and_tess_own_dispatch_never_does() -> None:
     """The version gate, which is what makes read-don't-remember enforceable.
 
     Prompt discipline is a request; a model that skips the read is selecting an
@@ -213,7 +233,7 @@ async def test_only_a_gesture_costs_a_re_read_and_priyas_own_dispatch_never_does
     instead of acting, and the refusal is retriable: read, then act.
 
     The half that used to need a flag is now free. The browser echoed every one of
-    Priya's own commands back as a snapshot indistinguishable from the agent moving
+    Tess's own commands back as a snapshot indistinguishable from the agent moving
     the screen by hand, so the brain had to suppress its own echo to avoid billing
     itself a hop. Emits now live at the agent's call site, so a dispatch is simply
     not an event — ``show_flights`` below costs the ``select_flight`` after it
@@ -255,7 +275,7 @@ async def test_only_a_gesture_costs_a_re_read_and_priyas_own_dispatch_never_does
         # the model has never seen this itinerary.
         await rig.driver.user_says("What's on screen?")
 
-        # Two turns Priya drives herself. Neither comes back as an event, so
+        # Two turns Tess drives herself. Neither comes back as an event, so
         # neither can make the other stale.
         await rig.driver.user_says("Bring the outbound options back up.")
         await rig.driver.user_says("Take the IndiGo one.")
@@ -707,3 +727,103 @@ async def test_an_overlong_draft_still_opens_by_its_full_name_or_id(said: str) -
         await rig.driver.user_says("Open the Europe trip.")
         await rig.driver.user_says("Thanks.")
         assert _opened(rig) == [{"id": _LONG_ID, "name": _LONG}]
+
+
+# ─── Edits are deltas: one row each, the rest left alone ─────────────────────
+
+
+async def test_an_edit_touches_one_row_and_an_unknown_id_is_refused_by_name() -> None:
+    """The edit tools the upgrade added, and the refusals that keep them honest.
+
+    Each edit dispatches only the row it names — a moved date is ``set_leg`` with
+    the leg's id and its date, not the trip's whole structure again — and the
+    mirror keeps every other row as it was. A leg whose date moved loses its fares,
+    because they were for another flight, and the result says so. An id the trip
+    does not hold goes nowhere, and the refusal lists the ones it does."""
+    llm = ScriptedGemini(
+        {
+            "Move the outbound to the fourteenth.": [
+                reply_and_call(
+                    "Moving it.",
+                    "set_leg",
+                    action={"leg": {"id": "blr-out", "date": "14 Aug 2026"}},
+                ),
+                reply("Done — I'll search it again."),
+            ],
+            "Make it eight nights in Ho Chi Minh.": [
+                reply_and_call(
+                    "Sure.",
+                    "set_hotel_stay",
+                    action={"stay": {"city": "Ho Chi Minh City", "nights": 8}},
+                ),
+                reply("Eight nights."),
+            ],
+            "Call it Poddar Saigon.": [
+                reply_and_call("Renaming.", "update_trip", action={"name": "Poddar Saigon"}),
+                reply("Renamed."),
+            ],
+            "Drop the Bhandaris, and the Mehtas.": [
+                reply_and_call("Okay.", "remove_family", action={"label": "Bhandari (4)"}),
+                call("remove_family", action={"label": "Mehta"}),
+                reply("The Bhandaris are off."),
+            ],
+            "Search the return.": [
+                call("search_flights", action={"leg_id": "sgn-ret", "options": []}),
+                reply("There's no return leg yet."),
+            ],
+            "Search the outbound again.": [
+                reply_and_call(
+                    "Searching.",
+                    "search_flights",
+                    action={"leg_id": "blr-out", "options": [{"airline": "IndiGo"}]},
+                ),
+                reply("It's up."),
+            ],
+            "Take f9.": [
+                call("read_screen"),
+                call("select_flight", action={"leg_id": "blr-out", "option_id": "f9"}),
+                reply("That one isn't on screen."),
+            ],
+            "What's on screen?": [call("read_screen"), reply("The Poddar Saigon trip.")],
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.send_ui_event("trip_opened", _PODDAR)
+        for said in (
+            "Move the outbound to the fourteenth.",
+            "Make it eight nights in Ho Chi Minh.",
+            "Call it Poddar Saigon.",
+            "Drop the Bhandaris, and the Mehtas.",
+            "Search the return.",
+            "Search the outbound again.",
+            "Take f9.",
+            "What's on screen?",
+        ):
+            await rig.driver.user_says(said)
+
+        # Only what landed went to the screen, and each as its own row.
+        assert rig.actions() == [
+            "set_leg",
+            "set_hotel_stay",
+            "update_trip",
+            "remove_family",
+            "search_flights",
+        ], rig.actions()
+        assert rig.command("set_leg")["leg"]["date"] == "14 Aug 2026"
+        renamed = rig.command("update_trip")
+        assert renamed["name"] == "Poddar Saigon"
+        assert renamed["destination"] is None, "an untouched field went to the screen"
+
+    assert "fares were for the old flight" in " ".join(_results(llm, "set_leg"))
+    [mehta] = [r for r in _results(llm, "remove_family") if "Mehta" in r]
+    assert "no family labelled 'Mehta'" in mehta and "Poddar (4)" in mehta
+    [missing] = _results(llm, "search_flights")[:1]
+    assert "no leg with id 'sgn-ret'" in missing and "blr-out" in missing
+    [wrong] = _results(llm, "select_flight")
+    assert "no option 'f9'" in wrong and "f1" in wrong
+
+    screen = _results(llm, "read_screen")[-1]
+    assert "Poddar Saigon" in screen and "14 Aug 2026" in screen
+    assert "Bhandari" not in screen
+    assert "Ho Chi Minh City" in screen

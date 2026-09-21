@@ -64,6 +64,58 @@ export interface SelectHotel {
   option_id: string;
 }
 
+/** Change the open trip's headline fields. A field left null stays as it is. */
+export interface UpdateTrip {
+  name: string | null;
+
+  coordinator: string | null;
+
+  destination: string | null;
+
+  start_date: string | null;
+
+  end_date: string | null;
+
+  summary: string | null;
+}
+
+/** Add one travelling family, or replace the one with the same label. */
+export interface SetFamily {
+  family: Family;
+}
+
+/** Take one travelling family off the trip, by its label. */
+export interface RemoveFamily {
+  label: string;
+}
+
+/**
+ * Add one flight leg, or change the one with this id. An empty field keeps
+ * the value the leg already has; a new route or date clears the leg's fares and
+ * its pick, which were for a different flight.
+ */
+export interface SetLeg {
+  leg: Leg;
+}
+
+/** Take one flight leg off the trip, fares and pick with it. */
+export interface RemoveLeg {
+  leg_id: string;
+}
+
+/**
+ * Add one hotel city, or change its nights. The searched hotels and the pick
+ * stay: a longer stay is the same hotel.
+ */
+export interface SetHotelStay {
+  stay: CityNights;
+}
+
+/** Take one hotel city off the trip, hotels and pick with it. */
+export interface RemoveHotelStay {
+  city: string;
+}
+
 /**
  * The agent closed the trip and went back to the list of drafts. Nothing is
  * open, so nothing on screen has an id worth holding.
@@ -71,7 +123,7 @@ export interface SelectHotel {
 export type DashboardOpened = Record<string, never>;
 
 /**
- * The agent picked a flight himself, off the option cards. `summary` is
+ * The agent picked a flight themselves, off the option cards. `summary` is
  * what the overview will now show for the leg, so the mirror needs no lookup.
  */
 export interface FlightSelected {
@@ -89,7 +141,7 @@ export interface FlightsViewed {
   leg_label?: string;
 }
 
-/** The agent picked a hotel himself, off the option cards. */
+/** The agent picked a hotel themselves, off the option cards. */
 export interface HotelSelected {
   city: string;
 
@@ -287,6 +339,10 @@ export interface LegLine {
 
   label?: string;
 
+  from?: string;
+
+  to?: string;
+
   date?: string;
 
   options_shown?: number;
@@ -297,6 +353,8 @@ export interface LegLine {
 /** One hotel city as the overview lists it. */
 export interface StayLine {
   city: string;
+
+  nights?: number;
 
   options_shown?: number;
 
@@ -314,7 +372,14 @@ export type UiAction =
   | { command: 'select_flight'; payload: SelectFlight }
   | { command: 'search_hotels'; payload: SearchHotels }
   | { command: 'show_hotels'; payload: ShowHotels }
-  | { command: 'select_hotel'; payload: SelectHotel };
+  | { command: 'select_hotel'; payload: SelectHotel }
+  | { command: 'update_trip'; payload: UpdateTrip }
+  | { command: 'set_family'; payload: SetFamily }
+  | { command: 'remove_family'; payload: RemoveFamily }
+  | { command: 'set_leg'; payload: SetLeg }
+  | { command: 'remove_leg'; payload: RemoveLeg }
+  | { command: 'set_hotel_stay'; payload: SetHotelStay }
+  | { command: 'remove_hotel_stay'; payload: RemoveHotelStay };
 
 export type UiActionCommand = UiAction['command'];
 
@@ -329,6 +394,13 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'search_hotels',
   'show_hotels',
   'select_hotel',
+  'update_trip',
+  'set_family',
+  'remove_family',
+  'set_leg',
+  'remove_leg',
+  'set_hotel_stay',
+  'remove_hotel_stay',
 ];
 
 const _known = new Set<string>(UI_ACTION_COMMANDS);

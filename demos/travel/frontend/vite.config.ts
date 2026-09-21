@@ -14,6 +14,10 @@ export default defineConfig({
   // assets of its own points this at a directory beside its index.html.
   publicDir: "../../public",
   plugins: [react()],
+  // Tess fetches her GLB with `new URL("…", import.meta.url)`, which esbuild's
+  // dependency pre-bundling cannot follow — it inlines a path that is not there.
+  // Excluding the package keeps Vite serving its real files.
+  optimizeDeps: { exclude: ["@voqalize/avatar"] },
   server: {
     // Vite rejects unknown Host headers; allow the local nginx front.
     allowedHosts: [".local.voqalize.com"],

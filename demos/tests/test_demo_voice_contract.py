@@ -127,7 +127,7 @@ DEMOS: dict[str, Expected] = {
     # grown back beside it.
     "sugar": Expected(at_connect=True),
     "support": Expected(voice="omnivoice/gaurav", language="en"),
-    "travel": Expected(voice="omnivoice/gauri", language="hi"),
+    "travel": Expected(voice="kokoro/sarah", language="en"),
 }
 
 

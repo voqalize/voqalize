@@ -1,20 +1,27 @@
 """TravelBrain — the travel-desk agent, on ``GeminiBrain``.
 
-Priya is a voice copilot for a professional travel agent building trip
-itineraries live, on a call. Ten tools drive the agent's screen; each is one
+Tess is a voice copilot for a professional travel agent building trip
+itineraries live, on a call. Every tool but ``read_screen`` drives the agent's
+screen; each is one
 ``async def`` taking a single :class:`~voqalize.sdk.Action` and returning a
 short string — the model calls the method, the method dispatches the
 ``ui-command``, ``self.session`` is simply there because a brain is one
 instance per call.
 
-**The screen is read, never remembered.** The itinerary Priya reasons from is
+**The screen is read, never remembered.** The itinerary Tess reasons from is
 :attr:`TravelBrain.trip` — the brain's own mirror, built by its own dispatches and
 patched by the agent's typed gestures (``app_events.py``), never a snapshot the
 browser pushes. It is read through ``read_screen``, which is local, free and
 silent, and it never enters the context: what goes in is one line naming what the
 agent just did. ``ScreenState.version`` is what makes that safe rather than
-hopeful — a tool aimed at a leg or a city the agent has moved since Priya last
+hopeful — a tool aimed at a leg or a city the agent has moved since Tess last
 read refuses instead of acting on it. See ``voqalize_demos.screen``.
+
+**An edit is a delta, never a re-send.** Changing a date, a family or a hotel stay
+is its own command naming the one row it touches, so the row keeps its identity —
+the fares already searched, the flight already picked. ``set_trip_structure`` is
+the first fill of an empty trip and nothing else. An id the trip does not hold is
+refused with the ids it does, the way a miss on ``open_itinerary`` names the drafts.
 
 The drafts themselves live in the browser's localStorage, so ``TripOpened`` hands
 the itinerary over the first time one is opened. That is the handover, not the old
@@ -51,21 +58,25 @@ from .app_events import (
     TripOpened,
 )
 
-_SYSTEM_INSTRUCTION = """You are Priya, the Travel Desk assistant — a voice copilot for a professional travel agent building trip itineraries for their clients. The agent talks to you live and YOU DRIVE THEIR SCREEN as you talk.
+_SYSTEM_INSTRUCTION = """You are Tess, the Travel Desk copilot — a voice assistant for a professional travel agent building trip itineraries for their clients. The agent talks to you live and YOU DRIVE THEIR SCREEN as you talk.
 
-LANGUAGE: Speak the agent's language (English, Hindi in Devanagari, or Hinglish), matching them. Short, efficient sentences — one question or confirmation per turn, 1-2 sentences. This is voice: no markdown, lists, or symbols; say "rupees" not the symbol. START every reply with a very short sentence so audio begins instantly.
+LANGUAGE: Always speak English. Short, efficient sentences — one question or confirmation per turn, one or two sentences. This is voice: no markdown, lists or symbols; say "rupees", never the symbol. START every reply with a very short sentence so audio begins instantly.
 
-YOU CONTROL THE SCREEN. Whenever you discuss a trip, flight, hotel, or change, call the matching tool so the agent SEES it. ALWAYS SPEAK A SHORT LINE FIRST (a handful of words), THEN call the tool — never call a tool in silence. Example: "Sure, opening that up." then the tool.
+YOU CONTROL THE SCREEN. Whenever you discuss a trip, flight, hotel or change, call the matching tool so the agent SEES it. ALWAYS SPEAK A SHORT LINE FIRST (a handful of words), THEN call the tool — never call a tool in silence. Example: "Sure, opening that up." then the tool.
 
-YOU INVENT THE DATA. There is no live inventory. Generate realistic options yourself (real-sounding carriers like IndiGo / Vietnam Airlines, real 5-star hotels, plausible times, ratings, and fares in rupees) and pass them as the tool's structured arguments. Usually offer 3 options. Keep numbers consistent.
+SPEAK THE POINTER, NOT THE PAYLOAD. The screen shows the detail; your voice points at it. Never read out a list of options, fares, times, prices, flight numbers or hotel amenities — the cards are on screen. Say what you put up and ask for a pick: "Flights for the outbound leg are up — anything catch your eye?" Mention at most one standout ("the IndiGo one is non-stop") when it helps them choose.
 
-STAY GROUNDED: nothing in this conversation is a picture of the agent's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything they point at ("that leg", "the second one", "the hotel we picked"), and whenever you are told they changed the screen themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
+YOU INVENT THE DATA. There is no live inventory. Generate realistic options yourself (real-sounding carriers like IndiGo or Vietnam Airlines, real hotels, plausible times, ratings and fares in rupees) and pass them as the tool's structured arguments. Offer three options per search. Keep numbers consistent.
 
-WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure with the families, flight legs, and hotel cities. For each flight leg speak a line then call search_flights with 3 invented options; select_flight once picked. For each hotel city call search_hotels with 3 options; select_hotel once picked. Use show_flights / show_hotels to bring a leg/city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's name or id. When one saved draft fits what the agent asked for, in whatever language they asked, open it straight away: do not read the screen first, and do not ask them to confirm. If nothing matches, it answers with the saved drafts, and you call it again with one of those.
+STAY GROUNDED: nothing in this conversation is a picture of the agent's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything they point at ("that leg", "the second one", "the hotel we picked"), and whenever you are told they changed the screen themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again. If a tool refuses an id, it names the ones that exist: pick the right one and call again.
+
+WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure once with the families, flight legs and hotel cities. For each flight leg speak a line, then call search_flights; select_flight once they pick. For each hotel city call search_hotels; select_hotel once they pick. Use show_flights / show_hotels to bring a leg or city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's name or id. When one saved draft fits what the agent asked for, open it straight away: do not read the screen first, and do not ask them to confirm. If nothing matches, it answers with the saved drafts, and you call it again with one of those.
+
+EDITS ARE SMALL. Once a trip has its structure, never call set_trip_structure again to change it. Change exactly the thing they asked about: update_trip for the name, coordinator, destination, dates or summary; set_family / remove_family for one family; set_leg / remove_leg for one flight leg; set_hotel_stay / remove_hotel_stay for one city. Everything you did not name stays exactly as it is — a leg keeps its fares and its pick unless its route or date changed.
 
 Open with a brief greeting and ask which trip they want to work on."""
 
-_GREETING = "नमस्ते, मैं प्रिया हूँ ट्रैवल डेस्क से। हम किस ट्रिप पर काम करें?"
+_GREETING = "Hi, Tess here at the travel desk. Which trip shall we work on?"
 
 #: How the overview joins a trip's two dates. The browser prints the same one, so
 #: the mirror reads the same whether the trip was built on this call or loaded.
@@ -227,6 +238,59 @@ class SelectHotel(Action):
     option_id: str
 
 
+# ─── Deltas: one row each, and every other row left exactly as it is ─────────
+
+
+class UpdateTrip(Action):
+    """Change the open trip's headline fields. A field left null stays as it is."""
+
+    name: str | None = None
+    coordinator: str | None = None
+    destination: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    summary: str | None = None
+
+
+class SetFamily(Action):
+    """Add one travelling family, or replace the one with the same label."""
+
+    family: Family
+
+
+class RemoveFamily(Action):
+    """Take one travelling family off the trip, by its label."""
+
+    label: str
+
+
+class SetLeg(Action):
+    """Add one flight leg, or change the one with this id. An empty field keeps
+    the value the leg already has; a new route or date clears the leg's fares and
+    its pick, which were for a different flight."""
+
+    leg: Leg
+
+
+class RemoveLeg(Action):
+    """Take one flight leg off the trip, fares and pick with it."""
+
+    leg_id: str
+
+
+class SetHotelStay(Action):
+    """Add one hotel city, or change its nights. The searched hotels and the pick
+    stay: a longer stay is the same hotel."""
+
+    stay: CityNights
+
+
+class RemoveHotelStay(Action):
+    """Take one hotel city off the trip, hotels and pick with it."""
+
+    city: str
+
+
 def _family_line(family: Family) -> str:
     """One travelling family as the overview lists them.
 
@@ -255,10 +319,37 @@ def _leg_line(leg: Leg) -> dict[str, Any]:
     return {
         "id": leg.id,
         "label": leg.label or f"{leg.from_} → {leg.to}".strip(" →"),
+        "from": leg.from_,
+        "to": leg.to,
         "date": leg.date,
         "options_shown": 0,
         "selected": "",
     }
+
+
+def _stay_line(stay: CityNights) -> dict[str, Any]:
+    """One hotel city as the overview lists it."""
+    return {"city": stay.city, "nights": stay.nights, "options_shown": 0, "selected": ""}
+
+
+def _family_label(line: str) -> str:
+    """The label a family line starts with — what ``set_family`` keys it by."""
+    return line.split(" · ", 1)[0]
+
+
+def _merged_leg(row: dict[str, Any], leg: Leg) -> tuple[dict[str, Any], bool]:
+    """``row`` with ``leg``'s non-empty fields laid over it, and whether the flight
+    itself changed — a new route or date, which the fares on it were not for.
+
+    The page merges by the same rule, so the two agree on which legs lost their
+    fares without either telling the other."""
+    fields = {"label": leg.label, "from": leg.from_, "to": leg.to, "date": leg.date}
+    new = {k: v for k, v in fields.items() if v}
+    moved = any(new.get(k, row.get(k, "")) != row.get(k, "") for k in ("from", "to", "date"))
+    merged = row | new
+    if moved:
+        merged |= {"options_shown": 0, "selected": ""}
+    return merged, moved
 
 
 def _flight_line(option: FlightOption) -> str:
@@ -440,9 +531,9 @@ def _blank_trip(draft_id: str, name: str) -> dict[str, Any]:
 
 
 #: Everything this brain puts on screen. A union rather than :class:`Action`, so
-#: :meth:`TravelBrain._mirror` is checked for exhaustiveness — an eleventh command
-#: that forgets to move the mirror is a pyright error rather than a screen the
-#: model reads wrong once, on a call.
+#: :meth:`TravelBrain._mirror` is checked for exhaustiveness — a new command that
+#: forgets to move the mirror is a pyright error rather than a screen the model
+#: reads wrong once, on a call.
 type ScreenMove = (
     OpenDashboard
     | OpenItinerary
@@ -454,6 +545,13 @@ type ScreenMove = (
     | SearchHotels
     | ShowHotels
     | SelectHotel
+    | UpdateTrip
+    | SetFamily
+    | RemoveFamily
+    | SetLeg
+    | RemoveLeg
+    | SetHotelStay
+    | RemoveHotelStay
 )
 
 
@@ -461,9 +559,9 @@ type ScreenMove = (
 
 
 class TravelBrain(GeminiBrain):
-    """One per session. The travel-desk copilot: LLM + ten screen-driving tools.
+    """One per session. The travel-desk copilot: LLM + screen-driving tools.
 
-    Priya's own voice — not the connecting page's to choose, since this is a
+    Tess's own voice — not the connecting page's to choose, since this is a
     professional tool the travel agent opens, not a user-facing surface — so
     it is settled here rather than sent with the connect request."""
 
@@ -515,8 +613,8 @@ class TravelBrain(GeminiBrain):
             self.drafts = [d for d in map(_draft, rows) if d is not None]
         await session.configure(
             Config(
-                stt=SttConfig(language=Language.HI),
-                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.HI),
+                stt=SttConfig(language=Language.EN),
+                tts=TtsConfig(voice=Voice.KOKORO_SARAH, language=Language.EN),
             )
         )
 
@@ -548,7 +646,7 @@ class TravelBrain(GeminiBrain):
         trip = self.trip
         match event:
             case TripOpened():
-                self.trip = event.model_dump(mode="json")
+                self.trip = event.model_dump(mode="json", by_alias=True)
                 self.view, self.view_of = "overview", ""
                 self._before_open = None
                 self._remember(
@@ -589,12 +687,12 @@ class TravelBrain(GeminiBrain):
                 if trip is not None:
                     _patch(trip["legs"], "id", event.leg_id, {"selected": event.summary})
                 self.view, self.view_of = "overview", ""
-                return self.screen.moved(f"picked a flight for the {event.leg_id} leg himself")
+                return self.screen.moved(f"picked a flight for the {event.leg_id} leg themselves")
             case HotelSelected():
                 if trip is not None:
                     _patch(trip["hotels"], "city", event.city, {"selected": event.summary})
                 self.view, self.view_of = "overview", ""
-                return self.screen.moved(f"picked a hotel in {event.city} himself")
+                return self.screen.moved(f"picked a hotel in {event.city} themselves")
             case QuoteShared():
                 if trip is not None:
                     trip["whatsapp_sent"] = True
@@ -646,10 +744,7 @@ class TravelBrain(GeminiBrain):
                     "dates": dates,
                     "families": [_family_line(f) for f in it.families],
                     "legs": [_leg_line(leg) for leg in it.legs],
-                    "hotels": [
-                        {"city": c.city, "options_shown": 0, "selected": ""}
-                        for c in it.hotel_cities
-                    ],
+                    "hotels": [_stay_line(c) for c in it.hotel_cities],
                 }
                 self.view, self.view_of = "overview", ""
             case SetTripStructure():
@@ -660,12 +755,7 @@ class TravelBrain(GeminiBrain):
                 for leg in action.legs:
                     _upsert(trip["legs"], "id", leg.id, _leg_line(leg))
                 for city in action.hotel_cities:
-                    _upsert(
-                        trip["hotels"],
-                        "city",
-                        city.city,
-                        {"city": city.city, "options_shown": 0, "selected": ""},
-                    )
+                    _upsert(trip["hotels"], "city", city.city, _stay_line(city))
             case SearchFlights():
                 self._flights[action.leg_id] = {o.id: o for o in action.options}
                 if trip is not None:
@@ -692,7 +782,7 @@ class TravelBrain(GeminiBrain):
                         trip["hotels"],
                         "city",
                         action.city,
-                        {"city": action.city, "options_shown": 0, "selected": ""},
+                        _stay_line(CityNights(city=action.city)),
                     )
                     _patch(
                         trip["hotels"], "city", action.city, {"options_shown": len(action.options)}
@@ -710,13 +800,82 @@ class TravelBrain(GeminiBrain):
                         {"selected": _hotel_line(stayed) if stayed else action.option_id},
                     )
                 self.view, self.view_of = "overview", ""
+            case UpdateTrip():
+                if trip is None:
+                    return
+                for key in ("name", "coordinator", "destination", "summary"):
+                    value = getattr(action, key)
+                    if value is not None:
+                        trip[key] = value
+                if action.start_date is not None or action.end_date is not None:
+                    start, _, end = str(trip.get("dates") or "").partition(_DATE_RANGE)
+                    start = start if action.start_date is None else action.start_date
+                    end = end if action.end_date is None else action.end_date
+                    trip["dates"] = _DATE_RANGE.join(d for d in (start, end) if d)
+                self._remember(
+                    {
+                        "id": trip["id"],
+                        "name": trip["name"],
+                        "destination": trip.get("destination") or "",
+                        "dates": trip.get("dates") or "",
+                    }
+                )
+            case SetFamily():
+                if trip is None:
+                    return
+                line = _family_line(action.family)
+                families: list[str] = trip["families"]
+                at = next(
+                    (i for i, f in enumerate(families) if _family_label(f) == action.family.label),
+                    None,
+                )
+                if at is None:
+                    families.append(line)
+                else:
+                    families[at] = line
+            case RemoveFamily():
+                if trip is not None:
+                    trip["families"] = [
+                        f for f in trip["families"] if _family_label(f) != action.label
+                    ]
+            case SetLeg():
+                if trip is None:
+                    return
+                row = _find(trip["legs"], "id", action.leg.id)
+                if row is None:
+                    trip["legs"].append(_leg_line(action.leg))
+                    return
+                merged, moved = _merged_leg(row, action.leg)
+                row.update(merged)
+                if moved:
+                    self._flights.pop(action.leg.id, None)
+            case RemoveLeg():
+                self._flights.pop(action.leg_id, None)
+                if trip is not None:
+                    trip["legs"] = [leg for leg in trip["legs"] if leg["id"] != action.leg_id]
+                if self.view == "flights" and self.view_of == action.leg_id:
+                    self.view, self.view_of = "overview", ""
+            case SetHotelStay():
+                if trip is None:
+                    return
+                row = _find(trip["hotels"], "city", action.stay.city)
+                if row is None:
+                    trip["hotels"].append(_stay_line(action.stay))
+                else:
+                    row["nights"] = action.stay.nights
+            case RemoveHotelStay():
+                self._hotels.pop(action.city, None)
+                if trip is not None:
+                    trip["hotels"] = [h for h in trip["hotels"] if h["city"] != action.city]
+                if self.view == "hotels" and self.view_of == action.city:
+                    self.view, self.view_of = "overview", ""
 
     # ─── Tools ────────────────────────────────────────────────────────────
 
     @property
     def tools(self) -> list[Any]:
-        """The eleven the travel desk may call. Ten drive the agent's screen;
-        ``read_screen`` reads it back."""
+        """What the travel desk may call. ``read_screen`` reads the agent's screen
+        back; every other tool drives it."""
         return [
             self.read_screen,
             self.open_dashboard,
@@ -729,6 +888,13 @@ class TravelBrain(GeminiBrain):
             self.search_hotels,
             self.show_hotels,
             self.select_hotel,
+            self.update_trip,
+            self.set_family,
+            self.remove_family,
+            self.set_leg,
+            self.remove_leg,
+            self.set_hotel_stay,
+            self.remove_hotel_stay,
         ]
 
     async def read_screen(self) -> str:
@@ -794,60 +960,230 @@ class TravelBrain(GeminiBrain):
         return f"created '{it.name}' (id {it.id})"
 
     async def set_trip_structure(self, action: SetTripStructure) -> str:
-        """Fill in the active itinerary's travelling families, flight legs
-        and hotel cities. Give each leg a short stable id ("blr-out"), a
-        human label ("Bangalore → Ho Chi Minh (Outbound)"), from/to cities and
-        a date like "12 Aug 2026"."""
+        """Fill in a new itinerary's travelling families, flight legs and hotel
+        cities — once, right after create_itinerary. Give each leg a short stable
+        id ("blr-out"), a human label ("Bangalore → Ho Chi Minh (Outbound)"),
+        from/to cities and a date like "12 Aug 2026". To change a trip that already
+        has its structure, use the single-row tools instead: update_trip,
+        set_family, set_leg, set_hotel_stay and their removes."""
+        if refused := self._no_trip():
+            return refused
         action = action.model_copy(update={"legs": _with_ids(action.legs, "leg")})
         self._show(action)
-        return f"structure set ({len(action.families)} families, {len(action.legs)} legs)"
+        return f"structure set — legs: {self._leg_list()}; hotel cities: {self._city_list()}"
 
     async def search_flights(self, action: SearchFlights) -> str:
-        """Search one flight leg (invent 3 realistic options) and show the
+        """Search one flight leg (invent three realistic options) and show the
         option cards on screen. Times go in depart/arrive like "BLR 02:15" /
         "SGN 09:40"; stops reads "Non-stop" or "1 stop · KUL"; price is the
-        per-person fare in rupees."""
+        per-person fare in rupees. Do not read the options out — they are on screen."""
+        if refused := self._unknown_leg(action.leg_id):
+            return refused
         action = action.model_copy(update={"options": _with_ids(action.options, "f")})
         self._show(action)
-        return f"showing {len(action.options)} flights for {action.leg_id}"
+        ids = ", ".join(o.id for o in action.options)
+        return f"flight options {ids} are on screen for {action.leg_id}"
 
     async def show_flights(self, action: ShowFlights) -> str:
         """Bring an already-searched leg's flight options back on screen."""
-        stale = self.screen.stale()
-        if stale:
-            return stale
+        if refused := self.screen.stale() or self._unsearched_leg(action.leg_id):
+            return refused
         self._show(action)
         return "shown"
 
     async def select_flight(self, action: SelectFlight) -> str:
         """Select one flight option for a leg and pin it to the itinerary."""
-        stale = self.screen.stale()
-        if stale:
-            return stale
+        if refused := self.screen.stale() or self._unsearched_leg(action.leg_id):
+            return refused
+        if refused := _unknown_option(self._flights.get(action.leg_id), action.option_id):
+            return refused
         self._show(action)
         return "flight selected"
 
     async def search_hotels(self, action: SearchHotels) -> str:
-        """Search 5-star hotels for one city (invent 3 realistic properties)
-        and show them on screen. stars is 1-5, rating is out of 10, board
-        reads like "Breakfast included", and price_per_night is the group
-        rate in rupees."""
+        """Search hotels for one city (invent three realistic properties) and show
+        them on screen; a city the trip does not have yet is added. stars is 1-5,
+        rating is out of 10, board reads like "Breakfast included", and
+        price_per_night is the group rate in rupees. Do not read them out."""
+        if refused := self._no_trip():
+            return refused
         action = action.model_copy(update={"options": _with_ids(action.options, "h")})
         self._show(action)
-        return f"showing {len(action.options)} hotels in {action.city}"
+        ids = ", ".join(o.id for o in action.options)
+        return f"hotel options {ids} are on screen for {action.city}"
 
     async def show_hotels(self, action: ShowHotels) -> str:
         """Bring an already-searched city's hotel options back on screen."""
-        stale = self.screen.stale()
-        if stale:
-            return stale
+        if refused := self.screen.stale() or self._unsearched_city(action.city):
+            return refused
         self._show(action)
         return "shown"
 
     async def select_hotel(self, action: SelectHotel) -> str:
         """Select one hotel option for a city."""
-        stale = self.screen.stale()
-        if stale:
-            return stale
+        if refused := self.screen.stale() or self._unsearched_city(action.city):
+            return refused
+        if refused := _unknown_option(self._hotels.get(action.city), action.option_id):
+            return refused
         self._show(action)
         return "hotel selected"
+
+    async def update_trip(self, action: UpdateTrip) -> str:
+        """Change the open trip's name, coordinator, destination, dates or summary.
+        Pass only what changed; every field left null stays as it is."""
+        if refused := self._no_trip():
+            return refused
+        changed = [k for k, v in action.model_dump().items() if v is not None]
+        if not changed:
+            return "nothing to change: every field was null, so the trip is as it was"
+        self._show(action)
+        return f"updated {', '.join(changed)}"
+
+    async def set_family(self, action: SetFamily) -> str:
+        """Add one travelling family, or replace the one with the same label. Send
+        the family whole; read_screen shows it as it stands."""
+        if refused := self._no_trip():
+            return refused
+        known = self._family_labels()
+        self._show(action)
+        verb = "updated" if action.family.label in known else "added"
+        return f"{verb} the {action.family.label} family"
+
+    async def remove_family(self, action: RemoveFamily) -> str:
+        """Take one travelling family off the trip, by its label."""
+        if refused := self._no_trip():
+            return refused
+        known = self._family_labels()
+        if action.label not in known:
+            return (
+                f"this trip has no family labelled {action.label!r}, so nothing changed. "
+                f"Its families are: {', '.join(known) or 'none yet'}."
+            )
+        self._show(action)
+        return f"removed the {action.label} family"
+
+    async def set_leg(self, action: SetLeg) -> str:
+        """Add one flight leg, or change the leg with this id — its date, its route
+        or its label. Leave a field empty to keep what the leg has. The fares and
+        the pick stay unless the route or date changed; then search again."""
+        trip = self.trip
+        if trip is None:
+            return self._no_trip() or ""
+        leg = action.leg
+        row = _find(trip["legs"], "id", leg.id) if leg.id else None
+        if row is None:
+            taken = {r["id"] for r in trip["legs"]}
+            if not leg.id:
+                n = len(taken) + 1
+                while f"leg{n}" in taken:
+                    n += 1
+                leg = leg.model_copy(update={"id": f"leg{n}"})
+            if not (leg.from_ and leg.to):
+                return (
+                    f"{leg.id!r} is a new leg and needs both from and to, so nothing "
+                    f"changed. The trip's legs are: {self._leg_list()}."
+                )
+            self._show(action.model_copy(update={"leg": leg}))
+            return f"added leg {leg.id}"
+        _, moved = _merged_leg(row, leg)
+        had_fares = bool(row.get("options_shown")) or bool(row.get("selected"))
+        self._show(action)
+        if moved and had_fares:
+            return (
+                f"updated leg {leg.id}; its fares were for the old flight, so they are "
+                "cleared — search it again"
+            )
+        return f"updated leg {leg.id}"
+
+    async def remove_leg(self, action: RemoveLeg) -> str:
+        """Take one flight leg off the trip, with its fares and its pick."""
+        if refused := self._unknown_leg(action.leg_id):
+            return refused
+        self._show(action)
+        return f"removed leg {action.leg_id}"
+
+    async def set_hotel_stay(self, action: SetHotelStay) -> str:
+        """Add one hotel city, or change how many nights the group stays there. The
+        hotels already searched and the pick stay."""
+        if refused := self._no_trip():
+            return refused
+        known = {h["city"] for h in (self.trip or {}).get("hotels", [])}
+        self._show(action)
+        verb = "updated" if action.stay.city in known else "added"
+        return f"{verb} the stay in {action.stay.city}"
+
+    async def remove_hotel_stay(self, action: RemoveHotelStay) -> str:
+        """Take one hotel city off the trip, with its hotels and its pick."""
+        if refused := self._unknown_city(action.city):
+            return refused
+        self._show(action)
+        return f"removed the stay in {action.city}"
+
+    # ─── Refusals that name what exists ──────────────────────────────────
+
+    def _no_trip(self) -> str | None:
+        if self.trip is not None:
+            return None
+        return (
+            "no itinerary is open, so nothing changed. Open one with open_itinerary, "
+            "or start one with create_itinerary."
+        )
+
+    def _leg_list(self) -> str:
+        legs = (self.trip or {}).get("legs", [])
+        return "; ".join(f"{leg['id']} ({leg['label']})" for leg in legs) or "none yet"
+
+    def _city_list(self) -> str:
+        return ", ".join(h["city"] for h in (self.trip or {}).get("hotels", [])) or "none yet"
+
+    def _family_labels(self) -> list[str]:
+        return [_family_label(f) for f in (self.trip or {}).get("families", [])]
+
+    def _unknown_leg(self, leg_id: str) -> str | None:
+        if refused := self._no_trip():
+            return refused
+        if _find((self.trip or {})["legs"], "id", leg_id) is not None:
+            return None
+        return (
+            f"this trip has no leg with id {leg_id!r}, so nothing changed. "
+            f"Its legs are: {self._leg_list()}."
+        )
+
+    def _unknown_city(self, city: str) -> str | None:
+        if refused := self._no_trip():
+            return refused
+        if _find((self.trip or {})["hotels"], "city", city) is not None:
+            return None
+        return (
+            f"this trip has no hotel stay in {city!r}, so nothing changed. "
+            f"Its hotel cities are: {self._city_list()}."
+        )
+
+    def _unsearched_leg(self, leg_id: str) -> str | None:
+        if refused := self._unknown_leg(leg_id):
+            return refused
+        row = _find((self.trip or {})["legs"], "id", leg_id)
+        if leg_id in self._flights or (row and row.get("options_shown")):
+            return None
+        return f"no flights have been searched for {leg_id} yet — call search_flights first"
+
+    def _unsearched_city(self, city: str) -> str | None:
+        if refused := self._unknown_city(city):
+            return refused
+        row = _find((self.trip or {})["hotels"], "city", city)
+        if city in self._hotels or (row and row.get("options_shown")):
+            return None
+        return f"no hotels have been searched in {city} yet — call search_hotels first"
+
+
+def _unknown_option[T](options: dict[str, T] | None, option_id: str) -> str | None:
+    """A refusal naming the options on screen, or ``None`` when ``option_id`` is
+    one of them. ``None`` too when this call never searched the row: a draft the
+    browser handed over carries its picks, not its option ids, so there is
+    nothing to check against."""
+    if options is None or option_id in options:
+        return None
+    return (
+        f"there is no option {option_id!r} on screen, so nothing was selected. "
+        f"The options are: {', '.join(options)}."
+    )
