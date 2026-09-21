@@ -45,6 +45,8 @@ import {
   selectedFlight,
   selectedHotel,
   slugify,
+  type Activity,
+  type DayPlan,
   type Family,
   type FlightOption,
   type HotelOption,
@@ -59,6 +61,7 @@ import {
   sendAppEvent,
   unhandledUiAction,
   type AppEvent,
+  type DayPlan as DayPlanWire,
   type Itinerary as ItineraryWire,
   type Leg as LegWire,
   type SetTripStructure,
@@ -216,12 +219,27 @@ function overviewOf(it: Itinerary): TripOpened {
       options_shown: h.options?.length ?? 0,
       selected: hotelLine(selectedHotel(h)),
     })),
-    days: it.days.map((d) => `Day ${d.day}${d.date ? ` · ${d.date}` : ''} · ${d.title}`),
+    days: it.days.map((d) => ({
+      day: d.day,
+      date: d.date ?? '',
+      title: d.title,
+      transport: d.transport ?? '',
+      breakfast: d.breakfast ?? '',
+      lunch: d.lunch ?? '',
+      dinner: d.dinner ?? '',
+      activities: d.activities.map(activityLine),
+    })),
     inclusions: it.inclusions,
     exclusions: it.exclusions,
     terms_set: it.terms.length > 0,
     whatsapp_sent: Boolean(it.whatsapp),
   };
+}
+
+/** One activity as one line — the same shape the brain writes into its mirror. */
+function activityLine(a: Activity): string {
+  const head = [a.time, a.title].filter(Boolean).join(' ');
+  return `${head}${a.detail ? ` (${a.detail})` : ''}${a.ticket_included ? ' · ticket included' : ''}`;
 }
 
 /** One saved draft as the brain's catalog lists it. */
@@ -539,6 +557,45 @@ function removeHotelStay(city: string): Transition {
     );
 }
 
+/**
+ * Upsert days by number. A field the brain left empty keeps what the day had;
+ * activities, when given, replace the day's list.
+ */
+function setDays(plans: DayPlanWire[]): Transition {
+  return onActive((it) => {
+    const days = [...it.days];
+    for (const p of plans) {
+      const i = days.findIndex((d) => d.day === p.day);
+      const was: DayPlan = i >= 0 ? days[i] : { day: p.day, title: '', activities: [] };
+      const next: DayPlan = {
+        ...was,
+        date: p.date || was.date,
+        title: p.title || was.title,
+        transport: p.transport || was.transport,
+        breakfast: p.breakfast || was.breakfast,
+        lunch: p.lunch || was.lunch,
+        dinner: p.dinner || was.dinner,
+        activities: p.activities.length
+          ? p.activities.map((a) => ({
+              time: a.time || undefined,
+              title: a.title,
+              detail: a.detail || undefined,
+              ticket_included: a.ticket_included,
+            }))
+          : was.activities,
+      };
+      if (i >= 0) days[i] = next;
+      else days.push(next);
+    }
+    days.sort((a, b) => a.day - b.day);
+    return { ...it, days };
+  });
+}
+
+function removeDay(day: number): Transition {
+  return onActive((it) => ({ ...it, days: it.days.filter((d) => d.day !== day) }));
+}
+
 function pickFlight(legId: string, optionId: string): Transition {
   return seq(
     onActive((it) => ({ ...it, legs: it.legs.map((l) => (l.id === legId ? { ...l, selectedId: optionId } : l)) })),
@@ -761,6 +818,12 @@ export function TravelProvider({ children }: { children: ReactNode }) {
           break;
         case 'remove_hotel_stay':
           apply(seq(removeHotelStay(action.payload.city), flash('hotels')));
+          break;
+        case 'set_days':
+          apply(seq(setDays(action.payload.days), toOverview, flash('days')));
+          break;
+        case 'remove_day':
+          apply(seq(removeDay(action.payload.day), toOverview, flash('days')));
           break;
         default:
           unhandledUiAction(action);

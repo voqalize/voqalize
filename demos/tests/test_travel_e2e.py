@@ -26,13 +26,13 @@ from typing import Any
 
 import pytest
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.travel.brain_gemini import _GREETING  # noqa: E402
+from voqalize_demos._loaded.travel.brain_gemini import _GREETING, _LINES  # noqa: E402
 
 VOICE = "kokoro/sarah"
 LANGUAGE = "en"
@@ -827,3 +827,196 @@ async def test_an_edit_touches_one_row_and_an_unknown_id_is_refused_by_name() ->
     assert "Poddar Saigon" in screen and "14 Aug 2026" in screen
     assert "Bhandari" not in screen
     assert "Ho Chi Minh City" in screen
+
+
+def _model_text(llm: ScriptedGemini) -> str:
+    """Everything the context holds as the model's own words."""
+    return " ".join(
+        part.text or ""
+        for content in llm.captured_contents[-1]
+        if content.role == "model"
+        for part in content.parts or []
+    )
+
+
+_TWO_DAYS = [
+    {
+        "day": 1,
+        "title": "Arrival and the old quarter",
+        "dinner": "Pho at the hotel",
+        "activities": [
+            {"time": "16:00", "title": "Ben Thanh Market"},
+            {"time": "19:00", "title": "Saigon river cruise", "ticket_included": True},
+        ],
+    },
+    {
+        "day": 2,
+        "title": "Cu Chi tunnels",
+        "dinner": "Street food walk",
+        "activities": [{"time": "08:00", "title": "Cu Chi tunnels", "detail": "half day"}],
+    },
+]
+
+
+async def test_tools_run_in_silence_and_the_desk_says_one_line_a_turn() -> None:
+    """The model says nothing before a call; the brain speaks a short line of its
+    own from the first call's pool — once a turn however many calls follow, never
+    on a hop the model already announced, and never into the context, which holds
+    only the model's words."""
+    llm = ScriptedGemini(
+        {
+            "Plan the days for a Vietnam trip.": [
+                call("create_itinerary", action={"itinerary": {"name": "Poddar Vietnam"}}),
+                call("set_days", action={"days": _TWO_DAYS[:1]}),
+                call("set_days", action={"days": _TWO_DAYS[1:]}),
+                reply("Done."),
+            ],
+            "Add a third day.": [
+                reply_and_call(
+                    "Adding it.",
+                    "set_days",
+                    action={"days": [{"day": 3, "title": "Mekong delta"}]},
+                ),
+                reply("That's in."),
+            ],
+            "Thanks.": [reply("Anytime.")],
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session()
+
+        t1 = await rig.driver.user_says("Plan the days for a Vietnam trip.")
+        check_turn(rig, t1, units=2)
+        new, done = (u.text for u in t1.units)
+        assert new in _LINES["new"], new
+        assert done == "Done."
+
+        t2 = await rig.driver.user_says("Add a third day.")
+        check_turn(rig, t2, units=2)
+        assert [u.text for u in t2.units] == ["Adding it.", "That's in."]
+        # A turn is one request, so its words are first carried by the next.
+        await rig.driver.user_says("Thanks.")
+
+        spoken = _model_text(llm)
+        assert new not in spoken, f"the desk's line {new!r} reached the context"
+        assert "Done." in spoken and "Adding it." in spoken
+
+
+async def test_the_day_plan_can_come_first_and_an_edit_touches_one_day() -> None:
+    """No script: a trip with no families, legs or hotels takes a day plan. An edit
+    to one day's dinner sends only that day with only that field, and every other
+    day — and that day's own activities — stays as it was. A day the plan does not
+    hold is refused with the ones it does, and a second structure fill is refused
+    rather than let it overwrite the trip."""
+    llm = ScriptedGemini(
+        {
+            "Plan two days in Saigon.": [
+                call("create_itinerary", action={"itinerary": {"name": "Poddar Vietnam"}}),
+                call("set_days", action={"days": _TWO_DAYS}),
+                reply("Done."),
+            ],
+            "Make dinner on day two a cooking class.": [
+                call(
+                    "set_days",
+                    action={"days": [{"day": 2, "title": "", "dinner": "Cooking class"}]},
+                ),
+                reply("That's in."),
+            ],
+            "Drop day five.": [
+                call("remove_day", action={"day": 5}),
+                reply("There's no day five."),
+            ],
+            "Set up the Poddar and Bhandari families.": [
+                call(
+                    "set_trip_structure",
+                    action={
+                        "families": [{"label": "Poddar", "adults": 2}],
+                        "legs": [],
+                        "hotel_cities": [],
+                    },
+                ),
+                reply("Done."),
+            ],
+            "Now set it up again.": [
+                call(
+                    "set_trip_structure",
+                    action={
+                        "families": [{"label": "Mehta", "adults": 2}],
+                        "legs": [],
+                        "hotel_cities": [],
+                    },
+                ),
+                reply("It's already set up."),
+            ],
+            "What's on screen?": [call("read_screen"), reply("Two days.")],
+            "Thanks.": [reply("Anytime.")],
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session()
+        for said in (
+            "Plan two days in Saigon.",
+            "Make dinner on day two a cooking class.",
+            "Drop day five.",
+            "Set up the Poddar and Bhandari families.",
+            "Now set it up again.",
+            "What's on screen?",
+            "Thanks.",
+        ):
+            await rig.driver.user_says(said)
+
+        assert rig.actions() == [
+            "create_itinerary",
+            "set_days",
+            "set_days",
+            "set_trip_structure",
+        ], rig.actions()
+        edits = [c["payload"] for c in rig.driver.ui_commands if c["command"] == "set_days"]
+        [edited] = edits[-1]["days"]
+        assert edited["day"] == 2 and edited["dinner"] == "Cooking class"
+        assert edited["activities"] == [], "an untouched field went to the screen"
+
+    [missing] = _results(llm, "remove_day")
+    assert "5" in missing and "1" in missing and "2" in missing, missing
+    refusal = _results(llm, "set_trip_structure")[-1]
+    assert "already has families" in refusal and "nothing changed" in refusal
+
+    screen = _results(llm, "read_screen")[-1]
+    assert "Cooking class" in screen and "Street food walk" not in screen
+    assert "Cu Chi tunnels (half day)" in screen, "day two lost its activities"
+    assert "Ben Thanh Market" in screen and "Pho at the hotel" in screen
+    assert "Saigon river cruise · ticket included" in screen
+    assert "Poddar" in screen and "Mehta" not in screen
+
+
+async def test_a_turn_cut_between_hops_leaves_the_next_turn_its_lines() -> None:
+    """The agent speaks while a hop is still in flight — the desk's line has played
+    and the model has not answered. The cut turn unwinds after the new one has
+    started, and must not take the new turn's line queue with it."""
+    llm = ScriptedGemini(
+        {
+            "Start a trip called Sharma Bali.": [
+                call("create_itinerary", action={"itinerary": {"name": "Sharma Bali"}}),
+                reply(chunks=["Done."], chunk_delay=1.0),
+            ],
+            "Plan the first day.": [
+                # Called only after the cut turn has unwound.
+                Reply(
+                    chunks=("",),
+                    calls=(("set_days", {"action": {"days": _TWO_DAYS[:1]}}),),
+                    chunk_delay=1.5,
+                ),
+                reply("That's in."),
+            ],
+        }
+    )
+    async with demo("travel", llm) as rig:
+        await rig.driver.start_session()
+        t1 = await rig.driver.user_says("Start a trip called Sharma Bali.")
+        assert [u.text for u in t1.units][:1] and t1.units[0].text in _LINES["new"]
+
+        t2 = await rig.driver.user_says("Plan the first day.")
+        check_turn(rig, t2, units=2)
+        line, done = (u.text for u in t2.units)
+        assert line in _LINES["days"], line
+        assert done == "That's in."

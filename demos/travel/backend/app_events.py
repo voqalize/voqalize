@@ -62,6 +62,19 @@ class LegLine(BaseModel):
     selected: str = ""
 
 
+class DayLine(BaseModel):
+    """One day of the day-wise plan as the overview lists it, activities as lines."""
+
+    day: int
+    date: str = ""
+    title: str = ""
+    transport: str = ""
+    breakfast: str = ""
+    lunch: str = ""
+    dinner: str = ""
+    activities: list[str] = Field(default_factory=list)
+
+
 class StayLine(BaseModel):
     """One hotel city as the overview lists it."""
 
@@ -91,7 +104,9 @@ class TripOpened(AppEvent):
     special_requests: list[str] = Field(default_factory=list)
     legs: list[LegLine] = Field(default_factory=list)
     hotels: list[StayLine] = Field(default_factory=list)
-    days: list[str] = Field(default_factory=list)
+    # A line each from a page that predates structured days; the brain reads the
+    # day's number off its head.
+    days: list[DayLine | str] = Field(default_factory=list)
     inclusions: list[str] = Field(default_factory=list)
     exclusions: list[str] = Field(default_factory=list)
     terms_set: bool = False

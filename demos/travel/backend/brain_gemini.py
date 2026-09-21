@@ -20,8 +20,14 @@ read refuses instead of acting on it. See ``voqalize_demos.screen``.
 **An edit is a delta, never a re-send.** Changing a date, a family or a hotel stay
 is its own command naming the one row it touches, so the row keeps its identity —
 the fares already searched, the flight already picked. ``set_trip_structure`` is
-the first fill of an empty trip and nothing else. An id the trip does not hold is
-refused with the ids it does, the way a miss on ``open_itinerary`` names the drafts.
+a first fill of an empty trip, and a trip need not have one: the day plan can come
+first. An id the trip does not hold is refused with the ids it does, the way a miss
+on ``open_itinerary`` names the drafts.
+
+**The model calls tools in silence; the desk speaks.** A call that comes with no
+words gets a short line from that tool's pool, spoken by the brain, at most one a
+turn — see
+:meth:`TravelBrain.respond`.
 
 The drafts themselves live in the browser's localStorage, so ``TripOpened`` hands
 the itinerary over the first time one is opened. That is the handover, not the old
@@ -30,9 +36,14 @@ push: everything after it is a patch.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import datetime
 import json
+import random
 import re
 import unicodedata
+from collections.abc import AsyncGenerator
 from typing import Any, Literal, cast
 
 from google import genai
@@ -41,7 +52,8 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
 
-from voqalize.sdk import Action, RTVIMessage, Session
+from voqalize.sdk import Action, RTVIMessage, Session, Speech, SpeechChunk, SpeechEnd, SpeechStart
+from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import (
@@ -60,9 +72,11 @@ from .app_events import (
 
 _SYSTEM_INSTRUCTION = """You are Tess, the Travel Desk copilot — a voice assistant for a professional travel agent building trip itineraries for their clients. The agent talks to you live and YOU DRIVE THEIR SCREEN as you talk.
 
-LANGUAGE: Always speak English. Short, efficient sentences — one question or confirmation per turn, one or two sentences. This is voice: no markdown, lists or symbols; say "rupees", never the symbol. START every reply with a very short sentence so audio begins instantly.
+LANGUAGE: Always speak English. Short, efficient sentences — one question or confirmation per turn, one or two sentences. This is voice: no markdown, lists or symbols; say "rupees", never the symbol.
 
-YOU CONTROL THE SCREEN. Whenever you discuss a trip, flight, hotel or change, call the matching tool so the agent SEES it. ALWAYS SPEAK A SHORT LINE FIRST (a handful of words), THEN call the tool — never call a tool in silence. Example: "Sure, opening that up." then the tool.
+YOU CONTROL THE SCREEN. Whenever you discuss a trip, flight, hotel, day or change, call the matching tool so the agent SEES it.
+
+CALL TOOLS IN SILENCE. Never say what you are about to do, and never narrate a step — no "Let me search flights", no "Now I'll look at hotels", no "Opening that up". The desk says a short line of its own while a tool runs, so anything you add is said twice. Make the calls first, all of them, then speak ONCE, after the last tool has answered: one short line on what is now on screen, or the one question you need answered. A turn that called a tool ALWAYS ends with you saying something — the desk's line only says a tool is running, never that it finished, so silence after it leaves the agent waiting. With nothing to ask, a few words will do: "Done." or "That's in."
 
 SPEAK THE POINTER, NOT THE PAYLOAD. The screen shows the detail; your voice points at it. Never read out a list of options, fares, times, prices, flight numbers or hotel amenities — the cards are on screen. Say what you put up and ask for a pick: "Flights for the outbound leg are up — anything catch your eye?" Mention at most one standout ("the IndiGo one is non-stop") when it helps them choose.
 
@@ -70,13 +84,45 @@ YOU INVENT THE DATA. There is no live inventory. Generate realistic options your
 
 STAY GROUNDED: nothing in this conversation is a picture of the agent's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything they point at ("that leg", "the second one", "the hotel we picked"), and whenever you are told they changed the screen themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again. If a tool refuses an id, it names the ones that exist: pick the right one and call again.
 
-WORKFLOW: To start a trip, call create_itinerary with just the headline fields (name, destination, dates), then set_trip_structure once with the families, flight legs and hotel cities. For each flight leg speak a line, then call search_flights; select_flight once they pick. For each hotel city call search_hotels; select_hotel once they pick. Use show_flights / show_hotels to bring a leg or city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's name or id. When one saved draft fits what the agent asked for, open it straight away: do not read the screen first, and do not ask them to confirm. If nothing matches, it answers with the saved drafts, and you call it again with one of those.
+THE AGENT LEADS; THERE IS NO SCRIPT. An itinerary is a scaffold of sections — the headline, the travelling families, flight legs, hotel stays and the day-wise plan — and the agent fills whichever they want, in whatever order, and may skip any of them. A trip can be planned day by day before a single flight exists, or be only hotels. Do what they asked and stop: never push them to the next section, and never ask for details a request does not need. If they ask what is left, name the empty sections once.
 
-EDITS ARE SMALL. Once a trip has its structure, never call set_trip_structure again to change it. Change exactly the thing they asked about: update_trip for the name, coordinator, destination, dates or summary; set_family / remove_family for one family; set_leg / remove_leg for one flight leg; set_hotel_stay / remove_hotel_stay for one city. Everything you did not name stays exactly as it is — a leg keeps its fares and its pick unless its route or date changed.
+THE SECTIONS. create_itinerary starts a trip and needs only a name; add whatever headline fields they gave. set_trip_structure fills families, legs and hotel cities in one call when the agent describes a new trip that way; it is optional. Flights: set_leg adds a leg (it needs from and to), then search_flights puts options on screen and select_flight pins their pick. Hotels: search_hotels puts options up for a city (adding the city if it is new), select_hotel pins the pick, and set_hotel_stay sets nights. Days: set_days writes the day-wise plan — the whole plan at once, or any single day — with a title, activities with times, transport and meals; invent a realistic plan for the destination when they ask for one. Use show_flights / show_hotels to bring a leg or city back on screen, and open_itinerary / open_dashboard to navigate. open_itinerary takes a saved draft's name or id. When one saved draft fits what the agent asked for, open it straight away: do not read the screen first, and do not ask them to confirm. If nothing matches, it answers with the saved drafts, and you call it again with one of those.
+
+EDITS ARE SMALL. Change exactly the thing they asked about and nothing else: update_trip for the name, coordinator, destination, dates or summary; set_family / remove_family for one family; set_leg / remove_leg for one flight leg; set_hotel_stay / remove_hotel_stay for one city; set_days with just the day that changed, or remove_day. To change a meal or the transport, send only that day's number and the field that changed — leave its title and activities empty, and they stay. To change one activity, read_screen, then send that day's activities with the one changed. Never send the whole plan again. Never call set_trip_structure on a trip that already has families, legs or hotels. Everything you did not name stays exactly as it is — a leg keeps its fares and its pick unless its route or date changed.
 
 Open with a brief greeting and ask which trip they want to work on."""
 
 _GREETING = "Hi, Tess here at the travel desk. Which trip shall we work on?"
+
+#: What Tess says while a tool runs, by what the tool is doing. The brain says it,
+#: not the model, so a hop that calls a tool costs one short line and never a
+#: sentence the model composed about its own plan. A tool with no pool —
+#: ``read_screen``, and the instant screen moves — runs in silence, and the
+#: model's own reply after it is what the agent hears.
+_LINES: dict[str, tuple[str, ...]] = {
+    "flights": ("Checking flights.", "Looking at flights.", "Pulling up flights."),
+    "hotels": ("Checking hotels.", "Looking at hotels.", "Finding hotels."),
+    "days": ("Working on the days.", "Planning the days.", "On the day plan."),
+    "new": ("Setting it up.", "Starting the trip."),
+    "edit": ("Updating that.", "On it.", "Changing that."),
+    "open": ("Opening it.", "Pulling it up."),
+}
+_TOOL_LINES: dict[str, str] = {
+    "search_flights": "flights",
+    "search_hotels": "hotels",
+    "set_days": "days",
+    "remove_day": "edit",
+    "create_itinerary": "new",
+    "set_trip_structure": "edit",
+    "update_trip": "edit",
+    "set_family": "edit",
+    "remove_family": "edit",
+    "set_leg": "edit",
+    "remove_leg": "edit",
+    "set_hotel_stay": "edit",
+    "remove_hotel_stay": "edit",
+    "open_itinerary": "open",
+}
 
 #: How the overview joins a trip's two dates. The browser prints the same one, so
 #: the mirror reads the same whether the trip was built on this call or loaded.
@@ -153,6 +199,28 @@ class HotelOption(BaseModel):
     amenities: list[str] = []
     price_per_night: int = 0
     note: str = ""
+
+
+class Activity(BaseModel):
+    """One thing the group does on a day."""
+
+    time: str = ""
+    title: str
+    detail: str = ""
+    ticket_included: bool = False
+
+
+class DayPlan(BaseModel):
+    """One day of the day-wise plan, keyed by its number."""
+
+    day: int = Field(description="The day's number, from 1.")
+    date: str = ""
+    title: str = ""
+    transport: str = ""
+    breakfast: str = ""
+    lunch: str = ""
+    dinner: str = ""
+    activities: list[Activity] = []
 
 
 class Itinerary(BaseModel):
@@ -291,6 +359,20 @@ class RemoveHotelStay(Action):
     city: str
 
 
+class SetDays(Action):
+    """Add days to the day-wise plan, or change the ones with these numbers. A day
+    not named stays as it is. In a day that is named, an empty field keeps what the
+    day has, and activities, when given, replace that day's activities."""
+
+    days: list[DayPlan]
+
+
+class RemoveDay(Action):
+    """Take one day off the day-wise plan, by its number."""
+
+    day: int
+
+
 def _family_line(family: Family) -> str:
     """One travelling family as the overview lists them.
 
@@ -330,6 +412,36 @@ def _leg_line(leg: Leg) -> dict[str, Any]:
 def _stay_line(stay: CityNights) -> dict[str, Any]:
     """One hotel city as the overview lists it."""
     return {"city": stay.city, "nights": stay.nights, "options_shown": 0, "selected": ""}
+
+
+def _activity_line(activity: Activity) -> str:
+    """One activity as the overview lists it."""
+    line = " ".join(p for p in (activity.time, activity.title) if p)
+    if activity.detail:
+        line += f" ({activity.detail})"
+    return line + (" · ticket included" if activity.ticket_included else "")
+
+
+def _day_line(plan: DayPlan) -> dict[str, Any]:
+    """One day as the overview lists it. Its activities are lines, so an edit to one
+    of them is the day sent again with that line changed."""
+    return {
+        "day": plan.day,
+        "date": plan.date,
+        "title": plan.title,
+        "transport": plan.transport,
+        "breakfast": plan.breakfast,
+        "lunch": plan.lunch,
+        "dinner": plan.dinner,
+        "activities": [_activity_line(a) for a in plan.activities],
+    }
+
+
+def _merged_day(row: dict[str, Any], plan: DayPlan) -> dict[str, Any]:
+    """``row`` with ``plan``'s non-empty fields laid over it. The page merges by the
+    same rule."""
+    new = {k: v for k, v in _day_line(plan).items() if v}
+    return row | new
 
 
 def _family_label(line: str) -> str:
@@ -508,6 +620,15 @@ def _catalog(drafts: list[dict[str, str]] | None) -> str:
     )
 
 
+def _today() -> str:
+    """The date, so "the tenth of October" lands in the right year. Read on each
+    rewrite of the prompt, which a session that runs past midnight picks up."""
+    return (
+        f"\n\nTODAY is {datetime.date.today():%d %b %Y}. A date said without a year is "
+        "its next occurrence from today."
+    )
+
+
 def _blank_trip(draft_id: str, name: str) -> dict[str, Any]:
     """An itinerary the brain knows the id and name of and nothing else — what
     ``open_itinerary`` has until the browser hands the draft over."""
@@ -552,6 +673,8 @@ type ScreenMove = (
     | RemoveLeg
     | SetHotelStay
     | RemoveHotelStay
+    | SetDays
+    | RemoveDay
 )
 
 
@@ -566,7 +689,9 @@ class TravelBrain(GeminiBrain):
     it is settled here rather than sent with the connect request."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+        super().__init__(
+            client=client, system_instruction=_SYSTEM_INSTRUCTION + _today(), model=model
+        )
         self.screen = ScreenState(read_tool="read_screen", actor="travel agent")
         #: The itinerary as the overview shows it, or ``None`` on the dashboard.
         #: The brain's own copy — its dispatches move it, the agent's typed
@@ -583,6 +708,11 @@ class TravelBrain(GeminiBrain):
         #: the browser what it is looking at.
         self._flights: dict[str, dict[str, FlightOption]] = {}
         self._hotels: dict[str, dict[str, HotelOption]] = {}
+        #: The tools the model is calling in the turn under way, as their calls
+        #: stream in — each by name, and whether the model already said something
+        #: in the hop that called it. What :meth:`respond` speaks a line for.
+        self._calling: asyncio.Queue[tuple[str, bool]] | None = None
+        self._last_line = ""
 
     @property
     def drafts(self) -> list[dict[str, str]] | None:
@@ -599,7 +729,7 @@ class TravelBrain(GeminiBrain):
     @drafts.setter
     def drafts(self, drafts: list[dict[str, str]] | None) -> None:
         self._drafts = drafts
-        self.system_instruction = _SYSTEM_INSTRUCTION + _catalog(drafts)
+        self.system_instruction = _SYSTEM_INSTRUCTION + _today() + _catalog(drafts)
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -620,6 +750,85 @@ class TravelBrain(GeminiBrain):
 
     async def greet(self, session: Session) -> str:
         return _GREETING
+
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, with one short line of Tess's own while a tool runs.
+
+        The prompt tells the model to call tools in silence, and a call that says
+        nothing leaves the agent sitting in the silence of the next hop's request.
+        So when a call streams in and the model is not speaking, the brain says a
+        line from that tool's pool — "Checking flights." — and the model's reply
+        after the tool is what follows it. A hop where the model did speak gets
+        no line: that would be two voices announcing one thing. The desk speaks at
+        most once a turn — the first call's line — so adding a leg and searching
+        it, or searching both legs, is one line and not a running commentary.
+
+        The model runs in a task of its own, so a line can go out while it is
+        between hops; the next event from the model waits for the line to end, so
+        speech never nests. The line is never in the model's context — it is the
+        desk's, not the model's — but it is a unit Voqalize will finalize, so it
+        joins the finalize queue in the order it went out, where the heard truth
+        that comes back for it is taken and let go.
+        """
+        turn = super().respond(session)
+        calling: asyncio.Queue[tuple[str, bool]] = asyncio.Queue()
+        self._calling = calling
+        spoken = False
+        speaking = False
+        step: asyncio.Future[Speech | None] = asyncio.ensure_future(_next(turn))
+        heard: asyncio.Future[tuple[str, bool]] = asyncio.ensure_future(calling.get())
+        try:
+            while True:
+                await asyncio.wait({step, heard}, return_when=asyncio.FIRST_COMPLETED)
+                # A call queued before the model's next event was made before it,
+                # so the calls drain first — a fast stream that finished both
+                # still speaks the line ahead of the reply that followed the tool.
+                if heard.done():
+                    name, announced = heard.result()
+                    heard = asyncio.ensure_future(calling.get())
+                    pool = _TOOL_LINES.get(name)
+                    if pool is None or announced or speaking or spoken:
+                        continue
+                    spoken = True
+                    line = self._line(pool)
+                    yield SpeechStart()
+                    self._awaiting.append(_Unit(types.Content(role="model", parts=[])))
+                    yield SpeechChunk(line)
+                    yield SpeechEnd()
+                    continue
+                event = step.result()
+                if event is None:
+                    break
+                if isinstance(event, SpeechStart):
+                    speaking = True
+                elif isinstance(event, SpeechEnd):
+                    speaking = False
+                yield event
+                step = asyncio.ensure_future(_next(turn))
+        finally:
+            # A barge-in's new turn has already set its own queue by the time the
+            # cut one unwinds here; only the turn that owns the queue clears it.
+            if self._calling is calling:
+                self._calling = None
+            heard.cancel()
+            if not step.done():
+                step.cancel()
+            with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+                await step
+            await turn.aclose()
+
+    def _extend_unit(self, unit: _Unit, part: types.Part) -> None:
+        # Text ahead of the call in its own hop is the model announcing it.
+        announced = any(p.text and not p.thought for p in unit.content.parts or [])
+        super()._extend_unit(unit, part)
+        if part.function_call and part.function_call.name and self._calling is not None:
+            self._calling.put_nowait((part.function_call.name, announced))
+
+    def _line(self, pool: str) -> str:
+        """A line from ``pool``, never the one said last."""
+        choices = [line for line in _LINES[pool] if line != self._last_line] or list(_LINES[pool])
+        self._last_line = random.choice(choices)
+        return self._last_line
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message: one thing the travel agent just did on screen.
@@ -869,6 +1078,22 @@ class TravelBrain(GeminiBrain):
                     trip["hotels"] = [h for h in trip["hotels"] if h["city"] != action.city]
                 if self.view == "hotels" and self.view_of == action.city:
                     self.view, self.view_of = "overview", ""
+            case SetDays():
+                if trip is None:
+                    return
+                days: list[Any] = trip["days"]
+                for plan in action.days:
+                    at = _day_at(days, plan.day)
+                    if at is None:
+                        days.append(_day_line(plan))
+                    elif isinstance(days[at], dict):
+                        days[at] = _merged_day(cast(dict[str, Any], days[at]), plan)
+                    else:
+                        days[at] = _day_line(plan)
+                days.sort(key=lambda d: _day_number(d) or 0)
+            case RemoveDay():
+                if trip is not None:
+                    trip["days"] = [d for d in trip["days"] if _day_number(d) != action.day]
 
     # ─── Tools ────────────────────────────────────────────────────────────
 
@@ -895,6 +1120,8 @@ class TravelBrain(GeminiBrain):
             self.remove_leg,
             self.set_hotel_stay,
             self.remove_hotel_stay,
+            self.set_days,
+            self.remove_day,
         ]
 
     async def read_screen(self) -> str:
@@ -948,9 +1175,10 @@ class TravelBrain(GeminiBrain):
         return f"opened {draft['name']}"
 
     async def create_itinerary(self, action: CreateItinerary) -> str:
-        """Create a new itinerary SHELL and open its overview. Just the
-        headline fields (name, destination, dates); add travellers, flight
-        legs and hotel cities with set_trip_structure next."""
+        """Create a new itinerary and open its overview. Only the name is needed;
+        pass whichever headline fields the agent gave. Every section after this —
+        families, legs, hotels, days — is filled when the agent asks for it, in
+        any order."""
         # One numbering authority, as with legs and options: the id goes on screen
         # and into the catalog from here, so open_itinerary can name this draft.
         taken = {d["id"] for d in self.drafts or []}
@@ -961,13 +1189,21 @@ class TravelBrain(GeminiBrain):
 
     async def set_trip_structure(self, action: SetTripStructure) -> str:
         """Fill in a new itinerary's travelling families, flight legs and hotel
-        cities — once, right after create_itinerary. Give each leg a short stable
+        cities in one go, when the agent describes the trip that way — optional,
+        and only on a trip that has none of them yet. Give each leg a short stable
         id ("blr-out"), a human label ("Bangalore → Ho Chi Minh (Outbound)"),
         from/to cities and a date like "12 Aug 2026". To change a trip that already
         has its structure, use the single-row tools instead: update_trip,
         set_family, set_leg, set_hotel_stay and their removes."""
         if refused := self._no_trip():
             return refused
+        trip = self.trip or {}
+        if trip.get("families") or trip.get("legs") or trip.get("hotels"):
+            return (
+                "this trip already has families, legs or hotels, so nothing changed — "
+                "a second fill would overwrite them. Change one row instead: set_family, "
+                "set_leg, set_hotel_stay, or their removes."
+            )
         action = action.model_copy(update={"legs": _with_ids(action.legs, "leg")})
         self._show(action)
         return f"structure set — legs: {self._leg_list()}; hotel cities: {self._city_list()}"
@@ -1119,6 +1355,41 @@ class TravelBrain(GeminiBrain):
         self._show(action)
         return f"removed the stay in {action.city}"
 
+    async def set_days(self, action: SetDays) -> str:
+        """Write days of the day-wise plan: the whole plan at once, or one day
+        changed. Days are keyed by number; a day you do not send stays exactly as it
+        is. In a day you send, leave a field empty to keep it. To change one
+        activity, send that day's activities again with it changed; read_screen
+        shows them as they stand."""
+        if refused := self._no_trip():
+            return refused
+        if not action.days:
+            return "no days were given, so the plan is as it was"
+        known = set(self._day_numbers())
+        self._show(action)
+        added = [d.day for d in action.days if d.day not in known]
+        changed = [d.day for d in action.days if d.day in known]
+        said = []
+        if added:
+            said.append(f"added day {', '.join(map(str, added))}")
+        if changed:
+            said.append(f"updated day {', '.join(map(str, changed))}")
+        return "; ".join(said)
+
+    async def remove_day(self, action: RemoveDay) -> str:
+        """Take one day off the day-wise plan, by its number. The other days keep
+        their numbers."""
+        if refused := self._no_trip():
+            return refused
+        known = self._day_numbers()
+        if action.day not in known:
+            return (
+                f"the plan has no day {action.day}, so nothing changed. "
+                f"Its days are: {', '.join(map(str, known)) or 'none yet'}."
+            )
+        self._show(action)
+        return f"removed day {action.day}"
+
     # ─── Refusals that name what exists ──────────────────────────────────
 
     def _no_trip(self) -> str | None:
@@ -1135,6 +1406,10 @@ class TravelBrain(GeminiBrain):
 
     def _city_list(self) -> str:
         return ", ".join(h["city"] for h in (self.trip or {}).get("hotels", [])) or "none yet"
+
+    def _day_numbers(self) -> list[int]:
+        days = (self.trip or {}).get("days", [])
+        return [n for n in map(_day_number, days) if n is not None]
 
     def _family_labels(self) -> list[str]:
         return [_family_label(f) for f in (self.trip or {}).get("families", [])]
@@ -1174,6 +1449,30 @@ class TravelBrain(GeminiBrain):
         if city in self._hotels or (row and row.get("options_shown")):
             return None
         return f"no hotels have been searched in {city} yet — call search_hotels first"
+
+
+def _day_number(row: object) -> int | None:
+    """A day row's number. A page that predates structured days sends each as a
+    line, "Day 2 · 3 Oct · Old Delhi", and the number is read off its head."""
+    if isinstance(row, dict):
+        n = cast(dict[str, Any], row).get("day")
+        return n if isinstance(n, int) else None
+    if isinstance(row, str) and (m := re.match(r"Day (\d+)", row)):
+        return int(m.group(1))
+    return None
+
+
+def _day_at(days: list[Any], day: int) -> int | None:
+    """Where day ``day`` sits in the mirror's days, if it is there."""
+    return next((i for i, d in enumerate(days) if _day_number(d) == day), None)
+
+
+async def _next(turn: AsyncGenerator[Speech, None]) -> Speech | None:
+    """The model's next speech event, or ``None`` once its turn is over."""
+    try:
+        return await anext(turn)
+    except StopAsyncIteration:
+        return None
 
 
 def _unknown_option[T](options: dict[str, T] | None, option_id: str) -> str | None:

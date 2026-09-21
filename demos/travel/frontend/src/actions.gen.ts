@@ -117,6 +117,20 @@ export interface RemoveHotelStay {
 }
 
 /**
+ * Add days to the day-wise plan, or change the ones with these numbers. A day
+ * not named stays as it is. In a day that is named, an empty field keeps what the
+ * day has, and activities, when given, replace that day's activities.
+ */
+export interface SetDays {
+  days: DayPlan[];
+}
+
+/** Take one day off the day-wise plan, by its number. */
+export interface RemoveDay {
+  day: number;
+}
+
+/**
  * The agent closed the trip and went back to the list of drafts. Nothing is
  * open, so nothing on screen has an id worth holding.
  */
@@ -211,7 +225,7 @@ export interface TripOpened {
 
   hotels?: StayLine[];
 
-  days?: string[];
+  days?: (DayLine | string)[];
 
   inclusions?: string[];
 
@@ -224,11 +238,61 @@ export interface TripOpened {
 
 // ── Shapes used by the messages above ──────────────────────────────
 
+/** One thing the group does on a day. */
+export interface Activity {
+  time: string;
+
+  title: string;
+
+  detail: string;
+
+  ticket_included: boolean;
+}
+
 /** One hotel city and how many nights the group stays there. */
 export interface CityNights {
   city: string;
 
   nights: number;
+}
+
+/** One day of the day-wise plan as the overview lists it, activities as lines. */
+export interface DayLine {
+  day: number;
+
+  date?: string;
+
+  title?: string;
+
+  transport?: string;
+
+  breakfast?: string;
+
+  lunch?: string;
+
+  dinner?: string;
+
+  activities?: string[];
+}
+
+/** One day of the day-wise plan, keyed by its number. */
+export interface DayPlan {
+  /** The day's number, from 1. */
+  day: number;
+
+  date: string;
+
+  title: string;
+
+  transport: string;
+
+  breakfast: string;
+
+  lunch: string;
+
+  dinner: string;
+
+  activities: Activity[];
 }
 
 /** One travelling family on the itinerary. */
@@ -379,7 +443,9 @@ export type UiAction =
   | { command: 'set_leg'; payload: SetLeg }
   | { command: 'remove_leg'; payload: RemoveLeg }
   | { command: 'set_hotel_stay'; payload: SetHotelStay }
-  | { command: 'remove_hotel_stay'; payload: RemoveHotelStay };
+  | { command: 'remove_hotel_stay'; payload: RemoveHotelStay }
+  | { command: 'set_days'; payload: SetDays }
+  | { command: 'remove_day'; payload: RemoveDay };
 
 export type UiActionCommand = UiAction['command'];
 
@@ -401,6 +467,8 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'remove_leg',
   'set_hotel_stay',
   'remove_hotel_stay',
+  'set_days',
+  'remove_day',
 ];
 
 const _known = new Set<string>(UI_ACTION_COMMANDS);
