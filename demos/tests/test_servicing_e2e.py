@@ -33,7 +33,7 @@ from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-VOICE = "omnivoice/gauri"
+VOICE = "kokoro/sarah"
 LANGUAGE = "en"
 
 #: The board as ``data.ts``'s ``boardSeed()`` sends it — the worklist the advisor
@@ -141,7 +141,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     async with demo("servicing", _llm()) as rig:
         greeting = await rig.driver.start_session(init=_payload())
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text.startswith("Hi there — Servicing Desk here.")
+        assert greeting is not None and greeting.text.startswith("Hi there — Tess on the Servicing Desk.")
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
 
 

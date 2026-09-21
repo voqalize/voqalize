@@ -117,7 +117,7 @@ DEMOS: dict[str, Expected] = {
     # test_marketing_e2e.py.
     "marketing": Expected(voice="kokoro/ava", language="en"),
     "orderdesk": Expected(voice="omnivoice/gauri", language="hi"),
-    "servicing": Expected(voice="omnivoice/gauri", language="en"),
+    "servicing": Expected(voice="kokoro/sarah", language="en"),
     "shopping": Expected(voice="omnivoice/gaurav", language="en"),
     # The patient picks sugar's language on the page, before the call exists, so
     # it rides the connect request and this brain configures nothing. What the

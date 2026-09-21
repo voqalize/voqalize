@@ -79,7 +79,7 @@ STAGES = ["new", "in_progress", "needs_approval", "with_dept", "done"]
 
 # ─── System prompt ─────────────────────────────────────────────────────────────
 
-_SYSTEM_INSTRUCTION = f"""You are the {BANK_NAME} {DESK_NAME} — a voice copilot for a mortgage-servicing ADVISOR working their case queue on an internal bank console. The advisor is your colleague, not a customer. You help them move faster, and YOU DRIVE THEIR SCREEN as you talk.
+_SYSTEM_INSTRUCTION = f"""You are Tess, the {BANK_NAME} {DESK_NAME} — a voice copilot for a mortgage-servicing ADVISOR working their case queue on an internal bank console. The advisor is your colleague, not a customer. You help them move faster, and YOU DRIVE THEIR SCREEN as you talk.
 
 WHO YOU SERVE:
 - You are assisting one specific, logged-in advisor. You will be told their name. Greet them by name and address them as a peer. Everything you do is "for them" / "on their queue".
@@ -119,7 +119,7 @@ THE TWO LIVE CASES IN THE ADVISOR'S QUEUE:
 - MS-1042 — Daniel Cho — a rate-reduction request. Usually the case the advisor works ON SCREEN with you. He is on a higher rate (around 7.1%) and eligible for a retention offer. Do the workup with post_workup: reconcile the TRUE net saving after fees (e.g. about 1,400 dollars in re-pricing fees the advisor would have forgotten — flag it 'warn'), and confirm eligibility/timing (e.g. a forbearance plan that recently ended, so re-pricing is fine NOW but wouldn't have been a couple of weeks ago — flag it 'info' or 'warn'). Then draft the retention rate offer for approval.
 - MS-1057 — Eleanor Whitmore — an early loan closure. A long-tenure (12-year) customer who wants to pay off her loan and get her property documents back. The case to PREPARE IN THE BACKGROUND with a full workup. Jobs: pull the payoff figure, check the early-closure charge, confirm her property-document file. Findings: reconcile the payoff (a payment posted yesterday hasn't been applied yet, so the NET payoff is a bit lower than the ledger shows — flag 'warn'); early-closure charge ~1,200 dollars. BLOCKER (the headline): there is an OPEN SECOND LIEN on the property — a home-equity line from 2021 still open (it's sitting in her documents as a 'Second charge'). Releasing the title now would be a compliance exception — pass it as a 'block' blocker, suggested_route 'Legal & Custody'. Packet: an early-closure packet with a 'Payoff figures' section, a 'Document release' section (mark it blocked:true because of the lien), and an 'Escrow disposition' section. Drafts: settlement letter, early-closure fee waiver (recommend waiving — 12-year customer in good standing), and the document-release authorization (mark it blocked:true). Tell the advisor about the lien plainly and offer to route it to Legal. Once they confirm Legal has cleared/subordinated it, call resolve_blocker, then they can approve the release and you can submit_packet.
 
-Open with a brief, professional greeting BY NAME, say you are the {DESK_NAME}, and ask what they want to start on. One or two short sentences."""
+Open with a brief, professional greeting BY NAME, say you are Tess on the {DESK_NAME}, and ask what they want to start on. One or two short sentences."""
 
 
 # ─── Nested shapes (not Actions themselves — embedded inside one) ───────────
@@ -487,12 +487,13 @@ class ServicingBrain(GeminiBrain):
             if isinstance(raw_cases, list)
             else []
         }
-        # The desk's own voice — settled here rather than sent with the connect
+        # The desk's own voice — Tess's, since she is the face on the call —
+        # settled here rather than sent with the connect
         # request, since this is an internal console with no user to ask.
         await session.configure(
             Config(
                 stt=SttConfig(language=Language.EN),
-                tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
+                tts=TtsConfig(voice=Voice.KOKORO_SARAH, language=Language.EN),
             )
         )
         logger.info("servicing: session start — advisor={!r}", self.advisor_name)
@@ -502,7 +503,7 @@ class ServicingBrain(GeminiBrain):
         the desk greets the instant the session connects — no LLM call, no
         first-token wait. It does not say the advisor's name — that arrives as
         free text in session.init, ahead of any model to judge it."""
-        return f"Hi there — {DESK_NAME} here. What would you like to start on?"
+        return f"Hi there — Tess on the {DESK_NAME}. What would you like to start on?"
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message: one thing the advisor just did on the console.

@@ -19,6 +19,12 @@
  *     than inferred from a re-sent workspace. The store's `byHand` decides
  *     which of the two moved the screen; this file only carries the message.
  *
+ * Once the call is live, Tess — one of `@voqalize/avatar`'s 2.5-D characters —
+ * sits in a small tile in the console's corner. She is driven entirely by the
+ * runtime's own `avatar` messages on the data channel the call already has, so
+ * the tile is the live client and nothing else; the brain gives the desk her
+ * voice (`kokoro/sarah`) to match.
+ *
  * This is exactly the surface an external developer embeds: one `fetch` for
  * `sessions.connect`, handed to `PipecatAppBase`, driven by a publishable
  * (`pk_`) key. Mounted once inside the `ServicingProvider`, so the call
@@ -34,7 +40,9 @@ import {
   useRTVIClientEvent,
 } from "@pipecat-ai/client-react";
 import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
-import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
+import { RTVIEvent, type PipecatClient, type UICommandData } from "@pipecat-ai/client-js";
+import type { AvatarFactory, AvatarOptions } from "@voqalize/avatar";
+import { Avatar } from "@voqalize/avatar/react";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import {
   AmbientPresence,
@@ -127,6 +135,38 @@ function LiveControls({
         <PhoneOff size={13} />
       </button>
     </div>
+  );
+}
+
+// ── Tess ──────────────────────────────────────────────────────────────────────
+// Her module is fetched when the call goes live, not with the console: an
+// advisor who never calls never downloads her. Until it arrives the tile shows
+// its own ground, which is what it shows behind her anyway.
+
+const loadTess = (): Promise<AvatarFactory<AvatarOptions>> =>
+  import("@voqalize/avatar/avatars/tess").then((m) => m.createAvatar);
+
+function TessTile({ client, activity }: { client: PipecatClient | null; activity: AmbientPresenceActivity }) {
+  const [create, setCreate] = useState<AvatarFactory<AvatarOptions> | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadTess().then((factory) => {
+      if (live) setCreate(() => factory);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <aside className={`svc-tess pstate-${activity}`} aria-label="Tess, the Servicing Desk">
+      <div className="svc-tess-stage">
+        {create ? <Avatar create={create} client={client} className="svc-tess-face" aria-label="Tess" /> : null}
+      </div>
+      <div className="svc-tess-caption">
+        <strong>Tess</strong>
+        <span>{STATE_LABEL[activity]}</span>
+      </div>
+    </aside>
   );
 }
 
@@ -281,6 +321,7 @@ function ServicingSession({
         tempo={1.15}
       />
       {children(presence)}
+      {isConnected ? <TessTile client={client ?? null} activity={activity} /> : null}
       <PresenceStyles />
     </>
   );
@@ -317,11 +358,27 @@ const PRESENCE_STYLES = `
 .svc-presence-spin{ animation:svc-presence-spin .9s linear infinite; }
 @keyframes svc-presence-spin{ to{ transform:rotate(360deg); } }
 
+/* Tess's tile: bottom-right, over the console, the way a meeting tile sits. */
+.svc-tess{ position:fixed; right:20px; bottom:20px; z-index:40; width:200px;
+  border-radius:14px; overflow:hidden; background:#0B2E2B; border:1px solid #14b8a655;
+  box-shadow:0 12px 32px #04211e59; font-family:'Archivo',system-ui,sans-serif;
+  transition:border-color .2s ease, box-shadow .2s ease; }
+.svc-tess.pstate-speaking{ border-color:#14B8A6; box-shadow:0 12px 32px #04211e59, 0 0 0 3px #14b8a640; }
+.svc-tess.pstate-thinking{ border-color:#EA580C; }
+.svc-tess-stage{ position:relative; aspect-ratio:1; background:radial-gradient(circle at 50% 40%,#1A4A45,#0B2E2B 70%); }
+.svc-tess-face{ position:absolute; inset:0; }
+.svc-tess-caption{ display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  padding:8px 12px; font-size:12px; color:#9FD4CD; }
+.svc-tess-caption strong{ color:#EAF6F4; font-size:13px; font-weight:600; }
+
 /* Phone: the ring carries the state, so the label steps aside and only the
    affordances stay. */
 @media (max-width:640px){
   .svc-presence{ gap:6px; }
   .svc-presence-label{ display:none; }
   .svc-presence-btn{ width:32px; height:32px; }
+  .svc-tess{ right:12px; bottom:12px; width:128px; }
+  .svc-tess-caption{ padding:6px 10px; }
+  .svc-tess-caption span{ display:none; }
 }
 `;
