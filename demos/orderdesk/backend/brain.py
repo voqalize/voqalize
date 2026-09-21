@@ -1816,17 +1816,19 @@ class OrderDeskBrain(GeminiBrain):
         Everything about the store, the previous calls, the order history and
         today's objective goes into the system prompt (not a tool the model has to
         remember to call), so even the opening line is grounded in it."""
-        # `patience` moves the least of any desk here, on purpose. A truncated
-        # turn does not merely read badly on this one — it is handed to
+        # This desk runs the same low `patience` as every other, so what prod
+        # measures is one setting rather than a spread nobody can compare. What
+        # it costs here is not milliseconds: a truncated turn is handed to
         # `search.resolve` against the real catalog, so a pharma brand name cut
         # short resolves to the wrong SKU or to nothing, and the pharmacist pays
-        # for it in a disambiguation round rather than in milliseconds. The
-        # pharmacist also rattles items off with the list in front of him, which
-        # is exactly the pause this gate exists to sit through.
+        # a disambiguation round for it. He also rattles items off with the list
+        # in front of him, which is the pause a low gate stops waiting through.
+        # A wrong SKU on a name the caller said in full is the signal to raise
+        # this desk — not the speech tier, which owns the scale's mapping.
         await session.configure(
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.HI),
-                stt=SttConfig(language=Language.HI, patience=5),
+                stt=SttConfig(language=Language.HI, patience=2),
             )
         )
         self.desk.session = session

@@ -400,12 +400,16 @@ def _config(language_name: LanguageName, voice: Voice = Voice.OMNIVOICE_GAURI) -
     """
     language = _LANG_BY_NAME[language_name]
     return Config(
-        # `patience` is trimmed but not to the floor. An L1 support caller reads
-        # things aloud that must arrive whole — an account to pick, an amount, a
-        # card's last digits — and pauses mid-number while they find it. Being
-        # answered halfway through one is worse here than being answered slowly,
-        # so this keeps headroom the shorter-turn desks do not need.
-        stt=SttConfig(language=language, patience=4),
+        # Every demo desk runs the same low `patience`, so what prod measures is
+        # one setting rather than a spread nobody can compare. This is the desk
+        # that setting is hardest on: an L1 support caller reads things aloud
+        # that must arrive whole — an account to pick, an amount, a card's last
+        # digits — and pauses mid-number while they find it, which is the pause
+        # a low gate stops waiting through. So this is where a truncation will
+        # show first, and a half-read account number is the thing to watch for.
+        # If it turns up, raise this desk rather than the speech tier: the
+        # mapping from the scale to frames is the tier's, and it re-tunes.
+        stt=SttConfig(language=language, patience=2),
         tts=TtsConfig(voice=voice, language=language),
         idle=IdleConfig(timeout_ms=_IDLE_MS),
     )
