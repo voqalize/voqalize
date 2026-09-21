@@ -403,9 +403,9 @@ facts:
     reproduce: sed -n 2p ../avatar-public/packages/avatar-py/pyproject.toml
 
   avatar.npm.version:
-    value: '0.4.1'
+    value: '0.4.2'
     source: avatar-public/packages/avatar/package.json
-    verified: 2026-09-20
+    verified: 2026-09-21
     reproduce: npm view @voqalize/avatar version
     note: >-
       There is no single avatar version. npm and PyPI publish independently, from

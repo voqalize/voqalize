@@ -20,10 +20,12 @@ per-minute avatar vendor, and no second media path.
 format. They version independently and the wire is what keeps them compatible.
 It works against any pipecat pipeline, and Voqalize is one consumer of it.
 
-The code is MIT. The character binaries the 2.5-D faces load are artwork rather
-than code and carry CC-BY 4.0, which asks for attribution and nothing else; the
-npm manifest declares the pair as `MIT AND CC-BY-4.0`, so that is what a licence
-scanner reports.
+The licence follows the kind of avatar. The code, the SVG faces and the
+Canvas2D identities are MIT and ask for no attribution. The 2.5-D characters'
+`.glb` files are artwork under CC-BY 4.0: use them commercially and modified, and
+credit Voqalize with the line in the package's `assets/README.md`. The npm
+manifest declares `MIT AND CC-BY-4.0`, so that is what a licence scanner reports
+whether or not you import a character.
 
 The face is lip-synced to the audio and state-aware: it knows when the user is
 speaking, when it has been interrupted, when a tool call is running, and when
@@ -40,17 +42,41 @@ watch.
 ## The browser half
 
 ```sh
-npm install @voqalize/avatar
+npm install @voqalize/avatar three   # three only for a 2.5-D character
 ```
 
-Then mount it wherever your page already draws the bot's tile, passing the
+Mount it wherever your page already draws the bot's tile, passing the
 `PipecatClient` you connected with — see
-[connections and the handshake](/build/connect/).
+[connections and the handshake](/build/connect/):
 
-The package's own README is the reference for the mount call, the faces that
-ship with it, and how to author your own. We link rather than quote it: the
-browser surface changes in the next release, and a copy of an API here is a copy
-that goes stale in a place you cannot see it change.
+```js
+import { createAvatar } from '@voqalize/avatar/avatars/tara';
+
+const avatar = createAvatar({ mount: el, client: pipecatClient });
+// avatar.destroy() when the tile goes away
+```
+
+`createAvatar` returns `{ destroy() }` and nothing else: the face reacts to the
+client, so there is nothing to drive from the page and no state to read back.
+
+## Choosing an avatar
+
+Each avatar is its own entry point, so a page downloads only the one it imports.
+
+- **2.5-D characters** — `tara`, `tushar`, `tanya`, `tess`, each at
+  `@voqalize/avatar/avatars/<name>`. A photograph projected onto shallow
+  geometry, with the eyes, teeth and lip line built as geometry so they can move.
+  `three` is an optional peer that only these entry points reach, and the `.glb`
+  is fetched when the avatar mounts.
+- **SVG faces** — `peep`, `wren`, `myna`: hand-drawn line art. The bare
+  `@voqalize/avatar` import mounts `peep`; for another, import its value from
+  `@voqalize/avatar/faces/<name>` and pass it as `face`.
+- **Canvas2D identities** — `arjun`, `meera`, `vikram`, `ishita`, `kabir`,
+  `naina`. Frozen, and removed in 0.5.0; do not start a page on one.
+
+The [package README](https://github.com/voqalize/avatar/tree/main/packages/avatar#readme)
+is the reference for the React binding, the supported `three` range, sizing, and
+authoring an avatar of your own.
 
 ## Driving the face from your brain
 
