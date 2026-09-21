@@ -2,11 +2,8 @@
 
 # Voqalize Agent SDK (Python)
 
-**You bring the brain, we bring the voice.**
-
-**Pipecat-free.** Installing this SDK pulls **no** `pipecat` dependency — the
-promise is "bring the brain, not the voice infra." The customer writes a
-`Brain` of callbacks; the wire is plain protobuf and the Brain surface is
+**Pipecat-free.** Installing this SDK pulls **no** `pipecat` dependency. You
+write a `Brain` of callbacks; the wire is plain protobuf and the Brain surface is
 plain dataclasses. (Pipecat lives only inside the Voqalize voice runtime, on
 the far side of the socket.) The wire is language-neutral — see
 [the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.5.0/docs/src/content/docs/reference/wire.md)
@@ -25,7 +22,7 @@ on either:
   `Authorization` header. The voice runtime dials `{brain_url}?session_id={session_id}`
   per session — your path, verbatim — so one ordinary route is enough; one
   connection = one session. No relay in the path.
-- **`serve()` (`src/voqalize/sdk/outbound.py`) — your app can't accept inbound.**
+- **`serve()` (`src/voqalize/sdk/brain.py`) — your app can't accept inbound.**
   One outbound multiplexed WebSocket to a Cortex relay; many sessions demuxed by a
   16-byte prefix. For serverless/FaaS, laptops and egress-only networks. It
   **blocks** until the relay closes permanently — where that call lives is yours to
@@ -156,6 +153,42 @@ reasoning from whichever it noticed.
 `import voqalize.sdk` pulls no model vendor: nothing in the core SDK imports this
 module.
 
+## Setting the voice, the language and the pace
+
+`await session.configure(Config(...))` — one method, one wire op, sections you
+leave out are untouched. Called from `on_session_start` it lands before the
+greeting, which is why a language that depends on *this* caller belongs there
+rather than in the agent record. Mid-call, acceptance is not audibility: `tts`
+takes effect on the next speech unit, `stt.language` once the open turn commits,
+`stt.patience` and `idle` at once.
+
+```python
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+
+async def on_session_start(self, session: Session) -> None:
+    await session.configure(
+        Config(
+            stt=SttConfig(language=Language.TA, patience=9),
+            tts=TtsConfig(language=Language.TA, voice=Voice.OMNIVOICE_GAURI),
+        )
+    )
+```
+
+**Both legs of a language change travel together.** `tts.language` picks the
+language the voice reads in; `stt.language` picks the recognizer. Naming one and
+not the other raises `ConfigError` before anything reaches the socket — the
+failure it prevents is silent, because a Hindi call read by an English clip has a
+correct transcript and clean logs and merely sounds wrong.
+
+`stt.patience` is a scale from 0 to 10 for how long the recognizer waits through
+a pause; unset takes the deployment's own calibration, which is 7. A value off
+the scale raises `ConfigError` at the call site too.
+
+Two refusals with different homes: `ConfigError` is raised in your process for
+what the message itself settles, and `RequestRejected` comes back from Voqalize
+for what only the far end knows — a `tts.language` the chosen voice does not
+speak. Rejection is all-or-nothing, and `detail` is written to be shown.
+
 ## Layout
 
 - `src/voqalize/sdk/brain.py` — the ergonomic surface: `Brain` (implement
@@ -179,6 +212,9 @@ module.
   writer over one wire), implementing `RunnerHost`.
 - `src/voqalize/sdk/_keys.py` — the embedded Voqalize public key(s)
   `run_session` verifies against by default.
+- `src/voqalize/sdk/_logging.py` — `configure_logging()` (loguru, plain or
+  `json_logs=True`) and `session_context()`, which binds the `session_id` onto
+  every line a callback logs inside it.
 - `src/voqalize/sdk/wire/` — the frame dataclasses, `WIRE_VERSION`,
   `is_priority()`, `WireSerializer` (the protobuf serializer, no base class),
   `Wire`/`MultiplexedWire` transport, protobuf stubs.
