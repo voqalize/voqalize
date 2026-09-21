@@ -163,13 +163,13 @@ function AssistantTray() {
       {open && (
         <div className="svc-tray-pop">
           <div className="svc-tray-pop-head">
-            <span>Servicing desk · working for you</span>
+            <span>Tess · working for you</span>
             <button onClick={() => setOpen(false)}>✕</button>
           </div>
 
           {activeCount === 0 && pendingApprovals === 0 && (
             <div className="svc-tray-empty">
-              Nothing running. Ask the desk to get a case ready while you work another.
+              Nothing running. Ask Tess to get a case ready while you work another.
             </div>
           )}
 
@@ -431,7 +431,7 @@ function OverviewTab({ c }: { c: Case }) {
         <div className="svc-panel-head">
           <h2>Needs your approval</h2>
           <span className="svc-panel-sub">
-            The desk drafts — you approve. Nothing here is sent until you sign off.
+            Tess drafts — you approve. Nothing here is sent until you sign off.
           </span>
         </div>
         {c.approvals.length === 0 ? (
@@ -512,7 +512,7 @@ function WorkupPanel({ c }: { c: Case }) {
       <div className="svc-panel-head">
         <h2>Desk workup</h2>
         <span className="svc-panel-sub">
-          What the desk assembled and reconciled across systems for you.
+          What Tess assembled and reconciled across systems for you.
         </span>
       </div>
 

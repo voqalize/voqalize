@@ -387,7 +387,7 @@ export function ServicingProvider({ children }: { children: ReactNode }) {
       if (!body) return;
       const r = ref.trim().toUpperCase();
       const d = dept ? findDept(dept) : undefined;
-      const author = authorKind === 'agent' ? 'Servicing desk' : WORKSPACE.advisor.name;
+      const author = authorKind === 'agent' ? 'Tess' : WORKSPACE.advisor.name;
       const comment: Comment = {
         id: rid('cm'),
         ts: Date.now(),

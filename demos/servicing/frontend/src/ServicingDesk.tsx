@@ -97,14 +97,14 @@ function BeginControl({
           ? "Connecting…"
           : status === "error"
             ? error || "Connection issue"
-            : "Ask the Servicing Desk"}
+            : "Ask Tess"}
       </span>
       {connecting ? (
         <button className="svc-presence-btn is-connecting" disabled title="Connecting…">
           <Loader2 size={16} className="svc-presence-spin" />
         </button>
       ) : (
-        <button className="svc-presence-btn" onClick={onBegin} title="Talk to the Servicing Desk">
+        <button className="svc-presence-btn" onClick={onBegin} title="Talk to Tess">
           <Mic size={16} />
         </button>
       )}
@@ -158,7 +158,7 @@ function TessTile({ client, activity }: { client: PipecatClient | null; activity
     };
   }, []);
   return (
-    <aside className={`svc-tess pstate-${activity}`} aria-label="Tess, the Servicing Desk">
+    <aside className={`svc-tess pstate-${activity}`} aria-label="Tess">
       <div className="svc-tess-stage">
         {create ? <Avatar create={create} client={client} className="svc-tess-face" aria-label="Tess" /> : null}
       </div>
@@ -298,8 +298,8 @@ function ServicingSession({
     <>
       <DemoGate
         open={!gate.joined}
-        title="Servicing Desk"
-        blurb="Call your bank's servicing desk — ask about a card, a payment or a dispute and watch the account respond on screen."
+        title="Talk to Tess"
+        blurb="Tess is the servicing copilot on this console. Ask her to work a case — a payoff, a rate review, a payment relief request — and watch her drive the screen."
         accent={PRESENCE.listening}
         agreed={gate.agreed}
         onAgreedChange={gate.setAgreed}

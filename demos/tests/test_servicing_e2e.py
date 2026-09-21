@@ -141,7 +141,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     async with demo("servicing", _llm()) as rig:
         greeting = await rig.driver.start_session(init=_payload())
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text.startswith("Hi there — Tess on the Servicing Desk.")
+        assert greeting is not None and greeting.text.startswith("Hi there — Tess here.")
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
 
 
