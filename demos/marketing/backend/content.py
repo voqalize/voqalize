@@ -243,8 +243,8 @@ SECTIONS: tuple[Section, ...] = (
         title="Enable voice mode in your app.",
         answers="how to begin, today",
         targets=(
-            ("start.prompt", "the prompt to paste into a coding agent"),
-            ("start.cta", "the sign-up button"),
+            ("start.cta", "step one: connect the MCP server to your coding assistant"),
+            ("start.prompt", "step two: the prompt that asks it to build the agent in your app"),
         ),
     ),
 )
