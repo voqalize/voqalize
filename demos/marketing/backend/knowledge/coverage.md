@@ -60,7 +60,7 @@ Nothing in the set needs more than one `l2/` read, and nothing is uncovered.
 | 38 | business-model | L1 | Facts → Money |
 | 39 | moat | L1 | Objections, third bullet |
 | 40 | traction | L1 | Not known — customers outside preview are not named |
-| 41 | partnerships | L1 | Facts → Deployment, Think41 |
+| 41 | partnerships | L1 | Facts → Deployment, forward deployed — no partner is named |
 | 42 | positioning | L1 | Identity + Objections, "what a chatbot doesn't" |
 | 43 | trial | L1 | Demos |
 | 44 | pricing | L1 | Facts → Money |

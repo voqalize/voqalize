@@ -50,8 +50,7 @@ It is not transport. Transport is the cheapest thing on that list.
 ## Enterprise-gated
 
 Named on the homepage: **custom brand voice, bring-your-own TTS, custom
-avatars**, VPC deployment, and forward-deployed engineering (delivered with
-Think41). Everything else is on the self-serve path.
+avatars**, VPC deployment, and forward-deployed engineering. Everything else is on the self-serve path.
 
 ## Preview limits, concretely
 

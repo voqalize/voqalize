@@ -213,7 +213,7 @@ SECTIONS: tuple[Section, ...] = (
     ),
     Section(
         id="speech",
-        title="English and 22 Indian languages.",
+        title="English, Spanish, French, Italian, Japanese and 22 Indian languages.",
         answers="the speech tier — the roster, whose models these are",
         targets=(("speech.headline", "the language headline"),),
     ),
@@ -331,7 +331,7 @@ TOPICS: dict[TopicId, str] = {
         "reconnection, interruption, background work, session limits"
     ),
     "deployment-and-vpc": (
-        "inbound versus Cortex in detail, VPC deployment, GPUs, regions, certifications, Think41"
+        "inbound versus Cortex in detail, VPC deployment, GPUs, regions, certifications, forward-deployed engineering"
     ),
     "speech-and-languages": (
         "the language roster, the both-legs rule, the voices, switching mid-call, "
@@ -352,7 +352,7 @@ TOPICS: dict[TopicId, str] = {
         "the pricing shape, what preview does and does not promise, production readiness, support"
     ),
     "company-and-comparison": (
-        "Recruit41 and Think41, the moat, build-versus-buy, realtime voice APIs, "
+        "Recruit41, the moat, build-versus-buy, realtime voice APIs, "
         "which parts of the stack are genuinely ours"
     ),
 }

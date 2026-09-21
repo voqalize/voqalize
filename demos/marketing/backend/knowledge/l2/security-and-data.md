@@ -63,7 +63,7 @@ selectable, no date.
 
 ## Certifications and controls
 
-Stated publicly: **ISO 27001**, **SOC 2**, **DPDP compliant**. Alongside them:
+Stated publicly: **ISO 27001**, **SOC 2**, **GDPR compliant**, **DPDP compliant**. Alongside them:
 role-based access, a full audit trail, and data-residency controls.
 
 **The SOC 2 report type is not published — never assert Type I or Type II**, and

@@ -1,6 +1,6 @@
 # L2 — the company, the numbers and the comparison
 
-Read when: Recruit41, Think41, the moat, build-versus-buy, realtime voice APIs,
+Read when: Recruit41, delivery partners, the moat, build-versus-buy, realtime voice APIs,
 or what is genuinely ours.
 
 ## Recruit41
@@ -27,14 +27,13 @@ fact than a synthetic benchmark. There is no published load-test number.
 **Paying customers outside developer preview are not named publicly.** Don't
 improvise one.
 
-## Think41
+## Delivery partners
 
-**Think41 Technologies** is the delivery partner, named on the homepage's
-enterprise section. Forward-deployed engineering — VPC deployments, integration
-work, the hands-on part of an enterprise engagement — is delivered with them.
-
-A services and delivery partner. Not a reseller, not a parent company. Details of
-the commercial relationship are not published.
+Forward-deployed engineering is Voqalize's own: the homepage says "our engineers
+work alongside yours", in the enterprise section, and that is the whole public
+statement. **No delivery or services partner is named publicly — do not name
+one**, and do not confirm or deny one if asked; send the question to
+`support@voqalize.com`.
 
 ## The moat, when the avatar is MIT and the client is pipecat
 

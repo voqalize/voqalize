@@ -59,14 +59,14 @@ What is not published, and should not be improvised:
   pays for their own hardware in their own account; Voqalize does not resell it.
 - The update path and licence terms — also part of that conversation.
 
-Forward-deployed engineering for these deployments is delivered with **Think41
-Technologies**, named on the homepage as the delivery partner. Think41 is a
-services and delivery partner, not a reseller and not a parent company; the
-engagement is how a VPC deployment and its integration work get staffed.
+Forward-deployed engineering for these deployments is Voqalize's own engineers
+working alongside the customer's; the engagement is how a VPC deployment and its
+integration work get staffed. No delivery partner is named publicly — do not name
+one.
 
 ## Certifications
 
-Stated publicly: **ISO 27001**, **SOC 2**, **DPDP compliant**, plus role-based
+Stated publicly: **ISO 27001**, **SOC 2**, **GDPR compliant**, **DPDP compliant**, plus role-based
 access, a full audit trail and data-residency controls.
 
 **The SOC 2 report type is not stated publicly — do not assert Type I or Type

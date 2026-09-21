@@ -17,7 +17,8 @@ skip implementing its own VAD and turn detection.
 
 ## Languages
 
-One recognizer, **no model field**: English plus **22 Indic languages**. There is
+One recognizer, **no model field**: English, Spanish, French, Italian, Japanese
+and **22 Indic languages**, for recognition and synthesis alike. There is
 no per-language model to choose and no quality tier to buy — the recognizer is
 the recognizer.
 
@@ -40,6 +41,10 @@ separate model field anywhere on the wire.
 - `kokoro/*` — English checkpoints. `ava` and `sarah` are American female,
   `noah` and `leo` American male, `emma` British female, `oliver` British male.
 
+Both engines also speak Spanish, French, Italian and Japanese. This homepage call
+switches only among English and the Indic languages, so offer a visitor those;
+the catalog says which voice speaks which language.
+
 Which languages a voice actually speaks is **not** in the proto and must not go
 there: it is a capability of the speech tier, it moves when a clip is recorded,
 and the roster is published at `/reference/catalog`. A pairing a voice cannot
@@ -58,9 +63,8 @@ Consequences that surprise people:
 - The SDK **refuses a half-stated language** with `ConfigError`. Setting one leg
   and not the other is a mistake, not a default.
 - A speaking language with **no reference clip is rejected**, never silently
-  substituted. Clips ship for a subset of the recognized roster — `hi en bn gu kn
-  ml mr pa ta te` at the time of writing — so a language can be understood
-  without being speakable. The catalog is the record.
+  substituted. Clips ship for a subset of the recognized roster, so a language can
+  be understood without being speakable. The catalog is the record.
 
 ## Switching mid-call
 
