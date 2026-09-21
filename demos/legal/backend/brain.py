@@ -354,9 +354,21 @@ class LegalBrain(GeminiBrain):
         # pairing rule is satisfied the same way it always was — both legs named,
         # and `en` is a language this voice speaks, so the speech tier serves it
         # rather than refusing it.
+        #
+        # `patience` is set low on purpose, and this desk is the reason the knob
+        # exists. A lawyer with the contract already in front of them asks in
+        # fragments — "this clause", "and the cap?" — and waits for Ada with their
+        # eyes still on the page, so the pause the recognizer sits through is the
+        # whole of the latency they feel. Leaving it at the default spends that
+        # pause protecting a mid-sentence breath this desk rarely takes.
+        #
+        # The cost is real and is the thing to watch: a reader who stops to find
+        # the clause they meant gets answered before they finish asking. If that
+        # shows up, raise this rather than reaching for the speech tier — the
+        # mapping from this scale to frames is the tier's, and it re-tunes.
         await session.configure(
             Config(
-                stt=SttConfig(language=Language.EN),
+                stt=SttConfig(language=Language.EN, patience=2),
                 tts=TtsConfig(voice=Voice.KOKORO_AVA, language=Language.EN),
             )
         )
