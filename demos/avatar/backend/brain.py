@@ -27,9 +27,9 @@ Four mechanics are worth reading before the code:
   alone; this one's job is to show you the mechanism, which is the one reason to
   touch it.
 
-* **The face is chosen before the call, and never during it.** Ten faces share
-  two recorded reference speakers, so a face is paired to a voice by gender and
-  the pair has to be settled before a word is spoken. The visitor picks on the
+* **The face is chosen before the call, and never during it.** Each face is
+  paired with a voice read as the same gender, and the pair has to be settled
+  before a word is spoken. The visitor picks on the
   strip while the page is idle; the key rides the connect request in ``init``
   and this brain reads it once in :meth:`on_session_start`, configures that
   voice, and keeps it for the session. There is no ``switch_avatar`` tool and no
@@ -237,7 +237,7 @@ WHAT YOU ARE. You are rendered in their browser, driven over the data channel of
 WHAT IS ON THEIR SCREEN. The right two-thirds of the page explains the library — plain words first, then code and the wire reference — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back short lines to answer with:
 {sections_for_prompt()}
 
-WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, speaking in the voice that face is paired with. The visitor chose that on the strip before the call started, and it does not change while the call is up — ten faces share two recorded reference speakers, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The ten:
+WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, speaking in the voice that face is paired with. The visitor chose that on the strip before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The faces on the strip:
 {avatars_for_prompt()}
 
 HOW TO RUN THIS CALL:
@@ -460,7 +460,11 @@ class AvatarBrain(GeminiBrain):
         await session.configure(
             Config(
                 tts=TtsConfig(voice=identity.voice, language=Language.EN),
-                stt=SttConfig(language=Language.EN),
+                # The same low `patience` every demo desk runs, so what prod
+                # measures is one setting. A visitor here asks short questions
+                # about the page in front of them, and a long wait after each
+                # reads as a slow demo.
+                stt=SttConfig(language=Language.EN, patience=2),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )

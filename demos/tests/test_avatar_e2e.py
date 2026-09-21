@@ -36,10 +36,10 @@ from voqalize_demos._loaded.avatar import brain as brain_module  # noqa: E402
 from voqalize_demos._loaded.avatar.brain import _GREETING, _SIGN_OFF  # noqa: E402
 from voqalize_demos._loaded.avatar.content import SECTIONS  # noqa: E402
 
-# The default avatar is `tara`, and `tara` is female — so a call that names no
-# face opens on the female reference clip, which is not the voice the agent is
+# The default avatar is `tanya`, and `tanya` is female — so a call that names no
+# face opens on her kokoro voice, which is not the voice the agent is
 # provisioned with (``omnivoice/gaurav``): the brain has to move it.
-VOICE = "omnivoice/gauri"
+VOICE = "kokoro/ava"
 LANGUAGE = "en"
 
 
@@ -130,7 +130,7 @@ async def test_it_greets_with_a_wave_and_its_voice_reaches_the_wire() -> None:
     page says it is listening and the wave answers that, once.
 
     The female English pair lands on both legs before the greeting audio,
-    because the call opens on ``tara``."""
+    because the call opens on ``tanya``."""
     async with demo("avatar", _llm()) as rig:
         greeting = await rig.driver.start_session()
         check_greeting(rig, greeting)
@@ -223,6 +223,15 @@ async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() ->
         only = configs[0]
         assert only.tts is not None and only.stt is not None
         assert only.tts.language == "en" and only.stt.language == "en"
+        assert only.stt.patience == 2, only.stt
+
+
+async def test_tess_speaks_in_her_own_kokoro_voice() -> None:
+    """tess and tanya are both American and female, and both kokoro. A table that
+    gave tess tanya's voice would pass every gender check, so this pins hers."""
+    async with demo("avatar", _llm()) as rig:
+        await rig.driver.start_session(init={"surface": "avatar-web", "avatar": "tess"})
+        check_voice_pair(rig, voice="kokoro/sarah", language="en")
 
 
 async def test_an_unknown_face_wears_the_default_in_its_own_voice() -> None:
@@ -232,7 +241,7 @@ async def test_an_unknown_face_wears_the_default_in_its_own_voice() -> None:
     agent's."""
     async with demo("avatar", _llm()) as rig:
         await rig.driver.start_session(init={"avatar": "not-a-face"})
-        check_voice_pair(rig, voice="omnivoice/gauri", language="en")
+        check_voice_pair(rig, voice=VOICE, language="en")
 
 
 async def test_the_deliberate_dig_says_working_out_loud_and_clears_it() -> None:

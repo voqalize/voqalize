@@ -30,15 +30,14 @@
  *     dialled before this page has one, and a gesture sent then goes nowhere.
  *
  * **The face is chosen before the call and never during it,** which is why it
- * does not travel on either lane. Ten faces share two recorded reference
- * speakers, so a face and a voice are one choice; the strip writes the key into
+ * does not travel on either lane. Each face is paired with a voice read as the
+ * same gender, so a face and a voice are one choice; the strip writes the key into
  * the connect request and the brain reads it there, before the opener is
  * synthesised. Mid-call is not an option worth having: the opener is spoken
  * before this page can say anything at all — `greet` is awaited before any
  * client message can be delivered, and waiting for one there deadlocks the
  * session — so a face picked after dialling would speak its first line in the
- * other speaker's voice, which with two speakers reads immediately as the wrong
- * gender. The strip is therefore live before the call and locked during it.
+ * default face's voice, which reads immediately as the wrong person. The strip is therefore live before the call and locked during it.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -637,8 +636,8 @@ export function AvatarDemo() {
   //
   // One mutable object rather than a fresh one per pick, and the reason is
   // structural. `params` is a dependency of pipecat's connect path, so a new
-  // object identity re-mints a session; the visitor clicking through ten faces
-  // would mint ten. Writing into the same object leaves the identity alone, and
+  // object identity re-mints a session; the visitor clicking through the faces
+  // would mint one per click. Writing into the same object leaves the identity alone, and
   // the write is safe because the only reader is `JSON.stringify` at connect,
   // which happens after every pick and before any of them matters.
   //

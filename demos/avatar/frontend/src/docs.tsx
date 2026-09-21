@@ -192,7 +192,7 @@ export const DOC_SECTIONS: DocSection[] = [
         </p>
         <p>
           The library and every face it ships are open source, under the MIT licence — including
-          Tara, the 2.5-D face this page opens on. The character binaries the 2.5-D faces load are
+          Tanya, the 2.5-D face this page opens on. The character binaries the 2.5-D faces load are
           artwork rather than code, and carry CC-BY 4.0.
         </p>
 
@@ -241,7 +241,7 @@ export const DOC_SECTIONS: DocSection[] = [
           face.
         </p>
         <p>
-          All six go in the same place in a Pipecat pipeline, after the TTS service. A video avatar
+          All of them go in the same place in a Pipecat pipeline, after the TTS service. A video avatar
           service sends the TTS audio to its own servers. It renders a video of a face saying it.
           Then it sends the video and the audio back through your transport. This library reads the
           same audio inside your pipeline. It works out the mouth shapes and sends them to the
@@ -541,20 +541,20 @@ await say({"type": "avatar", "cmd": "state", "state": None})`}</Code>
     body: (
       <>
         <p className="doc-lede">
-          The library ships twelve faces: three SVG line drawings, six painted Canvas2D faces, and
-          three 2.5-D characters rendered with three.js. Each face has its own entry point, so you
+          The library ships SVG line drawings, painted Canvas2D faces and 2.5-D characters
+          rendered with three.js, all in one package. Each face has its own entry point, so you
           load only the one you import. To switch faces, remount the avatar.
         </p>
         <p>
-          Tara, the face this page opens on, is one of the three: a head built in Blender and
+          Tanya, the face this page opens on, is a 2.5-D character: a head built in Blender and
           loaded as a character binary. It uses the same mixer and the same protocol as the
           drawings, so nothing above the renderer knows there is a GPU involved. A 2.5-D face is
           the only kind that needs <code>three</code>, which the package declares as an optional
           peer — a drawing never pays for it.
         </p>
         <p>
-          In this demo, each face is paired with one of two recorded voices. So you choose the face,
-          and with it the voice, before the call starts. The choice is locked during the call.
+          In this demo, each face is paired with its own voice. So you choose the face, and with it
+          the voice, before the call starts. The choice is locked during the call.
         </p>
         <Code lang="javascript">{`// line art: peep, wren, myna
 import { peep } from '@voqalize/avatar/faces/peep';
@@ -562,7 +562,7 @@ import { peep } from '@voqalize/avatar/faces/peep';
 // painted: arjun, meera, vikram, ishita, kabir, naina
 import { createAvatar } from '@voqalize/avatar/avatars/meera';
 
-// 2.5-D: tara, tushar, tanya — these need \`three\` installed
+// 2.5-D: tara, tushar, tanya, tess — these need \`three\` installed
 import { createAvatar } from '@voqalize/avatar/avatars/tara';`}</Code>
         <p>
           Each face has three layers. The mixer combines idle movement, gaze, gestures and the
@@ -630,7 +630,7 @@ createAvatar({ mount: el, client: pipecatClient, face: myFace });`}</Code>
           To draw with something other than SVG, pass <code>rig</code> instead of{" "}
           <code>face</code>. A rig is a function that returns <code>apply(frame)</code> and{" "}
           <code>destroy()</code>. It can draw with Canvas2D, WebGL, WebGPU, Rive (experimental)
-          or another renderer. The six painted faces in this demo are Canvas2D rigs.
+          or another renderer. The painted faces in this demo are Canvas2D rigs.
         </p>
         <Code lang="javascript">{`createAvatar({
   mount: el,

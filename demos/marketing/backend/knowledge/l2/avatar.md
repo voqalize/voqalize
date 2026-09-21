@@ -21,13 +21,14 @@ most of its time not talking.** On the recording shown, the agent speaks for
 attention while the user talks or reads the screen. Idle behaviour is the hard
 part; lip sync is the easy part everyone demos.
 
-Faces shipping on the page: tanya (the one in the recording), tushar, tara.
+Faces shipping on the page: tanya (the one in the recording), tushar, tess, tara.
 
 ## Licence and packages
 
 - Library: **MIT**. `@voqalize/avatar` on npm, `voqalize-avatar` on PyPI, source
   at `github.com/voqalize/avatar`.
-- Character binaries for the 2.5-D faces: **CC-BY 4.0**.
+- Line-art and painted faces: **MIT**, no attribution.
+- Character binaries for the 2.5-D faces (tara, tushar, tanya, tess): **CC-BY 4.0**.
 
 ## Using it standalone
 

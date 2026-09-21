@@ -91,11 +91,11 @@ class Expected:
 # without declaring its voice is a red suite, not a silent gap.
 DEMOS: dict[str, Expected] = {
     # The avatar demo takes its voice from the face the visitor picked before
-    # dialling — ten faces share two recorded reference speakers, so a face and
-    # a voice are one choice. This sweep sends no `init`, so what is checked here
-    # is the default face's voice: `tara`, female. The picked case is asserted in
+    # dialling — each face is paired with its own voice, so a face and a voice
+    # are one choice. This sweep sends no `init`, so what is checked here is the
+    # default face's voice: `tanya`, on kokoro. The picked case is asserted in
     # test_avatar_e2e.py.
-    "avatar": Expected(voice="omnivoice/gauri", language="en"),
+    "avatar": Expected(voice="kokoro/ava", language="en"),
     # Aria takes the language from the connect request's ``init`` and configures
     # both legs from it, so the brain still owns the answer — nothing in the
     # payload ⇒ English. The per-user case is asserted below.

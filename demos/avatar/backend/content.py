@@ -1,5 +1,5 @@
-"""What the avatar demo knows: the nine documentation sections, the ten
-avatars, and the background the model answers from.
+"""What the avatar demo knows: the documentation sections, the avatars on the
+strip, and the background the model answers from.
 
 Kept out of ``brain.py`` because it is *content* — it is edited when the avatar
 library changes, not when the conversation does, and those are two different
@@ -131,8 +131,8 @@ SECTIONS: tuple[Section, ...] = (
         id="faces",
         title="Choose a face",
         notes=(
-            "Twelve faces ship, all in one package. "
-            "Three drawn, six painted, three built in Blender. Tara is one of those. "
+            "Every face ships in one package. "
+            "Some are drawn, some painted, and some built in Blender. "
             "Each face comes with its own voice, so you pick before the call. "
             "Blinks and breathing happen in the browser. Nobody sends them."
         ),
@@ -166,6 +166,9 @@ SECTIONS_BY_ID: dict[str, Section] = {section.id: section for section in SECTION
 # ─── The avatars ──────────────────────────────────────────────────────────────
 
 AvatarKey = Literal[
+    "tanya",
+    "tess",
+    "tushar",
     "tara",
     "peep",
     "wren",
@@ -181,17 +184,15 @@ AvatarKey = Literal[
 #: The face the strip starts on (``DEFAULT_AVATAR`` in ``frontend/src/roster.ts``),
 #: and what a payload that named no face wears. Its voice is configured in
 #: ``on_session_start`` before a word is spoken, exactly as a picked face's is.
-DEFAULT_AVATAR: AvatarKey = "tara"
+DEFAULT_AVATAR: AvatarKey = "tanya"
 
 
 @dataclass(frozen=True)
 class AvatarIdentity:
     """One avatar, and the voice that goes with it.
 
-    ``voice`` is the whole reason this table exists on the *brain* side. There
-    are two recorded reference speakers, so a face and a voice can only be paired
-    by gender — and a face read as one gender speaking in the other is the first
-    thing anyone notices, before a single nod is judged. Pairing it here, in the
+    ``voice`` is the whole reason this table exists on the *brain* side. A face
+    read as one gender speaking in the other is the first thing anyone notices, before a single nod is judged. Pairing it here, in the
     place that can actually change the voice, is what stops the page ever holding
     half the answer.
     """
@@ -205,17 +206,38 @@ class AvatarIdentity:
 
 AVATARS: tuple[AvatarIdentity, ...] = (
     AvatarIdentity(
+        key="tanya",
+        name="Tanya",
+        renderer="2.5-D",
+        blurb="The default here: a head built in Blender and rendered with three.js, on the library's own mixer and wire.",
+        voice=Voice.KOKORO_AVA,
+    ),
+    AvatarIdentity(
+        key="tess",
+        name="Tess",
+        renderer="2.5-D",
+        blurb="American, and the first character built from a single supplied picture.",
+        voice=Voice.KOKORO_SARAH,
+    ),
+    AvatarIdentity(
+        key="tushar",
+        name="Tushar",
+        renderer="2.5-D",
+        blurb="Built by copying Tara's build and changing only the face.",
+        voice=Voice.OMNIVOICE_GAURAV,
+    ),
+    AvatarIdentity(
         key="tara",
         name="Tara",
         renderer="2.5-D",
-        blurb="The default here: a head built in Blender and rendered with three.js, on the library's own mixer and wire.",
+        blurb="The first of the Blender characters, and the one the others were copied from.",
         voice=Voice.OMNIVOICE_GAURI,
     ),
     AvatarIdentity(
         key="myna",
         name="Myna",
         renderer="line art",
-        blurb="Line-art, wavy hair and hoop earrings. The default, and the drawing every rig change is judged against.",
+        blurb="Line-art, wavy hair and hoop earrings. The drawing every rig change is judged against.",
         voice=Voice.OMNIVOICE_GAURI,
     ),
     AvatarIdentity(
@@ -271,7 +293,7 @@ AVATARS: tuple[AvatarIdentity, ...] = (
         key="naina",
         name="Naina",
         renderer="canvas",
-        blurb="Relaxed, and the last of the painted six.",
+        blurb="Relaxed, and the other half of that pair.",
         voice=Voice.OMNIVOICE_GAURI,
     ),
 )
@@ -288,7 +310,7 @@ def avatars_for_prompt() -> str:
 def sections_for_prompt() -> str:
     """The section index as the model reads it. The notes are NOT here: they
     arrive as the tool's return value, so the model reads them with the section
-    already open in front of the visitor rather than carrying seven of them
+    already open in front of the visitor rather than carrying all of them
     through every turn."""
     return "\n".join(f"- [{s.id}] {s.title}" for s in SECTIONS)
 
@@ -306,8 +328,8 @@ FACTS ABOUT THE LIBRARY — answer from these, and say you are not sure if it is
 - The backend half is one pipecat frame processor. It sits right after text-to-speech, and from there it sends the state it infers and the mouth shapes for the audio about to play. Turning audio into mouth shapes is a little CPU work inside that pipeline, so there is no new service to run or pay for.
 - The browser half is one mount call, given the pipecat client you already connected with.
 - It works with any pipecat pipeline. Voqalize is one user of it, not the only one.
-- Twelve avatars ship: three line-art faces, six painted ones, and three 2.5-D characters rendered with three.js. All of them are in the one npm package. Anyone can ship their own: an avatar is any module that exports createAvatar.
-- Tara, the face this page opens on, is one of the three 2.5-D characters. Her code is MIT like the rest of the library; the character binary the browser loads is artwork, under CC-BY 4.0. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes. This strip carries ten of the twelve — the other two 2.5-D characters are in the package and not on this page.
+- The avatars that ship are line-art faces, painted ones, and 2.5-D characters rendered with three.js — Tara, Tushar, Tanya and Tess. All of them are in the one npm package. Anyone can ship their own: an avatar is any module that exports createAvatar.
+- Tanya, the face this page opens on, is a 2.5-D character. Her code is MIT like the rest of the library; the character binary the browser loads is artwork, under CC-BY 4.0. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes. Every face in the package is on this page's strip.
 - HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They also sit right after text-to-speech, but they send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. This library sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
 
 FACTS ABOUT THIS CALL:

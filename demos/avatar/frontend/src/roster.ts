@@ -1,26 +1,26 @@
 /**
- * The ten avatars, and how a page mounts one.
+ * The avatars on the strip, and how a page mounts one.
  *
- * All ten come from `@voqalize/avatar`, installed from npm — including tara, who
+ * Every one comes from `@voqalize/avatar`, installed from npm — including tara, who
  * used to be vendored here as a proprietary build. Since 0.4.0 the 2.5-D
  * characters ship in the package like every other face: MIT code, and their
  * character binaries under CC-BY 4.0. Nothing in this repository is anyone's
  * source any more, and there is no second copy of a face to keep in step.
  *
- * Three shapes ship in `@voqalize/avatar`, and this file's job is to make them one
- * shape. A line-art face is a *drawing* handed to the bundled SVG avatar; a
+ * `@voqalize/avatar` ships faces in different shapes, and this file's job is to
+ * make them one shape. A line-art face is a *drawing* handed to the bundled SVG avatar; a
  * canvas avatar and a 2.5-D character are each a whole `createAvatar` module of
  * their own. The published interface is the module
  * (`createAvatar({mount, client}) -> {destroy()}`), so the drawings are wrapped
  * into that same interface here and the page never branches again.
  *
- * The package ships two more 2.5-D characters, tushar and tanya, that this strip
- * does not carry — a face on the strip needs a name, a blurb and a paired voice
- * in `backend/content.py`, which is an editorial choice and not an import.
+ * A face on the strip needs a name, a blurb and a paired voice in
+ * `backend/content.py`, which is an editorial choice and not an import.
  *
- * Every entry is loaded on demand. Six of these carry wardrobe images, and a
- * page that imported all ten up front would put megabytes in front of the
- * greeting for eight faces nobody is looking at.
+ * Every entry is loaded on demand. The painted faces carry wardrobe images and
+ * the 2.5-D ones a character binary, and a page that imported every face up
+ * front would put megabytes in front of the greeting for faces nobody is
+ * looking at.
  *
  * **The name, the blurb and the voice are the brain's** (`backend/content.py`).
  * What is duplicated here is only what the page cannot be told in time: the key
@@ -35,7 +35,7 @@ import type { AvatarFactory, AvatarOptions, Face } from "@voqalize/avatar";
 
 /** The face the strip starts on, and so the one a call opens on unless the
  *  visitor picks another. Must equal `DEFAULT_AVATAR` in `backend/content.py`. */
-export const DEFAULT_AVATAR = "tara";
+export const DEFAULT_AVATAR = "tanya";
 
 export interface RosterEntry {
   /** The key the brain uses, and the one sent back when a visitor clicks. */
@@ -63,6 +63,24 @@ function fromFace(
 }
 
 export const ROSTER: readonly RosterEntry[] = [
+  {
+    key: "tanya",
+    name: "Tanya",
+    kind: "2.5-D",
+    load: () => import("@voqalize/avatar/avatars/tanya").then((m) => m.createAvatar),
+  },
+  {
+    key: "tess",
+    name: "Tess",
+    kind: "2.5-D",
+    load: () => import("@voqalize/avatar/avatars/tess").then((m) => m.createAvatar),
+  },
+  {
+    key: "tushar",
+    name: "Tushar",
+    kind: "2.5-D",
+    load: () => import("@voqalize/avatar/avatars/tushar").then((m) => m.createAvatar),
+  },
   {
     key: "tara",
     name: "Tara",

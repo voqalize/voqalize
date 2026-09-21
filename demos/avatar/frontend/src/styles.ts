@@ -7,7 +7,7 @@
  *
  * The design, in one paragraph, because the rules below are easier to keep
  * honest with it written down. **The page is paper and the face has its own
- * field.** Ten avatars come with their own colour, so a page that competes with
+ * field.** The avatars come with their own colour, so a page that competes with
  * them makes every face look wrong in a different way — the drawing therefore
  * sits on a fixed stage the size and shape it will really live at in a call, and
  * everything around it is a light, cool paper carrying documentation. The stage
