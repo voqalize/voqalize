@@ -1233,16 +1233,50 @@ _WIRE_TOKENS = tuple(
 _BANNED = ("instant", "guaranteed", "approved", "magic", "effortless")
 
 
-async def test_nothing_the_brain_tells_rohan_to_say_is_a_display_string() -> None:
-    """The sweep. Every ``SAY:`` span the brain writes across a whole visit — nine
-    tools deep, four of them quoting the card shelf — swept for the figures and
-    the raw tokens that belong only on the glass.
+#: Tool results that told Rohan to (re)state a question. Each one made him say a
+#: question twice: he had already asked it before calling the tool that said so.
+_ASKS_AGAIN = re.compile(
+    r"SAY:\s*your question|then your next question|then carry on|"
+    r"move straight to the next step|and ask the first question",
+    re.IGNORECASE,
+)
 
-    ``SAY:`` introduces what Rohan is to say, sometimes verbatim and sometimes as
-    a direction ("a three-word acknowledgement"), so a tool name in a direction is
-    fine and a rupee sign never is. This is the check that cannot be written per
-    call site: the failure is one interpolation in one branch of one tool, and it
-    is heard exactly once, in front of a customer."""
+
+async def test_no_tool_tells_rohan_to_ask_a_question_again() -> None:
+    """The repeat bug, pinned at its cause. A live session had Rohan ask one
+    question two and three times in a row: the prompt said to ask it before
+    calling ``ask_profile``, and the tool's result said to ask it again. A question
+    now has exactly one home — ``ask_profile`` — and its result lets him say
+    nothing more if he already asked."""
+    llm = _full_flow_llm()
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await _drive_discovery(rig)
+        await rig.driver.user_says("Which one would you pick?")
+        await _one_more_turn(rig)
+
+    results = _tool_results(llm)
+    assert results, "the walk reached no tools"
+    for result in results:
+        assert not _ASKS_AGAIN.search(result), f"a tool asked for a question again: {result!r}"
+    asked = [r for r in results if r.startswith("Shown.")]
+    assert asked and all("say nothing more" in r for r in asked), asked
+
+
+async def test_nothing_the_brain_tells_rohan_to_say_is_a_display_string() -> None:
+    """The sweep. Every ``SAY:`` span the brain writes across a whole visit, swept
+    for the figures and the raw tokens that belong only on the glass.
+
+    ``SAY:`` now introduces only text Rohan is to *speak*: the eligibility verdict,
+    the recommendation, the card's perk, the card being agreed to and the QR line
+    — the five tools this walk reaches that quote the card shelf. The generic
+    directions ("a three-word acknowledgement", "your question") lost their
+    ``SAY:`` because they were what made Rohan ask the same question twice: a
+    tool told him to say something he had already said before calling it.
+
+    This is the check that cannot be written per call site: the failure is one
+    interpolation in one branch of one tool, and it is heard exactly once, in
+    front of a customer."""
     llm = _full_flow_llm()
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
@@ -1254,7 +1288,8 @@ async def test_nothing_the_brain_tells_rohan_to_say_is_a_display_string() -> Non
         await _one_more_turn(rig)
 
     lines = _say_lines(llm)
-    assert len(lines) >= 9, lines
+    # One per content tool the walk reaches, so the sweep cannot pass empty.
+    assert len(lines) >= 5, lines
     for line in lines:
         assert not _DISPLAY_ONLY.search(line), f"a display string reached a SAY line: {line!r}"
         for token in _WIRE_TOKENS:

@@ -1023,21 +1023,27 @@ class KioskBrain(GeminiBrain):
         logger.info("kiosk: start_over")
         self._reset()
         self._show(ShowAttract())
-        return "Back at the start. SAY: one line offering to begin, and ask the first question."
+        return (
+            "Back at the start. Offer to begin, in one line. Do not ask a question here — "
+            "call ask_profile for that, which is the only place a question is asked."
+        )
 
     async def ask_profile(self, ask: ProfileQuestion) -> str:
         """Put one of the four discovery questions on screen, with its answers.
 
         Ask the four in order: employment, income_band, existing_cards,
-        spend_category. Say your question aloud in the same turn — the screen
-        only holds the choices, it does not ask anything. Do not read the options
+        spend_category. Call this FIRST, then ask the question aloud — once. The
+        screen only holds the choices; it asks nothing. Do not read the options
         out; they are on the glass in front of the customer.
         """
         logger.info("kiosk: ask_profile {}", ask.field)
         self._show(
             AskProfile(field=ask.field, question=ask.question, options=_profile_options(ask.field))
         )
-        return "On screen. SAY: your question, in one line. Do not read the options aloud."
+        return (
+            "Shown. Now ask the question aloud once, in one short line — unless you already "
+            "asked it this turn, in which case say nothing more. Never read the options."
+        )
 
     async def capture_value(self, heard: HeardValue) -> str:
         """Record what the customer just said and show it to them.
@@ -1068,7 +1074,10 @@ class KioskBrain(GeminiBrain):
         logger.info("kiosk: capture_value {}={}", heard.field, masked_form(heard.field, value))
         self._show(_confirm_view(heard.field, value, state))
         if not spoken_needed:
-            return "On screen. SAY: a three-word acknowledgement, then your next question."
+            return (
+                "Recorded. Acknowledge in two or three words. The next question, if there is one, "
+                "is asked through ask_profile — do not ask it here as well."
+            )
         return (
             f"On screen, masked. SAY: {spoken_form(heard.field, value)}. "
             "Read that back in one line, ask if it is right, then call confirm with their reply."
@@ -1107,7 +1116,10 @@ class KioskBrain(GeminiBrain):
         """Mark a value settled, paint it, and hand the model its next move."""
         self.confirmed.add(field)
         self._show(_confirm_view(field, value, "confirmed"))
-        return f"{verdict} SAY: a short acknowledgement, then move straight to the next step."
+        return (
+            f"{verdict} Acknowledge in a few words. Whatever comes next arrives with its own "
+            "tool call; do not say it twice."
+        )
 
     async def check_eligibility(self, request: EligibilityRequest) -> str:
         """Work out what the customer is likely eligible for and show it.
@@ -1243,9 +1255,13 @@ class KioskBrain(GeminiBrain):
         if speech.spoken != speech.heard:
             return (
                 f"Now listening in {name}, answering in Hindi — no voice speaks {name}. "
-                f"SAY: once, in Hindi, that you understand them and will reply in Hindi."
+                f"SAY: once, in Hindi, that you understand them and will reply in Hindi. "
+                "Do not repeat a question you already asked this turn."
             )
-        return f"Now in {name}, switched by {by}. SAY: one short line in {name}, then carry on."
+        return (
+            f"Now in {name}, switched by {by}. Say one short line in {name}. If you already asked "
+            "a question this turn, do not ask it again; if you did not, ask it once."
+        )
 
     # ─── Tool guards ────────────────────────────────────────────────────
 
