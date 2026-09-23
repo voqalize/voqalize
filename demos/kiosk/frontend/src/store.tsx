@@ -46,7 +46,7 @@ import {
   type ShowShortlist,
   type UiAction,
 } from './actions.gen';
-import type { Language } from './language';
+import { screenLanguageFor, type Language, type LanguageName } from './language';
 
 /** Which of the eight screens the stage is showing. */
 export type Screen =
@@ -88,11 +88,10 @@ export interface KioskState {
   /** Which of the screen's two copy sets is showing. */
   language: Language;
   /**
-   * The language Rohan is *speaking*, in its own script, when it is neither of
-   * the screen's two — Tamil, say. The chip shows it so the customer can see
-   * what the kiosk heard. Null while the screen and the voice agree.
+   * The language the conversation is in — any the brain declares. Wider than
+   * `language`: in Tamil the conversation is Tamil and the screen stays English.
    */
-  spoken: string | null;
+  conversation: LanguageName;
 }
 
 const INITIAL: KioskState = {
@@ -109,7 +108,7 @@ const INITIAL: KioskState = {
   consent: null,
   qr: null,
   language: 'en',
-  spoken: null,
+  conversation: 'English',
 };
 
 /** Replace this field's settled entry, or append it, keeping settle order. */
@@ -134,7 +133,7 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
     case 'show_attract':
       // Start over forgets everything but the language — as the brain's own
       // reset does, so the chip and Rohan's voice cannot come apart here.
-      return { ...INITIAL, language: state.language, spoken: state.spoken };
+      return { ...INITIAL, language: state.language, conversation: state.conversation };
     case 'ask_profile':
       return { ...state, screen: 'discovery', question: action.payload, checking: null };
     case 'ask_value':
@@ -168,12 +167,12 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
       return { ...state, screen: 'consent', consent: action.payload };
     case 'show_qr':
       return { ...state, screen: 'handoff', qr: action.payload };
-    case 'language_changed': {
-      const { screen_language, native, language } = action.payload;
-      // Only a language the screen has no copy for earns its own label.
-      const foreign = language !== 'English' && language !== 'Hindi';
-      return { ...state, language: screen_language, spoken: foreign ? native : null };
-    }
+    case 'language_changed':
+      return {
+        ...state,
+        conversation: action.payload.language,
+        language: action.payload.screen_language,
+      };
     default:
       return unhandledUiAction(action);
   }
@@ -192,7 +191,7 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
 type HandMutation =
   | { kind: 'pick'; field: string; value: string }
   | { kind: 'compare' }
-  | { kind: 'language'; language: Language };
+  | { kind: 'language'; language: LanguageName };
 
 function applyHand(state: KioskState, hand: HandMutation): KioskState {
   switch (hand.kind) {
@@ -204,7 +203,7 @@ function applyHand(state: KioskState, hand: HandMutation): KioskState {
       // Shown at once rather than after Rohan answers: the chip is the one
       // control that must work before there is a call. His `language_changed`
       // arrives with the same value and re-renders idempotently.
-      return { ...state, language: hand.language, spoken: null };
+      return { ...state, conversation: hand.language, language: screenLanguageFor(hand.language) };
   }
 }
 
@@ -243,8 +242,8 @@ export interface ByHand {
   consent: (cardId: string) => void;
   /** Start over. */
   restart: () => void;
-  /** The language chip. Moves Rohan's voice as well as the screen's copy. */
-  pickLanguage: (language: Language) => void;
+  /** The language picker. Moves Rohan's voice as well as the screen's copy. */
+  pickLanguage: (language: LanguageName) => void;
 }
 
 export type AgentSend = (event: string, payload?: unknown) => void;
@@ -319,10 +318,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
       restart: () => emit({ event: 'restart_pressed', payload: {} }),
       pickLanguage: (language) => {
         dispatch({ from: 'hand', hand: { kind: 'language', language } });
-        emit({
-          event: 'language_picked',
-          payload: { language: language === 'hi' ? 'Hindi' : 'English' },
-        });
+        emit({ event: 'language_picked', payload: { language } });
       },
     }),
     [emit],

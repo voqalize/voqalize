@@ -90,13 +90,13 @@ export interface ShowQr {
 }
 
 /**
- * The conversation moved language. Not a screen: the chip on the brand bar
- * follows it, and the screen's own copy follows it only as far as copy exists.
+ * The conversation moved language. Not a screen: the language picker on the
+ * brand bar follows it, and the screen's own copy follows it only as far as
+ * copy exists. How a language is *written* on the picker is the page's to say —
+ * the brain names it and nothing more.
  */
 export interface LanguageChanged {
-  language: string;
-
-  native: string;
+  language: 'English' | 'Hindi' | 'Bengali' | 'Gujarati' | 'Kannada' | 'Malayalam' | 'Marathi' | 'Punjabi' | 'Tamil' | 'Telugu' | 'Assamese' | 'Bodo' | 'Dogri' | 'Kashmiri' | 'Konkani' | 'Maithili' | 'Manipuri' | 'Nepali' | 'Odia' | 'Sanskrit' | 'Santali' | 'Sindhi' | 'Urdu';
 
   screen_language: 'en' | 'hi';
 }

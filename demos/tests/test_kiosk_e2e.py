@@ -644,7 +644,7 @@ async def test_a_customer_already_speaking_tamil_moves_the_kiosk_without_asking(
         check_voice_pair(rig, voice=VOICE, language="ta")
         assert rig.brain.language == "Tamil"
         changed = rig.command("language_changed")
-        assert changed == {"language": "Tamil", "native": "தமிழ்", "screen_language": "en"}, (
+        assert changed == {"language": "Tamil", "screen_language": "en"}, (
             "no Tamil screen exists, so the screen keeps its English copy"
         )
 
@@ -724,6 +724,25 @@ async def test_the_language_chip_moves_the_voice_too_and_says_nothing() -> None:
         assert rig.brain.language == "Hindi"
         assert rig.command("language_changed")["screen_language"] == "hi"
         assert _spoken(rig) == said, "the chip took the floor"
+
+
+async def test_the_picker_reaches_any_language_not_just_hindi() -> None:
+    """The picker lists every language the brain declares, so it can reach one the
+    old two-way toggle never could. Kannada has a clip of its own, so both legs
+    land on Kannada and the screen keeps its English copy."""
+    async with demo("kiosk", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        said = _spoken(rig)
+
+        await _by_hand(rig, "language_picked", {"language": "Kannada"})
+        check_voice_pair(rig, voice=VOICE, language="kn")
+        assert rig.brain.language == "Kannada"
+        assert rig.command("language_changed") == {"language": "Kannada", "screen_language": "en"}
+        assert _spoken(rig) == said, "the picker took the floor"
+
+        # And back, which is how a customer undoes a switch they did not want.
+        await _by_hand(rig, "language_picked", {"language": "English"})
+        check_voice_pair(rig, voice=VOICE, language="en")
 
 
 async def test_picking_the_current_language_again_configures_nothing() -> None:

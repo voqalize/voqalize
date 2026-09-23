@@ -139,46 +139,44 @@ class _Speech:
     #: The voice clip that answers. Where no clip exists for a language the
     #: recognizer understands, this is Hindi's, and the customer is told so.
     spoken: Language
-    #: The language's name in its own script, for the chip on the brand bar.
-    native: str
 
 
-def _clip(heard: Language, native: str) -> _Speech:
+def _clip(heard: Language) -> _Speech:
     """A language with a clip of its own: heard and spoken in it."""
-    return _Speech(heard=heard, spoken=heard, native=native)
+    return _Speech(heard=heard, spoken=heard)
 
 
-def _via_hindi(heard: Language, native: str) -> _Speech:
+def _via_hindi(heard: Language) -> _Speech:
     """A language the recognizer understands and no clip speaks — answered in
     Hindi's. The substitution is stated here and said aloud, never made quietly:
     the speech tier refuses a voice/language pairing it cannot serve."""
-    return _Speech(heard=heard, spoken=Language.HI, native=native)
+    return _Speech(heard=heard, spoken=Language.HI)
 
 
 _SPEECH: dict[LanguageName, _Speech] = {
-    "English": _clip(Language.EN, "English"),
-    "Hindi": _clip(Language.HI, "हिन्दी"),
-    "Bengali": _clip(Language.BN, "বাংলা"),
-    "Gujarati": _clip(Language.GU, "ગુજરાતી"),
-    "Kannada": _clip(Language.KN, "ಕನ್ನಡ"),
-    "Malayalam": _clip(Language.ML, "മലയാളം"),
-    "Marathi": _clip(Language.MR, "मराठी"),
-    "Punjabi": _clip(Language.PA, "ਪੰਜਾਬੀ"),
-    "Tamil": _clip(Language.TA, "தமிழ்"),
-    "Telugu": _clip(Language.TE, "తెలుగు"),
-    "Assamese": _via_hindi(Language.AS, "অসমীয়া"),
-    "Bodo": _via_hindi(Language.BRX, "बड़ो"),
-    "Dogri": _via_hindi(Language.DOI, "डोगरी"),
-    "Kashmiri": _via_hindi(Language.KS, "کٲشُر"),
-    "Konkani": _via_hindi(Language.KOK, "कोंकणी"),
-    "Maithili": _via_hindi(Language.MAI, "मैथिली"),
-    "Manipuri": _via_hindi(Language.MNI, "মৈতৈলোন্"),
-    "Nepali": _via_hindi(Language.NE, "नेपाली"),
-    "Odia": _via_hindi(Language.OR, "ଓଡ଼ିଆ"),
-    "Sanskrit": _via_hindi(Language.SA, "संस्कृतम्"),
-    "Santali": _via_hindi(Language.SAT, "ᱥᱟᱱᱛᱟᱲᱤ"),
-    "Sindhi": _via_hindi(Language.SD, "سنڌي"),
-    "Urdu": _via_hindi(Language.UR, "اردو"),
+    "English": _clip(Language.EN),
+    "Hindi": _clip(Language.HI),
+    "Bengali": _clip(Language.BN),
+    "Gujarati": _clip(Language.GU),
+    "Kannada": _clip(Language.KN),
+    "Malayalam": _clip(Language.ML),
+    "Marathi": _clip(Language.MR),
+    "Punjabi": _clip(Language.PA),
+    "Tamil": _clip(Language.TA),
+    "Telugu": _clip(Language.TE),
+    "Assamese": _via_hindi(Language.AS),
+    "Bodo": _via_hindi(Language.BRX),
+    "Dogri": _via_hindi(Language.DOI),
+    "Kashmiri": _via_hindi(Language.KS),
+    "Konkani": _via_hindi(Language.KOK),
+    "Maithili": _via_hindi(Language.MAI),
+    "Manipuri": _via_hindi(Language.MNI),
+    "Nepali": _via_hindi(Language.NE),
+    "Odia": _via_hindi(Language.OR),
+    "Sanskrit": _via_hindi(Language.SA),
+    "Santali": _via_hindi(Language.SAT),
+    "Sindhi": _via_hindi(Language.SD),
+    "Urdu": _via_hindi(Language.UR),
 }
 
 # A name in LanguageName with no row here is a tool call that raises mid-call, so
@@ -318,13 +316,12 @@ class ShowQr(Action):
 
 
 class LanguageChanged(Action):
-    """The conversation moved language. Not a screen: the chip on the brand bar
-    follows it, and the screen's own copy follows it only as far as copy exists."""
+    """The conversation moved language. Not a screen: the language picker on the
+    brand bar follows it, and the screen's own copy follows it only as far as
+    copy exists. How a language is *written* on the picker is the page's to say —
+    the brain names it and nothing more."""
 
-    #: The language, in English — what the model and the logs call it.
-    language: str
-    #: Its name in its own script, for the chip.
-    native: str
+    language: LanguageName
     #: Which of the screen's two copy sets to show. Every language but Hindi keeps
     #: the English copy: there is no Tamil screen, only a Tamil voice.
     screen_language: Literal["en", "hi"]
@@ -1240,7 +1237,6 @@ class KioskBrain(GeminiBrain):
         self.session.dispatch(
             LanguageChanged(
                 language=name,
-                native=speech.native,
                 screen_language="hi" if name == "Hindi" else "en",
             )
         )

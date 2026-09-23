@@ -14,7 +14,7 @@
 import type { ReactNode } from 'react';
 import { Totem } from './Totem';
 import { useKiosk, type Screen } from './store';
-import type { Language } from './language';
+import type { Language, LanguageName } from './language';
 import { AttractControls, AttractStage } from './screens/Attract';
 import { CardDetailControls, CardDetailStage } from './screens/CardDetail';
 import { ConsentControls, ConsentStage } from './screens/Consent';
@@ -26,7 +26,7 @@ import { ValueEntryControls, ValueEntryStage } from './screens/ValueEntry';
 
 export interface KioskTotemProps {
   language: Language;
-  onLanguage: (language: Language) => void;
+  onLanguage: (language: LanguageName) => void;
   /** The dock's occupant: the live tile, or the pre-call plate. */
   rohan: ReactNode;
   /** The character artwork's credit line — only where the rig is mounted. */
@@ -136,7 +136,7 @@ export function KioskTotem({ language, onLanguage, rohan, credit, captions }: Ki
     <Totem
       language={language}
       onLanguage={onLanguage}
-      spoken={state.spoken}
+      conversation={state.conversation}
       rohan={rohan}
       credit={credit}
       captions={captions}

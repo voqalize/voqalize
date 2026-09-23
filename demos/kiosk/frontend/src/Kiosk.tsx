@@ -43,7 +43,7 @@ import { connectRequest, withRealHeaders } from './config';
 import { KioskTotem } from './KioskTotem';
 import { AvatarCredit, RohanCaptions, RohanPlate, RohanTile } from './RohanTile';
 import { KioskProvider, useKiosk } from './store';
-import type { Language } from './language';
+import type { Language, LanguageName } from './language';
 
 /** Vantage's reading of the shared presence ring. */
 const PRESENCE: Partial<AmbientPresencePalette> = {
@@ -131,7 +131,7 @@ function Kiosk() {
 
 interface SessionProps {
   language: Language;
-  onLanguage: (language: Language) => void;
+  onLanguage: (language: LanguageName) => void;
   onTransportState: (state: TransportState) => void;
   onActivity: (activity: AmbientPresenceActivity) => void;
   onError: (message: string) => void;
