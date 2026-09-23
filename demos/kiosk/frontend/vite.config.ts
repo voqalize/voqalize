@@ -29,8 +29,13 @@ export default defineConfig({
     // Vite rejects unknown Host headers; allow the local nginx front.
     allowedHosts: [".local.voqalize.com"],
     // Session-bootstrap API is proxied to the local control plane in dev.
+    // `VOQALIZE_API_TARGET=https://dev.voqalize.com` points it at hosted dev
+    // instead, so a brain run through Cortex needs no local control plane at all.
     proxy: {
-      "/api": { target: "http://localhost:8274", changeOrigin: true },
+      "/api": {
+        target: process.env.VOQALIZE_API_TARGET ?? "http://localhost:8274",
+        changeOrigin: true,
+      },
     },
   },
 });

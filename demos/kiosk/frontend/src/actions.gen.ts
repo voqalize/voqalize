@@ -89,6 +89,18 @@ export interface ShowQr {
   caption: string;
 }
 
+/**
+ * The conversation moved language. Not a screen: the language picker on the
+ * brand bar follows it, and the screen's own copy follows it only as far as
+ * copy exists. How a language is *written* on the picker is the page's to say —
+ * the brain names it and nothing more.
+ */
+export interface LanguageChanged {
+  language: 'English' | 'Hindi' | 'Bengali' | 'Gujarati' | 'Kannada' | 'Malayalam' | 'Marathi' | 'Punjabi' | 'Tamil' | 'Telugu' | 'Assamese' | 'Bodo' | 'Dogri' | 'Kashmiri' | 'Konkani' | 'Maithili' | 'Manipuri' | 'Nepali' | 'Odia' | 'Sanskrit' | 'Santali' | 'Sindhi' | 'Urdu';
+
+  screen_language: 'en' | 'hi';
+}
+
 /** They touched the attract screen to begin. */
 export type JourneyStarted = Record<string, never>;
 
@@ -148,6 +160,14 @@ export interface ValueEdited {
  */
 export type RestartPressed = Record<string, never>;
 
+/**
+ * They tapped the language chip. Not a step in the journey — it moves the
+ * conversation, so it is handled beside the journey rather than inside it.
+ */
+export interface LanguagePicked {
+  language: 'English' | 'Hindi' | 'Bengali' | 'Gujarati' | 'Kannada' | 'Malayalam' | 'Marathi' | 'Punjabi' | 'Tamil' | 'Telugu' | 'Assamese' | 'Bodo' | 'Dogri' | 'Kashmiri' | 'Konkani' | 'Maithili' | 'Manipuri' | 'Nepali' | 'Odia' | 'Sanskrit' | 'Santali' | 'Sindhi' | 'Urdu';
+}
+
 // ── Shapes used by the messages above ──────────────────────────────
 
 /**
@@ -200,7 +220,8 @@ export type UiAction =
   | { command: 'show_shortlist'; payload: ShowShortlist }
   | { command: 'open_card_detail'; payload: OpenCardDetail }
   | { command: 'open_consent'; payload: OpenConsent }
-  | { command: 'show_qr'; payload: ShowQr };
+  | { command: 'show_qr'; payload: ShowQr }
+  | { command: 'language_changed'; payload: LanguageChanged };
 
 export type UiActionCommand = UiAction['command'];
 
@@ -214,6 +235,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'open_card_detail',
   'open_consent',
   'show_qr',
+  'language_changed',
 ];
 
 const _known = new Set<string>(UI_ACTION_COMMANDS);
@@ -249,7 +271,8 @@ export type AppEvent =
   | { event: 'value_entered'; payload: ValueEntered }
   | { event: 'value_confirmed'; payload: ValueConfirmed }
   | { event: 'value_edited'; payload: ValueEdited }
-  | { event: 'restart_pressed'; payload: RestartPressed };
+  | { event: 'restart_pressed'; payload: RestartPressed }
+  | { event: 'language_picked'; payload: LanguagePicked };
 
 export type AppEventName = AppEvent['event'];
 
@@ -266,6 +289,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'value_confirmed',
   'value_edited',
   'restart_pressed',
+  'language_picked',
 ];
 
 /**

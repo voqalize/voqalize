@@ -1,28 +1,73 @@
 /**
- * The script the totem is set in, and the chip that switches it.
+ * The script the totem is set in, and the picker that chooses the conversation's
+ * language.
  *
- * Two languages, because a Vantage branch serves both and a customer who reads
- * Devanagari should not have to read a shortlist in Latin. Rohan speaks both and
- * can switch mid-call.
+ * Two things are called "language" here and they are not the same size. The
+ * **screen** has copy in two, English and Hindi. The **conversation** can be in
+ * any of the languages the brain declares. Picking Tamil puts Rohan in Tamil and
+ * leaves the screen in English — there is no Tamil screen, only a Tamil voice.
  *
- * **The chip moves the screen only.** Moving the *voice* means moving the STT
- * and TTS legs together in one `session.configure(...)`, and that is the brain's
- * to do — a page that set one leg would be the half-applied-pair bug, which is
- * silent: the words stay right and only the speaker is wrong. So a customer who
- * wants Rohan in Hindi asks him, and he moves both legs and the prompt at once.
- * The chip is for the reader, and the label under it says so.
+ * The picker never moves a leg itself. It tells the brain which language was
+ * picked, and the brain moves both legs in one `session.configure(...)`: a page
+ * that set one leg would be the half-applied-pair bug, which is silent — the
+ * words stay right and only the speaker is wrong.
  */
 
-import { useCallback } from 'react';
+import type { LanguagePicked } from './actions.gen';
 import { COLOR, FOCUS, FONT, SIZE } from './brand';
 
 export type Language = 'en' | 'hi';
 
-/** Each language named in its own script, which is how a reader finds theirs. */
-export const LANGUAGE_LABEL: Record<Language, string> = {
-  en: 'English',
-  hi: 'हिन्दी',
+/**
+ * Every language the conversation can be in. Read off the generated contract,
+ * never written down: the brain's `LanguageName` is the one list, and a language
+ * added there is a compile error here until it has a label below.
+ */
+export type LanguageName = LanguagePicked['language'];
+
+/**
+ * Each language named in its own script, which is how a customer finds theirs —
+ * and the English name beside it, for the one standing next to them. A
+ * `Record` over the union, so a missing or stray row does not compile.
+ */
+const NATIVE: Record<LanguageName, string> = {
+  English: 'English',
+  Hindi: 'हिन्दी',
+  Bengali: 'বাংলা',
+  Gujarati: 'ગુજરાતી',
+  Kannada: 'ಕನ್ನಡ',
+  Malayalam: 'മലയാളം',
+  Marathi: 'मराठी',
+  Punjabi: 'ਪੰਜਾਬੀ',
+  Tamil: 'தமிழ்',
+  Telugu: 'తెలుగు',
+  Assamese: 'অসমীয়া',
+  Bodo: 'बड़ो',
+  Dogri: 'डोगरी',
+  Kashmiri: 'کٲشُر',
+  Konkani: 'कोंकणी',
+  Maithili: 'मैथिली',
+  Manipuri: 'মৈতৈলোন্',
+  Nepali: 'नेपाली',
+  Odia: 'ଓଡ଼ିଆ',
+  Sanskrit: 'संस्कृतम्',
+  Santali: 'ᱥᱟᱱᱛᱟᱲᱤ',
+  Sindhi: 'سنڌي',
+  Urdu: 'اردو',
 };
+
+/** The picker's options, in the brain's own order. */
+const LANGUAGES = Object.keys(NATIVE) as LanguageName[];
+
+/** A language written in its own script. */
+export function nativeName(name: LanguageName): string {
+  return NATIVE[name];
+}
+
+/** The screen copy a conversation language gets. Only Hindi has its own. */
+export function screenLanguageFor(name: LanguageName): Language {
+  return name === 'Hindi' ? 'hi' : 'en';
+}
 
 /** The face the totem sets its text in. */
 export function fontFor(language: Language): string {
@@ -68,7 +113,8 @@ interface Strings {
   valueSubmit: string;
   handoffTitle: string;
   restart: string;
-  screenOnly: string;
+  /** The picker's accessible name — it moves Rohan's voice, not just the screen. */
+  languagePicker: string;
 }
 
 const EN: Strings = {
@@ -105,7 +151,7 @@ const EN: Strings = {
   valueSubmit: 'Continue',
   handoffTitle: 'Show this at the desk',
   restart: 'Start over',
-  screenOnly: 'Changes the screen. Ask Rohan to change his voice.',
+  languagePicker: 'Language Rohan speaks',
 };
 
 const HI: Strings = {
@@ -142,7 +188,7 @@ const HI: Strings = {
   valueSubmit: 'आगे बढ़ें',
   handoffTitle: 'डेस्क पर यह दिखाइए',
   restart: 'फिर से शुरू करें',
-  screenOnly: 'यह केवल स्क्रीन बदलता है। आवाज़ बदलने के लिए रोहन से कहिए।',
+  languagePicker: 'रोहन किस भाषा में बात करे',
 };
 
 export function strings(language: Language): Strings {
@@ -190,65 +236,65 @@ export function fieldLabel(field: string, language: Language): string {
 }
 
 /**
- * The chip in the brand bar — the one touchable thing in the upper band, and
- * small enough to stay out of the way of Rohan.
+ * The language picker in the brand bar — a native `<select>`, on purpose. It is
+ * the one control on the totem with twenty-three options, and the platform's own
+ * picker is what a phone, a touchscreen, a keyboard and a screen reader already
+ * know how to drive. A custom list would have to earn every one of those back.
+ *
+ * It follows Rohan as well as leading him: when he switches because he heard
+ * the customer speak Tamil, `value` moves to Tamil and the picker shows it. Picking
+ * English is the way back from a switch the customer did not want — the model
+ * decided it from what it heard, and a hearing can be wrong.
  */
-export function LanguageChip({
+export function LanguageSelect({
   value,
+  screen,
   onChange,
 }: {
-  value: Language;
-  onChange: (language: Language) => void;
+  /** The language the conversation is in. */
+  value: LanguageName;
+  /** The screen's copy, for the picker's own label. */
+  screen: Language;
+  onChange: (language: LanguageName) => void;
 }) {
-  const toggle = useCallback(() => onChange(value === 'en' ? 'hi' : 'en'), [value, onChange]);
   return (
     <>
-      <button
-        type="button"
+      <select
         className="kiosk-lang"
-        onClick={toggle}
-        aria-label={`Screen language: ${LANGUAGE_LABEL[value]}. Tap to switch.`}
-        title={strings(value).screenOnly}
+        value={value}
+        aria-label={strings(screen).languagePicker}
+        onChange={(event) => onChange(event.target.value as LanguageName)}
       >
-        {(['en', 'hi'] as const).map((code) => (
-          <span
-            key={code}
-            className={`kiosk-lang-half${code === value ? ' is-on' : ''}`}
-            style={{ fontFamily: fontFor(code) }}
-          >
-            {LANGUAGE_LABEL[code]}
-          </span>
+        {LANGUAGES.map((name) => (
+          <option key={name} value={name}>
+            {name === 'English' ? 'English' : `${NATIVE[name]} · ${name}`}
+          </option>
         ))}
-      </button>
+      </select>
       <style>{`
         .kiosk-lang {
-          display: flex;
-          align-items: stretch;
-          gap: 2px;
-          padding: 3px;
+          appearance: none;
           min-height: 48px;
+          padding: 0 40px 0 18px;
           border-radius: 999px;
           border: 1px solid rgba(251, 247, 242, 0.28);
-          background: rgba(251, 247, 242, 0.08);
-          cursor: pointer;
+          /* The chevron, drawn inline: one image, no icon font to load. */
+          background: rgba(251, 247, 242, 0.08)
+            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23FBF7F2' stroke-width='2'/%3E%3C/svg%3E")
+            no-repeat right 16px center;
+          color: ${COLOR.paper};
           font: inherit;
-        }
-        /* Amber here: this chip sits on the umber bar, where the paper ring would vanish. */
-        .kiosk-lang:focus-visible { outline: 3px solid ${FOCUS.onDark}; outline-offset: 3px; }
-        .kiosk-lang-half {
-          display: flex;
-          align-items: center;
-          padding: 0 16px;
-          border-radius: 999px;
           font-size: 16px;
-          font-weight: 600;
-          color: rgba(251, 247, 242, 0.62);
-          transition: background .15s ease, color .15s ease;
+          font-weight: 700;
+          cursor: pointer;
         }
-        .kiosk-lang-half.is-on { background: ${COLOR.amber}; color: ${COLOR.umber}; font-weight: 700; }
+        /* Amber here: this picker sits on the umber bar, where the paper ring would vanish. */
+        .kiosk-lang:focus-visible { outline: 3px solid ${FOCUS.onDark}; outline-offset: 3px; }
+        /* The open list is drawn by the platform and inherits the bar's dark fill on
+           some browsers; set it back to paper so every option is readable. */
+        .kiosk-lang option { background: ${COLOR.paper}; color: ${COLOR.ink}; }
         @media (max-width: 600px) {
-          .kiosk-lang { min-height: ${SIZE.touch - 16}px; }
-          .kiosk-lang-half { padding: 0 12px; font-size: 15px; }
+          .kiosk-lang { min-height: ${SIZE.touch - 16}px; font-size: 15px; }
         }
       `}</style>
     </>

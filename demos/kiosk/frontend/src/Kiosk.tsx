@@ -43,7 +43,7 @@ import { connectRequest, withRealHeaders } from './config';
 import { KioskTotem } from './KioskTotem';
 import { AvatarCredit, RohanCaptions, RohanPlate, RohanTile } from './RohanTile';
 import { KioskProvider, useKiosk } from './store';
-import type { Language } from './language';
+import type { Language, LanguageName } from './language';
 
 /** Vantage's reading of the shared presence ring. */
 const PRESENCE: Partial<AmbientPresencePalette> = {
@@ -68,7 +68,12 @@ export function KioskApp() {
 function Kiosk() {
   const [joined, setJoined] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [language, setLanguage] = useState<Language>('en');
+  // The store owns the language, because Rohan changes it too: a switch he makes
+  // mid-call arrives as an action, and the chip has to follow it.
+  const {
+    state: { language },
+    byHand: { pickLanguage: setLanguage },
+  } = useKiosk();
   const [error, setError] = useState<string | null>(null);
   // What the ring outside the call renders. Lifted out of the live tree, whose
   // hooks are the only place a transport or activity value exists.
@@ -126,7 +131,7 @@ function Kiosk() {
 
 interface SessionProps {
   language: Language;
-  onLanguage: (language: Language) => void;
+  onLanguage: (language: LanguageName) => void;
   onTransportState: (state: TransportState) => void;
   onActivity: (activity: AmbientPresenceActivity) => void;
   onError: (message: string) => void;

@@ -34,12 +34,14 @@
 
 import type { ReactNode } from 'react';
 import { CHASSIS, COLOR, SIZE } from './brand';
-import { LanguageChip, fontFor, strings, type Language } from './language';
+import { LanguageSelect, fontFor, strings, type Language, type LanguageName } from './language';
 import { TouchButton, UiStyles } from './ui';
 
 export interface TotemProps {
   language: Language;
-  onLanguage: (language: Language) => void;
+  onLanguage: (language: LanguageName) => void;
+  /** The language the conversation is in — wider than the screen's two. */
+  conversation: LanguageName;
   /** The dock's occupant: the live tile, or the pre-call plate. */
   rohan: ReactNode;
   /** The credit the character artwork's licence requires. */
@@ -56,6 +58,7 @@ export interface TotemProps {
 export function Totem({
   language,
   onLanguage,
+  conversation,
   rohan,
   credit,
   stage,
@@ -80,7 +83,7 @@ export function Totem({
                 {copy.assistant} · {copy.assistantRole}
               </span>
             </span>
-            <LanguageChip value={language} onChange={onLanguage} />
+            <LanguageSelect value={conversation} screen={language} onChange={onLanguage} />
           </header>
 
           <main className="kiosk-stage">{stage}</main>

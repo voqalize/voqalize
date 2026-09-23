@@ -44,7 +44,7 @@ from typing import Any, NamedTuple
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply
 
-from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo
+from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
@@ -610,6 +610,150 @@ async def test_switching_to_hindi_moves_both_legs_together() -> None:
         assert rig.brain.language == "Hindi"
 
 
+def _legs(rig: DemoRig) -> tuple[str, str, str]:
+    """The voice, the spoken language and the heard language now on the wire.
+
+    Read separately rather than through ``check_voice_pair``, which takes one
+    language for both legs: a language with no clip of its own is *meant* to be
+    heard in one language and spoken in another."""
+    configs = _configs(rig)
+    return (
+        _last(configs, lambda c: c.tts.voice if c.tts else None),
+        _last(configs, lambda c: c.tts.language if c.tts else None),
+        _last(configs, lambda c: c.stt.language if c.stt else None),
+    )
+
+
+async def test_a_customer_already_speaking_tamil_moves_the_kiosk_without_asking() -> None:
+    """Auto-detection: nobody asked for Tamil. The customer simply answered in it,
+    the model heard it, and both legs moved — with the page told, so the chip can
+    show the customer what the kiosk decided it heard."""
+    llm = ScriptedGemini(
+        {
+            "நான் ஒரு கிரெடிட் கார்டு பார்க்கிறேன்": [
+                call("switch_language", to={"language": "Tamil"}),
+                reply("சரி, தமிழில் பேசலாம்."),
+            ],
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        check_voice_pair(rig, voice=VOICE, language="en")
+
+        await rig.driver.user_says("நான் ஒரு கிரெடிட் கார்டு பார்க்கிறேன்")
+        check_voice_pair(rig, voice=VOICE, language="ta")
+        assert rig.brain.language == "Tamil"
+        changed = rig.command("language_changed")
+        assert changed == {"language": "Tamil", "screen_language": "en"}, (
+            "no Tamil screen exists, so the screen keeps its English copy"
+        )
+
+
+async def test_a_language_with_no_clip_is_heard_in_it_and_answered_in_hindi() -> None:
+    """Odia: the recognizer understands it and no voice speaks it. The honest
+    configuration is split on purpose — heard in Odia, answered in Hindi — and the
+    model is told to say so rather than let the customer discover it."""
+    llm = ScriptedGemini(
+        {
+            "ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି": [
+                call("switch_language", to={"language": "Odia"}),
+                reply("मैं आपकी बात समझता हूँ और हिंदी में जवाब दूँगा।"),
+            ],
+            # A tool's result reaches the model on the *next* request, so one more
+            # turn is what puts it in the record to read.
+            "ଠିକ ଅଛି": [reply("ठीक है।")],
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି")
+        voice, spoken, heard = _legs(rig)
+        assert (voice, spoken, heard) == (VOICE, "hi", "or"), (voice, spoken, heard)
+        await rig.driver.user_says("ଠିକ ଅଛି")
+        told = next(r for r in _tool_results(llm) if "Odia" in r)
+        assert "answering in Hindi" in told and "SAY:" in told
+
+
+async def test_the_language_can_go_back_and_forth_and_back_to_english() -> None:
+    """A switch is not one-way. English is a row in the table like any other, so a
+    customer who tried Hindi and wants English back gets both legs back — and the
+    page is told every time, so the chip never shows a language the call has left."""
+    llm = ScriptedGemini(
+        {
+            "हिंदी में बात करो": [call("switch_language", to={"language": "Hindi"}), reply("ठीक है।")],
+            "Can we go back to English please": [
+                call("switch_language", to={"language": "English"}),
+                reply("Sure."),
+            ],
+            "தமிழ்ல பேசலாமா": [call("switch_language", to={"language": "Tamil"}), reply("சரி.")],
+            "English again": [
+                call("switch_language", to={"language": "English"}),
+                reply("Of course."),
+            ],
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        for said, language, code in [
+            ("हिंदी में बात करो", "Hindi", "hi"),
+            ("Can we go back to English please", "English", "en"),
+            ("தமிழ்ல பேசலாமா", "Tamil", "ta"),
+            ("English again", "English", "en"),
+        ]:
+            await rig.driver.user_says(said)
+            check_voice_pair(rig, voice=VOICE, language=code)
+            assert rig.brain.language == language, (said, rig.brain.language)
+        told = [
+            c["payload"]["language"]
+            for c in rig.driver.ui_commands
+            if c.get("command") == "language_changed"
+        ]
+        assert told == ["Hindi", "English", "Tamil", "English"]
+
+
+async def test_the_language_chip_moves_the_voice_too_and_says_nothing() -> None:
+    """The chip used to change the screen's copy and leave Rohan speaking English.
+    Now it moves both legs — and, like every other gesture, it never takes the
+    floor."""
+    async with demo("kiosk", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        said = _spoken(rig)
+
+        await _by_hand(rig, "language_picked", {"language": "Hindi"})
+        check_voice_pair(rig, voice=VOICE, language="hi")
+        assert rig.brain.language == "Hindi"
+        assert rig.command("language_changed")["screen_language"] == "hi"
+        assert _spoken(rig) == said, "the chip took the floor"
+
+
+async def test_the_picker_reaches_any_language_not_just_hindi() -> None:
+    """The picker lists every language the brain declares, so it can reach one the
+    old two-way toggle never could. Kannada has a clip of its own, so both legs
+    land on Kannada and the screen keeps its English copy."""
+    async with demo("kiosk", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        said = _spoken(rig)
+
+        await _by_hand(rig, "language_picked", {"language": "Kannada"})
+        check_voice_pair(rig, voice=VOICE, language="kn")
+        assert rig.brain.language == "Kannada"
+        assert rig.command("language_changed") == {"language": "Kannada", "screen_language": "en"}
+        assert _spoken(rig) == said, "the picker took the floor"
+
+        # And back, which is how a customer undoes a switch they did not want.
+        await _by_hand(rig, "language_picked", {"language": "English"})
+        check_voice_pair(rig, voice=VOICE, language="en")
+
+
+async def test_picking_the_current_language_again_configures_nothing() -> None:
+    """A second tap on the language already in use is not a second request."""
+    async with demo("kiosk", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        before = len(_configs(rig))
+        await _by_hand(rig, "language_picked", {"language": "English"})
+        assert len(_configs(rig)) == before
+
+
 async def test_a_hindi_yes_reads_as_a_yes() -> None:
     """The recognizer returns what was said, so a Hindi confirmation comes back in
     Devanagari and a romanised "haan" never appears in it. A yes-set with only the
@@ -698,6 +842,7 @@ def test_every_gesture_the_totem_can_send_is_in_the_vocabulary() -> None:
         "value_confirmed",
         "value_edited",
         "restart_pressed",
+        "language_picked",
     ]
 
 
@@ -775,6 +920,10 @@ _BY_HAND: tuple[Step, ...] = (
         ("confirm_value", "show_qr"),
     ),
     Step("value_edited", {"field": "mobile", "value": "91234 56789"}, ("confirm_value",)),
+    # After the questions, so the copy asserted below is all English; before Start
+    # over, so the walk also proves a restart keeps the language. The chip is not a
+    # step in the journey, but it is a gesture, so it walks here with the rest.
+    Step("language_picked", {"language": "Hindi"}, ("language_changed",)),
     Step("restart_pressed", {}, ("show_attract",)),
 )
 
@@ -880,8 +1029,10 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
         assert (settled[2]["display"], settled[2]["masked"]) == ("91234 56789", "XXXXX 56789")
 
         assert rig.command("show_qr")["caption"] == "Vantage Fuel. Show this at the desk."
-        # Start over is the only way back, and it is the last thing the walk does.
+        # Start over is the only way back, and it is the last thing the walk does —
+        # and it did not undo the language the customer picked just before it.
         assert rig.actions()[-1] == "show_attract"
+        assert rig.brain.language == "Hindi"
         assert rig.brain.answers == {} and rig.brain.assessment is None
 
     assert llm.calls == [], "a hand-driven journey called the model"
@@ -1082,16 +1233,50 @@ _WIRE_TOKENS = tuple(
 _BANNED = ("instant", "guaranteed", "approved", "magic", "effortless")
 
 
-async def test_nothing_the_brain_tells_rohan_to_say_is_a_display_string() -> None:
-    """The sweep. Every ``SAY:`` span the brain writes across a whole visit — nine
-    tools deep, four of them quoting the card shelf — swept for the figures and
-    the raw tokens that belong only on the glass.
+#: Tool results that told Rohan to (re)state a question. Each one made him say a
+#: question twice: he had already asked it before calling the tool that said so.
+_ASKS_AGAIN = re.compile(
+    r"SAY:\s*your question|then your next question|then carry on|"
+    r"move straight to the next step|and ask the first question",
+    re.IGNORECASE,
+)
 
-    ``SAY:`` introduces what Rohan is to say, sometimes verbatim and sometimes as
-    a direction ("a three-word acknowledgement"), so a tool name in a direction is
-    fine and a rupee sign never is. This is the check that cannot be written per
-    call site: the failure is one interpolation in one branch of one tool, and it
-    is heard exactly once, in front of a customer."""
+
+async def test_no_tool_tells_rohan_to_ask_a_question_again() -> None:
+    """The repeat bug, pinned at its cause. A live session had Rohan ask one
+    question two and three times in a row: the prompt said to ask it before
+    calling ``ask_profile``, and the tool's result said to ask it again. A question
+    now has exactly one home — ``ask_profile`` — and its result lets him say
+    nothing more if he already asked."""
+    llm = _full_flow_llm()
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await _drive_discovery(rig)
+        await rig.driver.user_says("Which one would you pick?")
+        await _one_more_turn(rig)
+
+    results = _tool_results(llm)
+    assert results, "the walk reached no tools"
+    for result in results:
+        assert not _ASKS_AGAIN.search(result), f"a tool asked for a question again: {result!r}"
+    asked = [r for r in results if r.startswith("Shown.")]
+    assert asked and all("say nothing more" in r for r in asked), asked
+
+
+async def test_nothing_the_brain_tells_rohan_to_say_is_a_display_string() -> None:
+    """The sweep. Every ``SAY:`` span the brain writes across a whole visit, swept
+    for the figures and the raw tokens that belong only on the glass.
+
+    ``SAY:`` now introduces only text Rohan is to *speak*: the eligibility verdict,
+    the recommendation, the card's perk, the card being agreed to and the QR line
+    — the five tools this walk reaches that quote the card shelf. The generic
+    directions ("a three-word acknowledgement", "your question") lost their
+    ``SAY:`` because they were what made Rohan ask the same question twice: a
+    tool told him to say something he had already said before calling it.
+
+    This is the check that cannot be written per call site: the failure is one
+    interpolation in one branch of one tool, and it is heard exactly once, in
+    front of a customer."""
     llm = _full_flow_llm()
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
@@ -1103,7 +1288,8 @@ async def test_nothing_the_brain_tells_rohan_to_say_is_a_display_string() -> Non
         await _one_more_turn(rig)
 
     lines = _say_lines(llm)
-    assert len(lines) >= 9, lines
+    # One per content tool the walk reaches, so the sweep cannot pass empty.
+    assert len(lines) >= 5, lines
     for line in lines:
         assert not _DISPLAY_ONLY.search(line), f"a display string reached a SAY line: {line!r}"
         for token in _WIRE_TOKENS:

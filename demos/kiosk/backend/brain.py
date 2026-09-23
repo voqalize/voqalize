@@ -45,6 +45,7 @@ Four things carry this demo:
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Callable
+from dataclasses import dataclass
 from typing import Any, Literal, cast, get_args
 
 from google import genai
@@ -57,6 +58,7 @@ from voqalize.sdk import (
     Action,
     AppEvent,
     AppEvents,
+    RequestRejected,
     RTVIMessage,
     Session,
     Speech,
@@ -95,13 +97,91 @@ from .values import (
 # demo that omits it is one that has no answer.
 _IDLE_MS = 2500
 
-LanguageName = Literal["English", "Hindi"]
+#: Every language the recognizer serves. The kiosk starts in English and moves the
+#: moment a customer asks for another or is already speaking one.
+LanguageName = Literal[
+    "English",
+    "Hindi",
+    "Bengali",
+    "Gujarati",
+    "Kannada",
+    "Malayalam",
+    "Marathi",
+    "Punjabi",
+    "Tamil",
+    "Telugu",
+    "Assamese",
+    "Bodo",
+    "Dogri",
+    "Kashmiri",
+    "Konkani",
+    "Maithili",
+    "Manipuri",
+    "Nepali",
+    "Odia",
+    "Sanskrit",
+    "Santali",
+    "Sindhi",
+    "Urdu",
+]
 
-_LANGUAGES: dict[LanguageName, Language] = {"English": Language.EN, "Hindi": Language.HI}
-
-#: Rohan's voice, in both languages. One person, two languages — the clip does
-#: not change when the language does.
+#: Rohan's voice, in every language. One person throughout — only the language
+#: moves, never the voice, so his face and his voice cannot come apart mid-call.
 _VOICE = Voice.OMNIVOICE_GAURAV
+
+
+@dataclass(frozen=True)
+class _Speech:
+    """How the kiosk listens and speaks in one language."""
+
+    #: What the recognizer is set to — always the customer's own language.
+    heard: Language
+    #: The voice clip that answers. Where no clip exists for a language the
+    #: recognizer understands, this is Hindi's, and the customer is told so.
+    spoken: Language
+
+
+def _clip(heard: Language) -> _Speech:
+    """A language with a clip of its own: heard and spoken in it."""
+    return _Speech(heard=heard, spoken=heard)
+
+
+def _via_hindi(heard: Language) -> _Speech:
+    """A language the recognizer understands and no clip speaks — answered in
+    Hindi's. The substitution is stated here and said aloud, never made quietly:
+    the speech tier refuses a voice/language pairing it cannot serve."""
+    return _Speech(heard=heard, spoken=Language.HI)
+
+
+_SPEECH: dict[LanguageName, _Speech] = {
+    "English": _clip(Language.EN),
+    "Hindi": _clip(Language.HI),
+    "Bengali": _clip(Language.BN),
+    "Gujarati": _clip(Language.GU),
+    "Kannada": _clip(Language.KN),
+    "Malayalam": _clip(Language.ML),
+    "Marathi": _clip(Language.MR),
+    "Punjabi": _clip(Language.PA),
+    "Tamil": _clip(Language.TA),
+    "Telugu": _clip(Language.TE),
+    "Assamese": _via_hindi(Language.AS),
+    "Bodo": _via_hindi(Language.BRX),
+    "Dogri": _via_hindi(Language.DOI),
+    "Kashmiri": _via_hindi(Language.KS),
+    "Konkani": _via_hindi(Language.KOK),
+    "Maithili": _via_hindi(Language.MAI),
+    "Manipuri": _via_hindi(Language.MNI),
+    "Nepali": _via_hindi(Language.NE),
+    "Odia": _via_hindi(Language.OR),
+    "Sanskrit": _via_hindi(Language.SA),
+    "Santali": _via_hindi(Language.SAT),
+    "Sindhi": _via_hindi(Language.SD),
+    "Urdu": _via_hindi(Language.UR),
+}
+
+# A name in LanguageName with no row here is a tool call that raises mid-call, so
+# the two are held to each other at import rather than discovered on a customer.
+assert set(get_args(LanguageName)) == set(_SPEECH), "LanguageName and _SPEECH disagree"
 
 
 def _config(language_name: LanguageName) -> Config:
@@ -112,15 +192,15 @@ def _config(language_name: LanguageName) -> Config:
     the speaker is wrong. ``Config`` refuses it at the call site, which is why
     this function exists and why nothing ever builds a one-legged one.
     """
-    language = _LANGUAGES[language_name]
+    speech = _SPEECH[language_name]
     return Config(
         # Above the demo-desk default: this kiosk asks a customer to read out a
         # mobile number and a PAN, and people dictate those in groups with a
         # pause between them. A low gate answers into the gap and takes half a
         # PAN, which then has to be re-confirmed — the one thing this demo is
         # built not to do.
-        stt=SttConfig(language=language, patience=8),
-        tts=TtsConfig(voice=_VOICE, language=language),
+        stt=SttConfig(language=speech.heard, patience=8),
+        tts=TtsConfig(voice=_VOICE, language=speech.spoken),
         idle=IdleConfig(timeout_ms=_IDLE_MS),
     )
 
@@ -235,6 +315,18 @@ class ShowQr(Action):
     caption: str
 
 
+class LanguageChanged(Action):
+    """The conversation moved language. Not a screen: the language picker on the
+    brand bar follows it, and the screen's own copy follows it only as far as
+    copy exists. How a language is *written* on the picker is the page's to say —
+    the brain names it and nothing more."""
+
+    language: LanguageName
+    #: Which of the screen's two copy sets to show. Every language but Hindi keeps
+    #: the English copy: there is no Tamil screen, only a Tamil voice.
+    screen_language: Literal["en", "hi"]
+
+
 #: Everything Rohan can put on the totem. Exhaustive, so a new action that
 #: :meth:`KioskBrain._mirror` forgets is a type error rather than a mirror that
 #: quietly falls a command behind.
@@ -323,6 +415,13 @@ class RestartPressed(AppEvent):
     no idle timeout and nothing resets itself."""
 
 
+class LanguagePicked(AppEvent):
+    """They tapped the language chip. Not a step in the journey — it moves the
+    conversation, so it is handled beside the journey rather than inside it."""
+
+    language: LanguageName
+
+
 KioskEvent = (
     JourneyStarted
     | ProfileAnswered
@@ -351,6 +450,7 @@ KIOSK_EVENTS = AppEvents(
     ValueConfirmed,
     ValueEdited,
     RestartPressed,
+    LanguagePicked,
 )
 
 #: The four discovery questions, in the order they are asked. ``PROFILE_CHOICES``
@@ -511,7 +611,9 @@ class KioskBrain(GeminiBrain):
         """
         payload = dict(session.init or {})
         chosen = str(payload.get("language", "")).strip().title()
-        self.language = chosen if chosen in _LANGUAGES else "English"
+        # Guarded on the greeting table, not the language table: a session may only
+        # open in a language there is a written opener for.
+        self.language = chosen if chosen in GREETING else "English"
         await session.configure(_config(self.language))
         logger.info("kiosk: session start (language={})", self.language)
 
@@ -544,6 +646,11 @@ class KioskBrain(GeminiBrain):
         if event is None:
             return
         logger.info("kiosk: {} — {}", type(event).__voqal_event__, event)
+        if isinstance(event, LanguagePicked):
+            # A configure has to be awaited and the journey table is deliberately
+            # synchronous, so the chip takes its own path. Still no speech.
+            self._append_note(await self._switch_to(event.language, by="the customer"))
+            return
         self._append_note(self.apply_event(event))
 
     # ─── Screen → brain ─────────────────────────────────────────────────
@@ -916,21 +1023,27 @@ class KioskBrain(GeminiBrain):
         logger.info("kiosk: start_over")
         self._reset()
         self._show(ShowAttract())
-        return "Back at the start. SAY: one line offering to begin, and ask the first question."
+        return (
+            "Back at the start. Offer to begin, in one line. Do not ask a question here — "
+            "call ask_profile for that, which is the only place a question is asked."
+        )
 
     async def ask_profile(self, ask: ProfileQuestion) -> str:
         """Put one of the four discovery questions on screen, with its answers.
 
         Ask the four in order: employment, income_band, existing_cards,
-        spend_category. Say your question aloud in the same turn — the screen
-        only holds the choices, it does not ask anything. Do not read the options
+        spend_category. Call this FIRST, then ask the question aloud — once. The
+        screen only holds the choices; it asks nothing. Do not read the options
         out; they are on the glass in front of the customer.
         """
         logger.info("kiosk: ask_profile {}", ask.field)
         self._show(
             AskProfile(field=ask.field, question=ask.question, options=_profile_options(ask.field))
         )
-        return "On screen. SAY: your question, in one line. Do not read the options aloud."
+        return (
+            "Shown. Now ask the question aloud once, in one short line — unless you already "
+            "asked it this turn, in which case say nothing more. Never read the options."
+        )
 
     async def capture_value(self, heard: HeardValue) -> str:
         """Record what the customer just said and show it to them.
@@ -961,7 +1074,10 @@ class KioskBrain(GeminiBrain):
         logger.info("kiosk: capture_value {}={}", heard.field, masked_form(heard.field, value))
         self._show(_confirm_view(heard.field, value, state))
         if not spoken_needed:
-            return "On screen. SAY: a three-word acknowledgement, then your next question."
+            return (
+                "Recorded. Acknowledge in two or three words. The next question, if there is one, "
+                "is asked through ask_profile — do not ask it here as well."
+            )
         return (
             f"On screen, masked. SAY: {spoken_form(heard.field, value)}. "
             "Read that back in one line, ask if it is right, then call confirm with their reply."
@@ -1000,7 +1116,10 @@ class KioskBrain(GeminiBrain):
         """Mark a value settled, paint it, and hand the model its next move."""
         self.confirmed.add(field)
         self._show(_confirm_view(field, value, "confirmed"))
-        return f"{verdict} SAY: a short acknowledgement, then move straight to the next step."
+        return (
+            f"{verdict} Acknowledge in a few words. Whatever comes next arrives with its own "
+            "tool call; do not say it twice."
+        )
 
     async def check_eligibility(self, request: EligibilityRequest) -> str:
         """Work out what the customer is likely eligible for and show it.
@@ -1100,17 +1219,49 @@ class KioskBrain(GeminiBrain):
         return screen_prose(_trim(self.view))
 
     async def switch_language(self, to: SwitchLanguage) -> str:
-        """Continue the conversation in another language.
+        """Continue the conversation in another language — the listening and the
+        speaking both.
 
-        Call it the moment the customer asks for one, or answers you in one.
-        Acknowledge in the new language afterwards, and stay in it.
+        Call it when the customer asks for a language, AND when you can tell they
+        are already speaking one: do not wait to be asked. Do not switch on a
+        single borrowed English word; Indian speech is full of them.
         """
-        self.language = to.language
-        logger.info("kiosk: switch_language -> {}", to.language)
-        # One request moves both legs, so there is no moment where the kiosk is
-        # listening in one language and speaking in the other.
-        await self.session.configure(_config(to.language))
-        return f"Now in {to.language}. SAY: one short line in {to.language}, then carry on."
+        return await self._switch_to(to.language, by="you")
+
+    async def _switch_to(self, name: LanguageName, *, by: str) -> str:
+        """Move both legs to one language and tell the page. Shared by the tool
+        and the chip, so the two cannot disagree about what a switch does."""
+        if name == self.language:
+            return f"Already in {name}. Carry on."
+        speech = _SPEECH[name]
+        try:
+            # One request moves both legs, so the kiosk is never listening in one
+            # language and speaking in another. All-or-nothing on refusal.
+            await self.session.configure(_config(name))
+        except RequestRejected as rejected:
+            logger.warning("kiosk: language {} rejected — {}", name, rejected)
+            return (
+                f"Refused — the kiosk is still in {self.language}. "
+                f"Tell the customer, in {self.language}, that you cannot speak {name} here."
+            )
+        logger.info("kiosk: language {} -> {} (by {})", self.language, name, by)
+        self.language = name
+        self.session.dispatch(
+            LanguageChanged(
+                language=name,
+                screen_language="hi" if name == "Hindi" else "en",
+            )
+        )
+        if speech.spoken != speech.heard:
+            return (
+                f"Now listening in {name}, answering in Hindi — no voice speaks {name}. "
+                f"SAY: once, in Hindi, that you understand them and will reply in Hindi. "
+                "Do not repeat a question you already asked this turn."
+            )
+        return (
+            f"Now in {name}, switched by {by}. Say one short line in {name}. If you already asked "
+            "a question this turn, do not ask it again; if you did not, ask it once."
+        )
 
     # ─── Tool guards ────────────────────────────────────────────────────
 
