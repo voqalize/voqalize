@@ -674,6 +674,43 @@ async def test_a_language_with_no_clip_is_heard_in_it_and_answered_in_hindi() ->
         assert "answering in Hindi" in told and "SAY:" in told
 
 
+async def test_the_language_can_go_back_and_forth_and_back_to_english() -> None:
+    """A switch is not one-way. English is a row in the table like any other, so a
+    customer who tried Hindi and wants English back gets both legs back — and the
+    page is told every time, so the chip never shows a language the call has left."""
+    llm = ScriptedGemini(
+        {
+            "हिंदी में बात करो": [call("switch_language", to={"language": "Hindi"}), reply("ठीक है।")],
+            "Can we go back to English please": [
+                call("switch_language", to={"language": "English"}),
+                reply("Sure."),
+            ],
+            "தமிழ்ல பேசலாமா": [call("switch_language", to={"language": "Tamil"}), reply("சரி.")],
+            "English again": [
+                call("switch_language", to={"language": "English"}),
+                reply("Of course."),
+            ],
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        for said, language, code in [
+            ("हिंदी में बात करो", "Hindi", "hi"),
+            ("Can we go back to English please", "English", "en"),
+            ("தமிழ்ல பேசலாமா", "Tamil", "ta"),
+            ("English again", "English", "en"),
+        ]:
+            await rig.driver.user_says(said)
+            check_voice_pair(rig, voice=VOICE, language=code)
+            assert rig.brain.language == language, (said, rig.brain.language)
+        told = [
+            c["payload"]["language"]
+            for c in rig.driver.ui_commands
+            if c.get("command") == "language_changed"
+        ]
+        assert told == ["Hindi", "English", "Tamil", "English"]
+
+
 async def test_the_language_chip_moves_the_voice_too_and_says_nothing() -> None:
     """The chip used to change the screen's copy and leave Rohan speaking English.
     Now it moves both legs — and, like every other gesture, it never takes the
