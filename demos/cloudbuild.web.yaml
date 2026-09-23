@@ -67,6 +67,8 @@ substitutions:
   _AVATAR_PK: ''
   _ORDERDESK_AGENT: ''
   _ORDERDESK_PK: ''
+  _KIOSK_AGENT: ''
+  _KIOSK_PK: ''
 
 steps:
   # 1. Build + assemble every demo UI → demos/dist/demos/<name>/. The per-demo
@@ -106,6 +108,8 @@ steps:
       - 'VITE_AVATAR_PK=${_AVATAR_PK}'
       - 'VITE_ORDERDESK_AGENT=${_ORDERDESK_AGENT}'
       - 'VITE_ORDERDESK_PK=${_ORDERDESK_PK}'
+      - 'VITE_KIOSK_AGENT=${_KIOSK_AGENT}'
+      - 'VITE_KIOSK_PK=${_KIOSK_PK}'
 
   # 2. Build the docs site (Astro Starlight, base:/docs) → docs/dist.
   - name: 'node:20-slim'

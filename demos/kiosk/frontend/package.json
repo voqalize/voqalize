@@ -1,0 +1,32 @@
+{
+  "name": "@voqalize/demo-kiosk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Voqalize demo (Vantage Bank Card Kiosk — Voqalize demo) — a standalone Vite app served at /demos/kiosk.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@pipecat-ai/client-js": "^1.13.0",
+    "@pipecat-ai/client-react": "^1.8.0",
+    "@pipecat-ai/small-webrtc-transport": "^1.10.6",
+    "@pipecat-ai/voice-ui-kit": "^0.13.0",
+    "@voqalize/avatar": "^0.4.2",
+    "@voqalize/demo-kit": "file:../../shared",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.5.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}

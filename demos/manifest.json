@@ -60,6 +60,11 @@
       "name": "orderdesk",
       "title": "OrderDesk — B2B Order Intake",
       "tagline": "A Hindi voice order-intake agent for a B2B pharma distributor — spoken bulk orders resolve live against a real 20k-SKU catalog on screen."
+    },
+    {
+      "name": "kiosk",
+      "title": "Vantage Bank Card Kiosk",
+      "tagline": "A bilingual branch-kiosk assistant that talks a walk-in customer through four questions and ranks three credit cards on a totem screen."
     }
   ]
 }
