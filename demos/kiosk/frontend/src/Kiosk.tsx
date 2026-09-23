@@ -68,7 +68,12 @@ export function KioskApp() {
 function Kiosk() {
   const [joined, setJoined] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [language, setLanguage] = useState<Language>('en');
+  // The store owns the language, because Rohan changes it too: a switch he makes
+  // mid-call arrives as an action, and the chip has to follow it.
+  const {
+    state: { language },
+    byHand: { pickLanguage: setLanguage },
+  } = useKiosk();
   const [error, setError] = useState<string | null>(null);
   // What the ring outside the call renders. Lifted out of the live tree, whose
   // hooks are the only place a transport or activity value exists.

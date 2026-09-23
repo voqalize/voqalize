@@ -196,21 +196,36 @@ export function fieldLabel(field: string, language: Language): string {
 export function LanguageChip({
   value,
   onChange,
+  spoken = null,
 }: {
   value: Language;
   onChange: (language: Language) => void;
+  /** Set when Rohan is speaking a language the screen has no copy for. */
+  spoken?: string | null;
 }) {
-  const toggle = useCallback(() => onChange(value === 'en' ? 'hi' : 'en'), [value, onChange]);
+  // A tap from any other language goes back to English. That is the escape hatch
+  // for a switch the customer did not want — the model decided it from what it
+  // heard, and a hearing can be wrong.
+  const toggle = useCallback(
+    () => onChange(spoken ? 'en' : value === 'en' ? 'hi' : 'en'),
+    [spoken, value, onChange],
+  );
   return (
     <>
       <button
         type="button"
         className="kiosk-lang"
         onClick={toggle}
-        aria-label={`Screen language: ${LANGUAGE_LABEL[value]}. Tap to switch.`}
+        aria-label={
+          spoken
+            ? `Rohan is speaking ${spoken}. Tap to switch back to English.`
+            : `Screen language: ${LANGUAGE_LABEL[value]}. Tap to switch.`
+        }
         title={strings(value).screenOnly}
       >
-        {(['en', 'hi'] as const).map((code) => (
+        {spoken ? (
+          <span className="kiosk-lang-half is-on">{spoken}</span>
+        ) : (['en', 'hi'] as const).map((code) => (
           <span
             key={code}
             className={`kiosk-lang-half${code === value ? ' is-on' : ''}`}

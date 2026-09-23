@@ -136,6 +136,7 @@ export function KioskTotem({ language, onLanguage, rohan, credit, captions }: Ki
     <Totem
       language={language}
       onLanguage={onLanguage}
+      spoken={state.spoken}
       rohan={rohan}
       credit={credit}
       captions={captions}

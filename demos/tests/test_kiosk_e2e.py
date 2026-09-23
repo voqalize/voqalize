@@ -44,7 +44,7 @@ from typing import Any, NamedTuple
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply
 
-from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo
+from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
@@ -610,6 +610,94 @@ async def test_switching_to_hindi_moves_both_legs_together() -> None:
         assert rig.brain.language == "Hindi"
 
 
+def _legs(rig: DemoRig) -> tuple[str, str, str]:
+    """The voice, the spoken language and the heard language now on the wire.
+
+    Read separately rather than through ``check_voice_pair``, which takes one
+    language for both legs: a language with no clip of its own is *meant* to be
+    heard in one language and spoken in another."""
+    configs = _configs(rig)
+    return (
+        _last(configs, lambda c: c.tts.voice if c.tts else None),
+        _last(configs, lambda c: c.tts.language if c.tts else None),
+        _last(configs, lambda c: c.stt.language if c.stt else None),
+    )
+
+
+async def test_a_customer_already_speaking_tamil_moves_the_kiosk_without_asking() -> None:
+    """Auto-detection: nobody asked for Tamil. The customer simply answered in it,
+    the model heard it, and both legs moved — with the page told, so the chip can
+    show the customer what the kiosk decided it heard."""
+    llm = ScriptedGemini(
+        {
+            "நான் ஒரு கிரெடிட் கார்டு பார்க்கிறேன்": [
+                call("switch_language", to={"language": "Tamil"}),
+                reply("சரி, தமிழில் பேசலாம்."),
+            ],
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        check_voice_pair(rig, voice=VOICE, language="en")
+
+        await rig.driver.user_says("நான் ஒரு கிரெடிட் கார்டு பார்க்கிறேன்")
+        check_voice_pair(rig, voice=VOICE, language="ta")
+        assert rig.brain.language == "Tamil"
+        changed = rig.command("language_changed")
+        assert changed == {"language": "Tamil", "native": "தமிழ்", "screen_language": "en"}, (
+            "no Tamil screen exists, so the screen keeps its English copy"
+        )
+
+
+async def test_a_language_with_no_clip_is_heard_in_it_and_answered_in_hindi() -> None:
+    """Odia: the recognizer understands it and no voice speaks it. The honest
+    configuration is split on purpose — heard in Odia, answered in Hindi — and the
+    model is told to say so rather than let the customer discover it."""
+    llm = ScriptedGemini(
+        {
+            "ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି": [
+                call("switch_language", to={"language": "Odia"}),
+                reply("मैं आपकी बात समझता हूँ और हिंदी में जवाब दूँगा।"),
+            ],
+            # A tool's result reaches the model on the *next* request, so one more
+            # turn is what puts it in the record to read.
+            "ଠିକ ଅଛି": [reply("ठीक है।")],
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି")
+        voice, spoken, heard = _legs(rig)
+        assert (voice, spoken, heard) == (VOICE, "hi", "or"), (voice, spoken, heard)
+        await rig.driver.user_says("ଠିକ ଅଛି")
+        told = next(r for r in _tool_results(llm) if "Odia" in r)
+        assert "answering in Hindi" in told and "SAY:" in told
+
+
+async def test_the_language_chip_moves_the_voice_too_and_says_nothing() -> None:
+    """The chip used to change the screen's copy and leave Rohan speaking English.
+    Now it moves both legs — and, like every other gesture, it never takes the
+    floor."""
+    async with demo("kiosk", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        said = _spoken(rig)
+
+        await _by_hand(rig, "language_picked", {"language": "Hindi"})
+        check_voice_pair(rig, voice=VOICE, language="hi")
+        assert rig.brain.language == "Hindi"
+        assert rig.command("language_changed")["screen_language"] == "hi"
+        assert _spoken(rig) == said, "the chip took the floor"
+
+
+async def test_picking_the_current_language_again_configures_nothing() -> None:
+    """A second tap on the language already in use is not a second request."""
+    async with demo("kiosk", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        before = len(_configs(rig))
+        await _by_hand(rig, "language_picked", {"language": "English"})
+        assert len(_configs(rig)) == before
+
+
 async def test_a_hindi_yes_reads_as_a_yes() -> None:
     """The recognizer returns what was said, so a Hindi confirmation comes back in
     Devanagari and a romanised "haan" never appears in it. A yes-set with only the
@@ -698,6 +786,7 @@ def test_every_gesture_the_totem_can_send_is_in_the_vocabulary() -> None:
         "value_confirmed",
         "value_edited",
         "restart_pressed",
+        "language_picked",
     ]
 
 
@@ -775,6 +864,10 @@ _BY_HAND: tuple[Step, ...] = (
         ("confirm_value", "show_qr"),
     ),
     Step("value_edited", {"field": "mobile", "value": "91234 56789"}, ("confirm_value",)),
+    # After the questions, so the copy asserted below is all English; before Start
+    # over, so the walk also proves a restart keeps the language. The chip is not a
+    # step in the journey, but it is a gesture, so it walks here with the rest.
+    Step("language_picked", {"language": "Hindi"}, ("language_changed",)),
     Step("restart_pressed", {}, ("show_attract",)),
 )
 
@@ -880,8 +973,10 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
         assert (settled[2]["display"], settled[2]["masked"]) == ("91234 56789", "XXXXX 56789")
 
         assert rig.command("show_qr")["caption"] == "Vantage Fuel. Show this at the desk."
-        # Start over is the only way back, and it is the last thing the walk does.
+        # Start over is the only way back, and it is the last thing the walk does —
+        # and it did not undo the language the customer picked just before it.
         assert rig.actions()[-1] == "show_attract"
+        assert rig.brain.language == "Hindi"
         assert rig.brain.answers == {} and rig.brain.assessment is None
 
     assert llm.calls == [], "a hand-driven journey called the model"
