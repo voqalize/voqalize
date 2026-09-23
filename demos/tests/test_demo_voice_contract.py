@@ -102,6 +102,13 @@ DEMOS: dict[str, Expected] = {
     "aura": Expected(voice="omnivoice/gauri", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
+    # Rohan greets a walk-in at a branch totem in English, and moves both legs to
+    # Hindi the moment they ask — one man in two languages, so the voice does not
+    # move with the language. The totem's own toggle can settle it before the call
+    # exists, but it sends only the *name*: the brain resolves it, because the
+    # same choice also picks which hand-written greeting is spoken. That switch,
+    # and the page's choice, are asserted in test_kiosk_e2e.py.
+    "kiosk": Expected(voice="omnivoice/gaurav", language="en"),
     # Docket speaks with a kokoro checkpoint and wears the face recorded beside
     # it — Tanya, in the dock: a Delaware-law MSA read in US commercial-contract
     # register, where a cloned Indian-English persona was the accent of nobody in

@@ -309,7 +309,7 @@ brain.py` — were fixed rather than fenced. Don't add to the exclusion.
 pm2 start ecosystem.config.cjs
 ```
 
-Starts the docs site and all twelve demo UIs. **Ports are declared in that file
+Starts the docs site and every demo UI. **Ports are declared in that file
 and nowhere else** — pm2 passes each on the command line and no `vite.config.ts`
 or `astro.config.mjs` here names one. The demo ports are a base plus the index
 into the `DEMOS` array, which is therefore **append-only**: inserting a name
