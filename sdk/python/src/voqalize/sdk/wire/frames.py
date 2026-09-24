@@ -212,6 +212,10 @@ class Voice(StrEnum):
     KOKORO_EMMA = "kokoro/emma"
     #: British male.
     KOKORO_OLIVER = "kokoro/oliver"
+    #: Male, Indian English and the Indic languages.
+    OMNIVOICE_GAUTAM = "omnivoice/gautam"
+    #: Female, Indian English and the Indic languages.
+    OMNIVOICE_GAYATRI = "omnivoice/gayatri"
 
 
 class Language(StrEnum):
