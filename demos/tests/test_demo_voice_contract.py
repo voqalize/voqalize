@@ -102,7 +102,7 @@ DEMOS: dict[str, Expected] = {
     "aura": Expected(voice="omnivoice/gauri", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
-    # Tess greets a walk-in at a branch totem in English, and moves both legs to
+    # Tanvi greets a walk-in at a branch totem in English, and moves both legs to
     # Hindi the moment they ask — one woman in two languages, so the voice does not
     # move with the language. The totem's own toggle can settle it before the call
     # exists, but it sends only the *name*: the brain resolves it, because the

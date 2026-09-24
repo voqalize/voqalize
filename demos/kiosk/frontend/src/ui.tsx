@@ -63,7 +63,7 @@ export function VoiceHint({ children }: { children: ReactNode }) {
   );
 }
 
-/** The answers to the question Tess just asked, as a grid a thumb can cover. */
+/** The answers to the question Tanvi just asked, as a grid a thumb can cover. */
 export function OptionGrid({ children }: { children: ReactNode }) {
   return <div className="kiosk-options">{children}</div>;
 }

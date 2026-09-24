@@ -1,7 +1,7 @@
 /**
  * The three cards, ranked, in a row the customer swipes through.
  *
- * The cards sit in the tray, under Tess, and scroll sideways one at a time: a
+ * The cards sit in the tray, under Tanvi, and scroll sideways one at a time: a
  * finger flicks, and each card snaps whole into view rather than stopping half
  * way across two. The recommended one is shown first, with the accent on it.
  * Arrows and the position marks do the same for a mouse or a keyboard, and they
@@ -68,7 +68,7 @@ export function ShortlistTray({ language, shortlist, onTapCard, onChooseCard }: 
 
   return (
     <div className="kiosk-shortlist">
-      {/* Tess says why she picked the first one; the tray does not repeat her. */}
+      {/* Tanvi says why she picked the first one; the tray does not repeat her. */}
       <VoiceHint>{copy.swipeHint}</VoiceHint>
 
       <div className="kiosk-carousel" ref={track} role="list">

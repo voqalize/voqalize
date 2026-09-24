@@ -3,7 +3,7 @@
  *
  * Two things are called "language" and they are not the same size. The
  * **screen** has copy in two, English and Hindi. The **conversation** can be in
- * any of the languages the brain declares, and there is no picker for it: Tess
+ * any of the languages the brain declares, and there is no picker for it: Tanvi
  * hears the customer's language and switches both legs herself. In Tamil the
  * voice is Tamil and the screen stays English — there is no Tamil screen.
  */
@@ -64,13 +64,13 @@ interface Strings {
 }
 
 const EN: Strings = {
-  assistant: 'Tess',
+  assistant: 'Tanvi',
   assistantRole: 'AI assistant',
   attractTitle: 'Find the right Vantage card',
-  attractBody: 'Four questions, out loud. Tess ranks three cards for you and gives you a code for the desk.',
+  attractBody: 'Four questions, out loud. Tanvi ranks three cards for you and gives you a code for the desk.',
   steps: ['Answer four quick questions', 'See three cards picked for you', 'Take a code to the desk'],
   sayOrTap: 'Say your answer, or tap one',
-  swipeHint: 'Ask Tess about any card, or swipe',
+  swipeHint: 'Ask Tanvi about any card, or swipe',
   confirmPrompt: 'Did I get that right?',
   confirmYes: 'Yes, that’s right',
   confirmHint: 'Not quite? Just say it again.',
@@ -103,13 +103,13 @@ const EN: Strings = {
 };
 
 const HI: Strings = {
-  assistant: 'टेस',
+  assistant: 'तन्वी',
   assistantRole: 'एआई सहायक',
   attractTitle: 'अपने लिए सही वैंटेज कार्ड चुनिए',
-  attractBody: 'चार सवाल, बोलकर। टेस आपके लिए तीन कार्ड चुनेगी और डेस्क के लिए एक कोड देगी।',
+  attractBody: 'चार सवाल, बोलकर। तन्वी आपके लिए तीन कार्ड चुनेगी और डेस्क के लिए एक कोड देगी।',
   steps: ['चार छोटे सवालों के जवाब दीजिए', 'आपके लिए चुने तीन कार्ड देखिए', 'डेस्क के लिए कोड लीजिए'],
   sayOrTap: 'जवाब बोलिए, या किसी एक पर टैप कीजिए',
-  swipeHint: 'किसी भी कार्ड के बारे में टेस से पूछिए, या स्वाइप कीजिए',
+  swipeHint: 'किसी भी कार्ड के बारे में तन्वी से पूछिए, या स्वाइप कीजिए',
   confirmPrompt: 'क्या मैंने सही सुना?',
   confirmYes: 'हाँ, सही है',
   confirmHint: 'सही नहीं? बस फिर से बोलिए।',

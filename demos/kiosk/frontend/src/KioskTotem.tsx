@@ -1,7 +1,7 @@
 /**
  * The screen switch: store state in, one tray out.
  *
- * Tess is on the glass on every screen, so what changes from one step to the
+ * Tanvi is on the glass on every screen, so what changes from one step to the
  * next is only the tray under her — and how much room it needs. That is why the
  * mapping lives here rather than inside each screen: one place decides what a
  * hand can do right now and how heavy it is, and the screens stay one plain
@@ -28,13 +28,13 @@ export interface KioskTotemProps {
   language: Language;
   /** Whether the call is up. Before it, the gate is the only way in. */
   live: boolean;
-  /** Tess: the live tile, or the pre-call plate. */
-  tess: ReactNode;
+  /** Tanvi: the live tile, or the pre-call plate. */
+  tanvi: ReactNode;
   /** The sentence in flight, under her face. Absent pre-call. */
   captions?: ReactNode;
 }
 
-export function KioskTotem({ language, live, tess, captions }: KioskTotemProps) {
+export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps) {
   const { state, byHand } = useKiosk();
 
   let tray: ReactNode = null;
@@ -45,7 +45,7 @@ export function KioskTotem({ language, live, tess, captions }: KioskTotemProps) 
 
   switch (state.screen) {
     case 'attract':
-      // Nothing to press here, before the call or after: Tess asks for a name,
+      // Nothing to press here, before the call or after: Tanvi asks for a name,
       // and the first question comes up by itself if none is given.
       tray = <WelcomeTray language={language} />;
       break;
@@ -134,7 +134,7 @@ export function KioskTotem({ language, live, tess, captions }: KioskTotemProps) 
   return (
     <Totem
       language={language}
-      tess={tess}
+      tanvi={tanvi}
       captions={captions}
       tray={tray}
       trayKey={key}

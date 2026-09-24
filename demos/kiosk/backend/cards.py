@@ -245,7 +245,7 @@ PROFILE_CHOICES: dict[ProfileField, tuple[tuple[str, str, str], ...]] = {
 
 
 #: The question the *totem* puts on the glass, per language, when the customer
-#: is driving with their hand and there is no spoken line to carry it. When Tess
+#: is driving with their hand and there is no spoken line to carry it. When Tanvi
 #: asks a question she writes her own; this is the screen's, and it is written
 #: here rather than generated so nothing a model authored lands on a bank's glass.
 PROFILE_PROMPTS: dict[ProfileField, tuple[str, str]] = {

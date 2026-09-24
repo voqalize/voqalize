@@ -10,7 +10,7 @@
  * A card id that is not in the shortlist renders nothing rather than throwing. A
  * page and a brain ship separately, and a branch is a bad place to find that out.
  *
- * Tess reads none of it aloud. She says which card and why; the tray carries
+ * Tanvi reads none of it aloud. She says which card and why; the tray carries
  * the fee, the cap and the threshold.
  */
 
