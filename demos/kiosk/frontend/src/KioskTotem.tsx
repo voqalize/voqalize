@@ -14,7 +14,7 @@
 import type { ReactNode } from 'react';
 import { Totem, type TrayWeight } from './Totem';
 import { useKiosk, type Screen } from './store';
-import type { Language, LanguageName } from './language';
+import type { Language } from './language';
 import { CardDetailTray } from './screens/CardDetail';
 import { ConsentTray } from './screens/Consent';
 import { DiscoveryTray } from './screens/Discovery';
@@ -26,7 +26,6 @@ import { WelcomeTray } from './screens/Welcome';
 
 export interface KioskTotemProps {
   language: Language;
-  onLanguage: (language: LanguageName) => void;
   /** Whether the call is up. Before it, the gate is the only way in. */
   live: boolean;
   /** Tess: the live tile, or the pre-call plate. */
@@ -35,7 +34,7 @@ export interface KioskTotemProps {
   captions?: ReactNode;
 }
 
-export function KioskTotem({ language, onLanguage, live, tess, captions }: KioskTotemProps) {
+export function KioskTotem({ language, live, tess, captions }: KioskTotemProps) {
   const { state, byHand } = useKiosk();
 
   let tray: ReactNode = null;
@@ -135,8 +134,6 @@ export function KioskTotem({ language, onLanguage, live, tess, captions }: Kiosk
   return (
     <Totem
       language={language}
-      onLanguage={onLanguage}
-      conversation={state.conversation}
       tess={tess}
       captions={captions}
       tray={tray}

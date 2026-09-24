@@ -1,73 +1,16 @@
 /**
- * The script the totem is set in, and the picker that chooses the conversation's
- * language.
+ * The script the totem is set in.
  *
- * Two things are called "language" here and they are not the same size. The
+ * Two things are called "language" and they are not the same size. The
  * **screen** has copy in two, English and Hindi. The **conversation** can be in
- * any of the languages the brain declares. Picking Tamil puts Tess in Tamil and
- * leaves the screen in English — there is no Tamil screen, only a Tamil voice.
- *
- * The picker never moves a leg itself. It tells the brain which language was
- * picked, and the brain moves both legs in one `session.configure(...)`: a page
- * that set one leg would be the half-applied-pair bug, which is silent — the
- * words stay right and only the speaker is wrong.
+ * any of the languages the brain declares, and there is no picker for it: Tess
+ * hears the customer's language and switches both legs herself. In Tamil the
+ * voice is Tamil and the screen stays English — there is no Tamil screen.
  */
 
-import type { LanguagePicked } from './actions.gen';
-import { COLOR, FOCUS, FONT, SIZE } from './brand';
+import { FONT } from './brand';
 
 export type Language = 'en' | 'hi';
-
-/**
- * Every language the conversation can be in. Read off the generated contract,
- * never written down: the brain's `LanguageName` is the one list, and a language
- * added there is a compile error here until it has a label below.
- */
-export type LanguageName = LanguagePicked['language'];
-
-/**
- * Each language named in its own script, which is how a customer finds theirs —
- * and the English name beside it, for the one standing next to them. A
- * `Record` over the union, so a missing or stray row does not compile.
- */
-const NATIVE: Record<LanguageName, string> = {
-  English: 'English',
-  Hindi: 'हिन्दी',
-  Bengali: 'বাংলা',
-  Gujarati: 'ગુજરાતી',
-  Kannada: 'ಕನ್ನಡ',
-  Malayalam: 'മലയാളം',
-  Marathi: 'मराठी',
-  Punjabi: 'ਪੰਜਾਬੀ',
-  Tamil: 'தமிழ்',
-  Telugu: 'తెలుగు',
-  Assamese: 'অসমীয়া',
-  Bodo: 'बड़ो',
-  Dogri: 'डोगरी',
-  Kashmiri: 'کٲشُر',
-  Konkani: 'कोंकणी',
-  Maithili: 'मैथिली',
-  Manipuri: 'মৈতৈলোন্',
-  Nepali: 'नेपाली',
-  Odia: 'ଓଡ଼ିଆ',
-  Sanskrit: 'संस्कृतम्',
-  Santali: 'ᱥᱟᱱᱛᱟᱲᱤ',
-  Sindhi: 'سنڌي',
-  Urdu: 'اردو',
-};
-
-/** The picker's options, in the brain's own order. */
-const LANGUAGES = Object.keys(NATIVE) as LanguageName[];
-
-/** A language written in its own script. */
-export function nativeName(name: LanguageName): string {
-  return NATIVE[name];
-}
-
-/** The screen copy a conversation language gets. Only Hindi has its own. */
-export function screenLanguageFor(name: LanguageName): Language {
-  return name === 'Hindi' ? 'hi' : 'en';
-}
 
 /** The face the totem sets its text in. */
 export function fontFor(language: Language): string {
@@ -118,8 +61,6 @@ interface Strings {
   valueSubmit: string;
   handoffTitle: string;
   restart: string;
-  /** The picker's accessible name — it moves Tess's voice, not just the screen. */
-  languagePicker: string;
 }
 
 const EN: Strings = {
@@ -159,7 +100,6 @@ const EN: Strings = {
   valueSubmit: 'Continue',
   handoffTitle: 'Show this at the desk',
   restart: 'Start over',
-  languagePicker: 'Language Tess speaks',
 };
 
 const HI: Strings = {
@@ -199,7 +139,6 @@ const HI: Strings = {
   valueSubmit: 'आगे बढ़ें',
   handoffTitle: 'डेस्क पर यह दिखाइए',
   restart: 'फिर से शुरू करें',
-  languagePicker: 'टेस किस भाषा में बात करे',
 };
 
 export function strings(language: Language): Strings {
@@ -244,67 +183,4 @@ export function fieldLabel(field: string, language: Language): string {
   if (known) return language === 'hi' ? known.hi : known.en;
   const words = field.replace(/_/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-/**
- * The language picker in the header — a native `<select>`, on purpose. It is
- * the one control on the totem with twenty-three options, and the platform's own
- * picker is what a phone, a touchscreen, a keyboard and a screen reader already
- * know how to drive. A custom list would have to earn every one of those back.
- *
- * It follows Tess as well as leading her: when she switches because she heard
- * the customer speak Tamil, `value` moves to Tamil and the picker shows it. Picking
- * English is the way back from a switch the customer did not want — the model
- * decided it from what it heard, and a hearing can be wrong.
- */
-export function LanguageSelect({
-  value,
-  screen,
-  onChange,
-}: {
-  /** The language the conversation is in. */
-  value: LanguageName;
-  /** The screen's copy, for the picker's own label. */
-  screen: Language;
-  onChange: (language: LanguageName) => void;
-}) {
-  return (
-    <>
-      <select
-        className="kiosk-lang"
-        value={value}
-        aria-label={strings(screen).languagePicker}
-        onChange={(event) => onChange(event.target.value as LanguageName)}
-      >
-        {LANGUAGES.map((name) => (
-          <option key={name} value={name}>
-            {name === 'English' ? 'English' : `${NATIVE[name]} · ${name}`}
-          </option>
-        ))}
-      </select>
-      <style>{`
-        .kiosk-lang {
-          appearance: none;
-          min-height: 44px;
-          max-width: 150px;
-          padding: 0 36px 0 16px;
-          border-radius: ${SIZE.pill}px;
-          border: 1px solid ${COLOR.rule};
-          /* The chevron, drawn inline: one image, no icon font to load. */
-          background: ${COLOR.surface}
-            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%230F3B2E' stroke-width='2'/%3E%3C/svg%3E")
-            no-repeat right 14px center;
-          color: ${COLOR.brand};
-          font: inherit;
-          font-size: 15px;
-          font-weight: 600;
-          text-overflow: ellipsis;
-          cursor: pointer;
-        }
-        .kiosk-lang:hover { border-color: ${COLOR.brand}; }
-        .kiosk-lang:focus-visible { outline: 3px solid ${FOCUS.ring}; outline-offset: 2px; }
-        .kiosk-lang option { background: ${COLOR.surface}; color: ${COLOR.ink}; }
-      `}</style>
-    </>
-  );
 }

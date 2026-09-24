@@ -46,7 +46,7 @@ import {
   type ShowShortlist,
   type UiAction,
 } from './actions.gen';
-import { screenLanguageFor, type Language, type LanguageName } from './language';
+import type { Language } from './language';
 
 /** Which of the eight screens the stage is showing. */
 export type Screen =
@@ -81,11 +81,6 @@ export interface KioskState {
   qr: ShowQr | null;
   /** Which of the screen's two copy sets is showing. */
   language: Language;
-  /**
-   * The language the conversation is in — any the brain declares. Wider than
-   * `language`: in Tamil the conversation is Tamil and the screen stays English.
-   */
-  conversation: LanguageName;
 }
 
 const INITIAL: KioskState = {
@@ -101,7 +96,6 @@ const INITIAL: KioskState = {
   consent: null,
   qr: null,
   language: 'en',
-  conversation: 'English',
 };
 
 /** Replace this field's settled entry, or append it, keeping settle order. */
@@ -127,7 +121,7 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
       // Start over forgets everything but the language — as the brain's own
       // reset does, so the picker and Tess's voice cannot come apart here. The
       // first question arrives right behind it.
-      return { ...INITIAL, language: state.language, conversation: state.conversation };
+      return { ...INITIAL, language: state.language };
     case 'ask_profile':
       return { ...state, screen: 'discovery', question: action.payload, checking: null };
     case 'ask_value':
@@ -164,19 +158,15 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
     case 'show_qr':
       return { ...state, screen: 'handoff', qr: action.payload };
     case 'language_changed':
-      return {
-        ...state,
-        conversation: action.payload.language,
-        language: action.payload.screen_language,
-      };
+      return { ...state, language: action.payload.screen_language };
     default:
       return unhandledUiAction(action);
   }
 }
 
 /**
- * The two things a hand does that no action of Tess's covers: light the chip it
- * just pressed while she is still hearing about it, and move the language.
+ * The one thing a hand does that no action of Tess's covers: light the chip it
+ * just pressed while she is still hearing about it.
  *
  * Nothing that *moves the screen* is in here. Every other gesture —
  * answer, acknowledge, open, close, choose, agree, type, restart — is answered
@@ -185,18 +175,12 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
  * languages, with nothing to keep the copies honest.
  */
 type HandMutation =
-  | { kind: 'pick'; field: string; value: string }
-  | { kind: 'language'; language: LanguageName };
+  | { kind: 'pick'; field: string; value: string };
 
 function applyHand(state: KioskState, hand: HandMutation): KioskState {
   switch (hand.kind) {
     case 'pick':
       return { ...state, picked: { ...state.picked, [hand.field]: hand.value } };
-    case 'language':
-      // Shown at once rather than after Tess answers: the chip is the one
-      // control that must work before there is a call. Her `language_changed`
-      // arrives with the same value and re-renders idempotently.
-      return { ...state, conversation: hand.language, language: screenLanguageFor(hand.language) };
   }
 }
 
@@ -231,8 +215,6 @@ export interface ByHand {
   consent: (cardId: string) => void;
   /** Start over. */
   restart: () => void;
-  /** The language picker. Moves Tess's voice as well as the screen's copy. */
-  pickLanguage: (language: LanguageName) => void;
 }
 
 export type AgentSend = (event: string, payload?: unknown) => void;
@@ -300,10 +282,6 @@ export function KioskProvider({ children }: { children: ReactNode }) {
       chooseCard: (cardId) => emit({ event: 'card_chosen', payload: { card_id: cardId } }),
       consent: (cardId) => emit({ event: 'consent_given', payload: { card_id: cardId } }),
       restart: () => emit({ event: 'restart_pressed', payload: {} }),
-      pickLanguage: (language) => {
-        dispatch({ from: 'hand', hand: { kind: 'language', language } });
-        emit({ event: 'language_picked', payload: { language } });
-      },
     }),
     [emit],
   );

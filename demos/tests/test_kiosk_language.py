@@ -29,7 +29,15 @@ import pytest
 from voqalize_demos.testing import ScriptedGemini, call, reply
 
 from ._harness import DemoRig, _configs, _last, demo
-from .test_kiosk_e2e import VOICE, _by_hand, _legs, _one_more_turn, _spoken, _tool_results
+from .test_kiosk_e2e import (
+    _BY_HAND,
+    VOICE,
+    _by_hand,
+    _legs,
+    _one_more_turn,
+    _spoken,
+    _tool_results,
+)
 
 _CODE = {"English": "en", "Kannada": "kn", "Hindi": "hi", "Tamil": "ta"}
 
@@ -95,6 +103,73 @@ async def test_patience_is_three_and_a_switch_keeps_it() -> None:
         assert _last(_configs(rig), lambda c: c.stt.patience if c.stt else None) == 3
         await _by_hand(rig, "language_picked", {"language": "Kannada"})
         assert _last(_configs(rig), lambda c: c.stt.patience if c.stt else None) == 3
+
+
+def _patience(rig: DemoRig) -> int | None:
+    return _last(_configs(rig), lambda c: c.stt.patience if c.stt else None)
+
+
+async def test_dictation_waits_longer_and_the_questions_do_not() -> None:
+    """Quick for the four questions, patient while a mobile or PAN is read out in
+    groups — a partial one is rejected outright, so cutting it at a pause makes
+    the customer start again. Start over brings the quick pace back."""
+    async with demo("kiosk", ScriptedGemini()) as rig:
+        await rig.driver.start_session()
+        assert _patience(rig) == 3
+        for step in _BY_HAND:
+            await _by_hand(rig, step.event, step.payload)
+            if step.event == "consent_given":
+                break
+        assert rig.brain.view["screen"] == "value"
+        assert _patience(rig) == 8, "the mobile number is asked for at the quick pace"
+        await _by_hand(rig, "restart_pressed")
+        assert _patience(rig) == 3
+
+
+async def test_an_answer_before_any_question_moves_on_and_is_not_asked_again() -> None:
+    """The greeting asks for a name and the customer answers more: "I'm Ravi, I'm
+    salaried". The answer lands on the welcome screen, and the next question comes
+    up at once — so the first quiet moment does not put employment up again."""
+    llm = ScriptedGemini(
+        {
+            "I'm Ravi, I'm salaried.": [
+                call("capture_value", heard={"field": "employment", "value": "salaried"}),
+                reply("Nice to meet you, Ravi. Roughly what comes in every month?"),
+            ]
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("I'm Ravi, I'm salaried.")
+        await rig.driver.user_idle(timeout=0.5)
+        await _one_more_turn(rig)
+
+        assert _asked(rig) == ["income_band"], _asked(rig)
+        captured = next(r for r in _tool_results(llm) if r.startswith("Recorded"))
+        assert "income band question is already up" in captured, captured
+
+
+async def test_a_confirmed_mobile_stays_on_the_glass_as_confirmed() -> None:
+    """A read-back that settles keeps its panel, marked confirmed, so Tess reading
+    the screen sees what the customer sees — not a confirm screen with nothing on
+    it."""
+    llm = ScriptedGemini(
+        {
+            "It's 98765 43210.": [
+                call("capture_value", heard={"field": "mobile", "value": "9876543210"})
+            ],
+            "Yes, that's right.": [
+                call("confirm", check={"field": "mobile", "value": "9876543210", "heard": "yes"})
+            ],
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("It's 98765 43210.")
+        assert rig.brain.view["the value being confirmed"]["state"] == "confirming"
+        await rig.driver.user_says("Yes, that's right.")
+        assert rig.brain.view["screen"] == "confirm"
+        assert rig.brain.view["the value being confirmed"]["state"] == "confirmed"
 
 
 async def test_the_picker_and_the_voice_can_hand_the_language_back_and_forth() -> None:

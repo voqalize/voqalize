@@ -13,7 +13,8 @@
  *
  * Inside the glass, three rows, and the order is the design:
  *
- *   - **header** — who this is, the language, and Start over. Always there.
+ *   - **header** — who this is, and Start over. There is no language picker:
+ *     Tess hears the customer's language and switches to it herself.
  *   - **Tess** — at the top, with her captions under her. The kiosk is driven
  *     by voice first, so the customer talks to a face; she steps back further
  *     when the cards are up.
@@ -30,7 +31,7 @@
 import type { ReactNode } from 'react';
 import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { CHASSIS, COLOR, SIZE } from './brand';
-import { LanguageSelect, fontFor, strings, type Language, type LanguageName } from './language';
+import { fontFor, strings, type Language } from './language';
 import { UiStyles } from './ui';
 
 /** How much of the glass the tray takes, which is how much Tess gives up. */
@@ -38,9 +39,6 @@ export type TrayWeight = 'light' | 'heavy';
 
 export interface TotemProps {
   language: Language;
-  onLanguage: (language: LanguageName) => void;
-  /** The language the conversation is in — wider than the screen's two. */
-  conversation: LanguageName;
   /** Tess: the live tile, or the pre-call plate. */
   tess: ReactNode;
   /** The sentence in flight, under her face. Absent before the call. */
@@ -56,8 +54,6 @@ export interface TotemProps {
 
 export function Totem({
   language,
-  onLanguage,
-  conversation,
   tess,
   captions,
   tray,
@@ -79,7 +75,6 @@ export function Totem({
               <span className="kiosk-brand-mark" aria-hidden />
               <span className="kiosk-brand-name">Vantage Bank</span>
             </span>
-            <LanguageSelect value={conversation} screen={language} onChange={onLanguage} />
             {onRestart ? (
               <button
                 type="button"
