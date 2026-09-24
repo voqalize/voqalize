@@ -10,7 +10,7 @@ are the upstream records for the SDK surfaces.
 
 ## Brain SDK
 
-The published Python brain SDK is `voqalize-agent-sdk==0.5.0`. It requires
+The published Python brain SDK is `voqalize-agent-sdk==0.6.0`. It requires
 Python 3.12 or later. Pin the version you build against: releases before 1.0
 may change the brain callbacks.
 

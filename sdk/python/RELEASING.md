@@ -32,7 +32,7 @@ release python sdk → Run workflow**, picking the *tag* as the ref.
 ## Versioning
 
 The public series starts at `0.0.1`, and PyPI now serves `0.0.1`, `0.0.2`,
-`0.0.3`, `0.1.0`, `0.2.0`, `0.3.0`, `0.4.0` and `0.5.0`. The changelog sections
+`0.0.3`, `0.1.0`, `0.2.0`, `0.3.0`, `0.4.0`, `0.5.0` and `0.6.0`. The changelog sections
 suffixed **`(pre-restart)`** — `0.1.0`, `0.2.0` and `0.3.0` — were never
 published: they were installed from a path by the single host that used the SDK,
 and restarting the public history at the bottom said plainly that nothing was
