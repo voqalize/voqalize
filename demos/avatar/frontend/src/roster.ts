@@ -8,7 +8,7 @@
  * source any more, and there is no second copy of a face to keep in step.
  *
  * The strip carries the 2.5-D characters and nothing else. The package also
- * ships line-art and painted faces, and they are still the library's; this page
+ * ships line-art faces, and they are still the library's; this page
  * stopped showing them on 2026-09-21 because a visitor judges the library by
  * the best face on it, and the 2.5-D ones are that. Each is a whole
  * `createAvatar` module, so there is nothing here to adapt.
@@ -70,6 +70,12 @@ export const ROSTER: readonly RosterEntry[] = [
     name: "Tara",
     kind: "2.5-D",
     load: () => import("@voqalize/avatar/avatars/tara").then((m) => m.createAvatar),
+  },
+  {
+    key: "tanvi",
+    name: "Tanvi",
+    kind: "2.5-D",
+    load: () => import("@voqalize/avatar/avatars/tanvi").then((m) => m.createAvatar),
   },
 ];
 
