@@ -565,7 +565,7 @@ function Stage({
         {error ? <p className="av-error">{error}</p> : null}
 
         {/* The only authority on the face, and only before the call. Each face
-            is paired to one of two recorded voices, so choosing here chooses
+            is paired to a voice of its own, so choosing here chooses
             both — which is why the strip locks once the call is up rather than
             changing a voice in the middle of an answer. */}
         <div className={`av-picker${live ? " is-locked" : ""}`}>
