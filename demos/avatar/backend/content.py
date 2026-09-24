@@ -230,10 +230,10 @@ AVATARS: tuple[AvatarIdentity, ...] = (
         name="Tanvi",
         renderer="2.5-D",
         blurb="The first character whose hair is its own layer, drawn over the body rather than painted into it.",
-        # Tara's voice too: gauri is the one Indian English female voice there
-        # is, and a face heard in the wrong accent is noticed before anything
-        # the face does. A voice of her own replaces this when one exists.
-        voice=Voice.OMNIVOICE_GAURI,
+        # A voice of her own rather than Tara's: two faces sharing one voice
+        # read as one person in two drawings, and a face heard in the wrong
+        # accent is noticed before anything the face does.
+        voice=Voice.OMNIVOICE_GAYATRI,
     ),
 )
 

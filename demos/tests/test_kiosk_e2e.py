@@ -70,7 +70,7 @@ from voqalize_demos._loaded.kiosk.eligibility import assess, shortlist  # noqa: 
 from voqalize_demos._loaded.kiosk.prompts import GREETING  # noqa: E402
 
 #: One person, two languages — the clip does not change when the language does.
-VOICE = "omnivoice/gauri"
+VOICE = "omnivoice/gayatri"
 
 #: The profile every flow test drives: salaried, mid band, one card already,
 #: fuel is where the money goes. Chosen because it lands in the *standard* band

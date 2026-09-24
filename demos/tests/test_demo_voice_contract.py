@@ -108,7 +108,7 @@ DEMOS: dict[str, Expected] = {
     # exists, but it sends only the *name*: the brain resolves it, because the
     # same choice also picks which hand-written greeting is spoken. That switch,
     # and the page's choice, are asserted in test_kiosk_e2e.py.
-    "kiosk": Expected(voice="omnivoice/gauri", language="en"),
+    "kiosk": Expected(voice="omnivoice/gayatri", language="en"),
     # Docket speaks with a kokoro checkpoint and wears the face recorded beside
     # it — Tanya, in the dock: a Delaware-law MSA read in US commercial-contract
     # register, where a cloned Indian-English persona was the accent of nobody in
