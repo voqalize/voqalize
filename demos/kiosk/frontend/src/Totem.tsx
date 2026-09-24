@@ -95,16 +95,18 @@ export function Totem({
 
           <section className="kiosk-presence" aria-label={copy.assistant}>
             <div className="kiosk-presence-tile">{tess}</div>
-            <div className="kiosk-presence-captions">{captions}</div>
           </section>
 
-          {tray ? (
-            <main className="kiosk-tray">
+          {/* The counter she stands behind: its top edge covers where the
+              character's shoulders end, and what she is saying rides along it. */}
+          <main className="kiosk-tray">
+            {captions ? <div className="kiosk-tray-captions">{captions}</div> : null}
+            {tray ? (
               <div className="kiosk-tray-body" key={trayKey}>
                 {tray}
               </div>
-            </main>
-          ) : null}
+            ) : null}
+          </main>
         </div>
 
         <div className="kiosk-bezel-bottom">
@@ -224,8 +226,8 @@ function TotemStyles() {
            Tess, a maroon wash at the edges, and faint rings radiating from her —
            the one piece of decoration, and it points at the one who is talking. */
         background:
-          repeating-radial-gradient(circle at 50% 21%, rgba(142, 30, 42, 0.05) 0 1px, transparent 1px 34px),
-          radial-gradient(70% 34% at 50% 20%, rgba(243, 115, 33, 0.22) 0%, rgba(243, 115, 33, 0) 100%),
+          repeating-radial-gradient(circle at 50% 24%, rgba(142, 30, 42, 0.05) 0 1px, transparent 1px 34px),
+          radial-gradient(70% 34% at 50% 24%, rgba(243, 115, 33, 0.22) 0%, rgba(243, 115, 33, 0) 100%),
           radial-gradient(60% 40% at 0% 0%, rgba(142, 30, 42, 0.16) 0%, rgba(142, 30, 42, 0) 100%),
           radial-gradient(60% 40% at 100% 8%, rgba(142, 30, 42, 0.12) 0%, rgba(142, 30, 42, 0) 100%),
           linear-gradient(180deg, #F6E4DF 0%, ${COLOR.paper} 58%);
@@ -283,27 +285,28 @@ function TotemStyles() {
       .kiosk-presence {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto auto;
         justify-items: center;
-        gap: 8px;
-        padding: 4px 20px 12px;
+        padding: 0 20px;
       }
       /* Capped well short of the row: she leads the conversation, but the glass
          is not a portrait of her, and the space between is what lets it breathe. */
       .kiosk-presence-tile {
-        height: calc(var(--screen-h) * 0.27);
+        height: calc(var(--screen-h) * 0.34);
         /* The full width of the glass: the character decides how wide she is, and
            a narrower box would crop her shoulders. */
         width: 100%;
         min-height: 0;
         transition: height .45s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .kiosk-presence-captions { width: 100%; min-height: 48px; display: flex; align-items: flex-start; }
-      /* With the cards up she steps back further, so they get the glass. */
-      .kiosk-screen.is-heavy .kiosk-presence-tile { height: calc(var(--screen-h) * 0.17); }
+      /* With the cards up she steps back, so they get the glass. */
+      .kiosk-screen.is-heavy .kiosk-presence-tile { height: calc(var(--screen-h) * 0.22); }
 
       /* The tray: a sheet lifted off the glass, filling the lower half. */
       .kiosk-tray {
+        position: relative;
+        /* Tucked a few pixels over her: the character is a bust with a straight
+           cut, and the counter's edge is what hides it. */
+        margin-top: -10px;
         min-height: 0;
         display: flex;
         flex-direction: column;
@@ -311,6 +314,12 @@ function TotemStyles() {
         background: ${COLOR.surface};
         box-shadow: 0 -1px 0 ${COLOR.rule}, 0 -18px 40px -24px rgba(78, 15, 23, 0.35);
         overflow: hidden;
+      }
+      /* Only as tall as what she is saying, so a silent moment leaves no band. */
+      .kiosk-tray-captions {
+        flex: none;
+        padding: 16px 20px 0;
+        color: ${COLOR.muted};
       }
       .kiosk-tray-body {
         min-height: 0;

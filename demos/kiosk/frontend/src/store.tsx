@@ -134,7 +134,10 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
       return { ...state, screen: 'value', entry: action.payload, question: null, checking: null };
     case 'confirm_value': {
       const value = action.payload;
-      if (value.state === 'confirmed') {
+      // Only a value waiting on a spoken yes is read back. A chip answer arrives
+      // already settled ("heard"); showing it a Yes button was a second
+      // confirmation the customer had no reason to give.
+      if (value.state !== 'confirming') {
         return { ...state, checking: null, ledger: settle(state.ledger, value) };
       }
       return { ...state, checking: value };
