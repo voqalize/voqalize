@@ -18,7 +18,7 @@
 export const COLOR = {
   /** The brand, and every primary action. */
   brand: '#8E1E2A',
-  /** Tess's backdrop and the room behind the totem. */
+  /** Tanvi's backdrop and the room behind the totem. */
   brandDeep: '#4E0F17',
   /**
    * The one accent. Selection, the recommendation, the listening bars — never a

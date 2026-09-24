@@ -1,7 +1,7 @@
 /**
  * The four questions — as answers, not as questions.
  *
- * Tess asks each one aloud, and the tray carries the same question as its
+ * Tanvi asks each one aloud, and the tray carries the same question as its
  * heading — the bank's own short wording, not hers — so a customer who missed
  * a word can still read what is being asked. The answers sit under it, below a
  * line that says speaking is the short way.

@@ -2,11 +2,11 @@
  * The first screen, before the call.
  *
  * **One way in, and it is the Start button.** The gate in front of the kiosk is
- * that button: pressing it opens the call, and Tess's greeting is the first
+ * that button: pressing it opens the call, and Tanvi's greeting is the first
  * thing that happens after it. Nothing here offers a second way to begin, so a
  * customer never has to work out whether to speak or to tap.
  *
- * So this tray only says what the kiosk is for, behind the gate and while Tess
+ * So this tray only says what the kiosk is for, behind the gate and while Tanvi
  * asks for a name. There is nothing to press: if no name comes, the first
  * question's answers come up by themselves.
  */

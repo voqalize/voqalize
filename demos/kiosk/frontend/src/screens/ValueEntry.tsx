@@ -18,7 +18,7 @@
  * `kind` steers the keyboard, nothing else: `tel` asks for a number pad, `text`
  * for characters in capitals.
  *
- * Speaking it is the first way. That arrives as Tess checking a value back,
+ * Speaking it is the first way. That arrives as Tanvi checking a value back,
  * which is why the read-back and its yes render here too — the same block
  * discovery uses, because it is the same moment.
  */

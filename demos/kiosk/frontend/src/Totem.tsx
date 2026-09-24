@@ -14,15 +14,15 @@
  * Inside the glass, three rows, and the order is the design:
  *
  *   - **header** — who this is, and Start over. There is no language picker:
- *     Tess hears the customer's language and switches to it herself.
- *   - **Tess** — at the top, with her captions under her. The kiosk is driven
+ *     Tanvi hears the customer's language and switches to it herself.
+ *   - **Tanvi** — at the top, with her captions under her. The kiosk is driven
  *     by voice first, so the customer talks to a face; she steps back further
  *     when the cards are up.
  *   - **tray** — the lower half and everything left: the question she just
  *     asked and its answers, the cards, the one button. It always fills the
  *     glass, so there is no empty panel waiting for something to happen.
  *
- * Nothing overlaps. Tess and the tray are two grid rows, not layers.
+ * Nothing overlaps. Tanvi and the tray are two grid rows, not layers.
  *
  * There is no idle timer. A kiosk that resets while someone is reading has
  * thrown their answers away; Start over is the only reset.
@@ -34,13 +34,13 @@ import { CHASSIS, COLOR, SIZE } from './brand';
 import { fontFor, strings, type Language } from './language';
 import { UiStyles } from './ui';
 
-/** How much of the glass the tray takes, which is how much Tess gives up. */
+/** How much of the glass the tray takes, which is how much Tanvi gives up. */
 export type TrayWeight = 'light' | 'heavy';
 
 export interface TotemProps {
   language: Language;
-  /** Tess: the live tile, or the pre-call plate. */
-  tess: ReactNode;
+  /** Tanvi: the live tile, or the pre-call plate. */
+  tanvi: ReactNode;
   /** The sentence in flight, under her face. Absent before the call. */
   captions?: ReactNode;
   /** What a hand can do on this screen. `null` when there is nothing to do but talk. */
@@ -54,7 +54,7 @@ export interface TotemProps {
 
 export function Totem({
   language,
-  tess,
+  tanvi,
   captions,
   tray,
   trayKey,
@@ -89,7 +89,7 @@ export function Totem({
           </header>
 
           <section className="kiosk-presence" aria-label={copy.assistant}>
-            <div className="kiosk-presence-tile">{tess}</div>
+            <div className="kiosk-presence-tile">{tanvi}</div>
           </section>
 
           {/* The counter she stands behind: its top edge covers where the
@@ -211,14 +211,14 @@ function TotemStyles() {
         position: relative;
         display: grid;
         grid-template-columns: minmax(0, 1fr);
-        /* Header, Tess, then the tray taking everything left — the bottom half and
+        /* Header, Tanvi, then the tray taking everything left — the bottom half and
            more, so the content has the room and nothing floats in empty glass. */
         grid-template-rows: auto auto minmax(0, 1fr);
         min-height: 0;
         overflow: hidden;
         border-radius: 6px;
         /* Warm light falling from the top of the panel: a saffron glow behind
-           Tess, a maroon wash at the edges, and faint rings radiating from her —
+           Tanvi, a maroon wash at the edges, and faint rings radiating from her —
            the one piece of decoration, and it points at the one who is talking. */
         background:
           repeating-radial-gradient(circle at 50% 24%, rgba(142, 30, 42, 0.05) 0 1px, transparent 1px 34px),
@@ -276,7 +276,7 @@ function TotemStyles() {
       .kiosk-restart:active { transform: scale(0.98); }
       .kiosk-restart:focus-visible { outline: 3px solid ${COLOR.brand}; outline-offset: 2px; }
 
-      /* Tess: top and centre, as large as the tray leaves room for. */
+      /* Tanvi: top and centre, as large as the tray leaves room for. */
       .kiosk-presence {
         display: grid;
         grid-template-columns: minmax(0, 1fr);

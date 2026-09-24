@@ -3,7 +3,7 @@
  *
  * The call is stock pipecat: `PipecatAppBase` owns the WebRTC transport and the
  * mic, `connectRequest` (`src/config.ts`) is the one request that is ours, and
- * everything after connect is pipecat's own. Tess drives the totem over the
+ * everything after connect is pipecat's own. Tanvi drives the totem over the
  * standard `ui-command` channel; the customer's taps leave over `ui-event`. Both
  * halves are typed in `actions.gen.ts` and replayed by the store.
  *
@@ -11,7 +11,7 @@
  * button is Start: `PipecatAppBase` mounts with `connectOnMount`, so it is not
  * rendered at all until the visitor has read the notice and pressed it — the
  * microphone cannot open before that, by construction rather than by a flag —
- * and Tess's greeting is the first thing that happens after it. Nothing behind
+ * and Tanvi's greeting is the first thing that happens after it. Nothing behind
  * the gate offers a second way to begin.
  *
  * Two things are held above `PipecatAppBase` on purpose, because it renders its
@@ -43,7 +43,7 @@ import {
 import { COLOR } from './brand';
 import { connectRequest, withRealHeaders } from './config';
 import { KioskTotem } from './KioskTotem';
-import { TessCaptions, TessPlate, TessTile } from './TessTile';
+import { TanviCaptions, TanviPlate, TanviTile } from './TanviTile';
 import { KioskProvider, useKiosk } from './store';
 import type { Language } from './language';
 
@@ -70,7 +70,7 @@ export function KioskApp() {
 function Kiosk() {
   const [joined, setJoined] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  // The store owns the screen's language: Tess changes it, when she hears the
+  // The store owns the screen's language: Tanvi changes it, when she hears the
   // customer speak another one, and the copy follows her action.
   const {
     state: { language },
@@ -98,7 +98,7 @@ function Kiosk() {
       <DemoGate
         open={!joined}
         title="Vantage Bank card kiosk"
-        blurb="Press Start and talk to Tess. She asks four quick questions, ranks three Vantage cards for you, and gives you a code for the banker's desk."
+        blurb="Press Start and talk to Tanvi. She asks four quick questions, ranks three Vantage cards for you, and gives you a code for the banker's desk."
         joinLabel="Start"
         accent={COLOR.brand}
         agreed={agreed}
@@ -116,11 +116,11 @@ function Kiosk() {
           onError={handleError}
         />
       ) : (
-        // No client to embody yet, so Tess's place wears the plate.
+        // No client to embody yet, so Tanvi's place wears the plate.
         <KioskTotem
           language={language}
           live={false}
-          tess={<TessPlate language={language} />}
+          tanvi={<TanviPlate language={language} />}
         />
       )}
     </>
@@ -173,7 +173,7 @@ function LiveKiosk({
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity('speaking'), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity('idle'), []));
 
-  // Screen ← Tess.
+  // Screen ← Tanvi.
   useRTVIClientEvent(
     RTVIEvent.UICommand,
     useCallback(
@@ -213,8 +213,8 @@ function LiveKiosk({
     <KioskTotem
       language={language}
       live={isConnected}
-      tess={<TessTile client={client ?? null} activity={activity} language={language} />}
-      captions={<TessCaptions />}
+      tanvi={<TanviTile client={client ?? null} activity={activity} language={language} />}
+      captions={<TanviCaptions />}
     />
   );
 }

@@ -3,15 +3,15 @@
  *
  * Two directions, both typed, and they are not symmetrical.
  *
- * Tess's half arrives as `UiAction`s over `ui-command` and is replayed by
+ * Tanvi's half arrives as `UiAction`s over `ui-command` and is replayed by
  * {@link applyAction} — an exhaustive switch that stops compiling the day the
  * brain declares one more action. That reducer is the *shared* mutation: it is
  * the only thing that decides what screen the totem is on.
  *
  * The customer's half leaves as `AppEvent`s over `ui-event`, one gesture at a
  * time, through {@link ByHand}. Every emit sits at the call site a person
- * actually reaches — never inside the reducer, which Tess drives too. That is
- * why there is no echo suppression here: an action Tess dispatched cannot
+ * actually reaches — never inside the reducer, which Tanvi drives too. That is
+ * why there is no echo suppression here: an action Tanvi dispatched cannot
  * produce an event claiming the customer tapped something.
  *
  * **A hand alone is enough.** There is a gesture for every step — answer,
@@ -19,7 +19,7 @@
  * never says a word still reaches the QR. The screen still moves only because
  * the brain answered the event with an action: one source of truth, silent.
  *
- * The screen is never pushed back wholesale. Tess knows what she dispatched, and
+ * The screen is never pushed back wholesale. Tanvi knows what she dispatched, and
  * the events tell her the one thing she cannot know: that a hand moved first.
  */
 
@@ -66,7 +66,7 @@ export interface KioskState {
   /** The value being asked for by typing, and the field it fills. */
   entry: AskValue | null;
   /**
-   * The chip the customer just tapped, before Tess has heard it. Purely an
+   * The chip the customer just tapped, before Tanvi has heard it. Purely an
    * echo: it keeps the pressed chip lit for the second it takes her to answer.
    */
   picked: Record<string, string>;
@@ -108,7 +108,7 @@ function settle(ledger: readonly ConfirmValue[], value: ConfirmValue): ConfirmVa
 }
 
 /**
- * Tess's half. Exhaustive over the action union — the default arm is a
+ * Tanvi's half. Exhaustive over the action union — the default arm is a
  * compile-time assertion, not a runtime fallback.
  *
  * `confirm_value` deliberately does not move the screen: a mobile number gets
@@ -119,7 +119,7 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
   switch (action.command) {
     case 'started_over':
       // Start over forgets everything but the language — as the brain's own
-      // reset does, so the picker and Tess's voice cannot come apart here. The
+      // reset does, so the picker and Tanvi's voice cannot come apart here. The
       // first question arrives right behind it.
       return { ...INITIAL, language: state.language };
     case 'ask_profile':
@@ -165,7 +165,7 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
 }
 
 /**
- * The one thing a hand does that no action of Tess's covers: light the chip it
+ * The one thing a hand does that no action of Tanvi's covers: light the chip it
  * just pressed while she is still hearing about it.
  *
  * Nothing that *moves the screen* is in here. Every other gesture —
@@ -193,7 +193,7 @@ function reduce(state: KioskState, mutation: Mutation): KioskState {
 }
 
 /**
- * The customer's own hand. Each one does what it says and then tells Tess it
+ * The customer's own hand. Each one does what it says and then tells Tanvi it
  * happened — one gesture, one event, at the site a finger actually lands.
  */
 export interface ByHand {
@@ -205,7 +205,7 @@ export interface ByHand {
   confirm: (field: string) => void;
   /** Read the verdict, ask for the cards. */
   acknowledgeEligibility: () => void;
-  /** A shortlist row opened. Tess repaints with `open_card_detail`. */
+  /** A shortlist row opened. Tanvi repaints with `open_card_detail`. */
   tapCard: (cardId: string) => void;
   /** Out of one card's detail and back to the three. */
   closeDetail: () => void;
@@ -265,7 +265,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
       },
       enterValue: (field, value) => {
         const current = stateRef.current;
-        // Same test as a chip: typing over a value Tess is checking back is the
+        // Same test as a chip: typing over a value Tanvi is checking back is the
         // correction and the rejection in one gesture.
         const heardBefore =
           current.checking?.field === field || current.ledger.some((e) => e.field === field);

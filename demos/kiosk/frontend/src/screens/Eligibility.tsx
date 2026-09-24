@@ -7,7 +7,7 @@
  * tool that can approve anything, and the line that says a banker confirms it is
  * the honest description of what just happened.
  *
- * One control: the customer has read it and wants the cards. Tess moves on by
+ * One control: the customer has read it and wants the cards. Tanvi moves on by
  * herself when asked out loud, and either way it is the same `show_shortlist`.
  */
 
