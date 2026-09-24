@@ -84,6 +84,8 @@ interface Strings {
   assistantRole: string;
   attractTitle: string;
   attractBody: string;
+  /** What the visit is, in three steps, for the welcome tray. */
+  steps: readonly [string, string, string];
   /** Above the answers: the voice leads, the chips follow. */
   sayOrTap: string;
   swipeHint: string;
@@ -125,6 +127,7 @@ const EN: Strings = {
   assistantRole: 'AI assistant',
   attractTitle: 'Find the right Vantage card',
   attractBody: 'Four questions, out loud. Tess ranks three cards for you and gives you a code for the desk.',
+  steps: ['Answer four quick questions', 'See three cards picked for you', 'Take a code to the desk'],
   sayOrTap: 'Say your answer, or tap one',
   swipeHint: 'Ask Tess about any card, or swipe',
   confirmPrompt: 'Did I get that right?',
@@ -164,6 +167,7 @@ const HI: Strings = {
   assistantRole: 'एआई सहायक',
   attractTitle: 'अपने लिए सही वैंटेज कार्ड चुनिए',
   attractBody: 'चार सवाल, बोलकर। टेस आपके लिए तीन कार्ड चुनेगी और डेस्क के लिए एक कोड देगी।',
+  steps: ['चार छोटे सवालों के जवाब दीजिए', 'आपके लिए चुने तीन कार्ड देखिए', 'डेस्क के लिए कोड लीजिए'],
   sayOrTap: 'जवाब बोलिए, या किसी एक पर टैप कीजिए',
   swipeHint: 'किसी भी कार्ड के बारे में टेस से पूछिए, या स्वाइप कीजिए',
   confirmPrompt: 'क्या मैंने सही सुना?',

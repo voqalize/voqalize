@@ -26,8 +26,8 @@
 import { useState, type FormEvent } from 'react';
 import { COLOR, FOCUS, SIZE } from '../brand';
 import type { AskValue, ConfirmValue } from '../actions.gen';
-import { strings, type Language } from '../language';
-import { ReadBack, VoiceHint } from '../ui';
+import { fieldLabel, strings, type Language } from '../language';
+import { ReadBack, TrayTitle, VoiceHint } from '../ui';
 
 /** A mouse or trackpad, which on this page means a keyboard is to hand too. */
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
@@ -85,10 +85,11 @@ export function ValueEntryTray({
   return (
     <div>
       {checking ? <ReadBack language={language} value={checking} onConfirm={onConfirm} /> : null}
+      <TrayTitle>{entry.label}</TrayTitle>
       <VoiceHint>{copy.valueHint}</VoiceHint>
       <form className="kiosk-value-form" onSubmit={submit}>
         <label className="kiosk-value-label" htmlFor="kiosk-value-input">
-          {entry.label}
+          {fieldLabel(entry.field, language)}
         </label>
         <div className="kiosk-value-line">
           <input

@@ -28,7 +28,7 @@ import { Avatar } from '@voqalize/avatar/react';
 import { TranscriptOverlay } from '@pipecat-ai/voice-ui-kit';
 import '@pipecat-ai/voice-ui-kit/styles.scoped';
 import type { AmbientPresenceActivity } from '@voqalize/demo-kit';
-import { COLOR, SIZE } from './brand';
+import { COLOR } from './brand';
 import { fontFor, strings, type Language } from './language';
 
 /** Tess's face, the `tess` character. Resolved once by the bundler. */
@@ -107,24 +107,11 @@ export function TessCaptions() {
 function TessStyles() {
   return (
     <style>{`
+      /* No tile of her own: she stands on the glass's own light, not in a frame. */
       .kiosk-tess {
         position: relative;
         width: 100%;
         height: 100%;
-        border-radius: ${SIZE.radius + 10}px;
-        overflow: hidden;
-        background:
-          radial-gradient(90% 70% at 50% 28%, #8A1F2C 0%, ${COLOR.brandDeep} 78%);
-        box-shadow:
-          inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-          0 18px 40px -18px rgba(78, 15, 23, 0.55);
-        transition: box-shadow .4s cubic-bezier(0.16, 1, 0.3, 1);
-      }
-      /* Speaking lifts the tile a touch: the one motion that says whose turn it is. */
-      .kiosk-tess.is-speaking {
-        box-shadow:
-          inset 0 0 0 1px rgba(243, 115, 33, 0.35),
-          0 22px 48px -18px rgba(78, 15, 23, 0.7);
       }
       .kiosk-tess-stage { position: absolute; inset: 0; }
       .kiosk-tess-stage > :not(style) { width: 100%; height: 100%; }
@@ -149,7 +136,7 @@ function TessStyles() {
         font-size: 30px;
         font-weight: 700;
       }
-      .kiosk-tess-name { font-size: 16px; font-weight: 600; color: rgba(252, 250, 249, 0.86); }
+      .kiosk-tess-name { font-size: 16px; font-weight: 600; color: ${COLOR.brand}; }
 
       .kiosk-tess-captions { display: flex; justify-content: center; width: 100%; }
       .kiosk-tess-captions > :not(style) {

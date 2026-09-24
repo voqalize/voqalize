@@ -1059,7 +1059,9 @@ class KioskBrain(GeminiBrain):
         """
         logger.info("kiosk: ask_profile {}", ask.field)
         self._show(
-            AskProfile(field=ask.field, question=ask.question, options=_profile_options(ask.field))
+            # The glass carries the bank's own wording, in the screen's language —
+            # never the model's, which may be in a language the screen has no copy for.
+            self._question(ask.field)
         )
         return (
             "Shown. Now ask the question aloud once, in one short line — unless you already "

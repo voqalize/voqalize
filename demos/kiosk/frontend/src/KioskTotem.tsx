@@ -46,9 +46,9 @@ export function KioskTotem({ language, onLanguage, live, tess, captions }: Kiosk
 
   switch (state.screen) {
     case 'attract':
-      // Once the call is up there is nothing to press here: Tess has asked for a
-      // name, and the first question comes up by itself if none is given.
-      tray = live ? null : <WelcomeTray language={language} />;
+      // Nothing to press here, before the call or after: Tess asks for a name,
+      // and the first question comes up by itself if none is given.
+      tray = <WelcomeTray language={language} />;
       break;
     case 'discovery':
       key = `discovery:${state.question?.field ?? ''}`;

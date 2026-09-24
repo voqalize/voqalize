@@ -14,13 +14,12 @@
  * Inside the glass, three rows, and the order is the design:
  *
  *   - **header** — who this is, the language, and Start over. Always there.
- *   - **Tess** — top and centre, the largest thing on the glass. The kiosk is
- *     driven by voice first, so the customer talks to a face, and her status
- *     pill and captions sit with her.
- *   - **tray** — only what a hand can do right now: the answers, the cards, the
- *     one button. Never the question: Tess asks it, and the screen does not
- *     repeat her. The tray grows with what it holds and Tess gives way to it,
- *     so the cards get the room they need and a single button does not.
+ *   - **Tess** — at the top, with her captions under her. The kiosk is driven
+ *     by voice first, so the customer talks to a face; she steps back further
+ *     when the cards are up.
+ *   - **tray** — the lower half and everything left: the question she just
+ *     asked and its answers, the cards, the one button. It always fills the
+ *     glass, so there is no empty panel waiting for something to happen.
  *
  * Nothing overlaps. Tess and the tray are two grid rows, not layers.
  *
@@ -215,11 +214,21 @@ function TotemStyles() {
         position: relative;
         display: grid;
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto minmax(0, 1fr) auto;
+        /* Header, Tess, then the tray taking everything left — the bottom half and
+           more, so the content has the room and nothing floats in empty glass. */
+        grid-template-rows: auto auto minmax(0, 1fr);
         min-height: 0;
         overflow: hidden;
         border-radius: 6px;
-        background: ${COLOR.paper};
+        /* Warm light falling from the top of the panel: a saffron glow behind
+           Tess, a maroon wash at the edges, and faint rings radiating from her —
+           the one piece of decoration, and it points at the one who is talking. */
+        background:
+          repeating-radial-gradient(circle at 50% 21%, rgba(142, 30, 42, 0.05) 0 1px, transparent 1px 34px),
+          radial-gradient(70% 34% at 50% 20%, rgba(243, 115, 33, 0.22) 0%, rgba(243, 115, 33, 0) 100%),
+          radial-gradient(60% 40% at 0% 0%, rgba(142, 30, 42, 0.16) 0%, rgba(142, 30, 42, 0) 100%),
+          radial-gradient(60% 40% at 100% 8%, rgba(142, 30, 42, 0.12) 0%, rgba(142, 30, 42, 0) 100%),
+          linear-gradient(180deg, #F6E4DF 0%, ${COLOR.paper} 58%);
         color: ${COLOR.ink};
         font-size: ${SIZE.body}px;
         line-height: 1.45;
@@ -274,30 +283,27 @@ function TotemStyles() {
       .kiosk-presence {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr) auto;
+        grid-template-rows: auto auto;
         justify-items: center;
-        gap: 10px;
-        min-height: 0;
-        padding: 8px 20px 12px;
+        gap: 8px;
+        padding: 4px 20px 12px;
       }
       /* Capped well short of the row: she leads the conversation, but the glass
          is not a portrait of her, and the space between is what lets it breathe. */
       .kiosk-presence-tile {
-        align-self: center;
-        height: 100%;
-        max-height: calc(var(--screen-h) * 0.3);
-        max-width: 62%;
-        aspect-ratio: 4 / 5;
+        height: calc(var(--screen-h) * 0.27);
+        /* The full width of the glass: the character decides how wide she is, and
+           a narrower box would crop her shoulders. */
+        width: 100%;
         min-height: 0;
         transition: height .45s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .kiosk-presence-captions { width: 100%; min-height: 50px; display: flex; align-items: flex-start; }
+      .kiosk-presence-captions { width: 100%; min-height: 48px; display: flex; align-items: flex-start; }
+      /* With the cards up she steps back further, so they get the glass. */
+      .kiosk-screen.is-heavy .kiosk-presence-tile { height: calc(var(--screen-h) * 0.17); }
 
-      /* The tray: a sheet lifted off the glass, holding only what a hand can do. */
-      /* Capped against the glass, not the row: a percentage of an auto row is a
-         percentage of the tray itself, and the cap would never bite. */
+      /* The tray: a sheet lifted off the glass, filling the lower half. */
       .kiosk-tray {
-        max-height: calc(var(--screen-h) * 0.44);
         min-height: 0;
         display: flex;
         flex-direction: column;
@@ -306,7 +312,6 @@ function TotemStyles() {
         box-shadow: 0 -1px 0 ${COLOR.rule}, 0 -18px 40px -24px rgba(78, 15, 23, 0.35);
         overflow: hidden;
       }
-      .kiosk-screen.is-heavy .kiosk-tray { max-height: calc(var(--screen-h) * 0.6); }
       .kiosk-tray-body {
         min-height: 0;
         overflow-y: auto;

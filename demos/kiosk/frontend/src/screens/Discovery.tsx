@@ -1,10 +1,10 @@
 /**
  * The four questions — as answers, not as questions.
  *
- * Tess asks each one aloud, so the tray does not print it: a question on the
- * glass is the same sentence twice, and it pushes the answers down out of reach.
- * What the tray holds is what a hand can do instead of answering — the choices,
- * under a line that says speaking is the short way.
+ * Tess asks each one aloud, and the tray carries the same question as its
+ * heading — the bank's own short wording, not hers — so a customer who missed
+ * a word can still read what is being asked. The answers sit under it, below a
+ * line that says speaking is the short way.
  *
  * **Correcting is picking again.** There is no "no, change it" button, because
  * the correction and the rejection are one gesture: tapping a different chip
@@ -14,7 +14,7 @@
 
 import type { AskProfile, ConfirmValue } from '../actions.gen';
 import { strings, type Language } from '../language';
-import { OptionChip, OptionGrid, ReadBack, VoiceHint } from '../ui';
+import { OptionChip, OptionGrid, ReadBack, TrayTitle, VoiceHint } from '../ui';
 
 export interface DiscoveryProps {
   language: Language;
@@ -41,6 +41,7 @@ export function DiscoveryTray({
 
       {question ? (
         <>
+          <TrayTitle>{question.question}</TrayTitle>
           <VoiceHint>{copy.sayOrTap}</VoiceHint>
           <OptionGrid>
             {question.options.map((option) => (
