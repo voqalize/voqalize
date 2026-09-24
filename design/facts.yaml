@@ -166,14 +166,17 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.5.0'
+    value: '0.6.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-09-21
+    verified: 2026-09-24
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.5.0 on 2026-09-21, for stt.patience: SttConfig gains the
+      Bumped to 0.6.0 on 2026-09-24, for the gautam and gayatri voices: Voice
+      gains OMNIVOICE_GAUTAM and OMNIVOICE_GAYATRI, appended so no value moves.
+      An added roster takes the minor under 1.0, as 0.4.0's did.
+      0.5.0 (2026-09-21) was stt.patience: SttConfig gains the
       field and frames.proto gains `optional uint32 patience = 2`. The surface
       only grows and the wire change is additive on both halves, so a brain on
       an older SDK sends no patience and is served exactly as before — under
