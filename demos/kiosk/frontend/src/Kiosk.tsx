@@ -45,7 +45,7 @@ import { connectRequest, withRealHeaders } from './config';
 import { KioskTotem } from './KioskTotem';
 import { TessCaptions, TessPlate, TessTile } from './TessTile';
 import { KioskProvider, useKiosk } from './store';
-import type { Language, LanguageName } from './language';
+import type { Language } from './language';
 
 /** Vantage's reading of the shared presence ring. */
 const PRESENCE: Partial<AmbientPresencePalette> = {
@@ -70,11 +70,10 @@ export function KioskApp() {
 function Kiosk() {
   const [joined, setJoined] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  // The store owns the language, because Tess changes it too: a switch she makes
-  // mid-call arrives as an action, and the chip has to follow it.
+  // The store owns the screen's language: Tess changes it, when she hears the
+  // customer speak another one, and the copy follows her action.
   const {
     state: { language },
-    byHand: { pickLanguage: setLanguage },
   } = useKiosk();
   const [error, setError] = useState<string | null>(null);
   // What the ring outside the call renders. Lifted out of the live tree, whose
@@ -112,7 +111,6 @@ function Kiosk() {
       {joined ? (
         <CallSession
           language={language}
-          onLanguage={setLanguage}
           onTransportState={setTransportState}
           onActivity={setActivity}
           onError={handleError}
@@ -121,7 +119,6 @@ function Kiosk() {
         // No client to embody yet, so Tess's place wears the plate.
         <KioskTotem
           language={language}
-          onLanguage={setLanguage}
           live={false}
           tess={<TessPlate language={language} />}
         />
@@ -132,7 +129,6 @@ function Kiosk() {
 
 interface SessionProps {
   language: Language;
-  onLanguage: (language: LanguageName) => void;
   onTransportState: (state: TransportState) => void;
   onActivity: (activity: AmbientPresenceActivity) => void;
   onError: (message: string) => void;
@@ -159,7 +155,6 @@ function CallSession(props: SessionProps) {
 /** Rendered inside `PipecatAppBase`'s provider, so every hook here sees the client. */
 function LiveKiosk({
   language,
-  onLanguage,
   onTransportState,
   onActivity,
   onError,
@@ -217,7 +212,6 @@ function LiveKiosk({
   return (
     <KioskTotem
       language={language}
-      onLanguage={onLanguage}
       live={isConnected}
       tess={<TessTile client={client ?? null} activity={activity} language={language} />}
       captions={<TessCaptions />}
