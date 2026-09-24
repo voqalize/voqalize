@@ -13,39 +13,32 @@
 import { COLOR, SIZE } from '../brand';
 import type { ShowQr } from '../actions.gen';
 import { strings, type Language } from '../language';
-import { StageTitle } from '../ui';
+import { TrayTitle } from '../ui';
 import qrImage from '../assets/handoff-qr.svg';
 
-export function HandoffStage({ language, qr }: { language: Language; qr: ShowQr | null }) {
+export function HandoffTray({ language, qr }: { language: Language; qr: ShowQr | null }) {
   const copy = strings(language);
   if (!qr) return null;
   return (
     <div className="kiosk-handoff">
-      <StageTitle>{copy.handoffTitle}</StageTitle>
-      <img className="kiosk-handoff-code" src={qrImage} alt="" width={200} height={200} />
-      <p className="kiosk-handoff-caption">{qr.caption}</p>
+      <img className="kiosk-handoff-code" src={qrImage} alt="" width={168} height={168} />
+      <div>
+        <TrayTitle>{copy.handoffTitle}</TrayTitle>
+        <p className="kiosk-handoff-caption">{qr.caption}</p>
+      </div>
       <style>{`
-        .kiosk-handoff {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          gap: 14px;
-        }
+        .kiosk-handoff { display: flex; align-items: center; gap: 18px; }
         .kiosk-handoff-code {
-          width: min(200px, 44%);
+          width: 132px;
           height: auto;
-          padding: 10px;
-          border-radius: 14px;
+          flex: none;
+          padding: 8px;
+          border-radius: ${SIZE.radius}px;
           background: #FFFFFF;
           border: 1px solid ${COLOR.rule};
         }
-        .kiosk-handoff-caption {
-          margin: 0;
-          max-width: 32ch;
-          font-size: ${SIZE.body}px;
-          color: ${COLOR.muted};
-        }
+        .kiosk-handoff .kiosk-tray-title { margin-bottom: 6px; }
+        .kiosk-handoff-caption { margin: 0; font-size: 16px; color: ${COLOR.muted}; }
       `}</style>
     </div>
   );

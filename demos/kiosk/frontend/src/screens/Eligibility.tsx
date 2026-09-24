@@ -7,81 +7,61 @@
  * tool that can approve anything, and the line that says a banker confirms it is
  * the honest description of what just happened.
  *
- * One control: the customer says they have read it and asks for the cards.
- * Rohan can move on himself when he is ready, and either way it is the same
- * `show_shortlist` that puts them on screen.
+ * One control: the customer has read it and wants the cards. Tess moves on by
+ * herself when asked out loud, and either way it is the same `show_shortlist`.
  */
 
-import { COLOR, SIZE } from '../brand';
+import { Check } from '@phosphor-icons/react';
+import { COLOR } from '../brand';
 import type { ShowEligibility } from '../actions.gen';
 import { bandLabel, strings, type Language } from '../language';
-import { StageTitle, Tag, TouchButton } from '../ui';
+import { Tag, TouchButton, TrayTitle } from '../ui';
 
-export function EligibilityStage({
+export function EligibilityTray({
   language,
   eligibility,
+  onAcknowledge,
 }: {
   language: Language;
   eligibility: ShowEligibility | null;
+  onAcknowledge: () => void;
 }) {
   const copy = strings(language);
   if (!eligibility) return null;
   return (
     <div className="kiosk-elig">
-      <StageTitle>{copy.eligibilityTitle}</StageTitle>
-      <Tag tone="leaf">{bandLabel(eligibility.band, language)}</Tag>
-
-      <ul className="kiosk-elig-reasons">
-        {eligibility.reasons.map((reason) => (
-          <li key={reason}>{reason}</li>
-        ))}
-      </ul>
+      <div className="kiosk-elig-head">
+        <TrayTitle>{copy.eligibilityTitle}</TrayTitle>
+        <Tag tone="leaf">{bandLabel(eligibility.band, language)}</Tag>
+      </div>
 
       <div className="kiosk-elig-line">
         <span className="kiosk-elig-line-label">{copy.lineLabel}</span>
         <span className="kiosk-elig-line-value">{eligibility.line_estimate}</span>
       </div>
 
-      <p className="kiosk-elig-note">{copy.bankerConfirms}</p>
+      <ul className="kiosk-elig-reasons">
+        {eligibility.reasons.map((reason) => (
+          <li key={reason}>
+            <Check size={18} weight="bold" aria-hidden />
+            <span>{reason}</span>
+          </li>
+        ))}
+      </ul>
+
+      <TouchButton label={copy.eligibilityNext} onClick={onAcknowledge} wide />
+      <p className="kiosk-note">{copy.bankerConfirms}</p>
 
       <style>{`
-        .kiosk-elig { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
-        .kiosk-elig-reasons {
-          margin: 0;
-          padding-left: 22px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          font-size: ${SIZE.body}px;
-        }
-        .kiosk-elig-line {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          padding: 14px 18px;
-          border-radius: 14px;
-          background: rgba(31, 122, 92, 0.10);
-        }
-        .kiosk-elig-line-label {
-          font-size: 15px;
-          font-weight: 700;
-          letter-spacing: .02em;
-          text-transform: uppercase;
-          color: ${COLOR.leaf};
-        }
-        .kiosk-elig-line-value { font-size: ${SIZE.headline}px; font-weight: 800; }
-        .kiosk-elig-note { margin: 0; font-size: 17px; color: ${COLOR.muted}; }
+        .kiosk-elig-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+        .kiosk-elig-head .kiosk-tray-title { margin: 0; }
+        .kiosk-elig-line { display: grid; gap: 2px; margin-bottom: 14px; }
+        .kiosk-elig-line-label { font-size: 14px; font-weight: 500; color: ${COLOR.muted}; }
+        .kiosk-elig-line-value { font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -0.015em; color: ${COLOR.brand}; }
+        .kiosk-elig-reasons { display: grid; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; font-size: 16px; }
+        .kiosk-elig-reasons li { display: flex; gap: 10px; align-items: flex-start; }
+        .kiosk-elig-reasons svg { flex: none; margin-top: 3px; color: ${COLOR.leaf}; }
       `}</style>
     </div>
   );
-}
-
-export function EligibilityControls({
-  language,
-  onAcknowledge,
-}: {
-  language: Language;
-  onAcknowledge: () => void;
-}) {
-  return <TouchButton label={strings(language).eligibilityNext} onClick={onAcknowledge} />;
 }

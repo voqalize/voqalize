@@ -1,4 +1,4 @@
-"""KioskBrain — Rohan, the Vantage Bank branch-kiosk assistant.
+"""KioskBrain — Tess, the Vantage Bank branch-kiosk assistant.
 
 A :class:`voqalize_demos.GeminiBrain`. A walk-in customer stands at a totem in a
 private cubicle, answers four questions out loud, sees three cards ranked for
@@ -17,23 +17,23 @@ Four things carry this demo:
   a customer the wrong thing in a branch.
 
 * **Two strings per figure.** Every tool here returns a ``SAY:`` line already in
-  words, and the prompt tells Rohan to speak it as written. The display form —
+  words, and the prompt tells Tess to speak it as written. The display form —
   ``₹1,50,000``, ``5%``, ``2x`` — goes to the screen and never to the voice.
 
-* **The screen is read, never remembered.** Rohan keeps one mirror of the totem,
-  patched by :meth:`_show` on his own commands and by :meth:`apply_event` on the
+* **The screen is read, never remembered.** Tess keeps one mirror of the totem,
+  patched by :meth:`_show` on her own commands and by :meth:`apply_event` on the
   customer's taps. It is never appended to the context: what goes in is one line
   naming what they *did*, and the screen itself is read back through
   ``get_screen_context``. ``ScreenState.version`` makes that enforceable — a tool
   aimed at a card the customer has moved past refuses and says to read first.
 
 * **The hand drives the same journey as the voice.** A customer may ignore
-  Rohan completely and tap their way from the attract loop to the QR code. Every
+  Tess completely and tap their way from the attract loop to the QR code. Every
   gesture arrives as a typed event and the brain answers it by dispatching the
   next row of :meth:`KioskBrain._advance` — in Python, with no model call and no
-  speech, because an action holds no floor. Rohan greets once and then says
-  nothing until he is spoken to; every gesture still leaves its one-line note, so
-  the turn he finally takes has the whole visit behind it.
+  speech, because an action holds no floor. Tess greets once and then says
+  nothing until she is spoken to; every gesture still leaves its one-line note, so
+  the turn she finally takes has the whole visit behind it.
 
 * **Confirmation is spoken, and it is asked once.** ``confirm`` decides yes or
   not-yes in Python and re-asks at most one time; a second unclear answer is
@@ -91,10 +91,10 @@ from .values import (
 )
 
 # How long the customer has to be quiet before Voqalize reports an idle tick.
-# Rohan never answers one — ``on_user_idle`` is silence, always — so this clock
-# decides nothing about when he speaks; he speaks when he is spoken to. It stays
-# on the wire because it is the kiosk's own answer to "how quiet is quiet", and a
-# demo that omits it is one that has no answer.
+# Tess never answers one — ``on_user_idle`` is silence, always — so this clock
+# decides nothing about when she speaks; she speaks when she is spoken to. The
+# first tick after the greeting is what puts the first question's answers up for
+# a customer who did not give their name.
 _IDLE_MS = 2500
 
 #: Every language the recognizer serves. The kiosk starts in English and moves the
@@ -125,9 +125,9 @@ LanguageName = Literal[
     "Urdu",
 ]
 
-#: Rohan's voice, in every language. One person throughout — only the language
-#: moves, never the voice, so his face and his voice cannot come apart mid-call.
-_VOICE = Voice.OMNIVOICE_GAURAV
+#: Tess's voice, in every language. One person throughout — only the language
+#: moves, never the voice, so her face and her voice cannot come apart mid-call.
+_VOICE = Voice.OMNIVOICE_GAURI
 
 
 @dataclass(frozen=True)
@@ -239,8 +239,9 @@ class CardView(BaseModel):
     eligible: bool
 
 
-class ShowAttract(Action):
-    """Back to the attract loop: the totem as a passer-by finds it."""
+class StartedOver(Action):
+    """Everything they answered is gone from the glass. The first question
+    follows in the same breath; the call, and its language, stay as they are."""
 
 
 class AskProfile(Action):
@@ -327,11 +328,11 @@ class LanguageChanged(Action):
     screen_language: Literal["en", "hi"]
 
 
-#: Everything Rohan can put on the totem. Exhaustive, so a new action that
+#: Everything Tess can put on the totem. Exhaustive, so a new action that
 #: :meth:`KioskBrain._mirror` forgets is a type error rather than a mirror that
 #: quietly falls a command behind.
 ScreenMove = (
-    ShowAttract
+    StartedOver
     | AskProfile
     | AskValue
     | ConfirmValue
@@ -350,7 +351,9 @@ ScreenMove = (
 
 
 class JourneyStarted(AppEvent):
-    """They touched the attract screen to begin."""
+    """They skipped the name and asked for the first question. The call is
+    already live, because pressing Start is what opened it; this is the one tap
+    that moves the welcome screen on for a customer who would rather not talk."""
 
 
 class ProfileAnswered(AppEvent):
@@ -411,8 +414,9 @@ class ValueEdited(AppEvent):
 
 
 class RestartPressed(AppEvent):
-    """They pressed Start over. The only way back to the attract loop — there is
-    no idle timeout and nothing resets itself."""
+    """They pressed Start over. Their answers are cleared and the first question
+    comes back; the call stays up. There is no idle timeout and nothing resets
+    itself."""
 
 
 class LanguagePicked(AppEvent):
@@ -521,7 +525,7 @@ class SwitchLanguage(BaseModel):
     language: LanguageName = Field(description="The language to continue in.")
 
 
-# ─── Rohan's mirror of the totem ───────────────────────────────────────────────
+# ─── Tess's mirror of the totem ───────────────────────────────────────────────
 # The one copy of what is on screen. The keys reach the model verbatim through
 # ``screen_prose``, so they are written the way a person would say them.
 
@@ -550,13 +554,13 @@ def _trim(view: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _silence() -> AsyncGenerator[Any, None]:
-    """Yields nothing: an idle tick Rohan has no reason to answer."""
+    """Yields nothing: an idle tick Tess has no reason to answer."""
     for _ in ():
         yield
 
 
 class KioskBrain(GeminiBrain):
-    """One per session. Rohan: the prompt, eleven tools, and this session's
+    """One per session. Tess: the prompt, eleven tools, and this session's
     language, answers and screen."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
@@ -584,7 +588,7 @@ class KioskBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Callable[..., Any]]:
-        """The eleven Rohan may call, in the order the call uses them."""
+        """The eleven Tess may call, in the order the call uses them."""
         return [
             self.start_over,
             self.ask_profile,
@@ -618,20 +622,33 @@ class KioskBrain(GeminiBrain):
         logger.info("kiosk: session start (language={})", self.language)
 
     async def greet(self, session: Session) -> str:
-        """The opener, written not generated. It is the line that discloses Rohan
+        """The opener, written not generated. It is the line that discloses Tess
         is an AI, and a customer standing at a totem should not wait on a first
         token to hear it."""
         return GREETING[self.language]
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        """Silence, always.
+        """Silence, always — but the first quiet moment starts the journey.
 
-        Rohan greets once and then speaks when he is spoken to, and at no other
+        Tess greets once and then speaks when she is spoken to, and at no other
         time. A customer filling the kiosk in with their hands is not a customer
         to be prompted, commented at or nagged — the screen is answering them,
-        and it is faster than he is. Every gesture still leaves its note, so the
-        turn he eventually takes has the whole visit behind it.
+        and it is faster than she is. Every gesture still leaves its note, so the
+        turn she eventually takes has the whole visit behind it.
+
+        The one thing the quiet does is move the welcome screen on. The greeting
+        asks for a name, and a customer who does not give one is not left
+        looking at a screen with nothing to press: the first question's answers
+        come up by themselves, with no speech and no model call. A customer who
+        does answer never sees this — Tess has put the question up herself.
         """
+        if self.view["screen"] == "attract":
+            self._show(self._question(_PROFILE_ORDER[0]))
+            self._append_note(
+                self.screen.moved(
+                    "stayed quiet after the greeting, so the first question's answers are up"
+                )
+            )
         return _silence()
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
@@ -657,7 +674,7 @@ class KioskBrain(GeminiBrain):
 
     def apply_event(self, event: KioskEvent) -> str:
         """Fold one gesture in, move the screen on, and return the line that
-        tells Rohan.
+        tells Tess.
 
         Both halves run for every gesture and they are not the same thing.
         :meth:`_fold` records what the customer did and writes the note;
@@ -716,7 +733,9 @@ class KioskBrain(GeminiBrain):
                 return self.screen.moved(f"corrected their {_spaced(event.field)} by hand")
             case RestartPressed():
                 self._reset()
-                return self.screen.moved("pressed Start over, so the totem is back at the start")
+                return self.screen.moved(
+                    "pressed Start over, so their answers are cleared and the first question is back"
+                )
 
     # ─── The journey, as one table ──────────────────────────────────────
 
@@ -736,7 +755,7 @@ class KioskBrain(GeminiBrain):
         for in the same breath.
 
         A hand and a voice reach the same transitions. The tools below still
-        dispatch every one of these actions when Rohan is the one driving;
+        dispatch every one of these actions when Tess is the one driving;
         neither path is a special case of the other.
         """
         table: dict[type[KioskEvent], Callable[[Any], tuple[ScreenMove, ...]]] = {
@@ -751,7 +770,7 @@ class KioskBrain(GeminiBrain):
             ValueEntered: self._value_and_what_follows,
             ValueConfirmed: self._nothing,
             ValueEdited: self._value_alone,
-            RestartPressed: self._back_to_attract,
+            RestartPressed: self._started_over,
         }
         return table.get(type(event), self._nothing)(event)
 
@@ -759,9 +778,10 @@ class KioskBrain(GeminiBrain):
         """A gesture the journey deliberately does not advance on."""
         return ()
 
-    def _back_to_attract(self, _: KioskEvent) -> tuple[ScreenMove, ...]:
-        """:meth:`_fold` has already cleared the session; this clears the glass."""
-        return (ShowAttract(),)
+    def _started_over(self, _: KioskEvent) -> tuple[ScreenMove, ...]:
+        """:meth:`_fold` has already cleared the session; this clears the glass
+        and puts the first question back on it."""
+        return (StartedOver(), self._question(_PROFILE_ORDER[0]))
 
     def _next_question(self, _: KioskEvent) -> tuple[ScreenMove, ...]:
         """The first of the four they have not answered — or, once all four are
@@ -950,22 +970,22 @@ class KioskBrain(GeminiBrain):
         """Put something on the totem: patch the mirror, then dispatch.
 
         Both, in that order, and only here — a dispatch that skipped the mirror
-        would leave Rohan reading a screen one command behind his own last word.
-        The browser never echoes this back: his own dispatch is not an event.
+        would leave Tess reading a screen one command behind her own last word.
+        The browser never echoes this back: her own dispatch is not an event.
         """
         self._mirror(action)
         self.session.dispatch(action)
 
     def _mirror(self, action: ScreenMove) -> None:
-        """Apply one of Rohan's own commands to his picture of the totem.
+        """Apply one of Tess's own commands to her picture of the totem.
 
         The totem shows one thing at a time, so each arm also clears what that
-        move takes off the glass. A key left behind is a panel Rohan believes is
-        still in front of the customer, and he will talk about it.
+        move takes off the glass. A key left behind is a panel Tess believes is
+        still in front of the customer, and she will talk about it.
         """
         view = self.view
         match action:
-            case ShowAttract():
+            case StartedOver():
                 self.view = _blank_screen()
             case AskProfile():
                 view["screen"] = "question"
@@ -1017,15 +1037,16 @@ class KioskBrain(GeminiBrain):
     # ─── Tools ──────────────────────────────────────────────────────────
 
     async def start_over(self) -> str:
-        """Clear everything and go back to the opening screen. Use it when the
+        """Clear everything and put the first question back on screen. Use it when the
         customer says they want to start again, or when a new person has walked
         up. Nothing is kept."""
         logger.info("kiosk: start_over")
         self._reset()
-        self._show(ShowAttract())
+        for move in self._started_over(RestartPressed()):
+            self._show(move)
         return (
-            "Back at the start. Offer to begin, in one line. Do not ask a question here — "
-            "call ask_profile for that, which is the only place a question is asked."
+            "Cleared, and the first question is back in front of them. "
+            "Say you are starting over and ask it once, in one short line."
         )
 
     async def ask_profile(self, ask: ProfileQuestion) -> str:
@@ -1038,7 +1059,9 @@ class KioskBrain(GeminiBrain):
         """
         logger.info("kiosk: ask_profile {}", ask.field)
         self._show(
-            AskProfile(field=ask.field, question=ask.question, options=_profile_options(ask.field))
+            # The glass carries the bank's own wording, in the screen's language —
+            # never the model's, which may be in a language the screen has no copy for.
+            self._question(ask.field)
         )
         return (
             "Shown. Now ask the question aloud once, in one short line — unless you already "
@@ -1365,12 +1388,12 @@ def _consent_bullets(card: Card) -> list[str]:
 
 
 def _pick_line(ranked: Shortlist) -> str:
-    """The one line Rohan may say about a shortlist of three."""
+    """The one line Tess may say about a shortlist of three."""
     pick = card_by_id(ranked.recommended_id)
     name = pick.name if pick else "the first one"
     return (
         f"On screen. SAY: the {name} is your best fit, because {ranked.why_spoken}. "
-        # No em-dash: everything after SAY: is text Rohan may read as written, and
+        # No em-dash: everything after SAY: is text Tess may read as written, and
         # an em-dash read aloud is a stumble at best. Two sentences instead.
         "One line. Do not read the fees or the rates aloud. They are on screen."
     )

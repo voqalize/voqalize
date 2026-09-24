@@ -1,69 +1,68 @@
 /**
  * The totem — the machine, not a page.
  *
- * A branch kiosk is a floor-standing column with the panel recessed behind a
+ * A branch kiosk is a floor-standing column with a tall panel recessed behind a
  * bezel, and the demo renders that object rather than a web layout that happens
- * to be portrait. The chrome is not decoration: a customer has to recognise this
- * as a machine they may walk up to and touch, from across a lobby, in one look.
- *
- * The frame is asymmetric because real ones are — hardware lives above and below
- * the glass, never beside it. So the top bezel carries the sensor the kiosk
- * wakes on and the bottom carries the speaker, the card slot and the brand
- * plate. The wordmark is stamped on the machine, not printed on the screen,
- * which is the one place this design spends any boldness.
+ * to be portrait. The glass is 9:16, the shape a floor-standing panel actually
+ * is, and the frame is deeper above and below it than beside it, because that is
+ * where the hardware lives: the sensor on top, the speaker, the card slot and
+ * the brand plate below.
  *
  * On a phone the chassis is dropped entirely. A handset *is* the device, and
  * drawing a bezel inside a bezel would spend scarce pixels denying it.
  *
- * Inside the glass, three rows:
+ * Inside the glass, three rows, and the order is the design:
  *
- *   - **brand bar** — who the customer is talking to, and the language chip.
- *   - **stage** — the record, and the tallest row by a distance. This is the
- *     application; everything else is furniture around it.
- *   - **controls** — every touch target, and Start over is always among them.
+ *   - **header** — who this is, the language, and Start over. Always there.
+ *   - **Tess** — at the top, with her captions under her. The kiosk is driven
+ *     by voice first, so the customer talks to a face; she steps back further
+ *     when the cards are up.
+ *   - **tray** — the lower half and everything left: the question she just
+ *     asked and its answers, the cards, the one button. It always fills the
+ *     glass, so there is no empty panel waiting for something to happen.
  *
- * Rohan sits in a dock in the bottom-right corner, deliberately small. He is
- * helping the customer through the application; he is not the application, and a
- * face at eye height competing with the cards was the wrong hierarchy. The
- * sentence he is speaking runs along a rail beside the dock, where it can be
- * read at a glance and stays legible with the audio off.
+ * Nothing overlaps. Tess and the tray are two grid rows, not layers.
  *
  * There is no idle timer. A kiosk that resets while someone is reading has
  * thrown their answers away; Start over is the only reset.
  */
 
 import type { ReactNode } from 'react';
+import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { CHASSIS, COLOR, SIZE } from './brand';
 import { LanguageSelect, fontFor, strings, type Language, type LanguageName } from './language';
-import { TouchButton, UiStyles } from './ui';
+import { UiStyles } from './ui';
+
+/** How much of the glass the tray takes, which is how much Tess gives up. */
+export type TrayWeight = 'light' | 'heavy';
 
 export interface TotemProps {
   language: Language;
   onLanguage: (language: LanguageName) => void;
   /** The language the conversation is in — wider than the screen's two. */
   conversation: LanguageName;
-  /** The dock's occupant: the live tile, or the pre-call plate. */
-  rohan: ReactNode;
-  /** The credit the character artwork's licence requires. */
-  credit: ReactNode;
-  /** The current screen's record. */
-  stage: ReactNode;
-  /** The current screen's controls, above the permanent Start over. */
-  controls: ReactNode;
-  /** The sentence in flight, rendered beside the dock. */
+  /** Tess: the live tile, or the pre-call plate. */
+  tess: ReactNode;
+  /** The sentence in flight, under her face. Absent before the call. */
   captions?: ReactNode;
-  onRestart: () => void;
+  /** What a hand can do on this screen. `null` when there is nothing to do but talk. */
+  tray: ReactNode;
+  /** Changes whenever the tray's content does, so it can arrive rather than jump. */
+  trayKey: string;
+  weight: TrayWeight;
+  /** Start over is offered only once there is something to start over. */
+  onRestart?: () => void;
 }
 
 export function Totem({
   language,
   onLanguage,
   conversation,
-  rohan,
-  credit,
-  stage,
-  controls,
+  tess,
   captions,
+  tray,
+  trayKey,
+  weight,
   onRestart,
 }: TotemProps) {
   const copy = strings(language);
@@ -74,33 +73,38 @@ export function Totem({
           <span className="kiosk-sensor" aria-hidden />
         </div>
 
-        <div className="kiosk-screen" style={{ fontFamily: fontFor(language) }}>
-          <header className="kiosk-brand">
-            <span className="kiosk-brand-mark" aria-hidden />
-            <span className="kiosk-brand-name">
-              Vantage Bank
-              <span className="kiosk-brand-sub">
-                {copy.assistant} · {copy.assistantRole}
-              </span>
+        <div className={`kiosk-screen is-${weight}`} style={{ fontFamily: fontFor(language) }}>
+          <header className="kiosk-header">
+            <span className="kiosk-brand">
+              <span className="kiosk-brand-mark" aria-hidden />
+              <span className="kiosk-brand-name">Vantage Bank</span>
             </span>
             <LanguageSelect value={conversation} screen={language} onChange={onLanguage} />
+            {onRestart ? (
+              <button
+                type="button"
+                className="kiosk-restart"
+                onClick={onRestart}
+                aria-label={copy.restart}
+                title={copy.restart}
+              >
+                <ArrowCounterClockwise size={20} weight="bold" aria-hidden />
+              </button>
+            ) : null}
           </header>
 
-          <main className="kiosk-stage">{stage}</main>
+          <section className="kiosk-presence" aria-label={copy.assistant}>
+            <div className="kiosk-presence-tile">{tess}</div>
+            <div className="kiosk-presence-captions">{captions}</div>
+          </section>
 
-          <footer className="kiosk-controls">
-            <div className="kiosk-controls-screen">{controls}</div>
-            <TouchButton label={copy.restart} tone="quiet" onClick={onRestart} />
-          </footer>
-
-          {captions ? <div className="kiosk-caption-rail">{captions}</div> : null}
-
-          <aside className="kiosk-dock">
-            {rohan}
-            <div className="kiosk-dock-credit">{credit}</div>
-          </aside>
-
-          <span className="kiosk-glass" aria-hidden />
+          {tray ? (
+            <main className="kiosk-tray">
+              <div className="kiosk-tray-body" key={trayKey}>
+                {tray}
+              </div>
+            </main>
+          ) : null}
         </div>
 
         <div className="kiosk-bezel-bottom">
@@ -126,116 +130,77 @@ function TotemStyles() {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        /* A lit lobby wall meeting a floor, rather than a gradient for its own
-           sake: the horizon is what makes the column read as standing on
-           something instead of floating. */
+        /* A lit lobby wall meeting a floor: the horizon is what makes the column
+           read as standing on something instead of floating. */
         background:
-          linear-gradient(180deg, rgba(0,0,0,0) 62%, rgba(0,0,0,0.42) 62.2%, rgba(0,0,0,0.58) 100%),
-          radial-gradient(120% 80% at 50% 0%, #4A1C14 0%, ${COLOR.ink} 72%);
+          linear-gradient(180deg, rgba(0,0,0,0) 64%, rgba(0,0,0,0.38) 64.2%, rgba(0,0,0,0.55) 100%),
+          radial-gradient(110% 80% at 50% 0%, #6E1822 0%, ${COLOR.brandDeep} 70%);
       }
 
       .kiosk-machine {
-        --screen-h: min(calc(100dvh - 215px), calc((100vw - 60px) / 0.75));
-        --screen-w: calc(var(--screen-h) * 0.75);
+        --screen-h: min(
+          calc(100dvh - ${CHASSIS.top} - ${CHASSIS.bottom} - ${CHASSIS.base} - 28px),
+          calc((100vw - 48px) * ${CHASSIS.aspect})
+        );
+        --screen-w: calc(var(--screen-h) / ${CHASSIS.aspect});
         position: relative;
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         grid-template-rows: ${CHASSIS.top} var(--screen-h) ${CHASSIS.bottom};
         width: calc(var(--screen-w) + ${CHASSIS.sides} * 2);
         padding: 0 ${CHASSIS.sides};
-        border-radius: 22px;
+        border-radius: 26px;
         background: linear-gradient(168deg, ${CHASSIS.shellLit} 0%, ${CHASSIS.shell} 46%, ${CHASSIS.shellDark} 100%);
-        /* A lip of light along the top edge and a dark one under the bottom:
-           two lines doing the work a photograph of a moulded shell would. */
         box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.14),
+          inset 0 1px 0 rgba(255, 255, 255, 0.12),
           inset 0 -1px 0 rgba(0, 0, 0, 0.5),
-          0 2px 0 rgba(0, 0, 0, 0.6),
-          0 48px 90px rgba(0, 0, 0, 0.62);
+          0 2px 0 rgba(0, 0, 0, 0.55),
+          0 48px 90px rgba(30, 6, 9, 0.6);
       }
 
-      /* Top bezel: the sensor the kiosk wakes on. */
-      .kiosk-bezel-top {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+      .kiosk-bezel-top { display: flex; align-items: center; justify-content: center; }
       .kiosk-sensor {
-        width: 9px;
-        height: 9px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
-        background: #0C0A09;
+        background: #0B0E0D;
         box-shadow:
-          0 0 0 3px rgba(0, 0, 0, 0.55),
-          0 0 0 4px rgba(255, 255, 255, 0.07),
+          0 0 0 3px rgba(0, 0, 0, 0.5),
+          0 0 0 4px rgba(255, 255, 255, 0.06),
           inset 0 0 3px rgba(120, 190, 255, 0.5);
       }
 
-      /* The glass, recessed behind the bezel. */
-      .kiosk-screen {
-        position: relative;
-        display: grid;
-        grid-template-rows: auto 1fr auto;
-        min-height: 0;
-        overflow: hidden;
-        border-radius: 5px;
-        background: ${COLOR.paper};
-        color: ${COLOR.ink};
-        box-shadow:
-          inset 0 0 0 1px rgba(0, 0, 0, 0.55),
-          inset 0 6px 14px rgba(0, 0, 0, 0.3);
-      }
-
-      /* A single diagonal sheen. Kept under 4% — anything a reader can actually
-         see is a reader whose contrast you have just spent. */
-      .kiosk-glass {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background: linear-gradient(112deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 34%);
-      }
-
-      /* Bottom bezel: speaker, brand plate, card slot. */
       .kiosk-bezel-bottom {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 9px;
-        padding-top: 4px;
+        gap: 8px;
       }
       .kiosk-grille {
-        width: 124px;
-        height: 7px;
-        border-radius: 4px;
-        background: repeating-linear-gradient(
-          90deg,
-          rgba(0, 0, 0, 0.62) 0 2px,
-          rgba(255, 255, 255, 0.05) 2px 4px
-        );
+        width: 110px;
+        height: 6px;
+        border-radius: 3px;
+        background: repeating-linear-gradient(90deg, rgba(0,0,0,0.6) 0 2px, rgba(255,255,255,0.05) 2px 4px);
       }
-      /* Stamped, not printed: a light top edge and a dark under-edge is all an
-         embossed plate is. */
       .kiosk-plate {
-        font-family: ${'"Archivo", system-ui, sans-serif'};
-        font-size: 15px;
-        font-weight: 800;
+        font-family: "Geist", system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 700;
         letter-spacing: 0.42em;
         text-indent: 0.42em;
-        color: rgba(232, 133, 11, 0.9);
-        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7), 0 -1px 0 rgba(255, 255, 255, 0.07);
+        color: rgba(243, 115, 33, 0.85);
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7), 0 -1px 0 rgba(255, 255, 255, 0.06);
       }
       .kiosk-cardslot {
-        width: 86px;
+        width: 78px;
         height: 4px;
         border-radius: 2px;
-        background: #0C0A09;
-        box-shadow: inset 0 1px 1px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.07);
+        background: #0B0E0D;
+        box-shadow: inset 0 1px 1px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.06);
       }
-
-      /* The plinth. Tapered, because a column that meets the floor at full width
-         reads as a box rather than as furniture. */
       .kiosk-column {
-        width: calc(var(--col-w, 220px));
+        width: 200px;
         height: ${CHASSIS.base};
         margin-top: -2px;
         clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%);
@@ -243,101 +208,127 @@ function TotemStyles() {
         box-shadow: 0 26px 30px -14px rgba(0, 0, 0, 0.8);
       }
 
-      /* ── Inside the glass ─────────────────────────────────────────────── */
+      /* ── The glass ────────────────────────────────────────────────────── */
 
-      .kiosk-brand {
+      .kiosk-screen {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        /* Header, Tess, then the tray taking everything left — the bottom half and
+           more, so the content has the room and nothing floats in empty glass. */
+        grid-template-rows: auto auto minmax(0, 1fr);
+        min-height: 0;
+        overflow: hidden;
+        border-radius: 6px;
+        /* Warm light falling from the top of the panel: a saffron glow behind
+           Tess, a maroon wash at the edges, and faint rings radiating from her —
+           the one piece of decoration, and it points at the one who is talking. */
+        background:
+          repeating-radial-gradient(circle at 50% 21%, rgba(142, 30, 42, 0.05) 0 1px, transparent 1px 34px),
+          radial-gradient(70% 34% at 50% 20%, rgba(243, 115, 33, 0.22) 0%, rgba(243, 115, 33, 0) 100%),
+          radial-gradient(60% 40% at 0% 0%, rgba(142, 30, 42, 0.16) 0%, rgba(142, 30, 42, 0) 100%),
+          radial-gradient(60% 40% at 100% 8%, rgba(142, 30, 42, 0.12) 0%, rgba(142, 30, 42, 0) 100%),
+          linear-gradient(180deg, #F6E4DF 0%, ${COLOR.paper} 58%);
+        color: ${COLOR.ink};
+        font-size: ${SIZE.body}px;
+        line-height: 1.45;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 6px 14px rgba(0, 0, 0, 0.22);
+      }
+
+      .kiosk-header {
         display: flex;
         align-items: center;
-        gap: 14px;
-        padding: 14px 24px;
-        background: ${COLOR.umber};
-        color: ${COLOR.paper};
+        gap: 10px;
+        padding: 14px 16px 6px;
       }
+      .kiosk-brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
       .kiosk-brand-mark {
-        width: 30px;
-        height: 30px;
+        width: 26px;
+        height: 26px;
         flex: none;
         border-radius: 8px;
-        background: ${COLOR.amber};
-        clip-path: polygon(0 0, 100% 0, 50% 100%);
+        background: ${COLOR.brand};
+        box-shadow: inset -9px -9px 0 0 ${COLOR.accent};
       }
       .kiosk-brand-name {
-        display: flex;
-        flex-direction: column;
-        margin-right: auto;
-        font-size: 20px;
-        font-weight: 800;
+        font-size: 17px;
+        font-weight: 700;
         letter-spacing: -0.01em;
+        color: ${COLOR.brand};
+        white-space: nowrap;
       }
-      .kiosk-brand-sub {
-        font-size: 13px;
-        font-weight: 500;
-        color: rgba(251, 247, 242, 0.62);
+      .kiosk-restart {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 1px solid ${COLOR.rule};
+        border-radius: 50%;
+        background: ${COLOR.surface};
+        color: ${COLOR.brand};
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
       }
+      .kiosk-restart:hover { border-color: ${COLOR.brand}; }
+      .kiosk-restart:active { transform: scale(0.98); }
+      .kiosk-restart:focus-visible { outline: 3px solid ${COLOR.brand}; outline-offset: 2px; }
 
-      /* The stage is the application, so it takes the height. The right gutter
-         keeps the record clear of the dock. */
-      .kiosk-stage {
+      /* Tess: top and centre, as large as the tray leaves room for. */
+      .kiosk-presence {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        justify-items: center;
+        gap: 8px;
+        padding: 4px 20px 12px;
+      }
+      /* Capped well short of the row: she leads the conversation, but the glass
+         is not a portrait of her, and the space between is what lets it breathe. */
+      .kiosk-presence-tile {
+        height: calc(var(--screen-h) * 0.27);
+        /* The full width of the glass: the character decides how wide she is, and
+           a narrower box would crop her shoulders. */
+        width: 100%;
+        min-height: 0;
+        transition: height .45s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .kiosk-presence-captions { width: 100%; min-height: 48px; display: flex; align-items: flex-start; }
+      /* With the cards up she steps back further, so they get the glass. */
+      .kiosk-screen.is-heavy .kiosk-presence-tile { height: calc(var(--screen-h) * 0.17); }
+
+      /* The tray: a sheet lifted off the glass, filling the lower half. */
+      .kiosk-tray {
         min-height: 0;
         display: flex;
         flex-direction: column;
-        padding: 24px calc(${SIZE.dock}px + 40px) 24px 24px;
-        overflow-y: auto;
-        font-size: ${SIZE.body}px;
-        line-height: 1.5;
-      }
-
-      .kiosk-controls {
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        gap: 12px;
-        padding: 16px 24px 20px;
-        border-top: 1px solid ${COLOR.rule};
-        background: #F3EDE5;
-      }
-      .kiosk-controls-screen {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        align-content: flex-end;
-      }
-      .kiosk-controls-screen:empty { display: none; }
-      .kiosk-controls .kiosk-btn.is-quiet { align-self: flex-start; }
-
-      /* Rohan's dock: small, cornered, out of the reading path. */
-      .kiosk-dock {
-        position: absolute;
-        right: 18px;
-        bottom: 96px;
-        width: ${SIZE.dock}px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        pointer-events: none;
-      }
-      .kiosk-dock > :first-child {
-        height: calc(${SIZE.dock}px * 0.78);
-        border-radius: 14px;
+        border-radius: 28px 28px 0 0;
+        background: ${COLOR.surface};
+        box-shadow: 0 -1px 0 ${COLOR.rule}, 0 -18px 40px -24px rgba(78, 15, 23, 0.35);
         overflow: hidden;
-        background: ${COLOR.umber};
-        box-shadow: 0 10px 26px rgba(23, 19, 16, 0.34), 0 0 0 1px rgba(23, 19, 16, 0.14);
       }
-      .kiosk-dock-credit { padding-right: 2px; }
-
-      /* The sentence in flight, beside the dock rather than over the face. */
-      .kiosk-caption-rail {
-        position: absolute;
-        left: 24px;
-        right: calc(${SIZE.dock}px + 40px);
-        bottom: 102px;
-        display: flex;
-        pointer-events: none;
+      .kiosk-tray-body {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 20px 20px 22px;
+        overscroll-behavior: contain;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .kiosk-tray-body { animation: kiosk-tray-in .42s cubic-bezier(0.16, 1, 0.3, 1) both; }
+      }
+      @keyframes kiosk-tray-in {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: none; }
       }
 
       /* A handset is the device. Drop the chassis and let the glass be the page. */
       @media (max-width: 600px) {
-        .kiosk-room { background: ${COLOR.ink}; }
+        .kiosk-room { background: ${COLOR.paper}; }
         .kiosk-machine {
           --screen-h: 100dvh;
           --screen-w: 100vw;
@@ -346,9 +337,13 @@ function TotemStyles() {
           padding: 0;
           border-radius: 0;
           box-shadow: none;
+          background: none;
         }
-        .kiosk-bezel-top, .kiosk-bezel-bottom, .kiosk-column, .kiosk-glass { display: none; }
-        .kiosk-screen { border-radius: 0; box-shadow: none; }
+        .kiosk-bezel-top, .kiosk-bezel-bottom, .kiosk-column { display: none; }
+        /* Pinned to its row: with the top bezel gone it would slide into the first. */
+        .kiosk-screen { grid-row: 2; border-radius: 0; box-shadow: none; }
+        .kiosk-header { padding: max(12px, env(safe-area-inset-top)) 16px 4px; }
+        .kiosk-tray-body { padding-bottom: max(22px, env(safe-area-inset-bottom)); }
       }
     `}</style>
   );

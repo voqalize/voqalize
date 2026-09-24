@@ -15,7 +15,7 @@ export default defineConfig({
   // it is hashed and served under this demo's base without a second public dir.
   publicDir: "../../public",
   plugins: [react()],
-  // Rohan's character module fetches its GLB with `new URL("…", import.meta.url)`,
+  // Tess's character module fetches its GLB with `new URL("…", import.meta.url)`,
   // which esbuild's dependency pre-bundling cannot follow — it inlines a path
   // that is not there. Excluding the package keeps Vite serving its real files.
   optimizeDeps: { exclude: ["@voqalize/avatar"] },

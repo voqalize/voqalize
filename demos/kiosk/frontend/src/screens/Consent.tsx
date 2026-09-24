@@ -12,61 +12,52 @@
  * anything.
  */
 
-import { COLOR, SIZE } from '../brand';
+import { ArrowRight } from '@phosphor-icons/react';
+import { COLOR } from '../brand';
 import type { OpenConsent, ShowShortlist } from '../actions.gen';
 import { strings, type Language } from '../language';
-import { StageTitle, TouchButton } from '../ui';
+import { CardFace, TouchButton, TrayTitle } from '../ui';
 
-export function ConsentStage({
+export function ConsentTray({
   language,
   consent,
   shortlist,
+  onConsent,
 }: {
   language: Language;
   consent: OpenConsent | null;
   shortlist: ShowShortlist | null;
+  onConsent: (cardId: string) => void;
 }) {
   const copy = strings(language);
   if (!consent) return null;
   const card = shortlist?.cards.find((c) => c.id === consent.card_id);
   return (
     <div className="kiosk-consent">
-      <StageTitle>{copy.consentTitle}</StageTitle>
-      {card ? <p className="kiosk-consent-card">{card.name}</p> : null}
+      <TrayTitle>{copy.consentTitle}</TrayTitle>
+      {card ? (
+        <div className="kiosk-consent-card">
+          <CardFace card={card} compact />
+          <span>{card.name}</span>
+        </div>
+      ) : null}
       <ul className="kiosk-consent-list">
         {consent.bullets.map((bullet) => (
-          <li key={bullet}>{bullet}</li>
+          <li key={bullet}>
+            <ArrowRight size={16} weight="bold" aria-hidden />
+            <span>{bullet}</span>
+          </li>
         ))}
       </ul>
-      <p className="kiosk-consent-note">{copy.bankerConfirms}</p>
+      <TouchButton label={copy.consentAgree} onClick={() => onConsent(consent.card_id)} wide />
+      <p className="kiosk-note kiosk-consent-hint">{copy.consentHint} {copy.bankerConfirms}</p>
       <style>{`
-        .kiosk-consent { display: flex; flex-direction: column; gap: 12px; }
-        .kiosk-consent-card { margin: 0; font-size: ${SIZE.headline}px; font-weight: 800; }
-        .kiosk-consent-list {
-          margin: 0;
-          padding-left: 22px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          font-size: ${SIZE.body}px;
-        }
-        .kiosk-consent-note { margin: 0; font-size: 17px; color: ${COLOR.muted}; }
+        .kiosk-consent-card { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 18px; font-weight: 600; }
+        .kiosk-consent-list { display: grid; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; font-size: 16px; }
+        .kiosk-consent-list li { display: flex; gap: 10px; align-items: flex-start; }
+        .kiosk-consent-list svg { flex: none; margin-top: 4px; color: ${COLOR.brand}; }
+        .kiosk-consent-hint { text-align: center; }
       `}</style>
     </div>
-  );
-}
-
-export function ConsentControls({
-  language,
-  consent,
-  onConsent,
-}: {
-  language: Language;
-  consent: OpenConsent | null;
-  onConsent: (cardId: string) => void;
-}) {
-  if (!consent) return null;
-  return (
-    <TouchButton label={strings(language).consentAgree} onClick={() => onConsent(consent.card_id)} />
   );
 }

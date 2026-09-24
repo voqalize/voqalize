@@ -5,7 +5,7 @@ prompt, its real eleven tools, its real Python rules — hosted on a real
 ``brain_server`` socket and driven by the conformance ``VoqalizeDriver``, with only
 the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e proves.
 
-Rohan is the demo where the **two strings per figure** rule is the whole design.
+Tess is the demo where the **two strings per figure** rule is the whole design.
 Every fact on the shelf exists twice: ``₹1,50,000`` for the totem and "one and a
 half lakh rupees" for the voice, and handing the wrong one to the wrong consumer
 is silent — the transcript is perfect and the customer hears "one five zero comma
@@ -17,8 +17,8 @@ The other four things this file holds:
 
 * **A hand alone reaches the QR.** The whole journey is walked with
   ``send_ui_event`` and nothing else, asserting the action on the glass at every
-  step — and, at every step, that Rohan said nothing and no model ran. Then one
-  word from the customer, and his first request already carries every gesture.
+  step — and, at every step, that Tess said nothing and no model ran. Then one
+  word from the customer, and her first request already carries every gesture.
 
 * **The arithmetic is Python.** ``assess`` and ``shortlist`` are pure functions
   with no model in them; they are called directly *and* through the wire, and the
@@ -70,7 +70,7 @@ from voqalize_demos._loaded.kiosk.eligibility import assess, shortlist  # noqa: 
 from voqalize_demos._loaded.kiosk.prompts import GREETING  # noqa: E402
 
 #: One person, two languages — the clip does not change when the language does.
-VOICE = "omnivoice/gaurav"
+VOICE = "omnivoice/gauri"
 
 #: The profile every flow test drives: salaried, mid band, one card already,
 #: fuel is where the money goes. Chosen because it lands in the *standard* band
@@ -136,11 +136,11 @@ def _context_text(llm: ScriptedGemini) -> str:
 
 
 def _spoken(rig: DemoRig) -> list[str]:
-    """Every unit of speech Rohan has put on the wire so far, in order.
+    """Every unit of speech Tess has put on the wire so far, in order.
 
     The hand path's central claim is a *negative* one, and a negative claim needs
     something countable to be asserted against: this list not growing across a
-    gesture is what "he stayed quiet" means on the wire."""
+    gesture is what "she stayed quiet" means on the wire."""
     return [unit.text for turn in rig.driver.turns.values() for unit in turn.units]
 
 
@@ -166,7 +166,7 @@ _SAY = re.compile(r"SAY:(.*)", re.DOTALL)
 
 
 def _say_lines(llm: ScriptedGemini) -> list[str]:
-    """Every ``SAY:`` line the brain wrote, which is the text it told Rohan to
+    """Every ``SAY:`` line the brain wrote, which is the text it told Tess to
     speak verbatim. This is the only place the display/spoken split is checkable
     from outside the brain."""
     return [m.group(1) for result in _tool_results(llm) if (m := _SAY.search(result))]
@@ -288,7 +288,7 @@ async def test_the_kiosk_greets_and_both_legs_reach_the_wire() -> None:
 
 
 def test_the_opener_discloses_the_ai_in_its_first_sentence() -> None:
-    """Rohan says he is an AI in his first sentence, in both languages.
+    """Tess says she is an AI in her first sentence, in both languages.
 
     It is in the fixed table rather than the prompt because it cannot wait for a
     turn the customer might never take — someone who walks up, hears one line and
@@ -474,7 +474,7 @@ def _only_rules(profile: dict[str, str]) -> dict[str, Any]:
 
 def _mobile_script(*confirmations: tuple[str, str]) -> dict[str, Any]:
     """Capture a mobile number, then answer the read-back ``len(confirmations)``
-    times. Each entry is ``(what the customer says, what Rohan says next)``."""
+    times. Each entry is ``(what the customer says, what Tess says next)``."""
     script: dict[str, Any] = {
         "My number is nine eight seven six five four three two one zero.": [
             call("capture_value", heard={"field": "mobile", "value": "98765 43210"}),
@@ -590,7 +590,7 @@ async def test_switching_to_hindi_moves_both_legs_together() -> None:
 
     Moving only the voice leaves the recognizer hearing Devanagari as English for
     the rest of the call, and every later reply is generated from that wrong
-    transcript. Rohan is one person in two languages, so the *voice* must not
+    transcript. Tess is one person in two languages, so the *voice* must not
     move with the language."""
     llm = ScriptedGemini(
         {
@@ -712,7 +712,7 @@ async def test_the_language_can_go_back_and_forth_and_back_to_english() -> None:
 
 
 async def test_the_language_chip_moves_the_voice_too_and_says_nothing() -> None:
-    """The chip used to change the screen's copy and leave Rohan speaking English.
+    """The chip used to change the screen's copy and leave Tess speaking English.
     Now it moves both legs — and, like every other gesture, it never takes the
     floor."""
     async with demo("kiosk", ScriptedGemini({})) as rig:
@@ -775,7 +775,7 @@ async def test_a_hindi_yes_reads_as_a_yes() -> None:
 
 
 async def test_a_tap_moves_the_screen_without_taking_the_floor() -> None:
-    """A hand on the glass is an answer, and it must never put Rohan's voice over
+    """A hand on the glass is an answer, and it must never put Tess's voice over
     the hand that is still moving.
 
     So ``on_rtvi`` moves the screen and says nothing: it folds the gesture into
@@ -868,7 +868,8 @@ async def test_start_over_is_the_only_way_back_and_it_keeps_the_language() -> No
         assert rig.brain.answers == {}
         assert rig.brain.assessment is None
         assert rig.brain.shortlist_ids == ()
-        assert rig.actions()[-1] == "show_attract"
+        assert rig.actions()[-1] == "ask_profile"
+        assert rig.driver.ui_commands[-1]["payload"]["field"] == "employment"
         assert rig.brain.language == "Hindi"
         check_voice_pair(rig, voice=VOICE, language="hi")
 
@@ -924,7 +925,7 @@ _BY_HAND: tuple[Step, ...] = (
     # over, so the walk also proves a restart keeps the language. The chip is not a
     # step in the journey, but it is a gesture, so it walks here with the rest.
     Step("language_picked", {"language": "Hindi"}, ("language_changed",)),
-    Step("restart_pressed", {}, ("show_attract",)),
+    Step("restart_pressed", {}, ("started_over", "ask_profile")),
 )
 
 #: Where the walk above stops for the takeover test: the customer has read the
@@ -935,7 +936,7 @@ _UPTO_THE_SHORTLIST = 1 + next(
 
 
 async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr() -> None:
-    """The hand path, end to end, with the microphone live and Rohan silent.
+    """The hand path, end to end, with the microphone live and Tess silent.
 
     This is the demo's other half and it is asserted the way the spoken half is:
     the exact action on the glass at every step, the band and the ranking equal to
@@ -943,7 +944,7 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
     else. Two things are asserted at *every* step rather than at the end, because
     both are properties of each gesture and not of the walk:
 
-    * **Rohan says nothing.** He greeted, once, and the wire carries no unit of
+    * **Tess says nothing.** She greeted, once, and the wire carries no unit of
       speech after it. This is the requirement most likely to regress — the brain
       used to answer an idle tick after every tap — so the count is taken before
       the walk and compared after every gesture, not once at the finish.
@@ -961,7 +962,7 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
         for step in _BY_HAND:
             landed = await _by_hand(rig, step.event, step.payload)
             assert [name for name, _ in landed] == list(step.lands), (step.event, landed)
-            assert _spoken(rig) == after_the_greeting, f"{step.event}: Rohan took the floor"
+            assert _spoken(rig) == after_the_greeting, f"{step.event}: Tess took the floor"
             assert llm.calls == [], f"{step.event}: a gesture reached the model"
 
         # The walk is the vocabulary, so a thirteenth gesture cannot be added to
@@ -977,8 +978,10 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
 
         # The four questions, in order, in the bank's own words — a hand-driven
         # question still has copy, and no model authored a word of it.
-        asked = _payloads(rig, "ask_profile")
+        # The fifth is Start over, which puts the first question back.
+        *asked, again = _payloads(rig, "ask_profile")
         assert [q["field"] for q in asked] == list(_SALARIED_FUEL)
+        assert again["field"] == "employment"
         assert [q["question"] for q in asked] == [PROFILE_PROMPTS[q["field"]][0] for q in asked]
         assert all(q["options"] for q in asked), asked
 
@@ -1029,9 +1032,10 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
         assert (settled[2]["display"], settled[2]["masked"]) == ("91234 56789", "XXXXX 56789")
 
         assert rig.command("show_qr")["caption"] == "Vantage Fuel. Show this at the desk."
-        # Start over is the only way back, and it is the last thing the walk does —
-        # and it did not undo the language the customer picked just before it.
-        assert rig.actions()[-1] == "show_attract"
+        # Start over is the only way back, and it is the last thing the walk does:
+        # the first question again, in the language picked just before it.
+        assert rig.actions()[-1] == "ask_profile"
+        assert rig.driver.ui_commands[-1]["payload"]["field"] == "employment"
         assert rig.brain.language == "Hindi"
         assert rig.brain.answers == {} and rig.brain.assessment is None
 
@@ -1039,7 +1043,7 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
 
 
 async def test_an_idle_kiosk_is_a_silent_one_however_long_the_customer_takes() -> None:
-    """The one Rohan used to get wrong, and the only place it is visible.
+    """The one Tess used to get wrong, and the only place it is visible.
 
     ``on_rtvi`` cannot speak — it is not a generator — so a gesture could never
     take the floor directly. What it *could* do, and used to, was leave a reply
@@ -1059,25 +1063,45 @@ async def test_an_idle_kiosk_is_a_silent_one_however_long_the_customer_takes() -
                 await _by_hand(rig, step.event, step.payload)
             walked = upto
             idle = await rig.driver.user_idle(timeout=0.5)
-            assert idle.units == [], f"Rohan answered the silence after {walked} gesture(s)"
+            assert idle.units == [], f"Tess answered the silence after {walked} gesture(s)"
 
-        assert _spoken(rig) == said, "Rohan spoke without being spoken to"
+        assert _spoken(rig) == said, "Tess spoke without being spoken to"
         assert llm.calls == [], "an idle tick reached the model"
 
 
-async def test_a_word_after_a_silent_run_reaches_rohan_with_the_whole_visit_behind_it() -> None:
-    """The customer fills the kiosk in themselves, then says "hey Rohan" — and he
-    answers with the visit already in front of him.
+async def test_a_quiet_customer_gets_the_first_question_without_a_word() -> None:
+    """Start is the only way in, and nothing after it asks for a tap. The greeting
+    asks for a name; a customer who does not give one gets the first question's
+    answers on the glass at the first quiet moment — silently, with no model
+    call — and only once, however long the quiet lasts."""
+    llm = ScriptedGemini()
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        said = _spoken(rig)
+        assert "ask_profile" not in rig.actions()
+
+        await rig.driver.user_idle(timeout=0.5)
+        await rig.driver.user_idle(timeout=0.5)
+
+        asked = _payloads(rig, "ask_profile")
+        assert [q["field"] for q in asked] == ["employment"], asked
+        assert _spoken(rig) == said, "Tess spoke into the quiet"
+        assert llm.calls == [], "the quiet reached the model"
+
+
+async def test_a_word_after_a_silent_run_reaches_tess_with_the_whole_visit_behind_it() -> None:
+    """The customer fills the kiosk in themselves, then says "hey Tess" — and she
+    answers with the visit already in front of her.
 
     This is what the per-gesture note buys. Each one costs tokens rather than a
-    turn, so a customer who never needed him paid nothing for them; the moment
-    they do, his first request already carries every gesture, in order, in the
+    turn, so a customer who never needed her paid nothing for them; the moment
+    they do, her first request already carries every gesture, in order, in the
     customer's own voice. The notes *name* what they did and carry no value — the
     screen itself is read back through ``get_screen_context``, which is the only
     copy that cannot go stale."""
     llm = ScriptedGemini(
         {
-            "Hey Rohan, which of these is cheapest?": [
+            "Hey Tess, which of these is cheapest?": [
                 call("get_screen_context"),
                 reply("The Vantage Everyday asks no fee at all, and it is on your screen."),
             ],
@@ -1088,13 +1112,13 @@ async def test_a_word_after_a_silent_run_reaches_rohan_with_the_whole_visit_behi
         for step in _BY_HAND[:_UPTO_THE_SHORTLIST]:
             await _by_hand(rig, step.event, step.payload)
         assert llm.calls == [], "the silent run reached the model"
-        assert len(_spoken(rig)) == 1, "Rohan spoke before he was spoken to"
+        assert len(_spoken(rig)) == 1, "Tess spoke before she was spoken to"
 
-        spoken_to = await rig.driver.user_says("Hey Rohan, which of these is cheapest?")
+        spoken_to = await rig.driver.user_says("Hey Tess, which of these is cheapest?")
         check_turn(rig, spoken_to, units=1)
         await _one_more_turn(rig)
 
-    # His first request of the session is the turn they finally gave him, and the
+    # Her first request of the session is the turn they finally gave her, and the
     # eight gestures before it are already in it.
     opening = _user_text(llm.captured_contents[0])
     for note in (
@@ -1108,12 +1132,12 @@ async def test_a_word_after_a_silent_run_reaches_rohan_with_the_whole_visit_behi
         "closed the card and went back to the three",
     ):
         assert note in opening, note
-    assert "Hey Rohan" in opening
+    assert "Hey Tess" in opening
     for value in ("salaried", "25k_60k", "vantage_fuel"):
         assert value not in opening, f"a change note is carrying {value!r}"
 
-    # And he reads the glass rather than remembering it — what a hand put there
-    # is what he is looking at.
+    # And she reads the glass rather than remembering it — what a hand put there
+    # is what she is looking at.
     screen = " ".join(r for r in _tool_results(llm) if "is on the" in r)
     assert "The customer is on the shortlist screen." in screen
     assert "vantage_fuel" in screen
@@ -1233,8 +1257,8 @@ _WIRE_TOKENS = tuple(
 _BANNED = ("instant", "guaranteed", "approved", "magic", "effortless")
 
 
-#: Tool results that told Rohan to (re)state a question. Each one made him say a
-#: question twice: he had already asked it before calling the tool that said so.
+#: Tool results that told Tess to (re)state a question. Each one made her say a
+#: question twice: she had already asked it before calling the tool that said so.
 _ASKS_AGAIN = re.compile(
     r"SAY:\s*your question|then your next question|then carry on|"
     r"move straight to the next step|and ask the first question",
@@ -1242,12 +1266,12 @@ _ASKS_AGAIN = re.compile(
 )
 
 
-async def test_no_tool_tells_rohan_to_ask_a_question_again() -> None:
-    """The repeat bug, pinned at its cause. A live session had Rohan ask one
+async def test_no_tool_tells_tess_to_ask_a_question_again() -> None:
+    """The repeat bug, pinned at its cause. A live session had Tess ask one
     question two and three times in a row: the prompt said to ask it before
     calling ``ask_profile``, and the tool's result said to ask it again. A question
-    now has exactly one home — ``ask_profile`` — and its result lets him say
-    nothing more if he already asked."""
+    now has exactly one home — ``ask_profile`` — and its result lets her say
+    nothing more if she already asked."""
     llm = _full_flow_llm()
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
@@ -1263,16 +1287,16 @@ async def test_no_tool_tells_rohan_to_ask_a_question_again() -> None:
     assert asked and all("say nothing more" in r for r in asked), asked
 
 
-async def test_nothing_the_brain_tells_rohan_to_say_is_a_display_string() -> None:
+async def test_nothing_the_brain_tells_tess_to_say_is_a_display_string() -> None:
     """The sweep. Every ``SAY:`` span the brain writes across a whole visit, swept
     for the figures and the raw tokens that belong only on the glass.
 
-    ``SAY:`` now introduces only text Rohan is to *speak*: the eligibility verdict,
+    ``SAY:`` now introduces only text Tess is to *speak*: the eligibility verdict,
     the recommendation, the card's perk, the card being agreed to and the QR line
     — the five tools this walk reaches that quote the card shelf. The generic
     directions ("a three-word acknowledgement", "your question") lost their
-    ``SAY:`` because they were what made Rohan ask the same question twice: a
-    tool told him to say something he had already said before calling it.
+    ``SAY:`` because they were what made Tess ask the same question twice: a
+    tool told her to say something she had already said before calling it.
 
     This is the check that cannot be written per call site: the failure is one
     interpolation in one branch of one tool, and it is heard exactly once, in

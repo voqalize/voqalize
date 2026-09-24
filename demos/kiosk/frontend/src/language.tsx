@@ -4,7 +4,7 @@
  *
  * Two things are called "language" here and they are not the same size. The
  * **screen** has copy in two, English and Hindi. The **conversation** can be in
- * any of the languages the brain declares. Picking Tamil puts Rohan in Tamil and
+ * any of the languages the brain declares. Picking Tamil puts Tess in Tamil and
  * leaves the screen in English — there is no Tamil screen, only a Tamil voice.
  *
  * The picker never moves a leg itself. It tells the brain which language was
@@ -84,9 +84,11 @@ interface Strings {
   assistantRole: string;
   attractTitle: string;
   attractBody: string;
-  attractCue: string;
-  attractBegin: string;
-  ledgerTitle: string;
+  /** What the visit is, in three steps, for the welcome tray. */
+  steps: readonly [string, string, string];
+  /** Above the answers: the voice leads, the chips follow. */
+  sayOrTap: string;
+  swipeHint: string;
   confirmPrompt: string;
   confirmYes: string;
   confirmHint: string;
@@ -97,9 +99,11 @@ interface Strings {
   shortlistTitle: string;
   bestForYou: string;
   likelyEligible: string;
-  compareAll: string;
   chooseCard: string;
-  tapToExpand: string;
+  details: string;
+  previousCard: string;
+  nextCard: string;
+  showCard: string;
   rowFee: string;
   rowWaiver: string;
   rowReward: string;
@@ -108,23 +112,24 @@ interface Strings {
   detailBack: string;
   consentTitle: string;
   consentAgree: string;
+  consentHint: string;
   valueHint: string;
   valueMasked: string;
   valueSubmit: string;
   handoffTitle: string;
   restart: string;
-  /** The picker's accessible name — it moves Rohan's voice, not just the screen. */
+  /** The picker's accessible name — it moves Tess's voice, not just the screen. */
   languagePicker: string;
 }
 
 const EN: Strings = {
-  assistant: 'Rohan',
+  assistant: 'Tess',
   assistantRole: 'AI assistant',
   attractTitle: 'Find the right Vantage card',
-  attractBody: 'Four questions, out loud. Rohan ranks three cards for you and prints a code for the desk.',
-  attractCue: 'Say hello, or press Begin',
-  attractBegin: 'Begin',
-  ledgerTitle: 'What Rohan has so far',
+  attractBody: 'Four questions, out loud. Tess ranks three cards for you and gives you a code for the desk.',
+  steps: ['Answer four quick questions', 'See three cards picked for you', 'Take a code to the desk'],
+  sayOrTap: 'Say your answer, or tap one',
+  swipeHint: 'Ask Tess about any card, or swipe',
   confirmPrompt: 'Did I get that right?',
   confirmYes: 'Yes, that’s right',
   confirmHint: 'Not quite? Just say it again.',
@@ -135,33 +140,36 @@ const EN: Strings = {
   shortlistTitle: 'Three cards for you',
   bestForYou: 'Best for you',
   likelyEligible: 'Likely eligible',
-  compareAll: 'Compare all three',
-  chooseCard: 'Choose this card',
-  tapToExpand: 'Tap a card to open it',
+  chooseCard: 'Choose',
+  details: 'Details',
+  previousCard: 'Previous card',
+  nextCard: 'Next card',
+  showCard: 'Show card',
   rowFee: 'Annual fee',
   rowWaiver: 'Fee waiver',
   rowReward: 'Rewards',
   rowHero: 'Stand-out',
   detailNeeds: 'What it asks for',
-  detailBack: 'Back to the three',
+  detailBack: 'All three cards',
   consentTitle: 'Before we hand you over',
   consentAgree: 'I agree',
-  valueHint: 'Type it and press Enter, or just say it.',
+  consentHint: 'Or just say yes.',
+  valueHint: 'Say it, or type it and press Enter.',
   valueMasked: 'On screen as',
   valueSubmit: 'Continue',
   handoffTitle: 'Show this at the desk',
   restart: 'Start over',
-  languagePicker: 'Language Rohan speaks',
+  languagePicker: 'Language Tess speaks',
 };
 
 const HI: Strings = {
-  assistant: 'रोहन',
+  assistant: 'टेस',
   assistantRole: 'एआई सहायक',
   attractTitle: 'अपने लिए सही वैंटेज कार्ड चुनिए',
-  attractBody: 'चार सवाल, बोलकर। रोहन आपके लिए तीन कार्ड चुनेगा और डेस्क के लिए एक कोड देगा।',
-  attractCue: 'नमस्ते कहिए, या शुरू करें दबाइए',
-  attractBegin: 'शुरू करें',
-  ledgerTitle: 'रोहन के पास अब तक',
+  attractBody: 'चार सवाल, बोलकर। टेस आपके लिए तीन कार्ड चुनेगी और डेस्क के लिए एक कोड देगी।',
+  steps: ['चार छोटे सवालों के जवाब दीजिए', 'आपके लिए चुने तीन कार्ड देखिए', 'डेस्क के लिए कोड लीजिए'],
+  sayOrTap: 'जवाब बोलिए, या किसी एक पर टैप कीजिए',
+  swipeHint: 'किसी भी कार्ड के बारे में टेस से पूछिए, या स्वाइप कीजिए',
   confirmPrompt: 'क्या मैंने सही सुना?',
   confirmYes: 'हाँ, सही है',
   confirmHint: 'सही नहीं? बस फिर से बोलिए।',
@@ -172,23 +180,26 @@ const HI: Strings = {
   shortlistTitle: 'आपके लिए तीन कार्ड',
   bestForYou: 'आपके लिए सर्वोत्तम',
   likelyEligible: 'संभावित रूप से पात्र',
-  compareAll: 'तीनों की तुलना करें',
-  chooseCard: 'यह कार्ड चुनें',
-  tapToExpand: 'खोलने के लिए कार्ड पर टैप कीजिए',
+  chooseCard: 'चुनें',
+  details: 'विवरण',
+  previousCard: 'पिछला कार्ड',
+  nextCard: 'अगला कार्ड',
+  showCard: 'कार्ड दिखाएँ',
   rowFee: 'वार्षिक शुल्क',
   rowWaiver: 'शुल्क माफी',
   rowReward: 'रिवॉर्ड',
   rowHero: 'खास बात',
   detailNeeds: 'क्या चाहिए',
-  detailBack: 'तीनों पर वापस',
+  detailBack: 'तीनों कार्ड',
   consentTitle: 'आगे बढ़ने से पहले',
   consentAgree: 'मैं सहमत हूँ',
-  valueHint: 'टाइप करके एंटर दबाइए, या बोलिए।',
+  consentHint: 'या बस हाँ कहिए।',
+  valueHint: 'बोलिए, या टाइप करके एंटर दबाइए।',
   valueMasked: 'स्क्रीन पर',
   valueSubmit: 'आगे बढ़ें',
   handoffTitle: 'डेस्क पर यह दिखाइए',
   restart: 'फिर से शुरू करें',
-  languagePicker: 'रोहन किस भाषा में बात करे',
+  languagePicker: 'टेस किस भाषा में बात करे',
 };
 
 export function strings(language: Language): Strings {
@@ -236,12 +247,12 @@ export function fieldLabel(field: string, language: Language): string {
 }
 
 /**
- * The language picker in the brand bar — a native `<select>`, on purpose. It is
+ * The language picker in the header — a native `<select>`, on purpose. It is
  * the one control on the totem with twenty-three options, and the platform's own
  * picker is what a phone, a touchscreen, a keyboard and a screen reader already
  * know how to drive. A custom list would have to earn every one of those back.
  *
- * It follows Rohan as well as leading him: when he switches because he heard
+ * It follows Tess as well as leading her: when she switches because she heard
  * the customer speak Tamil, `value` moves to Tamil and the picker shows it. Picking
  * English is the way back from a switch the customer did not want — the model
  * decided it from what it heard, and a hearing can be wrong.
@@ -274,28 +285,25 @@ export function LanguageSelect({
       <style>{`
         .kiosk-lang {
           appearance: none;
-          min-height: 48px;
-          padding: 0 40px 0 18px;
-          border-radius: 999px;
-          border: 1px solid rgba(251, 247, 242, 0.28);
+          min-height: 44px;
+          max-width: 150px;
+          padding: 0 36px 0 16px;
+          border-radius: ${SIZE.pill}px;
+          border: 1px solid ${COLOR.rule};
           /* The chevron, drawn inline: one image, no icon font to load. */
-          background: rgba(251, 247, 242, 0.08)
-            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23FBF7F2' stroke-width='2'/%3E%3C/svg%3E")
-            no-repeat right 16px center;
-          color: ${COLOR.paper};
+          background: ${COLOR.surface}
+            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%230F3B2E' stroke-width='2'/%3E%3C/svg%3E")
+            no-repeat right 14px center;
+          color: ${COLOR.brand};
           font: inherit;
-          font-size: 16px;
-          font-weight: 700;
+          font-size: 15px;
+          font-weight: 600;
+          text-overflow: ellipsis;
           cursor: pointer;
         }
-        /* Amber here: this picker sits on the umber bar, where the paper ring would vanish. */
-        .kiosk-lang:focus-visible { outline: 3px solid ${FOCUS.onDark}; outline-offset: 3px; }
-        /* The open list is drawn by the platform and inherits the bar's dark fill on
-           some browsers; set it back to paper so every option is readable. */
-        .kiosk-lang option { background: ${COLOR.paper}; color: ${COLOR.ink}; }
-        @media (max-width: 600px) {
-          .kiosk-lang { min-height: ${SIZE.touch - 16}px; font-size: 15px; }
-        }
+        .kiosk-lang:hover { border-color: ${COLOR.brand}; }
+        .kiosk-lang:focus-visible { outline: 3px solid ${FOCUS.ring}; outline-offset: 2px; }
+        .kiosk-lang option { background: ${COLOR.surface}; color: ${COLOR.ink}; }
       `}</style>
     </>
   );
