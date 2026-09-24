@@ -198,8 +198,9 @@ def _payloads(rig: DemoRig, action: str) -> list[dict[str, Any]]:
 
 def _discovery_script() -> dict[str, Any]:
     """The four questions and the four answers, as fourteen-turn pacing has them:
-    one tool to record the last answer, one to put the next question up, and one
-    short line that folds the acknowledgement and the question into one breath."""
+    one tool to record the answer — which puts the next question up by itself —
+    and one short line that folds the acknowledgement and the question into one
+    breath."""
     return {
         "Hello there.": [
             call("ask_profile", ask={"field": "employment", "question": "What do you do?"}),
@@ -207,17 +208,14 @@ def _discovery_script() -> dict[str, Any]:
         ],
         "I'm salaried.": [
             call("capture_value", heard={"field": "employment", "value": "salaried"}),
-            call("ask_profile", ask={"field": "income_band", "question": "What do you earn?"}),
             reply("Got it. And roughly what comes in every month?"),
         ],
         "About forty thousand a month.": [
             call("capture_value", heard={"field": "income_band", "value": "25k_60k"}),
-            call("ask_profile", ask={"field": "existing_cards", "question": "Any cards?"}),
             reply("Thank you. Do you already hold a credit card?"),
         ],
         "Just the one.": [
             call("capture_value", heard={"field": "existing_cards", "value": "one"}),
-            call("ask_profile", ask={"field": "spend_category", "question": "Where do you spend?"}),
             reply("Right. And where does most of your spending go?"),
         ],
         "Mostly fuel, I drive a lot.": [

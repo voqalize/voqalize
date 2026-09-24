@@ -138,15 +138,15 @@ function TessStyles() {
       }
       .kiosk-tess-name { font-size: 16px; font-weight: 600; color: ${COLOR.brand}; }
 
-      .kiosk-tess-captions { display: flex; justify-content: center; width: 100%; }
+      .kiosk-tess-captions { display: flex; width: 100%; }
       .kiosk-tess-captions > :not(style) {
         max-width: 100%;
         padding: 0;
         background: transparent !important;
-        color: ${COLOR.ink} !important;
-        font-size: 17px;
+        color: ${COLOR.muted} !important;
+        font-size: 16px;
         line-height: 1.45;
-        text-align: center;
+        text-align: left;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;

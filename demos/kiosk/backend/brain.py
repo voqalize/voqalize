@@ -44,6 +44,7 @@ Four things carry this demo:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from typing import Any, Literal, cast, get_args
@@ -63,6 +64,7 @@ from voqalize.sdk import (
     Session,
     Speech,
     UserIdle,
+    UserMessage,
 )
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
@@ -81,6 +83,7 @@ from .cards import (
 )
 from .eligibility import Assessment, Shortlist, assess, shortlist
 from .prompts import GREETING, SYSTEM_INSTRUCTION
+from .script_english import reads_as_english
 from .values import (
     allowed_values,
     display_form,
@@ -184,7 +187,15 @@ _SPEECH: dict[LanguageName, _Speech] = {
 assert set(get_args(LanguageName)) == set(_SPEECH), "LanguageName and _SPEECH disagree"
 
 
-def _config(language_name: LanguageName) -> Config:
+#: How long the recognizer waits through a pause, on the 0-to-10 scale. Quick for
+#: the four questions, which are answered in a word or two; patient while a
+#: mobile number or PAN is being dictated, because people read those out in groups
+#: and a partial one is rejected outright rather than read back.
+_PATIENCE_QUICK = 3
+_PATIENCE_DICTATION = 8
+
+
+def _config(language_name: LanguageName, patience: int = _PATIENCE_QUICK) -> Config:
     """Both legs and the idle clock, in one request.
 
     The two legs always move together: naming a language on one and not the other
@@ -194,12 +205,9 @@ def _config(language_name: LanguageName) -> Config:
     """
     speech = _SPEECH[language_name]
     return Config(
-        # Above the demo-desk default: this kiosk asks a customer to read out a
-        # mobile number and a PAN, and people dictate those in groups with a
-        # pause between them. A low gate answers into the gap and takes half a
-        # PAN, which then has to be re-confirmed — the one thing this demo is
-        # built not to do.
-        stt=SttConfig(language=speech.heard, patience=8),
+        # The step's patience, carried by every switch so a language change never
+        # drops it back to the deployment's 7 (see ``_PATIENCE_QUICK``).
+        stt=SttConfig(language=speech.heard, patience=patience),
         tts=TtsConfig(voice=_VOICE, language=speech.spoken),
         idle=IdleConfig(timeout_ms=_IDLE_MS),
     )
@@ -567,6 +575,10 @@ class KioskBrain(GeminiBrain):
         super().__init__(client=client, system_instruction=SYSTEM_INSTRUCTION, model=model)
 
         self.language: LanguageName = "English"
+        #: The recognizer's patience right now; see ``_pace_for_the_screen``.
+        self._patience = _PATIENCE_QUICK
+        #: Patience changes in flight, held so none is collected before it lands.
+        self._pending: set[asyncio.Task[None]] = set()
 
         # What the customer has told us, field → stored value. Filled from both
         # directions: ``capture_value`` when they speak, ``apply_event`` when
@@ -618,7 +630,7 @@ class KioskBrain(GeminiBrain):
         # Guarded on the greeting table, not the language table: a session may only
         # open in a language there is a written opener for.
         self.language = chosen if chosen in GREETING else "English"
-        await session.configure(_config(self.language))
+        await session.configure(_config(self.language, self._patience))
         logger.info("kiosk: session start (language={})", self.language)
 
     async def greet(self, session: Session) -> str:
@@ -650,6 +662,24 @@ class KioskBrain(GeminiBrain):
                 )
             )
         return _silence()
+
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[Speech, None]:
+        """One spoken turn — with English caught before the model sees it.
+
+        In any other language the recognizer spells English in that language's
+        script, and the model, reading it, would answer in English about one time
+        in three without calling ``switch_language``: new words, old voice, old
+        recognizer. :func:`reads_as_english` decides it in Python instead, and
+        both legs move to English before the model runs, so its reply is spoken in
+        English and the customer's next sentence is heard in English.
+        """
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=msg.text)]))
+        if self.language != "English" and reads_as_english(msg.text):
+            self._append_note(await self._switch_to("English", by="the kiosk, which heard English"))
+        async for speech in self.respond(session):
+            yield speech
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """One thing the customer just did on the totem.
@@ -975,6 +1005,26 @@ class KioskBrain(GeminiBrain):
         """
         self._mirror(action)
         self.session.dispatch(action)
+        self._pace_for_the_screen()
+
+    def _pace_for_the_screen(self) -> None:
+        """Wait longer through pauses while a mobile or PAN is being dictated.
+
+        ``_show`` is synchronous — the journey table is — so the change is sent
+        as its own request rather than awaited here. It touches patience alone,
+        never a language, so it cannot half-move the pair.
+        """
+        wanted = (
+            _PATIENCE_DICTATION if self.view["screen"] in ("value", "confirm") else _PATIENCE_QUICK
+        )
+        if wanted == self._patience:
+            return
+        self._patience = wanted
+        task = asyncio.get_running_loop().create_task(
+            self.session.configure(Config(stt=SttConfig(patience=wanted)))
+        )
+        self._pending.add(task)
+        task.add_done_callback(self._pending.discard)
 
     def _mirror(self, action: ScreenMove) -> None:
         """Apply one of Tess's own commands to her picture of the totem.
@@ -997,7 +1047,7 @@ class KioskBrain(GeminiBrain):
                 view["the question on screen"] = None
                 view["the value we are asking for"] = _spaced(action.field)
                 view["the value being confirmed"] = None
-            case ConfirmValue():
+            case ConfirmValue() if action.state == "confirming":
                 view["screen"] = "confirm"
                 view["the question on screen"] = None
                 view["the value we are asking for"] = None
@@ -1006,6 +1056,19 @@ class KioskBrain(GeminiBrain):
                     "shown as": action.masked,
                     "state": action.state,
                 }
+            case ConfirmValue() if view["screen"] == "confirm":
+                # A mobile or PAN read-back, now settled: the panel stays up and
+                # says so, until the next move takes it off the glass.
+                view["the value being confirmed"] = {
+                    "field": action.field,
+                    "shown as": action.masked,
+                    "state": action.state,
+                }
+            case ConfirmValue():
+                # A chip answer, settled as it was heard: the screen does not stop
+                # to ask. It used to paint a confirm screen here, and Tess,
+                # reading it, waited for a yes nobody was going to say.
+                view["the value being confirmed"] = None
             case ShowEligibility():
                 view["screen"] = "eligibility"
                 view["the question on screen"] = None
@@ -1094,16 +1157,48 @@ class KioskBrain(GeminiBrain):
         self.view["what they have told us"][heard.field] = value
         if not spoken_needed:
             self.confirmed.add(heard.field)
+        on_screen = self.view["the question on screen"] == _spaced(heard.field)
         logger.info("kiosk: capture_value {}={}", heard.field, masked_form(heard.field, value))
         self._show(_confirm_view(heard.field, value, state))
         if not spoken_needed:
-            return (
-                "Recorded. Acknowledge in two or three words. The next question, if there is one, "
-                "is asked through ask_profile — do not ask it here as well."
-            )
+            return self._after_an_answer(on_screen)
         return (
             f"On screen, masked. SAY: {spoken_form(heard.field, value)}. "
             "Read that back in one line, ask if it is right, then call confirm with their reply."
+        )
+
+    def _after_an_answer(self, on_screen: bool) -> str:
+        """Move the journey on from a spoken answer, in Python.
+
+        While the customer is still in the questions — on the welcome screen or
+        on one of the four — an answer puts the next unanswered question up at
+        once, the way a tap does. The model used to be told to acknowledge and
+        wait for ``ask_profile``, and in a live Kannada session it acknowledged
+        and then sat silent until the customer spoke again. That includes an
+        answer given before any question was up ("I'm Ravi, I'm salaried"), which
+        would otherwise leave the welcome screen standing and have the first quiet
+        moment ask them what they had just said.
+
+        The one answer that moves nothing is a correction: an earlier question
+        answered again while a different, unanswered one is on screen, or any
+        answer once the questions are behind them.
+        """
+        remaining: list[ProfileField] = [f for f in _PROFILE_ORDER if f not in self.answers]
+        shown = self.view["the question on screen"]
+        in_the_questions = self.view["screen"] in ("attract", "question")
+        another_is_up = not on_screen and shown in {_spaced(f) for f in remaining}
+        if not in_the_questions or another_is_up:
+            return "Recorded. Acknowledge in two or three words and carry on where they were."
+        if remaining:
+            self._show(self._question(remaining[0]))
+            return (
+                f"Recorded, and the {_spaced(remaining[0])} question is already up for them. "
+                "In this same turn: acknowledge in two or three words, then ask it once, in "
+                "one short line. Do not call ask_profile for it."
+            )
+        return (
+            "Recorded; that was the last of the four. In this same turn, call "
+            "check_eligibility and say the line it returns."
         )
 
     async def confirm(self, check: ConfirmCheck) -> str:
@@ -1260,7 +1355,7 @@ class KioskBrain(GeminiBrain):
         try:
             # One request moves both legs, so the kiosk is never listening in one
             # language and speaking in another. All-or-nothing on refusal.
-            await self.session.configure(_config(name))
+            await self.session.configure(_config(name, self._patience))
         except RequestRejected as rejected:
             logger.warning("kiosk: language {} rejected — {}", name, rejected)
             return (
