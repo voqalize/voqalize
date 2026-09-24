@@ -4,8 +4,11 @@
 // Every field of an action is present on the wire, `null` included, so nothing
 // there is optional and no runtime validation is needed to narrow on `command`.
 
-/** Back to the attract loop: the totem as a passer-by finds it. */
-export type ShowAttract = Record<string, never>;
+/**
+ * Everything they answered is gone from the glass. The first question
+ * follows in the same breath; the call, and its language, stay as they are.
+ */
+export type StartedOver = Record<string, never>;
 
 /** One discovery question, with the closed set of answers beside it. */
 export interface AskProfile {
@@ -101,7 +104,11 @@ export interface LanguageChanged {
   screen_language: 'en' | 'hi';
 }
 
-/** They touched the attract screen to begin. */
+/**
+ * They skipped the name and asked for the first question. The call is
+ * already live, because pressing Start is what opened it; this is the one tap
+ * that moves the welcome screen on for a customer who would rather not talk.
+ */
 export type JourneyStarted = Record<string, never>;
 
 /** They tapped one of the answers on screen instead of saying it. */
@@ -155,8 +162,9 @@ export interface ValueEdited {
 }
 
 /**
- * They pressed Start over. The only way back to the attract loop — there is
- * no idle timeout and nothing resets itself.
+ * They pressed Start over. Their answers are cleared and the first question
+ * comes back; the call stays up. There is no idle timeout and nothing resets
+ * itself.
  */
 export type RestartPressed = Record<string, never>;
 
@@ -212,7 +220,7 @@ export interface ProfileOption {
 
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
-  | { command: 'show_attract'; payload: ShowAttract }
+  | { command: 'started_over'; payload: StartedOver }
   | { command: 'ask_profile'; payload: AskProfile }
   | { command: 'ask_value'; payload: AskValue }
   | { command: 'confirm_value'; payload: ConfirmValue }
@@ -226,7 +234,7 @@ export type UiAction =
 export type UiActionCommand = UiAction['command'];
 
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
-  'show_attract',
+  'started_over',
   'ask_profile',
   'ask_value',
   'confirm_value',

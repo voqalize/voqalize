@@ -3,14 +3,16 @@
  *
  * The call is stock pipecat: `PipecatAppBase` owns the WebRTC transport and the
  * mic, `connectRequest` (`src/config.ts`) is the one request that is ours, and
- * everything after connect is pipecat's own. Rohan drives the totem over the
+ * everything after connect is pipecat's own. Tess drives the totem over the
  * standard `ui-command` channel; the customer's taps leave over `ui-event`. Both
  * halves are typed in `actions.gen.ts` and replayed by the store.
  *
- * **The gate is mandatory and it comes first.** `PipecatAppBase` mounts with
- * `connectOnMount`, so it is not rendered at all until the visitor has read the
- * notice and joined — the microphone cannot open before that, by construction
- * rather than by a flag.
+ * **The gate is mandatory, it comes first, and it is the one way in.** Its
+ * button is Start: `PipecatAppBase` mounts with `connectOnMount`, so it is not
+ * rendered at all until the visitor has read the notice and pressed it — the
+ * microphone cannot open before that, by construction rather than by a flag —
+ * and Tess's greeting is the first thing that happens after it. Nothing behind
+ * the gate offers a second way to begin.
  *
  * Two things are held above `PipecatAppBase` on purpose, because it renders its
  * children bare while it builds the transport and wrapped in a provider once the
@@ -19,8 +21,8 @@
  * the screen language is the other. The store is above it for the same reason,
  * so a reconnect does not throw the conversation away.
  *
- * There is no idle timer and no auto-reset. Start over is the only way back to
- * the attract screen, and it is in the lower band on every screen.
+ * There is no idle timer and no auto-reset. Start over, in the header, clears
+ * the answers and puts the first question back; the call stays up.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -41,17 +43,17 @@ import {
 import { COLOR } from './brand';
 import { connectRequest, withRealHeaders } from './config';
 import { KioskTotem } from './KioskTotem';
-import { AvatarCredit, RohanCaptions, RohanPlate, RohanTile } from './RohanTile';
+import { TessCaptions, TessPlate, TessTile } from './TessTile';
 import { KioskProvider, useKiosk } from './store';
 import type { Language, LanguageName } from './language';
 
 /** Vantage's reading of the shared presence ring. */
 const PRESENCE: Partial<AmbientPresencePalette> = {
-  idle: COLOR.amber,
-  listening: COLOR.amber,
-  thinking: '#C25A18',
+  idle: COLOR.brand,
+  listening: COLOR.accent,
+  thinking: '#E0662A',
   speaking: COLOR.leaf,
-  offline: 'rgba(251, 247, 242, 0.22)',
+  offline: 'rgba(252, 250, 249, 0.22)',
 };
 
 /** What the page tells the brain about the call, before the call exists. */
@@ -68,7 +70,7 @@ export function KioskApp() {
 function Kiosk() {
   const [joined, setJoined] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  // The store owns the language, because Rohan changes it too: a switch he makes
+  // The store owns the language, because Tess changes it too: a switch she makes
   // mid-call arrives as an action, and the chip has to follow it.
   const {
     state: { language },
@@ -97,9 +99,9 @@ function Kiosk() {
       <DemoGate
         open={!joined}
         title="Vantage Bank card kiosk"
-        blurb="Stand at the totem and answer four questions out loud. Rohan ranks three Vantage cards for you and prints a code for the banker's desk."
-        joinLabel="Start the kiosk"
-        accent={COLOR.amber}
+        blurb="Press Start and talk to Tess. She asks four quick questions, ranks three Vantage cards for you, and gives you a code for the banker's desk."
+        joinLabel="Start"
+        accent={COLOR.brand}
         agreed={agreed}
         onAgreedChange={setAgreed}
         error={error}
@@ -116,13 +118,12 @@ function Kiosk() {
           onError={handleError}
         />
       ) : (
-        // No client to embody yet, so the band wears the plate and the credit
-        // line stays with the rig that needs it.
+        // No client to embody yet, so Tess's place wears the plate.
         <KioskTotem
           language={language}
           onLanguage={setLanguage}
-          rohan={<RohanPlate language={language} />}
-          credit={null}
+          live={false}
+          tess={<TessPlate language={language} />}
         />
       )}
     </>
@@ -177,7 +178,7 @@ function LiveKiosk({
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity('speaking'), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity('idle'), []));
 
-  // Screen ← Rohan.
+  // Screen ← Tess.
   useRTVIClientEvent(
     RTVIEvent.UICommand,
     useCallback(
@@ -217,9 +218,9 @@ function LiveKiosk({
     <KioskTotem
       language={language}
       onLanguage={onLanguage}
-      rohan={<RohanTile client={client ?? null} activity={activity} language={language} />}
-      credit={<AvatarCredit />}
-      captions={<RohanCaptions />}
+      live={isConnected}
+      tess={<TessTile client={client ?? null} activity={activity} language={language} />}
+      captions={<TessCaptions />}
     />
   );
 }

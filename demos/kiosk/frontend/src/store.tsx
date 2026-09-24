@@ -3,24 +3,24 @@
  *
  * Two directions, both typed, and they are not symmetrical.
  *
- * Rohan's half arrives as `UiAction`s over `ui-command` and is replayed by
+ * Tess's half arrives as `UiAction`s over `ui-command` and is replayed by
  * {@link applyAction} — an exhaustive switch that stops compiling the day the
  * brain declares one more action. That reducer is the *shared* mutation: it is
  * the only thing that decides what screen the totem is on.
  *
  * The customer's half leaves as `AppEvent`s over `ui-event`, one gesture at a
  * time, through {@link ByHand}. Every emit sits at the call site a person
- * actually reaches — never inside the reducer, which Rohan drives too. That is
- * why there is no echo suppression here: an action Rohan dispatched cannot
+ * actually reaches — never inside the reducer, which Tess drives too. That is
+ * why there is no echo suppression here: an action Tess dispatched cannot
  * produce an event claiming the customer tapped something.
  *
- * **A hand alone is enough.** There is a gesture for every step — begin, answer,
+ * **A hand alone is enough.** There is a gesture for every step — answer,
  * acknowledge, open, close, choose, agree, type, restart — so a customer who
  * never says a word still reaches the QR. The screen still moves only because
  * the brain answered the event with an action: one source of truth, silent.
  *
- * The screen is never pushed back wholesale. Rohan knows what he dispatched, and
- * the events tell him the one thing he cannot know: that a hand moved first.
+ * The screen is never pushed back wholesale. Tess knows what she dispatched, and
+ * the events tell her the one thing she cannot know: that a hand moved first.
  */
 
 import {
@@ -66,20 +66,14 @@ export interface KioskState {
   /** The value being asked for by typing, and the field it fills. */
   entry: AskValue | null;
   /**
-   * The chip the customer just tapped, before Rohan has heard it. Purely an
-   * echo: it keeps the pressed chip lit for the second it takes him to answer.
+   * The chip the customer just tapped, before Tess has heard it. Purely an
+   * echo: it keeps the pressed chip lit for the second it takes her to answer.
    */
   picked: Record<string, string>;
   /** The value being checked back, while it is being checked. */
   checking: ConfirmValue | null;
   /** Settled values, in the order they settled. */
   ledger: ConfirmValue[];
-  /**
-   * Whether the customer asked to see all three cards' terms at once. It is read
-   * by the stage (which unfolds the rows) and written by the lower band's
-   * button, so it cannot live in either one.
-   */
-  comparing: boolean;
   eligibility: ShowEligibility | null;
   shortlist: ShowShortlist | null;
   detailCardId: string | null;
@@ -101,7 +95,6 @@ const INITIAL: KioskState = {
   picked: {},
   checking: null,
   ledger: [],
-  comparing: false,
   eligibility: null,
   shortlist: null,
   detailCardId: null,
@@ -121,7 +114,7 @@ function settle(ledger: readonly ConfirmValue[], value: ConfirmValue): ConfirmVa
 }
 
 /**
- * Rohan's half. Exhaustive over the action union — the default arm is a
+ * Tess's half. Exhaustive over the action union — the default arm is a
  * compile-time assertion, not a runtime fallback.
  *
  * `confirm_value` deliberately does not move the screen: a mobile number gets
@@ -130,9 +123,10 @@ function settle(ledger: readonly ConfirmValue[], value: ConfirmValue): ConfirmVa
  */
 function applyAction(state: KioskState, action: UiAction): KioskState {
   switch (action.command) {
-    case 'show_attract':
+    case 'started_over':
       // Start over forgets everything but the language — as the brain's own
-      // reset does, so the chip and Rohan's voice cannot come apart here.
+      // reset does, so the picker and Tess's voice cannot come apart here. The
+      // first question arrives right behind it.
       return { ...INITIAL, language: state.language, conversation: state.conversation };
     case 'ask_profile':
       return { ...state, screen: 'discovery', question: action.payload, checking: null };
@@ -159,7 +153,6 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
         screen: 'shortlist',
         shortlist: action.payload,
         detailCardId: null,
-        comparing: false,
       };
     case 'open_card_detail':
       return { ...state, screen: 'detail', detailCardId: action.payload.card_id };
@@ -179,10 +172,10 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
 }
 
 /**
- * The two things a hand does that no action of Rohan's covers: light the chip it
- * just pressed while he is still hearing about it, and unfold all three cards.
+ * The two things a hand does that no action of Tess's covers: light the chip it
+ * just pressed while she is still hearing about it, and move the language.
  *
- * Nothing that *moves the screen* is in here. Every other gesture — begin,
+ * Nothing that *moves the screen* is in here. Every other gesture —
  * answer, acknowledge, open, close, choose, agree, type, restart — is answered
  * by an action, and an action carries the whole row, so writing the same
  * transition here as well would be the transition table written twice, in two
@@ -190,18 +183,15 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
  */
 type HandMutation =
   | { kind: 'pick'; field: string; value: string }
-  | { kind: 'compare' }
   | { kind: 'language'; language: LanguageName };
 
 function applyHand(state: KioskState, hand: HandMutation): KioskState {
   switch (hand.kind) {
     case 'pick':
       return { ...state, picked: { ...state.picked, [hand.field]: hand.value } };
-    case 'compare':
-      return { ...state, comparing: true };
     case 'language':
-      // Shown at once rather than after Rohan answers: the chip is the one
-      // control that must work before there is a call. His `language_changed`
+      // Shown at once rather than after Tess answers: the chip is the one
+      // control that must work before there is a call. Her `language_changed`
       // arrives with the same value and re-renders idempotently.
       return { ...state, conversation: hand.language, language: screenLanguageFor(hand.language) };
   }
@@ -216,12 +206,10 @@ function reduce(state: KioskState, mutation: Mutation): KioskState {
 }
 
 /**
- * The customer's own hand. Each one does what it says and then tells Rohan it
+ * The customer's own hand. Each one does what it says and then tells Tess it
  * happened — one gesture, one event, at the site a finger actually lands.
  */
 export interface ByHand {
-  /** Begin, without waiting for Rohan. He has already greeted; this is the answer. */
-  begin: () => void;
   /** A chip under the question. A field already heard is a correction, not an answer. */
   answer: (field: string, value: string) => void;
   /** A typed value. A field already heard makes it a correction, not an entry. */
@@ -230,10 +218,8 @@ export interface ByHand {
   confirm: (field: string) => void;
   /** Read the verdict, ask for the cards. */
   acknowledgeEligibility: () => void;
-  /** A shortlist row opened. Rohan repaints with `open_card_detail`. */
+  /** A shortlist row opened. Tess repaints with `open_card_detail`. */
   tapCard: (cardId: string) => void;
-  /** The comparison rows, opened across all three. */
-  compare: () => void;
   /** Out of one card's detail and back to the three. */
   closeDetail: () => void;
   /** The card they want, chosen off the shortlist. */
@@ -242,7 +228,7 @@ export interface ByHand {
   consent: (cardId: string) => void;
   /** Start over. */
   restart: () => void;
-  /** The language picker. Moves Rohan's voice as well as the screen's copy. */
+  /** The language picker. Moves Tess's voice as well as the screen's copy. */
   pickLanguage: (language: LanguageName) => void;
 }
 
@@ -281,7 +267,6 @@ export function KioskProvider({ children }: { children: ReactNode }) {
 
   const byHand: ByHand = useMemo(
     () => ({
-      begin: () => emit({ event: 'journey_started', payload: {} }),
       answer: (field, value) => {
         const current = stateRef.current;
         const heardBefore =
@@ -295,7 +280,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
       },
       enterValue: (field, value) => {
         const current = stateRef.current;
-        // Same test as a chip: typing over a value Rohan is checking back is the
+        // Same test as a chip: typing over a value Tess is checking back is the
         // correction and the rejection in one gesture.
         const heardBefore =
           current.checking?.field === field || current.ledger.some((e) => e.field === field);
@@ -308,10 +293,6 @@ export function KioskProvider({ children }: { children: ReactNode }) {
       confirm: (field) => emit({ event: 'value_confirmed', payload: { field } }),
       acknowledgeEligibility: () => emit({ event: 'eligibility_acknowledged', payload: {} }),
       tapCard: (cardId) => emit({ event: 'card_tapped', payload: { card_id: cardId } }),
-      compare: () => {
-        dispatch({ from: 'hand', hand: { kind: 'compare' } });
-        emit({ event: 'card_compared', payload: {} });
-      },
       closeDetail: () => emit({ event: 'card_detail_closed', payload: {} }),
       chooseCard: (cardId) => emit({ event: 'card_chosen', payload: { card_id: cardId } }),
       consent: (cardId) => emit({ event: 'consent_given', payload: { card_id: cardId } }),

@@ -2,7 +2,7 @@
  * Branch-kiosk demo entrypoint — Vantage Bank's credit-card totem.
  *
  * A walk-in customer answers four questions out loud, sees three cards ranked
- * for them, confirms by voice, and gets a code for the banker's desk. "Rohan",
+ * for them, confirms by voice, and gets a code for the banker's desk. "Tess",
  * the hosted `kiosk` brain, drives the screen over the `ui-command` / `ui-event`
  * RTVI channels.
  *

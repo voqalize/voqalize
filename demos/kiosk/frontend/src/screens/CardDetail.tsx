@@ -10,63 +10,68 @@
  * A card id that is not in the shortlist renders nothing rather than throwing. A
  * page and a brain ship separately, and a branch is a bad place to find that out.
  *
- * Rohan reads none of it aloud. He says which card and why; the totem carries
+ * Tess reads none of it aloud. She says which card and why; the tray carries
  * the fee, the cap and the threshold.
  */
 
-import { COLOR } from '../brand';
 import type { ShowShortlist } from '../actions.gen';
 import { strings, type Language } from '../language';
-import { FactRow, StageTitle, Tag, TouchButton } from '../ui';
+import { CardFace, FactList, Tag, TouchButton } from '../ui';
 
-export function CardDetailStage({
+export function CardDetailTray({
   language,
   cardId,
   shortlist,
+  onBack,
+  onChoose,
 }: {
   language: Language;
   cardId: string | null;
   shortlist: ShowShortlist | null;
+  onBack: () => void;
+  onChoose: (cardId: string) => void;
 }) {
   const copy = strings(language);
   const card = shortlist?.cards.find((c) => c.id === cardId);
   if (!card) return null;
+  const recommended = card.id === shortlist?.recommended_id;
   return (
     <div className="kiosk-detail">
-      <StageTitle>{card.name}</StageTitle>
-      {card.eligible ? <Tag tone="leaf">{copy.likelyEligible}</Tag> : null}
-      <FactRow label={copy.rowFee} value={card.fee} />
-      <FactRow label={copy.rowWaiver} value={card.waiver} />
-      <FactRow label={copy.rowReward} value={card.reward} />
-      <FactRow label={copy.rowHero} value={card.perk} />
-      <FactRow label={copy.detailNeeds} value={card.requirement} />
-      <FactRow label={copy.lineLabel} value={card.line_estimate} />
-      <p className="kiosk-detail-note">{copy.bankerConfirms}</p>
+      <div className="kiosk-slide-head">
+        <CardFace card={card} small />
+        <div className="kiosk-slide-title">
+          <span className="kiosk-slide-name">{card.name}</span>
+          <span className="kiosk-slide-tags">
+            {recommended ? <Tag tone="accent">{copy.bestForYou}</Tag> : null}
+            {card.eligible ? <Tag tone="leaf">{copy.likelyEligible}</Tag> : null}
+          </span>
+        </div>
+      </div>
+      <FactList
+        rows={[
+          [copy.rowFee, card.fee],
+          [copy.rowWaiver, card.waiver],
+          [copy.rowReward, card.reward],
+          [copy.rowHero, card.perk],
+          [copy.detailNeeds, card.requirement],
+          [copy.lineLabel, card.line_estimate],
+        ]}
+      />
+      <div className="kiosk-row kiosk-detail-actions">
+        <TouchButton label={copy.detailBack} tone="quiet" onClick={onBack} />
+        <TouchButton label={copy.chooseCard} onClick={() => onChoose(card.id)} ariaLabel={`${copy.chooseCard}: ${card.name}`} />
+      </div>
+      <p className="kiosk-note">{copy.bankerConfirms}</p>
       <style>{`
-        .kiosk-detail { display: flex; flex-direction: column; align-items: stretch; }
-        .kiosk-detail .kiosk-tag { align-self: flex-start; margin-bottom: 10px; }
-        .kiosk-detail-note {
-          margin: 14px 0 0;
-          font-size: 17px;
-          line-height: 1.5;
-          color: ${COLOR.muted};
-        }
+        .kiosk-detail { display: grid; gap: 12px; }
+        .kiosk-detail .kiosk-slide-head { display: flex; align-items: center; gap: 12px; }
+        .kiosk-detail .kiosk-slide-title { display: grid; gap: 5px; min-width: 0; }
+        .kiosk-detail .kiosk-slide-name { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+        .kiosk-detail .kiosk-slide-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+        .kiosk-detail .kiosk-facts { grid-template-columns: 1fr 1fr; column-gap: 16px; }
+        .kiosk-detail-actions { margin-top: 4px; }
+        .kiosk-detail .kiosk-note { margin: 0; text-align: center; }
       `}</style>
     </div>
   );
-}
-
-/**
- * Out of the card and back to the three. `CardDetailClosed` says only that the
- * detail was left; the brain answers it by re-dispatching the shortlist it
- * already holds, with the same payload, so no row moves on the way back.
- */
-export function CardDetailControls({
-  language,
-  onBack,
-}: {
-  language: Language;
-  onBack: () => void;
-}) {
-  return <TouchButton label={strings(language).detailBack} onClick={onBack} />;
 }
