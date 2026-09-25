@@ -170,6 +170,7 @@ AvatarKey = Literal[
     "tess",
     "tushar",
     "tara",
+    "tanvi",
 ]
 
 #: The face the strip starts on (``DEFAULT_AVATAR`` in ``frontend/src/roster.ts``),
@@ -224,6 +225,16 @@ AVATARS: tuple[AvatarIdentity, ...] = (
         blurb="The first of the Blender characters, and the one the others were copied from.",
         voice=Voice.OMNIVOICE_GAURI,
     ),
+    AvatarIdentity(
+        key="tanvi",
+        name="Tanvi",
+        renderer="2.5-D",
+        blurb="The first character whose hair is its own layer, drawn over the body rather than painted into it.",
+        # A voice of her own rather than Tara's: two faces sharing one voice
+        # read as one person in two drawings, and a face heard in the wrong
+        # accent is noticed before anything the face does.
+        voice=Voice.OMNIVOICE_GAYATRI,
+    ),
 )
 
 AVATARS_BY_KEY: dict[str, AvatarIdentity] = {a.key: a for a in AVATARS}
@@ -256,7 +267,7 @@ FACTS ABOUT THE LIBRARY — answer from these, and say you are not sure if it is
 - The backend half is one pipecat frame processor. It sits right after text-to-speech, and from there it sends the state it infers and the mouth shapes for the audio about to play. Turning audio into mouth shapes is a little CPU work inside that pipeline, so there is no new service to run or pay for.
 - The browser half is one mount call, given the pipecat client you already connected with.
 - It works with any pipecat pipeline. Voqalize is one user of it, not the only one.
-- The avatars that ship are line-art faces, painted ones, and 2.5-D characters rendered with three.js — Tara, Tushar, Tanya and Tess. All of them are in the one npm package. This page's strip shows only the 2.5-D characters. Anyone can ship their own: an avatar is any module that exports createAvatar.
+- The avatars that ship are line-art faces and 2.5-D characters rendered with three.js — Tara, Tushar, Tanya, Tess and Tanvi. All of them are in the one npm package. This page's strip shows only the 2.5-D characters. Anyone can ship their own: an avatar is any module that exports createAvatar.
 - Tanya, the face this page opens on, is a 2.5-D character. Her code is MIT like the rest of the library; the character binary the browser loads is artwork, under CC-BY 4.0. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes.
 - HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They also sit right after text-to-speech, but they send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. This library sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
 

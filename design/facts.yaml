@@ -166,14 +166,17 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.5.0'
+    value: '0.6.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-09-21
+    verified: 2026-09-24
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.5.0 on 2026-09-21, for stt.patience: SttConfig gains the
+      Bumped to 0.6.0 on 2026-09-24, for the gautam and gayatri voices: Voice
+      gains OMNIVOICE_GAUTAM and OMNIVOICE_GAYATRI, appended so no value moves.
+      An added roster takes the minor under 1.0, as 0.4.0's did.
+      0.5.0 (2026-09-21) was stt.patience: SttConfig gains the
       field and frames.proto gains `optional uint32 patience = 2`. The surface
       only grows and the wire change is additive on both halves, so a brain on
       an older SDK sends no patience and is served exactly as before — under
@@ -184,15 +187,17 @@ facts:
       two are deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
-    value: '0.5.0'
+    value: '0.6.0'
     source: https://pypi.org/pypi/voqalize-agent-sdk/json
-    verified: 2026-09-21
+    verified: 2026-09-24
     reproduce: >-
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
-      Published 2026-09-21 by the `python-sdk-v0.5.0` tag, and level with
-      sdk.python.version.tree again. 0.5.0 puts stt.patience on the wire — a
+      Published 2026-09-24 by the `python-sdk-v0.6.0` tag, and level with
+      sdk.python.version.tree again. 0.6.0 puts the gautam and gayatri voices
+      on the wire — OMNIVOICE_GAUTAM and OMNIVOICE_GAYATRI on Voice, appended,
+      so a brain on 0.5.0 is understood unchanged. 0.5.0 put stt.patience on the wire — a
       bounded 0..10 scale on SttConfig, additive on both halves, so a brain on
       0.4.0 sends none and is served the calibration its deployment already
       runs. 0.4.0 put the kokoro voices on the wire — the KOKORO_* members of
@@ -228,17 +233,17 @@ facts:
             Finalize, RTVIMessage, RTVIType, RequestRejected, Session, SessionRejected,
             Speech, SpeechChunk, SpeechEnd, SpeechStart, UserIdle, UserMessage,
             WireError, configure_logging, run_session, serve, session_context]
-    source: https://pypi.org/pypi/voqalize-agent-sdk/0.5.0/json
-    verified: 2026-09-21
+    source: https://pypi.org/pypi/voqalize-agent-sdk/0.6.0/json
+    verified: 2026-09-24
     reproduce: >-
       uv venv /tmp/v -q --python 3.12
-      && VIRTUAL_ENV=/tmp/v uv pip install -q voqalize-agent-sdk==0.5.0
+      && VIRTUAL_ENV=/tmp/v uv pip install -q voqalize-agent-sdk==0.6.0
       && /tmp/v/bin/python -c "import voqalize.sdk as s;print(sorted(s.__all__))"
     note: >-
-      Read out of the installed 0.5.0 wheel on 2026-09-21, not out of the tree
+      Read out of the installed 0.6.0 wheel on 2026-09-24, not out of the tree
       and not out of the release notes: this fact exists to catch the case where
       what PyPI serves is not what this repo thinks it published. Unchanged by
-      0.5.0 — that release adds a field to SttConfig, which is not an export —
+      0.5.0 (a field on SttConfig) and 0.6.0 (members on Voice), neither an export —
       so it is still level with sdk.python.surface.tree, and expected to fall
       behind it again the moment an export lands on main.
 

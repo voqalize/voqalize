@@ -281,7 +281,7 @@ export const DOC_SECTIONS: DocSection[] = [
             [
               "How it looks",
               <>Photoreal video of a person.</>,
-              <>A drawn, painted or 2.5-D face, rendered in the browser.</>,
+              <>A drawn or 2.5-D face, rendered in the browser.</>,
             ],
           ]}
         />
@@ -541,8 +541,8 @@ await say({"type": "avatar", "cmd": "state", "state": None})`}</Code>
     body: (
       <>
         <p className="doc-lede">
-          The library ships SVG line drawings, painted Canvas2D faces and 2.5-D characters
-          rendered with three.js, all in one package. Each face has its own entry point, so you
+          The library ships SVG line drawings and 2.5-D characters rendered with
+          three.js, all in one package. Each face has its own entry point, so you
           load only the one you import. To switch faces, remount the avatar.
         </p>
         <p>
@@ -559,10 +559,7 @@ await say({"type": "avatar", "cmd": "state", "state": None})`}</Code>
         <Code lang="javascript">{`// line art: peep, wren, myna
 import { peep } from '@voqalize/avatar/faces/peep';
 
-// painted: arjun, meera, vikram, ishita, kabir, naina
-import { createAvatar } from '@voqalize/avatar/avatars/meera';
-
-// 2.5-D: tara, tushar, tanya, tess — these need \`three\` installed
+// 2.5-D: tara, tushar, tanya, tess, tanvi — these need \`three\` installed
 import { createAvatar } from '@voqalize/avatar/avatars/tara';`}</Code>
         <p>
           Each face has three layers. The mixer combines idle movement, gaze, gestures and the
@@ -630,7 +627,7 @@ createAvatar({ mount: el, client: pipecatClient, face: myFace });`}</Code>
           To draw with something other than SVG, pass <code>rig</code> instead of{" "}
           <code>face</code>. A rig is a function that returns <code>apply(frame)</code> and{" "}
           <code>destroy()</code>. It can draw with Canvas2D, WebGL, WebGPU, Rive (experimental)
-          or another renderer. The painted faces in this demo are Canvas2D rigs.
+          or another renderer.
         </p>
         <Code lang="javascript">{`createAvatar({
   mount: el,
@@ -668,8 +665,7 @@ createAvatar({ mount: el, client: pipecatClient, face: myFace });`}</Code>
         <p className="doc-lede">Read these before you install it.</p>
         <ul className="doc-limits">
           <li>
-            <strong>The faces are not photoreal.</strong> They are drawn, painted, or modelled in
-            2.5-D. For photoreal video, use a video avatar service.
+            <strong>The faces are not photoreal.</strong> They are drawn, or modelled in 2.5-D. For photoreal video, use a video avatar service.
           </li>
           <li>
             <strong>Mouth shapes are accurate only for English.</strong> The aligner’s acoustic

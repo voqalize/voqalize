@@ -130,7 +130,7 @@ LanguageName = Literal[
 
 #: Tanvi's voice, in every language. One person throughout — only the language
 #: moves, never the voice, so her face and her voice cannot come apart mid-call.
-_VOICE = Voice.OMNIVOICE_GAURI
+_VOICE = Voice.OMNIVOICE_GAYATRI
 
 
 @dataclass(frozen=True)

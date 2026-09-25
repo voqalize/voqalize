@@ -37,7 +37,7 @@ A voice id is `engine/name`, and the prefix picks the engine — there is no
 separate model field anywhere on the wire.
 
 - `omnivoice/*` — voice-cloning, Indian English and the Indic languages.
-  `gauri` is the female persona, `gaurav` the male one.
+  `gauri` and `gayatri` are the female personas, `gaurav` and `gautam` the male ones.
 - `kokoro/*` — English checkpoints. `ava` and `sarah` are American female,
   `noah` and `leo` American male, `emma` British female, `oliver` British male.
 

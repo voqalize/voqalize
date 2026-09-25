@@ -15,6 +15,19 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.6.0
+
+### Added
+
+- **Gautam and Gayatri, on the wire.** `Voice` gains `OMNIVOICE_GAUTAM` (male)
+  and `OMNIVOICE_GAYATRI` (female), a second pair of omnivoice personas beside
+  Gaurav and Gauri, speaking the same Indian English and Indic languages. The
+  speech tier already serves both; the catalog lists which languages each one
+  speaks.
+
+  Additive on the wire: new enum values only, so a brain built against an older
+  SDK is understood unchanged.
+
 ## 0.5.0
 
 ### Added

@@ -365,6 +365,12 @@ enum Voice {
 
   // British male.
   VOICE_KOKORO_OLIVER = 8 [(voice_id) = "kokoro/oliver"];
+
+  // Male, Indian English and the Indic languages.
+  VOICE_OMNIVOICE_GAUTAM = 9 [(voice_id) = "omnivoice/gautam"];
+
+  // Female, Indian English and the Indic languages.
+  VOICE_OMNIVOICE_GAYATRI = 10 [(voice_id) = "omnivoice/gayatri"];
 }
 
 // English plus the 22 Indic languages the speech tier serves.

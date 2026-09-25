@@ -67,7 +67,7 @@ enumeration of record is `RTVIType` in
 
 ## Your server has no pipecat in it
 
-`pip install voqalize-agent-sdk==0.5.0` installs websockets, protobuf, pydantic and the
+`pip install voqalize-agent-sdk==0.6.0` installs websockets, protobuf, pydantic and the
 JWT library, and nothing else. A brain is callbacks over a socket. Pipecat runs
 on our side of that socket, where the audio is.
 

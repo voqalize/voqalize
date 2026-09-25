@@ -92,6 +92,8 @@ surface as we learn, not in advance.
 | `Voice.KOKORO_SARAH` | `kokoro/sarah` | Sarah (American female) | `en` |
 | `Voice.OMNIVOICE_GAURAV` | `omnivoice/gaurav` | Gaurav (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
 | `Voice.OMNIVOICE_GAURI` | `omnivoice/gauri` | Gauri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
+| `Voice.OMNIVOICE_GAUTAM` | `omnivoice/gautam` | Gautam (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
+| `Voice.OMNIVOICE_GAYATRI` | `omnivoice/gayatri` | Gayatri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
 <!-- voices:end -->
 
 **That table is not written by hand.** Voqalize's speech tier publishes the
