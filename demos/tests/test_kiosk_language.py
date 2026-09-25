@@ -5,11 +5,11 @@ Two halves, because two different things can go wrong.
 * **The mechanics — always run, no model.** A scripted model makes the calls,
   and these assert what the brain does with them: both legs move together in
   every direction and back again, a spoken answer puts the next question up by
-  itself instead of leaving Tess to wait, and a settled answer never paints a
+  itself instead of leaving Tanvi to wait, and a settled answer never paints a
   confirm screen. These are the parts a live Kannada session got wrong: the
-  customer answered, Tess acknowledged, and nothing moved until they spoke again.
+  customer answered, Tanvi acknowledged, and nothing moved until they spoke again.
 
-* **The judgement — opt-in, real model.** Whether Tess *notices* a language
+* **The judgement — opt-in, real model.** Whether Tanvi *notices* a language
   change is a property of the prompt and the model, and only a model can test
   it. Each scenario hands the real brain a turn exactly as the recognizer writes
   it — English spoken to the Kannada recognizer arrives as English words spelled
@@ -150,7 +150,7 @@ async def test_an_answer_before_any_question_moves_on_and_is_not_asked_again() -
 
 
 async def test_a_confirmed_mobile_stays_on_the_glass_as_confirmed() -> None:
-    """A read-back that settles keeps its panel, marked confirmed, so Tess reading
+    """A read-back that settles keeps its panel, marked confirmed, so Tanvi reading
     the screen sees what the customer sees — not a confirm screen with nothing on
     it."""
     llm = ScriptedGemini(
@@ -192,7 +192,7 @@ async def test_the_picker_and_the_voice_can_hand_the_language_back_and_forth() -
 
 async def test_a_spoken_answer_in_kannada_puts_the_next_question_up_itself() -> None:
     """The bug from the Kannada session: an answer was recorded, the screen asked
-    for a confirmation nobody needed, and Tess waited. Now the answer settles, the
+    for a confirmation nobody needed, and Tanvi waited. Now the answer settles, the
     next question is on the glass in the same breath, and the tool tells her to
     ask it in this turn — so the turn cannot end in silence."""
     llm = ScriptedGemini(
@@ -227,7 +227,7 @@ async def test_a_spoken_answer_in_kannada_puts_the_next_question_up_itself() -> 
 
 async def test_the_fourth_answer_goes_straight_to_the_eligibility_check() -> None:
     """After the last of the four there is no next question to put up, so the
-    tool hands Tess the next step by name instead of leaving the turn open."""
+    tool hands Tanvi the next step by name instead of leaving the turn open."""
     llm = ScriptedGemini(
         {
             "Start.": [call("ask_profile", ask={"field": "employment", "question": "?"})],
@@ -449,7 +449,7 @@ async def test_live_mangled_kannada_moves_english_to_kannada() -> None:
 async def test_live_a_kannada_answer_is_captured_and_the_next_question_asked() -> None:
     """The second report: in Kannada the right option was chosen and then nothing
     happened. The answer must be recorded, the next question must be on the glass,
-    and Tess must have said something in Kannada — not gone quiet."""
+    and Tanvi must have said something in Kannada — not gone quiet."""
     async with demo("kiosk", _client()) as rig:
         await _live(rig, start_in="Kannada")
         before = len(_spoken(rig))
@@ -458,7 +458,7 @@ async def test_live_a_kannada_answer_is_captured_and_the_next_question_asked() -
         assert rig.brain.answers.get("employment") == "salaried", rig.brain.answers
         assert _asked(rig)[-1] == "income_band", _asked(rig)
         said = " ".join(_spoken(rig)[before:])
-        assert said.strip(), "Tess went quiet after the answer"
+        assert said.strip(), "Tanvi went quiet after the answer"
         assert _KANNADA.search(said), f"answered outside Kannada: {said!r}"
         assert rig.brain.language == "Kannada"
 
@@ -475,14 +475,14 @@ async def test_live_a_borrowed_word_is_not_a_switch() -> None:
 
 @live
 async def test_live_an_unclear_turn_asks_in_both_languages_instead_of_guessing() -> None:
-    """Half Hindi, half English, too short to be sure: Tess neither switches nor
+    """Half Hindi, half English, too short to be sure: Tanvi neither switches nor
     goes quiet, and asks — in both languages — whether to change."""
     async with demo("kiosk", _client()) as rig:
         await _live(rig)
         before = len(_spoken(rig))
         await rig.driver.user_says("Haan theek hai, okay.", timeout=_TURN)
         said = " ".join(_spoken(rig)[before:])
-        assert said.strip(), "Tess went quiet"
+        assert said.strip(), "Tanvi went quiet"
         if rig.brain.language == "English":
             assert _DEVANAGARI.search(said) and re.search(r"[A-Za-z]{3}", said), (
                 f"stayed in English without offering Hindi: {said!r}"
