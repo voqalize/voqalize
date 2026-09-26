@@ -166,14 +166,18 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.6.0'
+    value: '0.7.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-09-24
+    verified: 2026-09-26
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.6.0 on 2026-09-24, for the gautam and gayatri voices: Voice
+      Bumped to 0.7.0 on 2026-09-26 for the speak-first tool loop: GeminiBrain
+      drops automatic function calling, a tool's result waits for the next
+      request unless the tool is marked @needs_result_now, and there is no
+      opt-out. Breaking in the package API, not on the wire — a changed default
+      takes the minor under 1.0. 0.6.0 was bumped on 2026-09-24, for the gautam and gayatri voices: Voice
       gains OMNIVOICE_GAUTAM and OMNIVOICE_GAYATRI, appended so no value moves.
       An added roster takes the minor under 1.0, as 0.4.0's did.
       0.5.0 (2026-09-21) was stt.patience: SttConfig gains the

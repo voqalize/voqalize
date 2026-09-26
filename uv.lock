@@ -882,7 +882,7 @@ wheels = [
 
 [[package]]
 name = "voqalize-agent-sdk"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "sdk/python" }
 dependencies = [
     { name = "cryptography" },
