@@ -26,13 +26,19 @@ from typing import Any
 
 import pytest
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import Reply, ScriptedGemini, reply, reply_and_call
+
+from voqalize.sdk.gemini import _needs_result_now
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.travel.brain_gemini import _GREETING, _LINES  # noqa: E402
+from voqalize_demos._loaded.travel.brain_gemini import (  # noqa: E402
+    _GREETING,
+    _LINES,
+    TravelBrain,
+)
 
 VOICE = "kokoro/sarah"
 LANGUAGE = "en"
@@ -65,7 +71,6 @@ def _llm() -> ScriptedGemini:
                         }
                     },
                 ),
-                reply("It's open — who's travelling and what are the flight legs?"),
             ],
             "Search flights for the outbound leg.": [
                 reply_and_call(
@@ -89,7 +94,6 @@ def _llm() -> ScriptedGemini:
                         ],
                     },
                 ),
-                reply("Flights for the outbound leg are up — anything catch your eye?"),
             ],
             "What's on screen right now?": reply(
                 "You've got the Poddar Vietnam trip open, twelve to eighteen August."
@@ -109,18 +113,30 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
 
 
+def test_only_the_screen_read_is_marked() -> None:
+    """The mark, pinned tool by tool, so a change to it is a decision someone makes.
+
+    Held: ``read_screen``, the one tool that reads what the model needs to answer
+    from — what the agent changed by hand. Every other tool acts on the screen and
+    its result only confirms or refuses, so the model says its line with the call
+    and reads the result with the agent's next words."""
+    brain = TravelBrain(client=ScriptedGemini({}))  # pyright: ignore[reportArgumentType]
+    held = {tool.__name__ for tool in brain.tools if _needs_result_now(tool)}
+    assert held == {"read_screen"}
+
+
 async def test_creating_a_trip_and_searching_flights_drive_the_screen() -> None:
-    """Two turns, each a tool round-trip, with the exact ``ui-command`` payloads
-    the /travel UI renders — and a leg's flight options each carry a stable id
-    even though the script never gave one."""
+    """Two turns, each a short line and a call in one response, with the exact
+    ``ui-command`` payloads the /travel UI renders — and a leg's flight options
+    each carry a stable id even though the script never gave one."""
     async with demo("travel", _llm()) as rig:
         await rig.driver.start_session()
 
         t1 = await rig.driver.user_says("Let's start a new trip for the Poddar family to Vietnam.")
-        check_turn(rig, t1, units=2)
+        check_turn(rig, t1, units=1)
 
         t2 = await rig.driver.user_says("Search flights for the outbound leg.")
-        check_turn(rig, t2, units=2)
+        check_turn(rig, t2, units=1)
 
         assert rig.actions() == ["create_itinerary", "search_flights"], rig.actions()
 
@@ -175,10 +191,10 @@ def _context_text(llm: ScriptedGemini) -> str:
 def _tool_results(llm: ScriptedGemini) -> str:
     """Every tool result the brain put in front of the model, as one blob.
 
-    Under automatic function calling a whole turn is one request, so the results of
-    the calls it made are first carried by the request that *follows* it —
-    which is why the assertions below are one turn behind the act they are about.
-    google-genai wraps a tool's return as ``{"result": ...}``."""
+    A turn is one request, so the results of the calls it made are first carried
+    by the request that *follows* it — which is why the assertions below are one
+    turn behind the act they are about. google-genai wraps a tool's return as
+    ``{"result": ...}``."""
     out: list[str] = []
     for contents in llm.captured_contents:
         for content in contents:
@@ -230,7 +246,8 @@ async def test_only_a_gesture_costs_a_re_read_and_tess_own_dispatch_never_does()
 
     Prompt discipline is a request; a model that skips the read is selecting an
     option id from a search that is no longer the one on screen. So the tool refuses
-    instead of acting, and the refusal is retriable: read, then act.
+    instead of acting, and the refusal is retriable: read, then act — both in
+    one response, the read first, since each call runs as it arrives.
 
     The half that used to need a flag is now free. The browser echoed every one of
     Tess's own commands back as a snapshot indistinguishable from the agent moving
@@ -238,33 +255,36 @@ async def test_only_a_gesture_costs_a_re_read_and_tess_own_dispatch_never_does()
     itself a hop. Emits now live at the agent's call site, so a dispatch is simply
     not an event — ``show_flights`` below costs the ``select_flight`` after it
     nothing, and the ``overview_viewed`` after *that* costs exactly one read."""
+    rex = {"action": {"city": "Ho Chi Minh City", "option_id": "h1"}}
     llm = ScriptedGemini(
         {
-            "What's on screen?": [call("read_screen"), reply("The Poddar Vietnam trip.")],
-            "Bring the outbound options back up.": [
-                reply_and_call("Sure.", "show_flights", action={"leg_id": "blr-out"}),
-                reply("They're up."),
+            # `read_screen` is marked: the model is asked again with the screen.
+            "What's on screen?": [
+                reply_and_call("Taking a look.", "read_screen"),
+                reply("The Poddar Vietnam trip."),
             ],
-            "Take the IndiGo one.": [
-                reply_and_call(
-                    "Locking that in.",
-                    "select_flight",
-                    action={"leg_id": "blr-out", "option_id": "f1"},
-                ),
-                reply("IndiGo is in."),
-            ],
-            "And the Rex for the hotel.": [
-                # Stale — the agent has moved the screen since. Then the retry.
-                call("select_hotel", action={"city": "Ho Chi Minh City", "option_id": "h1"}),
-                call("read_screen"),
-                reply_and_call(
-                    "Done.",
-                    "select_hotel",
-                    action={"city": "Ho Chi Minh City", "option_id": "h1"},
+            "Bring the outbound options back up.": reply_and_call(
+                "Here they are.", "show_flights", action={"leg_id": "blr-out"}
+            ),
+            "Take the IndiGo one.": reply_and_call(
+                "Locking that in.",
+                "select_flight",
+                action={"leg_id": "blr-out", "option_id": "f1"},
+            ),
+            # Stale — the agent has moved the screen since.
+            "And the Rex for the hotel.": Reply(
+                text="The Rex, then.", calls=(("select_hotel", rex),)
+            ),
+            # `select_hotel` is not marked, so its refusal arrives with the next
+            # request. The re-read and the pick go in one response; the read is
+            # marked, so the model then answers with the screen in front of it.
+            "Is the Rex in?": [
+                Reply(
+                    text="Putting it in now.",
+                    calls=(("read_screen", {}), ("select_hotel", rex)),
                 ),
                 reply("The Rex it is."),
             ],
-            "Thanks.": reply("Any time."),
         }
     )
     async with demo("travel", llm) as rig:
@@ -284,15 +304,16 @@ async def test_only_a_gesture_costs_a_re_read_and_tess_own_dispatch_never_does()
         # Now the agent moves the screen by hand.
         await rig.driver.send_ui_event("overview_viewed", {})
         await rig.driver.user_says("And the Rex for the hotel.")
-        assert rig.actions() == ["show_flights", "select_flight", "select_hotel"], rig.actions()
+        assert rig.actions() == ["show_flights", "select_flight"], "a stale pick landed"
         # ``show_flights`` and ``select_flight`` have both reported back by now;
         # ``select_hotel``'s refusal has not.
         assert not _refused(llm), "the brain's own dispatch bumped the version"
 
-        # One more turn, so the turn above's hops are in the context being asserted.
-        await rig.driver.user_says("Thanks.")
-
-    assert _refused(llm)
+        retried = await rig.driver.user_says("Is the Rex in?")
+        assert _refused(llm)
+        # The read is marked: the model is asked again, and answers from it.
+        assert [u.text for u in retried.units] == ["Putting it in now.", "The Rex it is."]
+        assert rig.actions() == ["show_flights", "select_flight", "select_hotel"], rig.actions()
 
 
 # ─── Opening a draft: by the id the page handed over ─────────────────────────
@@ -335,18 +356,19 @@ async def test_open_itinerary_goes_by_the_id_the_page_handed_over() -> None:
     the draft's own name beside it, which is all a page that predates ids reads."""
     llm = ScriptedGemini(
         {
-            "Open the Dubai trip.": [
-                call("read_screen"),
-                reply_and_call("Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}),
-                reply("It's open."),
+            "Which trips are saved?": [
+                reply_and_call("Taking a look.", "read_screen"),
+                reply("Poddar Vietnam, the Iyers in Dubai, and a Bali honeymoon."),
             ],
-            "Thanks.": reply("Any time."),
+            "Open the Dubai trip.": reply_and_call(
+                "Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}
+            ),
         }
     )
     async with demo("travel", llm) as rig:
         await rig.driver.start_session(init={"drafts": _DRAFTS})
+        await rig.driver.user_says("Which trips are saved?")
         await rig.driver.user_says("Open the Dubai trip.")
-        await rig.driver.user_says("Thanks.")
         assert _opened(rig) == [{"id": "iyer-family-dubai", "name": _IYER}]
 
     (served,) = _results(llm, "read_screen")
@@ -366,11 +388,9 @@ async def test_a_name_where_the_id_goes_resolves_as_spoken() -> None:
                 reply_and_call(
                     "Opening it.", "open_itinerary", action={"id": "  iyer FAMILY —   dubai "}
                 ),
-                reply("It's open."),
             ],
             "Now the honeymoon.": [
                 reply_and_call("Sure.", "open_itinerary", action={"id": decomposed}),
-                reply("It's open."),
             ],
         }
     )
@@ -386,20 +406,24 @@ async def test_a_name_where_the_id_goes_resolves_as_spoken() -> None:
 
 async def test_an_unknown_id_is_refused_with_the_drafts_that_exist() -> None:
     """A draft the catalog does not hold is refused before anything reaches the
-    screen, and the refusal names every draft by id, so the retry is one hop."""
+    screen, and the refusal names every draft by id, so the retry is one call —
+    on the next reply, which is the first to carry the refusal."""
     llm = ScriptedGemini(
         {
-            "Open the Dubai trip.": [
-                call("open_itinerary", action={"id": "dubai-trip"}),
-                reply_and_call("Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}),
-                reply("It's open."),
-            ],
+            "Open the Dubai trip.": reply_and_call(
+                "Opening it.", "open_itinerary", action={"id": "dubai-trip"}
+            ),
+            "Is it open?": reply_and_call(
+                "Opening it now.", "open_itinerary", action={"id": "iyer-family-dubai"}
+            ),
             "Thanks.": reply("Any time."),
         }
     )
     async with demo("travel", llm) as rig:
         await rig.driver.start_session(init={"drafts": _DRAFTS})
         await rig.driver.user_says("Open the Dubai trip.")
+        assert _opened(rig) == []
+        await rig.driver.user_says("Is it open?")
         await rig.driver.user_says("Thanks.")
         assert _opened(rig) == [{"id": "iyer-family-dubai", "name": _IYER}]
 
@@ -421,17 +445,14 @@ async def test_a_created_draft_gets_an_id_it_can_be_opened_by() -> None:
                     "create_itinerary",
                     action={"itinerary": {"name": "Poddar Vietnam", "id": "made-up"}},
                 ),
-                reply("Created."),
             ],
             "And a Devanagari one.": [
                 reply_and_call(
                     "Creating it.", "create_itinerary", action={"itinerary": {"name": _ZAKIR}}
                 ),
-                reply("Created."),
             ],
             "Back to the first new one.": [
                 reply_and_call("Sure.", "open_itinerary", action={"id": "poddar-vietnam-2"}),
-                reply("It's open."),
             ],
         }
     )
@@ -458,9 +479,11 @@ async def test_a_draft_the_page_does_not_hold_puts_the_mirror_back() -> None:
         {
             "Open the Dubai trip.": [
                 reply_and_call("Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}),
-                reply("It's open."),
             ],
-            "What's on screen?": [call("read_screen"), reply("Still Poddar.")],
+            "What's on screen?": [
+                reply_and_call("Taking a look.", "read_screen"),
+                reply("Still Poddar."),
+            ],
             "Thanks.": reply("Any time."),
         }
     )
@@ -488,7 +511,6 @@ async def test_a_page_with_no_catalog_still_gets_a_name() -> None:
         {
             "Open the Dubai trip.": [
                 reply_and_call("Opening it.", "open_itinerary", action={"id": _IYER}),
-                reply("It's open."),
             ],
         }
     )
@@ -519,7 +541,6 @@ async def test_the_draft_the_agent_names_opens_without_a_read(
         {
             "Open that trip.": [
                 reply_and_call("Opening it.", "open_itinerary", action={"id": said}),
-                reply("It's open."),
             ],
             "Thanks.": reply("Any time."),
         }
@@ -540,10 +561,9 @@ async def test_a_name_no_draft_has_is_refused_with_the_ones_that_do() -> None:
     saved draft, so the next call is one hop away without reading the screen."""
     llm = ScriptedGemini(
         {
-            "Open the Goa trip.": [
-                call("open_itinerary", action={"id": "गोवा ट्रिप"}),
-                reply("There's no Goa trip saved. Which one did you mean?"),
-            ],
+            "Open the Goa trip.": reply_and_call(
+                "Opening it.", "open_itinerary", action={"id": "गोवा ट्रिप"}
+            ),
             "Never mind.": reply("Sure."),
         }
     )
@@ -569,7 +589,6 @@ async def test_a_devanagari_request_opens_by_the_name_the_prompt_gave() -> None:
         {
             "दुबई वाली ट्रिप खोलिए": [
                 reply_and_call("खोल रही हूँ।", "open_itinerary", action={"id": _IYER}),
-                reply("खुल गई।"),
             ],
             "Thanks.": reply("Any time."),
         }
@@ -597,11 +616,9 @@ async def test_the_prompts_drafts_follow_the_ones_made_and_lost_this_session() -
                 reply_and_call(
                     "Creating it.", "create_itinerary", action={"itinerary": {"name": "Mehta Goa"}}
                 ),
-                reply("Created."),
             ],
             "Open the Dubai trip.": [
                 reply_and_call("Opening it.", "open_itinerary", action={"id": "iyer-family-dubai"}),
-                reply("It's open."),
             ],
             "Thanks.": reply("Any time."),
         }
@@ -717,7 +734,6 @@ async def test_an_overlong_draft_still_opens_by_its_full_name_or_id(said: str) -
         {
             "Open the Europe trip.": [
                 reply_and_call("Opening it.", "open_itinerary", action={"id": said}),
-                reply("It's open."),
             ],
             "Thanks.": reply("Any time."),
         }
@@ -748,7 +764,6 @@ async def test_an_edit_touches_one_row_and_an_unknown_id_is_refused_by_name() ->
                     "set_leg",
                     action={"leg": {"id": "blr-out", "date": "14 Aug 2026"}},
                 ),
-                reply("Done — I'll search it again."),
             ],
             "Make it eight nights in Ho Chi Minh.": [
                 reply_and_call(
@@ -756,35 +771,43 @@ async def test_an_edit_touches_one_row_and_an_unknown_id_is_refused_by_name() ->
                     "set_hotel_stay",
                     action={"stay": {"city": "Ho Chi Minh City", "nights": 8}},
                 ),
-                reply("Eight nights."),
             ],
             "Call it Poddar Saigon.": [
                 reply_and_call("Renaming.", "update_trip", action={"name": "Poddar Saigon"}),
-                reply("Renamed."),
             ],
-            "Drop the Bhandaris, and the Mehtas.": [
-                reply_and_call("Okay.", "remove_family", action={"label": "Bhandari (4)"}),
-                call("remove_family", action={"label": "Mehta"}),
-                reply("The Bhandaris are off."),
-            ],
-            "Search the return.": [
-                call("search_flights", action={"leg_id": "sgn-ret", "options": []}),
-                reply("There's no return leg yet."),
-            ],
+            "Drop the Bhandaris, and the Mehtas.": Reply(
+                text="Okay.",
+                calls=(
+                    ("remove_family", {"action": {"label": "Bhandari (4)"}}),
+                    ("remove_family", {"action": {"label": "Mehta"}}),
+                ),
+            ),
+            "Search the return.": reply_and_call(
+                "Searching the return.",
+                "search_flights",
+                action={"leg_id": "sgn-ret", "options": []},
+            ),
             "Search the outbound again.": [
                 reply_and_call(
                     "Searching.",
                     "search_flights",
                     action={"leg_id": "blr-out", "options": [{"airline": "IndiGo"}]},
                 ),
-                reply("It's up."),
             ],
             "Take f9.": [
-                call("read_screen"),
-                call("select_flight", action={"leg_id": "blr-out", "option_id": "f9"}),
+                Reply(
+                    text="Taking it.",
+                    calls=(
+                        ("read_screen", {}),
+                        ("select_flight", {"action": {"leg_id": "blr-out", "option_id": "f9"}}),
+                    ),
+                ),
                 reply("That one isn't on screen."),
             ],
-            "What's on screen?": [call("read_screen"), reply("The Poddar Saigon trip.")],
+            "What's on screen?": [
+                reply_and_call("Taking a look.", "read_screen"),
+                reply("The Poddar Saigon trip."),
+            ],
         }
     )
     async with demo("travel", llm) as rig:
@@ -858,48 +881,49 @@ _TWO_DAYS = [
 ]
 
 
-async def test_tools_run_in_silence_and_the_desk_says_one_line_a_turn() -> None:
-    """The model says nothing before a call; the brain speaks a short line of its
-    own from the first call's pool — once a turn however many calls follow, never
-    on a hop the model already announced, and never into the context, which holds
-    only the model's words."""
+async def test_a_turn_of_calls_alone_ends_in_one_line_of_the_desks() -> None:
+    """The prompt has the model speak first; this is the turn where it did not.
+    Calls alone would end the turn in silence, since a call does not bring the
+    model back, so the brain says one line of its own when the stream ends — from
+    the pool of the last thing that landed, once however many calls there were,
+    in the same single request. A turn where the model spoke gets no line, and
+    the desk's line never reaches the context, which holds only the model's
+    words."""
     llm = ScriptedGemini(
         {
-            "Plan the days for a Vietnam trip.": [
-                call("create_itinerary", action={"itinerary": {"name": "Poddar Vietnam"}}),
-                call("set_days", action={"days": _TWO_DAYS[:1]}),
-                call("set_days", action={"days": _TWO_DAYS[1:]}),
-                reply("Done."),
-            ],
-            "Add a third day.": [
-                reply_and_call(
-                    "Adding it.",
-                    "set_days",
-                    action={"days": [{"day": 3, "title": "Mekong delta"}]},
-                ),
-                reply("That's in."),
-            ],
-            "Thanks.": [reply("Anytime.")],
+            "Plan the days for a Vietnam trip.": Reply(
+                calls=(
+                    ("create_itinerary", {"action": {"itinerary": {"name": "Poddar Vietnam"}}}),
+                    ("set_days", {"action": {"days": _TWO_DAYS[:1]}}),
+                    ("set_days", {"action": {"days": _TWO_DAYS[1:]}}),
+                )
+            ),
+            "Add a third day.": reply_and_call(
+                "Adding it.",
+                "set_days",
+                action={"days": [{"day": 3, "title": "Mekong delta"}]},
+            ),
+            "Thanks.": reply("Anytime."),
         }
     )
     async with demo("travel", llm) as rig:
         await rig.driver.start_session()
 
         t1 = await rig.driver.user_says("Plan the days for a Vietnam trip.")
-        check_turn(rig, t1, units=2)
-        new, done = (u.text for u in t1.units)
-        assert new in _LINES["new"], new
-        assert done == "Done."
+        check_turn(rig, t1, units=1)
+        (days,) = (u.text for u in t1.units)
+        assert days in _LINES["days"], days
+        assert len(llm.captured_contents) == 1, "a turn of calls asked the model again"
 
         t2 = await rig.driver.user_says("Add a third day.")
-        check_turn(rig, t2, units=2)
-        assert [u.text for u in t2.units] == ["Adding it.", "That's in."]
+        check_turn(rig, t2, units=1)
+        assert [u.text for u in t2.units] == ["Adding it."]
         # A turn is one request, so its words are first carried by the next.
         await rig.driver.user_says("Thanks.")
 
         spoken = _model_text(llm)
-        assert new not in spoken, f"the desk's line {new!r} reached the context"
-        assert "Done." in spoken and "Adding it." in spoken
+        assert days not in spoken, f"the desk's line {days!r} reached the context"
+        assert "Adding it." in spoken
 
 
 async def test_the_day_plan_can_come_first_and_an_edit_touches_one_day() -> None:
@@ -910,45 +934,41 @@ async def test_the_day_plan_can_come_first_and_an_edit_touches_one_day() -> None
     rather than let it overwrite the trip."""
     llm = ScriptedGemini(
         {
-            "Plan two days in Saigon.": [
-                call("create_itinerary", action={"itinerary": {"name": "Poddar Vietnam"}}),
-                call("set_days", action={"days": _TWO_DAYS}),
-                reply("Done."),
-            ],
-            "Make dinner on day two a cooking class.": [
-                call(
-                    "set_days",
-                    action={"days": [{"day": 2, "title": "", "dinner": "Cooking class"}]},
+            "Plan two days in Saigon.": Reply(
+                text="Setting it up.",
+                calls=(
+                    ("create_itinerary", {"action": {"itinerary": {"name": "Poddar Vietnam"}}}),
+                    ("set_days", {"action": {"days": _TWO_DAYS}}),
                 ),
-                reply("That's in."),
+            ),
+            "Make dinner on day two a cooking class.": reply_and_call(
+                "Changing dinner.",
+                "set_days",
+                action={"days": [{"day": 2, "title": "", "dinner": "Cooking class"}]},
+            ),
+            "Drop day five.": reply_and_call("Dropping it.", "remove_day", action={"day": 5}),
+            "Set up the Poddar and Bhandari families.": reply_and_call(
+                "Adding them.",
+                "set_trip_structure",
+                action={
+                    "families": [{"label": "Poddar", "adults": 2}],
+                    "legs": [],
+                    "hotel_cities": [],
+                },
+            ),
+            "Now set it up again.": reply_and_call(
+                "Setting it up.",
+                "set_trip_structure",
+                action={
+                    "families": [{"label": "Mehta", "adults": 2}],
+                    "legs": [],
+                    "hotel_cities": [],
+                },
+            ),
+            "What's on screen?": [
+                reply_and_call("Taking a look.", "read_screen"),
+                reply("Two days."),
             ],
-            "Drop day five.": [
-                call("remove_day", action={"day": 5}),
-                reply("There's no day five."),
-            ],
-            "Set up the Poddar and Bhandari families.": [
-                call(
-                    "set_trip_structure",
-                    action={
-                        "families": [{"label": "Poddar", "adults": 2}],
-                        "legs": [],
-                        "hotel_cities": [],
-                    },
-                ),
-                reply("Done."),
-            ],
-            "Now set it up again.": [
-                call(
-                    "set_trip_structure",
-                    action={
-                        "families": [{"label": "Mehta", "adults": 2}],
-                        "legs": [],
-                        "hotel_cities": [],
-                    },
-                ),
-                reply("It's already set up."),
-            ],
-            "What's on screen?": [call("read_screen"), reply("Two days.")],
             "Thanks.": [reply("Anytime.")],
         }
     )
@@ -989,34 +1009,38 @@ async def test_the_day_plan_can_come_first_and_an_edit_touches_one_day() -> None
     assert "Poddar" in screen and "Mehta" not in screen
 
 
-async def test_a_turn_cut_between_hops_leaves_the_next_turn_its_lines() -> None:
-    """The agent speaks while a hop is still in flight — the desk's line has played
-    and the model has not answered. The cut turn unwinds after the new one has
-    started, and must not take the new turn's line queue with it."""
+async def test_overlapping_turns_each_keep_their_own_line() -> None:
+    """The agent speaks again while the model is still generating the last turn,
+    before it has said anything, and the turns run side by side. Each ends in
+    the line for what *it* put on screen: a record shared between them would
+    file the first turn's dispatch under the second, or let the first turn's end
+    wipe the second's record, and a turn of calls alone would end in silence."""
     llm = ScriptedGemini(
         {
-            "Start a trip called Sharma Bali.": [
-                call("create_itinerary", action={"itinerary": {"name": "Sharma Bali"}}),
-                reply(chunks=["Done."], chunk_delay=1.0),
-            ],
-            "Plan the first day.": [
-                # Called only after the cut turn has unwound.
-                Reply(
-                    chunks=("",),
-                    calls=(("set_days", {"action": {"days": _TWO_DAYS[:1]}}),),
-                    chunk_delay=1.5,
-                ),
-                reply("That's in."),
-            ],
+            # Lands after the second turn has started, and before its call does.
+            "Plan the first day.": Reply(
+                chunks=("",),
+                calls=(("set_days", {"action": {"days": _TWO_DAYS[:1]}}),),
+                chunk_delay=1.0,
+            ),
+            "And call it Poddar Saigon.": Reply(
+                chunks=("",),
+                calls=(("update_trip", {"action": {"name": "Poddar Saigon"}}),),
+                chunk_delay=1.5,
+            ),
         }
     )
     async with demo("travel", llm) as rig:
         await rig.driver.start_session()
-        t1 = await rig.driver.user_says("Start a trip called Sharma Bali.")
-        assert [u.text for u in t1.units][:1] and t1.units[0].text in _LINES["new"]
+        await rig.driver.send_ui_event("trip_opened", _PODDAR)
+        # Returns while the model is still silent, so the next turn overlaps it.
+        t1 = await rig.driver.user_says("Plan the first day.", timeout=0.5)
 
-        t2 = await rig.driver.user_says("Plan the first day.")
-        check_turn(rig, t2, units=2)
-        line, done = (u.text for u in t2.units)
-        assert line in _LINES["days"], line
-        assert done == "That's in."
+        t2 = await rig.driver.user_says("And call it Poddar Saigon.")
+        check_turn(rig, t2, units=1)
+        (renamed,) = (u.text for u in t2.units)
+        assert renamed in _LINES["edit"], renamed
+
+        (days,) = (u.text for u in rig.driver.turns[t1.turn_id].units)
+        assert days in _LINES["days"], days
+        assert rig.actions() == ["set_days", "update_trip"], rig.actions()

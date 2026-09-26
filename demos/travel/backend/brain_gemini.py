@@ -24,10 +24,15 @@ a first fill of an empty trip, and a trip need not have one: the day plan can co
 first. An id the trip does not hold is refused with the ids it does, the way a miss
 on ``open_itinerary`` names the drafts.
 
-**The model calls tools in silence; the desk speaks.** A call that comes with no
-words gets a short line from that tool's pool, spoken by the brain, at most one a
-turn — see
-:meth:`TravelBrain.respond`.
+**The model speaks first, then calls.** A turn is one request: each call runs
+as it streams in, and the model reads the result with the next one. So the model
+says its short line and makes the call in the same response. ``read_screen`` is
+the one tool marked ``@needs_result_now``: it is the only one that reads what the
+model needs to answer from — what the agent changed by hand — so the model is
+asked again at once, with the screen in front of it. Every other tool acts, and
+its result only confirms or refuses. A turn in which it
+said nothing at all still ends in a line of Tess's own, from the pool of the last
+thing that landed on screen — see :meth:`TravelBrain.respond`.
 
 The drafts themselves live in the browser's localStorage, so ``TripOpened`` hands
 the itinerary over the first time one is opened. That is the handover, not the old
@@ -36,7 +41,6 @@ push: everything after it is a patch.
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import datetime
 import json
@@ -44,13 +48,20 @@ import random
 import re
 import unicodedata
 from collections.abc import AsyncGenerator
+from contextvars import ContextVar
 from typing import Any, Literal, cast
 
 from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    ScreenState,
+    needs_result_now,
+    screen_prose,
+)
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
@@ -76,13 +87,13 @@ LANGUAGE: Always speak English. Short, efficient sentences — one question or c
 
 YOU CONTROL THE SCREEN. Whenever you discuss a trip, flight, hotel, day or change, call the matching tool so the agent SEES it.
 
-CALL TOOLS IN SILENCE. Never say what you are about to do, and never narrate a step — no "Let me search flights", no "Now I'll look at hotels", no "Opening that up". The desk says a short line of its own while a tool runs, so anything you add is said twice. Make the calls first, all of them, then speak ONCE, after the last tool has answered: one short line on what is now on screen, or the one question you need answered. A turn that called a tool ALWAYS ends with you saying something — the desk's line only says a tool is running, never that it finished, so silence after it leaves the agent waiting. With nothing to ask, a few words will do: "Done." or "That's in."
+SPEAK FIRST, THEN CALL, IN THE SAME REPLY. Say one short line, then make the call: "Putting up flights for the outbound leg — anything catch your eye?" and search_flights; "Adding that leg." and set_leg. The line is heard as the screen changes. You see what a tool answered only when the agent next speaks, so say everything before the call — what you are putting up, and the one question you need answered — and never promise to report back on it. Several calls in one reply get one line between them, not a line each: no running commentary. Never make a call with nothing said, or the agent hears silence.
 
-SPEAK THE POINTER, NOT THE PAYLOAD. The screen shows the detail; your voice points at it. Never read out a list of options, fares, times, prices, flight numbers or hotel amenities — the cards are on screen. Say what you put up and ask for a pick: "Flights for the outbound leg are up — anything catch your eye?" Mention at most one standout ("the IndiGo one is non-stop") when it helps them choose.
+SPEAK THE POINTER, NOT THE PAYLOAD. The screen shows the detail; your voice points at it. Never read out a list of options, fares, times, prices, flight numbers or hotel amenities — the cards are on screen. Say what you are putting up and ask for a pick: "Here are flights for the outbound leg — anything catch your eye?" Mention at most one standout ("the IndiGo one is non-stop") when it helps them choose.
 
 YOU INVENT THE DATA. There is no live inventory. Generate realistic options yourself (real-sounding carriers like IndiGo or Vietnam Airlines, real hotels, plausible times, ratings and fares in rupees) and pass them as the tool's structured arguments. Offer three options per search. Keep numbers consistent.
 
-STAY GROUNDED: nothing in this conversation is a picture of the agent's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything they point at ("that leg", "the second one", "the hotel we picked"), and whenever you are told they changed the screen themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again. If a tool refuses an id, it names the ones that exist: pick the right one and call again.
+STAY GROUNDED: nothing in this conversation is a picture of the agent's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything they point at ("that leg", "the second one", "the hotel we picked"), and whenever you are told they changed the screen themselves — you are told THAT they changed it, never what it now says. read_screen answers you in this same reply, so call it, then act or answer from what it says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: in your next reply, call read_screen and then make the call again. If a tool refuses an id, it names the ones that exist: pick the right one and call again.
 
 THE AGENT LEADS; THERE IS NO SCRIPT. An itinerary is a scaffold of sections — the headline, the travelling families, flight legs, hotel stays and the day-wise plan — and the agent fills whichever they want, in whatever order, and may skip any of them. A trip can be planned day by day before a single flight exists, or be only hotels. Do what they asked and stop: never push them to the next section, and never ask for details a request does not need. If they ask what is left, name the empty sections once.
 
@@ -94,36 +105,21 @@ Open with a brief greeting and ask which trip they want to work on."""
 
 _GREETING = "Hi, Tess here at the travel desk. Which trip shall we work on?"
 
-#: What Tess says while a tool runs, by what the tool is doing. The brain says it,
-#: not the model, so a hop that calls a tool costs one short line and never a
-#: sentence the model composed about its own plan. A tool with no pool —
-#: ``read_screen``, and the instant screen moves — runs in silence, and the
-#: model's own reply after it is what the agent hears.
+#: What Tess says when the model called tools and said nothing, by what landed on
+#: screen. The prompt has the model speak first, so this is the fallback: a turn
+#: that ends in silence would leave the agent waiting until they speak again. By
+#: then the tool has run, so every line says it is done, not that it is running.
 _LINES: dict[str, tuple[str, ...]] = {
-    "flights": ("Checking flights.", "Looking at flights.", "Pulling up flights."),
-    "hotels": ("Checking hotels.", "Looking at hotels.", "Finding hotels."),
-    "days": ("Working on the days.", "Planning the days.", "On the day plan."),
-    "new": ("Setting it up.", "Starting the trip."),
-    "edit": ("Updating that.", "On it.", "Changing that."),
-    "open": ("Opening it.", "Pulling it up."),
+    "flights": ("Flights are up.", "Here are some flights."),
+    "hotels": ("Hotels are up.", "Here are some hotels."),
+    "days": ("The days are in.", "The day plan is in."),
+    "new": ("It's set up.", "The trip's started."),
+    "edit": ("Done.", "That's in.", "Updated."),
+    "open": ("It's open.", "Here it is."),
+    "show": ("They're up.", "Back on screen."),
+    "pick": ("That's in.", "Picked."),
+    "drafts": ("Back at the drafts.", "Here are the drafts."),
 }
-_TOOL_LINES: dict[str, str] = {
-    "search_flights": "flights",
-    "search_hotels": "hotels",
-    "set_days": "days",
-    "remove_day": "edit",
-    "create_itinerary": "new",
-    "set_trip_structure": "edit",
-    "update_trip": "edit",
-    "set_family": "edit",
-    "remove_family": "edit",
-    "set_leg": "edit",
-    "remove_leg": "edit",
-    "set_hotel_stay": "edit",
-    "remove_hotel_stay": "edit",
-    "open_itinerary": "open",
-}
-
 #: How the overview joins a trip's two dates. The browser prints the same one, so
 #: the mirror reads the same whether the trip was built on this call or loaded.
 _DATE_RANGE = " – "  # noqa: RUF001 — an en dash, as the screen has it
@@ -678,6 +674,38 @@ type ScreenMove = (
 )
 
 
+#: Which pool a dispatch speaks from, by the command that landed. ``read_screen``
+#: dispatches nothing and a refused call lands nothing, so neither is here.
+_ACTION_LINES: dict[type[Action], str] = {
+    OpenDashboard: "drafts",
+    OpenItinerary: "open",
+    CreateItinerary: "new",
+    SetTripStructure: "edit",
+    SearchFlights: "flights",
+    ShowFlights: "show",
+    SelectFlight: "pick",
+    SearchHotels: "hotels",
+    ShowHotels: "show",
+    SelectHotel: "pick",
+    UpdateTrip: "edit",
+    SetFamily: "edit",
+    RemoveFamily: "edit",
+    SetLeg: "edit",
+    RemoveLeg: "edit",
+    SetHotelStay: "edit",
+    RemoveHotelStay: "edit",
+    SetDays: "days",
+    RemoveDay: "edit",
+}
+
+
+#: The pool of each dispatch that landed in the turn under way, in order — what
+#: :meth:`TravelBrain.respond` speaks from if the model said nothing. Per turn,
+#: not per brain: each turn runs in its own task, and turns overlap when the
+#: agent speaks again before the last response has finished streaming, so a
+#: record on the brain would hand one turn's dispatch to the other.
+_LANDED: ContextVar[list[str] | None] = ContextVar("travel_landed", default=None)
+
 # ─── The brain ───────────────────────────────────────────────────────────────
 
 
@@ -708,10 +736,6 @@ class TravelBrain(GeminiBrain):
         #: the browser what it is looking at.
         self._flights: dict[str, dict[str, FlightOption]] = {}
         self._hotels: dict[str, dict[str, HotelOption]] = {}
-        #: The tools the model is calling in the turn under way, as their calls
-        #: stream in — each by name, and whether the model already said something
-        #: in the hop that called it. What :meth:`respond` speaks a line for.
-        self._calling: asyncio.Queue[tuple[str, bool]] | None = None
         self._last_line = ""
 
     @property
@@ -752,77 +776,45 @@ class TravelBrain(GeminiBrain):
         return _GREETING
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, with one short line of Tess's own while a tool runs.
+        """The model's turn, and a line of Tess's own if it said nothing.
 
-        The prompt tells the model to call tools in silence, and a call that says
-        nothing leaves the agent sitting in the silence of the next hop's request.
-        So when a call streams in and the model is not speaking, the brain says a
-        line from that tool's pool — "Checking flights." — and the model's reply
-        after the tool is what follows it. A hop where the model did speak gets
-        no line: that would be two voices announcing one thing. The desk speaks at
-        most once a turn — the first call's line — so adding a leg and searching
-        it, or searching both legs, is one line and not a running commentary.
+        The prompt has the model say a short line and call in the same response,
+        and that line is heard as the screen changes — sooner than any line the
+        brain could say, which can only start once a call has arrived. But an
+        unmarked call only runs; it does not bring the model back, so a response of calls
+        alone ends the turn in silence and leaves the agent waiting until they
+        speak again. So when the model's turn is over with nothing spoken and
+        something put on screen, the brain says one line from the pool of the last
+        thing that landed — "Flights are up." A call that was refused landed
+        nothing and gets no line; neither does ``read_screen``, which moves
+        nothing.
 
-        The model runs in a task of its own, so a line can go out while it is
-        between hops; the next event from the model waits for the line to end, so
-        speech never nests. The line is never in the model's context — it is the
-        desk's, not the model's — but it is a unit Voqalize will finalize, so it
-        joins the finalize queue in the order it went out, where the heard truth
-        that comes back for it is taken and let go.
+        The line is never in the model's context — it is the desk's, not the
+        model's — but it is a unit Voqalize will finalize, so it joins the
+        finalize queue after the model's own, where the heard truth that comes
+        back for it is taken and let go.
         """
+        landed: list[str] = []
+        token = _LANDED.set(landed)
         turn = super().respond(session)
-        calling: asyncio.Queue[tuple[str, bool]] = asyncio.Queue()
-        self._calling = calling
         spoken = False
-        speaking = False
-        step: asyncio.Future[Speech | None] = asyncio.ensure_future(_next(turn))
-        heard: asyncio.Future[tuple[str, bool]] = asyncio.ensure_future(calling.get())
         try:
-            while True:
-                await asyncio.wait({step, heard}, return_when=asyncio.FIRST_COMPLETED)
-                # A call queued before the model's next event was made before it,
-                # so the calls drain first — a fast stream that finished both
-                # still speaks the line ahead of the reply that followed the tool.
-                if heard.done():
-                    name, announced = heard.result()
-                    heard = asyncio.ensure_future(calling.get())
-                    pool = _TOOL_LINES.get(name)
-                    if pool is None or announced or speaking or spoken:
-                        continue
-                    spoken = True
-                    line = self._line(pool)
-                    yield SpeechStart()
-                    self._awaiting.append(_Unit(types.Content(role="model", parts=[])))
-                    yield SpeechChunk(line)
-                    yield SpeechEnd()
-                    continue
-                event = step.result()
-                if event is None:
-                    break
-                if isinstance(event, SpeechStart):
-                    speaking = True
-                elif isinstance(event, SpeechEnd):
-                    speaking = False
+            async for event in turn:
+                spoken = spoken or isinstance(event, SpeechStart)
                 yield event
-                step = asyncio.ensure_future(_next(turn))
+            if spoken or not landed:
+                return
+            line = self._line(landed[-1])
+            yield SpeechStart()
+            self._awaiting.append(_Unit(types.Content(role="model", parts=[])))
+            yield SpeechChunk(line)
+            yield SpeechEnd()
         finally:
-            # A barge-in's new turn has already set its own queue by the time the
-            # cut one unwinds here; only the turn that owns the queue clears it.
-            if self._calling is calling:
-                self._calling = None
-            heard.cancel()
-            if not step.done():
-                step.cancel()
-            with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
-                await step
             await turn.aclose()
-
-    def _extend_unit(self, unit: _Unit, part: types.Part) -> None:
-        # Text ahead of the call in its own hop is the model announcing it.
-        announced = any(p.text and not p.thought for p in unit.content.parts or [])
-        super()._extend_unit(unit, part)
-        if part.function_call and part.function_call.name and self._calling is not None:
-            self._calling.put_nowait((part.function_call.name, announced))
+            # Closed from another context, the token cannot be reset — and there
+            # is nothing to reset: the value went with the task that set it.
+            with contextlib.suppress(ValueError):
+                _LANDED.reset(token)
 
     def _line(self, pool: str) -> str:
         """A line from ``pool``, never the one said last."""
@@ -929,6 +921,8 @@ class TravelBrain(GeminiBrain):
         the agent, never this brain's own command echoing home."""
         self._mirror(action)
         self.session.dispatch(action)
+        if (landed := _LANDED.get()) is not None:
+            landed.append(_ACTION_LINES[type(action)])
 
     def _mirror(self, action: ScreenMove) -> None:
         """Move the mirror the way this dispatch is about to move the screen."""
@@ -1124,13 +1118,16 @@ class TravelBrain(GeminiBrain):
             self.remove_day,
         ]
 
+    @needs_result_now
     async def read_screen(self) -> str:
         """What the travel agent is looking at right now — the open itinerary, which
         screen they are on, and every choice made on it so far.
 
         Call it before you act on something they point at, and whenever you are told
-        they changed the screen themselves. It is free — it reads this session's own
-        state, takes no floor, says nothing, and moves nothing on screen."""
+        they changed the screen themselves. Its answer comes straight back in this
+        same reply: call it before the tool that acts, and act or answer from what
+        it says. It is free — it reads this session's own state, takes
+        no floor, says nothing, and moves nothing on screen."""
         self.screen.read()
         logger.info("travel: read_screen (active={}, v{})", bool(self.trip), self.screen.version)
         # Every draft, on every screen: "open the Bali one" is said from an
@@ -1465,14 +1462,6 @@ def _day_number(row: object) -> int | None:
 def _day_at(days: list[Any], day: int) -> int | None:
     """Where day ``day`` sits in the mirror's days, if it is there."""
     return next((i for i, d in enumerate(days) if _day_number(d) == day), None)
-
-
-async def _next(turn: AsyncGenerator[Speech, None]) -> Speech | None:
-    """The model's next speech event, or ``None`` once its turn is over."""
-    try:
-        return await anext(turn)
-    except StopAsyncIteration:
-        return None
 
 
 def _unknown_option[T](options: dict[str, T] | None, option_id: str) -> str | None:
