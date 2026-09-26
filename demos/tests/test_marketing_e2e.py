@@ -20,13 +20,20 @@ legs must deliberately *differ* — heard in the visitor's language, spoken with
 Hindi clip. That substitution is stated, never silent, and a table that quietly
 drifted would sound fine in every transcript.
 
+**Only her reads carry the mark.** ``where_they_are`` and ``look_up`` return what
+the model needs to answer, so a turn that calls one is asked again at once; every
+other tool moves the screen or the call, so the line and the call share one
+response and the turn ends with it. The scripts are written in that shape, and
+the tests count requests where the shape is the point.
+
 Run: ``cd demos && uv run pytest tests/test_marketing_e2e.py``
 """
 
 from __future__ import annotations
 
+from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import _configs, _last, check_greeting, check_turn, check_voice_pair, demo
 
@@ -48,12 +55,24 @@ TARGET = "how.diagram"
 SECTION = "how"
 
 
+def _results(contents: list[types.Content]) -> dict[str, str]:
+    """Every tool result one request carried, by tool name."""
+    return {
+        p.function_response.name or "": str((p.function_response.response or {})["result"])
+        for c in contents
+        for p in (c.parts or [])
+        if p.function_response is not None
+    }
+
+
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
+            # The line and the point in one response: the highlight lands as she
+            # speaks, and `point_at` is not marked, so nothing follows it this turn.
             "How does this integrate?": [
                 reply_and_call(
-                    "Here.",
+                    "One route in your backend. We dial it.",
                     "point_at",
                     # One tool, one model, one parameter — the argument is the
                     # ``PointRequest``, nested under the name the method gives it.
@@ -63,8 +82,9 @@ def _llm() -> ScriptedGemini:
                     # which band holds it.
                     request={"target": TARGET, "reason": "one WebSocket per session"},
                 ),
-                reply("One route in your backend. We dial it."),
             ],
+            # `look_up` is marked: its result is read in a second request, the same
+            # turn, which writes the panel and speaks its headline together.
             "What would that cost me?": [
                 reply_and_call(
                     "One moment.",
@@ -79,7 +99,6 @@ def _llm() -> ScriptedGemini:
                         "markdown": "- Free: 350 minutes at signup\n- Then: per conversation minute",
                     },
                 ),
-                reply("The pricing page has every plan."),
             ],
             # No `layout`. The page has to be told one, so the brain defaults it
             # rather than refusing the call — a note that does not render because
@@ -94,17 +113,28 @@ def _llm() -> ScriptedGemini:
                         "markdown": "1. Write the brain\n2. Point the agent at it\n3. Call it",
                     },
                 ),
-                reply("That is the whole path."),
             ],
+            # The switch line is said in the language the call is in *now*: it is
+            # spoken before the new voice is configured. The new language starts
+            # with the visitor's next turn.
             "क्या आप हिंदी बोल सकते हैं?": [
-                reply_and_call("हाँ.", "set_language", request={"language": "hindi"}),
-                reply("बिलकुल. पूछिए."),
+                reply_and_call(
+                    "Switching to Hindi.", "set_language", request={"language": "hindi"}
+                ),
             ],
             "Can we do this in Odia?": [
-                reply_and_call("Switching.", "set_language", request={"language": "odia"}),
-                reply("Odia has no voice of its own — I will speak Hindi."),
+                reply_and_call(
+                    "Switching to Odia — I will answer in a Hindi voice.",
+                    "set_language",
+                    request={"language": "odia"},
+                ),
             ],
-            "What is this?": reply("The integration. One socket, once per session."),
+            "ठीक है, आगे बताइए.": reply("ज़रूर. पूछिए."),
+            # `where_they_are` is marked: the read, then the answer grounded in it.
+            "What is this?": [
+                call("where_they_are"),
+                reply("The integration. One socket, once per session."),
+            ],
         }
     )
 
@@ -128,12 +158,19 @@ async def test_the_brain_resolves_the_band_the_target_sits_in() -> None:
     This is the cross-repo seam in one assertion. If ``content.py`` and the
     marketing site's ``data-vq`` attributes ever disagree, the model cannot name
     the target at all and validation fails here; if the target-to-section map
-    drifts, the page scrolls somewhere other than the thing it lights up."""
-    async with demo("marketing", _llm()) as rig:
+    drifts, the page scrolls somewhere other than the thing it lights up.
+
+    It is also the speak-first shape in one turn: one request, one unit of speech,
+    and the point on the wire — ``point_at`` is not marked, so the model is not
+    asked again after it."""
+    llm = _llm()
+    async with demo("marketing", llm) as rig:
         await rig.driver.start_session()
 
+        before = len(llm.captured_contents)
         turn = await rig.driver.user_says("How does this integrate?")
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=1)
+        assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
 
         assert rig.actions() == ["point_at"], rig.actions()
         pointed = rig.command("point_at")
@@ -146,12 +183,20 @@ async def test_a_deeper_question_reads_one_file_and_answers_in_the_panel() -> No
     """The two-tier knowledge base, end to end: L1 did not settle it, one deep dive
     was read, and the answer came back as markdown rather than a paragraph of
     speech. ``look_up`` drives no screen — it is a read — so the only command on the
-    wire is the panel."""
-    async with demo("marketing", _llm()) as rig:
+    wire is the panel.
+
+    ``look_up`` is marked, so the deep dive is read in a second request of the same
+    turn — and that request carries the file, which is what grounds the answer.
+    ``show_note`` is not, so the turn ends with the response that wrote it."""
+    llm = _llm()
+    async with demo("marketing", llm) as rig:
         await rig.driver.start_session()
 
+        before = len(llm.captured_contents)
         turn = await rig.driver.user_says("What would that cost me?")
-        check_turn(rig, turn, units=3)
+        check_turn(rig, turn, units=2)
+        assert len(llm.captured_contents) - before == 2
+        assert "look_up" in _results(llm.captured_contents[-1])
 
         assert rig.actions() == ["show_note"], rig.actions()
         note = rig.command("show_note")
@@ -170,7 +215,7 @@ async def test_a_layout_the_model_chose_reaches_the_page() -> None:
         await rig.driver.start_session()
 
         turn = await rig.driver.user_says("How do I get started?")
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=1)
 
         assert rig.actions() == ["show_note"], rig.actions()
         assert rig.command("show_note")["layout"] == "steps"
@@ -185,7 +230,7 @@ async def test_switching_to_hindi_moves_both_legs_and_the_voice_follows() -> Non
         await rig.driver.start_session()
 
         turn = await rig.driver.user_says("क्या आप हिंदी बोल सकते हैं?")
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=1)
 
         check_voice_pair(rig, voice="omnivoice/gauri", language="hi")
         assert rig.actions() == ["language_changed"], rig.actions()
@@ -202,7 +247,7 @@ async def test_a_language_with_no_clip_is_heard_in_itself_and_spoken_in_hindi() 
         await rig.driver.start_session()
 
         turn = await rig.driver.user_says("Can we do this in Odia?")
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=1)
 
         configs = _configs(rig)
         assert _last(configs, lambda c: c.stt.language if c.stt else None) == "or"
@@ -219,16 +264,19 @@ async def test_the_substitution_is_handed_back_for_tanya_to_say() -> None:
     speaker answer their Odia, and the only place that fact exists is the table —
     so the tool hands back the sentence rather than leaving Tanya to discover it.
 
-    Asserted against the tool directly because the scripted model answers a turn in
-    one hop, so a tool result never reaches a captured request."""
-    async with demo("marketing", _llm()) as rig:
+    ``set_language`` is not marked, so the result reaches the model with the
+    visitor's next turn — asserted there, on the request that carries it."""
+    llm = _llm()
+    async with demo("marketing", llm) as rig:
         await rig.driver.start_session()
         brain = rig.brain
         assert isinstance(brain, MarketingBrain)
 
-        spoken = await brain.set_language(LanguageRequest(language="odia"))
-        assert "no odia voice" in spoken.lower()
-        assert "hindi" in spoken.lower()
+        await rig.driver.user_says("Can we do this in Odia?")
+        await rig.driver.user_says("ठीक है, आगे बताइए.")
+        spoken = _results(llm.captured_contents[-1])["set_language"].lower()
+        assert "no odia voice" in spoken
+        assert "hindi" in spoken
 
         # A language with a clip of its own says nothing extra — there is nothing
         # for Tanya to explain.
@@ -256,6 +304,9 @@ async def test_the_scroll_position_lands_silently_and_grounds_the_next_answer() 
         turn = await rig.driver.user_says("What is this?")
         check_turn(rig, turn, units=1)
         assert len(rig.driver.ui_commands) == before, "section_viewed drove the screen"
+
+    # `where_they_are` is marked, so the answer's request carries the band it read.
+    assert f"#{SECTION}" in _results(llm.captured_contents[-1])["where_they_are"]
 
     grounded = "".join(
         p.text or "" for c in llm.captured_contents[-1] for p in (c.parts or []) if c.role == "user"

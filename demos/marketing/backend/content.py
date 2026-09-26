@@ -29,7 +29,6 @@ the table is the one place that has to be right.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cache
 from pathlib import Path
 from typing import Literal, get_args
 
@@ -364,10 +363,11 @@ def core_knowledge() -> str:
     return (KNOWLEDGE / "L1.md").read_text(encoding="utf-8")
 
 
-@cache
 def read_topic(topic: TopicId) -> str:
-    """One deep dive, whole. Cached — a session that asks twice pays for one read."""
-    return (KNOWLEDGE / "l2" / f"{topic}.md").read_text(encoding="utf-8")
+    """One deep dive, whole, from memory. The files are read once at import, because
+    ``look_up`` is a tool and a tool has to return within the SDK's budget — a disk
+    read on the first ask of a session is not something to bet a turn on."""
+    return _TOPIC_TEXT[topic]
 
 
 def topic_digest() -> str:
@@ -383,6 +383,10 @@ def _assert_topics_present() -> None:
 
 
 _assert_topics_present()
+
+_TOPIC_TEXT: dict[str, str] = {
+    topic: (KNOWLEDGE / "l2" / f"{topic}.md").read_text(encoding="utf-8") for topic in TOPICS
+}
 
 
 # ─── Languages ─────────────────────────────────────────────────────────────────

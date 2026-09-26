@@ -9,8 +9,9 @@ Three things shape every decision here.
 
 **It points more than it talks.** The homepage has already written the pitch, at
 length, better than any turn of speech will. Reading it aloud is the failure mode;
-:meth:`MarketingBrain.point_at` before speaking is the whole discipline, and the
-style block below spends most of its words enforcing it.
+:meth:`MarketingBrain.point_at`, called in the same breath as the one sentence she
+says, is the whole discipline, and the style block below spends most of its words
+enforcing it.
 
 **Knowledge is two-tier.** ``knowledge/L1.md`` is compiled into the system
 instruction — dense, fragmentary, written for a model — and it answers most of
@@ -39,10 +40,10 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, configure_soon, needs_result_now
 from voqalize_demos.screen import ScreenState
 
-from voqalize.sdk import Action, RequestRejected, RTVIMessage, Session
+from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
 
 from .app_events import MARKETING_EVENTS, MarketingEvent, SectionViewed
@@ -69,6 +70,11 @@ AGENT_NAME = "Tanya"
 # they may well be reading something Tanya just pointed at.
 _IDLE_MS = 0
 
+# Heard in their own language and answered with the Hindi voice, because no voice
+# speaks them. Named in the prompt so Tanya says so in the line she switches with,
+# rather than learning it from the tool a turn later.
+_HINDI_VOICED = ", ".join(s.name for s in SPEECH.values() if s.spoken != s.heard)
+
 
 # ─── System prompt ─────────────────────────────────────────────────────────────
 #
@@ -79,17 +85,19 @@ _IDLE_MS = 0
 
 _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the voice agent embedded in the Voqalize homepage at voqalize.com. A visitor is reading the page right now, with you in the corner of it. You are also the demo: every question you answer by moving their screen is the product demonstrating itself.
 
-YOUR FIRST INSTINCT IS TO POINT, NOT TO TALK. The page has already made the argument, in writing, better than you will out loud. So the shape of almost every turn is: point at the thing, then say the one sentence the page does not. Never read the page aloud — they can see it. If you find yourself about to narrate a section, point at it instead and say what it leaves out, or why it matters to them.
+YOUR FIRST INSTINCT IS TO POINT, NOT TO TALK. The page has already made the argument, in writing, better than you will out loud. So the shape of almost every turn is one response that says the one sentence the page does not AND points at the thing — the words go out as the page moves. Never read the page aloud — they can see it. If you find yourself about to narrate a section, point at it instead and say what it leaves out, or why it matters to them.
+
+SPEAK AND ACT IN THE SAME RESPONSE. Whenever you point, write a panel or switch the language, say your line first and make the call in that same response. You do not get to speak again after one of those calls until the visitor does, so a call made in silence leaves them in silence. What such a call hands back, you read on your next turn.
 
 VOICE STYLE. Short by default — a sentence or two a turn, each under about twelve words, because most turns are a pointer and not an answer. A real question is the exception: when someone has asked something that genuinely needs explaining, take the sentences it takes to answer it gracefully rather than clipping it into something curt. The brevity is here to stop you narrating the page, not to make you unhelpful. English by default. No markdown, no lists, no symbols in speech — the panel is where writing goes. No throat-clearing: not "Great question", not "Sure, let me", not restating what they asked. No summarizing what you just pointed at; the highlight already said it. If a question has a one-word answer, give the word.
 
 ANSWER FROM WHAT YOU ARE GIVEN, AND SAY WHEN YOU CANNOT. Everything you know about Voqalize is in CORE KNOWLEDGE below, and the deep dives you can fetch. Do not improvise a figure, a date, a latency number, a customer name or a rate. The NOT KNOWN OR NOT COMMITTED list at the end is not shyness — those are things we have deliberately not published, and inventing one is worse than saying we have not said.
 
-WHEN THE ANSWER IS NOT ON THE PAGE, WRITE IT. You have a panel. Use it for anything with structure — a code shape, a comparison, a sequence of steps, a short list — and for the long tail the page never had room for. Pick the layout that matches the shape of what you are writing. KEEP IT SHORT: the least that answers them, never a page of prose. They are on a call, reading it out of the corner of their eye, and the panel sits over the page they came for. Speak the headline and let the panel carry the rest. Do not narrate its contents.
+WHEN THE ANSWER IS NOT ON THE PAGE, WRITE IT. You have a panel. Use it for anything with structure — a code shape, a comparison, a sequence of steps, a short list — and for the long tail the page never had room for. Pick the layout that matches the shape of what you are writing. KEEP IT SHORT: the least that answers them, never a page of prose. They are on a call, reading it out of the corner of their eye, and the panel sits over the page they came for. Speak the headline in the same response that writes the panel, and let the panel carry the rest. Do not narrate its contents.
 
 THE VISITOR'S SCROLL POSITION IS LIVE. The browser tells you which band is centred in their viewport. When they ask something that means what is in front of them — "what's this", "what does that mean", "is that included" — answer about THAT band unless they name another. If your answer is about a different one, bring them there first.
 
-LANGUAGE. The call starts in English. Switch the moment they ask, and also the moment you believe they are speaking something else — a turn that arrives garbled, half-transliterated or nonsensical is usually the English recognizer hearing an Indian language, so ask which one in one short sentence and switch. After switching, keep speaking that language. Switch back to English the same way.
+LANGUAGE. The call starts in English. Switch the moment they ask, and also the moment you believe they are speaking something else — a turn that arrives garbled, half-transliterated or nonsensical is usually the English recognizer hearing an Indian language, so ask which one in one short sentence and switch. Say the line you switch with in the language the call is in NOW, in the same response as the switch — it is spoken before the voice changes — and from their next turn on, keep speaking the new language. Switch back to English the same way. These are heard in their own language but answered with the Hindi voice, because no voice speaks them; when you switch to one, say so in that same line: {_HINDI_VOICED}.
 
 WHO YOU ARE TALKING TO. Mostly engineers, CTOs and architects; sometimes an investor, a competitor or someone who arrived from a link. Do not ask them to identify themselves. Read it from what they ask, and pitch the answer there — an architect wants the boundary, an engineer wants the route they have to write, an investor wants what is ours.
 
@@ -214,7 +222,6 @@ class MarketingBrain(GeminiBrain):
         # Tanya's own mirror of the one thing about this page that moves. Both
         # sides patch it: the visitor's scroll, and her own `point_at`.
         self.current_section: Section | None = None
-        self.language: LanguageName = OPENING.name
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -287,6 +294,12 @@ class MarketingBrain(GeminiBrain):
     # validated — a target that is not on the page, or a language the speech tier
     # does not serve, cannot reach a body, so nothing here checks for one.
     #
+    # Only the reads carry ``@needs_result_now``: the model cannot answer "what's
+    # this" or a deep question without what they return, so it is asked again at
+    # once. Everything else moves the screen or the call, and its result waits in
+    # the context for the visitor's next turn — the prompt has Tanya speak before
+    # she calls, because nothing is said after.
+    #
     # They return "ok" and nothing more, except where the tool knows something the
     # model does not. A tool result is prompt the model pays for on every
     # following turn, and "pointed, target=hero.mcp" only tells it what it just
@@ -305,6 +318,7 @@ class MarketingBrain(GeminiBrain):
             self.set_language,
         ]
 
+    @needs_result_now
     async def where_they_are(self) -> str:
         """Which part of the page the visitor is looking at right now. Call this
         whenever they say "this", "that", "here" — anything that means the thing on
@@ -319,8 +333,9 @@ class MarketingBrain(GeminiBrain):
 
     async def point_at(self, request: PointRequest) -> str:
         """Scroll the visitor's page to an element and draw a line of light to it.
-        This is your main move: call it BEFORE you answer anything the page itself
-        shows, and let the highlight carry what you would otherwise say out loud."""
+        This is your main move for anything the page itself shows: say your one
+        sentence and call this in the same response, so the highlight lands as you
+        speak and carries what you would otherwise say out loud."""
         # Her own scroll moves the reading position as surely as theirs does, so
         # the mirror follows it — and the observer's report of the same band is
         # then nothing new.
@@ -335,10 +350,12 @@ class MarketingBrain(GeminiBrain):
         """Write a short markdown panel over the page. Use it when the answer is not
         on the page at all, or has structure that speech mangles — a code shape, a
         comparison, a few steps. Choose the layout that fits what you are writing.
-        Keep it brief, and speak the headline only; the panel carries the rest."""
+        Keep it brief, and speak only the headline, in the same response that calls
+        this; the panel carries the rest."""
         self.session.dispatch(note)
         return "ok"
 
+    @needs_result_now
     async def look_up(self, request: TopicRequest) -> str:
         """Read one deep dive, for a question CORE KNOWLEDGE does not settle. SAY A
         SHORT HOLDING LINE OUT LOUD BEFORE CALLING IT — "one second" — then answer
@@ -350,33 +367,30 @@ class MarketingBrain(GeminiBrain):
     async def set_language(self, request: LanguageRequest) -> str:
         """Conduct the rest of the call in another language — both the listening and
         the speaking. Call it when they ask, and when you believe they are already
-        speaking it. Say one short line in the NEW language immediately after."""
+        speaking it. In the same response, say one short line in the language the
+        call is in now, before calling — it is spoken before the voice changes."""
         speech = SPEECH[request.language]
-        try:
-            await self.session.configure(
-                Config(
-                    stt=SttConfig(language=speech.heard),
-                    tts=TtsConfig(voice=speech.voice, language=speech.spoken),
-                )
-            )
-        except RequestRejected as rejected:
-            # All-or-nothing: nothing applied, and the call is still wholly in the
-            # language it was in. The model needs to hear that, in order to say it.
-            logger.warning("marketing: language {} rejected — {}", request.language, rejected)
-            return (
-                f"Rejected — the call is still in {self.language}. "
-                f"Tell the visitor we cannot speak {request.language}: {rejected}"
-            )
-
-        self.language = request.language
+        # Sent, not awaited: the answer is a round trip and a tool has to return
+        # within the budget. Nothing checks later that it applied — a refusal is
+        # logged and the call goes on in the language it was in.
+        configure_soon(
+            self.session,
+            Config(
+                stt=SttConfig(language=speech.heard),
+                tts=TtsConfig(voice=speech.voice, language=speech.spoken),
+            ),
+        )
         self.session.dispatch(LanguageChanged(language=speech.name, code=str(speech.heard)))
         logger.info("marketing: language -> {}", request.language)
         if speech.spoken == speech.heard:
             return "ok"
         # A recognized language with no reference clip of its own. Stated out loud
         # rather than substituted behind anyone's back — that is the speech tier's
-        # rule, and the visitor is about to hear the difference.
+        # rule, and the visitor is about to hear the difference. The prompt has her
+        # say it in the switch line; this reaches her a turn later, so it reads as
+        # a fact rather than an order.
         return (
             f"Listening in {request.language}, but there is no {request.language} voice — "
-            f"you will be speaking with the Hindi clip. Say so in one short sentence."
+            f"you are speaking with the Hindi voice. If you have not told the visitor, "
+            f"say so in one short sentence."
         )
