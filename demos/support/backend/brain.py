@@ -1,12 +1,20 @@
 """SupportBrain — the "Returns Assistant" voice agent.
 
 A ``GeminiBrain`` (LLM + screen-driving tools + session state). Voqalize dials
-this brain's WebSocket per session; the inherited ``respond`` runs the tool loop
-— google-genai's own automatic function calling, not a loop we drive — so one
-model call spans every hop of a turn. Each tool is a bound ``async def`` method,
-listed by :attr:`~SupportBrain.tools`; its body drives the browser via
-``self.session.dispatch(...)`` (the RTVI ``ui-command`` the ``/orders`` UI
-renders) and returns the order/return data the model needs.
+this brain's WebSocket per session; the inherited ``respond`` runs Gemini's
+function calls itself, and **a turn is one request**: each call runs as it
+arrives, after the speech before it has gone out, and its result is filed in the
+context for the model to read with the shopper's next message. Each tool is a
+bound ``async def`` method, listed by :attr:`~SupportBrain.tools`; its body
+drives the browser via ``self.session.dispatch(...)`` (the RTVI ``ui-command`` the
+``/orders`` UI renders) and returns what it did.
+
+**No tool here is marked ``@needs_result_now``.** Every order, item and policy
+fact is compiled into the prompt, so no tool knows anything the model does not:
+each one puts on screen, or records, something the model has already named. The
+prompt therefore has the assistant say its line and make the call in the same
+response — a line held back for a result would wait for the shopper to speak
+again.
 
 The browser also reaches the brain outside any turn, over
 :meth:`~voqalize.sdk.Brain.on_rtvi` — a photo the shopper captures, and the tap
@@ -49,7 +57,7 @@ RefundMethod = Literal["original_payment", "store_credit"]
 
 
 _POLICY_FACTS = f"""RETURN POLICY ({STORE_NAME}) — answer only from these facts:
-- Window: 30-day free returns from delivery. All three orders below are within the window.
+- Window: 30-day free returns from delivery. Every order below is within the window.
 - Condition: item must be in original condition with the original box and all included accessories.
 - Defective items: a faulty or not-working item is eligible for a free return or replacement even if opened.
 - Refund: to the original payment method in 5-7 business days, or instant store credit.
@@ -60,21 +68,23 @@ _SYSTEM_INSTRUCTION = f"""You are the Returns Assistant, a calm, helpful voice s
 
 YOU CONTROL THE SCREEN. Whenever you reference an order, an item, or a step, call the matching tool so the shopper SEES it. Open the order, highlight the item, start the return, and fill the form with tools — never just describe.
 
+SPEAK AND ACT IN THE SAME RESPONSE. Every tool call goes out together with the one short line that goes with it — say the line first and make the calls in that same response, so the screen moves as you speak. You do not get to speak again after a call until the shopper does, so a call made in silence leaves them in silence, and a line like "let me check" promises something that never comes. What a tool hands back, you read on your next turn; everything you need to answer is already written below.
+
 THE SHOPPER'S ORDERS — these are the only orders. Refer to items by name; use the bracketed id only for tool arguments:
 {orders_for_prompt()}
 
 {_POLICY_FACTS}
 
 HOW TO HANDLE A RETURN — follow these steps in order:
-1. IDENTIFY: When the shopper describes an item (e.g. "my bluetooth mic"), find the order and item above, call open_order to show it, then highlight_item to point at the exact line. Ask them to confirm it's the right one.
-2. OPEN THE CHECKLIST (only if they say it's broken / not working): before accepting a return, troubleshoot. Call start_diagnostics with the order, the item, and a list of 3 or 4 SHORT check labels you will run — for the Bluetooth mic, good ones are ["Charged and powered on", "Status LED lights up", "Enters pairing mode", "Re-paired from Bluetooth settings"]. This opens a checklist on the shopper's screen.
-3. RUN THE CHECKS: ask the checks ONE AT A TIME, in order, as plain questions. After the shopper answers EACH one, call record_diagnostic with the step number (1 for the first check), a one-line summary of their answer, and result "ok" if that check is fine or "issue" if it revealed a problem. If a step actually fixes the device, stop and call complete_diagnostics with resolved true.
-4. FINISH THE CHECKLIST: after the last check, call complete_diagnostics. If the device works now, set resolved true and reassure them — no return needed. If it still does not work, set resolved false with a short reason (e.g. "Won't pair after re-pairing") — this moves the shopper to the return form.
-5. ASK FOR A PHOTO: tell them you need one quick photo — the product TOGETHER WITH its original box — and call request_photo so the photo button stands out. Then stop talking and let them do it.
-6. VERIFY THE PHOTO: the moment they upload it you will be shown the image, and you get the next word without being asked for it. Check carefully: (a) does the product in the photo match the item being returned, and (b) is the original retail box visible? Call set_photo_check with what you found, then say the result in ONE short sentence. If something is missing (wrong item, or no box), ask them to retake the photo and stop here.
-7. FILL THE FORM: if the photo passed, call fill_return_form to fill in the reason, condition, refund method, and a short note. Then ask the shopper to review it and tap "Confirm & submit return". Once they submit, thank them and tell them they'll get a prepaid label by email.
+1. IDENTIFY: When the shopper describes an item (e.g. "my bluetooth mic"), find the order and item above. In one response, ask them to confirm it's the right one (name the item and when it was ordered) and call open_order to show it and highlight_item to point at the exact line.
+2. OPEN THE CHECKLIST (only if they say it's broken / not working): before accepting a return, troubleshoot. Call start_diagnostics with the order, the item, and a list of 3 or 4 SHORT check labels you will run — for the Bluetooth mic, good ones are ["Charged and powered on", "Status LED lights up", "Enters pairing mode", "Re-paired from Bluetooth settings"]. This opens a checklist on the shopper's screen. Ask the first check as your line in that same response.
+3. RUN THE CHECKS: ask the checks ONE AT A TIME, in order, as plain questions. After the shopper answers EACH one, call record_diagnostic with the step number (1 for the first check), a one-line summary of their answer, and result "ok" if that check is fine or "issue" if it revealed a problem — and ask the next check in that same response. If a step actually fixes the device, stop and call complete_diagnostics with resolved true.
+4. FINISH THE CHECKLIST: after the last check, call complete_diagnostics. If the device works now, set resolved true and reassure them in that same response — no return needed. If it still does not work, set resolved false with a short reason (e.g. "Won't pair after re-pairing") — this moves the shopper to the return form — and ask for the photo (next step) in that same response.
+5. ASK FOR A PHOTO: tell them you need one quick photo — the product TOGETHER WITH its original box — and call request_photo in the same response so the photo button stands out. Then stop talking and let them do it.
+6. VERIFY THE PHOTO: the moment they upload it you will be shown the image, and you get the next word without being asked for it. Check carefully: (a) does the product in the photo match the item being returned, and (b) is the original retail box visible? In ONE response, say the result in one short sentence and call set_photo_check with what you found. If something is missing (wrong item, or no box), that sentence asks them to retake the photo, and you stop there.
+7. FILL THE FORM: if the photo passed, call fill_return_form in that same response to fill in the reason, condition, refund method, and a short note, and make your sentence ask the shopper to review it and tap "Confirm & submit return". Once they submit, thank them and tell them they'll get a prepaid label by email.
 
-If the item is not defective (wrong item, changed their mind), skip the checklist and call start_return to go straight to the return form.
+If the item is not defective (wrong item, changed their mind), skip the checklist: say one short line and call start_return in the same response to go straight to the return form.
 
 CONVERSATION STYLE:
 - This is voice. Keep replies short — usually one or two sentences, never more than three.
@@ -201,7 +211,8 @@ class SupportBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The ten the assistant may call."""
+        """The tools the assistant may call. None is marked ``@needs_result_now``:
+        see the module docstring."""
         return [
             self.open_orders,
             self.open_order,
@@ -243,7 +254,7 @@ class SupportBrain(GeminiBrain):
     async def start_diagnostics(self, action: StartDiagnostics) -> str:
         """Open a troubleshooting checklist on the shopper's screen for a
         broken item. Pass the short labels of the checks you will run, in
-        order. Call before you start asking the diagnostic questions."""
+        order. Ask the first check in the same response as this call."""
         steps = [s for s in action.steps if s.strip()]
         if get_order(action.order_id) is None or get_item(action.item_id) is None or not steps:
             return "error: need a valid order, item, and steps"
@@ -259,7 +270,8 @@ class SupportBrain(GeminiBrain):
     async def record_diagnostic(self, action: RecordDiagnostic) -> str:
         """Record the shopper's answer to one checklist step: marks it done,
         shows a one-line summary under it, and advances the highlight to the
-        next step. Call after the shopper answers each check."""
+        next step. Call after the shopper answers each check, in the same
+        response that asks the next one."""
         logger.info("support: record_diagnostic step={} result={}", action.step, action.result)
         self.session.dispatch(action)
         return str({"status": "recorded", "step": action.step})
@@ -293,15 +305,16 @@ class SupportBrain(GeminiBrain):
         """Prompt the shopper to take or upload a photo of the product with
         its original box. You are shown the image as soon as it lands and get
         the next word, so do not ask them to tell you. Makes the photo button on the return
-        form stand out. Call after start_return."""
+        form stand out. Call after start_return, in the same response as the line
+        that asks for the photo."""
         logger.info("support: request_photo (item={})", self._active_item_id)
         self.session.dispatch(RequestPhoto())
         return str({"status": "awaiting_photo"})
 
     async def set_photo_check(self, result: PhotoCheckResult) -> str:
         """Record the result of verifying the shopper's uploaded photo, once
-        you have looked at the image in the conversation. Call before telling
-        the shopper the result."""
+        you have looked at the image in the conversation. Call it in the same
+        response as the one short sentence that tells the shopper the result."""
         passed = result.matches and result.box_present
         logger.info(
             "support: set_photo_check matches={} box={}", result.matches, result.box_present
@@ -318,8 +331,9 @@ class SupportBrain(GeminiBrain):
 
     async def fill_return_form(self, action: FillReturnForm) -> str:
         """Fill in the return form fields on the shopper's screen and enable
-        the submit button. Call only after the photo check has passed. Then
-        ask the shopper to review and tap 'Confirm & submit return'."""
+        the submit button. Call only after the photo check has passed, in the
+        same response as the line asking the shopper to review it and tap
+        'Confirm & submit return'."""
         logger.info(
             "support: fill_return_form reason={!r} refund={!r}", action.reason, action.refund_method
         )
@@ -412,9 +426,10 @@ class SupportBrain(GeminiBrain):
         instruction = (
             f"The shopper just uploaded this photo for the return of {item_name}. "
             "Verify it now: (1) does the product shown match this item, and (2) is "
-            "the original retail box visible? Call set_photo_check with your findings, "
-            "then tell the shopper the result in one short sentence. If it passed, "
-            "call fill_return_form; if not, ask them to retake the photo."
+            "the original retail box visible? In one response, tell the shopper the "
+            "result in one short sentence and call set_photo_check with your findings. "
+            "If it passed, also call fill_return_form and ask them to review and submit "
+            "it; if not, ask them to retake the photo."
         )
         self.append_to_context(
             types.Content(

@@ -1,7 +1,7 @@
 """The Returns Assistant demo, end to end over the wire — no network, no LLM key.
 
 The real ``SupportBrain`` — the shipping ``demos/support/backend/brain.py``, its
-real prompt, its real ten tools, its real order catalog — hosted on a real
+real prompt, its real tools, its real order catalog — hosted on a real
 ``brain_server`` socket and driven by the conformance ``VoqalizeDriver``, with only
 the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e proves.
 
@@ -12,6 +12,12 @@ someone still working the camera. What answers it is ``on_user_idle``, once the
 shopper is quiet: the leg nothing else in the suite covers, and the reason this
 brain arms an idle window at all.
 
+**No tool here carries ``@needs_result_now``** — every order and item is already
+in the prompt, so each tool only shows or records what the model named. Every
+turn is therefore one request: the line and its calls share one response, and
+the turn ends with it. The scripts are written in that shape, and the tests
+count requests where the shape is the point.
+
 Run: ``cd demos && uv run pytest tests/test_support_e2e.py``
 """
 
@@ -20,8 +26,9 @@ from __future__ import annotations
 import asyncio
 import base64
 
+from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import Reply, ScriptedGemini, reply_and_call
 
 from voqalize.sdk.wire import ConfigureFrame
 
@@ -41,55 +48,75 @@ _PIXEL = base64.b64encode(bytes.fromhex("89504e470d0a1a0a")).decode()
 PHOTO_DATA_URL = f"data:image/png;base64,{_PIXEL}"
 
 
+def _results(contents: list[types.Content]) -> dict[str, str]:
+    """Every tool result one request carried, by tool name."""
+    return {
+        p.function_response.name or "": str((p.function_response.response or {})["result"])
+        for c in contents
+        for p in (c.parts or [])
+        if p.function_response is not None
+    }
+
+
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
-            "My earbuds from last week keep cutting out.": [
-                reply_and_call(
-                    "Let me pull that order up.",
-                    "open_order",
-                    action={"order_id": "VQ-10588"},
+            # The line and the call in one response: the order opens as the
+            # assistant asks which item, and nothing follows it this turn.
+            "My earbuds from last week keep cutting out.": reply_and_call(
+                "Your SonicBuds from May 28th — is that the pair?",
+                "open_order",
+                action={"order_id": "VQ-10588"},
+            ),
+            # Two calls under one line: the return form opens and the photo
+            # button stands out, in the same bracket.
+            "The Sonic buds. I want to send them back.": Reply(
+                text="Starting the return — could you show me the buds with their box?",
+                calls=(
+                    (
+                        "start_return",
+                        {
+                            "action": {
+                                "order_id": "VQ-10588",
+                                "item_id": "buds-sonic",
+                                "reason": "Audio cuts out intermittently",
+                            }
+                        },
+                    ),
+                    ("request_photo", {}),
                 ),
-                reply("I see the BT Mic Pro and the Sonic buds on order VQ-10588."),
-            ],
-            "The Sonic buds. I want to send them back.": [
-                reply_and_call(
-                    "Starting the return.",
-                    "start_return",
-                    action={
-                        "order_id": "VQ-10588",
-                        "item_id": "buds-sonic",
-                        "reason": "Audio cuts out intermittently",
-                    },
-                ),
-                reply_and_call("Could you show me the box?", "request_photo"),
-                reply("Thanks — hold the box up to the camera."),
-            ],
+            ),
             # The photo takes no floor (see ``SupportBrain.on_rtvi``); the idle
             # tick that follows it is what opens the turn, and the photo's own
             # verify instruction is then the newest thing said — so the key is the
-            # distinctive phrase inside it, matched as a substring.
-            "Verify it now": [
-                reply_and_call(
-                    "Checking the photo.",
-                    "set_photo_check",
-                    result={
-                        "matches": True,
-                        "box_present": True,
-                        "note": "Retail box visible, seal intact",
-                    },
+            # distinctive phrase inside it, matched as a substring. The verdict is
+            # spoken with both calls: the check is recorded and the form filled as
+            # the shopper hears it.
+            "Verify it now": Reply(
+                text="Photo checks out — have a look at the form and tap submit.",
+                calls=(
+                    (
+                        "set_photo_check",
+                        {
+                            "result": {
+                                "matches": True,
+                                "box_present": True,
+                                "note": "Retail box visible, seal intact",
+                            }
+                        },
+                    ),
+                    (
+                        "fill_return_form",
+                        {
+                            "action": {
+                                "reason": "Audio cuts out intermittently",
+                                "condition": "Opened — defective",
+                                "refund_method": "original_payment",
+                            }
+                        },
+                    ),
                 ),
-                reply_and_call(
-                    "That works.",
-                    "fill_return_form",
-                    action={
-                        "reason": "Audio cuts out intermittently",
-                        "condition": "Opened — defective",
-                        "refund_method": "original_payment",
-                    },
-                ),
-                reply("Photo checks out — your return form is filled in."),
-            ],
+            ),
         }
     )
 
@@ -105,17 +132,27 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
 
 
 async def test_the_return_flow_drives_the_screen() -> None:
-    """Two spoken turns, each a tool round-trip, with the exact ``ui-command``
-    payloads ``/orders`` renders — including the two tools the second turn fires
-    inside one bracket, which is what puts the camera on screen."""
-    async with demo("support", _llm()) as rig:
+    """Spoken turns that each say one line and move the screen under it, with the
+    exact ``ui-command`` payloads ``/orders`` renders — including the pair of tools
+    the second turn fires inside one bracket, which is what puts the camera on
+    screen.
+
+    Each turn is one request, because no tool is marked: what ``open_order``
+    returned is first read by the request the shopper's next message makes."""
+    llm = _llm()
+    async with demo("support", llm) as rig:
         await rig.driver.start_session()
 
+        before = len(llm.captured_contents)
         t1 = await rig.driver.user_says("My earbuds from last week keep cutting out.")
-        check_turn(rig, t1, units=2)
+        check_turn(rig, t1, units=1)
+        assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
 
+        before = len(llm.captured_contents)
         t2 = await rig.driver.user_says("The Sonic buds. I want to send them back.")
-        check_turn(rig, t2, units=3)
+        check_turn(rig, t2, units=1)
+        assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
+        assert "VQ-10588" in _results(llm.captured_contents[-1])["open_order"]
 
         assert rig.actions() == [
             "open_order",
@@ -166,8 +203,9 @@ async def test_a_photo_lands_silently_and_the_next_idle_answers_it() -> None:
         await asyncio.sleep(0.1)
 
         # The shopper says nothing at all — they uploaded, and that is their answer.
+        # The verdict and both verification calls are one response.
         turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
-        check_turn(rig, turn, units=3)
+        check_turn(rig, turn, units=1)
 
         check = rig.command("set_photo_check")
         assert check["matches"] is True

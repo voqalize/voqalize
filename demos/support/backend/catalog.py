@@ -5,7 +5,7 @@ orders, items, and prompt helpers ``SupportBrain`` serves. The UI mirrors it in
 ``frontend/src/support/catalog.ts`` for rendering — the ``id`` values here MUST
 stay in sync with that file.
 
-Three delivered orders cover the demo: a phone order, a phone + case order, and
+The delivered orders cover the demo: a phone order, a phone + case order, and
 an accessories order that contains the **Bluetooth lavalier microphone**
 (``bt-mic-pro``) the returns flow is built around.
 """
