@@ -3,13 +3,16 @@
 A ``voqalize.sdk.Brain`` (LLM + screen-driving tools + per-session state). It began
 as a verbatim port of an in-process brain that ran inside the voice runtime; that
 runtime is gone, and a brain has been a WebSocket the runtime dials ever since.
-Voqalize dials this brain's WebSocket per session; ``respond`` runs a manual
-Gemini function-calling loop where **each LLM call is one speech unit** (1:1 with
-the wire's ``SpeechStart``/``SpeechEnd`` bracket): a hop may speak, may call
-tools, may do both, and a hop that only calls tools is silent. The prompt spends that budget on **one spoken line
-per customer question**, at the top, with every screen call batched underneath
-it — a hop is cheap, but an utterance is a second of the customer's attention,
-and a turn that spends five of them on one answer is the thing they remember.
+Voqalize dials this brain's WebSocket per session; ``respond`` runs Gemini's
+function calls itself, and **a turn is one request** unless it called a tool
+marked ``@needs_result_now``: each call runs as it arrives, its result is filed in
+the context, and the model reads it with the customer's next message. The prompt
+spends that on **one spoken line per customer question**, at the top, in the same
+response as every screen call the answer needs — a line that waits on a result
+would wait for the customer to speak again, and a turn that spends five
+utterances on one answer is the thing they remember. The marked tools are the
+reads the model has to answer *from*: the screen, the calculator's figure, the
+balance, the statement, and a ticket's reference.
 
 This is the most complex demo — it fuses three workstreams:
 
@@ -72,7 +75,13 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    ScreenState,
+    needs_result_now,
+    screen_prose,
+)
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
@@ -613,8 +622,8 @@ carry the steps — do NOT recite them aloud. \
 THE STEP LIST FOLLOWS THE VIDEO BY ITSELF: while the clip is playing, the page highlights \
 whichever step is on screen from the playback position, so you do NOT call \
 highlight_step at all. It is only for when there is no video playing — a paused clip, or a \
-topic with no clip — and then it is at most one call, silently. The chapter map below is \
-for YOU to pick the right start_sec — it is not a script to read out.
+topic with no clip — and then it is at most one call, made in the same step as your one \
+short line. The chapter map below is for YOU to pick the right start_sec — it is not a script to read out.
 
 M_Oxpto2PRo — Interest Certificate on the 'open' app (plays muted; the step list on screen carries the steps, so you do not narrate them):
   [0] start 8  — log in to 'open'
@@ -653,9 +662,9 @@ VxO3yJmBuRE — Fund transfer / add payee on the 'open' app:
   → adding a new payee: start 18."""
 
 
-_TOOLS_GUIDE = """INTERACTIVE TOOLS — beyond videos, you can DO useful things on screen, all WITHOUT a login. Say your one short line and call the tool in the SAME step — never a line, then a pause, then the call. The result renders on screen — say just the headline figure, don't recite every input.
+_TOOLS_GUIDE = """INTERACTIVE TOOLS — beyond videos, you can DO useful things on screen, all WITHOUT a login. Say your one short line and call the tool in the SAME step — never a line, then a pause, then the call, and never a call on its own: after these tools you get no further word until the customer speaks again, so the line you say with the call is your whole answer. The exceptions are the tools that hand you something to say, and they come straight back to you in the same turn: run_calculator (its figure) and raise_ticket (its reference). The result renders on screen — say just the headline figure, don't recite every input.
 
-- run_calculator(kind, …) — open an on-screen calculator and fill it. You only need the AMOUNT from the customer ("emi"/"fd": principal; "eligibility": monthly_income). Interest rate, tenure, and existing EMIs DEFAULT to sensible values automatically — don't insist on them. The computed result comes back to you: say the ONE headline figure in words ("your EMI's about sixteen thousand eight hundred a month, indicative"). Fold the assumption and the indicative caveat into that same short line — don't spell out every default; the calculator screen shows them.
+- run_calculator(kind, …) — open an on-screen calculator and fill it. You only need the AMOUNT from the customer ("emi"/"fd": principal; "eligibility": monthly_income). Interest rate, tenure, and existing EMIs DEFAULT to sensible values automatically — don't insist on them. Say a few words with the call ("let me work that out"); the computed result comes straight back to you in the same turn: then say the ONE headline figure in words ("your EMI's about sixteen thousand eight hundred a month, indicative"). Fold the assumption and the indicative caveat into that same short line — don't spell out every default; the calculator screen shows them.
 - start_application(product) — begin a "savings", "credit_card", or "loan" application (a real top-of-funnel lead). Then prefill_field(field, value) for each detail they give you (name, mobile, email, city, pan / employment, monthly_income / loan_amount, tenure_years). Use spotlight(target=field) to point at a field. Call submit_application when they're ready. This NEEDS NO LOGIN — it's a new-customer flow.
 - compare(kind, items, recommend_id, recommend_reason) — kind "credit_card" or "savings". items is a list of {id, name, features:[short strings]}. Use REAL Aura product names (e.g. Aura Shop+ Rewards Credit Card, Aura Infinite, MyZone, ACE, Skyward; or Easy Access / Prime / Liberty savings). Pick the best for what they told you via recommend_id + a one-line recommend_reason.
 - find_branch(pincode, results) — results is a list of {name, address, kind:"branch"|"atm", ifsc, hours}. Generate a few plausible nearby ones for the pincode they give.
@@ -668,11 +677,11 @@ PICK THE RIGHT TOOL: a how-to question → article + video. "How much EMI / will
 
 
 _ACCOUNT_GUIDE = """ACCOUNT ACCESS — viewing the customer's OWN balance & statement (STRICT ORDER):
-You have four secure account tools. They MUST be used in this exact order; the later ones REFUSE if you skip a step.
+The secure account tools below MUST be used in this exact order; the later ones REFUSE if you skip a step.
 1. show_auth_popup() — puts a secure sign-in on screen for the customer to authorise themselves. It returns AT ONCE, before they have signed in. Say one short line ("I'll put a secure sign-in on your screen — authorise it whenever you're ready"), then carry on with whatever else they asked. You will be TOLD when they sign in, and handed an 'authenticated_context' token then. Never ask them to read anything out.
 2. choose_account(authenticated_context) — puts the customer's accounts on screen so they tap ONE. This also returns at once; you will be told which account they picked.
-3. get_account_balance(authenticated_context, account_id) — the current balance. The balance shows on screen; say just the one figure in words ("your Salary account has about three lakh forty-nine thousand rupees") and stop.
-4. get_statement(authenticated_context, account_id, start_date, end_date) — recent transactions; both dates are OPTIONAL and default to the LAST THREE MONTHS. The statement screen already lists every transaction — do NOT enumerate them aloud. Give ONE short highlight line (e.g. "salary's in and your biggest spend was rent") and point at the screen for the rest.
+3. get_account_balance(authenticated_context, account_id) — the current balance. Say a few words with the call ("pulling it up now"); the result comes straight back to you in the same turn. The balance shows on screen; say just the one figure in words ("your Salary account has about three lakh forty-nine thousand rupees") and stop.
+4. get_statement(authenticated_context, account_id, start_date, end_date) — recent transactions; both dates are OPTIONAL and default to the LAST THREE MONTHS. Like the balance, say a few words with the call and the result comes straight back. The statement screen already lists every transaction — do NOT enumerate them aloud. Give ONE short highlight line (e.g. "salary's in and your biggest spend was rent") and point at the screen for the rest.
 
 HARD RULES (these are enforced by the server, not just etiquette):
 - NEVER call get_account_balance or get_statement until you have been HANDED BOTH a real authenticated_context AND an account_id the customer picked. Both arrive as messages telling you what the customer just did — not as a tool's return value. Until then, the earlier steps have not happened.
@@ -686,8 +695,8 @@ _CARD_CONTROL_GUIDE = """CREDIT-CARD CONTROLS — changing a card's limits / int
 When the customer wants to raise or enable something on their CREDIT card — international spend/usage, the domestic limit, tap-to-pay (contactless), online use, or the ATM cash limit — drive it on screen: you OPEN the controls, the customer sets and saves them. STRICT ORDER (later tools refuse if you skip a step):
 1. AUTHENTICATE ONLY IF NEEDED. If you already hold an authenticated_context from earlier this call, reuse it and do NOT sign in again. Otherwise call show_auth_popup() and wait to be handed one; it does not wait for you.
 2. choose_credit_card(authenticated_context) — puts the cards on screen so the customer taps WHICH one. Returns at once; you will be told which card they picked.
-3. show_card_controls(authenticated_context, card_id) — opens that card's usage & limits form (international/domestic on-off, contactless, online, and the spend / ATM-cash limits). The customer adjusts and saves it themselves. Say ONE short line pointing at the screen ("your card controls are up — flip International on and set the limit there"); do NOT read the toggles aloud.
-4. AS THE FORM COMES UP, this is the natural moment for Journey A (cross-sell): enabling international usually means a trip, so ask one light trip question and, if it fits, offer a forex card.
+3. show_card_controls(authenticated_context, card_id) — opens that card's usage & limits form (international/domestic on-off, contactless, online, and the spend / ATM-cash limits). The customer adjusts and saves it themselves. Say ONE short line pointing at the screen IN THE SAME STEP as the call ("your card controls are up — flip International on and set the limit there"); that line is all you say until the customer speaks. Do NOT read the toggles aloud.
+4. AS THE FORM COMES UP, this is the natural moment for Journey A (cross-sell): enabling international usually means a trip, so put one light trip question into that same line and, if it fits, offer a forex card when they answer.
 5. If they want the forex card, once they've set their limits, call show_forex_card() and let them tap 'Request this card' — that captures the lead.
 
 Same guardrails as account access: NEVER invent or guess an authenticated_context or a card_id (pass back only what you were handed); you only OPEN the controls, you never change a limit or move money; and never ask for OTP, PIN, CVV, card number or password."""
@@ -802,14 +811,14 @@ YOU CONTROL THE SCREEN — SHOW, don't tell. When there's a screen for it, the s
 - Do NOT read the steps aloud. The video and step list show them — and the step list highlights itself from the video's position while it plays, so do NOT call highlight_step during playback; it is for a paused clip or a topic with no clip, at most once. Never recite the menu path or enumerate the steps in speech — that duplicates the screen.
 - Use seek_video(start_sec) to jump to another part, pause_video()/resume_video() if they ask you to wait, and show_contact(topic) when something is genuinely account-specific or they're stuck — it shows the helpline numbers.
 
-ONE SPOKEN LINE PER QUESTION, AND IT COMES FIRST. Speak your short line and issue EVERY screen call that answer needs in the SAME step — the line and the calls go out together, so audio starts immediately and the screen moves under it. Then work in silence: when the tool results come back, say NOTHING more unless a result actually changed your answer. NEVER speak twice for one question, and NEVER narrate what you are about to do next ("now let me highlight the steps", "the steps are lighting up") — the customer is watching that happen.
+ONE SPOKEN LINE PER QUESTION, AND IT COMES FIRST. Speak your short line and issue EVERY screen call that answer needs in the SAME step — the line and the calls go out together, so audio starts immediately and the screen moves under it. A screen call's result reaches you only with the customer's next message, so you get no second word after it: never make a screen call without its line, and never say a line around one that promises more to come ("let me check…"). The only tools that come straight back to you in the same turn are the reads that hand you something to answer from — get_screen_context, run_calculator, get_account_balance, get_statement and raise_ticket; answer from what they give you in one short line, and nothing more. Otherwise NEVER speak twice for one question, and NEVER narrate what you are about to do next ("now let me highlight the steps", "the steps are lighting up") — the customer is watching that happen.
 
 WORKFLOW for a typical question (e.g. "where do I download my interest certificate for tax filing?") — this is ONE step, not five:
 1. Say one short line ("Sure — here's how"), AND in the same step call open_article("interest-certificate") and play_help_video("M_Oxpto2PRo", 15) together.
 2. Stop talking. The video plays, the step list follows it, and the customer reads. Add the login caveat only if it matters, in a few words, and offer the helpline (show_contact) only if they're stuck.
 3. Say nothing else until they ask something. Silence while the customer watches is CORRECT — it is not dead air, and filling it is the single worst thing you can do here.
 
-STAY GROUNDED: nothing in this conversation is a picture of the customer's screen. get_screen_context() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything he points at ("the step you're on right now…", "that field", "go back a bit"), and whenever you are told he changed the screen himself — you are told THAT he changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
+STAY GROUNDED: nothing in this conversation is a picture of the customer's screen. get_screen_context() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything he points at ("the step you're on right now…", "that field", "go back a bit"), and whenever you are told he changed the screen himself — you are told THAT he changed it, never what it now says. When you have been told he changed the screen, call get_screen_context() in the same step as, and before, any tool aimed at what is on it. If a tool refused because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
 
 {_ACCOUNT_GUIDE}
 
@@ -1235,9 +1244,8 @@ async def _silence() -> AsyncGenerator[Any, None]:
 
 class AuraBrain(GeminiBrain):
     """One per session. The Aura Bank L1 support assistant: LLM + help-centre /
-    calculator / application / comparison / branch tools + the four secure account
-    tools + the two secure credit-card tools + this session's auth/selection/screen
-    state.
+    calculator / application / comparison / branch tools + the secure account and
+    credit-card tools + this session's auth/selection/screen state.
 
     Nothing here waits on the customer. ``show_auth_popup``, ``choose_account``
     and ``choose_credit_card`` dispatch a dialog and return; the customer answers
@@ -1258,9 +1266,6 @@ class AuraBrain(GeminiBrain):
             # hand; English is what it stays for an English call.
             system_instruction=_system_instruction(_DEFAULT_LANGUAGE),
             model=model,
-            # Headroom above the base default: aura's secure flows chain several
-            # tool hops in one turn (authenticate → choose → read).
-            max_tool_hops=8,
         )
         # Session payload (init). Aura does not seed any account data from it
         # (accounts and cards are hardcoded demo data), so it does not mutate the
@@ -1301,11 +1306,11 @@ class AuraBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Callable[..., Any]]:
-        """The twenty-eight tools Aria may call.
+        """The tools Aria may call.
 
-        The last six are the secure ones. Three of those open a dialog and return
-        without waiting for it; the other three refuse until the customer has
-        answered one. See the section they live in."""
+        The secure ones come last, from ``show_auth_popup``. The pickers among
+        them open a dialog and return without waiting for it; the rest refuse
+        until the customer has answered one. See the section they live in."""
         return [
             self.open_home,
             self.open_help_center,
@@ -1679,7 +1684,7 @@ class AuraBrain(GeminiBrain):
         """Open the help article that answers their question, full screen.
 
         This is the FIRST thing to do for any how-to question: speak one short
-        line, then call this so the page is up before you explain anything.
+        line and call this in the same step, so the page is up as you say it.
 
         Args:
             article_id: Id of the article for this topic.
@@ -1719,9 +1724,8 @@ class AuraBrain(GeminiBrain):
         # step list already follows the video, so those calls changed nothing on
         # screen and cost an utterance each.
         return (
-            f"playing {video_id} muted from {start_sec}s. The step list is following the "
-            "video on its own — do not call highlight_step, and say nothing more until "
-            "the customer speaks."
+            f"playing {video_id} muted from {start_sec}s. The step list follows the video "
+            "on its own, so highlight_step is not needed while it plays."
         )
 
     async def highlight_step(self, index: int) -> str:
@@ -1789,6 +1793,7 @@ class AuraBrain(GeminiBrain):
         self._show(ShowContact(topic=topic))
         return "contact shown: helpline 1860-200-0100, emergency card block +91 22 2000 0200"
 
+    @needs_result_now
     async def get_screen_context(self) -> str:
         """What the customer is looking at right now — the screen, the open article,
         where the clip is, and anything they have filled in or chosen.
@@ -1804,6 +1809,7 @@ class AuraBrain(GeminiBrain):
 
     # ─── Tools: calculators, applications, comparisons ──────────────────
 
+    @needs_result_now
     async def run_calculator(self, request: CalculatorRequest) -> str:
         """Open an on-screen calculator, fill it in and solve it.
 
@@ -1941,6 +1947,7 @@ class AuraBrain(GeminiBrain):
         self._show(SendToPhone(what=request.what, channel=request.channel, number=request.number))
         return f"sent on {request.channel}"
 
+    @needs_result_now
     async def raise_ticket(self, topic: str, summary: str = "") -> str:
         """Register a complaint or a callback request when something is genuinely
         account-specific or you could not resolve it. You get a reference number
@@ -1981,7 +1988,7 @@ class AuraBrain(GeminiBrain):
         self._show(ShowForexCard())
         return "forex card screen up; the customer taps 'Request this card' to register interest"
 
-    # ─── Tools: the six secure ones ─────────────────────────────────────
+    # ─── Tools: the secure ones ─────────────────────────────────────────
     #
     # None of these block. ``show_auth_popup``, ``choose_account`` and
     # ``choose_credit_card`` dispatch a screen carrying a nonce and return; the
@@ -2107,6 +2114,7 @@ class AuraBrain(GeminiBrain):
             "account_id."
         )
 
+    @needs_result_now
     async def get_account_balance(self, authenticated_context: str, account_id: str) -> str:
         """The current balance of the account the customer picked, on screen.
 
@@ -2142,6 +2150,7 @@ class AuraBrain(GeminiBrain):
             "digits back."
         )
 
+    @needs_result_now
     async def get_statement(
         self,
         authenticated_context: str,
@@ -2232,8 +2241,9 @@ class AuraBrain(GeminiBrain):
         """Open the usage & limits form for the card the customer picked — domestic
         and international use, online, contactless, ATM, and the spend limit.
 
-        They adjust and save it themselves. Do NOT read the toggles aloud; the
-        form shows them.
+        They adjust and save it themselves. Say your one line pointing at the
+        form with this call — its result reaches you only on your next turn. Do
+        NOT read the toggles aloud; the form shows them.
 
         Args:
             authenticated_context: The token you were handed when the customer
@@ -2261,12 +2271,13 @@ class AuraBrain(GeminiBrain):
             if isinstance(v, bool)
         )
         limits = _pairs({k: v for k, v in controls.items() if not isinstance(v, bool)})
+        # Read a turn after the call, so it reports what went up and what the form
+        # held then; the cross-sell cue lives in the prompt, beside the call.
         return (
-            f"The usage & limits form is on screen for the {card['product']} card "
-            f"({card['masked_number']}), currently {toggles}, with {limits}. The customer "
-            "adjusts and saves it themselves — do NOT read the toggles aloud, the form shows "
-            "them. If the change is about international usage, this is the moment for the "
-            "trip / forex-card cross-sell (one short line)."
+            f"The usage & limits form went up for the {card['product']} card "
+            f"({card['masked_number']}), showing {toggles}, with {limits}. The customer "
+            "adjusts and saves it themselves — the form shows the toggles, so do not read "
+            "them aloud."
         )
 
     # ── The dialogs Aria opened, answered ─────────────────────────────────────

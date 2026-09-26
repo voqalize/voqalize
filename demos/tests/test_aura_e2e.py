@@ -1,7 +1,7 @@
 """The Aura Bank support demo, end to end over the wire — no network, no LLM key.
 
 The real ``AuraBrain`` — the shipping ``demos/aura/backend/brain.py``, its real
-prompt, its real thirty-odd tools — hosted on a real ``brain_server`` socket and
+prompt, its real tools — hosted on a real ``brain_server`` socket and
 driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. See
 ``tests/_harness.py`` for what every demo's e2e proves.
 
@@ -11,7 +11,7 @@ and returns in the same breath; the customer authorises it in their own time, or
 never; the brain mints the token when the browser reports they did, and hands it
 to the model as a line of context. The ordering that a wait used to enforce is
 carried instead by the signatures — a tool that needs a token refuses without one
-— so the four tests below are the four states that actually occur: opened, taken,
+— so the sign-in tests below are the states that actually occur: opened, taken,
 dismissed, and skipped.
 
 Run: ``cd demos && uv run pytest tests/test_aura_e2e.py``
@@ -53,20 +53,17 @@ FORGED = "7Q2XKD"
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
-            "How do I add a payee?": [
-                reply_and_call(
-                    "Let me show you.",
-                    "play_help_video",
-                    video_id="add-payee",
-                    start_sec=12,
-                ),
-                reply_and_call("First, open Payments.", "highlight_step", index=1),
-                reply("Then tap Add Payee and enter their account number."),
-            ],
-            "What's my balance?": [
-                reply_and_call("I'll put a secure sign-in on your screen.", "show_auth_popup"),
-                reply("Authorise that whenever you're ready and I'll pull it up."),
-            ],
+            "How do I add a payee?": reply_and_call(
+                "Let me show you.",
+                "play_help_video",
+                video_id="add-payee",
+                start_sec=12,
+            ),
+            "Which step is that?": reply_and_call("This one.", "highlight_step", index=1),
+            "What's my balance?": reply_and_call(
+                "I'll put a secure sign-in on your screen — authorise it whenever you're ready.",
+                "show_auth_popup",
+            ),
             "Anything else I should know?": [reply("Nothing else — take your time.")],
             # Keyed on the note ``_complete_auth`` appends, because an idle-driven
             # turn carries no user sentence — what the model is answering is the
@@ -91,11 +88,10 @@ def _tool_results(llm: ScriptedGemini) -> str:
     """Every tool result the brain put in front of the model, as one blob.
 
     A tool's outcome never reaches the wire — the customer hears only the sentence
-    the model built from it — so the model's *next* prompt is the only place it is
-    visible. Under automatic function calling a whole turn is one request, and the
-    calls and responses it made are filed into the context after it: they are first
-    carried by the request that follows. google-genai wraps a tool's return as
-    ``{"result": ...}``, so unwrap that one level.
+    the model built from it — so the model's *next* request is the only place it is
+    visible. That is the next hop of the same turn for a tool marked
+    ``@needs_result_now``, and the customer's next turn for every other. The brain
+    wraps a tool's return as ``{"result": ...}``, so unwrap that one level.
     """
     out: list[str] = []
     for contents in llm.captured_contents:
@@ -161,14 +157,20 @@ async def test_the_language_the_page_picked_moves_the_greeting_and_both_legs() -
 
 
 async def test_narrating_a_help_video_drives_the_screen() -> None:
-    """Three model calls in one turn: play the clip muted, then highlight steps as
-    Aria narrates. The ``start_sec`` is the one the console seeks to, so it has to
-    survive as an int rather than the model's string."""
+    """One line, and the clip goes up under it: the line and the call are one
+    response, and the turn ends with it — the step list follows the video by
+    itself, so there is nothing left to say. A step is pointed at on a later
+    question, again with its line. The ``start_sec`` is the one the console seeks
+    to, so it has to survive as an int rather than the model's string."""
     async with demo("aura", _llm()) as rig:
         await rig.driver.start_session()
 
         turn = await rig.driver.user_says("How do I add a payee?")
-        check_turn(rig, turn, units=3)
+        check_turn(rig, turn, units=1)
+        assert rig.actions() == ["play_help_video"], rig.actions()
+
+        turn = await rig.driver.user_says("Which step is that?")
+        check_turn(rig, turn, units=1)
 
         assert rig.actions() == ["play_help_video", "highlight_step"], rig.actions()
         video = rig.command("play_help_video")
@@ -210,7 +212,9 @@ async def test_a_tool_aimed_at_a_screen_he_moved_is_refused_until_it_is_read() -
     Prompt discipline is a request; a model that skips the read is seeking in a clip
     that is no longer the one on screen. So the tool refuses instead of acting, and
     the refusal is retriable: read, then act. The scripted model here does exactly
-    the wrong thing first.
+    the wrong thing first. The seek is not marked, so the refusal reaches the model
+    with the customer's next message; the read is, so it and the retried seek
+    share that next turn.
 
     The other half is that the brain's own dispatches must *not* trip it. That
     used to need a flag, because the browser echoed every command back as a
@@ -220,21 +224,16 @@ async def test_a_tool_aimed_at_a_screen_he_moved_is_refused_until_it_is_read() -
     hop at all."""
     llm = ScriptedGemini(
         {
-            "Show me how to add a payee.": [
-                reply_and_call("Here you go.", "play_help_video", video_id="add-payee"),
-                reply("It's playing now."),
-            ],
-            "Start from the beginning.": [
-                reply_and_call("Sure.", "seek_video", start_sec=0),
-                reply("From the top."),
-            ],
-            "Go back a bit.": [
-                call("seek_video", start_sec=12),  # stale — he has moved since
+            "Show me how to add a payee.": reply_and_call(
+                "Here you go.", "play_help_video", video_id="add-payee"
+            ),
+            "Start from the beginning.": reply_and_call("Sure.", "seek_video", start_sec=0),
+            # Stale — he has moved since, and the model skips the read.
+            "Go back a bit.": reply_and_call("Sure.", "seek_video", start_sec=12),
+            "It didn't move.": [
                 call("get_screen_context"),
-                reply_and_call("Sure.", "seek_video", start_sec=12),
-                reply("Back a bit."),
+                reply_and_call("Back a bit now.", "seek_video", start_sec=12),
             ],
-            "Thanks.": reply("Any time."),
         }
     )
     async with demo("aura", llm) as rig:
@@ -250,19 +249,21 @@ async def test_a_tool_aimed_at_a_screen_he_moved_is_refused_until_it_is_read() -
         # Now the customer navigates away himself.
         await rig.driver.send_ui_event("article_opened", {"article_id": "block-card"})
         await rig.driver.user_says("Go back a bit.")
-        seeks = [
-            c["payload"]["start_sec"]
-            for c in rig.driver.ui_commands
-            if c["command"] == "seek_video"
-        ]
-        assert seeks == [0, 12], seeks
+        assert _seeks(rig) == [0], "a stale seek moved the clip"
 
-        # One more turn, so the turn above's hops are in the context being asserted:
-        # under automatic function calling a whole turn is one request, and its tool
-        # results are only visible to the request that follows it.
-        await rig.driver.user_says("Thanks.")
+        # The refusal rides the next request; the read continues that turn, and
+        # the seek after it goes through.
+        turn = await rig.driver.user_says("It didn't move.")
+        check_turn(rig, turn, units=1)
+        assert _seeks(rig) == [0, 12], _seeks(rig)
 
     assert _seek_refused(llm)
+
+
+def _seeks(rig: Any) -> list[int]:
+    return [
+        c["payload"]["start_sec"] for c in rig.driver.ui_commands if c["command"] == "seek_video"
+    ]
 
 
 def _seek_refused(llm: ScriptedGemini) -> bool:
@@ -282,14 +283,14 @@ async def test_the_signin_goes_up_and_the_turn_finishes_without_it() -> None:
         await rig.driver.start_session()
 
         turn = await rig.driver.user_says("What's my balance?")
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=1)
 
         assert rig.actions() == ["open_auth"], rig.actions()
         assert _auth_nonce(rig)
 
         # One more turn, so the turn above's tool results are in the context being
-        # asserted: under automatic function calling a whole turn is one request,
-        # and what it called is only visible to the request that follows it.
+        # asserted: the sign-in is not marked, so its result is first carried by the
+        # request the customer's next message makes.
         await rig.driver.user_says("Anything else I should know?")
 
     results = _tool_results(llm)
@@ -358,7 +359,9 @@ async def test_a_forged_token_is_refused_and_the_model_is_sent_back_a_step() -> 
     handle is what stops it: the parameter is mandatory, the brain checks it against
     the one this session minted — before the sign-in, none — and a forgery earns an
     error naming the step that has not happened. The failure path *is* the enforcement — so it is asserted as
-    a completed, speaking turn, not merely as a status string."""
+    a completed, speaking turn, not merely as a status string. The balance read is
+    marked ``@needs_result_now``, so the refusal comes back inside the same turn and
+    the model's second line answers from it."""
     llm = _llm()
     async with demo("aura", llm) as rig:
         await rig.driver.start_session()
@@ -367,15 +370,42 @@ async def test_a_forged_token_is_refused_and_the_model_is_sent_back_a_step() -> 
         turn = await rig.driver.user_says("Just tell me the number.")
         check_turn(rig, turn, units=2)
 
-        # As above: one more turn, so the refusal is carried into a request.
-        await rig.driver.user_says("Anything else I should know?")
-
     results = _tool_results(llm)
     refusal = "the customer is not signed in, so this is refused"
     assert refusal in results.lower()
     assert "call show_auth_popup()" in results.lower()
     # No balance leaked past the guard.
     assert "balance" not in results.lower().split(refusal)[1]
+
+
+async def test_the_calculator_figure_is_answered_in_the_same_turn() -> None:
+    """The calculator is the one screen tool whose result the model has to say.
+
+    It is marked ``@needs_result_now``, so the line that goes out with it is
+    followed in the same turn by the figure it computed — the customer asked for a
+    number, and a turn that ended on "let me work that out" would leave them
+    waiting for one until they spoke again. The second request carries the
+    brain's own maths, not anything the model supplied."""
+    llm = ScriptedGemini(
+        {
+            "What's the EMI on ten lakh?": [
+                reply_and_call(
+                    "Let me work that out.",
+                    "run_calculator",
+                    request={"kind": "emi", "principal": 1_000_000},
+                ),
+                reply("About twenty thousand a month, indicative."),
+            ],
+        }
+    )
+    async with demo("aura", llm) as rig:
+        await rig.driver.start_session()
+
+        turn = await rig.driver.user_says("What's the EMI on ten lakh?")
+        check_turn(rig, turn, units=2)
+        assert rig.actions() == ["run_calculator"], rig.actions()
+
+    assert "calculator is on screen" in _tool_results(llm)
 
 
 async def test_the_idle_window_reaches_the_wire() -> None:
