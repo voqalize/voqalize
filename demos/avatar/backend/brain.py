@@ -57,7 +57,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, needs_result_now
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, acted, needs_result_now, reask_if_silent
 
 from voqalize.sdk import (
     Action,
@@ -348,6 +348,7 @@ class AvatarBrain(GeminiBrain):
         section = SECTIONS_BY_ID[request.section]
         logger.info("avatar: show_section {}", section.id)
         self.session.dispatch(ShowSection(id=section.id, title=section.title))
+        acted("show_section")
         return str({"section": section.id, "heading": section.title, "say": section.notes})
 
     async def perform(self, request: GestureRequest) -> str:
@@ -359,6 +360,7 @@ class AvatarBrain(GeminiBrain):
         action_id = _GESTURE_IDS[request.gesture]
         logger.info("avatar: perform {} ({})", request.gesture, action_id)
         self._act(action_id)
+        acted("perform")
         return str({"performed": request.gesture, "wire_id": action_id})
 
     # ─── Callbacks ──────────────────────────────────────────────────────
@@ -473,8 +475,11 @@ class AvatarBrain(GeminiBrain):
         A turn can start inside the two minutes and finish outside them — a
         section read is a second request — and the next turn may be a long way
         off. Signing off here means the last thing the visitor hears is
-        the sign-off rather than a model turn that ran over."""
-        async for speech in super().respond(session):
+        the sign-off rather than a model turn that ran over.
+
+        A turn that waved and said nothing is asked once more first; see
+        :mod:`voqalize_demos.silent_turn`."""
+        async for speech in reask_if_silent(super().respond, session):
             yield speech
         if self._out_of_time() and not self._signed_off:
             async for speech in self._sign_off(session):

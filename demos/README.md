@@ -65,6 +65,7 @@ demos/
     configure.py          # configure_soon: a config change from a tool, without waiting on the answer
     greeting.py           # hello_for: a one-word hello per demo language
     screen.py             # ScreenState, screen_prose: the screen is read, never remembered
+    silent_turn.py        # acted, reask_if_silent: a turn that acted and said nothing is asked once more
     testing.py            # ScriptedGemini: a fake genai.Client for the tests
   <name>/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/

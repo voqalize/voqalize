@@ -45,6 +45,7 @@ the browser keys its rows by — the model is never asked to invent one.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 from google import genai
@@ -55,11 +56,13 @@ from voqalize_demos import (
     DEFAULT_MODEL,
     GeminiBrain,
     ScreenState,
+    acted,
     needs_result_now,
+    reask_if_silent,
     screen_prose,
 )
 
-from voqalize.sdk import Action, RTVIMessage, Session
+from voqalize.sdk import Action, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import (
@@ -520,6 +523,15 @@ class ServicingBrain(GeminiBrain):
         free text in session.init, ahead of any model to judge it."""
         return f"Hi there — {AGENT_NAME} here. What would you like to start on?"
 
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, asked once more if it acted on screen and said nothing.
+
+        The prompt has the model speak and call in the same response, and on a
+        dialled call it sometimes called alone, leaving the user in silence with
+        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in reask_if_silent(super().respond, session):
+            yield event
+
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message: one thing the advisor just did on the console.
 
@@ -605,6 +617,7 @@ class ServicingBrain(GeminiBrain):
         advisor, never this brain's own command echoing home."""
         self._mirror(action)
         self.session.dispatch(action)
+        acted(type(action).__name__)
 
     def _mirror(self, action: ScreenMove) -> None:
         """Move the picture the way this dispatch is about to move the console."""

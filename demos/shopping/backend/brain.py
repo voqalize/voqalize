@@ -25,14 +25,21 @@ product by its catalog ``id``, which the UI mirrors.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, needs_result_now
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    acted,
+    needs_result_now,
+    reask_if_silent,
+)
 
-from voqalize.sdk import Action, Session
+from voqalize.sdk import Action, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .catalog import (
@@ -261,6 +268,15 @@ class ShoppingBrain(GeminiBrain):
         shopper hears the assistant the instant the session connects."""
         return _GREETING
 
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, asked once more if it acted on screen and said nothing.
+
+        The prompt has the model speak and call in the same response, and on a
+        dialled call it sometimes called alone, leaving the user in silence with
+        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in reask_if_silent(super().respond, session):
+            yield event
+
     # ─── Tools ──────────────────────────────────────────────────────────
 
     @property
@@ -312,6 +328,7 @@ class ShoppingBrain(GeminiBrain):
                 result_ids=[p["id"] for p in matches],
             )
         )
+        acted("search_products")
         return str({"count": len(matches), "results": [summary(p) for p in matches]})
 
     async def open_product(self, action: OpenProduct) -> str:
@@ -323,6 +340,7 @@ class ShoppingBrain(GeminiBrain):
             return str({"error": f"unknown product '{action.product_id}'"})
         logger.info("shopping: open_product {}", action.product_id)
         self.session.dispatch(action)
+        acted("open_product")
         return str({"product": product})
 
     async def apply_filters(self, query: FilterQuery) -> str:
@@ -350,18 +368,21 @@ class ShoppingBrain(GeminiBrain):
                 result_ids=[p["id"] for p in matches],
             )
         )
+        acted("apply_filters")
         return str({"count": len(matches), "results": [summary(p) for p in matches]})
 
     async def clear_filters(self) -> str:
         """Clear all active filters and show the full catalog again."""
         logger.info("shopping: clear_filters")
         self.session.dispatch(ClearFilters())
+        acted("clear_filters")
         return str({"status": "cleared"})
 
     async def go_home(self) -> str:
         """Return the shopper to the store home page."""
         logger.info("shopping: go_home")
         self.session.dispatch(NavigateHome())
+        acted("go_home")
         return str({"status": "home"})
 
     async def highlight_feature(self, action: Highlight) -> str:
@@ -371,6 +392,7 @@ class ShoppingBrain(GeminiBrain):
         open_product if it is not already showing."""
         logger.info("shopping: highlight {} {}", action.product_id, action.feature)
         self.session.dispatch(action)
+        acted("highlight_feature")
         product = get_product(action.product_id)
         detail: Any = None
         if product is not None:

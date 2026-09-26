@@ -34,16 +34,24 @@ turning it into a paragraph of speech.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, configure_soon, needs_result_now
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    acted,
+    configure_soon,
+    needs_result_now,
+    reask_if_silent,
+)
 from voqalize_demos.screen import ScreenState
 
-from voqalize.sdk import Action, RTVIMessage, Session
+from voqalize.sdk import Action, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
 
 from .app_events import MARKETING_EVENTS, MarketingEvent, SectionViewed
@@ -251,6 +259,15 @@ class MarketingBrain(GeminiBrain):
         product whose whole subject is turn latency."""
         return _GREETING
 
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, asked once more if it acted on screen and said nothing.
+
+        The prompt has the model speak and call in the same response, and on a
+        dialled call it sometimes called alone, leaving the user in silence with
+        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in reask_if_silent(super().respond, session):
+            yield event
+
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain gesture. Folded in *silently* — no floor taken, no turn;
         the next turn carries the line it produced."""
@@ -344,6 +361,7 @@ class MarketingBrain(GeminiBrain):
         self.session.dispatch(
             PointAt(section=section_id, target=request.target, reason=request.reason)
         )
+        acted("point_at")
         return "ok"
 
     async def show_note(self, note: ShowNote) -> str:
@@ -353,6 +371,7 @@ class MarketingBrain(GeminiBrain):
         Keep it brief, and speak only the headline, in the same response that calls
         this; the panel carries the rest."""
         self.session.dispatch(note)
+        acted("show_note")
         return "ok"
 
     @needs_result_now

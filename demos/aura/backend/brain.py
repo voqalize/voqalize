@@ -79,7 +79,9 @@ from voqalize_demos import (
     DEFAULT_MODEL,
     GeminiBrain,
     ScreenState,
+    acted,
     needs_result_now,
+    reask_if_silent,
     screen_prose,
 )
 
@@ -1375,6 +1377,15 @@ class AuraBrain(GeminiBrain):
         has run."""
         return _GREETINGS[self.persona][self.language]
 
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, asked once more if it acted on screen and said nothing.
+
+        The prompt has the model speak and call in the same response, and on a
+        dialled call it sometimes called alone, leaving the user in silence with
+        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in reask_if_silent(super().respond, session):
+            yield event
+
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """The customer spoke. Whatever they last did on screen is answered by the
         reply this turn produces, so the debt is settled here and ``on_user_idle``
@@ -1540,6 +1551,7 @@ class AuraBrain(GeminiBrain):
         browser never echoes this back: a brain's own dispatch is not an event."""
         self._mirror(action)
         self.session.dispatch(action)
+        acted(type(action).__name__)
 
     def _mirror(self, action: ScreenMove) -> None:
         """Apply one of Aria's own commands to her picture of the page.

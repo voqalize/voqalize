@@ -21,14 +21,17 @@ from voqalize.sdk.gemini import DEFAULT_MODEL, VOICE_THINKING, GeminiBrain, need
 from voqalize_demos.configure import configure_soon
 from voqalize_demos.greeting import hello_for
 from voqalize_demos.screen import ScreenState, screen_prose
+from voqalize_demos.silent_turn import acted, reask_if_silent
 
 __all__ = [
     "DEFAULT_MODEL",
     "VOICE_THINKING",
     "GeminiBrain",
     "ScreenState",
+    "acted",
     "configure_soon",
     "hello_for",
     "needs_result_now",
+    "reask_if_silent",
     "screen_prose",
 ]

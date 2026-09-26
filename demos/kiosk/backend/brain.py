@@ -58,8 +58,10 @@ from voqalize_demos import (
     DEFAULT_MODEL,
     GeminiBrain,
     ScreenState,
+    acted,
     configure_soon,
     needs_result_now,
+    reask_if_silent,
     screen_prose,
 )
 
@@ -661,6 +663,15 @@ class KioskBrain(GeminiBrain):
         token to hear it."""
         return GREETING[self.language]
 
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, asked once more if it acted on screen and said nothing.
+
+        The prompt has the model speak and call in the same response, and on a
+        dialled call it sometimes called alone, leaving the user in silence with
+        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in reask_if_silent(super().respond, session):
+            yield event
+
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         """Silence, always — but the first quiet moment starts the journey.
 
@@ -1027,6 +1038,7 @@ class KioskBrain(GeminiBrain):
         """
         self._mirror(action)
         self.session.dispatch(action)
+        acted(type(action).__name__)
         self._pace_for_the_screen()
 
     def _pace_for_the_screen(self) -> None:

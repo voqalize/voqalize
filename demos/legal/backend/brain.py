@@ -27,16 +27,23 @@ one ``self.session.dispatch(...)`` line.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, needs_result_now
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    acted,
+    needs_result_now,
+    reask_if_silent,
+)
 from voqalize_demos.screen import ScreenState
 
-from voqalize.sdk import Action, RTVIMessage, Session
+from voqalize.sdk import Action, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import LEGAL_EVENTS, ClauseFocused, LegalEvent
@@ -381,6 +388,15 @@ class LegalBrain(GeminiBrain):
         copilot that makes them wait on a first token has already interrupted."""
         return _GREETING
 
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, asked once more if it acted on screen and said nothing.
+
+        The prompt has the model speak and call in the same response, and on a
+        dialled call it sometimes called alone, leaving the user in silence with
+        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in reask_if_silent(super().respond, session):
+            yield event
+
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain gesture. Folded in *silently* — no floor taken, no turn;
         the next turn carries the line it produced."""
@@ -469,6 +485,7 @@ class LegalBrain(GeminiBrain):
         # then nothing new.
         self.current_focus = CLAUSES_BY_ID.get(target.clause_id)
         self.session.dispatch(target)
+        acted("point_to_clause")
         return "ok"
 
     async def add_comment(self, comment: AddComment) -> str:
@@ -476,6 +493,7 @@ class LegalBrain(GeminiBrain):
         for flags and observations that aren't a proposed text change — "flag this",
         "note that this needs a co-marketing carve-out"."""
         self.session.dispatch(comment)
+        acted("add_comment")
         return "ok"
 
     async def propose_redline(self, redline: ProposeRedline) -> str:
@@ -484,6 +502,7 @@ class LegalBrain(GeminiBrain):
         Use when the lawyer asks you to fix, redline or change something, or when you
         proactively catch a playbook failure and want to offer the fix."""
         self.session.dispatch(redline)
+        acted("propose_redline")
         return "ok"
 
     async def insert_clause(self, insertion: InsertClause) -> str:
@@ -492,6 +511,7 @@ class LegalBrain(GeminiBrain):
         add. Use this instead of a redline whenever there is no existing excerpt to
         point at."""
         self.session.dispatch(insertion)
+        acted("insert_clause")
         return "ok"
 
     async def run_diligence(self, diligence: RunDiligence) -> str:
@@ -504,6 +524,7 @@ class LegalBrain(GeminiBrain):
         set them going as you call it — never claim they are finished and never
         read the results aloud; the cards fill in on their own."""
         self.session.dispatch(diligence)
+        acted("run_diligence")
         logger.info("legal: run_diligence ({} jobs)", len(diligence.jobs))
         return (
             "ok — set running on screen, and each card fills in on its own as its job "
@@ -516,6 +537,7 @@ class LegalBrain(GeminiBrain):
         dollar exposure, risk severity — rather than redline it themselves. Not for
         routine redlines."""
         self.session.dispatch(approval)
+        acted("route_for_approval")
         return "ok"
 
     async def extract_obligations(self, register: ExtractObligations) -> str:
