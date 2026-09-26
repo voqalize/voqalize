@@ -42,7 +42,9 @@ import time
 from typing import Any, NamedTuple
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply
+from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
+
+from voqalize.sdk.gemini import _needs_result_now
 
 from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, check_voice_pair, demo
 
@@ -53,6 +55,7 @@ from voqalize_demos._loaded.kiosk.brain import (  # noqa: E402
     AskProfile,
     CardView,
     ConfirmValue,
+    HeardValue,
     OpenConsent,
     ShowEligibility,
     ShowQr,
@@ -67,7 +70,7 @@ from voqalize_demos._loaded.kiosk.cards import (  # noqa: E402
     VALUE_PROMPTS,
 )
 from voqalize_demos._loaded.kiosk.eligibility import assess, shortlist  # noqa: E402
-from voqalize_demos._loaded.kiosk.prompts import GREETING  # noqa: E402
+from voqalize_demos._loaded.kiosk.prompts import GREETING, SYSTEM_INSTRUCTION  # noqa: E402
 
 #: One person, two languages — the clip does not change when the language does.
 VOICE = "omnivoice/gayatri"
@@ -162,6 +165,19 @@ async def _by_hand(
     ]
 
 
+def _named_results(llm: ScriptedGemini) -> list[tuple[str, str]]:
+    """:func:`_tool_results`, each with the name of the tool that returned it."""
+    return [
+        (
+            str(part.function_response.name),
+            str((part.function_response.response or {}).get("result", "")),
+        )
+        for content in _record(llm)
+        for part in content.parts or []
+        if part.function_response is not None
+    ]
+
+
 _SAY = re.compile(r"SAY:(.*)", re.DOTALL)
 
 
@@ -175,9 +191,9 @@ def _say_lines(llm: ScriptedGemini) -> list[str]:
 async def _one_more_turn(rig: DemoRig) -> None:
     """One throwaway turn, so the turn before it is readable.
 
-    Under automatic function calling a whole user turn is *one* request, and the
-    calls and responses it made are filed into the context only after it — so a
-    tool result is first carried by the request that follows. A test that asserts
+    A tool's result is filed into the context after the request that called it,
+    and — unless the tool is marked ``@needs_result_now`` — the turn ends there, so
+    the result is first carried by the request that follows. A test that asserts
     on the last turn's tool results without this is asserting on an empty list."""
     await rig.driver.user_says("Thanks.")
 
@@ -198,29 +214,39 @@ def _payloads(rig: DemoRig, action: str) -> list[dict[str, Any]]:
 
 def _discovery_script() -> dict[str, Any]:
     """The four questions and the four answers, as fourteen-turn pacing has them:
-    one tool to record the answer — which puts the next question up by itself —
-    and one short line that folds the acknowledgement and the question into one
-    breath."""
+    one short line that folds the acknowledgement and the next question into one
+    breath, said in the same response as the call that records the answer — which
+    puts the next question up by itself. The last answer goes to the rules in the
+    same response, and the verdict is read back in the same turn."""
     return {
-        "Hello there.": [
-            call("ask_profile", ask={"field": "employment", "question": "What do you do?"}),
-            reply("Are you salaried, self employed, in government service, or studying?"),
-        ],
-        "I'm salaried.": [
-            call("capture_value", heard={"field": "employment", "value": "salaried"}),
-            reply("Got it. And roughly what comes in every month?"),
-        ],
-        "About forty thousand a month.": [
-            call("capture_value", heard={"field": "income_band", "value": "25k_60k"}),
-            reply("Thank you. Do you already hold a credit card?"),
-        ],
-        "Just the one.": [
-            call("capture_value", heard={"field": "existing_cards", "value": "one"}),
-            reply("Right. And where does most of your spending go?"),
-        ],
+        "Hello there.": reply_and_call(
+            "Are you salaried, self employed, in government service, or studying?",
+            "ask_profile",
+            ask={"field": "employment", "question": "What do you do?"},
+        ),
+        "I'm salaried.": reply_and_call(
+            "Got it. And roughly what comes in every month?",
+            "capture_value",
+            heard={"field": "employment", "value": "salaried"},
+        ),
+        "About forty thousand a month.": reply_and_call(
+            "Thank you. Do you already hold a credit card?",
+            "capture_value",
+            heard={"field": "income_band", "value": "25k_60k"},
+        ),
+        "Just the one.": reply_and_call(
+            "Right. And where does most of your spending go?",
+            "capture_value",
+            heard={"field": "existing_cards", "value": "one"},
+        ),
         "Mostly fuel, I drive a lot.": [
-            call("capture_value", heard={"field": "spend_category", "value": "fuel"}),
-            call("check_eligibility", request={}),
+            Reply(
+                text="Thank you. One moment.",
+                calls=(
+                    ("capture_value", {"heard": {"field": "spend_category", "value": "fuel"}}),
+                    ("check_eligibility", {"request": {}}),
+                ),
+            ),
             reply(
                 "You are likely eligible for our main cards, and the line is about two to "
                 "three times your monthly income. A banker at the desk will confirm."
@@ -235,23 +261,24 @@ def _full_flow_llm() -> ScriptedGemini:
         {
             **_discovery_script(),
             "Which one would you pick?": [
-                call("show_shortlist"),
+                reply_and_call("One moment.", "show_shortlist"),
                 reply("The Vantage Fuel is my pick, because you spend most on fuel."),
             ],
             "Tell me more about that one.": [
-                call("open_card_detail", card={"card_id": "vantage_fuel"}),
+                reply_and_call("Sure.", "open_card_detail", card={"card_id": "vantage_fuel"}),
                 reply("The fuel surcharge comes off on most fills, which is where you spend."),
             ],
-            "I'll take it.": [
-                call("open_consent", card={"card_id": "vantage_fuel"}),
-                reply(
-                    "Everything you are agreeing to is on screen. Say yes out loud if you are happy."
-                ),
-            ],
-            "Yes, go ahead.": [
-                call("finish_with_qr", card={"card_id": "vantage_fuel"}),
-                reply("Show that code at the desk and a banker will take it from here."),
-            ],
+            "I'll take it.": reply_and_call(
+                "Everything you are agreeing to for the Vantage Fuel is on screen. A banker "
+                "will confirm, and nothing is decided here. Say yes out loud if you are happy.",
+                "open_consent",
+                card={"card_id": "vantage_fuel"},
+            ),
+            "Yes, go ahead.": reply_and_call(
+                "Show that code at the desk and a banker will take it from here.",
+                "finish_with_qr",
+                card={"card_id": "vantage_fuel"},
+            ),
         }
     )
 
@@ -359,13 +386,19 @@ async def test_a_spoken_answer_lands_on_the_totem_as_a_confirmed_value() -> None
 async def test_an_answer_the_model_invented_is_refused_with_the_vocabulary() -> None:
     """A token outside the closed set does not reach the rules. The model is told
     what it may say instead, and the totem is not painted — a screen showing a
-    value the rules will never accept is worse than no screen."""
+    value the rules will never accept is worse than no screen.
+
+    The refusal now reaches the model with the customer's next message, so the
+    set is also in the tool's declaration, where the model reads it before it
+    guesses."""
+    assert "income_band: under_25k, 25k_60k, 60k_150k, over_150k" in str(
+        HeardValue.model_fields["value"].description
+    )
     llm = ScriptedGemini(
         {
-            "I work in a bank.": [
-                call("capture_value", heard={"field": "employment", "value": "banker"}),
-                reply("Salaried, self employed, government, or studying?"),
-            ],
+            "I work in a bank.": reply_and_call(
+                "Got it.", "capture_value", heard={"field": "employment", "value": "banker"}
+            ),
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -435,7 +468,9 @@ async def test_eligibility_and_the_shortlist_land_on_the_totem() -> None:
         assert not any("score" in reason.lower() for reason in verdict["reasons"])
 
         picked = await rig.driver.user_says("Which one would you pick?")
-        check_turn(rig, picked, units=1)
+        # The holding line, then the pick: the ranking is read in the same turn,
+        # so the turn is two requests and a unit of speech from each.
+        check_turn(rig, picked, units=2)
         board = rig.command("show_shortlist")
         assert [c["id"] for c in board["cards"]] == [
             "vantage_fuel",
@@ -474,10 +509,11 @@ def _mobile_script(*confirmations: tuple[str, str]) -> dict[str, Any]:
     """Capture a mobile number, then answer the read-back ``len(confirmations)``
     times. Each entry is ``(what the customer says, what Tanvi says next)``."""
     script: dict[str, Any] = {
-        "My number is nine eight seven six five four three two one zero.": [
-            call("capture_value", heard={"field": "mobile", "value": "98765 43210"}),
-            reply("Nine eight seven six five, four three two one zero. Is that right?"),
-        ],
+        "My number is nine eight seven six five four three two one zero.": reply_and_call(
+            "Nine eight seven six five, four three two one zero. Is that right?",
+            "capture_value",
+            heard={"field": "mobile", "value": "98765 43210"},
+        ),
     }
     for heard, spoken in confirmations:
         script[heard] = [
@@ -491,9 +527,10 @@ async def test_a_clear_yes_settles_a_value_read_back_aloud() -> None:
     """The cubicle is private, so the number is spoken and the yes is spoken.
 
     Two things are asserted on the way: the totem shows the *masked* form at rest,
-    and the SAY line the brain handed the model is the number in words. A screen
-    string reaching the TTS here is the demo's loudest failure and the transcript
-    would be perfect."""
+    and the record the brain hands the model carries no number at all. Tanvi reads
+    the number back in words in the same response that records it, so the result
+    is read a turn later — and a number in it, in either form, is one she could
+    say a second time, as digits."""
     llm = ScriptedGemini(_mobile_script(("Yes, that's right.", "Thank you.")))
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
@@ -515,9 +552,9 @@ async def test_a_clear_yes_settles_a_value_read_back_aloud() -> None:
         assert rig.brain.confirmed == {"mobile"}
         assert rig.brain.reasked == set(), "a clear yes was re-asked"
 
-    say = " ".join(_say_lines(llm))
-    assert "nine eight seven six five, four three two one zero" in say
-    assert "9876543210" not in say and "98765" not in say
+    (recorded,) = [r for r in _tool_results(llm) if r.startswith("Recorded")]
+    assert "SAY:" not in recorded, recorded
+    assert not _DISPLAY_ONLY.search(recorded) and "nine" not in recorded, recorded
 
 
 async def test_an_unclear_reply_is_asked_again_once_and_only_once() -> None:
@@ -592,10 +629,9 @@ async def test_switching_to_hindi_moves_both_legs_together() -> None:
     move with the language."""
     llm = ScriptedGemini(
         {
-            "क्या हम हिंदी में बात कर सकते हैं?": [
-                call("switch_language", to={"language": "Hindi"}),
-                reply("ज़रूर, हिंदी में बात करते हैं।"),
-            ],
+            "क्या हम हिंदी में बात कर सकते हैं?": reply_and_call(
+                "Sure, let's talk in Hindi.", "switch_language", to={"language": "Hindi"}
+            ),
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -628,10 +664,9 @@ async def test_a_customer_already_speaking_tamil_moves_the_kiosk_without_asking(
     show the customer what the kiosk decided it heard."""
     llm = ScriptedGemini(
         {
-            "நான் ஒரு கிரெடிட் கார்டு பார்க்கிறேன்": [
-                call("switch_language", to={"language": "Tamil"}),
-                reply("சரி, தமிழில் பேசலாம்."),
-            ],
+            "நான் ஒரு கிரெடிட் கார்டு பார்க்கிறேன்": reply_and_call(
+                "Let's continue in Tamil.", "switch_language", to={"language": "Tamil"}
+            ),
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -650,13 +685,18 @@ async def test_a_customer_already_speaking_tamil_moves_the_kiosk_without_asking(
 async def test_a_language_with_no_clip_is_heard_in_it_and_answered_in_hindi() -> None:
     """Odia: the recognizer understands it and no voice speaks it. The honest
     configuration is split on purpose — heard in Odia, answered in Hindi — and the
-    model is told to say so rather than let the customer discover it."""
+    model is told to say so rather than let the customer discover it. It says so in
+    the line it switches with, which goes out before the tool has run, so the
+    prompt names these languages; the tool's result only settles what comes next."""
+    hindi_voiced = SYSTEM_INSTRUCTION.split("because no voice speaks them:")[1].split(".")[0]
+    assert "Odia" in hindi_voiced, "the prompt does not say Odia is answered in Hindi"
     llm = ScriptedGemini(
         {
-            "ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି": [
-                call("switch_language", to={"language": "Odia"}),
-                reply("मैं आपकी बात समझता हूँ और हिंदी में जवाब दूँगा।"),
-            ],
+            "ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି": reply_and_call(
+                "I understand Odia, and I will reply in Hindi.",
+                "switch_language",
+                to={"language": "Odia"},
+            ),
             # A tool's result reaches the model on the *next* request, so one more
             # turn is what puts it in the record to read.
             "ଠିକ ଅଛି": [reply("ठीक है।")],
@@ -669,7 +709,8 @@ async def test_a_language_with_no_clip_is_heard_in_it_and_answered_in_hindi() ->
         assert (voice, spoken, heard) == (VOICE, "hi", "or"), (voice, spoken, heard)
         await rig.driver.user_says("ଠିକ ଅଛି")
         told = next(r for r in _tool_results(llm) if "Odia" in r)
-        assert "answering in Hindi" in told and "SAY:" in told
+        assert "answering in Hindi" in told and "Reply in Hindi" in told, told
+        assert "SAY:" not in told, "read a turn late, a SAY line would be said twice"
 
 
 async def test_the_language_can_go_back_and_forth_and_back_to_english() -> None:
@@ -678,16 +719,17 @@ async def test_the_language_can_go_back_and_forth_and_back_to_english() -> None:
     page is told every time, so the chip never shows a language the call has left."""
     llm = ScriptedGemini(
         {
-            "हिंदी में बात करो": [call("switch_language", to={"language": "Hindi"}), reply("ठीक है।")],
-            "Can we go back to English please": [
-                call("switch_language", to={"language": "English"}),
-                reply("Sure."),
-            ],
-            "தமிழ்ல பேசலாமா": [call("switch_language", to={"language": "Tamil"}), reply("சரி.")],
-            "English again": [
-                call("switch_language", to={"language": "English"}),
-                reply("Of course."),
-            ],
+            # Each switch line is in the language the call is in when it is said.
+            "हिंदी में बात करो": reply_and_call(
+                "Okay, Hindi.", "switch_language", to={"language": "Hindi"}
+            ),
+            "Can we go back to English please": reply_and_call(
+                "ज़रूर।", "switch_language", to={"language": "English"}
+            ),
+            "தமிழ்ல பேசலாமா": reply_and_call(
+                "Sure, Tamil.", "switch_language", to={"language": "Tamil"}
+            ),
+            "English again": reply_and_call("சரி.", "switch_language", to={"language": "English"}),
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -783,14 +825,20 @@ async def test_a_tap_moves_the_screen_without_taking_the_floor() -> None:
     that cannot go stale."""
     llm = ScriptedGemini(
         {
-            "Hello there.": [
-                call("ask_profile", ask={"field": "employment", "question": "What do you do?"}),
-                reply("Are you salaried, self employed, in government service, or studying?"),
-            ],
+            "Hello there.": reply_and_call(
+                "Are you salaried, self employed, in government service, or studying?",
+                "ask_profile",
+                ask={"field": "employment", "question": "What do you do?"},
+            ),
+            # The screen read answers in the same turn; the question she asks from
+            # it goes out with the call that puts it up.
             "What's next?": [
                 call("get_screen_context"),
-                call("ask_profile", ask={"field": "income_band", "question": "What do you earn?"}),
-                reply("And roughly what comes in every month?"),
+                reply_and_call(
+                    "And roughly what comes in every month?",
+                    "ask_profile",
+                    ask={"field": "income_band", "question": "What do you earn?"},
+                ),
             ],
         }
     )
@@ -851,10 +899,10 @@ async def test_start_over_is_the_only_way_back_and_it_keeps_the_language() -> No
     llm = ScriptedGemini(
         {
             **_discovery_script(),
-            "Actually, start again.": [
-                call("start_over"),
-                reply("Of course. Are you salaried, self employed, or studying?"),
-            ],
+            "Actually, start again.": reply_and_call(
+                "Of course, starting over. Are you salaried, self employed, or studying?",
+                "start_over",
+            ),
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -887,7 +935,7 @@ class Step(NamedTuple):
 
 
 #: The whole visit, gesture by gesture, with nothing said out loud. It is every
-#: one of the twelve the totem can send, in the order a customer meets them, and
+#: gesture the totem can send, in the order a customer meets them, and
 #: the walk asserts that: a gesture added to the vocabulary and not walked here
 #: is one nothing proves a hand can reach.
 #:
@@ -1151,10 +1199,13 @@ async def test_a_card_that_is_not_on_the_shortlist_is_refused() -> None:
     llm = ScriptedGemini(
         {
             **_discovery_script(),
+            # The ranking answers in the same turn; the consent panel does not, so
+            # its refusal reaches the model with the next message.
             "What about the Crest?": [
-                call("show_shortlist"),
-                call("open_consent", card={"card_id": "vantage_crest"}),
-                reply("The Crest is not one of the three on your screen."),
+                reply_and_call("One moment.", "show_shortlist"),
+                reply_and_call(
+                    "Let me open the Crest.", "open_consent", card={"card_id": "vantage_crest"}
+                ),
             ],
         }
     )
@@ -1214,8 +1265,8 @@ async def test_the_qr_ends_the_flow_after_a_spoken_yes() -> None:
         ], rig.actions()
 
         # Nothing was submitted, because there is nothing that could submit it:
-        # the eleven tools are the whole of what this kiosk can do, and the last
-        # one of them draws a QR code.
+        # these tools are the whole of what this kiosk can do, and the last step
+        # of the visit draws a QR code.
         assert [tool.__name__ for tool in rig.brain.tools] == [
             "start_over",
             "ask_profile",
@@ -1268,8 +1319,8 @@ async def test_no_tool_tells_tanvi_to_ask_a_question_again() -> None:
     """The repeat bug, pinned at its cause. A live session had Tanvi ask one
     question two and three times in a row: the prompt said to ask it before
     calling ``ask_profile``, and the tool's result said to ask it again. A question
-    now has exactly one home — ``ask_profile`` — and its result lets her say
-    nothing more if she already asked."""
+    now has exactly one home — the line she calls ``ask_profile`` with — and its
+    result, read a turn later, says only what went on the glass."""
     llm = _full_flow_llm()
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
@@ -1281,20 +1332,22 @@ async def test_no_tool_tells_tanvi_to_ask_a_question_again() -> None:
     assert results, "the walk reached no tools"
     for result in results:
         assert not _ASKS_AGAIN.search(result), f"a tool asked for a question again: {result!r}"
-    asked = [r for r in results if r.startswith("Shown.")]
-    assert asked and all("say nothing more" in r for r in asked), asked
+    asked = [r for r in results if r.startswith("Shown")]
+    assert asked and not any(re.search(r"\bask", r, re.IGNORECASE) for r in asked), asked
 
 
 async def test_nothing_the_brain_tells_tanvi_to_say_is_a_display_string() -> None:
     """The sweep. Every ``SAY:`` span the brain writes across a whole visit, swept
     for the figures and the raw tokens that belong only on the glass.
 
-    ``SAY:`` now introduces only text Tanvi is to *speak*: the eligibility verdict,
-    the recommendation, the card's perk, the card being agreed to and the QR line
-    — the five tools this walk reaches that quote the card shelf. The generic
-    directions ("a three-word acknowledgement", "your question") lost their
-    ``SAY:`` because they were what made Tanvi ask the same question twice: a
-    tool told her to say something she had already said before calling it.
+    ``SAY:`` now introduces only text Tanvi is to *speak*, in the same turn: the
+    eligibility verdict, the recommendation and the card's perk — the tools this
+    walk reaches that quote the card shelf, each marked ``@needs_result_now``. The
+    generic directions ("a three-word acknowledgement", "your question") lost
+    their ``SAY:`` because they were what made Tanvi ask the same question twice:
+    a tool told her to say something she had already said before calling it. The
+    consent panel and the QR lost theirs to the tool loop: their results are read
+    a turn late, when a line to speak would be said a second time.
 
     This is the check that cannot be written per call site: the failure is one
     interpolation in one branch of one tool, and it is heard exactly once, in
@@ -1311,13 +1364,36 @@ async def test_nothing_the_brain_tells_tanvi_to_say_is_a_display_string() -> Non
 
     lines = _say_lines(llm)
     # One per content tool the walk reaches, so the sweep cannot pass empty.
-    assert len(lines) >= 5, lines
+    assert len(lines) >= 3, lines
+    # And only a tool that answers in the same turn hands over a line to say.
+    tools = {tool.__name__: tool for tool in rig.brain.tools}
+    for name, result in _named_results(llm):
+        if "SAY:" in result:
+            assert _needs_result_now(tools[name]), f"{name} is read a turn late: {result!r}"
     for line in lines:
         assert not _DISPLAY_ONLY.search(line), f"a display string reached a SAY line: {line!r}"
         for token in _WIRE_TOKENS:
             assert token not in line, f"the wire token {token!r} reached a SAY line: {line!r}"
         for word in _BANNED:
             assert word not in line.lower(), f"{word!r} in a SAY line: {line!r}"
+
+
+async def test_only_the_reads_answer_in_the_same_turn() -> None:
+    """The mark, pinned. A marked tool costs the customer a second model call on
+    every use, so it is kept to the tools whose result Tanvi cannot answer
+    without: the screen read, the rules, the ranking, the card's perk and the
+    verdict on a read-back. Every other tool puts something on the glass or
+    records what she already said, and she speaks first."""
+    async with demo("kiosk", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        marked = [tool.__name__ for tool in rig.brain.tools if _needs_result_now(tool)]
+    assert marked == [
+        "confirm",
+        "check_eligibility",
+        "show_shortlist",
+        "open_card_detail",
+        "get_screen_context",
+    ]
 
 
 def test_the_sweep_can_fail() -> None:

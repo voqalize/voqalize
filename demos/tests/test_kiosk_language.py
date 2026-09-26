@@ -26,11 +26,12 @@ import re
 from typing import Any
 
 import pytest
-from voqalize_demos.testing import ScriptedGemini, call, reply
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import DemoRig, _configs, _last, demo
 from .test_kiosk_e2e import (
     _BY_HAND,
+    SYSTEM_INSTRUCTION,
     VOICE,
     _by_hand,
     _legs,
@@ -73,7 +74,7 @@ async def test_every_direction_moves_both_legs_and_comes_back() -> None:
     said = [f"Hop {at}: let's speak {name}." for at, name in enumerate(hops)]
     llm = ScriptedGemini(
         {
-            line: [call("switch_language", to={"language": name}), reply("Okay.")]
+            line: reply_and_call("Okay.", "switch_language", to={"language": name})
             for line, name in zip(said, hops, strict=True)
         }
     )
@@ -132,10 +133,11 @@ async def test_an_answer_before_any_question_moves_on_and_is_not_asked_again() -
     up at once — so the first quiet moment does not put employment up again."""
     llm = ScriptedGemini(
         {
-            "I'm Ravi, I'm salaried.": [
-                call("capture_value", heard={"field": "employment", "value": "salaried"}),
-                reply("Nice to meet you, Ravi. Roughly what comes in every month?"),
-            ]
+            "I'm Ravi, I'm salaried.": reply_and_call(
+                "Nice to meet you, Ravi. Roughly what comes in every month?",
+                "capture_value",
+                heard={"field": "employment", "value": "salaried"},
+            )
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -155,11 +157,15 @@ async def test_a_confirmed_mobile_stays_on_the_glass_as_confirmed() -> None:
     it."""
     llm = ScriptedGemini(
         {
-            "It's 98765 43210.": [
-                call("capture_value", heard={"field": "mobile", "value": "9876543210"})
-            ],
+            "It's 98765 43210.": reply_and_call(
+                "Nine eight seven six five, four three two one zero. Is that right?",
+                "capture_value",
+                heard={"field": "mobile", "value": "9876543210"},
+            ),
+            # confirm answers in the same turn, so the reply is the second request.
             "Yes, that's right.": [
-                call("confirm", check={"field": "mobile", "value": "9876543210", "heard": "yes"})
+                call("confirm", check={"field": "mobile", "value": "9876543210", "heard": "yes"}),
+                reply("Thank you."),
             ],
         }
     )
@@ -177,7 +183,11 @@ async def test_the_picker_and_the_voice_can_hand_the_language_back_and_forth() -
     then picks Kannada again. Neither path is special: the last one wins, and the
     legs always match it."""
     llm = ScriptedGemini(
-        {"I want to speak in English.": [call("switch_language", to={"language": "English"})]}
+        {
+            "I want to speak in English.": reply_and_call(
+                "ಸರಿ, ಇಂಗ್ಲಿಷ್.", "switch_language", to={"language": "English"}
+            )
+        }
     )
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
@@ -193,18 +203,20 @@ async def test_the_picker_and_the_voice_can_hand_the_language_back_and_forth() -
 async def test_a_spoken_answer_in_kannada_puts_the_next_question_up_itself() -> None:
     """The bug from the Kannada session: an answer was recorded, the screen asked
     for a confirmation nobody needed, and Tess waited. Now the answer settles, the
-    next question is on the glass in the same breath, and the tool tells her to
-    ask it in this turn — so the turn cannot end in silence."""
+    next question is on the glass in the same breath, and she asks it in the same
+    response that records the answer — so the turn cannot end in silence."""
     llm = ScriptedGemini(
         {
-            "ನಮಸ್ಕಾರ": [
-                call("ask_profile", ask={"field": "employment", "question": "ನೀವು ಏನು ಮಾಡುತ್ತೀರಿ?"}),
-                reply("ನೀವು ಸಂಬಳದ ಕೆಲಸದಲ್ಲಿದ್ದೀರಾ?"),
-            ],
-            "ನಾನು ಸಂಬಳದ ಕೆಲಸ ಮಾಡ್ತೀನಿ": [
-                call("capture_value", heard={"field": "employment", "value": "salaried"}),
-                reply("ಸರಿ. ತಿಂಗಳಿಗೆ ಎಷ್ಟು ಬರುತ್ತದೆ?"),
-            ],
+            "ನಮಸ್ಕಾರ": reply_and_call(
+                "ನೀವು ಸಂಬಳದ ಕೆಲಸದಲ್ಲಿದ್ದೀರಾ?",
+                "ask_profile",
+                ask={"field": "employment", "question": "ನೀವು ಏನು ಮಾಡುತ್ತೀರಿ?"},
+            ),
+            "ನಾನು ಸಂಬಳದ ಕೆಲಸ ಮಾಡ್ತೀನಿ": reply_and_call(
+                "ಸರಿ. ತಿಂಗಳಿಗೆ ಎಷ್ಟು ಬರುತ್ತದೆ?",
+                "capture_value",
+                heard={"field": "employment", "value": "salaried"},
+            ),
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -222,23 +234,40 @@ async def test_a_spoken_answer_in_kannada_puts_the_next_question_up_itself() -> 
 
         captured = next(r for r in _tool_results(llm) if r.startswith("Recorded"))
         assert "income band question is already up" in captured, captured
-        assert "same turn" in captured and "ask it once" in captured, captured
+        # Read a turn late, the result can only confirm what she already asked; the
+        # instruction to ask in the same response is the prompt's.
+        assert "needs no ask_profile" in captured, captured
+        assert "in that same response acknowledge" in SYSTEM_INSTRUCTION
 
 
 async def test_the_fourth_answer_goes_straight_to_the_eligibility_check() -> None:
     """After the last of the four there is no next question to put up, so the
-    tool hands Tess the next step by name instead of leaving the turn open."""
+    tool names the next step. The prompt has her call it in the same response as
+    the last answer, so the result is a reminder, read a turn later, for the case
+    she did not."""
     llm = ScriptedGemini(
         {
-            "Start.": [call("ask_profile", ask={"field": "employment", "question": "?"})],
-            "Salaried.": [
-                call("capture_value", heard={"field": "employment", "value": "salaried"})
-            ],
-            "Forty thousand.": [
-                call("capture_value", heard={"field": "income_band", "value": "25k_60k"})
-            ],
-            "One card.": [call("capture_value", heard={"field": "existing_cards", "value": "one"})],
-            "Fuel.": [call("capture_value", heard={"field": "spend_category", "value": "fuel"})],
+            "Start.": reply_and_call(
+                "What do you do?", "ask_profile", ask={"field": "employment", "question": "?"}
+            ),
+            "Salaried.": reply_and_call(
+                "And every month?",
+                "capture_value",
+                heard={"field": "employment", "value": "salaried"},
+            ),
+            "Forty thousand.": reply_and_call(
+                "Any cards already?",
+                "capture_value",
+                heard={"field": "income_band", "value": "25k_60k"},
+            ),
+            "One card.": reply_and_call(
+                "Where does most of it go?",
+                "capture_value",
+                heard={"field": "existing_cards", "value": "one"},
+            ),
+            "Fuel.": reply_and_call(
+                "Thank you.", "capture_value", heard={"field": "spend_category", "value": "fuel"}
+            ),
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -249,7 +278,7 @@ async def test_the_fourth_answer_goes_straight_to_the_eligibility_check() -> Non
 
         assert _asked(rig) == ["employment", "income_band", "existing_cards", "spend_category"]
         last = [r for r in _tool_results(llm) if r.startswith("Recorded")][-1]
-        assert "check_eligibility" in last and "same turn" in last, last
+        assert "check_eligibility" in last and "last profile question" in last, last
 
 
 async def test_correcting_an_earlier_answer_does_not_jump_the_screen() -> None:
@@ -258,13 +287,19 @@ async def test_correcting_an_earlier_answer_does_not_jump_the_screen() -> None:
     they are."""
     llm = ScriptedGemini(
         {
-            "Start.": [call("ask_profile", ask={"field": "employment", "question": "?"})],
-            "Salaried.": [
-                call("capture_value", heard={"field": "employment", "value": "salaried"})
-            ],
-            "Actually, I'm self-employed.": [
-                call("capture_value", heard={"field": "employment", "value": "self_employed"})
-            ],
+            "Start.": reply_and_call(
+                "What do you do?", "ask_profile", ask={"field": "employment", "question": "?"}
+            ),
+            "Salaried.": reply_and_call(
+                "And every month?",
+                "capture_value",
+                heard={"field": "employment", "value": "salaried"},
+            ),
+            "Actually, I'm self-employed.": reply_and_call(
+                "Self-employed, noted. And every month?",
+                "capture_value",
+                heard={"field": "employment", "value": "self_employed"},
+            ),
         }
     )
     async with demo("kiosk", llm) as rig:
@@ -277,7 +312,7 @@ async def test_correcting_an_earlier_answer_does_not_jump_the_screen() -> None:
         assert rig.brain.answers["employment"] == "self_employed"
         assert rig.brain.view["the question on screen"] == "income band"
         last = [r for r in _tool_results(llm) if r.startswith("Recorded")][-1]
-        assert "carry on where they were" in last, last
+        assert "the screen stays where they were" in last, last
 
 
 #: English as each recognizer spells it, and the sentences that must NOT count.

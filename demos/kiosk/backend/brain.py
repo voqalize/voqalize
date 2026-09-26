@@ -16,8 +16,9 @@ Four things carry this demo:
   income to a threshold, because the times it gets that wrong are a bank telling
   a customer the wrong thing in a branch.
 
-* **Two strings per figure.** Every tool here returns a ``SAY:`` line already in
-  words, and the prompt tells Tanvi to speak it as written. The display form —
+* **Two strings per figure.** Every tool whose result Tanvi speaks from in the
+  same turn returns a ``SAY:`` line already in words, and the prompt tells her to
+  speak it as written. The display form —
   ``₹1,50,000``, ``5%``, ``2x`` — goes to the screen and never to the voice.
 
 * **The screen is read, never remembered.** Tanvi keeps one mirror of the totem,
@@ -53,7 +54,14 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    ScreenState,
+    configure_soon,
+    needs_result_now,
+    screen_prose,
+)
 
 from voqalize.sdk import (
     Action,
@@ -82,7 +90,7 @@ from .cards import (
     card_by_id,
 )
 from .eligibility import Assessment, Shortlist, assess, shortlist
-from .prompts import GREETING, SYSTEM_INSTRUCTION
+from .prompts import GREETING, HINDI_VOICED, SYSTEM_INSTRUCTION
 from .script_english import reads_as_english
 from .values import (
     allowed_values,
@@ -90,7 +98,6 @@ from .values import (
     masked_form,
     normalise,
     reads_as_yes,
-    spoken_form,
 )
 
 # How long the customer has to be quiet before Voqalize reports an idle tick.
@@ -185,6 +192,11 @@ _SPEECH: dict[LanguageName, _Speech] = {
 # A name in LanguageName with no row here is a tool call that raises mid-call, so
 # the two are held to each other at import rather than discovered on a customer.
 assert set(get_args(LanguageName)) == set(_SPEECH), "LanguageName and _SPEECH disagree"
+# The prompt names the languages answered with the Hindi voice, so Tanvi can say
+# so in the line she switches with; it is held to this table the same way.
+assert set(HINDI_VOICED) == {name for name, s in _SPEECH.items() if s.spoken != s.heard}, (
+    "HINDI_VOICED and _SPEECH disagree"
+)
 
 
 #: How long the recognizer waits through a pause, on the 0-to-10 scale. Quick for
@@ -353,7 +365,7 @@ ScreenMove = (
 
 
 # ─── Screen → brain: what the customer did with their hand ────────────────────
-# Twelve gestures, in the order a customer meets them. Every one of them is a
+# The gestures, in the order a customer meets them. Every one of them is a
 # step the journey can be driven by without a word being said; :meth:`_advance`
 # is the table that turns one into the next screen.
 
@@ -491,13 +503,23 @@ class ProfileQuestion(BaseModel):
     )
 
 
+#: Every token a closed answer may take, as the declaration spells them out. A
+#: token outside the set is refused, and the refusal reaches the model only with
+#: the customer's next message, so it is told the set up front rather than by a
+#: refusal.
+_TOKENS = "; ".join(
+    f"{field}: {', '.join(value for value, _, _ in choices)}"
+    for field, choices in PROFILE_CHOICES.items()
+)
+
+
 class HeardValue(BaseModel):
     """The one parameter of ``capture_value``: what the customer said, resolved."""
 
     field: CapturedField = Field(description="Which value this is.")
     value: str = Field(
         description=(
-            "For the four questions, one of the allowed tokens. "
+            f"For the profile questions, one of these tokens — {_TOKENS}. "
             "For mobile, the ten digits. For pan, the ten characters."
         )
     )
@@ -568,7 +590,7 @@ async def _silence() -> AsyncGenerator[Any, None]:
 
 
 class KioskBrain(GeminiBrain):
-    """One per session. Tanvi: the prompt, eleven tools, and this session's
+    """One per session. Tanvi: the prompt, the tools, and this session's
     language, answers and screen."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
@@ -600,7 +622,7 @@ class KioskBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Callable[..., Any]]:
-        """The eleven Tanvi may call, in the order the call uses them."""
+        """The tools Tanvi may call, in the order the call uses them."""
         return [
             self.start_over,
             self.ask_profile,
@@ -1098,27 +1120,35 @@ class KioskBrain(GeminiBrain):
                 view["the qr code"] = action.caption
 
     # ─── Tools ──────────────────────────────────────────────────────────
+    # A result reaches Tanvi with the customer's next message, unless the tool is
+    # marked ``@needs_result_now``. The marked ones read what she has to say from
+    # this session's memory — the rules' verdict, the ranking, a card's perk, a
+    # yes decided in Python, the screen — and hand it back as a SAY line. Every
+    # other result is a record she reads a turn later, so it says what happened
+    # and never what to say: she said her line before she called.
 
     async def start_over(self) -> str:
         """Clear everything and put the first question back on screen. Use it when the
         customer says they want to start again, or when a new person has walked
-        up. Nothing is kept."""
+        up. Nothing is kept.
+
+        Say you are starting over and ask the first question once, in one short
+        line, and call this in the same response.
+        """
         logger.info("kiosk: start_over")
         self._reset()
         for move in self._started_over(RestartPressed()):
             self._show(move)
-        return (
-            "Cleared, and the first question is back in front of them. "
-            "Say you are starting over and ask it once, in one short line."
-        )
+        return "Cleared; the first question is back in front of them."
 
     async def ask_profile(self, ask: ProfileQuestion) -> str:
         """Put one of the four discovery questions on screen, with its answers.
 
         Ask the four in order: employment, income_band, existing_cards,
-        spend_category. Call this FIRST, then ask the question aloud — once. The
-        screen only holds the choices; it asks nothing. Do not read the options
-        out; they are on the glass in front of the customer.
+        spend_category. Ask the question aloud once, in one short line, and call
+        this in the same response. The screen only holds the choices; it asks
+        nothing. Do not read the options out; they are on the glass in front of
+        the customer.
         """
         logger.info("kiosk: ask_profile {}", ask.field)
         self._show(
@@ -1127,19 +1157,23 @@ class KioskBrain(GeminiBrain):
             self._question(ask.field)
         )
         return (
-            "Shown. Now ask the question aloud once, in one short line — unless you already "
-            "asked it this turn, in which case say nothing more. Never read the options."
+            f"Shown: the {_spaced(ask.field)} question and its answers are on the glass. "
+            "The options are never read out."
         )
 
     async def capture_value(self, heard: HeardValue) -> str:
         """Record what the customer just said and show it to them.
 
-        For the four questions, resolve what they said to one of the allowed
+        For the profile questions, resolve what they said to one of the allowed
         tokens first — "about forty thousand a month" is ``25k_60k``. For mobile
         and PAN, pass the characters; the kiosk masks them on screen for you.
 
-        A closed answer settles here and needs no reading back. Mobile and PAN
-        come back with a SAY line: read it, then pass their reply to confirm.
+        Say your line in the same response. A closed answer settles here and
+        needs no reading back: acknowledge in two or three words and ask the next
+        question once — this puts it on screen by itself. After the last of the
+        four, call check_eligibility in the same response. For mobile and PAN,
+        read the value back in words and ask if it is right; pass their reply to
+        confirm.
         """
         value = normalise(heard.field, heard.value)
         if value is None:
@@ -1147,8 +1181,9 @@ class KioskBrain(GeminiBrain):
             # Not "that is not a income band I can use": the field name is
             # interpolated, so the sentence has to read for every one of the six.
             return (
-                f"{heard.value!r} is not a value I can use for {_spaced(heard.field)}. "
-                f"Allowed: {allowed_values(heard.field)}. Ask them again in different words."
+                f"{heard.value!r} is not a value I can use for {_spaced(heard.field)}, so "
+                f"nothing was recorded. Allowed: {allowed_values(heard.field)}. "
+                "Ask them again in different words."
             )
 
         spoken_needed = heard.field in ("mobile", "pan")
@@ -1163,8 +1198,8 @@ class KioskBrain(GeminiBrain):
         if not spoken_needed:
             return self._after_an_answer(on_screen)
         return (
-            f"On screen, masked. SAY: {spoken_form(heard.field, value)}. "
-            "Read that back in one line, ask if it is right, then call confirm with their reply."
+            f"Recorded and on screen, masked, waiting on their yes. Their reply goes to "
+            f"confirm for the {_spaced(heard.field)}."
         )
 
     def _after_an_answer(self, on_screen: bool) -> str:
@@ -1182,25 +1217,29 @@ class KioskBrain(GeminiBrain):
         The one answer that moves nothing is a correction: an earlier question
         answered again while a different, unanswered one is on screen, or any
         answer once the questions are behind them.
+
+        What comes back is read on the customer's next message, after Tanvi has
+        already asked the next question in the line she called this with — so it
+        is a record of where the screen went, never a direction to ask.
         """
         remaining: list[ProfileField] = [f for f in _PROFILE_ORDER if f not in self.answers]
         shown = self.view["the question on screen"]
         in_the_questions = self.view["screen"] in ("attract", "question")
         another_is_up = not on_screen and shown in {_spaced(f) for f in remaining}
         if not in_the_questions or another_is_up:
-            return "Recorded. Acknowledge in two or three words and carry on where they were."
+            return "Recorded as a correction; the screen stays where they were."
         if remaining:
             self._show(self._question(remaining[0]))
             return (
-                f"Recorded, and the {_spaced(remaining[0])} question is already up for them. "
-                "In this same turn: acknowledge in two or three words, then ask it once, in "
-                "one short line. Do not call ask_profile for it."
+                f"Recorded, and the {_spaced(remaining[0])} question is already up for them; "
+                "it needs no ask_profile."
             )
         return (
-            "Recorded; that was the last of the four. In this same turn, call "
-            "check_eligibility and say the line it returns."
+            "Recorded; that was the last profile question. check_eligibility comes next, "
+            "if it has not run."
         )
 
+    @needs_result_now
     async def confirm(self, check: ConfirmCheck) -> str:
         """Decide whether the customer actually confirmed a value.
 
@@ -1208,7 +1247,8 @@ class KioskBrain(GeminiBrain):
         settles the value. Anything else — a hedge, a correction, a reply too
         short to carry signal — comes back as unclear, and you ask once more in
         different words. There is no third time: a second unclear reply is taken
-        as heard and the call moves on.
+        as heard and the call moves on. The verdict comes back to you in this
+        turn; speak once you have it.
         """
         value = self.answers.get(check.field)
         if value is None:
@@ -1239,12 +1279,14 @@ class KioskBrain(GeminiBrain):
             "tool call; do not say it twice."
         )
 
+    @needs_result_now
     async def check_eligibility(self, request: EligibilityRequest) -> str:
         """Work out what the customer is likely eligible for and show it.
 
         Call it once all four questions are answered. The rules are Python — you
         do not compare incomes or scores yourself, and there is no credit score
-        to speak: the screen shows a band and the reasons behind it.
+        to speak: the screen shows a band and the reasons behind it. The verdict
+        comes back to you in this turn, as the line to say.
         """
         missing = [field for field in _PROFILE_ORDER if field not in self.answers]
         if missing:
@@ -1258,12 +1300,13 @@ class KioskBrain(GeminiBrain):
             "Add that a banker at the desk will confirm."
         )
 
+    @needs_result_now
     async def show_shortlist(self) -> str:
         """Rank the cards for this customer and put the top three on screen.
 
         The ranking is Python: their biggest spend first, then the tier they
-        clear. Say which one you would pick and why, in one line, and let the
-        screen hold the fees and the rates.
+        clear. Which card to pick and why comes back to you in this turn. Say it
+        in one line, and let the screen hold the fees and the rates.
         """
         ranked = self._rank()
         if ranked is None:
@@ -1271,11 +1314,12 @@ class KioskBrain(GeminiBrain):
         self._show(_shortlist_view(ranked))
         return _pick_line(ranked)
 
+    @needs_result_now
     async def open_card_detail(self, card: OpenCardDetail) -> str:
         """Open one card full screen, when the customer asks about it by name.
 
-        Say the one thing that makes it theirs. The fee, the rate and the cap are
-        on screen; do not read them out.
+        The one thing that makes it theirs comes back to you in this turn; say
+        it. The fee, the rate and the cap are on screen; do not read them out.
         """
         chosen = self._shortlisted(card.card_id)
         if isinstance(chosen, str):
@@ -1290,26 +1334,25 @@ class KioskBrain(GeminiBrain):
     async def open_consent(self, card: CardChoice) -> str:
         """Open the consent panel for the card the customer has chosen.
 
-        The bullets are written by the bank, not by you. Say the one line this
-        returns and ask them to say yes out loud. There is nothing to tap: the
-        kiosk takes a spoken yes.
+        The bullets are written by the bank, not by you. In the same response,
+        say in one line that everything they are agreeing to for that card is on
+        screen, that a banker will confirm and nothing here is decided, and ask
+        them to say yes out loud. There is nothing to tap: the kiosk takes a
+        spoken yes.
         """
         chosen = self._shortlisted(card.card_id)
         if isinstance(chosen, str):
             return chosen
         logger.info("kiosk: open_consent {}", chosen.id)
         self._show(OpenConsent(card_id=chosen.id, bullets=_consent_bullets(chosen)))
-        return (
-            f"On screen. SAY: the {chosen.name}, and everything you are agreeing to is on "
-            "screen. Ask them to say yes out loud. Say a banker will confirm, and that "
-            "nothing here is decided."
-        )
+        return f"The consent panel for the {chosen.name} is open, waiting on a spoken yes."
 
     async def finish_with_qr(self, card: CardChoice) -> str:
         """Show the QR code that ends the visit, after a spoken yes.
 
         Only after the customer has agreed out loud, or accepted the panel on
-        screen. Tell them to show it at the desk, then stop talking.
+        screen. In the same response, tell them in one line to show the code at
+        the desk, where a banker will take it from here — then stop talking.
         """
         chosen = self._shortlisted(card.card_id)
         if isinstance(chosen, str):
@@ -1317,18 +1360,17 @@ class KioskBrain(GeminiBrain):
         self.consented_card_id = chosen.id
         logger.info("kiosk: finish_with_qr {}", chosen.id)
         self._show(ShowQr(caption=_qr_caption(chosen)))
-        return (
-            "On screen. SAY: one line telling them to show that code at the desk, where a "
-            "banker will take it from here. Then stop."
-        )
+        return f"The QR code for the {chosen.name} is on screen. The visit is over."
 
+    @needs_result_now
     async def get_screen_context(self) -> str:
         """What the customer is looking at right now: the screen, what they have
         told us, and anything they have chosen.
 
         Call it before you act on something they pointed at, and whenever you are
         told they moved the screen themselves. It is free — it reads this
-        session's own mirror, says nothing and moves nothing.
+        session's own mirror, says nothing and moves nothing — and it answers you
+        in this turn.
         """
         self.screen.read()
         logger.info(
@@ -1342,16 +1384,29 @@ class KioskBrain(GeminiBrain):
 
         Call it when the customer asks for a language, AND when you can tell they
         are already speaking one: do not wait to be asked. Do not switch on a
-        single borrowed English word; Indian speech is full of them.
+        single borrowed English word; Indian speech is full of them. Say one
+        short line in the language the call is in now and call this in the same
+        response: that line is spoken before the voice changes, and you speak the
+        new language from their next turn.
         """
-        return await self._switch_to(to.language, by="you")
+        if to.language == self.language:
+            return f"Already in {to.language}."
+        # Sent, not awaited: a tool returns inside its budget, and nothing checks
+        # later that the switch applied. Both legs still move in one request.
+        configure_soon(self.session, _config(to.language, self._patience))
+        return self._switched(to.language, by="you")
 
     async def _switch_to(self, name: LanguageName, *, by: str) -> str:
-        """Move both legs to one language and tell the page. Shared by the tool
-        and the chip, so the two cannot disagree about what a switch does."""
+        """Move both legs to one language, from a callback rather than a tool.
+
+        The chip and the English check are not tools, so they have no budget to
+        keep, and they await the request: the English check has to land before the
+        model's reply is spoken. The bookkeeping after it is :meth:`_switched`,
+        shared with the tool, so the paths cannot disagree about what a switch
+        does.
+        """
         if name == self.language:
             return f"Already in {name}. Carry on."
-        speech = _SPEECH[name]
         try:
             # One request moves both legs, so the kiosk is never listening in one
             # language and speaking in another. All-or-nothing on refusal.
@@ -1362,6 +1417,11 @@ class KioskBrain(GeminiBrain):
                 f"Refused — the kiosk is still in {self.language}. "
                 f"Tell the customer, in {self.language}, that you cannot speak {name} here."
             )
+        return self._switched(name, by=by)
+
+    def _switched(self, name: LanguageName, *, by: str) -> str:
+        """Record a switch that has been sent, tell the page, and write the line
+        the model reads about it — a record, since it may be read a turn later."""
         logger.info("kiosk: language {} -> {} (by {})", self.language, name, by)
         self.language = name
         self.session.dispatch(
@@ -1370,16 +1430,13 @@ class KioskBrain(GeminiBrain):
                 screen_language="hi" if name == "Hindi" else "en",
             )
         )
+        speech = _SPEECH[name]
         if speech.spoken != speech.heard:
             return (
-                f"Now listening in {name}, answering in Hindi — no voice speaks {name}. "
-                f"SAY: once, in Hindi, that you understand them and will reply in Hindi. "
-                "Do not repeat a question you already asked this turn."
+                f"Now listening in {name}, switched by {by}, and answering in Hindi — no voice "
+                f"speaks {name}. Reply in Hindi from here on."
             )
-        return (
-            f"Now in {name}, switched by {by}. Say one short line in {name}. If you already asked "
-            "a question this turn, do not ask it again; if you did not, ask it once."
-        )
+        return f"Now in {name}, switched by {by}. Speak {name} from here on."
 
     # ─── Tool guards ────────────────────────────────────────────────────
 
