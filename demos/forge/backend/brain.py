@@ -5,7 +5,7 @@ ITSM/HR-ops admin assembles a Service Request Workflow — a block-based
 statechart over a typed context — by talking to Ada, and Ada drives the studio
 screen as she talks.
 
-Two things worth calling out about how per-session state flows in:
+Worth calling out, about how per-session state flows in:
 
   * **init** — just the admin's name (``session.init["admin"]["name"]``), folded
     into the opening greeting. :meth:`ForgeBrain.greet` is written, not
@@ -28,11 +28,16 @@ Two things worth calling out about how per-session state flows in:
     The studio would happily mint them, but then only the studio would know them
     — and the next edit names a block by id.
 
-**Twenty-one of twenty-one tools dispatch an** :class:`~voqalize.sdk.Action`
-**that IS the tool's own parameter** — Ada never free-generates infrastructure,
-so every edit the model proposes is already the exact shape the studio store
-applies, and the tool body is one ``self._show(action)`` or ``self._edit(action)``
-line.
+**Every tool but** ``read_screen`` **dispatches an** :class:`~voqalize.sdk.Action`,
+**and each one that takes a parameter takes exactly the Action it dispatches** —
+Ada never free-generates infrastructure, so every edit the model proposes is
+already the exact shape the studio store applies, and the tool body is one
+``self._show(action)`` or ``self._edit(action)`` line.
+
+Only ``read_screen`` is marked ``@needs_result_now``: it is the one tool whose
+answer Ada needs before she can say her reply. Every edit applies exactly what
+the model specified, by ids it read off the screen, so she says her short line
+with the call and reads the result with the admin's next words.
 """
 
 from __future__ import annotations
@@ -43,7 +48,13 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    ScreenState,
+    needs_result_now,
+    screen_prose,
+)
 
 from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -65,9 +76,10 @@ from .app_events import (
 _SYSTEM_INSTRUCTION = """You are Ada, the Flowforge workflow copilot — a voice assistant for an ITSM / HR-ops administrator who builds "Service Request Workflows" by talking to you. You DRIVE THEIR SCREEN as you talk.
 
 VOICE STYLE — SAY LESS, DO MORE. You are watched, not just heard: the admin SEES the studio change as you work, so let the screen do the talking. This discipline matters more than anything else here.
-- Lead with the action. Say one short clause — ideally just naming what you're about to do, 3 to 8 words — then CALL THE TOOL. E.g. "Adding a security review." then the tool. Never narrate in silence; never call a tool without that brief lead-in.
+- Lead with the action. Say one short clause — ideally just naming what you're about to do, 3 to 8 words — then CALL THE TOOL IN THAT SAME REPLY. E.g. "Adding a security review." then the tool. Never narrate in silence; never call a tool without that brief lead-in.
+- Only read_screen answers you straight away. Every other tool just does what you asked, and you do not hear back from it until the admin speaks again — so your lead-in is the whole line: never promise to report back on an edit.
 - Don't describe what's now on screen. The admin can see the new step, the passing tests, the lit path, the code. No recaps, no "I've added…", never read ids, labels, guards, JSON, or lists aloud. Every tool you call also shows up as a live task on screen (a small "activity" checklist), so your actions are already acknowledged visually — trust it and stay quiet.
-- Chain tools to finish a real change in one go — insert the decision, wire both branches, add the step — then ONE short line at the end. Don't stop to announce every edit.
+- Chain tools to finish a real change in one go — one short lead-in, then insert the decision, wire both branches, add the step, all in that same reply. When a later call in the reply has to name a block you are adding in it, give that block its own short id (e.g. "s_security") so you can. Don't stop to announce every edit, and don't come back to recap it.
 - Ask a question ONLY when genuinely blocked by a real fork the admin must decide. Otherwise pick the sensible default, do it, and let them correct you.
 - Spoken English, short sentences, no markdown or symbols.
 
@@ -98,7 +110,7 @@ PUBLISH: publish_workflow makes the open version live. Say it plainly and briefl
 
 THE FINALE — run_scenario: walk a persona through the live flow from the trigger. Pass persona_label, a context JSON string, and the ordered events the persona fires (e.g. approvals). The screen lights the whole path. Great for proving an edit works, e.g. a contractor requesting a privileged app taking the new security branch.
 
-GROUNDING: nothing in this conversation is a picture of the studio. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. It lists the open workflow, its blocks WITH THEIR IDS, tests, and gaps. Call it before you edit anything you did not just put there yourself, and whenever you are told the admin changed the screen themselves — you are told THAT they changed it, never what it now says. Always use those real ids when you edit; call open_workflow first if none is open. If an edit is refused because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
+GROUNDING: nothing in this conversation is a picture of the studio. read_screen() is the only one. It says nothing and moves nothing, but the admin waits in silence while you read it, so call it only when you need it — with a short line like "Let me look." in the same reply. You get its answer straight away and speak or make your edits right after it. It lists the open workflow, its blocks WITH THEIR IDS, tests, and gaps. Call it before you edit anything you did not just put there yourself, and whenever you are told the admin changed the screen themselves — you are told THAT they changed it, never what it now says. Always use those real ids when you edit: make the edit in the reply after read_screen answers, never in the same reply as the read. Call open_workflow first if none is open. If you see an edit came back refused because the screen moved under you, it was not applied; that is not something to report or apologise for: read the screen and make the call again.
 
 Open with a brief greeting and ask what they'd like to build or change."""
 
@@ -631,7 +643,7 @@ class ForgeBrain(GeminiBrain):
         else entirely. The refusal is retriable: read, then act."""
         stale = self.screen.stale()
         if stale:
-            return stale
+            return f"not applied: {stale}"
         self._show(action)
         return None
 
@@ -836,15 +848,18 @@ class ForgeBrain(GeminiBrain):
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #
-    # The model calls these directly. Twenty of the twenty-one take exactly the
-    # Action they dispatch — Ada assembles from a governed catalog, never free
-    # generates, so the model's arguments are already the studio's edit. Each
-    # returns a short string; most just say "done" and let the screen speak.
+    # The model calls these directly. Every one that takes a parameter takes
+    # exactly the Action it dispatches — Ada assembles from a governed catalog,
+    # never free generates, so the model's arguments are already the studio's
+    # edit. Each returns a short string; most just say "done" and let the screen
+    # speak. Every one reads or patches this session's own picture and returns
+    # inside the SDK's tool budget, and only ``read_screen`` is read before the
+    # turn ends — the rest are read with the admin's next words.
 
     @property
     def tools(self) -> list[Any]:
-        """The twenty-two Ada may call, read once per turn. Twenty-one drive the
-        studio screen; ``read_screen`` reads it back."""
+        """The tools Ada may call, read once per turn. Every one but
+        ``read_screen`` drives the studio screen; ``read_screen`` reads it back."""
         return [
             self.read_screen,
             self.open_list,
@@ -870,14 +885,15 @@ class ForgeBrain(GeminiBrain):
             self.show_code,
         ]
 
+    @needs_result_now
     async def read_screen(self) -> str:
         """What is on the admin's studio screen right now — the open workflow with
         its blocks AND THEIR IDS, its tests, and its open gaps.
 
         Call it before you edit anything you did not just put there yourself, and
-        whenever you are told the admin changed the screen themselves. It is free —
-        it reads this session's own state, takes no floor, says nothing, and moves
-        nothing."""
+        whenever you are told the admin changed the screen themselves. It reads
+        this session's own state, says nothing, and moves nothing; you get its
+        answer straight away, and make your edits in the reply after it."""
         self.screen.read()
         logger.info("forge: read_screen (open={}, v{})", self.open_id, self.screen.version)
         wf = self._open()
