@@ -21,8 +21,11 @@ What every demo's e2e must prove, and why each one is here:
   exists — the same fact is asserted the other way round, with
   :func:`check_configured_at_connect`: the brain sent nothing, so there is one
   authority for it and not two.
-* **a tool round-trip drives the screen** — two inference brackets for one user
-  turn, and the exact ``ui_command`` payload the demo's frontend reads.
+* **a tool call drives the screen** — the exact ``ui_command`` payload the demo's
+  frontend reads, from a turn that speaks and calls in the same reply.
+* **every tool fits the budget** — :func:`tools_within_budget`, applied to every
+  test by ``conftest.py``. A tool runs while the user waits for the next word,
+  so one over the SDK's budget fails the test that ran it.
 
 Demos are built through :func:`voqalize_demos.discovery.build_for`, the same
 factory the umbrella app mounts, so a test never re-wires a demo by hand.
@@ -31,10 +34,11 @@ factory the umbrella app mounts, so a test never re-wires a demo by hand.
 from __future__ import annotations
 
 import contextlib
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
+from loguru import logger
 from voqalize_demos.discovery import build_for
 from voqalize_demos.testing import ScriptedGemini
 
@@ -154,6 +158,44 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
     finally:
         await driver.aclose()
         await server.aclose()
+
+
+# ─── The tool budget ──────────────────────────────────────────────────────────
+
+# The innermost watch collects; an outer one sees nothing, so the harness's
+# self-test can trip the watchdog inside a test that is itself being watched.
+_watches: list[list[str]] = []
+
+
+@contextlib.contextmanager
+def tools_within_budget() -> Iterator[list[str]]:
+    """Fail when a tool run inside the block went over the SDK's budget.
+
+    ``GeminiBrain`` times every tool and logs a warning for one over
+    ``TOOL_BUDGET_MS``; that warning is the whole of its enforcement in
+    production. Here it is a failure, because a demo is what a customer copies.
+    Yields the warnings as they arrive."""
+    slow: list[str] = []
+    _watches.append(slow)
+
+    def _sink(message: Any) -> None:
+        if _watches and _watches[-1] is slow:
+            slow.append(message.record["message"])
+
+    sink = logger.add(
+        _sink,
+        level="WARNING",
+        filter=lambda r: r["name"] == "voqalize.sdk.gemini" and "budget;" in r["message"],
+    )
+    try:
+        yield slow
+    finally:
+        logger.remove(sink)
+        _watches.remove(slow)
+    if slow:
+        raise AssertionError(
+            "a tool went over the budget while the user waited: " + "; ".join(slow)
+        )
 
 
 # ─── The checks every demo shares ─────────────────────────────────────────────
