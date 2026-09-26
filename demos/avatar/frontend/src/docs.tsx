@@ -410,10 +410,6 @@ import { wren } from '@voqalize/avatar/faces/wren';
           Blinking, breathing, gaze and idle movement are not states. The browser generates them.
           The server does not send them.
         </p>
-        <Note>
-          This demo’s agent sends <code>WORKING</code> when you ask it to look something up. It uses
-          the message described in the next section.
-        </Note>
       </>
     ),
   },

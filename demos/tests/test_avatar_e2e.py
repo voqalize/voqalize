@@ -1,17 +1,23 @@
 """The avatar demo, end to end over the wire — no network, no LLM key.
 
 The real ``AvatarBrain`` — the shipping ``demos/avatar/backend/brain.py``, its
-real prompt, its real five tools, its real section index — hosted on a real
+real prompt, its real tools, its real section index — hosted on a real
 ``brain_server`` socket and driven by the conformance ``VoqalizeDriver``, with
 only the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e
 proves.
 
 Avatar is the demo that earns its own **server-message** assertions. Everything
 that makes it worth linking from the library's front door — the greeting wave,
-the WORKING state held across a deliberate pause, the voice that moves with the
-face — is a message on a lane nothing else in this suite reads. None of it is
+a gesture on request, the voice that moves with the face — is a message on a
+lane nothing else in this suite reads. None of it is
 visible in a transcript: a call where the wave never fired and the face sat
 still transcribes exactly like a call where it worked.
+
+**Only ``show_section`` carries the mark.** It hands back the lines the answer is
+made from, so a turn that calls it is asked again at once: a pointing line, the
+scroll, then the answer. ``perform`` is a gesture, so its line and the call share
+one response and the turn ends with it. The scripts are written in that shape,
+and the tests count requests where the shape is the point.
 
 Run: ``cd demos && uv run pytest tests/test_avatar_e2e.py``
 """
@@ -23,8 +29,9 @@ import re
 from typing import Any
 
 import pytest
+from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
 
 from voqalize.sdk.wire import ConfigureFrame, EndFrame, RTVIType, SpeechEndFrame
 
@@ -76,9 +83,22 @@ async def _settle() -> None:
     await asyncio.sleep(0.1)
 
 
+def _results(contents: list[types.Content]) -> dict[str, str]:
+    """Every tool result one request carried, by tool name."""
+    return {
+        p.function_response.name or "": str((p.function_response.response or {})["result"])
+        for c in contents
+        for p in (c.parts or [])
+        if p.function_response is not None
+    }
+
+
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
+            # `show_section` is marked: the pointing line and the scroll in one
+            # response, then a second request, carrying the section's lines,
+            # answers from them.
             "How does the lipsync stay in step?": [
                 reply_and_call(
                     "Here's the timeline.", "show_section", request={"section": "lipsync"}
@@ -87,26 +107,13 @@ def _llm() -> ScriptedGemini:
                     "Two legs write one track — a fast one from the text, an accurate one behind it."
                 ),
             ],
-            "Why does the pipeline not know when you're working?": [
-                # The shape the prompt demands: a holding line out loud, THEN the
-                # dig. A silent deep_dive is the failure mode this scripts against.
-                reply_and_call(
-                    "Give me a second, let me pull that up.",
-                    "deep_dive",
-                    request={"topic": "who can see what", "section": "states"},
-                ),
-                reply(
-                    "The pipeline watches turns; it can't see inside a brain on the far side of a socket."
-                ),
-            ],
-            "Show me thinking.": [
-                reply_and_call("Here it is.", "demonstrate", request={"state": "THINKING"}),
-                reply("That's a state — durable, and any fact outranks it."),
-            ],
-            "Wave at me.": [
-                call("perform", request={"gesture": "wave_hello"}),
-                reply("An action. It completes on its own and leaves nothing behind."),
-            ],
+            # `perform` is not marked: the line and the wave in one response, and
+            # nothing follows it this turn.
+            "Wave at me.": reply_and_call(
+                "An action. It completes on its own and leaves nothing behind.",
+                "perform",
+                request={"gesture": "wave_hello"},
+            ),
             "How are you different from HeyGen?": [
                 reply_and_call(
                     "Here's the comparison.", "show_section", request={"section": "compare"}
@@ -156,11 +163,20 @@ async def test_a_question_scrolls_the_page_to_the_section_it_is_answered_from() 
     and has to read on its own — so the wire carries the section the answer is
     coming from and nothing else. The model chooses an id; the heading is looked
     up in ``content.py``, so it cannot scroll the reader to a heading the page
-    does not have."""
-    async with demo("avatar", _llm()) as rig:
+    does not have.
+
+    ``show_section`` is marked, so the answer is a second request of the same
+    turn — and that request carries the section's lines, which is what the
+    answer is made from."""
+    llm = _llm()
+    async with demo("avatar", llm) as rig:
         await rig.driver.start_session()
+        before = len(llm.captured_contents)
         turn = await rig.driver.user_says("How does the lipsync stay in step?")
         check_turn(rig, turn, units=2)
+        assert len(llm.captured_contents) - before == 2
+        handed = _results(llm.captured_contents[-1])["show_section"]
+        assert "The clock starts at the first sound of the reply." in handed, handed
 
         assert rig.actions() == ["show_section"], rig.actions()
         section = rig.command("show_section")
@@ -245,40 +261,24 @@ async def test_an_unknown_face_wears_the_default_in_its_own_voice() -> None:
         check_voice_pair(rig, voice=VOICE, language="en")
 
 
-async def test_the_deliberate_dig_says_working_out_loud_and_clears_it() -> None:
-    """The beat the whole demo is built around, asserted as a sequence.
+async def test_a_gesture_is_one_action_on_the_wire_and_holds_no_state() -> None:
+    """A gesture completes on its own, so the wire carries one action and no state
+    — the brain leaves states to the pipeline, which infers them itself.
 
-    The holding line is spoken *before* the state goes out — a silent pause is
-    the thing this replaces — and the state is cleared explicitly rather than
-    left for the next factual boundary to retire, because a state left standing
-    while the model is silent is a face that never comes back."""
-    async with demo("avatar", _llm()) as rig:
+    ``perform`` is not marked: the line that explains the gesture and the gesture
+    go out in one response, and the model is not asked again after it."""
+    llm = _llm()
+    async with demo("avatar", llm) as rig:
         await rig.driver.start_session()
-        turn = await rig.driver.user_says("Why does the pipeline not know when you're working?")
-        check_turn(rig, turn, units=2)
+        before = len(llm.captured_contents)
+        turn = await rig.driver.user_says("Wave at me.")
+        check_turn(rig, turn, units=1)
+        assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
 
-        assert turn.units[0].text.startswith("Give me a second")
-        assert _states(rig) == ["WORKING", None], _avatar_messages(rig)
-        assert rig.command("working_on")["topic"] == "who can see what"
-        # The dig ends on the section it dug through, so the answer has the
-        # documentation for it open in front of the visitor.
-        assert rig.command("show_section")["id"] == "states"
-
-
-async def test_states_and_actions_are_two_different_things_on_the_wire() -> None:
-    """A demonstrated state is durable; a gesture completes on its own. Both go
-    out on the same lane under the same envelope, and the demo's whole
-    explanation of the difference is only true if the messages differ."""
-    async with demo("avatar", _llm()) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("Show me thinking.")
-        assert _states(rig) == ["THINKING", None], _avatar_messages(rig)
-
-        await rig.driver.user_says("Wave at me.")
         # No greeting wave in this test (the page never announced itself), so
-        # this is the only action on the wire — and no further states.
-        assert _actions(rig) == ["GESTURE_GREET"]
-        assert _states(rig) == ["THINKING", None]
+        # this is the only action on the wire.
+        assert _actions(rig) == ["GESTURE_GREET"], _avatar_messages(rig)
+        assert _states(rig) == [], _avatar_messages(rig)
 
 
 async def test_the_strip_cannot_move_the_voice_once_the_call_is_up() -> None:

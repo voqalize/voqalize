@@ -4,28 +4,27 @@ A ``GeminiBrain`` whose whole subject is the face it is wearing. The visitor
 asks how the talking head works; the brain scrolls the page to that section of
 the documentation, answers against it, and — because the same wire it is
 describing is open the whole time — demonstrates the thing it just said. It waves as the greeting starts, before it
-has been asked for anything. It holds a ``WORKING`` state while it digs
-something up.
+has been asked for anything.
 
-Four mechanics are worth reading before the code:
+The mechanics worth reading before the code:
 
-* **A wave is a message, not a decision.** Every gesture and every state here is
-  an RTVI ``server-message`` under the ``{"type": "avatar"}`` envelope — the
+* **A wave is a message, not a decision.** Every gesture here is an RTVI
+  ``server-message`` under the ``{"type": "avatar"}`` envelope — the
   avatar library's own three-command vocabulary, sent from a brain rather than
   from the pipeline. Nothing about that lane is Voqalize-specific: a customer's
   brain drives the same face the same way, which is why this demo is the
   documentation for it.
 
-* **This brain sends ``WORKING``, and nothing else sends it for it.** The
-  processor in the voice tier's pipeline infers ``THINKING`` for itself — it
-  watches the turn boundaries and knows a reply is owed. It cannot see a tool
-  running inside a brain on the far side of a socket, so ``WORKING`` has to come
-  from here. That asymmetry is a documentation section (``states``) *and* a
-  behaviour, and the two are the same fact. ``demonstrate`` also sends ``THINKING`` and
-  ``CANT_HEAR`` on request, which does race the pipeline's own — one state is in
-  flight at a time and the last one wins. Every other brain should leave state
-  alone; this one's job is to show you the mechanism, which is the one reason to
-  touch it.
+* **This brain sends no state.** The processor in the voice tier's pipeline
+  infers ``THINKING`` for itself — it watches the turn boundaries and knows a
+  reply is owed. ``WORKING`` is for a brain whose tool runs long enough to be
+  seen, and every tool here returns at once, so there is nothing to hold it
+  across. A state sent from here would only race the pipeline's own.
+
+* **It speaks and acts in one response.** A gesture goes out as the line it
+  punctuates is spoken, and nothing is said after it until the visitor speaks.
+  ``show_section`` is the exception: the model answers from what it hands back,
+  so it is asked again at once.
 
 * **The face is chosen before the call, and never during it.** Each face is
   paired with a voice read as the same gender, and the pair has to be settled
@@ -58,7 +57,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, needs_result_now
 
 from voqalize.sdk import (
     Action,
@@ -139,17 +138,6 @@ _GESTURE_IDS: dict[str, str] = {
     "ask_to_wait": "GESTURE_WAIT",
 }
 
-DurableState = Literal["THINKING", "WORKING", "CANT_HEAR"]
-
-# How long a demonstrated state is held before it is cleared. Long enough to
-# read as a state rather than a flicker, short enough that the visitor does not
-# think the call has died.
-_DEMO_STATE_S = 3.0
-
-# How long the deliberate dig takes. This is dead air on purpose — it is the
-# whole point of the beat — so the prompt requires a holding line before it.
-_DEEP_DIVE_S = 2.4
-
 
 # ─── Actions (what the page renders) ──────────────────────────────────────────
 
@@ -165,13 +153,6 @@ class ShowSection(Action):
 
     id: str
     title: str
-
-
-class WorkingOn(Action):
-    """Paint the working strip. Fired beside the ``WORKING`` state, so the face
-    and the page say the same thing about the same seconds."""
-
-    topic: str
 
 
 class ShowEndCard(Action):
@@ -194,17 +175,6 @@ class SectionRequest(BaseModel):
 
 class GestureRequest(BaseModel):
     gesture: Gesture = Field(description="Which behaviour to perform.")
-
-
-class StateRequest(BaseModel):
-    state: DurableState = Field(description="Which durable state to hold for a few seconds.")
-
-
-class DeepDiveRequest(BaseModel):
-    topic: str = Field(
-        description="What you are looking up, in three or four words, shown on screen."
-    )
-    section: SectionId = Field(description="The section whose material you need.")
 
 
 async def _silence() -> AsyncGenerator[Any, None]:
@@ -234,7 +204,7 @@ WHAT YOU ARE. You are rendered in their browser, driven over the data channel of
 
 {BACKGROUND}
 
-WHAT IS ON THEIR SCREEN. The right two-thirds of the page explains the library — plain words first, then code and the wire reference — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back short lines to answer with:
+WHAT IS ON THEIR SCREEN. The right two-thirds of the page explains the library — plain words first, then code and the wire reference — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back short lines to answer with, straight away:
 {sections_for_prompt()}
 
 WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, speaking in the voice that face is paired with. The visitor chose that on the strip before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The faces on the strip:
@@ -242,21 +212,21 @@ WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, 
 
 HOW TO RUN THIS CALL:
 
-1. POINT FIRST, THEN TALK. For ANY question about how the thing works — what it is, how it compares with video avatars like HeyGen or Tavus, installing it, the protocol, the lipsync, the states, the faces, authoring your own, the limits — call show_section BEFORE you say anything. The scroll is the answer; your sentences are the footnote on it. One section per question. NEVER read the page out loud, and never summarise what is now on their screen — say only the thing the page left out, or the reason behind it.
+SPEAK AND ACT IN THE SAME RESPONSE. Whenever you call a tool, say your short line first and make the call in that same response. After perform you do not speak again until the visitor does, so a gesture made in silence leaves them in silence.
 
-2. DEMONSTRATE, DO NOT DESCRIBE. When you have just explained a behaviour, perform it. Explained actions? Wave. Explained states? Call demonstrate. If someone asks "show me" anything, the answer is a tool call, not a sentence.
+POINT FIRST, THEN TALK. For ANY question about how the thing works — what it is, how it compares with video avatars like HeyGen or Tavus, installing it, the protocol, the lipsync, the states, the faces, authoring your own, the limits — say a few words that point ("Here's the timeline") and call show_section in that same response, before you answer. Its lines come back at once, and you answer from them. The scroll is the answer; your sentences are the footnote on it. One section per question. NEVER read the page out loud, and never summarise what is now on their screen — say only the thing the page left out, or the reason behind it.
 
-3. THE DELIBERATE DIG. When a question needs real material — the numbers, the timing, the reasoning behind a design — SAY A SHORT HOLDING LINE OUT LOUD FIRST ("Give me a second, let me pull that up"), and THEN call deep_dive. Never call deep_dive silently: the whole point is that the visitor watches you go into a working state, having been told you were about to. It takes a couple of seconds and that is deliberate.
+DEMONSTRATE, DO NOT DESCRIBE. When you have just explained an action, perform one — a wave, a nod — in the same response as the line that explains it. If someone asks "show me" a gesture, the answer is a tool call with a line, not a sentence alone. States are not yours to put on: the voice tier shows thinking on your face by itself while a reply is on its way. If they ask to see one, scroll to the states section and say that.
 
-4. THE FACE IS NOT YOURS TO CHANGE. If they ask what else there is, call show_section on the faces section and let them read the strip. Say the pairing out loud once — the face and the voice are one choice, settled before the call — because that is the constraint, not a limitation you are apologising for.
+THE FACE IS NOT YOURS TO CHANGE. If they ask what else there is, call show_section on the faces section and let them read the strip. Say the pairing out loud once — the face and the voice are one choice, settled before the call — because that is the constraint, not a limitation you are apologising for.
 
-5. WATCH THE CLOCK. Two minutes is about eight exchanges. Do not offer a tour of every section; answer what was asked. If you are told you are running out of time, start closing.
+WATCH THE CLOCK. Two minutes is about eight exchanges. Do not offer a tour of every section; answer what was asked. If you are told you are running out of time, start closing.
 
 STYLE — the hard rule first:
 - SHORT SENTENCES. One or two per turn, never three, and each one under twelve words. This is speech: a long sentence is a lecture, and the visitor cannot scroll back through it. If a thought needs more, it needed a tool call instead: put it on their screen and say one line about it.
 - A tool result is a set of lines to pick from, not a script. Say one or two of them, in your own words, and stop.
 - Plain words first. Anyone may be listening, so say "the face" and "the voice", not "processor" or "data channel". Get technical only when they ask something technical.
-- Show, do not narrate. A visitor who asks to see something gets a tool call. A visitor who asks how something works gets the section scrolled up first and two sentences after.
+- Show, do not narrate. A visitor who asks to see something gets a tool call. A visitor who asks how something works gets a few words as the section scrolls up, and two sentences after.
 - Lead with the mechanism, then what it gets you. Never the other way round.
 - No marketing words. Do not say seamless, magic, effortless, or powerful. You are talking to someone who will read the source.
 - Never read out a tool name, an id, or a URL. Say "the wire", not "contract-wire dot em-dee".
@@ -290,22 +260,14 @@ class AvatarBrain(GeminiBrain):
 
     # ─── The avatar wire ────────────────────────────────────────────────
     #
-    # Two lines each, and they are the entire integration. `server-message` is
-    # on the RTVI whitelist, carries no audio and needs no floor, so both are
-    # callable from anywhere — including a tool body running mid-turn.
+    # Two lines, and they are the entire integration. `server-message` is on the
+    # RTVI whitelist, carries no audio and needs no floor, so it is callable from
+    # anywhere — including a tool body running mid-turn.
 
     def _act(self, action_id: str) -> None:
         """Start one self-completing behaviour on the face."""
         self.session.send_rtvi(
             RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "action", "id": action_id}
-        )
-
-    def _state(self, state: str | None) -> None:
-        """Set or clear the durable state. ``None`` clears it explicitly rather
-        than waiting for the next factual boundary to retire it — a state left
-        standing while the model is silent is a face that never comes back."""
-        self.session.send_rtvi(
-            RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state}
         )
 
     # ─── The clock ──────────────────────────────────────────────────────
@@ -353,7 +315,6 @@ class AvatarBrain(GeminiBrain):
         choice — the SDK consumes everything yielded before this body resumes,
         so the goodbye is on the wire before the end frame is."""
         self._signed_off = True
-        self._state(None)
         self._act("GESTURE_GOODBYE")
         yield SpeechStart()
         yield SpeechChunk(_SIGN_OFF)
@@ -362,67 +323,39 @@ class AvatarBrain(GeminiBrain):
         session.end("time_limit")
 
     # ─── Tools ──────────────────────────────────────────────────────────
+    #
+    # Only `show_section` carries ``@needs_result_now``: it hands back the lines
+    # the model answers from, read out of the section index, so the model is
+    # asked again at once. `perform` moves the face and echoes what it did; its
+    # result waits in the context for the visitor's next turn, which is why the
+    # prompt has the line and the gesture share one response.
 
     @property
     def tools(self) -> list[Any]:
-        """The four it may call."""
+        """What it may call."""
         return [
             self.show_section,
-            self.deep_dive,
-            self.demonstrate,
             self.perform,
         ]
 
+    @needs_result_now
     async def show_section(self, request: SectionRequest) -> str:
         """Scroll the visitor's documentation to one section, and get the material
-        to answer from. Call this BEFORE answering any question about how the
-        avatar works — they read the section while you talk over it."""
+        to answer from. For any question about how the avatar works, say a few
+        words that point and call this in the same response, before you answer;
+        its lines come back at once, and they read the section while you talk
+        over it."""
         section = SECTIONS_BY_ID[request.section]
         logger.info("avatar: show_section {}", section.id)
         self.session.dispatch(ShowSection(id=section.id, title=section.title))
         return str({"section": section.id, "heading": section.title, "say": section.notes})
 
-    async def deep_dive(self, request: DeepDiveRequest) -> str:
-        """Go and dig up the detailed material behind a section. This takes a
-        couple of seconds and holds WORKING on your own face while it
-        runs, so SAY A SHORT HOLDING LINE OUT LOUD BEFORE CALLING IT — 'give me a
-        second', 'let me pull that up'. Never call it silently."""
-        section = SECTIONS_BY_ID[request.section]
-        topic = request.topic.strip() or section.title
-        logger.info("avatar: deep_dive {!r} ({})", topic, section.id)
-        # The state and the on-screen strip go out together, then the seconds
-        # actually pass. This is the one place in the demo where the visitor is
-        # asked to wait, and they were told it was coming.
-        self._state("WORKING")
-        self.session.dispatch(WorkingOn(topic=topic))
-        try:
-            await asyncio.sleep(_DEEP_DIVE_S)
-        finally:
-            self._state(None)
-        self.session.dispatch(ShowSection(id=section.id, title=section.title))
-        return str({"topic": topic, "say": section.notes})
-
-    async def demonstrate(self, request: StateRequest) -> str:
-        """Hold one durable state on your face for a few seconds so the visitor
-        can watch it, then clear it. Use when they ask to see thinking, working
-        or not being able to hear. Say what you are about to show before you
-        call it."""
-        logger.info("avatar: demonstrate state {}", request.state)
-        # A demonstrated THINKING or CANT_HEAR contests the pipeline's own state
-        # for those few seconds — one is in flight at a time and the last one
-        # wins. That is a bug in a production brain and the entire job in
-        # this one, which is why it is a tool the visitor has to ask for.
-        self._state(request.state)
-        try:
-            await asyncio.sleep(_DEMO_STATE_S)
-        finally:
-            self._state(None)
-        return str({"held": request.state, "seconds": _DEMO_STATE_S})
-
     async def perform(self, request: GestureRequest) -> str:
         """Perform one behaviour — a wave, a nod, an acknowledgement, a wait
         gesture. It completes on its own and leaves no state behind. Use it to
-        show what an action is, and to punctuate what you are saying."""
+        show what an action is, and to punctuate what you are saying: say the line
+        in the same response that calls it, because nothing is said after it until
+        the visitor speaks."""
         action_id = _GESTURE_IDS[request.gesture]
         logger.info("avatar: perform {} ({})", request.gesture, action_id)
         self._act(action_id)
@@ -497,7 +430,7 @@ class AvatarBrain(GeminiBrain):
             self._nudged = True
             self._note(
                 "SYSTEM: about thirty seconds left in this demo. Finish the thought you are on "
-                "and start closing — do not start a new topic and do not call deep_dive."
+                "and start closing — do not start a new topic."
             )
         return super().on_user_message(session, msg)
 
@@ -537,9 +470,9 @@ class AvatarBrain(GeminiBrain):
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The inherited turn, with the cap checked once more on the way out.
 
-        A turn can start inside the two minutes and finish outside them — a deep
-        dive alone spends two and a half seconds — and the next turn may be a
-        long way off. Signing off here means the last thing the visitor hears is
+        A turn can start inside the two minutes and finish outside them — a
+        section read is a second request — and the next turn may be a long way
+        off. Signing off here means the last thing the visitor hears is
         the sign-off rather than a model turn that ran over."""
         async for speech in super().respond(session):
             yield speech

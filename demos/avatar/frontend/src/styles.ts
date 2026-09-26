@@ -195,8 +195,6 @@ export const STYLES = `
   .av-chip.is-listening .av-dot { background: #34d399; }
   .av-chip.is-speaking .av-dot { background: #7f80ee; }
   .av-chip.is-thinking .av-dot,
-  .av-chip.is-working .av-dot { background: #f0a020; animation: av-pulse 1.4s ease-in-out infinite; }
-  @keyframes av-pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
 
   /* ── the meeting controls, directly under the picture ─────────────────── */
 

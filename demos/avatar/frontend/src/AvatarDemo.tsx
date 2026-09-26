@@ -21,7 +21,7 @@
  * Two directions of traffic reach this file:
  *
  *   * **brain → screen**, as RTVI `ui-command`s: the section to scroll to, the
- *     avatar switch, the working strip, the end card (`actions.gen.ts` is the
+ *     avatar switch, the end card (`actions.gen.ts` is the
  *     generated shape). A section command carries an id and a heading, not prose
  *     — the page already holds every word, and two copies of a paragraph is how a
  *     page linked from a README stops being readable on its own.
@@ -99,18 +99,17 @@ export const LINKS = {
 const OPENERS = [
   "What are you?",
   "How are you different from HeyGen?",
-  "Show me what working looks like.",
+  "Wave at me.",
   "How does the lipsync work?",
 ];
 
-type Activity = "offline" | "listening" | "thinking" | "speaking" | "working";
+type Activity = "offline" | "listening" | "thinking" | "speaking";
 
 const ACTIVITY_LABEL: Record<Activity, string> = {
   offline: "Not connected",
   listening: "Listening",
   thinking: "Thinking",
   speaking: "Speaking",
-  working: "Working",
 };
 
 // ── The face ────────────────────────────────────────────────────────────────
@@ -339,7 +338,6 @@ function Stage({
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
 
   const [current, setCurrent] = useState<string>(DOC_SECTIONS[0].id);
-  const [working, setWorking] = useState<string | null>(null);
   const [ended, setEnded] = useState<string | null>(null);
   const [activity, setActivity] = useState<Activity>("offline");
   const [left, setLeft] = useState(LIMIT_S);
@@ -363,11 +361,7 @@ function Stage({
         if (!action) return;
         switch (action.command) {
           case "show_section":
-            setWorking(null);
             goTo(action.payload.id);
-            break;
-          case "working_on":
-            setWorking(action.payload.topic);
             break;
           case "show_end_card":
             setEnded(action.payload.reason);
@@ -397,10 +391,7 @@ function Stage({
   );
   useRTVIClientEvent(
     RTVIEvent.BotStoppedSpeaking,
-    useCallback(() => {
-      setActivity("listening");
-      setWorking(null);
-    }, []),
+    useCallback(() => setActivity("listening"), []),
   );
 
   // Reading the page is the other half of using it, so the rail follows the
@@ -469,7 +460,7 @@ function Stage({
     setEnded((reason) => reason ?? "hung_up");
   };
 
-  const shown: Activity = working ? "working" : isConnected ? activity : "offline";
+  const shown: Activity = isConnected ? activity : "offline";
   const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
   const live = isConnected && !ended;
 
@@ -489,7 +480,7 @@ function Stage({
             <div className={`av-chip is-${shown}`}>
               <span className="av-dot" aria-hidden />
               <span>
-                {working ? `Working — ${working}` : isMicEnabled ? ACTIVITY_LABEL[shown] : "Muted"}
+                {isMicEnabled ? ACTIVITY_LABEL[shown] : "Muted"}
               </span>
               <span className="av-clock">{clock}</span>
             </div>

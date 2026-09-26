@@ -20,14 +20,6 @@ export interface ShowSection {
 }
 
 /**
- * Paint the working strip. Fired beside the `WORKING` state, so the face
- * and the page say the same thing about the same seconds.
- */
-export interface WorkingOn {
-  topic: string;
-}
-
-/**
  * The call is over and here is where to go next. `reason` distinguishes
  * the cap from a goodbye, because the card reads differently.
  */
@@ -41,14 +33,12 @@ export type Ready = Record<string, never>;
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
   | { command: 'show_section'; payload: ShowSection }
-  | { command: 'working_on'; payload: WorkingOn }
   | { command: 'show_end_card'; payload: ShowEndCard };
 
 export type UiActionCommand = UiAction['command'];
 
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'show_section',
-  'working_on',
   'show_end_card',
 ];
 
