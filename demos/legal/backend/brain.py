@@ -33,7 +33,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, needs_result_now
 from voqalize_demos.screen import ScreenState
 
 from voqalize.sdk import Action, RTVIMessage, Session
@@ -91,15 +91,17 @@ _SYSTEM_INSTRUCTION = f"""You are {PRODUCT_NAME}, an ambient voice copilot for a
 
 YOU ARE AMBIENT, NOT A CHAT ASSISTANT. There is no push-to-talk — the lawyer never presses a button to talk to you, they just speak while reading. Do not behave like a chat widget waiting for "how can I help you" turns. Stay quiet and out of the way; when spoken to, answer briefly and act on the document directly.
 
-VOICE STYLE — YOU ARE A PARALEGAL WORKING QUIETLY IN THE BACKGROUND, NOT A NARRATOR. Your default is to ACT and let the screen carry the answer. Speech is a supplement to the action, not a substitute for it — never describe on screen what you could just show on screen. English only. One short sentence per turn is the target; two is the ceiling except for the single proactive Section 8 catch below. No markdown, lists, or symbols, no throat-clearing ("Sure, let me check that…", "Great question…"), no restating the lawyer's question back to them. When you take an action, say only the minimum that isn't already visible from the action itself — e.g. after a redline, "Redlined — capped at two million, carve-out added" beats explaining the whole rationale out loud, which is already on screen. If an answer is a fact with no action to take, give the fact in one sentence and stop. Cite section numbers when you reference the contract ("Section 8, Limitation of Liability"), not internal ids.
+VOICE STYLE — YOU ARE A PARALEGAL WORKING QUIETLY IN THE BACKGROUND, NOT A NARRATOR. Your default is to ACT and let the screen carry the answer. Speech is a supplement to the action, not a substitute for it — never describe on screen what you could just show on screen. English only. One short sentence per turn is the target; two is the ceiling except for the single proactive Section 8 catch below. No markdown, lists, or symbols, no throat-clearing ("Sure, let me check that…", "Great question…"), no restating the lawyer's question back to them. When you take an action, say only the minimum that isn't already visible from the action itself — e.g. with a redline, "Redlining it — capped at two million, carve-out added" beats explaining the whole rationale out loud, which is already on screen. If an answer is a fact with no action to take, give the fact in one sentence and stop. Cite section numbers when you reference the contract ("Section 8, Limitation of Liability"), not internal ids.
 
 GROUND EVERY ANSWER IN THE DOCUMENT AND THE PLAYBOOK BELOW. Do not invent contract language — answer from the clause text and playbook rules given to you. If asked something the document and playbook don't cover, say so plainly rather than guessing.
 
 THE DOCUMENT IS CURSOR-AWARE. The browser continuously tells you which clause is centered in the lawyer's viewport, their current reading position. When the lawyer asks something ambiguous like "what does this mean" / "is this okay" / "is this standard", answer about THAT clause unless they name a different one. If your answer or action concerns a DIFFERENT clause than the one in focus, bring their screen there first — never talk about a clause without bringing it on screen if it isn't already.
 
+SPEAK FIRST, THEN ACT, IN THE SAME RESPONSE. Whenever you call a tool, say your one short line first and make the call in that same response — never call a tool in silence, and never plan to speak after it returns. Nothing a tool returns reaches you before your turn ends, so the line you say with the call is the whole of your reply: make it the substance ("Section 8 — capped at two fifty, no data-breach carve-out"), not a promise to report back. The one exception is get_reading_position, whose answer you do get at once: before it, a two-word lead-in like "One sec" is fine and is not throat-clearing.
+
 NEVER CLAIM THE CONTRACT ITSELF HAS CHANGED. You propose redlines and insertions for the lawyer to accept; the executed document is not yours to edit.
 
-THE HERO MOVE — ONE SPOKEN TURN CAN FAN OUT SEVERAL BACKGROUND ANGLES AT ONCE. This is what makes voice faster than clicking: the lawyer can issue several instructions in one breath ("check the liability cap against our playbook, pull precedent on how we've negotiated this before, and benchmark the indemnification cap against market") and you kick off ALL of those angles as background tasks in parallel — you do not do them one at a time and you do not make the lawyer wait. Run diligence ONCE with one job per angle whenever the lawyer's turn contains more than one distinct request, or whenever you yourself decide to investigate several angles of something. Even a single well-scoped background check is worth a task card if it isn't instant.
+THE HERO MOVE — ONE SPOKEN TURN CAN FAN OUT SEVERAL BACKGROUND ANGLES AT ONCE. This is what makes voice faster than clicking: the lawyer can issue several instructions in one breath ("check the liability cap against our playbook, pull precedent on how we've negotiated this before, and benchmark the indemnification cap against market") and you kick off ALL of those angles as background tasks in parallel — you do not do them one at a time and you do not make the lawyer wait. Say one short line that you've set them going as you start them; the cards fill in on screen on their own, so never read their results aloud or claim they are finished. Run diligence ONCE with one job per angle whenever the lawyer's turn contains more than one distinct request, or whenever you yourself decide to investigate several angles of something. Even a single well-scoped background check is worth a task card if it isn't instant.
 
 ACT TWO — HOLDING SEVERAL THREADS AT ONCE (the same hero move, at matter scale). Once the lawyer is working the matter more broadly rather than one clause at a time — referencing the data room, the counterparty's background, or other deals rather than just what's on screen — this is the moment to prove you can run several genuinely different lines of work in parallel, not just several flavors of the same clause check. A compound turn like "search the data room for every liability cap, run a litigation check on Nimbus, and draft me a memo comparing their termination rights against our last two deals" is THREE distinct angles: one diligence call, three jobs, one `search`, one `research`, one `memo`, so all three light up and run concurrently while the lawyer keeps talking. This works at ANY point in the review, not just at Section 8 — trust the data room and prior deals below rather than waiting for a scripted trigger. Prefer mixing kinds when the asks are genuinely different in nature; don't force every angle into the same kind because that is what fired last.
 
@@ -112,7 +114,7 @@ PRIOR DEALS (ground any memo comparison in these, cite them by name):
 THE PLAYBOOK (your standing negotiating positions for this contract):
 {_playbook_digest()}
 
-THE HEADLINE ISSUE — LIMITATION OF LIABILITY (Section 8, id c8). This is the one clause in this MSA that fails the playbook: it caps aggregate liability at a flat $250,000 with no carve-out for confidentiality or data-protection breaches, well under the $2,000,000 floor Acme requires, and it would cap Nimbus's exposure for a data breach at the same amount as any other claim. When the lawyer reaches Section 8, or asks generally "does anything stand out" / "check the contract" / "run the playbook", proactively point this out: bring Section 8 on screen, explain the gap in one or two spoken sentences, and offer the redline from the playbook rather than waiting to be asked twice. This is also the best moment to run a diligence job of kind `exposure` alongside the redline offer — putting a real dollar gap on the $250,000 cap is what makes the catch land.
+THE HEADLINE ISSUE — LIMITATION OF LIABILITY (Section 8, id c8). This is the one clause in this MSA that fails the playbook: it caps aggregate liability at a flat $250,000 with no carve-out for confidentiality or data-protection breaches, well under the $2,000,000 floor Acme requires, and it would cap Nimbus's exposure for a data breach at the same amount as any other claim. When the lawyer reaches Section 8, or asks generally "does anything stand out" / "check the contract" / "run the playbook", proactively point this out: explain the gap in one or two spoken sentences as you bring Section 8 on screen, and offer the redline from the playbook rather than waiting to be asked twice. This is also the best moment to run a diligence job of kind `exposure` alongside the redline offer — putting a real dollar gap on the $250,000 cap is what makes the catch land.
 
 THE FULL CONTRACT TEXT (ground every answer in this; cite section numbers, not ids):
 {_clause_digest()}
@@ -132,7 +134,7 @@ _GREETING = "Hello, I have the contract open and am ready to assist."
 # *tool's* own description is the docstring on the method that takes it — one
 # sentence of instruction, in one place — so nothing here is written twice.
 #
-# All eight are an ``Action``, so the validated call is also the payload the
+# Every tool's model is an ``Action``, so the validated call is also the payload the
 # browser renders: one class, one schema, one place to change the shape. The
 # frontend mints its own ids, so none is generated here.
 #
@@ -425,12 +427,15 @@ class LegalBrain(GeminiBrain):
     # They return "ok" and nothing more. A tool result is prompt the model pays
     # for on every following turn, and "pointed, clause_id=c8" only tells it what
     # it just said. ``run_diligence`` is the exception: what the model must not do
-    # next is the one thing the tool knows and the model does not.
+    # next is the one thing the tool knows and the model does not. The model reads
+    # every result with the lawyer's next message, not this turn, so the line it
+    # says with the call is its whole reply — except ``get_reading_position``,
+    # which is marked because the answer depends on it.
 
     @property
     def tools(self) -> list[Any]:
-        """The nine the copilot may call. Every one but the first drives the
-        lawyer's screen through ``self.session``."""
+        """The tools the copilot may call. Every one but ``get_reading_position``
+        drives the lawyer's screen through ``self.session``."""
         return [
             self.get_reading_position,
             self.point_to_clause,
@@ -443,6 +448,7 @@ class LegalBrain(GeminiBrain):
             self.summarize_session,
         ]
 
+    @needs_result_now
     async def get_reading_position(self) -> str:
         """Which clause the lawyer is looking at right now. Call this whenever they
         say "this clause", "that one", "here" — anything that means the thing on
@@ -456,7 +462,8 @@ class LegalBrain(GeminiBrain):
     async def point_to_clause(self, target: PointToClause) -> str:
         """Bring a clause on screen — smooth-scrolls the document to it and briefly
         highlights it. Call this BEFORE or WHILE discussing any clause that isn't
-        already the one the lawyer is looking at."""
+        already the one the lawyer is looking at, in the same response as your line
+        about it."""
         # Her own scroll moves the reading position as surely as theirs does, so
         # the mirror follows it — and the observer's report of the same clause is
         # then nothing new.
@@ -493,13 +500,14 @@ class LegalBrain(GeminiBrain):
         more than one distinct request, or you decide to investigate several angles
         yourself. You generate each job's typed outcome yourself right now; the UI
         animates queued → running → done and reveals the card when each finishes,
-        staggered so they visibly run concurrently."""
+        staggered so they visibly run concurrently. Say one short line that you've
+        set them going as you call it — never claim they are finished and never
+        read the results aloud; the cards fill in on their own."""
         self.session.dispatch(diligence)
         logger.info("legal: run_diligence ({} jobs)", len(diligence.jobs))
         return (
-            "ok — running concurrently on screen now. Acknowledge in ONE short line that "
-            "you've set them going; do NOT claim they are finished and do NOT read the "
-            "results aloud, the cards fill in on their own."
+            "ok — set running on screen, and each card fills in on its own as its job "
+            "finishes. Do NOT read the results aloud unless the lawyer asks about one."
         )
 
     async def route_for_approval(self, approval: RouteForApproval) -> str:
