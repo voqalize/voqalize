@@ -1,7 +1,7 @@
 """The OrderDesk demo, end to end over the wire — no network, no LLM key.
 
 The real ``OrderDeskBrain`` — the shipping ``demos/orderdesk/backend/brain.py``,
-its real prompt, its real ten tools — hosted on a real ``brain_server`` socket
+its real prompt, its real tools — hosted on a real ``brain_server`` socket
 and driven by the conformance ``VoqalizeDriver``, with only the *model* scripted.
 See ``tests/_harness.py`` for what every demo's e2e proves.
 
@@ -19,13 +19,19 @@ Run: ``cd demos && uv run pytest tests/test_orderdesk_e2e.py``
 from __future__ import annotations
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+
+from voqalize.sdk.gemini import _needs_result_now
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.orderdesk.brain import _FALLBACK_OPENER, _HELLO  # noqa: E402
+from voqalize_demos._loaded.orderdesk.brain import (  # noqa: E402
+    _FALLBACK_OPENER,
+    _HELLO,
+    OrderDesk,
+)
 
 VOICE = "omnivoice/gauri"
 LANGUAGE = "hi"
@@ -46,18 +52,22 @@ _MANUAL_ROW = {
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
+            # `add_items` is marked `@needs_result_now`: whether the row matched is
+            # something only the catalog knows, so the model is asked again with the
+            # result and says it in the same turn.
             "Telma 40 ki do strip de do.": [
                 reply_and_call(
-                    "Theek hai, jod rahi hoon.",
+                    "Theek hai.",
                     "add_items",
                     items=[{"text": "telma 40", "quantity": 2}],
                 ),
                 reply("Telma 40 jud gaya, do strip."),
             ],
-            "Ab Telma hata do.": [
-                reply_and_call("Theek hai, hata rahi hoon.", "remove_items", item_ids=["li1"]),
-                reply("Telma hata diya."),
-            ],
+            # `remove_items` is not: the model already knows what it asked for, so the
+            # whole line goes with the call and the turn ends with the stream.
+            "Ab Telma hata do.": reply_and_call(
+                "Telma hata diya.", "remove_items", item_ids=["li1"]
+            ),
             "Screen par kya hai?": reply("Aapke screen par Telma 40mg hai."),
         }
     )
@@ -80,7 +90,11 @@ async def test_adding_and_removing_an_item_drive_the_screen() -> None:
     locks it to a SKU, and the screen hears about it twice: ``row_opened`` the
     instant he says it, greyed, then ``row_matched`` when the catalog answers. Two
     actions, not one row pushed twice — the second carries the SKU and nothing
-    else. A second turn then removes it by the id the first turn minted."""
+    else. A second turn then removes it by the id the first turn minted.
+
+    The two turns are the two shapes of the loop. Adding speaks twice — the short
+    line with the call, then what the catalog answered. Removing speaks once, the
+    line said with the call, because nothing it returns changes what he hears."""
     async with demo("orderdesk", _llm()) as rig:
         await rig.driver.start_session()
 
@@ -97,7 +111,7 @@ async def test_adding_and_removing_an_item_drive_the_screen() -> None:
         assert "quantity" not in matched, "the match is carrying the whole row again"
 
         t2 = await rig.driver.user_says("Ab Telma hata do.")
-        check_turn(rig, t2, units=2)
+        check_turn(rig, t2, units=1)
 
         removed = rig.command("remove_items")
         assert removed["ids"] == [opened["id"]]
@@ -156,19 +170,17 @@ async def test_a_row_he_took_away_answers_with_the_rows_that_are_left() -> None:
         {
             "Telma 40 ki do strip de do.": [
                 reply_and_call(
-                    "Theek hai, jod rahi hoon.",
+                    "Theek hai.",
                     "add_items",
                     items=[{"text": "telma 40", "quantity": 2}],
                 ),
                 reply("Telma 40 jud gaya."),
             ],
-            "Ab Telma hata do.": [
-                # He deleted it with his thumb between the two turns, so this id is
-                # from before. The desk does not refuse it — it says what is there.
-                call("remove_items", item_ids=["li1"]),
-                reply("Woh to aapne khud hata diya."),
-            ],
-            "Bas itna hi.": reply("Theek hai, confirm kar dijiye."),
+            # He deleted it with his thumb between the two turns, so this id is from
+            # before. The desk does not refuse it — it says what is there, and the
+            # model reads that with his next words.
+            "Ab Telma hata do.": reply_and_call("Hata diya.", "remove_items", item_ids=["li1"]),
+            "Bas itna hi.": reply("Woh aapne khud hata diya tha. Confirm kar dijiye."),
         }
     )
     async with demo("orderdesk", llm) as rig:
@@ -179,9 +191,9 @@ async def test_a_row_he_took_away_answers_with_the_rows_that_are_left() -> None:
         await rig.driver.send_ui_event("row_removed", {"item_id": "li1"})
         await rig.driver.user_says("Ab Telma hata do.")
 
-        # One more turn, so the turn above's hops are in the context being asserted:
-        # under automatic function calling a whole turn is one request, and its tool
-        # results are only visible to the request that follows it.
+        # One more turn, so the turn above's result is in the context being asserted:
+        # `remove_items` is not marked, so its result is only visible to the request
+        # that follows the turn that called it.
         await rig.driver.user_says("Bas itna hi.")
 
     results = "".join(
@@ -212,7 +224,7 @@ async def test_naming_something_already_on_the_order_lands_on_that_row() -> None
     llm = ScriptedGemini(
         {
             "Volini de do.": [
-                reply_and_call("Kaunsa Volini?", "add_items", items=[{"text": "volini"}]),
+                reply_and_call("Theek hai.", "add_items", items=[{"text": "volini"}]),
                 reply("Volini gel ya spray?"),
             ],
             "Volini do strip.": [
@@ -227,17 +239,18 @@ async def test_naming_something_already_on_the_order_lands_on_that_row() -> None
                 ),
                 reply("Do se teen kar diya."),
             ],
-            "Bas itna hi.": reply("Theek hai."),
         }
     )
     async with demo("orderdesk", llm) as rig:
         await rig.driver.start_session()
-        await rig.driver.user_says("Volini de do.")
+        first = await rig.driver.user_says("Volini de do.")
+        # The question is asked in the turn that added the row: `add_items` is marked,
+        # so the model reads what the catalog said before the turn ends.
+        check_turn(rig, first, units=2)
         await rig.driver.user_says("Volini do strip.")
+        # No flush turn: the last turn's result reached its own second request, which
+        # is the one asserted on below.
         await rig.driver.user_says("Nahin, teen strip.")
-        # The flush turn: under automatic function calling a turn's tool results
-        # only reach the request that follows it.
-        await rig.driver.user_says("Bas itna hi.")
 
     drawn = [
         (c["command"], c.get("payload") or {})
@@ -263,3 +276,16 @@ async def test_naming_something_already_on_the_order_lands_on_that_row() -> None
     )
     assert "already_on_order" in results
     assert "he already had 2 of this" in results, "the overwrite was silent"
+
+
+def test_only_the_tools_whose_answer_he_hears_now_hold_the_turn() -> None:
+    """The mark, pinned tool by tool, so a change to it is a decision someone makes.
+
+    Held: the screen read, and the tools that resolve a spoken name against the
+    catalog — matched, a question to ask, or not in the catalog is something only the
+    catalog knows, and the model's next words depend on which. Everything else acts on
+    an outcome the model already knows, says its line with the call, and reads the
+    result with his next words."""
+    desk = OrderDesk()
+    held = {tool.__name__ for tool in desk.tools if _needs_result_now(tool)}
+    assert held == {"read_screen", "add_items", "refine_item", "change_variant"}

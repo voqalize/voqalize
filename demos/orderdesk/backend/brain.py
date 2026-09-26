@@ -62,8 +62,8 @@ act the brain never learns about — which is exactly what the tests hold, and w
 log shows plainly instead of a reconciler papering over it a beat later.
 
 Both halves of the screen contract are declared shapes, and both are generated into
-``frontend/src/actions.gen.ts`` by one ``voqalize types`` run: the thirteen
-``ui_command``s are :class:`voqalize.sdk.Action` subclasses, and the seven events
+``frontend/src/actions.gen.ts`` by one ``voqalize types`` run: the
+``ui_command``s are :class:`voqalize.sdk.Action` subclasses, and the events
 are :class:`voqalize.sdk.AppEvent` subclasses in :mod:`desk_events`. Nothing about
 either direction is written down twice. DESIGN.md §3 is the written contract.
 """
@@ -78,7 +78,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, hello_for
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, hello_for, needs_result_now
 
 from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -114,12 +114,17 @@ LANGUAGE — SPEECH:
 - Short sentences, under ten words. Never more than two short sentences in one turn. Start every reply with a tiny phrase so audio begins instantly.
 - No markdown, no lists, no stage directions. Never narrate your own actions ("अब मैं जोड़ रही हूँ") — call the tool and say only what the pharmacist should hear.
 
+SPEAK FIRST, THEN CALL — IN THE SAME REPLY:
+- Every reply that calls a tool starts with a tiny spoken line ("ठीक है", "लिख लिया", "हटा दिया") and makes the call in that same reply. Never call a tool in silence.
+- add_items, refine_item, change_variant and read_screen hand you their answer straight away, and you speak again right after them: say the tiny line, call, then say what the answer means — "दोनों लग गए", or the one short question it asks for.
+- Every other tool just does what you asked, and you do not hear back until he speaks again. So say the whole line with the call — "बारह कर दिया", "हटा दिया", "लग गया" — and never promise to report back on it.
+
 LANGUAGE — TOOL ARGUMENTS ARE ENGLISH, ALWAYS:
 - The screen is English and the catalog is English. EVERY string you pass to a tool — item text, query, note — is in clean English letters. Transliterate what you heard: "वोलिनी" → "volini", "चार क्विन" → "4 quin", "थायरोनॉर्म" → "thyronorm", "पैन फोर्टी" → "pan 40", "अबीवेज़" → "abiways".
 - A tool argument containing Devanagari is rejected and you will have to call again. Do not let that happen.
 
 THE SCREEN — READ IT, NEVER REMEMBER IT:
-- Nothing in this conversation is a picture of his screen. read_screen() is the only one. It is free and silent: it takes no floor, says nothing, and moves nothing.
+- Nothing in this conversation is a picture of his screen. read_screen() is the only one. It says nothing and moves nothing, but he waits in silence while you read it, so call it only when you need it.
 - You never have to remember a row id. Every row tool takes the product name as well as the id and resolves it against the screen as it stands right now, so an edit cannot land on a row he has moved since — if the name no longer names one row you are told exactly that, with the ids that do exist.
 - Call read_screen when you need the screen ITSELF: anything positional ("दूसरा वाला", "वो वाला"), or when you want the rows he has that you were never told about.
 - You do not need it right after your own tool call. Your own tools tell you what they did; only HIS edits change the screen behind your back.
@@ -136,7 +141,7 @@ THE MINIMAL QUESTION — the heart of this call:
 - Worked example. He says "चार क्विन चाहिए". You call add_items with text "4 quin". The tool returns ask_about ["form"] and the options are already pills on his screen — eye drops and eye ointment.
     You: "चार क्विन — ड्रॉप्स या ऑइंटमेंट?"   (nothing else, and the pills are on screen)
     Him: "ड्रॉप्स वाला"
-    You: [choose] "लग गया।"
+    You: "लग गया।" [choose]
   What you must NOT say: "चार क्विन में आई ड्रॉप्स पाँच एम एल एक सौ साठ रुपये और आई ऑइंटमेंट पाँच ग्राम एक सौ बयालीस रुपये…" — that is reading the screen aloud, and the TTS mangles it.
 - If ask_about is ["pack_size"], ask only the size ("वोलिनी जेल — पचहत्तर या सौ ग्राम?"). If it is ["strength"], ask only the strength. If two families could match, ask which brand and let the cards on screen do the rest.
 - If two brands sound alike over a phone line, do NOT guess. Ask him to repeat or confirm which one before it locks.
@@ -148,18 +153,18 @@ DISAMBIGUATION WHEN MANY SKUS MATCH — never twenty pills:
 - Every candidate must sit inside exactly one choice — the tool rejects a choice set that leaves a code uncovered, and you will have to call again.
 - TWO ROUNDS AT MOST. Round one cuts twenty-four to a handful; round two is leaf pills he can tap, or he simply says which one and you call choose.
 - Worked example — he says "टेल्मा" and the catalog hands you twenty-four TELMA SKUs.
-    Round 1: ask_choice(item_id "li1", question "Which Telma line?", choices: "Plain Telma" / "Telma H (with diuretic)" / "Telma AM combos" / "Telma CT / Beta") — then say ONLY: "टेल्मा — कौन सी लाइन? स्क्रीन पर देखिए।"
-    Him: "प्लेन वाली" → the tool told you that choice keeps six.
-    Round 2: ask_choice(item_id "li1", question "Which strength?", choices: "20 mg" / "40 mg" / "80 mg") — then say ONLY: "कितने एम जी?"
+    Round 1: say ONLY "टेल्मा — कौन सी लाइन? स्क्रीन पर देखिए।" and in the same reply call ask_choice(item_id "li1", question "Which Telma line?", choices: "Plain Telma" / "Telma H (with diuretic)" / "Telma AM combos" / "Telma CT / Beta").
+    Him: "प्लेन वाली" → that choice keeps six.
+    Round 2: say ONLY "कितने एम जी?" and in the same reply call ask_choice(item_id "li1", question "Which strength?", choices: "20 mg" / "40 mg" / "80 mg").
     Him: "फोर्टी" → one or two SKUs left; call choose, or let him tap the pill.
   What you must NOT do: read the twenty-four names aloud, ask "कौन सा टेल्मा चाहिए?" with no choices, or ask about pack size first.
-- After ask_choice, say THAT SAME question out loud in ONE short Hindi sentence. Do not list the choices aloud — they are pills on his screen.
+- Say THAT SAME question out loud in ONE short Hindi sentence, in the same reply as the ask_choice call. Do not list the choices aloud — they are pills on his screen.
 - If he taps a group pill himself, that row has fewer candidates now. read_screen, then ask the NEXT question over what is left, or lock it with choose — never re-ask the one he just answered with his thumb.
 
 PACE — keep the order moving:
-- The moment he names a product, call add_items. Do not wait for the previous one to resolve; do not ask a question in between. He can list six items in one breath — take them all in ONE add_items call with a list.
+- The moment he names a product, say a tiny line and call add_items. Do not wait for the previous one to resolve; do not ask a question in between. He can list six items in one breath — take them all in ONE add_items call with a list.
 - Batch your questions. Let him finish his run of items, then at the natural pause ask about the ambiguous rows, one short question each. Never interrogate him after every item.
-- Say a tiny line before or while calling a tool ("ठीक है", "लिख लिया") — never leave silence, never speak a whole sentence about what you are doing.
+- Say a tiny line in the same reply as every tool call ("ठीक है", "लिख लिया") — never leave silence, never speak a whole sentence about what you are doing.
 
 CORRECTIONS:
 - By voice: "वोलिनी हटा दो" → remove_items. "तीस नहीं बारह कर दो" → set_quantity (never re-add). "ड्रॉप्स वाला" → choose. A better spelling or a clarified brand → refine_item.
@@ -184,11 +189,11 @@ STAY GROUNDED — you never invent anything:
 
 A WORKED STRETCH OF THE CALL:
   Him: "टेल्मा फोर्टी तीस स्ट्रिप, और शेलकैल फाइव हंड्रेड बीस स्ट्रिप"
-  You: [add_items with two items: "telma 40" qty 30, "shelcal 500" qty 20] "दोनों लग गए।"
+  You: "लिख लिया।" [add_items with two items: "telma 40" qty 30, "shelcal 500" qty 20] — both come back matched — "दोनों लग गए।"
   Him: "वोलिनी दे दो"
-  You: [add_items "volini"] — tool says ask_about ["variant_label","pack_size"] — "वोलिनी — कौन सा, स्क्रीन पर ऑप्शन देखिए?"
+  You: "ठीक है।" [add_items "volini"] — tool says ask_about ["variant_label","pack_size"] — "वोलिनी — कौन सा, स्क्रीन पर ऑप्शन देखिए?"
   Him: "जॉइंट एक्सपर्ट, पचास ग्राम वाला"
-  You: [choose] "लग गया। और कुछ?"
+  You: "लग गया। और कुछ?" [choose]
   Him: "बस इतना ही"
   You: "सब लग गया — कन्फर्म कर दीजिए।"
 
@@ -618,15 +623,23 @@ def _describes(sku: SkuWire, terms: list[str]) -> bool:
 class OrderDesk:
     """This session's cart and the ten tools that read and drive it.
 
-    The tools are ordinary ``async`` methods — google-genai's automatic function
-    calling drops the bound ``self`` when it builds their schemas, so session state
-    on the instance costs nothing. Each one mutates the mirror, fires
-    ``self._dispatch(...)`` (the RTVI ``ui-command`` the ``/orderdesk`` UI renders),
-    and returns a compact briefing for the model.
+    The tools are ordinary ``async`` methods — the declaration drops the bound
+    ``self`` when it builds their schemas, so session state on the instance costs
+    nothing. Each one mutates the mirror, fires ``self._dispatch(...)`` (the RTVI
+    ``ui-command`` the ``/orderdesk`` UI renders), and returns a compact briefing for
+    the model. Every one reads memory or the local catalog and returns inside the
+    SDK's tool budget.
+
+    The ones marked ``@needs_result_now`` are the ones whose answer the model has to
+    speak this turn: the screen itself, and the three that resolve a spoken name —
+    matched, a question to ask, or not in the catalog is something only the catalog
+    knows. The rest act on something the model already knows the outcome of, so it
+    says its line with the call and reads the result with his next words.
 
     ``catalog`` is the ``backend/search.py`` module (DESIGN §2). It is imported
     **lazily**, on first use, so this brain imports — and its tests run — without the
-    catalog build; tests inject a stub instead."""
+    catalog build; tests inject a stub instead. :meth:`warm` builds it at session
+    start, so the first resolve of a call is not the one that pays for it."""
 
     def __init__(self, catalog: Any | None = None) -> None:
         self._catalog = catalog
@@ -660,6 +673,17 @@ class OrderDesk:
 
             self._catalog = search
         return self._catalog
+
+    def warm(self) -> None:
+        """Build the catalog's once-per-process indexes now, while the call is
+        connecting, rather than inside the first tool that needs them. A catalog
+        that cannot warm (a stub, a missing build) is left to fail where it is used."""
+        try:
+            warm = getattr(self.catalog, "warm", None)
+            if callable(warm):
+                warm()
+        except Exception as exc:
+            logger.warning("orderdesk: catalog warm-up failed: {}", exc)
 
     # ─── mirror ─────────────────────────────────────────────────────────────
 
@@ -1271,6 +1295,7 @@ class OrderDesk:
         changes, self._changes = self._changes, []
         return _CHANGE_HEADER + "; ".join(changes) + "."
 
+    @needs_result_now
     async def read_screen(self) -> dict[str, Any]:
         """What is on his screen right now: every row, its quantity, and what each
         unresolved row is still waiting on.
@@ -1278,8 +1303,8 @@ class OrderDesk:
         Call it for anything positional — "the second one", "that one" — where only
         the order of the rows can tell you which he means. You do NOT need it to act
         on a row he named: pass "the Dolo" to the tool itself and it resolves the name
-        against these same rows. It is free — it reads this session's own state, takes
-        no floor, says nothing, and moves nothing on screen."""
+        against these same rows. It reads this session's own state, says nothing, and
+        moves nothing on screen; you get its answer straight away and speak after it."""
         rows = [
             {
                 "id": row.id,
@@ -1299,6 +1324,7 @@ class OrderDesk:
             "pending": self.pending(),
         }
 
+    @needs_result_now
     async def add_items(self, items: list[SpokenItem]) -> dict[str, Any]:
         """Add every product the pharmacist just named to the order, and resolve each
         against the MedSetu catalog.
@@ -1380,6 +1406,7 @@ class OrderDesk:
             brief["note"] = note
         return brief
 
+    @needs_result_now
     async def refine_item(self, item_id: str, query: str) -> dict[str, Any]:
         """Re-resolve one existing row with a better English query.
 
@@ -1428,9 +1455,10 @@ class OrderDesk:
         to call again. A choice holding a single code becomes a leaf pill he can tap to
         lock the row.
 
-        The choices become pills on his screen. After this returns, say the SAME question
-        out loud in ONE short Hindi sentence and nothing else — never read the choices,
-        never read the candidates. Two rounds of this settle even the widest family.
+        The choices become pills on his screen. In the same reply as this call, say the
+        SAME question out loud in ONE short Hindi sentence and nothing else — never read
+        the choices, never read the candidates. Two rounds of this settle even the widest
+        family.
 
         Args:
             item_id: The row's id, e.g. "li1".
@@ -1513,8 +1541,9 @@ class OrderDesk:
                 {"label": choice.label, "count": len(choice.sku_codes)} for choice in choices
             ],
             "guidance": (
-                "Now ask this exact question aloud in one short Hindi sentence. Do not "
-                "read the options aloud if they are visible as pills."
+                "These are pills on his screen now, and you asked the question aloud as "
+                "you set them. Do not ask it again or read the options: his answer picks "
+                "one group — call choose with a code from it, or ask the next question."
             ),
         }
 
@@ -1609,6 +1638,7 @@ class OrderDesk:
             "quantity": row.quantity,
         }
 
+    @needs_result_now
     async def change_variant(self, item_id: str, want: str) -> dict[str, Any]:
         """Swap one row onto a different variant of the SAME brand, keeping its quantity.
 
@@ -1769,7 +1799,7 @@ class OrderDesk:
 
     @property
     def tools(self) -> list[Any]:
-        """The ten bound methods the model may call."""
+        """The bound methods the model may call."""
         return [
             self.read_screen,
             self.add_items,
@@ -1804,7 +1834,7 @@ class OrderDeskBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The ten bound methods AFC may call — the desk's, not this brain's own."""
+        """The bound methods the model may call — the desk's, not this brain's own."""
         return self.desk.tools
 
     # ─── session start: voice, the pharmacy, then the opener ───────────────
@@ -1832,6 +1862,7 @@ class OrderDeskBrain(GeminiBrain):
             )
         )
         self.desk.session = session
+        self.desk.warm()
         payload = dict(session.init or {})
         raw = payload.get("scenario")
         self.scenario = raw if isinstance(raw, dict) else {}

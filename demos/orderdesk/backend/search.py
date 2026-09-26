@@ -304,6 +304,16 @@ def connection() -> sqlite3.Connection:
     return _conn
 
 
+def warm() -> None:
+    """Open the connection and build the phonetic index now, off the tool path.
+
+    Both are built once per process, on first use, and the index costs tens of
+    milliseconds — which is fine at session start and over budget inside the first
+    ``add_items`` of the first call that reaches a misheard brand. Warm, every
+    resolve is well under a millisecond (``test_resolve_is_fast_when_warm``)."""
+    _phonetic_index(connection())
+
+
 #: Every column the scorer or the wire needs — ``name_clean`` is scoring-only.
 _COLUMNS = (
     "code, name, name_clean, family, variant_label, form, strength, pack_size, "
