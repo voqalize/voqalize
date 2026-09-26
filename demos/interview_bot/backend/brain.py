@@ -1,9 +1,11 @@
 """InterviewBotBrain — the job-interview conductor.
 
 A :class:`~voqalize.sdk.gemini.GeminiBrain` that runs a structured voice
-interview (Gemini + two section-pacing tools). Voqalize dials this brain's
+interview (Gemini + section-pacing tools). Voqalize dials this brain's
 WebSocket per session and the inherited ``respond`` tool loop drives the
-interview; google-genai runs the tools itself.
+interview. The interviewer says its line and calls a tool in the same response;
+neither tool is marked ``@needs_result_now``, so the turn ends with that response
+and the result is read with the candidate's next turn.
 
 The per-session **init** carries the JOB, the CANDIDATE, and a structured
 INTERVIEW PLAN (assembled by the caller). The brain is built *before* the session
@@ -12,10 +14,14 @@ we read it there, build the ordered section list + the full JOB/CANDIDATE/PLAN
 system instruction, and set both aside for the turn ahead and the fixed opening
 line.
 
-Two tools pace the interview:
+The tools that pace the interview:
 
-  * ``advance_to_next_section`` — move to the next planned section;
-  * ``mark_interview_completed`` — end the interview after the last section.
+  * ``advance_to_next_section`` — move to the next planned section. The next
+    section's goal and questions are already in the system instruction, so the
+    model asks its first question in the line it moves on with; the result only
+    confirms the pointer, and waits for the next turn;
+  * ``mark_interview_completed`` — end the interview after the last section. The
+    thanks is said in the same response, because nothing follows it.
 
 Each tool drives the ``/interview`` UI directly, with ``self.session.dispatch(...)``
 — the method that paces the interview is the method that drives the screen, there
@@ -50,8 +56,9 @@ You are given the JOB, the CANDIDATE, and a structured INTERVIEW PLAN whose sect
 HOW TO RUN THE INTERVIEW:
 - Begin with the first section and work through them in order. You start in section 1.
 - Ask one question at a time. Listen, ask natural follow-ups, and probe for depth before moving on.
-- When you have covered the current section's goal (or its time is up), tell the candidate you're moving on, then call advance_to_next_section.
-- After the final section, thank the candidate and call mark_interview_completed.
+- When you have covered the current section's goal (or its time is up), say one short line that moves on and asks the first question of the next section, and call advance_to_next_section in that same response. The next section is in the INTERVIEW PLAN below; you do not need the tool's answer to ask it.
+- After the final section, thank the candidate and say goodbye, and call mark_interview_completed in that same response. Nothing is said after it.
+- SPEAK AND CALL IN THE SAME RESPONSE. Whenever you call a tool, say your line first and make the call in that same response. You do not speak again after a call until the candidate does, so a call made in silence leaves them in silence. What a call hands back, you read on your next turn.
 - Stay on the plan. Do not invent sections. Never reveal evaluation criteria, scores, or your assessment to the candidate.
 
 VOICE RULES:
@@ -221,7 +228,7 @@ class SectionNotes(BaseModel):
 
 class InterviewBotBrain(GeminiBrain):
     """One per session. Runs a structured voice interview: the inherited tool
-    loop ``respond`` conducts each turn; the two tools below pace the sections.
+    loop ``respond`` conducts each turn; the tools below pace the sections.
 
     Per-session state (the ordered sections + the current section pointer) is
     seeded from ``session.init`` in :meth:`on_session_start`, since the brain is
@@ -241,17 +248,26 @@ class InterviewBotBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The two the interviewer may call."""
+        """What the interviewer may call. Neither is marked ``@needs_result_now``:
+        both act on the interview, the section plan they move through is already
+        in the system instruction, and their results wait in the context for the
+        candidate's next turn — the prompt has the interviewer speak before it
+        calls."""
         return [self.advance_to_next_section, self.mark_interview_completed]
 
     async def advance_to_next_section(self, notes: SectionNotes) -> str:
         """Move to the next interview section. Call this only when you have
-        finished the current section. Tell the candidate you are moving on
-        before calling. Returns the section you have now entered."""
+        finished the current section. In the same response, before calling, tell
+        the candidate you are moving on and ask the next section's first
+        question, from the INTERVIEW PLAN. Returns the section you have now
+        entered, which you read on your next turn."""
         last_index = len(self.sections) - 1
         if self.current_index >= last_index:
             logger.info("interview: advance past final section (notes={!r})", notes.section_notes)
-            return "This was the final section. Wrap up and call mark_interview_completed."
+            return (
+                "There is no next section: you are still in the final one. When it is "
+                "done, thank the candidate and call mark_interview_completed."
+            )
 
         self.current_index += 1
         key, section = self.sections[self.current_index]
@@ -269,15 +285,16 @@ class InterviewBotBrain(GeminiBrain):
         )
         position = f"{self.current_index + 1} of {len(self.sections)}"
         instruction = (
-            "This is the final section. After it, call mark_interview_completed."
+            "It is the final section; after it, call mark_interview_completed."
             if is_last
-            else "Conduct this section, then call advance_to_next_section when done."
+            else "When it is done, call advance_to_next_section."
         )
-        return f"Entered section {key} ({title}), position {position}. {instruction}"
+        return f"Now in section {key} ({title}), position {position}. {instruction}"
 
     async def mark_interview_completed(self, summary: InterviewCompleted) -> str:
-        """End the interview. Call this only after the final section, once you
-        have thanked the candidate."""
+        """End the interview. Call this only after the final section. Thank the
+        candidate and say goodbye in the same response, before calling — nothing
+        is said after it."""
         self.ended = True
         logger.info("interview: mark_interview_completed (summary={!r})", summary.summary)
         self.session.dispatch(summary)

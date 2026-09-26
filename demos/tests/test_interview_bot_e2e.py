@@ -1,7 +1,7 @@
 """The AI interviewer demo, end to end over the wire — no network, no LLM key.
 
 The real ``InterviewBotBrain`` — the shipping ``demos/interview_bot/backend/brain.py``,
-its real prompt, its real two tools — hosted on a real ``brain_server`` socket and
+its real prompt, its real tools — hosted on a real ``brain_server`` socket and
 driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. See
 ``tests/_harness.py`` for what every demo's e2e proves.
 
@@ -12,6 +12,12 @@ itself is a fixed line, not built from any of that — so this file also pins wh
 the model was actually told: a greeting that never saw the résumé still sounds
 fluent, and only the prompt shows the difference.
 
+**Neither tool carries the mark.** The next section's questions are already in
+the system instruction, so the interviewer moves on and asks in one response,
+and the turn ends with it; the tool's result is read with the candidate's next
+turn. The scripts are written in that shape, and the tests count requests where
+the shape is the point.
+
 Run: ``cd demos && uv run pytest tests/test_interview_bot_e2e.py``
 """
 
@@ -19,8 +25,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, reply_and_call
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -44,33 +51,38 @@ PAYLOAD: dict[str, Any] = {
 }
 
 
+def _results(contents: list[types.Content]) -> dict[str, str]:
+    """Every tool result one request carried, by tool name."""
+    return {
+        p.function_response.name or "": str((p.function_response.response or {})["result"])
+        for c in contents
+        for p in (c.parts or [])
+        if p.function_response is not None
+    }
+
+
 def _llm() -> ScriptedGemini:
+    # Each move and its first question share one response: the next section is in
+    # the plan the model already holds, and nothing is said after an unmarked call.
     return ScriptedGemini(
         {
-            "Six years, mostly payments.": [
-                reply_and_call(
-                    "Thanks — let's go deeper.",
-                    "advance_to_next_section",
-                    notes={"section_notes": "Six years, payments infrastructure."},
-                ),
-                reply("How did you handle idempotency on retries?"),
-            ],
-            "Idempotency keys on every write.": [
-                reply_and_call(
-                    "Good. Last stretch.",
-                    "advance_to_next_section",
-                    notes={"section_notes": "Solid on idempotency."},
-                ),
-                reply("Anything you'd like to ask me?"),
-            ],
-            "No, that's everything.": [
-                reply_and_call(
-                    "Thanks for your time.",
-                    "mark_interview_completed",
-                    summary={"summary": "Strong payments background; clear on idempotency."},
-                ),
-                reply("We'll be in touch shortly."),
-            ],
+            "Six years, mostly payments.": reply_and_call(
+                "Thanks — let's go deeper. How did you handle idempotency on retries?",
+                "advance_to_next_section",
+                notes={"section_notes": "Six years, payments infrastructure."},
+            ),
+            "Idempotency keys on every write.": reply_and_call(
+                "Good. Last stretch — anything you'd like to ask me?",
+                "advance_to_next_section",
+                notes={"section_notes": "Solid on idempotency."},
+            ),
+            # The thanks is the last thing the candidate hears: said before the
+            # call, in the same response.
+            "No, that's everything.": reply_and_call(
+                "Thanks for your time. We'll be in touch shortly.",
+                "mark_interview_completed",
+                summary={"summary": "Strong payments background; clear on idempotency."},
+            ),
         }
     )
 
@@ -113,21 +125,31 @@ async def test_the_seeded_plan_reaches_the_model() -> None:
 
 
 async def test_the_sections_advance_in_order_and_close() -> None:
-    """Three turns walk the plan: two advances and a completion, with the exact
-    ``ui-command`` payloads the /interview progress rail renders.
+    """The turns walk the plan — an advance per section, then the completion —
+    with the exact ``ui-command`` payloads the /interview progress rail renders.
 
     ``is_last`` is the one the UI cannot recompute — it drives the closing state —
     and the index is the brain's pointer, not the model's count, so a model that
-    calls ``advance`` twice in one turn cannot skip a section."""
-    async with demo("interview_bot", _llm()) as rig:
+    calls ``advance`` twice in one turn cannot skip a section.
+
+    It is also the speak-first shape on every turn: one request, one unit of
+    speech, and the move on the wire — neither tool is marked, so the model is not
+    asked again after it."""
+    llm = _llm()
+    async with demo("interview_bot", llm) as rig:
         await rig.driver.start_session(init=PAYLOAD)
 
-        t1 = await rig.driver.user_says("Six years, mostly payments.")
-        check_turn(rig, t1, units=2)
-        t2 = await rig.driver.user_says("Idempotency keys on every write.")
-        check_turn(rig, t2, units=2)
-        t3 = await rig.driver.user_says("No, that's everything.")
-        check_turn(rig, t3, units=2)
+        for said in (
+            "Six years, mostly payments.",
+            "Idempotency keys on every write.",
+            "No, that's everything.",
+        ):
+            before = len(llm.captured_contents)
+            turn = await rig.driver.user_says(said)
+            check_turn(rig, turn, units=1)
+            assert len(llm.captured_contents) - before == 1, (
+                "an unmarked tool took a second request"
+            )
 
         assert rig.actions() == [
             "section_changed",
@@ -146,3 +168,17 @@ async def test_the_sections_advance_in_order_and_close() -> None:
         done = rig.command("interview_completed")
         assert done["summary"].startswith("Strong payments background")
         assert rig.brain.ended is True
+
+
+async def test_the_section_moved_to_reaches_the_next_turn() -> None:
+    """``advance_to_next_section`` is not marked, so what it returns — the section
+    now entered, by the brain's own pointer — reaches the model with the
+    candidate's next turn, on the request that answers it."""
+    llm = _llm()
+    async with demo("interview_bot", llm) as rig:
+        await rig.driver.start_session(init=PAYLOAD)
+        await rig.driver.user_says("Six years, mostly payments.")
+        await rig.driver.user_says("Idempotency keys on every write.")
+
+    entered = _results(llm.captured_contents[-1])["advance_to_next_section"]
+    assert "depth" in entered and "Technical Depth" in entered, entered
