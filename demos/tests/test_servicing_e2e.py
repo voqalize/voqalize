@@ -1,7 +1,7 @@
 """The Servicing Desk demo, end to end over the wire — no network, no LLM key.
 
 The real ``ServicingBrain`` — the shipping ``demos/servicing/backend/brain.py``,
-its real prompt, its real fifteen tools — hosted on a real ``brain_server`` socket
+its real prompt, its real tools — hosted on a real ``brain_server`` socket
 and driven by the conformance ``VoqalizeDriver``, with only the *model* scripted. See
 ``tests/_harness.py`` for what every demo's e2e proves.
 
@@ -17,6 +17,12 @@ typed ``ui-event`` naming the *act*, and the board itself rides ``session.init``
 — the browser never pushes a workspace, so there is nothing to diff and nothing
 to go stale in the context.
 
+**Only the read of the console carries the mark.** ``get_advisor_context`` returns
+what the model has to answer from, so a turn that calls it is asked again at once;
+every other tool moves the console, so the line and the calls share one response
+and the turn ends with it. The scripts are written in that shape, and the tests
+count requests where the shape is the point.
+
 Run: ``cd demos && uv run pytest tests/test_servicing_e2e.py``
 """
 
@@ -27,7 +33,7 @@ from copy import deepcopy
 from typing import Any
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -84,52 +90,57 @@ def _llm() -> ScriptedGemini:
         {
             # Lower-case on purpose: the model writes what it heard, the brain
             # normalises it. See the assertion below.
-            "Pull up the Sharma escalation.": [
-                reply_and_call(
-                    "Opening it.",
-                    "open_case",
-                    # One tool, one model, one parameter — the argument is the
-                    # ``OpenCase`` the browser renders, nested under the name
-                    # the method gives it. That name is part of the schema
-                    # Gemini reads, so a script writes what the model would
-                    # write.
-                    action={"ref": "sr-4471"},
-                ),
-                reply("SR-4471 is up — the Sharma escalation."),
-            ],
-            "Work it up and send it to underwriting.": [
-                reply_and_call(
-                    "On it.",
-                    "prepare_case",
-                    action={
-                        "ref": "sr-4471",
-                        "summary": "Hardship request, income re-verification pending.",
-                        "jobs": [
-                            {"label": "Re-pull income docs"},
-                            {"label": "Recompute DTI"},
-                        ],
-                        "findings": [
-                            {
-                                "label": "Payslip is three months stale",
-                                "value": "Latest payslip on file is dated three months ago",
+            # The line and the call in one response: `open_case` is not marked,
+            # so nothing follows it this turn.
+            "Pull up the Sharma escalation.": reply_and_call(
+                "SR-4471, the Sharma escalation — opening it.",
+                "open_case",
+                # One tool, one model, one parameter — the argument is the
+                # ``OpenCase`` the browser renders, nested under the name the
+                # method gives it. That name is part of the schema Gemini reads,
+                # so a script writes what the model would write.
+                action={"ref": "sr-4471"},
+            ),
+            # One line and every call the answer needs, in one response.
+            "Work it up and send it to underwriting.": Reply(
+                text="Working it up in the background and routing it to underwriting.",
+                calls=(
+                    (
+                        "prepare_case",
+                        {
+                            "action": {
+                                "ref": "sr-4471",
+                                "summary": "Hardship request, income re-verification pending.",
+                                "jobs": [
+                                    {"label": "Re-pull income docs"},
+                                    {"label": "Recompute DTI"},
+                                ],
+                                "findings": [
+                                    {
+                                        "label": "Payslip is three months stale",
+                                        "value": "Latest payslip on file is dated three months ago",
+                                    }
+                                ],
                             }
-                        ],
-                    },
+                        },
+                    ),
+                    (
+                        "assign_case",
+                        {
+                            "action": {
+                                "ref": "sr-4471",
+                                "assignee_kind": "department",
+                                "assignee": "underwriting",
+                            }
+                        },
+                    ),
                 ),
-                reply_and_call(
-                    "Routing it.",
-                    "assign_case",
-                    action={
-                        "ref": "sr-4471",
-                        "assignee_kind": "department",
-                        "assignee": "underwriting",
-                    },
-                ),
-                reply("Work-up is running and it's with underwriting."),
-            ],
+            ),
+            # `get_advisor_context` is marked: the silent read, then the answer
+            # grounded in it, in a second request of the same turn.
             "Where am I?": [
-                reply_and_call("Let me look.", "get_advisor_context"),
-                reply("You're on SR-4471's timeline, two approvals pending."),
+                call("get_advisor_context"),
+                reply("You're on SR-4471's timeline, the payoff release signed off."),
             ],
         }
     )
@@ -154,15 +165,20 @@ async def test_the_desk_normalizes_what_the_model_wrote() -> None:
     lower-case ref matches no case and an id-less row cannot be updated — and in
     both failures the assistant's spoken reply is perfectly correct, so only the
     ``ui_command`` shows it."""
-    async with demo("servicing", _llm()) as rig:
+    llm = _llm()
+    async with demo("servicing", llm) as rig:
         await rig.driver.start_session(init=_payload())
 
+        before = len(llm.captured_contents)
         t1 = await rig.driver.user_says("Pull up the Sharma escalation.")
-        check_turn(rig, t1, units=2)
+        check_turn(rig, t1, units=1)
+        assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
         assert rig.command("open_case")["ref"] == "SR-4471"
 
+        before = len(llm.captured_contents)
         t2 = await rig.driver.user_says("Work it up and send it to underwriting.")
-        check_turn(rig, t2, units=3)
+        check_turn(rig, t2, units=1)
+        assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
 
         assert rig.actions() == ["open_case", "prepare_case", "assign_case"], rig.actions()
 
@@ -188,8 +204,9 @@ def _context_text(llm: ScriptedGemini) -> str:
 
 
 def _tool_results(llm: ScriptedGemini) -> str:
-    """Under automatic function calling a whole turn is one request, so what it
-    called is first carried by the request that follows it."""
+    """Every tool result the brain put in front of the model, as one blob. A result
+    is first carried by the next request: the next hop of the same turn for a tool
+    marked ``@needs_result_now``, and the advisor's next turn for every other."""
     return " ".join(
         str((part.function_response.response or {}).get("result", ""))
         for contents in llm.captured_contents
@@ -209,7 +226,8 @@ async def test_a_gesture_is_named_in_the_context_and_the_board_never_follows_it(
     line names the act, and the board — which the desk was handed once, in
     ``init`` — is read through ``get_advisor_context``, the one tool that drives
     no screen. Both halves are asserted: the customer and the draft's title must
-    be in the tool's result and out of the context."""
+    be in the tool's result and out of the context. The read is marked, so its
+    result is carried by the second request of the same turn."""
     llm = _llm()
     async with demo("servicing", llm) as rig:
         await rig.driver.start_session(init=_payload())
@@ -231,12 +249,11 @@ async def test_a_gesture_is_named_in_the_context_and_the_board_never_follows_it(
         # call can race it.
         await asyncio.sleep(0.1)
 
+        asked = len(llm.captured_contents)
         turn = await rig.driver.user_says("Where am I?")
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=1)
+        assert len(llm.captured_contents) - asked == 2, "the read was not answered in its turn"
         assert len(rig.driver.ui_commands) == before, "a gesture or the read-only tool drew"
-
-        # One more turn, so the turn above's tool results are in a request.
-        await rig.driver.user_says("Where am I?")
 
     context = _context_text(llm)
     # The ref is the handle the next tool call needs; the case behind it is not.
@@ -257,34 +274,27 @@ async def test_a_packet_edit_on_a_console_the_advisor_moved_is_refused_until_it_
     The advisor works the console with their own hands while talking, so a packet
     field the desk sets from a workspace it read two turns ago can land on a
     different case entirely. Prompt discipline is a request; this refuses instead,
-    and the refusal is retriable: read, then act."""
+    and the refusal is retriable: read, then act. The edit is not marked, so the
+    refusal reaches the model with the advisor's next message; the read is, so it
+    and the retried edit share that next turn."""
+    edit = {
+        "action": {
+            "ref": "sr-4471",
+            "section": "Payoff",
+            "field": "Payoff date",
+            "value": "30 Sep",
+        }
+    }
     llm = ScriptedGemini(
         {
-            "Set the payoff date to month-end.": [
-                # Stale — the advisor moved the console since. Then the retry.
-                call(
-                    "update_packet_field",
-                    action={
-                        "ref": "sr-4471",
-                        "section": "Payoff",
-                        "field": "Payoff date",
-                        "value": "30 Sep",
-                    },
-                ),
+            # Stale — the advisor moved the console since, and the model skips the read.
+            "Set the payoff date to month-end.": reply_and_call(
+                "Setting it to month-end.", "update_packet_field", args=edit
+            ),
+            "It didn't change.": [
                 call("get_advisor_context"),
-                reply_and_call(
-                    "Setting it.",
-                    "update_packet_field",
-                    action={
-                        "ref": "sr-4471",
-                        "section": "Payoff",
-                        "field": "Payoff date",
-                        "value": "30 Sep",
-                    },
-                ),
-                reply("Payoff date is month-end."),
+                reply_and_call("Setting it now.", "update_packet_field", args=edit),
             ],
-            "Thanks.": reply("Any time."),
         }
     )
     async with demo("servicing", llm) as rig:
@@ -293,10 +303,13 @@ async def test_a_packet_edit_on_a_console_the_advisor_moved_is_refused_until_it_
         await asyncio.sleep(0.1)
 
         await rig.driver.user_says("Set the payoff date to month-end.")
-        # Exactly one edit reached the console: the stale call drew nothing.
-        assert rig.actions() == ["update_packet_field"], rig.actions()
+        # The stale call drew nothing.
+        assert rig.actions() == [], rig.actions()
 
-        # One more turn, so the turn above's hops are in the context being asserted.
-        await rig.driver.user_says("Thanks.")
+        # The refusal rides the next request; the read continues that turn, and
+        # the edit after it goes through — exactly one edit reaches the console.
+        turn = await rig.driver.user_says("It didn't change.")
+        check_turn(rig, turn, units=1)
+        assert rig.actions() == ["update_packet_field"], rig.actions()
 
     assert "the screen moved since you last read it" in _tool_results(llm)

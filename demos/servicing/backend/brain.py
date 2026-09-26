@@ -5,7 +5,15 @@ bank ADVISOR works a mortgage-case queue on an internal desk while talking to th
 desk copilot, and the copilot DRIVES THE SCREEN as it talks. The advisor is a
 colleague, not a customer.
 
-Two things worth calling out about how per-session state flows in:
+A turn is one request unless it called a tool marked ``@needs_result_now``: each
+call runs as it arrives, its result is filed in the context, and the model reads
+it with the advisor's next message. So the prompt has Tess say her line in the
+same response as the calls it goes with — a line that waited on a result would
+wait for the advisor to speak again. The marked tool is the read of the console,
+``get_advisor_context``, because an answer about the screen has to be said
+*from* it.
+
+How per-session state flows in:
 
   * **init** — the advisor's name and role (``session.init["advisor"]``), folded
     into the opening greeting. :meth:`ServicingBrain.greet` is written, not
@@ -21,15 +29,15 @@ Two things worth calling out about how per-session state flows in:
     advisor has moved since the desk last read refuses instead of acting. See
     ``voqalize_demos.screen``.
 
-Fourteen of the fifteen tools dispatch a :class:`~voqalize.sdk.Action` that IS the
-tool's own parameter — the LLM generates the substantive data (payoff figures,
-rate offers, drafts, packet fields) as the action's fields, and the tool body is
-mostly one ``self._show(action)`` line. ``get_advisor_context`` is the
-one exception: it is read-only (no action, no screen draw), and exists so the
-copilot can answer about the console without moving it.
+Every tool except ``get_advisor_context`` dispatches a :class:`~voqalize.sdk.Action`
+that IS the tool's own parameter — the LLM generates the substantive data (payoff
+figures, rate offers, drafts, packet fields) as the action's fields, and the tool
+body is mostly one ``self._show(action)`` line. ``get_advisor_context`` is
+read-only (no action, no screen draw), and exists so the copilot can answer about
+the console without moving it.
 
-Two things every UI-facing tool normalizes before it dispatches, because neither
-is something the model can be relied on to produce: a case **ref** reaches the
+What every UI-facing tool normalizes before it dispatches, because none of it is
+something the model can be relied on to produce: a case **ref** reaches the
 console upper-cased (the model writes it the way it heard it), and every job,
 finding, approval and precedent result gets a stable ``id`` (:func:`_assign_ids`)
 the browser keys its rows by — the model is never asked to invent one.
@@ -43,7 +51,13 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    ScreenState,
+    needs_result_now,
+    screen_prose,
+)
 
 from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -89,9 +103,11 @@ VOICE STYLE:
 
 YOU CONTROL THE SCREEN. Whenever you talk about a case, a tab, an assignment, or a draft, call the matching tool so the advisor SEES it. Open the case, switch the tab, move the card, draft the item — never just describe it in words.
 
-KNOW WHERE THE ADVISOR IS ("voice also"). Nothing in this conversation is a picture of the console. get_advisor_context() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you reference or act on anything on screen, and whenever you are told the advisor moved it themselves — you are told THAT they moved it, never what it now says. Ground your answer in what it returns (e.g. "I see you're on Cho's pricing tab — his rate is seven-point-one percent"). If a tool refuses because the console moved under you, that is not something to report or apologise for: read it and make the call again. Voice augments the screen; it does not replace it.
+SPEAK AND ACT IN THE SAME RESPONSE. Say your one short line and make every screen call that answer needs in that same response — the line goes out as the screen moves. After those calls you get no further word until the advisor speaks again, so the line you say with them is your whole answer: never make a screen call in silence, and never say a line that promises more to come ("let me check…"). What a call hands back, you read on your next turn. get_advisor_context() is the exception: it comes straight back to you in the same turn, so answer from what it gives you.
 
-THE BIG IDEA — WORKING ONE CASE DOESN'T FREEZE THE OTHERS. The advisor can keep working a case on screen while you PREPARE A DIFFERENT CASE in the background. When the advisor asks you to "get a case ready" / "take" / "work on" / "work up" another case, call prepare_case for that case. That kicks off background prep jobs that run on their own while the advisor keeps clicking and talking on whatever they have open. Do NOT pull the advisor away from what they're doing — prepare the other case quietly and tell them when it's ready. They are never blocked.
+KNOW WHERE THE ADVISOR IS ("voice also"). Nothing in this conversation is a picture of the console. get_advisor_context() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you reference or act on anything on screen, and whenever you are told the advisor moved it themselves — you are told THAT they moved it, never what it now says. Ground your answer in what it returns (e.g. "I see you're on Cho's pricing tab — his rate is seven-point-one percent"). When you have been told the advisor moved the console, call get_advisor_context() in the same response as, and before, any tool aimed at what is on it. If a tool refused because the console moved under you, that is not something to report or apologise for: read it and make the call again. Voice augments the screen; it does not replace it.
+
+THE BIG IDEA — WORKING ONE CASE DOESN'T FREEZE THE OTHERS. The advisor can keep working a case on screen while you PREPARE A DIFFERENT CASE in the background. When the advisor asks you to "get a case ready" / "take" / "work on" / "work up" another case, call prepare_case for that case. That kicks off background prep jobs that run on their own while the advisor keeps clicking and talking on whatever they have open. Do NOT pull the advisor away from what they're doing — prepare the other case quietly, and in the line you say with prepare_case tell them it is under way and the headline of what you found; the prep finishes on screen by itself. They are never blocked.
 
 THE WORKUP IS YOUR REAL VALUE — DO THE LEGWORK, DON'T JUST CLICK. The advisor's time goes into ASSEMBLING a case across systems and RECONCILING figures before they can act, and into spotting the one thing that's wrong. That is what you do for them:
 - ASSEMBLE & RECONCILE: produce findings — the cross-system facts and reconciled figures (payoff, accrued interest, escrow refund, in-flight payments). Where you reconciled something the advisor would likely have missed (a payment that posted but wasn't applied yet, a fee they'd forget), flag it 'warn' and say it out loud.
@@ -100,7 +116,7 @@ THE WORKUP IS YOUR REAL VALUE — DO THE LEGWORK, DON'T JUST CLICK. The advisor'
 
 PACKETS (regulated multi-step forms). Some cases need a packet filled — e.g. an early-closure packet (payoff figures, document release, escrow disposition). FILL IT from your workup and pass it (in prepare_case, or build it as part of the workup). Voice is for STEERING, not dictation: you fill ~all of it; the advisor adjusts a field by voice ('set the payoff date to month-end' → update_packet_field, and you regenerate any dependent figure). The packet is SUBMITTED via submit_packet — a server-side action that only goes through after the advisor approves the drafts and any blocker is cleared. Never imply it's submitted until then.
 
-PRECEDENT (reach beyond the screen). When the advisor asks 'have we handled this before?' / 'how did we deal with X?', call lookup_precedent — a server-side archive search over PAST cases not in their queue. Generate 2-3 believable past cases with how each was resolved, then summarize the most useful one. This is institutional memory they couldn't get by clicking.
+PRECEDENT (reach beyond the screen). When the advisor asks 'have we handled this before?' / 'how did we deal with X?', call lookup_precedent — a server-side archive search over PAST cases not in their queue. Generate 2-3 believable past cases with how each was resolved, and in the line you say with the call, name the most useful one and how it was resolved; the rest are on screen. This is institutional memory they couldn't get by clicking.
 
 YOU GENERATE THE DATA. There is no live core-banking system in this demo. Generate realistic, internally-consistent figures yourself and pass them as tool arguments:
 - Payoff / settlement figures: a sensible payoff close to the balance, plus accrued interest and any early-closure charge.
@@ -113,11 +129,11 @@ MAKER-CHECKER — YOU DRAFT, THE ADVISOR APPROVES. Regulation owns each case's w
 
 ROUTING (Jira-style board). Every case is a ticket with a stage and an assignee. When the advisor says "assign it to <person>" or "send it to <department>", call assign_case. Departments are: Pricing, Closures & Payoffs, Legal & Custody, Insurance & Escrow, Compliance. Use move_case to move a card across stages (new, in progress, needs approval, with department, done) when that helps. Routing is a normal action — it is not a regulated approval.
 
-NOTES (handoff context). A case carries free-text notes — the human context that doesn't fit a field. When the advisor says "make a note…", "add a comment…", or whenever you ROUTE a case to another department, call add_comment to capture WHY in a sentence or two so the receiving desk has the context (e.g. routing Whitmore's closure to Legal: note that there's an open 2021 home-equity line to subordinate before the title can be released). Pass the relevant department in 'dept'. Notes are not approvals — they're context; keep them short and factual. When you add a note, tell the advisor briefly that you've noted it.
+NOTES (handoff context). A case carries free-text notes — the human context that doesn't fit a field. When the advisor says "make a note…", "add a comment…", or whenever you ROUTE a case to another department, call add_comment to capture WHY in a sentence or two so the receiving desk has the context (e.g. routing Whitmore's closure to Legal: note that there's an open 2021 home-equity line to subordinate before the title can be released). Pass the relevant department in 'dept'. Notes are not approvals — they're context; keep them short and factual. When you add a note, tell the advisor briefly that you've noted it, in the same response as the call.
 
-THE TWO LIVE CASES IN THE ADVISOR'S QUEUE:
+THE LIVE CASES IN THE ADVISOR'S QUEUE:
 - MS-1042 — Daniel Cho — a rate-reduction request. Usually the case the advisor works ON SCREEN with you. He is on a higher rate (around 7.1%) and eligible for a retention offer. Do the workup with post_workup: reconcile the TRUE net saving after fees (e.g. about 1,400 dollars in re-pricing fees the advisor would have forgotten — flag it 'warn'), and confirm eligibility/timing (e.g. a forbearance plan that recently ended, so re-pricing is fine NOW but wouldn't have been a couple of weeks ago — flag it 'info' or 'warn'). Then draft the retention rate offer for approval.
-- MS-1057 — Eleanor Whitmore — an early loan closure. A long-tenure (12-year) customer who wants to pay off her loan and get her property documents back. The case to PREPARE IN THE BACKGROUND with a full workup. Jobs: pull the payoff figure, check the early-closure charge, confirm her property-document file. Findings: reconcile the payoff (a payment posted yesterday hasn't been applied yet, so the NET payoff is a bit lower than the ledger shows — flag 'warn'); early-closure charge ~1,200 dollars. BLOCKER (the headline): there is an OPEN SECOND LIEN on the property — a home-equity line from 2021 still open (it's sitting in her documents as a 'Second charge'). Releasing the title now would be a compliance exception — pass it as a 'block' blocker, suggested_route 'Legal & Custody'. Packet: an early-closure packet with a 'Payoff figures' section, a 'Document release' section (mark it blocked:true because of the lien), and an 'Escrow disposition' section. Drafts: settlement letter, early-closure fee waiver (recommend waiving — 12-year customer in good standing), and the document-release authorization (mark it blocked:true). Tell the advisor about the lien plainly and offer to route it to Legal. Once they confirm Legal has cleared/subordinated it, call resolve_blocker, then they can approve the release and you can submit_packet.
+- MS-1057 — Eleanor Whitmore — an early loan closure. A long-tenure (12-year) customer who wants to pay off her loan and get her property documents back. The case to PREPARE IN THE BACKGROUND with a full workup. Jobs: pull the payoff figure, check the early-closure charge, confirm her property-document file. Findings: reconcile the payoff (a payment posted yesterday hasn't been applied yet, so the NET payoff is a bit lower than the ledger shows — flag 'warn'); early-closure charge ~1,200 dollars. BLOCKER (the headline): there is an OPEN SECOND LIEN on the property — a home-equity line from 2021 still open (it's sitting in her documents as a 'Second charge'). Releasing the title now would be a compliance exception — pass it as a 'block' blocker, suggested_route 'Legal & Custody'. Packet: an early-closure packet with a 'Payoff figures' section, a 'Document release' section (mark it blocked:true because of the lien), and an 'Escrow disposition' section. Drafts: settlement letter, early-closure fee waiver (recommend waiving — 12-year customer in good standing), and the document-release authorization (mark it blocked:true). Tell the advisor about the lien plainly, in the line you say with prepare_case, and offer to route it to Legal. Once they confirm Legal has cleared/subordinated it, call resolve_blocker, then they can approve the release and you can submit_packet.
 
 Open with a brief, professional greeting BY NAME, say you are {AGENT_NAME}, and ask what they want to start on. One or two short sentences."""
 
@@ -430,7 +446,7 @@ type ScreenMove = (
 """Every command that moves the advisor's console.
 
 Narrower than ``Action`` on purpose: :meth:`ServicingBrain._mirror` matches on
-this, so a fifteenth command added and not mirrored is a type error rather than a
+this, so a command added here and not mirrored is a type error rather than a
 picture that has quietly stopped agreeing with the screen."""
 
 
@@ -660,7 +676,7 @@ class ServicingBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The fifteen the advisor's desk may call."""
+        """The tools the advisor's desk may call."""
         return [
             self.open_board,
             self.open_case,
@@ -696,13 +712,15 @@ class ServicingBrain(GeminiBrain):
         self._show(action)
         return f"showing {action.tab}"
 
+    @needs_result_now
     async def get_advisor_context(self) -> str:
         """Read where the advisor is right now — which case and tab is on screen,
         that case in full, the board, and any pending approvals.
 
         Call it before you reference or act on anything on screen, and whenever you
         are told the advisor moved it themselves. It is free — it reads this
-        session's own state, takes no floor, says nothing, and moves nothing."""
+        session's own state, takes no floor, says nothing, and moves nothing — and
+        what it returns comes straight back to you in the same turn."""
         self.screen.read()
         logger.info("servicing: get_advisor_context (v{})", self.screen.version)
         rows = self.workspace["the cases"]
@@ -762,7 +780,9 @@ class ServicingBrain(GeminiBrain):
         the 'Needs your approval' queue. Use this for a case the advisor asks
         you to 'get ready' / 'take' / 'work up' — never pull them off their
         current screen for it. This is the heavy lifting: do the legwork they'd
-        otherwise do by hand."""
+        otherwise do by hand. Say your line with this call — that it is under
+        way, and any blocker you caught — since its result reaches you only on
+        your next turn."""
         action.ref = action.ref.strip().upper()
         if not action.ref or not action.jobs:
             return "need a case ref and at least one job"
@@ -771,8 +791,11 @@ class ServicingBrain(GeminiBrain):
         _assign_ids(action.approvals, "a")
         self._show(action)
         blocker_note = f"; blocker: {action.blocker.title}" if action.blocker else ""
+        # Read on the next turn, so it reports what was started, not an order to
+        # speak — the prompt has Tess say the headline with the call.
         return (
-            f"preparing {action.ref} in the background{blocker_note} — tell the advisor when ready"
+            f"preparing {action.ref} in the background{blocker_note}; the workup shows "
+            "on the case when the prep finishes"
         )
 
     async def post_workup(self, action: PostWorkup) -> str:
@@ -794,7 +817,8 @@ class ServicingBrain(GeminiBrain):
         current queue) for precedent — how the team handled a similar situation
         before. Use when the advisor asks 'have we done this before?' / 'how
         did we handle X?'. This is a server-side lookup that reaches beyond
-        what's on screen. Generate 2-3 believable past cases."""
+        what's on screen. Generate 2-3 believable past cases, and name the most
+        useful one in the line you say with this call."""
         _assign_ids(action.results, "p")
         self._show(action)
         return f"searched the archive — {len(action.results)} precedent(s) found"
