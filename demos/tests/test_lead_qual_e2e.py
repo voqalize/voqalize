@@ -1,23 +1,30 @@
 """The Auric gold-loan advisor demo, end to end over the wire — no network, no key.
 
 The real ``LeadQualBrain`` — the shipping ``demos/lead_qual/backend/brain.py``,
-its real prompt, its real three tools, its real eligibility rules — hosted on a
+its real prompt, its real tools, its real eligibility rules — hosted on a
 real ``brain_server`` socket and driven by the conformance ``VoqalizeDriver``, with
 only the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e
 proves.
 
 Auric is the demo that most nearly proves why the language belongs in the brain:
-**one** advisor answers users in nine languages, chosen from the enquiry form's
+**one** advisor answers users in many languages, chosen from the enquiry form's
 state, which does not exist until the session opens. No agent-level setting could
 hold that — it holds one value, and Tamil Nadu wants Tamil while Gujarat wants
 Gujarati. So the resolution is tested here, on the frames, for both the state
 route and the explicit override.
+
+**Only ``check_eligibility`` carries the mark.** Its verdict comes from rules the
+model does not hold, so a turn that calls it is asked again at once with the
+result. ``switch_language`` and ``end_call`` act on the call, so the line and the
+call share one response and the turn ends with it — the switch line in the
+language the call is in now, the goodbye before the call ends it.
 
 Run: ``cd demos && uv run pytest tests/test_lead_qual_e2e.py``
 """
 
 from __future__ import annotations
 
+from google.genai import types
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
 
@@ -33,9 +40,21 @@ TAMIL_LEAD = {"name": "Meera", "phone": "9840012345", "state": "Tamil Nadu", "ci
 HINDI_LEAD = {"name": "Rajesh", "phone": "9820012345", "state": "Rajasthan", "city": "Jaipur"}
 
 
+def _results(contents: list[types.Content]) -> dict[str, str]:
+    """Every tool result one request carried, by tool name."""
+    return {
+        p.function_response.name or "": str((p.function_response.response or {})["result"])
+        for c in contents
+        for p in (c.parts or [])
+        if p.function_response is not None
+    }
+
+
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
+            # `check_eligibility` is marked: the holding line and the call in one
+            # response, then a second request that carries the verdict.
             "Forty grams of jewellery, I need two lakhs.": [
                 reply_and_call(
                     "एक मिनट देखती हूँ।",
@@ -49,13 +68,22 @@ def _llm() -> ScriptedGemini:
                 ),
                 reply("आप एलिजिबल हैं।"),
             ],
+            # The switch line is said in the language the call is in *now*: it is
+            # spoken before the new voice is configured. Tamil starts with the
+            # user's next turn.
             "Can we speak in Tamil?": [
-                reply_and_call("ठीक है।", "switch_language", to={"language": "Tamil"}),
-                reply("சரி, தமிழில் பேசலாம்."),
+                reply_and_call(
+                    "ठीक है, अब तमिल में बात करते हैं।",
+                    "switch_language",
+                    to={"language": "Tamil"},
+                ),
             ],
+            "சரி, சொல்லுங்கள்.": reply("உங்களிடம் எத்தனை கிராம் நகை இருக்கிறது?"),
+            # The goodbye and the call in one response: nothing is said after
+            # `end_call`, so the goodbye has to come before it.
             "That's all, thanks.": [
                 reply_and_call(
-                    "धन्यवाद।",
+                    "धन्यवाद, आपका दिन शुभ हो।",
                     "end_call",
                     record={
                         "outcome": "qualified",
@@ -67,7 +95,6 @@ def _llm() -> ScriptedGemini:
                         "preferred_next_step": "branch_visit",
                     },
                 ),
-                reply("आपका दिन शुभ हो।"),
             ],
         }
     )
@@ -108,33 +135,56 @@ async def test_an_explicit_language_beats_the_state() -> None:
 
 
 async def test_switching_language_mid_call_moves_both_halves() -> None:
-    """``switch_language`` is one ``session.configure`` call so it cannot
+    """``switch_language`` is one ``session.configure`` request so it cannot
     half-apply: moving only the voice leaves the recognizer hearing Tamil as Hindi
     for the rest of the call, and every later reply is generated from that wrong
-    transcript."""
-    async with demo("lead_qual", _llm()) as rig:
+    transcript.
+
+    It is sent without waiting and the tool is not marked, so the turn is one
+    request and one unit of speech — the switch line, said in Hindi — and the
+    result reaches the model with the user's next turn."""
+    llm = _llm()
+    async with demo("lead_qual", llm) as rig:
         await rig.driver.start_session(init=HINDI_LEAD)
         check_voice_pair(rig, voice=VOICE, language="hi")
 
+        before = len(llm.captured_contents)
         turn = await rig.driver.user_says("Can we speak in Tamil?")
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=1)
+        assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
         check_voice_pair(rig, voice=VOICE, language="ta")
+
+        turn = await rig.driver.user_says("சரி, சொல்லுங்கள்.")
+        check_turn(rig, turn, units=1)
+        assert "Tamil" in _results(llm.captured_contents[-1])["switch_language"]
 
 
 async def test_eligibility_and_the_end_screen() -> None:
     """The two tools that carry the demo's outcome: eligibility is decided by the
     brain's own rules (not the model's arithmetic), and ``end_call`` hands the
-    browser the lead it will render."""
-    async with demo("lead_qual", _llm()) as rig:
+    browser the lead it will render.
+
+    ``check_eligibility`` is marked, so the verdict is read in a second request of
+    the same turn — the holding line, then the answer. ``end_call`` is not, so the
+    goodbye and the call are one response and one unit, and nothing follows."""
+    llm = _llm()
+    async with demo("lead_qual", llm) as rig:
         await rig.driver.start_session(init=HINDI_LEAD)
 
+        before = len(llm.captured_contents)
         t1 = await rig.driver.user_says("Forty grams of jewellery, I need two lakhs.")
         check_turn(rig, t1, units=2)
+        assert len(llm.captured_contents) - before == 2
+        verdict = _results(llm.captured_contents[-1])["check_eligibility"]
+        assert "'eligible': True" in verdict, verdict
         # check_eligibility drives no screen — it only answers the model.
         assert rig.actions() == [], rig.actions()
 
+        before = len(llm.captured_contents)
         t2 = await rig.driver.user_says("That's all, thanks.")
-        check_turn(rig, t2, units=2)
+        check_turn(rig, t2, units=1)
+        assert len(llm.captured_contents) - before == 1, "end_call took a second request"
+        assert t2.units[0].text == "धन्यवाद, आपका दिन शुभ हो।"
 
         assert rig.actions() == ["call_ended"], rig.actions()
         ended = rig.command("call_ended")

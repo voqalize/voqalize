@@ -2,25 +2,29 @@
 
 A :class:`voqalize.sdk.gemini.GeminiBrain`: LLM + Auric Gold Finance tools + this
 session's language and enquiry-form state. Voqalize dials this brain's WebSocket
-per session; ``respond`` (inherited) runs the turn — google-genai calls the
-tools below itself and hands back their results, so a turn that checks
-eligibility and then speaks about it is one call from here, not a loop.
+per session; ``respond`` (inherited) runs the turn. Priya says a short line and
+calls a tool in the same response; the turn ends with that response unless the
+tool is marked ``@needs_result_now``, in which case the model is asked again at
+once with the result.
 
-The three tools are:
+The tools are:
 
 - ``check_eligibility`` — deterministic Auric Gold Finance gold-loan rules, returns
-  ``{eligible, reason}`` for the model to translate;
-- ``switch_language`` — re-point STT + TTS to another Indic language mid-call;
-- ``end_call`` — record the outcome and tell the browser the call has ended.
+  ``{eligible, reason}`` for the model to translate. Marked: the verdict comes
+  from rules the model does not hold, and it is spoken this turn;
+- ``switch_language`` — re-point STT + TTS to another Indic language mid-call.
+  Sends its config and returns; the switch line is said before the voice moves;
+- ``end_call`` — record the outcome and tell the browser the call has ended. The
+  goodbye is said in the same response, before the call, because nothing follows.
 
 The LLM's ``genai.Client`` is **dependency-injected**; the brain owns
 only the prompt, the tools, and this session's language/payload state.
 
-**One advisor, nine languages, chosen per user.** The enquiry form's state
+**One advisor, a language chosen per user.** The enquiry form's state
 (Tamil Nadu → Tamil) does not exist until the session opens, so no agent-level
 default could ever be right — :meth:`on_session_start` resolves it and calls
 ``session.configure`` before the greeting is spoken, and ``switch_language``
-moves both legs again mid-call the same way. ``end_call`` drives the browser via
+moves both legs again mid-call in one request, sent without waiting. ``end_call`` drives the browser via
 ``session.dispatch(CallEnded(...))``, the standard ``ui-command`` envelope the
 ``/lead_qual`` page reads.
 """
@@ -32,7 +36,7 @@ from typing import Any, Literal
 from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, configure_soon, needs_result_now
 
 from voqalize.sdk import Action, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -142,22 +146,25 @@ LANGUAGE:
   Hindi example: "आपकी गोल्ड लोन की एन्क्वायरी मिली। आपके पास कितने ग्राम ज्वेलरी है?"
   (here गोल्ड लोन, एन्क्वायरी, ग्राम, ज्वेलरी are English words written in Devanagari.)
 - Simple words, short sentences. One question per turn, at most 3 sentences.
-- If the user requests another language, call switch_language, then continue in that language and its native script.
+- If the user requests another language, say one short line in the language the call is in NOW and call switch_language in that same response — the line is spoken before the voice changes. From their next turn on, speak the new language in its native script.
+
+SPEAK AND CALL IN THE SAME RESPONSE. Whenever you call a tool, say your short line first and make the call in that same response. After switch_language or end_call you do not speak again until the customer does, so a call made in silence leaves them in silence.
 
 SPEECH-TO-TEXT: The transcription can mishear words and numbers. Be accommodating — if something seems unclear or inconsistent, gently confirm instead of assuming. Never correct the customer's wording; infer their intent charitably.
 
 STEP 1 — Confirm and check eligibility:
 - Confirm or ask: gold weight, desired loan amount, and gold type (jewellery vs coins or bars).
-- Once you have weight, loan amount, and jewellery confirmation, tell the customer you are checking, then call check_eligibility.
-- Not eligible: explain the reason in their language, answer questions, call end_call(outcome='ineligible').
+- Once you have weight, loan amount, and jewellery confirmation, say a short line that you are checking and call check_eligibility in that same response. Its result comes back to you at once; then give the answer.
+- Not eligible: explain the reason in their language, answer questions, then say goodbye and call end_call(outcome='ineligible') in that same response.
 - Eligible: go to Step 2.
 
 STEP 2 — Collect details, one question per turn:
 - Purpose of the loan?
 - How soon are the funds needed?
 - Branch visit or home visit?
-Then invite final questions, mention the nearest branch, say goodbye, call end_call(outcome='qualified').
-If a question stays unanswered after two tries, say a brief goodbye and call end_call with the right outcome.
+Then invite final questions, mention the nearest branch, and say goodbye and call end_call(outcome='qualified') in that same response.
+If a question stays unanswered after two tries, say a brief goodbye and call end_call with the right outcome in that same response.
+The goodbye is the last thing the customer hears: say it before end_call, never after.
 Always pass end_call arguments in English.
 
 AURIC GOLD FINANCE FACTS — answer only from these:
@@ -171,7 +178,7 @@ AURIC GOLD FINANCE FACTS — answer only from these:
 
 VOICE RULES:
 - Under 25 words per response. One question per turn.
-- Tell the customer what you are doing before any tool call.
+- Tell the customer what you are doing before any tool call, in the same response as the call.
 - No markdown, lists, or symbols. Write the words rupees, percent, grams — never the symbols.
 - Speak numbers naturally as they would be heard."""
 
@@ -346,14 +353,18 @@ class LeadQualBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """The three the advisor may call."""
+        """What the advisor may call. Only ``check_eligibility`` is marked
+        ``@needs_result_now``: the model cannot state the verdict without it. The
+        others act on the call, and their results wait in the context for the
+        user's next turn — the prompt has Priya speak before she calls."""
         return [self.check_eligibility, self.switch_language, self.end_call]
 
+    @needs_result_now
     async def check_eligibility(self, details: CheckEligibility) -> str:
         """Check whether a customer qualifies for an Auric Gold Finance gold
-        loan. Before calling, inform the user you are checking their
-        eligibility. Returns {eligible, reason} in English — translate the
-        reason for the customer."""
+        loan. In the same response, before calling, tell the user you are
+        checking their eligibility. Returns {eligible, reason} in English, read
+        at once — translate the reason for the customer."""
         result = _check_gold_eligibility(
             is_jewellery=details.is_jewellery,
             gold_weight_grams=details.gold_weight_grams,
@@ -365,21 +376,26 @@ class LeadQualBrain(GeminiBrain):
 
     async def switch_language(self, to: SwitchLanguage) -> str:
         """Switch the conversation to a different language when the user
-        explicitly requests one. Before calling, acknowledge their request in 1
-        short sentence in the target language. Subsequent conversation
-        continues in the new language and its native script."""
+        explicitly requests one. In the same response, before calling,
+        acknowledge their request in one short sentence in the language the call
+        is in now — it is spoken before the voice changes. From the user's next
+        turn, the conversation continues in the new language and its native
+        script."""
         self.language_name = to.language
         logger.info("lead-qual: switch_language → {}", to.language)
         # One request moves both halves — recognizer and voice — so there is no
-        # moment where the call is half in each.
-        await self.session.configure(_config(to.language))
+        # moment where the call is half in each. Sent, not awaited: a tool has to
+        # return within the budget, and nothing checks later that it applied — a
+        # refusal is logged and the call goes on in the language it was in.
+        configure_soon(self.session, _config(to.language))
         return str({"switched_to": to.language})
 
     async def end_call(self, record: EndCall) -> str:
-        """End the call and record the outcome. All arguments must be in
-        English regardless of the conversation language. Use
-        outcome='qualified' when all six questions are answered; a failure
-        outcome when the call cannot proceed."""
+        """End the call and record the outcome. Say the goodbye in the same
+        response, before calling — nothing is said after it. All arguments must
+        be in English regardless of the conversation language. Use
+        outcome='qualified' when every Step 1 and Step 2 question is answered; a
+        failure outcome when the call cannot proceed."""
         self.ended = True
         logger.info("lead-qual: end_call outcome={}", record.outcome)
         lead = Lead(
