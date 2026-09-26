@@ -36,10 +36,10 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    FallbackLine,
     GeminiBrain,
-    acted,
+    landed,
     needs_result_now,
-    reask_if_silent,
 )
 from voqalize_demos.screen import ScreenState
 
@@ -98,13 +98,16 @@ _SYSTEM_INSTRUCTION = f"""You are {PRODUCT_NAME}, an ambient voice copilot for a
 
 YOU ARE AMBIENT, NOT A CHAT ASSISTANT. There is no push-to-talk — the lawyer never presses a button to talk to you, they just speak while reading. Do not behave like a chat widget waiting for "how can I help you" turns. Stay quiet and out of the way; when spoken to, answer briefly and act on the document directly.
 
-VOICE STYLE — YOU ARE A PARALEGAL WORKING QUIETLY IN THE BACKGROUND, NOT A NARRATOR. Your default is to ACT and let the screen carry the answer. Speech is a supplement to the action, not a substitute for it — never describe on screen what you could just show on screen. English only. One short sentence per turn is the target; two is the ceiling except for the single proactive Section 8 catch below. No markdown, lists, or symbols, no throat-clearing ("Sure, let me check that…", "Great question…"), no restating the lawyer's question back to them. When you take an action, say only the minimum that isn't already visible from the action itself — e.g. with a redline, "Redlining it — capped at two million, carve-out added" beats explaining the whole rationale out loud, which is already on screen. If an answer is a fact with no action to take, give the fact in one sentence and stop. Cite section numbers when you reference the contract ("Section 8, Limitation of Liability"), not internal ids.
+EVERY RESPONSE STARTS WITH WORDS. Write your one short line first, then make the call, in that same response — the line is spoken as the document moves. A response that is only a tool call is silence: the screen changes and the lawyer hears nothing, because nothing a tool returns reaches you before your turn ends, and you get no further word until they speak again. So the line you say with the call is the whole of your reply: make it the substance, not a promise to report back. For example:
+  Lawyer: "Take me to the liability clause." You: "Section 8 — capped at two fifty, no data-breach carve-out." — and point_to_clause, in the same response.
+  Lawyer: "Flag this for the co-marketing carve-out." You: "Flagged." — and add_comment, in the same response.
+get_reading_position is the one exception: its answer comes back to you at once, so call it first — a two-word lead-in like "One sec" is fine and is not throat-clearing — and then answer, with your line and any call, from what it gives you.
+
+VOICE STYLE — YOU ARE A PARALEGAL WORKING QUIETLY IN THE BACKGROUND, NOT A NARRATOR. Your default is to ACT and let the screen carry the answer, with one short spoken line alongside the call — never describe in words what you could just show on screen, and never act without that line. English only. One short sentence per turn is the target; two is the ceiling except for the single proactive Section 8 catch below. No markdown, lists, or symbols, no throat-clearing ("Sure, let me check that…", "Great question…"), no restating the lawyer's question back to them. When you take an action, say only the minimum that isn't already visible from the action itself — e.g. with a redline, "Redlining it — capped at two million, carve-out added" beats explaining the whole rationale out loud, which is already on screen. If an answer is a fact with no action to take, give the fact in one sentence and stop. Cite section numbers when you reference the contract ("Section 8, Limitation of Liability"), not internal ids.
 
 GROUND EVERY ANSWER IN THE DOCUMENT AND THE PLAYBOOK BELOW. Do not invent contract language — answer from the clause text and playbook rules given to you. If asked something the document and playbook don't cover, say so plainly rather than guessing.
 
 THE DOCUMENT IS CURSOR-AWARE. The browser continuously tells you which clause is centered in the lawyer's viewport, their current reading position. When the lawyer asks something ambiguous like "what does this mean" / "is this okay" / "is this standard", answer about THAT clause unless they name a different one. If your answer or action concerns a DIFFERENT clause than the one in focus, bring their screen there first — never talk about a clause without bringing it on screen if it isn't already.
-
-SPEAK FIRST, THEN ACT, IN THE SAME RESPONSE. Whenever you call a tool, say your one short line first and make the call in that same response — never call a tool in silence, and never plan to speak after it returns. Nothing a tool returns reaches you before your turn ends, so the line you say with the call is the whole of your reply: make it the substance ("Section 8 — capped at two fifty, no data-breach carve-out"), not a promise to report back. The one exception is get_reading_position, whose answer you do get at once: before it, a two-word lead-in like "One sec" is fine and is not throat-clearing.
 
 NEVER CLAIM THE CONTRACT ITSELF HAS CHANGED. You propose redlines and insertions for the lawyer to accept; the executed document is not yours to edit.
 
@@ -348,6 +351,7 @@ class LegalBrain(GeminiBrain):
         # Ada's own mirror of the one thing about this screen that moves. Both
         # sides patch it: the lawyer's scroll, and her own `point_to_clause`.
         self.current_focus: dict[str, str] | None = None
+        self._fallback = FallbackLine()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -389,12 +393,13 @@ class LegalBrain(GeminiBrain):
         return _GREETING
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, asked once more if it acted on screen and said nothing.
+        """The model's turn, and a line of Ada's own if it acted and said nothing.
 
         The prompt has the model speak and call in the same response, and on a
-        dialled call it sometimes called alone, leaving the user in silence with
-        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
-        async for event in reask_if_silent(super().respond, session):
+        dialled call it sometimes called alone, leaving the lawyer in silence with
+        the document changed. Each tool that moves the document records the line
+        that says it landed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
@@ -485,7 +490,8 @@ class LegalBrain(GeminiBrain):
         # then nothing new.
         self.current_focus = CLAUSES_BY_ID.get(target.clause_id)
         self.session.dispatch(target)
-        acted("point_to_clause")
+        clause = CLAUSES_BY_ID[target.clause_id]
+        landed(f"Here's Section {clause['number']}, {clause['heading']}.")
         return "ok"
 
     async def add_comment(self, comment: AddComment) -> str:
@@ -493,7 +499,7 @@ class LegalBrain(GeminiBrain):
         for flags and observations that aren't a proposed text change — "flag this",
         "note that this needs a co-marketing carve-out"."""
         self.session.dispatch(comment)
-        acted("add_comment")
+        landed("Noted on the clause.", "Comment added.")
         return "ok"
 
     async def propose_redline(self, redline: ProposeRedline) -> str:
@@ -502,7 +508,7 @@ class LegalBrain(GeminiBrain):
         Use when the lawyer asks you to fix, redline or change something, or when you
         proactively catch a playbook failure and want to offer the fix."""
         self.session.dispatch(redline)
-        acted("propose_redline")
+        landed("The redline is on screen.", "Redline proposed.")
         return "ok"
 
     async def insert_clause(self, insertion: InsertClause) -> str:
@@ -511,7 +517,7 @@ class LegalBrain(GeminiBrain):
         add. Use this instead of a redline whenever there is no existing excerpt to
         point at."""
         self.session.dispatch(insertion)
-        acted("insert_clause")
+        landed("The new clause is proposed.", "The insertion is on screen.")
         return "ok"
 
     async def run_diligence(self, diligence: RunDiligence) -> str:
@@ -524,7 +530,7 @@ class LegalBrain(GeminiBrain):
         set them going as you call it — never claim they are finished and never
         read the results aloud; the cards fill in on their own."""
         self.session.dispatch(diligence)
-        acted("run_diligence")
+        landed("They're running.", "The checks are under way.")
         logger.info("legal: run_diligence ({} jobs)", len(diligence.jobs))
         return (
             "ok — set running on screen, and each card fills in on its own as its job "
@@ -537,7 +543,7 @@ class LegalBrain(GeminiBrain):
         dollar exposure, risk severity — rather than redline it themselves. Not for
         routine redlines."""
         self.session.dispatch(approval)
-        acted("route_for_approval")
+        landed("Routed for approval.", "It's with them for approval.")
         return "ok"
 
     async def extract_obligations(self, register: ExtractObligations) -> str:
@@ -547,6 +553,7 @@ class LegalBrain(GeminiBrain):
         once, covering every clause with a real date-bound term, not just the one in
         focus."""
         self.session.dispatch(register)
+        landed("The obligations register is up.")
         return "ok"
 
     async def summarize_session(self, summary: SummarizeSession) -> str:
@@ -554,4 +561,5 @@ class LegalBrain(GeminiBrain):
         a session — "that's everything", "wrap this up", "give me a summary" — not
         proactively mid-review."""
         self.session.dispatch(summary)
+        landed("The summary is on screen.")
         return "ok"

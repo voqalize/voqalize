@@ -57,7 +57,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, acted, needs_result_now, reask_if_silent
+from voqalize_demos import DEFAULT_MODEL, FallbackLine, GeminiBrain, landed, needs_result_now
 
 from voqalize.sdk import (
     Action,
@@ -138,6 +138,20 @@ _GESTURE_IDS: dict[str, str] = {
     "ask_to_wait": "GESTURE_WAIT",
 }
 
+#: What the avatar says for a gesture it made in silence — see
+#: :mod:`voqalize_demos.silent_turn`. It names what the visitor just saw, so a
+#: gesture asked for and made without a word still answers the ask.
+_GESTURE_LINES: dict[str, tuple[str, ...]] = {
+    "wave_hello": ("That's a wave.", "Hello!"),
+    "wave_goodbye": ("That's the goodbye wave.",),
+    "nod": ("That's a nod.",),
+    "acknowledge": ("That's an acknowledgement.",),
+    "approve": ("That's approval.",),
+    "ask_to_wait": ("That's the wait gesture.",),
+}
+# A gesture with no line would raise mid-call, so the two are held to each other here.
+assert set(_GESTURE_LINES) == set(_GESTURE_IDS), "_GESTURE_LINES and _GESTURE_IDS disagree"
+
 
 # ─── Actions (what the page renders) ──────────────────────────────────────────
 
@@ -212,7 +226,9 @@ WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, 
 
 HOW TO RUN THIS CALL:
 
-SPEAK AND ACT IN THE SAME RESPONSE. Whenever you call a tool, say your short line first and make the call in that same response. After perform you do not speak again until the visitor does, so a gesture made in silence leaves them in silence.
+EVERY RESPONSE STARTS WITH WORDS. Write your short line first, then make the call, in that same response — the line is spoken as the page scrolls or the face moves. A response that is only a tool call is silence: after perform you do not speak again until the visitor does, so a gesture made without a line leaves them staring at a face that said nothing. For example:
+  Visitor: "Can you wave at me?" You: "Hello there!" — and perform with wave_hello, in the same response.
+  Visitor: "How does the lipsync work?" You: "Here's the mouth." — and show_section on the lipsync section, in the same response; its lines come back at once, and you answer from them.
 
 POINT FIRST, THEN TALK. For ANY question about how the thing works — what it is, how it compares with video avatars like HeyGen or Tavus, installing it, the protocol, the lipsync, the states, the faces, authoring your own, the limits — say a few words that point ("Here's the timeline") and call show_section in that same response, before you answer. Its lines come back at once, and you answer from them. The scroll is the answer; your sentences are the footnote on it. One section per question. NEVER read the page out loud, and never summarise what is now on their screen — say only the thing the page left out, or the reason behind it.
 
@@ -256,6 +272,7 @@ class AvatarBrain(GeminiBrain):
         self._signed_off = False
         # Whether the opening wave has gone out. See `greet`.
         self._waved = False
+        self._fallback = FallbackLine()
         self._backstop: asyncio.Task[None] | None = None
 
     # ─── The avatar wire ────────────────────────────────────────────────
@@ -348,7 +365,7 @@ class AvatarBrain(GeminiBrain):
         section = SECTIONS_BY_ID[request.section]
         logger.info("avatar: show_section {}", section.id)
         self.session.dispatch(ShowSection(id=section.id, title=section.title))
-        acted("show_section")
+        landed("It's on your screen.", "Here's that section.")
         return str({"section": section.id, "heading": section.title, "say": section.notes})
 
     async def perform(self, request: GestureRequest) -> str:
@@ -360,7 +377,7 @@ class AvatarBrain(GeminiBrain):
         action_id = _GESTURE_IDS[request.gesture]
         logger.info("avatar: perform {} ({})", request.gesture, action_id)
         self._act(action_id)
-        acted("perform")
+        landed(*_GESTURE_LINES[request.gesture])
         return str({"performed": request.gesture, "wire_id": action_id})
 
     # ─── Callbacks ──────────────────────────────────────────────────────
@@ -477,9 +494,9 @@ class AvatarBrain(GeminiBrain):
         off. Signing off here means the last thing the visitor hears is
         the sign-off rather than a model turn that ran over.
 
-        A turn that waved and said nothing is asked once more first; see
-        :mod:`voqalize_demos.silent_turn`."""
-        async for speech in reask_if_silent(super().respond, session):
+        A turn that gestured and said nothing gets a line of the avatar's own
+        first; see :mod:`voqalize_demos.silent_turn`."""
+        async for speech in self._fallback.speak_if_silent(self, super().respond(session)):
             yield speech
         if self._out_of_time() and not self._signed_off:
             async for speech in self._sign_off(session):

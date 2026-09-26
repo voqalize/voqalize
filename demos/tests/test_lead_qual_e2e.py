@@ -25,8 +25,11 @@ Run: ``cd demos && uv run pytest tests/test_lead_qual_e2e.py``
 from __future__ import annotations
 
 from google.genai import types
+from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+
+from voqalize.sdk.wire import Language
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -195,3 +198,34 @@ async def test_eligibility_and_the_end_screen() -> None:
         assert ended["lead"]["phone"] == "9820012345"
         assert ended["lead"]["loan_amount_inr"] == 200000
         assert rig.brain.ended is True
+
+
+async def test_an_end_call_made_in_silence_gets_the_goodbye_in_the_calls_language() -> None:
+    """The model called ``end_call`` with no goodbye. The end screen still renders,
+    and what the Tamil customer hears is the brain's own thanks, in Tamil — with no
+    second request, and the line never reaches the context."""
+    llm = ScriptedGemini(
+        {
+            "வேண்டாம், நன்றி.": call("end_call", record={"outcome": "not_interested"}),
+            "சரி.": reply("நன்றி."),
+        }
+    )
+    async with demo("lead_qual", llm) as rig:
+        await rig.driver.start_session(init=TAMIL_LEAD)
+
+        before = len(llm.captured_contents)
+        turn = await rig.driver.user_says("வேண்டாம், நன்றி.")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in PHRASES[Language.TA]["thanks"], line
+        assert rig.actions() == ["call_ended"], rig.actions()
+        assert len(llm.captured_contents) - before == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("சரி.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"the brain's line {line!r} reached the context"

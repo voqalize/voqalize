@@ -46,7 +46,7 @@ the browser keys its rows by — the model is never asked to invent one.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from google import genai
 from google.genai import types
@@ -54,11 +54,11 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    FallbackLine,
     GeminiBrain,
     ScreenState,
-    acted,
+    landed,
     needs_result_now,
-    reask_if_silent,
     screen_prose,
 )
 
@@ -106,7 +106,10 @@ VOICE STYLE:
 
 YOU CONTROL THE SCREEN. Whenever you talk about a case, a tab, an assignment, or a draft, call the matching tool so the advisor SEES it. Open the case, switch the tab, move the card, draft the item — never just describe it in words.
 
-SPEAK AND ACT IN THE SAME RESPONSE. Say your one short line and make every screen call that answer needs in that same response — the line goes out as the screen moves. After those calls you get no further word until the advisor speaks again, so the line you say with them is your whole answer: never make a screen call in silence, and never say a line that promises more to come ("let me check…"). What a call hands back, you read on your next turn. get_advisor_context() is the exception: it comes straight back to you in the same turn, so answer from what it gives you.
+EVERY RESPONSE STARTS WITH WORDS. Write the short line the advisor will hear first, then make every screen call that answer needs, all in that same response — the line is spoken as the screen moves. A response that is only tool calls is silence: the console changes and the advisor hears nothing, because after your calls you get no further word until they speak again. So the line you write with the calls is your whole answer, never a promise of more ("let me check…"); what a call hands back, you read on your next turn. For example:
+  Advisor: "Open Cho's case." You: "Opening Daniel Cho's case." — and open_case, in the same response.
+  Advisor: "Send Whitmore to Legal." You: "Routing Whitmore to Legal and Custody, with a note on the lien." — and assign_case and add_comment, in the same response.
+get_advisor_context() is the one call that takes no line: it is silent and comes straight back to you in the same turn, so call it first and then answer, with your line and any screen calls, from what it gives you.
 
 KNOW WHERE THE ADVISOR IS ("voice also"). Nothing in this conversation is a picture of the console. get_advisor_context() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you reference or act on anything on screen, and whenever you are told the advisor moved it themselves — you are told THAT they moved it, never what it now says. Ground your answer in what it returns (e.g. "I see you're on Cho's pricing tab — his rate is seven-point-one percent"). When you have been told the advisor moved the console, call get_advisor_context() in the same response as, and before, any tool aimed at what is on it. If a tool refused because the console moved under you, that is not something to report or apologise for: read it and make the call again. Voice augments the screen; it does not replace it.
 
@@ -452,6 +455,28 @@ Narrower than ``Action`` on purpose: :meth:`ServicingBrain._mirror` matches on
 this, so a command added here and not mirrored is a type error rather than a
 picture that has quietly stopped agreeing with the screen."""
 
+#: What Tess says for a command that landed, when the model's turn said nothing —
+#: see :mod:`voqalize_demos.silent_turn`. By then the command has run, so each
+#: line says it is done. Drafts speak in maker-checker terms, like the prompt.
+_LINES: dict[type[ScreenMove], tuple[str, ...]] = {
+    OpenBoard: ("Here's the board.", "Back on the board."),
+    OpenCase: ("The case is open.", "Here's the case."),
+    SetTab: ("It's on screen.", "Here it is."),
+    AssignCase: ("It's routed.", "Assigned."),
+    MoveCase: ("The card's moved.", "Moved."),
+    AddComment: ("Noted on the case.", "The note's in."),
+    PrepareCase: ("Prep is under way in the background.", "I've started the prep."),
+    PostWorkup: ("The workup is on screen.", "The findings are up."),
+    LookupPrecedent: ("Past cases are on screen.", "Here's how we've handled it before."),
+    UpdatePacketField: ("The packet's updated.", "Updated."),
+    ResolveBlocker: ("The blocker's cleared.",),
+    SubmitPacket: ("The packet is submitted.",),
+    DraftApproval: ("Drafted — it's waiting for your approval.",),
+    Highlight: ("Right there.", "There."),
+}
+# A command with no line would raise mid-call, so the two are held to each other here.
+assert set(_LINES) == set(get_args(ScreenMove.__value__)), "_LINES and ScreenMove disagree"
+
 
 def _find(rows: list[Any], ref: str) -> dict[str, Any] | None:
     """The case row for ``ref``, or ``None`` — refs are the console's own ids."""
@@ -488,6 +513,7 @@ class ServicingBrain(GeminiBrain):
         #: The desk's own picture of the console — seeded from ``session.init``,
         #: patched by :meth:`_mirror` and :meth:`apply_event`.
         self.workspace = _blank_workspace()
+        self._fallback = FallbackLine()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -524,12 +550,12 @@ class ServicingBrain(GeminiBrain):
         return f"Hi there — {AGENT_NAME} here. What would you like to start on?"
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, asked once more if it acted on screen and said nothing.
+        """The model's turn, and a line of Tess's own if it acted and said nothing.
 
         The prompt has the model speak and call in the same response, and on a
-        dialled call it sometimes called alone, leaving the user in silence with
-        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
-        async for event in reask_if_silent(super().respond, session):
+        dialled call it sometimes called alone, leaving the advisor in silence
+        with the console changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
@@ -617,7 +643,7 @@ class ServicingBrain(GeminiBrain):
         advisor, never this brain's own command echoing home."""
         self._mirror(action)
         self.session.dispatch(action)
-        acted(type(action).__name__)
+        landed(*_LINES[type(action)])
 
     def _mirror(self, action: ScreenMove) -> None:
         """Move the picture the way this dispatch is about to move the console."""

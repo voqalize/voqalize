@@ -31,7 +31,7 @@ from typing import Any
 import pytest
 from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.wire import ConfigureFrame, EndFrame, RTVIType, SpeechEndFrame
 
@@ -350,3 +350,31 @@ async def test_the_demo_says_goodbye_exactly_once(monkeypatch: pytest.MonkeyPatc
 
         once_more = await rig.driver.user_says("Still here.")
         assert not (once_more and once_more.units), "the demo said goodbye a third time"
+
+
+async def test_a_gesture_made_in_silence_is_still_said() -> None:
+    """The prompt has the model speak with every call; this is the turn where it
+    did not. The brain names the gesture the visitor just saw — one request, no
+    second ask — and the line never reaches the model's context."""
+    llm = ScriptedGemini(
+        {
+            "Can you nod?": call("perform", request={"gesture": "nod"}),
+            "Nice.": reply("Thanks."),
+        }
+    )
+    async with demo("avatar", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Can you nod?")
+        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == ["That's a nod."]
+        assert _actions(rig) == ["ACK_NOD"], _avatar_messages(rig)
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Nice.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert "That's a nod." not in spoken, "the brain's line reached the context"

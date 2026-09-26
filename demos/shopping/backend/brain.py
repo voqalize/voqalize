@@ -33,10 +33,10 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    FallbackLine,
     GeminiBrain,
-    acted,
+    landed,
     needs_result_now,
-    reask_if_silent,
 )
 
 from voqalize.sdk import Action, Session, Speech
@@ -86,6 +86,11 @@ _FAQ_FACTS = f"""STORE FACTS ({STORE_NAME}) — answer policy questions only fro
 
 _SYSTEM_INSTRUCTION = f"""You are the Mobile Expert, a warm, knowledgeable voice shopping assistant for {STORE_NAME}, an online mobile-phone store. The shopper is browsing the store on their phone and talking to you live. You help them find the right phone, answer questions, and — this is important — you drive their screen as you talk.
 
+EVERY REPLY STARTS WITH WORDS. Write the short line the shopper will hear first, then make the tool call, in that same reply — the line is spoken as the screen moves. A reply that is only a tool call is silence: the screen changes and the shopper hears nothing, because every tool except search_products just does what you asked, and you do not hear back from it until the shopper speaks again. So the line you say with it is your whole answer — answer from the catalog or the store facts, and never promise to report back. For example:
+  Shopper: "Show me the Pixel 8 Pro." You: "Here it is — its camera is the standout." — and open_product, in the same reply.
+  Shopper: "Add it to my cart." You: "Done, it's in your cart." — and add_to_cart, in the same reply.
+search_products is the one that answers you straight away: say a brief line with it — a handful of words, like "Sure, let me pull those up." — and talk about the results once they come back.
+
 YOU CONTROL THE SCREEN. Whenever you mention products, you MUST call the matching tool so the shopper SEES what you are talking about. Do not just describe — show. Examples:
 - Shopper asks for camera phones → say a short line and call search_products; you get the results straight away, then talk about them.
 - Shopper asks about one phone → call open_product so its page opens, and answer from the catalog below in the same reply.
@@ -97,15 +102,13 @@ YOU CONTROL THE SCREEN. Whenever you mention products, you MUST call the matchin
 - Shopper asks about shipping, returns, warranty → call open_faq with the topic, and answer from the store facts in the same reply.
 Always call the tool AS you start describing, so the screen and your words stay in sync.
 
-KEEP THE SHOPPER WITH YOU. Every reply that calls a tool also speaks, in that same reply — never call a tool without a spoken line. Only search_products answers you straight away: say a brief line — a handful of words — with it, like "Sure, let me pull those up.", and talk about the results once they come back. Every other tool just does what you asked, and you do not hear back from it until the shopper speaks again, so its line is your whole answer: "Here it is — its camera is the standout." with open_product, answering from the catalog, or "Done, it's in your cart." with add_to_cart. Never promise to report back on one of those.
-
 CATALOG — these are the only phones in the store. Refer to them by name; use the bracketed id only for tool arguments:
 {catalog_for_prompt()}
 
 {_FAQ_FACTS}
 
 CONVERSATION STYLE:
-- This is voice. START every reply with a very short sentence — a handful of words — so audio begins instantly; then continue only if needed. Keep replies short — usually one or two sentences, never more than three.
+- This is voice. Your first sentence is very short — a handful of words — so audio begins instantly; then continue only if needed. Keep replies short — usually one or two sentences, never more than three.
 - Ask one question at a time. Be friendly and concise, not salesy.
 - Recommend honestly: match phones to what the shopper actually needs (budget, camera, battery, size, ecosystem).
 - When comparing, give the one-line difference that matters, then ask which way they lean.
@@ -252,6 +255,7 @@ class ShoppingBrain(GeminiBrain):
         # Brain-owned domain state only. The conversation record is framework-owned.
         self.cart: list[str] = []
         self.wishlist: list[str] = []
+        self._fallback = FallbackLine()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -269,12 +273,13 @@ class ShoppingBrain(GeminiBrain):
         return _GREETING
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, asked once more if it acted on screen and said nothing.
+        """The model's turn, and a line of the assistant's own if it acted and said nothing.
 
         The prompt has the model speak and call in the same response, and on a
-        dialled call it sometimes called alone, leaving the user in silence with
-        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
-        async for event in reask_if_silent(super().respond, session):
+        dialled call it sometimes called alone, leaving the shopper in silence
+        with the screen changed. Each tool that moves the screen records the line
+        that says it landed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 
     # ─── Tools ──────────────────────────────────────────────────────────
@@ -328,7 +333,7 @@ class ShoppingBrain(GeminiBrain):
                 result_ids=[p["id"] for p in matches],
             )
         )
-        acted("search_products")
+        landed("Here are the phones.", "They're on your screen.")
         return str({"count": len(matches), "results": [summary(p) for p in matches]})
 
     async def open_product(self, action: OpenProduct) -> str:
@@ -340,7 +345,7 @@ class ShoppingBrain(GeminiBrain):
             return str({"error": f"unknown product '{action.product_id}'"})
         logger.info("shopping: open_product {}", action.product_id)
         self.session.dispatch(action)
-        acted("open_product")
+        landed(f"Here's the {product['name']}.", f"The {product['name']} is open.")
         return str({"product": product})
 
     async def apply_filters(self, query: FilterQuery) -> str:
@@ -368,21 +373,21 @@ class ShoppingBrain(GeminiBrain):
                 result_ids=[p["id"] for p in matches],
             )
         )
-        acted("apply_filters")
+        landed("Filtered.", "Here's what fits.")
         return str({"count": len(matches), "results": [summary(p) for p in matches]})
 
     async def clear_filters(self) -> str:
         """Clear all active filters and show the full catalog again."""
         logger.info("shopping: clear_filters")
         self.session.dispatch(ClearFilters())
-        acted("clear_filters")
+        landed("Filters cleared.", "Here's everything again.")
         return str({"status": "cleared"})
 
     async def go_home(self) -> str:
         """Return the shopper to the store home page."""
         logger.info("shopping: go_home")
         self.session.dispatch(NavigateHome())
-        acted("go_home")
+        landed("Back on the home page.", "Here's the home page.")
         return str({"status": "home"})
 
     async def highlight_feature(self, action: Highlight) -> str:
@@ -392,7 +397,7 @@ class ShoppingBrain(GeminiBrain):
         open_product if it is not already showing."""
         logger.info("shopping: highlight {} {}", action.product_id, action.feature)
         self.session.dispatch(action)
-        acted("highlight_feature")
+        landed("Right there.", "It's highlighted.")
         product = get_product(action.product_id)
         detail: Any = None
         if product is not None:
@@ -424,6 +429,8 @@ class ShoppingBrain(GeminiBrain):
         products = [p for p in products if p is not None]
         logger.info("shopping: compare {}", request.product_ids)
         self.session.dispatch(Compare(product_ids=[p["id"] for p in products]))
+        if products:
+            landed("Here they are side by side.", "The comparison is up.")
         return str({"products": products})
 
     async def add_to_cart(self, request: AddToCartRequest) -> str:
@@ -436,6 +443,7 @@ class ShoppingBrain(GeminiBrain):
             self.cart.append(request.product_id)
         logger.info("shopping: add_to_cart {} (cart={})", request.product_id, len(self.cart))
         self.session.dispatch(AddToCart(product_id=request.product_id, cart_count=len(self.cart)))
+        landed(f"The {product['name']} is in your cart.", "Done, it's in your cart.")
         return str({"status": "added", "name": product["name"], "cart_count": len(self.cart)})
 
     async def sort_results(self, action: Sort) -> str:
@@ -444,6 +452,7 @@ class ShoppingBrain(GeminiBrain):
         best rated', or 'newest'. Opens the results page if needed."""
         logger.info("shopping: sort_results by={!r}", action.sort_by)
         self.session.dispatch(action)
+        landed("Sorted.", "They're re-ordered.")
         # Return the catalog ordered the same way; the model reads it with the
         # shopper's next words, and the ranking itself is in its prompt.
         ordered = sort_catalog(list(CATALOG), action.sort_by)
@@ -470,6 +479,7 @@ class ShoppingBrain(GeminiBrain):
         self.session.dispatch(
             AddToWishlist(product_id=request.product_id, wishlist_count=len(self.wishlist))
         )
+        landed(f"The {product['name']} is saved to your wishlist.", "Saved to your wishlist.")
         return str(
             {"status": "saved", "name": product["name"], "wishlist_count": len(self.wishlist)}
         )
@@ -481,4 +491,5 @@ class ShoppingBrain(GeminiBrain):
         activation questions."""
         logger.info("shopping: open_faq topic={!r}", action.topic)
         self.session.dispatch(action)
+        landed("It's on the help page.", "Here's the policy.")
         return str({"status": "opened", "topic": action.topic})

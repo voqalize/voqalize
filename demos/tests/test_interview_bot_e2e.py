@@ -27,7 +27,7 @@ from typing import Any
 
 from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -182,3 +182,34 @@ async def test_the_section_moved_to_reaches_the_next_turn() -> None:
 
     entered = _results(llm.captured_contents[-1])["advance_to_next_section"]
     assert "depth" in entered and "Technical Depth" in entered, entered
+
+
+async def test_a_move_made_alone_ends_in_one_line_naming_the_section() -> None:
+    """The prompt has the interviewer speak with the call; this is the turn where
+    it did not. A call alone would leave the candidate in silence with the rail
+    moved on, so the brain names the section it moved to, in the same single
+    request, and the line never reaches the context."""
+    llm = ScriptedGemini(
+        {
+            "Six years, mostly payments.": call(
+                "advance_to_next_section", notes={"section_notes": "Payments."}
+            ),
+            "Sure.": reply("How did you handle idempotency on retries?"),
+        }
+    )
+    async with demo("interview_bot", llm) as rig:
+        await rig.driver.start_session(init=PAYLOAD)
+        turn = await rig.driver.user_says("Six years, mostly payments.")
+        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == ["Let's move on to Technical Depth."]
+        assert rig.actions() == ["section_changed"]
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Sure.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert "Technical Depth." not in spoken, "the brain's line reached the context"

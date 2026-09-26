@@ -42,7 +42,8 @@ with the call and reads the result with the admin's next words.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from collections.abc import AsyncGenerator
+from typing import Any, Literal, get_args
 
 from google import genai
 from google.genai import types
@@ -50,13 +51,15 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    FallbackLine,
     GeminiBrain,
     ScreenState,
+    landed,
     needs_result_now,
     screen_prose,
 )
 
-from voqalize.sdk import Action, RTVIMessage, Session
+from voqalize.sdk import Action, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import (
@@ -75,9 +78,12 @@ from .app_events import (
 
 _SYSTEM_INSTRUCTION = """You are Ada, the Flowforge workflow copilot — a voice assistant for an ITSM / HR-ops administrator who builds "Service Request Workflows" by talking to you. You DRIVE THEIR SCREEN as you talk.
 
+EVERY REPLY STARTS WITH WORDS. Lead with the action: say one short clause — ideally just naming what you're doing, 3 to 8 words — then CALL THE TOOLS IN THAT SAME REPLY. The clause is spoken as the studio changes. A reply that is only tool calls is silence: the studio moves and the admin hears nothing, because every tool but read_screen just does what you asked and you do not hear back from it until the admin speaks again. So your lead-in is your whole line — never promise to report back on an edit. For example:
+  Admin: "Contractors asking for a privileged app need a security review." You: "Adding a security review." — and insert_gateway and add_state, in the same reply.
+  Admin: "Run the tests." You: "Running them." — and run_tests, in the same reply.
+read_screen is the one call that answers you straight away: say a short line like "Let me look." with it, and make your edits right after its answer.
+
 VOICE STYLE — SAY LESS, DO MORE. You are watched, not just heard: the admin SEES the studio change as you work, so let the screen do the talking. This discipline matters more than anything else here.
-- Lead with the action. Say one short clause — ideally just naming what you're about to do, 3 to 8 words — then CALL THE TOOL IN THAT SAME REPLY. E.g. "Adding a security review." then the tool. Never narrate in silence; never call a tool without that brief lead-in.
-- Only read_screen answers you straight away. Every other tool just does what you asked, and you do not hear back from it until the admin speaks again — so your lead-in is the whole line: never promise to report back on an edit.
 - Don't describe what's now on screen. The admin can see the new step, the passing tests, the lit path, the code. No recaps, no "I've added…", never read ids, labels, guards, JSON, or lists aloud. Every tool you call also shows up as a live task on screen (a small "activity" checklist), so your actions are already acknowledged visually — trust it and stay quiet.
 - Chain tools to finish a real change in one go — one short lead-in, then insert the decision, wire both branches, add the step, all in that same reply. When a later call in the reply has to name a block you are adding in it, give that block its own short id (e.g. "s_security") so you can. Don't stop to announce every edit, and don't come back to recap it.
 - Ask a question ONLY when genuinely blocked by a real fork the admin must decide. Otherwise pick the sensible default, do it, and let them correct you.
@@ -326,6 +332,35 @@ type ScreenMove = (
     | ShowCode
 )
 
+#: What Ada says for a command that landed, when the model's turn said nothing —
+#: see :mod:`voqalize_demos.silent_turn`. By then the command has run, so each
+#: line says it is done, and says no more than that: the studio shows the rest.
+_LINES: dict[type[ScreenMove], tuple[str, ...]] = {
+    OpenList: ("Here's the list.", "Back on the list."),
+    OpenWorkflow: ("It's open.", "Here it is."),
+    CreateWorkflow: ("The draft's up.", "Draft created."),
+    AddState: ("Step added.", "Added."),
+    InsertGateway: ("The branch is in.", "Branch added."),
+    AddBranch: ("Branch added.", "Added."),
+    SetRoute: ("Rewired.", "Route set."),
+    UpdateState: ("Updated.", "Done."),
+    RemoveState: ("Removed.", "It's gone."),
+    AddContextField: ("Field added.", "Added."),
+    AddField: ("Field added.", "Added."),
+    SetCode: ("The code's in.", "Done."),
+    AddTest: ("Test added.", "Added."),
+    RunTests: ("The tests are running.", "Running them."),
+    ReviewCoverage: ("The gaps are on screen.", "Here are the gaps."),
+    ResolveGap: ("Gap closed.", "Closed."),
+    RunScenario: ("The run is on screen.", "Here's the run."),
+    PublishWorkflow: ("Published. It's live.",),
+    SetPanel: ("Here it is.", "There."),
+    FocusState: ("Right there.", "There."),
+    ShowCode: ("Here's the code.", "There's the code."),
+}
+# A command with no line would raise mid-call, so the two are held to each other here.
+assert set(_LINES) == set(get_args(ScreenMove.__value__)), "_LINES and ScreenMove disagree"
+
 
 def _find(catalog: list[dict[str, Any]], wid: str | None) -> dict[str, Any] | None:
     """The workflow dict for ``wid``, or ``None``. Ids are the studio's own."""
@@ -459,6 +494,7 @@ class ForgeBrain(GeminiBrain):
         # Ids Ada mints. The studio would mint its own, but then only the studio
         # would know them, and the next edit names a block by id.
         self._seq = 0
+        self._fallback = FallbackLine()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -491,6 +527,15 @@ class ForgeBrain(GeminiBrain):
         say the admin's name — that arrives as free text in session.init, and this
         line is spoken before any model has run to judge it."""
         return "Hi there — Ada here. Want to open a workflow to change, or build a new one?"
+
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, and a line of Ada's own if it acted and said nothing.
+
+        The prompt has the model lead with a short clause and call in the same
+        reply; a reply of calls alone would leave the admin in silence with the
+        studio changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            yield event
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message: one thing that just happened in the studio.
@@ -634,6 +679,7 @@ class ForgeBrain(GeminiBrain):
                 pass
         self._mirror(action)
         self.session.dispatch(action)
+        landed(*_LINES[type(action)])
 
     def _edit(self, action: ScreenMove) -> str | None:
         """Apply an edit to the open workflow, or say why it is refused.

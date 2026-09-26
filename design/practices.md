@@ -43,11 +43,15 @@ subset.
    word unless the tool is marked (rule 50). A model that calls in silence leaves
    the user in silence until they speak again: GeminiBrain's `turn:` log line says
    `speechless=yes`, and Voqalize's watchdog (`brain.watchdog_secs`) then says
-   "Sorry — that's taking longer than I expected." The fix is the prompt, or a
-   line the brain speaks itself when a call streams in silent (`travel`'s
-   `respond()` override). The framework fills nothing, because a silent call can
-   be right: the screen may already be the answer. — *agreed, 2026-09-25; the
-   premise of SDK 0.7.0, which has no opt-out.*
+   "Sorry — that's taking longer than I expected." The fix is the prompt, and
+   under it a line the brain speaks itself when the turn called and said nothing
+   — written, from the calls that landed, never a second model request (every
+   demo, through `demos/voqalize_demos/silent_turn.py`). The prompt alone did not
+   hold: on dialled calls the model called an action tool in silence in most
+   demos (2026-09-26). The framework fills nothing, because a silent call can be
+   right: the screen may already be the answer. — *agreed, 2026-09-25; the
+   premise of SDK 0.7.0, which has no opt-out. The floor without a model call:
+   owner, 2026-09-26.*
 8. **`greet` contains no model call.** Fixed line, or a template over `session.init`.
    — *agreed, enforced by the return type.*
 9. **The system prompt is the cache prefix. Write it once per session; never edit
@@ -427,8 +431,11 @@ asking again are `respond`'s.
   read tool's name and the actor's word are things only a brain can supply. Whether
   the discipline it encodes deserves more than a demo helper is open.
 - Whether the SDK ships a **line per tool**, spoken when the model calls in
-  silence. Today the prompt carries the rule (rule 7) and a brain that wants a
-  floor speaks its own (`travel`'s `respond()` override). Deferred, 2026-09-25.
+  silence. Today the prompt carries the rule (rule 7) and every demo speaks its
+  own floor through `voqalize_demos.silent_turn`, which reaches into the SDK's
+  private finalize queue to keep the line out of the context. A workaround every
+  demo shares is a feature the SDK owes them; whether it becomes one is open.
+  Deferred, 2026-09-25.
 - Whether a turn that **ends speechless should end quietly**. It ends without
   text, so the watchdog (`brain.watchdog_secs`) apologises for a delay that is
   not one — unless the user speaks first. Nothing on the wire says "this turn is

@@ -36,29 +36,38 @@ no resume across disconnects, by design for the prototype.
 from __future__ import annotations
 
 import re
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, FallbackLine, GeminiBrain, landed
 
-from voqalize.sdk import Action, Session
+from voqalize.sdk import Action, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 _RESUME_CHARS = 4000
 _FIELD_CHARS = 600
 
+#: What the interviewer says for a close that landed when the model's turn said
+#: nothing — see :mod:`voqalize_demos.silent_turn`. A section move says its own
+#: line, naming the section it moved to.
+_THANKS = ("Thank you for your time today. That's the end of the interview.",)
+
 _SYSTEM_BASE = """You are an AI technical interviewer conducting a live voice interview. You are warm, professional, and concise.
 
 You are given the JOB, the CANDIDATE, and a structured INTERVIEW PLAN whose sections are listed in order. Conduct the interview one section at a time, in that order.
+
+EVERY RESPONSE THAT CALLS A TOOL STARTS WITH WORDS. Write your spoken line first, then make the call, in that same response. A response that is only a tool call is silence: the screen moves and the candidate hears nothing, because after a call you do not speak again until they do. So the line you write with the call is your whole turn; what the call hands back, you read on your next turn. For example:
+  When a section is done: "Thanks, that's helpful. Let's talk about system design — how would you shard a user table?" — and advance_to_next_section, in the same response.
+  At the very end: "That's everything from me. Thank you for your time today, and goodbye." — and mark_interview_completed, in the same response.
 
 HOW TO RUN THE INTERVIEW:
 - Begin with the first section and work through them in order. You start in section 1.
 - Ask one question at a time. Listen, ask natural follow-ups, and probe for depth before moving on.
 - When you have covered the current section's goal (or its time is up), say one short line that moves on and asks the first question of the next section, and call advance_to_next_section in that same response. The next section is in the INTERVIEW PLAN below; you do not need the tool's answer to ask it.
 - After the final section, thank the candidate and say goodbye, and call mark_interview_completed in that same response. Nothing is said after it.
-- SPEAK AND CALL IN THE SAME RESPONSE. Whenever you call a tool, say your line first and make the call in that same response. You do not speak again after a call until the candidate does, so a call made in silence leaves them in silence. What a call hands back, you read on your next turn.
 - Stay on the plan. Do not invent sections. Never reveal evaluation criteria, scores, or your assessment to the candidate.
 
 VOICE RULES:
@@ -243,6 +252,7 @@ class InterviewBotBrain(GeminiBrain):
         self.sections: list[tuple[str, dict[str, Any]]] = []
         self.current_index = 0
         self.ended = False
+        self._fallback = FallbackLine()
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
@@ -283,6 +293,7 @@ class InterviewBotBrain(GeminiBrain):
         self.session.dispatch(
             SectionChanged(index=self.current_index, key=key, title=title, is_last=is_last)
         )
+        landed(f"Let's move on to {title}.")
         position = f"{self.current_index + 1} of {len(self.sections)}"
         instruction = (
             "It is the final section; after it, call mark_interview_completed."
@@ -298,6 +309,7 @@ class InterviewBotBrain(GeminiBrain):
         self.ended = True
         logger.info("interview: mark_interview_completed (summary={!r})", summary.summary)
         self.session.dispatch(summary)
+        landed(*_THANKS)
         return "completed"
 
     # ─── Callbacks ──────────────────────────────────────────────────────
@@ -342,3 +354,13 @@ class InterviewBotBrain(GeminiBrain):
         the role — both are free text in ``session.init``, not a closed set to
         pick a sentence from."""
         return _GREETING
+
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, and a line of the interviewer's own if it called a
+        tool and said nothing.
+
+        The prompt has the model speak and call in the same response; a response
+        of the call alone would leave the candidate in silence with the screen
+        moved on. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            yield event

@@ -12,7 +12,7 @@ Run: ``cd demos && uv run pytest tests/test_shopping_e2e.py``
 from __future__ import annotations
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.gemini import _needs_result_now
 
@@ -135,3 +135,32 @@ def test_only_the_search_holds_the_turn() -> None:
     brain = ShoppingBrain(client=ScriptedGemini({}))  # pyright: ignore[reportArgumentType]
     held = {tool.__name__ for tool in brain.tools if _needs_result_now(tool)}
     assert held == {"search_products"}
+
+
+async def test_a_product_opened_in_silence_is_still_said() -> None:
+    """The prompt has the model speak with every call; this is the turn where it
+    did not. The brain says the product's own line — one request, no second ask —
+    and the line never reaches the model's context."""
+    llm = ScriptedGemini(
+        {
+            "Open the Pixel 8 Pro.": call("open_product", action={"product_id": "pixel-8-pro"}),
+            "Thanks.": reply("Anytime."),
+        }
+    )
+    async with demo("shopping", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Open the Pixel 8 Pro.")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in ("Here's the Pixel 8 Pro.", "The Pixel 8 Pro is open."), line
+        assert rig.actions() == ["open_product"]
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Thanks.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"the brain's line {line!r} reached the context"

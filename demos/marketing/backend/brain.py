@@ -43,16 +43,18 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PHRASES,
+    FallbackLine,
     GeminiBrain,
-    acted,
     configure_soon,
+    landed,
     needs_result_now,
-    reask_if_silent,
+    phrase,
 )
 from voqalize_demos.screen import ScreenState
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech
-from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
 from .app_events import MARKETING_EVENTS, MarketingEvent, SectionViewed
 from .content import (
@@ -84,6 +86,10 @@ _IDLE_MS = 0
 _HINDI_VOICED = ", ".join(s.name for s in SPEECH.values() if s.spoken != s.heard)
 
 
+# Tanya's own line for a silent turn is said in the language her voice speaks, so
+# every such language needs a row in the shared phrases — held at import, not on a call.
+assert {s.spoken for s in SPEECH.values()} <= set(PHRASES), "a spoken language has no PHRASES row"
+
 # ─── System prompt ─────────────────────────────────────────────────────────────
 #
 # The tools are not restated here. Each carries its own description on the method
@@ -95,7 +101,10 @@ _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the voice agent embedded in the 
 
 YOUR FIRST INSTINCT IS TO POINT, NOT TO TALK. The page has already made the argument, in writing, better than you will out loud. So the shape of almost every turn is one response that says the one sentence the page does not AND points at the thing — the words go out as the page moves. Never read the page aloud — they can see it. If you find yourself about to narrate a section, point at it instead and say what it leaves out, or why it matters to them.
 
-SPEAK AND ACT IN THE SAME RESPONSE. Whenever you point, write a panel or switch the language, say your line first and make the call in that same response. You do not get to speak again after one of those calls until the visitor does, so a call made in silence leaves them in silence. What such a call hands back, you read on your next turn.
+EVERY RESPONSE STARTS WITH WORDS. Whenever you point, write a panel or switch the language, write your line first and make the call in that same response — the line is spoken as the page moves. A response that is only tool calls is silence: the page moves and the visitor hears nothing, because after one of those calls you do not speak again until they do. So the line you write with the call is your whole answer; what the call hands back, you read on your next turn. For example:
+  Visitor: "How would I wire this into my app?" You: "You write one route — this is it." — and point_at, in the same response.
+  Visitor: "How is this different from building it myself?" You: "The short version is on your screen." — and show_note, in the same response.
+where_they_are is the one call that takes no line: it is silent and comes straight back to you in the same turn, so call it first and then answer from it.
 
 VOICE STYLE. Short by default — a sentence or two a turn, each under about twelve words, because most turns are a pointer and not an answer. A real question is the exception: when someone has asked something that genuinely needs explaining, take the sentences it takes to answer it gracefully rather than clipping it into something curt. The brevity is here to stop you narrating the page, not to make you unhelpful. English by default. No markdown, no lists, no symbols in speech — the panel is where writing goes. No throat-clearing: not "Great question", not "Sure, let me", not restating what they asked. No summarizing what you just pointed at; the highlight already said it. If a question has a one-word answer, give the word.
 
@@ -230,6 +239,10 @@ class MarketingBrain(GeminiBrain):
         # Tanya's own mirror of the one thing about this page that moves. Both
         # sides patch it: the visitor's scroll, and her own `point_at`.
         self.current_section: Section | None = None
+        #: The language the voice is speaking, for the line the brain says when
+        #: the model's turn acted and said nothing.
+        self.spoken: Language = OPENING.spoken
+        self._fallback = FallbackLine()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -260,12 +273,12 @@ class MarketingBrain(GeminiBrain):
         return _GREETING
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, asked once more if it acted on screen and said nothing.
+        """The model's turn, and a line of Tanya's own if it acted and said nothing.
 
         The prompt has the model speak and call in the same response, and on a
-        dialled call it sometimes called alone, leaving the user in silence with
-        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
-        async for event in reask_if_silent(super().respond, session):
+        dialled call it sometimes called alone, leaving the visitor in silence with
+        the page moved. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
@@ -361,7 +374,7 @@ class MarketingBrain(GeminiBrain):
         self.session.dispatch(
             PointAt(section=section_id, target=request.target, reason=request.reason)
         )
-        acted("point_at")
+        landed(*phrase(self.spoken, "shown"))
         return "ok"
 
     async def show_note(self, note: ShowNote) -> str:
@@ -371,7 +384,7 @@ class MarketingBrain(GeminiBrain):
         Keep it brief, and speak only the headline, in the same response that calls
         this; the panel carries the rest."""
         self.session.dispatch(note)
-        acted("show_note")
+        landed(*phrase(self.spoken, "shown"))
         return "ok"
 
     @needs_result_now
@@ -400,6 +413,7 @@ class MarketingBrain(GeminiBrain):
             ),
         )
         self.session.dispatch(LanguageChanged(language=speech.name, code=str(speech.heard)))
+        self.spoken = speech.spoken
         logger.info("marketing: language -> {}", request.language)
         if speech.spoken == speech.heard:
             return "ok"

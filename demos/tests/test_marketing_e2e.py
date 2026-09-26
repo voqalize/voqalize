@@ -32,8 +32,11 @@ Run: ``cd demos && uv run pytest tests/test_marketing_e2e.py``
 from __future__ import annotations
 
 from google.genai import types
+from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+
+from voqalize.sdk.wire import Language
 
 from ._harness import _configs, _last, check_greeting, check_turn, check_voice_pair, demo
 
@@ -313,3 +316,39 @@ async def test_the_scroll_position_lands_silently_and_grounds_the_next_answer() 
     )
     assert "scrolled to a different part of the page" in grounded
     assert "where_they_are" in grounded
+
+
+async def test_a_point_made_in_silence_gets_her_line_in_the_language_she_speaks() -> None:
+    """The model called ``point_at`` alone. The page moves, and what the visitor
+    hears is the brain's own line — in Hindi, because that is what the voice speaks
+    after the switch — with no second request, and the line never reaches the
+    context."""
+    llm = ScriptedGemini(
+        {
+            "क्या आप हिंदी बोल सकते हैं?": reply_and_call(
+                "Switching to Hindi.", "set_language", request={"language": "hindi"}
+            ),
+            "यह कैसे जुड़ता है?": call("point_at", request={"target": TARGET, "reason": "एक WebSocket"}),
+            "ठीक है.": reply("ज़रूर."),
+        }
+    )
+    async with demo("marketing", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("क्या आप हिंदी बोल सकते हैं?")
+
+        before = len(llm.captured_contents)
+        turn = await rig.driver.user_says("यह कैसे जुड़ता है?")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in PHRASES[Language.HI]["shown"], line
+        assert rig.actions()[-1] == "point_at", rig.actions()
+        assert len(llm.captured_contents) - before == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("ठीक है.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"the brain's line {line!r} reached the context"

@@ -28,7 +28,7 @@ import base64
 
 from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import Reply, ScriptedGemini, reply_and_call
+from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.wire import ConfigureFrame
 
@@ -265,3 +265,39 @@ async def test_the_photo_turn_is_prompted_over_the_heard_transcript() -> None:
         if c.role == "user"
     ]
     assert "The Sonic buds. I want to send them back." in spoken_texts
+
+
+async def test_an_item_pointed_at_in_silence_is_still_said() -> None:
+    """The model highlights the item and says nothing: the brain says the line of
+    the call that landed, with no second request, and the line never reaches the
+    context the next request carries."""
+    llm = ScriptedGemini(
+        {
+            "Which earbuds were those?": call(
+                "highlight_item", action={"order_id": "VQ-10588", "item_id": "buds-sonic"}
+            ),
+            "Thanks.": reply("You're welcome."),
+        }
+    )
+    async with demo("support", llm) as rig:
+        await rig.driver.start_session()
+
+        before = len(llm.captured_contents)
+        turn = await rig.driver.user_says("Which earbuds were those?")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in (
+            "That's the SonicBuds Pro Wireless Earbuds.",
+            "Here's the SonicBuds Pro Wireless Earbuds.",
+        ), line
+        assert rig.actions() == ["highlight_item"], rig.actions()
+        assert len(llm.captured_contents) - before == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Thanks.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"the brain's line {line!r} reached the context"

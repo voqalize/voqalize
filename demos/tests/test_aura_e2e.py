@@ -23,10 +23,11 @@ import asyncio
 import re
 from typing import Any
 
+from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
-from voqalize.sdk.wire import ConfigureFrame
+from voqalize.sdk.wire import ConfigureFrame, Language
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -406,6 +407,39 @@ async def test_the_calculator_figure_is_answered_in_the_same_turn() -> None:
         assert rig.actions() == ["run_calculator"], rig.actions()
 
     assert "calculator is on screen" in _tool_results(llm)
+
+
+async def test_a_silent_call_ends_in_a_line_of_arias_own() -> None:
+    """The prompt has the model speak with every call; this is the turn where it
+    did not. The article still opens, the brain says one written line in the same
+    single request, and the line never reaches the context, which holds only the
+    model's own words."""
+    llm = ScriptedGemini(
+        {
+            "Where's my interest certificate?": call(
+                "open_article", article_id="interest-certificate"
+            ),
+            "Thanks.": reply("You're welcome."),
+        }
+    )
+    async with demo("aura", llm) as rig:
+        await rig.driver.start_session()
+
+        turn = await rig.driver.user_says("Where's my interest certificate?")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in PHRASES[Language.EN]["shown"], line
+        assert rig.actions() == ["open_article"], rig.actions()
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Thanks.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"Aria's line {line!r} reached the context"
 
 
 async def test_the_idle_window_reaches_the_wire() -> None:

@@ -28,8 +28,11 @@ Run: ``cd demos && uv run pytest tests/test_sugar_e2e.py``
 from __future__ import annotations
 
 from google.genai import types
+from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+
+from voqalize.sdk.wire import Language
 
 from ._harness import (
     check_configured_at_connect,
@@ -278,3 +281,41 @@ async def test_a_tool_aimed_at_a_screen_the_patient_moved_is_refused_until_it_is
     assert "the screen moved since you last read it" in refused
     read = _results(llm.captured_contents[-1])["read_screen"]
     assert "the sensor order: ordered" in read, "read_screen did not serve the tap"
+
+
+async def test_a_log_made_in_silence_gets_the_coachs_line_in_the_calls_language() -> None:
+    """The prompt has the coach speak first; this is the turn where it did not.
+
+    A response of ``log_meal`` alone would leave a Hindi patient in silence, so
+    the brain says one written line — Hindi's "done" phrase, since the call is in
+    Hindi — in the same single request. The line never reaches the context, which
+    holds only the model's own words."""
+    meal = {
+        "meal_type": "dinner",
+        "time_label": "8:00 PM",
+        "items": [{"name": "Roti", "quantity": "2", "calories": 240}],
+    }
+    llm = ScriptedGemini(
+        {
+            "रात को दो रोटी खाई।": call("log_meal", meal=meal),
+            "बस इतना ही।": reply("बहुत बढ़िया।"),
+        }
+    )
+    async with demo("sugar", llm) as rig:
+        await rig.driver.start_session(init={"language": "Hindi", "scenario": SCENARIO})
+
+        turn = await rig.driver.user_says("रात को दो रोटी खाई।")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in PHRASES[Language.HI]["done"], line
+        assert rig.actions() == ["log_meal"]
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("बस इतना ही।")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"the coach's line {line!r} reached the context"

@@ -42,7 +42,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain
+from voqalize_demos import DEFAULT_MODEL, FallbackLine, GeminiBrain, landed
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
@@ -66,9 +66,13 @@ _POLICY_FACTS = f"""RETURN POLICY ({STORE_NAME}) — answer only from these fact
 
 _SYSTEM_INSTRUCTION = f"""You are the Returns Assistant, a calm, helpful voice support agent for {STORE_NAME}, an online phone and accessories store. The shopper is signed in, looking at their past orders, and talking to you live. You help them return or get a replacement for something — and you DRIVE THEIR SCREEN as you talk.
 
-YOU CONTROL THE SCREEN. Whenever you reference an order, an item, or a step, call the matching tool so the shopper SEES it. Open the order, highlight the item, start the return, and fill the form with tools — never just describe.
+EVERY RESPONSE STARTS WITH WORDS. Whenever you call a tool, the same response opens with the one short spoken line that goes with it — the line first, then the calls, so the screen moves while the shopper hears you. A response made only of tool calls is silence: the screen changes and the shopper hears nothing, because you do not get to speak again until they do. For example:
+- The shopper says "my bluetooth mic stopped working": say "Is it the Bluetooth mic from your order on May 28th?" and call open_order and highlight_item in that response.
+- The shopper answers a check: say the next check as a question, "Does the status light come on?", and call record_diagnostic in that response.
+- The shopper wants to send something back: say "Sure, I've started the return." and call start_return in that response.
+No tool here needs its result before you speak, and a line like "let me check" promises something that never comes. What a tool hands back, you read on your next turn; everything you need to answer is already written below.
 
-SPEAK AND ACT IN THE SAME RESPONSE. Every tool call goes out together with the one short line that goes with it — say the line first and make the calls in that same response, so the screen moves as you speak. You do not get to speak again after a call until the shopper does, so a call made in silence leaves them in silence, and a line like "let me check" promises something that never comes. What a tool hands back, you read on your next turn; everything you need to answer is already written below.
+YOU CONTROL THE SCREEN. Whenever you reference an order, an item, or a step, call the matching tool so the shopper SEES it. Open the order, highlight the item, start the return, and fill the form with tools — never just describe, and never act without the line that goes with it.
 
 THE SHOPPER'S ORDERS — these are the only orders. Refer to items by name; use the bracketed id only for tool arguments:
 {orders_for_prompt()}
@@ -207,6 +211,10 @@ class SupportBrain(GeminiBrain):
         # ``on_user_idle`` reads.
         self._owed_a_reply = False
 
+        # Speaks the line of the last call that landed when a turn acted on
+        # screen and the model said nothing — see ``respond``.
+        self._fallback = FallbackLine()
+
     # ─── Tools ──────────────────────────────────────────────────────────
 
     @property
@@ -230,6 +238,7 @@ class SupportBrain(GeminiBrain):
         """Show the shopper's list of past orders on their screen."""
         logger.info("support: open_orders")
         self.session.dispatch(OpenOrders())
+        landed("Here are your orders.", "Your orders are on screen.")
         return str({"orders": [order_detail(o) for o in ORDERS]})
 
     async def open_order(self, action: OpenOrder) -> str:
@@ -240,6 +249,7 @@ class SupportBrain(GeminiBrain):
             return f"error: unknown order {action.order_id!r}"
         logger.info("support: open_order {}", action.order_id)
         self.session.dispatch(action)
+        landed("Here's that order.", "The order is open.")
         return str({"order": order_detail(order)})
 
     async def highlight_item(self, action: HighlightItem) -> str:
@@ -249,6 +259,8 @@ class SupportBrain(GeminiBrain):
         logger.info("support: highlight_item {} / {}", action.order_id, action.item_id)
         self.session.dispatch(action)
         item = get_item(action.item_id)
+        if item is not None:
+            landed(f"That's the {item['name']}.", f"Here's the {item['name']}.")
         return str({"status": "highlighted", "item": item["name"] if item else action.item_id})
 
     async def start_diagnostics(self, action: StartDiagnostics) -> str:
@@ -265,6 +277,7 @@ class SupportBrain(GeminiBrain):
         self.session.dispatch(
             StartDiagnostics(order_id=action.order_id, item_id=action.item_id, steps=steps)
         )
+        landed("The checklist is on your screen.", "Here are the checks we'll run.")
         return str({"status": "diagnostics_open", "steps": steps})
 
     async def record_diagnostic(self, action: RecordDiagnostic) -> str:
@@ -274,6 +287,7 @@ class SupportBrain(GeminiBrain):
         response that asks the next one."""
         logger.info("support: record_diagnostic step={} result={}", action.step, action.result)
         self.session.dispatch(action)
+        landed("Noted.", "Got it, that's recorded.")
         return str({"status": "recorded", "step": action.step})
 
     async def complete_diagnostics(self, action: CompleteDiagnostics) -> str:
@@ -282,6 +296,10 @@ class SupportBrain(GeminiBrain):
         return form."""
         logger.info("support: complete_diagnostics resolved={}", action.resolved)
         self.session.dispatch(action)
+        if action.resolved:
+            landed("Glad it's working now.", "Great, no return needed.")
+        else:
+            landed("The return form is open.", "Let's get the return started.")
         return str({"status": "diagnostics_complete", "resolved": action.resolved})
 
     async def start_return(self, action: StartReturn) -> str:
@@ -299,6 +317,7 @@ class SupportBrain(GeminiBrain):
             "support: start_return {} / {} ({!r})", action.order_id, action.item_id, action.reason
         )
         self.session.dispatch(action)
+        landed("The return form is open.", f"The return for the {item['name']} is started.")
         return str({"status": "return_started", "item": item["name"], "reason": action.reason})
 
     async def request_photo(self) -> str:
@@ -309,6 +328,10 @@ class SupportBrain(GeminiBrain):
         that asks for the photo."""
         logger.info("support: request_photo (item={})", self._active_item_id)
         self.session.dispatch(RequestPhoto())
+        landed(
+            "Please take a photo of it with its original box.",
+            "One photo please, the product with its box.",
+        )
         return str({"status": "awaiting_photo"})
 
     async def set_photo_check(self, result: PhotoCheckResult) -> str:
@@ -327,6 +350,10 @@ class SupportBrain(GeminiBrain):
                 note=result.note,
             )
         )
+        if passed:
+            landed("The photo checks out.", "That photo looks good.")
+        else:
+            landed("Please retake the photo, with the product and its original box.")
         return str({"status": "recorded", "passed": passed})
 
     async def fill_return_form(self, action: FillReturnForm) -> str:
@@ -338,6 +365,10 @@ class SupportBrain(GeminiBrain):
             "support: fill_return_form reason={!r} refund={!r}", action.reason, action.refund_method
         )
         self.session.dispatch(action)
+        landed(
+            "The form is filled in. Please review it and tap Confirm and submit return.",
+            "It's all filled in. Have a look, then tap Confirm and submit return.",
+        )
         return str({"status": "form_filled"})
 
     # ─── Callbacks ──────────────────────────────────────────────────────
@@ -355,6 +386,13 @@ class SupportBrain(GeminiBrain):
         """The opener is fixed — no model call, no first-token wait — so the
         shopper hears the assistant the instant the session connects."""
         return _GREETING
+
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The inherited turn, and — when it acted on screen and said nothing —
+        the line of the last call that landed, so the shopper is never left in
+        silence while the screen moves. No second model request."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            yield event
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """The shopper spoke. Whatever they last did on screen is answered by the

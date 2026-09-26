@@ -20,7 +20,7 @@ from typing import Any
 
 from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -213,3 +213,33 @@ async def test_diligence_speaks_first_and_its_result_waits_a_turn() -> None:
         await rig.driver.user_says("Which one is worse?")
 
     assert "run_diligence" in _function_responses(llm.captured_contents[-1])
+
+
+async def test_a_clause_brought_up_in_silence_is_still_said() -> None:
+    """The prompt has the model speak with every call; this is the turn where it
+    did not. The brain names the clause it brought up — one request, no second
+    ask — and the line never reaches the model's context."""
+    llm = ScriptedGemini(
+        {
+            "Take me to the limitation of liability clause.": call(
+                "point_to_clause", target={"clause_id": "c8"}
+            ),
+            "Thanks.": reply("Of course."),
+        }
+    )
+    async with demo("legal", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Take me to the limitation of liability clause.")
+        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == ["Here's Section 8, Limitation of Liability."]
+        assert rig.actions() == ["point_to_clause"]
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Thanks.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert "Here's Section 8" not in spoken, "the brain's line reached the context"

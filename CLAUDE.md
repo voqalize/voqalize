@@ -263,6 +263,10 @@ detail; what binds a demo:
 - **The prompt owns the first line.** A response that calls a tool and says
   nothing is silence until the user speaks — and, ten seconds in, Voqalize's own
   "taking longer" line. The `turn:` log line's `speechless=yes` counts them.
+  The prompt alone does not hold, so every demo has a floor under it:
+  `landed(...)` beside each dispatch, and `FallbackLine` speaks one of those
+  written lines when the turn said nothing (`voqalize_demos/silent_turn.py`).
+  Never a second model request for it — the owner rejected that on 2026-09-26.
 
 ## Every demo has an e2e, and one of them is a sweep
 

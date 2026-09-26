@@ -23,7 +23,7 @@ from copy import deepcopy
 from typing import Any
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.gemini import _needs_result_now
 
@@ -31,7 +31,11 @@ from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.forge.brain import ForgeBrain  # noqa: E402
+from voqalize_demos._loaded.forge.brain import (  # noqa: E402  # pyright: ignore[reportPrivateUsage]
+    _LINES,
+    ForgeBrain,
+    RunTests,
+)
 
 VOICE = "omnivoice/gauri"
 LANGUAGE = "en"
@@ -281,3 +285,33 @@ def test_only_the_screen_read_holds_the_turn() -> None:
     brain = ForgeBrain(client=ScriptedGemini({}))  # pyright: ignore[reportArgumentType]
     held = {tool.__name__ for tool in brain.tools if _needs_result_now(tool)}
     assert held == {"read_screen"}
+
+
+async def test_a_call_alone_ends_in_one_line_of_ada_s_own() -> None:
+    """The prompt has the model lead with a short clause; this is the turn where
+    it did not. A call alone would end the turn in silence, so the brain says one
+    of the command's own lines, in the same single request, and the line never
+    reaches the context."""
+    llm = ScriptedGemini(
+        {
+            "Run the tests.": call("run_tests"),
+            "Thanks.": reply("Anytime."),
+        }
+    )
+    async with demo("forge", llm) as rig:
+        await rig.driver.start_session(init=_payload())
+        turn = await rig.driver.user_says("Run the tests.")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in _LINES[RunTests], line
+        assert rig.actions() == ["run_tests"]
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Thanks.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"the brain's line {line!r} reached the context"

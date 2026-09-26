@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncGenerator
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from google import genai
 from google.genai import types
@@ -41,14 +41,17 @@ from loguru import logger
 from pydantic import BaseModel, Field, computed_field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PHRASES,
+    FallbackLine,
     GeminiBrain,
     ScreenState,
-    acted,
     configure_soon,
+    landed,
     needs_result_now,
-    reask_if_silent,
+    phrase,
     screen_prose,
 )
+from voqalize_demos.silent_turn import Phrase
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -76,6 +79,9 @@ _LANG: dict[str, Language] = {
     "English": Language.EN,
     "Hindi": Language.HI,
 }
+# The coach's own line for a silent turn is said in the call's language, so every
+# language here needs a row in the shared phrases — held at import, not on a call.
+assert set(_LANG.values()) <= set(PHRASES), "a language in _LANG has no PHRASES row"
 
 # The opener, per language — a complete fixed sentence, not filled with the
 # patient's name: the name arrives as free English text in session.init, and
@@ -103,9 +109,12 @@ WHO YOU SERVE:
 - One logged-in patient. A PATIENT CONTEXT message gives you everything: who they are, the care plan their doctor set, their recent logs, today's glucose readings, what you discussed on earlier calls, and TODAY'S CALL OBJECTIVE. Ground every sentence in it. Never ask for information the context already gives you — reference it ("I can see you logged breakfast, but nothing after that").
 - The app nudged THEM to join. Open like a familiar coach continuing a relationship, not a stranger introducing a service.
 
-YOUR TOOLS DRIVE THEIR SCREEN. Each one carries its own description — read it there; none of it is repeated here. Three rules sit on top of them: put a thing on screen in the same response as you ask about it (the question and the chart together, so the chart lands as you ask); never narrate your own actions ("let me log that") — call the tool and let the screen speak; and in quiet mode call them in silence, or with at most the few words quiet mode allows.
+YOUR TOOLS DRIVE THEIR SCREEN. Each one carries its own description — read it there; none of it is repeated here. Three rules sit on top of them: put a thing on screen in the same response as you ask about it (the question and the chart together, so the chart lands as you ask); never narrate your own actions ("let me log that") — call the tool and let the screen speak; and keep the words that go with a call few — in quiet mode, a tiny acknowledgement and nothing more.
 
-SPEAK AND ACT IN THE SAME RESPONSE. Whatever you are going to say this turn, say it first and make your calls in that same response. Once you have called a tool that changes the screen or the language, you do not speak again until the patient does — so a line you meant to say after the call is never said. What such a call hands back, you read on your next turn. read_screen is the one exception; see STAY GROUNDED.
+EVERY RESPONSE STARTS WITH WORDS. Write what the patient will hear first — even if it is only "Got it." — then make your calls, all in that same response; the words are spoken as the screen moves. A response that is only tool calls is silence: the log fills and the patient hears nothing, because once you have called a tool that changes the screen or the language you do not speak again until the patient does. So a line you meant to say after the call is never said, and what a call hands back you read on your next turn. For example:
+  Patient: "Dinner will be two rotis and dal." You: "Got it." — and log_meal, in the same response.
+  Patient: "Show me my sugar after lunch." You: "There's your afternoon. What did you have around two?" — and show_glucose, in the same response.
+read_screen is the one call that takes no words: it is silent and comes straight back to you, so call it on its own and then answer; see STAY GROUNDED.
 
 LANGUAGE:
 - Start in the language named in the PATIENT CONTEXT (English or Hindi).
@@ -131,9 +140,9 @@ MATCH THE MOMENT — your tone follows the conversation, turn by turn:
 
 HOW MUCH YOU TALK — the PATIENT CONTEXT carries a "talk_mode". It changes how much you lead, NOT the two-or-three-short-sentence ceiling, which always holds:
 
-- talk_mode "quiet" (a familiar, routine day — the patient knows the drill): you are TAKING DICTATION, not interviewing. Open with a warm hello and a tiny "go ahead" — that's the whole greeting. Then GO QUIET and let them narrate the whole day in their own order. Log everything SILENTLY as they talk — call the tools, say NOTHING, or at most a four-word acknowledgement ("Got it." / "Nice one.") said in the same response, before the calls. DO NOT ask a question after each item; do not react to every thing they mention. Across the WHOLE call you get at most ONE real question — tomorrow's commitment — and only if it doesn't already flow from what they've told you (often it does — infer it). Nudge once ONLY if they truly stall ("...and dinner?"). The closing/summary turn is ONE short warm line. When in doubt in quiet mode, say less or nothing and let the tools do the talking.
+- talk_mode "quiet" (a familiar, routine day — the patient knows the drill): you are TAKING DICTATION, not interviewing. Open with a warm hello and a tiny "go ahead" — that's the whole greeting. Then GO QUIET and let them narrate the whole day in their own order. Log everything as they talk, with no more than a four-word acknowledgement ("Got it." / "Nice one." / "Mm-hm, go on.") said before the calls, in the same response — never a response of calls alone, which the patient hears as silence. DO NOT ask a question after each item; do not react to every thing they mention. Across the WHOLE call you get at most ONE real question — tomorrow's commitment — and only if it doesn't already flow from what they've told you (often it does — infer it). Nudge once ONLY if they truly stall ("...and dinner?"). The closing/summary turn is ONE short warm line. When in doubt in quiet mode, say less — a word or two — and let the tools do the talking.
     Patient: "Evening. Usual day — idli for breakfast, the office thali at lunch, and I got my morning walk in."
-    You: "Evening, Rajesh. Go on, I'm listening." [then SILENTLY: log breakfast, log lunch, log the walk — no spoken reply]
+    You: "Evening, Rajesh. Go on, I'm listening." [and in the same response: log breakfast, log lunch, log the walk — nothing more said]
     Patient: "Dinner will be two rotis and dal."
     You: "Got it." [log dinner, in the same response]
     Patient: "That's it for me."
@@ -160,10 +169,10 @@ SAFETY — HARD LINES YOU NEVER CROSS. You are a habit coach, NOT a doctor, nurs
 
 THE CHECK-IN — a five-minute evening ritual. Adapt to TODAY'S CALL OBJECTIVE in the context, but the natural arc is:
 1. Warm open, grounded in their day ("how did the evening walk go?" / "saw you logged breakfast — how was the rest of the day?").
-2. Food: fill the day's gaps, logging as they talk. In quiet mode let them list the whole day and log each one silently; in guided mode take it one meal at a time.
+2. Food: fill the day's gaps, logging as they talk. In quiet mode let them list the whole day and log it as they go, a word at most; in guided mode take it one meal at a time.
 3. Activity: what moved today. If nothing did, one gentle nudge — a fifteen-minute walk now, or a video from the library the PATIENT CONTEXT lists. If they take the video, let it run.
 4. Medications: confirm today's doses from the plan, mark each.
-5. Glucose: if the context lists a notable event today, show the chart. In GUIDED mode, ask the one curious, observational question in the same response. In QUIET mode, show it SILENTLY and ask nothing — the patient already narrated the food; do not spend your one question here.
+5. Glucose: if the context lists a notable event today, show the chart. In GUIDED mode, ask the one curious, observational question in the same response. In QUIET mode, show it with a few words ("there's your day") and ask nothing — the patient already narrated the food; do not spend your one question here.
 6. Commitment: close with ONE small, specific commitment for tomorrow — their words, not yours, whenever possible.
 7. Wrap: say a short, warm goodbye and show the summary in the same response. Mention tomorrow's call.
 
@@ -327,6 +336,27 @@ Narrower than ``Action`` on purpose: :meth:`SugarBrain._mirror` matches on this,
 so a command added and not mirrored is a type error rather than a
 picture that has quietly stopped agreeing with the screen."""
 
+#: What the coach says for a command that landed, when the model's turn said
+#: nothing — see :mod:`voqalize_demos.silent_turn`. A phrase, not a line: it is
+#: said in the language the call is in when the command lands.
+_PHRASE: dict[type[ScreenMove], Phrase] = {
+    LogMeal: "done",
+    LogActivity: "done",
+    MarkMedication: "done",
+    ShowGlucose: "shown",
+    PlayVideo: "shown",
+    PauseVideo: "done",
+    ResumeVideo: "done",
+    SetCommitment: "done",
+    FlagForCareTeam: "done",
+    ShowSensorRenewal: "shown",
+    ConfirmSensorOrder: "done",
+    ShowSummary: "thanks",
+    Highlight: "shown",
+}
+# A command with no phrase would raise mid-call, so the two are held to each other here.
+assert set(_PHRASE) == set(get_args(ScreenMove.__value__)), "_PHRASE and ScreenMove disagree"
+
 
 def _meal_line(meal: LogMeal) -> dict[str, Any]:
     """A logged meal as the food log shows it — the items, not their calories."""
@@ -384,6 +414,7 @@ class SugarBrain(GeminiBrain):
         #: The brain's own picture of the phone — seeded from ``session.init``,
         #: patched by :meth:`_mirror` and :meth:`apply_event`.
         self.mirror = _blank_screen()
+        self._fallback = FallbackLine()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -405,7 +436,7 @@ class SugarBrain(GeminiBrain):
         # paper and foreign-accented in the ear.
         self.language_name = language if language in _LANG else "English"
         # How much the coach leads vs. listens. "quiet" = the patient narrates
-        # and we log silently; "guided" = we walk them through beat by beat.
+        # and we log with a word at most; "guided" = we walk them through beat by beat.
         # Either way the two-or-three-sentence ceiling holds. Default quiet.
         mode = str(scenario.get("talk_mode", "")).strip().lower()
         self.talk_mode = mode if mode in ("quiet", "guided") else "quiet"
@@ -448,12 +479,12 @@ class SugarBrain(GeminiBrain):
         return _GREETING[self.language_name]
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, asked once more if it acted on screen and said nothing.
+        """The model's turn, and a line of the coach's own if it acted and said nothing.
 
         The prompt has the model speak and call in the same response, and on a
-        dialled call it sometimes called alone, leaving the user in silence with
+        dialled call it sometimes called alone, leaving the patient in silence with
         the screen changed. See :mod:`voqalize_demos.silent_turn`."""
-        async for event in reask_if_silent(super().respond, session):
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
@@ -494,7 +525,7 @@ class SugarBrain(GeminiBrain):
         patient, never this brain's own command echoing home."""
         self._mirror(action)
         self.session.dispatch(action)
-        acted(type(action).__name__)
+        landed(*phrase(_LANG[self.language_name], _PHRASE[type(action)]))
 
     def _mirror(self, action: ScreenMove) -> None:
         """Move the mirror the way this dispatch is about to move the phone."""
@@ -599,7 +630,7 @@ class SugarBrain(GeminiBrain):
     async def log_meal(self, meal: LogMeal) -> str:
         """Log a meal the patient just described — it appears in their food log with
         your calorie estimates. Call it the moment they finish describing it, in the
-        same response as anything you say; call again with corrected items if they
+        same response as your words and after them; call again with corrected items if they
         amend. Item names in English."""
         self._show(meal)
         return f"ok, {meal.total_calories} calories"

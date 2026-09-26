@@ -72,15 +72,23 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, hello_for, needs_result_now
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    FallbackLine,
+    GeminiBrain,
+    hello_for,
+    landed,
+    needs_result_now,
+)
 
-from voqalize.sdk import Action, RTVIMessage, Session
+from voqalize.sdk import Action, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .desk_events import (
@@ -107,17 +115,24 @@ WHO YOU ARE TALKING TO:
 - One pharmacy owner. A PHARMACY CONTEXT block gives you everything: the store, the owner, what you discussed on earlier calls, their order history, their usual items, and TODAY'S CALL OBJECTIVE. Ground every sentence in it. Never ask for something the context already tells you.
 - They are a trade customer in a hurry behind a counter, not a consumer. Brisk, familiar, respectful. No small talk beyond one line.
 
+EVERY REPLY STARTS WITH WORDS — THEN THE CALL, IN THE SAME REPLY:
+- Every reply that calls a tool starts with a tiny spoken line ("ठीक है", "लिख लिया", "हटा दिया") and makes the call in that same reply. Never a tool call on its own.
+- A call with no words leaves him in silence behind his counter while rows move on his screen — he cannot tell whether you heard him, and he says it all again.
+- add_items, refine_item, change_variant and read_screen hand you their answer straight away, and you speak again right after them: say the tiny line, call, then say what the answer means — "दोनों लग गए", or the one short question it asks for.
+- Every other tool just does what you asked, and you do not hear back until he speaks again. So say the whole line with the call — "बारह कर दिया", "हटा दिया", "लग गया" — and never promise to report back on it.
+  Him: "टेल्मा फोर्टी तीस स्ट्रिप"
+  You: "लिख लिया।" — and add_items, in the same reply; then, with its answer, "लग गया।"
+  Him: "तीस नहीं, बारह कर दो"
+  You: "बारह कर दिया।" — and set_quantity, in the same reply.
+  Him: "वोलिनी हटा दो"
+  You: "हटा दिया।" — and remove_items, in the same reply.
+
 LANGUAGE — SPEECH:
 - Speak Hindi, always in Devanagari script. English trade words are written in Devanagari too — never the Latin alphabet: "स्ट्रिप", "पैक", "स्क्रीन", "ऑर्डर", "कन्फर्म", "स्कीम", "स्टॉक".
 - Example: "टेल्मा फोर्टी की तीस स्ट्रिप लगा दी। आगे बोलिए।" (टेल्मा, स्ट्रिप are English words in Devanagari.)
 - Numbers and quantities in Hindi words, never digits: "तीस", "पचास", "एक सौ बीस". Prices likewise, and say "रुपये", never a symbol.
 - Short sentences, under ten words. Never more than two short sentences in one turn. Start every reply with a tiny phrase so audio begins instantly.
-- No markdown, no lists, no stage directions. Never narrate your own actions ("अब मैं जोड़ रही हूँ") — call the tool and say only what the pharmacist should hear.
-
-SPEAK FIRST, THEN CALL — IN THE SAME REPLY:
-- Every reply that calls a tool starts with a tiny spoken line ("ठीक है", "लिख लिया", "हटा दिया") and makes the call in that same reply. Never call a tool in silence.
-- add_items, refine_item, change_variant and read_screen hand you their answer straight away, and you speak again right after them: say the tiny line, call, then say what the answer means — "दोनों लग गए", or the one short question it asks for.
-- Every other tool just does what you asked, and you do not hear back until he speaks again. So say the whole line with the call — "बारह कर दिया", "हटा दिया", "लग गया" — and never promise to report back on it.
+- No markdown, no lists, no stage directions. Never narrate your own actions ("अब मैं जोड़ रही हूँ") — say only what the pharmacist should hear, and make the call with it.
 
 LANGUAGE — TOOL ARGUMENTS ARE ENGLISH, ALWAYS:
 - The screen is English and the catalog is English. EVERY string you pass to a tool — item text, query, note — is in clean English letters. Transliterate what you heard: "वोलिनी" → "volini", "चार क्विन" → "4 quin", "थायरोनॉर्म" → "thyronorm", "पैन फोर्टी" → "pan 40", "अबीवेज़" → "abiways".
@@ -521,6 +536,31 @@ class OrderNote(Action):
     text: str
 
 
+#: What the pharmacist hears for a row the model moved and said nothing about — the
+#: floor under the prompt's first rule (:mod:`voqalize_demos.silent_turn`). Keyed by
+#: the action, since every tool routes through ``OrderDesk._dispatch`` and the last
+#: action of a call is what his screen now shows. No medicine names: the TTS cannot
+#: say them, and the screen already does. ``RowOpened`` is always followed by the
+#: row's outcome; its line is said only if the outcome never came.
+_LINES: dict[type[Action], tuple[str, ...]] = {
+    RowOpened: ("लिख लिया।", "ठीक है, लिख लिया।"),
+    RowMatched: ("लग गया।", "ठीक है, लग गया।"),
+    RowFamilies: ("स्क्रीन पर ऑप्शन देखिए।", "कौन सा? स्क्रीन पर देखिए।"),
+    RowVariants: ("स्क्रीन पर ऑप्शन देखिए।", "कौन सा? स्क्रीन पर देखिए।"),
+    RowQuestion: ("स्क्रीन पर ऑप्शन देखिए।", "कौन सा? स्क्रीन पर देखिए।"),
+    RowNotFound: ("ये नहीं मिला — स्क्रीन पर सर्च कर के देखिए।",),
+    RowQuantity: ("ठीक है, कर दिया।", "कर दिया।"),
+    RemoveItems: ("हटा दिया।", "ठीक है, हटा दिया।"),
+    HighlightItem: ("स्क्रीन पर देखिए।", "ये वाला, स्क्रीन पर।"),
+    OrderNote: ("इस पर स्कीम चल रही है।",),
+}
+# Every action this desk defines has a line or is answered outside a turn: the
+# search bar and the variant strip are his own taps, never the model's.
+assert set(_LINES) | {ShowSearchResults, ShowVariants} == {
+    action for action in Action.__subclasses__() if action.__module__ == __name__
+}
+
+
 # ─── Catalog → wire ───────────────────────────────────────────────────────────
 
 
@@ -621,7 +661,7 @@ def _describes(sku: SkuWire, terms: list[str]) -> bool:
 
 
 class OrderDesk:
-    """This session's cart and the ten tools that read and drive it.
+    """This session's cart and the tools that read and drive it.
 
     The tools are ordinary ``async`` methods — the declaration drops the bound
     ``self`` when it builds their schemas, so session state on the instance costs
@@ -1104,6 +1144,7 @@ class OrderDesk:
             "OrderDesk.session is unset — a tool ran before on_session_start"
         )
         self.session.dispatch(action)
+        landed(*_LINES[type(action)])
 
     def _place(self, row: LineItemView) -> None:
         """Take a new row into the mirror and put it on screen, greyed, before the
@@ -1831,11 +1872,21 @@ class OrderDeskBrain(GeminiBrain):
         self.scenario: dict[str, Any] = {}
         self.pharmacy: dict[str, Any] = {}
         self.nudge = ""
+        self._fallback = FallbackLine()
 
     @property
     def tools(self) -> list[Any]:
         """The bound methods the model may call — the desk's, not this brain's own."""
         return self.desk.tools
+
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, and a line of the desk's own if it acted and said nothing.
+
+        The prompt has the model speak and call in the same reply, and on a dialled
+        call it sometimes called alone, leaving the pharmacist in silence with his
+        rows moving. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            yield event
 
     # ─── session start: voice, the pharmacy, then the opener ───────────────
 

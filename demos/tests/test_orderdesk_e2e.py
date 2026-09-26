@@ -19,7 +19,7 @@ Run: ``cd demos && uv run pytest tests/test_orderdesk_e2e.py``
 from __future__ import annotations
 
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.gemini import _needs_result_now
 
@@ -30,7 +30,9 @@ discover()
 from voqalize_demos._loaded.orderdesk.brain import (  # noqa: E402
     _FALLBACK_OPENER,
     _HELLO,
+    _LINES,
     OrderDesk,
+    RemoveItems,
 )
 
 VOICE = "omnivoice/gauri"
@@ -289,3 +291,41 @@ def test_only_the_tools_whose_answer_he_hears_now_hold_the_turn() -> None:
     desk = OrderDesk()
     held = {tool.__name__ for tool in desk.tools if _needs_result_now(tool)}
     assert held == {"read_screen", "add_items", "refine_item", "change_variant"}
+
+
+async def test_a_removal_made_in_silence_gets_the_desks_own_line() -> None:
+    """The model called ``remove_items`` alone. The row goes, and what the
+    pharmacist hears is the desk's own Hindi line for a removal — with no second
+    request, and the line never reaches the context."""
+    llm = ScriptedGemini(
+        {
+            "Telma 40 ki do strip de do.": [
+                reply_and_call(
+                    "Theek hai.", "add_items", items=[{"text": "telma 40", "quantity": 2}]
+                ),
+                reply("Lag gaya."),
+            ],
+            "Telma nahi chahiye.": call("remove_items", item_ids=["li1"]),
+            "Screen par kya hai?": reply("Khaali hai."),
+        }
+    )
+    async with demo("orderdesk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Telma 40 ki do strip de do.")
+
+        before = len(llm.captured_contents)
+        turn = await rig.driver.user_says("Telma nahi chahiye.")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in _LINES[RemoveItems], line
+        assert rig.command("remove_items")["ids"] == ["li1"]
+        assert len(llm.captured_contents) - before == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Screen par kya hai?")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"the brain's line {line!r} reached the context"

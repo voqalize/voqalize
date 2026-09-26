@@ -31,14 +31,24 @@ moves both legs again mid-call in one request, sent without waiting. ``end_call`
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, configure_soon, needs_result_now
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    PHRASES,
+    FallbackLine,
+    GeminiBrain,
+    configure_soon,
+    landed,
+    needs_result_now,
+    phrase,
+)
 
-from voqalize.sdk import Action, Session
+from voqalize.sdk import Action, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 # ─── Language tables ───────────────────────────────────────────────────────────
@@ -60,6 +70,9 @@ _LANG_BY_NAME: dict[str, Language] = {
 LanguageName = Literal[
     "Hindi", "Telugu", "Tamil", "Kannada", "Malayalam", "Marathi", "Gujarati", "Bengali"
 ]
+
+# Every language Priya speaks has the lines a silent goodbye falls back to.
+assert set(_LANG_BY_NAME.values()) <= set(PHRASES)
 
 # Enquiry-form state → the language its users are answered in.
 _STATE_LANG: dict[str, LanguageName] = {
@@ -148,7 +161,13 @@ LANGUAGE:
 - Simple words, short sentences. One question per turn, at most 3 sentences.
 - If the user requests another language, say one short line in the language the call is in NOW and call switch_language in that same response — the line is spoken before the voice changes. From their next turn on, speak the new language in its native script.
 
-SPEAK AND CALL IN THE SAME RESPONSE. Whenever you call a tool, say your short line first and make the call in that same response. After switch_language or end_call you do not speak again until the customer does, so a call made in silence leaves them in silence.
+EVERY RESPONSE STARTS WITH WORDS. Whenever you call a tool, say your short line first and make the call in that same response — never a tool call on its own. A call with no words leaves the customer on a silent line: after switch_language you do not speak again until they do, and after end_call the call is over, so a goodbye you did not say is never heard.
+  Customer: "हाँ, ज्वेलरी है, बीस ग्राम। एक लाख चाहिए।"
+  You: "ठीक है, मैं आपकी एलिजिबिलिटी चेक करती हूँ।" — and check_eligibility, in the same response.
+  Customer: "नहीं, अभी ज़रूरत नहीं है।"
+  You: "कोई बात नहीं। समय देने के लिए धन्यवाद, नमस्ते।" — and end_call, in the same response.
+  Customer: "Can we talk in Tamil?"
+  You: "ज़रूर, अब तमिल में बात करते हैं।" — and switch_language, in the same response.
 
 SPEECH-TO-TEXT: The transcription can mishear words and numbers. Be accommodating — if something seems unclear or inconsistent, gently confirm instead of assuming. Never correct the customer's wording; infer their intent charitably.
 
@@ -322,6 +341,7 @@ class LeadQualBrain(GeminiBrain):
         self.payload: dict[str, Any] = {}
         self.language_name: LanguageName = _DEFAULT_LANGUAGE
         self.ended = False
+        self._fallback = FallbackLine()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -348,6 +368,15 @@ class LeadQualBrain(GeminiBrain):
         arrives as free English text, and English read into a native-script line
         mispronounces."""
         return _GREETING[self.language_name]
+
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, and a line of Priya's own if it acted and said nothing.
+
+        The prompt has the model speak and call in the same response, and on a
+        dialled call it sometimes called alone — here that is ``end_call`` with no
+        goodbye, the call closed in silence. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            yield event
 
     # ─── Tools ──────────────────────────────────────────────────────────
 
@@ -419,4 +448,5 @@ class LeadQualBrain(GeminiBrain):
             else None
         )
         self.session.dispatch(CallEnded(outcome=record.outcome, lead=lead, branch=branch))
+        landed(*phrase(_LANG_BY_NAME[self.language_name], "thanks"))
         return str({"status": record.outcome})

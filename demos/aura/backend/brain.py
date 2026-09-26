@@ -69,7 +69,7 @@ import secrets
 import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from google import genai
 from google.genai import types
@@ -77,13 +77,16 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PHRASES,
+    FallbackLine,
     GeminiBrain,
     ScreenState,
-    acted,
+    landed,
     needs_result_now,
-    reask_if_silent,
+    phrase,
     screen_prose,
 )
+from voqalize_demos.silent_turn import Phrase
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
@@ -783,6 +786,11 @@ def _system_instruction(
 ) -> str:
     return f"""You are {name}, the Aura Bank support assistant — a friendly L1 (first-level) voice agent on the Aura Bank website. Customers ask you common "how do I…" banking questions and YOU DRIVE THEIR SCREEN: you open the right help article and play Aura's own how-to video while you explain.
 
+EVERY RESPONSE STARTS WITH WORDS. Write your short spoken line first, then issue EVERY screen call that answer needs, all in that same response — the line and the calls go out together, so audio starts at once and the screen moves under it. A response that is only tool calls is silence: the screen changes and the customer hears nothing, because a screen call's result reaches you only with the customer's next message, so you get no second word after it. The line you say with the calls is your whole answer: never a promise of more ("let me check…"), never a second line for the same question, and never a narration of what you are about to do ("now let me highlight the steps") — the customer is watching it happen. For example, in the language of the call:
+  Customer: "How do I add a payee?" You: "Sure — here's how." — and open_article and play_help_video, in the same response.
+  Customer: "Hold on, pause it." You: "Paused." — and pause_video, in the same response.
+The one exception is the reads that hand you something to answer from — get_screen_context, run_calculator, get_account_balance, get_statement and raise_ticket. They come straight back to you in the same turn, so call them first and answer from what they give you in one short line.
+
 LANGUAGE & VOICE OUTPUT:
 {_language_rules(language)}{_gender_rule(language, gender)}
 - YOUR SPOKEN TEXT IS READ ALOUD BY A BASIC TTS that mangles digits, symbols and abbreviations. So NORMALIZE everything you say into spoken WORDS:
@@ -812,8 +820,6 @@ YOU CONTROL THE SCREEN — SHOW, don't tell. When there's a screen for it, the s
 - If that topic has a video, call play_help_video(video_id, start_sec) too — jump to the chapter that answers their exact question (skip the intro). The video plays MUTED and the on-screen step list carries every step.
 - Do NOT read the steps aloud. The video and step list show them — and the step list highlights itself from the video's position while it plays, so do NOT call highlight_step during playback; it is for a paused clip or a topic with no clip, at most once. Never recite the menu path or enumerate the steps in speech — that duplicates the screen.
 - Use seek_video(start_sec) to jump to another part, pause_video()/resume_video() if they ask you to wait, and show_contact(topic) when something is genuinely account-specific or they're stuck — it shows the helpline numbers.
-
-ONE SPOKEN LINE PER QUESTION, AND IT COMES FIRST. Speak your short line and issue EVERY screen call that answer needs in the SAME step — the line and the calls go out together, so audio starts immediately and the screen moves under it. A screen call's result reaches you only with the customer's next message, so you get no second word after it: never make a screen call without its line, and never say a line around one that promises more to come ("let me check…"). The only tools that come straight back to you in the same turn are the reads that hand you something to answer from — get_screen_context, run_calculator, get_account_balance, get_statement and raise_ticket; answer from what they give you in one short line, and nothing more. Otherwise NEVER speak twice for one question, and NEVER narrate what you are about to do next ("now let me highlight the steps", "the steps are lighting up") — the customer is watching that happen.
 
 WORKFLOW for a typical question (e.g. "where do I download my interest certificate for tax filing?") — this is ONE step, not five:
 1. Say one short line ("Sure — here's how"), AND in the same step call open_article("interest-certificate") and play_help_video("M_Oxpto2PRo", 15) together.
@@ -1237,6 +1243,44 @@ type ScreenMove = (
     | ShowCardControls
 )
 
+#: What Aria says for a command that landed, when the model's turn said nothing —
+#: see :mod:`voqalize_demos.silent_turn`. A phrase, not a line, because the line is
+#: said in the call's language: something put on screen is ``shown``, a change
+#: made for the customer is ``done``.
+_PHRASE: dict[type[ScreenMove], Phrase] = {
+    OpenHome: "shown",
+    OpenHelpCenter: "shown",
+    OpenCategory: "shown",
+    OpenArticle: "shown",
+    PlayHelpVideo: "shown",
+    HighlightStep: "shown",
+    SeekVideo: "done",
+    PauseVideo: "done",
+    ResumeVideo: "done",
+    ShowContact: "shown",
+    RunCalculator: "shown",
+    StartApplication: "shown",
+    PrefillField: "done",
+    SubmitApplication: "done",
+    Compare: "shown",
+    FindBranch: "shown",
+    ShowChecklist: "shown",
+    SendToPhone: "done",
+    RaiseTicket: "done",
+    Spotlight: "shown",
+    ShowForexCard: "shown",
+    OpenAuth: "shown",
+    ChooseAccount: "shown",
+    ShowBalance: "shown",
+    ShowStatement: "shown",
+    ChooseCreditCard: "shown",
+    ShowCardControls: "shown",
+}
+# A command with no phrase, or a language with no lines, would raise mid-call, so
+# each is held to the table it indexes here.
+assert set(_PHRASE) == set(get_args(ScreenMove.__value__)), "_PHRASE and ScreenMove disagree"
+assert set(_LANG_BY_NAME.values()) <= set(PHRASES), "a language Aria speaks has no PHRASES row"
+
 
 async def _silence() -> AsyncGenerator[Any, None]:
     """Yields nothing: an idle tick the assistant has no reason to answer."""
@@ -1285,6 +1329,7 @@ class AuraBrain(GeminiBrain):
         # the model's context. ``screen`` is only the staleness clock over it.
         self.screen = ScreenState(read_tool="get_screen_context")
         self.view: dict[str, Any] = _blank_screen()
+        self._fallback = FallbackLine()
 
         # Authenticated-account demo state. ``_open_dialogs`` maps the nonce of
         # each dialog now on screen to what it asks for, so a card answer cannot
@@ -1378,12 +1423,12 @@ class AuraBrain(GeminiBrain):
         return _GREETINGS[self.persona][self.language]
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, asked once more if it acted on screen and said nothing.
+        """The model's turn, and a line of Aria's own if it acted and said nothing.
 
         The prompt has the model speak and call in the same response, and on a
-        dialled call it sometimes called alone, leaving the user in silence with
-        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
-        async for event in reask_if_silent(super().respond, session):
+        dialled call it sometimes called alone, leaving the customer in silence
+        with the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
@@ -1551,7 +1596,7 @@ class AuraBrain(GeminiBrain):
         browser never echoes this back: a brain's own dispatch is not an event."""
         self._mirror(action)
         self.session.dispatch(action)
-        acted(type(action).__name__)
+        landed(*phrase(_LANG_BY_NAME[self.language], _PHRASE[type(action)]))
 
     def _mirror(self, action: ScreenMove) -> None:
         """Apply one of Aria's own commands to her picture of the page.
@@ -1742,7 +1787,8 @@ class AuraBrain(GeminiBrain):
 
     async def highlight_step(self, index: int) -> str:
         """Focus one step on screen when no video is carrying it — a paused clip,
-        or a topic with no clip. Silently, and at most once.
+        or a topic with no clip. At most once, with a few words that point at it
+        ("this one here") in the same response — not a reading of the step.
 
         While a clip is playing the page highlights the step at the playback
         position by itself (``frontend/src/store.tsx``), so calling this during
@@ -1775,7 +1821,8 @@ class AuraBrain(GeminiBrain):
         return f"seeked to {start_sec}s"
 
     async def pause_video(self) -> str:
-        """Hold the clip where it is — they asked you to wait, or to talk."""
+        """Hold the clip where it is — they asked you to wait, or to talk. Say a
+        word or two ("Paused.") in the same response."""
         stale = self.screen.stale()
         if stale:
             return stale

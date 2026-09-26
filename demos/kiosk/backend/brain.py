@@ -56,14 +56,17 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PHRASES,
+    FallbackLine,
     GeminiBrain,
     ScreenState,
-    acted,
     configure_soon,
+    landed,
     needs_result_now,
-    reask_if_silent,
+    phrase,
     screen_prose,
 )
+from voqalize_demos.silent_turn import Phrase
 
 from voqalize.sdk import (
     Action,
@@ -365,6 +368,29 @@ ScreenMove = (
     | ShowQr
 )
 
+#: What Tanvi says for a screen that landed, when the model's turn said nothing —
+#: see :mod:`voqalize_demos.silent_turn`. A phrase, not a line, because the line is
+#: said in the language her voice is speaking. A move that puts a question to the
+#: customer hands them the turn (``over_to_you``); the rest put something up to
+#: look at (``shown``). Neither names the screen, which she never narrates.
+_PHRASE: dict[type[ScreenMove], Phrase] = {
+    StartedOver: "over_to_you",
+    AskProfile: "over_to_you",
+    AskValue: "over_to_you",
+    ConfirmValue: "over_to_you",
+    ShowEligibility: "shown",
+    ShowShortlist: "shown",
+    OpenCardDetail: "shown",
+    OpenConsent: "over_to_you",
+    ShowQr: "shown",
+}
+# A screen with no phrase, or a voice language with no lines, would raise
+# mid-call, so each is held to the table it indexes here.
+assert set(_PHRASE) == set(get_args(ScreenMove)), "_PHRASE and ScreenMove disagree"
+assert {s.spoken for s in _SPEECH.values()} <= set(PHRASES), (
+    "a language Tanvi speaks has no PHRASES row"
+)
+
 
 # ─── Screen → brain: what the customer did with their hand ────────────────────
 # The gestures, in the order a customer meets them. Every one of them is a
@@ -599,6 +625,7 @@ class KioskBrain(GeminiBrain):
         super().__init__(client=client, system_instruction=SYSTEM_INSTRUCTION, model=model)
 
         self.language: LanguageName = "English"
+        self._fallback = FallbackLine()
         #: The recognizer's patience right now; see ``_pace_for_the_screen``.
         self._patience = _PATIENCE_QUICK
         #: Patience changes in flight, held so none is collected before it lands.
@@ -664,12 +691,12 @@ class KioskBrain(GeminiBrain):
         return GREETING[self.language]
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, asked once more if it acted on screen and said nothing.
+        """The model's turn, and a line of Tanvi's own if it acted and said nothing.
 
         The prompt has the model speak and call in the same response, and on a
-        dialled call it sometimes called alone, leaving the user in silence with
-        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
-        async for event in reask_if_silent(super().respond, session):
+        dialled call it sometimes called alone, leaving the customer in silence
+        with the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
@@ -1038,7 +1065,7 @@ class KioskBrain(GeminiBrain):
         """
         self._mirror(action)
         self.session.dispatch(action)
-        acted(type(action).__name__)
+        landed(*phrase(_SPEECH[self.language].spoken, _PHRASE[type(action)]))
         self._pace_for_the_screen()
 
     def _pace_for_the_screen(self) -> None:

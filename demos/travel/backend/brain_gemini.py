@@ -41,14 +41,11 @@ push: everything after it is a patch.
 
 from __future__ import annotations
 
-import contextlib
 import datetime
 import json
-import random
 import re
 import unicodedata
 from collections.abc import AsyncGenerator
-from contextvars import ContextVar
 from typing import Any, Literal, cast
 
 from google import genai
@@ -57,14 +54,15 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    FallbackLine,
     GeminiBrain,
     ScreenState,
+    landed,
     needs_result_now,
     screen_prose,
 )
 
-from voqalize.sdk import Action, RTVIMessage, Session, Speech, SpeechChunk, SpeechEnd, SpeechStart
-from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
+from voqalize.sdk import Action, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import (
@@ -87,7 +85,7 @@ LANGUAGE: Always speak English. Short, efficient sentences — one question or c
 
 YOU CONTROL THE SCREEN. Whenever you discuss a trip, flight, hotel, day or change, call the matching tool so the agent SEES it.
 
-SPEAK FIRST, THEN CALL, IN THE SAME REPLY. Say one short line, then make the call: "Putting up flights for the outbound leg — anything catch your eye?" and search_flights; "Adding that leg." and set_leg. The line is heard as the screen changes. You see what a tool answered only when the agent next speaks, so say everything before the call — what you are putting up, and the one question you need answered — and never promise to report back on it. Several calls in one reply get one line between them, not a line each: no running commentary. Never make a call with nothing said, or the agent hears silence.
+EVERY REPLY STARTS WITH WORDS: SPEAK FIRST, THEN CALL, IN THE SAME REPLY. Say one short line, then make the call: "Putting up flights for the outbound leg — anything catch your eye?" and search_flights; "Adding that leg." and set_leg. The line is heard as the screen changes. You see what a tool answered only when the agent next speaks, so say everything before the call — what you are putting up, and the one question you need answered — and never promise to report back on it. Several calls in one reply get one line between them, not a line each: no running commentary. A reply that is only calls is silence: the screen changes and the agent hears nothing until they speak again. read_screen is the one call that takes no line — it answers you in the same reply, so speak from what it says.
 
 SPEAK THE POINTER, NOT THE PAYLOAD. The screen shows the detail; your voice points at it. Never read out a list of options, fares, times, prices, flight numbers or hotel amenities — the cards are on screen. Say what you are putting up and ask for a pick: "Here are flights for the outbound leg — anything catch your eye?" Mention at most one standout ("the IndiGo one is non-stop") when it helps them choose.
 
@@ -699,13 +697,6 @@ _ACTION_LINES: dict[type[Action], str] = {
 }
 
 
-#: The pool of each dispatch that landed in the turn under way, in order — what
-#: :meth:`TravelBrain.respond` speaks from if the model said nothing. Per turn,
-#: not per brain: each turn runs in its own task, and turns overlap when the
-#: agent speaks again before the last response has finished streaming, so a
-#: record on the brain would hand one turn's dispatch to the other.
-_LANDED: ContextVar[list[str] | None] = ContextVar("travel_landed", default=None)
-
 # ─── The brain ───────────────────────────────────────────────────────────────
 
 
@@ -736,7 +727,7 @@ class TravelBrain(GeminiBrain):
         #: the browser what it is looking at.
         self._flights: dict[str, dict[str, FlightOption]] = {}
         self._hotels: dict[str, dict[str, HotelOption]] = {}
-        self._last_line = ""
+        self._fallback = FallbackLine()
 
     @property
     def drafts(self) -> list[dict[str, str]] | None:
@@ -790,37 +781,10 @@ class TravelBrain(GeminiBrain):
         nothing.
 
         The line is never in the model's context — it is the desk's, not the
-        model's — but it is a unit Voqalize will finalize, so it joins the
-        finalize queue after the model's own, where the heard truth that comes
-        back for it is taken and let go.
+        model's. See :mod:`voqalize_demos.silent_turn`.
         """
-        landed: list[str] = []
-        token = _LANDED.set(landed)
-        turn = super().respond(session)
-        spoken = False
-        try:
-            async for event in turn:
-                spoken = spoken or isinstance(event, SpeechStart)
-                yield event
-            if spoken or not landed:
-                return
-            line = self._line(landed[-1])
-            yield SpeechStart()
-            self._awaiting.append(_Unit(types.Content(role="model", parts=[])))
-            yield SpeechChunk(line)
-            yield SpeechEnd()
-        finally:
-            await turn.aclose()
-            # Closed from another context, the token cannot be reset — and there
-            # is nothing to reset: the value went with the task that set it.
-            with contextlib.suppress(ValueError):
-                _LANDED.reset(token)
-
-    def _line(self, pool: str) -> str:
-        """A line from ``pool``, never the one said last."""
-        choices = [line for line in _LINES[pool] if line != self._last_line] or list(_LINES[pool])
-        self._last_line = random.choice(choices)
-        return self._last_line
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            yield event
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain message: one thing the travel agent just did on screen.
@@ -921,8 +885,7 @@ class TravelBrain(GeminiBrain):
         the agent, never this brain's own command echoing home."""
         self._mirror(action)
         self.session.dispatch(action)
-        if (landed := _LANDED.get()) is not None:
-            landed.append(_ACTION_LINES[type(action)])
+        landed(*_LINES[_ACTION_LINES[type(action)]])
 
     def _mirror(self, action: ScreenMove) -> None:
         """Move the mirror the way this dispatch is about to move the screen."""

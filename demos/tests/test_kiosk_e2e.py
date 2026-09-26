@@ -41,10 +41,12 @@ import re
 import time
 from typing import Any, NamedTuple
 
+from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.gemini import _needs_result_now
+from voqalize.sdk.wire import Language
 
 from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, check_voice_pair, demo
 
@@ -642,6 +644,41 @@ async def test_switching_to_hindi_moves_both_legs_together() -> None:
         check_turn(rig, turn)
         check_voice_pair(rig, voice=VOICE, language="hi")
         assert rig.brain.language == "Hindi"
+
+
+async def test_a_silent_call_ends_in_a_line_of_tanvis_own_in_the_call_language() -> None:
+    """The prompt has the model speak with every call; this is the turn where it
+    did not. The brain says one written line, in the language the voice is now
+    speaking, in the same single request — and the line never reaches the
+    context, which holds only the model's own words."""
+    llm = ScriptedGemini(
+        {
+            "क्या हम हिंदी में बात कर सकते हैं?": reply_and_call(
+                "Sure, let's talk in Hindi.", "switch_language", to={"language": "Hindi"}
+            ),
+            "फिर से शुरू करो।": call("start_over"),
+            "धन्यवाद।": reply("ठीक है।"),
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("क्या हम हिंदी में बात कर सकते हैं?")
+        before = len(llm.captured_contents)
+
+        turn = await rig.driver.user_says("फिर से शुरू करो।")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in PHRASES[Language.HI]["over_to_you"], line
+        assert len(llm.captured_contents) == before + 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("धन्यवाद।")
+        spoken = " ".join(
+            part.text or ""
+            for content in _record(llm)
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"Tanvi's line {line!r} reached the context"
 
 
 def _legs(rig: DemoRig) -> tuple[str, str, str]:
