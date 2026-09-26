@@ -21,7 +21,6 @@ from google.genai import types
 from loguru import logger
 
 from tests.unit.test_gemini_turn import (
-    _calls,  # pyright: ignore[reportPrivateUsage]
     _chunk,  # pyright: ignore[reportPrivateUsage]
     _Coach,  # pyright: ignore[reportPrivateUsage]
     _history,  # pyright: ignore[reportPrivateUsage]
@@ -46,7 +45,7 @@ _LEAKED = 'certain_tool_call\n  "name": "default_api:read_screen",\n  "arguments
 
 class _Requests:
     """Stands in for ``client.aio.models`` across several requests: one script per
-    request, each run by the same AFC stand-in the turn tests use. ``log`` gets a
+    request, each played by the same stand-in the turn tests use. ``log`` gets a
     line each time the model hands over a chunk, so a test can interleave it with
     what the brain yields."""
 
@@ -94,6 +93,15 @@ async def _run(*scripts: Script) -> tuple[_Coach, _Requests, list[Speech]]:
     return brain, client.models, events
 
 
+def _say_and_call(text: str, name: str = "ping") -> Script:
+    """One response that speaks first and then calls: the shape the loop wants."""
+    return [
+        _chunk([types.Part(text=text)]),
+        _chunk([types.Part(function_call=types.FunctionCall(name=name, args={}))]),
+        _chunk([], finish=True),
+    ]
+
+
 def _malformed() -> types.GenerateContentResponse:
     """The last chunk of a hop whose function call did not parse."""
     return types.GenerateContentResponse(
@@ -117,7 +125,7 @@ async def test_a_call_written_as_text_is_not_spoken_and_the_turn_asks_again() ->
     try:
         brain, models, events = await _run(
             _text(*_LEAKED.split(" ")),
-            _calls("ping") + _text("Opening it."),
+            _say_and_call("Opening it."),
         )
     finally:
         logger.remove(sink)
@@ -127,19 +135,14 @@ async def test_a_call_written_as_text_is_not_spoken_and_the_turn_asks_again() ->
     assert len(models.requests) == 2
     assert models.requests[1][-1] is _RETRY_NOTE
     # The leaked unit left the context, and the note was never in it.
-    assert _history(brain) == [
-        "user: hello",
-        "model: call:ping",
-        "user: resp:ping",
-        "model: Opening it.",
-    ]
+    assert _history(brain) == ["user: hello", "model: Opening it.|call:ping", "user: resp:ping"]
     assert any("function call as text" in line for line in lines)
     assert not any("read_screen" in line for line in lines), "model output reached the log"
 
 
 async def test_a_malformed_function_call_asks_again() -> None:
-    """``MALFORMED_FUNCTION_CALL`` ends the hop with nothing to run, so AFC ends the
-    stream and the turn would be silent. It is the same failure without the text."""
+    """``MALFORMED_FUNCTION_CALL`` ends the response with nothing to run, and the
+    turn would be silent. It is the same failure without the text."""
     brain, models, events = await _run([_malformed()], _text("Here it is."))
 
     assert _shape(events) == ["[", "Here it is.", "]"]
@@ -152,7 +155,7 @@ async def test_speech_before_a_malformed_call_stays_spoken_and_heard() -> None:
     not run, so the turn asks again from there."""
     brain, models, events = await _run(
         [_chunk([types.Part(text="Sure, opening it.")]), _malformed()],
-        _calls("ping") + _text("Done."),
+        _say_and_call("Done."),
     )
 
     assert _shape(events) == ["[", "Sure, opening it.", "]", "[", "Done.", "]"]
@@ -171,19 +174,25 @@ async def test_it_asks_once_and_a_second_leak_ends_the_turn_silent() -> None:
 
 
 async def test_a_leak_the_model_recovers_from_itself_is_not_asked_again() -> None:
-    """A hop that leaks text and also makes a real call keeps going under AFC, so
-    there is nothing to recover: the text is dropped and the turn continues."""
+    """A response that leaks text and also makes a real call has nothing to
+    recover: the text is dropped, the call runs, and the turn goes on as that
+    call says — here, asked again for a result it needs, with no note."""
     script = [
-        _chunk([types.Part(text='{"name": "ping"}')]),
-        _chunk([types.Part(function_call=types.FunctionCall(name="ping", args={}))]),
+        _chunk([types.Part(text='{"name": "lookup"}')]),
+        _chunk([types.Part(function_call=types.FunctionCall(name="lookup", args={}))]),
         _chunk([], finish=True),
-        *_text("Pong."),
     ]
-    brain, models, events = await _run(script)
+    brain, models, events = await _run(script, _text("Pong."))
 
     assert _shape(events) == ["[", "Pong.", "]"]
-    assert len(models.requests) == 1
-    assert _history(brain) == ["user: hello", "model: call:ping", "user: resp:ping", "model: Pong."]
+    assert len(models.requests) == 2
+    assert models.requests[1][-1] is not _RETRY_NOTE
+    assert _history(brain) == [
+        "user: hello",
+        "model: call:lookup",
+        "user: resp:lookup",
+        "model: Pong.",
+    ]
 
 
 # ─── Speech is not held ───────────────────────────────────────────────────────
@@ -239,14 +248,14 @@ async def test_an_opening_held_to_the_end_of_its_hop_is_spoken() -> None:
 
 async def test_a_call_after_speech_is_cut_where_it_begins_and_the_turn_asks_again() -> None:
     """The words before the call go out and stay said; the call is never spoken,
-    never kept, and the speech ends at the cut rather than when the hop does. The
+    never kept, and the speech ends at the cut rather than when the response does. The
     retry answers without repeating what the user already heard."""
     lines: list[str] = []
     sink = logger.add(lines.append, level="WARNING", format="{message}")
     try:
         brain, models, events = await _run(
             _text("Sure, opening it. ", 'default_api:read_screen()\n{"x": 1}'),
-            _calls("ping") + _text("It's open."),
+            _say_and_call("It's open."),
         )
     finally:
         logger.remove(sink)
@@ -258,9 +267,8 @@ async def test_a_call_after_speech_is_cut_where_it_begins_and_the_turn_asks_agai
     assert _history(brain) == [
         "user: hello",
         "model: Sure, opening it. ",
-        "model: call:ping",
+        "model: It's open.|call:ping",
         "user: resp:ping",
-        "model: It's open.",
     ]
     assert any("after speech began" in line for line in lines)
     assert not any("read_screen" in line for line in lines), "model output reached the log"
@@ -336,21 +344,21 @@ async def test_a_barge_in_after_the_cut_keeps_what_was_heard() -> None:
 
 
 async def test_a_call_after_speech_in_a_unit_that_also_called_is_not_asked_again() -> None:
-    """The model made the real call too, so AFC hops on and nothing is stranded."""
+    """The model made the real call too, so nothing is stranded and no note goes."""
     script = [
-        _chunk([types.Part(text="Sure. default_api:ping()")]),
-        _chunk([types.Part(function_call=types.FunctionCall(name="ping", args={}))]),
+        _chunk([types.Part(text="Sure. default_api:lookup()")]),
+        _chunk([types.Part(function_call=types.FunctionCall(name="lookup", args={}))]),
         _chunk([], finish=True),
-        *_text("Pong."),
     ]
-    brain, models, events = await _run(script)
+    brain, models, events = await _run(script, _text("Pong."))
 
     assert _shape(events) == ["[", "Sure. ", "]", "[", "Pong.", "]"]
-    assert len(models.requests) == 1
+    assert len(models.requests) == 2
+    assert models.requests[1][-1] is not _RETRY_NOTE
     assert _history(brain) == [
         "user: hello",
-        "model: Sure. |call:ping",
-        "user: resp:ping",
+        "model: Sure. |call:lookup",
+        "user: resp:lookup",
         "model: Pong.",
     ]
 

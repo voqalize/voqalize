@@ -24,7 +24,6 @@ engine's own suite next door.
 from __future__ import annotations
 
 import abc
-import inspect
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -37,7 +36,7 @@ from pydantic import BaseModel, Field
 from voqalize.sdk import Brain, Session
 from voqalize.sdk.brain import _adapter_for
 from voqalize.sdk.events import Speech, SpeechChunk, SpeechEnd, SpeechStart
-from voqalize.sdk.gemini import GeminiBrain
+from voqalize.sdk.gemini import GeminiBrain, needs_result_now
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 from voqalize.sdk.wire import Frame, SessionStartFrame
 
@@ -85,6 +84,11 @@ class Tools:
     `show` takes a declared model, `ping` takes nothing and reads the ambient
     session, `boom` raises. Between them they cover every way a tool can behave
     that the contract has something to say about.
+
+    `ping` and `boom` are marked :func:`needs_result_now`, so a script can go
+    round a tool on every engine; `show` is not, because a screen dispatch is
+    the tool a model should speak over. An engine that waits on every result
+    ignores the mark.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -103,12 +107,14 @@ class Tools:
         self.ran.append(f"show:{args.name}")
         return "shown"
 
+    @needs_result_now
     async def ping(self) -> str:
         """Say hello to nothing in particular."""
         self.ran.append("ping")
         self.seen = self.session
         return "pong"
 
+    @needs_result_now
     async def boom(self) -> str:
         """Fail."""
         raise ValueError("kaboom")
@@ -202,12 +208,15 @@ def shape(events: list[Speech]) -> list[str]:
     return out
 
 
-# ─── Engine: automatic function calling ───────────────────────────────────────
+# ─── Engine: GeminiBrain's own loop ───────────────────────────────────────────
 
 
-class _AfcModels:
-    """Stands in for ``client.aio.models``, including AFC's tool execution and
-    the record it keeps of it — which is the only place a tool's answer exists."""
+class _GeminiModels:
+    """Stands in for ``client.aio.models``: one scripted hop per request.
+
+    It runs no tools. With automatic function calling off, running them is the
+    brain's job, and a fake that did it too would hide a brain that didn't.
+    """
 
     def __init__(self, hops: list[Hop]) -> None:
         self._hops = list(hops)
@@ -220,66 +229,43 @@ class _AfcModels:
         # google-genai deep-copies the config, so this does too: it is the step
         # that would clone a brain handed over as a bound method.
         config = config.model_copy(deep=True)
-        table = {fn.__name__: fn for fn in (config.tools or [])}
-        budget = getattr(config.automatic_function_calling, "maximum_remote_calls", 6) or 6
-        hops = list(self._hops)
+        if config.tools:
+            assert config.automatic_function_calling.disable, "AFC must be off"
+        hop = self._hops.pop(0) if self._hops else says("")
+        mode = config.tool_config and config.tool_config.function_calling_config
+        if mode and mode.mode == types.FunctionCallingConfigMode.NONE:
+            # What the model does when it may not call: it answers instead.
+            hop = [item for item in hop if isinstance(item, Say)]
 
         async def gen() -> Any:
-            record = list(contents)
-            seen = list(record)
-            spent = 0
-            while hops:
-                hop = hops.pop(0)
-                parts = _afc_parts(hop)
-                responses: list[types.Part] = []
-                for part in parts:
-                    if not (part.function_call and part.function_call.name):
-                        continue
-                    if spent >= budget:
-                        return
-                    spent += 1
-                    fn = table[part.function_call.name]
-                    try:
-                        result = await fn(**_coerce(fn, part.function_call.args or {}))
-                    except Exception as exc:  # what google-genai does with a raising tool
-                        response: dict[str, Any] = {"error": str(exc)}
-                    else:
-                        response = {"result": result}
-                    responses.append(
-                        types.Part.from_function_response(
-                            name=part.function_call.name, response=response
-                        )
-                    )
-                for part in parts:
-                    yield _afc_chunk([part], seen)
-                yield _afc_chunk([], seen, finish=True)
-                if not responses:
-                    return
-                record.append(types.Content(role="model", parts=parts))
-                record.append(types.Content(role="user", parts=responses))
-                seen = list(record)
+            parts = _gemini_parts(hop)
+            for part in parts:
+                yield _gemini_chunk([part])
+            yield _gemini_chunk([], finish=True)
 
         return gen()
 
 
-def _afc_parts(hop: Hop) -> list[types.Part]:
+def _gemini_parts(hop: Hop) -> list[types.Part]:
     out: list[types.Part] = []
-    for item in hop:
+    for i, item in enumerate(hop):
         if isinstance(item, Say):
-            out.extend(types.Part(text=c) for c in item.chunks)
+            out.extend(types.Part(text=c) for c in item.chunks if c)
         else:
             out.append(
                 types.Part(
-                    function_call=types.FunctionCall(name=item.name, args=dict(item.arguments))
+                    function_call=types.FunctionCall(
+                        id=f"call_{i}_{item.name}", name=item.name, args=dict(item.arguments)
+                    )
                 )
             )
     return out
 
 
-def _afc_chunk(
-    parts: list[types.Part], record: list[types.Content], *, finish: bool = False
+def _gemini_chunk(
+    parts: list[types.Part], *, finish: bool = False
 ) -> types.GenerateContentResponse:
-    chunk = types.GenerateContentResponse(
+    return types.GenerateContentResponse(
         candidates=[
             types.Candidate(
                 content=types.Content(role="model", parts=parts),
@@ -287,39 +273,29 @@ def _afc_chunk(
             )
         ]
     )
-    return chunk.model_copy(update={"automatic_function_calling_history": list(record)})
 
 
-def _coerce(fn: Any, args: dict[str, Any]) -> dict[str, Any]:
-    """Read off `inspect.signature`, which is where AFC reads it."""
-    params = inspect.signature(fn).parameters
-    return {
-        k: params[k].annotation(**v)
-        if k in params and isinstance(v, dict) and issubclass(params[k].annotation, BaseModel)
-        else v
-        for k, v in args.items()
-    }
-
-
-class _AfcClient:
+class _GeminiClient:
     def __init__(self, hops: list[Hop]) -> None:
         self.aio = self
-        self.models = _AfcModels(hops)
+        self.models = _GeminiModels(hops)
 
 
-class AfcCoach(Tools, GeminiBrain):
+class GeminiCoach(Tools, GeminiBrain):
     pass
 
 
-class AfcEngine(Engine):
-    id = "afc"
+class GeminiEngine(Engine):
+    id = "gemini"
 
-    def brain(self, *hops: Hop, **kwargs: Any) -> AfcCoach:
-        return AfcCoach(client=_AfcClient(list(hops)), system_instruction="be brief", **kwargs)
+    def brain(self, *hops: Hop, **kwargs: Any) -> GeminiCoach:
+        return GeminiCoach(
+            client=_GeminiClient(list(hops)), system_instruction="be brief", **kwargs
+        )
 
     @property
     def coach(self) -> type[Any]:
-        return AfcCoach
+        return GeminiCoach
 
     def context(self, brain: Any) -> list[str]:
         out: list[str] = []
@@ -349,7 +325,6 @@ class AfcEngine(Engine):
         return {fn.__name__: (fn.__doc__ or "").strip() for fn in brain._turn_config().tools or []}
 
     def requests(self, brain: Any) -> int:
-        # AFC runs the whole turn inside one call, so a hop is not a request.
         return len(brain._client.models.configs)
 
     def sent_text(self, brain: Any) -> list[list[str]]:
@@ -498,7 +473,7 @@ def _one(step: gi.Step) -> str:
     return type(step).__name__
 
 
-ENGINES: list[Engine] = [AfcEngine(), InteractionsEngine()]
+ENGINES: list[Engine] = [GeminiEngine(), InteractionsEngine()]
 IDS: list[str] = [e.id for e in ENGINES]
 
 __all__ = [

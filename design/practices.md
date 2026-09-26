@@ -323,11 +323,13 @@ because it did.
    level higher: what does the vendor recommend, and why is this not biting
    everyone else?
 
-What survived that test on the Python side is `_ready` (`gemini.py:423`), which
+What survived that test on the Python side is `_ready` (`gemini.py`), which
 enforces two things at the seam rather than documenting them: **`async def` is
-required**, because AFC runs a sync tool on a worker thread where the contextvars
-carrying `self.turn` are unset; and **what google-genai receives is not a bound
-method**, because it deep-copies the config on entry and on every hop, and
+required**, because the brain awaits every tool in the turn's own task on the
+event loop — which is what stamps `self.session.dispatch` with the turn — and a
+sync tool there would stall every session in the process at its first blocking
+call; and **what google-genai receives is not a bound
+method**, because it deep-copies the config on every request, and
 `copy.deepcopy` of a bound method copies `__self__`. ADK draws the same line in
 the same place. Had we not, tools would have run on a *clone* of the brain:
 `self.session.dispatch` reaching nothing, the context written to an object no one
