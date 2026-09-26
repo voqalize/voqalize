@@ -61,8 +61,8 @@ Enrol a unit **where you yield `SpeechStart`** — the same line, so the queue a
 the wire cannot disagree. Then a plain FIFO is enough: the n-th finalize belongs
 to the n-th bracket you opened.
 
-The other half is to **open no bracket you have nothing to say in**. A hop that
-only calls a tool is what the model did, not something it said; open a unit for
+The other half is to **open no bracket you have nothing to say in**. A response
+that only calls a tool is what the model did, not something it said; open a unit for
 it and you have bought a finalize you must account for, and the moment you
 forget to, the reply's heard text lands on the tool call and every finalize
 after it is off by one for the rest of the session. So the `SpeechStart` below
@@ -111,7 +111,7 @@ class Concierge(Brain):
 ```
 
 Both shipped adapters are built this way, and the contract suite asserts it
-against every brain we ship — including the tool-only hop that must leave the
+against every brain we ship — including the tool-only response that must leave the
 queue untouched. The conformance driver answers silent brackets too, so a brain
 that opens one and forgets to enrol it fails there rather than in a call — see
 [testing a brain](/build/testing/).

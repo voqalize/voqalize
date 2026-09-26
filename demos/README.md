@@ -61,7 +61,11 @@ demos/
     umbrella.py           # the single FastAPI app: discovers + mounts brain routers
     discovery.py          # scans demos/*/backend, loads each router from source
     session.py            # the shared per-session WebSocket handler (make_brain_router)
-    _gemini.py            # GeminiBrain base (context, tool loop, greeting helpers)
+    __init__.py           # re-exports GeminiBrain and needs_result_now from voqalize.sdk.gemini
+    configure.py          # configure_soon: a config change from a tool, without waiting on the answer
+    greeting.py           # hello_for: a one-word hello per demo language
+    screen.py             # ScreenState, screen_prose: the screen is read, never remembered
+    testing.py            # ScriptedGemini: a fake genai.Client for the tests
   <name>/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/
       package.json         #   stock @pipecat-ai/client-react + @voqalize/demo-kit: "file:../../shared"
@@ -90,7 +94,11 @@ discovers backends and each frontend declares its own connection wiring. To add
 
 1. **Backend** — `demos/<name>/backend/`:
    - `brain.py`: a `Brain` (usually a `GeminiBrain` subclass, importing its base
-     from `voqalize_demos`).
+     from `voqalize_demos`). Every tool returns at once — it reads memory,
+     dispatches to the screen and returns — and only the ones that read data the
+     model must answer from carry `needs_result_now`; the prompt tells the model
+     to say one short line and call in the same response. The rule and the why
+     are [Tools](../docs/src/content/docs/build/brain/tools.md).
    - `routes.py`: `NAME = "<name>"`, `def build(llm): return <Name>Brain(llm=llm)`,
      `router = make_brain_router(NAME, build)`.
    - `__init__.py`: `from .routes import NAME, build, router`.

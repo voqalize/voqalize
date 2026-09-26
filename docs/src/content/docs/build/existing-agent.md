@@ -19,11 +19,11 @@ adapter, and none is coming.
 
 An adapter is a second surface to learn and a lag behind every release of a
 framework we do not own. Read what the Gemini ones actually spend their code on:
-`GeminiBrain._fold_results` moves the tool responses out of google-genai's
-automatic-function-calling record into the context as that record grows between
-hops, and `GeminiBrain._drop_unanswered` removes a `function_call` whose
-`function_response` never arrived because a barge-in cut the stream between them
-(`sdk/python/src/voqalize/sdk/gemini.py`). Neither is
+`GeminiBrain._file` puts each tool's response in the context directly after the
+call that asked for it, so that context appended while the tool ran lands behind
+the pair rather than between them, and `GeminiBrain._drop_unanswered` removes a
+`function_call` whose `function_response` never arrived because a barge-in cut
+the stream between them (`sdk/python/src/voqalize/sdk/gemini.py`). Neither is
 about voice. Both are about one provider's turn record, and both break when that
 provider changes it.
 
@@ -97,21 +97,22 @@ there is something to say:
             yield SpeechEnd()
 ```
 
-That is what `GeminiBrain.respond` does — a hop that only calls a tool never
-opens a unit at all. Opening one per hop is what used to emit an empty
+That is what `GeminiBrain.respond` does — a response that only calls a tool
+never opens a unit at all. Opening one per response is what used to emit an empty
 `SpeechStart` / `SpeechEnd` pair around a silent tool call
 (`sdk/python/src/voqalize/sdk/gemini.py`, `respond`).
 
 Lazy opening removes the empty bracket. It does not remove the silence: the tool
 runs for as long as it runs and the user sits through it either way, and the
 fix for that is to say what you are doing before you do it, or to move the screen
-while the voice waits. [The turn budget](/design/#the-turn-budget) is the argument;
+while the voice waits. `GeminiBrain` does both by construction: the model says its
+line and calls in the same response, and every tool returns within 20 ms. [The turn budget](/design/#the-turn-budget) is the argument;
 [Tools](/build/brain/tools/) is the mechanism.
 
 Every unit that emitted text gets exactly one `on_finalize`, in the order the
 units opened — including one that was generated and beaten to the speaker, which
-arrives as `heard=""`. A turn that says a line, calls a tool and says a second
-line produces two units and two finalizes.
+arrives as `heard=""`. A turn that says a line, closes the unit, waits on a tool
+and opens a second for the answer produces two units and two finalizes.
 
 ## What your framework keeps
 
@@ -181,13 +182,15 @@ Both are worked examples of the port above, not a supported-frameworks list.
 [The Brain API](/reference/brain/#the-shipped-adapters) has the constructor
 they share, the members they offer, and which of them to build on.
 
-The differences that matter while porting are in the tool loop. `GeminiBrain`
-takes the record google-genai kept for a turn
-(`automatic_function_calling_history`) rather than interposing to make its own, so heard truth applies per turn rather than per hop,
-and context appended while a tool is running reaches the model on the turn after.
-`GeminiInteractionsBrain` runs the tool loop itself and re-reads the whole
-context on every hop, so an append that lands while a tool is running is in front
-of the model for the sentence that follows it.
+The differences that matter while porting are in the tool loop, and both
+adapters run their own. `GeminiBrain` makes one request per turn and files each
+tool's result for the next request, which is the user's next message unless the
+tool is marked `@needs_result_now`; then it asks again at once
+([Tools](/build/brain/tools/#when-the-model-reads-a-result) has the rule for
+which tools earn the mark). `GeminiInteractionsBrain` asks again after every
+response that made a call. Both re-read the whole context on every request, so
+an append that lands while a tool is running reaches the model with the next
+request either of them makes, and both apply heard truth per unit of speech.
 
 ## What changes about the agent itself
 

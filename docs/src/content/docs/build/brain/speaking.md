@@ -76,18 +76,26 @@ cut out of mid-word, and it is what Voqalize reports heard truth against — one
 `Finalize` per unit that produced audio, never a concatenation across units. So
 a unit opens on the first thing you actually say and closes when you stop:
 
-- speech either side of a tool call is two units, because the user can
-  interrupt between them and Voqalize needs somewhere to stop
-  (`sdk/python/tests/contract/test_brain_contract.py:120`);
-- a hop that only calls a tool opens no unit at all. An empty
+- speech either side of a wait — a database query, a marked tool's second
+  request — is two units, because the user can interrupt between them and
+  Voqalize needs somewhere to stop
+  (`test_speech_either_side_of_a_tool_is_two_units` in
+  `sdk/python/tests/contract/test_brain_contract.py`);
+- a response that only calls a tool opens no unit at all. An empty
   `SpeechStart`/`SpeechEnd` pair around a silent tool call owes Voqalize a
   finalize for a unit nobody heard, and every finalize after it lands on the
-  wrong unit for the rest of the call
-  (`sdk/python/tests/contract/test_brain_contract.py:110`).
+  wrong unit for the rest of the call (`test_a_silent_hop_opens_no_unit`, in the
+  same file).
 
-Both shipped adapters are written this way — `GeminiBrain.respond` opens a unit
-lazily on the first spoken text and closes it on the model's `finish_reason`,
-once per hop (`sdk/python/src/voqalize/sdk/gemini.py:189`).
+Both shipped adapters are written this way. `GeminiBrain.respond` makes a unit
+of **one model response**: it opens lazily on the first spoken text and closes on
+the response's `finish_reason`, or when its stream ends
+(`sdk/python/src/voqalize/sdk/gemini.py`, `respond`). A tool it calls mid-response
+runs between two pieces of the same unit, so a line, a call and a second line in
+one response are one unit, and the tool has to be quick —
+[Tools](/build/brain/tools/#a-tool-returns-within-20-ms) has the budget. Two units
+come from two responses: a tool marked `@needs_result_now` makes the model answer
+again, and that answer is a unit of its own.
 
 ## The clock between units is yours
 
@@ -119,7 +127,12 @@ async def on_user_message(self, session, msg):
     yield SpeechEnd()
 ```
 
-An `await` with no speech in front of it is dead air you chose. Work that can
+An `await` with no speech in front of it is dead air you chose. On `GeminiBrain`
+the SDK writes this shape for a tool marked `@needs_result_now`: the model's
+line is the first unit and its answer from the result is the second. The first
+line is still the model's to say, so it belongs in the prompt —
+[Tools](/build/brain/tools/#when-the-model-reads-a-result) has what a response
+that calls a tool and says nothing sounds like. Work that can
 start early should start early — see
 [parallel workstreams](/design/#parallel-workstreams) — and what a tool costs the
 turn is [tool design for voice](/design/#tool-design-for-voice).

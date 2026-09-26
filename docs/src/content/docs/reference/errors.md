@@ -300,9 +300,12 @@ text by then, the user hears:
 > Sorry — that's taking longer than I expected.
 
 The threshold is the same number as the connect deadline, for the same reason,
-and it is bounded from below by a brain that is merely slow — a tool round trip
-legitimately delays the first token by seconds, and speaking over one would
-create the defect this prevents. **The session stays up.** Only this turn's
+and it is bounded from below by a brain that is merely slow — a model that
+thinks before its first word, or reads a tool's result before answering, can
+legitimately take seconds, and speaking over one would create the defect this
+prevents. A turn whose only output is a tool call is the common way to trip it:
+the call runs, the result waits for the next request, and no text is ever sent
+([Tools](/build/brain/tools/#when-the-model-reads-a-result)). **The session stays up.** Only this turn's
 answer is missing; the socket is healthy and the next turn may be fine.
 
 The watchdog is disarmed by the first chunk of text your brain sends for that

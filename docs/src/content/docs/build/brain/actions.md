@@ -155,6 +155,7 @@ Because an action is a pydantic model, it is also a legal parameter model for a
 tool: the fields the model fills are the fields the page renders, declared once.
 
 ```python
+@needs_result_now
 async def highlight_feature(self, action: Highlight) -> str:
     """Highlight and scroll to one spec section on the currently open product
     page, so the shopper's eye follows what you are describing."""
@@ -162,9 +163,16 @@ async def highlight_feature(self, action: Highlight) -> str:
     return str(self.catalog.detail(action.product_id, action.feature))
 ```
 
-Tools in the shopping demo are written this way
+Tools in the shopping demo take their action this way
 (`demos/shopping/backend/brain.py`); the catalog lookup on the last line is your
-code, and what it returns is what the model reads to keep talking. The tool
+code, held in memory, and what it returns is what the model reads to describe
+the section. That is why this one carries `@needs_result_now` (from
+`voqalize.sdk.gemini`): without it, `GeminiBrain` hands the model the detail with
+the user's next message, a turn after it was needed. The shopping demo takes the
+other road: its prompt already carries every spec, so the model can describe the
+section as it calls, and its `highlight_feature` goes unmarked. A tool that only
+moves the screen goes unmarked too — [tools](/build/brain/tools/#needs_result_now-for-the-result-the-model-must-read-first)
+has the rule. The tool
 declaration contract — one `async def`, exactly one model parameter, the
 docstring as the description — is [tools](/build/brain/tools/).
 

@@ -471,14 +471,38 @@ and offer the same members to override, read or call:
 
 | Member | Kind | What it does |
 |---|---|---|
-| `tools` | property | The tools the model may call, read once per turn. A list of bound `async def` methods. |
-| `system_instruction` | property, settable | The prompt every hop carries. Set it from `on_session_start`, where this user's facts are in hand. |
+| `tools` | property | The tools the model may call, read once per turn. A list of bound `async def` methods, each returning within `TOOL_BUDGET_MS`. |
+| `system_instruction` | property, settable | The prompt every request carries. Set it from `on_session_start`, where this user's facts are in hand. |
 | `append_to_context(…)` | method | Add to the conversation the model sees, in the provider's own type. |
-| `respond(session)` | async generator | Stream one turn, however many tool hops it takes. |
+| `respond(session)` | async generator | Stream one turn, however many requests it takes. |
 
-`GeminiBrain` hands the tool loop to `google-genai` and takes the record it kept;
-`GeminiInteractionsBrain` runs the loop itself on the `interactions` API, where a
-call and its result are linked by id rather than by position. `append_to_context`
+Both run their own tool loop, and they run it differently. `GeminiBrain` makes
+one request per turn: each call runs as it arrives, and its result is read with
+the next request, which is the user's next message unless the tool is marked
+`@needs_result_now`. A response that called a marked tool is followed at once by
+another request carrying every result it produced. `GeminiInteractionsBrain`
+runs on the `interactions` API, where a call and its result are linked by id
+rather than by position, and asks again after every response that made a call;
+it ignores the mark.
+
+`max_tool_hops` caps how many times one turn asks again. The last of those
+requests may not call a tool, so the model has to answer. On `GeminiBrain` only
+marked tools ask again, so unmarked ones never count against it.
+
+`voqalize.sdk.gemini` also exports the mark and the budget every tool runs
+against:
+
+```python
+from voqalize.sdk.gemini import TOOL_BUDGET_MS, needs_result_now
+```
+
+| Name | Kind | What it does |
+|---|---|---|
+| `needs_result_now` | decorator | Marks a tool whose result the model must read before it finishes its reply. Sets an attribute and nothing else. `GeminiBrain` only. |
+| `TOOL_BUDGET_MS` | constant | How long a tool may take, in milliseconds, before `GeminiBrain` logs it as slow. Nothing is cancelled. |
+
+Neither is exported from `voqalize.sdk`, because nothing there imports
+`google-genai`. `append_to_context`
 takes a `types.Content` on `GeminiBrain` and a `gi.UserInputStep` on
 `GeminiInteractionsBrain` — that is the one place a brain written for one does
 not paste into the other.

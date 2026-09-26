@@ -15,6 +15,98 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.7.0
+
+Breaking in the package API, not on the wire: a 0.7.0 brain and an older one
+are served alike. What changed is when `GeminiBrain`'s model reads a tool's
+result, and every brain with tools on it should be re-read against the first
+entry below.
+
+### Breaking (package API)
+
+- **`GeminiBrain` no longer asks the model again for a tool's result.** A turn
+  is one request. Each function call runs the moment it arrives in the stream,
+  after the speech in front of it has gone out, and its result is filed in the
+  context directly after the call. The model reads it with the next request,
+  which is normally the user's next message. Until now google-genai's automatic
+  function calling ran the tools and asked the model again after every response
+  that called one — a whole model round trip of silence, sat through by the user
+  for an `"ok"` the model had no use for, after it had already said its line.
+
+  **The fix is one line, on the tools whose result the model needs to say this
+  reply:**
+
+  ```python
+  from voqalize.sdk.gemini import needs_result_now
+
+  @needs_result_now
+  async def get_account_balance(self, args: Account) -> dict[str, str]:
+      """The balance of one of the user's accounts."""
+      return self.accounts[args.number].balance()
+  ```
+
+  A response that called a marked tool is followed at once by another request,
+  carrying every result that response produced. Mark a tool when it reads data
+  the model needs to answer correctly — a balance, a cart, what is on the
+  screen — and leave everything else unmarked: actions, screen changes, sign-in
+  prompts, language switches, a tool whose result only repeats what the model
+  said. **There is no opt-out.** No flag brings the old loop back, because the
+  old loop is the dead air this release removes.
+
+  A read you forgot to mark sounds like an agent that says its line, calls the
+  tool and goes quiet, then answers a turn late, when the user next speaks. A
+  tool called with no speech in front of it now leaves the user in silence until
+  they speak again, so tell the model in the prompt to say one short line and
+  call in the same response; the `turn:` log line reports `speechless=yes` for
+  every turn where it did not.
+
+- **`max_tool_hops` counts marked tools only.** It caps how many times one turn
+  asks the model again for a marked tool's result. The default is unchanged, the
+  last of those requests may not call a tool — so the model has to answer — and
+  `GeminiBrain` logs a warning when a turn reaches it. Unmarked tools never ask
+  again, so they never count. `GeminiInteractionsBrain` is unchanged: it asks
+  again after every response that made a call, and ignores the mark.
+
+### Added
+
+- **`needs_result_now`**, exported from `voqalize.sdk.gemini`. It sets an
+  attribute and nothing else, so it goes on a method or a free function, above
+  or below decorators that keep attributes. It is not in `voqalize.sdk`, which
+  imports no model vendor.
+
+- **A tool budget, and a watchdog on it.** `TOOL_BUDGET_MS` in
+  `voqalize.sdk.gemini` is 20. `GeminiBrain` times every tool from the moment it
+  is called to the moment it returns, and one that runs over logs a single
+  warning — `tool Desk.get_account_balance took 412ms, over the 20ms budget; the
+  user waited for it`. Nothing is cancelled; the warning is the whole
+  enforcement. A tool reads memory, dispatches to the screen, starts background
+  work if it has any, and returns.
+
+- **The `turn:` log line reports the loop:** `hops=` requests made, `calls=`
+  tools run, `awaited=` how many of them were marked, and `speechless=yes|no`.
+
+- **A tool that raises, or a call to a tool not declared this turn, logs
+  `tool {name} failed: …`.** The model still reads it as `{'error': …}`, and
+  will often tell the user it succeeded; this line is where the failure shows on
+  your side.
+
+### Changed
+
+- **A unit of speech is one model response.** Speech before and after an
+  unmarked call in the same response is one unit and one `on_finalize`. Speech
+  either side of a marked tool is still two, because they come from two
+  requests.
+
+- **Context appended while a tool runs reaches the next request.** From inside
+  the tool or from `on_rtvi`, `append_to_context` lands after the call and its
+  result, never between them, and the context is read again on every request —
+  so it is in front of the model for a marked tool's second request as well as
+  for the user's next message.
+
+- **The `TypeError` for a synchronous tool gives the reason that now holds:** a
+  tool runs in the turn's task on the event loop, and a sync one would block
+  every session in the process while it ran.
+
 ## 0.6.0
 
 ### Added

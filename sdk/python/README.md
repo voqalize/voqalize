@@ -67,7 +67,7 @@ and the first word has to arrive now. A template is as clever as it gets.
 ## Let a model do the talking: `GeminiBrain`
 
 `GeminiBrain` (`[gemini]` extra) fills in the parts every model-backed brain
-writes the same way: the context, the streaming, the tool hops, and the rewrite at
+writes the same way: the context, the streaming, the tool loop, and the rewrite at
 the end that makes the context say what the user *heard*. You bring the
 system instruction and the tools.
 
@@ -99,6 +99,17 @@ class Concierge(GeminiBrain):
 **The method is the declaration.** A tool is a bound `async def`: its docstring is
 the description the model reads, its single pydantic parameter is the schema. There
 is no registry and no decorator to forget.
+
+**The model speaks, then calls, and the result waits.** A turn is one request:
+each call runs as it arrives, after the speech in front of it has gone out, and
+its result is read with the next request — normally the user's next message. So
+tell the model to say one short line and call in the same response. The one
+exception is a tool whose result the model needs to say *this* reply, such as a
+balance or what is on the screen: mark it `@needs_result_now` (from
+`voqalize.sdk.gemini`) and the model is asked again as soon as it returns. Every
+tool returns within `TOOL_BUDGET_MS` — it reads memory, dispatches, and returns —
+and one that runs over is logged. [Tools](https://docs.voqalize.com/build/brain/tools/)
+has the whole contract.
 
 Beyond its tools, most of what a real agent needs is carried by
 `system_instruction` and `append_to_context()`. `system_instruction` is settable, so facts known only once the session opens — who
@@ -219,8 +230,8 @@ speak. Rejection is all-or-nothing, and `detail` is written to be shown.
   `is_priority()`, `WireSerializer` (the protobuf serializer, no base class),
   `Wire`/`MultiplexedWire` transport, protobuf stubs.
 - `src/voqalize/sdk/gemini.py` — `GeminiBrain` (`[gemini]` extra): the context, the
-  streamed turn, the tool hops google-genai runs for us, and the finalize that
-  rewrites it to what was heard. `gemini_interactions.py` is the same
+  streamed turn, the tool loop it runs itself (`needs_result_now`,
+  `TOOL_BUDGET_MS`), and the finalize that rewrites it to what was heard. `gemini_interactions.py` is the same
   turn against the Interactions API.
 - `src/voqalize/conformance/` — the wire-level conformance harness: `VoqalizeDriver`
   (drives a brain over a real socket from the voice-runtime side, no runtime

@@ -241,6 +241,29 @@ request from `on_session_start` reaches the wire before the first
 `SpeechChunkFrame`. That ordering was the ClassVar's whole justification, so it
 is now the only mechanism and it is tested directly.
 
+## A tool announces and returns (SDK 0.7.0)
+
+`GeminiBrain` runs its own tool loop: one request per turn, each call run as it
+arrives, its result filed for the **next** request — normally the user's next
+message. The SDK docstrings (`gemini.py`: `respond`, `needs_result_now`,
+`TOOL_BUDGET_MS`) and `docs/src/content/docs/build/brain/tools.md` carry the
+detail; what binds a demo:
+
+- **Mark only reads.** `@needs_result_now` goes on a tool that reads in-memory
+  data the model needs to answer correctly — a screen read, a balance, a cart.
+  Actions, UI dispatches, sign-in prompts, language switches and echoes of
+  what the model already knows stay unmarked. A marked tool costs a model
+  round trip of silence; a read left unmarked is answered a turn late.
+- **Never block on the UI.** A tool dispatches the sheet or picker and returns;
+  the user's answer arrives as an `AppEvent` at `on_rtvi`, which appends it to the
+  context. A dependency on that answer is a parameter the model cannot fabricate
+  (aura's `authenticated_context`, verified by the brain), never a wait.
+- **Every tool returns within `TOOL_BUDGET_MS`.** Over it, one warning is logged
+  and nothing is cancelled. Slow work is started and reported later as context.
+- **The prompt owns the first line.** A response that calls a tool and says
+  nothing is silence until the user speaks — and, ten seconds in, Voqalize's own
+  "taking longer" line. The `turn:` log line's `speechless=yes` counts them.
+
 ## Every demo has an e2e, and one of them is a sweep
 
 `demos/tests/test_<name>_e2e.py` — one per demo. The real brain on a real

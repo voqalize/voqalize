@@ -173,6 +173,10 @@ again — it is to make the current state **readable** rather than remembered. G
 the model a tool that returns what is on screen now, and let it read that when it
 needs the truth; your `on_rtvi` state is then a cache the model can bypass rather
 than the only copy. That also keeps the context small enough to stay cacheable.
+On `GeminiBrain` that tool carries `@needs_result_now`, because the model reads
+the screen to answer this turn, not the next one — and it reads the state your
+`on_rtvi` handler already holds in memory, so it returns at once
+([Tools](/build/brain/tools/#needs_result_now-for-the-result-the-model-must-read-first)).
 
 ## `session.init`
 

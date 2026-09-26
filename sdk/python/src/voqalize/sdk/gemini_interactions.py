@@ -36,8 +36,9 @@ same way you host it. What differs is underneath.
 and nothing else — ``tools`` is a list of *declarations*, no field anywhere takes
 a callable, and the API returns a ``function_call`` step and stops. So this class
 runs the loop: declare, stream, call, answer, stream again, up to
-``max_tool_hops``. :class:`~voqalize.sdk.gemini.GeminiBrain` hands that job to
-google-genai and takes the record it kept; this one keeps its own.
+``max_tool_hops``. :class:`~voqalize.sdk.gemini.GeminiBrain` runs its own loop
+too, but asks again only after a tool marked ``@needs_result_now``; this one asks
+again after every tool, and ignores the mark.
 
 Three things are better for having done it ourselves:
 
