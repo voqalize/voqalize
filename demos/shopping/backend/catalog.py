@@ -46,7 +46,7 @@ class Phone(TypedDict):
 
 
 # ── The catalog ─────────────────────────────────────────────────────────────
-# Sixteen phones spanning budget → flagship, mixed brands. Prices in USD.
+# Phones spanning budget → flagship, mixed brands. Prices in USD.
 CATALOG: list[Phone] = [
     {
         "id": "galaxy-s24-ultra",
@@ -737,7 +737,12 @@ def search_catalog(
 
 
 def catalog_for_prompt() -> str:
-    """Render the whole catalog as compact text for the system instruction."""
+    """Render the whole catalog as compact text for the system instruction.
+
+    It carries every field a spoken answer draws on — the reviewers' pros and
+    cons and the colors included — because the screen tools that return a
+    product's details are read only with the shopper's next words, and the
+    answer is due in the same reply as the call."""
     lines: list[str] = []
     for p in CATALOG:
         ram = "/".join(str(r) for r in p["ram_gb"])
@@ -746,9 +751,13 @@ def catalog_for_prompt() -> str:
             f"- [{p['id']}] {p['brand']} {p['name']} — ${p['price']} ({p['category']}), "
             f"rated {p['rating']}/5 from {p['review_count']} reviews. "
             f"{p['display']}; {p['processor']}; {ram}GB RAM; {storage}GB; "
-            f"cameras: {p['rear_camera']}; {p['battery_mah']}mAh, {p['charging']}; "
-            f"{p['os']}; {p['water_resistance']}. "
+            f"cameras: {p['rear_camera']}, {p['front_camera']} front; "
+            f"{p['battery_mah']}mAh, {p['charging']}; "
+            f"{p['os']}; {p['water_resistance']}; {p['weight_g']}g. "
+            f"Colors: {', '.join(p['colors'])}. "
             f"Highlights: {', '.join(p['highlights'])}. "
+            f"Reviewers like: {', '.join(p['pros'])}. "
+            f"Reviewers dislike: {', '.join(p['cons'])}. "
             f"Best for: {p['best_for']}"
         )
     return "\n".join(lines)
