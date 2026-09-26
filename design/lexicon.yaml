@@ -83,6 +83,30 @@ terms:
     word: user
     retired: [caller]
 
+  # The speak-first tool loop, SDK 0.7.0. A tool's result reaches the model with
+  # the next request unless the tool carries this mark. The name is the test a
+  # tool author applies — does the model need this result *now*, to say its
+  # reply? — chosen for a newcomer, a coding agent above all, who must decide
+  # without a trip to the docs. `@continues_turn`, `@wait_for_result`,
+  # `@awaited`, `@lookup` and the rest were argued and never shipped, so none is
+  # listed as retired. The `turn:` log line counts marked calls as `awaited=`;
+  # that is a log field, not a word for a reader.
+  - concept: The mark on a tool whose result the model reads before its reply ends
+    word: '@needs_result_now'
+    retired: []
+
+  # Not "the watchdog". On the public pages the watchdog is Voqalize's own timer
+  # on a committed user turn that produces no text (build/brain/speaking.md,
+  # reference/errors.md), and a second thing under the same word would have two
+  # explanations. The number is `gemini.tool_budget_ms` in facts.yaml.
+  - concept: How long a brain's tool may run before GeminiBrain logs it as slow
+    word: the tool budget
+    retired: []
+
+  - concept: Voqalize's timer on a user turn that produces no text
+    word: the watchdog
+    retired: []
+
 # Internal service and repository names. These never appear in customer-facing
 # text; until 2026-08-25 nothing checked it, and three had reached the docs site
 # — one of them into a filename a reader types.

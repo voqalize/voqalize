@@ -128,9 +128,12 @@ model's sentence arrives underneath it.
 speaking converts a streaming system into a batch one. Stream chunks as you
 produce them.
 
-**Tool round trips.** A tool in your process is a function call. The same tool
-reached over HTTP is a network round trip on every turn that uses it — see
-[tool design](#tool-design-for-voice).
+**Tool round trips.** A tool's result reaches the model with the next request,
+which is normally the user's next message, so a tool costs the turn nothing but
+its own run time. A tool marked `@needs_result_now` costs a whole model round
+trip: the model is asked again, in silence, before it can finish its reply. A
+network call inside a tool is a round trip the user waits through — start it in
+the background instead. See [tool design](#tool-design-for-voice).
 
 **Retrieval as a serial hop**, unless it was started before it was needed — see
 [parallel workstreams](#parallel-workstreams).
@@ -170,16 +173,27 @@ Measure when you change the model. The numbers above are one afternoon against
 one set of turns, and they are printed here with that condition attached because
 that is all they are.
 
-### Pace the user while the work runs
+### Speak first, and call in the same response
 
-These are in production. `orderdesk`: *"Start every reply with a
-tiny phrase so audio begins instantly,"* and *"Say a tiny line before or while
-calling a tool — never leave silence."* `aura`: *"Speak a short line first, then
-call the tool."*
+`GeminiBrain` asks the model once per turn. The model speaks, calls its tools in
+the same response, and the turn ends when it stops. Each tool runs as its call
+arrives, after the speech ahead of it has been sent, so the screen changes while
+the line is playing.
 
-This is not a trick to hide latency. A short acknowledgement is what a person
-does while they look something up, and it converts dead air into a turn that has
-started.
+So the line said with the call is the reply. It is not a promise to report back,
+because nothing after the call is spoken unless the tool is marked
+`@needs_result_now`. `legal` puts it in its prompt: *"SPEAK FIRST, THEN ACT, IN
+THE SAME RESPONSE. Whenever you call a tool, say your one short line first and
+make the call in that same response — never call a tool in silence, and never
+plan to speak after it returns."* `orderdesk` puts the same rule under its
+opening one: *"Start every reply with a tiny phrase so audio begins instantly."*
+
+A model that calls a tool and says nothing leaves the user listening to silence
+until they speak again. If the turn produces no text at all, Voqalize's
+[watchdog](/reference/errors/) apologises for the wait. The fix is the prompt,
+or a line your brain speaks itself when a call arrives with no speech ahead of
+it; the SDK does not fill the silence for you, because a silent call can be the
+right answer when the screen already is one.
 
 ### Instruments you already have
 
@@ -187,6 +201,10 @@ started.
 and whether it was interrupted. Stamp a monotonic clock at callback entry and
 close it at your first `SpeechChunk`; that is your half of the budget, measured on
 every turn, in your own process.
+
+`GeminiBrain` logs one `turn:` line per turn with that interval, its model round
+trips and its tool calls. `speechless=yes` on it is a turn that called tools and
+said nothing — the silence above, counted.
 
 **Interruption rate is the cheapest quality proxy in the product.** Users talk
 over an agent that is too slow, too long, or wrong, and those are hard to
@@ -289,10 +307,11 @@ shout it down.
 speech starts a turn instantly — the bar applies only to cutting off speech in
 progress.
 
-**While a tool call runs, the user is muted, and that is not configurable.** A
-round trip cannot be barged into. This is the mechanical reason the clock is
-yours during a tool call: say something before you make the call, because the
-user cannot take the floor to ask what happened.
+**A tool call is invisible to Voqalize.** Your brain's tools run in your process,
+between the speech it sends, so nothing mutes the user while one runs and a
+barge-in can land at any point in it. Speech the brain sent ahead of the call
+is what the user is hearing while the tool runs, and that speech is what they
+interrupt.
 
 ### What happens to a turn that gets cut
 
@@ -316,9 +335,12 @@ An action already dispatched has already arrived. The screen does not roll back
 when the user cuts in, and it should not: the itinerary they are looking at is
 the itinerary they asked for, whether or not the sentence describing it finished.
 
-In-flight tool work is not cancelled either. A charge that was authorized was
-authorized. If a tool must not outlive its turn, that is a decision for your tool
-to make, and it needs its own idempotency rather than a hope about timing.
+Work a tool started in the background is not cancelled either. A charge that was
+authorized was authorized. The cut turn's own task is cancelled, so a tool still
+awaiting inside it stops at that await — one more reason a tool returns at once
+and hands slow work to a task of its own. If that work must not outlive its turn,
+that is a decision for your code to make, and it needs its own idempotency rather
+than a hope about timing.
 
 ### Testing it without a microphone
 
@@ -414,7 +436,8 @@ it.
   presses Confirm; the brain sees the screen say `confirmed` and closes in one
   line.
 - `servicing`: `submit_packet` goes through after the advisor approves.
-- `aura`: `authenticate` waits on a tap.
+- `aura`: the sign-in is a sheet the customer authorises on their own screen, and
+  the brain is told when they have.
 
 **Why a click and not a spoken "yes."** A spoken yes can be misheard. It can be
 background noise the recognizer resolved into a word. It can be a genuine yes to a
@@ -462,9 +485,10 @@ behaviour becomes your worst case.
 `orderdesk`'s prompt says it in the imperative, because a model left to itself
 will take one item and stop:
 
-> The moment he names a product, call `add_items`. Do not wait for the previous
-> one to resolve; do not ask a question in between. He can list six items in one
-> breath — take them all in ONE `add_items` call with a list.
+> The moment he names a product, say a tiny line and call `add_items`. Do not
+> wait for the previous one to resolve; do not ask a question in between. He can
+> list six items in one breath — take them all in ONE `add_items` call with a
+> list.
 
 One tool call, six items, six independent pieces of work in flight. The rows enter
 as `resolving` and settle one at a time — matched, or ambiguous between two pack
@@ -473,16 +497,16 @@ come back. The user is still talking while they settle.
 
 ### Work that outlives its turn
 
-`servicing` makes the same shape explicit for long work. `prepare_case` returns
-immediately:
+`servicing` makes the same shape explicit for long work. `prepare_case` puts the
+workup on screen, where it runs, and returns immediately:
 
 ```python
-{"status": "preparing_in_background",
- "note": "Running in the background; the advisor stays unblocked. Tell them when ready."}
+f"preparing {action.ref} in the background{blocker_note} — tell the advisor when ready"
 ```
 
 The return value is not data. It is an instruction to the model about how to
-behave while waiting — the tool's answer to "what do I say now" is "carry on."
+behave while the work runs, and the model reads it with the advisor's next
+message — by which time it has already said its line and carried on.
 
 What makes this safe:
 
@@ -520,15 +544,12 @@ intake — `orderdesk` again:
 > Batch your questions. Let him finish his run of items, then at the natural
 > pause ask about the ambiguous rows, one short question each.
 
-### The exception is a human, not a machine
+### Nothing blocks, a person's decision included
 
-`aura` has one blocking tool. `authenticate` awaits a future that resolves when
-the user taps consent on their own screen, and the turn genuinely waits.
-
-That is the rule, drawn tightly: machine work never blocks a turn; waiting on a
-person sometimes has to, because there is nothing else the agent could
-truthfully be doing. Even then it is worth a spoken line first, so the user
-knows the silence is theirs to end.
+Waiting on the user is still waiting. `aura`'s sign-in puts a sheet on the
+customer's screen and returns; the customer authorises it in their own time, and
+the page's event tells the brain when. The agent keeps talking in between. The
+shape is in [tool design](#no-tool-waits-for-the-user).
 
 ### Ordering and failure are yours to decide
 
@@ -558,7 +579,7 @@ That is the whole design rule, and it is not "be concise."
 | Share of what the agent needs | Where it lives | What it costs |
 |---|---|---|
 | 80% | In the prompt already | tokens |
-| 10% | One fast tool call away — in your process, no network | a model round trip |
+| 10% | One fast tool call away — in your process, no network, marked `@needs_result_now` | a model round trip |
 | 10% | Genuinely slow — remote, expensive | a background workstream, with an answer to "what does the user hear meanwhile" |
 
 These numbers are a design target we hold to, not a ratio we have instrumented.
@@ -608,10 +629,13 @@ rather than as a fallback paragraph at the end — see
 
 ### Never leave silence, in the shipped prompts
 
-- `orderdesk`: "Say a tiny line before or while calling a tool — never leave
-  silence, never speak a whole sentence about what you are doing."
-- `aura`: "opening a page or loading a video takes a moment; never leave silence.
-  Say a brief line FIRST, THEN call the tool."
+- `legal`: "Nothing a tool returns reaches you before your turn ends, so the line
+  you say with the call is the whole of your reply: make it the substance …, not
+  a promise to report back."
+- `aura`: "A screen call's result reaches you only with the customer's next
+  message, so you get no second word after it: never make a screen call without
+  its line, and never say a line around one that promises more to come ("let me
+  check…")."
 
 These are the prompt doing latency work.
 
@@ -649,34 +673,79 @@ a rejection is a retry rather than a dead turn.
 
 ## Tool design for voice
 
-A tool call in a chat app is a pause. A tool call in a voice call is dead air,
-because the model cannot speak while it waits for a result it asked for.
+A tool call in a chat app is a pause. In a voice call, a pause is dead air. So
+`GeminiBrain` does not wait on a tool to finish the reply: the model speaks its
+line, calls the tool in the same response, and the tool's result reaches the
+model with the user's next message. The user hears the line while the tool
+changes the screen.
 
-That single fact reshapes every tool you write, and the properties that follow
-are properties of the tool rather than of the prompt around it.
+The properties that follow are properties of the tool rather than of the prompt
+around it.
 
 ### A tool returns immediately
 
-Single-digit milliseconds, or a promise and a note. `servicing`'s `prepare_case`
-kicks off minutes of background work and returns this:
+A tool returns within 20 ms. `GeminiBrain` times every call, and one that runs
+longer is logged as a warning that the user waited for it. Nothing is cancelled
+or timed out; the warning is how you find it.
+
+`servicing`'s `prepare_case` puts minutes of work on screen and returns this:
 
 ```python
-{"status": "preparing_in_background",
- "note": "Running in the background; the advisor stays unblocked. Tell them when ready."}
+f"preparing {action.ref} in the background{blocker_note} — tell the advisor when ready"
 ```
 
-There is no data in that return value. It is behavioural instruction — the tool
-telling the model how to act while the answer is on its way. That is what a voice
+There is little data in that return value. It is behavioural instruction — the
+tool telling the model how to act while the work runs. That is what a voice
 tool's return value is for whenever the work is slower than a sentence.
 
-A tool that genuinely takes two seconds has been mis-split. Break it into a cheap
-dispatch plus a background workstream, and report the result the way
+A tool that needs the network, or anything else slow, has been mis-split. Break it
+into a cheap dispatch that starts a background task and returns, and let the
+result land on screen or in the state your other tools read, the way
 [parallel workstreams](#parallel-workstreams) describes.
 
-### A tool is not cancelled
+### Mark a tool only when the reply needs its result
 
-Barge-in cancels the turn. It does not cancel a tool call already running, and it
-does not un-dispatch an action already sent.
+`@needs_result_now` marks a tool whose result the model must read before it
+finishes this reply:
+
+```python
+from voqalize.sdk.gemini import GeminiBrain, needs_result_now
+
+class Desk(GeminiBrain):
+    async def show_card_controls(self) -> str:
+        "Put the card controls on screen."
+        self.session.dispatch(ShowCardControls())
+        return "shown"
+
+    @needs_result_now
+    async def get_account_balance(self, args: Account) -> dict[str, str]:
+        "The balance of one of the customer's accounts."
+        return self.accounts[args.number].balance()
+```
+
+Mark a tool when it reads data the model needs to answer correctly — a balance,
+the cart, what is on the screen, an eligibility check — from memory your brain
+already holds. Leave it off actions, screen changes, sign-in prompts, language
+switches, and a tool whose result only repeats what the model already said.
+Unmarked is the default, and the right answer for most tools.
+
+A marked tool makes the model answer again as soon as it returns, so it costs the
+user a model round trip of silence. The mark does not make a slow tool
+acceptable: a marked tool returns within the same 20 ms.
+
+What the user hears when the mark is wrong:
+
+- **Missing.** The agent says its line, calls the tool, and goes quiet until the
+  user speaks again — then answers from the result, a turn late.
+- **Extra.** A pause before every reply that calls the tool.
+
+### A tool is not rolled back
+
+Barge-in cancels the turn. It does not un-dispatch an action already sent, and it
+does not reach work a tool started in the background. A tool that returns at
+once has finished before the user can cut in; one still awaiting when they do is
+cancelled at that await, which is one more reason to hand slow work to a task of
+its own.
 
 This sounds untidy and is correct: the user interrupted the *speech*. They did
 not interrupt the lookup, and half-applied work is worse to reason about than
@@ -710,19 +779,16 @@ expensive enough that you want to abort it mid-flight is the one to split.
 
 ### A failed call is a result, not an exception
 
-A tool that raises comes back to the model as an error it can read and act on:
-`is_error` on the step, plus a line in your log. The model sees what went wrong
-and calls again.
+A tool that raises comes back to the model as `{"error": …}`, with the
+exception's message, and `GeminiBrain` logs `tool … failed` in your process. A
+call to a tool that is not declared this turn answers the same way. The model
+reads it like any other result and can call again.
 
-The SDK's own comment on that path is worth repeating, because the failure mode it
-names is the one that reaches production:
-
-> `is_error` is the half the automatic path has no room for: there a failure
-> reaches the model as an ordinary payload, and the model narrates it as success.
-
+It reads it when it reads any other result. For an unmarked tool that is the
+user's next message, after the line that announced the call has already played.
 An agent cheerfully telling a user their order is placed, because the failure
-came back as `{"error": …}` and looked like data, is the shape of the worst bug in
-this category.
+came back later as `{"error": …}` and looked like data, is the shape of the worst
+bug in this category — and the log line is the only place it shows on your side.
 
 Use the same seam for validation. `orderdesk`'s `ask_choice` is rejected unless it
 has two to four choices, uses known codes, and covers every candidate; a separate
@@ -753,21 +819,31 @@ If a tool exists to serve the screen rather than the conversation, say so
 explicitly. Anything that can be triggered by a tap or a keystroke belongs in this
 category.
 
-### The one blocking tool that is allowed
+### No tool waits for the user
 
-`aura`'s `authenticate` awaits a future resolved when the user taps consent. It
-blocks because it is waiting on a human decision, and there is nothing else the
-agent could truthfully be doing.
+A tool that needs the user — to sign in, to approve, to pick — puts the request on
+screen, says so, and returns. `aura`'s `show_auth_popup` returns as soon as the
+sheet is up:
 
-Machine work never blocks a turn. A person's decision sometimes has to.
+> The sign-in is on screen and the customer is NOT signed in yet. You will be told
+> when they authorise it, and handed an authenticated_context then.
+
+The user's answer arrives as an event from the page, which your brain appends to
+the context; it is never the tool's return value. A tool that depends on it takes
+a parameter only that answer can supply — `aura`'s account tools take the
+`authenticated_context` the brain mints when the sign-in completes — so the model
+cannot invent it, and a call without it is refused with a reply that names the
+missing step.
 
 ### The checklist
 
-1. Returns in single-digit milliseconds, or returns a promise and a note.
-2. Typed arguments; bad ones come back as an error the model can read.
-3. Has an undo that is another tool call.
-4. Preserves the identity of what it touched, so the screen does not jump.
-5. Holds no authority over anything irreversible.
+- Returns within 20 ms, starting anything slower in the background.
+- Marked `@needs_result_now` only if the reply needs what it reads from memory.
+- Typed arguments; bad ones come back as an error the model can read.
+- Has an undo that is another tool call.
+- Preserves the identity of what it touched, so the screen does not jump.
+- Holds no authority over anything irreversible.
+- Never waits on the user; the user's answer arrives as an event.
 
 ## When you are done here
 

@@ -293,16 +293,55 @@ facts:
 
   gemini.max_tool_hops:
     value: 6
+    source: sdk/python/src/voqalize/sdk/gemini.py:467 max_tool_hops
+    verified: 2026-09-26
+    derive:
+      file: sdk/python/src/voqalize/sdk/gemini.py
+      pattern: '^\s+max_tool_hops: int = (\d+),$'
+    note: >-
+      A constructor default on GeminiBrain, which runs its own tool loop since
+      SDK 0.7.0 (the AFC loop is gone). It caps how many times one turn asks the
+      model again after a tool marked @needs_result_now; unmarked tools never
+      ask again and never count. The last budgeted request is sent with
+      function calling mode NONE, so the model has to answer, and with a budget
+      of N at most N tools run. Until 0.7.0 this fact was read out of
+      gemini_interactions.py, because GeminiBrain had no knob of its own —
+      google-genai ran the hops. Every hop is a model round trip, so this is a
+      number a reader counts against the turn budget.
+
+  gemini_interactions.max_tool_hops:
+    value: 6
     source: sdk/python/src/voqalize/sdk/gemini_interactions.py:106 max_tool_hops
-    verified: 2026-09-21
+    verified: 2026-09-26
     derive:
       file: sdk/python/src/voqalize/sdk/gemini_interactions.py
       pattern: '^\s+max_tool_hops: int = (\d+),$'
     note: >-
-      A constructor default on GeminiInteractionsBrain, which runs the tool loop
-      itself. GeminiBrain has no equivalent knob: google-genai runs the hops and
-      the limit is its own. Every hop is a model round trip, so this is a number
-      a reader counts against the turn budget.
+      The same default on GeminiInteractionsBrain, which is experimental and
+      still asks the model again after every tool. Kept as its own fact so the
+      two defaults cannot drift apart unnoticed while a page cites one number.
+
+  gemini.tool_budget_ms:
+    value: 20
+    source: sdk/python/src/voqalize/sdk/gemini.py:193 TOOL_BUDGET_MS
+    verified: 2026-09-26
+    derive:
+      file: sdk/python/src/voqalize/sdk/gemini.py
+      pattern: '^TOOL_BUDGET_MS = (\d+)$'
+    note: >-
+      The tool budget: GeminiBrain times every tool call from the wrapper's
+      entry to its return, and one over this logs one warning, "tool
+      {Brain}.{name} took {ms}ms, over the 20ms budget; the user waited for it".
+      Nothing is cancelled, timed out or reordered; the warning is the whole
+      enforcement in the SDK. The demos suite fails a demo test whose tool trips
+      it (demos/tests/conftest.py); a customer brain gets the warning only. It
+      is the top of the 10-20 ms budget agreed for the speak-first tool loop
+      (2026-09-25). Not "the watchdog": on the public pages that word is
+      Voqalize's timer on a turn that produces no text. The design page said
+      tools return in "single-digit milliseconds" until 0.7.0 made this the
+      number, and a page that says both gives a reader two budgets.
+    forbid:
+      - '(?i)single-digit milli'
 
   sdk.python.pipecat:
     value: none
@@ -758,6 +797,23 @@ facts:
       connected and then said nothing — so a page that means one must not cite
       the other. What the user hears at the end of either is the apology line,
       not silence.
+
+  brain.watchdog_secs:
+    value: 10.0
+    source: platform/backend/pygato/src/pygato/brain_bridge.py:270 _DEAD_AIR_TIMEOUT_S
+    verified: 2026-09-26
+    reproduce: >-
+      grep -n '_DEAD_AIR_TIMEOUT_S = \|_DEAD_AIR_SPEECH = '
+      ../platform/backend/pygato/src/pygato/brain_bridge.py
+    note: >-
+      The watchdog: armed per committed user turn, disarmed by the first text
+      the brain sends for it or by a barge-in, and at the end it says "Sorry —
+      that's taking longer than I expected." and leaves the session up. Under
+      the speak-first tool loop (SDK 0.7.0) a turn in which the model only calls
+      unmarked tools and says nothing ends without text, so this is what the
+      user hears next unless they speak first. Public on reference/errors.md and
+      build/brain/speaking.md. Its own fact because brain.connect.deadline_secs
+      is the same 10.0 and answers a different question.
 
   recording.url_ttl_secs:
     value: 60 to 900, default 900
