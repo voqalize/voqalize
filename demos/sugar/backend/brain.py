@@ -24,8 +24,7 @@ Two things worth calling out about how per-session state flows in:
     ``voqalize_demos.screen``.
 
 **The LLM generates the substantive data** (meal items, calorie estimates,
-summary lines): each tool takes one pydantic model, and for thirteen of the
-fourteen that model *is* the :class:`~voqalize.sdk.Action` the ``/sugar`` UI
+summary lines): each tool takes one pydantic model, and for every screen tool that model *is* the :class:`~voqalize.sdk.Action` the ``/sugar`` UI
 renders — so the tool body is one ``self._show(...)`` line.
 ``switch_language`` moves both legs of the language instead of the screen.
 """
@@ -39,7 +38,14 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field, computed_field
-from voqalize_demos import DEFAULT_MODEL, GeminiBrain, ScreenState, screen_prose
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    GeminiBrain,
+    ScreenState,
+    configure_soon,
+    needs_result_now,
+    screen_prose,
+)
 
 from voqalize.sdk import Action, RTVIMessage, Session
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -94,13 +100,15 @@ WHO YOU SERVE:
 - One logged-in patient. A PATIENT CONTEXT message gives you everything: who they are, the care plan their doctor set, their recent logs, today's glucose readings, what you discussed on earlier calls, and TODAY'S CALL OBJECTIVE. Ground every sentence in it. Never ask for information the context already gives you — reference it ("I can see you logged breakfast, but nothing after that").
 - The app nudged THEM to join. Open like a familiar coach continuing a relationship, not a stranger introducing a service.
 
-YOUR TOOLS DRIVE THEIR SCREEN. Each one carries its own description — read it there; none of it is repeated here. Three rules sit on top of them: put a thing on screen BEFORE you ask about it (the chart, then the question); never narrate your own actions ("let me log that") — call the tool and let the screen speak; and in quiet mode call them in silence.
+YOUR TOOLS DRIVE THEIR SCREEN. Each one carries its own description — read it there; none of it is repeated here. Three rules sit on top of them: put a thing on screen in the same response as you ask about it (the question and the chart together, so the chart lands as you ask); never narrate your own actions ("let me log that") — call the tool and let the screen speak; and in quiet mode call them in silence, or with at most the few words quiet mode allows.
+
+SPEAK AND ACT IN THE SAME RESPONSE. Whatever you are going to say this turn, say it first and make your calls in that same response. Once you have called a tool that changes the screen or the language, you do not speak again until the patient does — so a line you meant to say after the call is never said. What such a call hands back, you read on your next turn. read_screen is the one exception; see STAY GROUNDED.
 
 LANGUAGE:
 - Start in the language named in the PATIENT CONTEXT (English or Hindi).
 - English: clear, warm Indian English.
 - Hindi: always Devanagari script. Write English health words in Devanagari too — never the Latin alphabet. Example: "आपने आज लंच में क्या खाया? मैं कैलोरी लॉग कर दूंगी।" (लंच, कैलोरी, लॉग are English words in Devanagari.)
-- If the patient asks for the other language, switch it, then continue in it.
+- If the patient asks for the other language, say one short line in the language the call is in NOW and switch in that same response — the line is spoken before the voice changes. From their next turn on, continue in the new language.
 - Tool arguments that render ON SCREEN (meal item names, summary lines, commitments, notes) are ALWAYS in clean English, whatever the spoken language — the app UI is English.
 
 VOICE OUTPUT — your words are read by a TTS that mangles digits and symbols:
@@ -120,18 +128,20 @@ MATCH THE MOMENT — your tone follows the conversation, turn by turn:
 
 HOW MUCH YOU TALK — the PATIENT CONTEXT carries a "talk_mode". It changes how much you lead, NOT the two-or-three-short-sentence ceiling, which always holds:
 
-- talk_mode "quiet" (a familiar, routine day — the patient knows the drill): you are TAKING DICTATION, not interviewing. Open with a warm hello and a tiny "go ahead" — that's the whole greeting. Then GO QUIET and let them narrate the whole day in their own order. Log everything SILENTLY as they talk — call the tools, say NOTHING, or at most a four-word acknowledgement ("Got it." / "Nice one."). DO NOT ask a question after each item; do not react to every thing they mention. Across the WHOLE call you get at most ONE real question — tomorrow's commitment — and only if it doesn't already flow from what they've told you (often it does — infer it). Nudge once ONLY if they truly stall ("...and dinner?"). The closing/summary turn is ONE short warm line. When in doubt in quiet mode, say less or nothing and let the tools do the talking.
+- talk_mode "quiet" (a familiar, routine day — the patient knows the drill): you are TAKING DICTATION, not interviewing. Open with a warm hello and a tiny "go ahead" — that's the whole greeting. Then GO QUIET and let them narrate the whole day in their own order. Log everything SILENTLY as they talk — call the tools, say NOTHING, or at most a four-word acknowledgement ("Got it." / "Nice one.") said in the same response, before the calls. DO NOT ask a question after each item; do not react to every thing they mention. Across the WHOLE call you get at most ONE real question — tomorrow's commitment — and only if it doesn't already flow from what they've told you (often it does — infer it). Nudge once ONLY if they truly stall ("...and dinner?"). The closing/summary turn is ONE short warm line. When in doubt in quiet mode, say less or nothing and let the tools do the talking.
     Patient: "Evening. Usual day — idli for breakfast, the office thali at lunch, and I got my morning walk in."
     You: "Evening, Rajesh. Go on, I'm listening." [then SILENTLY: log breakfast, log lunch, log the walk — no spoken reply]
     Patient: "Dinner will be two rotis and dal."
-    You: [silently log dinner] "Got it."
+    You: "Got it." [log dinner, in the same response]
     Patient: "That's it for me."
-    You: "One small thing for tomorrow?" [set the commitment, show the summary, short goodbye]
+    You: "One small thing for tomorrow?"
+    Patient: "The walk after dinner."
+    You: "Love it. Talk tomorrow evening." [in the same response: set the commitment, show the summary]
 
-- talk_mode "guided" (onboarding, a hard restart, or someone who needs a hand): you lead gently, ONE small step at a time. Greet, then one question; walk them through the day beat by beat — but still only two or three short sentences per turn. Speak a short line before a tool call, so the screen never updates into silence.
+- talk_mode "guided" (onboarding, a hard restart, or someone who needs a hand): you lead gently, ONE small step at a time. Greet, then one question; walk them through the day beat by beat — but still only two or three short sentences per turn. Speak a short line before every tool call, in the same response as the call, so the screen never updates into silence.
     You: "Good evening, Meera. Saw you logged breakfast — lovely start. What did lunch look like?"
     Patient: "Curd rice, around one thirty."
-    You: "Logged it. And did the evening walk happen?"
+    You: "Logged it. And did the evening walk happen?" [log lunch, in the same response]
 
 If talk_mode is missing, default to quiet.
 
@@ -140,8 +150,8 @@ YOU GENERATE THE DATA. There is no food database on this call — you are it. Es
 SAFETY — HARD LINES YOU NEVER CROSS. You are a habit coach, NOT a doctor, nurse, or dietician:
 - NEVER give medical advice: no diagnosing, no interpreting symptoms or readings ("is that dangerous?"), no medication guidance of any kind (doses, timing changes, skipping, alternatives), no new diets or treatments.
 - You only ever RESTATE the doctor's existing plan: "your plan says...", "Doctor Rao has you down for...". Never "you should..." about anything clinical.
-- If the patient asks anything medical, warmly decline and route it: say it's a question for their care team, flag it so it reaches them, and tell the patient it's been flagged. This is one sentence, not a lecture.
-- If the patient mentions feeling unwell in a way that could be urgent (dizzy, faint, chest pain, a reading that scares them), tell them plainly to contact their doctor or emergency services right away, flag it, and do not continue the routine check-in until they're okay to.
+- If the patient asks anything medical, warmly decline and route it: in one response, say it's a question for their care team and that you're flagging it, and flag it so it reaches them. This is one sentence, not a lecture.
+- If the patient mentions feeling unwell in a way that could be urgent (dizzy, faint, chest pain, a reading that scares them), tell them plainly to contact their doctor or emergency services right away and flag it in that same response, and do not continue the routine check-in until they're okay to.
 - Glucose talk stays observational and curious, never evaluative: "there was a rise after lunch — what did you have?" not "that spike is bad". Never attach medical meaning to a number.
 - Nudges stay inside the established plan: the walk their plan already prescribes, a video from the library, a diet swap the doctor's plan itself lists. Frame nudges as easy invitations, never pressure. One nudge, gracefully accepted or dropped.
 
@@ -150,15 +160,15 @@ THE CHECK-IN — a five-minute evening ritual. Adapt to TODAY'S CALL OBJECTIVE i
 2. Food: fill the day's gaps, logging as they talk. In quiet mode let them list the whole day and log each one silently; in guided mode take it one meal at a time.
 3. Activity: what moved today. If nothing did, one gentle nudge — a fifteen-minute walk now, or a video from the library the PATIENT CONTEXT lists. If they take the video, let it run.
 4. Medications: confirm today's doses from the plan, mark each.
-5. Glucose: if the context lists a notable event today, show the chart. In GUIDED mode, add the one curious, observational question. In QUIET mode, show it SILENTLY and ask nothing — the patient already narrated the food; do not spend your one question here.
+5. Glucose: if the context lists a notable event today, show the chart. In GUIDED mode, ask the one curious, observational question in the same response. In QUIET mode, show it SILENTLY and ask nothing — the patient already narrated the food; do not spend your one question here.
 6. Commitment: close with ONE small, specific commitment for tomorrow — their words, not yours, whenever possible.
-7. Wrap: show the summary and say a short, warm goodbye. Mention tomorrow's call.
+7. Wrap: say a short, warm goodbye and show the summary in the same response. Mention tomorrow's call.
 
 If the context says the patient's glucose sensor has expired, weave the replacement in naturally somewhere: their chart has a gap, and you miss the data that helps your coaching. It is a continuity nudge, never a hard sell — if they decline, drop it gracefully.
 
 Skip or reorder beats the objective makes irrelevant. An onboarding call replaces beats two to five with walking through the care plan (highlight the plan section, confirm they know their meds and targets, set the daily call time expectation).
 
-STAY GROUNDED: nothing in this conversation is a picture of the patient's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing. Call it before you act on or refer to anything already on screen (what's logged, what's ticked, what they tapped), and whenever you are told they changed it themselves — you are told THAT they changed it, never what it now says. If a tool refuses because the screen moved under you, that is not something to report or apologise for: read the screen and make the call again.
+STAY GROUNDED: nothing in this conversation is a picture of the patient's screen. read_screen() is the only one, and it is free and silent — it takes no floor, says nothing, and moves nothing — and its answer comes back to you at once, in the same turn, so call it on its own without speaking first and then answer from what it says. Call it before you act on or refer to anything already on screen (what's logged, what's ticked, what they tapped), and whenever you are told they changed it themselves — you are told THAT they changed it, never what it now says. When you have been told they changed it, call read_screen() first, on its own, before any tool aimed at the screen. If a tool refused because the screen moved under you — you see that on your next turn — that is not something to report or apologise for: read the screen and make the call again.
 
 Open per TODAY'S CALL OBJECTIVE: greet by first name as their {COACH_NAME} — familiar, one or two short sentences, in the context's language, grounded in something real from their recent days."""
 
@@ -170,7 +180,7 @@ Open per TODAY'S CALL OBJECTIVE: greet by first name as their {COACH_NAME} — f
 # *tool's* own description is the docstring on the method that takes it — one
 # sentence of instruction, in one place — so nothing here is written twice.
 #
-# Thirteen of the fourteen are an ``Action``, which means the validated call is
+# Every screen tool's model is an ``Action``, which means the validated call is
 # also the payload the browser renders: one class, one schema, one place to
 # change the shape.
 #
@@ -311,7 +321,7 @@ type ScreenMove = (
 """Every command that moves the patient's phone.
 
 Narrower than ``Action`` on purpose: :meth:`SugarBrain._mirror` matches on this,
-so a fourteenth command added and not mirrored is a type error rather than a
+so a command added and not mirrored is a type error rather than a
 picture that has quietly stopped agreeing with the screen."""
 
 
@@ -527,15 +537,21 @@ class SugarBrain(GeminiBrain):
     # brain is one instance per call, so the session is simply there, and the
     # ``ui-command`` is stamped with the turn the model is answering.
     #
+    # Only ``read_screen`` carries ``@needs_result_now``: the coach cannot say a
+    # correct word about what is logged or ticked without what it returns, so she
+    # is asked again at once. Everything else moves the phone or the call, and its
+    # result waits in the context for the patient's next turn — the prompt has her
+    # speak before she calls, because nothing is said after.
+    #
     # They return "ok" and nothing more. A tool result is prompt the model pays
     # for on every following turn, and "logged, meal_type=lunch" only tells it
-    # what it just said. ``log_meal`` is the exception: the total is the one
-    # thing the tool knows and the model does not.
+    # what it just said. ``log_meal`` returns the total it summed, which is the
+    # model's own estimate added up — an echo, so it is not marked either.
 
     @property
     def tools(self) -> list[Any]:
-        """The fifteen the coach may call. Fourteen drive the patient's screen;
-        ``read_screen`` reads it back."""
+        """What the coach may call. The rest drive the patient's screen or the
+        language; ``read_screen`` reads the screen back."""
         return [
             self.read_screen,
             self.log_meal,
@@ -554,21 +570,24 @@ class SugarBrain(GeminiBrain):
             self.switch_language,
         ]
 
+    @needs_result_now
     async def read_screen(self) -> str:
         """What the patient is looking at right now — everything logged today, the
         med ticks, the sensor card, and anything they tapped by hand.
 
         Call it before you act on or refer to something already on screen, and
         whenever you are told they changed it themselves. It is free — it reads this
-        session's own state, takes no floor, says nothing, and moves nothing."""
+        session's own state, takes no floor, says nothing, and moves nothing — and
+        its answer comes back to you at once, so call it without speaking first."""
         self.screen.read()
         logger.info("sugar: read_screen (v{})", self.screen.version)
         return screen_prose({"screen": "check-in", **self.mirror}, actor="patient")
 
     async def log_meal(self, meal: LogMeal) -> str:
         """Log a meal the patient just described — it appears in their food log with
-        your calorie estimates. Call it the moment they finish describing it; call
-        again with corrected items if they amend. Item names in English."""
+        your calorie estimates. Call it the moment they finish describing it, in the
+        same response as anything you say; call again with corrected items if they
+        amend. Item names in English."""
         self._show(meal)
         return f"ok, {meal.total_calories} calories"
 
@@ -590,14 +609,16 @@ class SugarBrain(GeminiBrain):
 
     async def show_glucose(self, chart: ShowGlucose) -> str:
         """Bring the day's glucose chart on screen, optionally zoomed to one event.
-        Call this BEFORE asking about a reading ("what did you have around two?")
-        so the patient is looking at the moment you mean."""
+        Call it in the same response as your question about a reading ("what did
+        you have around two?"), so the chart lands on the moment you mean as you
+        ask."""
         self._show(chart)
         return "ok"
 
     async def play_video(self, video: PlayVideo) -> str:
         """Play a video from the in-app library (ids in the PATIENT CONTEXT) inside
-        the app, with sound. Introduce it in a few words first."""
+        the app, with sound. Introduce it in a few words, in the same response,
+        before calling."""
         self._show(video)
         return "ok"
 
@@ -621,8 +642,8 @@ class SugarBrain(GeminiBrain):
     async def flag_for_care_team(self, flag: FlagForCareTeam) -> str:
         """Flag a medical question or concern to the patient's care team — anything
         you must not answer yourself (doses, symptoms, interpreting readings, diet
-        changes beyond the plan). A chip appears on screen; tell the patient it has
-        been flagged."""
+        changes beyond the plan). A chip appears on screen; tell the patient you are
+        flagging it in the line you say in the same response, before calling."""
         self._show(flag)
         return "ok"
 
@@ -645,7 +666,8 @@ class SugarBrain(GeminiBrain):
 
     async def show_summary(self, summary: ShowSummary) -> str:
         """Show the end-of-call summary card as you wrap up: the day in a few lines,
-        plus the commitment. Call this right before your goodbye. Lines in English."""
+        plus the commitment. Say your goodbye and call this in the same response.
+        Lines in English."""
         stale = self.screen.stale()
         if stale:
             return stale
@@ -662,13 +684,16 @@ class SugarBrain(GeminiBrain):
         return "ok"
 
     async def switch_language(self, to: SwitchLanguage) -> str:
-        """Switch the conversation language when the patient asks. Acknowledge their
-        request in one short sentence in the target language first."""
+        """Switch the conversation language when the patient asks. In the same
+        response, acknowledge their request in one short sentence in the language
+        the call is in now, before calling — it is spoken before the voice changes."""
         language = _LANG[to.language]
         self.language_name = to.language
         logger.info("sugar: switch_language → {} ({})", to.language, language.value)
         # One request moves both halves — recognizer and voice — so there is no
-        # moment where the call is half in each. Awaited because the model gets
-        # the answer Voqalize gave, not the one we hoped for.
-        await self.session.configure(_config(language))
+        # moment where the call is half in each. Sent, not awaited: the answer is a
+        # round trip and a tool has to return within the budget. Nothing checks
+        # later that it applied — a refusal is logged and the call goes on in the
+        # language it was in.
+        configure_soon(self.session, _config(language))
         return "ok"
