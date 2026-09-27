@@ -1,10 +1,10 @@
 /**
- * The avatar demo — the open-source talking head explaining itself.
+ * The avatar demo — the Voqalize avatar explaining itself.
  *
- * This page is the link target from the library's README, so it has two jobs and
- * the layout is the answer to both. The **right two-thirds is the documentation**
- * (`docs.tsx`): a reader who never turns on a microphone gets the whole library —
- * install, integration, the wire, the lipsync, the limits — on one screen. The
+ * This page is the link target from the package's README, so it serves a reader
+ * and a talker, and the layout is the answer to each. The **right two-thirds is the documentation**
+ * (`docs.tsx`): a reader who never turns on a microphone gets the whole avatar —
+ * install, mounting, driving it, the lipsync, the limits — on one screen. The
  * **left third is a live call** with the thing being documented, and as you talk
  * to it, it scrolls you to the section it is answering from. The voice is a fast
  * path through the page rather than the only way in.
@@ -13,9 +13,9 @@
  * pipecat's two-step connect and owns the client; everything below it is a stock
  * `PipecatClient`. The only Voqalize-specific code on the page is the request
  * that starts the call and the one line over its answer, both in `src/config.ts`.
- * The avatar is `@voqalize/avatar` from npm, handed that same client and nothing
- * else — it reads the state, the gestures and the visemes off the data channel
- * that is already open. The bot's captions are `voice-ui-kit`'s own
+ * The avatar is `@voqalize/avatar` from npm, handed that same client and a
+ * character name and nothing else — it reads the state, the gestures and the
+ * mouth shapes off the data channel that is already open. The bot's captions are `voice-ui-kit`'s own
  * `TranscriptOverlay`, driven by the same events.
  *
  * Two directions of traffic reach this file:
@@ -58,7 +58,6 @@ import {
 } from "@pipecat-ai/voice-ui-kit";
 import "@pipecat-ai/voice-ui-kit/styles.scoped";
 import { Avatar } from "@voqalize/avatar/react";
-import type { AvatarFactory, AvatarOptions } from "@voqalize/avatar";
 import { Github, PhoneOff } from "lucide-react";
 import { asUiAction, sendAppEvent, unhandledUiAction } from "./actions.gen";
 import { connectRequest, demo, withRealHeaders } from "./config";
@@ -84,12 +83,11 @@ const CAPTION_LIFE_MS = 11000;
  *  audio actually has. */
 const SENTENCE_END = /[.!?…]["')\]]?\s*$/;
 
-/** Where a visitor goes next. The demo exists to be the front door of an
- *  open-source library, so the links are the point rather than the footer. */
+/** Where a visitor goes next. The demo exists to be the front door of the
+ *  avatar package, so the links are the point rather than the footer. */
 export const LINKS = {
   repo: "https://github.com/voqalize/avatar",
   npm: "https://www.npmjs.com/package/@voqalize/avatar",
-  pypi: "https://pypi.org/project/voqalize-avatar/",
   voqalize: "https://voqalize.com",
 };
 
@@ -115,11 +113,10 @@ const ACTIVITY_LABEL: Record<Activity, string> = {
 // ── The face ────────────────────────────────────────────────────────────────
 
 /**
- * The mounted avatar. Every entry in the roster resolves to the same published
- * interface — `createAvatar({mount, client}) -> {destroy()}` — so swapping one
- * is a remount and nothing else. `key` forces that remount: `<Avatar>` reads its
- * options once, at mount, which is the interface being honest about what an
- * avatar is rather than a limitation to work around.
+ * The mounted avatar. A pick is a new character name, and `<Avatar>` rebuilds
+ * the face when its `character` changes, so swapping one is a re-render and
+ * nothing else. Until the runtime and the character have arrived the tile shows
+ * its own ground.
  */
 function Face({
   avatarKey,
@@ -128,33 +125,12 @@ function Face({
   avatarKey: string;
   client: ReturnType<typeof usePipecatClient>;
 }) {
-  const [factory, setFactory] = useState<{
-    key: string;
-    create: AvatarFactory<AvatarOptions>;
-  } | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    const entry = ROSTER_BY_KEY[avatarKey];
-    if (!entry) return;
-    void entry.load().then((create) => {
-      if (live) setFactory({ key: avatarKey, create });
-    });
-    return () => {
-      live = false;
-    };
-  }, [avatarKey]);
-
-  // Hold the previous face while the next one loads, rather than blanking: a
-  // gap where the avatar was is the one thing a talking-head demo cannot do.
-  if (!factory) return <div className="av-face is-loading" aria-hidden />;
   return (
     <Avatar
-      key={factory.key}
       className="av-face"
       client={client}
-      create={factory.create}
-      aria-label={`${ROSTER_BY_KEY[factory.key]?.name ?? "The"} avatar`}
+      character={avatarKey}
+      aria-label={`${ROSTER_BY_KEY[avatarKey]?.name ?? "The"} avatar`}
     />
   );
 }
@@ -263,7 +239,7 @@ function Captions() {
 
 /**
  * One tick per section, top to bottom, the current one filled — a dope sheet,
- * which is the drawing this library is actually made of. It is a real control:
+ * which is the drawing an avatar is actually made of. It is a real control:
  * click a tick and the page goes there. It is also the only thing on the page
  * that moves without the reader touching anything, and it moves because the
  * conversation moved the page.
@@ -296,23 +272,21 @@ function Outro() {
     <section className="av-outro">
       <h2>Get it</h2>
       <p>
-        The library is MIT-licensed. Install both packages, add the processor after your TTS
-        service, and mount the avatar in your call UI.
+        Install <code>@voqalize/avatar</code> and mount a character with the{" "}
+        <code>PipecatClient</code> your page already has. Every Voqalize call already sends what
+        the face needs.
       </p>
       <div className="av-outro-links">
-        <a href={LINKS.repo} target="_blank" rel="noopener noreferrer">
-          Source on GitHub
-        </a>
         <a href={LINKS.npm} target="_blank" rel="noopener noreferrer">
           @voqalize/avatar on npm
         </a>
-        <a href={LINKS.pypi} target="_blank" rel="noopener noreferrer">
-          voqalize-avatar on PyPI
+        <a href={LINKS.repo} target="_blank" rel="noopener noreferrer">
+          The package on GitHub
         </a>
       </div>
       <p style={{ marginTop: 22 }}>
-        This demo’s voice call runs on <a href={LINKS.voqalize}>Voqalize</a>. The avatar library
-        works with any Pipecat pipeline.
+        The avatar is part of <a href={LINKS.voqalize}>Voqalize</a>, and so is this demo’s voice
+        call.
       </p>
     </section>
   );
@@ -490,8 +464,8 @@ function Stage({
             <div className="av-end">
               <h2>{ended === "time_limit" ? "That’s the two minutes." : "Call ended."}</h2>
               <p>
-                The documentation is still on this page. The library is{" "}
-                <a href={LINKS.repo}>MIT on GitHub</a>.
+                The documentation is still on this page, and the package is{" "}
+                <a href={LINKS.npm}>on npm</a>.
               </p>
               <button type="button" className="av-again" onClick={() => window.location.reload()}>
                 Call again
@@ -662,13 +636,9 @@ export function AvatarDemo() {
         <a className="av-wordmark" href={LINKS.repo}>
           voqalize/avatar
         </a>
-        <span className="av-licence">MIT</span>
         <nav className="av-headnav">
           <a href={LINKS.npm} target="_blank" rel="noopener noreferrer">
             npm
-          </a>
-          <a href={LINKS.pypi} target="_blank" rel="noopener noreferrer">
-            PyPI
           </a>
           <a href={LINKS.repo} target="_blank" rel="noopener noreferrer">
             <Github size={14} /> GitHub

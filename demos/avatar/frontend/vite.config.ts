@@ -19,15 +19,6 @@ export default defineConfig({
   // assets of its own points this at a directory beside its index.html.
   publicDir: "../../public",
   plugins: [react()],
-  optimizeDeps: {
-    // A canvas avatar locates its rig JSON and wardrobe images with
-    // `new URL('../src/canvas/data/…', import.meta.url)`. Vite's dev-time
-    // pre-bundler copies the module into `node_modules/.vite/deps/`, and that
-    // URL then resolves against the copy — the rig 404s into the SPA fallback,
-    // the canvas mounts and paints nothing, and no error is thrown. Excluding
-    // the package leaves it served from its real path, where the URL is right.
-    exclude: ["@voqalize/avatar"],
-  },
   server: {
     // Vite rejects unknown Host headers; allow the local nginx front.
     allowedHosts: [".local.voqalize.com"],

@@ -2,10 +2,10 @@
 strip, and the background the model answers from.
 
 Kept out of ``brain.py`` because it is *content* — it is edited when the avatar
-library changes, not when the conversation does, and those are two different
+changes, not when the conversation does, and those are two different
 review conversations.
 
-Everything here is about `voqalize/avatar` itself. **The page holds the
+Everything here is about the Voqalize avatar itself. **The page holds the
 documentation; this file holds its index and what to say about it.** The model
 scrolls the reader to a section and then answers with that section open, so a
 visitor who asks "how does the lipsync stay in step?" gets the cue timeline in
@@ -38,7 +38,6 @@ SectionId = Literal[
     "wire",
     "lipsync",
     "faces",
-    "custom",
     "limits",
 ]
 
@@ -61,13 +60,13 @@ class Section:
 SECTIONS: tuple[Section, ...] = (
     Section(
         id="overview",
-        title="Avatars for Pipecat Voice Agents",
+        title="An avatar for your voice agent",
         notes=(
-            "This is an avatar library for Pipecat voice agents. "
-            "The server turns the TTS audio into mouth shapes. "
+            "This is the avatar for Voqalize voice calls. "
+            "Voqalize sends the mouth shapes and states on the call's data channel. "
             "The browser animates the face from them, in time with the audio. "
             "There is no video stream and no GPU. "
-            "The library is open source, under the MIT licence."
+            "You install one small package from npm."
         ),
     ),
     Section(
@@ -75,23 +74,21 @@ SECTIONS: tuple[Section, ...] = (
         title="Compared with video avatar services",
         notes=(
             "HeyGen, Anam, Protoface, Simli and Tavus stream video of a face. "
-            "They sit right after text to speech, and so do I. "
             "They send the audio to their servers and send video back. "
-            "I send the browser a few small instructions, and it draws me. "
+            "Voqalize sends the browser a few small instructions, and it draws me. "
             "So there is no extra service and no video stream. "
-            "A new face starts from one picture, made into a 2.5-D model in Blender. "
-            "The server side stays the same; only the browser's file changes. "
+            "A different face is just a different character name. "
             "They look like real video. I do not."
         ),
     ),
     Section(
         id="quickstart",
-        title="Add it to a Pipecat app",
+        title="Add it to your page",
         notes=(
-            "Install two packages. "
-            "Put one processor right after text to speech. "
-            "Mount the face with the pipecat client you already have. "
-            "That is the whole integration."
+            "Voqalize already sends everything the face needs. "
+            "Install the package from npm. "
+            "Mount it with your pipecat client and a character name. "
+            "If your page has a content security policy, allow the avatar host."
         ),
     ),
     Section(
@@ -101,18 +98,18 @@ SECTIONS: tuple[Section, ...] = (
             "Speaking and listening come from the audio. "
             "Between turns, I show thinking, working, or that I cannot hear you. "
             "An idle face there can look like a dropped call. "
-            "The pipeline knows when a reply is due, so it sends thinking. "
-            "It cannot see a tool that runs outside it, so you send working."
+            "Voqalize knows when a reply is due, so it sends thinking. "
+            "It cannot see a slow tool, so your brain sends working."
         ),
     ),
     Section(
         id="wire",
-        title="Drive the avatar from your own code",
+        title="Drive the avatar from your brain",
         notes=(
-            "A server can say three things to me. "
+            "Your brain can send me a state or an action. "
             "A state is one I hold, like working. "
             "An action is a gesture that finishes by itself, like a wave. "
-            "Cues are mouth shapes on a timeline. "
+            "Prefer actions, because they never fight what the call is doing. "
             "What the browser actually hears always beats what you send."
         ),
     ),
@@ -123,29 +120,18 @@ SECTIONS: tuple[Section, ...] = (
             "Each cue is a time and a mouth shape. "
             "The clock starts at the first sound of the reply. "
             "So it does not matter when a cue arrives. "
-            "A fast guess from the text starts the mouth at once. "
-            "A second pass from the audio then replaces those guesses."
+            "The shapes come from the sounds the voice actually spoke. "
+            "The mouth follows the audio your browser receives."
         ),
     ),
     Section(
         id="faces",
         title="Choose a face",
         notes=(
-            "Every face ships in one package. "
-            "The faces on this strip are 2.5-D characters, each built in Blender. "
-            "Each face comes with its own voice, so you pick before the call. "
+            "A character is a name you pass when you mount the face. "
+            "The page downloads only the character it mounts. "
+            "Each face here comes with its own voice, so you pick before the call. "
             "Blinks and breathing happen in the browser. Nobody sends them."
-        ),
-    ),
-    Section(
-        id="custom",
-        title="Build your own avatar",
-        notes=(
-            "Any module that exports create avatar is an avatar. "
-            "There is no registry to join. "
-            "You can draw a new face on the shipped rig. "
-            "Or write your own renderer, in canvas, S-V-G or W-e-b-G-L. "
-            "You get the same pose numbers the shipped faces get."
         ),
     ),
     Section(
@@ -153,9 +139,9 @@ SECTIONS: tuple[Section, ...] = (
         title="Limits",
         notes=(
             "It is not photoreal video. "
-            "Only English mouth shapes are accurate. "
-            "Without the compiled aligner, the mouth stays still and the rest works. "
-            "And it needs a pipecat pipeline."
+            "It needs a Voqalize call; there is no standalone player. "
+            "The page must be able to reach the avatar host. "
+            "Without WebGL 2, you see a still picture instead."
         ),
     ),
 )
@@ -201,35 +187,35 @@ AVATARS: tuple[AvatarIdentity, ...] = (
         key="tanya",
         name="Tanya",
         renderer="2.5-D",
-        blurb="The default here: a head built in Blender and rendered with three.js, on the library's own mixer and wire.",
+        blurb="The default here, and the face on the Voqalize homepage and the legal demo.",
         voice=Voice.KOKORO_AVA,
     ),
     AvatarIdentity(
         key="tess",
         name="Tess",
         renderer="2.5-D",
-        blurb="American, and the first character built from a single supplied picture.",
+        blurb="American, and the face of the servicing and travel demos.",
         voice=Voice.KOKORO_SARAH,
     ),
     AvatarIdentity(
         key="tushar",
         name="Tushar",
         renderer="2.5-D",
-        blurb="Built by copying Tara's build and changing only the face.",
+        blurb="The male face in the bank demo, beside Tara.",
         voice=Voice.OMNIVOICE_GAURAV,
     ),
     AvatarIdentity(
         key="tara",
         name="Tara",
         renderer="2.5-D",
-        blurb="The first of the Blender characters, and the one the others were copied from.",
+        blurb="The face of the bank demo.",
         voice=Voice.OMNIVOICE_GAURI,
     ),
     AvatarIdentity(
         key="tanvi",
         name="Tanvi",
         renderer="2.5-D",
-        blurb="The first character whose hair is its own layer, drawn over the body rather than painted into it.",
+        blurb="The face of the kiosk demo.",
         # A voice of her own rather than Tara's: two faces sharing one voice
         # read as one person in two drawings, and a face heard in the wrong
         # accent is noticed before anything the face does.
@@ -261,17 +247,18 @@ def sections_for_prompt() -> str:
 # aloud.
 
 BACKGROUND = """\
-FACTS ABOUT THE LIBRARY — answer from these, and say you are not sure if it is not here:
-- It is called voqalize/avatar. MIT-licensed, on GitHub, and published as @voqalize/avatar on npm and voqalize-avatar on PyPI. The two are ends of one wire format; they version separately and the wire is what keeps them compatible.
+FACTS ABOUT THE AVATAR — answer from these, and say you are not sure if it is not here:
+- It is the Voqalize avatar. The browser installs @voqalize/avatar from npm: a small MIT loader, given the pipecat client and a character name.
+- The loader fetches the avatar runtime and the character from avatar.voqalize.com when the face mounts. They are Voqalize's, under their own licence, for use with Voqalize.
 - It is a face drawn in the browser. There is no video track — the face rides the data channel the call already has open, at a few hundred bytes a second.
-- The backend half is one pipecat frame processor. It sits right after text-to-speech, and from there it sends the state it infers and the mouth shapes for the audio about to play. Turning audio into mouth shapes is a little CPU work inside that pipeline, so there is no new service to run or pay for.
-- The browser half is one mount call, given the pipecat client you already connected with.
-- It works with any pipecat pipeline. Voqalize is one user of it, not the only one.
-- The avatars that ship are line-art faces and 2.5-D characters rendered with three.js — Tara, Tushar, Tanya, Tess and Tanvi. All of them are in the one npm package. This page's strip shows only the 2.5-D characters. Anyone can ship their own: an avatar is any module that exports createAvatar.
-- Tanya, the face this page opens on, is a 2.5-D character. Her code is MIT like the rest of the library; the character binary the browser loads is artwork, under CC-BY 4.0. A face like hers starts from one picture, which is turned into a 2.5-D model in Blender; the backend stays the same and only the file the browser loads changes.
-- HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They also sit right after text-to-speech, but they send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. This library sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
+- Voqalize sends the avatar's state and the mouth shapes for every reply, in every call. There is nothing to install or run on the server side, and nothing extra to pay for.
+- The mouth shapes come from the sounds the voice actually spoke, so they match the audio rather than a guess from the text.
+- It needs a Voqalize call. It is not a standalone player, and it does not plug into other voice platforms.
+- The characters are 2.5-D, rendered with WebGL 2 in the browser: Tanya, Tess, Tushar, Tara and Tanvi. A browser without WebGL 2 shows a still picture of the character.
+- A page with a Content-Security-Policy has to allow avatar.voqalize.com, and blob: for the character's textures.
+- HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. Voqalize sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
 
 FACTS ABOUT THIS CALL:
 - Your voice, your ears and this call's audio are Voqalize. You are a brain: a WebSocket on the other side of it, holding the model, the prompt and these tools.
-- The face you are wearing is driven by the open-source library's mixer and wire, over this call's data channel.
+- The face you are wearing is driven by the avatar messages Voqalize sends over this call's data channel, plus the gestures you play.
 """

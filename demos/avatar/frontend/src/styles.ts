@@ -11,7 +11,7 @@
  * them makes every face look wrong in a different way — the drawing therefore
  * sits on a fixed stage the size and shape it will really live at in a call, and
  * everything around it is a light, cool paper carrying documentation. The stage
- * is lit rather than dark: these faces are drawn as line art over a light ground
+ * is lit rather than dark: the characters are lit for a light ground
  * and read as a lit room, not a black box, which is also what keeps captions and
  * controls legible in the places a video call puts them. One accent, indigo, and
  * it only ever marks what is live, current, or a link.
@@ -85,10 +85,6 @@ export const STYLES = `
   }
   .av-root a.av-wordmark { color: var(--ink); }
   .av-wordmark:hover { text-decoration: underline; }
-  .av-licence {
-    font-family: var(--mono); font-size: 11px; color: var(--graphite);
-    border: 1px solid var(--rule); padding: 1px 5px;
-  }
   .av-headnav { margin-left: auto; display: flex; align-items: center; gap: 18px; }
   .av-headnav a {
     font-size: 13.5px; color: var(--graphite); text-decoration: none;
@@ -373,13 +369,6 @@ export const STYLES = `
     border-left: 2px solid var(--indigo); padding: 2px 0 2px 14px;
     font-size: 14px; color: var(--graphite);
   }
-
-  .doc-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 0 12px; margin-bottom: 26px; }
-  .doc-step-n {
-    font-family: var(--mono); font-size: 13px; color: var(--graphite);
-    padding-top: 1px;
-  }
-  .doc-step-body > h3:first-child { margin-top: 0; }
 
   .doc-limits { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 16px; }
   .doc-limits li { padding-left: 14px; border-left: 1px solid var(--rule); color: var(--graphite); }

@@ -1,8 +1,8 @@
 /**
- * Avatar demo entrypoint — the open-source talking head explaining itself.
+ * Avatar demo entrypoint — the Voqalize talking head explaining itself.
  *
- * One page, one call, one face: the brain puts an architecture slide on screen,
- * answers against it, and demonstrates its own wire protocol on the avatar the
+ * One page, one call, one face: the brain scrolls the documentation to what was
+ * asked, answers against it, and demonstrates its gestures on the avatar the
  * visitor is looking at. `AvatarDemo` owns the session; there is nothing else on
  * the page.
  */
