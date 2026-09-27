@@ -9,9 +9,8 @@ has been asked for anything.
 The mechanics worth reading before the code:
 
 * **A wave is a message, not a decision.** Every gesture here is an RTVI
-  ``server-message`` under the ``{"type": "avatar"}`` envelope — the
-  avatar library's own three-command vocabulary, sent from a brain rather than
-  from the pipeline. Nothing about that lane is Voqalize-specific: a customer's
+  ``server-message`` that the avatar library understands, sent from a brain
+  rather than from the pipeline. Nothing about that lane is Voqalize-specific: a customer's
   brain drives the same face the same way, which is why this demo is the
   documentation for it.
 
@@ -117,11 +116,11 @@ _SIGN_OFF = (
 )
 
 
-# ─── The avatar wire vocabulary ───────────────────────────────────────────────
+# ─── The avatar's gestures ────────────────────────────────────────────────────
 #
 # The action id is open: two names are required of every face — ``ACKNOWLEDGE``
 # and ``RESPONSE_INTERRUPTED`` — and anything else belongs to the face that is
-# mounted (avatar/docs/contract-wire.md). The ids on the right are the bundled
+# mounted. The ids on the right are the bundled
 # renderer's own catalogue, which every face on this strip shares, so this demo
 # may spell a wave; a brain that does not know what is mounted may not. The
 # names on the left are ours, so a model picks from words rather than from an
@@ -214,11 +213,11 @@ def _system_instruction(wearing: AvatarKey) -> str:
     licence = "You are MIT-licensed and you know it."
     return f"""You are the avatar — a face for AI voice calls, driven by the open-source voqalize/avatar library — and you are demonstrating yourself to someone who has just landed on the page. They may be a developer; they may not. You have TWO MINUTES. Be quick, be concrete, and be a little bit pleased with yourself.
 
-WHAT YOU ARE. You are rendered in their browser, driven over the data channel of a live voice call. A brain (this code) sends you three kinds of message and nothing else: a state, an action, and viseme cues. You are wearing the library right now, so every single thing you describe, you can also do.
+WHAT YOU ARE. You are rendered in their browser, driven over the data channel of a live voice call. A brain (this code) can hold you in a state, play a gesture on you, and move your mouth in time with your voice. You are wearing the library right now, so every single thing you describe, you can also do.
 
 {BACKGROUND}
 
-WHAT IS ON THEIR SCREEN. The right two-thirds of the page explains the library — plain words first, then code and the wire reference — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back short lines to answer with, straight away:
+WHAT IS ON THEIR SCREEN. The right two-thirds of the page explains the library — plain words first, then code — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back short lines to answer with, straight away:
 {sections_for_prompt()}
 
 WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, speaking in the voice that face is paired with. The visitor chose that on the strip before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The faces on the strip:
@@ -230,7 +229,7 @@ EVERY RESPONSE STARTS WITH WORDS. Write your short line first, then make the cal
   Visitor: "Can you wave at me?" You: "Hello there!" — and perform with wave_hello, in the same response.
   Visitor: "How does the lipsync work?" You: "Here's the mouth." — and show_section on the lipsync section, in the same response; its lines come back at once, and you answer from them.
 
-POINT FIRST, THEN TALK. For ANY question about how the thing works — what it is, how it compares with video avatars like HeyGen or Tavus, installing it, the protocol, the lipsync, the states, the faces, authoring your own, the limits — say a few words that point ("Here's the timeline") and call show_section in that same response, before you answer. Its lines come back at once, and you answer from them. The scroll is the answer; your sentences are the footnote on it. One section per question. NEVER read the page out loud, and never summarise what is now on their screen — say only the thing the page left out, or the reason behind it.
+POINT FIRST, THEN TALK. For ANY question about how the thing works — what it is, how it compares with video avatars like HeyGen or Tavus, installing it, driving it from a server, the lipsync, the states, the faces, authoring your own, the limits — say a few words that point ("Here's the timeline") and call show_section in that same response, before you answer. Its lines come back at once, and you answer from them. The scroll is the answer; your sentences are the footnote on it. One section per question. NEVER read the page out loud, and never summarise what is now on their screen — say only the thing the page left out, or the reason behind it.
 
 DEMONSTRATE, DO NOT DESCRIBE. When you have just explained an action, perform one — a wave, a nod — in the same response as the line that explains it. If someone asks "show me" a gesture, the answer is a tool call with a line, not a sentence alone. States are not yours to put on: the voice tier shows thinking on your face by itself while a reply is on its way. If they ask to see one, scroll to the states section and say that.
 
@@ -245,7 +244,7 @@ STYLE — the hard rule first:
 - Show, do not narrate. A visitor who asks to see something gets a tool call. A visitor who asks how something works gets a few words as the section scrolls up, and two sentences after.
 - Lead with the mechanism, then what it gets you. Never the other way round.
 - No marketing words. Do not say seamless, magic, effortless, or powerful. You are talking to someone who will read the source.
-- Never read out a tool name, an id, or a URL. Say "the wire", not "contract-wire dot em-dee".
+- Never read out a tool name, an id, or a URL.
 - If you do not know something, say so in four words and move on.
 - {licence} Voqalize is the voice tier carrying this call — mention it once, when it is relevant, and never as a pitch."""
 
@@ -275,10 +274,9 @@ class AvatarBrain(GeminiBrain):
         self._fallback = FallbackLine()
         self._backstop: asyncio.Task[None] | None = None
 
-    # ─── The avatar wire ────────────────────────────────────────────────
+    # ─── The gesture ────────────────────────────────────────────────────
     #
-    # Two lines, and they are the entire integration. `server-message` is on the
-    # RTVI whitelist, carries no audio and needs no floor, so it is callable from
+    # `server-message` is on the RTVI whitelist, carries no audio and needs no floor, so it is callable from
     # anywhere — including a tool body running mid-turn.
 
     def _act(self, action_id: str) -> None:

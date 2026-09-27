@@ -141,7 +141,6 @@ const REF = {
   viseme: "https://en.wikipedia.org/wiki/Viseme",
   rhubarb: "https://github.com/DanielSWolf/rhubarb-lip-sync",
   rtvi: "https://docs.pipecat.ai/client/rtvi-standard",
-  wire: "https://github.com/voqalize/avatar/blob/main/docs/contract-wire.md",
   createAvatar: "https://github.com/voqalize/avatar/blob/main/docs/design-avatar-interface.md",
 };
 
@@ -179,7 +178,6 @@ export const DOC_SECTIONS: DocSection[] = [
           . Then it animates the face in JavaScript.
         </p>
         <p>
-          The <Ext href={REF.wire}>protocol</Ext> between the server and the client is documented.
           The JavaScript interface,{" "}
           <Ext href={REF.createAvatar}>
             <code>createAvatar</code>
@@ -417,65 +415,60 @@ import { wren } from '@voqalize/avatar/faces/wren';
   {
     id: "wire",
     title: "Drive the avatar from your own code",
-    rail: "The wire",
+    rail: "Driving it",
     body: (
       <>
         <p className="doc-lede">
-          A server can send three commands to the avatar. Each one is an RTVI{" "}
-          <code>server-message</code> with the envelope <code>{'{"type": "avatar"}'}</code>.
+          A server tells the avatar what to show. It travels as RTVI server messages on
+          the data channel your call already has.
         </p>
-        <Code lang="python">{`say = rtvi.send_server_message
-
-# a gesture that ends on its own
-await say({"type": "avatar", "cmd": "action", "id": "GESTURE_GREET"})
-
-# a state, held until you clear it or an observed event replaces it
-await say({"type": "avatar", "cmd": "state", "state": "WORKING"})
-await say({"type": "avatar", "cmd": "state", "state": None})`}</Code>
         <Grid
-          head={["Command", "Meaning"]}
+          head={["What", "Meaning"]}
           rows={[
             [
-              "state",
+              "A state",
               <>
-                Sets a state: <code>THINKING</code>, <code>WORKING</code>, <code>CANT_HEAR</code>,
-                or <code>null</code> to clear it. A new one replaces the previous one. Before the
-                library’s 0.4.0 this command was spelled <code>claim</code>, and the browser still
-                accepts that spelling.
+                Held until it is cleared or replaced: thinking, working, or that it cannot hear you.
+                A new one replaces the previous one. <code>AvatarProcessor</code> already sends
+                thinking and working for what passes through the pipeline, so state from your own
+                code is a race with it.
               </>,
             ],
             [
-              "action",
+              "An action",
               <>
-                Plays one gesture that ends on its own. Two names are required of every face:{" "}
-                <code>ACKNOWLEDGE</code> — the whole backchannel family in one word, and the face
-                picks which shape it makes — and <code>RESPONSE_INTERRUPTED</code>. Any other name
-                belongs to the face that is mounted, and one it does not know is ignored rather
-                than an error.
+                One gesture that ends on its own — a nod, a receipt, a wave. Two are required of
+                every face: acknowledge, the whole backchannel family in one word, and the face
+                picks which shape it makes; and the reaction to being interrupted. Any other
+                gesture belongs to the face that is mounted, and one it does not know is ignored
+                rather than an error.
               </>,
             ],
             [
-              "cues",
+              "Mouth shapes",
               <>
-                Mouth shapes on a timeline. <code>AvatarProcessor</code> sends these. See the next
-                section.
+                A timeline of mouth shapes for each reply. <code>AvatarProcessor</code> sends these.
+                See the next section.
               </>,
             ],
           ]}
         />
         <p>
-          Observed events take priority. A state you send is a candidate; the browser observes when
-          the bot starts speaking, when the user starts speaking, and when the microphone is muted,
-          and when one of those happens that fact is shown and your candidate is dropped.
+          Send actions, and leave state alone. An action composes with whatever the pipeline is
+          doing; a state contests it. This demo’s brain does exactly that: when it waves or nods
+          at you, it is playing one action from inside a tool call, with no floor and no audio.
         </p>
         <p>
-          Messages have no version field: the browser ignores a command or an action id it does not
-          recognise. That keeps a newer server from breaking an older page, but it is not an
-          upgrade plan — a command the old page drops is a behaviour it silently stops showing, so
-          move browsers to a new version before the pipeline that speaks it.
+          Observed events take priority. A state the server sends is a candidate; the browser
+          observes when the bot starts speaking, when the user starts speaking, and when the
+          microphone is muted, and when one of those happens that fact is shown and the candidate
+          is dropped.
         </p>
         <p>
-          The full protocol is in <Ext href={REF.wire}>contract-wire.md</Ext>.
+          A browser ignores a state or a gesture it does not recognise. That keeps a newer server
+          from breaking an older page, but it is not an upgrade plan — a gesture the old page drops
+          is a behaviour it silently stops showing, so move browsers to a new version before the
+          pipeline that sends it.
         </p>
       </>
     ),
@@ -491,40 +484,20 @@ await say({"type": "avatar", "cmd": "state", "state": None})`}</Code>
           Each cue has a time, a mouth shape and an optional loudness. Time zero is the first sample
           of the bot’s reply audio. So a cue can arrive before or after the audio it describes.
         </p>
-        <Code lang="json">{`{ "type": "avatar", "cmd": "cues", "ctx": "tts-41", "from_ms": 0,
-  "cues": [ { "t": 0,   "v": "X" },
-            { "t": 60,  "v": "B" },
-            { "t": 140, "v": "E", "i": 0.8 } ] }`}</Code>
-        <Grid
-          head={["Field", "Meaning"]}
-          rows={[
-            ["t", <>Milliseconds from the first sample of the reply audio.</>],
-            [
-              "v",
-              <>
-                A Rhubarb mouth shape, <code>A</code> to <code>H</code>, or <code>X</code> for
-                closed.
-              </>,
-            ],
-            ["i", <>Loudness, from 0 to 1. Optional.</>],
-            [
-              "from_ms",
-              <>
-                Delete the cues from this time onward, then add these. Cues are replaced, never
-                merged.
-              </>,
-            ],
-          ]}
-        />
+        <p>
+          The shapes are the <Ext href={REF.rhubarb}>Rhubarb</Ext> alphabet, closed mouth included.
+          A new batch for a reply replaces what was there from its start time onward; cues are
+          replaced, never merged.
+        </p>
         <p>
           The server writes the cues in two passes. The first pass estimates mouth shapes from the
           text, as soon as the text exists. It takes about 0.15 ms, so it runs on the event loop and
           the mouth can move when the audio starts. The second pass analyses the audio on a worker
-          thread. It replaces the first pass’s cues, using <code>from_ms</code>.
+          thread. It replaces the first pass’s cues from the point it has reached.
         </p>
         <Note>
-          <code>final: true</code> means no more cues will be sent for that reply. It does not mean
-          the audio has ended. The mouth stops on <code>BotStoppedSpeaking</code>.
+          The last batch for a reply means no more cues are coming. It does not mean the audio
+          has ended. The mouth stops on <code>BotStoppedSpeaking</code>.
         </Note>
       </>
     ),
