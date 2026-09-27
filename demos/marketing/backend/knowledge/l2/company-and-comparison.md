@@ -35,13 +35,11 @@ statement. **No delivery or services partner is named publicly — do not name
 one**, and do not confirm or deny one if asked; send the question to
 `support@voqalize.com`.
 
-## The moat, when the avatar is MIT and the client is pipecat
+## The moat, when the client is pipecat and the wire is published
 
 The giveaways are deliberate, and naming why is more convincing than defending
 them:
 
-- The **avatar** is MIT because a widely used avatar library is worth more than a
-  gated one, and the avatar is not the hard part.
 - The **client** is stock pipecat because a proprietary client SDK is a tax on
   adoption and buys nothing defensible.
 - The **wire** is published because a brain the customer cannot port is a brain

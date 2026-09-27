@@ -75,14 +75,12 @@ That matters when your brain is a route inside a service you already deploy: a
 voice integration adds no media dependency to a process that has never needed
 one, and nothing in your dependency tree has an opinion about audio.
 
-## The avatar is a pipecat processor
+## The avatar rides RTVI
 
-[The avatar](https://github.com/voqalize/avatar) is a talking head driven by RTVI
-rather than by a video track. `AvatarProcessor` sits in the pipeline between
-text-to-speech and the output transport and emits lipsync metadata as one custom
-RTVI message; the browser package renders it. It works against any pipecat
-pipeline, not only ours. Its code is MIT; the 2.5-D characters'
-`.glb` files are CC-BY 4.0.
+[The avatar](/build/avatar/) is a talking head driven by RTVI messages rather
+than by a video track. Voqalize sends the state and the mouth shapes from inside
+the call's pipeline; in the browser, `@voqalize/avatar` takes the
+`PipecatClient` you already have and renders them.
 
 ## We ship no client library
 

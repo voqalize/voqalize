@@ -46,7 +46,7 @@ Nothing in the set needs more than one `l2/` read, and nothing is uncovered.
 | 24 | data-retention | L1 | Facts → Observability, "keep your own copy" |
 | 25 | compliance | L1 | Facts → Deployment + Not known (the SOC 2 type) |
 | 26 | self-host | L1 | Facts → Deployment + Not known (GPU sizing) |
-| 27 | avatar | L1 | Facts → Avatar, MIT and standalone by design |
+| 27 | avatar | L1 | Facts → Avatar, part of Voqalize and not standalone |
 | 28 | speech | L1 | Facts → Speech, last bullet |
 | 29 | languages | **L2** | `speech-and-languages.md`, then `/reference/catalog` for the roster |
 | 30 | speech | L1 | Facts → Speech, mid-call switching |

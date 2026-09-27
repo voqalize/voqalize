@@ -292,8 +292,8 @@ None of this is needed for a first call, and each has a page:
 - [**Recording**](/operate/recordings/) — per agent as a default, per
   session as a decision.
 - [**The avatar**](/build/avatar/) — a talking head in the page, driven by
-  the same session. The processor is already in every pipeline, so this is a
-  browser-side change.
+  the same session. Every session already sends what the face needs, so this
+  is a browser-side change.
 - [**Idle detection**](/reference/wire/) — `idle.timeout_ms` hands the brain
   the floor after silence, and `0` turns it off.
 - [**Voice and language**](/reference/catalog/) — the voices, the languages

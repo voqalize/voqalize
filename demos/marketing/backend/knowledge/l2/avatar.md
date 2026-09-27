@@ -1,7 +1,7 @@
 # L2 — the avatar
 
-Read when: how the face is driven, cues, states, what it costs, custom avatars,
-or using it without the rest of Voqalize.
+Read when: how the face is driven, cues, states, what it costs, licensing,
+custom avatars, or using it without the rest of Voqalize.
 
 ## How it works
 
@@ -9,9 +9,8 @@ The avatar is **rendered on the viewer's device** from the audio plus a thin
 stream of cues on the WebRTC data channel. There is no video track, no
 server-side GPU render, and therefore no per-minute avatar charge.
 
-A photograph is projected onto shallow geometry; eyes, teeth and the lip line are
-geometry rather than painted frames, which is what lets it hold a gaze and close
-a mouth convincingly at small sizes.
+The mouth shapes come from the sounds the voice actually spoke, and the mouth
+follows the audio as the browser receives it.
 
 ## Mostly listening
 
@@ -25,23 +24,24 @@ Faces shipping on the page: tanya (the one in the recording), tushar, tess, tara
 
 ## Licence and packages
 
-- Library: **MIT**. `@voqalize/avatar` on npm, `voqalize-avatar` on PyPI, source
-  at `github.com/voqalize/avatar`.
-- Line-art and painted faces: **MIT**, no attribution.
-- Character binaries for the 2.5-D faces (tara, tushar, tanya, tess): **CC-BY 4.0**.
+- The browser installs `@voqalize/avatar` from npm: a small **MIT** loader, source
+  at `github.com/voqalize/avatar`. It takes the pipecat client and a character name.
+- The avatar runtime and the characters (tanya, tess, tushar, tara, tanvi) are
+  fetched from `avatar.voqalize.com` when the face mounts. They are Voqalize's,
+  under their own licence, for use with Voqalize.
+- A page with a Content-Security-Policy has to allow `avatar.voqalize.com`.
 
 ## Using it standalone
 
-Nothing stops it, and nothing is meant to. It works with **any pipecat agent** —
-it takes audio and cues, not a Voqalize session. Shipping it MIT is deliberate:
-the avatar is not the moat, the voice tier underneath is, and a widely used
-avatar library is worth more to us than a gated one.
+It is not built for that. The face is driven by the state and mouth shapes a
+Voqalize session sends, so it needs a Voqalize call. The avatar is part of the
+product, not a separate library.
 
 ## Custom avatars
 
 An enterprise engagement — a customer's own presenter, brand character or
-localized faces. The pipeline that turns a photograph into a driven face is
-private tooling; the runtime that plays the result is the MIT library.
+localized faces. We make the character; the page mounts it by name, like any
+other.
 
 ## What it costs
 

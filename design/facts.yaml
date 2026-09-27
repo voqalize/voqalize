@@ -430,13 +430,14 @@ facts:
       under, and `license-files = ["LICENSE"]` beside it is what ties the two
       together — so the derivable claim and the file a reader opens cannot part.
 
-  # ---- the avatar library (MIT, published from the public sibling) ----------
+  # ---- the avatar (an MIT loader on npm, a runtime we host) -----------------
   #
-  # The avatar line is two repos and the names invert: the published library is
+  # The avatar line is two repos and the names invert: the published package is
   # `avatar-public/` on disk, which is the remote `voqalize/avatar`. Every source
-  # below is that checkout, because it is what npm and PyPI are cut from —
+  # below is that checkout, because it is what npm is cut from —
   # `avatar-private/` (the remote `voqalize/avatar-private`) is where the work
-  # happens and publishes nothing.
+  # happens. The runtime and the characters are not in either package: the
+  # loader fetches them from avatar.voqalize.com.
 
   avatar.npm.package:
     value: '@voqalize/avatar'
@@ -444,59 +445,41 @@ facts:
     verified: 2026-09-20
     reproduce: grep '"name"' ../avatar-public/packages/avatar/package.json
 
-  avatar.pypi.package:
-    value: voqalize-avatar
-    source: avatar-public/packages/avatar-py/pyproject.toml:2
-    verified: 2026-09-20
-    reproduce: sed -n 2p ../avatar-public/packages/avatar-py/pyproject.toml
-
   avatar.npm.version:
-    value: '0.4.2'
+    value: '0.5.0'
     source: avatar-public/packages/avatar/package.json
-    verified: 2026-09-21
+    verified: 2026-09-27
     reproduce: npm view @voqalize/avatar version
     note: >-
-      There is no single avatar version. npm and PyPI publish independently, from
-      `npm-v` and `py-v` tags, because the wire is what keeps the two ends
-      compatible rather than a shared number — so a page that prints one version
-      for "the avatar library" is wrong about one of them. A different repo, so
-      no derive rule reaches it.
+      The version every demo here depends on. A different repo, so no derive
+      rule reaches it; the package README is where a version belongs in prose.
     forbid_literal:
       # A version named in a sentence, not a pin: `npm install pkg@0.4.1` is
       # still legal, `@voqalize/avatar 0.4.1` is the claim this fact denies.
       - '@voqalize/avatar`? \d+\.\d+\.\d+'
-      - 'voqalize-avatar`? \d+\.\d+\.\d+'
-
-  avatar.pypi.version:
-    value: '0.4.0'
-    source: avatar-public/packages/avatar-py/pyproject.toml:3
-    verified: 2026-09-20
-    reproduce: curl -s https://pypi.org/pypi/voqalize-avatar/json | jq -r .info.version
-    note: >-
-      Behind the npm number on purpose, not by neglect; see `avatar.npm.version`.
 
   avatar.licence:
     value: MIT
     source: avatar-public/LICENSE
-    verified: 2026-09-20
+    verified: 2026-09-27
     reproduce: head -1 ../avatar-public/LICENSE
     note: >-
-      MIT, and deliberately not Apache-2.0 like this repo. A page that states one
-      licence for "our open source" is wrong about one of the two.
+      MIT, and deliberately not Apache-2.0 like this repo. It covers the npm
+      loader and nothing it fetches.
 
-  avatar.assets.licence:
-    value: CC-BY-4.0
-    source: avatar-public/packages/avatar/package.json:5 license
-    verified: 2026-09-21
-    reproduce: >-
-      grep -n '"license"' ../avatar-public/packages/avatar/package.json &&
-      head -1 ../avatar-public/LICENSE-CC-BY-4.0
+  avatar.runtime.licence:
+    value: https://avatar.voqalize.com/LICENSE
+    source: avatar.voqalize.com
+    verified: 2026-09-27
+    reproduce: curl -s https://avatar.voqalize.com/LICENSE | head -5
     note: >-
-      The character binaries the faces load are artwork, not code, and they are
-      licensed apart from the MIT library around them — the package declares
-      `MIT AND CC-BY-4.0` for exactly that reason. CC-BY asks for attribution
-      and nothing else, which is the whole of what a customer has to do. A page
-      that names one licence for the avatar is wrong about half of it.
+      The runtime and the characters the loader fetches are Voqalize's, under
+      their own proprietary licence, for use with Voqalize. There is no PyPI
+      package any more, and the characters are not CC-BY: a page that calls the
+      avatar open, or its artwork reusable, is wrong about both.
+    forbid:
+      - 'CC-BY'
+      - 'voqalize-avatar'
 
   # ---- the voice tier -------------------------------------------------------
 

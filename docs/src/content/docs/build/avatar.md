@@ -1,12 +1,11 @@
 ---
 title: The avatar
-description: A 2-D talking head driven by the data channel. The pipeline half already runs in your session; the browser half is one package, and your brain can drive the face directly.
+description: A 2.5-D talking head driven by the data channel. Voqalize already sends what it needs in every session; the browser half is one package, and your brain can drive the face directly.
 ---
 
-Every Voqalize session already emits avatar traffic. `AvatarProcessor` sits in
-the voice tier's pipeline between text-to-speech and the transport, and from that
-seat it publishes what the face needs: the state it infers from turn and
-function-call boundaries, and viseme cues aligned to the audio about to be
+Every Voqalize session already sends avatar messages. Voqalize publishes what
+the face needs on the call's data channel: the state it infers from turn and
+tool-call boundaries, and mouth shapes (visemes) timed to the audio about to be
 spoken. Those messages are on your data channel whether or not anything is
 rendering them.
 
@@ -15,34 +14,31 @@ per-minute avatar vendor, and no second media path.
 
 ## What it is
 
-[`voqalize/avatar`](https://github.com/voqalize/avatar) is a separate library
-— `@voqalize/avatar` on npm and `voqalize-avatar` on PyPI, each end of one wire
-format. They version independently and the wire is what keeps them compatible.
-It works against any pipecat pipeline, and Voqalize is one consumer of it.
-
-The licence follows the kind of avatar. The code, the SVG faces and the
-Canvas2D identities are MIT and ask for no attribution. The 2.5-D characters'
-`.glb` files are artwork under CC-BY 4.0: use them commercially and modified, and
-credit Voqalize with the line in the package's `assets/README.md`. The npm
-manifest declares `MIT AND CC-BY-4.0`, so that is what a licence scanner reports
-whether or not you import a character.
-
 The face is lip-synced to the audio and state-aware: it knows when the user is
 speaking, when it has been interrupted, when a tool call is running, and when
-the microphone is muted. Most of that comes from frames a pipecat pipeline
-already emits, which is why the integration takes an argument at neither end.
+the microphone is muted. The mouth shapes come from the sounds the voice
+actually spoke, and the mouth follows the audio as the browser receives it.
+
+In the browser:
+
+- **`@voqalize/avatar`**, on npm — a small MIT loader. You give it your
+  `PipecatClient` and the name of a character.
+- **The avatar runtime and the characters**, which the loader fetches from
+  `https://avatar.voqalize.com` when the face mounts. They are licensed
+  separately, for use with Voqalize, under the
+  [avatar runtime licence](https://avatar.voqalize.com/LICENSE). Each release of
+  the package is pinned to the runtime it was released with.
 
 The Playground in the console renders one against a live call, so you can hear
 and watch the thing before you install anything. So does
-[the avatar demo](https://voqalize.com/demos/avatar), which is the library
-explaining itself: it brings the architecture up on screen, demonstrates the
-commands below on its own face, and changes which avatar it is while you
-watch.
+[the avatar demo](https://voqalize.com/demos/avatar), which is the avatar
+explaining itself: it scrolls its own documentation to what you asked about
+and demonstrates the gestures below on its own face.
 
 ## The browser half
 
 ```sh
-npm install @voqalize/avatar three   # three only for a 2.5-D character
+npm install @voqalize/avatar
 ```
 
 Mount it wherever your page already draws the bot's tile, passing the
@@ -50,53 +46,77 @@ Mount it wherever your page already draws the bot's tile, passing the
 [connections and the handshake](/build/connect/):
 
 ```js
-import { createAvatar } from '@voqalize/avatar/avatars/tara';
+import { createAvatar } from '@voqalize/avatar';
 
-const avatar = createAvatar({ mount: el, client: pipecatClient });
+const avatar = createAvatar({ mount: el, client: pipecatClient, character: 'tara' });
 // avatar.destroy() when the tile goes away
 ```
 
 `createAvatar` returns `{ destroy() }` and nothing else: the face reacts to the
 client, so there is nothing to drive from the page and no state to read back.
+It returns at once, and the face appears when the runtime and the character
+have arrived.
 
-## Choosing an avatar
+In React, the same thing is a component:
 
-Each avatar is its own entry point, so a page downloads only the one it imports.
+```jsx
+import { Avatar } from '@voqalize/avatar/react';
 
-- **2.5-D characters** — `tara`, `tushar`, `tanya`, `tess`, each at
-  `@voqalize/avatar/avatars/<name>`. A photograph projected onto shallow
-  geometry, with the eyes, teeth and lip line built as geometry so they can move.
-  `three` is an optional peer that only these entry points reach, and the `.glb`
-  is fetched when the avatar mounts.
-- **SVG faces** — `peep`, `wren`, `myna`: hand-drawn line art. The bare
-  `@voqalize/avatar` import mounts `peep`; for another, import its value from
-  `@voqalize/avatar/faces/<name>` and pass it as `face`.
-- **Canvas2D identities** — `arjun`, `meera`, `vikram`, `ishita`, `kabir`,
-  `naina`. Frozen, and removed in 0.5.0; do not start a page on one.
+<Avatar client={pipecatClient} character="tara" className="call-tile" />
+```
+
+Nothing mounts while `client` is `null`, and a new `client` or `character`
+rebuilds the face.
+
+The browser needs WebGL 2. Without it, the tile shows a still picture of the
+character, the way a call looks when the other side has turned their camera
+off.
+
+## Allow the avatar host
+
+If your page sets a Content-Security-Policy, it has to let the runtime load and
+fetch its character. Add these sources; `blob:` is there because the
+character's textures are decoded from `blob:` URLs:
+
+```text
+script-src  https://avatar.voqalize.com
+connect-src https://avatar.voqalize.com blob:
+img-src     https://avatar.voqalize.com blob:
+```
+
+## Choosing a character
+
+A character is a name, passed as `character`: `tanya`, `tess`, `tushar`,
+`tara` or `tanvi`. Each is a 2.5-D character rendered with WebGL. A page
+downloads only the character it mounts. A name the runtime does not have logs
+an error to the console and mounts nothing.
+
+To change the face, pass another name. In React the face is rebuilt; with
+`createAvatar`, destroy the old one and create a new one.
 
 The [package README](https://github.com/voqalize/avatar/tree/main/packages/avatar#readme)
-is the reference for the React binding, the supported `three` range, sizing, and
-authoring an avatar of your own.
+is the reference for the options, sizing and the React binding.
 
 ## Driving the face from your brain
 
-The face takes its instructions from the voice tier's pipeline, and a brain can
-add to them. What a brain can ask for is a gesture: a nod, a receipt, a wait, a
-wave. It goes out as an RTVI server message, which is on the
+The face takes its instructions from Voqalize, and a brain can add to them.
+What a brain can ask for is a gesture: a nod, a receipt, a wait, a wave. It
+goes out as an RTVI server message, which is on the
 [RTVI whitelist](/reference/rtvi/), so it crosses without anything special.
 
-**The action id is open, and these names are required of every face**:
+**The action id is open, and these names are required of every character**:
 `ACKNOWLEDGE` (the whole backchannel family in one word) and
-`RESPONSE_INTERRUPTED`. Anything else belongs to the face that is mounted, and a
-name it does not know is ignored rather than an error — so a brain can address a
-motion only one avatar has without checking which one is on screen.
+`RESPONSE_INTERRUPTED`. Anything else belongs to the character that is mounted,
+and a name it does not know is ignored rather than an error — so a brain can
+address a motion only one character has without checking which one is on
+screen.
 
 **Send actions, and leave state alone.** An action is a point-in-time behaviour
 that completes on its own and establishes no state — a nod, a receipt, a wait
 gesture. A state is durable, one is in flight at a time, and a later one
-replaces the earlier: the voice tier's processor is already sending state, so
-state from your brain is a race with it, and whichever arrives last wins. Actions
-compose with what the processor is doing; state contests it.
+replaces the earlier: Voqalize is already sending state, so state from your
+brain is a race with it, and whichever arrives last wins. Actions compose with
+what Voqalize is doing; state contests it.
 
 There is a floor rule here too, and it is the same one everywhere else: an RTVI
 message carries no audio, so `send_rtvi` needs no floor and can be called from
@@ -107,18 +127,18 @@ anywhere — including work that outlives the turn that started it. See
 
 The face is told a state it may hold (thinking, working,
 cannot hear you), a gesture that completes on its own, and a timeline of mouth
-shapes for each reply. The voice tier's processor sends the state and the mouth;
-a brain adds gestures.
+shapes for each reply. Voqalize sends the state and the mouth; a brain adds
+gestures.
 
 Observed playout outranks all of them. What pipecat reports about the audio —
 that the bot started speaking, that the user did, that the microphone is muted
-— is a fact, and a state the server sends is a candidate underneath it. The face can be
-told what to consider; it cannot be told what is happening.
+— is a fact, and a state the server sends is a candidate underneath it. The face
+can be told what to consider; it cannot be told what is happening.
 
-Blink, breath, gaze aversion and idle motion are the renderer's own and are
+Blink, breath, gaze aversion and idle motion are the runtime's own and are
 never sent.
 
 ## Read next
 
-- [Voqalize and pipecat](/build/pipecat/) — where the processor sits, and what else in the call is pipecat's.
+- [Voqalize and pipecat](/build/pipecat/) — what in the call is pipecat's.
 - [The RTVI plane](/reference/rtvi/) — the whitelist this rides.

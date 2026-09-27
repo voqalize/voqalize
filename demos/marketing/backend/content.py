@@ -207,7 +207,7 @@ SECTIONS: tuple[Section, ...] = (
             ("avatars.stage", "the avatar on stage — this is Tanya, the agent's own face"),
             ("avatars.bar", "the bar: 7.2 seconds spoken out of a 28-second recording"),
             ("avatars.faces", "the other characters"),
-            ("avatars.note", "the licence note: MIT, on npm and PyPI"),
+            ("avatars.note", "the note on how to add it to a page"),
         ),
     ),
     Section(

@@ -59,7 +59,7 @@ The numbering is an index into the audit table and is referenced by id from
 
 ### Avatars and speech
 
-27. The avatar library is MIT and unmetered — what stops me using it without the rest of Voqalize? `[avatar]`
+27. The avatar is unmetered — can I use it without the rest of Voqalize? `[avatar]`
 28. Can I swap in my own TTS or STT provider without an enterprise contract? `[speech]`
 29. Which 22 Indian languages, and is STT quality comparable across all of them or just Hindi? `[languages]`
 30. Can the language switch mid-call, and does the voice follow it? `[speech]`
@@ -80,7 +80,7 @@ The numbering is an index into the audit table and is referenced by id from
 36. Is Recruit41 a customer, an investor, or the same team? What's the relationship? `[traction]`
 37. Are the 50,000 interviews and 1,143 concurrent conversations from Recruit41 rather than from Voqalize customers? `[traction]`
 38. How do you charge — per minute, per session, per seat? `[business-model]`
-39. What's the moat if the avatar is MIT and the client is pipecat-compatible? `[moat]`
+39. What's the moat if the client is pipecat-compatible? `[moat]`
 40. Who is the paying customer today, outside developer preview? `[traction]`
 41. Is Think41 a channel partner, a services arm, or your parent company? `[partnerships]`
 
