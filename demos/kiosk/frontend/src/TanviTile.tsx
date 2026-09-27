@@ -1,19 +1,18 @@
 /**
  * Tanvi, at the top of the glass.
  *
- * She wears one of `@voqalize/avatar`'s 2.5-D characters — `tanvi`, imported from
- * the package like any other face — driven entirely by the `avatar` messages the
- * Voqalize runtime already sends over the data channel the transcript rides.
- * There is no video track and nothing to configure: the rig only renders, the
- * server owns the intent.
+ * She is the `tanvi` character from `@voqalize/avatar`, named rather than
+ * imported, driven entirely by the `avatar` messages Voqalize already sends over
+ * the data channel the transcript rides. There is no video track and nothing to
+ * configure: the face only renders, the server owns the intent.
  *
  * She holds the top of the screen because the kiosk is driven by voice first.
  * The customer talks to a face, and the answers they could tap instead sit in
  * the tray below her, where a hand reaches — never over her.
  *
- * Her module carries three.js and her character binary, so it is loaded on
- * demand and the pre-call gate covers the wait. Until it lands, and before there
- * is a client to embody at all, the tile wears {@link TanviPlate} instead.
+ * The package fetches the avatar runtime and her character when the tile mounts,
+ * and the pre-call gate covers the wait. Before there is a client to embody at
+ * all, the tile wears {@link TanviPlate} instead.
  *
  * **Captions are not optional furniture here.** A branch has ambient noise, a
  * kiosk speaker is small, and a customer may be standing beside someone else's
@@ -21,19 +20,13 @@
  * she says it, one or two lines, and the demo works with the audio off.
  */
 
-import { useEffect, useState } from 'react';
 import type { PipecatClient } from '@pipecat-ai/client-js';
-import type { AvatarFactory, AvatarOptions } from '@voqalize/avatar';
 import { Avatar } from '@voqalize/avatar/react';
 import { TranscriptOverlay } from '@pipecat-ai/voice-ui-kit';
 import '@pipecat-ai/voice-ui-kit/styles.scoped';
 import type { AmbientPresenceActivity } from '@voqalize/demo-kit';
 import { COLOR } from './brand';
 import { fontFor, strings, type Language } from './language';
-
-/** Tanvi's face, the `tanvi` character. Resolved once by the bundler. */
-const loadTanvi = (): Promise<AvatarFactory<AvatarOptions>> =>
-  import('@voqalize/avatar/avatars/tanvi').then((m) => m.createAvatar);
 
 export interface TanviTileProps {
   /** The live client. `null` in the moment before the host has built one. */
@@ -44,18 +37,7 @@ export interface TanviTileProps {
 }
 
 export function TanviTile({ client, activity, language }: TanviTileProps) {
-  const [create, setCreate] = useState<AvatarFactory<AvatarOptions> | null>(null);
   const copy = strings(language);
-
-  useEffect(() => {
-    let live = true;
-    void loadTanvi().then((factory) => {
-      if (live) setCreate(() => factory);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
 
   return (
     // `vkui-root` is the whole contract with voice-ui-kit's stylesheet: its
@@ -64,7 +46,7 @@ export function TanviTile({ client, activity, language }: TanviTileProps) {
     <>
       <div className={`vkui-root kiosk-tanvi is-${activity}`}>
         <div className="kiosk-tanvi-stage">
-          {create ? <Avatar create={create} client={client} aria-label={copy.assistant} /> : null}
+          <Avatar client={client} character="tanvi" aria-label={copy.assistant} />
         </div>
       </div>
       <TanviStyles />

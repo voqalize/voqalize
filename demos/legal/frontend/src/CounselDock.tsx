@@ -24,21 +24,18 @@
  * **The face is Tanya**, from `@voqalize/avatar` — the same 2.5-D character the
  * homepage agent wears, and she is here because the voice moved first: Docket
  * now speaks with `kokoro/ava`, which is Tanya's voice on voqalize.com. One
- * face, one checkpoint, wherever she turns up. Her module carries three.js and
- * her character binary, so it is imported on demand and the pre-call notice
- * covers the download.
+ * face, one voice, wherever she turns up.
  *
- * She takes one prop that matters — the live `PipecatClient` — and drives
- * herself off the `avatar` messages the runtime already sends down the same data
- * channel the transcript rides. No video track, no second stream, nothing to
- * configure. Before the client exists she renders nothing at all, which is why
- * the stage has a ground of its own to show.
+ * She takes the live `PipecatClient` and the character name `"tanya"`, and
+ * drives herself off the `avatar` messages Voqalize already sends down the same
+ * data channel the transcript rides. No video track, no second stream, nothing
+ * to configure. The package fetches the avatar runtime and her character once
+ * there is a client to embody; before that she renders nothing at all, which is
+ * why the stage has a ground of its own to show.
  */
 
-import { useEffect, useState } from 'react';
 import type { PipecatClient } from '@pipecat-ai/client-js';
 import { usePipecatClient, usePipecatClientMicControl } from '@pipecat-ai/client-react';
-import type { AvatarFactory, AvatarOptions } from '@voqalize/avatar';
 import { Avatar } from '@voqalize/avatar/react';
 import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
 import type { AmbientPresenceActivity } from '@voqalize/demo-kit';
@@ -52,10 +49,6 @@ const ACTIVITY_LABEL: Record<AmbientPresenceActivity, string> = {
   thinking: 'Thinking',
   speaking: 'Speaking',
 };
-
-/** Tanya's module. Resolved once and cached by the bundler. */
-const loadTanya = (): Promise<AvatarFactory<AvatarOptions>> =>
-  import('@voqalize/avatar/avatars/tanya').then((m) => m.createAvatar);
 
 export interface CounselDockProps {
   status: DockStatus;
@@ -91,24 +84,11 @@ export function CounselDock({ status, activity, error, onBegin, onEnd }: Counsel
 }
 
 /**
- * Tanya, once her module has arrived. The import starts when the dock mounts —
- * which is while the visitor is still reading the notice — so the face is here
- * by the time there is a call for her to embody. Until then the stage shows its
- * own ground, which is what it shows behind her anyway.
+ * Tanya. Until her character has arrived the stage shows its own ground, which
+ * is what it shows behind her anyway.
  */
 function Face({ client }: { client: PipecatClient | null }) {
-  const [create, setCreate] = useState<AvatarFactory<AvatarOptions> | null>(null);
-  useEffect(() => {
-    let live = true;
-    void loadTanya().then((factory) => {
-      if (live) setCreate(() => factory);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-  if (!create) return <div className="desk-counsel-face" role="img" aria-label="Tanya" />;
-  return <Avatar className="desk-counsel-face" create={create} client={client} aria-label="Tanya" />;
+  return <Avatar className="desk-counsel-face" client={client} character="tanya" aria-label="Tanya" />;
 }
 
 /** Before the call, and after it ends: one affordance, and what went wrong. */

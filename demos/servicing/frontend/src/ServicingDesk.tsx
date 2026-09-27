@@ -19,11 +19,11 @@
  *     than inferred from a re-sent workspace. The store's `byHand` decides
  *     which of the two moved the screen; this file only carries the message.
  *
- * Once the call is live, Tess — one of `@voqalize/avatar`'s 2.5-D characters —
+ * Once the call is live, Tess — the `tess` character from `@voqalize/avatar` —
  * sits in a small tile in the console's corner. She is driven entirely by the
- * runtime's own `avatar` messages on the data channel the call already has, so
- * the tile is the live client and nothing else; the brain gives the desk her
- * voice (`kokoro/sarah`) to match.
+ * `avatar` messages Voqalize sends on the data channel the call already has, so
+ * the tile is the live client and a character name and nothing else; the brain
+ * gives the desk her voice (`kokoro/sarah`) to match.
  *
  * This is exactly the surface an external developer embeds: one `fetch` for
  * `sessions.connect`, handed to `PipecatAppBase`, driven by a publishable
@@ -41,7 +41,6 @@ import {
 } from "@pipecat-ai/client-react";
 import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
 import { RTVIEvent, type PipecatClient, type UICommandData } from "@pipecat-ai/client-js";
-import type { AvatarFactory, AvatarOptions } from "@voqalize/avatar";
 import { Avatar } from "@voqalize/avatar/react";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import {
@@ -139,28 +138,16 @@ function LiveControls({
 }
 
 // ── Tess ──────────────────────────────────────────────────────────────────────
-// Her module is fetched when the call goes live, not with the console: an
-// advisor who never calls never downloads her. Until it arrives the tile shows
-// its own ground, which is what it shows behind her anyway.
-
-const loadTess = (): Promise<AvatarFactory<AvatarOptions>> =>
-  import("@voqalize/avatar/avatars/tess").then((m) => m.createAvatar);
+// The tile mounts when the call goes live, and only then does the package fetch
+// the avatar runtime and her character: an advisor who never calls never
+// downloads her. Until she arrives the tile shows its own ground, which is what
+// it shows behind her anyway.
 
 function TessTile({ client, activity }: { client: PipecatClient | null; activity: AmbientPresenceActivity }) {
-  const [create, setCreate] = useState<AvatarFactory<AvatarOptions> | null>(null);
-  useEffect(() => {
-    let live = true;
-    void loadTess().then((factory) => {
-      if (live) setCreate(() => factory);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
   return (
     <aside className={`svc-tess pstate-${activity}`} aria-label="Tess">
       <div className="svc-tess-stage">
-        {create ? <Avatar create={create} client={client} className="svc-tess-face" aria-label="Tess" /> : null}
+        <Avatar client={client} character="tess" className="svc-tess-face" aria-label="Tess" />
       </div>
       <div className="svc-tess-caption">
         <strong>Tess</strong>

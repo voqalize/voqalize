@@ -33,22 +33,16 @@
  * different questions: `size` (`compact` shrinks the face when the page matters
  * more than the presenter) and `chat` (the transcript column, off by default).
  *
- * **The face.** Tara, one of the library's 2.5-D characters, mounted through
- * `@voqalize/avatar`'s `<Avatar create>` and imported from the package like any
- * other face — `@voqalize/avatar/avatars/tara`, installed from npm. She used to
- * be vendored here as a proprietary build; as of 0.4.0 her code is MIT and her
- * character binary is CC-BY 4.0 in the published package, so there is no second
- * copy of her in this repository to keep in step. She
- * takes one prop that matters — the live `PipecatClient` — and drives herself
- * off the `avatar` server messages Voqalize's runtime already sends over the
- * same data channel the transcript rides. There is nothing to configure and no
- * second stream: no video track, no talking-head vendor, no per-minute cost. The
- * rig only renders; the server owns the intent.
+ * **The face.** Tara, the `tara` character, mounted through `@voqalize/avatar`'s
+ * `<Avatar client character>`. She takes the live `PipecatClient` and her name,
+ * and drives herself off the `avatar` server messages Voqalize already sends
+ * over the same data channel the transcript rides. There is nothing to configure
+ * and no second stream: no video track, no talking-head vendor, no per-minute
+ * cost. The face only renders; the server owns the intent.
  *
- * Her module carries three.js and her character binary, so it is loaded on
- * demand — `three` is an optional peer of the package and only a 2.5-D character
- * asks for it. The bank page does not pay for it until the customer clicks the
- * launcher, and the pre-call sheet covers the load.
+ * The package fetches the avatar runtime and her character from
+ * `avatar.voqalize.com` when the tile mounts, so the bank page does not pay for
+ * her until the call is live, and the pre-call sheet covers the load.
  *
  * Before the call there is no client to embody, so the launcher wears a **still**
  * of her — `portraits/tara-portrait.png`, a square crop of the reference she is
@@ -77,7 +71,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { PipecatClient } from '@pipecat-ai/client-js';
-import type { AvatarFactory, AvatarOptions } from '@voqalize/avatar';
 import {
   BotAudioControl,
   Conversation,
@@ -98,20 +91,11 @@ import { agentName, type AuraFace } from './persona';
 const PRIMARY = '#4F46E5';
 const ACCENT = '#8B5CF6';
 
-/** Tara's module. Called by the launcher to start the download and by the tile
- *  to mount her; the bundler resolves it once. */
-const loadTara = (): Promise<AvatarFactory<AvatarOptions>> =>
-  import('@voqalize/avatar/avatars/tara').then((m) => m.createAvatar);
-
-/** `?avatar=tushar` puts the second 2.5-D character in the tile (`./persona`).
- *  Both are subpath exports of the one package now, so this is a second import
- *  and nothing else. */
-const FACES: Record<AuraFace, { portrait: string; load: () => Promise<AvatarFactory<AvatarOptions>> }> = {
-  tara: { portrait: taraPortrait, load: loadTara },
-  tushar: {
-    portrait: tusharPortrait,
-    load: () => import('@voqalize/avatar/avatars/tushar').then((m) => m.createAvatar),
-  },
+/** The still each face wears on the launcher. `?avatar=tushar` puts the other
+ *  character in the tile (`./persona`); the key is the character's name. */
+const PORTRAITS: Record<AuraFace, string> = {
+  tara: taraPortrait,
+  tushar: tusharPortrait,
 };
 
 const ACTIVITY_LABEL: Record<AmbientPresenceActivity, string> = {
@@ -260,24 +244,13 @@ export function AuraDock({ client, activity, avatar, face, chat, phase, onStart,
 }
 
 /**
- * Tara, once her module has arrived. Driven entirely by the runtime's own
- * `avatar` messages on the data channel — the client is the only prop she needs.
- * Until the module is here the stage shows its own ground, which is what it
- * shows behind her anyway.
+ * The face on the call, driven entirely by the `avatar` messages on the data
+ * channel — the client and her name are the only props she needs. Until she has
+ * arrived the stage shows its own ground, which is what it shows behind her
+ * anyway.
  */
 function Face({ face, client }: { face: AuraFace; client: PipecatClient | null }) {
-  const [create, setCreate] = useState<AvatarFactory<AvatarOptions> | null>(null);
-  useEffect(() => {
-    let live = true;
-    void FACES[face].load().then((factory) => {
-      if (live) setCreate(() => factory);
-    });
-    return () => {
-      live = false;
-    };
-  }, [face]);
-  if (!create) return <div role="img" aria-label={agentName(face)} />;
-  return <Avatar create={create} client={client} aria-label={agentName(face)} />;
+  return <Avatar client={client} character={face} aria-label={agentName(face)} />;
 }
 
 /**
@@ -323,16 +296,13 @@ function CallTimer() {
  * step later, behind the notice.
  */
 function Launcher({ face, connecting, onStart }: { face: AuraFace; connecting: boolean; onStart: () => void }) {
-  const { portrait, load } = FACES[face];
+  const portrait = PORTRAITS[face];
   const name = agentName(face);
   return (
     <button
       type="button"
       className={`aura-aria-launch${connecting ? ' is-busy' : ''}`}
-      onClick={() => {
-        void load();
-        onStart();
-      }}
+      onClick={onStart}
       disabled={connecting}
       aria-label={connecting ? `Connecting to ${name}` : `Talk to ${name}, the voice assistant`}
     >

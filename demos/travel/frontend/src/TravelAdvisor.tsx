@@ -34,7 +34,6 @@ import {
 } from "@pipecat-ai/client-react";
 import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
-import type { AvatarFactory, AvatarOptions } from "@voqalize/avatar";
 import { Avatar } from "@voqalize/avatar/react";
 import {
   AmbientPresence,
@@ -187,26 +186,13 @@ const PRESENCE_STYLES = `
 
 // ── Tess, on screen ───────────────────────────────────────────────────────────
 // She sits bottom-right over the portal, the way a meeting tile does, and lip-syncs
-// to the bot's own audio track. The face is a GLB, so it loads on demand: nothing
-// is fetched until a call is live.
-const loadTess = (): Promise<AvatarFactory<AvatarOptions>> =>
-  import("@voqalize/avatar/avatars/tess").then((m) => m.createAvatar);
-
+// to the bot's own audio track. The tile mounts only once a call is live, so the
+// avatar runtime and the `tess` character are not fetched before then.
 function TessTile({ client, activity }: { client: PipecatClient | null; activity: AmbientPresenceActivity }) {
-  const [create, setCreate] = useState<AvatarFactory<AvatarOptions> | null>(null);
-  useEffect(() => {
-    let live = true;
-    void loadTess().then((factory) => {
-      if (live) setCreate(() => factory);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
   return (
     <aside className={`tv-tess pstate-${activity}`} aria-label="Tess">
       <div className="tv-tess-stage">
-        {create ? <Avatar create={create} client={client} className="tv-tess-face" aria-label="Tess" /> : null}
+        <Avatar client={client} character="tess" className="tv-tess-face" aria-label="Tess" />
       </div>
       <div className="tv-tess-caption">
         <strong>Tess</strong>
