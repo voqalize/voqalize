@@ -26,7 +26,7 @@ Faces shipping on the page: tanya (the one in the recording), tushar, tess, tara
 
 - The browser installs `@voqalize/avatar` from npm: a small **MIT** loader, source
   at `github.com/voqalize/avatar`. It takes the pipecat client and a character name.
-- The avatar runtime and the characters (tanya, tess, tushar, tara, tanvi) are
+- The avatar runtime and the characters (tanya, tess, tushar, tara, tanvi, trisha) are
   fetched from `avatar.voqalize.com` when the face mounts. They are Voqalize's,
   under their own licence, for use with Voqalize.
 - A page with a Content-Security-Policy has to allow `avatar.voqalize.com`.

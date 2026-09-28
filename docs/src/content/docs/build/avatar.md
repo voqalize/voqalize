@@ -86,9 +86,21 @@ img-src     https://avatar.voqalize.com blob:
 
 ## Choosing a character
 
-A character is a name, passed as `character`: `tanya`, `tess`, `tushar`,
-`tara` or `tanvi`. Each is a 2.5-D character rendered with WebGL. A page
-downloads only the character it mounts. A name the runtime does not have logs
+A character is a name, passed as `character`. Each is a 2.5-D character
+rendered with WebGL, and you can meet them at
+[voqalize.com/demos/avatar](https://voqalize.com/demos/avatar). A page
+downloads only the character it mounts.
+
+`listCharacters()` returns the characters the runtime has, each with its name,
+a still image, descriptive tags and the voices that suit the face, best first.
+Build a picker from it rather than writing the names down:
+
+```ts
+import { listCharacters } from "@voqalize/avatar";
+
+const characters = await listCharacters();
+const voice = characters[0].suggestedVoices[0]; // e.g. "omnivoice/gauri"
+``` A name the runtime does not have logs
 an error to the console and mounts nothing.
 
 To change the face, pass another name. In React the face is rebuilt; with
