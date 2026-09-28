@@ -69,6 +69,11 @@ substitutions:
   _ORDERDESK_PK: ''
   _KIOSK_AGENT: ''
   _KIOSK_PK: ''
+  # Empty in prod, so every prod page loads the runtime its npm release pins.
+  # The dev trigger sets it to the dev host's `runtime/current.js`, the newest
+  # runtime uploaded there, so an unreleased character is testable on dev
+  # (`demos/shared/avatar-runtime.mjs`).
+  _AVATAR_RUNTIME: ''
 
 steps:
   # 1. Build + assemble every demo UI → demos/dist/demos/<name>/. The per-demo
@@ -84,6 +89,7 @@ steps:
         corepack enable && corepack prepare pnpm@10.32.1 --activate
         node demos/build.mjs
     env:
+      - 'AVATAR_RUNTIME=${_AVATAR_RUNTIME}'
       - 'VITE_TRAVEL_AGENT=${_TRAVEL_AGENT}'
       - 'VITE_TRAVEL_PK=${_TRAVEL_PK}'
       - 'VITE_SHOPPING_AGENT=${_SHOPPING_AGENT}'

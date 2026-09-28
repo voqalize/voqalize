@@ -25,6 +25,11 @@ const path = require('path');
 const HOST = '127.0.0.1';
 const DOCS_PORT = 4331;
 
+// Every demo on the newest local avatar runtime at avatar.local, not the one the
+// installed `@voqalize/avatar` pins (`demos/shared/avatar-runtime.mjs`). With no
+// runtime built there, the avatar 404s.
+const AVATAR_RUNTIME = 'https://avatar.local.voqalize.com/runtime/current.js';
+
 // port = DEMO_BASE + index. APPEND ONLY — inserting renumbers every demo after it.
 const DEMO_BASE = 5750;
 const DEMOS = [
@@ -64,6 +69,7 @@ module.exports = {
       script: 'pnpm',
       args: `exec vite --host ${HOST} --port ${DEMO_BASE + i} --strictPort`,
       interpreter: 'none',
+      env: { AVATAR_RUNTIME },
       autorestart: true,
     })),
   ],
