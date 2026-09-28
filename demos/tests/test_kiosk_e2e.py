@@ -86,7 +86,7 @@ _SALARIED_FUEL = {
 }
 
 #: What the glass's own copy says, which no model wrote.
-_SNAPSHOT = "[The screen right now]"
+_SNAPSHOT = "What the kiosk screen shows right now:"
 
 
 # ─── Reading what the brain said to the model ─────────────────────────────────
@@ -579,7 +579,7 @@ async def test_every_turn_sees_the_screen_as_it_is_now_and_only_once() -> None:
             assert texts.index(notes[0]) == len(texts) - 2, "the note is not just before the words"
         second = "\n".join(_texts(llm.captured_contents[1]))
         assert "salaried" in second  # what they have told us, as it is said
-        assert "[They answered the employment: salaried.]" in second
+        assert "The customer answered the employment: salaried." in second
         assert all(_SNAPSHOT not in t for t in _texts(rig.brain._history))  # pyright: ignore[reportPrivateUsage]
 
 

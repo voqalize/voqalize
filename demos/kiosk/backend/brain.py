@@ -93,8 +93,9 @@ from .cards import (
     card_by_id,
 )
 from .eligibility import Assessment, Shortlist, assess, shortlist
+from .latin_hindi import reads_as_latin_hindi
 from .pitch import pitch_line
-from .prompts import GREETING, HINDI_VOICED, SYSTEM_INSTRUCTION
+from .prompts import GREETING, HINDI_VOICED, SYSTEM_INSTRUCTION, switch_line
 from .script_english import reads_as_english
 from .values import display_form, masked_form, normalise
 
@@ -618,6 +619,9 @@ class KioskBrain(GeminiBrain):
         self._pitched: tuple[str, ...] = ()
         #: Whether the idle clock is shortened for that line right now.
         self._idle_short = False
+        #: The language the model asked to move to this turn, until the voice has
+        #: moved and the kiosk has said so in it (``_switch_now``).
+        self._switch_due: LanguageName | None = None
 
         # The totem. Never appended to the context; each spoken turn reads it as
         # a note that leaves again when the turn is over (``_with_the_screen``).
@@ -668,15 +672,46 @@ class KioskBrain(GeminiBrain):
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn; a line of Tanvi's own if it acted and said nothing;
-        and the line about the top card, if the cards just went up.
+        the switch line, in the new language, if it moved the language; and the
+        line about the top card, if the cards just went up.
 
         The prompt has the model speak and call in the same response, and on a
         dialled call it sometimes called alone, leaving the customer in silence
         with the screen changed. See :mod:`voqalize_demos.silent_turn`."""
-        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+        async for event in self._fallback.speak_if_silent(self, self._model_turn(session)):
             yield event
         async for event in self._pitch_now():
             yield event
+
+    async def _model_turn(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's own turn, and the switch line if it moved the language.
+
+        The switch line is inside the turn the fallback watches, so a turn that
+        tapped an answer and switched in silence — as the prompt asks — is not
+        also given "Go ahead." in the language being left."""
+        async for event in super().respond(session):
+            yield event
+        async for event in self._switch_now():
+            yield event
+
+    async def _switch_now(self) -> AsyncGenerator[Speech, None]:
+        """Move both legs, wait for them to land, then say so in the new language.
+
+        The model writes before the voice changes, so a switch line of its own
+        would be heard in the language being left — a customer who spoke Hindi
+        heard "Let's continue in Hindi" in English. So the tool only asks, and
+        the line is written, and spoken here once the new voice is on."""
+        name = self._switch_due
+        if name is None:
+            return
+        self._switch_due = None
+        note = await self._switch_to(name, by="you")
+        if self.language != name:
+            # Refused: the call stays where it was, and the model is told why.
+            self._append_note(note)
+            return
+        async for speech in self._say(switch_line(name)):
+            yield speech
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         """Silence — except for the line about the top card.
@@ -694,18 +729,28 @@ class KioskBrain(GeminiBrain):
     async def on_user_message(
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
-        """One spoken turn — with English caught before the model sees it, and the
-        screen in front of it.
+        """One spoken turn — with a plain change of language caught before the
+        model sees it, and the screen in front of it.
 
-        In any other language the recognizer spells English in that language's
-        script, and the model, reading it, would answer in English about one time
-        in three without calling ``switch_language``: new words, old voice, old
-        recognizer. :func:`reads_as_english` decides it in Python instead, and
-        both legs move to English before the model runs.
+        A recognizer writes every language in its own script: English spoken to
+        the Kannada one comes out as English in Kannada letters, and Hindi spoken
+        to the English one as Hindi in English letters. The model reads both, and
+        answers in the new language without calling ``switch_language`` often
+        enough to matter: new words, old voice, old recognizer. So the plain
+        cases are decided in Python — :func:`reads_as_english`,
+        :func:`reads_as_latin_hindi` — and both legs move before the model runs,
+        so its reply is spoken by the right voice.
         """
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=msg.text)]))
+        # The kiosk's own notes go in front of the customer's words, never after
+        # them: a request that does not end on what they said is one the model
+        # has been seen to continue, note and all, out loud.
         if self.language != "English" and reads_as_english(msg.text):
-            self._append_note(await self._switch_to("English", by="the kiosk, which heard English"))
+            note = await self._switch_to("English", by="the kiosk, which heard English")
+            self._append_note(note)
+        elif self.language == "English" and reads_as_latin_hindi(msg.text):
+            note = await self._switch_to("Hindi", by="the kiosk, which heard Hindi")
+            self._append_note(note)
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=msg.text)]))
         async for speech in self._with_the_screen(self.respond(session)):
             yield speech
 
@@ -752,36 +797,38 @@ class KioskBrain(GeminiBrain):
             case ProfileAnswered():
                 self._record(event.field, event.value)
                 said = _ANSWER_SPOKEN.get(event.field, {}).get(event.value, event.value)
-                return f"[They answered the {_spaced(event.field)}: {said}.]"
+                return f"The customer answered the {_spaced(event.field)}: {said}."
             case EligibilityAcknowledged():
-                return "[They read what they are likely eligible for and asked for the cards.]"
+                return (
+                    "The customer read what they are likely eligible for and asked for the cards."
+                )
             case CardTapped():
                 card = card_by_id(event.card_id)
                 self.view["the card they have open"] = card.name if card else event.card_id
-                return f"[They opened the {card.name if card else event.card_id}.]"
+                return f"The customer opened the {card.name if card else event.card_id}."
             case CardDetailClosed():
                 self.view["the card they have open"] = None
-                return "[They closed the card and went back to the three.]"
+                return "The customer closed the card and went back to the three."
             case CardCompared():
-                return "[They put the cards side by side.]"
+                return "The customer put the cards side by side."
             case CardChosen():
                 card = card_by_id(event.card_id)
-                return f"[They chose the {card.name if card else event.card_id}.]"
+                return f"The customer chose the {card.name if card else event.card_id}."
             case ConsentGiven():
                 self.consented_card_id = event.card_id
                 self.view["the consent panel"] = "accepted"
-                return "[They tapped I agree on the consent panel.]"
+                return "The customer tapped I agree on the consent panel."
             case ValueEntered():
                 self._enter(event.field, event.value)
-                return f"[They typed in their {_spaced(event.field)}.]"
+                return f"The customer typed in their {_spaced(event.field)}."
             case ValueConfirmed():
-                return f"[They confirmed their {_spaced(event.field)} on screen.]"
+                return f"The customer confirmed their {_spaced(event.field)} on screen."
             case ValueEdited():
                 self._enter(event.field, event.value)
-                return f"[They corrected their {_spaced(event.field)}.]"
+                return f"The customer corrected their {_spaced(event.field)}."
             case RestartPressed():
                 self._reset()
-                return "[They pressed Start over, so their answers are cleared.]"
+                return "The customer pressed Start over, so their answers are cleared."
 
     # ─── The form, as one table ─────────────────────────────────────────
 
@@ -1067,7 +1114,7 @@ class KioskBrain(GeminiBrain):
 
     def _snapshot(self) -> str:
         """What is on the glass right now, as the note a turn starts from."""
-        return "[The screen right now]\n" + screen_prose(_trim(self.view))
+        return "What the kiosk screen shows right now:\n" + screen_prose(_trim(self.view))
 
     async def _with_the_screen(
         self, turn: AsyncGenerator[Speech, None]
@@ -1102,7 +1149,7 @@ class KioskBrain(GeminiBrain):
         if line is None:
             self._idle_clock(short=True)
             return
-        async for speech in self._say(line, ranked):
+        async for speech in self._pitch(line, ranked):
             yield speech
 
     async def _pitch_on_idle(self) -> AsyncGenerator[Speech, None]:
@@ -1118,13 +1165,13 @@ class KioskBrain(GeminiBrain):
         self._idle_clock(short=False)
         line = self._written_pitch(ranked)
         if line is not None:
-            async for speech in self._say(line, ranked):
+            async for speech in self._pitch(line, ranked):
                 yield speech
             return
         english = pitch_line(ranked, self._spend(), Language.EN)
         self._pitched, self._pitch_due = self.shortlist_ids, None
         self._append_note(
-            f"[The cards are up. In one short line, in {self.language}, tell them: {english}]"
+            f"The cards are up. In one short line, in {self.language}, tell them: {english}"
         )
         async for speech in self._with_the_screen(self.respond(self.session)):
             yield speech
@@ -1135,22 +1182,27 @@ class KioskBrain(GeminiBrain):
     def _spend(self) -> SpendCategory:
         return cast(SpendCategory, self.answers.get("spend_category", "bills"))
 
-    async def _say(self, line: str, ranked: Shortlist) -> AsyncGenerator[Speech, None]:
+    async def _pitch(self, line: str, ranked: Shortlist) -> AsyncGenerator[Speech, None]:
+        """Say the line about the top card, once, and put the idle clock back."""
+        self._pitched, self._pitch_due = self.shortlist_ids, None
+        logger.info("kiosk: the line about the top card ({})", ranked.recommended_id)
+        async for speech in self._say(line):
+            yield speech
+        self._idle_clock(short=False)
+
+    async def _say(self, line: str) -> AsyncGenerator[Speech, None]:
         """Speak a written line, and keep it in the context as Tanvi's own, so the
-        model knows what she has already said about the cards.
+        model knows what she has already said.
 
         It is a speech unit like any the model writes: it joins the finalize
         queue and is rewritten to what the customer actually heard.
         """
-        self._pitched, self._pitch_due = self.shortlist_ids, None
         unit = _Unit(types.Content(role="model", parts=[types.Part(text=line)]))
         self._history.append(unit.content)  # pyright: ignore[reportPrivateUsage]
         self._awaiting.append(unit)  # pyright: ignore[reportPrivateUsage]
-        logger.info("kiosk: the line about the top card ({})", ranked.recommended_id)
         yield SpeechStart()
         yield SpeechChunk(line)
         yield SpeechEnd()
-        self._idle_clock(short=False)
 
     def _idle_clock(self, *, short: bool) -> None:
         """Shorten the idle clock for the line about the top card, or put it back.
@@ -1264,17 +1316,20 @@ class KioskBrain(GeminiBrain):
 
         Call it when the customer asks for a language, AND when you can tell they
         are already speaking one: do not wait to be asked. Do not switch on a
-        single borrowed English word; Indian speech is full of them. Say one
-        short line in the language the call is in now and call this in the same
-        response: that line is spoken before the voice changes, and you speak the
-        new language from their next turn.
+        single borrowed English word; Indian speech is full of them. Call it
+        alone, with no words: the kiosk says the switch line itself, in the new
+        language, once the voice has changed. Speak the new language from their
+        next turn.
         """
         if to.language == self.language:
             return f"Already in {to.language}."
-        # Sent, not awaited: a tool returns inside its budget, and nothing checks
-        # later that the switch applied. Both legs still move in one request.
-        configure_soon(self.session, _config(to.language))
-        return self._switched(to.language, by="you")
+        # Not sent here: a tool returns inside its budget, and the line has to wait
+        # for the new voice. ``_switch_now`` awaits both legs after the turn.
+        self._switch_due = to.language
+        return (
+            f"Switching to {to.language}; the kiosk tells them so in {to.language}. "
+            f"Speak {to.language} from here on."
+        )
 
     async def _switch_to(self, name: LanguageName, *, by: str) -> str:
         """Move both legs to one language, from a callback rather than a tool.

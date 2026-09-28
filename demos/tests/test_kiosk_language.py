@@ -25,7 +25,7 @@ import re
 from typing import Any
 
 import pytest
-from voqalize_demos.testing import ScriptedGemini, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import DemoRig, _configs, _last, demo
 from .test_kiosk_e2e import VOICE, _legs, _spoken
@@ -81,6 +81,78 @@ async def test_every_direction_moves_both_legs_and_comes_back() -> None:
             assert _legs(rig) == (VOICE, code, code), (name, _legs(rig))
             assert rig.brain.language == name
         assert rig.driver.ui_commands == on_the_glass, "a language switch moved the screen"
+
+
+async def test_the_switch_line_is_said_in_the_new_language_after_the_voice_moves() -> None:
+    """The reported oddity: a customer spoke Hindi and heard "Let's continue in
+    Hindi" in English, because the model's line goes out before the voice
+    changes. The model now calls alone; the brain waits for both legs and says a
+    written line in Hindi, with the Hindi voice."""
+    from voqalize_demos._loaded.kiosk.prompts import SWITCH_LINE, switch_line
+
+    heard = "Massive salary pay private industry meam kartang."
+    llm = ScriptedGemini({heard: call("switch_language", to={"language": "Hindi"})})
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says(heard)
+        assert [u.text for u in turn.units] == [SWITCH_LINE["Hindi"]]
+        assert _legs(rig) == (VOICE, "hi", "hi")
+        assert rig.brain.language == "Hindi"
+        assert len(llm.calls) == 1, "the switch line asked the model"
+    # A language no voice speaks is told so, in Hindi.
+    assert "ओड़िया" in switch_line("Odia") and "हिंदी" in switch_line("Odia")
+
+
+async def test_hindi_in_english_letters_moves_both_legs_before_the_model_speaks() -> None:
+    """The local call that did not switch: the customer answered "main student
+    hoon", the model understood, tapped it and stayed in English. The plain case
+    is decided in Python, so the model's reply is already spoken by the Hindi
+    voice and the next sentence is heard in Hindi."""
+    heard = "Main student hoon."
+    llm = ScriptedGemini(
+        {heard: reply_and_call("ठीक है।", "answer_on_screen", answer={"employment": "student"})}
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says(heard)
+        assert rig.brain.language == "Hindi"
+        assert _legs(rig) == (VOICE, "hi", "hi")
+        assert [u.text for u in turn.units] == ["ठीक है।"]
+        assert rig.brain.answers == {"employment": "student"}
+        told = [
+            part.text or "" for content in llm.calls[-1].contents for part in content.parts or []
+        ]
+        assert any("heard Hindi" in line for line in told), told
+
+
+_LATIN_HINDI = [
+    "Main student hoon.",
+    "Mera naam Abhishek hai, main student hoon.",
+    "Kya aap Hindi mein baat kar sakti hain?",
+    "Mai padhai karta hoon abhi.",
+    "Mujhe fuel card chahiye.",
+]
+_LATIN_ENGLISH = [
+    "I am a student.",
+    "The main thing is the fee.",
+    "Okay theek hai, show me the cards please.",
+    "Show me the main card.",
+    "Can we talk in Hindi?",
+]
+
+
+@pytest.mark.parametrize("text", _LATIN_HINDI)
+def test_hindi_in_english_letters_reads_as_hindi(text: str) -> None:
+    from voqalize_demos._loaded.kiosk.latin_hindi import reads_as_latin_hindi
+
+    assert reads_as_latin_hindi(text), text
+
+
+@pytest.mark.parametrize("text", _LATIN_ENGLISH)
+def test_english_with_a_hindi_word_does_not(text: str) -> None:
+    from voqalize_demos._loaded.kiosk.latin_hindi import reads_as_latin_hindi
+
+    assert not reads_as_latin_hindi(text), text
 
 
 async def test_patience_is_three_and_a_switch_keeps_it() -> None:
