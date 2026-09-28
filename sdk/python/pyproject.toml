@@ -51,8 +51,7 @@ dependencies = [
 # not model.
 gemini = ["google-genai>=2.19"]
 # Deps used only by the bundled examples/ — never imported by the SDK itself.
-# `examples/reference` and `examples/fastapi_inbound` mount a Brain on FastAPI and
-# are served with uvicorn. `examples/echo` needs nothing but the SDK, which is the
+# `examples/fastapi_inbound` mounts a Brain on FastAPI and is served with uvicorn. `examples/echo` needs nothing but the SDK, which is the
 # point of it.
 examples = [
     "fastapi>=0.115",

@@ -306,7 +306,6 @@ speak. Rejection is all-or-nothing, and `detail` is written to be shown.
 - [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.6.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
 - The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
 - `examples/` — runnable brains: `echo` (the smallest complete brain),
-  `reference` (the one every conformance scenario is run against),
   `fastapi_inbound` (mount a brain in your own FastAPI app).
 
 ## Development
