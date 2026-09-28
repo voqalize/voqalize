@@ -1,5 +1,5 @@
-"""What the avatar demo knows: the documentation sections, the avatars on the
-strip, and the background the model answers from.
+"""What the avatar demo knows: the documentation sections, a line about each
+face, and the background the model answers from.
 
 Kept out of ``brain.py`` because it is *content* — it is edited when the avatar
 changes, not when the conversation does, and those are two different
@@ -150,86 +150,27 @@ SECTIONS_BY_ID: dict[str, Section] = {section.id: section for section in SECTION
 
 
 # ─── The avatars ──────────────────────────────────────────────────────────────
+#
+# The roster is not kept here. The page reads it from ``@voqalize/avatar``
+# (``listCharacters()``), which is where a character comes into existence, and
+# sends the face the visitor picked and that face's first suggested voice in
+# ``init``. What this file keeps is what the page cannot know.
 
-AvatarKey = Literal[
-    "tanya",
-    "tess",
-    "tushar",
-    "tara",
-    "tanvi",
-]
+#: The face a call wears when ``init`` names no usable face and voice, with the
+#: voice it wears it in. The page opens its strip on the same face
+#: (``DEFAULT_AVATAR`` in ``frontend/src/AvatarDemo.tsx``).
+DEFAULT_AVATAR = "tanya"
+DEFAULT_VOICE = Voice.KOKORO_AVA
 
-#: The face the strip starts on (``DEFAULT_AVATAR`` in ``frontend/src/roster.ts``),
-#: and what a payload that named no face wears. Its voice is configured in
-#: ``on_session_start`` before a word is spoken, exactly as a picked face's is.
-DEFAULT_AVATAR: AvatarKey = "tanya"
-
-
-@dataclass(frozen=True)
-class AvatarIdentity:
-    """One avatar, and the voice that goes with it.
-
-    ``voice`` is the whole reason this table exists on the *brain* side. A face
-    read as one gender speaking in the other is the first thing anyone notices, before a single nod is judged. Pairing it here, in the
-    place that can actually change the voice, is what stops the page ever holding
-    half the answer.
-    """
-
-    key: AvatarKey
-    name: str
-    renderer: str
-    blurb: str
-    voice: Voice
-
-
-AVATARS: tuple[AvatarIdentity, ...] = (
-    AvatarIdentity(
-        key="tanya",
-        name="Tanya",
-        renderer="2.5-D",
-        blurb="The default here, and the face on the Voqalize homepage and the legal demo.",
-        voice=Voice.KOKORO_AVA,
-    ),
-    AvatarIdentity(
-        key="tess",
-        name="Tess",
-        renderer="2.5-D",
-        blurb="American, and the face of the servicing and travel demos.",
-        voice=Voice.KOKORO_SARAH,
-    ),
-    AvatarIdentity(
-        key="tushar",
-        name="Tushar",
-        renderer="2.5-D",
-        blurb="The male face in the bank demo, beside Tara.",
-        voice=Voice.OMNIVOICE_GAURAV,
-    ),
-    AvatarIdentity(
-        key="tara",
-        name="Tara",
-        renderer="2.5-D",
-        blurb="The face of the bank demo.",
-        voice=Voice.OMNIVOICE_GAURI,
-    ),
-    AvatarIdentity(
-        key="tanvi",
-        name="Tanvi",
-        renderer="2.5-D",
-        blurb="The face of the kiosk demo.",
-        # A voice of her own rather than Tara's: two faces sharing one voice
-        # read as one person in two drawings, and a face heard in the wrong
-        # accent is noticed before anything the face does.
-        voice=Voice.OMNIVOICE_GAYATRI,
-    ),
-)
-
-AVATARS_BY_KEY: dict[str, AvatarIdentity] = {a.key: a for a in AVATARS}
-
-
-def avatars_for_prompt() -> str:
-    """The roster as the model reads it. No key: the model does not choose a face
-    any more, so a key here would only be something to read out loud."""
-    return "\n".join(f"- {a.name} — {a.renderer}. {a.blurb}" for a in AVATARS)
+#: What the model may say about a face beyond its name. Optional: a face with no
+#: line here is introduced by name alone, so a new character needs no edit.
+BLURBS: dict[str, str] = {
+    "tanya": "The default here, and the face on the Voqalize homepage and the legal demo.",
+    "tess": "American, and the face of the servicing and travel demos.",
+    "tushar": "The male face in the bank demo, beside Tara.",
+    "tara": "The face of the bank demo.",
+    "tanvi": "The face of the kiosk demo.",
+}
 
 
 def sections_for_prompt() -> str:
@@ -254,7 +195,7 @@ FACTS ABOUT THE AVATAR — answer from these, and say you are not sure if it is 
 - Voqalize sends the avatar's state and the mouth shapes for every reply, in every call. There is nothing to install or run on the server side, and nothing extra to pay for.
 - The mouth shapes come from the sounds the voice actually spoke, so they match the audio rather than a guess from the text.
 - It needs a Voqalize call. It is not a standalone player, and it does not plug into other voice platforms.
-- The characters are 2.5-D, rendered with WebGL 2 in the browser: Tanya, Tess, Tushar, Tara and Tanvi. A browser without WebGL 2 shows a still picture of the character.
+- The characters are 2.5-D, rendered with WebGL 2 in the browser; the strip under the call shows every one. A browser without WebGL 2 shows a still picture of the character.
 - A page with a Content-Security-Policy has to allow avatar.voqalize.com, and blob: for the character's textures.
 - HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. Voqalize sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
 

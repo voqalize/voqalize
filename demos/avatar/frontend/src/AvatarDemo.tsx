@@ -30,10 +30,10 @@
  *     dialled before this page has one, and a gesture sent then goes nowhere.
  *
  * **The face is chosen before the call and never during it,** which is why it
- * does not travel on either lane. Each face is paired with a voice read as the
- * same gender, so a face and a voice are one choice; the strip writes the key into
- * the connect request and the brain reads it there, before the opener is
- * synthesised. Mid-call is not an option worth having: the opener is spoken
+ * does not travel on either lane. Each face suggests the voices that suit it,
+ * so a face and a voice are one choice; the strip writes the face and its first
+ * suggested voice into the connect request and the brain reads them there,
+ * before the opener is synthesised. Mid-call is not an option worth having: the opener is spoken
  * before this page can say anything at all — `greet` is awaited before any
  * client message can be delivered, and waiting for one there deadlocks the
  * session — so a face picked after dialling would speak its first line in the
@@ -57,17 +57,26 @@ import {
   usePipecatConnectionState,
 } from "@pipecat-ai/voice-ui-kit";
 import "@pipecat-ai/voice-ui-kit/styles.scoped";
+import { type CharacterInfo, listCharacters } from "@voqalize/avatar";
 import { Avatar } from "@voqalize/avatar/react";
 import { Github, PhoneOff } from "lucide-react";
 import { asUiAction, sendAppEvent, unhandledUiAction } from "./actions.gen";
 import { connectRequest, demo, withRealHeaders } from "./config";
 import { DOC_SECTIONS } from "./docs";
-import { DEFAULT_AVATAR, ROSTER, ROSTER_BY_KEY } from "./roster";
 import { STYLES } from "./styles";
 
 /** Two minutes, and the page only *reports* it — the brain enforces it. Kept
  *  here so the clock reads the same as the one that will actually hang up. */
 const LIMIT_S = 120;
+
+/** The face the strip starts on, and so the one a call opens on unless the
+ *  visitor picks another. The brain falls back to the same face when the
+ *  connect request carries no usable pick (`DEFAULT_AVATAR` in
+ *  `backend/content.py`). */
+const DEFAULT_AVATAR = "tanya";
+
+/** How a character's name reads on screen: `tess` is Tess. */
+const titled = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
 
 /** How many finished sentences stay on screen behind the one being spoken.
  *  Two is what fits under the tile without pushing the controls down. */
@@ -130,7 +139,7 @@ function Face({
       className="av-face"
       client={client}
       character={avatarKey}
-      aria-label={`${ROSTER_BY_KEY[avatarKey]?.name ?? "The"} avatar`}
+      aria-label={`${titled(avatarKey)} avatar`}
     />
   );
 }
@@ -296,14 +305,16 @@ function Outro() {
 
 function Stage({
   error,
+  roster,
   avatarKey,
   onPick,
   onBegin,
   onEnd,
 }: {
   error: string | null;
+  roster: readonly CharacterInfo[];
   avatarKey: string;
-  onPick: (key: string) => void;
+  onPick: (entry: CharacterInfo) => void;
   onBegin?: () => void | Promise<void>;
   onEnd?: () => void | Promise<void>;
 }) {
@@ -486,8 +497,9 @@ function Stage({
               type="button"
               className="av-start"
               onClick={() => void onBegin?.()}
-              // `onBegin` is undefined until pipecat has built its client, and a
-              // press before then would connect nothing.
+              // `onBegin` is undefined until pipecat has built its client and
+              // the roster has named a voice; a press before then would connect
+              // nothing, or connect in no voice the face chose.
               disabled={isConnecting || onBegin === undefined}
             >
               {isConnecting ? "Connecting…" : onBegin === undefined ? "Getting ready…" : "Talk to it"}
@@ -540,19 +552,18 @@ function Stage({
                 ? "The face and the voice are set for this call."
                 : "Pick a face. Its voice comes with it."}
             </span>
-            <span className="av-picker-kind">{ROSTER_BY_KEY[avatarKey]?.kind}</span>
           </div>
           <div className="av-strip" role="group" aria-label="Choose an avatar">
-            {ROSTER.map((entry) => (
+            {roster.map((entry) => (
               <button
-                key={entry.key}
+                key={entry.name}
                 type="button"
-                className={`av-pick${entry.key === avatarKey ? " is-on" : ""}`}
-                onClick={() => onPick(entry.key)}
+                className={`av-pick${entry.name === avatarKey ? " is-on" : ""}`}
+                onClick={() => onPick(entry)}
                 disabled={live}
-                aria-pressed={entry.key === avatarKey}
+                aria-pressed={entry.name === avatarKey}
               >
-                {entry.name}
+                {titled(entry.name)}
               </button>
             ))}
           </div>
@@ -597,11 +608,11 @@ function Stage({
  */
 /** The face a link asked for — `?avatar=tess`, which is how the homepage's
  *  faces deep-link here — or the default. Read once, at mount: after that the
- *  strip is the only thing that picks, and a key the roster does not carry is
- *  the default rather than an error, because the URL is typed by strangers. */
+ *  strip is the only thing that picks. It is checked against the roster when
+ *  the roster arrives, and a name the roster does not carry is the default
+ *  rather than an error, because the URL is typed by strangers. */
 function linkedAvatar(): string {
-  const key = new URLSearchParams(window.location.search).get("avatar")?.toLowerCase();
-  return key && key in ROSTER_BY_KEY ? key : DEFAULT_AVATAR;
+  return new URLSearchParams(window.location.search).get("avatar")?.toLowerCase() || DEFAULT_AVATAR;
 }
 
 export function AvatarDemo() {
@@ -615,18 +626,48 @@ export function AvatarDemo() {
   // the write is safe because the only reader is `JSON.stringify` at connect,
   // which happens after every pick and before any of them matters.
   //
-  // No `config` — the voice belongs to the brain, which reads this same key out
-  // of `init` and configures the pair itself. The page never names a voice.
-  const init = useRef({ surface: "avatar-web", avatar: linkedAvatar() }).current;
+  // No `config`: the brain reads the face and the voice out of `init` and
+  // configures the pair itself. The voice is the face's first suggestion, read
+  // from the avatar package with the rest of the roster, so a new character
+  // needs no change on this page or in the brain.
+  const init = useRef({ surface: "avatar-web", avatar: linkedAvatar(), voice: "" }).current;
   const params = useMemo(() => connectRequest(init), [init]);
   const [avatarKey, setAvatarKey] = useState<string>(init.avatar);
   const onPick = useCallback(
-    (key: string) => {
-      init.avatar = key;
-      setAvatarKey(key);
+    (entry: CharacterInfo) => {
+      init.avatar = entry.name;
+      init.voice = entry.suggestedVoices[0];
+      setAvatarKey(entry.name);
     },
     [init],
   );
+
+  // The strip is the runtime's roster. Until it arrives there is no voice to
+  // send, so the call cannot start; the face itself mounts meanwhile, from the
+  // same runtime.
+  const [roster, setRoster] = useState<readonly CharacterInfo[] | null>(null);
+  const [rosterError, setRosterError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    listCharacters().then(
+      (characters) => {
+        if (!live) return;
+        const linked =
+          characters.find((c) => c.name === init.avatar) ??
+          characters.find((c) => c.name === DEFAULT_AVATAR) ??
+          characters[0];
+        if (linked) onPick(linked);
+        setRoster(characters);
+      },
+      (err: unknown) => {
+        console.error(err);
+        if (live) setRosterError("The avatar did not load. Reload the page to try again.");
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [init, onPick]);
   const unprovisioned = !demo.agentId || !demo.publishableKey;
 
   return (
@@ -661,10 +702,11 @@ export function AvatarDemo() {
         >
           {({ error, handleConnect, handleDisconnect }) => (
             <Stage
-              error={error ?? null}
+              error={error ?? rosterError}
+              roster={roster ?? []}
               avatarKey={avatarKey}
               onPick={onPick}
-              onBegin={handleConnect}
+              onBegin={roster?.length ? handleConnect : undefined}
               onEnd={handleDisconnect}
             />
           )}

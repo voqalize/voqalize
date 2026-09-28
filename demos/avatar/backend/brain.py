@@ -25,9 +25,9 @@ The mechanics worth reading before the code:
 
 * **The face is chosen before the call, and never during it.** Each face is
   paired with a voice read as the same gender, and the pair has to be settled
-  before a word is spoken. The visitor picks on the
-  strip while the page is idle; the key rides the connect request in ``init``
-  and this brain reads it once in :meth:`on_session_start`, configures that
+  before a word is spoken. The visitor picks on the strip while the page is
+  idle; the face and the voice it suggests ride the connect request in ``init``,
+  and this brain reads them once in :meth:`on_session_start`, configures that
   voice, and keeps it for the session. There is no ``switch_avatar`` tool and no
   mid-call pick. The reason is not implementation difficulty: a voice that
   changes in the middle of an answer is the thing a listener notices, and a face
@@ -39,16 +39,19 @@ The mechanics worth reading before the code:
   a place to keep a limit. It ends the way the demo started — a wave and a line.
 
 The LLM's ``genai.Client`` is dependency-injected; the brain owns the prompt,
-the tools, and this session's avatar and clock. The section index and the
-roster live in ``content.py``; the documentation itself is on the page.
+the tools, and this session's avatar and clock. The section index lives in
+``content.py``; the roster is the avatar package's, read by the page; the
+documentation itself is on the page.
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from collections.abc import AsyncGenerator
-from typing import Any, Literal, cast
+from dataclasses import dataclass
+from typing import Any, Literal
 
 from google import genai
 from google.genai import types
@@ -68,17 +71,16 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
-from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import AVATAR_EVENTS, Ready
 from .content import (
-    AVATARS_BY_KEY,
     BACKGROUND,
+    BLURBS,
     DEFAULT_AVATAR,
+    DEFAULT_VOICE,
     SECTIONS_BY_ID,
-    AvatarKey,
     SectionId,
-    avatars_for_prompt,
     sections_for_prompt,
 )
 
@@ -194,20 +196,40 @@ async def _silence() -> AsyncGenerator[Any, None]:
         yield
 
 
-def _resolve_avatar(init: dict[str, Any] | None) -> AvatarKey:
-    """Which face this call is wearing, from the connect request.
-
-    Anything unrecognised falls back to the default rather than raising: this is
-    a public page and the payload is browser-supplied, so a stale build or a
-    hand-edited request must produce a working call rather than a failed one. The
-    fallback is a face whose voice the agent already has, so the fallback is not
-    itself a mismatch."""
-    key = str((init or {}).get("avatar", ""))
-    return cast(AvatarKey, key) if key in AVATARS_BY_KEY else DEFAULT_AVATAR
+# A character's name, as the avatar package spells them. Checked because it is
+# written into the prompt, and it arrives from a browser.
+_NAME = re.compile(r"[a-z]{1,24}")
 
 
-def _system_instruction(wearing: AvatarKey) -> str:
-    identity = AVATARS_BY_KEY[wearing]
+@dataclass(frozen=True)
+class Wearing:
+    """The face this call wears and the voice it speaks in — one choice."""
+
+    avatar: str
+    voice: Voice
+
+
+def _resolve_avatar(init: dict[str, Any] | None) -> Wearing:
+    """Which face this call is wearing, and in which voice, from the connect request.
+
+    The page reads the roster from the avatar package and sends the face the
+    visitor picked with that face's suggested voice, so a new character needs no
+    change here. The two are taken together or not at all: a face with a voice
+    that is not in the catalog, or a voice with no face, falls back to the
+    default pair rather than raising. This is a public page and the payload is
+    browser-supplied, so a stale build or a hand-edited request must produce a
+    working call rather than a failed one — and never a face in another face's
+    voice."""
+    avatar = str((init or {}).get("avatar", ""))
+    voice = str((init or {}).get("voice", ""))
+    if _NAME.fullmatch(avatar) and voice in {v.value for v in Voice}:
+        return Wearing(avatar, Voice(voice))
+    return Wearing(DEFAULT_AVATAR, DEFAULT_VOICE)
+
+
+def _system_instruction(wearing: str) -> str:
+    name = wearing.capitalize()
+    blurb = f" {BLURBS[wearing]}" if wearing in BLURBS else ""
     return f"""You are the avatar — a face for AI voice calls, part of Voqalize — and you are demonstrating yourself to someone who has just landed on the page. They may be a developer; they may not. You have TWO MINUTES. Be quick, be concrete, and be a little bit pleased with yourself.
 
 WHAT YOU ARE. You are rendered in their browser, driven over the data channel of a live voice call. A brain (this code) can hold you in a state, play a gesture on you, and move your mouth in time with your voice. You are wearing it right now, so every single thing you describe, you can also do.
@@ -217,8 +239,7 @@ WHAT YOU ARE. You are rendered in their browser, driven over the data channel of
 WHAT IS ON THEIR SCREEN. The right two-thirds of the page explains the avatar — plain words first, then code — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back short lines to answer with, straight away:
 {sections_for_prompt()}
 
-WHICH ONE YOU ARE. You are wearing {identity.name}, a {identity.renderer} face, speaking in the voice that face is paired with. The visitor chose that on the strip before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The faces on the strip:
-{avatars_for_prompt()}
+WHICH ONE YOU ARE. You are wearing {name}, a 2.5-D face, speaking in the voice that face is paired with.{blurb} The visitor chose that on the strip before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The strip under the call shows every face; you do not need to name them.
 
 HOW TO RUN THIS CALL:
 
@@ -256,10 +277,9 @@ class AvatarBrain(GeminiBrain):
         )
         # The face this call is wearing, settled from `init` in `on_session_start`
         # before anything is spoken. The default stands in until then, and it is
-        # also what an unpicked call gets — which is why it has to be a face
-        # matching the voice the agent is provisioned with; see DEFAULT_AVATAR in
+        # also what an unpicked or malformed call gets; see DEFAULT_AVATAR in
         # content.py.
-        self._avatar: AvatarKey = DEFAULT_AVATAR
+        self._wearing = Wearing(DEFAULT_AVATAR, DEFAULT_VOICE)
         # Monotonic, set on session start. The cap is measured from the moment
         # the brain is dialled, which is within a second of the visitor hearing
         # the greeting.
@@ -395,18 +415,12 @@ class AvatarBrain(GeminiBrain):
         it is wearing one face while the visitor is looking at another will say
         so out loud, confidently, in the first sentence."""
         self._started = time.monotonic()
-        self._avatar = _resolve_avatar(session.init)
-        identity = AVATARS_BY_KEY[self._avatar]
-        logger.info(
-            "avatar: wearing {} ({}, voice {})",
-            identity.key,
-            identity.renderer,
-            identity.voice.value,
-        )
-        self.system_instruction = _system_instruction(self._avatar)
+        self._wearing = wearing = _resolve_avatar(session.init)
+        logger.info("avatar: wearing {} (voice {})", wearing.avatar, wearing.voice.value)
+        self.system_instruction = _system_instruction(wearing.avatar)
         await session.configure(
             Config(
-                tts=TtsConfig(voice=identity.voice, language=Language.EN),
+                tts=TtsConfig(voice=wearing.voice, language=Language.EN),
                 # The same low `patience` every demo desk runs, so what prod
                 # measures is one setting. A visitor here asks short questions
                 # about the page in front of them, and a long wait after each

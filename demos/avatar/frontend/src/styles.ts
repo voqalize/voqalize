@@ -215,7 +215,6 @@ export const STYLES = `
     display: flex; justify-content: space-between; align-items: baseline;
     border-top: 1px solid var(--rule); padding-top: 12px;
   }
-  .av-picker-kind { font-family: var(--mono); font-size: 11px; }
   .av-strip { display: flex; flex-wrap: wrap; gap: 6px; }
   .av-pick {
     font-family: var(--sans); font-size: 13px; color: var(--graphite);

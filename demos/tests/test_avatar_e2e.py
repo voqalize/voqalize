@@ -215,17 +215,18 @@ def test_everything_the_brain_is_handed_to_say_is_short_sentences() -> None:
 async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() -> None:
     """The pairing, asserted where it is actually decided.
 
-    A face and a voice are one choice. The visitor makes it on the strip before dialling and it rides
-    the connect request; the brain has to apply it before the opener is
-    synthesised, because a greeting in the other speaker's voice is the whole
-    defect this arrangement exists to remove.
+    A face and a voice are one choice. The visitor makes it on the strip before
+    dialling — the page reads each face's suggested voice from the avatar
+    package — and both ride the connect request; the brain has to apply them
+    before the opener is synthesised, because a greeting in the other speaker's
+    voice is the whole defect this arrangement exists to remove.
 
     ``tushar`` is male and the default face is female — so a brain that ignored
     ``init`` and dressed every call as the default would still produce audio,
     and this is the assertion that catches it."""
     async with demo("avatar", _llm()) as rig:
         greeting = await rig.driver.start_session(
-            init={"surface": "avatar-web", "avatar": "tushar"}
+            init={"surface": "avatar-web", "avatar": "tushar", "voice": "omnivoice/gaurav"}
         )
         assert greeting is not None and greeting.text == _GREETING
         check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
@@ -243,21 +244,33 @@ async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() ->
         assert only.stt.patience == 2, only.stt
 
 
-async def test_tess_speaks_in_her_own_kokoro_voice() -> None:
-    """tess and tanya are both American and female, and both kokoro. A table that
-    gave tess tanya's voice would pass every gender check, so this pins hers."""
+async def test_the_voice_the_page_sends_is_the_voice_spoken() -> None:
+    """tess and tanya are both female and both kokoro, and the default is
+    tanya's. A brain that kept the default voice whenever the gender matched
+    would pass every other check, so this pins that the sent voice is used."""
     async with demo("avatar", _llm()) as rig:
-        await rig.driver.start_session(init={"surface": "avatar-web", "avatar": "tess"})
+        await rig.driver.start_session(
+            init={"surface": "avatar-web", "avatar": "tess", "voice": "kokoro/sarah"}
+        )
         check_voice_pair(rig, voice="kokoro/sarah", language="en")
 
 
-async def test_an_unknown_face_wears_the_default_in_its_own_voice() -> None:
+@pytest.mark.parametrize(
+    "init",
+    [
+        pytest.param({"avatar": "not-a-face", "voice": "omnivoice/gaurav"}, id="malformed-name"),
+        pytest.param({"avatar": "tushar"}, id="face-without-voice"),
+        pytest.param({"avatar": "tushar", "voice": "nobody/here"}, id="voice-not-served"),
+        pytest.param({"voice": "omnivoice/gaurav"}, id="voice-without-face"),
+    ],
+)
+async def test_an_unusable_pick_wears_the_default_in_its_own_voice(init: dict[str, str]) -> None:
     """The payload is browser-supplied on a public page, so a stale build or a
-    hand-edited request must produce a working call rather than a failed one —
-    and the face it falls back to must arrive with that face's voice, not the
-    agent's."""
+    hand-edited request must produce a working call rather than a failed one.
+    The face and voice are taken together or not at all: half a pick falls back
+    to the whole default pair, never a face in another face's voice."""
     async with demo("avatar", _llm()) as rig:
-        await rig.driver.start_session(init={"avatar": "not-a-face"})
+        await rig.driver.start_session(init=init)
         check_voice_pair(rig, voice=VOICE, language="en")
 
 
