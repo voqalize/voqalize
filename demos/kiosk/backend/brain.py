@@ -1,51 +1,42 @@
 """KioskBrain — Tanvi, the Vantage Bank branch-kiosk assistant.
 
 A :class:`voqalize_demos.GeminiBrain`. A walk-in customer stands at a totem in a
-private cubicle, answers four questions out loud, sees three cards ranked for
-them, says yes to one, and takes a QR code to the desk. Fourteen turns, about
-three and a half minutes, and nothing in it is approved: the kiosk has no tool
-that can submit anything, and says so.
+private cubicle and fills in a short form on the screen: the profile questions,
+then the cards ranked for them, then their mobile number, their PAN and a tap to
+agree, and a QR code to carry to the desk. Nothing in it is approved: the kiosk
+has no tool that can submit anything, and says so.
 
 Vantage Bank is invented, and so is every card on its shelf.
 
-Four things carry this demo:
+**The screen runs the form. Tanvi helps.** Four things carry that:
 
-* **The rules are Python.** ``check_eligibility`` and ``show_shortlist`` run the
-  pure functions in ``eligibility.py``. The model resolves what the customer
-  *said* into one of the closed tokens in ``cards.py``; it never compares an
-  income to a threshold, because the times it gets that wrong are a bank telling
-  a customer the wrong thing in a branch.
+* **The form is Python, moved by gestures.** Every step is a typed event from
+  the customer's hand, and :meth:`KioskBrain._advance` is the table that turns
+  one into the next screen — no model call, no speech. The rules that rank the
+  cards are the pure functions in ``eligibility.py``.
 
-* **Two strings per figure.** Every tool whose result Tanvi speaks from in the
-  same turn returns a ``SAY:`` line already in words, and the prompt tells her to
-  speak it as written. The display form —
-  ``₹1,50,000``, ``5%``, ``2x`` — goes to the screen and never to the voice.
+* **Tanvi's tools are the same gestures.** Each one builds the event a tap would
+  and sends it through :meth:`apply_event`, so if a hand cannot do it right now,
+  neither can she. None of them calls ``_show`` or ``session.dispatch`` itself,
+  none takes display text, and none reaches the mobile number, the PAN or the
+  consent: those are the customer's hand alone.
 
-* **The screen is read, never remembered.** Tanvi keeps one mirror of the totem,
-  patched by :meth:`_show` on her own commands and by :meth:`apply_event` on the
-  customer's taps. It is never appended to the context: what goes in is one line
-  naming what they *did*, and the screen itself is read back through
-  ``get_screen_context``. ``ScreenState.version`` makes that enforceable — a tool
-  aimed at a card the customer has moved past refuses and says to read first.
+* **Nothing on the glass is written by a model, and it is in English.** Every
+  string in every action comes from ``cards.py`` and this file. The screen does
+  not follow the conversation's language; only Tanvi's voice and ears do.
 
-* **The hand drives the same journey as the voice.** A customer may ignore
-  Tanvi completely and tap their way from the attract loop to the QR code. Every
-  gesture arrives as a typed event and the brain answers it by dispatching the
-  next row of :meth:`KioskBrain._advance` — in Python, with no model call and no
-  speech, because an action holds no floor. Tanvi greets once and then says
-  nothing until she is spoken to; every gesture still leaves its one-line note, so
-  the turn she finally takes has the whole visit behind it.
+* **The screen reaches Tanvi read-only, every turn.** Each spoken turn carries a
+  short note of what is on the glass right now, placed after the cached prefix
+  and dropped when the turn ends, so the context never fills with old copies of
+  it. What the customer *did* stays, one line per gesture.
 
-* **Confirmation is spoken, and it is asked once.** ``confirm`` decides yes or
-  not-yes in Python and re-asks at most one time; a second unclear answer is
-  taken as heard and the call moves on. Repeated "sorry, I didn't catch that" is
-  the defining sound of a bad voice bot, and the kiosk has no tap gate to fall
-  back on.
+She speaks at the opening, when she is asked something, and once when the cards
+go up, to say why the top one. That line is written here, not generated
+(``pitch.py``).
 """
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from typing import Any, Literal, cast, get_args
@@ -59,10 +50,8 @@ from voqalize_demos import (
     PHRASES,
     FallbackLine,
     GeminiBrain,
-    ScreenState,
     configure_soon,
     landed,
-    needs_result_now,
     phrase,
     screen_prose,
 )
@@ -76,14 +65,23 @@ from voqalize.sdk import (
     RTVIMessage,
     Session,
     Speech,
+    SpeechChunk,
+    SpeechEnd,
+    SpeechStart,
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .cards import (
+    CARDS,
+    EMPLOYMENT_SPOKEN,
+    EXISTING_CARDS_SPOKEN,
+    INCOME_BAND_SPOKEN,
     PROFILE_CHOICES,
     PROFILE_PROMPTS,
+    SPEND_SPOKEN,
     VALUE_PROMPTS,
     CapturedField,
     Card,
@@ -95,22 +93,19 @@ from .cards import (
     card_by_id,
 )
 from .eligibility import Assessment, Shortlist, assess, shortlist
+from .pitch import pitch_line
 from .prompts import GREETING, HINDI_VOICED, SYSTEM_INSTRUCTION
 from .script_english import reads_as_english
-from .values import (
-    allowed_values,
-    display_form,
-    masked_form,
-    normalise,
-    reads_as_yes,
-)
+from .values import display_form, masked_form, normalise
 
 # How long the customer has to be quiet before Voqalize reports an idle tick.
-# Tanvi never answers one — ``on_user_idle`` is silence, always — so this clock
-# decides nothing about when she speaks; she speaks when she is spoken to. The
-# first tick after the greeting is what puts the first question's answers up for
-# a customer who did not give their name.
+# Tanvi answers an idle tick for one thing only: the line about the top card,
+# when the cards went up under a hand and there was no turn to say it in. Every
+# other tick is silence, so this clock decides nothing else.
 _IDLE_MS = 2500
+# How soon that one line follows the cards. Short, because the customer is
+# looking at them now; the idle clock goes back to ``_IDLE_MS`` once it is said.
+_IDLE_PITCH_MS = 600
 
 #: Every language the recognizer serves. The kiosk starts in English and moves the
 #: moment a customer asks for another or is already speaking one.
@@ -203,16 +198,13 @@ assert set(HINDI_VOICED) == {name for name, s in _SPEECH.items() if s.spoken != 
     "HINDI_VOICED and _SPEECH disagree"
 )
 
-
-#: How long the recognizer waits through a pause, on the 0-to-10 scale. Quick for
-#: the four questions, which are answered in a word or two; patient while a
-#: mobile number or PAN is being dictated, because people read those out in groups
-#: and a partial one is rejected outright rather than read back.
-_PATIENCE_QUICK = 3
-_PATIENCE_DICTATION = 8
+#: How long the recognizer waits through a pause, on the 0-to-10 scale. Quick,
+#: because nothing here is dictated any more: an answer is a word or two, and a
+#: mobile number or a PAN is typed.
+_PATIENCE = 3
 
 
-def _config(language_name: LanguageName, patience: int = _PATIENCE_QUICK) -> Config:
+def _config(language_name: LanguageName) -> Config:
     """Both legs and the idle clock, in one request.
 
     The two legs always move together: naming a language on one and not the other
@@ -222,9 +214,9 @@ def _config(language_name: LanguageName, patience: int = _PATIENCE_QUICK) -> Con
     """
     speech = _SPEECH[language_name]
     return Config(
-        # The step's patience, carried by every switch so a language change never
-        # drops it back to the deployment's 7 (see ``_PATIENCE_QUICK``).
-        stt=SttConfig(language=speech.heard, patience=patience),
+        # Carried by every switch, so a language change never drops it back to
+        # the deployment's 7.
+        stt=SttConfig(language=speech.heard, patience=_PATIENCE),
         tts=TtsConfig(voice=_VOICE, language=speech.spoken),
         idle=IdleConfig(timeout_ms=_IDLE_MS),
     )
@@ -237,11 +229,10 @@ def _config(language_name: LanguageName, patience: int = _PATIENCE_QUICK) -> Con
 
 class ProfileOption(BaseModel):
     """One answer the screen offers. The value is the closed token the rules run
-    on; the two labels are what the customer reads."""
+    on; the label is what the customer reads."""
 
     value: str
     label: str
-    label_hi: str
 
 
 class CardView(BaseModel):
@@ -270,7 +261,7 @@ class StartedOver(Action):
 
 
 class AskProfile(Action):
-    """One discovery question, with the closed set of answers beside it."""
+    """One profile question, with the closed set of answers beside it."""
 
     field: str
     question: str
@@ -281,8 +272,7 @@ class AskValue(Action):
     """One value for the customer to type in themselves.
 
     ``kind`` is the keypad the totem puts under their finger — ``tel`` for a
-    mobile number, ``text`` for a PAN — and ``label`` is already in this
-    session's language, because the screen is read and not spoken.
+    mobile number, ``text`` for a PAN.
     """
 
     field: str
@@ -291,11 +281,11 @@ class AskValue(Action):
 
 
 class ConfirmValue(Action):
-    """A value the customer spoke, as the screen holds it.
+    """A value the customer typed, as the screen holds it.
 
-    ``state`` is one of ``heard`` (shown, nothing asked), ``confirming`` (read
-    back, waiting on a yes) or ``confirmed`` (settled). ``masked`` is the safe
-    form for a totem in a branch, and it is what the screen shows by default.
+    ``state`` is ``confirmed``: a value they typed themselves is already settled,
+    and nothing reads it back. ``masked`` is the safe form for a totem in a
+    branch, and it is what the screen shows by default.
     """
 
     field: str
@@ -322,7 +312,7 @@ class ShowShortlist(Action):
 
 
 class OpenCardDetail(Action):
-    """Open one card full screen. Also the parameter of the tool that sends it."""
+    """Open one card full screen."""
 
     card_id: str
 
@@ -341,19 +331,7 @@ class ShowQr(Action):
     caption: str
 
 
-class LanguageChanged(Action):
-    """The conversation moved language. Not a screen: the language picker on the
-    brand bar follows it, and the screen's own copy follows it only as far as
-    copy exists. How a language is *written* on the picker is the page's to say —
-    the brain names it and nothing more."""
-
-    language: LanguageName
-    #: Which of the screen's two copy sets to show. Every language but Hindi keeps
-    #: the English copy: there is no Tamil screen, only a Tamil voice.
-    screen_language: Literal["en", "hi"]
-
-
-#: Everything Tanvi can put on the totem. Exhaustive, so a new action that
+#: Everything that can go on the totem. Exhaustive, so a new action that
 #: :meth:`KioskBrain._mirror` forgets is a type error rather than a mirror that
 #: quietly falls a command behind.
 ScreenMove = (
@@ -368,18 +346,19 @@ ScreenMove = (
     | ShowQr
 )
 
-#: What Tanvi says for a screen that landed, when the model's turn said nothing —
-#: see :mod:`voqalize_demos.silent_turn`. A phrase, not a line, because the line is
-#: said in the language her voice is speaking. A move that puts a question to the
-#: customer hands them the turn (``over_to_you``); the rest put something up to
-#: look at (``shown``). Neither names the screen, which she never narrates.
-_PHRASE: dict[type[ScreenMove], Phrase] = {
+#: What Tanvi says for a screen that landed in her turn, when the model's turn
+#: said nothing — see :mod:`voqalize_demos.silent_turn`. A phrase, not a line,
+#: because the line is said in the language her voice is speaking. A move that
+#: puts a question to the customer hands them the turn (``over_to_you``); the
+#: rest put something up to look at (``shown``). The shortlist has none: its line
+#: is the pitch, which is spoken whether the model said anything or not.
+_PHRASE: dict[type[ScreenMove], Phrase | None] = {
     StartedOver: "over_to_you",
     AskProfile: "over_to_you",
     AskValue: "over_to_you",
-    ConfirmValue: "over_to_you",
+    ConfirmValue: "done",
     ShowEligibility: "shown",
-    ShowShortlist: "shown",
+    ShowShortlist: None,
     OpenCardDetail: "shown",
     OpenConsent: "over_to_you",
     ShowQr: "shown",
@@ -393,19 +372,14 @@ assert {s.spoken for s in _SPEECH.values()} <= set(PHRASES), (
 
 
 # ─── Screen → brain: what the customer did with their hand ────────────────────
-# The gestures, in the order a customer meets them. Every one of them is a
-# step the journey can be driven by without a word being said; :meth:`_advance`
-# is the table that turns one into the next screen.
-
-
-class JourneyStarted(AppEvent):
-    """They skipped the name and asked for the first question. The call is
-    already live, because pressing Start is what opened it; this is the one tap
-    that moves the welcome screen on for a customer who would rather not talk."""
+# The gestures, in the order a customer meets them. Every one of them is a step
+# the form can be driven by without a word being said; :meth:`_advance` is the
+# table that turns one into the next screen.
 
 
 class ProfileAnswered(AppEvent):
-    """They tapped one of the answers on screen instead of saying it."""
+    """They answered the question on screen — with a tap, or by saying it to
+    Tanvi, who tapped it for them."""
 
     field: str
     value: str
@@ -416,7 +390,7 @@ class EligibilityAcknowledged(AppEvent):
 
 
 class CardTapped(AppEvent):
-    """They opened a card on the shortlist themselves."""
+    """They opened a card on the shortlist."""
 
     card_id: str
 
@@ -426,36 +400,36 @@ class CardDetailClosed(AppEvent):
 
 
 class CardCompared(AppEvent):
-    """They put the shortlist side by side themselves."""
+    """They put the shortlist side by side."""
 
 
 class CardChosen(AppEvent):
-    """They settled on one card, with their hand."""
+    """They settled on one card."""
 
     card_id: str
 
 
 class ConsentGiven(AppEvent):
-    """They accepted the consent panel on screen."""
+    """They accepted the consent panel on screen. A hand only."""
 
     card_id: str
 
 
 class ValueEntered(AppEvent):
-    """They typed a value in themselves rather than reading it out."""
+    """They typed a value in. A hand only."""
 
     field: str
     value: str
 
 
 class ValueConfirmed(AppEvent):
-    """They confirmed a value on screen rather than out loud."""
+    """They confirmed a value on screen. A hand only."""
 
     field: str
 
 
 class ValueEdited(AppEvent):
-    """They corrected a value by hand. Theirs wins; it is not read back again."""
+    """They corrected a value by hand. Theirs wins; it is not read back."""
 
     field: str
     value: str
@@ -463,20 +437,11 @@ class ValueEdited(AppEvent):
 
 class RestartPressed(AppEvent):
     """They pressed Start over. Their answers are cleared and the first question
-    comes back; the call stays up. There is no idle timeout and nothing resets
-    itself."""
-
-
-class LanguagePicked(AppEvent):
-    """They tapped the language chip. Not a step in the journey — it moves the
-    conversation, so it is handled beside the journey rather than inside it."""
-
-    language: LanguageName
+    comes back; the call stays up."""
 
 
 KioskEvent = (
-    JourneyStarted
-    | ProfileAnswered
+    ProfileAnswered
     | EligibilityAcknowledged
     | CardTapped
     | CardDetailClosed
@@ -490,7 +455,6 @@ KioskEvent = (
 )
 
 KIOSK_EVENTS = AppEvents(
-    JourneyStarted,
     ProfileAnswered,
     EligibilityAcknowledged,
     CardTapped,
@@ -502,79 +466,89 @@ KIOSK_EVENTS = AppEvents(
     ValueConfirmed,
     ValueEdited,
     RestartPressed,
-    LanguagePicked,
 )
 
-#: The four discovery questions, in the order they are asked. ``PROFILE_CHOICES``
-#: is written in that order and is the one place it lives, so this reads it off
-#: rather than writing it down a second time.
+#: The gestures Tanvi can make for the customer, and the ones she cannot. The
+#: second set is the privacy line: a mobile number, a PAN and a consent reach the
+#: kiosk from the customer's own hand or not at all.
+TANVI_GESTURES: frozenset[type[AppEvent]] = frozenset(
+    {
+        ProfileAnswered,
+        EligibilityAcknowledged,
+        CardTapped,
+        CardDetailClosed,
+        CardCompared,
+        CardChosen,
+        RestartPressed,
+    }
+)
+HAND_ONLY: frozenset[type[AppEvent]] = frozenset(
+    {ConsentGiven, ValueEntered, ValueConfirmed, ValueEdited}
+)
+assert set(get_args(KioskEvent)) == TANVI_GESTURES | HAND_ONLY, "a gesture is in neither set"
+assert not TANVI_GESTURES & HAND_ONLY, "a gesture is in both sets"
+
+#: The profile questions, in the order they are asked. ``PROFILE_CHOICES`` is
+#: written in that order and is the one place it lives.
 _PROFILE_ORDER: tuple[ProfileField, ...] = tuple(PROFILE_CHOICES)
 
 #: Every field a value can land in, as something the runtime can test against.
 #: ``CapturedField`` is a type and a hand on a keypad can send anything.
 _CAPTURED_FIELDS: frozenset[str] = frozenset(get_args(CapturedField))
 
+#: How each answer is said, for the note Tanvi reads — never a wire token.
+_ANSWER_SPOKEN: dict[str, dict[str, str]] = {
+    field: {str(token): said for token, said in spoken.items()}
+    for field, spoken in (
+        ("employment", EMPLOYMENT_SPOKEN),
+        ("income_band", INCOME_BAND_SPOKEN),
+        ("existing_cards", EXISTING_CARDS_SPOKEN),
+        ("spend_category", SPEND_SPOKEN),
+    )
+}
+
 
 # ─── Tool parameters ───────────────────────────────────────────────────────────
 # A bare ``Literal`` crashes google-genai's function calling — it checks each
 # argument with ``isinstance``, which refuses a subscripted generic — so every
-# closed vocabulary travels inside a model, where it is validated instead.
+# closed vocabulary travels inside a model, where it is validated instead. The
+# schema is the refusal: a value outside a field's options cannot be sent.
 
 
-class ProfileQuestion(BaseModel):
-    """The one parameter of ``ask_profile``. The options are not here: they are
-    the closed vocabulary in ``cards.py`` and the model must not author them."""
+def _options(field: ProfileField) -> str:
+    """One field's options, as the tool declaration spells them out."""
+    return ", ".join(f"{value} ({label})" for value, label in PROFILE_CHOICES[field])
 
-    field: ProfileField = Field(description="Which of the four questions to put on screen.")
-    question: str = Field(
-        description="The question as you will say it aloud, in the customer's language."
+
+class OnScreenAnswer(BaseModel):
+    """The one parameter of ``answer_on_screen``. Set the field for the question
+    on the screen; the rest stay empty."""
+
+    employment: Employment | None = Field(
+        default=None, description=f"What they do: {_options('employment')}."
+    )
+    income_band: IncomeBand | None = Field(
+        default=None, description=f"Monthly income: {_options('income_band')}."
+    )
+    existing_cards: ExistingCards | None = Field(
+        default=None, description=f"Credit cards they hold: {_options('existing_cards')}."
+    )
+    spend_category: SpendCategory | None = Field(
+        default=None, description=f"Where most of their money goes: {_options('spend_category')}."
     )
 
 
-#: Every token a closed answer may take, as the declaration spells them out. A
-#: token outside the set is refused, and the refusal reaches the model only with
-#: the customer's next message, so it is told the set up front rather than by a
-#: refusal.
-_TOKENS = "; ".join(
-    f"{field}: {', '.join(value for value, _, _ in choices)}"
-    for field, choices in PROFILE_CHOICES.items()
-)
+#: Every card on the shelf, as the tool declarations may name one.
+CardId = Literal[
+    "vantage_rise", "vantage_fuel", "vantage_everyday", "vantage_voyage", "vantage_crest"
+]
+assert set(get_args(CardId)) == {card.id for card in CARDS}, "CardId and the shelf disagree"
 
 
-class HeardValue(BaseModel):
-    """The one parameter of ``capture_value``: what the customer said, resolved."""
+class CardPick(BaseModel):
+    """The one parameter of the tools that point at a card."""
 
-    field: CapturedField = Field(description="Which value this is.")
-    value: str = Field(
-        description=(
-            f"For the profile questions, one of these tokens — {_TOKENS}. "
-            "For mobile, the ten digits. For pan, the ten characters."
-        )
-    )
-
-
-class ConfirmCheck(BaseModel):
-    """The one parameter of ``confirm``: the value you read back, and what they
-    said next, verbatim."""
-
-    field: CapturedField = Field(description="The value you read back to them.")
-    value: str = Field(description="The value as you read it back.")
-    heard: str = Field(description="Their reply, word for word, not paraphrased.")
-
-
-class EligibilityRequest(BaseModel):
-    """The one parameter of ``check_eligibility``."""
-
-    age: int | None = Field(
-        default=None,
-        description="Their age, only if they volunteered it. Never ask for it.",
-    )
-
-
-class CardChoice(BaseModel):
-    """The one parameter of the two tools that act on a chosen card."""
-
-    card_id: str = Field(description="The id of the card, from the shortlist.")
+    card_id: CardId = Field(description="The card, by id, from the cards on the screen.")
 
 
 class SwitchLanguage(BaseModel):
@@ -583,22 +557,24 @@ class SwitchLanguage(BaseModel):
     language: LanguageName = Field(description="The language to continue in.")
 
 
-# ─── Tanvi's mirror of the totem ───────────────────────────────────────────────
+# ─── The mirror of the totem ───────────────────────────────────────────────────
 # The one copy of what is on screen. The keys reach the model verbatim through
-# ``screen_prose``, so they are written the way a person would say them.
+# ``screen_prose``, so they are written the way a person would say them. A mobile
+# number and a PAN are in it as "typed in" and never as themselves.
 
 
 def _blank_screen() -> dict[str, Any]:
-    """Where every session starts: the attract loop, nothing answered."""
+    """Where every session starts: the welcome screen, nothing answered."""
     return {
-        "screen": "attract",
+        "screen": "welcome",
         "the question on screen": None,
-        "the value we are asking for": None,
+        "its answers": None,
+        "the value we are asking them to type": None,
         "what they have told us": {},
-        "the value being confirmed": None,
         "their eligibility": None,
-        "the shortlist": None,
-        "the card we recommended": None,
+        "the cards on screen": None,
+        "the card we recommend": None,
+        "why we recommend it": None,
         "the card they have open": None,
         "the consent panel": None,
         "the qr code": None,
@@ -606,8 +582,8 @@ def _blank_screen() -> dict[str, Any]:
 
 
 def _trim(view: dict[str, Any]) -> dict[str, Any]:
-    """Drop what is not on screen, so an attract loop does not read as a list of
-    nine empty panels."""
+    """Drop what is not on screen, so a welcome screen does not read as a list of
+    empty panels."""
     return {key: value for key, value in view.items() if value or key == "screen"}
 
 
@@ -618,7 +594,7 @@ async def _silence() -> AsyncGenerator[Any, None]:
 
 
 class KioskBrain(GeminiBrain):
-    """One per session. Tanvi: the prompt, the tools, and this session's
+    """One per session. Tanvi: the prompt, the gestures, and this session's
     language, answers and screen."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
@@ -626,43 +602,40 @@ class KioskBrain(GeminiBrain):
 
         self.language: LanguageName = "English"
         self._fallback = FallbackLine()
-        #: The recognizer's patience right now; see ``_pace_for_the_screen``.
-        self._patience = _PATIENCE_QUICK
-        #: Patience changes in flight, held so none is collected before it lands.
-        self._pending: set[asyncio.Task[None]] = set()
 
-        # What the customer has told us, field → stored value. Filled from both
-        # directions: ``capture_value`` when they speak, ``apply_event`` when
-        # they tap. It is the input to the rules and nothing else reads it.
+        # What the customer has told us, field → stored value. Filled only by
+        # gestures, whoever made them. It is the input to the rules.
         self.answers: dict[str, str] = {}
-        #: Values settled, either by a spoken yes or by the customer's own hand.
-        self.confirmed: set[str] = set()
-        #: Values already re-asked once. A field in here is never asked again.
-        self.reasked: set[str] = set()
-
         self.assessment: Assessment | None = None
+        self.ranked: Shortlist | None = None
         self.shortlist_ids: tuple[str, ...] = ()
         self.consented_card_id: str | None = None
 
-        # The totem, and the staleness clock over it. ``view`` is never appended
-        # to the model's context; it is read through ``get_screen_context``.
-        self.screen = ScreenState(read_tool="get_screen_context")
+        #: The shortlist the line about the top card is owed for, until it is said.
+        self._pitch_due: Shortlist | None = None
+        #: The shortlist that line was last said for, so it is said once per
+        #: shortlist and not again when a card closes and the three come back.
+        self._pitched: tuple[str, ...] = ()
+        #: Whether the idle clock is shortened for that line right now.
+        self._idle_short = False
+
+        # The totem. Never appended to the context; each spoken turn reads it as
+        # a note that leaves again when the turn is over (``_with_the_screen``).
         self.view: dict[str, Any] = _blank_screen()
 
     @property
     def tools(self) -> list[Callable[..., Any]]:
-        """The tools Tanvi may call, in the order the call uses them."""
+        """The gestures Tanvi may make, in the order the form meets them. None is
+        marked ``@needs_result_now``: each is an action, not a read — the screen
+        reaches her with every turn instead."""
         return [
+            self.answer_on_screen,
+            self.continue_to_cards,
+            self.open_card,
+            self.close_card,
+            self.compare_cards,
+            self.choose_card,
             self.start_over,
-            self.ask_profile,
-            self.capture_value,
-            self.confirm,
-            self.check_eligibility,
-            self.show_shortlist,
-            self.open_card_detail,
-            self.open_consent,
-            self.finish_with_qr,
-            self.get_screen_context,
             self.switch_language,
         ]
 
@@ -671,94 +644,86 @@ class KioskBrain(GeminiBrain):
     async def on_session_start(self, session: Session) -> None:
         """Settle the language and put both legs on it before a word is spoken.
 
-        The page carries the customer's choice from the totem's own language
-        toggle; English is what a walk-in gets otherwise. The prompt covers both
-        languages and is never rewritten after this, so ``switch_language`` moves
-        the wire alone.
+        The page may carry a language; English is what a walk-in gets otherwise.
+        The prompt covers every language and is never rewritten after this, so
+        ``switch_language`` moves the wire alone.
         """
         payload = dict(session.init or {})
         chosen = str(payload.get("language", "")).strip().title()
         # Guarded on the greeting table, not the language table: a session may only
         # open in a language there is a written opener for.
         self.language = chosen if chosen in GREETING else "English"
-        await session.configure(_config(self.language, self._patience))
+        await session.configure(_config(self.language))
         logger.info("kiosk: session start (language={})", self.language)
 
     async def greet(self, session: Session) -> str:
-        """The opener, written not generated. It is the line that discloses Tanvi
-        is an AI, and a customer standing at a totem should not wait on a first
-        token to hear it."""
+        """The opener, written not generated — and the first question on the glass
+        as it is said, because the greeting asks them to fill the form in.
+
+        It is the line that discloses Tanvi is an AI, and a customer standing at a
+        totem should not wait on a first token to hear it.
+        """
+        self._show(self._question(_PROFILE_ORDER[0]))
         return GREETING[self.language]
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, and a line of Tanvi's own if it acted and said nothing.
+        """The model's turn; a line of Tanvi's own if it acted and said nothing;
+        and the line about the top card, if the cards just went up.
 
         The prompt has the model speak and call in the same response, and on a
         dialled call it sometimes called alone, leaving the customer in silence
         with the screen changed. See :mod:`voqalize_demos.silent_turn`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
+        async for event in self._pitch_now():
+            yield event
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        """Silence, always — but the first quiet moment starts the journey.
+        """Silence — except for the line about the top card.
 
-        Tanvi greets once and then speaks when she is spoken to, and at no other
-        time. A customer filling the kiosk in with their hands is not a customer
-        to be prompted, commented at or nagged — the screen is answering them,
-        and it is faster than she is. Every gesture still leaves its note, so the
-        turn she eventually takes has the whole visit behind it.
-
-        The one thing the quiet does is move the welcome screen on. The greeting
-        asks for a name, and a customer who does not give one is not left
-        looking at a screen with nothing to press: the first question's answers
-        come up by themselves, with no speech and no model call. A customer who
-        does answer never sees this — Tanvi has put the question up herself.
+        A customer filling the form in with their hand is not a customer to be
+        prompted, commented at or nagged: the screen is answering them, and it is
+        faster than she is. The one thing a quiet moment may carry is the line a
+        tap owed and could not say — ``on_rtvi`` takes no floor, so when a tap
+        puts the cards up, the idle clock is shortened and the line is said here.
         """
-        if self.view["screen"] == "attract":
-            self._show(self._question(_PROFILE_ORDER[0]))
-            self._append_note(
-                self.screen.moved(
-                    "stayed quiet after the greeting, so the first question's answers are up"
-                )
-            )
-        return _silence()
+        if self._pitch_due is None:
+            return _silence()
+        return self._pitch_on_idle()
 
     async def on_user_message(
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
-        """One spoken turn — with English caught before the model sees it.
+        """One spoken turn — with English caught before the model sees it, and the
+        screen in front of it.
 
         In any other language the recognizer spells English in that language's
         script, and the model, reading it, would answer in English about one time
         in three without calling ``switch_language``: new words, old voice, old
         recognizer. :func:`reads_as_english` decides it in Python instead, and
-        both legs move to English before the model runs, so its reply is spoken in
-        English and the customer's next sentence is heard in English.
+        both legs move to English before the model runs.
         """
         self.append_to_context(types.Content(role="user", parts=[types.Part(text=msg.text)]))
         if self.language != "English" and reads_as_english(msg.text):
             self._append_note(await self._switch_to("English", by="the kiosk, which heard English"))
-        async for speech in self.respond(session):
+        async for speech in self._with_the_screen(self.respond(session)):
             yield speech
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """One thing the customer just did on the totem.
 
-        Two things happen for it, and neither of them speaks: the gesture folds
-        into the mirror and leaves one line in front of the model, and the
-        journey moves on. ``on_rtvi`` is not a generator, so a hand can drive the
-        screen and cannot take the floor from the mouth beside it.
+        The gesture folds into the mirror, leaves one line in front of the model,
+        and moves the form on. ``on_rtvi`` is not a generator, so a hand can drive
+        the screen and cannot take the floor from the mouth beside it — which is
+        why the cards going up under a hand arms the idle clock for their line.
         """
         event = KIOSK_EVENTS.parse(msg)
         if event is None:
             return
         logger.info("kiosk: {} — {}", type(event).__voqal_event__, event)
-        if isinstance(event, LanguagePicked):
-            # A configure has to be awaited and the journey table is deliberately
-            # synchronous, so the chip takes its own path. Still no speech.
-            self._append_note(await self._switch_to(event.language, by="the customer"))
-            return
         self._append_note(self.apply_event(event))
+        if self._pitch_due is not None:
+            self._idle_clock(short=True)
 
     # ─── Screen → brain ─────────────────────────────────────────────────
 
@@ -766,15 +731,10 @@ class KioskBrain(GeminiBrain):
         """Fold one gesture in, move the screen on, and return the line that
         tells Tanvi.
 
-        Both halves run for every gesture and they are not the same thing.
-        :meth:`_fold` records what the customer did and writes the note;
-        :meth:`_advance` decides what goes on the glass next and this dispatches
-        it. The fold runs first, because the next screen is a function of what
-        they just told us.
-
-        The note *names* what they did and never carries what the screen now
-        says — that is read back through ``get_screen_context``, which is the only
-        copy that cannot go stale.
+        The one way anything reaches the glass, for a hand and for Tanvi alike.
+        :meth:`_fold` records what was done and writes the note; :meth:`_advance`
+        decides what goes on the glass next and this dispatches it. The fold runs
+        first, because the next screen is a function of what they just told us.
         """
         note = self._fold(event)
         for move in self._advance(event):
@@ -789,67 +749,56 @@ class KioskBrain(GeminiBrain):
         write as a lookup.
         """
         match event:
-            case JourneyStarted():
-                return self.screen.moved("touched the screen to begin")
             case ProfileAnswered():
                 self._record(event.field, event.value)
-                return self.screen.moved(f"tapped their answer to the {_spaced(event.field)}")
+                said = _ANSWER_SPOKEN.get(event.field, {}).get(event.value, event.value)
+                return f"[They answered the {_spaced(event.field)}: {said}.]"
             case EligibilityAcknowledged():
-                return self.screen.moved("read what they are likely eligible for and moved on")
+                return "[They read what they are likely eligible for and asked for the cards.]"
             case CardTapped():
                 card = card_by_id(event.card_id)
                 self.view["the card they have open"] = card.name if card else event.card_id
-                return self.screen.moved("opened one of the cards themselves")
+                return f"[They opened the {card.name if card else event.card_id}.]"
             case CardDetailClosed():
                 self.view["the card they have open"] = None
-                return self.screen.moved("closed the card and went back to the three")
+                return "[They closed the card and went back to the three.]"
             case CardCompared():
-                return self.screen.moved("put the shortlisted cards side by side themselves")
+                return "[They put the cards side by side.]"
             case CardChosen():
-                return self.screen.moved("chose their card themselves")
+                card = card_by_id(event.card_id)
+                return f"[They chose the {card.name if card else event.card_id}.]"
             case ConsentGiven():
                 self.consented_card_id = event.card_id
                 self.view["the consent panel"] = "accepted"
-                return self.screen.moved("accepted the consent panel on screen")
+                return "[They tapped I agree on the consent panel.]"
             case ValueEntered():
                 self._enter(event.field, event.value)
-                return self.screen.moved(f"typed their {_spaced(event.field)} in themselves")
+                return f"[They typed in their {_spaced(event.field)}.]"
             case ValueConfirmed():
-                self.confirmed.add(event.field)
-                self._set_state(event.field, "confirmed")
-                return self.screen.moved(f"confirmed their {_spaced(event.field)} on screen")
+                return f"[They confirmed their {_spaced(event.field)} on screen.]"
             case ValueEdited():
                 self._enter(event.field, event.value)
-                return self.screen.moved(f"corrected their {_spaced(event.field)} by hand")
+                return f"[They corrected their {_spaced(event.field)}.]"
             case RestartPressed():
                 self._reset()
-                return self.screen.moved(
-                    "pressed Start over, so their answers are cleared and the first question is back"
-                )
+                return "[They pressed Start over, so their answers are cleared.]"
 
-    # ─── The journey, as one table ──────────────────────────────────────
+    # ─── The form, as one table ─────────────────────────────────────────
 
     def _advance(self, event: KioskEvent) -> tuple[ScreenMove, ...]:
         """What the screen does next, for one gesture.
 
         Read the table as a table: the gesture on the left, what goes on the
         glass on the right. Every row is free — an action calls no model and
-        holds no floor — which is the whole reason a customer who never says a
-        word can still walk from the attract loop to the QR code, in Python, at
-        the speed of their own hand.
+        holds no floor — which is why a customer who never says a word walks from
+        the first question to the QR code, in Python, at the speed of their hand.
 
-        Two rows move nothing and say so. Comparing cards is the customer using
-        the screen for the thing the screen is for, and a value confirmed out
-        loud has already been painted by ``confirm``. The only row that is two
-        moves is a value typed in: it settles, and then the next thing is asked
-        for in the same breath.
-
-        A hand and a voice reach the same transitions. The tools below still
-        dispatch every one of these actions when Tanvi is the one driving;
-        neither path is a special case of the other.
+        Two rows move nothing and say so: comparing is the customer using the
+        screen for what it is for, and a value confirmed is already settled. The
+        only row that is two moves is a value typed in: it settles, and the next
+        thing is asked for in the same breath.
         """
         table: dict[type[KioskEvent], Callable[[Any], tuple[ScreenMove, ...]]] = {
-            JourneyStarted: self._next_question,
             ProfileAnswered: self._next_question,
             EligibilityAcknowledged: self._the_shortlist,
             CardTapped: self._one_card,
@@ -865,7 +814,7 @@ class KioskBrain(GeminiBrain):
         return table.get(type(event), self._nothing)(event)
 
     def _nothing(self, _: KioskEvent) -> tuple[ScreenMove, ...]:
-        """A gesture the journey deliberately does not advance on."""
+        """A gesture the form deliberately does not advance on."""
         return ()
 
     def _started_over(self, _: KioskEvent) -> tuple[ScreenMove, ...]:
@@ -874,8 +823,8 @@ class KioskBrain(GeminiBrain):
         return (StartedOver(), self._question(_PROFILE_ORDER[0]))
 
     def _next_question(self, _: KioskEvent) -> tuple[ScreenMove, ...]:
-        """The first of the four they have not answered — or, once all four are
-        in, what they are likely eligible for."""
+        """The first question they have not answered — or, once they are all in,
+        what they are likely eligible for."""
         for field in _PROFILE_ORDER:
             if field not in self.answers:
                 return (self._question(field),)
@@ -907,10 +856,9 @@ class KioskBrain(GeminiBrain):
     def _value_and_what_follows(self, event: ValueEntered) -> tuple[ScreenMove, ...]:
         """The value they typed, settled, and then whatever comes after it.
 
-        A value the keypad sent that ``normalise`` will not take is not on the
-        screen and is not in the mirror, so the same question goes back up. That
-        is the one row that can repeat itself, and it repeats because the
-        customer has not answered it yet.
+        A value ``normalise`` will not take is not on the screen and not in the
+        mirror, so the same question goes back up — the one row that repeats,
+        because the customer has not answered it yet.
         """
         settled = self._settled(event.field)
         if settled is None:
@@ -922,53 +870,49 @@ class KioskBrain(GeminiBrain):
         return (settled,)
 
     def _value_alone(self, event: ValueEdited) -> tuple[ScreenMove, ...]:
-        """A correction settles and goes no further: they are mid-journey, not
-        answering the question the journey last asked."""
+        """A correction settles and goes no further."""
         settled = self._settled(event.field)
         return () if settled is None else (settled,)
 
     # ─── What the table needs ───────────────────────────────────────────
 
     def _question(self, field: ProfileField) -> AskProfile:
-        """One discovery question as the totem asks it by itself, in this
-        session's language. The options are the closed vocabulary, never authored
-        here and never authored by a model."""
-        english, hindi = PROFILE_PROMPTS[field]
+        """One profile question as the bank wrote it. The options are the closed
+        vocabulary, never authored here and never authored by a model."""
         return AskProfile(
             field=field,
-            question=hindi if self.language == "Hindi" else english,
-            options=_profile_options(field),
+            question=PROFILE_PROMPTS[field],
+            options=[
+                ProfileOption(value=value, label=label) for value, label in PROFILE_CHOICES[field]
+            ],
         )
 
     def _ask_value(self, field: str) -> AskValue:
-        """The keypad for one value, labelled in this session's language."""
-        english, hindi, kind = VALUE_PROMPTS[field]
-        return AskValue(
-            field=field, label=hindi if self.language == "Hindi" else english, kind=kind
-        )
+        """The keypad for one value."""
+        label, kind = VALUE_PROMPTS[field]
+        return AskValue(field=field, label=label, kind=kind)
 
     def _settled(self, field: str) -> ConfirmValue | None:
         """One stored value, painted as settled — or ``None`` when there is no
         value of that name to paint, which is the keypad's way of saying the
         customer has not given one yet."""
         value = self.answers.get(field)
-        if value is None:
+        if value is None or field not in _CAPTURED_FIELDS:
             return None
-        return _confirm_view(cast(CapturedField, field), value, "confirmed")
+        return _confirm_view(cast(CapturedField, field), value)
 
     def _handoff(self) -> ShowQr:
         """The code they carry to the desk, for the card they consented to."""
         card = card_by_id(self.consented_card_id) if self.consented_card_id else None
         return ShowQr(caption=_qr_caption(card))
 
-    def _assess(self, age: int | None = None) -> Assessment:
+    def _assess(self) -> Assessment:
         """Run the rules over what the customer has told us, and remember the
         verdict. The one place :func:`assess` is called from."""
         assessment = assess(
             employment=cast(Employment, self.answers["employment"]),
             income_band=cast(IncomeBand, self.answers["income_band"]),
             existing_cards=cast(ExistingCards, self.answers["existing_cards"]),
-            age=age,
         )
         self.assessment = assessment
         logger.info(
@@ -982,19 +926,14 @@ class KioskBrain(GeminiBrain):
         :func:`shortlist` is called from."""
         if self.assessment is None or "spend_category" not in self.answers:
             return None
-        spend = cast(SpendCategory, self.answers["spend_category"])
-        ranked = shortlist(self.assessment, spend)
+        ranked = shortlist(self.assessment, cast(SpendCategory, self.answers["spend_category"]))
+        self.ranked = ranked
         self.shortlist_ids = tuple(row.card.id for row in ranked.rows)
         logger.info("kiosk: shortlist {} pick={}", self.shortlist_ids, ranked.recommended_id)
         return ranked
 
     def _on_the_glass(self, card_id: str) -> Card | None:
-        """The card a hand just pointed at, or ``None`` if it is not one.
-
-        No staleness clock here: a hand cannot be out of date with the screen it
-        is touching. That guard is :meth:`_shortlisted`, and it is for the model,
-        which can be.
-        """
+        """The card a gesture pointed at, or ``None`` if it is not one on screen."""
         card = card_by_id(card_id)
         if card is None or (self.shortlist_ids and card.id not in self.shortlist_ids):
             logger.warning("kiosk: {!r} is not a card on this screen", card_id)
@@ -1004,10 +943,9 @@ class KioskBrain(GeminiBrain):
     def _enter(self, field: str, value: str) -> None:
         """Store a value the customer typed, in the one shape this demo stores.
 
-        A keypad sends what was pressed; ``normalise`` is what decides whether
-        that is yet a mobile number. What it will not take is not stored and not
-        mirrored — a half-typed PAN rendered as a settled one is the kiosk
-        telling a customer it has something it does not have.
+        What ``normalise`` will not take is not stored and not mirrored — a
+        half-typed PAN rendered as a settled one is the kiosk telling a customer
+        it has something it does not have.
         """
         if field not in _CAPTURED_FIELDS:
             logger.warning("kiosk: nothing on this kiosk holds a {!r}", field)
@@ -1016,37 +954,31 @@ class KioskBrain(GeminiBrain):
         if stored is None:
             logger.info("kiosk: the {} they typed is not one we can use", _spaced(field))
             self.answers.pop(field, None)
-            self.confirmed.discard(field)
-            self.view["what they have told us"].pop(field, None)
+            self.view["what they have told us"].pop(_spaced(field), None)
             return
         self._record(field, stored)
 
     def _record(self, field: str, value: str) -> None:
-        """Store an answer the customer gave with their hand.
-
-        A value they typed or tapped themselves needs no reading back — it is
-        already theirs, and asking them to confirm their own keystrokes is the
-        kiosk redoing work the human has done.
-        """
+        """Store an answer. The mirror carries how it is said — and, for a mobile
+        number or a PAN, only that it was typed in."""
         self.answers[field] = value
-        self.confirmed.add(field)
-        self.view["what they have told us"][field] = value
-        self._set_state(field, "confirmed")
-
-    def _set_state(self, field: str, state: str) -> None:
-        """Move the value panel's state, if that is the value it is showing."""
-        panel = self.view["the value being confirmed"]
-        if isinstance(panel, dict) and panel.get("field") == field:
-            panel["state"] = state
+        said = (
+            "typed in"
+            if field in ("mobile", "pan")
+            else _ANSWER_SPOKEN.get(field, {}).get(value, value)
+        )
+        self.view["what they have told us"][_spaced(field)] = said
 
     def _reset(self) -> None:
-        """Back to the attract loop, with nothing remembered but the language."""
+        """Back to the start, with nothing remembered but the language."""
         self.answers.clear()
-        self.confirmed.clear()
-        self.reasked.clear()
         self.assessment = None
+        self.ranked = None
         self.shortlist_ids = ()
         self.consented_card_id = None
+        self._pitch_due = None
+        self._pitched = ()
+        self._idle_clock(short=False)
         self.view = _blank_screen()
 
     def _append_note(self, text: str) -> None:
@@ -1059,36 +991,25 @@ class KioskBrain(GeminiBrain):
     def _show(self, action: ScreenMove) -> None:
         """Put something on the totem: patch the mirror, then dispatch.
 
-        Both, in that order, and only here — a dispatch that skipped the mirror
-        would leave Tanvi reading a screen one command behind her own last word.
-        The browser never echoes this back: her own dispatch is not an event.
+        Both, in that order, and only here — and only ever from a gesture's row
+        or the greeting, never from a tool. A dispatch that skipped the mirror
+        would leave Tanvi reading a screen one command behind.
         """
         self._mirror(action)
         self.session.dispatch(action)
-        landed(*phrase(_SPEECH[self.language].spoken, _PHRASE[type(action)]))
-        self._pace_for_the_screen()
-
-    def _pace_for_the_screen(self) -> None:
-        """Wait longer through pauses while a mobile or PAN is being dictated.
-
-        ``_show`` is synchronous — the journey table is — so the change is sent
-        as its own request rather than awaited here. It touches patience alone,
-        never a language, so it cannot half-move the pair.
-        """
-        wanted = (
-            _PATIENCE_DICTATION if self.view["screen"] in ("value", "confirm") else _PATIENCE_QUICK
-        )
-        if wanted == self._patience:
-            return
-        self._patience = wanted
-        task = asyncio.get_running_loop().create_task(
-            self.session.configure(Config(stt=SttConfig(patience=wanted)))
-        )
-        self._pending.add(task)
-        task.add_done_callback(self._pending.discard)
+        said = _PHRASE[type(action)]
+        if said is not None:
+            landed(*phrase(_SPEECH[self.language].spoken, said))
+        # The cards going up owe their line, once per shortlist.
+        if (
+            isinstance(action, ShowShortlist)
+            and self.ranked is not None
+            and self.shortlist_ids != self._pitched
+        ):
+            self._pitch_due = self.ranked
 
     def _mirror(self, action: ScreenMove) -> None:
-        """Apply one of Tanvi's own commands to her picture of the totem.
+        """Apply one command to the picture of the totem.
 
         The totem shows one thing at a time, so each arm also clears what that
         move takes off the glass. A key left behind is a panel Tanvi believes is
@@ -1100,326 +1021,246 @@ class KioskBrain(GeminiBrain):
                 self.view = _blank_screen()
             case AskProfile():
                 view["screen"] = "question"
-                view["the question on screen"] = _spaced(action.field)
-                view["the value we are asking for"] = None
-                view["the value being confirmed"] = None
+                view["the question on screen"] = f"{_spaced(action.field)}: {action.question}"
+                view["its answers"] = ", ".join(o.label for o in action.options)
+                view["the value we are asking them to type"] = None
             case AskValue():
-                view["screen"] = "value"
+                view["screen"] = "typing"
                 view["the question on screen"] = None
-                view["the value we are asking for"] = _spaced(action.field)
-                view["the value being confirmed"] = None
-            case ConfirmValue() if action.state == "confirming":
-                view["screen"] = "confirm"
-                view["the question on screen"] = None
-                view["the value we are asking for"] = None
-                view["the value being confirmed"] = {
-                    "field": action.field,
-                    "shown as": action.masked,
-                    "state": action.state,
-                }
-            case ConfirmValue() if view["screen"] == "confirm":
-                # A mobile or PAN read-back, now settled: the panel stays up and
-                # says so, until the next move takes it off the glass.
-                view["the value being confirmed"] = {
-                    "field": action.field,
-                    "shown as": action.masked,
-                    "state": action.state,
-                }
+                view["its answers"] = None
+                view["the value we are asking them to type"] = action.label
             case ConfirmValue():
-                # A chip answer, settled as it was heard: the screen does not stop
-                # to ask. It used to paint a confirm screen here, and Tanvi,
-                # reading it, waited for a yes nobody was going to say.
-                view["the value being confirmed"] = None
+                pass
             case ShowEligibility():
                 view["screen"] = "eligibility"
                 view["the question on screen"] = None
-                view["the value being confirmed"] = None
-                view["their eligibility"] = {
-                    "band": action.band,
-                    "indicative limit": action.line_estimate,
-                }
+                view["its answers"] = None
+                assessment = self.assessment
+                view["their eligibility"] = assessment.spoken if assessment else action.band
             case ShowShortlist():
-                view["screen"] = "shortlist"
-                view["the shortlist"] = {
-                    card.id: ("eligible" if card.eligible else "not yet") for card in action.cards
-                }
-                view["the card we recommended"] = action.recommended_id
+                view["screen"] = "cards"
+                view["the cards on screen"] = ", ".join(
+                    f"{card.name} ({'likely eligible' if card.eligible else 'not yet'})"
+                    for card in action.cards
+                )
+                pick = card_by_id(action.recommended_id)
+                view["the card we recommend"] = pick.name if pick else action.recommended_id
+                view["why we recommend it"] = self.ranked.why_spoken if self.ranked else None
                 view["the card they have open"] = None
                 view["the consent panel"] = None
             case OpenCardDetail():
-                view["screen"] = "card"
+                view["screen"] = "one card"
                 card = card_by_id(action.card_id)
                 view["the card they have open"] = card.name if card else action.card_id
             case OpenConsent():
                 view["screen"] = "consent"
-                view["the consent panel"] = f"waiting on {action.card_id}"
+                card = card_by_id(action.card_id)
+                view["the consent panel"] = (
+                    f"for the {card.name if card else action.card_id}, waiting on their tap"
+                )
             case ShowQr():
-                view["screen"] = "qr"
-                view["the value we are asking for"] = None
-                view["the qr code"] = action.caption
+                view["screen"] = "qr code"
+                view["the value we are asking them to type"] = None
+                view["the qr code"] = "on screen, for the desk"
 
-    # ─── Tools ──────────────────────────────────────────────────────────
-    # A result reaches Tanvi with the customer's next message, unless the tool is
-    # marked ``@needs_result_now``. The marked ones read what she has to say from
-    # this session's memory — the rules' verdict, the ranking, a card's perk, a
-    # yes decided in Python, the screen — and hand it back as a SAY line. Every
-    # other result is a record she reads a turn later, so it says what happened
-    # and never what to say: she said her line before she called.
+    # ─── The screen, read-only, every turn ──────────────────────────────
+
+    def _snapshot(self) -> str:
+        """What is on the glass right now, as the note a turn starts from."""
+        return "[The screen right now]\n" + screen_prose(_trim(self.view))
+
+    async def _with_the_screen(
+        self, turn: AsyncGenerator[Speech, None]
+    ) -> AsyncGenerator[Speech, None]:
+        """Run ``turn`` with the screen in front of the model, then take it away.
+
+        The note goes in just before the customer's words, after everything the
+        cache has already seen, and comes out when the turn is over — so every
+        request sees the screen as it is now, and none carries a stale copy of
+        it forward. The SDK has no seam for a per-request note yet, so this
+        reaches into the context it keeps.
+        """
+        note = types.Content(role="user", parts=[types.Part(text=self._snapshot())])
+        history: list[types.Content] = self._history  # pyright: ignore[reportPrivateUsage]
+        history.insert(max(len(history) - 1, 0), note)
+        try:
+            async for speech in turn:
+                yield speech
+        finally:
+            self._history = [c for c in self._history if c is not note]  # pyright: ignore[reportPrivateUsage]
+
+    # ─── The line about the top card ────────────────────────────────────
+
+    async def _pitch_now(self) -> AsyncGenerator[Speech, None]:
+        """The line, straight after a turn that put the cards up — when it is
+        written for the language the voice is speaking. Otherwise it waits for
+        the idle clock, where the model says it (:meth:`_pitch_on_idle`)."""
+        ranked = self._pitch_due
+        if ranked is None:
+            return
+        line = self._written_pitch(ranked)
+        if line is None:
+            self._idle_clock(short=True)
+            return
+        async for speech in self._say(line, ranked):
+            yield speech
+
+    async def _pitch_on_idle(self) -> AsyncGenerator[Speech, None]:
+        """The line, on the quiet moment after the cards went up.
+
+        Written where a line is written; in a language with no written line, the
+        model says the English one in the customer's language — the one model
+        call this line ever costs, and only in those languages.
+        """
+        ranked = self._pitch_due
+        if ranked is None:
+            return
+        self._idle_clock(short=False)
+        line = self._written_pitch(ranked)
+        if line is not None:
+            async for speech in self._say(line, ranked):
+                yield speech
+            return
+        english = pitch_line(ranked, self._spend(), Language.EN)
+        self._pitched, self._pitch_due = self.shortlist_ids, None
+        self._append_note(
+            f"[The cards are up. In one short line, in {self.language}, tell them: {english}]"
+        )
+        async for speech in self._with_the_screen(self.respond(self.session)):
+            yield speech
+
+    def _written_pitch(self, ranked: Shortlist) -> str | None:
+        return pitch_line(ranked, self._spend(), _SPEECH[self.language].spoken)
+
+    def _spend(self) -> SpendCategory:
+        return cast(SpendCategory, self.answers.get("spend_category", "bills"))
+
+    async def _say(self, line: str, ranked: Shortlist) -> AsyncGenerator[Speech, None]:
+        """Speak a written line, and keep it in the context as Tanvi's own, so the
+        model knows what she has already said about the cards.
+
+        It is a speech unit like any the model writes: it joins the finalize
+        queue and is rewritten to what the customer actually heard.
+        """
+        self._pitched, self._pitch_due = self.shortlist_ids, None
+        unit = _Unit(types.Content(role="model", parts=[types.Part(text=line)]))
+        self._history.append(unit.content)  # pyright: ignore[reportPrivateUsage]
+        self._awaiting.append(unit)  # pyright: ignore[reportPrivateUsage]
+        logger.info("kiosk: the line about the top card ({})", ranked.recommended_id)
+        yield SpeechStart()
+        yield SpeechChunk(line)
+        yield SpeechEnd()
+        self._idle_clock(short=False)
+
+    def _idle_clock(self, *, short: bool) -> None:
+        """Shorten the idle clock for the line about the top card, or put it back.
+
+        Idle alone, never a language, so it cannot half-move the pair. Sent, not
+        awaited, and only when it changes."""
+        if short == self._idle_short:
+            return
+        self._idle_short = short
+        timeout = _IDLE_PITCH_MS if short else _IDLE_MS
+        configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=timeout)))
+
+    # ─── Tools: the gestures Tanvi makes for the customer ───────────────
+    # Each builds the event a hand would send and hands it to ``_perform``,
+    # which refuses what a hand could not do right now and otherwise runs it
+    # through ``apply_event`` — the one road to the glass. The result reaches the
+    # model with the customer's next message, so it records what happened and
+    # never says what to say: she said her line before she called.
+
+    async def answer_on_screen(self, answer: OnScreenAnswer) -> str:
+        """Tap the customer's answer to the question on the screen, when they say
+        it instead of tapping it. Set only the field for the question that is up.
+        Say a word or two in the same response, like "Got it." — the next question
+        comes up by itself.
+        """
+        given = answer.model_dump(exclude_none=True)
+        if not given:
+            return "Nothing tapped: no answer was given."
+        done: list[str] = []
+        for field in _PROFILE_ORDER:
+            if field in given:
+                done.append(self._perform(ProfileAnswered(field=field, value=str(given[field]))))
+        return " ".join(done)
+
+    async def continue_to_cards(self) -> str:
+        """Tap "Show me the cards" on the eligibility screen, when they ask to see
+        the cards. Say only a word or two; the kiosk says why the top card itself.
+        """
+        return self._perform(EligibilityAcknowledged())
+
+    async def open_card(self, card: CardPick) -> str:
+        """Open one of the cards on the screen, when they ask about it by name."""
+        return self._perform(CardTapped(card_id=card.card_id))
+
+    async def close_card(self) -> str:
+        """Close the open card and go back to the three."""
+        return self._perform(CardDetailClosed())
+
+    async def compare_cards(self) -> str:
+        """Put the cards on the screen side by side, when they ask to compare."""
+        return self._perform(CardCompared())
+
+    async def choose_card(self, card: CardPick) -> str:
+        """Choose one of the cards on the screen for them, when they say which.
+        The consent panel comes up; they read it and tap I agree themselves.
+        """
+        return self._perform(CardChosen(card_id=card.card_id))
 
     async def start_over(self) -> str:
-        """Clear everything and put the first question back on screen. Use it when the
-        customer says they want to start again, or when a new person has walked
-        up. Nothing is kept.
-
-        Say you are starting over and ask the first question once, in one short
-        line, and call this in the same response.
+        """Press Start over, when they want to start again or a new person has
+        walked up. Their answers are cleared and the first question comes back.
         """
-        logger.info("kiosk: start_over")
-        self._reset()
-        for move in self._started_over(RestartPressed()):
-            self._show(move)
-        return "Cleared; the first question is back in front of them."
+        return self._perform(RestartPressed())
 
-    async def ask_profile(self, ask: ProfileQuestion) -> str:
-        """Put one of the four discovery questions on screen, with its answers.
+    def _perform(self, event: KioskEvent) -> str:
+        """One gesture on the customer's behalf — or the reason a hand could not
+        make it right now."""
+        if type(event) not in TANVI_GESTURES:
+            # Never reached from a tool; this is the line the privacy rule holds.
+            raise TypeError(f"{type(event).__name__} is the customer's hand only")
+        refused = self._refusal(event)
+        if refused is not None:
+            logger.info("kiosk: refused {} — {}", type(event).__voqal_event__, refused)
+            return f"Not done: {refused}"
+        logger.info("kiosk: Tanvi {} — {}", type(event).__voqal_event__, event)
+        self._append_note(self.apply_event(event))
+        return "Done."
 
-        Ask the four in order: employment, income_band, existing_cards,
-        spend_category. Ask the question aloud once, in one short line, and call
-        this in the same response. The screen only holds the choices; it asks
-        nothing. Do not read the options out; they are on the glass in front of
-        the customer.
-        """
-        logger.info("kiosk: ask_profile {}", ask.field)
-        self._show(
-            # The glass carries the bank's own wording, in the screen's language —
-            # never the model's, which may be in a language the screen has no copy for.
-            self._question(ask.field)
-        )
-        return (
-            f"Shown: the {_spaced(ask.field)} question and its answers are on the glass. "
-            "The options are never read out."
-        )
-
-    async def capture_value(self, heard: HeardValue) -> str:
-        """Record what the customer just said and show it to them.
-
-        For the profile questions, resolve what they said to one of the allowed
-        tokens first — "about forty thousand a month" is ``25k_60k``. For mobile
-        and PAN, pass the characters; the kiosk masks them on screen for you.
-
-        Say your line in the same response. A closed answer settles here and
-        needs no reading back: acknowledge in two or three words and ask the next
-        question once — this puts it on screen by itself. After the last of the
-        four, call check_eligibility in the same response. For mobile and PAN,
-        read the value back in words and ask if it is right; pass their reply to
-        confirm.
-        """
-        value = normalise(heard.field, heard.value)
-        if value is None:
-            logger.warning("kiosk: capture_value rejected {}={!r}", heard.field, heard.value)
-            # Not "that is not a income band I can use": the field name is
-            # interpolated, so the sentence has to read for every one of the six.
-            return (
-                f"{heard.value!r} is not a value I can use for {_spaced(heard.field)}, so "
-                f"nothing was recorded. Allowed: {allowed_values(heard.field)}. "
-                "Ask them again in different words."
-            )
-
-        spoken_needed = heard.field in ("mobile", "pan")
-        state = "confirming" if spoken_needed else "heard"
-        self.answers[heard.field] = value
-        self.view["what they have told us"][heard.field] = value
-        if not spoken_needed:
-            self.confirmed.add(heard.field)
-        on_screen = self.view["the question on screen"] == _spaced(heard.field)
-        logger.info("kiosk: capture_value {}={}", heard.field, masked_form(heard.field, value))
-        self._show(_confirm_view(heard.field, value, state))
-        if not spoken_needed:
-            return self._after_an_answer(on_screen)
-        return (
-            f"Recorded and on screen, masked, waiting on their yes. Their reply goes to "
-            f"confirm for the {_spaced(heard.field)}."
-        )
-
-    def _after_an_answer(self, on_screen: bool) -> str:
-        """Move the journey on from a spoken answer, in Python.
-
-        While the customer is still in the questions — on the welcome screen or
-        on one of the four — an answer puts the next unanswered question up at
-        once, the way a tap does. The model used to be told to acknowledge and
-        wait for ``ask_profile``, and in a live Kannada session it acknowledged
-        and then sat silent until the customer spoke again. That includes an
-        answer given before any question was up ("I'm Ravi, I'm salaried"), which
-        would otherwise leave the welcome screen standing and have the first quiet
-        moment ask them what they had just said.
-
-        The one answer that moves nothing is a correction: an earlier question
-        answered again while a different, unanswered one is on screen, or any
-        answer once the questions are behind them.
-
-        What comes back is read on the customer's next message, after Tanvi has
-        already asked the next question in the line she called this with — so it
-        is a record of where the screen went, never a direction to ask.
-        """
-        remaining: list[ProfileField] = [f for f in _PROFILE_ORDER if f not in self.answers]
-        shown = self.view["the question on screen"]
-        in_the_questions = self.view["screen"] in ("attract", "question")
-        another_is_up = not on_screen and shown in {_spaced(f) for f in remaining}
-        if not in_the_questions or another_is_up:
-            return "Recorded as a correction; the screen stays where they were."
-        if remaining:
-            self._show(self._question(remaining[0]))
-            return (
-                f"Recorded, and the {_spaced(remaining[0])} question is already up for them; "
-                "it needs no ask_profile."
-            )
-        return (
-            "Recorded; that was the last profile question. check_eligibility comes next, "
-            "if it has not run."
-        )
-
-    @needs_result_now
-    async def confirm(self, check: ConfirmCheck) -> str:
-        """Decide whether the customer actually confirmed a value.
-
-        Pass their reply word for word, not your reading of it. A clear yes
-        settles the value. Anything else — a hedge, a correction, a reply too
-        short to carry signal — comes back as unclear, and you ask once more in
-        different words. There is no third time: a second unclear reply is taken
-        as heard and the call moves on. The verdict comes back to you in this
-        turn; speak once you have it.
-        """
-        value = self.answers.get(check.field)
-        if value is None:
-            return f"Nothing to confirm — call capture_value for the {_spaced(check.field)} first."
-        if reads_as_yes(check.heard):
-            return self._settle(check.field, value, "Confirmed.")
-        if check.field in self.reasked:
-            logger.info("kiosk: confirm {} unclear twice, taking it as heard", check.field)
-            return self._settle(
-                check.field,
-                value,
-                "Still unclear, and it has been asked once already. Taking it as heard.",
-            )
-        self.reasked.add(check.field)
-        logger.info("kiosk: confirm {} unclear, asking once more", check.field)
-        self._show(_confirm_view(check.field, value, "confirming"))
-        return (
-            "Not a clear yes. SAY: ask once more, in different words, in one short line. "
-            "Do not say you did not catch it, and do not ask a third time."
-        )
-
-    def _settle(self, field: CapturedField, value: str, verdict: str) -> str:
-        """Mark a value settled, paint it, and hand the model its next move."""
-        self.confirmed.add(field)
-        self._show(_confirm_view(field, value, "confirmed"))
-        return (
-            f"{verdict} Acknowledge in a few words. Whatever comes next arrives with its own "
-            "tool call; do not say it twice."
-        )
-
-    @needs_result_now
-    async def check_eligibility(self, request: EligibilityRequest) -> str:
-        """Work out what the customer is likely eligible for and show it.
-
-        Call it once all four questions are answered. The rules are Python — you
-        do not compare incomes or scores yourself, and there is no credit score
-        to speak: the screen shows a band and the reasons behind it. The verdict
-        comes back to you in this turn, as the line to say.
-        """
-        missing = [field for field in _PROFILE_ORDER if field not in self.answers]
-        if missing:
-            return f"Not yet — still missing {', '.join(_spaced(field) for field in missing)}."
-
-        assessment = self._assess(request.age)
-        self._show(_eligibility_view(assessment))
-        return (
-            f"On screen. SAY: {assessment.spoken}, and the line is about "
-            f"{assessment.line_spoken}. One line only, then call show_shortlist. "
-            "Add that a banker at the desk will confirm."
-        )
-
-    @needs_result_now
-    async def show_shortlist(self) -> str:
-        """Rank the cards for this customer and put the top three on screen.
-
-        The ranking is Python: their biggest spend first, then the tier they
-        clear. Which card to pick and why comes back to you in this turn. Say it
-        in one line, and let the screen hold the fees and the rates.
-        """
-        ranked = self._rank()
-        if ranked is None:
-            return "Call check_eligibility first — there is nothing to rank yet."
-        self._show(_shortlist_view(ranked))
-        return _pick_line(ranked)
-
-    @needs_result_now
-    async def open_card_detail(self, card: OpenCardDetail) -> str:
-        """Open one card full screen, when the customer asks about it by name.
-
-        The one thing that makes it theirs comes back to you in this turn; say
-        it. The fee, the rate and the cap are on screen; do not read them out.
-        """
-        chosen = self._shortlisted(card.card_id)
-        if isinstance(chosen, str):
-            return chosen
-        logger.info("kiosk: open_card_detail {}", chosen.id)
-        self._show(OpenCardDetail(card_id=chosen.id))
-        return (
-            f"On screen. SAY: {chosen.perk_spoken}. One line, and do not read the fee "
-            "or the rate aloud."
-        )
-
-    async def open_consent(self, card: CardChoice) -> str:
-        """Open the consent panel for the card the customer has chosen.
-
-        The bullets are written by the bank, not by you. In the same response,
-        say in one line that everything they are agreeing to for that card is on
-        screen, that a banker will confirm and nothing here is decided, and ask
-        them to say yes out loud. There is nothing to tap: the kiosk takes a
-        spoken yes.
-        """
-        chosen = self._shortlisted(card.card_id)
-        if isinstance(chosen, str):
-            return chosen
-        logger.info("kiosk: open_consent {}", chosen.id)
-        self._show(OpenConsent(card_id=chosen.id, bullets=_consent_bullets(chosen)))
-        return f"The consent panel for the {chosen.name} is open, waiting on a spoken yes."
-
-    async def finish_with_qr(self, card: CardChoice) -> str:
-        """Show the QR code that ends the visit, after a spoken yes.
-
-        Only after the customer has agreed out loud, or accepted the panel on
-        screen. In the same response, tell them in one line to show the code at
-        the desk, where a banker will take it from here — then stop talking.
-        """
-        chosen = self._shortlisted(card.card_id)
-        if isinstance(chosen, str):
-            return chosen
-        self.consented_card_id = chosen.id
-        logger.info("kiosk: finish_with_qr {}", chosen.id)
-        self._show(ShowQr(caption=_qr_caption(chosen)))
-        return f"The QR code for the {chosen.name} is on screen. The visit is over."
-
-    @needs_result_now
-    async def get_screen_context(self) -> str:
-        """What the customer is looking at right now: the screen, what they have
-        told us, and anything they have chosen.
-
-        Call it before you act on something they pointed at, and whenever you are
-        told they moved the screen themselves. It is free — it reads this
-        session's own mirror, says nothing and moves nothing — and it answers you
-        in this turn.
-        """
-        self.screen.read()
-        logger.info(
-            "kiosk: get_screen_context -> {} (v{})", self.view["screen"], self.screen.version
-        )
-        return screen_prose(_trim(self.view))
+    def _refusal(self, event: KioskEvent) -> str | None:
+        """Why a hand could not make this gesture on the screen as it is, or
+        ``None`` when it could."""
+        screen = self.view["screen"]
+        on_cards = screen in ("cards", "one card")
+        match event:
+            case ProfileAnswered():
+                if screen != "question" or not str(self.view["the question on screen"]).startswith(
+                    _spaced(event.field) + ":"
+                ):
+                    return f"the {_spaced(event.field)} question is not the one on the screen."
+                return None
+            case EligibilityAcknowledged():
+                return None if screen == "eligibility" else "the eligibility screen is not up."
+            case CardTapped() | CardChosen():
+                if not on_cards:
+                    return "the cards are not on the screen."
+                if event.card_id not in self.shortlist_ids:
+                    return f"that card is not one of the three on the screen: {', '.join(self.shortlist_ids)}."
+                return None
+            case CardDetailClosed():
+                return None if screen == "one card" else "no card is open."
+            case CardCompared():
+                return None if on_cards else "the cards are not on the screen."
+            case RestartPressed():
+                return None
+            case _:
+                return "that is the customer's to do on the screen."
 
     async def switch_language(self, to: SwitchLanguage) -> str:
         """Continue the conversation in another language — the listening and the
-        speaking both.
+        speaking both. The screen stays in English.
 
         Call it when the customer asks for a language, AND when you can tell they
         are already speaking one: do not wait to be asked. Do not switch on a
@@ -1432,24 +1273,21 @@ class KioskBrain(GeminiBrain):
             return f"Already in {to.language}."
         # Sent, not awaited: a tool returns inside its budget, and nothing checks
         # later that the switch applied. Both legs still move in one request.
-        configure_soon(self.session, _config(to.language, self._patience))
+        configure_soon(self.session, _config(to.language))
         return self._switched(to.language, by="you")
 
     async def _switch_to(self, name: LanguageName, *, by: str) -> str:
         """Move both legs to one language, from a callback rather than a tool.
 
-        The chip and the English check are not tools, so they have no budget to
-        keep, and they await the request: the English check has to land before the
-        model's reply is spoken. The bookkeeping after it is :meth:`_switched`,
-        shared with the tool, so the paths cannot disagree about what a switch
-        does.
+        The English check is not a tool, so it has no budget to keep, and it
+        awaits the request: it has to land before the model's reply is spoken.
         """
         if name == self.language:
             return f"Already in {name}. Carry on."
         try:
             # One request moves both legs, so the kiosk is never listening in one
             # language and speaking in another. All-or-nothing on refusal.
-            await self.session.configure(_config(name, self._patience))
+            await self.session.configure(_config(name))
         except RequestRejected as rejected:
             logger.warning("kiosk: language {} rejected — {}", name, rejected)
             return (
@@ -1459,16 +1297,10 @@ class KioskBrain(GeminiBrain):
         return self._switched(name, by=by)
 
     def _switched(self, name: LanguageName, *, by: str) -> str:
-        """Record a switch that has been sent, tell the page, and write the line
-        the model reads about it — a record, since it may be read a turn later."""
+        """Record a switch that has been sent, and write the line the model reads
+        about it. Nothing on the screen changes: it stays in English."""
         logger.info("kiosk: language {} -> {} (by {})", self.language, name, by)
         self.language = name
-        self.session.dispatch(
-            LanguageChanged(
-                language=name,
-                screen_language="hi" if name == "Hindi" else "en",
-            )
-        )
         speech = _SPEECH[name]
         if speech.spoken != speech.heard:
             return (
@@ -1477,28 +1309,6 @@ class KioskBrain(GeminiBrain):
             )
         return f"Now in {name}, switched by {by}. Speak {name} from here on."
 
-    # ─── Tool guards ────────────────────────────────────────────────────
-
-    def _shortlisted(self, card_id: str) -> Card | str:
-        """The card this tool may act on, or the sentence explaining the refusal.
-
-        Three refusals, all retriable and all naming the way out: a screen the
-        model has not re-read since the customer moved it, a shortlist that does
-        not exist yet, and a card id that is not on the one that does — which is
-        either invented or left over from a shortlist since replaced.
-        """
-        if (stale := self.screen.stale()) is not None:
-            return f"Not yet: {stale}."
-        if not self.shortlist_ids:
-            return "There is no shortlist on screen yet — call show_shortlist first."
-        chosen = card_by_id(card_id)
-        if chosen is None or chosen.id not in self.shortlist_ids:
-            return (
-                f"{card_id!r} is not on the shortlist. "
-                f"The cards on screen are: {', '.join(self.shortlist_ids)}."
-            )
-        return chosen
-
 
 def _spaced(field: str) -> str:
     """A field name as a person says it: ``income_band`` → "income band". Nothing
@@ -1506,22 +1316,14 @@ def _spaced(field: str) -> str:
     return field.replace("_", " ")
 
 
-def _profile_options(field: ProfileField) -> list[ProfileOption]:
-    """The closed set of answers to one question, as the screen offers them."""
-    return [
-        ProfileOption(value=value, label=label, label_hi=label_hi)
-        for value, label, label_hi in PROFILE_CHOICES[field]
-    ]
-
-
-def _confirm_view(field: CapturedField, value: str, state: str) -> ConfirmValue:
-    """One captured value as the totem holds it. Both renderings come from
+def _confirm_view(field: CapturedField, value: str) -> ConfirmValue:
+    """One typed value as the totem holds it. Both renderings come from
     ``values.py``, which is the one home for the difference between them."""
     return ConfirmValue(
         field=field,
         display=display_form(field, value),
         masked=masked_form(field, value),
-        state=state,
+        state="confirmed",
     )
 
 
@@ -1576,15 +1378,3 @@ def _consent_bullets(card: Card) -> list[str]:
         f"Eligibility: {card.requirement_display}",
         "Vantage Bank runs its own checks. Nothing is approved at this kiosk.",
     ]
-
-
-def _pick_line(ranked: Shortlist) -> str:
-    """The one line Tanvi may say about a shortlist of three."""
-    pick = card_by_id(ranked.recommended_id)
-    name = pick.name if pick else "the first one"
-    return (
-        f"On screen. SAY: the {name} is your best fit, because {ranked.why_spoken}. "
-        # No em-dash: everything after SAY: is text Tanvi may read as written, and
-        # an em-dash read aloud is a stumble at best. Two sentences instead.
-        "One line. Do not read the fees or the rates aloud. They are on screen."
-    )

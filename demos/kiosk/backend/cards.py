@@ -55,9 +55,9 @@ __all__ = [
 ]
 
 # ─── The four discovery vocabularies ───────────────────────────────────────────
-# Closed on purpose. The customer speaks freely and the model resolves what they
-# said to one of these tokens; nothing downstream ever sees the free text, so no
-# rule here has to cope with "about forty odd thousand".
+# Closed on purpose. The customer taps one, or says it and Tanvi taps it for
+# them; either way nothing downstream ever sees free text, so no rule here has to
+# cope with "about forty odd thousand".
 
 Employment = Literal["salaried", "self_employed", "government", "student"]
 IncomeBand = Literal["under_25k", "25k_60k", "60k_150k", "over_150k"]
@@ -67,8 +67,8 @@ SpendCategory = Literal["fuel", "groceries", "online", "travel", "dining", "bill
 #: The four questions, in the order they are asked.
 ProfileField = Literal["employment", "income_band", "existing_cards", "spend_category"]
 
-#: Everything the customer can say that lands on screen as a value: the four
-#: closed answers plus the two free-form ones they read out in the cubicle.
+#: Everything that lands on screen as a value: the four closed answers, plus the
+#: two the customer types in themselves.
 CapturedField = Literal[
     "employment", "income_band", "existing_cards", "spend_category", "mobile", "pan"
 ]
@@ -212,55 +212,54 @@ SPEND_DISPLAY: dict[SpendCategory, str] = {
     "bills": "Bills",
 }
 
-#: What each question offers, as ``(value, English label, Hindi label)``. The
-#: labels are the screen's; the voice never reads a list of options aloud, it
-#: asks the question and lets the screen hold the choices.
-PROFILE_CHOICES: dict[ProfileField, tuple[tuple[str, str, str], ...]] = {
+#: What each question offers, as ``(value, label)``. The labels are the screen's,
+#: and the screen is English whatever language Tanvi is speaking; the voice never
+#: reads a list of options aloud.
+PROFILE_CHOICES: dict[ProfileField, tuple[tuple[str, str], ...]] = {
     "employment": (
-        ("salaried", "Salaried", "नौकरी"),
-        ("self_employed", "Self employed", "अपना काम"),
-        ("government", "Government", "सरकारी नौकरी"),
-        ("student", "Student", "विद्यार्थी"),
+        ("salaried", "Salaried"),
+        ("self_employed", "Self employed"),
+        ("government", "Government"),
+        ("student", "Student"),
     ),
     "income_band": (
-        ("under_25k", "Under 25,000", "25,000 से कम"),
-        ("25k_60k", "25,000 to 60,000", "25,000 से 60,000"),
-        ("60k_150k", "60,000 to 1,50,000", "60,000 से 1,50,000"),
-        ("over_150k", "Over 1,50,000", "1,50,000 से ज़्यादा"),
+        ("under_25k", "Under 25,000"),
+        ("25k_60k", "25,000 to 60,000"),
+        ("60k_150k", "60,000 to 1,50,000"),
+        ("over_150k", "Over 1,50,000"),
     ),
     "existing_cards": (
-        ("none", "None yet", "अभी कोई नहीं"),
-        ("one", "One", "एक"),
-        ("more_than_one", "More than one", "एक से ज़्यादा"),
+        ("none", "None yet"),
+        ("one", "One"),
+        ("more_than_one", "More than one"),
     ),
     "spend_category": (
-        ("fuel", "Fuel", "पेट्रोल"),
-        ("groceries", "Groceries", "राशन"),
-        ("online", "Online", "ऑनलाइन"),
-        ("travel", "Travel", "यात्रा"),
-        ("dining", "Dining", "बाहर खाना"),
-        ("bills", "Bills", "बिल"),
+        ("fuel", "Fuel"),
+        ("groceries", "Groceries"),
+        ("online", "Online"),
+        ("travel", "Travel"),
+        ("dining", "Dining"),
+        ("bills", "Bills"),
     ),
 }
 
 
-#: The question the *totem* puts on the glass, per language, when the customer
-#: is driving with their hand and there is no spoken line to carry it. When Tanvi
-#: asks a question she writes her own; this is the screen's, and it is written
-#: here rather than generated so nothing a model authored lands on a bank's glass.
-PROFILE_PROMPTS: dict[ProfileField, tuple[str, str]] = {
-    "employment": ("What do you do?", "आप क्या करते हैं?"),
-    "income_band": ("What comes in every month?", "हर महीने कितना आता है?"),
-    "existing_cards": ("How many credit cards do you have?", "आपके पास कितने क्रेडिट कार्ड हैं?"),
-    "spend_category": ("Where does most of your money go?", "सबसे ज़्यादा खर्च किस पर होता है?"),
+#: The question the totem puts on the glass. Written here rather than generated,
+#: so nothing a model authored lands on a bank's glass, and in English only: the
+#: screen does not follow the conversation's language.
+PROFILE_PROMPTS: dict[ProfileField, str] = {
+    "employment": "What do you do?",
+    "income_band": "What comes in every month?",
+    "existing_cards": "How many credit cards do you have?",
+    "spend_category": "Where does most of your money go?",
 }
 
-#: The two values a customer types in themselves, as ``(English label, Hindi
-#: label, keypad)``. The keypad is what goes under their finger: digits for a
-#: mobile number, letters and digits for a PAN.
-VALUE_PROMPTS: dict[str, tuple[str, str, str]] = {
-    "mobile": ("Mobile number", "मोबाइल नंबर", "tel"),
-    "pan": ("PAN", "पैन नंबर", "text"),
+#: The two values a customer types in themselves, as ``(label, keypad)``. The
+#: keypad is what goes under their finger: digits for a mobile number, letters and
+#: digits for a PAN. Neither is ever asked for out loud.
+VALUE_PROMPTS: dict[str, tuple[str, str]] = {
+    "mobile": ("Mobile number", "tel"),
+    "pan": ("PAN", "text"),
 }
 
 

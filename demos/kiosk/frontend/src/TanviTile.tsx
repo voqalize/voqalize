@@ -25,19 +25,18 @@ import { Avatar } from '@voqalize/avatar/react';
 import { TranscriptOverlay } from '@pipecat-ai/voice-ui-kit';
 import '@pipecat-ai/voice-ui-kit/styles.scoped';
 import type { AmbientPresenceActivity } from '@voqalize/demo-kit';
-import { COLOR } from './brand';
-import { fontFor, strings, type Language } from './language';
+import { COLOR, FONT } from './brand';
+import { COPY } from './copy';
 
 export interface TanviTileProps {
   /** The live client. `null` in the moment before the host has built one. */
   client: PipecatClient | null;
   /** What the call is doing, from the same events the ambient ring reads. */
   activity: AmbientPresenceActivity;
-  language: Language;
 }
 
-export function TanviTile({ client, activity, language }: TanviTileProps) {
-  const copy = strings(language);
+export function TanviTile({ client, activity }: TanviTileProps) {
+  const copy = COPY;
 
   return (
     // `vkui-root` is the whole contract with voice-ui-kit's stylesheet: its
@@ -59,12 +58,12 @@ export function TanviTile({ client, activity, language }: TanviTileProps) {
  * photograph of a face that is about to start moving is an odd promise to make
  * on a totem, and one more binary to keep in step with the package.
  */
-export function TanviPlate({ language }: { language: Language }) {
-  const copy = strings(language);
+export function TanviPlate() {
+  const copy = COPY;
   return (
     <div className="kiosk-tanvi is-offline" role="img" aria-label={copy.assistant}>
       <div className="kiosk-tanvi-plate">
-        <span className="kiosk-tanvi-mark" style={{ fontFamily: fontFor('en') }}>
+        <span className="kiosk-tanvi-mark" style={{ fontFamily: FONT.en }}>
           T
         </span>
         <span className="kiosk-tanvi-name">{copy.assistant}</span>

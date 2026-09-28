@@ -7,32 +7,30 @@
  * tool that can approve anything, and the line that says a banker confirms it is
  * the honest description of what just happened.
  *
- * One control: the customer has read it and wants the cards. Tanvi moves on by
- * herself when asked out loud, and either way it is the same `show_shortlist`.
+ * One control: the customer has read it and wants the cards. Asked out loud,
+ * Tanvi taps it for them, and either way it is the same `show_shortlist`.
  */
 
 import { Check } from '@phosphor-icons/react';
 import { COLOR } from '../brand';
 import type { ShowEligibility } from '../actions.gen';
-import { bandLabel, strings, type Language } from '../language';
+import { bandLabel, COPY } from '../copy';
 import { Tag, TouchButton, TrayTitle } from '../ui';
 
 export function EligibilityTray({
-  language,
   eligibility,
   onAcknowledge,
 }: {
-  language: Language;
   eligibility: ShowEligibility | null;
   onAcknowledge: () => void;
 }) {
-  const copy = strings(language);
+  const copy = COPY;
   if (!eligibility) return null;
   return (
     <div className="kiosk-elig">
       <div className="kiosk-elig-head">
         <TrayTitle>{copy.eligibilityTitle}</TrayTitle>
-        <Tag tone="leaf">{bandLabel(eligibility.band, language)}</Tag>
+        <Tag tone="leaf">{bandLabel(eligibility.band)}</Tag>
       </div>
 
       <div className="kiosk-elig-line">

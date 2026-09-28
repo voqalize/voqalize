@@ -6,20 +6,19 @@
  * thing that happens after it. Nothing here offers a second way to begin, so a
  * customer never has to work out whether to speak or to tap.
  *
- * So this tray only says what the kiosk is for, behind the gate and while Tanvi
- * asks for a name. There is nothing to press: if no name comes, the first
- * question's answers come up by themselves.
+ * So this tray only says what the kiosk is for, behind the gate. The first
+ * question comes up as Tanvi greets, so there is nothing to press here.
  */
 
 import { Cards, ChatCircleDots, QrCode } from '@phosphor-icons/react';
 import { COLOR, SIZE } from '../brand';
-import { strings, type Language } from '../language';
+import { COPY } from '../copy';
 import { TrayTitle } from '../ui';
 
 const ICONS = [ChatCircleDots, Cards, QrCode] as const;
 
-export function WelcomeTray({ language }: { language: Language }) {
-  const copy = strings(language);
+export function WelcomeTray() {
+  const copy = COPY;
   return (
     <div className="kiosk-welcome">
       <TrayTitle>{copy.attractTitle}</TrayTitle>

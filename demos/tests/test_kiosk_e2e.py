@@ -1,35 +1,27 @@
 """The Vantage Bank branch kiosk, end to end over the wire — no network, no key.
 
 The real ``KioskBrain`` — the shipping ``demos/kiosk/backend/brain.py``, its real
-prompt, its real eleven tools, its real Python rules — hosted on a real
+prompt, its real gestures, its real Python rules — hosted on a real
 ``brain_server`` socket and driven by the conformance ``VoqalizeDriver``, with only
 the *model* scripted. See ``tests/_harness.py`` for what every demo's e2e proves.
 
-Tanvi is the demo where the **two strings per figure** rule is the whole design.
-Every fact on the shelf exists twice: ``₹1,50,000`` for the totem and "one and a
-half lakh rupees" for the voice, and handing the wrong one to the wrong consumer
-is silent — the transcript is perfect and the customer hears "one five zero comma
-zero zero zero". So the assertions here are not only conversational: every ``SAY:``
-span the brain ever hands the model is swept for a digit, a rupee sign, a percent
-sign and every raw enum token, because that is the only place it is visible.
+**The screen runs the form; Tanvi helps.** So the claims here are mostly about
+what she *cannot* do, because those are the ones a prompt cannot hold:
 
-The other four things this file holds:
+* **Her tools are gestures.** Every one builds the event a tap would and goes
+  through ``apply_event``; none dispatches to the glass itself, none takes a
+  string that could end up on it, and none reaches the mobile number, the PAN or
+  the consent.
+* **The screen is English.** A language switch moves her voice and her ears and
+  never the glass.
+* **She is quiet while the form is filled.** A hand walks from the first question
+  to the QR without a word from her; a spoken answer gets a word or two; the line
+  about the top card is said once per shortlist, whichever way it went up.
+* **The screen reaches her read-only, every turn** — in front of the customer's
+  words, and gone from the context when the turn is over.
 
-* **A hand alone reaches the QR.** The whole journey is walked with
-  ``send_ui_event`` and nothing else, asserting the action on the glass at every
-  step — and, at every step, that Tanvi said nothing and no model ran. Then one
-  word from the customer, and her first request already carries every gesture.
-
-* **The arithmetic is Python.** ``assess`` and ``shortlist`` are pure functions
-  with no model in them; they are called directly *and* through the wire, and the
-  band, the reasons and the ranking must agree. A bank telling a walk-in customer
-  the wrong thing in a branch is not a soft failure.
-* **Confirmation is asked once.** A clear yes settles. An unclear reply is
-  re-asked exactly one time, and a second unclear reply is taken as heard — the
-  loop cannot run twice, which is what stops the kiosk sounding like a bad IVR.
-* **The language moves as a pair.** ``switch_language`` is one
-  ``session.configure``, so the recognizer and the reference clip cannot drift
-  apart mid-call.
+And two older ones: the arithmetic is Python, and every figure the voice is handed
+is in words.
 
 Run: ``cd demos && uv run pytest tests/test_kiosk_e2e.py``
 """
@@ -37,13 +29,16 @@ Run: ``cd demos && uv run pytest tests/test_kiosk_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import inspect
 import re
 import time
-from typing import Any, NamedTuple
+import typing
+from typing import Any, NamedTuple, get_args
 
+import pytest
 from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.gemini import _needs_result_now
 from voqalize.sdk.wire import Language
@@ -52,18 +47,20 @@ from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, chec
 
 discover()
 
+from voqalize_demos._loaded.kiosk import brain as kiosk  # noqa: E402
 from voqalize_demos._loaded.kiosk.brain import (  # noqa: E402
+    HAND_ONLY,
     KIOSK_EVENTS,
+    TANVI_GESTURES,
     AskProfile,
-    CardView,
     ConfirmValue,
-    HeardValue,
-    OpenConsent,
+    ConsentGiven,
     ShowEligibility,
     ShowQr,
     ShowShortlist,
 )
 from voqalize_demos._loaded.kiosk.cards import (  # noqa: E402
+    CARDS,
     EMPLOYMENT_SPOKEN,
     EXISTING_CARDS_SPOKEN,
     INCOME_BAND_SPOKEN,
@@ -72,21 +69,24 @@ from voqalize_demos._loaded.kiosk.cards import (  # noqa: E402
     VALUE_PROMPTS,
 )
 from voqalize_demos._loaded.kiosk.eligibility import assess, shortlist  # noqa: E402
+from voqalize_demos._loaded.kiosk.pitch import pitch_line  # noqa: E402
 from voqalize_demos._loaded.kiosk.prompts import GREETING, SYSTEM_INSTRUCTION  # noqa: E402
 
-#: One person, two languages — the clip does not change when the language does.
+#: One person, every language — the clip does not change when the language does.
 VOICE = "omnivoice/gayatri"
 
 #: The profile every flow test drives: salaried, mid band, one card already,
-#: fuel is where the money goes. Chosen because it lands in the *standard* band
-#: with three eligible cards, so the shortlist is a real ranking rather than a
-#: list of everything.
+#: fuel is where the money goes. It lands in the *standard* band with three
+#: eligible cards, so the shortlist is a real ranking rather than everything.
 _SALARIED_FUEL = {
     "employment": "salaried",
     "income_band": "25k_60k",
     "existing_cards": "one",
     "spend_category": "fuel",
 }
+
+#: What the glass's own copy says, which no model wrote.
+_SNAPSHOT = "[The screen right now]"
 
 
 # ─── Reading what the brain said to the model ─────────────────────────────────
@@ -95,23 +95,24 @@ _SALARIED_FUEL = {
 
 
 def _record(llm: ScriptedGemini) -> list[Any]:
-    """The newest request's ``contents`` — the whole session, once.
-
-    Every request carries the context that has accumulated so far, so the newest
-    one is the complete record and each earlier one is a prefix of it. Walking
-    *all* of them counts every tool result as many times as there were later
-    turns, which turns "asked once" into "asked three times"."""
+    """The newest request's ``contents`` — the whole session, once."""
     return llm.captured_contents[-1] if llm.captured_contents else []
 
 
-def _tool_results(llm: ScriptedGemini) -> list[str]:
-    """Every tool result the brain handed the model, in order, once each.
+def _texts(contents: list[Any], role: str = "user") -> list[str]:
+    """Every text part of one role in one request, in order."""
+    return [
+        part.text or ""
+        for content in contents
+        if content.role == role
+        for part in content.parts or []
+        if part.text
+    ]
 
-    A tool's outcome never reaches the wire — the customer hears only the sentence
-    the model built from it — so the model's *next* prompt is the only place it is
-    visible. google-genai wraps a return as ``{"result": ...}``, so unwrap that one
-    level; ``str(response)`` would read the wrapper and match on its punctuation.
-    """
+
+def _tool_results(llm: ScriptedGemini) -> list[str]:
+    """Every tool result the brain handed the model, in order, once each. A
+    return is wrapped as ``{"result": ...}``, so unwrap that one level."""
     return [
         str((part.function_response.response or {}).get("result", ""))
         for content in _record(llm)
@@ -120,32 +121,9 @@ def _tool_results(llm: ScriptedGemini) -> list[str]:
     ]
 
 
-def _user_text(contents: list[Any]) -> str:
-    """One request's context, as the customer's own words — what they said out
-    loud and the one-line note behind every gesture, in the order they arrived."""
-    return " ".join(
-        part.text or ""
-        for content in contents
-        if content.role == "user"
-        for part in content.parts or []
-    )
-
-
-def _context_text(llm: ScriptedGemini) -> str:
-    """Everything the brain appended to the context as the customer's own words.
-
-    What the customer does with their hand reaches the model exactly one way:
-    ``on_rtvi`` appends one line naming the gesture. It takes no floor, so it is
-    invisible until the next request carries the whole context with it."""
-    return _user_text(_record(llm))
-
-
 def _spoken(rig: DemoRig) -> list[str]:
-    """Every unit of speech Tanvi has put on the wire so far, in order.
-
-    The hand path's central claim is a *negative* one, and a negative claim needs
-    something countable to be asserted against: this list not growing across a
-    gesture is what "she stayed quiet" means on the wire."""
+    """Every unit of speech Tanvi has put on the wire so far, in order. This list
+    not growing across a gesture is what "she stayed quiet" means on the wire."""
     return [unit.text for turn in rig.driver.turns.values() for unit in turn.units]
 
 
@@ -154,9 +132,8 @@ async def _by_hand(
 ) -> list[tuple[str, dict[str, Any]]]:
     """One gesture, and everything it put on the glass, in order.
 
-    ``send_ui_event`` returns once the frame is sent, not once ``on_rtvi`` has
-    run — and ``on_rtvi`` takes no floor, so there is no bracket to wait on and
-    nothing to await but the clock."""
+    ``on_rtvi`` takes no floor, so there is no bracket to wait on and nothing to
+    await but the clock."""
     before = len(rig.driver.ui_commands)
     await rig.driver.send_ui_event(event, payload or {})
     await asyncio.sleep(0.1)
@@ -167,518 +144,16 @@ async def _by_hand(
     ]
 
 
-def _named_results(llm: ScriptedGemini) -> list[tuple[str, str]]:
-    """:func:`_tool_results`, each with the name of the tool that returned it."""
-    return [
-        (
-            str(part.function_response.name),
-            str((part.function_response.response or {}).get("result", "")),
-        )
-        for content in _record(llm)
-        for part in content.parts or []
-        if part.function_response is not None
-    ]
-
-
-_SAY = re.compile(r"SAY:(.*)", re.DOTALL)
-
-
-def _say_lines(llm: ScriptedGemini) -> list[str]:
-    """Every ``SAY:`` line the brain wrote, which is the text it told Tanvi to
-    speak verbatim. This is the only place the display/spoken split is checkable
-    from outside the brain."""
-    return [m.group(1) for result in _tool_results(llm) if (m := _SAY.search(result))]
-
-
-async def _one_more_turn(rig: DemoRig) -> None:
-    """One throwaway turn, so the turn before it is readable.
-
-    A tool's result is filed into the context after the request that called it,
-    and — unless the tool is marked ``@needs_result_now`` — the turn ends there, so
-    the result is first carried by the request that follows. A test that asserts
-    on the last turn's tool results without this is asserting on an empty list."""
-    await rig.driver.user_says("Thanks.")
-
-
 def _payloads(rig: DemoRig, action: str) -> list[dict[str, Any]]:
-    """Every payload the brain fired under one command name, in order.
-
-    ``rig.command`` returns the first, which is the wrong one for an action the
-    flow fires repeatedly — ``confirm_value`` moves ``heard`` → ``confirming`` →
-    ``confirmed`` and the last one is the state the customer is left looking at."""
+    """Every payload the brain fired under one command name, in order."""
     return [
         dict(c.get("payload") or {}) for c in rig.driver.ui_commands if c.get("command") == action
     ]
 
 
-# ─── The scripted model ───────────────────────────────────────────────────────
-
-
-def _discovery_script() -> dict[str, Any]:
-    """The four questions and the four answers, as fourteen-turn pacing has them:
-    one short line that folds the acknowledgement and the next question into one
-    breath, said in the same response as the call that records the answer — which
-    puts the next question up by itself. The last answer goes to the rules in the
-    same response, and the verdict is read back in the same turn."""
-    return {
-        "Hello there.": reply_and_call(
-            "Are you salaried, self employed, in government service, or studying?",
-            "ask_profile",
-            ask={"field": "employment", "question": "What do you do?"},
-        ),
-        "I'm salaried.": reply_and_call(
-            "Got it. And roughly what comes in every month?",
-            "capture_value",
-            heard={"field": "employment", "value": "salaried"},
-        ),
-        "About forty thousand a month.": reply_and_call(
-            "Thank you. Do you already hold a credit card?",
-            "capture_value",
-            heard={"field": "income_band", "value": "25k_60k"},
-        ),
-        "Just the one.": reply_and_call(
-            "Right. And where does most of your spending go?",
-            "capture_value",
-            heard={"field": "existing_cards", "value": "one"},
-        ),
-        "Mostly fuel, I drive a lot.": [
-            Reply(
-                text="Thank you. One moment.",
-                calls=(
-                    ("capture_value", {"heard": {"field": "spend_category", "value": "fuel"}}),
-                    ("check_eligibility", {"request": {}}),
-                ),
-            ),
-            reply(
-                "You are likely eligible for our main cards, and the line is about two to "
-                "three times your monthly income. A banker at the desk will confirm."
-            ),
-        ],
-    }
-
-
-def _full_flow_llm() -> ScriptedGemini:
-    """Discovery, then the cards, then the QR — the whole visit."""
-    return ScriptedGemini(
-        {
-            **_discovery_script(),
-            "Which one would you pick?": [
-                reply_and_call("One moment.", "show_shortlist"),
-                reply("The Vantage Fuel is my pick, because you spend most on fuel."),
-            ],
-            "Tell me more about that one.": [
-                reply_and_call("Sure.", "open_card_detail", card={"card_id": "vantage_fuel"}),
-                reply("The fuel surcharge comes off on most fills, which is where you spend."),
-            ],
-            "I'll take it.": reply_and_call(
-                "Everything you are agreeing to for the Vantage Fuel is on screen. A banker "
-                "will confirm, and nothing is decided here. Say yes out loud if you are happy.",
-                "open_consent",
-                card={"card_id": "vantage_fuel"},
-            ),
-            "Yes, go ahead.": reply_and_call(
-                "Show that code at the desk and a banker will take it from here.",
-                "finish_with_qr",
-                card={"card_id": "vantage_fuel"},
-            ),
-        }
-    )
-
-
-async def _drive_discovery(rig: DemoRig) -> None:
-    """The four questions, answered out loud. Leaves the totem on the eligibility
-    screen with all four values captured."""
-    await rig.driver.user_says("Hello there.")
-    await rig.driver.user_says("I'm salaried.")
-    await rig.driver.user_says("About forty thousand a month.")
-    await rig.driver.user_says("Just the one.")
-    await rig.driver.user_says("Mostly fuel, I drive a lot.")
-
-
-# ─── The liveness floor ───────────────────────────────────────────────────────
-
-
-async def test_the_kiosk_greets_and_both_legs_reach_the_wire() -> None:
-    """A walk-in gets the English opener, and both halves of the language land
-    before that audio.
-
-    ``greet`` contains no model call — a customer standing at a totem should not
-    wait on a first token to be told they are talking to an AI — so the greeting
-    is asserted against the hand-written table, not against a scripted reply."""
-    llm = ScriptedGemini()
-    async with demo("kiosk", llm) as rig:
-        greeting = await rig.driver.start_session()
-        check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text == GREETING["English"]
-        check_voice_pair(rig, voice=VOICE, language="en")
-        assert llm.calls == [], "greet() called the model"
-
-
-def test_the_opener_discloses_the_ai_in_its_first_sentence() -> None:
-    """Tanvi says she is an AI in her first sentence, in both languages.
-
-    It is in the fixed table rather than the prompt because it cannot wait for a
-    turn the customer might never take — someone who walks up, hears one line and
-    walks away has still been told."""
-    for language, opener in GREETING.items():
-        first = re.split(r"[.।]", opener)[0]
-        assert ("AI" in first) or ("ए आई" in first), (language, first)
-
-
-async def test_the_totem_language_toggle_opens_the_call_in_hindi() -> None:
-    """The page carries the customer's choice from the totem's own toggle, and the
-    brain resolves it — one authority, because the same choice also has to move
-    the greeting's text."""
-    async with demo("kiosk", ScriptedGemini()) as rig:
-        greeting = await rig.driver.start_session(init={"language": "Hindi"})
-        check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text == GREETING["Hindi"]
-        check_voice_pair(rig, voice=VOICE, language="hi")
-
-
-async def test_a_language_the_page_does_not_know_falls_back_rather_than_refusing() -> None:
-    """A stale totem against a new brain greets in English, and greets. A kiosk
-    that opens in the wrong language is recoverable in a branch; one that refuses
-    to open is a screen nobody can use."""
-    async with demo("kiosk", ScriptedGemini()) as rig:
-        greeting = await rig.driver.start_session(init={"language": "Klingon"})
-        assert greeting is not None and greeting.text == GREETING["English"]
-        check_voice_pair(rig, voice=VOICE, language="en")
-
-
-# ─── Discovery ────────────────────────────────────────────────────────────────
-
-
-async def test_a_spoken_answer_lands_on_the_totem_as_a_confirmed_value() -> None:
-    """The first discovery answer, all the way through: the model resolves what
-    was said to a closed token, the brain records it, and the screen gets the
-    *label* — never the token, which reads as "self underscore employed".
-
-    A closed answer settles on the spot. There is no reading back a word the
-    customer just chose off a list of four."""
-    llm = ScriptedGemini(_discovery_script())
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-
-        first = await rig.driver.user_says("Hello there.")
-        check_turn(rig, first, units=1)
-        asked = rig.command("ask_profile")
-        assert asked["field"] == "employment"
-        assert [o["value"] for o in asked["options"]] == [
-            "salaried",
-            "self_employed",
-            "government",
-            "student",
-        ]
-        assert all(o["label"] and o["label_hi"] for o in asked["options"]), asked["options"]
-
-        second = await rig.driver.user_says("I'm salaried.")
-        check_turn(rig, second, units=1)
-        (value,) = _payloads(rig, "confirm_value")
-        assert value == {
-            "field": "employment",
-            "display": "Salaried",
-            "masked": "Salaried",
-            "state": "heard",
-        }
-        assert rig.brain.answers["employment"] == "salaried"
-        assert "employment" in rig.brain.confirmed
-
-
-async def test_an_answer_the_model_invented_is_refused_with_the_vocabulary() -> None:
-    """A token outside the closed set does not reach the rules. The model is told
-    what it may say instead, and the totem is not painted — a screen showing a
-    value the rules will never accept is worse than no screen.
-
-    The refusal now reaches the model with the customer's next message, so the
-    set is also in the tool's declaration, where the model reads it before it
-    guesses."""
-    assert "income_band: under_25k, 25k_60k, 60k_150k, over_150k" in str(
-        HeardValue.model_fields["value"].description
-    )
-    llm = ScriptedGemini(
-        {
-            "I work in a bank.": reply_and_call(
-                "Got it.", "capture_value", heard={"field": "employment", "value": "banker"}
-            ),
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        check_turn(rig, await rig.driver.user_says("I work in a bank."))
-        assert _payloads(rig, "confirm_value") == []
-        assert rig.brain.answers == {}
-        await _one_more_turn(rig)
-    refusal = " ".join(_tool_results(llm))
-    assert "'banker' is not a value I can use for employment" in refusal
-    assert "salaried, self_employed, government, student" in refusal
-    assert "SAY:" not in refusal, "a refusal is a direction to the model, not a line to read"
-
-
-# ─── The rules ────────────────────────────────────────────────────────────────
-
-
-def test_the_rules_are_pure_python_and_instant() -> None:
-    """``assess`` is dictionary lookups and comparisons — no I/O, no sleeps, no
-    model. A thousand runs inside the budget one run is allowed says there is
-    nothing hiding in it."""
-    started = time.perf_counter()
-    for _ in range(1000):
-        assess(employment="salaried", income_band="25k_60k", existing_cards="one")
-    assert time.perf_counter() - started < 0.5
-
-
-def test_a_thin_file_is_routed_to_the_secured_card_and_never_to_a_score() -> None:
-    """The three properties ``eligibility.py`` exists to hold, on one profile.
-
-    A customer with no card yet and an income a lender can barely see is routed to
-    the secured card whatever else clears, the band names how wide the shelf is
-    rather than a decision, and nothing that leaves carries a number a bureau
-    would recognise."""
-    verdict = assess(employment="salaried", income_band="25k_60k", existing_cards="none")
-    assert verdict.band == "secured"
-    assert verdict.prefer_secured is True
-    assert "vantage_rise" in verdict.eligible_card_ids
-    assert verdict.line_spoken == "eighty percent of your fixed deposit"
-    assert not any("score" in reason.lower() for reason in verdict.reasons), verdict.reasons
-    assert not hasattr(verdict, "score")
-
-    ranked = shortlist(verdict, "online")
-    assert ranked.recommended_id == "vantage_rise"
-    # Three cards even when only two clear: the customer sees where they can go
-    # next, and the screen says which is which.
-    assert len(ranked.rows) == 3
-    assert [row.eligible for row in ranked.rows] == [True, True, False]
-
-
-async def test_eligibility_and_the_shortlist_land_on_the_totem() -> None:
-    """The verdict and the ranking, as the frontend store receives them.
-
-    The shortlist payload is the demo's widest surface — nine fields on three
-    cards — and every one of them is a display string. If a spoken form leaked
-    into it the screen would read "eighty percent of your fixed deposit" where the
-    design has ``80% of your fixed deposit``, and nothing else would notice."""
-    llm = _full_flow_llm()
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await _drive_discovery(rig)
-
-        verdict = rig.command("show_eligibility")
-        assert verdict["band"] == "standard"
-        assert verdict["line_estimate"] == "2x to 3x your monthly income"
-        assert "Salaried income" in verdict["reasons"]
-        assert not any("score" in reason.lower() for reason in verdict["reasons"])
-
-        picked = await rig.driver.user_says("Which one would you pick?")
-        # The holding line, then the pick: the ranking is read in the same turn,
-        # so the turn is two requests and a unit of speech from each.
-        check_turn(rig, picked, units=2)
-        board = rig.command("show_shortlist")
-        assert [c["id"] for c in board["cards"]] == [
-            "vantage_fuel",
-            "vantage_everyday",
-            "vantage_rise",
-        ]
-        assert board["recommended_id"] == "vantage_fuel"
-        assert all(c["eligible"] for c in board["cards"])
-
-        fuel = board["cards"][0]
-        assert fuel["name"] == "Vantage Fuel"
-        assert fuel["fee"] == "₹500 a year"
-        assert fuel["waiver"] == "Waived on ₹1,00,000 spend a year"
-        assert fuel["reward"] == "4% at any pump, up to ₹400 a month"
-        assert fuel["line_estimate"] == "2x your monthly income"
-        # Every declared field is emitted, including the ones the screen may not
-        # use — the generated TypeScript narrows on the whole model.
-        assert set(fuel) == set(CardView.model_fields)
-
-    # The wire and the pure function agree, which is what "the rules are Python"
-    # has to mean: the brain ran them, it did not restate them.
-    expected = shortlist(assess(**_only_rules(_SALARIED_FUEL)), "fuel")
-    assert [row.card.id for row in expected.rows] == [c["id"] for c in board["cards"]]
-    assert expected.recommended_id == board["recommended_id"]
-
-
-def _only_rules(profile: dict[str, str]) -> dict[str, Any]:
-    """The three fields ``assess`` takes; spend is the shortlist's, not the gate's."""
-    return {k: v for k, v in profile.items() if k != "spend_category"}
-
-
-# ─── Confirmation, spoken ─────────────────────────────────────────────────────
-
-
-def _mobile_script(*confirmations: tuple[str, str]) -> dict[str, Any]:
-    """Capture a mobile number, then answer the read-back ``len(confirmations)``
-    times. Each entry is ``(what the customer says, what Tanvi says next)``."""
-    script: dict[str, Any] = {
-        "My number is nine eight seven six five four three two one zero.": reply_and_call(
-            "Nine eight seven six five, four three two one zero. Is that right?",
-            "capture_value",
-            heard={"field": "mobile", "value": "98765 43210"},
-        ),
-    }
-    for heard, spoken in confirmations:
-        script[heard] = [
-            call("confirm", check={"field": "mobile", "value": "9876543210", "heard": heard}),
-            reply(spoken),
-        ]
-    return script
-
-
-async def test_a_clear_yes_settles_a_value_read_back_aloud() -> None:
-    """The cubicle is private, so the number is spoken and the yes is spoken.
-
-    Two things are asserted on the way: the totem shows the *masked* form at rest,
-    and the record the brain hands the model carries no number at all. Tanvi reads
-    the number back in words in the same response that records it, so the result
-    is read a turn later — and a number in it, in either form, is one she could
-    say a second time, as digits."""
-    llm = ScriptedGemini(_mobile_script(("Yes, that's right.", "Thank you.")))
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-
-        check_turn(
-            rig,
-            await rig.driver.user_says(
-                "My number is nine eight seven six five four three two one zero."
-            ),
-        )
-        (heard,) = _payloads(rig, "confirm_value")
-        assert heard["state"] == "confirming"
-        assert heard["masked"] == "XXXXX 43210", "the totem is showing the whole number"
-        assert heard["display"] == "98765 43210"
-
-        check_turn(rig, await rig.driver.user_says("Yes, that's right."))
-        states = [p["state"] for p in _payloads(rig, "confirm_value")]
-        assert states == ["confirming", "confirmed"]
-        assert rig.brain.confirmed == {"mobile"}
-        assert rig.brain.reasked == set(), "a clear yes was re-asked"
-
-    (recorded,) = [r for r in _tool_results(llm) if r.startswith("Recorded")]
-    assert "SAY:" not in recorded, recorded
-    assert not _DISPLAY_ONLY.search(recorded) and "nine" not in recorded, recorded
-
-
-async def test_an_unclear_reply_is_asked_again_once_and_only_once() -> None:
-    """The loop that defines a bad voice bot, bounded in Python.
-
-    "I think so" is a hedge, not a yes, so it is asked once more. The *second*
-    unclear reply is taken as heard and the call moves on — there is no tap gate
-    behind this and no third attempt, because repeated "sorry, I didn't catch
-    that" is the sound the whole demo is built to avoid."""
-    llm = ScriptedGemini(
-        _mobile_script(
-            ("I think so.", "Let me put it another way — is that the number you use?"),
-            ("Umm, hang on.", "I'll take that as right. Moving on."),
-        )
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says(
-            "My number is nine eight seven six five four three two one zero."
-        )
-
-        check_turn(rig, await rig.driver.user_says("I think so."))
-        assert rig.brain.reasked == {"mobile"}
-        assert "mobile" not in rig.brain.confirmed
-        assert [p["state"] for p in _payloads(rig, "confirm_value")] == [
-            "confirming",
-            "confirming",
-        ]
-
-        check_turn(rig, await rig.driver.user_says("Umm, hang on."))
-        assert rig.brain.confirmed == {"mobile"}
-        assert [p["state"] for p in _payloads(rig, "confirm_value")] == [
-            "confirming",
-            "confirming",
-            "confirmed",
-        ]
-        await _one_more_turn(rig)
-
-    verdicts = [r for r in _tool_results(llm) if "clear yes" in r or "asked once already" in r]
-    assert len(verdicts) == 2, verdicts
-    assert "Not a clear yes" in verdicts[0]
-    assert "do not ask a third time" in verdicts[0]
-    assert "Taking it as heard" in verdicts[1]
-
-
-async def test_a_correction_embedded_in_the_answer_is_not_a_yes() -> None:
-    """The fourth way a confirmation goes wrong, and the only one a yes-token
-    check alone would miss: they said yes *and* gave a different number in the
-    same breath."""
-    llm = ScriptedGemini(
-        _mobile_script(("Yes — well, no, it's 9876543211.", "Let me read that back again."))
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says(
-            "My number is nine eight seven six five four three two one zero."
-        )
-        await rig.driver.user_says("Yes — well, no, it's 9876543211.")
-        assert rig.brain.reasked == {"mobile"}
-        assert "mobile" not in rig.brain.confirmed
-
-
-# ─── Language ─────────────────────────────────────────────────────────────────
-
-
-async def test_switching_to_hindi_moves_both_legs_together() -> None:
-    """One ``session.configure``, so the pair cannot half-apply.
-
-    Moving only the voice leaves the recognizer hearing Devanagari as English for
-    the rest of the call, and every later reply is generated from that wrong
-    transcript. Tanvi is one person in two languages, so the *voice* must not
-    move with the language."""
-    llm = ScriptedGemini(
-        {
-            "क्या हम हिंदी में बात कर सकते हैं?": reply_and_call(
-                "Sure, let's talk in Hindi.", "switch_language", to={"language": "Hindi"}
-            ),
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        check_voice_pair(rig, voice=VOICE, language="en")
-
-        turn = await rig.driver.user_says("क्या हम हिंदी में बात कर सकते हैं?")
-        check_turn(rig, turn)
-        check_voice_pair(rig, voice=VOICE, language="hi")
-        assert rig.brain.language == "Hindi"
-
-
-async def test_a_silent_call_ends_in_a_line_of_tanvis_own_in_the_call_language() -> None:
-    """The prompt has the model speak with every call; this is the turn where it
-    did not. The brain says one written line, in the language the voice is now
-    speaking, in the same single request — and the line never reaches the
-    context, which holds only the model's own words."""
-    llm = ScriptedGemini(
-        {
-            "क्या हम हिंदी में बात कर सकते हैं?": reply_and_call(
-                "Sure, let's talk in Hindi.", "switch_language", to={"language": "Hindi"}
-            ),
-            "फिर से शुरू करो।": call("start_over"),
-            "धन्यवाद।": reply("ठीक है।"),
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("क्या हम हिंदी में बात कर सकते हैं?")
-        before = len(llm.captured_contents)
-
-        turn = await rig.driver.user_says("फिर से शुरू करो।")
-        check_turn(rig, turn, units=1)
-        (line,) = (u.text for u in turn.units)
-        assert line in PHRASES[Language.HI]["over_to_you"], line
-        assert len(llm.captured_contents) == before + 1, "a silent turn asked the model again"
-
-        await rig.driver.user_says("धन्यवाद।")
-        spoken = " ".join(
-            part.text or ""
-            for content in _record(llm)
-            if content.role == "model"
-            for part in content.parts or []
-        )
-        assert line not in spoken, f"Tanvi's line {line!r} reached the context"
+def _idle_ms(rig: DemoRig) -> int | None:
+    """The idle clock as the brain last set it."""
+    return _last(_configs(rig), lambda c: c.idle.timeout_ms if c.idle else None)
 
 
 def _legs(rig: DemoRig) -> tuple[str, str, str]:
@@ -695,266 +170,16 @@ def _legs(rig: DemoRig) -> tuple[str, str, str]:
     )
 
 
-async def test_a_customer_already_speaking_tamil_moves_the_kiosk_without_asking() -> None:
-    """Auto-detection: nobody asked for Tamil. The customer simply answered in it,
-    the model heard it, and both legs moved — with the page told, so the chip can
-    show the customer what the kiosk decided it heard."""
-    llm = ScriptedGemini(
-        {
-            "நான் ஒரு கிரெடிட் கார்டு பார்க்கிறேன்": reply_and_call(
-                "Let's continue in Tamil.", "switch_language", to={"language": "Tamil"}
-            ),
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        check_voice_pair(rig, voice=VOICE, language="en")
-
-        await rig.driver.user_says("நான் ஒரு கிரெடிட் கார்டு பார்க்கிறேன்")
-        check_voice_pair(rig, voice=VOICE, language="ta")
-        assert rig.brain.language == "Tamil"
-        changed = rig.command("language_changed")
-        assert changed == {"language": "Tamil", "screen_language": "en"}, (
-            "no Tamil screen exists, so the screen keeps its English copy"
-        )
+def _only_rules(profile: dict[str, str]) -> dict[str, Any]:
+    """The three fields ``assess`` takes; spend is the shortlist's, not the gate's."""
+    return {k: v for k, v in profile.items() if k != "spend_category"}
 
 
-async def test_a_language_with_no_clip_is_heard_in_it_and_answered_in_hindi() -> None:
-    """Odia: the recognizer understands it and no voice speaks it. The honest
-    configuration is split on purpose — heard in Odia, answered in Hindi — and the
-    model is told to say so rather than let the customer discover it. It says so in
-    the line it switches with, which goes out before the tool has run, so the
-    prompt names these languages; the tool's result only settles what comes next."""
-    hindi_voiced = SYSTEM_INSTRUCTION.split("because no voice speaks them:")[1].split(".")[0]
-    assert "Odia" in hindi_voiced, "the prompt does not say Odia is answered in Hindi"
-    llm = ScriptedGemini(
-        {
-            "ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି": reply_and_call(
-                "I understand Odia, and I will reply in Hindi.",
-                "switch_language",
-                to={"language": "Odia"},
-            ),
-            # A tool's result reaches the model on the *next* request, so one more
-            # turn is what puts it in the record to read.
-            "ଠିକ ଅଛି": [reply("ठीक है।")],
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି")
-        voice, spoken, heard = _legs(rig)
-        assert (voice, spoken, heard) == (VOICE, "hi", "or"), (voice, spoken, heard)
-        await rig.driver.user_says("ଠିକ ଅଛି")
-        told = next(r for r in _tool_results(llm) if "Odia" in r)
-        assert "answering in Hindi" in told and "Reply in Hindi" in told, told
-        assert "SAY:" not in told, "read a turn late, a SAY line would be said twice"
-
-
-async def test_the_language_can_go_back_and_forth_and_back_to_english() -> None:
-    """A switch is not one-way. English is a row in the table like any other, so a
-    customer who tried Hindi and wants English back gets both legs back — and the
-    page is told every time, so the chip never shows a language the call has left."""
-    llm = ScriptedGemini(
-        {
-            # Each switch line is in the language the call is in when it is said.
-            "हिंदी में बात करो": reply_and_call(
-                "Okay, Hindi.", "switch_language", to={"language": "Hindi"}
-            ),
-            "Can we go back to English please": reply_and_call(
-                "ज़रूर।", "switch_language", to={"language": "English"}
-            ),
-            "தமிழ்ல பேசலாமா": reply_and_call(
-                "Sure, Tamil.", "switch_language", to={"language": "Tamil"}
-            ),
-            "English again": reply_and_call("சரி.", "switch_language", to={"language": "English"}),
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        for said, language, code in [
-            ("हिंदी में बात करो", "Hindi", "hi"),
-            ("Can we go back to English please", "English", "en"),
-            ("தமிழ்ல பேசலாமா", "Tamil", "ta"),
-            ("English again", "English", "en"),
-        ]:
-            await rig.driver.user_says(said)
-            check_voice_pair(rig, voice=VOICE, language=code)
-            assert rig.brain.language == language, (said, rig.brain.language)
-        told = [
-            c["payload"]["language"]
-            for c in rig.driver.ui_commands
-            if c.get("command") == "language_changed"
-        ]
-        assert told == ["Hindi", "English", "Tamil", "English"]
-
-
-async def test_the_language_chip_moves_the_voice_too_and_says_nothing() -> None:
-    """The chip used to change the screen's copy and leave Tanvi speaking English.
-    Now it moves both legs — and, like every other gesture, it never takes the
-    floor."""
-    async with demo("kiosk", ScriptedGemini({})) as rig:
-        await rig.driver.start_session()
-        said = _spoken(rig)
-
-        await _by_hand(rig, "language_picked", {"language": "Hindi"})
-        check_voice_pair(rig, voice=VOICE, language="hi")
-        assert rig.brain.language == "Hindi"
-        assert rig.command("language_changed")["screen_language"] == "hi"
-        assert _spoken(rig) == said, "the chip took the floor"
-
-
-async def test_the_picker_reaches_any_language_not_just_hindi() -> None:
-    """The picker lists every language the brain declares, so it can reach one the
-    old two-way toggle never could. Kannada has a clip of its own, so both legs
-    land on Kannada and the screen keeps its English copy."""
-    async with demo("kiosk", ScriptedGemini({})) as rig:
-        await rig.driver.start_session()
-        said = _spoken(rig)
-
-        await _by_hand(rig, "language_picked", {"language": "Kannada"})
-        check_voice_pair(rig, voice=VOICE, language="kn")
-        assert rig.brain.language == "Kannada"
-        assert rig.command("language_changed") == {"language": "Kannada", "screen_language": "en"}
-        assert _spoken(rig) == said, "the picker took the floor"
-
-        # And back, which is how a customer undoes a switch they did not want.
-        await _by_hand(rig, "language_picked", {"language": "English"})
-        check_voice_pair(rig, voice=VOICE, language="en")
-
-
-async def test_picking_the_current_language_again_configures_nothing() -> None:
-    """A second tap on the language already in use is not a second request."""
-    async with demo("kiosk", ScriptedGemini({})) as rig:
-        await rig.driver.start_session()
-        before = len(_configs(rig))
-        await _by_hand(rig, "language_picked", {"language": "English"})
-        assert len(_configs(rig)) == before
-
-
-async def test_a_hindi_yes_reads_as_a_yes() -> None:
-    """The recognizer returns what was said, so a Hindi confirmation comes back in
-    Devanagari and a romanised "haan" never appears in it. A yes-set with only the
-    Latin half reads every Hindi yes as unclear — which is the one failure this
-    whole confirmation step exists to avoid."""
-    llm = ScriptedGemini(_mobile_script(("हाँ, बिल्कुल सही।", "धन्यवाद।")))
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session(init={"language": "Hindi"})
-        await rig.driver.user_says(
-            "My number is nine eight seven six five four three two one zero."
-        )
-        await rig.driver.user_says("हाँ, बिल्कुल सही।")
-        assert rig.brain.confirmed == {"mobile"}
-        assert rig.brain.reasked == set()
-        assert [p["state"] for p in _payloads(rig, "confirm_value")][-1] == "confirmed"
-
-
-# ─── The screen the customer touches ──────────────────────────────────────────
-
-
-async def test_a_tap_moves_the_screen_without_taking_the_floor() -> None:
-    """A hand on the glass is an answer, and it must never put Tanvi's voice over
-    the hand that is still moving.
-
-    So ``on_rtvi`` moves the screen and says nothing: it folds the gesture into
-    the mirror, puts one line in front of the model *naming* what they did and
-    never what the screen now says, and dispatches the next row of the journey.
-    The screen is read back through ``get_screen_context``, which is the only copy
-    that cannot go stale."""
-    llm = ScriptedGemini(
-        {
-            "Hello there.": reply_and_call(
-                "Are you salaried, self employed, in government service, or studying?",
-                "ask_profile",
-                ask={"field": "employment", "question": "What do you do?"},
-            ),
-            # The screen read answers in the same turn; the question she asks from
-            # it goes out with the call that puts it up.
-            "What's next?": [
-                call("get_screen_context"),
-                reply_and_call(
-                    "And roughly what comes in every month?",
-                    "ask_profile",
-                    ask={"field": "income_band", "question": "What do you earn?"},
-                ),
-            ],
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("Hello there.")
-        said = _spoken(rig)
-
-        moved = await _by_hand(
-            rig, "profile_answered", {"field": "employment", "value": "salaried"}
-        )
-        assert [(name, body["field"]) for name, body in moved] == [
-            ("ask_profile", "income_band")
-        ], moved
-        assert _spoken(rig) == said, "the gesture took the floor"
-        assert rig.brain.answers["employment"] == "salaried"
-        # Theirs wins: a value they chose with their own hand is not read back.
-        assert "employment" in rig.brain.confirmed
-
-        check_turn(rig, await rig.driver.user_says("What's next?"))
-        await _one_more_turn(rig)
-
-    context = _context_text(llm)
-    assert "tapped their answer to the employment" in context
-    assert "get_screen_context" in context
-    assert "salaried" not in context, "the change note is carrying the value"
-
-    screen = " ".join(r for r in _tool_results(llm) if "is on the" in r)
-    assert "The customer is on the question screen." in screen
-    assert "employment: salaried" in screen
-
-
-def test_every_gesture_the_totem_can_send_is_in_the_vocabulary() -> None:
-    """:data:`KIOSK_EVENTS` is what ``on_rtvi`` reads and what ``actions.gen.ts``
-    is generated from, so a class declared and left out of it is a gesture the
-    screen can send and the brain silently drops."""
-    assert [event.__voqal_event__ for event in KIOSK_EVENTS] == [
-        "journey_started",
-        "profile_answered",
-        "eligibility_acknowledged",
-        "card_tapped",
-        "card_detail_closed",
-        "card_compared",
-        "card_chosen",
-        "consent_given",
-        "value_entered",
-        "value_confirmed",
-        "value_edited",
-        "restart_pressed",
-        "language_picked",
-    ]
-
-
-async def test_start_over_is_the_only_way_back_and_it_keeps_the_language() -> None:
-    """There is no idle timeout in this demo and nothing resets itself. Start over
-    clears the answers, the verdict and the shortlist — and keeps the language,
-    because the person who pressed it is the person still standing there."""
-    llm = ScriptedGemini(
-        {
-            **_discovery_script(),
-            "Actually, start again.": reply_and_call(
-                "Of course, starting over. Are you salaried, self employed, or studying?",
-                "start_over",
-            ),
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session(init={"language": "Hindi"})
-        await _drive_discovery(rig)
-        assert len(rig.brain.answers) == 4
-
-        check_turn(rig, await rig.driver.user_says("Actually, start again."))
-        assert rig.brain.answers == {}
-        assert rig.brain.assessment is None
-        assert rig.brain.shortlist_ids == ()
-        assert rig.actions()[-1] == "ask_profile"
-        assert rig.driver.ui_commands[-1]["payload"]["field"] == "employment"
-        assert rig.brain.language == "Hindi"
-        check_voice_pair(rig, voice=VOICE, language="hi")
+def _english_pitch(profile: dict[str, str] = _SALARIED_FUEL) -> str:
+    ranked = shortlist(assess(**_only_rules(profile)), profile["spend_category"])  # type: ignore[arg-type]
+    line = pitch_line(ranked, profile["spend_category"], Language.EN)  # type: ignore[arg-type]
+    assert line is not None
+    return line
 
 
 # ─── The journey, driven by a hand alone ──────────────────────────────────────
@@ -971,17 +196,10 @@ class Step(NamedTuple):
     lands: tuple[str, ...]
 
 
-#: The whole visit, gesture by gesture, with nothing said out loud. It is every
-#: gesture the totem can send, in the order a customer meets them, and
-#: the walk asserts that: a gesture added to the vocabulary and not walked here
-#: is one nothing proves a hand can reach.
-#:
-#: The two values are sent the way a keypad sends them — a mobile with the space
-#: the customer typed, a PAN in the case they left it in — because normalising
-#: what was pressed is the typed path's job and a half-typed value must never be
-#: painted as settled.
+#: The whole visit, gesture by gesture, with nothing said out loud — every
+#: gesture the totem can send, in the order a customer meets them. The values are
+#: sent as a keypad sends them, spacing and case and all.
 _BY_HAND: tuple[Step, ...] = (
-    Step("journey_started", {}, ("ask_profile",)),
     Step("profile_answered", {"field": "employment", "value": "salaried"}, ("ask_profile",)),
     Step("profile_answered", {"field": "income_band", "value": "25k_60k"}, ("ask_profile",)),
     Step("profile_answered", {"field": "existing_cards", "value": "one"}, ("ask_profile",)),
@@ -998,49 +216,72 @@ _BY_HAND: tuple[Step, ...] = (
         ("confirm_value", "ask_value"),
     ),
     Step("value_confirmed", {"field": "mobile"}, ()),
-    Step(
-        "value_entered",
-        {"field": "pan", "value": "abcde1234f"},
-        ("confirm_value", "show_qr"),
-    ),
+    Step("value_entered", {"field": "pan", "value": "abcde1234f"}, ("confirm_value", "show_qr")),
     Step("value_edited", {"field": "mobile", "value": "91234 56789"}, ("confirm_value",)),
-    # After the questions, so the copy asserted below is all English; before Start
-    # over, so the walk also proves a restart keeps the language. The chip is not a
-    # step in the journey, but it is a gesture, so it walks here with the rest.
-    Step("language_picked", {"language": "Hindi"}, ("language_changed",)),
     Step("restart_pressed", {}, ("started_over", "ask_profile")),
 )
 
-#: Where the walk above stops for the takeover test: the customer has read the
-#: shortlist, closed a card and come back to it, and has still said nothing.
-_UPTO_THE_SHORTLIST = 1 + next(
-    i for i, step in enumerate(_BY_HAND) if step.event == "card_detail_closed"
+_UPTO_THE_CARDS = 1 + next(
+    i for i, step in enumerate(_BY_HAND) if step.event == "eligibility_acknowledged"
 )
 
 
-async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr() -> None:
-    """The hand path, end to end, with the microphone live and Tanvi silent.
+async def _walk(rig: DemoRig, upto: int = len(_BY_HAND)) -> None:
+    for step in _BY_HAND[:upto]:
+        await _by_hand(rig, step.event, step.payload)
 
-    This is the demo's other half and it is asserted the way the spoken half is:
-    the exact action on the glass at every step, the band and the ranking equal to
-    a direct call of the pure functions, and the fees on the screen and nowhere
-    else. Two things are asserted at *every* step rather than at the end, because
-    both are properties of each gesture and not of the walk:
 
-    * **Tanvi says nothing.** She greeted, once, and the wire carries no unit of
-      speech after it. This is the requirement most likely to regress — the brain
-      used to answer an idle tick after every tap — so the count is taken before
-      the walk and compared after every gesture, not once at the finish.
-    * **No model ran.** ``llm.calls`` stays empty for the whole journey. A
-      transition that reached the model would be a screen that waits on a token,
-      which is the thing an action exists not to be.
-    """
+async def test_the_kiosk_greets_puts_the_form_up_and_both_legs_reach_the_wire() -> None:
+    """A walk-in gets the English opener, the first question is on the glass as
+    it is said, and both halves of the language land before that audio. ``greet``
+    makes no model call."""
     llm = ScriptedGemini()
     async with demo("kiosk", llm) as rig:
         greeting = await rig.driver.start_session()
         check_greeting(rig, greeting)
+        assert greeting is not None and greeting.text == GREETING["English"]
+        check_voice_pair(rig, voice=VOICE, language="en")
+        assert rig.actions() == ["ask_profile"]
+        assert rig.command("ask_profile")["field"] == "employment"
+        assert llm.calls == [], "greet() called the model"
+
+
+def test_the_opener_is_an_ai_that_asks_for_nothing() -> None:
+    """Tanvi says she is an AI in her first sentence, in both languages, and asks
+    no question: the form is up, so the next move is the customer's hand. Not
+    their name either — the form never uses it."""
+    for language, opener in GREETING.items():
+        first = re.split(r"[.।]", opener)[0]
+        assert ("AI" in first) or ("ए आई" in first), (language, first)
+        assert "?" not in opener, (language, opener)
+        assert "name" not in opener.lower() and "नाम" not in opener, (language, opener)
+
+
+async def test_the_page_can_open_the_call_in_hindi_and_nothing_else() -> None:
+    """The greeting is written in English and Hindi, so those are the languages
+    a session may open in. Anything else greets in English — a kiosk that opens in
+    the wrong language is recoverable; one that refuses to open is not."""
+    async with demo("kiosk", ScriptedGemini()) as rig:
+        greeting = await rig.driver.start_session(init={"language": "Hindi"})
+        assert greeting is not None and greeting.text == GREETING["Hindi"]
+        check_voice_pair(rig, voice=VOICE, language="hi")
+        # The screen does not follow: the first question is the bank's English.
+        assert rig.command("ask_profile")["question"] == PROFILE_PROMPTS["employment"]
+    async with demo("kiosk", ScriptedGemini()) as rig:
+        greeting = await rig.driver.start_session(init={"language": "Klingon"})
+        assert greeting is not None and greeting.text == GREETING["English"]
+        check_voice_pair(rig, voice=VOICE, language="en")
+
+
+async def test_a_customer_who_never_speaks_walks_from_the_first_question_to_the_qr() -> None:
+    """The hand path, end to end, with the microphone live and Tanvi silent.
+
+    Asserted at every step, because both are properties of each gesture: the
+    exact action on the glass, and that Tanvi said nothing and no model ran."""
+    llm = ScriptedGemini()
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
         after_the_greeting = _spoken(rig)
-        assert len(after_the_greeting) == 1, after_the_greeting
 
         for step in _BY_HAND:
             landed = await _by_hand(rig, step.event, step.payload)
@@ -1048,25 +289,19 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
             assert _spoken(rig) == after_the_greeting, f"{step.event}: Tanvi took the floor"
             assert llm.calls == [], f"{step.event}: a gesture reached the model"
 
-        # The walk is the vocabulary, so a thirteenth gesture cannot be added to
-        # the brain without a row here saying what it does to the screen.
+        # The walk is the vocabulary: a gesture cannot be added to the brain
+        # without a row here saying what it does to the screen.
         assert {step.event for step in _BY_HAND} == {e.__voqal_event__ for e in KIOSK_EVENTS}
-        # And it is the same customer the spoken tests drive, so the two paths
-        # cannot drift into asserting different arithmetic.
-        assert {
-            step.payload["field"]: step.payload["value"]
-            for step in _BY_HAND
-            if step.event == "profile_answered"
-        } == _SALARIED_FUEL
 
-        # The four questions, in order, in the bank's own words — a hand-driven
-        # question still has copy, and no model authored a word of it.
-        # The fifth is Start over, which puts the first question back.
-        *asked, again = _payloads(rig, "ask_profile")
-        assert [q["field"] for q in asked] == list(_SALARIED_FUEL)
+        # The questions, in order, in the bank's own English, and Start over puts
+        # the first one back.
+        first, *asked, again = _payloads(rig, "ask_profile")
+        assert [q["field"] for q in [first, *asked]] == list(_SALARIED_FUEL)
         assert again["field"] == "employment"
-        assert [q["question"] for q in asked] == [PROFILE_PROMPTS[q["field"]][0] for q in asked]
-        assert all(q["options"] for q in asked), asked
+        assert [q["question"] for q in [first, *asked]] == [
+            PROFILE_PROMPTS[f] for f in _SALARIED_FUEL
+        ]
+        assert all(set(o) == {"value", "label"} for q in asked for o in q["options"]), asked
 
         # The rules ran, they were not restated: the wire and the pure function.
         verdict = assess(**_only_rules(_SALARIED_FUEL))
@@ -1075,35 +310,22 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
             "reasons": list(verdict.reasons),
             "line_estimate": verdict.line_display,
         }
-        ranked = shortlist(verdict, _SALARIED_FUEL["spend_category"])
+        ranked = shortlist(verdict, "fuel")
         boards = _payloads(rig, "show_shortlist")
         assert [c["id"] for c in boards[0]["cards"]] == [r.card.id for r in ranked.rows]
         assert boards[0]["recommended_id"] == ranked.recommended_id
-        # An action carries the whole row, so opening a card and closing it again
-        # puts back exactly what was there — the row the customer tapped does not
-        # move out from under the finger still on it.
         assert len(boards) == 2 and boards[0] == boards[1], boards
 
-        assert rig.command("open_card_detail")["card_id"] == "vantage_fuel"
         consent = rig.command("open_consent")
         assert consent["card_id"] == "vantage_fuel"
         assert consent["bullets"][-1] == (
             "Vantage Bank runs its own checks. Nothing is approved at this kiosk."
         )
-
-        # Two keypads, in order, each labelled in this session's language.
         keypads = _payloads(rig, "ask_value")
-        assert [(k["field"], k["kind"]) for k in keypads] == [("mobile", "tel"), ("pan", "text")]
-        assert [k["label"] for k in keypads] == [
-            VALUE_PROMPTS["mobile"][0],
-            VALUE_PROMPTS["pan"][0],
+        assert [(k["field"], k["label"], k["kind"]) for k in keypads] == [
+            ("mobile", *VALUE_PROMPTS["mobile"]),
+            ("pan", *VALUE_PROMPTS["pan"]),
         ]
-
-        # A value the customer typed is theirs and settles on the spot — it is
-        # never read back, because asking them to confirm their own keystrokes is
-        # the kiosk redoing work the human has already done. What the keypad sent
-        # is normalised on the way in, so the masked form cannot slice a string
-        # that still has the customer's spacing in it.
         settled = _payloads(rig, "confirm_value")
         assert [(v["field"], v["state"]) for v in settled] == [
             ("mobile", "confirmed"),
@@ -1112,345 +334,488 @@ async def test_a_customer_who_never_speaks_walks_from_the_attract_loop_to_the_qr
         ]
         assert (settled[0]["display"], settled[0]["masked"]) == ("98765 43210", "XXXXX 43210")
         assert (settled[1]["display"], settled[1]["masked"]) == ("ABCDE1234F", "ABCDEXXXXF")
-        assert (settled[2]["display"], settled[2]["masked"]) == ("91234 56789", "XXXXX 56789")
-
         assert rig.command("show_qr")["caption"] == "Vantage Fuel. Show this at the desk."
-        # Start over is the only way back, and it is the last thing the walk does:
-        # the first question again, in the language picked just before it.
-        assert rig.actions()[-1] == "ask_profile"
-        assert rig.driver.ui_commands[-1]["payload"]["field"] == "employment"
-        assert rig.brain.language == "Hindi"
         assert rig.brain.answers == {} and rig.brain.assessment is None
 
     assert llm.calls == [], "a hand-driven journey called the model"
 
 
-async def test_an_idle_kiosk_is_a_silent_one_however_long_the_customer_takes() -> None:
-    """The one Tanvi used to get wrong, and the only place it is visible.
-
-    ``on_rtvi`` cannot speak — it is not a generator — so a gesture could never
-    take the floor directly. What it *could* do, and used to, was leave a reply
-    owed and have the next idle tick pay it: a customer filling the kiosk in with
-    their hands was commented at, tap by tap, a beat behind their own finger.
-    The idle turn is therefore the only frame that can catch this, and it is
-    driven here at the three moments that mattered — before a gesture, after one,
-    and with the shortlist on the glass."""
-    llm = ScriptedGemini()
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        said = _spoken(rig)
-
-        walked = 0
-        for upto in (0, 1, _UPTO_THE_SHORTLIST):
-            for step in _BY_HAND[walked:upto]:
-                await _by_hand(rig, step.event, step.payload)
-            walked = upto
-            idle = await rig.driver.user_idle(timeout=0.5)
-            assert idle.units == [], f"Tanvi answered the silence after {walked} gesture(s)"
-
-        assert _spoken(rig) == said, "Tanvi spoke without being spoken to"
-        assert llm.calls == [], "an idle tick reached the model"
+def test_the_rules_are_pure_python_and_instant() -> None:
+    """``assess`` is dictionary lookups and comparisons — no I/O, no model."""
+    started = time.perf_counter()
+    for _ in range(1000):
+        assess(employment="salaried", income_band="25k_60k", existing_cards="one")
+    assert time.perf_counter() - started < 0.5
 
 
-async def test_a_quiet_customer_gets_the_first_question_without_a_word() -> None:
-    """Start is the only way in, and nothing after it asks for a tap. The greeting
-    asks for a name; a customer who does not give one gets the first question's
-    answers on the glass at the first quiet moment — silently, with no model
-    call — and only once, however long the quiet lasts."""
-    llm = ScriptedGemini()
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        said = _spoken(rig)
-        assert "ask_profile" not in rig.actions()
-
-        await rig.driver.user_idle(timeout=0.5)
-        await rig.driver.user_idle(timeout=0.5)
-
-        asked = _payloads(rig, "ask_profile")
-        assert [q["field"] for q in asked] == ["employment"], asked
-        assert _spoken(rig) == said, "Tanvi spoke into the quiet"
-        assert llm.calls == [], "the quiet reached the model"
+def test_a_thin_file_is_routed_to_the_secured_card_and_never_to_a_score() -> None:
+    verdict = assess(employment="salaried", income_band="25k_60k", existing_cards="none")
+    assert verdict.band == "secured"
+    assert "vantage_rise" in verdict.eligible_card_ids
+    assert not any("score" in reason.lower() for reason in verdict.reasons), verdict.reasons
+    ranked = shortlist(verdict, "online")
+    assert ranked.recommended_id == "vantage_rise" and ranked.why == "secured"
+    assert [row.eligible for row in ranked.rows] == [True, True, False]
 
 
-async def test_a_word_after_a_silent_run_reaches_tanvi_with_the_whole_visit_behind_it() -> None:
-    """The customer fills the kiosk in themselves, then says "hey Tanvi" — and she
-    answers with the visit already in front of her.
+# ─── Tanvi's tools are gestures ───────────────────────────────────────────────
 
-    This is what the per-gesture note buys. Each one costs tokens rather than a
-    turn, so a customer who never needed her paid nothing for them; the moment
-    they do, her first request already carries every gesture, in order, in the
-    customer's own voice. The notes *name* what they did and carry no value — the
-    screen itself is read back through ``get_screen_context``, which is the only
-    copy that cannot go stale."""
+
+def _tool_methods() -> list[Any]:
+    return [getattr(kiosk.KioskBrain, fn.__name__) for fn in _tools_of_a_brain()]
+
+
+def _tools_of_a_brain() -> list[Any]:
+    brain = kiosk.KioskBrain.__new__(kiosk.KioskBrain)
+    return list(kiosk.KioskBrain.tools.fget(brain))  # type: ignore[attr-defined]
+
+
+def test_no_tool_touches_the_glass_or_the_hand_only_fields() -> None:
+    """The model's only way to affect the screen is a customer gesture, so no
+    tool body dispatches, paints, or names a gesture only a hand may make."""
+    hand_only = {event.__name__ for event in HAND_ONLY}
+    for tool in _tool_methods():
+        source = inspect.getsource(tool)
+        assert "_show(" not in source and "dispatch(" not in source, tool.__name__
+        assert not any(name in source for name in hand_only), tool.__name__
+        assert not _needs_result_now(tool), f"{tool.__name__} is an action, not a read"
+
+
+def test_no_tool_takes_a_string_that_could_reach_the_screen() -> None:
+    """Every argument of every tool is a closed vocabulary. A free string is how
+    model-authored text reaches a bank's glass, so there is none to fill."""
+
+    def closed(annotation: Any) -> bool:
+        args = [a for a in get_args(annotation) if a is not type(None)]
+        if typing.get_origin(annotation) is typing.Literal:
+            return True
+        return bool(args) and all(closed(a) for a in args)
+
+    for tool in _tool_methods():
+        hints = typing.get_type_hints(tool)
+        hints.pop("return", None)
+        for model in hints.values():
+            for name, field in model.model_fields.items():
+                assert closed(field.annotation), f"{tool.__name__}.{name} is {field.annotation}"
+
+
+def test_the_privacy_line_is_a_type_not_a_prompt() -> None:
+    """Mobile, PAN and consent have no model path: the gestures split into the
+    ones Tanvi may make and the ones only a hand may, and the brain refuses the
+    second kind even if a future tool tried to build one."""
+    assert {e.__name__ for e in HAND_ONLY} == {
+        "ConsentGiven",
+        "ValueEntered",
+        "ValueConfirmed",
+        "ValueEdited",
+    }
+    brain = kiosk.KioskBrain.__new__(kiosk.KioskBrain)
+    with pytest.raises(TypeError, match="hand only"):
+        brain._perform(ConsentGiven(card_id="vantage_fuel"))  # pyright: ignore[reportPrivateUsage]
+    assert TANVI_GESTURES.isdisjoint(HAND_ONLY)
+
+
+async def test_every_tool_routes_through_apply_event() -> None:
+    """Each gesture tool, called by the model, reaches the glass the way a tap
+    does — and the brain says it did, in the same row a tap writes."""
     llm = ScriptedGemini(
         {
-            "Hey Tanvi, which of these is cheapest?": [
-                call("get_screen_context"),
-                reply("The Vantage Everyday asks no fee at all, and it is on your screen."),
-            ],
+            "Salaried.": reply_and_call(
+                "Got it.", "answer_on_screen", answer={"employment": "salaried"}
+            ),
+            "About forty thousand.": reply_and_call(
+                "Okay.", "answer_on_screen", answer={"income_band": "25k_60k"}
+            ),
+            "Just one.": reply_and_call(
+                "Right.", "answer_on_screen", answer={"existing_cards": "one"}
+            ),
+            "Mostly fuel.": reply_and_call(
+                "Thanks.", "answer_on_screen", answer={"spend_category": "fuel"}
+            ),
+            "Show me the cards.": reply_and_call("Here they are.", "continue_to_cards"),
+            "Open the fuel one.": reply_and_call(
+                "Sure.", "open_card", card={"card_id": "vantage_fuel"}
+            ),
+            "Go back.": reply_and_call("Okay.", "close_card"),
+            "Compare them.": reply_and_call("Side by side.", "compare_cards"),
+            "I'll take the fuel card.": reply_and_call(
+                "Good choice.", "choose_card", card={"card_id": "vantage_fuel"}
+            ),
+            "Start again.": reply_and_call("Starting over.", "start_over"),
         }
     )
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
-        for step in _BY_HAND[:_UPTO_THE_SHORTLIST]:
-            await _by_hand(rig, step.event, step.payload)
-        assert llm.calls == [], "the silent run reached the model"
-        assert len(_spoken(rig)) == 1, "Tanvi spoke before she was spoken to"
+        seen: list[str] = []
+        real = rig.brain.apply_event
 
-        spoken_to = await rig.driver.user_says("Hey Tanvi, which of these is cheapest?")
-        check_turn(rig, spoken_to, units=1)
-        await _one_more_turn(rig)
+        def spy(event: Any) -> str:
+            seen.append(type(event).__voqal_event__)
+            return real(event)
 
-    # Her first request of the session is the turn they finally gave her, and the
-    # eight gestures before it are already in it.
-    opening = _user_text(llm.captured_contents[0])
-    for note in (
-        "touched the screen to begin",
-        "tapped their answer to the employment",
-        "tapped their answer to the income band",
-        "tapped their answer to the existing cards",
-        "tapped their answer to the spend category",
-        "read what they are likely eligible for and moved on",
-        "opened one of the cards themselves",
-        "closed the card and went back to the three",
-    ):
-        assert note in opening, note
-    assert "Hey Tanvi" in opening
-    for value in ("salaried", "25k_60k", "vantage_fuel"):
-        assert value not in opening, f"a change note is carrying {value!r}"
+        rig.brain.apply_event = spy  # type: ignore[method-assign]
+        for line in llm_lines(llm):
+            check_turn(rig, await rig.driver.user_says(line))
 
-    # And she reads the glass rather than remembering it — what a hand put there
-    # is what she is looking at.
-    screen = " ".join(r for r in _tool_results(llm) if "is on the" in r)
-    assert "The customer is on the shortlist screen." in screen
-    assert "vantage_fuel" in screen
-
-
-# ─── The end of the visit ─────────────────────────────────────────────────────
-
-
-async def test_a_card_that_is_not_on_the_shortlist_is_refused() -> None:
-    """The guard that stops an invented id, or one left over from a shortlist
-    since replaced, reaching the consent panel. Retriable, and it names the way
-    out."""
-    llm = ScriptedGemini(
-        {
-            **_discovery_script(),
-            # The ranking answers in the same turn; the consent panel does not, so
-            # its refusal reaches the model with the next message.
-            "What about the Crest?": [
-                reply_and_call("One moment.", "show_shortlist"),
-                reply_and_call(
-                    "Let me open the Crest.", "open_consent", card={"card_id": "vantage_crest"}
-                ),
-            ],
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await _drive_discovery(rig)
-        check_turn(rig, await rig.driver.user_says("What about the Crest?"))
-        assert "open_consent" not in rig.actions()
-        await _one_more_turn(rig)
-    refusal = " ".join(_tool_results(llm))
-    assert "'vantage_crest' is not on the shortlist" in refusal
-    assert "vantage_fuel, vantage_everyday, vantage_rise" in refusal
-
-
-async def test_the_qr_ends_the_flow_after_a_spoken_yes() -> None:
-    """The whole visit, ending where it is supposed to end.
-
-    The consent bullets are written in Python so a model cannot soften a fee or
-    invent a waiver, and the last one is the sentence this kiosk exists to keep
-    saying. Then the QR, and nothing after it — the kiosk has no tool that can
-    submit anything."""
-    llm = _full_flow_llm()
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await _drive_discovery(rig)
-        await rig.driver.user_says("Which one would you pick?")
-        await rig.driver.user_says("Tell me more about that one.")
-
-        check_turn(rig, await rig.driver.user_says("I'll take it."))
-        consent = rig.command("open_consent")
-        assert consent["card_id"] == "vantage_fuel"
-        assert consent["bullets"][0] == "Annual fee: ₹500 a year"
-        assert consent["bullets"][-1] == (
-            "Vantage Bank runs its own checks. Nothing is approved at this kiosk."
-        )
-        assert set(consent) == set(OpenConsent.model_fields)
-
-        check_turn(rig, await rig.driver.user_says("Yes, go ahead."))
-        qr = rig.command("show_qr")
-        assert qr["caption"] == "Vantage Fuel. Show this at the desk."
-        assert rig.brain.consented_card_id == "vantage_fuel"
-
-        assert rig.actions() == [
-            "ask_profile",
-            "confirm_value",
-            "ask_profile",
-            "confirm_value",
-            "ask_profile",
-            "confirm_value",
-            "ask_profile",
-            "confirm_value",
-            "show_eligibility",
-            "show_shortlist",
-            "open_card_detail",
-            "open_consent",
-            "show_qr",
-        ], rig.actions()
-
-        # Nothing was submitted, because there is nothing that could submit it:
-        # these tools are the whole of what this kiosk can do, and the last step
-        # of the visit draws a QR code.
-        assert [tool.__name__ for tool in rig.brain.tools] == [
-            "start_over",
-            "ask_profile",
-            "capture_value",
-            "confirm",
-            "check_eligibility",
-            "show_shortlist",
-            "open_card_detail",
-            "open_consent",
-            "finish_with_qr",
-            "get_screen_context",
-            "switch_language",
+        assert seen == [
+            "profile_answered",
+            "profile_answered",
+            "profile_answered",
+            "profile_answered",
+            "eligibility_acknowledged",
+            "card_tapped",
+            "card_detail_closed",
+            "card_compared",
+            "card_chosen",
+            "restart_pressed",
         ]
+        assert rig.actions()[-2:] == ["started_over", "ask_profile"]
 
 
-# ─── The rule the whole demo rests on ─────────────────────────────────────────
-
-#: A digit, a rupee sign, a percent sign, a multiplication ex or an em-dash, read
-#: aloud, is gibberish — "five percent sign", "two minus three ex", "one five
-#: zero comma zero zero zero". Every one of them is a display form, and the shelf
-#: carries a spoken twin for each.
-#: ``\u00d7`` is the multiplication sign, spelled as an escape because it is the
-#: character a linter cannot tell apart from a letter x — which is the point.
-_DISPLAY_ONLY = re.compile(r"[₹%\u00d7—]|\d")
-
-#: The wire tokens of the four closed vocabularies that would read as a phrase
-#: with the word "underscore" in the middle of it. Every one is mapped to a
-#: spoken phrase in ``cards.py`` before anything interpolates it into a sentence.
-_WIRE_TOKENS = tuple(
-    token
-    for tokens in (EMPLOYMENT_SPOKEN, INCOME_BAND_SPOKEN, EXISTING_CARDS_SPOKEN, SPEND_SPOKEN)
-    for token in tokens
-    if "_" in token
-)
-
-#: Words this kiosk does not use. It never approves anything and it says so.
-_BANNED = ("instant", "guaranteed", "approved", "magic", "effortless")
+def llm_lines(llm: ScriptedGemini) -> list[str]:
+    """The script's keys, in the order they were written."""
+    return list(llm._cursors)  # pyright: ignore[reportPrivateUsage]
 
 
-#: Tool results that told Tanvi to (re)state a question. Each one made her say a
-#: question twice: she had already asked it before calling the tool that said so.
-_ASKS_AGAIN = re.compile(
-    r"SAY:\s*your question|then your next question|then carry on|"
-    r"move straight to the next step|and ask the first question",
-    re.IGNORECASE,
-)
-
-
-async def test_no_tool_tells_tanvi_to_ask_a_question_again() -> None:
-    """The repeat bug, pinned at its cause. A live session had Tanvi ask one
-    question two and three times in a row: the prompt said to ask it before
-    calling ``ask_profile``, and the tool's result said to ask it again. A question
-    now has exactly one home — the line she calls ``ask_profile`` with — and its
-    result, read a turn later, says only what went on the glass."""
-    llm = _full_flow_llm()
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await _drive_discovery(rig)
-        await rig.driver.user_says("Which one would you pick?")
-        await _one_more_turn(rig)
-
-    results = _tool_results(llm)
-    assert results, "the walk reached no tools"
-    for result in results:
-        assert not _ASKS_AGAIN.search(result), f"a tool asked for a question again: {result!r}"
-    asked = [r for r in results if r.startswith("Shown")]
-    assert asked and not any(re.search(r"\bask", r, re.IGNORECASE) for r in asked), asked
-
-
-async def test_nothing_the_brain_tells_tanvi_to_say_is_a_display_string() -> None:
-    """The sweep. Every ``SAY:`` span the brain writes across a whole visit, swept
-    for the figures and the raw tokens that belong only on the glass.
-
-    ``SAY:`` now introduces only text Tanvi is to *speak*, in the same turn: the
-    eligibility verdict, the recommendation and the card's perk — the tools this
-    walk reaches that quote the card shelf, each marked ``@needs_result_now``. The
-    generic directions ("a three-word acknowledgement", "your question") lost
-    their ``SAY:`` because they were what made Tanvi ask the same question twice:
-    a tool told her to say something she had already said before calling it. The
-    consent panel and the QR lost theirs to the tool loop: their results are read
-    a turn late, when a line to speak would be said a second time.
-
-    This is the check that cannot be written per call site: the failure is one
-    interpolation in one branch of one tool, and it is heard exactly once, in
-    front of a customer."""
-    llm = _full_flow_llm()
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await _drive_discovery(rig)
-        await rig.driver.user_says("Which one would you pick?")
-        await rig.driver.user_says("Tell me more about that one.")
-        await rig.driver.user_says("I'll take it.")
-        await rig.driver.user_says("Yes, go ahead.")
-        await _one_more_turn(rig)
-
-    lines = _say_lines(llm)
-    # One per content tool the walk reaches, so the sweep cannot pass empty.
-    assert len(lines) >= 3, lines
-    # And only a tool that answers in the same turn hands over a line to say.
-    tools = {tool.__name__: tool for tool in rig.brain.tools}
-    for name, result in _named_results(llm):
-        if "SAY:" in result:
-            assert _needs_result_now(tools[name]), f"{name} is read a turn late: {result!r}"
-    for line in lines:
-        assert not _DISPLAY_ONLY.search(line), f"a display string reached a SAY line: {line!r}"
-        for token in _WIRE_TOKENS:
-            assert token not in line, f"the wire token {token!r} reached a SAY line: {line!r}"
-        for word in _BANNED:
-            assert word not in line.lower(), f"{word!r} in a SAY line: {line!r}"
-
-
-async def test_only_the_reads_answer_in_the_same_turn() -> None:
-    """The mark, pinned. A marked tool costs the customer a second model call on
-    every use, so it is kept to the tools whose result Tanvi cannot answer
-    without: the screen read, the rules, the ranking, the card's perk and the
-    verdict on a read-back. Every other tool puts something on the glass or
-    records what she already said, and she speaks first."""
-    async with demo("kiosk", ScriptedGemini({})) as rig:
-        await rig.driver.start_session()
-        marked = [tool.__name__ for tool in rig.brain.tools if _needs_result_now(tool)]
-    assert marked == [
-        "confirm",
-        "check_eligibility",
-        "show_shortlist",
-        "open_card_detail",
-        "get_screen_context",
-    ]
-
-
-def test_the_sweep_can_fail() -> None:
-    """The negative control: a green sweep would read as proof, so assert the probe
-    rejects each shape it exists to catch, and passes the spoken twin of it."""
-    for bad in ("₹500 a year", "5% online", "2x your income", "up to 400 a month"):
-        assert _DISPLAY_ONLY.search(bad), bad
-    assert "self_employed" in _WIRE_TOKENS and "25k_60k" in _WIRE_TOKENS
-    assert not _DISPLAY_ONLY.search(
-        " the Vantage Fuel is your best fit, because you spend most on fuel."
+async def test_a_gesture_a_hand_could_not_make_is_refused_and_moves_nothing() -> None:
+    """Tanvi can only do what the customer's hand could do right now: answer the
+    question that is up, open a card that is on the glass."""
+    llm = ScriptedGemini(
+        {
+            "I spend on fuel.": reply_and_call(
+                "Got it.", "answer_on_screen", answer={"spend_category": "fuel"}
+            ),
+            "Open the fuel card.": reply_and_call(
+                "One moment.", "open_card", card={"card_id": "vantage_fuel"}
+            ),
+            "Thanks.": reply("Sure."),
+        }
     )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        before = list(rig.driver.ui_commands)
+        await rig.driver.user_says("I spend on fuel.")
+        await rig.driver.user_says("Open the fuel card.")
+        await rig.driver.user_says("Thanks.")
+        assert rig.driver.ui_commands == before, "a refused gesture moved the screen"
+        assert rig.brain.answers == {}
+        refused = [r for r in _tool_results(llm) if r.startswith("Not done")]
+        assert len(refused) == 2, _tool_results(llm)
+        assert "spend category question is not the one on the screen" in refused[0]
+        assert "cards are not on the screen" in refused[1]
+
+
+# ─── A spoken answer ──────────────────────────────────────────────────────────
+
+
+async def test_a_spoken_answer_is_tapped_and_acknowledged_in_a_word() -> None:
+    """The customer says it instead of tapping it: Tanvi taps it for them, says a
+    word, and the next question comes up by itself — one request, one unit."""
+    llm = ScriptedGemini(
+        {
+            "I'm salaried.": reply_and_call(
+                "Got it.", "answer_on_screen", answer={"employment": "salaried"}
+            ),
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("I'm salaried.")
+        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == ["Got it."]
+        assert len(llm.calls) == 1, "an answer asked the model twice"
+        assert rig.brain.answers == {"employment": "salaried"}
+        asked = _payloads(rig, "ask_profile")
+        assert [q["field"] for q in asked] == ["employment", "income_band"]
+
+
+async def test_an_answer_the_model_tapped_in_silence_still_gets_a_word() -> None:
+    """The shared floor under every demo: a turn that acted on screen and said
+    nothing speaks one written line of the brain's own, in the voice's language,
+    without a second request — and the line never enters the context."""
+    llm = ScriptedGemini(
+        {
+            "Salaried.": call("answer_on_screen", answer={"employment": "salaried"}),
+            "Okay.": reply("Sure."),
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Salaried.")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in PHRASES[Language.EN]["over_to_you"], line
+        assert len(llm.calls) == 1
+
+        await rig.driver.user_says("Okay.")
+        assert line not in " ".join(_texts(_record(llm), "model"))
+
+
+# ─── The screen, read-only, every turn ────────────────────────────────────────
+
+
+async def test_every_turn_sees_the_screen_as_it_is_now_and_only_once() -> None:
+    """The snapshot sits right in front of the customer's words and is gone from
+    the context once the turn is over, so no request carries a stale copy."""
+    llm = ScriptedGemini(
+        {
+            "What's this?": reply("A short form to find you a card."),
+            "Fine.": reply("Sure."),
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What's this?")
+        await _by_hand(rig, "profile_answered", {"field": "employment", "value": "salaried"})
+        await rig.driver.user_says("Fine.")
+
+        for request, question in zip(
+            llm.captured_contents, ("employment", "income band"), strict=True
+        ):
+            notes = [t for t in _texts(request) if t.startswith(_SNAPSHOT)]
+            assert len(notes) == 1, notes
+            assert f"the question on screen: {question}" in notes[0], notes[0]
+            texts = _texts(request)
+            assert texts.index(notes[0]) == len(texts) - 2, "the note is not just before the words"
+        second = "\n".join(_texts(llm.captured_contents[1]))
+        assert "salaried" in second  # what they have told us, as it is said
+        assert "[They answered the employment: salaried.]" in second
+        assert all(_SNAPSHOT not in t for t in _texts(rig.brain._history))  # pyright: ignore[reportPrivateUsage]
+
+
+async def test_the_snapshot_never_carries_a_mobile_number_or_a_pan() -> None:
+    """Typed values are the customer's. The model learns they were typed in and
+    never what they are."""
+    llm = ScriptedGemini({"Is that all?": reply("Nearly done.")})
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await _walk(rig, upto=len(_BY_HAND) - 1)
+        await rig.driver.user_says("Is that all?")
+        note = next(t for t in _texts(_record(llm)) if t.startswith(_SNAPSHOT))
+        assert "typed in" in note
+        for digits in ("98765", "43210", "91234", "56789", "ABCDE", "1234"):
+            assert digits not in note, note
+
+
+# ─── The line about the top card ──────────────────────────────────────────────
+
+
+async def test_cards_tapped_up_get_their_line_on_the_next_quiet_moment_once() -> None:
+    """A tap cannot speak, so the cards going up under a hand shorten the idle
+    clock, and the first quiet moment says why the top card — written, no model
+    call — then puts the clock back. Closing a card and coming back owes nothing."""
+    llm = ScriptedGemini()
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await _walk(rig, upto=_UPTO_THE_CARDS)
+        await asyncio.sleep(0.05)
+        assert _idle_ms(rig) == kiosk._IDLE_PITCH_MS  # pyright: ignore[reportPrivateUsage]
+
+        idle = await rig.driver.user_idle(timeout=1.0)
+        assert [u.text for u in idle.units] == [_english_pitch()]
+        await asyncio.sleep(0.05)
+        assert _idle_ms(rig) == kiosk._IDLE_MS  # pyright: ignore[reportPrivateUsage]
+
+        await _by_hand(rig, "card_tapped", {"card_id": "vantage_fuel"})
+        await _by_hand(rig, "card_detail_closed")
+        assert (await rig.driver.user_idle(timeout=0.5)).units == []
+        assert llm.calls == [], "the line about the cards called the model"
+        # Tanvi knows she said it: the line is hers in the context.
+        assert _english_pitch() in " ".join(_texts(rig.brain._history, "model"))  # pyright: ignore[reportPrivateUsage]
+
+
+async def test_cards_asked_for_out_loud_get_their_line_in_the_same_turn() -> None:
+    """The customer asks to see the cards: Tanvi says a word and taps it, and the
+    line about the top card follows in that same turn, once."""
+    llm = ScriptedGemini(
+        {"Show me the cards.": reply_and_call("Here they are.", "continue_to_cards")}
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await _walk(rig, upto=_UPTO_THE_CARDS - 1)
+        turn = await rig.driver.user_says("Show me the cards.")
+        check_turn(rig, turn, units=2)
+        assert [u.text for u in turn.units] == ["Here they are.", _english_pitch()]
+        assert (await rig.driver.user_idle(timeout=0.5)).units == []
+        assert len(llm.calls) == 1
+
+
+async def test_the_line_is_written_in_hindi_for_a_hindi_voice() -> None:
+    async with demo("kiosk", ScriptedGemini()) as rig:
+        await rig.driver.start_session(init={"language": "Hindi"})
+        await _walk(rig, upto=_UPTO_THE_CARDS)
+        idle = await rig.driver.user_idle(timeout=1.0)
+        (line,) = (u.text for u in idle.units)
+        assert "वैंटेज फ़्यूल" in line and "पेट्रोल" in line, line
+        assert not re.search(r"[A-Za-z]", line), f"Latin in a Hindi line: {line!r}"
+
+
+async def test_in_a_language_with_no_written_line_the_model_says_it_on_the_quiet() -> None:
+    """Kannada has a voice and no written line, so the quiet moment asks the model
+    to say the English line in Kannada — the one model call the line costs."""
+    llm = ScriptedGemini({"The cards are up.": reply("ಇದು ನಿಮಗೆ ಉತ್ತಮ ಕಾರ್ಡ್.")})
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        brain._append_note(await brain._switch_to("Kannada", by="the customer"))  # pyright: ignore[reportPrivateUsage]
+        await _walk(rig, upto=_UPTO_THE_CARDS)
+        idle = await rig.driver.user_idle(timeout=1.0)
+        assert [u.text for u in idle.units] == ["ಇದು ನಿಮಗೆ ಉತ್ತಮ ಕಾರ್ಡ್."]
+        asked = " ".join(_texts(_record(llm)))
+        assert "in Kannada" in asked and _english_pitch() in asked
+        assert (await rig.driver.user_idle(timeout=0.5)).units == []
+
+
+def test_every_line_about_a_card_is_in_words() -> None:
+    """The pitch goes to the voice, so no digit, rupee sign or percent sign, and
+    no wire token, for any profile the rules can produce."""
+    tokens = [
+        token
+        for spoken in (EMPLOYMENT_SPOKEN, INCOME_BAND_SPOKEN, EXISTING_CARDS_SPOKEN, SPEND_SPOKEN)
+        for token in spoken
+        if "_" in token
+    ]
+    for employment in EMPLOYMENT_SPOKEN:
+        for income in INCOME_BAND_SPOKEN:
+            for cards in EXISTING_CARDS_SPOKEN:
+                verdict = assess(employment=employment, income_band=income, existing_cards=cards)
+                for spend in SPEND_SPOKEN:
+                    ranked = shortlist(verdict, spend)
+                    for language in (Language.EN, Language.HI):
+                        line = pitch_line(ranked, spend, language)
+                        assert line and not _DISPLAY_ONLY.search(line), line
+                        assert not any(token in line for token in tokens), line
+
+
+# ─── The screen is English ────────────────────────────────────────────────────
+
+
+async def test_a_switch_moves_the_voice_and_the_ears_and_never_the_glass() -> None:
+    llm = ScriptedGemini(
+        {
+            "Can we speak Hindi?": reply_and_call(
+                "Sure, Hindi.", "switch_language", to={"language": "Hindi"}
+            ),
+            "मैं नौकरी करता हूँ।": reply_and_call(
+                "ठीक है।", "answer_on_screen", answer={"employment": "salaried"}
+            ),
+        }
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Can we speak Hindi?")
+        check_voice_pair(rig, voice=VOICE, language="hi")
+        await rig.driver.user_says("मैं नौकरी करता हूँ।")
+        asked = _payloads(rig, "ask_profile")[-1]
+        assert asked["question"] == PROFILE_PROMPTS["income_band"]
+        assert all(re.fullmatch(r"[ -~]+", o["label"]) for o in asked["options"]), asked
+        assert "language_changed" not in rig.actions()
+
+
+def test_no_copy_on_the_glass_is_in_another_script() -> None:
+    """Every string the brain can put on the screen is ASCII-and-rupee English."""
+    english = re.compile("[ -~\u20b9\u2019]+")
+    for question in PROFILE_PROMPTS.values():
+        assert english.fullmatch(question), question
+    for label, _ in VALUE_PROMPTS.values():
+        assert english.fullmatch(label), label
+    for card in CARDS:
+        for text in (card.name, card.fee_display, card.reward_display, card.perk_display):
+            assert english.fullmatch(text), text
+
+
+# ─── The language moves as a pair ─────────────────────────────────────────────
+
+
+async def test_a_customer_already_speaking_tamil_moves_the_kiosk_without_asking() -> None:
+    heard = "நான் சம்பளம் வாங்குகிறேன்"
+    llm = ScriptedGemini(
+        {heard: reply_and_call("Okay, Tamil.", "switch_language", to={"language": "Tamil"})}
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says(heard)
+        assert _legs(rig) == (VOICE, "ta", "ta")
+        assert rig.brain.language == "Tamil"
+
+
+async def test_a_language_with_no_clip_is_heard_in_it_and_answered_in_hindi() -> None:
+    llm = ScriptedGemini(
+        {"Odia please.": reply_and_call("ठीक है।", "switch_language", to={"language": "Odia"})}
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Odia please.")
+        assert _legs(rig) == (VOICE, "hi", "or")
+
+
+async def test_start_over_clears_the_form_and_keeps_the_language() -> None:
+    llm = ScriptedGemini({"Start again.": reply_and_call("Starting over.", "start_over")})
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session(init={"language": "Hindi"})
+        await _walk(rig, upto=_UPTO_THE_CARDS)
+        check_turn(rig, await rig.driver.user_says("Start again."))
+        assert rig.brain.answers == {} and rig.brain.shortlist_ids == ()
+        assert rig.actions()[-2:] == ["started_over", "ask_profile"]
+        assert rig.brain.language == "Hindi"
+        check_voice_pair(rig, voice=VOICE, language="hi")
+
+
+# ─── The prompt ───────────────────────────────────────────────────────────────
+
+
+def test_the_prompt_is_a_helper_not_a_form() -> None:
+    """What the prompt must say, and what it must no longer say."""
+    prompt = SYSTEM_INSTRUCTION
+    for rule in (
+        "The screen runs the form. You help.",
+        "EVERY RESPONSE STARTS WITH WORDS",
+        "Never ask for their mobile number, their PAN or their consent out loud",
+        "type it in on the screen instead, for their privacy",
+        "Never read out what is on the screen",
+        "Never invent a fee, a rate, a limit or a rule",
+        "likely eligible",
+    ):
+        assert rule in prompt, rule
+    for gone in ("capture_value", "ask_profile", "check_eligibility", "SAY:", "say yes out loud"):
+        assert gone not in prompt, gone
+    # The shelf is in the cached prefix, in words.
+    for card in CARDS:
+        assert card.name in prompt and card.perk_spoken in prompt, card.id
+    catalogue = prompt[prompt.index("THE CARDS") : prompt.index("LANGUAGE\n")]
+    assert not _DISPLAY_ONLY.search(catalogue), "a display figure in the prompt"
 
 
 # ─── The typed contract ───────────────────────────────────────────────────────
 
+#: A figure in display form — a digit, a rupee sign, a percent sign, a
+#: multiplication sign — which the voice reads as noise.
+_DISPLAY_ONLY = re.compile("[\u20b9%\u00d7]|\\d")
+
+
+def test_the_sweep_can_fail() -> None:
+    for bad in ("₹500 a year", "5% online", "2x your income", "up to 400 a month"):
+        assert _DISPLAY_ONLY.search(bad), bad
+    assert not _DISPLAY_ONLY.search("four percent at any pump")
+
+
+def test_every_gesture_the_totem_can_send_is_in_the_vocabulary() -> None:
+    assert [event.__voqal_event__ for event in KIOSK_EVENTS] == [
+        "profile_answered",
+        "eligibility_acknowledged",
+        "card_tapped",
+        "card_detail_closed",
+        "card_compared",
+        "card_chosen",
+        "consent_given",
+        "value_entered",
+        "value_confirmed",
+        "value_edited",
+        "restart_pressed",
+    ]
+
 
 def test_an_action_wire_name_is_the_snake_case_of_its_class() -> None:
-    """Declared once: the class name *is* the command name, so nothing about the
-    contract is written down twice and the generated TypeScript narrows on the
-    same union this brain defines."""
     assert AskProfile.__voqal_action__ == "ask_profile"
     assert ConfirmValue.__voqal_action__ == "confirm_value"
     assert ShowEligibility.__voqal_action__ == "show_eligibility"

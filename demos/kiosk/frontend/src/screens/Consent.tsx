@@ -7,29 +7,26 @@
  * here means a banker at the desk picks the conversation up — which is why the
  * button says "I agree" and not "Apply".
  *
- * The consent is given out loud in the ordinary run; the button is the fallback
- * for a customer who would rather press it, and it is not a gate in front of
- * anything.
+ * The consent is a tap, and only a tap: a press on the glass is better evidence
+ * than a "yes" a model had to interpret, and Tanvi has no way to give it.
  */
 
 import { ArrowRight } from '@phosphor-icons/react';
 import { COLOR } from '../brand';
 import type { OpenConsent, ShowShortlist } from '../actions.gen';
-import { strings, type Language } from '../language';
+import { COPY } from '../copy';
 import { CardFace, TouchButton, TrayTitle } from '../ui';
 
 export function ConsentTray({
-  language,
   consent,
   shortlist,
   onConsent,
 }: {
-  language: Language;
   consent: OpenConsent | null;
   shortlist: ShowShortlist | null;
   onConsent: (cardId: string) => void;
 }) {
-  const copy = strings(language);
+  const copy = COPY;
   if (!consent) return null;
   const card = shortlist?.cards.find((c) => c.id === consent.card_id);
   return (

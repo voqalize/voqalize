@@ -40,10 +40,15 @@ from .cards import (
     SpendCategory,
 )
 
-__all__ = ["Assessment", "Band", "Shortlist", "ShortlistRow", "assess", "shortlist"]
+__all__ = ["Assessment", "Band", "Shortlist", "ShortlistRow", "Why", "assess", "shortlist"]
 
 #: How wide the shelf is for this customer. Not a decision, and not a score.
 Band = Literal["wide", "standard", "secured"]
+
+#: Why the shortlist put its top card first: it pays most on their biggest spend,
+#: it is the secured card a thin file should start with, or it is simply the
+#: strongest card they clear.
+Why = Literal["affinity", "secured", "strongest"]
 
 #: The monthly income a band is worth for gating. A band is a range and the gate
 #: needs one number, so this is the figure the bank is willing to work from until
@@ -267,6 +272,9 @@ class Shortlist:
 
     rows: tuple[ShortlistRow, ...]
     recommended_id: str
+    #: Which of the three reasons picked it, so a line in another language can
+    #: say the same reason without parsing this one's English.
+    why: Why
     why_display: str
     why_spoken: str
 
@@ -292,6 +300,7 @@ def shortlist(assessment: Assessment, spend: SpendCategory) -> Shortlist:
     return Shortlist(
         rows=tuple(rows),
         recommended_id=recommended.id,
+        why=_why(recommended, assessment, spend),
         why_display=_why_display(recommended, assessment, spend),
         why_spoken=_why_spoken(recommended, assessment, spend),
     )
@@ -302,6 +311,14 @@ def _score(card: Card, assessment: Assessment, spend: SpendCategory) -> int:
     affinity = _AFFINITY_BONUS if card.affinity == spend else 0
     secured = _SECURED_BONUS if assessment.prefer_secured and card.secured else 0
     return tier + affinity + secured
+
+
+def _why(card: Card, assessment: Assessment, spend: SpendCategory) -> Why:
+    if card.affinity == spend:
+        return "affinity"
+    if assessment.prefer_secured and card.secured:
+        return "secured"
+    return "strongest"
 
 
 def _why_display(card: Card, assessment: Assessment, spend: SpendCategory) -> str:

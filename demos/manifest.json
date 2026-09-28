@@ -64,7 +64,7 @@
     {
       "name": "kiosk",
       "title": "Vantage Bank Card Kiosk",
-      "tagline": "A bilingual branch-kiosk assistant that talks a walk-in customer through four questions and ranks three credit cards on a totem screen."
+      "tagline": "A branch-kiosk card finder: the customer fills in the form on the totem screen, and an AI assistant answers their questions in their own language and explains the card picked for them."
     }
   ]
 }

@@ -14,7 +14,6 @@
 import type { ReactNode } from 'react';
 import { Totem, type TrayWeight } from './Totem';
 import { useKiosk, type Screen } from './store';
-import type { Language } from './language';
 import { CardDetailTray } from './screens/CardDetail';
 import { ConsentTray } from './screens/Consent';
 import { DiscoveryTray } from './screens/Discovery';
@@ -25,7 +24,6 @@ import { ValueEntryTray } from './screens/ValueEntry';
 import { WelcomeTray } from './screens/Welcome';
 
 export interface KioskTotemProps {
-  language: Language;
   /** Whether the call is up. Before it, the gate is the only way in. */
   live: boolean;
   /** Tanvi: the live tile, or the pre-call plate. */
@@ -34,7 +32,7 @@ export interface KioskTotemProps {
   captions?: ReactNode;
 }
 
-export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps) {
+export function KioskTotem({ live, tanvi, captions }: KioskTotemProps) {
   const { state, byHand } = useKiosk();
 
   let tray: ReactNode = null;
@@ -47,13 +45,12 @@ export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps)
     case 'attract':
       // Nothing to press here, before the call or after: Tanvi asks for a name,
       // and the first question comes up by itself if none is given.
-      tray = <WelcomeTray language={language} />;
+      tray = <WelcomeTray />;
       break;
     case 'discovery':
       key = `discovery:${state.question?.field ?? ''}`;
       tray = (
         <DiscoveryTray
-          language={language}
           question={state.question}
           checking={state.checking}
           picked={state.picked}
@@ -66,7 +63,6 @@ export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps)
       weight = 'heavy';
       tray = (
         <EligibilityTray
-          language={language}
           eligibility={state.eligibility}
           onAcknowledge={byHand.acknowledgeEligibility}
         />
@@ -76,7 +72,6 @@ export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps)
       weight = 'heavy';
       tray = (
         <ShortlistTray
-          language={language}
           shortlist={state.shortlist}
           onTapCard={byHand.tapCard}
           onChooseCard={byHand.chooseCard}
@@ -88,7 +83,6 @@ export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps)
       key = `detail:${state.detailCardId ?? ''}`;
       tray = (
         <CardDetailTray
-          language={language}
           cardId={state.detailCardId}
           shortlist={state.shortlist}
           onBack={byHand.closeDetail}
@@ -100,7 +94,6 @@ export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps)
       weight = 'heavy';
       tray = (
         <ConsentTray
-          language={language}
           consent={state.consent}
           shortlist={state.shortlist}
           onConsent={byHand.consent}
@@ -114,7 +107,6 @@ export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps)
       tray = (
         <ValueEntryTray
           key={state.entry?.field}
-          language={language}
           entry={state.entry}
           checking={state.checking}
           onEnter={byHand.enterValue}
@@ -123,7 +115,7 @@ export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps)
       );
       break;
     case 'handoff':
-      tray = <HandoffTray language={language} qr={state.qr} />;
+      tray = <HandoffTray qr={state.qr} />;
       break;
     default:
       unreachableScreen(state.screen);
@@ -133,7 +125,6 @@ export function KioskTotem({ language, live, tanvi, captions }: KioskTotemProps)
 
   return (
     <Totem
-      language={language}
       tanvi={tanvi}
       captions={captions}
       tray={tray}

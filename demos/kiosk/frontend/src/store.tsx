@@ -46,7 +46,6 @@ import {
   type ShowShortlist,
   type UiAction,
 } from './actions.gen';
-import type { Language } from './language';
 
 /** Which of the eight screens the stage is showing. */
 export type Screen =
@@ -79,8 +78,6 @@ export interface KioskState {
   detailCardId: string | null;
   consent: OpenConsent | null;
   qr: ShowQr | null;
-  /** Which of the screen's two copy sets is showing. */
-  language: Language;
 }
 
 const INITIAL: KioskState = {
@@ -95,7 +92,6 @@ const INITIAL: KioskState = {
   detailCardId: null,
   consent: null,
   qr: null,
-  language: 'en',
 };
 
 /** Replace this field's settled entry, or append it, keeping settle order. */
@@ -118,10 +114,9 @@ function settle(ledger: readonly ConfirmValue[], value: ConfirmValue): ConfirmVa
 function applyAction(state: KioskState, action: UiAction): KioskState {
   switch (action.command) {
     case 'started_over':
-      // Start over forgets everything but the language — as the brain's own
-      // reset does, so the picker and Tanvi's voice cannot come apart here. The
-      // first question arrives right behind it.
-      return { ...INITIAL, language: state.language };
+      // Start over forgets everything, as the brain's own reset does. The first
+      // question arrives right behind it.
+      return INITIAL;
     case 'ask_profile':
       return { ...state, screen: 'discovery', question: action.payload, checking: null };
     case 'ask_value':
@@ -157,8 +152,6 @@ function applyAction(state: KioskState, action: UiAction): KioskState {
       return { ...state, screen: 'consent', consent: action.payload };
     case 'show_qr':
       return { ...state, screen: 'handoff', qr: action.payload };
-    case 'language_changed':
-      return { ...state, language: action.payload.screen_language };
     default:
       return unhandledUiAction(action);
   }

@@ -56,11 +56,10 @@ export const demo: DemoConfig = {
  * `config` is this session's configuration: the wire `Config`'s `tts`, `stt`
  * and `idle` sections plus `record`, as canonical proto3 JSON. This page sends
  * none — voice and language belong to the brain, which is the only layer that
- * can move the STT and TTS legs together. Tanvi speaks English and Hindi and
- * switches mid-call when the customer asks; the page's language chip moves the
- * *screen* and nothing else. Naming a voice here as well would be two owners of
- * one answer, which is the failure mode this whole mechanism exists to rule
- * out.
+ * can move the STT and TTS legs together. Tanvi follows the customer into their
+ * language mid-call; the screen stays in English and nothing here moves it.
+ * Naming a voice here as well would be two owners of one answer, which is the
+ * failure mode this whole mechanism exists to rule out.
  *
  * Both are stored on the session and served to the voice runtime over its own
  * authenticated call, so send identifiers rather than personal data. A `config`

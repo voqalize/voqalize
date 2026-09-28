@@ -10,7 +10,7 @@
  */
 export type StartedOver = Record<string, never>;
 
-/** One discovery question, with the closed set of answers beside it. */
+/** One profile question, with the closed set of answers beside it. */
 export interface AskProfile {
   field: string;
 
@@ -23,8 +23,7 @@ export interface AskProfile {
  * One value for the customer to type in themselves.
  *
  * `kind` is the keypad the totem puts under their finger — `tel` for a
- * mobile number, `text` for a PAN — and `label` is already in this
- * session's language, because the screen is read and not spoken.
+ * mobile number, `text` for a PAN.
  */
 export interface AskValue {
   field: string;
@@ -35,11 +34,11 @@ export interface AskValue {
 }
 
 /**
- * A value the customer spoke, as the screen holds it.
+ * A value the customer typed, as the screen holds it.
  *
- * `state` is one of `heard` (shown, nothing asked), `confirming` (read
- * back, waiting on a yes) or `confirmed` (settled). `masked` is the safe
- * form for a totem in a branch, and it is what the screen shows by default.
+ * `state` is `confirmed`: a value they typed themselves is already settled,
+ * and nothing reads it back. `masked` is the safe form for a totem in a
+ * branch, and it is what the screen shows by default.
  */
 export interface ConfirmValue {
   field: string;
@@ -72,7 +71,7 @@ export interface ShowShortlist {
   why: string;
 }
 
-/** Open one card full screen. Also the parameter of the tool that sends it. */
+/** Open one card full screen. */
 export interface OpenCardDetail {
   card_id: string;
 }
@@ -93,25 +92,9 @@ export interface ShowQr {
 }
 
 /**
- * The conversation moved language. Not a screen: the language picker on the
- * brand bar follows it, and the screen's own copy follows it only as far as
- * copy exists. How a language is *written* on the picker is the page's to say —
- * the brain names it and nothing more.
+ * They answered the question on screen — with a tap, or by saying it to
+ * Tanvi, who tapped it for them.
  */
-export interface LanguageChanged {
-  language: 'English' | 'Hindi' | 'Bengali' | 'Gujarati' | 'Kannada' | 'Malayalam' | 'Marathi' | 'Punjabi' | 'Tamil' | 'Telugu' | 'Assamese' | 'Bodo' | 'Dogri' | 'Kashmiri' | 'Konkani' | 'Maithili' | 'Manipuri' | 'Nepali' | 'Odia' | 'Sanskrit' | 'Santali' | 'Sindhi' | 'Urdu';
-
-  screen_language: 'en' | 'hi';
-}
-
-/**
- * They skipped the name and asked for the first question. The call is
- * already live, because pressing Start is what opened it; this is the one tap
- * that moves the welcome screen on for a customer who would rather not talk.
- */
-export type JourneyStarted = Record<string, never>;
-
-/** They tapped one of the answers on screen instead of saying it. */
 export interface ProfileAnswered {
   field: string;
 
@@ -121,7 +104,7 @@ export interface ProfileAnswered {
 /** They have read what they are likely eligible for and want the cards. */
 export type EligibilityAcknowledged = Record<string, never>;
 
-/** They opened a card on the shortlist themselves. */
+/** They opened a card on the shortlist. */
 export interface CardTapped {
   card_id: string;
 }
@@ -129,32 +112,32 @@ export interface CardTapped {
 /** They closed a card and went back to the three. */
 export type CardDetailClosed = Record<string, never>;
 
-/** They put the shortlist side by side themselves. */
+/** They put the shortlist side by side. */
 export type CardCompared = Record<string, never>;
 
-/** They settled on one card, with their hand. */
+/** They settled on one card. */
 export interface CardChosen {
   card_id: string;
 }
 
-/** They accepted the consent panel on screen. */
+/** They accepted the consent panel on screen. A hand only. */
 export interface ConsentGiven {
   card_id: string;
 }
 
-/** They typed a value in themselves rather than reading it out. */
+/** They typed a value in. A hand only. */
 export interface ValueEntered {
   field: string;
 
   value: string;
 }
 
-/** They confirmed a value on screen rather than out loud. */
+/** They confirmed a value on screen. A hand only. */
 export interface ValueConfirmed {
   field: string;
 }
 
-/** They corrected a value by hand. Theirs wins; it is not read back again. */
+/** They corrected a value by hand. Theirs wins; it is not read back. */
 export interface ValueEdited {
   field: string;
 
@@ -163,18 +146,9 @@ export interface ValueEdited {
 
 /**
  * They pressed Start over. Their answers are cleared and the first question
- * comes back; the call stays up. There is no idle timeout and nothing resets
- * itself.
+ * comes back; the call stays up.
  */
 export type RestartPressed = Record<string, never>;
-
-/**
- * They tapped the language chip. Not a step in the journey — it moves the
- * conversation, so it is handled beside the journey rather than inside it.
- */
-export interface LanguagePicked {
-  language: 'English' | 'Hindi' | 'Bengali' | 'Gujarati' | 'Kannada' | 'Malayalam' | 'Marathi' | 'Punjabi' | 'Tamil' | 'Telugu' | 'Assamese' | 'Bodo' | 'Dogri' | 'Kashmiri' | 'Konkani' | 'Maithili' | 'Manipuri' | 'Nepali' | 'Odia' | 'Sanskrit' | 'Santali' | 'Sindhi' | 'Urdu';
-}
 
 // ── Shapes used by the messages above ──────────────────────────────
 
@@ -208,14 +182,12 @@ export interface CardView {
 
 /**
  * One answer the screen offers. The value is the closed token the rules run
- * on; the two labels are what the customer reads.
+ * on; the label is what the customer reads.
  */
 export interface ProfileOption {
   value: string;
 
   label: string;
-
-  label_hi: string;
 }
 
 /** Everything the brain can put on screen, discriminated by `command`. */
@@ -228,8 +200,7 @@ export type UiAction =
   | { command: 'show_shortlist'; payload: ShowShortlist }
   | { command: 'open_card_detail'; payload: OpenCardDetail }
   | { command: 'open_consent'; payload: OpenConsent }
-  | { command: 'show_qr'; payload: ShowQr }
-  | { command: 'language_changed'; payload: LanguageChanged };
+  | { command: 'show_qr'; payload: ShowQr };
 
 export type UiActionCommand = UiAction['command'];
 
@@ -243,7 +214,6 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'open_card_detail',
   'open_consent',
   'show_qr',
-  'language_changed',
 ];
 
 const _known = new Set<string>(UI_ACTION_COMMANDS);
@@ -268,7 +238,6 @@ export function unhandledUiAction(action: never): never {
 
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
-  | { event: 'journey_started'; payload: JourneyStarted }
   | { event: 'profile_answered'; payload: ProfileAnswered }
   | { event: 'eligibility_acknowledged'; payload: EligibilityAcknowledged }
   | { event: 'card_tapped'; payload: CardTapped }
@@ -279,13 +248,11 @@ export type AppEvent =
   | { event: 'value_entered'; payload: ValueEntered }
   | { event: 'value_confirmed'; payload: ValueConfirmed }
   | { event: 'value_edited'; payload: ValueEdited }
-  | { event: 'restart_pressed'; payload: RestartPressed }
-  | { event: 'language_picked'; payload: LanguagePicked };
+  | { event: 'restart_pressed'; payload: RestartPressed };
 
 export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
-  'journey_started',
   'profile_answered',
   'eligibility_acknowledged',
   'card_tapped',
@@ -297,7 +264,6 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'value_confirmed',
   'value_edited',
   'restart_pressed',
-  'language_picked',
 ];
 
 /**
