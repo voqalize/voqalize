@@ -54,6 +54,21 @@ LINES: Mapping[Language, Mapping[Kind, tuple[str, ...]]] = {
     },
 }
 
+#: A nod speaks for the turn, so the runtime's own "taking longer" line — armed
+#: until the turn's first words — never fires after one. These are the floor in
+#: its place: a holding line once the model has been quiet :data:`HOLD_AFTER_S`
+#: past the nod, and an apology once it has been quiet :data:`SORRY_AFTER_S`.
+HOLD_AFTER_S = 4.0
+SORRY_AFTER_S = 12.0
+HOLD: Mapping[Language, tuple[str, ...]] = {
+    Language.EN: ("One moment.", "Just a moment."),
+    Language.HI: ("एक पल।", "बस एक पल।"),
+}
+SORRY: Mapping[Language, str] = {
+    Language.EN: "Sorry, that's taking a little longer.",
+    Language.HI: "माफ़ कीजिए, थोड़ा समय लग रहा है।",
+}
+
 #: Words, in either script; the danda (।) ends a sentence and is not a letter.
 _WORDS = re.compile("[\\w\u0900-\u0963\u0966-\u097f']+")
 
@@ -324,4 +339,10 @@ class Acknowledger:
             return None
         choices = [line for line in lines if line != self._last] or list(lines)
         self._last = self._rng.choice(choices)
+        return self._last
+
+    def hold(self, spoken: Language) -> str:
+        """A line that keeps the floor while the model is slow, never the last one said."""
+        lines = HOLD.get(spoken, HOLD[Language.EN])
+        self._last = self._rng.choice([line for line in lines if line != self._last] or list(lines))
         return self._last

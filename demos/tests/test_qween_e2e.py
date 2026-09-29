@@ -529,6 +529,51 @@ async def test_a_nod_is_in_the_voice_now_speaking(monkeypatch: pytest.MonkeyPatc
         assert turn.units[0].text in acknowledge.LINES[acknowledge.Language.HI]["request"]
 
 
+async def test_a_slow_model_after_the_nod_is_held_not_left_silent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The nod disarms the runtime's "taking longer" line, so the brain holds
+    the floor itself: a holding line while the model is quiet, heard between
+    the nod and the answer, and like the nod never in the model's context."""
+    monkeypatch.setattr(acknowledge, "RATE", 1.0)
+    monkeypatch.setattr(acknowledge, "HOLD_AFTER_S", 0.2)
+    llm = ScriptedGemini(
+        {"Is it hallmarked?": [reply(chunks=["Yes, every piece is hallmarked."], chunk_delay=0.6)]}
+    )
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Is it hallmarked?", quiet_for=1.0)
+        check_turn(rig, turn, units=3)
+        nod, hold, answer = (u.text for u in turn.units)
+        assert nod in acknowledge.LINES[acknowledge.Language.EN]["question"]
+        assert hold in acknowledge.HOLD[acknowledge.Language.EN]
+        assert answer == "Yes, every piece is hallmarked."
+        await rig.driver.user_says("Is it hallmarked?")
+        said = [
+            p.text
+            for c in llm.captured_contents[-1]
+            if c.role == "model"
+            for p in (c.parts or [])
+            if p.text
+        ]
+        assert answer in said
+        assert nod not in said
+        assert hold not in said
+
+
+async def test_a_quick_model_after_the_nod_is_not_held(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The negative control: an answer inside the window gets no holding line."""
+    monkeypatch.setattr(acknowledge, "RATE", 1.0)
+    monkeypatch.setattr(acknowledge, "HOLD_AFTER_S", 0.5)
+    llm = ScriptedGemini(
+        {"Is it hallmarked?": [reply(chunks=["Yes, every piece is hallmarked."], chunk_delay=0.05)]}
+    )
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Is it hallmarked?")
+        check_turn(rig, turn, units=2)
+
+
 @pytest.mark.parametrize(
     ("said", "kind"),
     [

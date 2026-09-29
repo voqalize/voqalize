@@ -30,12 +30,14 @@ meant to be good enough that this is a choice, not an escape.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import re
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from google import genai
 from google.genai import types
@@ -65,6 +67,7 @@ from voqalize.sdk import (
 from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
+from . import acknowledge
 from .acknowledge import Acknowledger
 from .app_events import (
     QWEEN_EVENTS,
@@ -643,8 +646,71 @@ class QweenBrain(GeminiBrain):
             self._awaiting.append(_Unit(types.Content(role="model", parts=[])))
             yield SpeechChunk(nod)
             yield SpeechEnd()
+            async for event in self._hold_the_floor(super().on_user_message(session, msg)):
+                yield event
+            return
         async for event in super().on_user_message(session, msg):
             yield event
+
+    async def _hold_the_floor(
+        self, turn: AsyncGenerator[Speech, None]
+    ) -> AsyncGenerator[Speech, None]:
+        """The model's turn after a nod, with a line of hers if it stays quiet.
+
+        The nod was the turn's first speech, so the runtime's "taking longer"
+        line is already disarmed, and a slow model after "Sure." is silence
+        until the shopper gives up: on 2026-09-29 one sat 22 s after "Hmm.".
+        The turn runs in a task of its own that feeds a queue, so its context —
+        the turn's calls that :class:`FallbackLine` reads — stays in one task,
+        and the wait for its next event can time out without disturbing it.
+
+        A line of hers goes out only while the model has yielded nothing, so
+        any unit the model has opened is still unspoken and is heard after
+        hers: hers is queued for its finalize ahead of those.
+        """
+        done = object()
+        events: asyncio.Queue[object] = asyncio.Queue()
+
+        async def pump() -> None:
+            try:
+                async for event in turn:
+                    await events.put(event)
+            finally:
+                await events.put(done)
+
+        before = {id(unit) for unit in self._awaiting}
+        task = asyncio.create_task(pump())
+        floor = [acknowledge.HOLD_AFTER_S, acknowledge.SORRY_AFTER_S - acknowledge.HOLD_AFTER_S]
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(events.get(), floor[0] if floor else None)
+                except TimeoutError:
+                    line = (
+                        self._ack.hold(self.spoken)
+                        if len(floor) == 2
+                        else acknowledge.SORRY[self.spoken]
+                    )
+                    floor.pop(0)
+                    logger.warning("qween: the model is quiet after the nod; saying {!r}", line)
+                    at = next(
+                        (i for i, unit in enumerate(self._awaiting) if id(unit) not in before),
+                        len(self._awaiting),
+                    )
+                    yield SpeechStart()
+                    self._awaiting.insert(at, _Unit(types.Content(role="model", parts=[])))
+                    yield SpeechChunk(line)
+                    yield SpeechEnd()
+                    continue
+                if event is done:
+                    break
+                floor = []
+                yield cast(Speech, event)
+            task.result()
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, and a line of Trisha's own if it acted and said
