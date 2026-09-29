@@ -367,8 +367,9 @@ async def test_the_demo_says_goodbye_exactly_once(monkeypatch: pytest.MonkeyPatc
 
 async def test_a_gesture_made_in_silence_is_still_said() -> None:
     """The prompt has the model speak with every call; this is the turn where it
-    did not. The brain names the gesture the visitor just saw — one request, no
-    second ask — and the line never reaches the model's context."""
+    did not. The brain says what a person says while making that gesture — never
+    a caption of it — in one request, no second ask, and the line never reaches
+    the model's context."""
     llm = ScriptedGemini(
         {
             "Can you nod?": call("perform", request={"gesture": "nod"}),
@@ -379,7 +380,7 @@ async def test_a_gesture_made_in_silence_is_still_said() -> None:
         await rig.driver.start_session()
         turn = await rig.driver.user_says("Can you nod?")
         check_turn(rig, turn, units=1)
-        assert [u.text for u in turn.units] == ["That's a nod."]
+        assert [u.text for u in turn.units] in (["Like this."], ["Sure."])
         assert _actions(rig) == ["ACK_NOD"], _avatar_messages(rig)
         assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
 
@@ -390,4 +391,39 @@ async def test_a_gesture_made_in_silence_is_still_said() -> None:
             if content.role == "model"
             for part in content.parts or []
         )
-        assert "That's a nod." not in spoken, "the brain's line reached the context"
+        assert "Like this." not in spoken and "Sure." not in spoken, (
+            "the brain's line reached the context"
+        )
+
+
+async def test_a_stage_direction_is_made_and_never_spoken() -> None:
+    """On dev (2026-09-29) the model wrote "*Waves hello*" and "*Nods*" into its
+    replies, and the voice read them out. A direction the face can make becomes
+    the gesture; the rest of the line is spoken; emphasis keeps its word."""
+    llm = ScriptedGemini(
+        {
+            "Tell me a poem.": reply(
+                "I can do better than that. \n\n*Waves hello*\n\nThe browser *really* draws my face. [nods]"
+            ),
+        }
+    )
+    async with demo("avatar", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Tell me a poem.")
+        check_turn(rig, turn, units=1)
+        spoken = " ".join(u.text for u in turn.units)
+        assert "*" not in spoken and "Waves" not in spoken and "nods" not in spoken, spoken
+        assert "really draws my face" in spoken, spoken
+        assert _actions(rig) == ["GESTURE_GREET", "ACK_NOD"], _avatar_messages(rig)
+
+
+def test_a_stage_direction_split_across_chunks_is_still_lifted() -> None:
+    """The model streams, so a direction can open in one chunk and close in the
+    next. A bullet's marker is not a direction and does not hold the sentence,
+    and it is not read aloud either."""
+    acted: list[str] = []
+    stage = brain_module._StageDirections(acted.append)  # pyright: ignore[reportPrivateUsage]
+    out = stage.feed("Sure. *wa") + stage.feed("ves goodbye* See") + stage.feed(" you.")
+    out += stage.feed(" * a bullet") + stage.flush()
+    assert out == "Sure. See you. a bullet", out
+    assert acted == ["GESTURE_GOODBYE"], acted

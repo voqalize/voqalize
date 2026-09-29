@@ -49,7 +49,7 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -138,18 +138,116 @@ _GESTURE_IDS: dict[str, str] = {
 }
 
 #: What the avatar says for a gesture it made in silence — see
-#: :mod:`voqalize_demos.silent_turn`. It names what the visitor just saw, so a
-#: gesture asked for and made without a word still answers the ask.
+#: :mod:`voqalize_demos.silent_turn`. Each is what a person says while making
+#: that gesture, never a caption of it: "That's a nod." turns the face into a
+#: slide narrating itself, which is the illusion breaking out loud (owner,
+#: 2026-09-29).
 _GESTURE_LINES: dict[str, tuple[str, ...]] = {
-    "wave_hello": ("That's a wave.", "Hello!"),
-    "wave_goodbye": ("That's the goodbye wave.",),
-    "nod": ("That's a nod.",),
-    "acknowledge": ("That's an acknowledgement.",),
-    "approve": ("That's approval.",),
-    "ask_to_wait": ("That's the wait gesture.",),
+    "wave_hello": ("Hello!", "Hi there!"),
+    "wave_goodbye": ("Bye for now!",),
+    "nod": ("Like this.", "Sure."),
+    "acknowledge": ("Got it.",),
+    "approve": ("Nice.", "I like that."),
+    "ask_to_wait": ("One moment.",),
 }
 # A gesture with no line would raise mid-call, so the two are held to each other here.
 assert set(_GESTURE_LINES) == set(_GESTURE_IDS), "_GESTURE_LINES and _GESTURE_IDS disagree"
+
+
+# ─── Stage directions ─────────────────────────────────────────────────────────
+#
+# Asked to demonstrate a face, a model writes the gesture into its reply —
+# "*Waves hello*", "*Nods*" — and every character of a reply is read aloud. On
+# dev (2026-09-29) both went to the voice on one call. The prompt forbids it,
+# and this is the floor under the prompt: a direction is lifted out of the
+# speech, and one the face can make is made instead.
+
+#: The first word of a stage direction. Only these are lifted, because the same
+#: asterisks are also markdown emphasis, and "*really*" is a word to say.
+_DIRECTION = re.compile(
+    r"(nod|wave|smile|grin|laugh|chuckle|shrug|wink|tilt|lean|raise|blink|gesture|beam|sigh)",
+    re.IGNORECASE,
+)
+
+#: What a direction the face can make becomes, most specific first.
+_DIRECTION_ACTIONS: tuple[tuple[str, str], ...] = (
+    ("bye", "GESTURE_GOODBYE"),
+    ("wave", "GESTURE_GREET"),
+    ("nod", "ACK_NOD"),
+)
+
+_MARKERS = {"*": "*", "[": "]"}
+
+#: The longest direction held back from the voice. "*waves goodbye warmly*" is
+#: well inside it; past it the text is prose, and is let go.
+_HOLD_MAX = 40
+
+
+class _StageDirections:
+    """Lifts ``*…*`` and ``[…]`` stage directions out of streamed speech.
+
+    Stateful across chunks, because the model streams and a direction can open
+    in one chunk and close in the next. Text inside a marker is held until the
+    marker closes, then either dropped (a direction, whose gesture is made) or
+    spoken without its markers (emphasis)."""
+
+    def __init__(self, act: Callable[[str], None]) -> None:
+        self._act = act
+        self._close: str | None = None
+        self._held = ""
+        self._spaced = False
+
+    def feed(self, text: str) -> str:
+        out: list[str] = []
+        for ch in text:
+            if self._close is None:
+                if ch in _MARKERS:
+                    self._close = _MARKERS[ch]
+                else:
+                    out.append(ch)
+            elif ch == self._close:
+                out.append(self._resolve(self._held))
+                self._close, self._held = None, ""
+            elif (not self._held and ch.isspace()) or len(self._held) >= _HOLD_MAX:
+                # A marker followed by a space is a bullet, and a long run is
+                # prose: neither is a direction, and holding it would silence
+                # the rest of the sentence until the unit ends. The marker
+                # itself is not spoken.
+                out.append(self._held + ch)
+                self._close, self._held = None, ""
+            else:
+                self._held += ch
+        return self._tidy("".join(out))
+
+    def flush(self) -> str:
+        """What is still held when the unit ends: an unclosed marker is text."""
+        held, self._close, self._held = self._held, None, ""
+        return self._tidy(self._resolve(held)) if held else ""
+
+    def _tidy(self, text: str) -> str:
+        """The spaces a lifted direction leaves behind, closed up — across the
+        chunk boundary too, since the space before a direction and the one
+        after it usually arrive in different chunks."""
+        text = re.sub(r"[ \t]{2,}", " ", text)
+        if self._spaced and text[:1] in (" ", "\t"):
+            text = text[1:]
+        if text:
+            self._spaced = text[-1] in (" ", "\t")
+        return text
+
+    def _resolve(self, inner: str) -> str:
+        words = inner.strip().split()
+        if not words or not _DIRECTION.match(words[0]):
+            return inner
+        lowered = inner.lower()
+        for cue, action_id in _DIRECTION_ACTIONS:
+            if cue in lowered:
+                logger.info("avatar: stage direction {!r} made as {}", inner, action_id)
+                self._act(action_id)
+                break
+        else:
+            logger.info("avatar: stage direction {!r} dropped", inner)
+        return ""
 
 
 # ─── Actions (what the page renders) ──────────────────────────────────────────
@@ -249,7 +347,9 @@ EVERY RESPONSE STARTS WITH WORDS. Write your short line first, then make the cal
 
 POINT FIRST, THEN TALK. For ANY question about how the thing works — what it is, how it compares with video avatars like HeyGen or Tavus, installing it, driving it from a server, the lipsync, the states, the faces, the limits — say a few words that point ("Here's the timeline") and call show_section in that same response, before you answer. Its lines come back at once, and you answer from them. The scroll is the answer; your sentences are the footnote on it. One section per question. NEVER read the page out loud, and never summarise what is now on their screen — say only the thing the page left out, or the reason behind it.
 
-DEMONSTRATE, DO NOT DESCRIBE. When you have just explained an action, perform one — a wave, a nod — in the same response as the line that explains it. If someone asks "show me" a gesture, the answer is a tool call with a line, not a sentence alone. States are not yours to put on: the voice tier shows thinking on your face by itself while a reply is on its way. If they ask to see one, scroll to the states section and say that.
+GESTURE LIKE A PERSON, NOT A SHOWREEL. Your face already blinks, breathes, listens and nods along by itself; you do not have to prove it moves. Call perform only when a person in your place would make that gesture anyway — a wave when they say hello or goodbye, a nod when you agree with them — or when they ask to see one. Never gesture just because you mentioned gestures, and never tack one onto an answer. When they ask to see one, say what a person would say while doing it ("Hi there!", "Sure."), never a caption like "That's a nod." States are not yours to put on: the voice tier shows thinking on your face by itself while a reply is on its way. If they ask to see one, scroll to the states section and say that.
+
+NEVER WRITE AN ACTION IN WORDS. Everything you write is read aloud by the voice. No stage directions, no asterisks, no brackets: never "*nods*", "*waves hello*", "(smiles)". A gesture is a perform call and nothing else.
 
 THE FACE IS NOT YOURS TO CHANGE. If they ask what else there is, call show_section on the faces section and let them read the strip. Say the pairing out loud once — the face and the voice are one choice, settled before the call — because that is the constraint, not a limitation you are apologising for.
 
@@ -385,10 +485,10 @@ class AvatarBrain(GeminiBrain):
 
     async def perform(self, request: GestureRequest) -> str:
         """Perform one behaviour — a wave, a nod, an acknowledgement, a wait
-        gesture. It completes on its own and leaves no state behind. Use it to
-        show what an action is, and to punctuate what you are saying: say the line
-        in the same response that calls it, because nothing is said after it until
-        the visitor speaks."""
+        gesture. It completes on its own and leaves no state behind. Use it only
+        where a person would make the gesture anyway, or when the visitor asks to
+        see one. Say the line in the same response that calls it, because nothing
+        is said after it until the visitor speaks."""
         action_id = _GESTURE_IDS[request.gesture]
         logger.info("avatar: perform {} ({})", request.gesture, action_id)
         self._act(action_id)
@@ -504,8 +604,17 @@ class AvatarBrain(GeminiBrain):
         the sign-off rather than a model turn that ran over.
 
         A turn that gestured and said nothing gets a line of the avatar's own
-        first; see :mod:`voqalize_demos.silent_turn`."""
+        first; see :mod:`voqalize_demos.silent_turn`. A stage direction the model
+        wrote anyway is lifted out of the speech on the way; see
+        :class:`_StageDirections`."""
+        stage = _StageDirections(self._act)
         async for speech in self._fallback.speak_if_silent(self, super().respond(session)):
+            if isinstance(speech, SpeechChunk):
+                if text := stage.feed(speech.text):
+                    yield SpeechChunk(text)
+                continue
+            if isinstance(speech, SpeechEnd) and (text := stage.flush()):
+                yield SpeechChunk(text)
             yield speech
         if self._out_of_time() and not self._signed_off:
             async for speech in self._sign_off(session):
