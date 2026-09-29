@@ -58,11 +58,14 @@ from voqalize.sdk import (
     Session,
     Speech,
     SpeechChunk,
+    SpeechEnd,
     SpeechStart,
     UserMessage,
 )
+from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
+from .acknowledge import Acknowledger
 from .app_events import (
     QWEEN_EVENTS,
     CommandFailed,
@@ -201,7 +204,7 @@ WHAT YOU DO NOT DO. You do not place orders, take payment or personal details, h
 
 THE FIRST SENTENCE IS A FEW WORDS. The shopper hears nothing until your whole first sentence has been voiced, and a long one is a long silence first. So open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, then say the rest in the next sentence. Put the answer in it, not a preamble: "Yes, it's hallmarked. Every Qween piece carries the BIS mark." — not "Every piece we make is hallmarked by BIS, which certifies the purity of the gold, so you can…". "A cluster, for her. It looks larger than a solitaire for the price." Never join clauses with commas or a semicolon to stretch the first sentence.
 
-SOUND LIKE A PERSON, NOT A SCRIPT. Now and then — in about one reply in three, never two in a row — let a small filler in where a person thinking aloud would pause. It never makes the first sentence longer: either it is the whole first sentence ("Hmm. It depends on the occasion.", "So. The rose gold, I think."), or it comes later, at a sentence start or before the word you are choosing ("Rose gold suits you. It's, well, the lighter of the two."). Use "hmm", "so", "um", "well", "I think"; in Hindi "हम्म", "अच्छा", "तो". Never inside or next to a price, weight, karat, grade or a piece's name — a pause there sounds unsure of the fact. Never on an apology, never twice in one reply, and never "uh-huh" or "like".
+SOUND LIKE A PERSON, NOT A SCRIPT. Before most replies the shopper has already heard a short acknowledgement of mine — "Sure.", "Right.", "I see.", "जी।", "अच्छा।" — the moment they stopped speaking. So never open with one, and never open with a filler: your first word is the answer. Inside a reply, now and then — in about one reply in three, never two in a row — let a small filler in where a person thinking aloud would pause, at a later sentence's start or before the word you are choosing: "Rose gold suits you. It's, well, the lighter of the two." "A pendant works. Or, hmm, a light chain." Use "hmm", "so", "um", "well", "I think"; in Hindi "हम्म", "अच्छा", "तो". Never inside or next to a price, weight, karat, grade or a piece's name — a pause there sounds unsure of the fact. Never on an apology, never twice in one reply, and never "uh-huh" or "like".
 
 VOICE STYLE. One or two sentences a turn, each under about fifteen words; take more only when they asked for an explanation. No markdown, lists or symbols in speech. No "Great question", no restating what they asked. Call the shopper "you".
 
@@ -585,6 +588,7 @@ class QweenBrain(GeminiBrain):
         self._moved_at = 0.0
         self.spoken: Language = SPEECH[OPENING].spoken
         self._fallback = FallbackLine()
+        self._ack = Acknowledger()
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -630,6 +634,15 @@ class QweenBrain(GeminiBrain):
         if self._shopper_moved:
             moved = f"The shopper moved the page themselves. Now: {self._screen()}"
             self.append_to_context(types.Content(role="user", parts=[types.Part(text=moved)]))
+        # A nod of hers while the model thinks, in the voice now speaking. It
+        # is a unit Voqalize finalizes, queued ahead of the model's own, and
+        # never in the model's context. See `.acknowledge`.
+        if (nod := self._ack.line(msg.text, self.spoken)) is not None:
+            logger.info("qween: ack {!r}", nod)
+            yield SpeechStart()
+            self._awaiting.append(_Unit(types.Content(role="model", parts=[])))
+            yield SpeechChunk(nod)
+            yield SpeechEnd()
         async for event in super().on_user_message(session, msg):
             yield event
 

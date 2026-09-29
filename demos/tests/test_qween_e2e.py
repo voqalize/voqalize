@@ -27,6 +27,7 @@ Run: ``cd demos && uv run pytest tests/test_qween_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import itertools
 import time
 from collections.abc import Iterator
 
@@ -41,8 +42,15 @@ from ._harness import _configs, check_greeting, check_turn, check_voice_pair, de
 
 discover()
 
+from voqalize_demos._loaded.qween import acknowledge  # noqa: E402
 from voqalize_demos._loaded.qween.brain import _GREETING, _sounds_hindi  # noqa: E402
 from voqalize_demos._loaded.qween.catalog import FEED, QUOTE_LIMIT_S, Catalog  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _no_nod(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Her nod is random; a test that wants it asks for it."""
+    monkeypatch.setattr(acknowledge, "RATE", 0.0)
 
 
 def _item(
@@ -482,3 +490,73 @@ async def test_patience_stays_at_the_floor_through_a_language_switch() -> None:
 )
 def test_english_is_not_heard_as_hindi(said: str) -> None:
     assert not _sounds_hindi(said)
+
+
+async def test_a_nod_is_heard_before_the_model_and_kept_out_of_its_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A request gets a yes of hers as its own unit, ahead of the model's reply;
+    the model is never shown it, so it cannot learn to leave the nodding to her
+    or repeat it."""
+    monkeypatch.setattr(acknowledge, "RATE", 1.0)
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says(
+            "Show me rose gold earrings with pink sapphire under a lakh."
+        )
+        check_turn(rig, turn, units=2)
+        nod, answer = (u.text for u in turn.units)
+        assert nod in acknowledge.LINES[acknowledge.Language.EN]["request"]
+        assert answer != nod
+        said = [
+            p.text
+            for c in llm.captured_contents[-1]
+            if c.role == "model"
+            for p in (c.parts or [])
+            if p.text
+        ]
+        assert nod not in said
+
+
+async def test_a_nod_is_in_the_voice_now_speaking(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hinglish switches both legs before the nod, so it is a Hindi one."""
+    monkeypatch.setattr(acknowledge, "RATE", 1.0)
+    async with demo("qween", _llm()) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Hindi mein baat karo, mujhe rings dikhao.")
+        check_turn(rig, turn, units=2)
+        assert turn.units[0].text in acknowledge.LINES[acknowledge.Language.HI]["request"]
+
+
+@pytest.mark.parametrize(
+    ("said", "kind"),
+    [
+        ("Show me rose gold earrings.", "request"),
+        ("Can you show me something lighter?", "request"),
+        ("मुझे अपनी बहन की शादी के लिए कुछ चाहिए।", "request"),
+        ("Is it hallmarked?", "question"),
+        ("What's the difference between VS and SI?", "question"),
+        ("रोज़ पहनने के लिए कौन सा गोल्ड अच्छा है?", "question"),
+        ("No, the yellow one.", "correction"),
+        ("I don't like this one.", "correction"),
+        ("It's for my wife's birthday.", "statement"),
+        # Nothing to nod at.
+        ("Okay.", None),
+        ("Thank you so much, bye.", None),
+        ("Hello?", None),
+        # The English recognizer's spelling of Hindi: nodding at it in English
+        # would come before a reply the model writes in Hindi.
+        ("Apindimene bolti?", None),
+        ("Thika Muja lightweight dikhana", None),
+    ],
+)
+def test_the_nod_reads_what_was_asked(said: str, kind: str | None) -> None:
+    assert acknowledge.classify(said) == kind
+
+
+def test_the_nod_never_repeats_itself(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(acknowledge, "RATE", 1.0)
+    ack = acknowledge.Acknowledger()
+    said = [ack.line("Show me rings.", acknowledge.Language.EN) for _ in range(50)]
+    assert all(a != b for a, b in itertools.pairwise(said))
