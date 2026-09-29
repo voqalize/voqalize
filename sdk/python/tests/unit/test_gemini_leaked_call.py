@@ -102,15 +102,10 @@ def _say_and_call(text: str, name: str = "ping") -> Script:
     ]
 
 
-def _malformed() -> types.GenerateContentResponse:
-    """The last chunk of a hop whose function call did not parse."""
-    return types.GenerateContentResponse(
-        candidates=[
-            types.Candidate(
-                content=types.Content(role="model", parts=[]),
-                finish_reason=types.FinishReason.MALFORMED_FUNCTION_CALL,
-            )
-        ]
+def _malformed(reason: str = "MALFORMED_FUNCTION_CALL") -> types.GenerateContentResponse:
+    """The last chunk of a hop whose output did not parse, as the API sends it."""
+    return types.GenerateContentResponse.model_validate(
+        {"candidates": [{"content": {"role": "model", "parts": []}, "finishReason": reason}]}
     )
 
 
@@ -148,6 +143,27 @@ async def test_a_malformed_function_call_asks_again() -> None:
     assert _shape(events) == ["[", "Here it is.", "]"]
     assert len(models.requests) == 2
     assert _history(brain) == ["user: hello", "model: Here it is."]
+
+
+async def test_a_malformed_response_asks_again() -> None:
+    """``MALFORMED_RESPONSE`` is the same dead end under a newer name — one the
+    installed ``google-genai`` may not know. On a dialled call it left a shopper
+    who had asked for the price breakup with no answer at all."""
+    _, models, events = await _run(
+        [_chunk([types.Part(text="Let me get the details.")]), _malformed("MALFORMED_RESPONSE")],
+        _say_and_call("Here's the price breakup."),
+    )
+
+    assert _shape(events) == [
+        "[",
+        "Let me get the details.",
+        "]",
+        "[",
+        "Here's the price breakup.",
+        "]",
+    ]
+    assert len(models.requests) == 2
+    assert models.requests[1][-1] is _RETRY_NOTE
 
 
 async def test_speech_before_a_malformed_call_stays_spoken_and_heard() -> None:

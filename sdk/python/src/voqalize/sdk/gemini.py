@@ -1075,11 +1075,19 @@ def _finished(chunk: types.GenerateContentResponse) -> bool:
     return any(c.finish_reason is not None for c in chunk.candidates or [])
 
 
+#: Finish reasons that end a response with nothing to run and nothing said.
+#: ``MALFORMED_RESPONSE`` is newer than some ``google-genai`` releases, which warn
+#: that it is not a ``FinishReason`` and keep it anyway; so it is matched by its
+#: value, not by a member that may not exist.
+_MALFORMED_REASONS = frozenset({"MALFORMED_FUNCTION_CALL", "MALFORMED_RESPONSE"})
+
+
 def _malformed(chunk: types.GenerateContentResponse) -> bool:
-    """True when the response ended because the model's function call did not
-    parse: there is no call to run, and the stream just ends — with nothing said."""
+    """True when the response ended because the model's output did not parse —
+    a function call, or the response as a whole: there is no call to run, and
+    the stream just ends with nothing said."""
     return any(
-        c.finish_reason == types.FinishReason.MALFORMED_FUNCTION_CALL
+        getattr(c.finish_reason, "value", c.finish_reason) in _MALFORMED_REASONS
         for c in chunk.candidates or []
     )
 
