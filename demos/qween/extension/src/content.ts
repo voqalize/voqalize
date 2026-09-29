@@ -29,6 +29,7 @@ import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
 import { type AvatarInstance, createAvatar, listCharacters } from "@voqalize/avatar";
 
 import { type AppEvent, asUiAction, sendAppEvent, UI_ACTION_COMMANDS } from "./actions.gen";
+import { watchDialogs } from "./dialogs";
 import { mountWidget, type Status } from "./widget";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
@@ -93,6 +94,8 @@ function start(): void {
   if (missing.length) console.warn("voqalize: the adapter cannot perform", missing);
 
   const widget = mountWidget();
+  // Qween's drawers open over the corner the widget sits in; it steps aside.
+  watchDialogs((open) => widget.avoid(open));
   let client: PipecatClient | null = null;
   let avatar: AvatarInstance | null = null;
   let stopAdapter: (() => void) | null = null;

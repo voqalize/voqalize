@@ -20,7 +20,14 @@ own shop before anything goes on it; it is not how a merchant would ship it.
 - `src/actions.gen.ts` — the Action and event unions, generated from the brain
   with `pnpm gen`. Regenerate after changing either.
 - `src/widget.ts` — the corner widget, in a shadow root, in Qween's own
-  typefaces and palette.
+  typefaces and palette. Qween opens its drawers on the right edge, so while
+  one is open — opened by the shopper or by Trisha — the widget glides to the
+  left of it, or to a free corner, or shrinks to her face alone when there is no
+  room. The shopper can drag it anywhere (the spot is remembered as the new
+  home) and minimise it to that face with the call still live: the audio and
+  the microphone are untouched.
+- `src/dialogs.ts` — watches the page for open drawers and dialogs and reports
+  where they will settle, not where they are mid-slide.
 - `src/content.ts` — the call: stock pipecat, one `sessions.connect`, the
   avatar, and the glue between the adapter and the brain.
 

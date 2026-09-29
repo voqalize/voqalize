@@ -51,9 +51,16 @@ from voqalize_demos import (
     needs_result_now,
     phrase,
 )
-from voqalize_demos.screen import ScreenState
 
-from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserMessage
+from voqalize.sdk import (
+    Action,
+    RTVIMessage,
+    Session,
+    Speech,
+    SpeechChunk,
+    SpeechStart,
+    UserMessage,
+)
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import (
@@ -131,14 +138,19 @@ _KNOWLEDGE = (Path(__file__).parent / "knowledge" / "L1.md").read_text(encoding=
 # the Hindi one writes them. A shopper who uses them is speaking Hindi or
 # Hinglish, whatever the nouns are — the same test the prompt gives the model.
 _HINDI_GRAMMAR = (
-    "hai hain hoon hun kya kyaa mein mujhe muje mujhko chahiye chahie chahi "
-    "karo kariye karna dikhao dikhaiye dikha aap baat nahi nahin sakti sakte sakta "
+    "hai hain hoon hun kya kyaa mein mujhe muje muja mujhko chahiye chahie chahi "
+    "karo kariye karna dikhao dikhaiye dikha dikhana aap baat nahi nahin sakti sakte sakta "
+    "sabse bolti bolo batao bataiye theek thik hazar hazaar "
     "wala wali kitna kitne kitni liye bhi aur yeh woh accha acha haan ka ki ke ko se ek "
     "है हैं हूँ हूं क्या में मुझे चाहिए करो करिए करना दिखाओ दिखाइए दिखा आप बात नहीं "
     "सकती सकते सकता वाला वाली कितना कितने कितनी लिए भी और यह ये वह वो अच्छा हाँ हां "
     "का की के को से एक"
 )
 _HINDI_WORDS = frozenset(_HINDI_GRAMMAR.split())
+
+
+#: Hindi's script: a reply written in it is a reply in Hindi.
+_DEVANAGARI = re.compile(r"[\u0900-\u097f]")
 
 
 def _sounds_hindi(text: str) -> bool:
@@ -181,11 +193,11 @@ NUMBERS COME FROM A SOURCE, NEVER FROM MEMORY. A price, weight, carat, grade or 
 
 HELP THEM NARROW. Most shoppers arrive with a feeling, not a filter: "something for my mother", "an everyday ring", "under fifty thousand". Ask one short question at a time when you need to — the occasion, a metal they like, a budget — and show something as soon as you can rather than interviewing them. When they react to what is on screen, narrow from there. Offer a view when they want one: which gold suits everyday wear, whether a diamond grade is worth the difference.
 
-WHAT IS ON SCREEN IS LIVE. The shopper clicks too. When they say "this one", "that", "the second one" and the shopper has moved the page since you last read it, call get_screen first — before any words — and answer about what is actually there. When the piece is one you opened and nothing has moved since, what show_piece returned is still true. Cards are numbered in the order the page shows them.
+WHAT IS ON SCREEN IS LIVE. The shopper clicks too. When they have moved the page, their next message comes with what their screen now shows — the piece with every gold, purity and price, or the cards in order. "This one", "that", "the second one" mean what it says: answer from it at once, in one reply, without calling get_screen. When the piece is one you opened and nothing has moved since, what show_piece returned is still true. Cards are numbered in the order the page shows them.
 
 A PERSON IS ALWAYS ONE STEP AWAY. If they want to see a piece in person, talk to someone, book an appointment, or ask something you cannot answer — an order, a delivery already placed, a custom design, a repair — offer Qween's own people with connect_to_person: the concierge (call or WhatsApp), a live video consultation, or a boutique. Do it gladly, not as a failure.
 
-WHAT YOU DO NOT DO. You do not place orders, take payment or personal details, hold stock, promise delivery dates, or offer discounts. You do not invent a piece, a collection, a policy or a figure. Qween sells only natural diamonds and gemstones — never say lab-grown. If something is not in QWEEN KNOWLEDGE and no tool gives it to you, say you are not sure and offer the concierge.
+WHAT YOU DO NOT DO. You do not place orders, take payment or personal details, hold stock, promise delivery dates, or offer discounts. You do not invent a piece, a collection, a policy or a figure. Qween sells only natural diamonds and gemstones — never say lab-grown. If something is not in QWEEN KNOWLEDGE and no tool gives it to you, say you are not sure and offer the concierge. What a gemstone or a gold is, you may explain; how Qween sets its own prices — how making charges are worked out, when the gold rate is taken, what a certificate or card includes — you know only from QWEEN KNOWLEDGE or the page's own words.
 
 VOICE STYLE. One or two sentences a turn, each under about fifteen words; take more only when they asked for an explanation. No markdown, lists or symbols in speech. No "Great question", no restating what they asked. Call the shopper "you".
 
@@ -329,7 +341,14 @@ class FindRequest(BaseModel):
         "'rose bloom', yellow is 'desert noon', white is 'snowfall white'.",
     )
     stones: list[StoneName] = Field(
-        default_factory=list, description="Stones; a piece with any of them matches."
+        default_factory=list,
+        description=(
+            "Stones; a piece with ANY of them matches, so two stones list pieces with "
+            "either one, not both. For a piece with two stones together, pass only the "
+            "one that defines it — emerald, not diamond, since most coloured-stone "
+            'pieces are set with diamonds too. Say "Here are our emerald earrings.", '
+            'never "Here are our emerald and diamond earrings."'
+        ),
     )
     shapes: list[ShapeName] = Field(
         default_factory=list, description="Stone shapes; any of them matches."
@@ -547,12 +566,14 @@ class QweenBrain(GeminiBrain):
 
     The mirror is patched from the adapter's events, which fire for the agent's
     moves and the shopper's own clicks alike. A move of hers lands with its result
-    (the cards it produced, the dialog's words); a move of theirs is named, and
-    :meth:`get_screen` says where to."""
+    (the cards it produced, the dialog's words); a move of theirs is read into
+    their next message, so a question about "this one" is one model request and
+    not a read and then an answer."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
         super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
-        self.screen = ScreenState(read_tool="get_screen", actor="shopper")
+        #: The shopper moved the page since the model last saw it.
+        self._shopper_moved = False
         self.page: PageChanged | None = None
         self.dialog: DialogOpened | None = None
         #: When Trisha last moved the page, so the route change that follows is
@@ -598,14 +619,46 @@ class QweenBrain(GeminiBrain):
         if self.spoken != SPEECH["hindi"].spoken and _sounds_hindi(msg.text):
             await session.configure(self._speaking("hindi"))
             logger.info("qween: language -> hindi (heard)")
+        # The brain reads the screen, not the model: left to get_screen it is a
+        # whole model request of silence before the answer's first word, and on
+        # the 2026-09-29 calls every "this one" after a click of theirs paid it.
+        # Read now, the figures are as current as a read would have been.
+        if self._shopper_moved:
+            moved = f"The shopper moved the page themselves. Now: {self._screen()}"
+            self.append_to_context(types.Content(role="user", parts=[types.Part(text=moved)]))
         async for event in super().on_user_message(session, msg):
             yield event
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, and a line of Trisha's own if it acted and said
-        nothing. See :mod:`voqalize_demos.silent_turn`."""
+        nothing. See :mod:`voqalize_demos.silent_turn`.
+
+        A unit is opened only once its first words are known, so the voice
+        follows the model's own choice of language. The English recognizer
+        spells Hindi as English-looking noise ("Thika Muja lightweight
+        dikhana", on 2026-09-29) that no word list catches, yet the model
+        understood it and wrote Devanagari — which the English voice then
+        read aloud. Holding the opening costs nothing audible: speech cannot
+        start before its first words anyway."""
+        opening: SpeechStart | None = None
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            if isinstance(event, SpeechStart):
+                opening = event
+                continue
+            if opening is not None:
+                if isinstance(event, SpeechChunk):
+                    await self._follow_script(session, event.text)
+                yield opening
+                opening = None
             yield event
+        if opening is not None:
+            yield opening
+
+    async def _follow_script(self, session: Session, text: str) -> None:
+        """Move both legs to Hindi when the model writes it and the call is not."""
+        if self.spoken != SPEECH["hindi"].spoken and _DEVANAGARI.search(text):
+            await session.configure(self._speaking("hindi"))
+            logger.info("qween: language -> hindi (written)")
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Page→brain events, folded in silently: no floor taken, no turn."""
@@ -627,7 +680,10 @@ class QweenBrain(GeminiBrain):
                 self.dialog = None
                 if self._own_move():
                     return self._landed_note(event)
-                return self.screen.moved(f"opened {self._where(event)} themselves")
+                # Read into their next message, not noted now: they may click
+                # on before they speak, and only the last page matters.
+                self._shopper_moved = True
+                return None
             case DialogOpened():
                 self.dialog = event
                 text = event.text[:_DIALOG_CHARS]
@@ -940,7 +996,9 @@ class QweenBrain(GeminiBrain):
         """Bring the shopper to one of Qween's people: the concierge by call or
         WhatsApp, a live video consultation, or a boutique. Offer it gladly
         whenever they want a person, want to see a piece in hand, or ask
-        something you cannot answer."""
+        something you cannot answer. Saying you will connect them does not:
+        this call does, in the same response as your line — "Here's our
+        concierge.", never "Let me connect you with our concierge." alone."""
         match request.how:
             case "concierge":
                 self._move(OpenModal(modal="concierge"))
@@ -954,10 +1012,14 @@ class QweenBrain(GeminiBrain):
     async def get_screen(self) -> str:
         """What the shopper's screen shows right now: the page, the piece and its
         variant — every gold and purity it comes in — the cards in order, and any
-        open dialog. Call it when they say "this", "that", "the second one" after
-        they have moved the page. Call it before saying anything: it comes back
-        to you this turn, and your reply follows it."""
-        self.screen.read()
+        open dialog. You are told this already whenever the shopper has moved the
+        page; call it only if you are unsure what is there. Call it before saying
+        anything: it comes back to you this turn, and your reply follows it."""
+        return self._screen()
+
+    def _screen(self) -> str:
+        """The screen as the model reads it; after this the model is up to date."""
+        self._shopper_moved = False
         page = self.page
         if page is None:
             return "The page has not reported yet."

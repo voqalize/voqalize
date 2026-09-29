@@ -35,6 +35,8 @@ from google.genai import types
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
+from voqalize.sdk.wire import ConfigureFrame, SpeechStartFrame
+
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
@@ -182,11 +184,8 @@ def _llm() -> ScriptedGemini:
                 reply_and_call("Here is the breakup.", "show_price_breakup"),
             ],
             "So what does the gold cost?": reply("Forty thousand of it is the gold."),
-            # get_screen is a read: asked again at once, then answered from it.
-            "What's this one?": [
-                call("get_screen"),
-                reply("That's the Orbit Band."),
-            ],
+            # The shopper's own click is read into this message: one request.
+            "What's this one?": reply("That's the Orbit Band."),
             "How much is the Orbit Band?": [
                 call("lookup_piece", request={"piece": "orbit band"}),
                 reply("About one lakh forty-three thousand rupees."),
@@ -203,6 +202,9 @@ def _llm() -> ScriptedGemini:
                     "ज़रूर, हिंदी में बात करते हैं।", "set_language", request={"language": "hindi"}
                 ),
             ],
+            # Hindi through the English recognizer: no word list catches it,
+            # the model does, and writes Devanagari.
+            "Apindimene bolti?": reply("हाँ, मैं हिंदी में बात कर सकती हूँ।"),
             # Hinglish with a request in it: the model only searches; the
             # switch is the brain's, made before the model runs.
             "Hindi mein baat karo, mujhe rings dikhao.": [
@@ -352,9 +354,10 @@ async def test_the_price_breakup_is_read_from_the_dialog() -> None:
         assert "Gold ₹40,112" in _texts(llm.captured_contents[-1])
 
 
-async def test_the_shoppers_own_move_is_named_and_read() -> None:
-    """A route change she did not make is named, not valued; get_screen is a read,
-    so the same turn is answered from what it returns."""
+async def test_the_shoppers_own_move_is_read_into_their_next_message() -> None:
+    """A route change she did not make is read by the brain into the shopper's
+    next message, so "this one" is answered in one model request, not a
+    get_screen and then an answer. Only the last page is read, and only once."""
     llm = _llm()
     async with demo("qween", llm) as rig:
         await rig.driver.start_session()
@@ -366,10 +369,14 @@ async def test_the_shoppers_own_move_is_named_and_read() -> None:
         before = len(llm.captured_contents)
         turn = await rig.driver.user_says("What's this one?")
         check_turn(rig, turn, units=1)
-        assert len(llm.captured_contents) - before == 2
-        texts = _texts(llm.captured_contents[before])
-        assert "The shopper opened a piece, Orbit Band themselves." in texts
-        assert "₹1,43,000" in _results(llm.captured_contents[-1])["get_screen"]
+        assert len(llm.captured_contents) - before == 1
+        texts = _texts(llm.captured_contents[-1])
+        assert "The shopper moved the page themselves. Now: On a piece, Orbit Band." in texts
+        assert "₹1,43,000" in texts
+
+        # Nothing moved since: the next message carries no read.
+        await rig.driver.user_says("How much is the Orbit Band?")
+        assert _texts(llm.captured_contents[-1]).count("moved the page themselves") == 1
 
 
 async def test_a_failed_command_is_never_claimed() -> None:
@@ -427,6 +434,30 @@ async def test_hinglish_is_answered_in_hindi_from_the_first_word() -> None:
         await rig.driver.user_says("Hindi mein baat karo, mujhe rings dikhao.")
         check_voice_pair(rig, voice="omnivoice/gayatri", language="hi")
         assert rig.command("open_catalog")["params"]["cat"] == ["Rings"]
+
+
+async def test_a_reply_written_in_hindi_opens_in_the_hindi_voice() -> None:
+    """The English recognizer spells Hindi as noise no word list catches; the
+    model understands it and writes Devanagari. The brain switches both legs
+    before the unit opens, so the English voice never reads Devanagari."""
+    async with demo("qween", _llm()) as rig:
+        await rig.driver.start_session()
+        assert not _sounds_hindi("Apindimene bolti?")
+        turn = await rig.driver.user_says("Apindimene bolti?")
+        check_turn(rig, turn, units=1)
+        check_voice_pair(rig, voice="omnivoice/gayatri", language="hi")
+        frames = [r.frame for r in rig.driver.log]
+        switch = max(
+            i
+            for i, f in enumerate(frames)
+            if isinstance(f, ConfigureFrame) and f.config.tts and f.config.tts.language == "hi"
+        )
+        opened = next(
+            i
+            for i, f in enumerate(frames)
+            if isinstance(f, SpeechStartFrame) and f.speech_id == turn.units[0].speech_id
+        )
+        assert switch < opened
 
 
 async def test_patience_stays_at_the_floor_through_a_language_switch() -> None:
