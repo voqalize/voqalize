@@ -153,6 +153,16 @@ The knowledge the brain answers from lives with the brain, in
 `marketing/backend/knowledge/` — `L1.md` is loaded into every session and the
 `l2/` deep-dives are read on demand by a tool.
 
+`qween` is the same exception, for the same reason: its page is someone else's
+site. The agent is a jewellery consultant on www.qween.com, a design partner's
+live shop, and the widget reaches that page through the browser extension in
+`qween/extension/` rather than a frontend here — so it has no `frontend/` and is
+not in `manifest.json` either. The extension carries the site adapter that turns
+each of the brain's Actions into a move on Qween's own page; their types are
+generated from `qween/backend/brain.py` with `pnpm gen`, and the extension warns
+on load about any Action the adapter cannot perform. The catalogue the brain quotes from is Qween's public product feed, read
+by `qween/backend/catalog.py` and never quoted once it is a day old.
+
 ## Running it
 
 `pm2 start ecosystem.config.cjs` from the repo root is the supervised path: the

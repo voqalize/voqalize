@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Trisha for Qween — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice jewellery consultant on www.qween.com, who finds, shows and explains pieces on Qween's own pages. A Voqalize design-partner preview.",
+  "content_scripts": [
+    {
+      "matches": ["https://www.qween.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
+}
