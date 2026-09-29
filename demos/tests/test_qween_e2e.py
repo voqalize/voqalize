@@ -538,17 +538,21 @@ async def test_a_slow_model_after_the_nod_is_held_not_left_silent(
     monkeypatch.setattr(acknowledge, "RATE", 1.0)
     monkeypatch.setattr(acknowledge, "HOLD_AFTER_S", 0.2)
     llm = ScriptedGemini(
-        {"Is it hallmarked?": [reply(chunks=["Yes, every piece is hallmarked."], chunk_delay=0.6)]}
+        {
+            "How long does delivery take?": [
+                reply(chunks=["About five working days."], chunk_delay=0.6)
+            ]
+        }
     )
     async with demo("qween", llm) as rig:
         await rig.driver.start_session()
-        turn = await rig.driver.user_says("Is it hallmarked?", quiet_for=1.0)
+        turn = await rig.driver.user_says("How long does delivery take?", quiet_for=1.0)
         check_turn(rig, turn, units=3)
         nod, hold, answer = (u.text for u in turn.units)
         assert nod in acknowledge.LINES[acknowledge.Language.EN]["question"]
         assert hold in acknowledge.HOLD[acknowledge.Language.EN]
-        assert answer == "Yes, every piece is hallmarked."
-        await rig.driver.user_says("Is it hallmarked?")
+        assert answer == "About five working days."
+        await rig.driver.user_says("How long does delivery take?")
         said = [
             p.text
             for c in llm.captured_contents[-1]
@@ -566,11 +570,15 @@ async def test_a_quick_model_after_the_nod_is_not_held(monkeypatch: pytest.Monke
     monkeypatch.setattr(acknowledge, "RATE", 1.0)
     monkeypatch.setattr(acknowledge, "HOLD_AFTER_S", 0.5)
     llm = ScriptedGemini(
-        {"Is it hallmarked?": [reply(chunks=["Yes, every piece is hallmarked."], chunk_delay=0.05)]}
+        {
+            "How long does delivery take?": [
+                reply(chunks=["About five working days."], chunk_delay=0.05)
+            ]
+        }
     )
     async with demo("qween", llm) as rig:
         await rig.driver.start_session()
-        turn = await rig.driver.user_says("Is it hallmarked?")
+        turn = await rig.driver.user_says("How long does delivery take?")
         check_turn(rig, turn, units=2)
 
 
@@ -580,7 +588,8 @@ async def test_a_quick_model_after_the_nod_is_not_held(monkeypatch: pytest.Monke
         ("Show me rose gold earrings.", "request"),
         ("Can you show me something lighter?", "request"),
         ("मुझे अपनी बहन की शादी के लिए कुछ चाहिए।", "request"),
-        ("Is it hallmarked?", "question"),
+        ("Is it hallmarked?", None),
+        ("How long does delivery take?", "question"),
         ("What's the difference between VS and SI?", "question"),
         ("रोज़ पहनने के लिए कौन सा गोल्ड अच्छा है?", "question"),
         ("No, the yellow one.", "correction"),
@@ -590,6 +599,12 @@ async def test_a_quick_model_after_the_nod_is_not_held(monkeypatch: pytest.Monke
         ("Okay.", None),
         ("Thank you so much, bye.", None),
         ("Hello?", None),
+        # A mic check, a doubt about the stock, and a complaint dressed as a
+        # question: "Let me see." before any of them reads wrong.
+        ("can you hear me am trying to search", None),
+        ("why making charges are so high for this simple design", None),
+        ("इतना महंगा क्यों है?", None),
+        ("can you scroll down a bit", "request"),
         # The English recognizer's spelling of Hindi: nodding at it in English
         # would come before a reply the model writes in Hindi.
         ("Apindimene bolti?", None),

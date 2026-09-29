@@ -2,7 +2,7 @@
 
 The model's first words take about 1.4 s to arrive and then a sentence's worth
 of synthesis to be heard. A person answering a question nods first — "Sure.",
-"Right.", "अच्छा।" — and the nod is what tells you they heard. This is that nod:
+"Let me see.", "जी।" — and the nod is what tells you they heard. This is that nod:
 chosen by the brain from a light reading of what the shopper said, spoken as a
 unit of its own before the model is asked, so it is heard while the model is
 still thinking. The model is told it has been said and opens with the answer;
@@ -13,14 +13,21 @@ yes, a question gets a thinking nod, a correction gets an "I see". A message it
 cannot read gets nothing — a transcript the English recognizer made of Hindi
 ("Apindimene bolti?") would otherwise be nodded at in the wrong voice before
 the model answers it in Hindi. Nor are thanks, goodbyes, greetings or the
-shopper's own backchannels answered with one.
+shopper's own backchannels answered with one, nor the questions no nod reads
+right before (:data:`_NO_NOD`, and "why … so costly").
+
+The question lines were chosen by having a strong model rate candidates on
+shopper questions written as a speech recognizer transcribes them: "Right."
+and "I see." sound like agreement and rated lowest; "Let me see." rated
+highest wherever a nod reads right at all.
 
 Not every turn: a nod on every reply is a tic. The line is picked at random,
 never the one said last, and the rate is :data:`RATE`.
 
-The English lines are all in gayatri's phrase cache on speech.dev, so each is
-heard about one network round trip after the turn ends. "Hmm." and every Hindi
-line are not, and cost a synthesis of ~300 ms — still well ahead of the model.
+Most English lines are in gayatri's phrase cache on speech.dev, so each is
+heard about one network round trip after the turn ends. The "let me see" lines
+and every Hindi line are not, and cost a synthesis of ~300 ms — still well
+ahead of the model.
 Like :class:`~voqalize_demos.FallbackLine`'s line, it never enters the model's
 context: it is the brain's, not the model's.
 """
@@ -42,13 +49,13 @@ RATE = 0.75
 LINES: Mapping[Language, Mapping[Kind, tuple[str, ...]]] = {
     Language.EN: {
         "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
-        "question": ("Right.", "I see.", "Hmm."),
+        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
         "correction": ("I see.", "Understood.", "Right."),
         "statement": ("Okay.", "Got it.", "Right."),
     },
     Language.HI: {
         "request": ("जी।", "ज़रूर।", "ठीक है।", "अच्छा।"),
-        "question": ("अच्छा।", "हम्म।", "जी।"),
+        "question": ("जी, बताती हूँ।", "जी।", "हम्म, देखती हूँ।"),
         "correction": ("अच्छा।", "समझ गई।", "जी।"),
         "statement": ("जी।", "अच्छा।", "ठीक है।"),
     },
@@ -182,9 +189,47 @@ _QUESTION = frozenset(
         "कहाँ",
     ]
 )
+#: No nod reads right before the answer. A mic check wants "yes, I can hear
+#: you" at once; "Let me see." before "is this real diamond" sounds as if she
+#: doubts her own stock, and before "why is it so costly" as if she is about to
+#: check whether the shopper is right.
+_NO_NOD = frozenset(
+    [
+        "hear",
+        "hearing",
+        "audible",
+        "mic",
+        "sunai",
+        "सुनाई",
+        "certified",
+        "certificate",
+        "hallmark",
+        "hallmarked",
+        "genuine",
+        "real",
+        "original",
+        "fake",
+        "asli",
+        "nakli",
+        "असली",
+        "नकली",
+    ]
+)
+_TOO_MUCH = frozenset(
+    ["too", "so", "itna", "itni", "itne", "इतना", "इतनी", "इतने", "ज़्यादा", "zyada", "jyada"]
+)
+
 _REQUEST = frozenset(
     [
         "show",
+        "scroll",
+        "zoom",
+        "close",
+        "select",
+        "add",
+        "remove",
+        "sort",
+        "filter",
         "find",
         "open",
         "want",
@@ -223,6 +268,8 @@ def classify(text: str) -> Kind | None:
     if not words or all(w in _SKIP for w in words) or _THANKS_OR_BYE & set(words):
         return None
     said = set(words)
+    if said & _NO_NOD or (said & {"why", "kyun", "kyon", "क्यों"} and said & _TOO_MUCH):
+        return None
     if words[0] in {"no", "nahi", "nahin", "नहीं"} or said & {"wrong", "galat", "गलत", "ग़लत"}:
         return "correction"
     if said & _REQUEST and not (words[0] in _QUESTION and words[0] not in {"can", "could"}):
