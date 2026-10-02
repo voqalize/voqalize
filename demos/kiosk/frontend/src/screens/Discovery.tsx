@@ -1,10 +1,9 @@
 /**
- * The four questions — as answers, not as questions.
+ * The profile questions, one at a time, with their answers to tap.
  *
- * Tanvi asks each one aloud, and the tray carries the same question as its
- * heading — the bank's own short wording, not hers — so a customer who missed
- * a word can still read what is being asked. The answers sit under it, below a
- * line that says speaking is the short way.
+ * The heading is the bank's own short wording. The screen leads: the customer
+ * taps an answer and the next question comes up. A customer who says it instead
+ * has Tanvi tap it for them, and the screen moves the same way.
  *
  * **Correcting is picking again.** There is no "no, change it" button, because
  * the correction and the rejection are one gesture: tapping a different chip
@@ -13,11 +12,10 @@
  */
 
 import type { AskProfile, ConfirmValue } from '../actions.gen';
-import { strings, type Language } from '../language';
+import { COPY } from '../copy';
 import { OptionChip, OptionGrid, ReadBack, TrayTitle, VoiceHint } from '../ui';
 
 export interface DiscoveryProps {
-  language: Language;
   question: AskProfile | null;
   checking: ConfirmValue | null;
   /** What the customer last tapped, per field — the chip stays lit meanwhile. */
@@ -27,27 +25,26 @@ export interface DiscoveryProps {
 }
 
 export function DiscoveryTray({
-  language,
   question,
   checking,
   picked,
   onAnswer,
   onConfirm,
 }: DiscoveryProps) {
-  const copy = strings(language);
+  const copy = COPY;
   return (
     <div>
-      {checking ? <ReadBack language={language} value={checking} onConfirm={onConfirm} /> : null}
+      {checking ? <ReadBack value={checking} onConfirm={onConfirm} /> : null}
 
       {question ? (
         <>
           <TrayTitle>{question.question}</TrayTitle>
-          <VoiceHint>{copy.sayOrTap}</VoiceHint>
+          <VoiceHint>{copy.tapOrAsk}</VoiceHint>
           <OptionGrid>
             {question.options.map((option) => (
               <OptionChip
                 key={option.value}
-                label={language === 'hi' ? option.label_hi : option.label}
+                label={option.label}
                 selected={picked[question.field] === option.value}
                 onClick={() => onAnswer(question.field, option.value)}
               />

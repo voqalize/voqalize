@@ -1,15 +1,14 @@
-"""The kiosk's language switching, and the spoken answers that move it on.
+"""The kiosk's language switching.
 
 Two halves, because two different things can go wrong.
 
 * **The mechanics — always run, no model.** A scripted model makes the calls,
   and these assert what the brain does with them: both legs move together in
-  every direction and back again, a spoken answer puts the next question up by
-  itself instead of leaving Tess to wait, and a settled answer never paints a
-  confirm screen. These are the parts a live Kannada session got wrong: the
-  customer answered, Tess acknowledged, and nothing moved until they spoke again.
+  every direction and back again, the recognizer keeps its patience through a
+  switch, English spelled in an Indian script is caught in Python before the
+  model runs — and the screen never moves, because it is English.
 
-* **The judgement — opt-in, real model.** Whether Tess *notices* a language
+* **The judgement — opt-in, real model.** Whether Tanvi *notices* a language
   change is a property of the prompt and the model, and only a model can test
   it. Each scenario hands the real brain a turn exactly as the recognizer writes
   it — English spoken to the Kannada recognizer arrives as English words spelled
@@ -29,16 +28,7 @@ import pytest
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import DemoRig, _configs, _last, demo
-from .test_kiosk_e2e import (
-    _BY_HAND,
-    SYSTEM_INSTRUCTION,
-    VOICE,
-    _by_hand,
-    _legs,
-    _one_more_turn,
-    _spoken,
-    _tool_results,
-)
+from .test_kiosk_e2e import VOICE, _legs, _spoken
 
 _CODE = {"English": "en", "Kannada": "kn", "Hindi": "hi", "Tamil": "ta"}
 
@@ -52,13 +42,16 @@ def _asked(rig: DemoRig) -> list[str]:
     ]
 
 
-def _states(rig: DemoRig) -> list[str]:
-    """Every read-back state the glass was sent, in order."""
-    return [
-        str((c.get("payload") or {}).get("state"))
-        for c in rig.driver.ui_commands
-        if c.get("command") == "confirm_value"
-    ]
+def _patience(rig: DemoRig) -> int | None:
+    return _last(_configs(rig), lambda c: c.stt.patience if c.stt else None)
+
+
+async def _into(rig: DemoRig, language: str) -> None:
+    """Put the call in ``language`` the way the English check does — both legs,
+    awaited, and the note that tells the model — so a scenario can start there
+    without a scripted turn."""
+    brain = rig.brain
+    brain._append_note(await brain._switch_to(language, by="the customer"))  # pyright: ignore[reportPrivateUsage]
 
 
 # ─── The mechanics ────────────────────────────────────────────────────────────
@@ -67,7 +60,7 @@ def _states(rig: DemoRig) -> list[str]:
 async def test_every_direction_moves_both_legs_and_comes_back() -> None:
     """English → Kannada → English → Hindi → Tamil → English, each by a spoken
     request. Every hop moves the voice's language and the recognizer's together,
-    and the screen follows: Hindi copy for Hindi, English copy for the rest."""
+    and the glass does not move at all: it is English, whatever is spoken."""
     hops = ["Kannada", "English", "Hindi", "Tamil", "English"]
     # One distinct line per hop: the script answers by what was said, and two hops
     # to English would otherwise share one cursor.
@@ -81,238 +74,121 @@ async def test_every_direction_moves_both_legs_and_comes_back() -> None:
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
         assert _legs(rig) == (VOICE, "en", "en")
+        on_the_glass = list(rig.driver.ui_commands)
         for line, name in zip(said, hops, strict=True):
             await rig.driver.user_says(line)
             code = _CODE[name]
             assert _legs(rig) == (VOICE, code, code), (name, _legs(rig))
             assert rig.brain.language == name
-            changed = rig.driver.ui_commands[-1]
-            assert changed["command"] == "language_changed", changed
-            assert changed["payload"] == {
-                "language": name,
-                "screen_language": "hi" if name == "Hindi" else "en",
-            }
+        assert rig.driver.ui_commands == on_the_glass, "a language switch moved the screen"
+
+
+async def test_the_switch_line_is_said_in_the_new_language_after_the_voice_moves() -> None:
+    """The reported oddity: a customer spoke Hindi and heard "Let's continue in
+    Hindi" in English, because the model's line goes out before the voice
+    changes. The model now calls alone; the brain waits for both legs and says a
+    written line in Hindi, with the Hindi voice."""
+    from voqalize_demos._loaded.kiosk.prompts import SWITCH_LINE, switch_line
+
+    heard = "Massive salary pay private industry meam kartang."
+    llm = ScriptedGemini({heard: call("switch_language", to={"language": "Hindi"})})
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says(heard)
+        assert [u.text for u in turn.units] == [SWITCH_LINE["Hindi"]]
+        assert _legs(rig) == (VOICE, "hi", "hi")
+        assert rig.brain.language == "Hindi"
+        assert len(llm.calls) == 1, "the switch line asked the model"
+    # A language no voice speaks is told so, in Hindi.
+    assert "ओड़िया" in switch_line("Odia") and "हिंदी" in switch_line("Odia")
+
+
+async def test_hindi_in_english_letters_moves_both_legs_before_the_model_speaks() -> None:
+    """The local call that did not switch: the customer answered "main student
+    hoon", the model understood, tapped it and stayed in English. The plain case
+    is decided in Python, so the model's reply is already spoken by the Hindi
+    voice and the next sentence is heard in Hindi."""
+    heard = "Main student hoon."
+    llm = ScriptedGemini(
+        {heard: reply_and_call("ठीक है।", "answer_on_screen", answer={"employment": "student"})}
+    )
+    async with demo("kiosk", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says(heard)
+        assert rig.brain.language == "Hindi"
+        assert _legs(rig) == (VOICE, "hi", "hi")
+        assert [u.text for u in turn.units] == ["ठीक है।"]
+        assert rig.brain.answers == {"employment": "student"}
+        told = [
+            part.text or "" for content in llm.calls[-1].contents for part in content.parts or []
+        ]
+        assert any("heard Hindi" in line for line in told), told
+
+
+_LATIN_HINDI = [
+    "Main student hoon.",
+    "Mera naam Abhishek hai, main student hoon.",
+    "Kya aap Hindi mein baat kar sakti hain?",
+    "Mai padhai karta hoon abhi.",
+    "Mujhe fuel card chahiye.",
+]
+_LATIN_ENGLISH = [
+    "I am a student.",
+    "The main thing is the fee.",
+    "Okay theek hai, show me the cards please.",
+    "Show me the main card.",
+    "Can we talk in Hindi?",
+]
+
+
+@pytest.mark.parametrize("text", _LATIN_HINDI)
+def test_hindi_in_english_letters_reads_as_hindi(text: str) -> None:
+    from voqalize_demos._loaded.kiosk.latin_hindi import reads_as_latin_hindi
+
+    assert reads_as_latin_hindi(text), text
+
+
+@pytest.mark.parametrize("text", _LATIN_ENGLISH)
+def test_english_with_a_hindi_word_does_not(text: str) -> None:
+    from voqalize_demos._loaded.kiosk.latin_hindi import reads_as_latin_hindi
+
+    assert not reads_as_latin_hindi(text), text
 
 
 async def test_patience_is_three_and_a_switch_keeps_it() -> None:
-    """The kiosk listens with patience 3 from the first word, and every language
-    switch re-sends the recognizer's settings — so a switch must carry it too,
-    or the kiosk quietly falls back to the deployment's 7 in Kannada."""
-    llm = ScriptedGemini()
+    """The kiosk listens with patience 3 from the first word — nothing is
+    dictated any more, a mobile number and a PAN are typed — and every language
+    switch re-sends the recognizer's settings, so a switch must carry it too."""
+    llm = ScriptedGemini(
+        {"Kannada please.": reply_and_call("ಸರಿ.", "switch_language", to={"language": "Kannada"})}
+    )
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
-        assert _last(_configs(rig), lambda c: c.stt.patience if c.stt else None) == 3
-        await _by_hand(rig, "language_picked", {"language": "Kannada"})
-        assert _last(_configs(rig), lambda c: c.stt.patience if c.stt else None) == 3
-
-
-def _patience(rig: DemoRig) -> int | None:
-    return _last(_configs(rig), lambda c: c.stt.patience if c.stt else None)
-
-
-async def test_dictation_waits_longer_and_the_questions_do_not() -> None:
-    """Quick for the four questions, patient while a mobile or PAN is read out in
-    groups — a partial one is rejected outright, so cutting it at a pause makes
-    the customer start again. Start over brings the quick pace back."""
-    async with demo("kiosk", ScriptedGemini()) as rig:
-        await rig.driver.start_session()
         assert _patience(rig) == 3
-        for step in _BY_HAND:
-            await _by_hand(rig, step.event, step.payload)
-            if step.event == "consent_given":
-                break
-        assert rig.brain.view["screen"] == "value"
-        assert _patience(rig) == 8, "the mobile number is asked for at the quick pace"
-        await _by_hand(rig, "restart_pressed")
+        await rig.driver.user_says("Kannada please.")
+        assert _legs(rig) == (VOICE, "kn", "kn")
         assert _patience(rig) == 3
 
 
-async def test_an_answer_before_any_question_moves_on_and_is_not_asked_again() -> None:
-    """The greeting asks for a name and the customer answers more: "I'm Ravi, I'm
-    salaried". The answer lands on the welcome screen, and the next question comes
-    up at once — so the first quiet moment does not put employment up again."""
+async def test_a_kannada_answer_is_tapped_and_the_next_question_comes_up() -> None:
+    """The live Kannada report, with the new shape: the customer answers in
+    Kannada, Tanvi taps the answer and says a word in Kannada, and the next
+    question is on the glass — in English — without anyone waiting on anyone."""
     llm = ScriptedGemini(
         {
-            "I'm Ravi, I'm salaried.": reply_and_call(
-                "Nice to meet you, Ravi. Roughly what comes in every month?",
-                "capture_value",
-                heard={"field": "employment", "value": "salaried"},
-            )
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("I'm Ravi, I'm salaried.")
-        await rig.driver.user_idle(timeout=0.5)
-        await _one_more_turn(rig)
-
-        assert _asked(rig) == ["income_band"], _asked(rig)
-        captured = next(r for r in _tool_results(llm) if r.startswith("Recorded"))
-        assert "income band question is already up" in captured, captured
-
-
-async def test_a_confirmed_mobile_stays_on_the_glass_as_confirmed() -> None:
-    """A read-back that settles keeps its panel, marked confirmed, so Tess reading
-    the screen sees what the customer sees — not a confirm screen with nothing on
-    it."""
-    llm = ScriptedGemini(
-        {
-            "It's 98765 43210.": reply_and_call(
-                "Nine eight seven six five, four three two one zero. Is that right?",
-                "capture_value",
-                heard={"field": "mobile", "value": "9876543210"},
-            ),
-            # confirm answers in the same turn, so the reply is the second request.
-            "Yes, that's right.": [
-                call("confirm", check={"field": "mobile", "value": "9876543210", "heard": "yes"}),
-                reply("Thank you."),
-            ],
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("It's 98765 43210.")
-        assert rig.brain.view["the value being confirmed"]["state"] == "confirming"
-        await rig.driver.user_says("Yes, that's right.")
-        assert rig.brain.view["screen"] == "confirm"
-        assert rig.brain.view["the value being confirmed"]["state"] == "confirmed"
-
-
-async def test_the_picker_and_the_voice_can_hand_the_language_back_and_forth() -> None:
-    """The customer picks Kannada on the screen, then asks for English out loud,
-    then picks Kannada again. Neither path is special: the last one wins, and the
-    legs always match it."""
-    llm = ScriptedGemini(
-        {
-            "I want to speak in English.": reply_and_call(
-                "ಸರಿ, ಇಂಗ್ಲಿಷ್.", "switch_language", to={"language": "English"}
-            )
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        await _by_hand(rig, "language_picked", {"language": "Kannada"})
-        assert _legs(rig) == (VOICE, "kn", "kn")
-        await rig.driver.user_says("I want to speak in English.")
-        assert _legs(rig) == (VOICE, "en", "en")
-        await _by_hand(rig, "language_picked", {"language": "Kannada"})
-        assert _legs(rig) == (VOICE, "kn", "kn")
-        assert rig.brain.language == "Kannada"
-
-
-async def test_a_spoken_answer_in_kannada_puts_the_next_question_up_itself() -> None:
-    """The bug from the Kannada session: an answer was recorded, the screen asked
-    for a confirmation nobody needed, and Tess waited. Now the answer settles, the
-    next question is on the glass in the same breath, and she asks it in the same
-    response that records the answer — so the turn cannot end in silence."""
-    llm = ScriptedGemini(
-        {
-            "ನಮಸ್ಕಾರ": reply_and_call(
-                "ನೀವು ಸಂಬಳದ ಕೆಲಸದಲ್ಲಿದ್ದೀರಾ?",
-                "ask_profile",
-                ask={"field": "employment", "question": "ನೀವು ಏನು ಮಾಡುತ್ತೀರಿ?"},
-            ),
             "ನಾನು ಸಂಬಳದ ಕೆಲಸ ಮಾಡ್ತೀನಿ": reply_and_call(
-                "ಸರಿ. ತಿಂಗಳಿಗೆ ಎಷ್ಟು ಬರುತ್ತದೆ?",
-                "capture_value",
-                heard={"field": "employment", "value": "salaried"},
+                "ಸರಿ.", "answer_on_screen", answer={"employment": "salaried"}
             ),
         }
     )
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
-        await _by_hand(rig, "language_picked", {"language": "Kannada"})
-        await rig.driver.user_says("ನಮಸ್ಕಾರ")
-        await rig.driver.user_says("ನಾನು ಸಂಬಳದ ಕೆಲಸ ಮಾಡ್ತೀನಿ")
-        await _one_more_turn(rig)
-
-        assert _asked(rig) == ["employment", "income_band"], _asked(rig)
-        assert "confirming" not in _states(rig), "a chip answer was read back for a yes"
-        assert rig.brain.view["screen"] == "question"
-        assert rig.brain.view["the value being confirmed"] is None
-        assert rig.brain.answers["employment"] == "salaried"
-
-        captured = next(r for r in _tool_results(llm) if r.startswith("Recorded"))
-        assert "income band question is already up" in captured, captured
-        # Read a turn late, the result can only confirm what she already asked; the
-        # instruction to ask in the same response is the prompt's.
-        assert "needs no ask_profile" in captured, captured
-        assert "in that same response acknowledge" in SYSTEM_INSTRUCTION
-
-
-async def test_the_fourth_answer_goes_straight_to_the_eligibility_check() -> None:
-    """After the last of the four there is no next question to put up, so the
-    tool names the next step. The prompt has her call it in the same response as
-    the last answer, so the result is a reminder, read a turn later, for the case
-    she did not."""
-    llm = ScriptedGemini(
-        {
-            "Start.": reply_and_call(
-                "What do you do?", "ask_profile", ask={"field": "employment", "question": "?"}
-            ),
-            "Salaried.": reply_and_call(
-                "And every month?",
-                "capture_value",
-                heard={"field": "employment", "value": "salaried"},
-            ),
-            "Forty thousand.": reply_and_call(
-                "Any cards already?",
-                "capture_value",
-                heard={"field": "income_band", "value": "25k_60k"},
-            ),
-            "One card.": reply_and_call(
-                "Where does most of it go?",
-                "capture_value",
-                heard={"field": "existing_cards", "value": "one"},
-            ),
-            "Fuel.": reply_and_call(
-                "Thank you.", "capture_value", heard={"field": "spend_category", "value": "fuel"}
-            ),
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        for line in ("Start.", "Salaried.", "Forty thousand.", "One card.", "Fuel."):
-            await rig.driver.user_says(line)
-        await _one_more_turn(rig)
-
-        assert _asked(rig) == ["employment", "income_band", "existing_cards", "spend_category"]
-        last = [r for r in _tool_results(llm) if r.startswith("Recorded")][-1]
-        assert "check_eligibility" in last and "last profile question" in last, last
-
-
-async def test_correcting_an_earlier_answer_does_not_jump_the_screen() -> None:
-    """A customer on the income question who says "actually I'm self-employed"
-    is correcting, not answering. The answer changes; the screen stays where
-    they are."""
-    llm = ScriptedGemini(
-        {
-            "Start.": reply_and_call(
-                "What do you do?", "ask_profile", ask={"field": "employment", "question": "?"}
-            ),
-            "Salaried.": reply_and_call(
-                "And every month?",
-                "capture_value",
-                heard={"field": "employment", "value": "salaried"},
-            ),
-            "Actually, I'm self-employed.": reply_and_call(
-                "Self-employed, noted. And every month?",
-                "capture_value",
-                heard={"field": "employment", "value": "self_employed"},
-            ),
-        }
-    )
-    async with demo("kiosk", llm) as rig:
-        await rig.driver.start_session()
-        for line in ("Start.", "Salaried.", "Actually, I'm self-employed."):
-            await rig.driver.user_says(line)
-        await _one_more_turn(rig)
-
-        assert _asked(rig) == ["employment", "income_band"], _asked(rig)
-        assert rig.brain.answers["employment"] == "self_employed"
-        assert rig.brain.view["the question on screen"] == "income band"
-        last = [r for r in _tool_results(llm) if r.startswith("Recorded")][-1]
-        assert "the screen stays where they were" in last, last
+        await _into(rig, "Kannada")
+        turn = await rig.driver.user_says("ನಾನು ಸಂಬಳದ ಕೆಲಸ ಮಾಡ್ತೀನಿ")
+        assert [u.text for u in turn.units] == ["ಸರಿ."]
+        assert rig.brain.answers == {"employment": "salaried"}
+        assert _asked(rig) == ["employment", "income_band"]
+        assert rig.brain.language == "Kannada"
 
 
 #: English as each recognizer spells it, and the sentences that must NOT count.
@@ -355,15 +231,14 @@ async def test_english_in_kannada_script_moves_both_legs_before_the_model_speaks
     switch_language. The brain has already moved both legs, so the English reply
     is spoken by the English voice and the next sentence is heard in English."""
     heard = "ಐ ವಾಂಟ್ ಟು ಸ್ಪೀಕ್ ಇನ್ ಇಂಗ್ಲಿಷ್"
-    llm = ScriptedGemini({heard: reply("Sure. Are you salaried or self-employed?")})
+    llm = ScriptedGemini({heard: reply("Sure, English it is.")})
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
-        await _by_hand(rig, "language_picked", {"language": "Kannada"})
+        await _into(rig, "Kannada")
         assert _legs(rig) == (VOICE, "kn", "kn")
         await rig.driver.user_says(heard)
         assert rig.brain.language == "English"
         assert _legs(rig) == (VOICE, "en", "en")
-        assert rig.driver.ui_commands[-1]["payload"]["language"] == "English"
         # The model is told, in the same request as the words, why it is in English.
         told = [
             part.text or "" for content in llm.calls[-1].contents for part in content.parts or []
@@ -376,7 +251,7 @@ async def test_kannada_with_loan_words_stays_in_kannada() -> None:
     llm = ScriptedGemini({"ನಾನು ಸ್ಯಾಲರೀಡ್ ಎಂಪ್ಲಾಯಿ": reply("ಸರಿ.")})
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
-        await _by_hand(rig, "language_picked", {"language": "Kannada"})
+        await _into(rig, "Kannada")
         await rig.driver.user_says("ನಾನು ಸ್ಯಾಲರೀಡ್ ಎಂಪ್ಲಾಯಿ")
         assert rig.brain.language == "Kannada"
         assert _legs(rig) == (VOICE, "kn", "kn")
@@ -386,20 +261,17 @@ def test_the_prompt_teaches_both_directions_and_the_unsure_middle() -> None:
     """The judgement lives in the prompt, so its three rules are pinned here: how
     garbled English means an Indian language, how English arrives spelled in an
     Indian script, and what to do when it is not clear — ask, in both languages,
-    rather than switch or stay silent."""
-    # Imported here: the kiosk package is only importable once discovery has
-    # loaded it, which importing test_kiosk_e2e above does.
+    rather than switch or stay silent. And the screen stays English."""
     from voqalize_demos._loaded.kiosk.prompts import SYSTEM_INSTRUCTION
 
     prompt = SYSTEM_INSTRUCTION
     assert "HOW TO TELL THEY ARE NOT SPEAKING ENGLISH" in prompt
     assert "HOW TO TELL THEY HAVE GONE BACK TO ENGLISH" in prompt
-    # English in Kannada, Devanagari and Tamil script, each with its meaning.
     for sample in ("ಐ ವಾಂಟ್ ಟು ಸ್ಪೀಕ್ ಇನ್ ಇಂಗ್ಲಿಷ್", "आई वांट टू टॉक इन इंग्लिश", "வாட் இஸ் தி ஃபீ"):
         assert sample in prompt, sample
     assert "SURE, OR NOT SURE" in prompt
     assert "Shall we continue in English?" in prompt
-    assert "Never go quiet after an answer" in prompt
+    assert "The screen is in English, whatever language you are speaking." in prompt
 
 
 # ─── The judgement: the real model ────────────────────────────────────────────
@@ -421,13 +293,12 @@ def _client() -> Any:
 
 
 async def _live(rig: DemoRig, *, start_in: str | None = None) -> None:
-    """Open the session, move it into ``start_in`` by the picker if asked, and put
-    the first question up by staying quiet — so every scenario starts where a real
-    one does: greeted, and asked what they do."""
+    """Open the session — greeted, with the first question on the glass — and
+    move it into ``start_in`` if asked, so every scenario starts where a real one
+    does."""
     await rig.driver.start_session()
     if start_in:
-        await _by_hand(rig, "language_picked", {"language": start_in})
-    await rig.driver.user_idle(timeout=5.0)
+        await _into(rig, start_in)
 
 
 #: English spoken while the kiosk is in Kannada, as the Kannada recognizer writes
@@ -481,10 +352,10 @@ async def test_live_mangled_kannada_moves_english_to_kannada() -> None:
 
 
 @live
-async def test_live_a_kannada_answer_is_captured_and_the_next_question_asked() -> None:
+async def test_live_a_kannada_answer_is_tapped_and_the_next_question_comes_up() -> None:
     """The second report: in Kannada the right option was chosen and then nothing
-    happened. The answer must be recorded, the next question must be on the glass,
-    and Tess must have said something in Kannada — not gone quiet."""
+    happened. The answer must be tapped, the next question must be on the glass,
+    and Tanvi must have said something in Kannada — not gone quiet."""
     async with demo("kiosk", _client()) as rig:
         await _live(rig, start_in="Kannada")
         before = len(_spoken(rig))
@@ -493,7 +364,7 @@ async def test_live_a_kannada_answer_is_captured_and_the_next_question_asked() -
         assert rig.brain.answers.get("employment") == "salaried", rig.brain.answers
         assert _asked(rig)[-1] == "income_band", _asked(rig)
         said = " ".join(_spoken(rig)[before:])
-        assert said.strip(), "Tess went quiet after the answer"
+        assert said.strip(), "Tanvi went quiet after the answer"
         assert _KANNADA.search(said), f"answered outside Kannada: {said!r}"
         assert rig.brain.language == "Kannada"
 
@@ -510,14 +381,14 @@ async def test_live_a_borrowed_word_is_not_a_switch() -> None:
 
 @live
 async def test_live_an_unclear_turn_asks_in_both_languages_instead_of_guessing() -> None:
-    """Half Hindi, half English, too short to be sure: Tess neither switches nor
+    """Half Hindi, half English, too short to be sure: Tanvi neither switches nor
     goes quiet, and asks — in both languages — whether to change."""
     async with demo("kiosk", _client()) as rig:
         await _live(rig)
         before = len(_spoken(rig))
         await rig.driver.user_says("Haan theek hai, okay.", timeout=_TURN)
         said = " ".join(_spoken(rig)[before:])
-        assert said.strip(), "Tess went quiet"
+        assert said.strip(), "Tanvi went quiet"
         if rig.brain.language == "English":
             assert _DEVANAGARI.search(said) and re.search(r"[A-Za-z]{3}", said), (
                 f"stayed in English without offering Hindi: {said!r}"
@@ -525,3 +396,32 @@ async def test_live_an_unclear_turn_asks_in_both_languages_instead_of_guessing()
         else:
             # Switching on this is allowed — it is Hindi — but only to Hindi.
             assert rig.brain.language == "Hindi", rig.brain.language
+
+
+@live
+async def test_live_a_question_is_answered_from_the_shelf_and_moves_nothing() -> None:
+    """A question is not an answer: Tanvi answers it in a line, from the cards in
+    her prompt, and the screen stays where it is."""
+    async with demo("kiosk", _client()) as rig:
+        await _live(rig)
+        on_the_glass = list(rig.driver.ui_commands)
+        before = len(_spoken(rig))
+        await rig.driver.user_says("What is a secured card?", timeout=_TURN)
+        said = " ".join(_spoken(rig)[before:])
+        assert said.strip(), "Tanvi did not answer"
+        assert "deposit" in said.lower(), said
+        assert rig.driver.ui_commands == on_the_glass, "a question moved the screen"
+
+
+@live
+async def test_live_a_pan_read_aloud_is_turned_to_the_keypad() -> None:
+    """The privacy rule: a customer who starts reading a PAN out is asked to type
+    it in, and none of it is repeated back."""
+    async with demo("kiosk", _client()) as rig:
+        await _live(rig)
+        before = len(_spoken(rig))
+        await rig.driver.user_says("My PAN is A B C D E one two three four F.", timeout=_TURN)
+        said = " ".join(_spoken(rig)[before:])
+        assert re.search(r"\btyp", said.lower()), f"not sent to the keypad: {said!r}"
+        assert "ABCDE" not in said.replace(" ", "").upper(), said
+        assert "pan" not in rig.brain.answers

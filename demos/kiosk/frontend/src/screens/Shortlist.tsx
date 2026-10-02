@@ -26,18 +26,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { COLOR, FOCUS, SIZE } from '../brand';
 import type { CardView, ShowShortlist } from '../actions.gen';
-import { strings, type Language } from '../language';
+import { COPY } from '../copy';
 import { CardFace, FactList, Tag, TouchButton, VoiceHint } from '../ui';
 
 export interface ShortlistProps {
-  language: Language;
   shortlist: ShowShortlist | null;
   onTapCard: (cardId: string) => void;
   onChooseCard: (cardId: string) => void;
 }
 
-export function ShortlistTray({ language, shortlist, onTapCard, onChooseCard }: ShortlistProps) {
-  const copy = strings(language);
+export function ShortlistTray({ shortlist, onTapCard, onChooseCard }: ShortlistProps) {
+  const copy = COPY;
   const track = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const cards = shortlist?.cards ?? [];
@@ -77,7 +76,6 @@ export function ShortlistTray({ language, shortlist, onTapCard, onChooseCard }: 
             key={card.id}
             index={index}
             card={card}
-            language={language}
             recommended={card.id === shortlist.recommended_id}
             onOpen={() => onTapCard(card.id)}
             onChoose={() => onChooseCard(card.id)}
@@ -185,19 +183,17 @@ export function ShortlistTray({ language, shortlist, onTapCard, onChooseCard }: 
 function ShortlistCard({
   index,
   card,
-  language,
   recommended,
   onOpen,
   onChoose,
 }: {
   index: number;
   card: CardView;
-  language: Language;
   recommended: boolean;
   onOpen: () => void;
   onChoose: () => void;
 }) {
-  const copy = strings(language);
+  const copy = COPY;
   return (
     <article
       className={`kiosk-slide${recommended ? ' is-recommended' : ''}`}

@@ -7,17 +7,17 @@
  * conversation up from there — so a runtime encoder would be a dependency
  * earning its keep by drawing the same picture every time.
  *
- * The caption is the brain's, in the call's language.
+ * The caption is the brain's, in English like the rest of the screen.
  */
 
 import { COLOR, SIZE } from '../brand';
 import type { ShowQr } from '../actions.gen';
-import { strings, type Language } from '../language';
+import { COPY } from '../copy';
 import { TrayTitle } from '../ui';
 import qrImage from '../assets/handoff-qr.svg';
 
-export function HandoffTray({ language, qr }: { language: Language; qr: ShowQr | null }) {
-  const copy = strings(language);
+export function HandoffTray({ qr }: { qr: ShowQr | null }) {
+  const copy = COPY;
   if (!qr) return null;
   return (
     <div className="kiosk-handoff">

@@ -1,10 +1,10 @@
 /**
  * Branch-kiosk demo entrypoint — Vantage Bank's credit-card totem.
  *
- * A walk-in customer answers four questions out loud, sees three cards ranked
- * for them, confirms by voice, and gets a code for the banker's desk. "Tanvi",
- * the hosted `kiosk` brain, drives the screen over the `ui-command` / `ui-event`
- * RTVI channels.
+ * A walk-in customer fills in a short form on the screen, sees the cards ranked
+ * for them, and gets a code for the banker's desk. "Tanvi", the hosted `kiosk`
+ * brain, runs the form over the `ui-command` / `ui-event` RTVI channels and
+ * answers whatever the customer asks along the way.
  *
  * Vantage Bank is invented; so is every card on it.
  */
