@@ -14,10 +14,10 @@
  */
 
 import type { ReactNode } from 'react';
-import { Check, CheckCircle, Microphone } from '@phosphor-icons/react';
+import { Check, CheckCircle, LockSimple, Microphone } from '@phosphor-icons/react';
 import type { CardView, ConfirmValue } from './actions.gen';
 import { CARD_FACE, CARD_FACE_FALLBACK, COLOR, FOCUS, SIZE } from './brand';
-import { fieldLabel, strings, type Language } from './language';
+import { fieldLabel, COPY } from './copy';
 
 /** A button. `primary` moves the journey on; `quiet` is the way sideways. */
 export function TouchButton({
@@ -50,14 +50,26 @@ export function TouchButton({
 }
 
 /**
- * The line above anything a hand could do instead: the microphone first, the
- * tap second. It is the kiosk telling the customer, every time, that speaking
- * is the short way.
+ * The line above the answers: tap them, and Tanvi is there to be asked. The
+ * microphone is her, not the form's input — the form is filled by hand.
  */
 export function VoiceHint({ children }: { children: ReactNode }) {
   return (
     <p className="kiosk-voice-hint">
       <Microphone size={18} weight="fill" aria-hidden />
+      {children}
+    </p>
+  );
+}
+
+/**
+ * The same line above a value that is typed and never said: a lock, not a
+ * microphone, because this is the one place the kiosk asks for silence.
+ */
+export function PrivateHint({ children }: { children: ReactNode }) {
+  return (
+    <p className="kiosk-voice-hint">
+      <LockSimple size={18} weight="fill" aria-hidden />
       {children}
     </p>
   );
@@ -115,18 +127,16 @@ export function FactList({ rows }: { rows: ReadonlyArray<readonly [string, React
  * why the hint is there and a "no" button is not.
  */
 export function ReadBack({
-  language,
   value,
   onConfirm,
 }: {
-  language: Language;
   value: ConfirmValue;
   onConfirm: (field: string) => void;
 }) {
-  const copy = strings(language);
+  const copy = COPY;
   return (
     <div className="kiosk-readback">
-      <span className="kiosk-readback-label">{fieldLabel(value.field, language)}</span>
+      <span className="kiosk-readback-label">{fieldLabel(value.field)}</span>
       <span className="kiosk-readback-value">{value.display}</span>
       <span className="kiosk-readback-prompt">{copy.confirmPrompt}</span>
       <TouchButton label={copy.confirmYes} onClick={() => onConfirm(value.field)} wide />

@@ -2,9 +2,9 @@
  * The one screen that takes characters rather than a choice.
  *
  * A mobile number and a PAN are the two things a customer cannot answer with a
- * chip, and until now they could only be spoken. `AskValue` puts the same
- * question on the glass: one labelled field, the on-screen form of what has been
- * typed so far, and a submit. Typing and pressing Enter is the whole
+ * chip, and they are typed, never spoken: a branch is not a private place, and
+ * Tanvi has no way to set either. `AskValue` puts the question on the glass: one
+ * labelled field, the on-screen form of what has been typed so far, and a submit. Typing and pressing Enter is the whole
  * interaction — the field takes focus when the screen arrives, so a customer
  * with a keyboard and no pointer never has to reach for one.
  *
@@ -18,16 +18,16 @@
  * `kind` steers the keyboard, nothing else: `tel` asks for a number pad, `text`
  * for characters in capitals.
  *
- * Speaking it is the first way. That arrives as Tanvi checking a value back,
- * which is why the read-back and its yes render here too — the same block
- * discovery uses, because it is the same moment.
+ * The read-back and its yes still render for a value that arrives in state
+ * `confirming`, the same block discovery uses. This brain sends every typed
+ * value already `confirmed`, so today it is not shown.
  */
 
 import { useState, type FormEvent } from 'react';
 import { COLOR, FOCUS, SIZE } from '../brand';
 import type { AskValue, ConfirmValue } from '../actions.gen';
-import { fieldLabel, strings, type Language } from '../language';
-import { ReadBack, TrayTitle, VoiceHint } from '../ui';
+import { fieldLabel, COPY } from '../copy';
+import { PrivateHint, ReadBack, TrayTitle } from '../ui';
 
 /** A mouse or trackpad, which on this page means a keyboard is to hand too. */
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
@@ -57,19 +57,17 @@ function maskedPreview(kind: string, raw: string): string {
  * PAN arrives as a fresh, empty input.
  */
 export function ValueEntryTray({
-  language,
   entry,
   checking,
   onEnter,
   onConfirm,
 }: {
-  language: Language;
   entry: AskValue | null;
   checking: ConfirmValue | null;
   onEnter: (field: string, value: string) => void;
   onConfirm: (field: string) => void;
 }) {
-  const copy = strings(language);
+  const copy = COPY;
   const [draft, setDraft] = useState('');
   if (!entry) return null;
 
@@ -84,12 +82,12 @@ export function ValueEntryTray({
 
   return (
     <div>
-      {checking ? <ReadBack language={language} value={checking} onConfirm={onConfirm} /> : null}
+      {checking ? <ReadBack value={checking} onConfirm={onConfirm} /> : null}
       <TrayTitle>{entry.label}</TrayTitle>
-      <VoiceHint>{copy.valueHint}</VoiceHint>
+      <PrivateHint>{copy.valueHint}</PrivateHint>
       <form className="kiosk-value-form" onSubmit={submit}>
         <label className="kiosk-value-label" htmlFor="kiosk-value-input">
-          {fieldLabel(entry.field, language)}
+          {fieldLabel(entry.field)}
         </label>
         <div className="kiosk-value-line">
           <input

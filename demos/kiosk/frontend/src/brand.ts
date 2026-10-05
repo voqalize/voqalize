@@ -49,13 +49,9 @@ export const FOCUS = {
   onDark: COLOR.accent,
 } as const;
 
-/**
- * Both faces load in `index.html`. Devanagari is named first in the Hindi stack
- * so a shared glyph renders in the face the rest of the line is set in.
- */
+/** The face loads in `index.html`. The screen is English only, so it is the one. */
 export const FONT = {
   en: '"Geist", system-ui, -apple-system, "Segoe UI", sans-serif',
-  hi: '"Noto Sans Devanagari", "Geist", system-ui, sans-serif',
 } as const;
 
 /**

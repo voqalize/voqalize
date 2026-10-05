@@ -14,7 +14,8 @@
  * Inside the glass, three rows, and the order is the design:
  *
  *   - **header** — who this is, and Start over. There is no language picker:
- *     Tanvi hears the customer's language and switches to it herself.
+ *     Tanvi hears the customer's language and switches her voice to it; the
+ *     screen stays in English.
  *   - **Tanvi** — at the top, with her captions under her. The kiosk is driven
  *     by voice first, so the customer talks to a face; she steps back further
  *     when the cards are up.
@@ -30,15 +31,14 @@
 
 import type { ReactNode } from 'react';
 import { ArrowCounterClockwise } from '@phosphor-icons/react';
-import { CHASSIS, COLOR, SIZE } from './brand';
-import { fontFor, strings, type Language } from './language';
+import { CHASSIS, COLOR, FONT, SIZE } from './brand';
+import { COPY } from './copy';
 import { UiStyles } from './ui';
 
 /** How much of the glass the tray takes, which is how much Tanvi gives up. */
 export type TrayWeight = 'light' | 'heavy';
 
 export interface TotemProps {
-  language: Language;
   /** Tanvi: the live tile, or the pre-call plate. */
   tanvi: ReactNode;
   /** The sentence in flight, under her face. Absent before the call. */
@@ -53,7 +53,6 @@ export interface TotemProps {
 }
 
 export function Totem({
-  language,
   tanvi,
   captions,
   tray,
@@ -61,7 +60,7 @@ export function Totem({
   weight,
   onRestart,
 }: TotemProps) {
-  const copy = strings(language);
+  const copy = COPY;
   return (
     <div className="kiosk-room">
       <div className="kiosk-machine">
@@ -69,7 +68,7 @@ export function Totem({
           <span className="kiosk-sensor" aria-hidden />
         </div>
 
-        <div className={`kiosk-screen is-${weight}`} style={{ fontFamily: fontFor(language) }}>
+        <div className={`kiosk-screen is-${weight}`} style={{ fontFamily: FONT.en }}>
           <header className="kiosk-header">
             <span className="kiosk-brand">
               <span className="kiosk-brand-mark" aria-hidden />

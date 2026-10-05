@@ -15,23 +15,21 @@
  */
 
 import type { ShowShortlist } from '../actions.gen';
-import { strings, type Language } from '../language';
+import { COPY } from '../copy';
 import { CardFace, FactList, Tag, TouchButton } from '../ui';
 
 export function CardDetailTray({
-  language,
   cardId,
   shortlist,
   onBack,
   onChoose,
 }: {
-  language: Language;
   cardId: string | null;
   shortlist: ShowShortlist | null;
   onBack: () => void;
   onChoose: (cardId: string) => void;
 }) {
-  const copy = strings(language);
+  const copy = COPY;
   const card = shortlist?.cards.find((c) => c.id === cardId);
   if (!card) return null;
   const recommended = card.id === shortlist?.recommended_id;

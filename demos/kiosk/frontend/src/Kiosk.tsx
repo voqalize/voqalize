@@ -17,9 +17,9 @@
  * Two things are held above `PipecatAppBase` on purpose, because it renders its
  * children bare while it builds the transport and wrapped in a provider once the
  * client exists — two trees, so anything below it is remounted a second into the
- * page. The consent tick is one (a tick made early would come back unticked);
- * the screen language is the other. The store is above it for the same reason,
- * so a reconnect does not throw the conversation away.
+ * page. The consent tick is one: a tick made early would come back unticked.
+ * The store is above it for the same reason, so a reconnect does not throw the
+ * form away.
  *
  * There is no idle timer and no auto-reset. Start over, in the header, clears
  * the answers and puts the first question back; the call stays up.
@@ -45,7 +45,6 @@ import { connectRequest, withRealHeaders } from './config';
 import { KioskTotem } from './KioskTotem';
 import { TanviCaptions, TanviPlate, TanviTile } from './TanviTile';
 import { KioskProvider, useKiosk } from './store';
-import type { Language } from './language';
 
 /** Vantage's reading of the shared presence ring. */
 const PRESENCE: Partial<AmbientPresencePalette> = {
@@ -70,11 +69,6 @@ export function KioskApp() {
 function Kiosk() {
   const [joined, setJoined] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  // The store owns the screen's language: Tanvi changes it, when she hears the
-  // customer speak another one, and the copy follows her action.
-  const {
-    state: { language },
-  } = useKiosk();
   const [error, setError] = useState<string | null>(null);
   // What the ring outside the call renders. Lifted out of the live tree, whose
   // hooks are the only place a transport or activity value exists.
@@ -98,7 +92,7 @@ function Kiosk() {
       <DemoGate
         open={!joined}
         title="Vantage Bank card kiosk"
-        blurb="Press Start and talk to Tanvi. She asks four quick questions, ranks three Vantage cards for you, and gives you a code for the banker's desk."
+        blurb="Press Start and fill in a short form on the screen. Tanvi, an AI assistant, answers anything you ask along the way, ranks Vantage cards for you, and gives you a code for the banker's desk."
         joinLabel="Start"
         accent={COLOR.brand}
         agreed={agreed}
@@ -110,7 +104,6 @@ function Kiosk() {
 
       {joined ? (
         <CallSession
-          language={language}
           onTransportState={setTransportState}
           onActivity={setActivity}
           onError={handleError}
@@ -118,9 +111,8 @@ function Kiosk() {
       ) : (
         // No client to embody yet, so Tanvi's place wears the plate.
         <KioskTotem
-          language={language}
           live={false}
-          tanvi={<TanviPlate language={language} />}
+          tanvi={<TanviPlate />}
         />
       )}
     </>
@@ -128,7 +120,6 @@ function Kiosk() {
 }
 
 interface SessionProps {
-  language: Language;
   onTransportState: (state: TransportState) => void;
   onActivity: (activity: AmbientPresenceActivity) => void;
   onError: (message: string) => void;
@@ -154,7 +145,6 @@ function CallSession(props: SessionProps) {
 
 /** Rendered inside `PipecatAppBase`'s provider, so every hook here sees the client. */
 function LiveKiosk({
-  language,
   onTransportState,
   onActivity,
   onError,
@@ -211,9 +201,8 @@ function LiveKiosk({
 
   return (
     <KioskTotem
-      language={language}
       live={isConnected}
-      tanvi={<TanviTile client={client ?? null} activity={activity} language={language} />}
+      tanvi={<TanviTile client={client ?? null} activity={activity} />}
       captions={<TanviCaptions />}
     />
   );
