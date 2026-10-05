@@ -36,9 +36,15 @@ from google.genai import types
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
-from voqalize.sdk.wire import ConfigureFrame, SpeechStartFrame
+from voqalize.sdk.wire import (
+    ConfigureFrame,
+    RTVIFrame,
+    SpeechChunkFrame,
+    SpeechEndFrame,
+    SpeechStartFrame,
+)
 
-from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
+from ._harness import DemoRig, _configs, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
@@ -563,6 +569,58 @@ async def test_a_slow_model_after_the_nod_is_held_not_left_silent(
         assert answer in said
         assert nod not in said
         assert hold not in said
+
+
+def _story(rig: DemoRig) -> list[str]:
+    """Her speech and her avatar states, in wire order: a unit is its text,
+    a state is ``state:<value>``."""
+    story: list[str] = []
+    texts: dict[str, list[str]] = {}
+    for rec in rig.driver.log:
+        frame = rec.frame
+        if isinstance(frame, SpeechChunkFrame):
+            texts.setdefault(frame.speech_id, []).append(frame.text)
+        elif isinstance(frame, SpeechEndFrame):
+            story.append("".join(texts.pop(frame.speech_id, [])))
+        elif (
+            isinstance(frame, RTVIFrame)
+            and isinstance(frame.data, dict)
+            and frame.data.get("type") == "avatar"
+        ):
+            assert set(frame.data) == {"type", "cmd", "state"}
+            story.append(f"state:{frame.data['state']}")
+    return story
+
+
+async def test_after_the_nod_she_works_until_the_model_answers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Heard, working, answering: WORKING follows the nod, her holding line is
+    said from inside it, and the model's first words end it — sent before
+    those words, so the runtime can end the look as they start playing."""
+    monkeypatch.setattr(acknowledge, "RATE", 1.0)
+    monkeypatch.setattr(acknowledge, "HOLD_AFTER_S", 0.2)
+    llm = ScriptedGemini(
+        {
+            "How long does delivery take?": [
+                reply(chunks=["About five working days."], chunk_delay=0.6)
+            ]
+        }
+    )
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("How long does delivery take?", quiet_for=1.0)
+        nod, hold, answer = (u.text for u in turn.units)
+        assert _story(rig)[-5:] == [nod, "state:WORKING", hold, "state:None", answer]
+
+
+async def test_without_a_nod_there_is_no_working_look() -> None:
+    """The negative control: a turn she did not acknowledge leaves the face to
+    the runtime's own reading of the wait."""
+    async with demo("qween", _llm()) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Show me rose gold earrings with pink sapphire under a lakh.")
+        assert not [s for s in _story(rig) if s.startswith("state:")]
 
 
 async def test_a_quick_model_after_the_nod_is_not_held(monkeypatch: pytest.MonkeyPatch) -> None:

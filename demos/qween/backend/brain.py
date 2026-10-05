@@ -34,7 +34,7 @@ import asyncio
 import contextlib
 import re
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -57,6 +57,7 @@ from voqalize_demos import (
 from voqalize.sdk import (
     Action,
     RTVIMessage,
+    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -107,6 +108,13 @@ AGENT_NAME = "Trisha"
 _IDLE_MS = 0
 
 LanguageName = Literal["english", "hindi"]
+
+
+def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
+    """The talking head's working latch: the runtime reads exactly this
+    message, holds it until speech owed has played, and lets the reply's own
+    playout end it. Without an avatar it reaches nothing."""
+    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
 
 
 @dataclass(frozen=True)
@@ -646,14 +654,35 @@ class QweenBrain(GeminiBrain):
             self._awaiting.append(_Unit(types.Content(role="model", parts=[])))
             yield SpeechChunk(nod)
             yield SpeechEnd()
-            async for event in self._hold_the_floor(super().on_user_message(session, msg)):
-                yield event
+            # Heard, then at work: once the nod has played, the face turns to
+            # another screen and types until the answer comes, rather than
+            # holding the caller's eye in a silence it has already explained.
+            # The runtime arms it only after the nod is spoken, and ends it
+            # when the answer starts playing, so a model that answers inside
+            # the nod never shows it at all.
+            # Her own holding line is said from the screen and goes back to it;
+            # only the model's first words end the work.
+            working = True
+
+            def answered() -> None:
+                nonlocal working
+                if working:
+                    working = False
+                    _avatar_state(session, None)
+
+            _avatar_state(session, "WORKING")
+            try:
+                turn = super().on_user_message(session, msg)
+                async for event in self._hold_the_floor(turn, answered):
+                    yield event
+            finally:
+                answered()
             return
         async for event in super().on_user_message(session, msg):
             yield event
 
     async def _hold_the_floor(
-        self, turn: AsyncGenerator[Speech, None]
+        self, turn: AsyncGenerator[Speech, None], answered: Callable[[], None]
     ) -> AsyncGenerator[Speech, None]:
         """The model's turn after a nod, with a line of hers if it stays quiet.
 
@@ -666,7 +695,8 @@ class QweenBrain(GeminiBrain):
 
         A line of hers goes out only while the model has yielded nothing, so
         any unit the model has opened is still unspoken and is heard after
-        hers: hers is queued for its finalize ahead of those.
+        hers: hers is queued for its finalize ahead of those. ``answered`` is
+        called before each of the model's own events, never before hers.
         """
         done = object()
         events: asyncio.Queue[object] = asyncio.Queue()
@@ -705,6 +735,7 @@ class QweenBrain(GeminiBrain):
                 if event is done:
                     break
                 floor = []
+                answered()
                 yield cast(Speech, event)
             task.result()
         finally:
