@@ -38,7 +38,8 @@ import {
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "./config";
 import { DeskFace } from "./DeskFace";
-import { useBooking } from "./store";
+import { strings } from "./i18n";
+import { useSite } from "./store";
 
 /** The page, handed the two things the call contributes: the mic control for its
  * top bar, and Tushar's face for its side panel. */
@@ -86,7 +87,8 @@ function BeginControl({
   error: string;
   onBegin: () => void | Promise<void>;
 }) {
-  const label = connecting ? "Connecting…" : error || "Book by voice";
+  const t = strings(useSite().lang);
+  const label = connecting ? "Connecting…" : error || t.talk;
   return (
     <PresenceFrame>
       <span className={`pw-presence-label${error && !connecting ? " is-error" : ""}`} title={label}>
@@ -100,7 +102,7 @@ function BeginControl({
         <button
           className="pw-presence-btn"
           onClick={onBegin}
-          title={error ? "Try again" : "Talk to the Appointment Desk"}
+          title={error ? "Try again" : t.talk}
         >
           <Mic size={16} />
         </button>
@@ -158,7 +160,7 @@ export function PetwellDesk({
         <DemoGate
           open={!joined}
           title="Petwell Appointment Desk"
-          blurb="Book a vet visit for your pet by voice — say what you need and watch the booking fill in on screen."
+          blurb="Talk to Tushar, the hospital's AI front desk, in English, Hindi or eight more Indian languages — he finds a branch, answers from the Health Hub and books the visit on screen as you speak."
           accent={PRESENCE.listening}
           onJoin={begin}
         />
@@ -198,7 +200,15 @@ function CallSession({
   // Memoized: this is a dependency of PipecatAppBase's connect-on-mount effect,
   // so an unmemoized object literal would re-fire that effect (and re-start the
   // call) on every render.
-  const params = useMemo(() => connectRequest({ surface: "petwell-web" }), []);
+  // The page's language rides the connect request, so Tushar greets in it and
+  // both legs are set before his first word. Read once: a call keeps its
+  // request, and a later switch goes over the call itself.
+  const { lang } = useSite();
+  const params = useMemo(
+    () => connectRequest({ surface: "petwell-web", language: lang === "hi" ? "Hindi" : "English" }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   return (
     <PipecatAppBase
@@ -232,7 +242,7 @@ function CallBridge({
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
   const { isConnected: isLive } = usePipecatConnectionState();
-  const { handleUiCommand, registerAgentSend } = useBooking();
+  const { handleUiCommand, registerAgentSend } = useSite();
   const [activity, setActivity] = useState<AmbientPresenceActivity>("idle");
 
   // Screen ← assistant. The brain's `session.dispatch(HighlightItem(...))`

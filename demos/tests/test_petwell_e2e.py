@@ -1,4 +1,5 @@
-"""The Petwell Appointment Desk demo, end to end over the wire — no network, no LLM key.
+"""The Petwell website demo — Tushar at its front desk — end to end over the wire,
+no network, no LLM key.
 
 The real ``PetwellBrain`` — the shipping ``demos/petwell/backend/brain.py``, its
 real prompt, its real tools, its real branch catalog — hosted on a real
@@ -10,8 +11,13 @@ free is something only the slot book knows, so that turn is two requests: the
 call, then the times offered. Every other tool shows what the model named from
 its prompt and says its line with the call, one request per turn.
 
-The browser→brain leg is the caller's own taps and the final Send Request: each
-folds into the context without taking the floor, and the next idle tick answers.
+The browser→brain leg is the visitor's own clicks: browsing is only noted,
+booking taps and Send Request are answered on the next idle tick, and the page's
+language picker moves both legs at once.
+
+Language follows the visitor the way the kiosk's does: ``switch_language`` only
+records the switch, the brain moves both legs after the turn and says a written
+line in the new language, and Hindi in English letters is caught in Python.
 
 Run: ``cd demos && uv run pytest tests/test_petwell_e2e.py``
 """
@@ -25,17 +31,17 @@ from google.genai import types
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
-from ._harness import check_greeting, check_turn, check_voice_pair, demo
+from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
 from voqalize_demos._loaded.petwell.brain import (  # noqa: E402
-    _GREETING,
     _IDLE_MS,
     ChooseBranch,
     PetwellBrain,
 )
 from voqalize_demos._loaded.petwell.catalog import slots_for  # noqa: E402
+from voqalize_demos._loaded.petwell.language import GREETING, SWITCH_LINE  # noqa: E402
 
 VOICE = "omnivoice/gaurav"
 LANGUAGE = "en"
@@ -122,7 +128,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
     async with demo("petwell", _llm()) as rig:
         greeting = await rig.driver.start_session()
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text == _GREETING
+        assert greeting is not None and greeting.text == GREETING["English"]
         check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
 
 
@@ -281,3 +287,149 @@ async def test_a_branch_chosen_in_silence_is_still_said() -> None:
         (line,) = (u.text for u in turn.units)
         assert line == "Petwell Powai it is. What's the visit for?", line
         assert len(llm.captured_contents) - before == 1, "a silent turn asked the model again"
+
+
+# ─── The website ───────────────────────────────────────────────────────────────
+
+
+def _legs(rig: DemoRig) -> tuple[str, str, str]:
+    """The voice, the spoken language and the heard language now on the wire."""
+    configs = _configs(rig)
+    return (
+        _last(configs, lambda c: c.tts.voice if c.tts else None),
+        _last(configs, lambda c: c.tts.language if c.tts else None),
+        _last(configs, lambda c: c.stt.language if c.stt else None),
+    )
+
+
+async def test_the_desk_moves_the_visitor_around_the_site() -> None:
+    """Browsing is not booking: a branch question points at the locations page,
+    a health question opens the Health Hub article it is about."""
+    llm = ScriptedGemini(
+        {
+            "Where is your Lucknow branch?": reply_and_call(
+                "Our Lucknow branch is in Gomti Nagar.", "show_branches", action={"city": "lucknow"}
+            ),
+            "My puppy is not vaccinated, is parvo dangerous?": reply_and_call(
+                "Yes — here's our article on parvo.",
+                "open_article",
+                action={"article_id": "parvovirus"},
+            ),
+            "Show me your services.": reply_and_call(
+                "Here are our services.", "navigate", action={"page": "services"}
+            ),
+        }
+    )
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Where is your Lucknow branch?")
+        await rig.driver.user_says("My puppy is not vaccinated, is parvo dangerous?")
+        await rig.driver.user_says("Show me your services.")
+        assert rig.actions() == ["show_branches", "open_article", "navigate"], rig.actions()
+        assert rig.command("show_branches") == {"city": "Lucknow"}
+        assert rig.command("open_article") == {"article_id": "parvovirus"}
+        assert rig.command("navigate") == {"page": "services"}
+
+
+async def test_reading_is_noted_but_a_booking_click_is_answered() -> None:
+    """A visitor reading an article is not talked at; opening the booking panel
+    from it is answered on the next idle tick, with the service already known."""
+    llm = ScriptedGemini(
+        {"opened the booking panel to book Vaccination": reply("Sure — which city?")}
+    )
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.send_ui_event("article_opened", {"article_id": "parvovirus"})
+        await asyncio.sleep(0.1)
+        quiet = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS, timeout=1.0)
+        assert quiet.units == [], [u.text for u in quiet.units]
+
+        await rig.driver.send_ui_event("booking_opened", {"service_id": "vaccination"})
+        await asyncio.sleep(0.1)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
+        check_turn(rig, turn, units=1)
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain) and brain.service_id == "vaccination"
+
+
+# ─── Language ──────────────────────────────────────────────────────────────────
+
+
+async def test_the_page_can_open_the_call_in_hindi() -> None:
+    """The page's language rides the connect request: Tushar greets in Hindi and
+    both legs are Hindi before his first word."""
+    async with demo("petwell", ScriptedGemini({})) as rig:
+        greeting = await rig.driver.start_session(init={"language": "Hindi"})
+        assert greeting is not None and greeting.text == GREETING["Hindi"]
+        check_voice_pair(rig, voice=VOICE, language="hi")
+
+
+async def test_a_language_the_page_does_not_offer_opens_in_english() -> None:
+    async with demo("petwell", ScriptedGemini({})) as rig:
+        greeting = await rig.driver.start_session(init={"language": "Klingon"})
+        assert greeting is not None and greeting.text == GREETING["English"]
+        check_voice_pair(rig, voice=VOICE, language="en")
+
+
+async def test_the_switch_line_is_said_in_the_new_language_after_the_voice_moves() -> None:
+    """The model calls switch_language alone; the brain moves both legs, then says
+    a written line in Tamil, in the new voice — one model request, and the page
+    is told to stay English."""
+    heard = "Naan Tamil la pesalama?"
+    llm = ScriptedGemini({heard: call("switch_language", to={"language": "Tamil"})})
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        before = len(llm.captured_contents)
+        turn = await rig.driver.user_says(heard)
+        assert [u.text for u in turn.units] == [SWITCH_LINE["Tamil"]]
+        assert _legs(rig) == (VOICE, "ta", "ta")
+        assert len(llm.captured_contents) - before == 1, "the switch line asked the model"
+        assert rig.command("language_changed") == {"language": "Tamil", "screen_language": "en"}
+
+
+async def test_hindi_in_english_letters_moves_both_legs_and_the_page() -> None:
+    """Hindi heard by the English recognizer is caught in Python: both legs move
+    before the model runs, and the website follows into Hindi."""
+    heard = "Mera kutta bimar hai, mujhe appointment chahiye."
+    llm = ScriptedGemini({heard: reply("ज़रूर, क्लिनिक विज़िट या घर पर?")})
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says(heard)
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain) and brain.language == "Hindi"
+        assert _legs(rig) == (VOICE, "hi", "hi")
+        assert rig.command("language_changed") == {"language": "Hindi", "screen_language": "hi"}
+
+
+async def test_english_heard_in_hindi_goes_back_to_english() -> None:
+    llm = ScriptedGemini({"": reply("Sure.")})
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session(init={"language": "Hindi"})
+        await rig.driver.user_says("आई वांट टू बुक एन अपॉइंटमेंट फॉर माय डॉग")
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain) and brain.language == "English"
+        assert _legs(rig) == (VOICE, "en", "en")
+
+
+async def test_the_page_picker_moves_both_legs_and_the_next_idle_says_so() -> None:
+    """Picking Hindi on the page moves both legs from on_rtvi — no floor taken —
+    and the next quiet moment says the switch line in Hindi."""
+    async with demo("petwell", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        await rig.driver.send_ui_event("language_picked", {"language": "Hindi"})
+        await asyncio.sleep(0.1)
+        assert _legs(rig) == (VOICE, "hi", "hi")
+        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
+        assert [u.text for u in turn.units] == [SWITCH_LINE["Hindi"]]
+
+
+async def test_a_silent_turn_in_hindi_is_covered_in_hindi() -> None:
+    """The fallback line follows the call's language: a turn that moved the page
+    and said nothing is covered with a written Hindi line, not the English one."""
+    llm = ScriptedGemini({"पवई": call("choose_branch", action={"branch_id": "mum-powai"})})
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session(init={"language": "Hindi"})
+        turn = await rig.driver.user_says("पवई")
+        (line,) = (u.text for u in turn.units)
+        assert line != "Petwell Powai it is. What's the visit for?"
+        assert any("\u0900" <= ch <= "\u097f" for ch in line), line

@@ -4,6 +4,24 @@
 // Every field of an action is present on the wire, `null` included, so nothing
 // there is optional and no runtime validation is needed to narrow on `command`.
 
+export interface Navigate {
+  page: 'home' | 'services' | 'locations' | 'health_hub' | 'at_home';
+}
+
+export interface ShowBranches {
+  city: string;
+}
+
+export interface OpenArticle {
+  article_id: string;
+}
+
+export interface LanguageChanged {
+  language: 'English' | 'Hindi' | 'Bengali' | 'Gujarati' | 'Kannada' | 'Malayalam' | 'Marathi' | 'Punjabi' | 'Tamil' | 'Telugu';
+
+  screen_language: 'en' | 'hi';
+}
+
 export interface StartBooking {
   visit_type: 'clinic' | 'home';
 }
@@ -74,7 +92,7 @@ export interface ShowEmergency {
 
 export type GoHome = Record<string, never>;
 
-/** The caller tapped Send Request, and the browser minted the reference. */
+/** The visitor tapped Send Request, and the browser minted the reference. */
 export interface AppointmentRequested {
   ref?: string;
 
@@ -85,35 +103,62 @@ export interface AppointmentRequested {
   phone?: string;
 }
 
-/** The caller tapped a branch card. */
+/** The visitor opened a Health Hub article. */
+export interface ArticleOpened {
+  article_id?: string;
+}
+
+/**
+ * The visitor opened the booking panel — from the header, a service card or
+ * an article's call to action, which may name the service to book.
+ */
+export interface BookingOpened {
+  service_id?: string;
+}
+
+/** The visitor tapped a branch in the booking panel. */
 export interface BranchPicked {
   branch_id?: string;
 }
 
-/** The caller tapped a city chip. */
+/** The visitor tapped a city in the booking panel. */
 export interface CityPicked {
   city?: string;
 }
 
-/** The caller tapped a reason for the visit. */
+/** The visitor chose a language on the page's picker. */
+export interface LanguagePicked {
+  language?: 'English' | 'Hindi' | 'Bengali' | 'Gujarati' | 'Kannada' | 'Malayalam' | 'Marathi' | 'Punjabi' | 'Tamil' | 'Telugu';
+}
+
+/** The visitor opened a page from the site's navigation. */
+export interface PagePicked {
+  page?: 'home' | 'services' | 'locations' | 'health_hub' | 'at_home';
+}
+
+/** The visitor tapped a reason for the visit. */
 export interface ServicePicked {
   service_id?: string;
 }
 
-/** The caller tapped a time on the slot grid. */
+/** The visitor tapped a time on the slot grid. */
 export interface SlotPicked {
   date?: string;
 
   time?: string;
 }
 
-/** The caller tapped Clinic visit or Vet at home. */
+/** The visitor tapped Clinic visit or Vet at home. */
 export interface VisitTypePicked {
   visit_type?: 'clinic' | 'home';
 }
 
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
+  | { command: 'navigate'; payload: Navigate }
+  | { command: 'show_branches'; payload: ShowBranches }
+  | { command: 'open_article'; payload: OpenArticle }
+  | { command: 'language_changed'; payload: LanguageChanged }
   | { command: 'start_booking'; payload: StartBooking }
   | { command: 'choose_city'; payload: ChooseCity }
   | { command: 'choose_branch'; payload: ChooseBranch }
@@ -128,6 +173,10 @@ export type UiAction =
 export type UiActionCommand = UiAction['command'];
 
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
+  'navigate',
+  'show_branches',
+  'open_article',
+  'language_changed',
   'start_booking',
   'choose_city',
   'choose_branch',
@@ -163,8 +212,12 @@ export function unhandledUiAction(action: never): never {
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
   | { event: 'appointment_requested'; payload: AppointmentRequested }
+  | { event: 'article_opened'; payload: ArticleOpened }
+  | { event: 'booking_opened'; payload: BookingOpened }
   | { event: 'branch_picked'; payload: BranchPicked }
   | { event: 'city_picked'; payload: CityPicked }
+  | { event: 'language_picked'; payload: LanguagePicked }
+  | { event: 'page_picked'; payload: PagePicked }
   | { event: 'service_picked'; payload: ServicePicked }
   | { event: 'slot_picked'; payload: SlotPicked }
   | { event: 'visit_type_picked'; payload: VisitTypePicked };
@@ -173,8 +226,12 @@ export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'appointment_requested',
+  'article_opened',
+  'booking_opened',
   'branch_picked',
   'city_picked',
+  'language_picked',
+  'page_picked',
   'service_picked',
   'slot_picked',
   'visit_type_picked',

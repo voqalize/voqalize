@@ -1,29 +1,35 @@
 /**
- * BookingStore — the single source of truth for the Petwell booking screen.
+ * SiteStore — the single source of truth for the Petwell website.
  *
- * Both the pet owner (tapping) and the Appointment Desk agent (via `ui-command`
- * RTVI events) call the SAME actions, so the screen stays consistent no matter
- * who is driving. Navigation is plain React state — never a router — so the
+ * Both the visitor (clicking) and Tushar (via `ui-command` RTVI events) call the
+ * SAME actions, so the page stays consistent no matter who is driving. The site
+ * is one page app with plain state for its pages — never a router — so the
  * `PipecatClient` mounted alongside never unmounts and the call stays live.
  *
- * A tap is also *told* to the brain: the `pick*` actions emit a typed
+ * Three layers of state: the **page** being read (home, services, locations,
+ * health hub or an article, at home), the **booking panel** over it with its six
+ * steps, and the **language** the page is written in.
+ *
+ * A click is also *told* to the brain: the `pick*`/`open*` actions emit a typed
  * `AppEvent` (declared in `backend/app_events.py`, generated into
- * `actions.gen.ts`), so the assistant carries on from where the screen now is.
- * The agent's own commands call the same setters without emitting — the brain
- * already knows what it did.
+ * `actions.gen.ts`). The agent's own commands call the same setters without
+ * emitting — the brain already knows what it did.
  */
 
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { getBranch, getService, OPENING_SOON, type VisitType } from './catalog';
+import type { Lang } from './i18n';
 import {
   asUiAction,
   sendAppEvent,
   unhandledUiAction,
   type AppEvent,
   type FillDetails,
+  type Navigate,
 } from './actions.gen';
 
-export type Step = 'home' | 'location' | 'service' | 'slot' | 'details' | 'review' | 'done';
+export type Page = Navigate['page'] | 'article';
+export type Step = 'visit' | 'location' | 'service' | 'slot' | 'details' | 'review' | 'done';
 
 /** The form's fields — the agent's `fill_details` keys, each a plain string the owner can edit. */
 export type Details = { [K in keyof FillDetails]: string };
@@ -45,6 +51,12 @@ export interface Emergency {
 }
 
 interface State {
+  lang: Lang;
+  page: Page;
+  articleId: string | null;
+  /** The city the locations page (or home's finder) is showing. */
+  browseCity: string | null;
+  bookingOpen: boolean;
   step: Step;
   visitType: VisitType;
   city: string | null;
@@ -55,15 +67,14 @@ interface State {
   times: string[] | null;
   time: string | null;
   details: Details;
-  /** Field names the agent just filled — flashed on screen. */
   justFilled: string[];
   emergency: Emergency | null;
   ref: string | null;
 }
 
-const INITIAL: State = {
-  step: 'home',
-  visitType: 'clinic',
+const BOOKING_RESET = {
+  step: 'visit' as Step,
+  visitType: 'clinic' as VisitType,
   city: null,
   branchId: null,
   serviceId: null,
@@ -72,14 +83,30 @@ const INITIAL: State = {
   time: null,
   details: EMPTY_DETAILS,
   justFilled: [],
-  emergency: null,
   ref: null,
+};
+
+const INITIAL: State = {
+  lang: 'en',
+  page: 'home',
+  articleId: null,
+  browseCity: null,
+  bookingOpen: false,
+  emergency: null,
+  ...BOOKING_RESET,
 };
 
 export type AgentSend = (event: string, payload?: unknown) => void;
 
-export interface BookingStore extends State {
-  // Taps — set the screen and tell the brain.
+export interface SiteStore extends State {
+  // Browsing — set the page and tell the brain.
+  openPage: (page: Navigate['page']) => void;
+  openArticle: (id: string) => void;
+  browse: (city: string | null) => void;
+  pickLanguage: (lang: Lang) => void;
+  // Booking taps.
+  openBooking: (serviceId?: string) => void;
+  closeBooking: () => void;
   pickVisitType: (v: VisitType) => void;
   pickCity: (city: string) => void;
   pickBranch: (id: string) => void;
@@ -90,21 +117,21 @@ export interface BookingStore extends State {
   goTo: (step: Step) => void;
   reviewNow: () => void;
   sendRequest: () => string | null;
+  restartBooking: () => void;
   openEmergency: () => void;
   closeEmergency: () => void;
-  restart: () => void;
   // Wiring.
   registerAgentSend: (fn: AgentSend | null) => void;
   handleUiCommand: (command: string, payload: unknown) => void;
 }
 
-const Ctx = createContext<BookingStore | null>(null);
+const Ctx = createContext<SiteStore | null>(null);
 
 function makeRef(): string {
   return `PW-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
-export function BookingProvider({ children }: { children: ReactNode }) {
+export function SiteProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>(INITIAL);
   const sendRef = useRef<AgentSend | null>(null);
   const stateRef = useRef(state);
@@ -115,21 +142,39 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     sendRef.current = fn;
   }, []);
 
-  // ── Setters shared by taps and the agent ──────────────────────────────────
+  const scrollTop = () => document.querySelector('.pw-app')?.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // ── Setters shared by clicks and the agent ────────────────────────────────
+
+  const setPage = useCallback((page: Navigate['page']) => {
+    setState((s) => ({ ...s, page, articleId: null, bookingOpen: false }));
+    scrollTop();
+  }, []);
+
+  const setArticle = useCallback((articleId: string) => {
+    setState((s) => ({ ...s, page: 'article', articleId, bookingOpen: false }));
+    scrollTop();
+  }, []);
+
+  const setBrowse = useCallback((city: string | null) => {
+    setState((s) => ({ ...s, page: 'locations', browseCity: city, bookingOpen: false }));
+  }, []);
 
   const setVisitType = useCallback((visitType: VisitType) => {
     setState((s) => ({
       ...s,
+      bookingOpen: true,
+      emergency: null,
       visitType,
       serviceId: getService(s.serviceId)?.visit === visitType ? s.serviceId : null,
       step: 'location',
-      emergency: null,
     }));
   }, []);
 
   const setCity = useCallback((city: string) => {
     setState((s) => ({
       ...s,
+      bookingOpen: true,
       city,
       branchId: getBranch(s.branchId)?.city === city ? s.branchId : null,
       step: 'location',
@@ -139,19 +184,61 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const setBranch = useCallback((branchId: string) => {
     const b = getBranch(branchId);
     if (!b || OPENING_SOON.has(b.city)) return;
-    setState((s) => ({ ...s, city: b.city, branchId, step: 'service' }));
+    // A service chosen before the branch (from an article) skips its own step.
+    setState((s) => ({ ...s, bookingOpen: true, city: b.city, branchId, step: s.serviceId ? 'slot' : 'service' }));
   }, []);
 
   const setService = useCallback((serviceId: string) => {
     if (!getService(serviceId)) return;
-    setState((s) => ({ ...s, serviceId, step: 'slot' }));
+    setState((s) => ({ ...s, bookingOpen: true, serviceId, step: 'slot' }));
   }, []);
 
   const setSlot = useCallback((date: string, time: string) => {
-    setState((s) => ({ ...s, date, time, step: 'details' }));
+    setState((s) => ({ ...s, bookingOpen: true, date, time, step: 'details' }));
   }, []);
 
-  // ── Taps ──────────────────────────────────────────────────────────────────
+  const setLang = useCallback((lang: Lang) => setState((s) => ({ ...s, lang })), []);
+
+  // ── Clicks ────────────────────────────────────────────────────────────────
+
+  const openPage = useCallback(
+    (page: Navigate['page']) => {
+      setPage(page);
+      emit({ event: 'page_picked', payload: { page } });
+    },
+    [setPage, emit],
+  );
+  const openArticle = useCallback(
+    (id: string) => {
+      setArticle(id);
+      emit({ event: 'article_opened', payload: { article_id: id } });
+    },
+    [setArticle, emit],
+  );
+  const browse = useCallback((city: string | null) => setBrowse(city), [setBrowse]);
+  const pickLanguage = useCallback(
+    (lang: Lang) => {
+      setLang(lang);
+      emit({ event: 'language_picked', payload: { language: lang === 'hi' ? 'Hindi' : 'English' } });
+    },
+    [setLang, emit],
+  );
+
+  const openBooking = useCallback(
+    (serviceId?: string) => {
+      const service = getService(serviceId);
+      setState((s) => ({
+        ...s,
+        ...BOOKING_RESET,
+        bookingOpen: true,
+        emergency: null,
+        ...(service ? { serviceId: service.id, visitType: service.visit, step: 'location' as Step } : {}),
+      }));
+      emit({ event: 'booking_opened', payload: { service_id: service?.id ?? '' } });
+    },
+    [emit],
+  );
+  const closeBooking = useCallback(() => setState((s) => ({ ...s, bookingOpen: false })), []);
 
   const pickVisitType = useCallback(
     (v: VisitType) => {
@@ -197,7 +284,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const goTo = useCallback((step: Step) => setState((s) => ({ ...s, step })), []);
-  const reviewNow = useCallback(() => setState((s) => ({ ...s, step: 'review' })), []);
+  const reviewNow = useCallback(() => setState((s) => ({ ...s, bookingOpen: true, step: 'review' })), []);
 
   const sendRequest = useCallback((): string | null => {
     const s = stateRef.current;
@@ -206,29 +293,37 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, ref, step: 'done' }));
     emit({
       event: 'appointment_requested',
-      payload: {
-        ref,
-        owner_name: s.details.owner_name,
-        pet_name: s.details.pet_name,
-        phone: s.details.phone,
-      },
+      payload: { ref, owner_name: s.details.owner_name, pet_name: s.details.pet_name, phone: s.details.phone },
     });
     return ref;
   }, [emit]);
 
+  const restartBooking = useCallback(() => setState((s) => ({ ...s, ...BOOKING_RESET })), []);
   const openEmergency = useCallback(() => {
-    setState((s) => ({ ...s, emergency: { city: s.city ?? '', helpline: '', branchIds: [] } }));
+    setState((s) => ({ ...s, emergency: { city: s.city ?? s.browseCity ?? '', helpline: '', branchIds: [] } }));
   }, []);
   const closeEmergency = useCallback(() => setState((s) => ({ ...s, emergency: null })), []);
-  const restart = useCallback(() => setState(INITIAL), []);
 
-  // ── Agent → screen ────────────────────────────────────────────────────────
+  // ── Agent → page ──────────────────────────────────────────────────────────
 
   const handleUiCommand = useCallback(
     (command: string, payload: unknown) => {
       const action = asUiAction(command, payload);
       if (!action) return;
       switch (action.command) {
+        case 'navigate':
+          setPage(action.payload.page);
+          break;
+        case 'show_branches':
+          setBrowse(action.payload.city);
+          scrollTop();
+          break;
+        case 'open_article':
+          setArticle(action.payload.article_id);
+          break;
+        case 'language_changed':
+          setLang(action.payload.screen_language);
+          break;
         case 'start_booking':
           setVisitType(action.payload.visit_type);
           break;
@@ -245,6 +340,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           const { date, times, branch_id, visit_type } = action.payload;
           setState((s) => ({
             ...s,
+            bookingOpen: true,
             branchId: branch_id,
             visitType: visit_type,
             date,
@@ -258,12 +354,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           setSlot(action.payload.date, action.payload.time);
           break;
         case 'fill_details': {
-          const filled = Object.entries(action.payload).filter(([, v]) => v) as [
-            keyof Details,
-            string,
-          ][];
+          const filled = Object.entries(action.payload).filter(([, v]) => v) as [keyof Details, string][];
           setState((s) => ({
             ...s,
+            bookingOpen: true,
             step: s.step === 'review' ? 'review' : 'details',
             details: { ...s.details, ...Object.fromEntries(filled) },
             justFilled: filled.map(([k]) => k),
@@ -275,25 +369,28 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           break;
         case 'show_emergency': {
           const { city, helpline, branch_ids } = action.payload;
-          setState((s) => ({
-            ...s,
-            city: city || s.city,
-            emergency: { city, helpline, branchIds: branch_ids },
-          }));
+          setState((s) => ({ ...s, emergency: { city, helpline, branchIds: branch_ids } }));
           break;
         }
         case 'go_home':
-          restart();
+          setState((s) => ({ ...s, ...BOOKING_RESET, bookingOpen: false, page: 'home', articleId: null }));
+          scrollTop();
           break;
         default:
           unhandledUiAction(action);
       }
     },
-    [setVisitType, setCity, setBranch, setService, setSlot, reviewNow, restart],
+    [setPage, setBrowse, setArticle, setLang, setVisitType, setCity, setBranch, setService, setSlot, reviewNow],
   );
 
-  const store: BookingStore = {
+  const store: SiteStore = {
     ...state,
+    openPage,
+    openArticle,
+    browse,
+    pickLanguage,
+    openBooking,
+    closeBooking,
     pickVisitType,
     pickCity,
     pickBranch,
@@ -304,9 +401,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     goTo,
     reviewNow,
     sendRequest,
+    restartBooking,
     openEmergency,
     closeEmergency,
-    restart,
     registerAgentSend,
     handleUiCommand,
   };
@@ -314,8 +411,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
 
-export function useBooking(): BookingStore {
+export function useSite(): SiteStore {
   const ctx = useContext(Ctx);
-  if (!ctx) throw new Error('useBooking must be used within BookingProvider');
+  if (!ctx) throw new Error('useSite must be used within SiteProvider');
   return ctx;
 }

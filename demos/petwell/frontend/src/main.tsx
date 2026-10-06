@@ -1,27 +1,26 @@
 /**
- * Petwell demo entrypoint — the "Appointment Desk".
+ * Petwell demo entrypoint — a vet hospital chain's website with Tushar, its AI
+ * front desk, docked in the corner.
  *
- * A vet hospital's booking page with a voice agent that books the visit with
- * the caller: clinic or home, city and branch, reason, a time, and the owner's
- * details — then the caller taps Send Request. The page and the voice layer
- * share one `BookingProvider`, so the agent and the caller drive the same
- * screen; state-based navigation keeps the live call alive across steps.
+ * The site and the voice layer share one `SiteProvider`, so Tushar and the
+ * visitor drive the same pages, booking panel and language; state-based
+ * navigation keeps the live call alive across all of them.
  */
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookingProvider } from './store';
-import { BookingApp } from './pages';
+import { SiteProvider } from './store';
+import { Site } from './site';
 import { PetwellDesk } from './PetwellDesk';
 
 function PetwellDemo() {
   return (
     <div className="pw-demo-root" style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
-      <BookingProvider>
+      <SiteProvider>
         <PetwellDesk>
-          {(presence, face) => <BookingApp presence={presence} face={face} />}
+          {(presence, face) => <Site presence={presence} face={face} />}
         </PetwellDesk>
-      </BookingProvider>
+      </SiteProvider>
     </div>
   );
 }

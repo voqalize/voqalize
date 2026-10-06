@@ -141,9 +141,9 @@ export function formatTime(t: string): string {
   return `${((h + 11) % 12) + 1}:${pad(m)} ${suffix}`;
 }
 
-export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = {}): string {
+export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = {}, loc = 'en-IN'): string {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Intl.DateTimeFormat('en-IN', {
+  return new Intl.DateTimeFormat(loc, {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
