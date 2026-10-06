@@ -45,6 +45,7 @@ from .test_kdem_knowledge import NOW, FakeSite, _days_ago, _page
 
 from voqalize_demos._loaded.kdem import knowledge  # isort: skip
 from voqalize_demos._loaded.kdem.knowledge import (  # isort: skip
+    REDIRECTS,
     Allowlist,
     FetchResult,
     KnowledgeBase,
@@ -61,6 +62,7 @@ from voqalize_demos._loaded.kdem.knowledge import (  # isort: skip
     read_pdf_isolated,
     reader_signature,
     refresh,
+    sweep_scratch,
 )
 
 SITE = "https://karnatakadigital.in"
@@ -657,6 +659,14 @@ def served(tmp_path: Path) -> Iterator[str]:
         def log_message(self, format: str, *args: object) -> None:
             pass
 
+        def do_GET(self) -> None:
+            if self.path == "/moved.pdf":  # a redirect to plain http on another host
+                self.send_response(301)
+                self.send_header("Location", "http://other.example/doc.pdf")
+                self.end_headers()
+                return
+            super().do_GET()
+
     handler = functools.partial(Quiet, directory=str(tmp_path))
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -1031,6 +1041,10 @@ def _timed(kb: KnowledgeBase, query: str) -> float:
         (f"{UP}/a%2fb.pdf", None),
         (f"{UP}/a%5Cb.pdf", None),
         (f"{UP}/%2e%2e%2Fplugins/x.pdf", None),
+        ("/wp%2Dcontent/plugins/x.pdf", f"{SITE}/wp-content/plugins/x.pdf"),
+        ("/%77p-content/plugins/x.pdf", f"{SITE}/wp-content/plugins/x.pdf"),
+        (f"{UP}/upload%73.pdf", f"{SITE}{UP}/uploads.pdf"),  # one file, one key
+        (f"{UP}/x%00.pdf", None),
         (f"{UP}/A Plan.pdf", f"{SITE}{UP}/A%20Plan.pdf"),
         (f"{UP}/A%20Plan.pdf", f"{SITE}{UP}/A%20Plan.pdf"),
         ("/x/%e0%b2%95/", f"{SITE}/x/%E0%B2%95/"),
@@ -1054,6 +1068,9 @@ def test_no_spelling_of_a_path_escapes_the_uploads_rule() -> None:
         url = normalize(sneaky)
         assert url is not None and al.is_excluded(url), sneaky
     assert normalize(f"{UP}/%2e%2e%2fplugins/x.pdf") is None
+    for escaped in ("/wp%2Dcontent/plugins/x.pdf", "/%77p-content/x.pdf", "/wp%2Djson/wp/v2/users"):
+        url = normalize(escaped)
+        assert url is not None and al.is_excluded(url), escaped
 
 
 def test_an_older_snapshot_is_read_under_the_current_spelling(tmp_path: Path) -> None:
@@ -1082,3 +1099,286 @@ def test_an_older_snapshot_is_read_under_the_current_spelling(tmp_path: Path) ->
     assert list(snap.pages) == [f"{SITE}/x/%E0%B2%95/"]
     assert snap.pages[f"{SITE}/x/%E0%B2%95/"].url == f"{SITE}/x/%E0%B2%95/"
     assert list(snap.known) == [f"{SITE}/x/%E0%B2%95/"]
+
+
+# ─── Hardening ────────────────────────────────────────────────────────────────
+
+
+def _surrogate_pdf() -> bytes:
+    """A page whose font maps one glyph to half a character (a lone UTF-16
+    surrogate), the rest to ordinary letters."""
+    cmap = (
+        b"/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CMapName /X def "
+        b"1 begincodespacerange <00> <FF> endcodespacerange "
+        b"1 beginbfchar <41> <D800> endbfchar 1 beginbfchar <42> <0042> endbfchar "
+        b"endcmap CMapName currentdict /CMap defineresource pop end end"
+    )
+    content = b"BT /F1 12 Tf 72 700 Td (" + b"B" * 200 + b"A) Tj ET"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(content), content),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /ToUnicode 6 0 R >>",
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(cmap), cmap),
+    ]
+    return _build(objects)
+
+
+def _build(objects: list[bytes]) -> bytes:
+    out = bytearray(b"%PDF-1.4\n")
+    offsets: list[int] = []
+    for n, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n%s\nendobj\n" % (n, body)
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    out += b"".join(b"%010d 00000 n \n" % o for o in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        xref,
+    )
+    return bytes(out)
+
+
+async def test_a_lone_surrogate_in_a_pdf_never_reaches_the_snapshot(
+    tmp_path: Path, allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    files.put(POLICY, _surrogate_pdf())
+    snap, report = await _refresh(Snapshot(), allowlist, site, files)
+    assert f"{SITE}{POLICY}" in report.pdf_added
+    text = "".join(snap.pages[f"{SITE}{POLICY}"].blocks)
+    assert "B" * 50 in text and not any("\ud800" <= c <= "\udfff" for c in text)
+    snap.save(tmp_path / "snapshot.json")  # writes as UTF-8 without a complaint
+    loaded = Snapshot.load(tmp_path / "snapshot.json")
+    assert (
+        loaded is not None
+        and loaded.pages[f"{SITE}{POLICY}"].blocks == snap.pages[f"{SITE}{POLICY}"].blocks
+    )
+
+
+async def test_one_pdf_that_breaks_the_reader_does_not_cost_the_refresh(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = knowledge.read_pdf_isolated
+
+    async def breaks_on_the_guide(path: Path, **limits: object) -> knowledge.PdfPart:
+        if b"review panel" in path.read_bytes():
+            raise RuntimeError("an error no one planned for")
+        return await real(path, **limits)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(knowledge, "read_pdf_isolated", breaks_on_the_guide)
+    snap, report = await _refresh(Snapshot(), allowlist, site, files)
+    assert f"{SITE}{POLICY}" in snap.pages  # the rest of the run went on
+    assert f"{SITE}/policies/" in snap.pages and snap.built_at
+    assert report.failed == [f"{SITE}{GUIDE}"]
+    assert not snap.unreadable[f"{SITE}{GUIDE}"].lasting  # tried again after a backoff
+
+
+def _cm_pdf(invocations: int) -> bytes:
+    """Page 1 draws one Form XObject ``invocations`` times, and the form is
+    twenty thousand matrix operators: slow, and inside operators pypdf wraps
+    in ``except Exception``. Page 2 is ordinary text."""
+    form = b"1 0 0 1 0 0 cm\n" * 20_000
+    page1 = b"q /X Do Q\n" * invocations
+    page2 = b"BT /F1 12 Tf 72 700 Td (" + (P2.replace("\n", " ") + " ").encode() * 3 + b") Tj ET"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R 7 0 R] /Count 2 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R "
+        b"/Resources << /XObject << /X 6 0 R >> /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(page1), page1),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Type /XObject /Subtype /Form /BBox [0 0 10 10] /Resources << /Font << /F1 5 0 R >> >> /Length %d >>\nstream\n%s\nendstream"
+        % (len(form), form),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 8 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(page2), page2),
+    ]
+    return _build(objects)
+
+
+def test_the_page_timer_cannot_be_swallowed_by_the_reader() -> None:
+    started = time.monotonic()
+    part = read_pdf(_cm_pdf(200), page_timeout_s=0.5)
+    assert part.skipped == {1: "took over 0.5 s to read"}
+    assert "student founders" in part.pages[1]
+    assert time.monotonic() - started < 5
+
+
+async def test_a_reader_stopped_on_the_first_page_is_no_verdict_on_the_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No page timer, so the first page outlasts the whole read and the reader
+    is killed. Nothing is read yet, but that is not "no text layer": the next
+    run starts at page 2, which has text."""
+    monkeypatch.setattr(knowledge, "_WORKER_GRACE_S", 0.0)
+    path = _on_disk(tmp_path, _cm_pdf(400))
+    part = await read_pdf_isolated(path, page_timeout_s=0, timeout_s=1.0)
+    assert part.stopped == "stopped" and part.next_page == 2 and 1 in part.skipped
+    rest = await read_pdf_isolated(path, start=part.next_page)
+    assert rest.done and "student founders" in rest.pages[0]
+
+
+def test_a_metadata_or_link_title_is_capped() -> None:
+    pdf = read_pdf(make_pdf([P1 + "\n" + P2], title="A very long title " * 60))
+    assert 0 < len(pdf.title) <= 300
+    html = _page(
+        f'<main id="main"><p>Documents.</p><p><a href="{UP}/x.pdf">{"Long name " * 100}</a></p></main>'
+    )
+    ((_, text),) = knowledge.extract(html).pdf_links
+    assert len(text) <= 300
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        "https://127.0.0.1/x.pdf",
+        "https://[::1]/x.pdf",
+        "https://[::ffff:127.0.0.1]/x.pdf",
+        "https://169.254.169.254/latest/x.pdf",
+        "https://2130706433/x.pdf",
+        "https://0x7f.1/x.pdf",
+        "https://localhost/x.pdf",
+        "https://metadata.google.internal/x.pdf",
+        "https://printer.local/x.pdf",
+        "https://a b.example/x.pdf",
+        "https://user@portal.example.gov/x.pdf",
+        "https://portal.example.gov:8443/x.pdf",
+        "http://portal.example.gov/x.pdf",
+        "https://portal.example.gov/x%00.pdf",
+    ],
+)
+def test_a_pdf_link_to_a_private_or_malformed_host_is_refused(given: str) -> None:
+    assert knowledge.pdf_url(given) is None
+
+
+def test_a_pdf_host_is_spelled_one_way() -> None:
+    assert knowledge.pdf_url("https://пример.рф/x.pdf") == "https://xn--e1afmkfd.xn--p1ai/x.pdf"
+    assert (
+        knowledge.pdf_url("https://Portal.Example.GOV./a/../x.pdf")
+        == "https://portal.example.gov/x.pdf"
+    )
+    assert (
+        knowledge.pdf_url("https://portal.example.gov:443/%78.pdf")
+        == "https://portal.example.gov/x.pdf"
+    )
+
+
+async def test_the_downloader_does_not_follow_a_redirect(tmp_path: Path, served: str) -> None:
+    """A redirect comes back as where it points; nothing is downloaded from
+    there, and plain http is never asked for."""
+    dest = tmp_path / "down.pdf"
+    got = await asyncio.to_thread(_download_file, f"{served}/moved.pdf", {}, 1 << 20, dest)
+    assert got.status in REDIRECTS and got.url == "http://other.example/doc.pdf"
+    assert not dest.exists()
+
+
+async def test_a_called_off_download_stops(tmp_path: Path, served: str) -> None:
+    (tmp_path / "big.pdf").write_bytes(b"%PDF-1.4\n" + b"x" * (4 << 20))
+    stop = threading.Event()
+    stop.set()
+    with pytest.raises(TimeoutError, match="called off"):
+        await asyncio.to_thread(
+            _download_file, f"{served}/big.pdf", {}, 1 << 30, tmp_path / "down.pdf", stop
+        )
+
+
+async def test_a_redirected_pdf_is_judged_where_it_points_without_its_body(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    snap, _ = await _refresh(Snapshot(), allowlist, site, files)
+    real = files.fetch
+    asked: list[str] = []
+
+    async def moved(
+        url: str, headers: Mapping[str, str], max_bytes: int, dest: Path
+    ) -> FetchResult:
+        asked.append(url)
+        if url.endswith(POLICY):
+            return FetchResult(301, "https://mirror.example.net/policy.pdf", "")
+        if url == f"{SITE}{GUIDE}":  # the same file under another spelling: followed
+            return FetchResult(301, f"https://www.karnatakadigital.in{GUIDE}?v=2", "")
+        if url == f"https://www.karnatakadigital.in{GUIDE}?v=2":
+            return await real(f"{SITE}{GUIDE}", {}, max_bytes, dest)
+        return await real(url, headers, max_bytes, dest)
+
+    snap2, report = await refresh(
+        snap, allowlist, site.fetch, fetch_file=moved, policy=RefreshPolicy(pause_s=0), now=NOW
+    )
+    assert report.offsite == [f"{SITE}{POLICY}"] and f"{SITE}{POLICY}" not in snap2.pages
+    assert not any("mirror.example.net" in u for u in asked)
+    assert f"https://www.karnatakadigital.in{GUIDE}?v=2" in asked
+    assert f"{SITE}{GUIDE}" in snap2.pages
+
+
+async def test_a_page_redirected_to_its_own_spelling_is_followed_and_to_another_is_not(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    site.moved["/reports/"] = "https://www.karnatakadigital.in/reports"
+    site.redirects["https://www.karnatakadigital.in/reports"] = f"{SITE}/reports/"
+    site.pages["https://www.karnatakadigital.in/reports"] = site.pages["/reports/"]
+    site.moved["/policies/"] = f"{SITE}/contact-us/"
+    snap, report = await _refresh(Snapshot(), allowlist, site, files)
+    assert f"{SITE}/reports/" in snap.pages
+    assert report.moved == [f"{SITE}/policies/"] and f"{SITE}/policies/" not in snap.pages
+
+
+def test_older_spellings_of_one_page_keep_the_approved_one() -> None:
+    old = {
+        "version": 1,
+        "built_at": "2026-01-01T00:00:00+00:00",
+        "known": {},
+        "pages": [
+            {"url": f"{SITE}/startups/", "title": "Approved", "section": "core", "origin": "approved",
+             "lastmod": "", "fetched_at": "", "digest": "a", "blocks": ["Approved text."]},
+            {"url": f"{SITE}/x/../startups/", "title": "Added", "section": "news", "origin": "auto",
+             "lastmod": "", "fetched_at": "", "digest": "b", "blocks": ["Other text."]},
+        ],
+    }  # fmt: skip
+    for pages in (old["pages"], list(reversed(old["pages"]))):  # type: ignore[arg-type]
+        snap = Snapshot.from_json({**old, "pages": pages})
+        assert [(p.title, p.origin) for p in snap.pages.values()] == [("Approved", "approved")]
+
+
+def test_stale_scratch_directories_are_swept(tmp_path: Path) -> None:
+    import os
+
+    old = tmp_path / "kdem-pdf-left-behind"
+    old.mkdir()
+    (old / "file.pdf").write_bytes(b"%PDF-")
+    os.utime(old, (time.time() - 7200, time.time() - 7200))
+    fresh = tmp_path / "kdem-pdf-in-use"
+    fresh.mkdir()
+    other = tmp_path / "not-ours"
+    other.mkdir()
+    os.utime(other, (time.time() - 7200, time.time() - 7200))
+    assert sweep_scratch(tmp_path) == 1
+    assert not old.exists() and fresh.exists() and other.exists()
+
+
+def test_concurrent_snapshot_writes_never_leave_a_torn_file(tmp_path: Path) -> None:
+    path = tmp_path / "snapshot.json"
+    snaps = [
+        Snapshot(f"2026-10-06T00:00:0{i}+00:00", pages={f"{SITE}/p{i}/": StoredPage(
+            f"{SITE}/p{i}/", "T", "core", "approved", "", "", "", ("x" * 200_000,))})
+        for i in range(4)
+    ]  # fmt: skip
+    errors: list[BaseException] = []
+
+    def writer(snap: Snapshot) -> None:
+        try:
+            for _ in range(10):
+                snap.save(path)
+        except BaseException as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=writer, args=(s,)) for s in snaps]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors
+    assert Snapshot.load(path) is not None
+    assert not list(tmp_path.glob("*.tmp"))

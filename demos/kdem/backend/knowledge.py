@@ -68,12 +68,14 @@ import contextlib
 import hashlib
 import heapq
 import io
+import ipaddress
 import json
 import logging
 import math
 import os
 import random
 import re
+import shutil
 import signal
 import sys
 import tempfile
@@ -148,7 +150,7 @@ def normalize(url: str, *, base: str = SITE) -> str | None:
     anything off the site, and for a path with an escaped ``/`` or ``\\``."""
     try:
         # An escaped dot is a dot (RFC 3986: unreserved), before ".." is resolved.
-        parts = urlsplit(urljoin(base, re.sub(r"%2[eE]", ".", url.strip())))
+        parts = urlsplit(urljoin(base, _unescape_unreserved(url.strip())))
     except ValueError:
         return None
     if parts.scheme not in ("http", "https"):
@@ -180,17 +182,50 @@ def pdf_url(url: str, *, base: str = SITE) -> str | None:
     if here is not None:
         return here if is_pdf(here) else None
     try:
-        parts = urlsplit(urljoin(base, re.sub(r"%2[eE]", ".", url.strip())))
+        parts = urlsplit(urljoin(base, _unescape_unreserved(url.strip())))
         port = parts.port
     except ValueError:
         return None
-    host = (parts.hostname or "").lower().rstrip(".")
-    if parts.scheme != "https" or not host or parts.username or port not in (None, 443):
+    if parts.scheme != "https" or "@" in parts.netloc or port not in (None, 443):
         return None
+    host = _public_host(
+        parts.netloc.rsplit(":", 1)[0] if port or parts.netloc.endswith(":") else parts.netloc
+    )
     path = _clean_path(parts.path or "/")
-    if path is None or not path.lower().endswith(".pdf"):
+    if host is None or path is None or not path.lower().endswith(".pdf"):
         return None
     return f"https://{host}{path}"
+
+
+_LABEL = re.compile(r"^(?!-)[a-z0-9-]{1,63}(?<!-)$")
+_PRIVATE_SUFFIXES = frozenset(
+    {"internal", "local", "localhost", "localdomain", "lan", "home", "intranet", "corp", "arpa"}
+)
+
+
+def _public_host(raw: str) -> str | None:
+    """A host name that is plainly a public site, lower-cased and in punycode;
+    ``None`` for anything that could reach the brain's own network: an IP
+    address in any spelling (``127.0.0.1``, ``2130706433``, ``0x7f.1``,
+    ``[::1]``), a single-label name (``localhost``), a private suffix
+    (``.internal``, ``.local``), or a name that is not well formed."""
+    host = raw.rstrip(".").lower()
+    if not host or not host.isprintable() or any(c in host for c in "[]: \\%"):
+        return None
+    try:
+        host = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        return None
+    labels = host.split(".")
+    if len(labels) < 2 or not all(_LABEL.match(label) for label in labels):
+        return None
+    tld = labels[-1]
+    if tld in _PRIVATE_SUFFIXES or not (tld.isalpha() or tld.startswith("xn--")):
+        return None  # a numeric last label is an IP address however it is spelled
+    with contextlib.suppress(ValueError):
+        ipaddress.ip_address(host)
+        return None
+    return host
 
 
 def host_of(url: str) -> str:
@@ -203,6 +238,17 @@ def off_site(url: str) -> bool:
 
 
 _ESCAPE = re.compile(r"%[0-9a-fA-F]{2}")
+_UNRESERVED = re.compile(
+    r"%(3[0-9]|4[1-9a-fA-F]|5[0-9aA]|6[1-9a-fA-F]|7[0-9aA]|2[dDeE]|5[fF]|7[eE])"
+)
+
+
+def _unescape_unreserved(url: str) -> str:
+    """Decode the escapes of unreserved characters (letters, digits, ``-._~``):
+    RFC 3986 says ``%77p%2Dcontent`` is ``wp-content``, so it is matched, and
+    stored, as that. ``%2E%2E`` becomes ``..`` before dot segments are removed.
+    Reserved characters (``%2F`` above all) stay escaped."""
+    return _UNRESERVED.sub(lambda m: chr(int(m.group(1), 16)), url)
 
 
 def _clean_path(raw: str) -> str | None:
@@ -212,8 +258,8 @@ def _clean_path(raw: str) -> str | None:
     path = quote(path, safe="/%!$&'()*+,;=:@~")
     path = re.sub(r"%(?![0-9a-fA-F]{2})", "%25", path)
     path = _ESCAPE.sub(lambda m: m.group().upper(), path)
-    if "%2F" in path or "%5C" in path:
-        return None  # an escaped separator: one segment pretending to be two
+    if "%2F" in path or "%5C" in path or re.search(r"%[01][0-9A-F]|%7F", path):
+        return None  # an escaped separator or control character: never a real name
     path = _remove_dot_segments(re.sub(r"/{2,}", "/", path))
     if ".." in path.split("/"):
         return None
@@ -854,7 +900,7 @@ def _link_text(a: _Node) -> str:
     for candidate in (text, a.attrs.get("title", ""), a.attrs.get("aria-label", "")):
         candidate = _clean(candidate)
         if candidate and candidate.casefold().rstrip(" .:»>") not in _GENERIC_LINK_TEXT:
-            return candidate
+            return candidate[:_TITLE_CHARS]
     return ""
 
 
@@ -1047,14 +1093,39 @@ class SitemapError(RuntimeError):
     pass
 
 
+REDIRECTS = frozenset({301, 302, 303, 307, 308})
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Redirects are not followed. The answer comes back as a result whose
+    ``url`` is where it points, and the refresh decides: the same page or PDF
+    under another spelling is asked for again; anything else is a page that
+    moved, judged without its body ever being downloaded."""
+
+    def redirect_request(self, *_args: object, **_kwargs: object) -> None:
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
+def _http_error(e: urllib.error.HTTPError, url: str) -> FetchResult:
+    headers = {k.lower(): v for k, v in e.headers.items()}
+    if e.code in REDIRECTS and (to := headers.get("location")):
+        return FetchResult(e.code, urljoin(url, to), "", headers)
+    return FetchResult(e.code, url, "", headers)
+
+
 def _download(url: str) -> FetchResult:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
+        with _OPENER.open(req, timeout=FETCH_TIMEOUT_S) as resp:
             raw: bytes = resp.read()
             charset = resp.headers.get_content_charset() or "utf-8"
             return FetchResult(resp.status, resp.geturl(), raw.decode(charset, "replace"))
     except urllib.error.HTTPError as e:
+        if e.code in REDIRECTS:
+            return _http_error(e, url)
         try:
             body = e.read().decode("utf-8", "replace")
         except OSError:
@@ -1072,10 +1143,16 @@ _FILE_DOWNLOAD_S = 600.0
 """The longest one file may take to download; the socket timeout bounds each read."""
 
 
-def _download_file(url: str, headers: Mapping[str, str], max_bytes: int, dest: Path) -> FetchResult:
+def _download_file(
+    url: str,
+    headers: Mapping[str, str],
+    max_bytes: int,
+    dest: Path,
+    stop: threading.Event | None = None,
+) -> FetchResult:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **headers})
     try:
-        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
+        with _OPENER.open(req, timeout=FETCH_TIMEOUT_S) as resp:
             got = {k.lower(): v for k, v in resp.headers.items()}
             length = got.get("content-length", "")
             if length.isdigit() and int(length) > max_bytes:
@@ -1090,20 +1167,28 @@ def _download_file(url: str, headers: Mapping[str, str], max_bytes: int, dest: P
                         raise TooLarge(size, got)
                     if time.monotonic() > deadline:
                         raise TimeoutError(f"{url} took too long to download")
+                    if stop is not None and stop.is_set():
+                        raise TimeoutError(f"{url}: the download was called off")
                     digest.update(chunk)
                     out.write(chunk)
             return FetchResult(resp.status, resp.geturl(), "", got, size, digest.hexdigest())
     except urllib.error.HTTPError as e:
-        # urllib answers a 304 with an HTTPError too: it is a result, not a failure.
-        return FetchResult(e.code, url, "", {k.lower(): v for k, v in e.headers.items()})
+        # urllib answers a 304, and a redirect it is not to follow, with an
+        # HTTPError too: each is a result, not a failure.
+        return _http_error(e, url)
 
 
 async def http_fetch_file(
     url: str, headers: Mapping[str, str], max_bytes: int, dest: Path
 ) -> FetchResult:
     """The real file fetcher: stdlib, off the event loop, size-limited, streamed
-    to disk."""
-    return await asyncio.to_thread(_download_file, url, headers, max_bytes, dest)
+    to disk. Called off (cancelled), it stops the download at the next chunk
+    rather than leaving a thread writing on."""
+    stop = threading.Event()
+    try:
+        return await asyncio.to_thread(_download_file, url, headers, max_bytes, dest, stop)
+    finally:
+        stop.set()
 
 
 def _parse_xml(body: str, where: str) -> ET.Element:
@@ -1131,7 +1216,11 @@ async def read_sitemap(fetch: Fetch, index_url: str) -> dict[str, SitemapEntry]:
     Taxonomy and user sitemaps are skipped: archives carry no ``lastmod`` and are
     never read. Any failure raises, so a partial read can never look like a run of
     deleted pages."""
-    index = await fetch(index_url)
+
+    def on_site(to: str) -> bool:
+        return normalize(to) is not None
+
+    index = await _follow(fetch, index_url, on_site)
     root = await asyncio.to_thread(_sitemap_xml, index, "sitemapindex")
     entries: dict[str, SitemapEntry] = {}
     for loc in root.iter(f"{_SM}loc"):
@@ -1140,7 +1229,7 @@ async def read_sitemap(fetch: Fetch, index_url: str) -> dict[str, SitemapEntry]:
         if not m or m.group(1) != "posts":
             continue
         post_type = m.group(2)
-        urlset = await asyncio.to_thread(_sitemap_xml, await fetch(sub), "urlset")
+        urlset = await asyncio.to_thread(_sitemap_xml, await _follow(fetch, sub, on_site), "urlset")
         for item in urlset.iter(f"{_SM}url"):
             u = normalize((item.findtext(f"{_SM}loc") or "").strip())
             if u is not None:
@@ -1166,6 +1255,11 @@ of pages, with at most a stamp or a page number as text."""
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[\"'(\[\u201c\u2018]?[A-Z0-9\u0c80-\u0cff])")
 _HYPHENATED = re.compile(r"(?<=[a-z])-[ \t]*\n[ \t]*(?=[a-z])")
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_SURROGATE = re.compile("[\ud800-\udfff]")
+"""A lone UTF-16 surrogate: what a font's ToUnicode map can hand back for a
+glyph it maps to half a character. It is not text and cannot be written as
+UTF-8, so it never leaves the reader."""
+_TITLE_CHARS = 300
 
 
 class PdfUnreadable(Exception):
@@ -1216,7 +1310,7 @@ def _pdf_lines(raw: str) -> list[str]:
     """One page's text as lines a passage can hold: ligatures and full-width forms
     folded (NFKC), soft hyphens and line-end hyphenation undone, the visual line
     breaks of the layout joined, and the result cut into sentences."""
-    t = unicodedata.normalize("NFKC", raw).replace("\u00ad", "")
+    t = unicodedata.normalize("NFKC", _SURROGATE.sub("", raw)).replace("\u00ad", "")
     t = _HYPHENATED.sub("", _CONTROL.sub(" ", t))
     lines: list[str] = []
     for sentence in _SENTENCE_END.split(_clean(t)):
@@ -1235,6 +1329,7 @@ def _metadata_title(reader: PdfReader) -> str:
         title = _clean((reader.metadata.title or "") if reader.metadata else "")
     except Exception:
         return ""
+    title = _SURROGATE.sub("", title)[:_TITLE_CHARS]
     # Authoring tools often write the source file's name here; that names nothing.
     if re.search(r"\.[a-z]{2,4}$|^microsoft |^untitled", title, re.I):
         return ""
@@ -1263,8 +1358,9 @@ _PDF_LIMITS = pypdf.Configuration(
 )
 
 
-class _PageTimeout(Exception):
-    pass
+class _PageTimeout(BaseException):
+    """Not an ``Exception``: pypdf catches ``Exception`` around each operator it
+    reads, and would swallow the alarm and read on."""
 
 
 @contextlib.contextmanager
@@ -1280,16 +1376,26 @@ def _page_timer(seconds: float) -> Generator[None]:
         yield
         return
 
+    armed = True
+
     def ring(_signum: int, _frame: object) -> None:
-        raise _PageTimeout
+        if armed:
+            raise _PageTimeout
 
     old = signal.signal(signal.SIGALRM, ring)
-    signal.setitimer(signal.ITIMER_REAL, seconds)
+    # It rings again every half second until disarmed, should one be swallowed.
+    signal.setitimer(signal.ITIMER_REAL, seconds, 0.5)
     try:
         yield
     finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, old)
+        while True:  # disarm first, so a late ring cannot land in the cleanup
+            try:
+                armed = False
+                signal.setitimer(signal.ITIMER_REAL, 0)
+                signal.signal(signal.SIGALRM, old)
+                break
+            except _PageTimeout:
+                continue
 
 
 def _content_bytes(page: PageObject) -> int:
@@ -1560,8 +1666,8 @@ async def read_pdf_isolated(
     part = PdfPart(
         _str(meta or {}, "title", default=""), count, start, tuple(pages), skipped, stopped
     )
-    if start == 1 and end is None and (why := _no_text(part)):
-        raise PdfUnreadable(why)
+    # A reader that was stopped is not a verdict on the file: what it read
+    # stands, and the next run goes on after the page it was stopped on.
     return part
 
 
@@ -1779,6 +1885,8 @@ class Snapshot:
             spell = pdf_url if p.get("kind") == "pdf" else normalize
             if (url := spell(_str(p, "url"))) is None:
                 continue
+            if url in pages and pages[url].origin == "approved" and origin != "approved":
+                continue  # two old spellings of one page: the approved one wins
             pages[url] = StoredPage(
                 url=url,
                 title=_str(p, "title"),
@@ -1831,11 +1939,21 @@ class Snapshot:
         return cls(_str(doc, "built_at"), known, pages, pending, unreadable)
 
     def save(self, path: Path) -> None:
-        """Write atomically: a reader sees the old snapshot or the new one."""
+        """Write atomically: a reader sees the old snapshot or the new one. The
+        file is written under a name of its own and moved into place, under an
+        advisory lock, so the CLI and a running brain never write over each
+        other halfway."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self.to_json(), ensure_ascii=False), encoding="utf-8")
-        tmp.replace(path)
+        text = json.dumps(self.to_json(), ensure_ascii=False)
+        with _locked(path.with_suffix(".lock")):
+            fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8", errors="replace") as f:
+                    f.write(text)
+                Path(tmp).replace(path)
+            except BaseException:
+                Path(tmp).unlink(missing_ok=True)
+                raise
 
     @classmethod
     def load(cls, path: Path) -> Snapshot | None:
@@ -1849,6 +1967,22 @@ class Snapshot:
             return None
 
 
+@contextlib.contextmanager
+def _locked(lock: Path) -> Generator[None]:
+    """An exclusive advisory lock on ``lock`` (fcntl; where there is none, no lock)."""
+    try:
+        import fcntl
+    except ImportError:
+        yield
+        return
+    with lock.open("a") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
 def default_cache_dir() -> Path:
     """``$KDEM_KNOWLEDGE_DIR``, else ``$XDG_CACHE_HOME/voqalize-kdem``, else a
     directory under the system temp dir. Never inside the repository."""
@@ -1860,9 +1994,9 @@ def default_cache_dir() -> Path:
 
 
 def _digest(title: str, blocks: Sequence[str]) -> str:
-    h = hashlib.sha256(title.encode())
+    h = hashlib.sha256(title.encode("utf-8", "replace"))
     for b in blocks:
-        h.update(b"\x00" + b.encode())
+        h.update(b"\x00" + b.encode("utf-8", "replace"))
     return h.hexdigest()[:16]
 
 
@@ -1968,8 +2102,32 @@ def _parse_time(s: str) -> datetime | None:
     return t if t.tzinfo else t.replace(tzinfo=UTC)
 
 
-async def _read_page(fetch: Fetch, url: str) -> tuple[FetchResult, Extracted | None]:
-    got = await fetch(url)
+_HOPS = 3
+"""Redirects to the same page under another spelling followed, at most."""
+
+
+async def _follow(
+    ask: Callable[[str], Awaitable[FetchResult]], url: str, same: Callable[[str], bool]
+) -> FetchResult:
+    """``ask`` for ``url``, following a redirect only to the same page or file
+    under another spelling (``same``), over https, a few hops at most. Any other
+    redirect comes back as it is, its ``url`` where it points, its body unread."""
+    target = url
+    got = await ask(target)
+    for _ in range(_HOPS):
+        if got.status not in REDIRECTS or got.url == target:
+            break
+        if not (got.url.startswith("https://") and same(got.url)):
+            break
+        target = got.url
+        got = await ask(target)
+    return got
+
+
+async def _read_page(
+    fetch: Fetch, url: str, allowlist: Allowlist
+) -> tuple[FetchResult, Extracted | None]:
+    got = await _follow(fetch, url, lambda to: allowlist.canonical(to) == url)
     if got.status != 200:
         return got, None
     return got, await asyncio.to_thread(extract, got.body, url=got.url or url)
@@ -2040,12 +2198,12 @@ async def refresh(
     async def reread(url: str, lastmod: str, make: Callable[[Extracted], StoredPage]) -> None:
         old = pages.get(url)
         try:
-            got, ex = await _read_page(fetch, url)
+            got, ex = await _read_page(fetch, url, allowlist)
         except Exception as e:  # a page that will not load keeps its last copy
             logger.warning("kdem: could not read {}: {}", url, e)
             report.failed.append(url)
             return
-        if ex is None:
+        if ex is None and got.status not in REDIRECTS:
             if got.status in (404, 410):
                 if pages.pop(url, None) is not None:
                     report.dropped.append(url)
@@ -2065,6 +2223,9 @@ async def refresh(
             logger.warning("kdem: {} now redirects to {}; not indexed", url, got.url)
             pages.pop(url, None)
             report.moved.append(url)
+            return
+        if ex is None:  # a redirect back to itself, round and round
+            report.failed.append(url)
             return
         new = make(ex)
         if old is not None and old.digest == new.digest:
@@ -2195,13 +2356,13 @@ async def refresh(
     report.deferred = max(0, len(to_add) - policy.max_new)
     for entry, section in to_add[: policy.max_new]:
         try:
-            got, ex = await _read_page(fetch, entry.url)
+            got, ex = await _read_page(fetch, entry.url, allowlist)
         except Exception as e:
             logger.warning("kdem: could not read new page {}: {}", entry.url, e)
             report.failed.append(entry.url)
             continue
         known[entry.url] = entry.lastmod
-        if ex is None:
+        if ex is None and got.status not in REDIRECTS:
             if got.status not in (404, 410):
                 known.pop(entry.url)
                 report.failed.append(entry.url)
@@ -2216,6 +2377,10 @@ async def refresh(
             # not let in under this one's section.
             logger.info("kdem: new page {} redirects to {}; not added", entry.url, got.url)
             report.moved.append(entry.url)
+            continue
+        if ex is None:
+            known.pop(entry.url)
+            report.failed.append(entry.url)
             continue
         title = ex.title or path_of(entry.url).strip("/").replace("-", " ")
         pages[entry.url] = StoredPage(
@@ -2460,10 +2625,13 @@ class _PdfRun:
         prior = old.validators if old else bad.validators if bad else Validators()
         policy = self.policy
         dest = scratch / "file.pdf"
+        headers = {} if ask.fresh else prior.conditional()
+
+        async def get(target: str) -> FetchResult:
+            return await fetch_file(target, headers, policy.max_pdf_bytes, dest)
+
         try:
-            got = await fetch_file(
-                url, {} if ask.fresh else prior.conditional(), policy.max_pdf_bytes, dest
-            )
+            got = await _follow(get, url, lambda to: pdf_url(to) == url)
         except TooLarge as e:
             if old is not None:
                 self.chars -= _chars(old)
@@ -2485,7 +2653,7 @@ class _PdfRun:
         if got.status in (404, 410):
             self.failed(ask, f"not found ({got.status})", gone=True)
             return
-        if got.status != 200:
+        if got.status != 200 and got.status not in REDIRECTS:
             self.report.failed.append(url)
             self.failed(ask, f"answered {got.status}")
             return
@@ -2500,6 +2668,10 @@ class _PdfRun:
                 logger.warning("kdem: PDF {} now redirects to {}; not indexed", url, got.url)
                 self.report.moved.append(url)
             self.failed(ask, f"redirects to {got.url}", gone=True)
+            return
+        if got.status != 200:  # a redirect back to itself, round and round
+            self.report.failed.append(url)
+            self.failed(ask, f"answered {got.status}")
             return
         now = replace(Validators.of(got.headers), sha256=got.sha256)
         same = (bool(prior.sha256) and prior.sha256 == now.sha256) or prior.same_file(now)
@@ -2580,6 +2752,25 @@ class _PdfRun:
             self.report.pdf_updated.append(url)
 
 
+_SCRATCH_PREFIX = "kdem-pdf-"
+_SCRATCH_STALE_S = 3600.0
+
+
+def sweep_scratch(root: Path | None = None, *, older_than_s: float = _SCRATCH_STALE_S) -> int:
+    """Remove scratch directories a reader left behind (a process killed
+    mid-download, say): ``kdem-pdf-*`` in the temp directory, untouched for
+    ``older_than_s``. Returns how many went."""
+    root = root or Path(tempfile.gettempdir())
+    cutoff = time.time() - older_than_s
+    gone = 0
+    for d in root.glob(_SCRATCH_PREFIX + "*"):
+        with contextlib.suppress(OSError):
+            if d.is_dir() and not d.is_symlink() and d.stat().st_mtime < cutoff:
+                shutil.rmtree(d, ignore_errors=True)
+                gone += 1
+    return gone
+
+
 async def _refresh_pdfs(
     run: _PdfRun,
     fetch_file: FetchFile | None,
@@ -2617,8 +2808,13 @@ async def _refresh_pdfs(
     if asks:
         await before_downloads()
     for ask in asks:
-        with tempfile.TemporaryDirectory(prefix="kdem-pdf-") as scratch:
-            await run.read(fetch_file, ask, Path(scratch))
+        with tempfile.TemporaryDirectory(prefix=_SCRATCH_PREFIX, ignore_cleanup_errors=True) as d:
+            try:
+                await run.read(fetch_file, ask, Path(d))
+            except Exception as e:  # one PDF never costs the run its pages
+                logger.exception("kdem: reading PDF {} failed", ask.url)
+                run.report.failed.append(ask.url)
+                run.failed(ask, f"could not be read ({type(e).__name__})")
         if run.policy.pause_s:
             await asyncio.sleep(run.policy.pause_s)
     return run.unreadable
@@ -2971,6 +3167,9 @@ class KnowledgeService:
         return max(0.0, self._every_s + jitter - age)
 
     async def _run(self) -> None:
+        with contextlib.suppress(Exception):
+            if swept := await asyncio.to_thread(sweep_scratch):
+                logger.info("kdem: removed {} stale PDF scratch directories", swept)
         try:
             await self._load()
         except Exception as e:

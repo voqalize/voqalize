@@ -359,6 +359,9 @@ class FakeSite:
         self.status: dict[str, int] = {}
         self.broken: set[str] = set()
         self.redirects: dict[str, str] = {}
+        """Path → where a followed redirect landed (a fetcher that follows)."""
+        self.moved: dict[str, str] = {}
+        """Path → where a 301 points (the real fetcher, which does not follow)."""
         self.fetched: list[str] = []
 
     def index(self) -> str:
@@ -383,6 +386,8 @@ class FakeSite:
         for t, entries in self.sitemaps.items():
             if path == f"/wp-sitemap-posts-{t}-1.xml":
                 return FetchResult(200, url, _sitemap(entries))
+        if path in self.moved:
+            return FetchResult(301, self.moved[path], "")
         if path in self.redirects:
             return FetchResult(200, self.redirects[path], _body("Another site's page."))
         if path in self.status:

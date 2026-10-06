@@ -34,7 +34,9 @@ approved pages in a section with `read_pdfs` (today `policies-resources` and
 
 - a PDF on karnatakadigital.in, or over https on another site (a state
   government portal, say), is read; nothing past those links is followed, and
-  the host is recorded. The excluded and held patterns apply to PDFs as to
+  the host is recorded. A link to an IP address, a private or one-word host
+  name is refused, and a redirect is never followed to somewhere else: a PDF
+  or page that now redirects is reported as moved, its new address unread. The excluded and held patterns apply to PDFs as to
   pages, so a PDF whose path matches a held pattern waits for review;
 - a PDF is named by its link text. When the link says nothing ("View More",
   "Download Now", an icon), it is named by the heading of its own card, then
