@@ -1,0 +1,149 @@
+{
+  "about": "The pages of karnatakadigital.in that Aria may answer from, one canonical URL per topic. KDEM reviews this list. Paths are matched after canonicalisation: https, no www, no query or fragment, trailing slash. `knowledge.py` reads this file at import and refuses to start on a malformed entry.",
+  "site": "https://karnatakadigital.in",
+  "sitemap": "https://karnatakadigital.in/wp-sitemap.xml",
+  "contact_url": "https://karnatakadigital.in/contact-us/",
+  "sections": {
+    "news": {
+      "approved": true,
+      "auto_add": true,
+      "post_types": ["news"],
+      "sitemap_source": "wp-sitemap-posts-news-*.xml (URLs /news/<slug>/)",
+      "notes": "Industry-news digest: a headline, a date and a link to the outside publisher. Indexed as title, date and URL. Not KDEM's own statements."
+    },
+    "events": {
+      "approved": true,
+      "auto_add": true,
+      "post_types": ["mec-events"],
+      "sitemap_source": "wp-sitemap-posts-mec-events-1.xml (URLs /events/<slug>/)",
+      "notes": "One page per event, with its date, time and place. The date is kept so past and upcoming events can be told apart."
+    },
+    "event-landing-pages": {
+      "approved": true,
+      "auto_add": true,
+      "post_types": ["page"],
+      "sitemap_source": "wp-sitemap-posts-page-1.xml (flat slugs)",
+      "notes": "Flagship event pages. A new one is added when the Events hub links to it. Agenda and speaker sub-pages are held for review."
+    },
+    "focus-areas-programmes": {
+      "approved": true,
+      "auto_add": true,
+      "post_types": ["page"],
+      "sitemap_source": "wp-sitemap-posts-page-1.xml (flat slugs)",
+      "notes": "Focus areas and programmes. A new page is added when an approved programme page links to it."
+    },
+    "policies-resources": {
+      "approved": true,
+      "auto_add": true,
+      "post_types": ["page"],
+      "sitemap_source": "wp-sitemap-posts-page-1.xml",
+      "notes": "Policies, guidelines, reports and the newsletter. Most substance is in PDFs, which are not read: the page titles are indexed and Aria links to the hub page."
+    },
+    "core-pages": {
+      "approved": true,
+      "auto_add": false,
+      "post_types": ["page"],
+      "sitemap_source": "wp-sitemap-posts-page-1.xml",
+      "notes": "A fixed set: home, about, contact, careers, tenders, the events index and the news index. Re-read when their lastmod changes."
+    },
+    "blog-posts": {
+      "approved": false,
+      "auto_add": false,
+      "post_types": ["post"],
+      "sitemap_source": "wp-sitemap-posts-post-1.xml",
+      "notes": "Generic WordPress posts. Every one is held for review; a person may promote one by adding it to `pages` below."
+    },
+    "agenda-and-speakers": {
+      "approved": false,
+      "auto_add": false,
+      "post_types": ["agenda", "our-2025-speakers", "our-speakers", "event_speakers"],
+      "sitemap_source": "wp-sitemap-posts-agenda-1.xml, wp-sitemap-posts-our-2025-speakers-1.xml, wp-sitemap-posts-our-speakers-1.xml, wp-sitemap-posts-event_speakers-1.xml",
+      "notes": "Session slots and speaker profiles for past events. About individuals, not KDEM programmes. Held for review."
+    },
+    "registration-forms": {
+      "approved": false,
+      "auto_add": false,
+      "post_types": ["page"],
+      "sitemap_source": "wp-sitemap-posts-page-1.xml",
+      "notes": "Form-only pages. Never indexed (see excluded_patterns). Aria does not collect personal data."
+    },
+    "misc-legacy-pages": {
+      "approved": false,
+      "auto_add": false,
+      "post_types": ["page"],
+      "sitemap_source": "wp-sitemap-posts-page-1.xml",
+      "notes": "Pages no hub links to, such as the image gallery and the blog index. Held for review."
+    },
+    "taxonomies": {
+      "approved": false,
+      "auto_add": false,
+      "post_types": [],
+      "sitemap_source": "wp-sitemap-taxonomies-*.xml",
+      "notes": "Category and tag archive listings. They carry no lastmod and are never read."
+    },
+    "test-placeholder": {
+      "approved": false,
+      "auto_add": false,
+      "post_types": ["page"],
+      "sitemap_source": "wp-sitemap-posts-page-1.xml",
+      "notes": "Test and placeholder pages. Permanently excluded (see excluded_patterns)."
+    }
+  },
+  "pages": [
+    {"url": "https://karnatakadigital.in/", "title": "Home", "section": "core-pages", "aliases": []},
+    {"url": "https://karnatakadigital.in/about-us/", "title": "About KDEM", "section": "core-pages", "aliases": []},
+    {"url": "https://karnatakadigital.in/contact-us/", "title": "Contact Us", "section": "core-pages", "aliases": []},
+    {"url": "https://karnatakadigital.in/careers/", "title": "Careers", "section": "core-pages", "aliases": ["https://karnatakadigital.in/opportunities/"]},
+    {"url": "https://karnatakadigital.in/tender-and-rfp/", "title": "Tenders and RFPs", "section": "core-pages", "aliases": ["https://karnatakadigital.in/tender/", "https://karnatakadigital.in/rfp/"]},
+    {"url": "https://karnatakadigital.in/events/", "title": "Events", "section": "core-pages", "aliases": [], "hub_for": "event-landing-pages"},
+    {"url": "https://karnatakadigital.in/news-updates/", "title": "News Updates", "section": "core-pages", "aliases": ["https://karnatakadigital.in/news-updates1/", "https://karnatakadigital.in/news-updates-2/", "https://karnatakadigital.in/newupdates/", "https://karnatakadigital.in/news/"]},
+    {"url": "https://karnatakadigital.in/beyond-bengaluru/", "title": "Beyond Bengaluru (clusters: Mysuru, Mangaluru, Hubballi-Dharwad-Belagavi, Kalaburagi and others)", "section": "focus-areas-programmes", "aliases": ["https://karnatakadigital.in/beyond-bengaluru-1/"], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/beyond-bengaluru-cluster-seed-fund/", "title": "Beyond Bengaluru Cluster Seed Fund", "section": "focus-areas-programmes", "aliases": ["https://karnatakadigital.in/cluster-seed-fund/"], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/electronics-system-design-and-manufacturing/", "title": "Electronics System Design and Manufacturing (ESDM)", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/innovation-and-startup/", "title": "Innovation and Startups", "section": "focus-areas-programmes", "aliases": ["https://karnatakadigital.in/innovation-and-startups/", "https://karnatakadigital.in/innovation-and-startups-old/"], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/acceleration-network/", "title": "Karnataka Acceleration Network (KAN)", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/cohort-1/", "title": "Acceleration Network Cohort 1", "section": "focus-areas-programmes", "aliases": []},
+    {"url": "https://karnatakadigital.in/cohort-2/", "title": "Acceleration Network Cohort 2", "section": "focus-areas-programmes", "aliases": []},
+    {"url": "https://karnatakadigital.in/cohort-3/", "title": "Acceleration Network Cohort 3", "section": "focus-areas-programmes", "aliases": []},
+    {"url": "https://karnatakadigital.in/software-products-services-including-global-capability-centers-gcc/", "title": "IT Products & Services / BPM and GCC Promotion", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/talent-accelerator/", "title": "Talent Accelerator", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/futuredigitaljobs/", "title": "Future Digital Jobs", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/k-vlsi/", "title": "K-VLSI Design Skill Program", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/womenatwork/", "title": "Women@Work", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
+    {"url": "https://karnatakadigital.in/policies/", "title": "Policies", "section": "policies-resources", "aliases": ["https://karnatakadigital.in/ourpolicies/"], "hub_for": "policies-resources"},
+    {"url": "https://karnatakadigital.in/guidelines/", "title": "Guidelines", "section": "policies-resources", "aliases": [], "hub_for": "policies-resources"},
+    {"url": "https://karnatakadigital.in/resource/", "title": "KDEM Resources and Reports", "section": "policies-resources", "aliases": ["https://karnatakadigital.in/resources/", "https://karnatakadigital.in/reports/"], "hub_for": "policies-resources"},
+    {"url": "https://karnatakadigital.in/newsletter-2024/", "title": "KDEM Monthly Newsletter", "section": "policies-resources", "aliases": []},
+    {"url": "https://karnatakadigital.in/the-global-startup-ecosystem-report-2026/", "title": "The Global Startup Ecosystem Report 2026", "section": "policies-resources", "aliases": []},
+    {"url": "https://karnatakadigital.in/mysuru-beyond-heritage-skills-talent-landscape-report-2026/", "title": "Mysuru: Beyond Heritage - Skills & Talent Landscape Report 2026", "section": "policies-resources", "aliases": []},
+    {"url": "https://karnatakadigital.in/mysuru-ai-cybersecurity-skills-report-2026/", "title": "Mysuru AI & Cybersecurity Skills Report 2026", "section": "policies-resources", "aliases": []},
+    {"url": "https://karnatakadigital.in/whats-happening/", "title": "What's Happening (Beyond Bengaluru Mysuru BLUE)", "section": "event-landing-pages", "aliases": []},
+    {"url": "https://karnatakadigital.in/the-big-tech-show-2025/", "title": "Mysuru Big Tech Show 2025", "section": "event-landing-pages", "aliases": []},
+    {"url": "https://karnatakadigital.in/hdb-techceleration-2025/", "title": "Hubballi-Dharwad-Belagavi Techceleration 2025", "section": "event-landing-pages", "aliases": []},
+    {"url": "https://karnatakadigital.in/samagra-2026/", "title": "Samagra 2026", "section": "event-landing-pages", "aliases": []}
+  ],
+  "excluded_patterns": [
+    {"pattern": "^/sample-page/$", "why": "test or placeholder page"},
+    {"pattern": "^/demo-home/$", "why": "test or placeholder page"},
+    {"pattern": "^/demo-page/$", "why": "test or placeholder page"},
+    {"pattern": "^/home-1/$", "why": "test or placeholder page"},
+    {"pattern": "^/home-2/$", "why": "test or placeholder page"},
+    {"pattern": "^/coming-soon/$", "why": "test or placeholder page"},
+    {"pattern": "^/design-old/$", "why": "test or placeholder page"},
+    {"pattern": "^/design-approval/$", "why": "form-only page"},
+    {"pattern": "-old/$", "why": "superseded copy of a page; an approved one is listed as an alias of its canonical"},
+    {"pattern": "-registration/$", "why": "form-only page"},
+    {"pattern": "^/apply-now/$", "why": "form-only page"},
+    {"pattern": "^/(category|tag|agenda_category|agenda-speaker|mec-category)/", "why": "taxonomy archive"},
+    {"pattern": "^/\\d{4}/\\d{2}/(\\d{2}/)?", "why": "date archive"},
+    {"pattern": "(^|/)feed/$", "why": "feed"},
+    {"pattern": "^/wp-(json|admin|content|includes)/", "why": "WordPress internals and uploads"},
+    {"pattern": "^/wp-[^/]*\\.(php|xml|xsl)$", "why": "WordPress internals and sitemaps"}
+  ],
+  "held_patterns": [
+    {"pattern": "(agenda|speaker)", "why": "agenda and speaker lists are about individuals; a person decides"},
+    {"pattern": "^/kaipidi/$", "why": "older programme page; a person checks it before it goes live"},
+    {"pattern": "^/karnataka-mitra/$", "why": "older programme page; a person checks it before it goes live"},
+    {"pattern": "^/fellowship-programme/$", "why": "older programme page; a person checks it before it goes live"}
+  ]
+}
