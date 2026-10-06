@@ -124,6 +124,7 @@ DEMOS: dict[str, Expected] = {
     # test_marketing_e2e.py.
     "marketing": Expected(voice="kokoro/ava", language="en"),
     "orderdesk": Expected(voice="omnivoice/gauri", language="hi"),
+    "petwell": Expected(voice="omnivoice/gaurav", language="en"),
     # Trisha, Qween's jewellery consultant, opens a shopper's call in English and
     # moves both legs to Hindi for Hindi or Hinglish — one woman in two
     # languages, so the voice stays gayatri. Asserted in test_qween_e2e.py.

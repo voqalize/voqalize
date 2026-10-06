@@ -69,6 +69,8 @@ substitutions:
   _ORDERDESK_PK: ''
   _KIOSK_AGENT: ''
   _KIOSK_PK: ''
+  _PETWELL_AGENT: ''
+  _PETWELL_PK: ''
   # Empty in prod, so every prod page loads the runtime its npm release pins.
   # The dev trigger sets it to the dev host's `runtime/current.js`, the newest
   # runtime uploaded there, so an unreleased character is testable on dev
@@ -116,6 +118,8 @@ steps:
       - 'VITE_ORDERDESK_PK=${_ORDERDESK_PK}'
       - 'VITE_KIOSK_AGENT=${_KIOSK_AGENT}'
       - 'VITE_KIOSK_PK=${_KIOSK_PK}'
+      - 'VITE_PETWELL_AGENT=${_PETWELL_AGENT}'
+      - 'VITE_PETWELL_PK=${_PETWELL_PK}'
 
   # 2. Build the docs site (Astro Starlight, base:/docs) → docs/dist.
   - name: 'node:20-slim'
