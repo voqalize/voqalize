@@ -7,7 +7,7 @@ Two tables live here, and each exists so the model never has to guess.
 into what the prompt needs: one line per page, in the order KDEM listed them, so
 the model can choose a page by what it is for. The model never writes a URL the
 brain then trusts — ``show_link`` canonicalises what it names and refuses anything
-that is not an approved page or a page the refresh has indexed.
+the index does not hold now.
 
 **The languages.** English, and Kannada on demand — the pilot's two. Both legs
 move together, and the voice does not change: Aria is one woman in two languages,
@@ -17,6 +17,7 @@ refused by the SDK, so the table states both.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal, get_args
 
@@ -55,9 +56,11 @@ OPENING = SPEECH["english"]
 # ─── The pages ────────────────────────────────────────────────────────────────
 
 
-def page_digest() -> str:
-    """One line per approved page: the path the model names, and the page's title."""
-    return "\n".join(f"  {path_of(p.url)} — {p.title}" for p in ALLOWLIST.pages)
+def page_digest(linkable: Callable[[str], bool] = lambda _url: True) -> str:
+    """One line per approved page that ``linkable`` accepts: the path the model
+    names, and the page's title. The brain passes what it may link right now, so
+    a listed page the refresh has dropped is not offered."""
+    return "\n".join(f"  {path_of(p.url)} — {p.title}" for p in ALLOWLIST.pages if linkable(p.url))
 
 
 CONTACT_PATH = path_of(ALLOWLIST.contact_url)

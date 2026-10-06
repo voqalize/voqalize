@@ -41,13 +41,19 @@ The snippet and the brain share two things:
 
 - **`init`**: the snippet sends `{surface: "kdem-web", page: location.pathname,
   lang: <html lang>}` with `sessions.connect`. The brain reads `page` so it knows
-  which page the visitor started on. It names that page in the prompt only when
-  it is one Aria knows. `surface` and `lang` are logged.
+  which page the visitor started on. When `page` is a page Aria may link right
+  now, the prompt names it by its own title and path. Anything else, including
+  an excluded page or a path the index does not hold, is left out of the
+  prompt: the brain never quotes what the browser sent. `surface` and `lang`
+  are logged.
 - **`show_link`**: the only command the snippet renders. Its payload is
   `{url, title}`. The brain fills it in itself: it canonicalises the page the
-  model names and sends it only if the page is approved or the refresh has added
-  it, using the page's own title. The snippet checks again that the host is
-  karnatakadigital.in, then shows the link as a card that opens in a new tab.
+  model names and sends it only if the current index holds that page, using the
+  page's own title. An approved page the refresh dropped (deleted, unpublished,
+  or now redirecting elsewhere) is not sent, and the prompt's page list leaves
+  it out too. Before the first index exists, Contact Us is the only page sent.
+  The snippet checks again that the host is karnatakadigital.in, then shows the
+  link as a card that opens in a new tab.
 
 The site has to allow the microphone for its own pages. If it sends a
 `Permissions-Policy` header, that header must include `microphone=(self)`.
@@ -58,20 +64,36 @@ Otherwise the browser blocks the microphone and Aria cannot hear the visitor.
 Each brains host keeps its own snapshot of the approved pages, in
 `KDEM_KNOWLEDGE_DIR`. The first session starts a background task that refreshes
 the snapshot about once a day from `wp-sitemap.xml`. Sessions are never kept
-waiting for it. On a new host the index is empty until the first refresh
-finishes, and until then Aria says she does not have the answer and offers
-Contact Us. Mount a volume at `KDEM_KNOWLEDGE_DIR` so the snapshot survives a
-redeploy.
+waiting for it.
 
-To refresh by hand after an urgent change on the site:
+On a host with no snapshot, the first refresh reads the approved pages first
+and Aria answers from them as soon as they are read, a minute or two after the
+first session starts. New news and event pages follow when the refresh
+finishes. Until the approved pages are in, Aria says she does not have the
+answer and offers Contact Us.
+
+The brains container is started with no volume today
+(`demos/bin/brains-node-deploy.sh`), so every redeploy starts from no snapshot
+and goes through those first minutes again. To keep the snapshot across
+redeploys, mount a volume and point `KDEM_KNOWLEDGE_DIR` at it in the deploy
+script. That is a deploy change and is not made here.
+
+To refresh by hand after an urgent change on the site, run the command where
+the brain runs, against the brain's own snapshot directory. In the brains
+container that is a `docker exec`. Each brains host keeps its own snapshot, so
+run it on every host:
 
 ```sh
-uv run python demos/kdem/backend/knowledge.py refresh --force https://karnatakadigital.in/policies/
-uv run python demos/kdem/backend/knowledge.py search "cluster seed fund"
-uv run python demos/kdem/backend/knowledge.py pending
+KDEM_KNOWLEDGE_DIR=<the brain's snapshot dir> uv run python demos/kdem/backend/knowledge.py refresh --force https://karnatakadigital.in/policies/
+KDEM_KNOWLEDGE_DIR=<the brain's snapshot dir> uv run python demos/kdem/backend/knowledge.py search "cluster seed fund"
+KDEM_KNOWLEDGE_DIR=<the brain's snapshot dir> uv run python demos/kdem/backend/knowledge.py pending
 ```
 
-A running brain picks up the new snapshot when the next session starts.
+`--cache-dir <dir>` does the same as the variable. Without either, the command
+reads and writes `$XDG_CACHE_HOME/voqalize-kdem` (or the system temp
+directory), which a brain with `KDEM_KNOWLEDGE_DIR` set never reads. A running
+brain picks up a new snapshot in its own directory when the next session
+starts.
 `backend/knowledge/README.md` explains what is approved, what is held for
 review and why.
 

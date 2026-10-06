@@ -124,6 +124,18 @@ def test_extract_keeps_the_body_and_drops_the_chrome() -> None:
         'style="width:1px;height:1px;overflow:hidden"',
         "hidden",
         'aria-hidden="true"',
+        'style="position:absolute;left:10000px"',
+        'style="position:fixed;top:200vh"',
+        'style="position:absolute;left:-150%"',
+        'style="position:absolute;inset:0 0 0 -9999px"',
+        'style="transform:translateX(-9999px)"',
+        'style="transform: translate3d(0, -5000px, 0)"',
+        'style="margin-left:-9999px"',
+        'style="margin:-2000px 0 0 0"',
+        'style="max-height:0;overflow:hidden"',
+        'style="max-width:0px;overflow-x:hidden"',
+        'style="color:transparent"',
+        'style="color: rgba(0, 0, 0, 0)"',
     ],
 )
 def test_hidden_and_offscreen_subtrees_are_dropped(attrs: str) -> None:
@@ -141,10 +153,21 @@ def test_hidden_and_offscreen_subtrees_are_dropped(attrs: str) -> None:
     assert "Another visible paragraph." in ex.text
 
 
-def test_a_small_negative_offset_is_still_visible() -> None:
-    html = _page(
-        '<main id="main"><div style="position:relative;left:-20px">Nudged text</div></main>'
-    )
+@pytest.mark.parametrize(
+    "style",
+    [
+        "position:relative;left:-20px",
+        "position:absolute;left:100px;top:40px",
+        "position:fixed;left:50vw",
+        "transform:translate(-50%, -50%)",
+        "transform:translateX(-100%)",
+        "margin-left:-20px",
+        "max-height:400px;overflow:hidden",
+        "color:rgba(0, 0, 0, 0.8)",
+    ],
+)
+def test_a_small_offset_or_a_visible_style_is_still_visible(style: str) -> None:
+    html = _page(f'<main id="main"><div style="{style}">Nudged text</div></main>')
     assert "Nudged text" in extract(html).text
 
 
@@ -664,7 +687,10 @@ async def test_no_snapshot_and_no_network_is_an_empty_knowledge_base(
 def test_prime_installs_a_snapshot_and_keeps_the_keeper_off(allowlist: Allowlist) -> None:
     service = KnowledgeService(allowlist)
     service.prime(
-        Snapshot("2026-10-06T00:00:00+00:00", pages={p.url: p for p in [_stored("/x/", "X", "y")]})
+        Snapshot(
+            "2026-10-06T00:00:00+00:00",
+            pages={p.url: p for p in [_stored("/about-us/", "About", "y")]},
+        )
     )
     service.start()  # outside a loop, and a no-op once primed
     assert len(service.kb) == 1
@@ -692,3 +718,124 @@ async def test_held_patterns_apply_to_flat_pages_not_to_news(
     snap, _ = await _refresh(Snapshot(), allowlist, site)
     assert f"{SITE}/news/keynote-speaker-named/" in snap.pages
     assert f"{SITE}/event-speakers/" in snap.pending_review
+
+
+# ─── The list as it is now ────────────────────────────────────────────────────
+
+
+def _doc_with(**changes: object) -> Allowlist:
+    doc = _allowlist_doc()
+    sections = doc["sections"]
+    assert isinstance(sections, dict)
+    for name, fields in changes.items():
+        if name == "held":
+            held = doc["held_patterns"]
+            assert isinstance(held, list)
+            held.append(fields)
+        else:
+            assert isinstance(fields, dict)
+            sections[name].update(fields)
+    return Allowlist.from_json(doc)
+
+
+def test_a_snapshot_is_read_against_the_list_as_it_is_now(allowlist: Allowlist) -> None:
+    """A page taken off the list, or added in a section since closed, is neither
+    found nor linkable, though the snapshot on disk still holds it."""
+    pages = [
+        StoredPage(f"{SITE}/about-us/", "About", "core", "approved", "", "", "", ("Bridge text.",)),
+        StoredPage(
+            f"{SITE}/taken-off/", "Gone", "core", "approved", "", "", "", ("Lantern text.",)
+        ),
+        StoredPage(f"{SITE}/news/x/", "News", "news", "auto", "", "", "", ("Harbour text.",)),
+    ]
+    kb = KnowledgeBase(pages, allowlist)
+    assert kb.page(f"{SITE}/taken-off/") is None
+    assert kb.search("lantern") == []
+    assert kb.page(f"{SITE}/news/x/") is not None
+
+    closed = KnowledgeBase(pages, _doc_with(news={"approved": False}))
+    assert closed.page(f"{SITE}/news/x/") is None
+    assert closed.search("harbour") == []
+    assert closed.page(f"{SITE}/about-us/") is not None
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"news": {"approved": False}},
+        {"news": {"auto_add": False}},
+        {"held": {"pattern": "^/new-programme/$", "why": "a person checks it"}},
+    ],
+)
+async def test_an_added_page_whose_section_closes_is_dropped_and_held(
+    allowlist: Allowlist, site: FakeSite, change: dict[str, object]
+) -> None:
+    snap, _ = await _refresh(Snapshot(), allowlist, site)
+    assert f"{SITE}/news/fresh/" in snap.pages
+    assert f"{SITE}/new-programme/" in snap.pages
+    closed = _doc_with(**change)
+    snap2, report = await _refresh(snap, closed, site)
+    gone = [u for u in (f"{SITE}/news/fresh/", f"{SITE}/new-programme/") if u not in snap2.pages]
+    assert len(gone) == 1, gone
+    assert report.dropped == gone
+    assert gone[0] in snap2.pending_review
+    assert gone[0] in report.held
+    assert KnowledgeBase(snap.pages.values(), closed).page(gone[0]) is None
+
+
+async def test_a_page_that_redirects_within_the_site_is_not_indexed_under_its_old_url(
+    allowlist: Allowlist, site: FakeSite
+) -> None:
+    """Neither an approved page nor a new one carries another page's text: the
+    page it lands on is judged by its own sitemap entry."""
+    snap, _ = await _refresh(Snapshot(), allowlist, site)
+    site.sitemaps["page"]["/about-us/"] = _days_ago(0)
+    site.redirects["/about-us/"] = f"{SITE}/contact-us/"
+    site.sitemaps["news"]["/news/old-slug/"] = _days_ago(1)
+    site.redirects["/news/old-slug/"] = f"{SITE}/orphan/"
+    snap2, report = await _refresh(snap, allowlist, site)
+    assert f"{SITE}/about-us/" not in snap2.pages
+    assert f"{SITE}/news/old-slug/" not in snap2.pages
+    assert f"{SITE}/orphan/" not in snap2.pages
+    assert f"{SITE}/orphan/" in snap2.pending_review
+    assert sorted(report.moved) == [f"{SITE}/about-us/", f"{SITE}/news/old-slug/"]
+
+
+async def test_the_pages_already_known_are_handed_over_before_new_ones_are_read(
+    allowlist: Allowlist, site: FakeSite
+) -> None:
+    """On a first build the approved pages can be answered from while the new
+    pages are still being read."""
+    seen: list[set[str]] = []
+
+    async def progress(partial: Snapshot) -> None:
+        seen.append(set(partial.pages))
+
+    snap, _ = await refresh(
+        Snapshot(),
+        allowlist,
+        site.fetch,
+        policy=RefreshPolicy(pause_s=0),
+        now=NOW,
+        on_progress=progress,
+    )
+    assert seen == [{f"{SITE}/contact-us/", f"{SITE}/about-us/", f"{SITE}/programmes/"}]
+    assert f"{SITE}/news/fresh/" in snap.pages
+
+
+async def test_a_service_answers_from_approved_pages_while_new_ones_load(
+    tmp_path: Path, allowlist: Allowlist, site: FakeSite
+) -> None:
+    service = KnowledgeService(allowlist, cache_dir=tmp_path, fetch=site.fetch)
+    sizes: list[int] = []
+    slow = site.fetch
+
+    async def fetch(url: str) -> FetchResult:
+        if url.endswith("/news/fresh/"):
+            sizes.append(len(service.kb))
+        return await slow(url)
+
+    service._fetch = fetch  # pyright: ignore[reportPrivateUsage]
+    await service.refresh_now(policy=RefreshPolicy(pause_s=0))
+    assert sizes == [3]
+    assert len(service.kb) == 5

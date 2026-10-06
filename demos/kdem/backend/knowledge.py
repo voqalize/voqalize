@@ -16,8 +16,8 @@ subtree. Text a visitor cannot see is not something Aria may say.
 **Freshness.** :func:`refresh` reads ``wp-sitemap.xml`` and re-reads only what
 changed: an approved page whose ``lastmod`` moved, a new page in a section that
 is approved for automatic additions, nothing else. A new page anywhere else is
-recorded in ``pending_review`` for a person, and a page gone from the sitemap is
-dropped.
+recorded in ``pending_review`` for a person, and a page gone from the sitemap, or
+one the list no longer allows, is dropped.
 
 **Search.** :class:`KnowledgeBase` is an in-memory BM25 index over the page text,
 cut into passages. It answers inside the tool budget because it never leaves
@@ -29,7 +29,8 @@ it in the background, refreshes it about once a day, keeps the last good copy
 when a refresh fails, and never makes a session wait. With no snapshot and no
 network the index is simply empty.
 
-Run by hand (the urgent-change path)::
+Run by hand (the urgent-change path), on each brains host, with the brain's own
+``KDEM_KNOWLEDGE_DIR`` (or ``--cache-dir``) so the brain reads what it writes::
 
     uv run python demos/kdem/backend/knowledge.py refresh
     uv run python demos/kdem/backend/knowledge.py refresh --force https://karnatakadigital.in/policies/
@@ -125,6 +126,10 @@ def path_of(url: str) -> str:
 
 
 # ─── The allowlist ────────────────────────────────────────────────────────────
+
+
+Origin = Literal["approved", "auto"]
+"""``approved``: a page on the allowlist. ``auto``: a page a refresh added."""
 
 
 @dataclass(frozen=True)
@@ -287,6 +292,36 @@ class Allowlist:
         path = path_of(url)
         return next((r.why for r in self.held if r.pattern.search(path)), None)
 
+    def refusal(self, url: str, origin: Origin, section: str) -> str | None:
+        """Why the list, as it stands now, no longer allows a stored page; ``None``
+        when it does. A snapshot is checked against this on every load and every
+        refresh, so a change to the list takes effect without waiting for the
+        site to change.
+
+        An approved page must still be on the list. A page a refresh added must
+        still be in a section that is approved for automatic additions, and a flat
+        page must not have since matched a held pattern."""
+        if self.is_excluded(url):
+            return "matches an excluded pattern"
+        if self.is_alias(url):
+            return "is an alias of an approved page"
+        if url in self.by_url:
+            return None
+        if origin != "auto":
+            return "is no longer on the approved list"
+        s = self.sections.get(section)
+        if s is None or not s.approved:
+            return f"section {section!r} is not approved"
+        if not s.auto_add:
+            return f"section {section!r} does not take new pages automatically"
+        if "page" in s.post_types and (why := self.held_reason(url)):
+            return why
+        return None
+
+    def permits(self, page: StoredPage) -> bool:
+        """Whether Aria may still answer from, and link to, a stored page."""
+        return self.refusal(page.url, page.origin, page.section) is None
+
     def section_of_type(self, post_type: str) -> str | None:
         """The section a non-page post type belongs to. Pages are flat-slugged, so
         their section comes from the hub that links to them, not from here."""
@@ -383,7 +418,7 @@ _CHROME_LINES = frozenset(
         "Skip to content",
     )
 )
-_OFFSCREEN_PX = -1000.0
+_FAR_PX = 1000.0
 
 
 class _Node:
@@ -462,7 +497,7 @@ def _style(value: str) -> dict[str, str]:
 
 
 def _length(value: str) -> float | None:
-    """A CSS length in px, for the units an off-screen offset is written in."""
+    """A CSS length in px, for the absolute units an offset is written in."""
     m = re.fullmatch(r"(-?\d+(?:\.\d+)?)(px|em|rem|pt)?", value.strip())
     if not m:
         return None
@@ -475,10 +510,39 @@ def _is_zero(value: str) -> bool:
     return n is not None and n == 0
 
 
+def _far(value: str, *, relative: bool = True) -> bool:
+    """An offset that puts an element a screen or more away: 1000px or more either
+    way, or a whole viewport (``vw``/``vh``) or a whole containing block (``%``,
+    when ``relative`` — a translate's percentage is of the element itself, so it
+    is not counted there)."""
+    v = value.strip()
+    if (n := _length(v)) is not None:
+        return abs(n) >= _FAR_PX
+    m = re.fullmatch(r"(-?\d+(?:\.\d+)?)(vw|vh|vmin|vmax|%)", v)
+    if not m or (m.group(2) == "%" and not relative):
+        return False
+    return abs(float(m.group(1))) >= 100
+
+
+def _transparent(color: str) -> bool:
+    if color == "transparent":
+        return True
+    m = re.fullmatch(r"(?:rgba|hsla)\((.*)\)", color)
+    if m is None:
+        return False
+    alpha = re.split(r"[,/\s]+", m.group(1).strip())[-1]
+    with contextlib.suppress(ValueError):
+        return float(alpha.rstrip("%")) == 0
+    return False
+
+
+_TRANSLATE = re.compile(r"translate(?:3d|x|y|z)?\(([^)]*)\)")
+
+
 def _hidden_by_style(style: dict[str, str]) -> bool:
     """True when an inline style keeps the element from being seen: not displayed,
-    invisible, transparent, zero-sized text, clipped away, collapsed, or moved far
-    off-screen."""
+    invisible, transparent, zero-sized or clear text, clipped or collapsed away,
+    or moved a screen or more away by position, margin or transform."""
     if style.get("display") == "none":
         return True
     if style.get("visibility") in ("hidden", "collapse"):
@@ -490,22 +554,33 @@ def _hidden_by_style(style: dict[str, str]) -> bool:
                 return True
     if "font-size" in style and _is_zero(style["font-size"]):
         return True
+    if _transparent(style.get("color", "")):
+        return True
     clip = style.get("clip", "")
     if clip.startswith("rect("):
         sizes = [_length(x) for x in re.split(r"[,\s]+", clip[5:].rstrip(")").strip()) if x]
         if sizes and all(s is not None and abs(s) <= 1 for s in sizes):
             return True
-    if style.get("overflow") == "hidden" and any(
-        (n := _length(style.get(k, ""))) is not None and n <= 1 for k in ("height", "width")
+    clipped = {style.get(k) for k in ("overflow", "overflow-x", "overflow-y")} & {"hidden", "clip"}
+    if clipped and any(
+        (n := _length(style.get(k, ""))) is not None and n <= 1
+        for k in ("height", "width", "max-height", "max-width")
     ):
         return True
+    # A margin moves the element whatever its position; only the pull up or to
+    # the left takes it off the page.
+    for k in ("margin-left", "margin-top", "margin"):
+        if any((n := _length(v)) is not None and n <= -_FAR_PX for v in style.get(k, "").split()):
+            return True
     if style.get("position") in ("absolute", "fixed"):
-        for k in ("top", "left", "right", "bottom", "margin-top", "margin-left"):
-            n = _length(style.get(k, ""))
-            if n is not None and n <= _OFFSCREEN_PX:
-                return True
-    n = _length(style.get("text-indent", ""))
-    return n is not None and n <= _OFFSCREEN_PX
+        sides = ("top", "left", "right", "bottom", "inset")
+        if any(_far(v) for k in sides for v in style.get(k, "").split()):
+            return True
+    return any(
+        _far(arg, relative=False)
+        for m in _TRANSLATE.finditer(style.get("transform", ""))
+        for arg in m.group(1).split(",")
+    ) or ((n := _length(style.get("text-indent", ""))) is not None and n <= -_FAR_PX)
 
 
 def _dropped(node: _Node) -> bool:
@@ -774,8 +849,6 @@ async def read_sitemap(fetch: Fetch, index_url: str) -> dict[str, SitemapEntry]:
 
 # ─── The snapshot ─────────────────────────────────────────────────────────────
 
-Origin = Literal["approved", "auto"]
-
 
 @dataclass(frozen=True)
 class StoredPage:
@@ -930,13 +1003,17 @@ class RefreshReport:
     failed: list[str] = field(default_factory=list[str])
     offsite: list[str] = field(default_factory=list[str])
     """Pages that now redirect to another site: not indexed."""
+    moved: list[str] = field(default_factory=list[str])
+    """Pages that now redirect to another page on the site: not indexed under the
+    old URL. The page they land on is judged by its own sitemap entry."""
     deferred: int = 0
 
     def summary(self) -> str:
         return (
             f"updated {len(self.updated)}, unchanged {len(self.unchanged)}, "
             f"added {len(self.added)}, held {len(self.held)}, dropped {len(self.dropped)}, "
-            f"failed {len(self.failed)}, off-site {len(self.offsite)}, deferred {self.deferred}"
+            f"failed {len(self.failed)}, off-site {len(self.offsite)}, "
+            f"moved {len(self.moved)}, deferred {self.deferred}"
         )
 
 
@@ -966,17 +1043,28 @@ async def refresh(
     *,
     policy: RefreshPolicy | None = None,
     now: datetime | None = None,
+    on_progress: Callable[[Snapshot], Awaitable[None]] | None = None,
 ) -> tuple[Snapshot, RefreshReport]:
     """One pass over the sitemap. Returns the next snapshot and what changed.
 
     - An approved page is read when it is new to the snapshot, its ``lastmod``
-      moved, or it is forced. A 404/410 drops it; any other failure keeps the
-      copy already held.
-    - A page that is gone from the sitemap, or no longer allowed, is dropped.
+      moved, or it is forced. A 404/410 drops it, and so does a redirect to
+      another page or another site; any other failure keeps the copy already
+      held.
+    - A page that is gone from the sitemap, or that the list no longer allows
+      (:meth:`Allowlist.refusal`), is dropped. A page a refresh added whose
+      section has since been closed, or which now matches a held pattern, is
+      held in ``pending_review`` instead.
     - A new URL is added when its section is approved for automatic additions:
       news and events by post type, a flat page when an approved hub links to it.
       A URL in any other section is held in ``pending_review``. Excluded URLs
-      and aliases are noted and otherwise ignored.
+      and aliases are noted and otherwise ignored. A new URL that redirects is
+      not added: the page it lands on has a sitemap entry of its own.
+
+    ``on_progress`` is handed the snapshot as it stands once the pages already
+    known have been re-read, before any new page is: on a first build that is
+    every approved page, so the caller can answer from them while the rest are
+    read.
 
     The sitemap is read first and in full; if that fails this raises and the
     caller keeps the snapshot it has."""
@@ -989,17 +1077,17 @@ async def refresh(
     forced = {c for u in policy.force if (c := allowlist.canonical(u)) is not None}
 
     pages: dict[str, StoredPage] = {}
+    revoked: dict[str, Pending] = {}
     for url, page in snapshot.pages.items():
-        allowed = (
-            url in sitemap
-            and not allowlist.is_excluded(url)
-            and not allowlist.is_alias(url)
-            and (page.origin == "auto" or url in allowlist.by_url)
-        )
-        if allowed:
+        why = allowlist.refusal(url, page.origin, page.section)
+        if url in sitemap and why is None:
             pages[url] = page
-        else:
-            report.dropped.append(url)
+            continue
+        report.dropped.append(url)
+        if url in sitemap and page.origin == "auto" and _for_review(allowlist, url):
+            # A section closed, or a held pattern added, after the page went in:
+            # it waits for a person like any other page outside the list.
+            revoked[url] = Pending(url, page.section, sitemap[url].lastmod, why or "", stamp)
 
     async def reread(url: str, lastmod: str, make: Callable[[Extracted], StoredPage]) -> None:
         old = pages.get(url)
@@ -1024,7 +1112,12 @@ async def refresh(
             report.offsite.append(url)
             return
         if landed != url:
-            logger.warning("kdem: {} now redirects to {}", url, got.url)
+            # Another page's text is not this page's, and the page it lands on
+            # is judged by its own entry, not let in under this one.
+            logger.warning("kdem: {} now redirects to {}; not indexed", url, got.url)
+            pages.pop(url, None)
+            report.moved.append(url)
+            return
         new = make(ex)
         if old is not None and old.digest == new.digest:
             pages[url] = replace(old, lastmod=lastmod, fetched_at=stamp, links=new.links)
@@ -1079,6 +1172,10 @@ async def refresh(
 
             await reread(url, lastmod, auto_page)
 
+    if on_progress is not None:
+        partial = Snapshot(snapshot.built_at, snapshot.known, dict(pages), snapshot.pending_review)
+        await on_progress(partial)
+
     # New URLs: added, held or ignored.
     hubs = allowlist.hubs
     linked: dict[str, str] = {}
@@ -1096,6 +1193,11 @@ async def refresh(
             continue
         if allowlist.is_alias(url) or allowlist.is_excluded(url):
             known[url] = entry.lastmod
+            continue
+        if (was := revoked.get(url)) is not None:
+            known[url] = entry.lastmod
+            pending[url] = was
+            report.held.append(url)
             continue
         was_pending = snapshot.pending_review.get(url)
         if url in snapshot.known and was_pending is None:
@@ -1139,13 +1241,15 @@ async def refresh(
             logger.warning("kdem: new page {} redirects off the site", entry.url)
             report.offsite.append(entry.url)
             continue
-        if landed != entry.url and (
-            landed in pages or landed in allowlist.by_url or allowlist.is_excluded(landed)
-        ):
+        if landed != entry.url:
+            # The page it lands on was placed (or held) by its own entry; it is
+            # not let in under this one's section.
+            logger.info("kdem: new page {} redirects to {}; not added", entry.url, got.url)
+            report.moved.append(entry.url)
             continue
-        title = ex.title or path_of(landed).strip("/").replace("-", " ")
-        pages[landed] = StoredPage(
-            landed,
+        title = ex.title or path_of(entry.url).strip("/").replace("-", " ")
+        pages[entry.url] = StoredPage(
+            entry.url,
             title,
             section,
             "auto",
@@ -1155,7 +1259,7 @@ async def refresh(
             ex.blocks,
             ex.links,
         )
-        report.added.append(landed)
+        report.added.append(entry.url)
         if policy.pause_s:
             await asyncio.sleep(policy.pause_s)
 
@@ -1181,6 +1285,12 @@ def _place(
     if not s.auto_add:
         return section, f"section {section!r} does not take new pages automatically"
     return section, None
+
+
+def _for_review(allowlist: Allowlist, url: str) -> bool:
+    """Whether a page the list stopped allowing is one a person might put back:
+    anything but an excluded URL or an alias, which never become pages."""
+    return not (allowlist.is_excluded(url) or allowlist.is_alias(url))
 
 
 def _older(entry: SitemapEntry, now: datetime, days: int) -> bool:
@@ -1237,7 +1347,9 @@ class KnowledgeBase:
 
     def __init__(self, pages: Iterable[StoredPage], allowlist: Allowlist) -> None:
         self.allowlist = allowlist
-        stored = list(pages)
+        # Checked against the list as it is now, not as it was when the snapshot
+        # was written: a page KDEM has taken off it is gone from the next session.
+        stored = [p for p in pages if allowlist.permits(p)]
         # A block that appears on several pages is the site talking about itself
         # (a footer band, a contact blurb, an in-page menu), not the page.
         seen_on: Counter[str] = Counter()
@@ -1464,9 +1576,22 @@ class KnowledgeService:
         if self._refreshing:
             raise _fail("a refresh is already running")
         self._refreshing = True
+
+        async def progress(partial: Snapshot) -> None:
+            # Answer from the pages already read while the new ones are fetched —
+            # on a fresh host that is every approved page, minutes sooner. Not
+            # saved: only a finished refresh is written to disk.
+            kb = await asyncio.to_thread(KnowledgeBase, partial.pages.values(), self.allowlist)
+            self._install(partial, kb)
+            logger.info("kdem: knowledge in use, {} pages, while new pages are read", len(kb))
+
         try:
             snap, report = await refresh(
-                self._snapshot, self.allowlist, self._fetch, policy=policy or self._policy
+                self._snapshot,
+                self.allowlist,
+                self._fetch,
+                policy=policy or self._policy,
+                on_progress=progress,
             )
             kb = await asyncio.to_thread(KnowledgeBase, snap.pages.values(), self.allowlist)
             self._install(snap, kb)
@@ -1523,6 +1648,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ("dropped", report.dropped),
             ("failed", report.failed),
             ("off-site", report.offsite),
+            ("moved", report.moved),
         ):
             for u in urls:
                 print(f"  {label:9} {u}")

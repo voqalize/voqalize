@@ -15,10 +15,12 @@ line and offers Contact Us. A government agency's assistant that improvises a
 scheme, a figure or a deadline is worse than one that says it does not know.
 
 **The model never supplies a URL the brain trusts.** :meth:`show_link` takes what
-the model names, canonicalises it, and sends it only if it is an approved page or
-one the refresh has indexed — with the page's own title, not the model's. The
-browser snippet checks the host again, but the brain is where "only approved
-pages" is decided.
+the model names, canonicalises it, and sends it only if the index holds that page
+now — an approved page the last refresh read, or a page it added — with the
+page's own title, not the model's. A listed page the refresh dropped (deleted,
+unpublished, or redirecting elsewhere) is not sent; before the first index
+exists, only Contact Us is. The browser snippet checks the host again, but the
+brain is where "only approved pages" is decided.
 
 **The page is someone else's.** There is no frontend here: the snippet in
 ``demos/kdem/embed/`` is pasted into the site, connects with
@@ -32,7 +34,6 @@ session after that reads the same index.
 
 from __future__ import annotations
 
-import re
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -99,7 +100,7 @@ WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, 
 LANGUAGE. The call starts in English. If the visitor asks for Kannada, or you can tell they are speaking Kannada, call set_language with kannada — say the line you switch with in English, in the same response, because it is spoken before the voice changes — and speak Kannada, in Kannada script, from their next turn on. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds; a turn that makes no sense as English is usually Kannada, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". Ask them to say it again in your switch line, since those words were lost. In Kannada mode English arrives spelled in Kannada script ("ಐ ವಾಂಟ್ ..." is "I want ..."); judge by the small grammar words, not by nouns, and switch back to English with set_language when they speak or ask for English. Only English and Kannada are offered; if they ask for another language, say so in English. The site is in English, so always write search_kdem queries in English, whatever language the call is in.
 
 THE PAGES. These are the approved pages, by path, with their titles. Newer news and event pages may also come back from search_kdem; those are approved too.
-{page_digest()}"""
+"""
 
 # The opener. Written, not generated: the visitor has just clicked, and a first
 # word that waits on a model makes the site feel slow.
@@ -107,8 +108,13 @@ _GREETING = (
     f"Hello, I'm {AGENT_NAME} from KDEM. How can we help you grow your business in Karnataka?"
 )
 
-#: A path the visitor's browser may send, reduced to what is safe to quote in a prompt.
-_SAFE_PATH = re.compile(r"^/[A-Za-z0-9/_.-]{0,120}$")
+
+def _prompt(where: str = "") -> str:
+    """The system prompt for a session starting now. THE PAGES lists only the
+    pages Aria may link at this moment, so the model is never offered one the
+    refresh has dropped."""
+    prompt = _SYSTEM_INSTRUCTION + page_digest(lambda url: _page(url) is not None)
+    return f"{prompt}\n\nWHERE THEY ARE. {where}" if where else prompt
 
 
 # ── The tool surface ──────────────────────────────────────────────────────────
@@ -155,41 +161,48 @@ class LanguageRequest(BaseModel):
 def _page(url: str) -> tuple[str, str] | None:
     """The canonical URL and title of the page ``url`` names, if Aria may link it.
 
-    An approved page (aliases fold into it), or a page the refresh indexed — a
-    news or event page added since the list was written. Anything else, including
-    every URL off the site, is ``None``."""
+    A page the index holds now (aliases fold into it): an approved page the last
+    refresh read, under the list's title, or a news or event page it added. A
+    page on the list that the refresh dropped (gone from the sitemap, a 404, or a
+    redirect elsewhere) is ``None``. Until the first index exists the one page
+    sent is Contact Us, so the don't-know answer still has its link. Anything
+    else, including every URL off the site, is ``None``."""
     canonical = ALLOWLIST.canonical(url)
     if canonical is None or ALLOWLIST.is_excluded(canonical):
         return None
-    if (approved := ALLOWLIST.approved(canonical)) is not None:
+    approved = ALLOWLIST.approved(canonical)
+    if not (KNOWLEDGE.snapshot.built_at or len(KNOWLEDGE.kb)):
+        if approved is not None and approved.url == ALLOWLIST.contact_url:
+            return approved.url, approved.title
+        return None
+    if (indexed := KNOWLEDGE.kb.page(canonical)) is None:
+        return None
+    if approved is not None:
         return approved.url, approved.title
-    if (indexed := KNOWLEDGE.kb.page(canonical)) is not None:
-        return indexed.url, indexed.title or path_of(indexed.url)
-    return None
+    return indexed.url, indexed.title or path_of(indexed.url)
 
 
 def _where_they_started(init: dict[str, Any]) -> str:
     """One line on the page the visitor opened Aria from, for the prompt.
 
-    ``page`` comes from the visitor's browser, so it is only quoted when it names
-    a page Aria knows, or a path made of nothing but path characters."""
+    ``page`` comes from the visitor's browser, so it is named only when it is a
+    page Aria may link now, and then by that page's own title and path. Anything
+    else is left out: the prompt never quotes what the browser sent."""
     raw = init.get("page")
     if not isinstance(raw, str) or not raw:
         return ""
     known = _page(raw)
-    if known is not None:
-        url, title = known
-        return f'The visitor opened you on the page "{title}" ({path_of(url)}).'
-    if _SAFE_PATH.match(raw):
-        return f"The visitor opened you on {raw}, which is not one of the pages you answer from."
-    return ""
+    if known is None:
+        return ""
+    url, title = known
+    return f'The visitor opened you on the page "{title}" ({path_of(url)}).'
 
 
 class KdemBrain(GeminiBrain):
     """One per session. Aria: KDEM's approved pages, and this visitor's call."""
 
     def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=client, system_instruction=_SYSTEM_INSTRUCTION, model=model)
+        super().__init__(client=client, system_instruction=_prompt(), model=model)
         #: The language the voice is speaking, for the line the brain says when
         #: the model's turn acted and said nothing.
         self.spoken: Language = OPENING.code
@@ -213,9 +226,7 @@ class KdemBrain(GeminiBrain):
         KNOWLEDGE.start()
 
         init = dict(session.init or {})
-        where = _where_they_started(init)
-        if where:
-            self.system_instruction = f"{_SYSTEM_INSTRUCTION}\n\nWHERE THEY ARE. {where}"
+        self.system_instruction = _prompt(_where_they_started(init))
         logger.info(
             "kdem: session start (surface={}, page={}, lang={}, pages indexed={})",
             init.get("surface"),

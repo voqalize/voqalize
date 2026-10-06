@@ -103,7 +103,6 @@
     {"url": "https://karnatakadigital.in/innovation-and-startup/", "title": "Innovation and Startups", "section": "focus-areas-programmes", "aliases": ["https://karnatakadigital.in/innovation-and-startups/", "https://karnatakadigital.in/innovation-and-startups-old/"], "hub_for": "focus-areas-programmes"},
     {"url": "https://karnatakadigital.in/acceleration-network/", "title": "Karnataka Acceleration Network (KAN)", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
     {"url": "https://karnatakadigital.in/cohort-1/", "title": "Acceleration Network Cohort 1", "section": "focus-areas-programmes", "aliases": []},
-    {"url": "https://karnatakadigital.in/cohort-2/", "title": "Acceleration Network Cohort 2", "section": "focus-areas-programmes", "aliases": []},
     {"url": "https://karnatakadigital.in/cohort-3/", "title": "Acceleration Network Cohort 3", "section": "focus-areas-programmes", "aliases": []},
     {"url": "https://karnatakadigital.in/software-products-services-including-global-capability-centers-gcc/", "title": "IT Products & Services / BPM and GCC Promotion", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
     {"url": "https://karnatakadigital.in/talent-accelerator/", "title": "Talent Accelerator", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
@@ -118,7 +117,6 @@
     {"url": "https://karnatakadigital.in/mysuru-beyond-heritage-skills-talent-landscape-report-2026/", "title": "Mysuru: Beyond Heritage - Skills & Talent Landscape Report 2026", "section": "policies-resources", "aliases": []},
     {"url": "https://karnatakadigital.in/mysuru-ai-cybersecurity-skills-report-2026/", "title": "Mysuru AI & Cybersecurity Skills Report 2026", "section": "policies-resources", "aliases": []},
     {"url": "https://karnatakadigital.in/whats-happening/", "title": "What's Happening (Beyond Bengaluru Mysuru BLUE)", "section": "event-landing-pages", "aliases": []},
-    {"url": "https://karnatakadigital.in/the-big-tech-show-2025/", "title": "Mysuru Big Tech Show 2025", "section": "event-landing-pages", "aliases": []},
     {"url": "https://karnatakadigital.in/hdb-techceleration-2025/", "title": "Hubballi-Dharwad-Belagavi Techceleration 2025", "section": "event-landing-pages", "aliases": []},
     {"url": "https://karnatakadigital.in/samagra-2026/", "title": "Samagra 2026", "section": "event-landing-pages", "aliases": []}
   ],
@@ -144,6 +142,7 @@
     {"pattern": "(agenda|speaker)", "why": "agenda and speaker lists are about individuals; a person decides"},
     {"pattern": "^/kaipidi/$", "why": "older programme page; a person checks it before it goes live"},
     {"pattern": "^/karnataka-mitra/$", "why": "older programme page; a person checks it before it goes live"},
-    {"pattern": "^/fellowship-programme/$", "why": "older programme page; a person checks it before it goes live"}
+    {"pattern": "^/fellowship-programme/$", "why": "older programme page; a person checks it before it goes live"},
+    {"pattern": "^/cohort-2/$", "why": "the page draws its content with a script, so it has no text to answer from; a person checks it"}
   ]
 }

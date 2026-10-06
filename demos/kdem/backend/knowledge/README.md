@@ -35,13 +35,21 @@ day from `wp-sitemap.xml`:
 - a new page in an approved section is added;
 - a new page anywhere else is recorded for review;
 - a page that is no longer in the sitemap, or that now redirects to another
-  site, is dropped.
+  site or to another page, is dropped;
+- a page taken off `pages` is dropped. A page that was added automatically is
+  dropped and recorded for review when its section is no longer approved for
+  new pages, or when it now matches a held pattern.
 
-For an urgent change, refresh by hand:
+The list is applied to the snapshot every time it is loaded, so a page taken
+off the list stops being answered from on the next session, before any
+refresh.
+
+For an urgent change, refresh by hand on each brains host, against the brain's
+own snapshot directory (see `../../README.md`):
 
 ```sh
-uv run python demos/kdem/backend/knowledge.py refresh --force https://karnatakadigital.in/policies/
-uv run python demos/kdem/backend/knowledge.py pending    # pages waiting for review
+KDEM_KNOWLEDGE_DIR=<the brain's snapshot dir> uv run python demos/kdem/backend/knowledge.py refresh --force https://karnatakadigital.in/policies/
+KDEM_KNOWLEDGE_DIR=<the brain's snapshot dir> uv run python demos/kdem/backend/knowledge.py pending
 ```
 
 To approve a held page, add it to `pages` with its section and title.
