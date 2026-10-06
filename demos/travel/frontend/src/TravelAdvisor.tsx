@@ -40,6 +40,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from "@voqalize/demo-kit";
 import { draftsOf, useTravel } from "./store";
 import { connectRequest, withRealHeaders } from "./config";
@@ -351,9 +352,13 @@ export function TravelAdvisor({ children }: { children: (presence: ReactNode) =>
     [],
   );
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       noThemeProvider
       startBotParams={params}
       startBotResponseTransformer={withRealHeaders}

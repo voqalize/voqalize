@@ -59,6 +59,7 @@ import {
 import "@pipecat-ai/voice-ui-kit/styles.scoped";
 import { type CharacterInfo, listCharacters } from "@voqalize/avatar";
 import { Avatar } from "@voqalize/avatar/react";
+import { useVoqalizeMedia } from "@voqalize/demo-kit";
 import { Github, PhoneOff } from "lucide-react";
 import { asUiAction, sendAppEvent, unhandledUiAction } from "./actions.gen";
 import { connectRequest, demo, withRealHeaders } from "./config";
@@ -602,9 +603,9 @@ function Stage({
  * Mints the session and owns the client. `PipecatAppBase` builds the
  * `PipecatClient`, does pipecat's two-step connect (`startBot` against the
  * control plane, then `connect` the transport it returns) and mounts
- * `PipecatClientProvider` — with its own `BotAudioOutput` — as soon as the
- * client exists, not when the call goes live. `connectOnMount` is off: nothing
- * opens a microphone until the visitor asks for it.
+ * `PipecatClientProvider` as soon as the client exists, not when the call
+ * goes live. `connectOnMount` is off: nothing opens a microphone until the
+ * visitor asks for it.
  */
 /** The face a link asked for — `?avatar=tess`, which is how the homepage's
  *  faces deep-link here — or the default. Read once, at mount: after that the
@@ -670,6 +671,7 @@ export function AvatarDemo() {
   }, [init, onPick]);
   const unprovisioned = !demo.agentId || !demo.publishableKey;
 
+  const media = useVoqalizeMedia();
   return (
     <div className="av-root">
       <style>{STYLES}</style>
@@ -696,6 +698,9 @@ export function AvatarDemo() {
       ) : (
         <PipecatAppBase
           transportType="smallwebrtc"
+          transportOptions={media.transportOptions}
+          onClient={media.onClient}
+          noAudioOutput
           noThemeProvider
           startBotParams={params}
           startBotResponseTransformer={withRealHeaders}

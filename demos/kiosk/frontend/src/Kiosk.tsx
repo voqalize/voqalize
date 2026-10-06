@@ -39,6 +39,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from '@voqalize/demo-kit';
 import { COLOR } from './brand';
 import { connectRequest, withRealHeaders } from './config';
@@ -139,9 +140,13 @@ function CallSession(props: SessionProps) {
   // `PipecatAppBase`'s connect-on-mount effect, and a fresh object on every
   // render would re-mint the call on every render.
   const params = useMemo(() => connectRequest(INIT), []);
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       connectOnMount
       noThemeProvider
       startBotParams={params}

@@ -17,6 +17,9 @@ importers:
       '@voqalize/avatar':
         specifier: ^0.5.3
         version: 0.5.3(@pipecat-ai/client-js@1.13.1)
+      '@voqalize/client-transport':
+        specifier: 0.2.0
+        version: 0.2.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
     devDependencies:
       esbuild:
         specifier: ^0.25.0
@@ -241,6 +244,12 @@ packages:
       react-dom:
         optional: true
 
+  '@voqalize/client-transport@0.2.0':
+    resolution: {integrity: sha512-re/Yx/8CRbSZd1+RB6Z2ULowAZCbzY2mtbLSZ+N6BfE/JbUqHPueM3eVniMxNnro08707xBl4sqFN1wkgiqbZw==}
+    peerDependencies:
+      '@pipecat-ai/client-js': '>=1.13.0 <2'
+      '@pipecat-ai/small-webrtc-transport': '>=1.10.0 <2'
+
   bowser@2.14.1:
     resolution: {integrity: sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg==}
 
@@ -437,6 +446,11 @@ snapshots:
   '@voqalize/avatar@0.5.3(@pipecat-ai/client-js@1.13.1)':
     optionalDependencies:
       '@pipecat-ai/client-js': 1.13.1
+
+  '@voqalize/client-transport@0.2.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))':
+    dependencies:
+      '@pipecat-ai/client-js': 1.13.1
+      '@pipecat-ai/small-webrtc-transport': 1.10.8(@pipecat-ai/client-js@1.13.1)
 
   bowser@2.14.1: {}
 

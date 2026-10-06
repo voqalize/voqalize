@@ -33,6 +33,7 @@ export {
   type AmbientPresenceActivity,
 } from "./AmbientPresence";
 export { PreCallGate, type PreCallGateProps } from "./PreCallGate";
+export { useVoqalizeMedia, createVoqalizeMedia, type VoqalizeMedia } from "./media";
 
 /**
  * How long a demo recording lives. Enforced by a GCS lifecycle rule on the

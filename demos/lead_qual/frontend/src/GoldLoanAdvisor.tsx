@@ -25,7 +25,7 @@ import { RTVIEvent } from '@pipecat-ai/client-js';
 import { useRTVIClientEvent, usePipecatClientMicControl, usePipecatClientTransportState } from '@pipecat-ai/client-react';
 import { PipecatAppBase } from '@pipecat-ai/voice-ui-kit';
 import { Loader2, Mic, MicOff, PhoneOff } from 'lucide-react';
-import { AmbientPresence, DemoGate, type AmbientPresencePalette } from '@voqalize/demo-kit';
+import { AmbientPresence, DemoGate, type AmbientPresencePalette, useVoqalizeMedia } from '@voqalize/demo-kit';
 import { connectRequest, withRealHeaders, demo } from './config';
 import { asUiAction, type CallEnded, type UiAction } from './actions.gen';
 
@@ -363,9 +363,13 @@ function CallSession({
   // genuinely new call begins — never on an unrelated re-render (the timer).
   const params = useMemo(() => connectRequest(init), [init]);
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       connectOnMount
       noThemeProvider
       startBotParams={params}

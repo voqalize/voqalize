@@ -24,7 +24,7 @@ import { useRTVIClientEvent, usePipecatClientMicControl } from "@pipecat-ai/clie
 import { PipecatAppBase, usePipecatConnectionState, type PipecatBaseChildProps } from "@pipecat-ai/voice-ui-kit";
 import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
-import { AmbientPresence, DemoGate, type AmbientPresenceActivity, type AmbientPresencePalette } from "@voqalize/demo-kit";
+import { AmbientPresence, DemoGate, type AmbientPresenceActivity, type AmbientPresencePalette, useVoqalizeMedia } from "@voqalize/demo-kit";
 import { useMobileShop, type Highlight } from "./store";
 import { connectRequest, withRealHeaders } from "./config";
 
@@ -159,6 +159,7 @@ export function MobileExpert({ children }: { children: (presence: ReactNode) => 
 
   const params = useMemo(() => connectRequest({ surface: "mobile-web" }), []);
 
+  const media = useVoqalizeMedia();
   return (
     <>
       <DemoGate
@@ -171,6 +172,9 @@ export function MobileExpert({ children }: { children: (presence: ReactNode) => 
       {joined ? (
         <PipecatAppBase
           transportType="smallwebrtc"
+          transportOptions={media.transportOptions}
+          onClient={media.onClient}
+          noAudioOutput
           connectOnMount
           noThemeProvider
           startBotParams={params}

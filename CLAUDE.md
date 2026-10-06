@@ -11,6 +11,17 @@ deleted on 2026-08-24. The browser half of a call is stock pipecat plus one
 reintroduce a client wrapper: it is a second surface to learn and a lag behind
 every pipecat release, which is what retired the last one.
 
+The demos' **media** is not stock, on purpose (owner, 2026-10-06): pipecat's
+default media manager loads daily's call machine from `c.daily.co` into the
+page, and we will not ship a black box our customers depend on. Every demo
+frontend and the qween extension pass `@voqalize/client-transport` (MIT, its
+own public repo, pinned at an exact version) as the transport's `mediaManager`
+— through `useVoqalizeMedia` in `demos/shared/src/media.ts` where
+`PipecatAppBase` builds the transport, `createVoqalizeTransport` where we do.
+That is not a client wrapper: the client, transport, signalling and RTVI are
+still pipecat's. With `PipecatAppBase`, pass `noAudioOutput`, or the kit's
+`BotAudioOutput` plays the agent a second time.
+
 There is no `skill/` any more — it was deleted on 2026-08-21. An agent is oriented
 by the MCP server's own `instructions` and then reads the docs site, every page of
 which is served as raw markdown at its URL plus `.md` and indexed at

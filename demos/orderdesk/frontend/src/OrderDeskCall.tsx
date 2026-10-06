@@ -15,8 +15,8 @@
  * **This is exactly the surface an external developer embeds, and it is almost
  * entirely pipecat's.** Voice-ui-kit's `PipecatAppBase` does pipecat's whole
  * two-step connect (`startBot` against the control plane, then `connect` the
- * transport) and owns the client's lifecycle — including its own
- * `BotAudioOutput` — so this file is the two bridges that tie the call to the
+ * transport) and owns the client's lifecycle, and the demo kit's
+ * `useVoqalizeMedia` carries the media, so this file is the two bridges that tie the call to the
  * screen, and nothing else:
  *   - every `ui-command` (`RTVIEvent.UICommand`, `{ command, payload }`) replays
  *     onto the store's one reducer, typed against `actions.gen.ts`, so line
@@ -30,7 +30,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import { usePipecatClient, usePipecatClientTransportState, useRTVIClientEvent } from "@pipecat-ai/client-react";
 import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
-import { AmbientPresence, type AmbientPresenceActivity, type AmbientPresencePalette } from "@voqalize/demo-kit";
+import { AmbientPresence, type AmbientPresenceActivity, type AmbientPresencePalette, useVoqalizeMedia } from "@voqalize/demo-kit";
 import { connectRequest, withRealHeaders } from "./config";
 import { useOrderDesk } from "./store";
 import { BODY, RED, SAFFRON } from "./theme";
@@ -94,9 +94,13 @@ export function OrderDeskCallSession() {
     [brainPayload],
   );
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       connectOnMount
       noThemeProvider
       startBotParams={params}

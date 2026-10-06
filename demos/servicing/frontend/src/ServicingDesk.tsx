@@ -48,6 +48,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from "@voqalize/demo-kit";
 import { useServicing } from "./store";
 import { ADVISOR, boardSeed } from "./data";
@@ -177,9 +178,13 @@ export function ServicingDesk({ children }: { children: (presence: ReactNode) =>
   const [agreed, setAgreed] = useState(false);
   const gate = useMemo(() => ({ joined, setJoined, agreed, setAgreed }), [joined, agreed]);
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       noThemeProvider
       startBotParams={params}
       startBotResponseTransformer={withRealHeaders}

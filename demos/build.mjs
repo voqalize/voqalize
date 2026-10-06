@@ -12,9 +12,11 @@
  * assembled `dist/` (as a versioned artifact) and lays it under the apex domain at
  * `/demos/<name>`, so the browser loads a demo same-origin with marketing + docs.
  *
- * A demo installs stock pipecat and nothing of ours — there is no React client
- * package to overlay since `sdk/react` was deleted on 2026-08-24. What a reader
- * copies out of a demo is what npm gives them.
+ * A demo installs stock pipecat plus `@voqalize/client-transport`, the open MIT
+ * media manager that replaces pipecat's default (which loads a third-party call
+ * machine into the page). Both come from npm at an exact version, and there is
+ * no React client package to overlay since `sdk/react` was deleted on
+ * 2026-08-24. What a reader copies out of a demo is what npm gives them.
  *
  * Per-demo wiring is baked at build (Vite inlines `import.meta.env.VITE_*`). Each
  * app reads the generic `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`; when building all

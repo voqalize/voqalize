@@ -35,7 +35,7 @@ import {
 } from "@pipecat-ai/client-react";
 import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
 import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
-import { AmbientPresence, DemoGate, type AmbientPresencePalette } from "@voqalize/demo-kit";
+import { AmbientPresence, DemoGate, type AmbientPresencePalette, useVoqalizeMedia } from "@voqalize/demo-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { useForge, type BotState, type ConnStatus } from "./store";
 import { ActivityFeed } from "./ActivityFeed";
@@ -251,9 +251,13 @@ export function VoiceLayer({ children }: { children: (presence: ReactNode) => Re
     [],
   );
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       noThemeProvider
       startBotParams={params}
       startBotResponseTransformer={withRealHeaders}
