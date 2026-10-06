@@ -1,6 +1,9 @@
-"""KDEM: Aria, the voice agent on karnatakadigital.in.
+"""KDEM: Aria, the voice agent on karnatakadigital.in — brain, route and knowledge base.
 
-The knowledge base (``knowledge.py``) is here; the brain and its routes join it in
-``brain.py`` and ``routes.py``. Until ``routes.py`` exists, discovery does not
-treat this folder as a demo.
+See `routes.py` for the route, `brain.py` for Aria and `knowledge.py` for the
+pages she answers from.
 """
+
+from .routes import NAME, build, router
+
+__all__ = ["NAME", "build", "router"]

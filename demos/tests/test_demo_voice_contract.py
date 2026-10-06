@@ -102,6 +102,11 @@ DEMOS: dict[str, Expected] = {
     "aura": Expected(voice="omnivoice/gauri", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
+    # Aria on karnatakadigital.in opens in English and moves both legs to Kannada
+    # when the visitor asks or speaks it — one woman in two languages, so the
+    # voice stays gauri. Not a gallery card (the page is KDEM's own site), so it
+    # is not in manifest.json. The switch is asserted in test_kdem_e2e.py.
+    "kdem": Expected(voice="omnivoice/gauri", language="en"),
     # Tanvi greets a walk-in at a branch totem in English, and moves both legs to
     # Hindi the moment they ask — one woman in two languages, so the voice does not
     # move with the language. The totem's own toggle can settle it before the call

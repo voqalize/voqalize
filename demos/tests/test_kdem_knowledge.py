@@ -612,8 +612,10 @@ def test_an_empty_knowledge_base_answers_nothing() -> None:
 
 
 async def test_snapshot_round_trips_and_a_new_process_loads_it(
-    tmp_path: Path, allowlist: Allowlist, site: FakeSite
+    tmp_path: Path, allowlist: Allowlist, site: FakeSite, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # The suite switches the keeper off (conftest); this test is about the keeper.
+    monkeypatch.delenv("KDEM_KNOWLEDGE_REFRESH")
     service = KnowledgeService(allowlist, cache_dir=tmp_path, fetch=site.fetch)
     report = await service.refresh_now(policy=RefreshPolicy(pause_s=0))
     assert len(report.added) == 2
@@ -641,8 +643,10 @@ async def test_snapshot_round_trips_and_a_new_process_loads_it(
 
 
 async def test_no_snapshot_and_no_network_is_an_empty_knowledge_base(
-    tmp_path: Path, allowlist: Allowlist
+    tmp_path: Path, allowlist: Allowlist, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.delenv("KDEM_KNOWLEDGE_REFRESH")
+
     async def offline(url: str) -> FetchResult:
         raise OSError("offline")
 
