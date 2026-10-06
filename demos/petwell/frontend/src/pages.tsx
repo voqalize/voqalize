@@ -52,7 +52,7 @@ const STEPS: { id: Step; label: string }[] = [
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
-export function BookingApp({ presence }: { presence: ReactNode }) {
+export function BookingApp({ presence, face }: { presence: ReactNode; face: ReactNode }) {
   const b = useBooking();
   return (
     <div className="pw-app">
@@ -80,6 +80,7 @@ export function BookingApp({ presence }: { presence: ReactNode }) {
       </header>
 
       <main className="pw-main">
+        <aside className="pw-desk">{face}</aside>
         <div className="pw-card">
           {b.step !== 'done' && <Stepper />}
           {b.step !== 'home' && b.step !== 'done' && <Summary />}
@@ -93,8 +94,8 @@ export function BookingApp({ presence }: { presence: ReactNode }) {
             {b.step === 'done' && <DoneStep />}
           </div>
         </div>
-        <p className="pw-foot">A Voqalize demo · Petwell is a fictional hospital chain.</p>
       </main>
+      <p className="pw-foot">A Voqalize demo · Petwell is a fictional hospital chain.</p>
 
       {b.emergency && <EmergencyPanel />}
     </div>
@@ -583,11 +584,13 @@ const CSS = `
 .pw-sos { display: flex; align-items: center; gap: 6px; border: 1.5px solid var(--sos); color: var(--sos) !important;
   background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .pw-sos:hover { background: #fef3f2; }
-.pw-main { max-width: 760px; margin: 0 auto; padding: 24px 16px 40px; }
+.pw-main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 8px; display: grid;
+  grid-template-columns: 280px minmax(0, 1fr); gap: 20px; align-items: start; }
+.pw-desk { position: sticky; top: 76px; }
 .pw-card { background: #fff; border-radius: 20px; box-shadow: 0 6px 30px rgba(74,53,150,.08); padding: 24px; }
 .pw-body { animation: pw-in .25s ease; }
 @keyframes pw-in { from { opacity: 0; transform: translateY(6px); } }
-.pw-foot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 16px; }
+.pw-foot { text-align: center; color: var(--muted); font-size: 12px; margin: 8px 0 32px; }
 
 .pw-stepper { display: flex; list-style: none; margin: 0 0 18px; padding: 0; gap: 4px; }
 .pw-stepper li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px;
@@ -714,7 +717,15 @@ const CSS = `
   .pw-top { padding: 8px 12px; }
   .pw-logo-sub, .pw-sos span { display: none; }
   .pw-card { padding: 18px 16px; border-radius: 16px; }
-  .pw-main { padding: 14px 12px 32px; }
+  .pw-main { padding: 14px 12px 8px; display: block; }
+  /* Phone: Tushar becomes a small call tile in the corner, over the page. */
+  .pw-desk { position: fixed; top: auto; right: 12px; bottom: 12px; z-index: 10; width: 100px; }
+  .pw-desk .pw-face { border-radius: 16px; box-shadow: 0 8px 28px rgba(31,27,46,.25); }
+  .pw-desk .pw-face-meta { padding: 6px 8px 6px; }
+  .pw-desk .pw-face-name small, .pw-desk .pw-face-state, .pw-desk .pw-face-captions, .pw-desk .pw-face-hint { display: none; }
+  .pw-desk .pw-face-mark { width: 48px; height: 48px; font-size: 22px; }
+  .pw-desk .pw-face-name { font-size: 12.5px; }
+  .pw-foot { margin-bottom: 150px; }
   .pw-h1 { font-size: 24px; }
   .pw-visit-grid, .pw-form { grid-template-columns: 1fr; }
   .pw-step-label { display: none; }

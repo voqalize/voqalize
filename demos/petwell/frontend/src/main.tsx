@@ -18,7 +18,9 @@ function PetwellDemo() {
   return (
     <div className="pw-demo-root" style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
       <BookingProvider>
-        <PetwellDesk>{(presence) => <BookingApp presence={presence} />}</PetwellDesk>
+        <PetwellDesk>
+          {(presence, face) => <BookingApp presence={presence} face={face} />}
+        </PetwellDesk>
       </BookingProvider>
     </div>
   );

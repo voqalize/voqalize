@@ -1,9 +1,10 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
 
 // This demo is a self-contained single-page app. It builds under the relative
 // base `/demos/petwell/` so the assembled MPA serves it at
-// `https://<host>/demos/support` with correct asset URLs; the demos umbrella
+// `https://<host>/demos/petwell` with correct asset URLs; the demos umbrella
 // drops the built `dist/` into `dist/demos/petwell/`.
 export default defineConfig({
   base: "/demos/petwell/",
@@ -13,7 +14,7 @@ export default defineConfig({
   // but there is only one file in the tree to keep current. A demo that wants
   // assets of its own points this at a directory beside its index.html.
   publicDir: "../../public",
-  plugins: [react()],
+  plugins: [react(), avatarRuntime()],
   server: {
     // Vite rejects unknown Host headers; allow the local nginx front.
     allowedHosts: [".local.voqalize.com"],

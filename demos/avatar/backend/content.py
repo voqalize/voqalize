@@ -167,7 +167,7 @@ DEFAULT_VOICE = Voice.KOKORO_AVA
 BLURBS: dict[str, str] = {
     "tanya": "The default here, and the face on the Voqalize homepage and the legal demo.",
     "tess": "American, and the face of the servicing and travel demos.",
-    "tushar": "The male face in the bank demo, beside Tara.",
+    "tushar": "The male face in the bank demo, beside Tara, and the front desk of the vet-booking demo.",
     "tara": "The face of the bank demo.",
     "tanvi": "The face of the kiosk demo.",
 }

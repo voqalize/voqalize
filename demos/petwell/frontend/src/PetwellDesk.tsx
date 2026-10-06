@@ -37,7 +37,12 @@ import {
 } from "@voqalize/demo-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "./config";
+import { DeskFace } from "./DeskFace";
 import { useBooking } from "./store";
+
+/** The page, handed the two things the call contributes: the mic control for its
+ * top bar, and Tushar's face for its side panel. */
+type RenderDesk = (presence: ReactNode, face: ReactNode) => ReactNode;
 
 const BRAND = "#5c42bf";
 
@@ -132,7 +137,7 @@ function LiveControls({ activity, onEnd }: { activity: AmbientPresenceActivity; 
 export function PetwellDesk({
   children,
 }: {
-  children: (presence: ReactNode) => ReactNode;
+  children: RenderDesk;
 }) {
   // `joined`: the consent notice has been dismissed once — it never reappears
   // for a reconnect. `sessionKey` mints a fresh `PipecatAppBase` (and so a fresh
@@ -158,7 +163,10 @@ export function PetwellDesk({
           onJoin={begin}
         />
         <AmbientPresence palette={PRESENCE} />
-        {children(<BeginControl connecting={false} error="" onBegin={begin} />)}
+        {children(
+          <BeginControl connecting={false} error="" onBegin={begin} />,
+          <DeskFace client={null} activity="idle" />,
+        )}
       </>
     );
   }
@@ -181,7 +189,7 @@ function CallSession({
   children,
   onEnded,
 }: {
-  children: (presence: ReactNode) => ReactNode;
+  children: RenderDesk;
   onEnded: () => void;
 }) {
   // No pipeline override: this agent's voice and language are declared on its
@@ -219,7 +227,7 @@ function CallBridge({
   error: string | null;
   onRetry?: () => void | Promise<void>;
   onEnded: () => void;
-  children: (presence: ReactNode) => ReactNode;
+  children: RenderDesk;
 }) {
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
@@ -279,7 +287,7 @@ function CallBridge({
   return (
     <>
       <AmbientPresence activity={activity} transportState={transportState} palette={PRESENCE} />
-      {children(presence)}
+      {children(presence, <DeskFace client={(isLive && client) || null} activity={activity} />)}
     </>
   );
 }

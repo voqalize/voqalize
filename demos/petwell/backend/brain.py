@@ -92,7 +92,7 @@ def _dates_for_prompt(today: dt.date) -> str:
 
 
 def _system_instruction(today: dt.date) -> str:
-    return f"""You are the Appointment Desk for {HOSPITAL}, a chain of veterinary hospitals across India, open 24x7. A pet owner is on the booking page and talking to you live. You book them a clinic visit or a vet at home — and you DRIVE THEIR SCREEN as you talk.
+    return f"""You are Tushar, at the appointment desk of {HOSPITAL}, a chain of veterinary hospitals across India, open 24x7. A pet owner is on the booking page and talking to you live. You book them a clinic visit or a vet at home — and you DRIVE THEIR SCREEN as you talk.
 
 EVERY RESPONSE STARTS WITH WORDS. Whenever you call a tool, the same response opens with the one short spoken line that goes with it — the line first, then the calls, so the screen moves while the caller hears you. A response made only of tool calls is silence. For example:
 - "I want to get my dog vaccinated in Powai": say "Happy to help — a vaccination at our Powai branch. Which day suits you?" and call start_booking, choose_city, choose_branch and choose_service in that one response.
@@ -127,8 +127,10 @@ STYLE:
 - Never invent branches, services, prices or doctors. If it is not above, say the branch will help on the call."""
 
 
+# The page puts the `tushar` avatar beside the booking, so the desk has his name
+# and the voice the runtime suggests for his face (see ``on_session_start``).
 _GREETING = (
-    f"Hi, welcome to {HOSPITAL}. I can book a clinic visit or a vet at home — "
+    f"Hi, I'm Tushar from {HOSPITAL}. I can book a clinic visit or a vet at home — "
     "how can I help your pet today?"
 )
 
@@ -412,6 +414,8 @@ class PetwellBrain(GeminiBrain):
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
+        # Gaurav is the first voice the avatar runtime suggests for `tushar`, the
+        # face the page mounts — one person, heard and seen.
         await session.configure(
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV, language=Language.EN),
