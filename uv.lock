@@ -965,7 +965,7 @@ requires-dist = [
     { name = "google-genai", specifier = ">=2.19" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8" },
-    { name = "pypdf", specifier = ">=6" },
+    { name = "pypdf", specifier = ">=6.19" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
     { name = "voqalize-agent-sdk", editable = "sdk/python" },
 ]

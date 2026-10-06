@@ -58,7 +58,7 @@ from voqalize.sdk import Action, Session, Speech
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
 from .content import CONTACT_PATH, OPENING, SPEECH, LanguageName, page_digest
-from .knowledge import ALLOWLIST, KNOWLEDGE, Passage, path_of
+from .knowledge import ALLOWLIST, KNOWLEDGE, Passage, host_of, off_site, path_of, pdf_url
 
 AGENT_NAME = "Aria"
 
@@ -90,7 +90,7 @@ ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, po
 
 THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then offer the page that says it in full with show_link, in the same response. Do not read a page aloud; the link is there for that. Pass show_link a URL that search_kdem returned or one from THE PAGES below — never one you made up or one from outside karnatakadigital.in.
 
-DOCUMENTS. Many results come from KDEM's PDF documents — policies, guidelines, reports and newsletters — and are marked "PDF document, page N". When you answer from one, say which document and where, in words, for example "the Startup Policy says so on page 12", and offer the PDF itself with show_link, passing its url exactly as search_kdem gave it.
+DOCUMENTS. Many results come from the PDF documents KDEM's pages link to — policies, guidelines, reports and newsletters — and are marked "PDF document, page N". When you answer from one, say which document and where, in words, for example "the Startup Policy says so on page 12", and offer it with show_link, passing the url exactly as search_kdem gave it. For a document on KDEM's site that url is the PDF itself. For one hosted on another government site, marked "on <site>", the url is the KDEM page that links to it, and the card opens that page: name the document and the page in what you say, and say it is linked from that KDEM page.
 
 VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
 
@@ -102,7 +102,12 @@ WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, 
 - Personal data. Never ask for a name, phone number, email, address, ID number, OTP or password, and if they offer one, tell them you do not need it.
 - Anything unrelated to KDEM and doing business in Karnataka: say briefly that it is outside what you can help with here.
 
-LANGUAGE. The call starts in English. If the visitor asks for Kannada, or you can tell they are speaking Kannada, call set_language with kannada — say the line you switch with in English, in the same response, because it is spoken before the voice changes — and speak Kannada, in Kannada script, from their next turn on. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds; a turn that makes no sense as English is usually Kannada, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". Ask them to say it again in your switch line, since those words were lost. In Kannada mode English arrives spelled in Kannada script ("ಐ ವಾಂಟ್ ..." is "I want ..."); judge by the small grammar words, not by nouns, and switch back to English with set_language when they speak or ask for English. Only English and Kannada are offered; if they ask for another language, say so in English. The site is in English, so always write search_kdem queries in English, whatever language the call is in.
+LANGUAGE. The call starts in English, and English stays the main language. If the visitor asks for Kannada, or you can tell they are speaking Kannada, call set_language with kannada — say the line you switch with in English, in the same response, because it is spoken before the voice changes — and speak Kannada, in Kannada script, from their next turn on. When you are sure, do not ask permission first; when you are not, see SURE, OR NOT SURE below. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds; a turn that makes no sense as English is usually Kannada, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". Ask them to say it again in your switch line, since those words were lost. In Kannada mode English arrives spelled in Kannada script ("ಐ ವಾಂಟ್ ..." is "I want ..."); judge by the small grammar words, not by nouns, and switch back to English with set_language when they speak or ask for English. Only English and Kannada are offered; if they ask for another language, say so in English. The site is in English, so always write search_kdem queries in English, whatever language the call is in.
+
+SURE, OR NOT SURE
+- Sure — they asked for Kannada, or a whole sentence is plainly Kannada: call set_language at once, in that turn, without asking, with one short line in the language the call is in now. Do not wait for a second turn.
+- Not sure — a few words look like Kannada but the rest does not, or the turn is too short to tell: do NOT switch yet. Answer in English as usual, and end with one short question in both languages: "ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in Kannada?". On a yes in either language ("yes", "haudu", "ಹೌದು", "sari", "ಸರಿ"), call set_language with kannada. Ask this at most once in a call; if they say no, stay in English and do not ask again.
+- What does NOT count as switching: one borrowed English word inside a Kannada sentence ("ನನಗೆ startup fund ಬೇಕು" is still Kannada), or one Kannada word inside an English sentence. Judge by the whole sentence, not a word.
 
 THE PAGES. These are the approved pages, by path, with their titles. Newer news and event pages may also come back from search_kdem; those are approved too.
 """
@@ -110,7 +115,8 @@ THE PAGES. These are the approved pages, by path, with their titles. Newer news 
 # The opener. Written, not generated: the visitor has just clicked, and a first
 # word that waits on a model makes the site feel slow.
 _GREETING = (
-    f"Hello, I'm {AGENT_NAME} from KDEM. How can we help you grow your business in Karnataka?"
+    f"Hello, I'm {AGENT_NAME} from KDEM. You can talk to me in English or Kannada. "
+    "How can we help you grow your business in Karnataka?"
 )
 
 
@@ -170,11 +176,16 @@ def _page(url: str) -> tuple[str, str] | None:
 
     A page the index holds now (aliases fold into it): an approved page the last
     refresh read, under the list's title, a news or event page it added, or a
-    PDF an approved page links to, under its link text. A
+    PDF an approved page links to, under its link text. A PDF on another site is
+    sent as the approved page that links it. A
     page on the list that the refresh dropped (gone from the sitemap, a 404, or a
     redirect elsewhere) is ``None``. Until the first index exists the one page
     sent is Contact Us, so the don't-know answer still has its link. Anything
     else, including every URL off the site, is ``None``."""
+    if (theirs := pdf_url(url)) is not None and off_site(theirs):
+        # A PDF on another site: the snippet shows only karnatakadigital.in, so
+        # the card is the approved page that links it, if the index holds it.
+        return _via(theirs)
     canonical = ALLOWLIST.canonical(url)
     if canonical is None or ALLOWLIST.is_excluded(canonical):
         return None
@@ -192,10 +203,36 @@ def _page(url: str) -> tuple[str, str] | None:
 
 def _source(p: Passage) -> str:
     """How a search result names where it came from: a page by its title, a PDF
-    as a document, with the page the passage is on."""
+    as a document, with the page the passage is on and, for a PDF on another
+    site, that site and the KDEM page that links it."""
     if p.kind != "pdf":
         return p.title
-    return f"{p.title} (PDF document, page {p.page})" if p.page else f"{p.title} (PDF document)"
+    where = "PDF document"
+    if off_site(p.url):
+        where += f" on {host_of(p.url)}"
+    if p.page:
+        where += f", page {p.page}"
+    source = f"{p.title} ({where})"
+    if off_site(p.url) and (via := _via(p.url)) is not None:
+        source += f', linked from the KDEM page "{via[1]}"'
+    return source
+
+
+def _via(url: str) -> tuple[str, str] | None:
+    """For a PDF on another site that the index holds: the approved KDEM page
+    that links it, which is what the snippet can show."""
+    indexed = KNOWLEDGE.kb.page(url)
+    if indexed is None or indexed.kind != "pdf" or not off_site(indexed.url):
+        return None
+    return _page(indexed.via) if indexed.via else None
+
+
+def _link_url(p: Passage) -> str:
+    """The url a search result offers: the page or PDF itself, or for a PDF on
+    another site, the KDEM page that links it."""
+    if p.kind == "pdf" and off_site(p.url) and (via := _via(p.url)) is not None:
+        return via[0]
+    return p.url
 
 
 def _where_they_started(init: dict[str, Any]) -> str:
@@ -293,7 +330,8 @@ class KdemBrain(GeminiBrain):
                 f"Contact Us page ({CONTACT_PATH}) with show_link."
             )
         found = "\n\n".join(
-            f"[{i}] {_source(p)}\nurl: {p.url}\n{p.snippet}" for i, p in enumerate(passages, 1)
+            f"[{i}] {_source(p)}\nurl: {_link_url(p)}\n{p.snippet}"
+            for i, p in enumerate(passages, 1)
         )
         return (
             "From karnatakadigital.in. Answer only from this; if it does not answer the "

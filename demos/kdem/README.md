@@ -26,8 +26,15 @@ never looks for a frontend here and it is not a card on `/demos`.
 The agent's `brain_url` is `wss://brain.voqalize.com/kdem`. Aria's voice is
 `omnivoice/gauri` in both languages. The brain sets it on both legs in
 `on_session_start`, before the greeting. The opening line is written in the
-brain, not generated: "Hello, I'm Aria from KDEM. How can we help you grow your
-business in Karnataka?"
+brain, not generated: "Hello, I'm Aria from KDEM. You can talk to me in English
+or Kannada. How can we help you grow your business in Karnataka?"
+
+English is the main language. When the visitor asks for Kannada, or a whole
+sentence is plainly Kannada, Aria switches at once. When she is not sure (a few
+words that may be Kannada, or a turn too short to tell), she answers in English
+and asks once, in both languages, "ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in
+Kannada?", and switches on a yes. One borrowed English word inside a Kannada
+sentence does not count as switching.
 
 Recording audio is off, which is the agent default. The platform keeps the
 transcripts.
@@ -58,7 +65,10 @@ The snippet and the brain share two things:
   the only page sent. The snippet checks again that the host is
   karnatakadigital.in, then shows the link as a card that opens in a new tab.
   A PDF URL (`/wp-content/uploads/...pdf`) passes the same check and opens in
-  the browser's PDF viewer; the snippet needs no change for it.
+  the browser's PDF viewer; the snippet needs no change for it. A PDF on
+  another site (a government portal an approved page links to) is cited by
+  name and page, but its card is the approved KDEM page that links it, since
+  the snippet shows only karnatakadigital.in.
 
 The site has to allow the microphone for its own pages. If it sends a
 `Permissions-Policy` header, that header must include `microphone=(self)`.
@@ -73,16 +83,42 @@ waiting for it.
 
 On a host with no snapshot, the first refresh reads the approved pages first
 and Aria answers from them as soon as they are read, a minute or two after the
-first session starts. New news and event pages follow, then the PDFs those
-approved pages link to: the news and events are answered from before the PDFs
-are downloaded, and the PDFs once the refresh finishes. After that, a PDF is downloaded again only when the server says it changed.
+first session starts. Until then she says she does not have the answer and
+offers Contact Us. New news and event pages follow, then the PDFs those approved
+pages link to: the news and events are answered from before the PDFs are
+downloaded, and the PDFs once the refresh finishes. After that, a PDF is
+downloaded again only when it changed, or while a long one is still being read.
 
-PDFs are read with `pypdf`, page by page, in a worker thread, with limits on
-size (25 MB), pages (300), text (300,000 characters) and time (60 seconds) per
-file. A PDF that is encrypted, damaged, too large or scanned (images with no
-text layer) is not answered from; `pending` lists them with the reason. There
-is no OCR. Until the approved pages are in, Aria says she does not have the
-answer and offers Contact Us.
+PDFs are read with `pypdf`, page by page. The limits are on the work, not the
+size of the file, so every PDF KDEM posts is read in the end and the brain stays
+bounded:
+
+- a PDF is streamed to a scratch file on disk, never held in memory. 150 MB is
+  a safety ceiling, checked against Content-Length and again while downloading;
+- it is read in a child process of its own: 768 MB of memory beyond the
+  interpreter's own (an address-space limit; Linux only), 120 seconds of
+  reading per PDF per run, and the brain kills the process a few seconds past
+  that whatever it is doing;
+- one bad page never costs the document. A page whose content decompresses past
+  4 MB, or that takes more than 10 seconds, is skipped and the next one read;
+  the site's heaviest real pages (text drawn as vector shapes, about 1.5 MB)
+  read in under a second. A process killed on a page keeps every page before
+  it, and the next run starts after it;
+- a long document is read 150 pages a night from its first page, so its summary
+  and contents are answerable after the first night. The refresh reports it as
+  in progress until it is read through; if the file changes meanwhile, it is
+  read again from the first page;
+- one PDF holds at most 1,000,000 characters, and all PDF text together at most
+  5,000,000, which keeps a search to a few milliseconds. What the total leaves
+  out is reported.
+
+PDFs are read from the links in the visible text of approved pages: on
+karnatakadigital.in, or over https on another site, such as a state government
+portal. The host is recorded, and nothing past those links is followed. A PDF
+that is encrypted, damaged or scanned (images with no text layer) is not
+answered from; `pending` lists them with the reason. There is no OCR. A dead
+link or a failed read is tried again after a backoff that starts at a day and
+doubles to a month.
 
 The brains container is started with no volume today
 (`demos/bin/brains-node-deploy.sh`), so every redeploy starts from no snapshot

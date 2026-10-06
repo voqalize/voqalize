@@ -21,14 +21,21 @@ recorded in ``pending_review`` for a person, and a page gone from the sitemap, o
 one the list no longer allows, is dropped.
 
 **The documents.** Most of what KDEM publishes (policies, guidelines, reports,
-newsletters) is a PDF under ``/wp-content/uploads/``, which the sitemap does not
-list. A PDF is found from the links in the visible text of an approved page in a
-section that reads PDFs (``read_pdfs``), named by its link text, and read with
-:func:`read_pdf`, page by page, so an answer can say "page 12". It is re-read
-only when the server says the file changed (a conditional GET on its ETag and
-Last-Modified), and dropped as soon as no approved page links to it. A PDF that
-cannot be read (encrypted, damaged, too large, or scanned images with no text
-layer) is recorded with the reason, not indexed. There is no OCR.
+newsletters) is a PDF, which the sitemap does not list. A PDF is found from the
+links in the visible text of an approved page in a section that reads PDFs
+(``read_pdfs``): on karnatakadigital.in, or over https on another site (a
+government portal, say), and nothing past those links is followed. It is named
+by its link text, streamed to disk, and read with :func:`read_pdf` in a child
+process with a CPU, memory and wall-clock limit (:func:`read_pdf_isolated`),
+page by page, so an answer can say "page 12". A page too heavy or too slow to
+read is skipped and the rest are read; a long document is read a slice a night
+from its first page, so its beginning is answerable first. A PDF is re-read only
+when it changed (a conditional GET on its ETag and Last-Modified, and its
+SHA-256), and dropped as soon as no approved page links to it. One that cannot
+be read (encrypted, damaged, or scanned images with no text layer) is recorded
+with the reason, not indexed; there is no OCR. One that failed is tried again
+after a backoff, and all PDF text together is capped so a search stays inside
+the tool budget.
 
 **Search.** :class:`KnowledgeBase` is an in-memory BM25 index over the page and
 PDF text, cut into passages; a PDF's passages keep their page number. It answers inside the tool budget because it never leaves
@@ -59,6 +66,7 @@ import argparse
 import asyncio
 import contextlib
 import hashlib
+import heapq
 import io
 import json
 import logging
@@ -66,15 +74,26 @@ import math
 import os
 import random
 import re
+import signal
 import sys
 import tempfile
+import threading
 import time
 import unicodedata
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
+from array import array
 from collections import Counter
-from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
+from collections.abc import (
+    Awaitable,
+    Callable,
+    Generator,
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,
+)
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from html.parser import HTMLParser
@@ -82,8 +101,11 @@ from pathlib import Path
 from typing import ClassVar, Literal, cast
 from urllib.parse import quote, unquote, urljoin, urlsplit
 
+import pypdf
 from loguru import logger
-from pypdf import PdfReader
+from pypdf import PageObject, PdfReader, apply_configuration
+from pypdf.errors import LimitReachedError
+from pypdf.generic import ArrayObject, StreamObject
 
 HOST = "karnatakadigital.in"
 SITE = f"https://{HOST}"
@@ -118,11 +140,15 @@ def normalize(url: str, *, base: str = SITE) -> str | None:
     """The one spelling of a site URL: ``https://karnatakadigital.in/<path>/``.
 
     Relative URLs resolve against ``base``. The scheme becomes https, ``www.`` is
-    dropped, the query and fragment go, the path is percent-encoded one way, and a
-    path gets its trailing slash unless its last segment is a file (``.pdf``).
-    ``None`` for anything off the site."""
+    dropped, the query and fragment go, and a path gets its trailing slash unless
+    its last segment is a file (``.pdf``). The path keeps the escapes it arrived
+    with, in upper case; a raw space or non-ASCII letter is escaped, an escaped
+    dot is a dot, and ``.``/``..`` segments are resolved (RFC 3986), so no
+    spelling of a path reaches outside the directory it names. ``None`` for
+    anything off the site, and for a path with an escaped ``/`` or ``\\``."""
     try:
-        parts = urlsplit(urljoin(base, url.strip()))
+        # An escaped dot is a dot (RFC 3986: unreserved), before ".." is resolved.
+        parts = urlsplit(urljoin(base, re.sub(r"%2[eE]", ".", url.strip())))
     except ValueError:
         return None
     if parts.scheme not in ("http", "https"):
@@ -131,15 +157,83 @@ def normalize(url: str, *, base: str = SITE) -> str | None:
     host = host.removeprefix("www.")
     if host != HOST:
         return None
-    path = re.sub(r"/{2,}", "/", parts.path or "/")
-    # A link may spell a file name with raw spaces or with %20; both are one URL.
-    path = quote(unquote(path), safe="/!$&'()*+,;=:@~")
-    if not path.startswith("/"):
-        path = "/" + path
+    path = _clean_path(parts.path or "/")
+    if path is None:
+        return None
     last = path.rsplit("/", 1)[-1]
     if last and "." not in last:
         path += "/"
     return f"{SITE}{path}"
+
+
+def pdf_url(url: str, *, base: str = SITE) -> str | None:
+    """The one spelling of a PDF's URL, on this site or on another.
+
+    On karnatakadigital.in it is :func:`normalize`'s. On any other host only
+    https is followed; the host is lower-cased, the query and fragment go, and
+    the path is cleaned as :func:`normalize` cleans it. ``None`` for anything
+    that is not a ``.pdf``, an off-site link over plain http, one with a user
+    name or an unusual port, and a path with an escaped separator. Off-site HTML
+    pages stay ``None`` in :func:`normalize`: only a PDF is ever read from
+    another site."""
+    here = normalize(url, base=base)
+    if here is not None:
+        return here if is_pdf(here) else None
+    try:
+        parts = urlsplit(urljoin(base, re.sub(r"%2[eE]", ".", url.strip())))
+        port = parts.port
+    except ValueError:
+        return None
+    host = (parts.hostname or "").lower().rstrip(".")
+    if parts.scheme != "https" or not host or parts.username or port not in (None, 443):
+        return None
+    path = _clean_path(parts.path or "/")
+    if path is None or not path.lower().endswith(".pdf"):
+        return None
+    return f"https://{host}{path}"
+
+
+def host_of(url: str) -> str:
+    """``https://karnataka.gov.in/x.pdf`` → ``karnataka.gov.in``."""
+    return (urlsplit(url).hostname or "").lower()
+
+
+def off_site(url: str) -> bool:
+    return host_of(url) != HOST
+
+
+_ESCAPE = re.compile(r"%[0-9a-fA-F]{2}")
+
+
+def _clean_path(raw: str) -> str | None:
+    path = raw if raw.startswith("/") else "/" + raw
+    # Escape what may not appear raw (a space, a non-ASCII letter, a stray %),
+    # keep every escape as it came, and spell its hex one way.
+    path = quote(path, safe="/%!$&'()*+,;=:@~")
+    path = re.sub(r"%(?![0-9a-fA-F]{2})", "%25", path)
+    path = _ESCAPE.sub(lambda m: m.group().upper(), path)
+    if "%2F" in path or "%5C" in path:
+        return None  # an escaped separator: one segment pretending to be two
+    path = _remove_dot_segments(re.sub(r"/{2,}", "/", path))
+    if ".." in path.split("/"):
+        return None
+    return path
+
+
+def _remove_dot_segments(path: str) -> str:
+    """RFC 3986 section 5.2.4, for an absolute path: ``/a/./b/../c`` → ``/a/c``.
+    A ``..`` above the root stays at the root."""
+    segments = path.split("/")[1:]
+    out: list[str] = []
+    for seg in segments:
+        if seg == "..":
+            if out:
+                out.pop()
+        elif seg != ".":
+            out.append(seg)
+    if segments and segments[-1] in (".", ".."):
+        out.append("")
+    return "/" + "/".join(out)
 
 
 def path_of(url: str) -> str:
@@ -314,6 +408,11 @@ class Allowlist:
         c = self.canonical(url)
         return self.by_url.get(c) if c is not None else None
 
+    def locate(self, url: str) -> str | None:
+        """The canonical URL of a page on the site (aliases folded), or of a PDF
+        on any site (:func:`pdf_url`). ``None`` for anything else."""
+        return self.canonical(url) or pdf_url(url)
+
     def is_alias(self, url: str) -> bool:
         n = normalize(url)
         return n is not None and n in self._alias
@@ -421,6 +520,11 @@ def _bool(d: dict[str, object], key: str) -> bool:
     if not isinstance(v, bool):
         raise _fail(f"{key!r} must be true or false")
     return v
+
+
+def _int(d: dict[str, object], key: str) -> int:
+    v = d.get(key, 0)
+    return v if isinstance(v, int) and not isinstance(v, bool) else 0
 
 
 def _pairs(v: object, where: str) -> tuple[tuple[str, str], ...]:
@@ -784,12 +888,14 @@ def _links(node: _Node, base: str) -> tuple[list[str], list[tuple[str, str]]]:
                 u = normalize(href, base=base)
                 if u is not None:
                     out.append(u)
-                    if is_pdf(u):
-                        if not pdfs.get(u):
-                            pdfs[u] = _link_text(c)
-                        if heading and u not in under[heading]:
-                            under[heading].append(u)
-                            order.append((heading, u))
+                else:
+                    u = pdf_url(href, base=base)  # a PDF on another site: read, not crawled
+                if u is not None and is_pdf(u):
+                    if not pdfs.get(u):
+                        pdfs[u] = _link_text(c)
+                    if heading and u not in under[heading]:
+                        under[heading].append(u)
+                        order.append((heading, u))
             walk(c)
 
     walk(node)
@@ -907,20 +1013,24 @@ class FetchResult:
     body: str
     headers: Mapping[str, str] = field(default_factory=dict[str, str])
     """The response headers, names lower-cased. Only :data:`FetchFile` fills them."""
-    data: bytes = b""
-    """The raw body, for a file. Only :data:`FetchFile` fills it."""
+    size: int = 0
+    """A file's body: how many bytes were written to its destination."""
+    sha256: str = ""
+    """A file's body: its SHA-256, hex. It tells a file that changed from one
+    that did not when the server's own validators cannot."""
 
 
 Fetch = Callable[[str], Awaitable[FetchResult]]
 """Fetch one URL. A 4xx/5xx answer is a result, not an exception; a network
 failure raises."""
 
-FetchFile = Callable[[str, Mapping[str, str], int], Awaitable[FetchResult]]
-"""Fetch one file: ``(url, request headers, max bytes)``. The result carries the
-response headers and the raw body in ``data``; a 304 answer to a conditional
-request is a result with an empty body. A file larger than ``max bytes`` raises
-:class:`TooLarge` (from its Content-Length when it gives one, else once that
-many bytes have been read); a network failure raises."""
+FetchFile = Callable[[str, Mapping[str, str], int, Path], Awaitable[FetchResult]]
+"""Fetch one file: ``(url, request headers, max bytes, destination)``. A 200
+answer's body is streamed to ``destination`` on disk, never held in memory, and
+the result carries the response headers, the size and the SHA-256; any other
+answer (a 304 to a conditional request, say) writes nothing. A file larger than
+``max bytes`` raises :class:`TooLarge` (from its Content-Length when it gives
+one, else once that many bytes have been read); a network failure raises."""
 
 
 class TooLarge(Exception):
@@ -957,10 +1067,12 @@ async def http_fetch(url: str) -> FetchResult:
     return await asyncio.to_thread(_download, url)
 
 
-_FILE_CHUNK = 64 * 1024
+_FILE_CHUNK = 256 * 1024
+_FILE_DOWNLOAD_S = 600.0
+"""The longest one file may take to download; the socket timeout bounds each read."""
 
 
-def _download_file(url: str, headers: Mapping[str, str], max_bytes: int) -> FetchResult:
+def _download_file(url: str, headers: Mapping[str, str], max_bytes: int, dest: Path) -> FetchResult:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **headers})
     try:
         with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
@@ -968,26 +1080,30 @@ def _download_file(url: str, headers: Mapping[str, str], max_bytes: int) -> Fetc
             length = got.get("content-length", "")
             if length.isdigit() and int(length) > max_bytes:
                 raise TooLarge(int(length), got)
-            # The socket timeout bounds each read; this bounds the whole body.
-            deadline = time.monotonic() + 4 * FETCH_TIMEOUT_S
-            parts: list[bytes] = []
+            deadline = time.monotonic() + _FILE_DOWNLOAD_S
+            digest = hashlib.sha256()
             size = 0
-            while chunk := resp.read(_FILE_CHUNK):
-                size += len(chunk)
-                if size > max_bytes:
-                    raise TooLarge(size, got)
-                if time.monotonic() > deadline:
-                    raise TimeoutError(f"{url} took too long to download")
-                parts.append(chunk)
-            return FetchResult(resp.status, resp.geturl(), "", got, b"".join(parts))
+            with dest.open("wb") as out:
+                while chunk := resp.read(_FILE_CHUNK):
+                    size += len(chunk)
+                    if size > max_bytes:
+                        raise TooLarge(size, got)
+                    if time.monotonic() > deadline:
+                        raise TimeoutError(f"{url} took too long to download")
+                    digest.update(chunk)
+                    out.write(chunk)
+            return FetchResult(resp.status, resp.geturl(), "", got, size, digest.hexdigest())
     except urllib.error.HTTPError as e:
         # urllib answers a 304 with an HTTPError too: it is a result, not a failure.
         return FetchResult(e.code, url, "", {k.lower(): v for k, v in e.headers.items()})
 
 
-async def http_fetch_file(url: str, headers: Mapping[str, str], max_bytes: int) -> FetchResult:
-    """The real file fetcher: stdlib, off the event loop, size-limited."""
-    return await asyncio.to_thread(_download_file, url, headers, max_bytes)
+async def http_fetch_file(
+    url: str, headers: Mapping[str, str], max_bytes: int, dest: Path
+) -> FetchResult:
+    """The real file fetcher: stdlib, off the event loop, size-limited, streamed
+    to disk."""
+    return await asyncio.to_thread(_download_file, url, headers, max_bytes, dest)
 
 
 def _parse_xml(body: str, where: str) -> ET.Element:
@@ -1044,7 +1160,7 @@ logging.getLogger("pypdf").setLevel(logging.ERROR)
 _PDF_LINE_CHARS = 500
 """A PDF's text is cut into sentences, and a sentence longer than this is cut at
 a space, so a passage never truncates one."""
-_PDF_MIN_LETTERS_PER_PAGE = 50
+_PDF_MIN_LETTERS_PER_PAGE = 20
 """Fewer letters than this per page, on average, is a scanned document: images
 of pages, with at most a stamp or a page number as text."""
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[\"'(\[\u201c\u2018]?[A-Z0-9\u0c80-\u0cff])")
@@ -1053,23 +1169,47 @@ _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 class PdfUnreadable(Exception):
-    """A PDF that cannot be answered from, and why: encrypted, damaged, or no
-    text layer."""
+    """A PDF that cannot be answered from, and why.
 
-    def __init__(self, reason: str) -> None:
+    ``lasting``: the verdict is about the file (encrypted, damaged, no text
+    layer) and stands until the file or the reader changes. Otherwise it is
+    about this attempt (the reader was stopped while opening it, say) and is
+    tried again later."""
+
+    def __init__(self, reason: str, *, lasting: bool = True) -> None:
         super().__init__(reason)
         self.reason = reason
+        self.lasting = lasting
 
 
 @dataclass(frozen=True)
-class PdfText:
-    """A PDF as text, one entry per page in order: ``pages[0]`` is page 1."""
+class PdfPart:
+    """What one read of a PDF got: its pages from ``start`` on, in order.
+
+    A large document is read over several runs, a slice at a time from the
+    first page, so its beginning (the summary, the contents) is answerable
+    first; ``next_page`` is where the next run carries on."""
 
     title: str
     """The title in the file's own metadata; empty when it has none worth using."""
+    page_count: int
+    start: int
     pages: tuple[str, ...]
-    truncated: bool = False
-    """The page, character or time limit stopped the read before the end."""
+    """``pages[0]`` is page ``start``. A page that was skipped is empty."""
+    skipped: Mapping[int, str] = field(default_factory=dict[int, str])
+    """Pages left blank, by number → why: too large, too slow, too much memory."""
+    stopped: str = ""
+    """Why the read ended before its slice did: ``time`` (the run's time for
+    this file), ``characters`` (the file's text limit), ``stopped`` (the reader
+    was killed). Empty when it read its whole slice."""
+
+    @property
+    def next_page(self) -> int:
+        return self.start + len(self.pages)
+
+    @property
+    def done(self) -> bool:
+        return self.next_page > self.page_count
 
 
 def _pdf_lines(raw: str) -> list[str]:
@@ -1108,57 +1248,321 @@ def file_title(url: str) -> str:
     return _clean(re.sub(r"[-_+]+", " ", name)) or name
 
 
-def read_pdf(
-    data: bytes, *, max_pages: int = 300, max_chars: int = 300_000, timeout_s: float = 60.0
-) -> PdfText:
-    """The text of a PDF, page by page. Blocking: run it in a worker thread.
+_PDF_STREAM_BYTES = 4 * 1024 * 1024
+"""A page whose content (or any stream decompressed on its way) is larger than
+this is skipped. Real pages of drawn text on the site run to 1.5 MB and read in
+under a second; a stream past this is a file built to keep a reader busy."""
+_PDF_XFORMS = 500
+"""Form XObjects a page may invoke while its text is read."""
+_PDF_LIMITS = pypdf.Configuration(
+    zlib_maximum_output_length=_PDF_STREAM_BYTES,
+    lzw_maximum_output_length=_PDF_STREAM_BYTES,
+    run_length_maximum_output_length=_PDF_STREAM_BYTES,
+    array_based_stream_maximum_output_length=_PDF_STREAM_BYTES,
+    xform_maximum_invocations_per_extraction=_PDF_XFORMS,
+)
 
-    Reads at most ``max_pages`` pages and ``max_chars`` characters, and stops
-    after ``timeout_s``; what was read by then is kept and ``truncated`` is set.
-    A file protected by a password, one that cannot be parsed, and one with no
-    text layer (scanned pages) raise :class:`PdfUnreadable`. A file with an owner
-    password only, which opens without asking, is read."""
-    if b"%PDF-" not in data[:1024]:
-        raise PdfUnreadable("not a PDF file")
-    deadline = time.monotonic() + timeout_s
+
+class _PageTimeout(Exception):
+    pass
+
+
+@contextlib.contextmanager
+def _page_timer(seconds: float) -> Generator[None]:
+    """Interrupt the page being read after ``seconds``. pypdf is pure Python, so
+    the alarm lands between two of its steps. Only in a process's main thread
+    on a platform with ``setitimer``; elsewhere the run's own limits hold."""
+    if (
+        seconds <= 0
+        or not hasattr(signal, "setitimer")
+        or threading.current_thread() is not threading.main_thread()
+    ):
+        yield
+        return
+
+    def ring(_signum: int, _frame: object) -> None:
+        raise _PageTimeout
+
+    old = signal.signal(signal.SIGALRM, ring)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
     try:
-        reader = PdfReader(io.BytesIO(data), strict=False)
-        if reader.is_encrypted:
-            try:
-                opened = reader.decrypt("")
-            except Exception:
-                opened = 0
-            if not opened:
-                raise PdfUnreadable("encrypted: it needs a password to open")
-        count = len(reader.pages)
-    except PdfUnreadable:
-        raise
-    except Exception as e:
-        raise PdfUnreadable(f"damaged: could not be parsed ({type(e).__name__})") from e
-    if count == 0:
-        raise PdfUnreadable("damaged: it has no pages")
-    pages: list[str] = []
-    chars = 0
-    truncated = count > max_pages
-    for i in range(min(count, max_pages)):
-        if time.monotonic() > deadline:
-            truncated = True
-            break
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old)
+
+
+def _content_bytes(page: PageObject) -> int:
+    """The decompressed size of a page's content streams. Decompression stops at
+    the stream limit, which raises."""
+    contents = page.get("/Contents")
+    if contents is None:
+        return 0
+    obj = contents.get_object()
+    streams = list(obj) if isinstance(obj, ArrayObject) else [obj]
+    total = 0
+    for stream in streams:
+        data = stream.get_object()
+        if isinstance(data, StreamObject):
+            total += len(data.get_data())
+    return total
+
+
+def _no_text(part: PdfPart) -> str | None:
+    """Why a document read from its first page has nothing to answer from: its
+    pages are scanned images, or too heavy to read. ``None`` when it has text."""
+    letters = sum(c.isalpha() for p in part.pages for c in p)
+    if letters >= max(100, _PDF_MIN_LETTERS_PER_PAGE * len(part.pages)):
+        return None
+    if part.pages and len(part.skipped) == len(part.pages):
+        return "its pages are too large or too slow to read"
+    return "no text layer: scanned pages, which are not read (no OCR)"
+
+
+Emit = Callable[[dict[str, object]], None]
+
+
+def read_pdf(
+    source: bytes | Path,
+    *,
+    start: int = 1,
+    max_pages: int = 150,
+    max_chars: int = 1_000_000,
+    page_timeout_s: float = 10.0,
+    timeout_s: float = 120.0,
+    emit: Emit | None = None,
+) -> PdfPart:
+    """The text of a PDF, page by page, from page ``start``: at most
+    ``max_pages`` pages and ``max_chars`` characters, for at most ``timeout_s``.
+    Blocking: a refresh runs it in a child process (:func:`read_pdf_isolated`),
+    reading the file from disk.
+
+    One page never costs the document: a page whose content decompresses past
+    the stream limit, takes over ``page_timeout_s``, runs out of memory or will
+    not parse is skipped, and the next is read. ``emit`` is handed each page as
+    it is read, so a reader that is killed has still handed over the pages
+    before the one it was on.
+
+    A file that is not a PDF, needs a password, cannot be parsed at all, or
+    (read from its first page) has no text layer raises :class:`PdfUnreadable`.
+    A file with an owner password only, which opens without asking, is read."""
+    with contextlib.ExitStack() as stack:
+        f = (
+            stack.enter_context(source.open("rb"))
+            if isinstance(source, Path)
+            else io.BytesIO(source)
+        )
+        if b"%PDF-" not in f.read(1024):
+            raise PdfUnreadable("not a PDF file")
+        f.seek(0)
+        stack.enter_context(apply_configuration(_PDF_LIMITS))
+        deadline = time.monotonic() + timeout_s
         try:
-            raw = reader.pages[i].extract_text() or ""
-        except Exception:  # one bad page is a blank page, not a lost document
-            raw = ""
-        text = "\n".join(_pdf_lines(raw))
-        if chars + len(text) > max_chars:
-            pages.append(text[: max_chars - chars].rsplit(" ", 1)[0])
-            truncated = True
-            break
-        chars += len(text)
-        pages.append(text)
-    letters = sum(c.isalpha() for p in pages for c in p)
-    if letters < max(100, _PDF_MIN_LETTERS_PER_PAGE * len(pages)):
-        raise PdfUnreadable("no text layer: scanned pages, which are not read (no OCR)")
-    return PdfText(_metadata_title(reader), tuple(pages), truncated)
+            reader = PdfReader(f, strict=False)
+            if reader.is_encrypted:
+                try:
+                    opened = reader.decrypt("")
+                except Exception:
+                    opened = 0
+                if not opened:
+                    raise PdfUnreadable("encrypted: it needs a password to open")
+            count = len(reader.pages)
+        except (PdfUnreadable, MemoryError):
+            raise
+        except Exception as e:
+            raise PdfUnreadable(f"damaged: could not be parsed ({type(e).__name__})") from e
+        if count == 0:
+            raise PdfUnreadable("damaged: it has no pages")
+        title = _metadata_title(reader)
+        if emit:
+            emit({"meta": {"title": title, "page_count": count}})
+        pages: list[str] = []
+        skipped: dict[int, str] = {}
+        chars = 0
+        stopped = ""
+        for number in range(start, min(count, start + max_pages - 1) + 1):
+            if time.monotonic() > deadline:
+                stopped = "time"
+                break
+            if chars >= max_chars:
+                stopped = "characters"
+                break
+            why = ""
+            text = ""
+            try:
+                with _page_timer(page_timeout_s):
+                    page = reader.pages[number - 1]
+                    if _content_bytes(page) > _PDF_STREAM_BYTES:
+                        raise LimitReachedError("page content")
+                    text = "\n".join(_pdf_lines(page.extract_text() or ""))
+            except LimitReachedError:
+                why = "too large to read"
+            except _PageTimeout:
+                why = f"took over {page_timeout_s:g} s to read"
+            except MemoryError:
+                why = "needs too much memory to read"
+            except Exception:
+                why = "could not be parsed"
+            if why:
+                text = ""
+                skipped[number] = why
+            cut = len(text) > max_chars - chars
+            text = text[: max_chars - chars]
+            chars += len(text)
+            pages.append(text)
+            if emit:
+                emit({"page": number, "text": text, **({"skipped": why} if why else {})})
+            if cut:
+                stopped = "characters"
+                break
+        part = PdfPart(title, count, start, tuple(pages), skipped, stopped)
+        if start == 1 and stopped != "characters" and (why := _no_text(part)):
+            raise PdfUnreadable(why)
+        return part
+
+
+_WORKER_FLAG = "--read-pdf-worker"
+_WORKER_GRACE_S = 3.0
+"""Time a reader process has beyond its own limits: to start, and to hand the
+text back. Past that it is killed."""
+_WORKER_LINE_BYTES = 32 * 1024 * 1024
+"""The longest line a reader may hand back: one page's text, as JSON."""
+
+
+def _limit_self(cpu_s: float, memory_mb: int) -> None:
+    """Cap this process: CPU seconds always (where the platform has them), and
+    address space on Linux, counted from what the interpreter already holds."""
+    try:
+        import resource
+    except ImportError:  # not on this platform: the parent's kill still holds
+        return
+    cpu = math.ceil(cpu_s)
+    with contextlib.suppress(ValueError, OSError):
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu + 1))
+    if sys.platform != "linux":
+        return
+    with contextlib.suppress(ValueError, OSError):
+        pages = int(Path("/proc/self/statm").read_text().split()[0])
+        limit = pages * os.sysconf("SC_PAGE_SIZE") + memory_mb * 1024 * 1024
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+
+
+def _pdf_worker(argv: Sequence[str]) -> int:
+    """The child side of :func:`read_pdf_isolated`: reads the PDF at a path and
+    writes a JSON line per page, then one that says how it ended."""
+    path, start, max_pages, max_chars, page_timeout_s, timeout_s, memory_mb = argv
+    _limit_self(float(timeout_s) + float(page_timeout_s) + 2, int(memory_mb))
+
+    def emit(line: dict[str, object]) -> None:
+        sys.stdout.write(json.dumps(line) + "\n")
+        sys.stdout.flush()
+
+    end: dict[str, object]
+    try:
+        part = read_pdf(
+            Path(path),
+            start=int(start),
+            max_pages=int(max_pages),
+            max_chars=int(max_chars),
+            page_timeout_s=float(page_timeout_s),
+            timeout_s=float(timeout_s),
+            emit=emit,
+        )
+        end = {"stopped": part.stopped}
+    except PdfUnreadable as e:
+        end = {"unreadable": e.reason, "lasting": e.lasting}
+    except MemoryError:
+        end = {"unreadable": f"needs more than {memory_mb} MB to open", "lasting": False}
+    emit({"end": end})
+    return 0
+
+
+async def read_pdf_isolated(
+    path: Path,
+    *,
+    start: int = 1,
+    max_pages: int = 150,
+    max_chars: int = 1_000_000,
+    page_timeout_s: float = 10.0,
+    timeout_s: float = 120.0,
+    memory_mb: int = 768,
+) -> PdfPart:
+    """:func:`read_pdf` in a child process, on the file at ``path``, so no PDF
+    can stall the brain or take its memory.
+
+    The child caps its own CPU time and, on Linux, its address space at
+    ``memory_mb`` over the interpreter's own, and interrupts a page that runs
+    past ``page_timeout_s``. The parent kills it once ``timeout_s`` plus one
+    page's time and a short grace have passed. Pages arrive as they are read, so
+    a killed or crashed reader still yields every page before the one it was on;
+    that page is recorded as skipped and the next run starts after it. Nothing
+    is left running when this returns or is cancelled."""
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-I",
+        str(Path(__file__).resolve()),
+        _WORKER_FLAG,
+        str(path),
+        str(start),
+        str(max_pages),
+        str(max_chars),
+        repr(float(page_timeout_s)),
+        repr(float(timeout_s)),
+        str(memory_mb),
+        stdin=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+        limit=_WORKER_LINE_BYTES,
+    )
+    assert proc.stdout is not None
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout_s + page_timeout_s + _WORKER_GRACE_S
+    meta: dict[str, object] | None = None
+    pages: list[str] = []
+    skipped: dict[int, str] = {}
+    end: dict[str, object] | None = None
+    try:
+        while (left := deadline - loop.time()) > 0:
+            line = await asyncio.wait_for(proc.stdout.readline(), left)
+            if not line:
+                break
+            msg = _obj(json.loads(line), "reader line")
+            if isinstance(m := msg.get("meta"), dict):
+                meta = cast("dict[str, object]", m)
+            elif isinstance(n := msg.get("page"), int):
+                pages.append(_str(msg, "text", default=""))
+                if isinstance(why := msg.get("skipped"), str):
+                    skipped[n] = why
+            elif isinstance(e := msg.get("end"), dict):
+                end = cast("dict[str, object]", e)
+                break
+    except (TimeoutError, ValueError, RuntimeError, asyncio.LimitOverrunError):
+        pass  # killed below; what arrived stands
+    finally:
+        if proc.returncode is None:
+            proc.kill()
+        await proc.wait()
+    if end is not None and isinstance(reason := end.get("unreadable"), str):
+        raise PdfUnreadable(reason, lasting=end.get("lasting") is not False)
+    count = meta.get("page_count") if meta else None
+    if not isinstance(count, int):
+        raise PdfUnreadable(
+            "the reader was stopped while opening it (too slow, or too much memory)",
+            lasting=False,
+        )
+    stopped = _str(end, "stopped", default="") if end is not None else "stopped"
+    if end is None:
+        # Stopped on a page: that page is skipped, and the next run goes on after it.
+        stuck = start + len(pages)
+        if stuck <= min(count, start + max_pages - 1):
+            pages.append("")
+            skipped[stuck] = "the reader was stopped on it (too slow, or too much memory)"
+    part = PdfPart(
+        _str(meta or {}, "title", default=""), count, start, tuple(pages), skipped, stopped
+    )
+    if start == 1 and end is None and (why := _no_text(part)):
+        raise PdfUnreadable(why)
+    return part
 
 
 # ─── The snapshot ─────────────────────────────────────────────────────────────
@@ -1173,6 +1577,9 @@ class Validators:
     last_modified: str = ""
     length: str = ""
     """Content-Length, as sent."""
+    sha256: str = ""
+    """The file's own SHA-256, when it was downloaded: the same file whatever
+    the server's validators say."""
 
     @classmethod
     def of(cls, headers: Mapping[str, str]) -> Validators:
@@ -1199,7 +1606,12 @@ class Validators:
         )
 
     def to_json(self) -> dict[str, str]:
-        return {"etag": self.etag, "last_modified": self.last_modified, "length": self.length}
+        return {
+            "etag": self.etag,
+            "last_modified": self.last_modified,
+            "length": self.length,
+            "sha256": self.sha256,
+        }
 
     @classmethod
     def from_json(cls, raw: object) -> Validators:
@@ -1211,7 +1623,7 @@ class Validators:
             v = d.get(key)
             return v if isinstance(v, str) else ""
 
-        return cls(text("etag"), text("last_modified"), text("length"))
+        return cls(text("etag"), text("last_modified"), text("length"), text("sha256"))
 
 
 @dataclass(frozen=True)
@@ -1234,6 +1646,26 @@ class StoredPage:
     read before PDFs were), so a page PDFs are found from is read again."""
     validators: Validators = Validators()
     """A PDF's ETag, Last-Modified and Content-Length when it was read."""
+    page_count: int = 0
+    """A PDF's pages, all told."""
+    next_page: int = 0
+    """The first page of a PDF not read yet: past ``page_count`` once it is read
+    through. A large PDF is read a slice a run, from the start, and carries on
+    from here the next run as long as the file is the same."""
+    limited: str = ""
+    """Why a PDF is not read further under the limits it was read with: its
+    own text limit (``characters``), or the limit on all PDF text (``cap``).
+    Read on when the limits change."""
+    read_with: str = ""
+    """The reader and limits a PDF was read with (:func:`reader_signature`)."""
+    host: str = ""
+    """The host a PDF is served from: karnatakadigital.in, or the other site an
+    approved page links it on."""
+
+    @property
+    def in_progress(self) -> bool:
+        """A PDF with pages still to read under the limits it was read with."""
+        return self.kind == "pdf" and self.next_page <= self.page_count and not self.limited
 
 
 @dataclass(frozen=True)
@@ -1247,6 +1679,17 @@ class Unreadable:
     reason: str
     validators: Validators
     checked_at: str
+    read_with: str = ""
+    """The reader and limits the verdict was reached with. A verdict reached with
+    other limits, or another version of the reader, is tried again."""
+    lasting: bool = True
+    """A verdict about the file itself (encrypted, scanned, damaged, too large):
+    it stands until the file, the reader or the limits change. ``False``: it
+    could be different next time (it timed out, ran out of memory, or could not
+    be fetched), so it is tried again after ``retry_after``."""
+    attempts: int = 1
+    retry_after: str = ""
+    """ISO time; empty for a lasting verdict."""
 
 
 @dataclass(frozen=True)
@@ -1294,7 +1737,18 @@ class Snapshot:
                         if p.pdf_links is not None
                         else {}
                     ),
-                    **({"validators": p.validators.to_json()} if p.kind == "pdf" else {}),
+                    **(
+                        {
+                            "validators": p.validators.to_json(),
+                            "page_count": p.page_count,
+                            "next_page": p.next_page,
+                            "limited": p.limited,
+                            "read_with": p.read_with,
+                            "host": p.host,
+                        }
+                        if p.kind == "pdf"
+                        else {}
+                    ),
                 }
                 for p in self.pages.values()
             ],
@@ -1309,13 +1763,24 @@ class Snapshot:
         doc = _obj(raw, "snapshot")
         if doc.get("version") not in (1, SNAPSHOT_VERSION):
             raise _fail(f"snapshot version {doc.get('version')!r} is not {SNAPSHOT_VERSION}")
-        known = {k: v for k, v in _obj(doc.get("known", {}), "known").items() if isinstance(v, str)}
+        # Every URL is spelled again the way normalize() spells it now, so a
+        # snapshot written under an older spelling keeps its pages under the
+        # same keys a refresh will look them up by. One that no longer passes
+        # (an escaped separator, say) is left out.
+        known = {
+            n: v
+            for k, v in _obj(doc.get("known", {}), "known").items()
+            if isinstance(v, str) and (n := normalize(k)) is not None
+        }
         pages: dict[str, StoredPage] = {}
         for i, item in enumerate(_list(doc.get("pages", []), "pages")):
             p = _obj(item, f"pages[{i}]")
             origin = _str(p, "origin")
-            pages[_str(p, "url")] = StoredPage(
-                url=_str(p, "url"),
+            spell = pdf_url if p.get("kind") == "pdf" else normalize
+            if (url := spell(_str(p, "url"))) is None:
+                continue
+            pages[url] = StoredPage(
+                url=url,
                 title=_str(p, "title"),
                 section=_str(p, "section"),
                 origin="approved" if origin == "approved" else "auto",
@@ -1327,12 +1792,19 @@ class Snapshot:
                 kind="pdf" if p.get("kind") == "pdf" else "page",
                 pdf_links=_pairs(p["pdf_links"], "pdf_links") if "pdf_links" in p else None,
                 validators=Validators.from_json(p.get("validators")),
+                page_count=_int(p, "page_count"),
+                next_page=_int(p, "next_page"),
+                limited=_str(p, "limited", default=""),
+                read_with=_str(p, "read_with", default=""),
+                host=_str(p, "host", default=""),
             )
         pending: dict[str, Pending] = {}
         for i, item in enumerate(_list(doc.get("pending_review", []), "pending_review")):
             p = _obj(item, f"pending_review[{i}]")
-            pending[_str(p, "url")] = Pending(
-                url=_str(p, "url"),
+            if (url := normalize(_str(p, "url")) or pdf_url(_str(p, "url"))) is None:
+                continue
+            pending[url] = Pending(
+                url=url,
                 section=_str(p, "section"),
                 lastmod=_str(p, "lastmod"),
                 reason=_str(p, "reason"),
@@ -1341,13 +1813,20 @@ class Snapshot:
         unreadable: dict[str, Unreadable] = {}
         for i, item in enumerate(_list(doc.get("unreadable", []), "unreadable")):
             u = _obj(item, f"unreadable[{i}]")
-            unreadable[_str(u, "url")] = Unreadable(
-                url=_str(u, "url"),
+            if (url := pdf_url(_str(u, "url"))) is None:
+                continue
+            attempts = u.get("attempts", 1)
+            unreadable[url] = Unreadable(
+                url=url,
                 title=_str(u, "title", default=""),
                 section=_str(u, "section"),
                 reason=_str(u, "reason"),
                 validators=Validators.from_json(u.get("validators")),
                 checked_at=_str(u, "checked_at", default=""),
+                read_with=_str(u, "read_with", default=""),
+                lasting=u.get("lasting", True) is not False,
+                attempts=attempts if isinstance(attempts, int) else 1,
+                retry_after=_str(u, "retry_after", default=""),
             )
         return cls(_str(doc, "built_at"), known, pages, pending, unreadable)
 
@@ -1407,13 +1886,27 @@ class RefreshPolicy:
     """At most this many PDFs not seen before are read per run, in the order the
     approved pages list them; the rest wait for the next run. A PDF already held
     is asked about with a conditional request every run and does not count."""
-    max_pdf_bytes: int = 25 * 1024 * 1024
-    """A larger PDF is not downloaded: checked against its Content-Length, and
-    again while it is read."""
-    max_pdf_pages: int = 300
-    max_pdf_chars: int = 300_000
-    pdf_timeout_s: float = 60.0
-    """Reading one PDF's text stops after this long, keeping what it has read."""
+    max_pdf_bytes: int = 150 * 1024 * 1024
+    """A safety ceiling, not a working limit: a PDF is streamed to disk and read
+    from there, so size costs time, not memory. Past this it is not downloaded
+    (checked against its Content-Length, and again while it downloads)."""
+    pdf_pages_per_run: int = 150
+    """A PDF is read this many pages a run, from its first page; a longer one
+    carries on where it stopped on the next run, as long as the file is the same."""
+    max_pdf_chars: int = 1_000_000
+    """One PDF's text, at most: so no one document takes the whole cap."""
+    pdf_page_timeout_s: float = 10.0
+    """A page that takes longer is skipped, and the next one read."""
+    pdf_timeout_s: float = 120.0
+    """Reading one PDF stops after this long a run, keeping what it read and
+    carrying on next run; the process is killed a few seconds past it."""
+    pdf_memory_mb: int = 768
+    """The memory the process reading one PDF may take beyond the interpreter's
+    own (Linux; elsewhere only the time limit holds)."""
+    max_pdf_chars_total: int = 5_000_000
+    """All PDFs together hold at most this much text, so a search over them stays
+    inside the tool budget. PDFs past it, in the order the pages link them, are
+    not read; ``report.pdf_capped`` names them."""
 
 
 @dataclass
@@ -1440,6 +1933,14 @@ class RefreshReport:
     pdf_truncated: list[str] = field(default_factory=list[str])
     """PDFs indexed only up to the page, character or time limit."""
     pdf_deferred: int = 0
+    pdf_in_progress: list[str] = field(default_factory=list[str])
+    """PDFs read in part so far, carried on next run."""
+    pdf_skipped_pages: dict[str, list[int]] = field(default_factory=dict[str, list[int]])
+    """PDFs read this run with pages left blank (too heavy or too slow) → which."""
+    pdf_waiting: int = 0
+    """PDFs that failed recently and wait for their retry time."""
+    pdf_capped: list[str] = field(default_factory=list[str])
+    """PDFs not indexed because all PDFs together reached ``max_pdf_chars_total``."""
 
     def summary(self) -> str:
         return (
@@ -1449,7 +1950,9 @@ class RefreshReport:
             f"moved {len(self.moved)}, deferred {self.deferred}; PDFs: "
             f"added {len(self.pdf_added)}, updated {len(self.pdf_updated)}, "
             f"unchanged {len(self.pdf_unchanged)}, dropped {len(self.pdf_dropped)}, "
-            f"unreadable {len(self.pdf_unreadable)}, deferred {self.pdf_deferred}"
+            f"unreadable {len(self.pdf_unreadable)}, deferred {self.pdf_deferred}, "
+            f"in progress {len(self.pdf_in_progress)}, waiting {self.pdf_waiting}, "
+            f"over the cap {len(self.pdf_capped)}"
         )
 
 
@@ -1516,7 +2019,7 @@ async def refresh(
     report = RefreshReport()
     sitemap = await read_sitemap(fetch, allowlist.sitemap_url)
     first_build = not snapshot.known
-    forced = {c for u in policy.force if (c := allowlist.canonical(u)) is not None}
+    forced = {c for u in policy.force if (c := allowlist.locate(u)) is not None}
 
     pages: dict[str, StoredPage] = {}
     revoked: dict[str, Pending] = {}
@@ -1735,32 +2238,81 @@ async def refresh(
         if on_progress is not None:
             await on_progress(so_far())
 
-    run = _PdfRun(snapshot, allowlist, pages, held_pdfs, pending, report, policy, forced, stamp)
+    run = _PdfRun(
+        snapshot, allowlist, pages, held_pdfs, pending, report, policy, forced, stamp, now
+    )
     unreadable = await _refresh_pdfs(run, fetch_file, handover)
     return Snapshot(stamp, known, pages, pending, unreadable), report
 
 
-def linked_pdfs(
-    allowlist: Allowlist, pages: Mapping[str, StoredPage]
-) -> dict[str, tuple[str, str]]:
-    """Every PDF the approved pages in a PDF-reading section link to, as ``pages``
-    holds them now → ``(link text, section)``. The first page in list order that
-    links a PDF places it; a later page's text names it when the first's is empty."""
-    out: dict[str, tuple[str, str]] = {}
+@dataclass(frozen=True)
+class PdfLink:
+    """How an approved page links a PDF."""
+
+    text: str
+    """The words that name it (:func:`_links`); empty when nothing does."""
+    section: str
+    via: str
+    """The approved page that links it: the link card offered for a PDF on
+    another site, which the browser snippet does not show."""
+
+
+def linked_pdfs(allowlist: Allowlist, pages: Mapping[str, StoredPage]) -> dict[str, PdfLink]:
+    """Every PDF, on this site or another, the approved pages in a PDF-reading
+    section link to, as ``pages`` holds them now. The first page in list order
+    that links a PDF places it; a later page's text names it when the first's
+    is empty. Nothing past these links is followed."""
+    out: dict[str, PdfLink] = {}
     for ap in allowlist.pdf_sources:
         page = pages.get(ap.url)
         if page is None:
             continue
         for link, text in page.pdf_links or ():
-            url = allowlist.canonical(link)
+            url = pdf_url(link)
             if url is None:
                 continue
             had = out.get(url)
             if had is None:
-                out[url] = (text, ap.section)
-            elif not had[0] and text:
-                out[url] = (text, had[1])
+                out[url] = PdfLink(text, ap.section, ap.url)
+            elif not had.text and text:
+                out[url] = replace(had, text=text)
     return out
+
+
+def reader_signature(policy: RefreshPolicy) -> str:
+    """The reader and the limits a PDF is read with. A PDF found unreadable, or
+    stopped at a limit, under another signature is read again."""
+    return (
+        f"pypdf {pypdf.__version__}; {policy.max_pdf_bytes} bytes, "
+        f"{policy.pdf_pages_per_run} pages a run, {policy.max_pdf_chars} chars, "
+        f"{policy.pdf_page_timeout_s:g} s a page, {policy.pdf_timeout_s:g} s, "
+        f"{policy.pdf_memory_mb} MB, {policy.max_pdf_chars_total} chars in all"
+    )
+
+
+_RETRY_FIRST = timedelta(hours=20)
+_RETRY_MOST = timedelta(days=30)
+
+
+def _retry_after(now: datetime, attempts: int) -> str:
+    """When a PDF that failed ``attempts`` times running is tried again: the next
+    daily run, then every other, doubling to a month."""
+    return _iso(now + min(_RETRY_FIRST * 2 ** (attempts - 1), _RETRY_MOST))
+
+
+def _chars(page: StoredPage | None) -> int:
+    return sum(map(len, page.blocks)) if page is not None else 0
+
+
+@dataclass(frozen=True)
+class _Ask:
+    """One PDF to ask for this run."""
+
+    url: str
+    link: PdfLink
+    fresh: bool = False
+    """Download it whatever its validators say: forced, being read a slice a
+    run, or a verdict reached under other limits."""
 
 
 @dataclass
@@ -1778,137 +2330,248 @@ class _PdfRun:
     policy: RefreshPolicy
     forced: set[str]
     stamp: str
+    now: datetime
     unreadable: dict[str, Unreadable] = field(default_factory=dict[str, Unreadable])
+    chars: int = 0
+    """The PDF text the next snapshot holds so far."""
 
-    def plan(self) -> list[tuple[str, str, str]]:
-        """The PDFs to ask for this run, as ``(url, link text, section)``. Notes
-        the ones dropped, held for review and deferred on the way."""
+    @property
+    def signature(self) -> str:
+        return reader_signature(self.policy)
+
+    def plan(self) -> list[_Ask]:
+        """The PDFs to ask for this run, in order. Notes the ones dropped, held for
+        review, waiting for a retry and deferred on the way.
+
+        Held PDFs come first (a PDF being read a slice a run among them); then
+        PDFs not seen before, in link order; then the ones whose last failure is
+        due for a retry, at the back. Only the last two count toward
+        ``max_new_pdfs``, and a PDF waiting for its retry time is not asked for
+        at all."""
         linked = linked_pdfs(self.allowlist, self.pages)
         self.report.pdf_dropped.extend(u for u in self.held if u not in linked)
-        known: list[tuple[str, str, str]] = []
-        new: list[tuple[str, str, str]] = []
-        for url, (text, section) in linked.items():
-            why = self.allowlist.refusal(url, "auto", section, "pdf")
+        sig = self.signature
+        known: list[_Ask] = []
+        new: list[_Ask] = []
+        retry: list[_Ask] = []
+        for url, link in linked.items():
+            why = self.allowlist.refusal(url, "auto", link.section, "pdf")
             if why is not None:
                 if url in self.held:
                     self.report.pdf_dropped.append(url)
                 if _for_review(self.allowlist, url):
                     was = self.snapshot.pending_review.get(url)
                     first = was.first_seen if was else self.stamp
-                    self.pending[url] = Pending(url, section, "", why, first)
+                    self.pending[url] = Pending(url, link.section, "", why, first)
                     if was is None:
                         self.report.held.append(url)
                 continue
-            if url in self.held or url in self.snapshot.unreadable or url in self.forced:
-                known.append((url, text, section))
+            old = self.held.get(url)
+            bad = self.snapshot.unreadable.get(url)
+            if url in self.forced:
+                known.append(_Ask(url, link, fresh=True))
+            elif old is not None:
+                self.chars += _chars(old)
+                again = old.in_progress or (bool(old.limited) and old.read_with != sig)
+                known.append(_Ask(url, link, fresh=again))
+            elif bad is None:
+                new.append(_Ask(url, link))
+            elif bad.read_with != sig:
+                retry.append(_Ask(url, link, fresh=True))
+            elif bad.lasting:
+                known.append(_Ask(url, link))  # a 304 keeps the verdict
+            elif bad.retry_after <= self.stamp:
+                retry.append(_Ask(url, link, fresh=True))
             else:
-                new.append((url, text, section))
-        self.report.pdf_deferred = max(0, len(new) - self.policy.max_new_pdfs)
-        return known + new[: self.policy.max_new_pdfs]
+                self.keep(url, link)
+                self.report.pdf_waiting += 1
+        queue = new + retry
+        if self.chars >= self.policy.max_pdf_chars_total:
+            for later in queue:
+                self.keep(later.url, later.link)
+                self.report.pdf_capped.append(later.url)
+            return known
+        cap = self.policy.max_new_pdfs
+        self.report.pdf_deferred = max(0, len(queue) - cap)
+        for later in queue[cap:]:
+            self.keep(later.url, later.link)  # a failure's record waits too
+        return known + queue[:cap]
 
-    def keep(self, url: str, text: str, section: str, **changes: str | Validators) -> None:
+    def keep(self, url: str, link: PdfLink, **changes: str | Validators) -> None:
         """What is held for ``url`` stays, under the title it is linked by now."""
         if (old := self.held.get(url)) is not None:
-            title = text or old.title
+            title = link.text or old.title
             self.pages[url] = replace(
-                old, title=title, section=section, digest=_digest(title, old.blocks), **changes
+                old,
+                title=title,
+                section=link.section,
+                digest=_digest(title, old.blocks),
+                **changes,
             )
+            if old.in_progress:
+                self.report.pdf_in_progress.append(url)
         elif (bad := self.snapshot.unreadable.get(url)) is not None:
-            self.unreadable[url] = replace(bad, title=text or bad.title, section=section)
+            self.unreadable[url] = replace(bad, title=link.text or bad.title, section=link.section)
 
-    def cannot_read(self, url: str, text: str, section: str, reason: str, v: Validators) -> None:
-        logger.info("kdem: PDF {} is not indexed: {}", url, reason)
-        self.unreadable[url] = Unreadable(
-            url, text or file_title(url), section, reason, v, self.stamp
+    def cannot_read(
+        self, ask: _Ask, reason: str, v: Validators, *, lasting: bool, report: bool = True
+    ) -> None:
+        """Record that ``ask`` is not answered from, and why. A verdict that may be
+        different next time is tried again after a backoff that doubles with each
+        failure in a row."""
+        bad = self.snapshot.unreadable.get(ask.url)
+        attempts = bad.attempts + 1 if bad is not None and not bad.lasting and not lasting else 1
+        logger.info("kdem: PDF {} is not indexed: {}", ask.url, reason)
+        self.unreadable[ask.url] = Unreadable(
+            ask.url,
+            ask.link.text or (bad.title if bad else "") or file_title(ask.url),
+            ask.link.section,
+            reason,
+            v,
+            self.stamp,
+            read_with=self.signature,
+            lasting=lasting,
+            attempts=attempts,
+            retry_after="" if lasting else _retry_after(self.now, attempts),
         )
-        self.report.pdf_unreadable[url] = reason
+        if report:
+            self.report.pdf_unreadable[ask.url] = reason
 
-    async def read(self, fetch_file: FetchFile, url: str, text: str, section: str) -> None:
+    def failed(self, ask: _Ask, reason: str, *, gone: bool = False) -> None:
+        """The request for ``ask`` failed. A copy held stays (or, when ``gone``,
+        goes); a PDF with no copy is recorded, so it waits for its retry time
+        instead of taking a new PDF's place every run."""
+        old = self.held.get(ask.url)
+        if old is not None and not gone:
+            self.keep(ask.url, ask.link)
+            return
+        if old is not None:
+            self.chars -= _chars(old)
+            self.report.pdf_dropped.append(ask.url)
+        bad = self.snapshot.unreadable.get(ask.url)
+        prior = old.validators if old else bad.validators if bad else Validators()
+        self.cannot_read(ask, reason, prior, lasting=False, report=False)
+
+    async def read(self, fetch_file: FetchFile, ask: _Ask, scratch: Path) -> None:
         """Ask for one PDF and settle what its answer means for the index."""
+        url, link = ask.url, ask.link
         old = self.held.get(url)
         bad = self.snapshot.unreadable.get(url)
         prior = old.validators if old else bad.validators if bad else Validators()
-        forced = url in self.forced
+        policy = self.policy
+        dest = scratch / "file.pdf"
         try:
             got = await fetch_file(
-                url, {} if forced else prior.conditional(), self.policy.max_pdf_bytes
+                url, {} if ask.fresh else prior.conditional(), policy.max_pdf_bytes, dest
             )
         except TooLarge as e:
-            mb = self.policy.max_pdf_bytes // (1024 * 1024)
-            self.cannot_read(url, text, section, f"larger than {mb} MB", Validators.of(e.headers))
+            if old is not None:
+                self.chars -= _chars(old)
+            ceiling = f"{policy.max_pdf_bytes / 2**20:.3g} MB"
+            self.cannot_read(
+                ask, f"larger than the {ceiling} ceiling", Validators.of(e.headers), lasting=True
+            )
             return
         except Exception as e:  # a PDF that will not load keeps its last copy
             logger.warning("kdem: could not read PDF {}: {}", url, e)
             self.report.failed.append(url)
-            self.keep(url, text, section)
+            self.failed(ask, f"could not be fetched ({type(e).__name__})")
             return
         if got.status == 304 and (old is not None or bad is not None):
-            self.keep(url, text, section, fetched_at=self.stamp)
+            self.keep(url, link, fetched_at=self.stamp)
             if old is not None:
                 self.report.pdf_unchanged.append(url)
             return
         if got.status in (404, 410):
-            if old is not None or bad is not None:
-                self.report.pdf_dropped.append(url)
+            self.failed(ask, f"not found ({got.status})", gone=True)
             return
         if got.status != 200:
             self.report.failed.append(url)
-            self.keep(url, text, section)
+            self.failed(ask, f"answered {got.status}")
             return
-        landed = self.allowlist.canonical(got.url) if got.url else url
-        if landed is None:
-            logger.warning("kdem: PDF {} redirects off the site, to {}", url, got.url)
-            self.report.offsite.append(url)
-            return
+        landed = pdf_url(got.url) if got.url else url
         if landed != url:
-            logger.warning("kdem: PDF {} now redirects to {}; not indexed", url, got.url)
-            self.report.moved.append(url)
+            # Nothing past the link is followed: a PDF that now lives at another
+            # address is judged when a page links that address.
+            if landed is None or host_of(landed) != host_of(url):
+                logger.warning("kdem: PDF {} redirects to another site, {}", url, got.url)
+                self.report.offsite.append(url)
+            else:
+                logger.warning("kdem: PDF {} now redirects to {}; not indexed", url, got.url)
+                self.report.moved.append(url)
+            self.failed(ask, f"redirects to {got.url}", gone=True)
             return
-        now = Validators.of(got.headers)
-        if not forced and prior.same_file(now):
-            # The server ignored the conditional request, and it is the same file.
-            self.keep(url, text, section, fetched_at=self.stamp, validators=now)
-            if old is not None:
-                self.report.pdf_unchanged.append(url)
+        now = replace(Validators.of(got.headers), sha256=got.sha256)
+        same = (bool(prior.sha256) and prior.sha256 == now.sha256) or prior.same_file(now)
+        settled = old is not None and not old.in_progress and url not in self.forced
+        stale = old is not None and bool(old.limited) and old.read_with != self.signature
+        if old is not None and same and settled and not stale:
+            # The server ignored the conditional request; it is the same file.
+            self.keep(url, link, fetched_at=self.stamp, validators=now)
+            self.report.pdf_unchanged.append(url)
             return
-        policy = self.policy
+        if bad is not None and bad.lasting and same and bad.read_with == self.signature:
+            self.keep(url, link)
+            return
+        # Carry on where the last run stopped, if it is the same file; else from
+        # the first page.
+        carry = old is not None and same and url not in self.forced and old.next_page > 1
+        first = old.next_page if carry and old is not None else 1
+        kept = old.blocks if carry and old is not None else ()
+        if old is not None:
+            self.chars -= _chars(old)
+        room = policy.max_pdf_chars_total - self.chars
+        own = policy.max_pdf_chars - sum(map(len, kept))
         try:
-            pdf = await asyncio.wait_for(
-                asyncio.to_thread(
-                    read_pdf,
-                    got.data,
-                    max_pages=policy.max_pdf_pages,
-                    max_chars=policy.max_pdf_chars,
-                    timeout_s=policy.pdf_timeout_s,
-                ),
-                # read_pdf stops itself at its timeout; this is for a single page
-                # that never returns. The thread is abandoned and the run goes on.
-                timeout=policy.pdf_timeout_s + 30,
+            part = await read_pdf_isolated(
+                dest,
+                start=first,
+                max_pages=policy.pdf_pages_per_run,
+                max_chars=max(0, min(own, room)),
+                page_timeout_s=policy.pdf_page_timeout_s,
+                timeout_s=policy.pdf_timeout_s,
+                memory_mb=policy.pdf_memory_mb,
             )
         except PdfUnreadable as e:
-            self.cannot_read(url, text, section, e.reason, now)
+            self.cannot_read(ask, e.reason, now, lasting=e.lasting)
             return
-        except TimeoutError:
-            reason = f"took over {policy.pdf_timeout_s:.0f} s to read"
-            self.cannot_read(url, text, section, reason, now)
-            return
-        title = text or pdf.title or file_title(url)
-        digest = _digest(title, pdf.pages)
-        self.pages[url] = StoredPage(
+        blocks = kept + part.pages
+        limited = ""
+        if part.stopped == "characters" or (not part.done and min(own, room) <= 0):
+            limited = "characters" if own <= room else "cap"
+        if limited == "cap":
+            self.report.pdf_capped.append(url)
+        if limited == "cap" and not any(blocks):
+            return  # nothing read yet, and no room for it
+        size = sum(map(len, blocks))
+        self.chars += size
+        title = link.text or part.title or (old.title if old else "") or file_title(url)
+        digest = _digest(title, blocks)
+        stored = StoredPage(
             url,
             title,
-            section,
+            link.section,
             "auto",
             now.last_modified,
             self.stamp,
             digest,
-            pdf.pages,
+            blocks,
             kind="pdf",
             pdf_links=(),
             validators=now,
+            page_count=part.page_count,
+            next_page=part.next_page,
+            limited=limited,
+            read_with=self.signature,
+            host=host_of(url),
         )
-        if pdf.truncated:
+        self.pages[url] = stored
+        if part.skipped:
+            self.report.pdf_skipped_pages[url] = sorted(part.skipped)
+        if limited == "characters":
             self.report.pdf_truncated.append(url)
+        if stored.in_progress:
+            self.report.pdf_in_progress.append(url)
         if old is None:
             self.report.pdf_added.append(url)
         elif old.digest == digest:
@@ -1923,27 +2586,39 @@ async def _refresh_pdfs(
     before_downloads: Callable[[], Awaitable[None]],
 ) -> dict[str, Unreadable]:
     """The PDF half of a refresh. Adds the PDFs to ``run.pages`` and returns the
-    ones that could not be read.
+    ones that are not answered from, with why.
 
     - A PDF is read when an approved page in a PDF-reading section links to it,
-      and dropped when none does. An excluded PDF is ignored; a PDF in a held
-      pattern goes to ``pending_review``.
-    - A PDF already held (read, or found unreadable) is asked for with its ETag
-      and Last-Modified. A 304, or a full answer with the same ETag, or the same
-      Content-Length and Last-Modified, keeps what is held. A 404/410 drops it;
-      any other failure keeps it as it was.
-    - A PDF not seen before counts toward ``max_new_pdfs``.
-    - A PDF that is too large, encrypted, damaged or has no text is recorded in
-      ``report.pdf_unreadable`` and the returned dict, and not indexed."""
-    to_read = run.plan()
+      on this site or, over https, on another; it is dropped when none does. An
+      excluded PDF is ignored; a PDF in a held pattern goes to ``pending_review``.
+      Nothing past those links is followed.
+    - A PDF is streamed to a scratch file on disk and read from there in a child
+      process, a slice of pages a run from its first page, so a document of any
+      length is read over a few nights and its beginning is answerable first. A
+      page that is too heavy or too slow is skipped; the rest are read.
+    - A PDF already read is asked for with its ETag and Last-Modified. A 304, or
+      the same file (the same SHA-256, ETag, or Content-Length and
+      Last-Modified), keeps what is held. A PDF being read a slice a run is
+      downloaded each run and carried on from where it stopped if it is the same
+      file, or read again from the first page if it changed.
+    - A 404/410 or a redirect drops a PDF; any other failure keeps what is held.
+      A PDF that failed is recorded and tried again after a backoff (a day, then
+      doubling to a month), so it never takes a new PDF's place in the meantime.
+    - New PDFs count toward ``max_new_pdfs``, and all PDFs together toward
+      ``max_pdf_chars_total``; what the latter leaves out is reported.
+    - A PDF that is encrypted, damaged, has no text, or is past the safety
+      ceiling is recorded with why, and not indexed. A verdict reached under
+      other limits or another reader version is reached again."""
+    asks = run.plan()
     if fetch_file is None:
-        for url, text, section in to_read:
-            run.keep(url, text, section)
+        for ask in asks:
+            run.keep(ask.url, ask.link)
         return run.unreadable
-    if to_read:
+    if asks:
         await before_downloads()
-    for url, text, section in to_read:
-        await run.read(fetch_file, url, text, section)
+    for ask in asks:
+        with tempfile.TemporaryDirectory(prefix="kdem-pdf-") as scratch:
+            await run.read(fetch_file, ask, Path(scratch))
         if run.policy.pause_s:
             await asyncio.sleep(run.policy.pause_s)
     return run.unreadable
@@ -2027,6 +2702,11 @@ class PageText:
     lastmod: str
     text: str
     kind: Kind = "page"
+    host: str = HOST
+    """Where it is served from; another site for a PDF linked from one."""
+    via: str = ""
+    """A PDF's approved page: the one that links it, offered as the link card
+    when the PDF is on another site."""
 
 
 _K1, _B = 1.2, 0.75
@@ -2066,13 +2746,19 @@ class KnowledgeBase:
                 lines += kept
                 if p.kind == "pdf":
                     self._passages += ((p.url, number, c) for c in _chunks(kept))
+            via = linked[p.url].via if p.kind == "pdf" else ""
             self._pages[p.url] = PageText(
-                p.url, p.title, p.section, p.lastmod, "\n".join(lines), p.kind
+                p.url,
+                p.title,
+                p.section,
+                p.lastmod,
+                "\n".join(lines),
+                p.kind,
+                host_of(p.url),
+                via,
             )
             if p.kind == "page":
                 self._passages += ((p.url, None, c) for c in _chunks(lines))
-        # Each posting carries its passage's BM25 weight for the term, worked out
-        # here once, so a search only adds them up.
         counts: list[Counter[str]] = []
         lengths: list[int] = []
         for url, _, chunk in self._passages:
@@ -2085,12 +2771,18 @@ class KnowledgeBase:
         for c in counts:
             df.update(c.keys())
         idf = {t: math.log(1 + (n - d + 0.5) / (d + 0.5)) for t, d in df.items()}
-        self._postings: dict[str, list[tuple[int, float]]] = {}
+        # Each posting carries its passage's BM25 weight for the term, worked out
+        # here once, so a search only adds them up. Two flat arrays per term:
+        # passage numbers, ascending, and weights.
+        self._postings: dict[str, tuple[array[int], array[float]]] = {}
         for i, c in enumerate(counts):
             norm = _K1 * (1 - _B + _B * lengths[i] / avg)
             for term, tf in c.items():
-                w = idf[term] * tf * (_K1 + 1) / (tf + norm)
-                self._postings.setdefault(term, []).append((i, w))
+                if (posting := self._postings.get(term)) is None:
+                    posting = self._postings[term] = (array("i"), array("d"))
+                posting[0].append(i)
+                posting[1].append(idf[term] * tf * (_K1 + 1) / (tf + norm))
+        self._n = n
 
     @classmethod
     def empty(cls, allowlist: Allowlist) -> KnowledgeBase:
@@ -2105,19 +2797,34 @@ class KnowledgeBase:
 
     def page(self, url: str) -> PageText | None:
         """The page or PDF ``url`` names, aliases and spelling variants included."""
-        c = self.allowlist.canonical(url)
+        c = self.allowlist.locate(url)
         return self._pages.get(c) if c is not None else None
 
     def search(self, query: str, k: int = 3, *, per_page: int = 2) -> list[Passage]:
         """The ``k`` passages that best answer ``query``, at most ``per_page``
         from any one page or PDF. Empty when nothing matches."""
-        scores: dict[int, float] = {}
-        for term in dict.fromkeys(tokens(query)):
-            for i, w in self._postings.get(term, ()):
-                scores[i] = scores.get(i, 0.0) + w
+        postings = [p for t in dict.fromkeys(tokens(query)) if (p := self._postings.get(t))]
+        if not postings:
+            return []
+        acc = [0.0] * self._n
+        for ids, weights in postings:
+            for i, w in zip(ids, weights, strict=True):
+                acc[i] += w
+        matched = set[int]().union(*(ids for ids, _ in postings))
+        # Best first, without sorting every passage that matched: the few
+        # needed come off a heap; only when one page or PDF fills them all is
+        # the rest sorted and looked at.
+        top = heapq.nlargest(k * per_page * 4, matched, key=acc.__getitem__)
+
+        def ranked() -> Iterator[int]:
+            yield from top
+            if len(top) < len(matched):
+                yield from sorted(matched.difference(top), key=acc.__getitem__, reverse=True)
+
         out: list[Passage] = []
         per: Counter[str] = Counter()
-        for i, score in sorted(scores.items(), key=lambda kv: (-kv[1], kv[0])):
+        for i in ranked():
+            score = acc[i]
             url, number, chunk = self._passages[i]
             if per[url] >= per_page:
                 continue
@@ -2328,7 +3035,8 @@ reads ``KNOWLEDGE.kb`` from its tools."""
 def _cite(p: Passage) -> str:
     if p.kind != "pdf":
         return p.title
-    return f"{p.title} (PDF, page {p.page})" if p.page else f"{p.title} (PDF)"
+    where = "PDF" if not off_site(p.url) else f"PDF on {host_of(p.url)}"
+    return f"{p.title} ({where}, page {p.page})" if p.page else f"{p.title} ({where})"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -2372,11 +3080,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             ("pdf updated", report.pdf_updated),
             ("pdf dropped", report.pdf_dropped),
             ("truncated", report.pdf_truncated),
+            ("over cap", report.pdf_capped),
+            ("in progress", report.pdf_in_progress),
         ):
             for u in urls:
                 print(f"  {label:11} {u}")
         for u, why in report.pdf_unreadable.items():
             print(f"  {'unreadable':11} {u}  ({why})")
+        for u, numbers in report.pdf_skipped_pages.items():
+            print(f"  {'skipped':11} {u}  (pages {', '.join(map(str, numbers))})")
         return 1 if report.failed else 0
     if args.command == "search":
         for p in service.kb.search(args.query, args.k):
@@ -2385,9 +3097,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     for p in sorted(service.snapshot.pending_review.values(), key=lambda p: p.url):
         print(f"{p.section:24} {p.url}  ({p.reason})")
     for u in sorted(service.snapshot.unreadable.values(), key=lambda u: u.url):
-        print(f"{'unreadable PDF':24} {u.url}  ({u.reason})")
+        retry = f"; tried again after {u.retry_after}" if u.retry_after else ""
+        print(f"{'unreadable PDF':24} {u.url}  ({u.reason}{retry})")
     return 0
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == [_WORKER_FLAG]:
+        sys.exit(_pdf_worker(sys.argv[2:]))
     sys.exit(main())

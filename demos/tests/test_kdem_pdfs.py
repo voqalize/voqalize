@@ -24,10 +24,17 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import hashlib
 import io
+import itertools
 import json
+import random
+import sys
 import threading
+import time
+import zlib
 from collections.abc import Iterator, Mapping
+from datetime import timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -49,7 +56,10 @@ from voqalize_demos._loaded.kdem.knowledge import (  # isort: skip
     TooLarge,
     _download_file,  # pyright: ignore[reportPrivateUsage]
     file_title,
+    normalize,
     read_pdf,
+    read_pdf_isolated,
+    reader_signature,
     refresh,
 )
 
@@ -72,25 +82,33 @@ def _esc(text: str) -> str:
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
-def make_pdf(pages: list[str], *, title: str = "") -> bytes:
+def make_pdf(pages: list[str | bytes], *, title: str = "") -> bytes:
     """A small, valid PDF: one Helvetica text block per page, a line per ``\\n``.
-    An empty string is a page with a drawing and no text, as a scan would be."""
+    An empty string is a page with a drawing and no text, as a scan would be;
+    ``bytes`` are a page's raw content operators, stored compressed."""
     objects: list[bytes] = [b"<< /Type /Catalog /Pages 2 0 R >>"]
     kids = " ".join(f"{4 + 2 * i} 0 R" for i in range(len(pages)))
     objects.append(f"<< /Type /Pages /Kids [{kids}] /Count {len(pages)} >>".encode())
     objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
     for i, text in enumerate(pages):
-        if text:
-            shown = " ".join(f"({_esc(line)}) Tj T*" for line in text.split("\n"))
-            ops = f"BT /F1 10 Tf 12 TL 40 760 Td {shown} ET"
+        flate = ""
+        if isinstance(text, bytes):
+            stream = zlib.compress(b"BT /F1 10 Tf 12 TL 40 760 Td " + text + b" ET", 9)
+            flate = " /Filter /FlateDecode"
         else:
-            ops = "0.5 g 40 40 500 700 re f"
-        stream = ops.encode("latin-1")
+            if text:
+                shown = " ".join(f"({_esc(line)}) Tj T*" for line in text.split("\n"))
+                ops = f"BT /F1 10 Tf 12 TL 40 760 Td {shown} ET"
+            else:
+                ops = "0.5 g 40 40 500 700 re f"
+            stream = ops.encode("latin-1")
         objects.append(
             f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
             f"/Resources << /Font << /F1 3 0 R >> >> /Contents {5 + 2 * i} 0 R >>".encode()
         )
-        objects.append(b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream))
+        objects.append(
+            b"<< /Length %d%s >>\nstream\n%s\nendstream" % (len(stream), flate.encode(), stream)
+        )
     info = ""
     if title:
         objects.append(f"<< /Title ({_esc(title)}) >>".encode())
@@ -126,14 +144,19 @@ def test_read_pdf_keeps_each_page_apart_and_mends_hyphenation() -> None:
     assert "incubator grant" in pdf.pages[1]  # "incu-" + "bator" across a line end
     assert "review meeting" in pdf.pages[2]
     assert pdf.title == "Sample Startup Policy"
-    assert not pdf.truncated
+    assert pdf.done and pdf.page_count == 3 and not pdf.skipped and not pdf.stopped
 
 
-def test_read_pdf_stops_at_its_limits_and_keeps_what_it_read() -> None:
-    pdf = read_pdf(make_pdf([P1, P2, P3]), max_pages=2)
-    assert len(pdf.pages) == 2 and pdf.truncated
-    pdf = read_pdf(make_pdf([P1, P2, P3]), max_chars=len(P1) + 60)
-    assert pdf.truncated and len("".join(pdf.pages)) <= len(P1) + 60
+def test_read_pdf_reads_a_slice_and_carries_on_from_where_it_stopped() -> None:
+    data = make_pdf([P1 + "\n" + P2, P2 + "\n" + P3, P3 + "\n" + P1])
+    first = read_pdf(data, max_pages=2)
+    assert len(first.pages) == 2 and first.next_page == 3 and not first.done
+    rest = read_pdf(data, start=first.next_page, max_pages=2)
+    assert rest.start == 3 and len(rest.pages) == 1 and rest.done
+    assert "review meeting" in rest.pages[0]
+    capped = read_pdf(data, max_chars=len(P1) + len(P2) + 60)
+    assert capped.stopped == "characters" and not capped.done
+    assert len("".join(capped.pages)) <= len(P1) + len(P2) + 60
 
 
 @pytest.mark.parametrize(
@@ -168,7 +191,10 @@ def test_a_pdf_link_is_named_by_its_text_or_by_the_heading_of_its_own_card() -> 
         <h2>Monthly newsletters</h2>
         <div><a href="{UP}/news-may.pdf">Download Now</a></div>
         <div><a href="{UP}/news-june.pdf">Download Now</a></div>
-        <p><a href="{UP}/plan.pdf">The Sample Plan</a> and <a href="https://example.org/x.pdf">x</a></p>
+        <p><a href="{UP}/plan.pdf">The Sample Plan</a> and
+          <a href="https://example.org/docs/Other%20Plan.pdf?v=2">Another site's plan</a> and
+          <a href="http://example.org/plain.pdf">Over plain http</a> and
+          <a href="https://example.org/a-page/">An HTML page elsewhere</a></p>
         </main>"""
     )
     named = dict(knowledge.extract(html).pdf_links)
@@ -179,6 +205,8 @@ def test_a_pdf_link_is_named_by_its_text_or_by_the_heading_of_its_own_card() -> 
         f"{SITE}{UP}/news-may.pdf": "",
         f"{SITE}{UP}/news-june.pdf": "",
         f"{SITE}{UP}/plan.pdf": "The Sample Plan",
+        # A PDF on another site, over https, is read; plain http and HTML are not.
+        "https://example.org/docs/Other%20Plan.pdf": "Another site's plan",
     }
 
 
@@ -227,6 +255,7 @@ class FakeFiles:
 
     def __init__(self) -> None:
         self.files: dict[str, tuple[bytes, dict[str, str]]] = {}
+        self.redirects: dict[str, str] = {}
         self.honours_conditionals = True
         self.requests: list[tuple[str, dict[str, str]]] = []
 
@@ -236,7 +265,9 @@ class FakeFiles:
             headers["etag"] = f'"v{version}"'
         self.files[path] = (data, headers)
 
-    async def fetch(self, url: str, headers: Mapping[str, str], max_bytes: int) -> FetchResult:
+    async def fetch(
+        self, url: str, headers: Mapping[str, str], max_bytes: int, dest: Path
+    ) -> FetchResult:
         path = url.removeprefix(SITE)
         self.requests.append((path, dict(headers)))
         if path not in self.files:
@@ -250,7 +281,9 @@ class FakeFiles:
             return FetchResult(304, url, "", h)
         if len(data) > max_bytes:
             raise TooLarge(len(data), h)
-        return FetchResult(200, url, "", h, data)
+        dest.write_bytes(data)
+        landed = self.redirects.get(path, url)
+        return FetchResult(200, landed, "", h, len(data), hashlib.sha256(data).hexdigest())
 
     def paths(self) -> list[str]:
         return [p for p, _ in self.requests]
@@ -276,7 +309,7 @@ def site() -> FakeSite:
         "/contact-us/": _hub((f"{UP}/contact-form.pdf", "Contact form")),
         "/policies/": _hub(
             (POLICY, "Sample Startup Policy"),
-            ("https://example.org/wp-content/uploads/elsewhere.pdf", "Another site's PDF"),
+            ("http://example.org/wp-content/uploads/elsewhere.pdf", "Over plain http"),
             ("/wp-content/plugins/bundled.pdf", "A plugin's file"),
             (f"{UP}/speaker-list.pdf", "Speakers"),
         ),
@@ -324,8 +357,8 @@ async def test_pdfs_are_found_from_the_approved_pages_links(
     assert policy.validators.etag == '"v1"'
     # "Download" names nothing: the file's own metadata title does.
     assert pdfs[f"{SITE}{GUIDE}"].title == "Sample Guidelines"
-    # Off the site, excluded, held, or linked from a section that does not read
-    # PDFs: never asked for.
+    # Off the site over plain http, excluded, held, or linked from a section
+    # that does not read PDFs: never asked for.
     assert sorted(files.paths()) == sorted([POLICY, GUIDE])
     assert f"{SITE}{UP}/speaker-list.pdf" in snap.pending_review
     assert f"{SITE}{UP}/speaker-list.pdf" in report.held
@@ -339,16 +372,50 @@ async def test_pdfs_are_found_from_the_approved_pages_links(
     assert hub is not None and hub.kind == "page"
 
 
+OTHER = "https://portal.example.gov/docs/Sample-State-Scheme.pdf"
+
+
+async def test_a_pdf_on_another_site_is_read_and_remembers_where_it_is(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    """Linked from an approved page, over https: read like any other, with its
+    host recorded and the approved page that links it known to the index."""
+    site.pages["/policies/"] = _hub(
+        (POLICY, "Sample Startup Policy"),
+        ("https://portal.example.gov/docs/Sample-State-Scheme.pdf#page=2", "Sample State Scheme"),
+    )
+    files.put(
+        OTHER, make_pdf([P1 + "\n" + P2, "A state scheme for lantern makers in every district."])
+    )
+    snap, report = await _refresh(Snapshot(), allowlist, site, files)
+    assert OTHER in report.pdf_added
+    stored = snap.pages[OTHER]
+    assert stored.host == "portal.example.gov" and stored.title == "Sample State Scheme"
+    kb = KnowledgeBase(snap.pages.values(), allowlist)
+    indexed = kb.page(OTHER)
+    assert indexed is not None and indexed.via == f"{SITE}/policies/"
+    assert indexed.host == "portal.example.gov"
+    (hit,) = kb.search("lantern makers", k=1)
+    assert (hit.url, hit.page) == (OTHER, 2)
+    assert OTHER in files.paths()  # one request, for the PDF; nothing past it
+
+    # The same document redirecting to yet another host is not followed.
+    files.redirects[OTHER] = "https://mirror.example.net/Sample-State-Scheme.pdf"
+    files.put(OTHER, make_pdf([P1 + "\n" + P2]), version=2)
+    snap2, report2 = await _refresh(snap, allowlist, site, files)
+    assert OTHER not in snap2.pages and report2.offsite == [OTHER]
+
+
 async def test_an_unchanged_pdf_is_asked_about_not_read_again(
     allowlist: Allowlist, site: FakeSite, files: FakeFiles, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     snap, _ = await _refresh(Snapshot(), allowlist, site, files)
     files.requests.clear()
 
-    def must_not_read(*_args: object, **_kwargs: object) -> None:
+    async def must_not_read(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("an unchanged PDF was read again")
 
-    monkeypatch.setattr(knowledge, "read_pdf", must_not_read)
+    monkeypatch.setattr(knowledge, "read_pdf_isolated", must_not_read)
     snap2, report = await _refresh(snap, allowlist, site, files)
     asked = dict(files.requests)
     assert asked[POLICY] == {
@@ -417,10 +484,12 @@ async def test_a_pdf_that_is_gone_is_dropped_and_one_that_fails_is_kept(
     snap, _ = await _refresh(Snapshot(), allowlist, site, files)
     del files.files[GUIDE]
 
-    async def flaky(url: str, headers: Mapping[str, str], max_bytes: int) -> FetchResult:
+    async def flaky(
+        url: str, headers: Mapping[str, str], max_bytes: int, dest: Path
+    ) -> FetchResult:
         if url.endswith(POLICY):
             raise OSError("timed out")
-        return await files.fetch(url, headers, max_bytes)
+        return await files.fetch(url, headers, max_bytes, dest)
 
     snap2, report = await refresh(
         snap, allowlist, site.fetch, fetch_file=flaky, policy=RefreshPolicy(pause_s=0), now=NOW
@@ -597,24 +666,419 @@ def served(tmp_path: Path) -> Iterator[str]:
     server.server_close()
 
 
-async def test_the_downloader_asks_conditionally_and_stops_at_the_size_limit(
+async def test_the_downloader_streams_to_disk_asks_conditionally_and_stops_at_the_ceiling(
     tmp_path: Path, served: str
 ) -> None:
     data = make_pdf([P1])
     (tmp_path / "doc.pdf").write_bytes(data)
-    got = await asyncio.to_thread(_download_file, f"{served}/doc.pdf", {}, 1 << 20)
-    assert got.status == 200 and got.data == data
+    dest = tmp_path / "down" / "file.pdf"
+    dest.parent.mkdir()
+    got = await asyncio.to_thread(_download_file, f"{served}/doc.pdf", {}, 1 << 20, dest)
+    assert got.status == 200 and dest.read_bytes() == data
+    assert got.size == len(data) and got.sha256 == hashlib.sha256(data).hexdigest()
     assert got.headers["content-length"] == str(len(data))
     validators = knowledge.Validators.of(got.headers)
 
+    dest.unlink()
     again = await asyncio.to_thread(
-        _download_file, f"{served}/doc.pdf", validators.conditional(), 1 << 20
+        _download_file, f"{served}/doc.pdf", validators.conditional(), 1 << 20, dest
     )
-    assert again.status == 304 and again.data == b""
+    assert again.status == 304 and not dest.exists()
 
     with pytest.raises(TooLarge) as e:
-        await asyncio.to_thread(_download_file, f"{served}/doc.pdf", {}, 100)
+        await asyncio.to_thread(_download_file, f"{served}/doc.pdf", {}, 100, dest)
     assert e.value.size == len(data)
 
-    missing = await asyncio.to_thread(_download_file, f"{served}/gone.pdf", {}, 1 << 20)
+    missing = await asyncio.to_thread(_download_file, f"{served}/gone.pdf", {}, 1 << 20, dest)
     assert missing.status == 404
+
+
+# ─── Files built to keep a reader busy ───────────────────────────────────────
+
+BUSY = b"(abc def) Tj T* "
+"""Neutral text-showing operators, repeated to make a page heavy."""
+
+
+def stream_bomb(stream_bytes: int) -> bytes:
+    """A one-page PDF of a few kilobytes whose content stream inflates to
+    ``stream_bytes``."""
+    return make_pdf([BUSY * (stream_bytes // len(BUSY))])
+
+
+def _on_disk(tmp_path: Path, data: bytes, name: str = "doc.pdf") -> Path:
+    path = tmp_path / name
+    path.write_bytes(data)
+    return path
+
+
+@pytest.mark.parametrize("inflated", [5_000_000, 70_000_000], ids=["5MB", "70MB"])
+async def test_a_small_file_with_a_huge_stream_is_refused_fast_and_in_little_memory(
+    tmp_path: Path, inflated: int
+) -> None:
+    """The page's content is refused at the stream limit, before its text is
+    read: in well under a second, inside a 128 MB memory cap."""
+    data = stream_bomb(inflated)
+    assert len(data) < 200_000
+    started = time.monotonic()
+    with pytest.raises(PdfUnreadable) as e:
+        await read_pdf_isolated(_on_disk(tmp_path, data), timeout_s=10, memory_mb=128)
+    assert "too large or too slow" in e.value.reason
+    assert e.value.lasting
+    assert time.monotonic() - started < 5
+
+
+def test_one_heavy_or_slow_page_is_skipped_and_the_rest_are_read() -> None:
+    data = make_pdf(
+        [
+            P1 + "\n" + P2,
+            BUSY * (5_000_000 // len(BUSY)),
+            BUSY * (2_000_000 // len(BUSY)),
+            P3 + "\n" + P1,
+        ]
+    )
+    started = time.monotonic()
+    part = read_pdf(data, page_timeout_s=0.3)
+    assert part.skipped == {2: "too large to read", 3: "took over 0.3 s to read"}
+    assert part.done and part.pages[1] == part.pages[2] == ""
+    assert "incubator grant" in part.pages[0] and "review meeting" in part.pages[3]
+    assert time.monotonic() - started < 5
+
+
+async def test_a_reader_stopped_on_a_page_keeps_the_pages_before_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With no page timer, the second page outlasts the whole read: the reader
+    is killed, the first page stands, the second is skipped, and the next read
+    starts at the third."""
+    monkeypatch.setattr(knowledge, "_WORKER_GRACE_S", 0.0)
+    path = _on_disk(
+        tmp_path,
+        make_pdf([P1 + "\n" + P2, BUSY * (3_000_000 // len(BUSY)), P3 + "\n" + P1]),
+    )
+    started = time.monotonic()
+    part = await read_pdf_isolated(path, page_timeout_s=0, timeout_s=1.5)
+    assert time.monotonic() - started < 4
+    assert part.stopped == "stopped" and part.next_page == 3 and not part.done
+    assert "incubator grant" in part.pages[0]
+    assert 2 in part.skipped
+    rest = await read_pdf_isolated(path, start=3)
+    assert rest.done and "review meeting" in rest.pages[0]
+
+
+async def test_the_reader_process_is_killed_at_its_deadline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(knowledge, "_WORKER_GRACE_S", 0.0)
+    started = time.monotonic()
+    with pytest.raises(PdfUnreadable) as e:
+        await read_pdf_isolated(
+            _on_disk(tmp_path, make_pdf([P1, P2, P3])), page_timeout_s=0, timeout_s=0.05
+        )
+    assert "stopped while opening" in e.value.reason
+    assert not e.value.lasting  # tried again after a backoff
+    assert time.monotonic() - started < 2
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="the address-space cap is Linux only")
+async def test_the_reader_process_runs_inside_its_memory_cap(tmp_path: Path) -> None:
+    with pytest.raises(PdfUnreadable) as e:
+        await read_pdf_isolated(_on_disk(tmp_path, stream_bomb(1_000_000)), memory_mb=5)
+    assert "memory" in e.value.reason or "too large or too slow" in e.value.reason
+    pdf = await read_pdf_isolated(_on_disk(tmp_path, make_pdf([P1, P2, P3]), "ok.pdf"))
+    assert "incubator grant" in pdf.pages[1]  # the same reader, a normal file
+
+
+async def test_a_400_page_document_is_read_a_slice_at_a_time(tmp_path: Path) -> None:
+    path = _on_disk(tmp_path, make_pdf([f"Page {n}. " + P1 + "\n" + P3 for n in range(1, 401)]))
+    started = time.monotonic()
+    part = await read_pdf_isolated(path, max_pages=150)
+    assert (part.page_count, part.next_page) == (400, 151)
+    assert part.pages[0].startswith("Page 1.")
+    assert time.monotonic() - started < 15
+
+
+# ─── Failures, retries, limits and long documents ─────────────────────────────
+
+
+async def test_dead_links_wait_for_a_retry_instead_of_taking_new_pdfs_places(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    """Three dead links ahead of three good PDFs, three new PDFs a run: the
+    first run spends its places on the dead links; after that the good ones
+    are read first, and the dead links wait for their retry time."""
+    dead = [(f"{UP}/gone-{i}.pdf", f"Gone {i}") for i in range(3)]
+    good = [(f"{UP}/good-{i}.pdf", f"Good {i}") for i in range(3)]
+    for path, _ in good:
+        files.put(path, make_pdf([P1 + "\n" + P3]))
+    site.pages["/policies/"] = _hub(*dead, *good)
+    site.pages["/reports/"] = _hub()
+
+    async def run(snap: Snapshot, days: float) -> tuple[Snapshot, knowledge.RefreshReport]:
+        return await refresh(
+            snap,
+            allowlist,
+            site.fetch,
+            fetch_file=files.fetch,
+            policy=RefreshPolicy(pause_s=0, max_new_pdfs=3),
+            now=NOW + timedelta(days=days),
+        )
+
+    snap, report = await run(Snapshot(), 0)
+    assert report.pdf_deferred == 3
+    assert set(snap.unreadable) == {f"{SITE}{p}" for p, _ in dead}
+    assert all(not u.lasting and u.attempts == 1 for u in snap.unreadable.values())
+
+    files.requests.clear()
+    snap, report = await run(snap, 1)  # due again, but at the back: the good PDFs first
+    assert sorted(report.pdf_added) == sorted(f"{SITE}{p}" for p, _ in good)
+    assert report.pdf_deferred == 3
+    assert not any(p.startswith(f"{UP}/gone") for p in files.paths())
+    assert set(snap.unreadable) == {f"{SITE}{p}" for p, _ in dead}  # still recorded
+
+    snap, report = await run(snap, 2)  # nothing new ahead of them: tried again
+    assert all(u.attempts == 2 for u in snap.unreadable.values())
+    assert report.pdf_deferred == 0
+
+    files.requests.clear()
+    snap, report = await run(snap, 3)  # a second failure waits 40 hours
+    assert report.pdf_waiting == 3
+    assert not any(p.startswith(f"{UP}/gone") for p in files.paths())
+    assert all(f"{SITE}{p}" in snap.pages for p, _ in good)
+    assert set(snap.unreadable) == {f"{SITE}{p}" for p, _ in dead}
+
+
+async def test_a_long_document_is_read_over_several_runs_first_pages_first(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    places = ["Ambala", "Bidar", "Chamba", "Dhule", "Etawah"]
+    pages = [f"Section {n} covers lantern workshops in {p}. " + P1 for n, p in enumerate(places, 1)]
+    files.put(POLICY, make_pdf(pages))
+    url = f"{SITE}{POLICY}"
+
+    async def run(snap: Snapshot) -> tuple[Snapshot, knowledge.RefreshReport]:
+        return await _refresh(snap, allowlist, site, files, pdf_pages_per_run=2)
+
+    snap, report = await run(Snapshot())
+    held = snap.pages[url]
+    assert (held.page_count, held.next_page, len(held.blocks)) == (5, 3, 2)
+    assert url in report.pdf_in_progress
+    kb = KnowledgeBase(snap.pages.values(), allowlist)
+    assert kb.search("Ambala")[0].page == 1  # the beginning answers already
+    assert kb.search("Etawah") == []
+
+    files.requests.clear()
+    snap, report = await run(snap)
+    assert dict(files.requests)[POLICY] == {}  # downloaded again, to carry on
+    assert snap.pages[url].next_page == 5 and len(snap.pages[url].blocks) == 4
+
+    # The file changed on the server: read again from the first page.
+    files.put(
+        POLICY, make_pdf(["A new first page about harbour grants. " + P1, *pages[1:]]), version=2
+    )
+    snap, report = await run(snap)
+    assert snap.pages[url].next_page == 3 and "harbour grants" in snap.pages[url].blocks[0]
+
+    snap, _ = await run(snap)
+    snap, report = await run(snap)
+    assert snap.pages[url].next_page == 6 and not snap.pages[url].in_progress
+    assert url not in report.pdf_in_progress and len(snap.pages[url].blocks) == 5
+
+
+async def test_a_pdf_stopped_at_a_limit_is_read_on_when_the_limits_change(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    files.put(POLICY, make_pdf([P1 + "\n" + P2, P2 + "\n" + P3, P3 + "\n" + P1]))
+    url = f"{SITE}{POLICY}"
+    small = len(P1) + len(P2) + 40
+    snap, report = await _refresh(Snapshot(), allowlist, site, files, max_pdf_chars=small)
+    assert snap.pages[url].limited == "characters" and report.pdf_truncated == [url]
+
+    files.requests.clear()
+    snap, _ = await _refresh(snap, allowlist, site, files, max_pdf_chars=small)
+    assert "If-None-Match" in dict(files.requests)[POLICY]  # same limits: asked, kept
+    assert snap.pages[url].limited == "characters"
+
+    files.requests.clear()
+    snap, _ = await _refresh(snap, allowlist, site, files)
+    assert dict(files.requests)[POLICY] == {}  # other limits: downloaded and read on
+    stored = snap.pages[url]
+    assert not stored.limited and not stored.in_progress and len(stored.blocks) == 3
+    assert stored.read_with == reader_signature(RefreshPolicy(pause_s=0))
+
+
+async def test_an_unreadable_verdict_is_reached_again_under_other_limits(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    files.put(GUIDE, make_pdf([P3 + "\n" + P1] * 3))
+    snap, report = await _refresh(Snapshot(), allowlist, site, files, max_pdf_bytes=1500)
+    assert "larger than the" in report.pdf_unreadable[f"{SITE}{GUIDE}"]
+    snap, report = await _refresh(snap, allowlist, site, files)  # the ceiling was raised
+    assert f"{SITE}{GUIDE}" in report.pdf_added
+    assert f"{SITE}{GUIDE}" not in snap.unreadable
+
+
+async def test_a_read_that_may_go_better_next_time_is_retried_after_a_backoff(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = knowledge.read_pdf_isolated
+
+    async def stopped(path: Path, **limits: object) -> knowledge.PdfPart:
+        raise PdfUnreadable("the reader was stopped while opening it", lasting=False)
+
+    monkeypatch.setattr(knowledge, "read_pdf_isolated", stopped)
+    snap, _ = await _refresh(Snapshot(), allowlist, site, files)
+    bad = snap.unreadable[f"{SITE}{POLICY}"]
+    assert not bad.lasting and bad.retry_after == (NOW + timedelta(hours=20)).isoformat()
+
+    monkeypatch.setattr(knowledge, "read_pdf_isolated", real)
+    files.requests.clear()
+    snap2, report = await _refresh(snap, allowlist, site, files)  # same day: waits
+    assert POLICY not in files.paths() and report.pdf_waiting == 2
+    later, report = await refresh(
+        snap2,
+        allowlist,
+        site.fetch,
+        fetch_file=files.fetch,
+        policy=RefreshPolicy(pause_s=0),
+        now=NOW + timedelta(days=1),
+    )
+    assert f"{SITE}{POLICY}" in later.pages and f"{SITE}{POLICY}" not in later.unreadable
+
+
+async def test_all_pdf_text_together_stays_under_its_cap(
+    allowlist: Allowlist, site: FakeSite, files: FakeFiles
+) -> None:
+    policy_chars = sum(map(len, read_pdf(make_pdf([P1, P2, P3])).pages))
+    cap = policy_chars + 30
+    snap, report = await _refresh(Snapshot(), allowlist, site, files, max_pdf_chars_total=cap)
+    assert f"{SITE}{POLICY}" in snap.pages  # first in link order
+    assert report.pdf_capped == [f"{SITE}{GUIDE}"]  # reported, read only as far as fits
+    held = sum(sum(map(len, p.blocks)) for p in snap.pages.values() if p.kind == "pdf")
+    assert held <= cap
+
+
+_VOCAB = [f"term{i}" for i in range(20_000)]
+_CUMULATIVE = list(itertools.accumulate(1 / (i + 1) for i in range(len(_VOCAB))))
+_COMMON = ["state", "policy", "government", "digital", "startup", "scheme", "incentive", "district"]
+
+
+def _prose(rng: random.Random, chars: int) -> str:
+    """Synthetic text with a word-frequency curve like a policy's: a long tail of
+    rare words, and a few words in a good share of every page."""
+    words = rng.choices(_VOCAB, cum_weights=_CUMULATIVE, k=chars // 7)
+    words += rng.choices(_COMMON, k=chars // 70)
+    rng.shuffle(words)
+    return "\n".join(" ".join(words[i : i + 14]) + "." for i in range(0, len(words), 14))
+
+
+def test_search_at_the_pdf_text_cap_stays_inside_the_tool_budget() -> None:
+    from voqalize.sdk.gemini import TOOL_BUDGET_MS
+
+    rng = random.Random(41)
+    cap = RefreshPolicy().max_pdf_chars_total
+    al = Allowlist.from_json(_allowlist_doc())
+    per_pdf = 250_000
+    urls = [f"{SITE}{UP}/bench-{i}.pdf" for i in range(cap // per_pdf)]
+    hub = StoredPage(
+        f"{SITE}/policies/", "Policies", "docs", "approved", "", "", "", ("Docs.",),
+        pdf_links=tuple((u, f"Bench {i}") for i, u in enumerate(urls)),
+    )  # fmt: skip
+    pdfs = [
+        StoredPage(
+            u,
+            f"Bench {i}",
+            "docs",
+            "auto",
+            "",
+            "",
+            "",
+            tuple(_prose(rng, 2500) for _ in range(per_pdf // 2500)),
+            kind="pdf",
+        )
+        for i, u in enumerate(urls)
+    ]
+    kb = KnowledgeBase([hub, *pdfs], al)
+    assert sum(len(p.text) for p in kb.pages) >= cap * 0.9
+    worst = 0.0
+    for query in (
+        "state digital policy incentive for a startup in my district",
+        "government scheme",
+        "term1 term2 term3 policy",
+        "what is the policy",
+        "term5000 state",
+    ):
+        best = min(_timed(kb, query) for _ in range(3))
+        worst = max(worst, best)
+    assert worst < TOOL_BUDGET_MS / 2, f"{worst:.1f} ms"  # half: the rest of the tool's work
+
+
+def _timed(kb: KnowledgeBase, query: str) -> float:
+    started = time.perf_counter()
+    assert kb.search(query, 3)
+    return (time.perf_counter() - started) * 1000
+
+
+# ─── URLs ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        (f"{UP}/../../../plugins/x.pdf", f"{SITE}/wp-content/plugins/x.pdf"),
+        (f"{UP}/%2e%2e/%2E%2E/../plugins/x.pdf", f"{SITE}/wp-content/plugins/x.pdf"),
+        ("/a/./b/../c/", f"{SITE}/a/c/"),
+        ("/../../outside/", f"{SITE}/outside/"),
+        (f"{UP}/a%2fb.pdf", None),
+        (f"{UP}/a%5Cb.pdf", None),
+        (f"{UP}/%2e%2e%2Fplugins/x.pdf", None),
+        (f"{UP}/A Plan.pdf", f"{SITE}{UP}/A%20Plan.pdf"),
+        (f"{UP}/A%20Plan.pdf", f"{SITE}{UP}/A%20Plan.pdf"),
+        ("/x/%e0%b2%95/", f"{SITE}/x/%E0%B2%95/"),
+        ("/x/%ff/", f"{SITE}/x/%FF/"),  # kept as it came, not turned into U+FFFD
+        ("/100%/", f"{SITE}/100%25/"),
+    ],
+)
+def test_normalize_resolves_dot_segments_and_keeps_escapes(
+    given: str, expected: str | None
+) -> None:
+    assert normalize(given) == expected
+
+
+def test_no_spelling_of_a_path_escapes_the_uploads_rule() -> None:
+    al = Allowlist.from_json(_allowlist_doc())
+    for sneaky in (
+        f"{UP}/../../../plugins/x.pdf",
+        f"{UP}/%2e%2e/%2e%2e/%2e%2e/plugins/x.pdf",
+        "/wp-content/uploads/./../themes/x.pdf",
+    ):
+        url = normalize(sneaky)
+        assert url is not None and al.is_excluded(url), sneaky
+    assert normalize(f"{UP}/%2e%2e%2fplugins/x.pdf") is None
+
+
+def test_an_older_snapshot_is_read_under_the_current_spelling(tmp_path: Path) -> None:
+    old = {
+        "version": 1,
+        "built_at": "2026-10-01T00:00:00+00:00",
+        "known": {f"{SITE}/x/%e0%b2%95/": "2026-09-01"},
+        "pages": [
+            {
+                "url": f"{SITE}/x/%e0%b2%95/",
+                "title": "Lower-case escapes",
+                "section": "core",
+                "origin": "approved",
+                "lastmod": "2026-09-01",
+                "fetched_at": "",
+                "digest": "0",
+                "blocks": ["Text."],
+            }
+        ],
+        "pending_review": [],
+    }
+    path = tmp_path / "snapshot.json"
+    path.write_text(json.dumps(old), encoding="utf-8")
+    snap = Snapshot.load(path)
+    assert snap is not None
+    assert list(snap.pages) == [f"{SITE}/x/%E0%B2%95/"]
+    assert snap.pages[f"{SITE}/x/%E0%B2%95/"].url == f"{SITE}/x/%E0%B2%95/"
+    assert list(snap.known) == [f"{SITE}/x/%E0%B2%95/"]

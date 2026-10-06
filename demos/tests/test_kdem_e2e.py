@@ -69,6 +69,10 @@ NEWS = f"{SITE}/news/sample-headline/"
 # A PDF the resources page links to, read page by page; and one no page links to.
 POLICY_PDF = f"{SITE}/wp-content/uploads/2026/01/sample-startup-policy.pdf"
 UNINDEXED_PDF = f"{SITE}/wp-content/uploads/2026/01/not-in-the-index.pdf"
+# A PDF on another government site that the resources page links to: read and
+# cited, but the card is the KDEM page, which is all the snippet shows.
+STATE_PDF = "https://portal.example.gov/docs/sample-state-scheme.pdf"
+ASK_KANNADA = "ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in Kannada?"
 
 
 def _stored(url: str, title: str, section: str, *blocks: str) -> StoredPage:
@@ -95,7 +99,23 @@ SNAPSHOT = Snapshot(
                     "policies-resources",
                     "Reports on talent, startups and global capability centres in Karnataka.",
                 ),
-                pdf_links=((POLICY_PDF, "Sample Startup Policy"), (UNINDEXED_PDF, "Other")),
+                pdf_links=(
+                    (POLICY_PDF, "Sample Startup Policy"),
+                    (UNINDEXED_PDF, "Other"),
+                    (STATE_PDF, "Sample State Scheme"),
+                ),
+            ),
+            StoredPage(
+                STATE_PDF,
+                "Sample State Scheme",
+                "policies-resources",
+                "auto",
+                "",
+                "",
+                "",
+                ("The sample state scheme offers lantern workshop grants to rural makers.",),
+                kind="pdf",
+                host="portal.example.gov",
             ),
             StoredPage(
                 POLICY_PDF,
@@ -197,6 +217,22 @@ def _llm() -> ScriptedGemini:
                     request={"url": POLICY_PDF, "title": "the policy"},
                 ),
             ],
+            "What does the state scheme offer lantern makers?": [
+                call("search_kdem", request={"query": "state scheme lantern workshop grants"}),
+                reply_and_call(
+                    "The Sample State Scheme offers lantern workshop grants; the KDEM "
+                    "resources page links to it.",
+                    "show_link",
+                    request={"url": STATE_PDF},
+                ),
+            ],
+            # A few words that may be Kannada: answer in English, ask once in both.
+            "Naanu startup fund bagge": reply(
+                "We have the Beyond Bengaluru Cluster Seed Fund for startups. " + ASK_KANNADA
+            ),
+            "Haudu.": reply_and_call(
+                "Sure, let's continue in Kannada.", "set_language", request={"language": "kannada"}
+            ),
             "Show me the other document.": [
                 reply_and_call("Here.", "show_link", request={"url": UNINDEXED_PDF}),
             ],
@@ -238,7 +274,8 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text == _GREETING
         assert _GREETING == (
-            "Hello, I'm Aria from KDEM. How can we help you grow your business in Karnataka?"
+            "Hello, I'm Aria from KDEM. You can talk to me in English or Kannada. "
+            "How can we help you grow your business in Karnataka?"
         )
         check_voice_pair(rig, voice=VOICE, language="en")
 
@@ -334,6 +371,43 @@ async def test_a_pdf_answer_names_its_page_and_links_the_pdf() -> None:
         assert "incubator grant" in found
         assert rig.command("show_link") == {"url": POLICY_PDF, "title": "Sample Startup Policy"}
     assert "DOCUMENTS." in llm.captured_system_instructions[-1]
+
+
+async def test_a_pdf_on_another_site_is_cited_and_its_kdem_page_is_the_card() -> None:
+    """The snippet shows only karnatakadigital.in. A PDF from another site is
+    named, with its host and page, and the card is the approved page that links
+    it — whichever URL the model passes."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What does the state scheme offer lantern makers?")
+        found = _results(llm.captured_contents[-1])["search_kdem"]
+        assert "Sample State Scheme (PDF document on portal.example.gov, page 1)" in found
+        assert 'linked from the KDEM page "KDEM Resources and Reports"' in found
+        assert f"url: {RESOURCES}" in found and f"url: {STATE_PDF}" not in found
+        assert rig.command("show_link") == {"url": RESOURCES, "title": "KDEM Resources and Reports"}
+
+
+async def test_not_sure_it_is_kannada_asks_once_in_both_languages_then_switches_on_yes() -> None:
+    """A turn that only might be Kannada is answered in English with one
+    bilingual question, and nothing switches; a yes switches both legs."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Naanu startup fund bagge")
+        check_turn(rig, turn, units=1)
+        assert ASK_KANNADA in " ".join(u.text for u in turn.units)
+        check_voice_pair(rig, voice=VOICE, language="en")
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain) and brain.spoken == Language.EN
+
+        turn = await rig.driver.user_says("Haudu.")
+        check_turn(rig, turn, units=1)
+        check_voice_pair(rig, voice=VOICE, language="kn")
+        assert brain.spoken == Language.KN
+    prompt = llm.captured_system_instructions[-1]
+    assert "SURE, OR NOT SURE" in prompt and ASK_KANNADA in prompt
+    assert "borrowed English word" in prompt
 
 
 async def test_a_pdf_the_index_does_not_hold_is_not_sent() -> None:
