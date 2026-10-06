@@ -411,16 +411,44 @@ async def test_english_heard_in_hindi_goes_back_to_english() -> None:
         assert _legs(rig) == (VOICE, "en", "en")
 
 
-async def test_the_page_picker_moves_both_legs_and_the_next_idle_says_so() -> None:
-    """Picking Hindi on the page moves both legs from on_rtvi — no floor taken —
-    and the next quiet moment says the switch line in Hindi."""
+async def test_a_garbled_english_turn_is_switched_without_being_asked() -> None:
+    """The local call that did not switch: a Hindi opener reached the English
+    recognizer as "Uh much" and the desk answered in English. Nobody picks a
+    language here, so the desk has to hear it — the model calls switch_language
+    alone on that one turn, and the visitor is answered in Hindi, by the Hindi
+    voice, with the page following."""
+    llm = ScriptedGemini({"Uh much": call("switch_language", to={"language": "Hindi"})})
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Uh much")
+        assert [u.text for u in turn.units] == [SWITCH_LINE["Hindi"]]
+        assert _legs(rig) == (VOICE, "hi", "hi")
+        assert rig.command("language_changed") == {"language": "Hindi", "screen_language": "hi"}
+
+
+def test_the_prompt_teaches_both_directions_and_no_picker() -> None:
+    """Switching is the model's to notice, so the prompt carries the kiosk's
+    teaching: garbled English means another language, English spelled in another
+    script means English, and when unsure ask in both."""
+    brain = PetwellBrain(client=ScriptedGemini({}))  # pyright: ignore[reportArgumentType]
+    prompt = brain.system_instruction
+    for section in (
+        "HOW TO TELL THEY ARE NOT SPEAKING ENGLISH",
+        "HOW TO TELL THEY HAVE GONE BACK TO ENGLISH",
+        "SURE, OR NOT SURE",
+        "Uh much",
+        "nobody picks a language on the page",
+    ):
+        assert section in prompt, section
+
+
+async def test_there_is_no_language_event_from_the_page() -> None:
+    """A language event the page might still send is ignored: nothing moves."""
     async with demo("petwell", ScriptedGemini({})) as rig:
         await rig.driver.start_session()
         await rig.driver.send_ui_event("language_picked", {"language": "Hindi"})
         await asyncio.sleep(0.1)
-        assert _legs(rig) == (VOICE, "hi", "hi")
-        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
-        assert [u.text for u in turn.units] == [SWITCH_LINE["Hindi"]]
+        assert _legs(rig) == (VOICE, "en", "en")
 
 
 async def test_a_silent_turn_in_hindi_is_covered_in_hindi() -> None:

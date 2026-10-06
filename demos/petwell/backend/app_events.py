@@ -8,8 +8,10 @@ answered.
 
 Browsing (a page, an article) is only noted — a visitor reading is not one to be
 talked at. A booking step tapped, the booking panel opened, or Send Request owes
-a reply, which ``on_user_idle`` pays once they are quiet. A language picked on
-the page moves both legs at once, from ``on_rtvi``.
+a reply, which ``on_user_idle`` pays once they are quiet.
+
+There is no language event: nobody picks a language on the page. The desk hears
+which one the visitor is speaking and moves to it (see ``brain.py``).
 """
 
 from __future__ import annotations
@@ -18,8 +20,6 @@ from typing import Literal
 
 from voqalize.sdk import AppEvent, AppEvents
 
-from .language import LanguageName
-
 __all__ = [
     "PETWELL_EVENTS",
     "AppointmentRequested",
@@ -27,7 +27,6 @@ __all__ = [
     "BookingOpened",
     "BranchPicked",
     "CityPicked",
-    "LanguagePicked",
     "Page",
     "PagePicked",
     "PetwellEvent",
@@ -56,12 +55,6 @@ class BookingOpened(AppEvent):
     an article's call to action, which may name the service to book."""
 
     service_id: str = ""
-
-
-class LanguagePicked(AppEvent):
-    """The visitor chose a language on the page's picker."""
-
-    language: LanguageName = "English"
 
 
 class VisitTypePicked(AppEvent):
@@ -108,7 +101,6 @@ type PetwellEvent = (
     PagePicked
     | ArticleOpened
     | BookingOpened
-    | LanguagePicked
     | VisitTypePicked
     | CityPicked
     | BranchPicked
@@ -121,7 +113,6 @@ PETWELL_EVENTS = AppEvents[PetwellEvent](
     PagePicked,
     ArticleOpened,
     BookingOpened,
-    LanguagePicked,
     VisitTypePicked,
     CityPicked,
     BranchPicked,

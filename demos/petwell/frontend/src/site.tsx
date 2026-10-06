@@ -44,7 +44,7 @@ import {
 import { BookingDrawer, EmergencyPanel } from './booking';
 import { BRANCHES, branchesIn, CITIES, formatDate, getService, HELPLINES, OPENING_SOON, SERVICES } from './catalog';
 import { ARTICLES, getArticle, type Article, type HubTag } from './hub';
-import { cityName, FONT, locale, PICKABLE, serviceBlurb, serviceName, strings } from './i18n';
+import { cityName, FONT, locale, NATIVE_NAME, serviceBlurb, serviceName, strings } from './i18n';
 import { useSite } from './store';
 import { BOOKING_CSS } from './styles';
 import hero from './assets/hero.webp';
@@ -147,7 +147,7 @@ function Header({ presence }: { presence: ReactNode }) {
           ))}
         </nav>
         <div className="pw-header-actions">
-          <LanguagePicker />
+          <LanguageBadge />
           <button className="pw-sos" onClick={s.openEmergency} title={t.emergency}>
             <Siren size={15} /> <span>{t.emergency}</span>
           </button>
@@ -161,21 +161,15 @@ function Header({ presence }: { presence: ReactNode }) {
   );
 }
 
-function LanguagePicker() {
+/** Which language Tushar is speaking. Read-only: nobody picks one — he hears it
+ * and switches, and this changes with him. */
+function LanguageBadge() {
   const s = useSite();
+  const t = strings(s.lang);
   return (
-    <div className="pw-lang" role="group" aria-label="Language">
+    <div className="pw-lang" key={s.voiceLanguage} data-voice-language={s.voiceLanguage} title={t.speaks}>
       <Languages size={15} />
-      {PICKABLE.map((p) => (
-        <button
-          key={p.lang}
-          data-lang={p.lang}
-          className={s.lang === p.lang ? 'is-on' : ''}
-          onClick={() => s.lang !== p.lang && s.pickLanguage(p.lang)}
-        >
-          {p.label}
-        </button>
-      ))}
+      <span>{NATIVE_NAME[s.voiceLanguage] ?? s.voiceLanguage}</span>
     </div>
   );
 }
@@ -742,11 +736,10 @@ const SITE_CSS = `
 .pw-nav button:hover { background: var(--pw-tint); }
 .pw-nav button.is-current { color: var(--pw) !important; background: var(--pw-tint); }
 .pw-header-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; }
-.pw-lang { display: flex; align-items: center; gap: 2px; padding: 3px 3px 3px 9px; border: 1.5px solid var(--pw-line);
-  border-radius: 999px; color: var(--muted); }
-.pw-lang button { border: 0; background: none; padding: 4px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
-  cursor: pointer; color: var(--muted) !important; }
-.pw-lang button.is-on { background: var(--pw); color: #fff !important; }
+.pw-lang { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1.5px solid var(--pw-line);
+  border-radius: 999px; color: var(--pw); font-size: 13px; font-weight: 700; background: #fff;
+  animation: pw-lang-in .5s ease; }
+@keyframes pw-lang-in { 0% { background: var(--pw); color: #fff; transform: scale(1.06); } }
 .pw-cta { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; background: var(--pw);
   color: #fff !important; font-weight: 700; font-size: 14px; padding: 10px 16px; border-radius: 12px; cursor: pointer;
   white-space: nowrap; transition: background .15s, transform .15s; }
@@ -926,8 +919,7 @@ const SITE_CSS = `
   .pw-header-row { padding: 8px 12px; gap: 8px; }
   .pw-header-actions { gap: 6px; }
   .pw-header-actions .pw-cta, .pw-lang svg, .pw-logo-sub { display: none; }
-  .pw-lang { padding: 2px; }
-  .pw-lang button { padding: 4px 7px; }
+  .pw-lang { padding: 5px 9px; font-size: 12px; }
   .pw-sos { padding: 6px 8px; }
   .pw-nav { margin: 0 -4px; }
   .pw-nav button { padding: 6px 9px; font-size: 13px; }

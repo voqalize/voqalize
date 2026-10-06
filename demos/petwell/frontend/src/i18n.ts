@@ -1,8 +1,8 @@
 /**
  * The website's two languages — English and Hindi.
  *
- * Tushar speaks ten languages, and the page follows him into Hindi; in any other
- * language the page stays English (the brain's `language_changed` says which
+ * Nobody picks a language: Tushar hears which one the visitor speaks, switches
+ * to it, and the page follows him into Hindi; in any other language it stays English (the brain's `language_changed` says which
  * with `screen_language`). Branch names and addresses stay as written, and the
  * Health Hub articles are in English in both.
  */
@@ -11,11 +11,19 @@ import type { Service } from './catalog';
 
 export type Lang = 'en' | 'hi';
 
-/** The languages the visitor can pick on the page before or during a call. */
-export const PICKABLE: { lang: Lang; name: 'English' | 'Hindi'; label: string }[] = [
-  { lang: 'en', name: 'English', label: 'English' },
-  { lang: 'hi', name: 'Hindi', label: 'हिन्दी' },
-];
+/** Each language Tushar speaks, in its own script — for the header's badge. */
+export const NATIVE_NAME: Record<string, string> = {
+  English: 'English',
+  Hindi: 'हिन्दी',
+  Bengali: 'বাংলা',
+  Gujarati: 'ગુજરાતી',
+  Kannada: 'ಕನ್ನಡ',
+  Malayalam: 'മലയാളം',
+  Marathi: 'मराठी',
+  Punjabi: 'ਪੰਜਾਬੀ',
+  Tamil: 'தமிழ்',
+  Telugu: 'తెలుగు',
+};
 
 export const FONT: Record<Lang, string> = {
   en: '"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -39,7 +47,8 @@ const EN = {
   heroTitle: 'Expert vets, modern hospitals — and care that never closes',
   heroLead:
     'From vaccinations to advanced surgery, Petwell looks after dogs, cats and exotic pets in 15 hospitals across India.',
-  heroVoice: 'Prefer to talk? Tap the mic and Tushar will book it for you — in your language.',
+  heroVoice: 'Prefer to talk? Tap the mic and just speak — Tushar switches to your language by himself.',
+  speaking: 'Speaking',
   statVets: 'Qualified vets',
   statBranches: 'Branches',
   statCities: 'Cities',
@@ -170,7 +179,8 @@ const HI: Strings = {
   heroTitle: 'अनुभवी डॉक्टर, आधुनिक हॉस्पिटल — और देखभाल जो कभी बंद नहीं होती',
   heroLead:
     'टीकाकरण से लेकर एडवांस सर्जरी तक, पेटवेल पूरे भारत में 15 हॉस्पिटलों में कुत्तों, बिल्लियों और एक्ज़ॉटिक पेट्स की देखभाल करता है।',
-  heroVoice: 'बोलकर बुक करना है? माइक दबाइए — तुषार आपकी भाषा में बुकिंग कर देंगे।',
+  heroVoice: 'बोलकर बुक करना है? माइक दबाइए और बोलिए — तुषार अपने आप आपकी भाषा में बात करेंगे।',
+  speaking: 'भाषा',
   statVets: 'योग्य डॉक्टर',
   statBranches: 'ब्रांच',
   statCities: 'शहर',

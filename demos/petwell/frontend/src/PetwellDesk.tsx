@@ -200,15 +200,9 @@ function CallSession({
   // Memoized: this is a dependency of PipecatAppBase's connect-on-mount effect,
   // so an unmemoized object literal would re-fire that effect (and re-start the
   // call) on every render.
-  // The page's language rides the connect request, so Tushar greets in it and
-  // both legs are set before his first word. Read once: a call keeps its
-  // request, and a later switch goes over the call itself.
-  const { lang } = useSite();
-  const params = useMemo(
-    () => connectRequest({ surface: "petwell-web", language: lang === "hi" ? "Hindi" : "English" }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  // No language rides the request: every call opens in English, and Tushar
+  // switches by himself the moment he hears another language.
+  const params = useMemo(() => connectRequest({ surface: "petwell-web" }), []);
 
   return (
     <PipecatAppBase

@@ -126,11 +126,6 @@ export interface CityPicked {
   city?: string;
 }
 
-/** The visitor chose a language on the page's picker. */
-export interface LanguagePicked {
-  language?: 'English' | 'Hindi' | 'Bengali' | 'Gujarati' | 'Kannada' | 'Malayalam' | 'Marathi' | 'Punjabi' | 'Tamil' | 'Telugu';
-}
-
 /** The visitor opened a page from the site's navigation. */
 export interface PagePicked {
   page?: 'home' | 'services' | 'locations' | 'health_hub' | 'at_home';
@@ -216,7 +211,6 @@ export type AppEvent =
   | { event: 'booking_opened'; payload: BookingOpened }
   | { event: 'branch_picked'; payload: BranchPicked }
   | { event: 'city_picked'; payload: CityPicked }
-  | { event: 'language_picked'; payload: LanguagePicked }
   | { event: 'page_picked'; payload: PagePicked }
   | { event: 'service_picked'; payload: ServicePicked }
   | { event: 'slot_picked'; payload: SlotPicked }
@@ -230,7 +224,6 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'booking_opened',
   'branch_picked',
   'city_picked',
-  'language_picked',
   'page_picked',
   'service_picked',
   'slot_picked',

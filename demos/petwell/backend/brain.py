@@ -28,8 +28,8 @@ language it stays English.
 
 The browser reaches the brain outside any turn, over :meth:`on_rtvi`: pages and
 articles the visitor opens (noted), booking taps and Send Request (noted, and
-owed a reply on the next idle tick), and the page's language picker (both legs
-moved there and then, and the switch line said on the next idle tick).
+owed a reply on the next idle tick). Nobody picks a language on the page: the
+desk hears it.
 """
 
 from __future__ import annotations
@@ -74,7 +74,6 @@ from .app_events import (
     BookingOpened,
     BranchPicked,
     CityPicked,
-    LanguagePicked,
     Page,
     PagePicked,
     PetwellEvent,
@@ -176,14 +175,48 @@ THE BOOKING FLOW — it happens in a booking panel over the page. One step at a 
 
 EMERGENCIES COME FIRST. If the pet is bleeding heavily, not breathing, collapsed, having a seizure, hit by a vehicle, or has eaten poison, do NOT book. Call show_emergency with their city (if known) in the same response as a short, calm line: give the helpline for their region and tell them to come straight to the nearest 24x7 emergency branch now.
 
-LANGUAGE:
-- You speak {languages}. The call starts in the language the visitor chose on the page.
-- When the visitor asks for one of these languages, OR is plainly speaking one, call switch_language — do not wait to be asked, and do not switch on a single borrowed English word; Indian speech is full of them. Call it ALONE, with no words: the desk says the switch line itself in the new language, once the voice has changed. From their next turn, speak the new language.
-- Speech in another language reaches you through the current recognizer, so it can arrive garbled or in the wrong script: Hindi heard as English letters ("mera dog bimar hai"), or English heard in Devanagari ("आई वांट टू बुक"). Judge by the grammar words, not the nouns.
+LANGUAGE — it switches by itself; nobody picks a language on the page
+- You speak {languages}. You start in English. The visitor may speak English or any of these, and may change their mind at any point. The call is always in the language they are speaking, whatever the turn is — a request, a question or an answer. The moment they ask for a language, OR you can tell they are already speaking one, call switch_language with it — and call it ALONE, with no words at all. This is the one call that goes without a line: your voice is still in the old language when you write, so anything you say would come out in that one. The desk says the line itself, in the new language, once the voice has changed. Speak the new language from their next turn on. When you are sure, do not ask permission first; when you are not, see SURE, OR NOT SURE below.
+
+HOW TO TELL THEY ARE NOT SPEAKING ENGLISH — read this carefully, it is the part that goes wrong
+- While you are in English, the recognizer only knows English. It CANNOT write Hindi or any other Indian language. When a visitor speaks Hindi, you do not see Hindi — you see English words forced onto Hindi sounds, strung together in a way no English speaker would say. Examples of a visitor speaking Hindi:
+    "Mirror dog ko bow car hey."               = मेरे डॉग को बुखार है
+    "Mu j a pointment chahiye kal ka."          = मुझे अपॉइंटमेंट चाहिए कल का
+    "Uh much."                                  = a Hindi opener ("मुझे…") cut short — not English
+    "Miranama Rahul."                           = मेरा नाम राहुल — "Miranama" is not part of a name
+- So: if a turn in English does not make sense as English — odd word order, words that do not fit together, a fragment that answers nothing — the visitor is speaking an Indian language. Call switch_language IMMEDIATELY, in that same turn. Pick the language from the sounds that survive the garbling:
+    Hindi      — "mera", "mere", "mujhe", "naam", "hai", "kya", "nahi", "haan", "chahiye", "kutta", "billi", "bimar"
+    Marathi    — "maza", "majha", "naav", "aahe", "kay", "nahi", "paahije", "kutra"
+    Bengali    — "amar", "naam", "ki", "chai", "nei", "bolun", "kukur"
+    Gujarati   — "maru", "naam", "che", "joie", "nathi", "kutro"
+    Punjabi    — "mera", "naa", "ae", "chahida", "nahin", "kutta"
+    Tamil      — "naan", "enna", "illai", "vendum", "peyar", "sollunga", "romba", "naai"
+    Telugu     — "nenu", "naa", "peru", "emi", "kavali", "ledu", "cheppandi", "kukka"
+    Kannada    — "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "naayi"
+    Malayalam  — "ente", "peru", "venam", "illa", "entha", "parayu", "patti"
+  When the sounds do not point clearly at one, choose Hindi — it is the most common, and the visitor will correct you.
+- One such turn is enough. Do not wait for a second. Do not ask "sorry, could you repeat that?" in English first — that answer will be mangled too. Do not treat a garbled phrase as a name, a city or an answer.
+- What they said in that turn was lost to the English recognizer. The desk's own switch line, in their language, invites them to go on, so they say it again. Never act on the garbled words.
+- The same happens in the other direction. In Hindi, the recognizer writes everything in Devanagari. A Devanagari turn that is not Hindi — "नानु बेकु इल्ला" is Kannada, "नान एन्न" is Tamil — means they are speaking another language. Switch to it the same way.
+
+HOW TO TELL THEY HAVE GONE BACK TO ENGLISH — the other half, and it goes wrong just as often
+- In any Indian language, the recognizer writes everything in that language's script — English too. English spoken to it comes out as English words SPELLED in that script:
+    Hindi mode:    "आई वांट टू बुक एन अपॉइंटमेंट"     = "I want to book an appointment"
+    Tamil mode:    "வாட் இஸ் தி டைம்"                  = "What is the time"
+    Kannada mode:  "ಐ ವಾಂಟ್ ಟು ಸ್ಪೀಕ್ ಇನ್ ಇಂಗ್ಲಿಷ್"     = "I want to speak in English"
+- Judge by the small grammar words, never by the nouns. Dog, cat, vaccination, appointment, doctor, clinic are borrowed into every Indian language and prove nothing. The grammar words decide: I, am, is, are, the, a, in, to, want, can, what, yes, please — in Devanagari आई, ऍम, इज़, द, इन, टू, वांट, कैन, व्हाट, यस, प्लीज़. If the grammar words are English, the sentence is English.
+- Understanding the answer is not a reason to stay. When an answer arrives in English, do both in the same response: act on it with its tool, AND call switch_language with English, and speak English from then on.
+
+SURE, OR NOT SURE
+- Sure — they asked for a language, or a whole sentence is plainly in another one: call switch_language at once, in that turn, without asking and without a word of your own.
+- Not sure — a few words look like another language but the rest does not, or the turn is too short to tell: do NOT switch yet. Answer in the current language, and end with one short question in BOTH languages: "क्या हम हिंदी में बात करें? Shall we talk in Hindi?". On a yes in either language, call switch_language. Ask this at most once per language; if they say no, stay.
+- This works in every direction, English included. Never stay in a language they have left.
+- What does NOT count as switching: one borrowed English word inside a sentence in another language ("मुझे vaccination बुक करना है" is still Hindi). Judge by the whole sentence.
 - If they ask for a language not listed (Urdu, Odia…), say in the current language that you can continue in Hindi or English, and ask which.
-- Write every language in its own script — Devanagari for Hindi and Marathi, Tamil script for Tamil, and so on. Never write an Indian language in Latin letters; the voice reads Latin as English.
-- Keep branch names, service names and times as they are on screen if a translation would confuse.
-- The website is in English and Hindi only; in other languages the page stays English while you speak their language.
+- Speak the visitor's language in its own script — Devanagari for Hindi and Marathi, Tamil script for Tamil, and so on — English loan words included: अपॉइंटमेंट, वैक्सीनेशन, क्लिनिक. Never write an Indian language in the Latin alphabet; the voice reads Latin as English.
+- Tushar is a man. In languages that mark the speaker's gender on the verb — Hindi, Marathi, Punjabi, Gujarati — use the male forms: "मैं देख रहा हूँ", never "देख रही हूँ".
+- The website follows you into Hindi by itself. In any other language it stays in English — speak theirs and never read the page out or translate it to make up for it. Branch names, service names and times can stay as they are on screen.
+- Everything you are told — the page, a tool's reply, an article's facts — is written in English. Say it in the conversation's language.
 
 STYLE:
 - This is voice. One or two short sentences, never more than three. One question at a time.
@@ -314,9 +347,8 @@ class PetwellBrain(GeminiBrain):
         self.time: str | None = None
         # A switch the model asked for, made after its turn (see ``_switch_now``).
         self._switch_due: LanguageName | None = None
-        # What the next idle tick owes: a reply to a click, or a written line.
+        # Set when a click wants answering; paid on the next idle tick.
         self._owed_a_reply = False
-        self._line_owed: str | None = None
         self._fallback = FallbackLine()
 
     # ─── Tools ──────────────────────────────────────────────────────────
@@ -662,7 +694,6 @@ class PetwellBrain(GeminiBrain):
         English one as Hindi in English letters. The plain cases are decided here
         (:func:`reads_as_english`, :func:`reads_as_latin_hindi`)."""
         self._owed_a_reply = False
-        self._line_owed = None
         if self.language != "English" and reads_as_english(msg.text):
             self._append_note(await self._switch_to("English", by="the desk, which heard English"))
         elif self.language == "English" and reads_as_latin_hindi(msg.text):
@@ -672,12 +703,9 @@ class PetwellBrain(GeminiBrain):
             yield speech
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        """The visitor has gone quiet. A language they picked on the page is
-        answered with its switch line; a booking click or Send Request with the
-        next step; anything else — a visitor reading — with silence."""
-        if self._line_owed is not None:
-            line, self._line_owed = self._line_owed, None
-            return self._say(line)
+        """The visitor has gone quiet. A booking click or Send Request is
+        answered with the next step; anything else — a visitor reading — with
+        silence."""
         if not self._owed_a_reply:
             return _silence()
         self._owed_a_reply = False
@@ -689,12 +717,6 @@ class PetwellBrain(GeminiBrain):
         floor; :meth:`on_user_idle` answers the ones that want answering."""
         event = PETWELL_EVENTS.parse(msg)
         if event is None:
-            return
-        if isinstance(event, LanguagePicked):
-            note = await self._switch_to(event.language, by="the visitor, on the page's picker")
-            self._append_note(note)
-            if self.language == event.language:
-                self._line_owed = SWITCH_LINE[event.language]
             return
         applied = self.apply_event(event)
         if applied is None:
@@ -767,5 +789,3 @@ class PetwellBrain(GeminiBrain):
                     f"{event.pet_name or 'their pet'} well. Two sentences.",
                     True,
                 )
-            case LanguagePicked():
-                return None

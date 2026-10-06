@@ -8,7 +8,8 @@
  *
  * Three layers of state: the **page** being read (home, services, locations,
  * health hub or an article, at home), the **booking panel** over it with its six
- * steps, and the **language** the page is written in.
+ * steps, and the **language** — set only by Tushar's `language_changed`, never
+ * picked: he hears which language the visitor speaks and the page follows.
  *
  * A click is also *told* to the brain: the `pick*`/`open*` actions emit a typed
  * `AppEvent` (declared in `backend/app_events.py`, generated into
@@ -25,8 +26,11 @@ import {
   unhandledUiAction,
   type AppEvent,
   type FillDetails,
+  type LanguageChanged,
   type Navigate,
 } from './actions.gen';
+
+export type VoiceLanguage = LanguageChanged['language'];
 
 export type Page = Navigate['page'] | 'article';
 export type Step = 'visit' | 'location' | 'service' | 'slot' | 'details' | 'review' | 'done';
@@ -52,6 +56,8 @@ export interface Emergency {
 
 interface State {
   lang: Lang;
+  /** The language Tushar is speaking — the page follows it into Hindi only. */
+  voiceLanguage: VoiceLanguage;
   page: Page;
   articleId: string | null;
   /** The city the locations page (or home's finder) is showing. */
@@ -88,6 +94,7 @@ const BOOKING_RESET = {
 
 const INITIAL: State = {
   lang: 'en',
+  voiceLanguage: 'English',
   page: 'home',
   articleId: null,
   browseCity: null,
@@ -103,7 +110,6 @@ export interface SiteStore extends State {
   openPage: (page: Navigate['page']) => void;
   openArticle: (id: string) => void;
   browse: (city: string | null) => void;
-  pickLanguage: (lang: Lang) => void;
   // Booking taps.
   openBooking: (serviceId?: string) => void;
   closeBooking: () => void;
@@ -197,7 +203,10 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, bookingOpen: true, date, time, step: 'details' }));
   }, []);
 
-  const setLang = useCallback((lang: Lang) => setState((s) => ({ ...s, lang })), []);
+  const setLanguage = useCallback(
+    (voiceLanguage: VoiceLanguage, lang: Lang) => setState((s) => ({ ...s, voiceLanguage, lang })),
+    [],
+  );
 
   // ── Clicks ────────────────────────────────────────────────────────────────
 
@@ -216,13 +225,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [setArticle, emit],
   );
   const browse = useCallback((city: string | null) => setBrowse(city), [setBrowse]);
-  const pickLanguage = useCallback(
-    (lang: Lang) => {
-      setLang(lang);
-      emit({ event: 'language_picked', payload: { language: lang === 'hi' ? 'Hindi' : 'English' } });
-    },
-    [setLang, emit],
-  );
 
   const openBooking = useCallback(
     (serviceId?: string) => {
@@ -322,7 +324,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           setArticle(action.payload.article_id);
           break;
         case 'language_changed':
-          setLang(action.payload.screen_language);
+          setLanguage(action.payload.language, action.payload.screen_language);
           break;
         case 'start_booking':
           setVisitType(action.payload.visit_type);
@@ -380,7 +382,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           unhandledUiAction(action);
       }
     },
-    [setPage, setBrowse, setArticle, setLang, setVisitType, setCity, setBranch, setService, setSlot, reviewNow],
+    [setPage, setBrowse, setArticle, setLanguage, setVisitType, setCity, setBranch, setService, setSlot, reviewNow],
   );
 
   const store: SiteStore = {
@@ -388,7 +390,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     openPage,
     openArticle,
     browse,
-    pickLanguage,
     openBooking,
     closeBooking,
     pickVisitType,
