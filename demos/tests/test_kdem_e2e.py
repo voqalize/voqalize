@@ -9,7 +9,7 @@ The knowledge base is primed with a small synthetic snapshot of approved pages,
 so nothing here reaches the site (and ``conftest.py`` keeps the keeper off for
 every other test that opens a KDEM session).
 
-KDEM earns three checks of its own.
+KDEM earns four checks of its own.
 
 **Only approved pages leave the brain.** The browser snippet renders one command,
 ``show_link``, and the brain decides what goes in it: the model names a page, the
@@ -22,6 +22,10 @@ it is asked again at once and the answer's request carries the passages.
 ``show_link`` and ``set_language`` are not, so a line and a call share one
 response and the turn ends with it.
 
+**A PDF is cited by page and linked as itself.** A passage from a PDF the index
+holds says which document and which page, and ``show_link`` sends the PDF's own
+URL with its link text as the title — but only for a PDF the index holds.
+
 **No index is a fixed line, not an improvisation.** With no snapshot on a fresh
 host, the search hands back the don't-know line and the Contact Us page.
 
@@ -31,6 +35,7 @@ Run: ``cd demos && uv run pytest tests/test_kdem_e2e.py``
 from __future__ import annotations
 
 from collections.abc import Iterator
+from dataclasses import replace
 
 import pytest
 from google.genai import types
@@ -61,6 +66,9 @@ CONTACT = ALLOWLIST.contact_url
 # A news page the refresh added after the list was written: not on the allowlist,
 # but in an approved section and in the index, so Aria may link it.
 NEWS = f"{SITE}/news/sample-headline/"
+# A PDF the resources page links to, read page by page; and one no page links to.
+POLICY_PDF = f"{SITE}/wp-content/uploads/2026/01/sample-startup-policy.pdf"
+UNINDEXED_PDF = f"{SITE}/wp-content/uploads/2026/01/not-in-the-index.pdf"
 
 
 def _stored(url: str, title: str, section: str, *blocks: str) -> StoredPage:
@@ -80,11 +88,28 @@ SNAPSHOT = Snapshot(
                 "The cluster seed fund backs early-stage startups in Mysuru, Mangaluru "
                 "and Hubballi-Dharwad-Belagavi.",
             ),
-            _stored(
-                RESOURCES,
-                "KDEM Resources and Reports",
+            replace(
+                _stored(
+                    RESOURCES,
+                    "KDEM Resources and Reports",
+                    "policies-resources",
+                    "Reports on talent, startups and global capability centres in Karnataka.",
+                ),
+                pdf_links=((POLICY_PDF, "Sample Startup Policy"), (UNINDEXED_PDF, "Other")),
+            ),
+            StoredPage(
+                POLICY_PDF,
+                "Sample Startup Policy",
                 "policies-resources",
-                "Reports on talent, startups and global capability centres in Karnataka.",
+                "auto",
+                "",
+                "",
+                "",
+                (
+                    "The sample policy sets out how young companies are supported.",
+                    "Chapter two describes an incubator grant for student founders.",
+                ),
+                kind="pdf",
             ),
             _stored(
                 CONTACT,
@@ -163,6 +188,17 @@ def _llm() -> ScriptedGemini:
             ],
             "Show me a page that is not listed.": [
                 reply_and_call("Here.", "show_link", request={"url": "/not-a-listed-page/"}),
+            ],
+            "What does the startup policy offer student founders?": [
+                call("search_kdem", request={"query": "startup policy student founders grant"}),
+                reply_and_call(
+                    "The Sample Startup Policy describes an incubator grant, on page 2.",
+                    "show_link",
+                    request={"url": POLICY_PDF, "title": "the policy"},
+                ),
+            ],
+            "Show me the other document.": [
+                reply_and_call("Here.", "show_link", request={"url": UNINDEXED_PDF}),
             ],
             "Thank you.": reply("You're welcome."),
             "What is the weather on Mars?": [
@@ -282,6 +318,35 @@ async def test_an_alias_is_sent_as_its_canonical_page() -> None:
         check_turn(rig, turn, units=1)
         assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
         assert rig.command("show_link") == {"url": RESOURCES, "title": "KDEM Resources and Reports"}
+
+
+async def test_a_pdf_answer_names_its_page_and_links_the_pdf() -> None:
+    """The search result says which document and which page; the link is the PDF
+    itself, under its link text. The snippet opens any karnatakadigital.in URL in
+    a new tab, so a ``.pdf`` needs nothing more."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What does the startup policy offer student founders?")
+        found = _results(llm.captured_contents[-1])["search_kdem"]
+        assert "Sample Startup Policy (PDF document, page 2)" in found
+        assert f"url: {POLICY_PDF}" in found
+        assert "incubator grant" in found
+        assert rig.command("show_link") == {"url": POLICY_PDF, "title": "Sample Startup Policy"}
+    assert "DOCUMENTS." in llm.captured_system_instructions[-1]
+
+
+async def test_a_pdf_the_index_does_not_hold_is_not_sent() -> None:
+    """Linked from an approved page, but never read into the index (unreadable,
+    deferred or not yet fetched): not sent."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        before = len(rig.driver.ui_commands)
+        await rig.driver.user_says("Show me the other document.")
+        assert len(rig.driver.ui_commands) == before, rig.actions()
+        await rig.driver.user_says("Thank you.")
+    assert _results(llm.captured_contents[-1])["show_link"].startswith("Not sent:")
 
 
 async def test_an_indexed_news_page_may_be_linked() -> None:

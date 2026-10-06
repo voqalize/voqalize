@@ -29,15 +29,17 @@
       "approved": true,
       "auto_add": true,
       "post_types": ["page"],
+      "read_pdfs": true,
       "sitemap_source": "wp-sitemap-posts-page-1.xml (flat slugs)",
-      "notes": "Focus areas and programmes. A new page is added when an approved programme page links to it."
+      "notes": "Focus areas and programmes. A new page is added when an approved programme page links to it. The PDFs the approved pages here link to (their Policies & Schemes documents) are read."
     },
     "policies-resources": {
       "approved": true,
       "auto_add": true,
       "post_types": ["page"],
+      "read_pdfs": true,
       "sitemap_source": "wp-sitemap-posts-page-1.xml",
-      "notes": "Policies, guidelines, reports and the newsletter. Most substance is in PDFs, which are not read: the page titles are indexed and Aria links to the hub page."
+      "notes": "Policies, guidelines, reports and the newsletter. Most substance is in PDFs: the PDFs the approved pages here link to are read, page by page, and Aria links to the PDF itself. Scanned PDFs (images only) are not read."
     },
     "core-pages": {
       "approved": true,
@@ -135,7 +137,8 @@
     {"pattern": "^/(category|tag|agenda_category|agenda-speaker|mec-category)/", "why": "taxonomy archive"},
     {"pattern": "^/\\d{4}/\\d{2}/(\\d{2}/)?", "why": "date archive"},
     {"pattern": "(^|/)feed/$", "why": "feed"},
-    {"pattern": "^/wp-(json|admin|content|includes)/", "why": "WordPress internals and uploads"},
+    {"pattern": "^/wp-(json|admin|includes)/", "why": "WordPress internals"},
+    {"pattern": "^/wp-content/(?!uploads/.*\\.(?i:pdf)$)", "why": "WordPress internals, and uploads other than PDFs"},
     {"pattern": "^/wp-[^/]*\\.(php|xml|xsl)$", "why": "WordPress internals and sitemaps"}
   ],
   "held_patterns": [

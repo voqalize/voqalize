@@ -1,6 +1,7 @@
-"""What Aria may answer from: KDEM's approved pages, read the way a visitor sees them.
+"""What Aria may answer from: KDEM's approved pages, read the way a visitor sees
+them, and the PDF documents those pages link to.
 
-Five things live here, and each exists so the model never has to guess.
+Six things live here, and each exists so the model never has to guess.
 
 **The allowlist.** ``knowledge/approved_pages.json`` names every page Aria may
 answer from, one canonical URL per topic, with the duplicates folded in as
@@ -19,8 +20,18 @@ is approved for automatic additions, nothing else. A new page anywhere else is
 recorded in ``pending_review`` for a person, and a page gone from the sitemap, or
 one the list no longer allows, is dropped.
 
-**Search.** :class:`KnowledgeBase` is an in-memory BM25 index over the page text,
-cut into passages. It answers inside the tool budget because it never leaves
+**The documents.** Most of what KDEM publishes (policies, guidelines, reports,
+newsletters) is a PDF under ``/wp-content/uploads/``, which the sitemap does not
+list. A PDF is found from the links in the visible text of an approved page in a
+section that reads PDFs (``read_pdfs``), named by its link text, and read with
+:func:`read_pdf`, page by page, so an answer can say "page 12". It is re-read
+only when the server says the file changed (a conditional GET on its ETag and
+Last-Modified), and dropped as soon as no approved page links to it. A PDF that
+cannot be read (encrypted, damaged, too large, or scanned images with no text
+layer) is recorded with the reason, not indexed. There is no OCR.
+
+**Search.** :class:`KnowledgeBase` is an in-memory BM25 index over the page and
+PDF text, cut into passages; a PDF's passages keep their page number. It answers inside the tool budget because it never leaves
 memory.
 
 **The snapshot and its keeper.** The index is built from a snapshot on disk,
@@ -34,6 +45,7 @@ Run by hand (the urgent-change path), on each brains host, with the brain's own
 
     uv run python demos/kdem/backend/knowledge.py refresh
     uv run python demos/kdem/backend/knowledge.py refresh --force https://karnatakadigital.in/policies/
+    uv run python demos/kdem/backend/knowledge.py refresh --force https://karnatakadigital.in/wp-content/uploads/2026/01/policy.pdf
     uv run python demos/kdem/backend/knowledge.py search "seed fund for clusters"
     uv run python demos/kdem/backend/knowledge.py pending
 
@@ -47,7 +59,9 @@ import argparse
 import asyncio
 import contextlib
 import hashlib
+import io
 import json
+import logging
 import math
 import os
 import random
@@ -55,19 +69,21 @@ import re
 import sys
 import tempfile
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from collections import Counter
-from collections.abc import Awaitable, Callable, Iterable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import ClassVar, Literal, cast
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import quote, unquote, urljoin, urlsplit
 
 from loguru import logger
+from pypdf import PdfReader
 
 HOST = "karnatakadigital.in"
 SITE = f"https://{HOST}"
@@ -76,7 +92,10 @@ FETCH_TIMEOUT_S = 45.0
 
 ALLOWLIST_PATH = Path(__file__).resolve().parent / "knowledge" / "approved_pages.json"
 SNAPSHOT_FILE = "snapshot.json"
-SNAPSHOT_VERSION = 1
+SNAPSHOT_VERSION = 2
+"""2 added PDFs. A version 1 snapshot still loads: its pages count as pages, and
+the PDF links of each page that PDFs are found from are read on the next
+refresh."""
 
 ENV_DIR = "KDEM_KNOWLEDGE_DIR"
 """Where the snapshot lives. Defaults to :func:`default_cache_dir`."""
@@ -99,8 +118,9 @@ def normalize(url: str, *, base: str = SITE) -> str | None:
     """The one spelling of a site URL: ``https://karnatakadigital.in/<path>/``.
 
     Relative URLs resolve against ``base``. The scheme becomes https, ``www.`` is
-    dropped, the query and fragment go, and a path gets its trailing slash unless
-    its last segment is a file (``.pdf``). ``None`` for anything off the site."""
+    dropped, the query and fragment go, the path is percent-encoded one way, and a
+    path gets its trailing slash unless its last segment is a file (``.pdf``).
+    ``None`` for anything off the site."""
     try:
         parts = urlsplit(urljoin(base, url.strip()))
     except ValueError:
@@ -112,6 +132,8 @@ def normalize(url: str, *, base: str = SITE) -> str | None:
     if host != HOST:
         return None
     path = re.sub(r"/{2,}", "/", parts.path or "/")
+    # A link may spell a file name with raw spaces or with %20; both are one URL.
+    path = quote(unquote(path), safe="/!$&'()*+,;=:@~")
     if not path.startswith("/"):
         path = "/" + path
     last = path.rsplit("/", 1)[-1]
@@ -129,7 +151,14 @@ def path_of(url: str) -> str:
 
 
 Origin = Literal["approved", "auto"]
-"""``approved``: a page on the allowlist. ``auto``: a page a refresh added."""
+"""``approved``: a page on the allowlist. ``auto``: a page or PDF a refresh added."""
+
+Kind = Literal["page", "pdf"]
+"""``page``: an HTML page from the sitemap. ``pdf``: a PDF an approved page links to."""
+
+
+def is_pdf(url: str) -> bool:
+    return path_of(url).lower().endswith(".pdf")
 
 
 @dataclass(frozen=True)
@@ -140,6 +169,8 @@ class Section:
     post_types: tuple[str, ...]
     """The WordPress post types whose sitemaps list this section's pages."""
     notes: str = ""
+    read_pdfs: bool = False
+    """The PDFs its approved pages link to are read and answered from."""
 
 
 @dataclass(frozen=True)
@@ -216,6 +247,9 @@ class Allowlist:
                     raise _fail(
                         f"{page.url} is a hub for {page.hub_for!r}, not an auto-add section"
                     )
+        for s in self.sections.values():
+            if s.read_pdfs and not s.approved:
+                raise _fail(f"section {s.name!r} reads PDFs but is not approved")
         if normalize(self.contact_url) not in self.by_url:
             raise _fail("the contact page must be an approved page")
 
@@ -241,6 +275,7 @@ class Allowlist:
                 auto_add=_bool(s, "auto_add"),
                 post_types=tuple(_strs(s.get("post_types"), f"sections.{name}.post_types")),
                 notes=_str(s, "notes", default=""),
+                read_pdfs=s.get("read_pdfs") is True,
             )
         pages: list[ApprovedPage] = []
         for i, value in enumerate(_list(doc.get("pages"), "pages")):
@@ -284,27 +319,36 @@ class Allowlist:
         return n is not None and n in self._alias
 
     def is_excluded(self, url: str) -> bool:
-        path = path_of(url)
-        return any(r.pattern.search(path) for r in self.excluded)
+        return any(_matches(r, url) for r in self.excluded)
 
     def held_reason(self, url: str) -> str | None:
-        """Why a new flat page is held for a person even when a hub links to it."""
-        path = path_of(url)
-        return next((r.why for r in self.held if r.pattern.search(path)), None)
+        """Why a new flat page or a PDF is held for a person even when a hub links
+        to it."""
+        return next((r.why for r in self.held if _matches(r, url)), None)
 
-    def refusal(self, url: str, origin: Origin, section: str) -> str | None:
-        """Why the list, as it stands now, no longer allows a stored page; ``None``
-        when it does. A snapshot is checked against this on every load and every
+    def refusal(self, url: str, origin: Origin, section: str, kind: Kind = "page") -> str | None:
+        """Why the list, as it stands now, no longer allows a stored page or PDF;
+        ``None`` when it does. A snapshot is checked against this on every load and every
         refresh, so a change to the list takes effect without waiting for the
         site to change.
 
         An approved page must still be on the list. A page a refresh added must
         still be in a section that is approved for automatic additions, and a flat
-        page must not have since matched a held pattern."""
+        page must not have since matched a held pattern. A PDF must be in a
+        section that still reads PDFs and match no held pattern; whether an
+        approved page still links to it is the index's question
+        (:func:`linked_pdfs`)."""
         if self.is_excluded(url):
             return "matches an excluded pattern"
         if self.is_alias(url):
             return "is an alias of an approved page"
+        if kind == "pdf":
+            s = self.sections.get(section)
+            if s is None or not s.approved:
+                return f"section {section!r} is not approved"
+            if not s.read_pdfs:
+                return f"section {section!r} does not read PDFs"
+            return self.held_reason(url)
         if url in self.by_url:
             return None
         if origin != "auto":
@@ -320,7 +364,7 @@ class Allowlist:
 
     def permits(self, page: StoredPage) -> bool:
         """Whether Aria may still answer from, and link to, a stored page."""
-        return self.refusal(page.url, page.origin, page.section) is None
+        return self.refusal(page.url, page.origin, page.section, page.kind) is None
 
     def section_of_type(self, post_type: str) -> str | None:
         """The section a non-page post type belongs to. Pages are flat-slugged, so
@@ -331,6 +375,19 @@ class Allowlist:
     def hubs(self) -> dict[str, str]:
         """Approved hub URL → the section its new links are added to."""
         return {p.url: p.hub_for for p in self.pages if p.hub_for is not None}
+
+    @property
+    def pdf_sources(self) -> tuple[ApprovedPage, ...]:
+        """The approved pages whose PDF links are read, in list order: every
+        approved page in a section that reads PDFs."""
+        return tuple(p for p in self.pages if self.sections[p.section].read_pdfs)
+
+
+def _matches(rule: _Rule, url: str) -> bool:
+    """A rule matches the path as written or lower-cased: slugs are lower case,
+    but an uploaded file keeps the capitals it was given (``Speaker-List.PDF``)."""
+    path = path_of(url)
+    return bool(rule.pattern.search(path) or rule.pattern.search(path.lower()))
 
 
 def _obj(v: object, where: str) -> dict[str, object]:
@@ -364,6 +421,16 @@ def _bool(d: dict[str, object], key: str) -> bool:
     if not isinstance(v, bool):
         raise _fail(f"{key!r} must be true or false")
     return v
+
+
+def _pairs(v: object, where: str) -> tuple[tuple[str, str], ...]:
+    out: list[tuple[str, str]] = []
+    for item in _list(v, where):
+        pair = _strs(item, where)
+        if len(pair) != 2:
+            raise _fail(f"{where} must be a list of [url, text] pairs")
+        out.append((pair[0], pair[1]))
+    return tuple(out)
 
 
 def _rules(v: object, where: str) -> tuple[_Rule, ...]:
@@ -652,21 +719,84 @@ def _lines(node: _Node) -> list[str]:
     return lines
 
 
-def _links(node: _Node, base: str) -> list[str]:
+_GENERIC_LINK_TEXT = frozenset(
+    s.casefold()
+    for s in (
+        "Download",
+        "Download PDF",
+        "Download Now",
+        "Download Here",
+        "Click Here",
+        "Click to Download",
+        "Here",
+        "View",
+        "View PDF",
+        "View More",
+        "View Details",
+        "PDF",
+        "Open",
+        "Read",
+        "Read More",
+        "Know More",
+        "Learn More",
+    )
+)
+"""Link text that names nothing: a PDF linked only like this is named by its own
+metadata title or its file name instead."""
+
+
+def _link_text(a: _Node) -> str:
+    text = _clean(" ".join(_lines(a)))
+    for candidate in (text, a.attrs.get("title", ""), a.attrs.get("aria-label", "")):
+        candidate = _clean(candidate)
+        if candidate and candidate.casefold().rstrip(" .:»>") not in _GENERIC_LINK_TEXT:
+            return candidate
+    return ""
+
+
+_HEADINGS = frozenset({"h1", "h2", "h3", "h4", "h5", "h6"})
+
+
+def _links(node: _Node, base: str) -> tuple[list[str], list[tuple[str, str]]]:
+    """Every on-site link in the visible body, normalized, and every on-site PDF
+    link with the words that name it.
+
+    A PDF is named by its link text. When that names nothing (an icon, "View
+    More", "Download Now"), it is named by the heading just before it, the way a
+    card shows a document's title above its button — but only when that heading
+    leads to this one PDF and no other, so a section heading over a row of
+    buttons names none of them. Otherwise the name is empty."""
     out: list[str] = []
+    pdfs: dict[str, str] = {}
+    heading = ""
+    under: dict[str, list[str]] = {}  # heading text → the PDFs that follow it
+    order: list[tuple[str, str]] = []  # (heading, PDF) in document order
 
     def walk(n: _Node) -> None:
+        nonlocal heading
         for c in n.elements():
             if _dropped(c):
                 continue
+            if c.tag in _HEADINGS:
+                heading = _clean(" ".join(_lines(c)))
+                under.setdefault(heading, [])
             if c.tag == "a" and (href := c.attrs.get("href")):
                 u = normalize(href, base=base)
                 if u is not None:
                     out.append(u)
+                    if is_pdf(u):
+                        if not pdfs.get(u):
+                            pdfs[u] = _link_text(c)
+                        if heading and u not in under[heading]:
+                            under[heading].append(u)
+                            order.append((heading, u))
             walk(c)
 
     walk(node)
-    return list(dict.fromkeys(out))
+    for h, u in order:
+        if not pdfs[u] and under[h] == [u]:
+            pdfs[u] = h
+    return list(dict.fromkeys(out)), list(pdfs.items())
 
 
 @dataclass(frozen=True)
@@ -680,6 +810,8 @@ class Extracted:
     blurb) can be recognized and dropped when the index is built."""
     links: tuple[str, ...]
     """Every on-site link in the visible body, normalized."""
+    pdf_links: tuple[tuple[str, str], ...] = ()
+    """Every on-site PDF link in the visible body: its URL and its link text."""
 
     @property
     def text(self) -> str:
@@ -722,7 +854,7 @@ def extract(html: str, *, url: str = SITE + "/") -> Extracted:
         or doc
     )
     if _dropped(root):
-        return Extracted(title="", blocks=(), links=())
+        return Extracted(title="", blocks=(), links=(), pdf_links=())
     # Wrappers with a single visible child say nothing; the parts are below them.
     while True:
         kids = [c for c in root.elements() if not _dropped(c)]
@@ -745,10 +877,12 @@ def extract(html: str, *, url: str = SITE + "/") -> Extracted:
         seen.update(kept)
         if kept:
             blocks.append("\n".join(kept))
+    links, pdf_links = _links(root, url)
     return Extracted(
         title=_title_from(doc, root),
         blocks=tuple(blocks),
-        links=tuple(_links(root, url)),
+        links=tuple(links),
+        pdf_links=tuple(pdf_links),
     )
 
 
@@ -771,11 +905,32 @@ class FetchResult:
     url: str
     """Where the request ended up, after redirects."""
     body: str
+    headers: Mapping[str, str] = field(default_factory=dict[str, str])
+    """The response headers, names lower-cased. Only :data:`FetchFile` fills them."""
+    data: bytes = b""
+    """The raw body, for a file. Only :data:`FetchFile` fills it."""
 
 
 Fetch = Callable[[str], Awaitable[FetchResult]]
 """Fetch one URL. A 4xx/5xx answer is a result, not an exception; a network
 failure raises."""
+
+FetchFile = Callable[[str, Mapping[str, str], int], Awaitable[FetchResult]]
+"""Fetch one file: ``(url, request headers, max bytes)``. The result carries the
+response headers and the raw body in ``data``; a 304 answer to a conditional
+request is a result with an empty body. A file larger than ``max bytes`` raises
+:class:`TooLarge` (from its Content-Length when it gives one, else once that
+many bytes have been read); a network failure raises."""
+
+
+class TooLarge(Exception):
+    """A file over the size limit. Carries the response headers, so the next run
+    can ask whether it changed without downloading it again."""
+
+    def __init__(self, size: int, headers: Mapping[str, str]) -> None:
+        super().__init__(f"{size} bytes or more")
+        self.size = size
+        self.headers = dict(headers)
 
 
 class SitemapError(RuntimeError):
@@ -800,6 +955,39 @@ def _download(url: str) -> FetchResult:
 async def http_fetch(url: str) -> FetchResult:
     """The real fetcher: stdlib, off the event loop."""
     return await asyncio.to_thread(_download, url)
+
+
+_FILE_CHUNK = 64 * 1024
+
+
+def _download_file(url: str, headers: Mapping[str, str], max_bytes: int) -> FetchResult:
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **headers})
+    try:
+        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
+            got = {k.lower(): v for k, v in resp.headers.items()}
+            length = got.get("content-length", "")
+            if length.isdigit() and int(length) > max_bytes:
+                raise TooLarge(int(length), got)
+            # The socket timeout bounds each read; this bounds the whole body.
+            deadline = time.monotonic() + 4 * FETCH_TIMEOUT_S
+            parts: list[bytes] = []
+            size = 0
+            while chunk := resp.read(_FILE_CHUNK):
+                size += len(chunk)
+                if size > max_bytes:
+                    raise TooLarge(size, got)
+                if time.monotonic() > deadline:
+                    raise TimeoutError(f"{url} took too long to download")
+                parts.append(chunk)
+            return FetchResult(resp.status, resp.geturl(), "", got, b"".join(parts))
+    except urllib.error.HTTPError as e:
+        # urllib answers a 304 with an HTTPError too: it is a result, not a failure.
+        return FetchResult(e.code, url, "", {k.lower(): v for k, v in e.headers.items()})
+
+
+async def http_fetch_file(url: str, headers: Mapping[str, str], max_bytes: int) -> FetchResult:
+    """The real file fetcher: stdlib, off the event loop, size-limited."""
+    return await asyncio.to_thread(_download_file, url, headers, max_bytes)
 
 
 def _parse_xml(body: str, where: str) -> ET.Element:
@@ -847,7 +1035,183 @@ async def read_sitemap(fetch: Fetch, index_url: str) -> dict[str, SitemapEntry]:
     return entries
 
 
+# ─── PDF text ─────────────────────────────────────────────────────────────────
+
+# pypdf reports every quirk of a malformed file on the logging module; a refresh
+# records the files it could not read, and the rest is noise.
+logging.getLogger("pypdf").setLevel(logging.ERROR)
+
+_PDF_LINE_CHARS = 500
+"""A PDF's text is cut into sentences, and a sentence longer than this is cut at
+a space, so a passage never truncates one."""
+_PDF_MIN_LETTERS_PER_PAGE = 50
+"""Fewer letters than this per page, on average, is a scanned document: images
+of pages, with at most a stamp or a page number as text."""
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[\"'(\[\u201c\u2018]?[A-Z0-9\u0c80-\u0cff])")
+_HYPHENATED = re.compile(r"(?<=[a-z])-[ \t]*\n[ \t]*(?=[a-z])")
+_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+class PdfUnreadable(Exception):
+    """A PDF that cannot be answered from, and why: encrypted, damaged, or no
+    text layer."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class PdfText:
+    """A PDF as text, one entry per page in order: ``pages[0]`` is page 1."""
+
+    title: str
+    """The title in the file's own metadata; empty when it has none worth using."""
+    pages: tuple[str, ...]
+    truncated: bool = False
+    """The page, character or time limit stopped the read before the end."""
+
+
+def _pdf_lines(raw: str) -> list[str]:
+    """One page's text as lines a passage can hold: ligatures and full-width forms
+    folded (NFKC), soft hyphens and line-end hyphenation undone, the visual line
+    breaks of the layout joined, and the result cut into sentences."""
+    t = unicodedata.normalize("NFKC", raw).replace("\u00ad", "")
+    t = _HYPHENATED.sub("", _CONTROL.sub(" ", t))
+    lines: list[str] = []
+    for sentence in _SENTENCE_END.split(_clean(t)):
+        while len(sentence) > _PDF_LINE_CHARS:
+            cut = sentence.rfind(" ", 0, _PDF_LINE_CHARS)
+            cut = cut if cut > 0 else _PDF_LINE_CHARS
+            lines.append(sentence[:cut])
+            sentence = sentence[cut:].lstrip()
+        if sentence:
+            lines.append(sentence)
+    return lines
+
+
+def _metadata_title(reader: PdfReader) -> str:
+    try:
+        title = _clean((reader.metadata.title or "") if reader.metadata else "")
+    except Exception:
+        return ""
+    # Authoring tools often write the source file's name here; that names nothing.
+    if re.search(r"\.[a-z]{2,4}$|^microsoft |^untitled", title, re.I):
+        return ""
+    return title
+
+
+def file_title(url: str) -> str:
+    """A PDF named by its file name: ``Startup-Policy_2025.pdf`` → ``Startup Policy 2025``."""
+    name = unquote(path_of(url).rsplit("/", 1)[-1])
+    name = re.sub(r"\.pdf$", "", name, flags=re.I)
+    return _clean(re.sub(r"[-_+]+", " ", name)) or name
+
+
+def read_pdf(
+    data: bytes, *, max_pages: int = 300, max_chars: int = 300_000, timeout_s: float = 60.0
+) -> PdfText:
+    """The text of a PDF, page by page. Blocking: run it in a worker thread.
+
+    Reads at most ``max_pages`` pages and ``max_chars`` characters, and stops
+    after ``timeout_s``; what was read by then is kept and ``truncated`` is set.
+    A file protected by a password, one that cannot be parsed, and one with no
+    text layer (scanned pages) raise :class:`PdfUnreadable`. A file with an owner
+    password only, which opens without asking, is read."""
+    if b"%PDF-" not in data[:1024]:
+        raise PdfUnreadable("not a PDF file")
+    deadline = time.monotonic() + timeout_s
+    try:
+        reader = PdfReader(io.BytesIO(data), strict=False)
+        if reader.is_encrypted:
+            try:
+                opened = reader.decrypt("")
+            except Exception:
+                opened = 0
+            if not opened:
+                raise PdfUnreadable("encrypted: it needs a password to open")
+        count = len(reader.pages)
+    except PdfUnreadable:
+        raise
+    except Exception as e:
+        raise PdfUnreadable(f"damaged: could not be parsed ({type(e).__name__})") from e
+    if count == 0:
+        raise PdfUnreadable("damaged: it has no pages")
+    pages: list[str] = []
+    chars = 0
+    truncated = count > max_pages
+    for i in range(min(count, max_pages)):
+        if time.monotonic() > deadline:
+            truncated = True
+            break
+        try:
+            raw = reader.pages[i].extract_text() or ""
+        except Exception:  # one bad page is a blank page, not a lost document
+            raw = ""
+        text = "\n".join(_pdf_lines(raw))
+        if chars + len(text) > max_chars:
+            pages.append(text[: max_chars - chars].rsplit(" ", 1)[0])
+            truncated = True
+            break
+        chars += len(text)
+        pages.append(text)
+    letters = sum(c.isalpha() for p in pages for c in p)
+    if letters < max(100, _PDF_MIN_LETTERS_PER_PAGE * len(pages)):
+        raise PdfUnreadable("no text layer: scanned pages, which are not read (no OCR)")
+    return PdfText(_metadata_title(reader), tuple(pages), truncated)
+
+
 # ─── The snapshot ─────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class Validators:
+    """What the server said about a file, so the next run can ask whether it
+    changed instead of downloading it again."""
+
+    etag: str = ""
+    last_modified: str = ""
+    length: str = ""
+    """Content-Length, as sent."""
+
+    @classmethod
+    def of(cls, headers: Mapping[str, str]) -> Validators:
+        h = {k.lower(): v.strip() for k, v in headers.items()}
+        return cls(h.get("etag", ""), h.get("last-modified", ""), h.get("content-length", ""))
+
+    def conditional(self) -> dict[str, str]:
+        """The request headers that ask for the file only if it changed."""
+        out: dict[str, str] = {}
+        if self.etag:
+            out["If-None-Match"] = self.etag
+        if self.last_modified:
+            out["If-Modified-Since"] = self.last_modified
+        return out
+
+    def same_file(self, now: Validators) -> bool:
+        """Whether a full answer is the file already held: the same ETag, or the
+        same Content-Length and Last-Modified. For a server that ignores
+        conditional requests."""
+        if self.etag and self.etag == now.etag:
+            return True
+        return bool(self.length and self.last_modified) and (
+            (self.length, self.last_modified) == (now.length, now.last_modified)
+        )
+
+    def to_json(self) -> dict[str, str]:
+        return {"etag": self.etag, "last_modified": self.last_modified, "length": self.length}
+
+    @classmethod
+    def from_json(cls, raw: object) -> Validators:
+        if not isinstance(raw, dict):
+            return cls()
+        d = cast("dict[str, object]", raw)
+
+        def text(key: str) -> str:
+            v = d.get(key)
+            return v if isinstance(v, str) else ""
+
+        return cls(text("etag"), text("last_modified"), text("length"))
 
 
 @dataclass(frozen=True)
@@ -858,10 +1222,31 @@ class StoredPage:
     origin: Origin
     """``approved``: on the allowlist. ``auto``: added by a refresh."""
     lastmod: str
+    """A page's sitemap ``lastmod``; a PDF's Last-Modified header."""
     fetched_at: str
     digest: str
     blocks: tuple[str, ...]
+    """A page's top-level parts; a PDF's pages, ``blocks[0]`` being page 1."""
     links: tuple[str, ...] = ()
+    kind: Kind = "page"
+    pdf_links: tuple[tuple[str, str], ...] | None = None
+    """A page's PDF links and their link text. ``None``: not recorded (a page
+    read before PDFs were), so a page PDFs are found from is read again."""
+    validators: Validators = Validators()
+    """A PDF's ETag, Last-Modified and Content-Length when it was read."""
+
+
+@dataclass(frozen=True)
+class Unreadable:
+    """A linked PDF that is not answered from, and why. Kept so the next run asks
+    whether it changed rather than downloading it again."""
+
+    url: str
+    title: str
+    section: str
+    reason: str
+    validators: Validators
+    checked_at: str
 
 
 @dataclass(frozen=True)
@@ -884,6 +1269,8 @@ class Snapshot:
     not in here is new."""
     pages: dict[str, StoredPage] = field(default_factory=dict[str, StoredPage])
     pending_review: dict[str, Pending] = field(default_factory=dict[str, Pending])
+    unreadable: dict[str, Unreadable] = field(default_factory=dict[str, Unreadable])
+    """Linked PDFs that could not be read, by URL."""
 
     def to_json(self) -> dict[str, object]:
         return {
@@ -901,16 +1288,26 @@ class Snapshot:
                     "digest": p.digest,
                     "blocks": list(p.blocks),
                     "links": list(p.links),
+                    "kind": p.kind,
+                    **(
+                        {"pdf_links": [list(x) for x in p.pdf_links]}
+                        if p.pdf_links is not None
+                        else {}
+                    ),
+                    **({"validators": p.validators.to_json()} if p.kind == "pdf" else {}),
                 }
                 for p in self.pages.values()
             ],
             "pending_review": [vars(p) for p in self.pending_review.values()],
+            "unreadable": [
+                {**vars(u), "validators": u.validators.to_json()} for u in self.unreadable.values()
+            ],
         }
 
     @classmethod
     def from_json(cls, raw: object) -> Snapshot:
         doc = _obj(raw, "snapshot")
-        if doc.get("version") != SNAPSHOT_VERSION:
+        if doc.get("version") not in (1, SNAPSHOT_VERSION):
             raise _fail(f"snapshot version {doc.get('version')!r} is not {SNAPSHOT_VERSION}")
         known = {k: v for k, v in _obj(doc.get("known", {}), "known").items() if isinstance(v, str)}
         pages: dict[str, StoredPage] = {}
@@ -927,6 +1324,9 @@ class Snapshot:
                 digest=_str(p, "digest"),
                 blocks=tuple(_strs(p.get("blocks", []), "blocks")),
                 links=tuple(_strs(p.get("links", []), "links")),
+                kind="pdf" if p.get("kind") == "pdf" else "page",
+                pdf_links=_pairs(p["pdf_links"], "pdf_links") if "pdf_links" in p else None,
+                validators=Validators.from_json(p.get("validators")),
             )
         pending: dict[str, Pending] = {}
         for i, item in enumerate(_list(doc.get("pending_review", []), "pending_review")):
@@ -938,7 +1338,18 @@ class Snapshot:
                 reason=_str(p, "reason"),
                 first_seen=_str(p, "first_seen"),
             )
-        return cls(_str(doc, "built_at"), known, pages, pending)
+        unreadable: dict[str, Unreadable] = {}
+        for i, item in enumerate(_list(doc.get("unreadable", []), "unreadable")):
+            u = _obj(item, f"unreadable[{i}]")
+            unreadable[_str(u, "url")] = Unreadable(
+                url=_str(u, "url"),
+                title=_str(u, "title", default=""),
+                section=_str(u, "section"),
+                reason=_str(u, "reason"),
+                validators=Validators.from_json(u.get("validators")),
+                checked_at=_str(u, "checked_at", default=""),
+            )
+        return cls(_str(doc, "built_at"), known, pages, pending, unreadable)
 
     def save(self, path: Path) -> None:
         """Write atomically: a reader sees the old snapshot or the new one."""
@@ -990,7 +1401,19 @@ class RefreshPolicy:
     pause_s: float = 0.5
     """Between page reads, to stay gentle on the site."""
     force: frozenset[str] = frozenset()
-    """URLs to re-read whatever their ``lastmod`` says (the urgent-change path)."""
+    """URLs to re-read whatever their ``lastmod`` says (the urgent-change path).
+    A PDF URL is downloaded and read again without a conditional request."""
+    max_new_pdfs: int = 40
+    """At most this many PDFs not seen before are read per run, in the order the
+    approved pages list them; the rest wait for the next run. A PDF already held
+    is asked about with a conditional request every run and does not count."""
+    max_pdf_bytes: int = 25 * 1024 * 1024
+    """A larger PDF is not downloaded: checked against its Content-Length, and
+    again while it is read."""
+    max_pdf_pages: int = 300
+    max_pdf_chars: int = 300_000
+    pdf_timeout_s: float = 60.0
+    """Reading one PDF's text stops after this long, keeping what it has read."""
 
 
 @dataclass
@@ -1007,13 +1430,26 @@ class RefreshReport:
     """Pages that now redirect to another page on the site: not indexed under the
     old URL. The page they land on is judged by its own sitemap entry."""
     deferred: int = 0
+    pdf_added: list[str] = field(default_factory=list[str])
+    pdf_updated: list[str] = field(default_factory=list[str])
+    pdf_unchanged: list[str] = field(default_factory=list[str])
+    pdf_dropped: list[str] = field(default_factory=list[str])
+    """PDFs no approved page links to any more, or that answered 404/410."""
+    pdf_unreadable: dict[str, str] = field(default_factory=dict[str, str])
+    """PDFs read this run that cannot be answered from → why. Not indexed."""
+    pdf_truncated: list[str] = field(default_factory=list[str])
+    """PDFs indexed only up to the page, character or time limit."""
+    pdf_deferred: int = 0
 
     def summary(self) -> str:
         return (
             f"updated {len(self.updated)}, unchanged {len(self.unchanged)}, "
             f"added {len(self.added)}, held {len(self.held)}, dropped {len(self.dropped)}, "
             f"failed {len(self.failed)}, off-site {len(self.offsite)}, "
-            f"moved {len(self.moved)}, deferred {self.deferred}"
+            f"moved {len(self.moved)}, deferred {self.deferred}; PDFs: "
+            f"added {len(self.pdf_added)}, updated {len(self.pdf_updated)}, "
+            f"unchanged {len(self.pdf_unchanged)}, dropped {len(self.pdf_dropped)}, "
+            f"unreadable {len(self.pdf_unreadable)}, deferred {self.pdf_deferred}"
         )
 
 
@@ -1041,6 +1477,7 @@ async def refresh(
     allowlist: Allowlist,
     fetch: Fetch,
     *,
+    fetch_file: FetchFile | None = None,
     policy: RefreshPolicy | None = None,
     now: datetime | None = None,
     on_progress: Callable[[Snapshot], Awaitable[None]] | None = None,
@@ -1060,11 +1497,16 @@ async def refresh(
       A URL in any other section is held in ``pending_review``. Excluded URLs
       and aliases are noted and otherwise ignored. A new URL that redirects is
       not added: the page it lands on has a sitemap entry of its own.
+    - PDFs come last (:func:`_refresh_pdfs`): the ones the approved pages in a
+      PDF-reading section link to now are read with ``fetch_file``, and the rest
+      are dropped. Without ``fetch_file`` the PDFs still linked are kept as held
+      and none is downloaded.
 
     ``on_progress`` is handed the snapshot as it stands once the pages already
     known have been re-read, before any new page is: on a first build that is
     every approved page, so the caller can answer from them while the rest are
-    read.
+    read. When there are PDFs to download it is handed the snapshot once more,
+    with the new pages, before they are.
 
     The sitemap is read first and in full; if that fails this raises and the
     caller keeps the snapshot it has."""
@@ -1078,7 +1520,10 @@ async def refresh(
 
     pages: dict[str, StoredPage] = {}
     revoked: dict[str, Pending] = {}
+    held_pdfs = {u: p for u, p in snapshot.pages.items() if p.kind == "pdf"}
     for url, page in snapshot.pages.items():
+        if page.kind == "pdf":
+            continue
         why = allowlist.refusal(url, page.origin, page.section)
         if url in sitemap and why is None:
             pages[url] = page
@@ -1120,7 +1565,9 @@ async def refresh(
             return
         new = make(ex)
         if old is not None and old.digest == new.digest:
-            pages[url] = replace(old, lastmod=lastmod, fetched_at=stamp, links=new.links)
+            pages[url] = replace(
+                old, lastmod=lastmod, fetched_at=stamp, links=new.links, pdf_links=new.pdf_links
+            )
             report.unchanged.append(url)
         else:
             pages[url] = new
@@ -1129,12 +1576,20 @@ async def refresh(
             await asyncio.sleep(policy.pause_s)
 
     # Approved pages, then auto-added pages, re-read where their lastmod moved.
+    # A page PDFs are found from whose PDF links were never recorded (a snapshot
+    # from before PDFs were read) is read again too.
+    sources = {p.url for p in allowlist.pdf_sources}
     for ap in allowlist.pages:
         entry = sitemap.get(ap.url)
         if entry is None:
             continue
         held = pages.get(ap.url)
-        if held is None or held.lastmod != entry.lastmod or ap.url in forced:
+        if (
+            held is None
+            or held.lastmod != entry.lastmod
+            or ap.url in forced
+            or (ap.url in sources and held.pdf_links is None)
+        ):
 
             def approved_page(
                 ex: Extracted, ap: ApprovedPage = ap, lm: str = entry.lastmod
@@ -1149,6 +1604,7 @@ async def refresh(
                     _digest(ap.title, ex.blocks),
                     ex.blocks,
                     ex.links,
+                    pdf_links=ex.pdf_links,
                 )
 
             await reread(ap.url, entry.lastmod, approved_page)
@@ -1168,13 +1624,24 @@ async def refresh(
                     digest=_digest(title, ex.blocks),
                     blocks=ex.blocks,
                     links=ex.links,
+                    pdf_links=ex.pdf_links,
                 )
 
             await reread(url, lastmod, auto_page)
 
+    def so_far() -> Snapshot:
+        # The PDFs already held stay answerable while the run goes on; the index
+        # keeps only the ones an approved page still links to.
+        return Snapshot(
+            snapshot.built_at,
+            snapshot.known,
+            dict(pages) | held_pdfs,
+            snapshot.pending_review,
+            snapshot.unreadable,
+        )
+
     if on_progress is not None:
-        partial = Snapshot(snapshot.built_at, snapshot.known, dict(pages), snapshot.pending_review)
-        await on_progress(partial)
+        await on_progress(so_far())
 
     # New URLs: added, held or ignored.
     hubs = allowlist.hubs
@@ -1258,12 +1725,228 @@ async def refresh(
             _digest(title, ex.blocks),
             ex.blocks,
             ex.links,
+            pdf_links=ex.pdf_links,
         )
         report.added.append(entry.url)
         if policy.pause_s:
             await asyncio.sleep(policy.pause_s)
 
-    return Snapshot(stamp, known, pages, pending), report
+    async def handover() -> None:
+        if on_progress is not None:
+            await on_progress(so_far())
+
+    run = _PdfRun(snapshot, allowlist, pages, held_pdfs, pending, report, policy, forced, stamp)
+    unreadable = await _refresh_pdfs(run, fetch_file, handover)
+    return Snapshot(stamp, known, pages, pending, unreadable), report
+
+
+def linked_pdfs(
+    allowlist: Allowlist, pages: Mapping[str, StoredPage]
+) -> dict[str, tuple[str, str]]:
+    """Every PDF the approved pages in a PDF-reading section link to, as ``pages``
+    holds them now → ``(link text, section)``. The first page in list order that
+    links a PDF places it; a later page's text names it when the first's is empty."""
+    out: dict[str, tuple[str, str]] = {}
+    for ap in allowlist.pdf_sources:
+        page = pages.get(ap.url)
+        if page is None:
+            continue
+        for link, text in page.pdf_links or ():
+            url = allowlist.canonical(link)
+            if url is None:
+                continue
+            had = out.get(url)
+            if had is None:
+                out[url] = (text, ap.section)
+            elif not had[0] and text:
+                out[url] = (text, had[1])
+    return out
+
+
+@dataclass
+class _PdfRun:
+    """The PDF half of one refresh: what is held going in, and where it goes."""
+
+    snapshot: Snapshot
+    allowlist: Allowlist
+    pages: dict[str, StoredPage]
+    """The next snapshot's pages; the PDFs that stay or arrive are put here."""
+    held: dict[str, StoredPage]
+    """The PDFs the previous snapshot held."""
+    pending: dict[str, Pending]
+    report: RefreshReport
+    policy: RefreshPolicy
+    forced: set[str]
+    stamp: str
+    unreadable: dict[str, Unreadable] = field(default_factory=dict[str, Unreadable])
+
+    def plan(self) -> list[tuple[str, str, str]]:
+        """The PDFs to ask for this run, as ``(url, link text, section)``. Notes
+        the ones dropped, held for review and deferred on the way."""
+        linked = linked_pdfs(self.allowlist, self.pages)
+        self.report.pdf_dropped.extend(u for u in self.held if u not in linked)
+        known: list[tuple[str, str, str]] = []
+        new: list[tuple[str, str, str]] = []
+        for url, (text, section) in linked.items():
+            why = self.allowlist.refusal(url, "auto", section, "pdf")
+            if why is not None:
+                if url in self.held:
+                    self.report.pdf_dropped.append(url)
+                if _for_review(self.allowlist, url):
+                    was = self.snapshot.pending_review.get(url)
+                    first = was.first_seen if was else self.stamp
+                    self.pending[url] = Pending(url, section, "", why, first)
+                    if was is None:
+                        self.report.held.append(url)
+                continue
+            if url in self.held or url in self.snapshot.unreadable or url in self.forced:
+                known.append((url, text, section))
+            else:
+                new.append((url, text, section))
+        self.report.pdf_deferred = max(0, len(new) - self.policy.max_new_pdfs)
+        return known + new[: self.policy.max_new_pdfs]
+
+    def keep(self, url: str, text: str, section: str, **changes: str | Validators) -> None:
+        """What is held for ``url`` stays, under the title it is linked by now."""
+        if (old := self.held.get(url)) is not None:
+            title = text or old.title
+            self.pages[url] = replace(
+                old, title=title, section=section, digest=_digest(title, old.blocks), **changes
+            )
+        elif (bad := self.snapshot.unreadable.get(url)) is not None:
+            self.unreadable[url] = replace(bad, title=text or bad.title, section=section)
+
+    def cannot_read(self, url: str, text: str, section: str, reason: str, v: Validators) -> None:
+        logger.info("kdem: PDF {} is not indexed: {}", url, reason)
+        self.unreadable[url] = Unreadable(
+            url, text or file_title(url), section, reason, v, self.stamp
+        )
+        self.report.pdf_unreadable[url] = reason
+
+    async def read(self, fetch_file: FetchFile, url: str, text: str, section: str) -> None:
+        """Ask for one PDF and settle what its answer means for the index."""
+        old = self.held.get(url)
+        bad = self.snapshot.unreadable.get(url)
+        prior = old.validators if old else bad.validators if bad else Validators()
+        forced = url in self.forced
+        try:
+            got = await fetch_file(
+                url, {} if forced else prior.conditional(), self.policy.max_pdf_bytes
+            )
+        except TooLarge as e:
+            mb = self.policy.max_pdf_bytes // (1024 * 1024)
+            self.cannot_read(url, text, section, f"larger than {mb} MB", Validators.of(e.headers))
+            return
+        except Exception as e:  # a PDF that will not load keeps its last copy
+            logger.warning("kdem: could not read PDF {}: {}", url, e)
+            self.report.failed.append(url)
+            self.keep(url, text, section)
+            return
+        if got.status == 304 and (old is not None or bad is not None):
+            self.keep(url, text, section, fetched_at=self.stamp)
+            if old is not None:
+                self.report.pdf_unchanged.append(url)
+            return
+        if got.status in (404, 410):
+            if old is not None or bad is not None:
+                self.report.pdf_dropped.append(url)
+            return
+        if got.status != 200:
+            self.report.failed.append(url)
+            self.keep(url, text, section)
+            return
+        landed = self.allowlist.canonical(got.url) if got.url else url
+        if landed is None:
+            logger.warning("kdem: PDF {} redirects off the site, to {}", url, got.url)
+            self.report.offsite.append(url)
+            return
+        if landed != url:
+            logger.warning("kdem: PDF {} now redirects to {}; not indexed", url, got.url)
+            self.report.moved.append(url)
+            return
+        now = Validators.of(got.headers)
+        if not forced and prior.same_file(now):
+            # The server ignored the conditional request, and it is the same file.
+            self.keep(url, text, section, fetched_at=self.stamp, validators=now)
+            if old is not None:
+                self.report.pdf_unchanged.append(url)
+            return
+        policy = self.policy
+        try:
+            pdf = await asyncio.wait_for(
+                asyncio.to_thread(
+                    read_pdf,
+                    got.data,
+                    max_pages=policy.max_pdf_pages,
+                    max_chars=policy.max_pdf_chars,
+                    timeout_s=policy.pdf_timeout_s,
+                ),
+                # read_pdf stops itself at its timeout; this is for a single page
+                # that never returns. The thread is abandoned and the run goes on.
+                timeout=policy.pdf_timeout_s + 30,
+            )
+        except PdfUnreadable as e:
+            self.cannot_read(url, text, section, e.reason, now)
+            return
+        except TimeoutError:
+            reason = f"took over {policy.pdf_timeout_s:.0f} s to read"
+            self.cannot_read(url, text, section, reason, now)
+            return
+        title = text or pdf.title or file_title(url)
+        digest = _digest(title, pdf.pages)
+        self.pages[url] = StoredPage(
+            url,
+            title,
+            section,
+            "auto",
+            now.last_modified,
+            self.stamp,
+            digest,
+            pdf.pages,
+            kind="pdf",
+            pdf_links=(),
+            validators=now,
+        )
+        if pdf.truncated:
+            self.report.pdf_truncated.append(url)
+        if old is None:
+            self.report.pdf_added.append(url)
+        elif old.digest == digest:
+            self.report.pdf_unchanged.append(url)
+        else:
+            self.report.pdf_updated.append(url)
+
+
+async def _refresh_pdfs(
+    run: _PdfRun,
+    fetch_file: FetchFile | None,
+    before_downloads: Callable[[], Awaitable[None]],
+) -> dict[str, Unreadable]:
+    """The PDF half of a refresh. Adds the PDFs to ``run.pages`` and returns the
+    ones that could not be read.
+
+    - A PDF is read when an approved page in a PDF-reading section links to it,
+      and dropped when none does. An excluded PDF is ignored; a PDF in a held
+      pattern goes to ``pending_review``.
+    - A PDF already held (read, or found unreadable) is asked for with its ETag
+      and Last-Modified. A 304, or a full answer with the same ETag, or the same
+      Content-Length and Last-Modified, keeps what is held. A 404/410 drops it;
+      any other failure keeps it as it was.
+    - A PDF not seen before counts toward ``max_new_pdfs``.
+    - A PDF that is too large, encrypted, damaged or has no text is recorded in
+      ``report.pdf_unreadable`` and the returned dict, and not indexed."""
+    to_read = run.plan()
+    if fetch_file is None:
+        for url, text, section in to_read:
+            run.keep(url, text, section)
+        return run.unreadable
+    if to_read:
+        await before_downloads()
+    for url, text, section in to_read:
+        await run.read(fetch_file, url, text, section)
+        if run.policy.pause_s:
+            await asyncio.sleep(run.policy.pause_s)
+    return run.unreadable
 
 
 def _place(
@@ -1331,6 +2014,9 @@ class Passage:
     title: str
     snippet: str
     score: float
+    page: int | None = None
+    """The PDF page the passage is on, from 1; ``None`` for a web page."""
+    kind: Kind = "page"
 
 
 @dataclass(frozen=True)
@@ -1340,49 +2026,71 @@ class PageText:
     section: str
     lastmod: str
     text: str
+    kind: Kind = "page"
+
+
+_K1, _B = 1.2, 0.75
 
 
 class KnowledgeBase:
-    """The pages, cleaned and cut into passages, under a BM25 index. In memory."""
+    """The pages and PDFs, cleaned and cut into passages, under a BM25 index. In
+    memory. A PDF's passages never span two of its pages, so each one has a page
+    number."""
 
     def __init__(self, pages: Iterable[StoredPage], allowlist: Allowlist) -> None:
         self.allowlist = allowlist
         # Checked against the list as it is now, not as it was when the snapshot
         # was written: a page KDEM has taken off it is gone from the next session.
         stored = [p for p in pages if allowlist.permits(p)]
+        # And a PDF only while an approved page that is indexed links to it.
+        linked = linked_pdfs(allowlist, {p.url: p for p in stored if p.kind == "page"})
+        stored = [p for p in stored if p.kind == "page" or p.url in linked]
         # A block that appears on several pages is the site talking about itself
         # (a footer band, a contact blurb, an in-page menu), not the page.
         seen_on: Counter[str] = Counter()
         for p in stored:
             seen_on.update({_clean(b).casefold() for b in p.blocks})
         self._pages: dict[str, PageText] = {}
-        self._passages: list[tuple[str, str]] = []  # (url, text)
+        self._passages: list[tuple[str, int | None, str]] = []  # (url, PDF page, text)
         for p in stored:
             lines: list[str] = []
             seen: set[str] = set()
-            for b in p.blocks:
+            for number, b in enumerate(p.blocks, 1):
                 if seen_on[_clean(b).casefold()] >= _BOILERPLATE_PAGES:
                     continue
+                kept: list[str] = []
                 for ln in b.split("\n"):
                     if ln and ln not in seen:
                         seen.add(ln)
-                        lines.append(ln)
-            self._pages[p.url] = PageText(p.url, p.title, p.section, p.lastmod, "\n".join(lines))
-            for chunk in _chunks(lines):
-                self._passages.append((p.url, chunk))
-        self._postings: dict[str, list[tuple[int, int]]] = {}
-        self._lengths: list[int] = []
-        for i, (url, chunk) in enumerate(self._passages):
+                        kept.append(ln)
+                lines += kept
+                if p.kind == "pdf":
+                    self._passages += ((p.url, number, c) for c in _chunks(kept))
+            self._pages[p.url] = PageText(
+                p.url, p.title, p.section, p.lastmod, "\n".join(lines), p.kind
+            )
+            if p.kind == "page":
+                self._passages += ((p.url, None, c) for c in _chunks(lines))
+        # Each posting carries its passage's BM25 weight for the term, worked out
+        # here once, so a search only adds them up.
+        counts: list[Counter[str]] = []
+        lengths: list[int] = []
+        for url, _, chunk in self._passages:
             toks = tokens(self._pages[url].title) + tokens(chunk)
-            self._lengths.append(len(toks))
-            for term, tf in Counter(toks).items():
-                self._postings.setdefault(term, []).append((i, tf))
-        n = len(self._lengths)
-        self._avg = (sum(self._lengths) / n) if n else 0.0
-        self._idf = {
-            t: math.log(1 + (n - len(ps) + 0.5) / (len(ps) + 0.5))
-            for t, ps in self._postings.items()
-        }
+            counts.append(Counter(toks))
+            lengths.append(len(toks))
+        n = len(lengths)
+        avg = (sum(lengths) / n) if n else 0.0
+        df: Counter[str] = Counter()
+        for c in counts:
+            df.update(c.keys())
+        idf = {t: math.log(1 + (n - d + 0.5) / (d + 0.5)) for t, d in df.items()}
+        self._postings: dict[str, list[tuple[int, float]]] = {}
+        for i, c in enumerate(counts):
+            norm = _K1 * (1 - _B + _B * lengths[i] / avg)
+            for term, tf in c.items():
+                w = idf[term] * tf * (_K1 + 1) / (tf + norm)
+                self._postings.setdefault(term, []).append((i, w))
 
     @classmethod
     def empty(cls, allowlist: Allowlist) -> KnowledgeBase:
@@ -1396,30 +2104,26 @@ class KnowledgeBase:
         return list(self._pages.values())
 
     def page(self, url: str) -> PageText | None:
-        """The page ``url`` names, aliases and spelling variants included."""
+        """The page or PDF ``url`` names, aliases and spelling variants included."""
         c = self.allowlist.canonical(url)
         return self._pages.get(c) if c is not None else None
 
     def search(self, query: str, k: int = 3, *, per_page: int = 2) -> list[Passage]:
         """The ``k`` passages that best answer ``query``, at most ``per_page``
-        from any one page. Empty when nothing matches."""
-        k1, b = 1.2, 0.75
+        from any one page or PDF. Empty when nothing matches."""
         scores: dict[int, float] = {}
         for term in dict.fromkeys(tokens(query)):
-            idf = self._idf.get(term)
-            if idf is None:
-                continue
-            for i, tf in self._postings[term]:
-                norm = tf * (k1 + 1) / (tf + k1 * (1 - b + b * self._lengths[i] / self._avg))
-                scores[i] = scores.get(i, 0.0) + idf * norm
+            for i, w in self._postings.get(term, ()):
+                scores[i] = scores.get(i, 0.0) + w
         out: list[Passage] = []
         per: Counter[str] = Counter()
         for i, score in sorted(scores.items(), key=lambda kv: (-kv[1], kv[0])):
-            url, chunk = self._passages[i]
+            url, number, chunk = self._passages[i]
             if per[url] >= per_page:
                 continue
             per[url] += 1
-            out.append(Passage(url, self._pages[url].title, chunk, round(score, 3)))
+            page = self._pages[url]
+            out.append(Passage(url, page.title, chunk, round(score, 3), number, page.kind))
             if len(out) >= k:
                 break
         return out
@@ -1461,6 +2165,7 @@ class KnowledgeService:
         *,
         cache_dir: Path | None = None,
         fetch: Fetch = http_fetch,
+        fetch_file: FetchFile = http_fetch_file,
         policy: RefreshPolicy | None = None,
         every_s: float = REFRESH_EVERY_S,
         jitter_s: float = REFRESH_JITTER_S,
@@ -1468,6 +2173,7 @@ class KnowledgeService:
         self.allowlist = allowlist
         self._cache_dir = cache_dir
         self._fetch = fetch
+        self._fetch_file = fetch_file
         self._policy = policy or RefreshPolicy()
         self._every_s = every_s
         self._jitter_s = jitter_s
@@ -1583,13 +2289,14 @@ class KnowledgeService:
             # saved: only a finished refresh is written to disk.
             kb = await asyncio.to_thread(KnowledgeBase, partial.pages.values(), self.allowlist)
             self._install(partial, kb)
-            logger.info("kdem: knowledge in use, {} pages, while new pages are read", len(kb))
+            logger.info("kdem: knowledge in use, {} pages, while the rest are read", len(kb))
 
         try:
             snap, report = await refresh(
                 self._snapshot,
                 self.allowlist,
                 self._fetch,
+                fetch_file=self._fetch_file,
                 policy=policy or self._policy,
                 on_progress=progress,
             )
@@ -1618,19 +2325,28 @@ reads ``KNOWLEDGE.kb`` from its tools."""
 # ─── By hand ──────────────────────────────────────────────────────────────────
 
 
+def _cite(p: Passage) -> str:
+    if p.kind != "pdf":
+        return p.title
+    return f"{p.title} (PDF, page {p.page})" if p.page else f"{p.title} (PDF)"
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """``refresh`` (re-read what changed and save), ``search QUERY``, ``pending``."""
     parser = argparse.ArgumentParser(prog="knowledge.py", description=main.__doc__)
     parser.add_argument("--cache-dir", type=Path, default=None, help=f"default: ${ENV_DIR}")
     sub = parser.add_subparsers(dest="command", required=True)
     r = sub.add_parser("refresh", help="read the sitemap and re-read what changed")
-    r.add_argument("--force", action="append", default=[], metavar="URL", help="re-read this page")
+    r.add_argument(
+        "--force", action="append", default=[], metavar="URL", help="re-read this page or PDF"
+    )
     r.add_argument("--rebuild", action="store_true", help="start from an empty snapshot")
     r.add_argument("--max-new", type=int, default=RefreshPolicy.max_new)
+    r.add_argument("--max-new-pdfs", type=int, default=RefreshPolicy.max_new_pdfs)
     s = sub.add_parser("search", help="search the saved snapshot")
     s.add_argument("query")
     s.add_argument("-k", type=int, default=5)
-    sub.add_parser("pending", help="list pages held for review")
+    sub.add_parser("pending", help="list pages held for review and PDFs that cannot be read")
     args = parser.parse_args(argv)
 
     service = KnowledgeService(ALLOWLIST, cache_dir=args.cache_dir)
@@ -1638,9 +2354,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if snap is not None and not (args.command == "refresh" and args.rebuild):
         service.prime(snap)
     if args.command == "refresh":
-        policy = RefreshPolicy(max_new=args.max_new, force=frozenset(args.force))
+        policy = RefreshPolicy(
+            max_new=args.max_new, max_new_pdfs=args.max_new_pdfs, force=frozenset(args.force)
+        )
         report = asyncio.run(service.refresh_now(policy=policy))
-        print(f"{service.path}: {len(service.kb)} pages; {report.summary()}")
+        pdfs = sum(p.kind == "pdf" for p in service.kb.pages)
+        print(f"{service.path}: {len(service.kb) - pdfs} pages, {pdfs} PDFs; {report.summary()}")
         for label, urls in (
             ("updated", report.updated),
             ("added", report.added),
@@ -1649,16 +2368,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             ("failed", report.failed),
             ("off-site", report.offsite),
             ("moved", report.moved),
+            ("pdf added", report.pdf_added),
+            ("pdf updated", report.pdf_updated),
+            ("pdf dropped", report.pdf_dropped),
+            ("truncated", report.pdf_truncated),
         ):
             for u in urls:
-                print(f"  {label:9} {u}")
+                print(f"  {label:11} {u}")
+        for u, why in report.pdf_unreadable.items():
+            print(f"  {'unreadable':11} {u}  ({why})")
         return 1 if report.failed else 0
     if args.command == "search":
         for p in service.kb.search(args.query, args.k):
-            print(f"[{p.score}] {p.title} <{p.url}>\n  {p.snippet.replace(chr(10), ' / ')[:300]}")
+            print(f"[{p.score}] {_cite(p)} <{p.url}>\n  {p.snippet.replace(chr(10), ' / ')[:300]}")
         return 0
     for p in sorted(service.snapshot.pending_review.values(), key=lambda p: p.url):
         print(f"{p.section:24} {p.url}  ({p.reason})")
+    for u in sorted(service.snapshot.unreadable.values(), key=lambda u: u.url):
+        print(f"{'unreadable PDF':24} {u.url}  ({u.reason})")
     return 0
 
 

@@ -3,7 +3,9 @@
 Aria is a voice assistant for the Karnataka Digital Economy Mission's website.
 A visitor clicks "Talk to Aria" and asks about KDEM's programmes, policies,
 events, reports or news. She answers in a sentence or two from KDEM's approved
-pages, then shows a link card to the page that has the full answer. She speaks
+pages and the PDFs they link to, then shows a link card to the page or PDF that
+has the full answer. When the answer is in a PDF she says where, for example
+"the Startup Policy, page 12". She speaks
 English by default and switches to Kannada when the visitor asks for it or
 speaks it.
 
@@ -15,7 +17,7 @@ never looks for a frontend here and it is not a card on `/demos`.
 |---|---|
 | `backend/brain.py` | Aria: the prompt, the greeting and three tools (`search_kdem`, `show_link`, `set_language`) |
 | `backend/content.py` | The languages table and the page list in the prompt |
-| `backend/knowledge.py` | The approved-page list, visible-text extraction, sitemap refresh and in-memory search |
+| `backend/knowledge.py` | The approved-page list, visible-text extraction, PDF text extraction, sitemap and PDF refresh, and in-memory search |
 | `backend/knowledge/` | `approved_pages.json`, which KDEM reviews, and its README |
 | `embed/voqalize-aria-kdem.html` | The snippet that is pasted into the site |
 
@@ -51,9 +53,12 @@ The snippet and the brain share two things:
   model names and sends it only if the current index holds that page, using the
   page's own title. An approved page the refresh dropped (deleted, unpublished,
   or now redirecting elsewhere) is not sent, and the prompt's page list leaves
-  it out too. Before the first index exists, Contact Us is the only page sent.
-  The snippet checks again that the host is karnatakadigital.in, then shows the
-  link as a card that opens in a new tab.
+  it out too. A PDF is sent only if the index holds it: an approved page links
+  to it and the refresh read it. Before the first index exists, Contact Us is
+  the only page sent. The snippet checks again that the host is
+  karnatakadigital.in, then shows the link as a card that opens in a new tab.
+  A PDF URL (`/wp-content/uploads/...pdf`) passes the same check and opens in
+  the browser's PDF viewer; the snippet needs no change for it.
 
 The site has to allow the microphone for its own pages. If it sends a
 `Permissions-Policy` header, that header must include `microphone=(self)`.
@@ -68,8 +73,15 @@ waiting for it.
 
 On a host with no snapshot, the first refresh reads the approved pages first
 and Aria answers from them as soon as they are read, a minute or two after the
-first session starts. New news and event pages follow when the refresh
-finishes. Until the approved pages are in, Aria says she does not have the
+first session starts. New news and event pages follow, then the PDFs those
+approved pages link to: the news and events are answered from before the PDFs
+are downloaded, and the PDFs once the refresh finishes. After that, a PDF is downloaded again only when the server says it changed.
+
+PDFs are read with `pypdf`, page by page, in a worker thread, with limits on
+size (25 MB), pages (300), text (300,000 characters) and time (60 seconds) per
+file. A PDF that is encrypted, damaged, too large or scanned (images with no
+text layer) is not answered from; `pending` lists them with the reason. There
+is no OCR. Until the approved pages are in, Aria says she does not have the
 answer and offers Contact Us.
 
 The brains container is started with no volume today
@@ -100,9 +112,10 @@ review and why.
 ## Tests
 
 ```sh
-cd demos && uv run pytest tests/test_kdem_e2e.py tests/test_kdem_knowledge.py
+cd demos && uv run pytest tests/test_kdem_e2e.py tests/test_kdem_knowledge.py tests/test_kdem_pdfs.py
 ```
 
-Both files run without network access. The e2e tests load a small, made-up
+All three files run without network access. The PDFs in the tests are built in
+the test from a few neutral sentences. The e2e tests load a small, made-up
 snapshot into the knowledge base, and `tests/conftest.py` turns the background
 refresh off for every test.

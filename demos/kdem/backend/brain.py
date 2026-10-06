@@ -2,22 +2,25 @@
 
 A visitor to KDEM's site (the Karnataka Digital Economy Mission) clicks "Talk to
 Aria" and asks a question about doing business in Karnataka. Aria answers from
-the site's own approved pages, in a sentence or two, and offers the page that
-says it in full as a link card beside her face.
+the site's own approved pages and the PDF documents they link to (policies,
+guidelines, reports, newsletters), in a sentence or two, and offers the page or
+the PDF that says it in full as a link card beside her face.
 
 Three things shape every decision here.
 
 **She answers only from the pages KDEM approved.** :meth:`search_kdem` reads the
 in-memory index ``knowledge.py`` keeps of those pages — their visible text, one
-canonical URL per topic, refreshed from the sitemap about once a day — and the
-prompt holds her to what comes back. When nothing does, she says so in one fixed
+canonical URL per topic, refreshed from the sitemap about once a day — and of
+the text of the PDFs they link to, page by page, so she can say where in a
+document the answer is. The prompt holds her to what comes back. When nothing does, she says so in one fixed
 line and offers Contact Us. A government agency's assistant that improvises a
 scheme, a figure or a deadline is worse than one that says it does not know.
 
 **The model never supplies a URL the brain trusts.** :meth:`show_link` takes what
 the model names, canonicalises it, and sends it only if the index holds that page
-now — an approved page the last refresh read, or a page it added — with the
-page's own title, not the model's. A listed page the refresh dropped (deleted,
+now — an approved page the last refresh read, a page it added, or a PDF an
+approved page links to and the refresh read — with the page's own title, not
+the model's. A listed page the refresh dropped (deleted,
 unpublished, or redirecting elsewhere) is not sent; before the first index
 exists, only Contact Us is. The browser snippet checks the host again, but the
 brain is where "only approved pages" is decided.
@@ -55,7 +58,7 @@ from voqalize.sdk import Action, Session, Speech
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
 from .content import CONTACT_PATH, OPENING, SPEECH, LanguageName, page_digest
-from .knowledge import ALLOWLIST, KNOWLEDGE, path_of
+from .knowledge import ALLOWLIST, KNOWLEDGE, Passage, path_of
 
 AGENT_NAME = "Aria"
 
@@ -86,6 +89,8 @@ search_kdem is the one call that takes no line: it is silent and comes straight 
 ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from what search_kdem returns. Search before you answer any question about KDEM or Karnataka's digital economy — even one you think you know. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer the Contact Us page with show_link ({CONTACT_PATH}).
 
 THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then offer the page that says it in full with show_link, in the same response. Do not read a page aloud; the link is there for that. Pass show_link a URL that search_kdem returned or one from THE PAGES below — never one you made up or one from outside karnatakadigital.in.
+
+DOCUMENTS. Many results come from KDEM's PDF documents — policies, guidelines, reports and newsletters — and are marked "PDF document, page N". When you answer from one, say which document and where, in words, for example "the Startup Policy says so on page 12", and offer the PDF itself with show_link, passing its url exactly as search_kdem gave it.
 
 VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
 
@@ -121,12 +126,13 @@ def _prompt(where: str = "") -> str:
 
 
 class ShowLink(Action, name="show_link"):
-    """Brain → browser: a link card to one KDEM page, opened in a new tab.
+    """Brain → browser: a link card to one KDEM page or PDF, opened in a new tab.
 
     The snippet in ``demos/kdem/embed/`` renders this and nothing else."""
 
     url: str
-    """An absolute ``https://karnatakadigital.in/...`` URL, chosen by the brain."""
+    """An absolute ``https://karnatakadigital.in/...`` URL, chosen by the brain: a
+    page, or a PDF under ``/wp-content/uploads/``."""
     title: str
     """The page's own title, as the card shows it."""
 
@@ -141,8 +147,9 @@ class SearchRequest(BaseModel):
 
 class LinkRequest(BaseModel):
     url: str = Field(
-        description="The page to offer: a URL that search_kdem returned, or a path from "
-        "THE PAGES, e.g. '/policies/'. Only karnatakadigital.in pages are sent."
+        description="The page or PDF to offer: a URL that search_kdem returned, or a "
+        "path from THE PAGES, e.g. '/policies/'. Only karnatakadigital.in pages and "
+        "documents are sent."
     )
     title: str = Field(
         "",
@@ -162,7 +169,8 @@ def _page(url: str) -> tuple[str, str] | None:
     """The canonical URL and title of the page ``url`` names, if Aria may link it.
 
     A page the index holds now (aliases fold into it): an approved page the last
-    refresh read, under the list's title, or a news or event page it added. A
+    refresh read, under the list's title, a news or event page it added, or a
+    PDF an approved page links to, under its link text. A
     page on the list that the refresh dropped (gone from the sitemap, a 404, or a
     redirect elsewhere) is ``None``. Until the first index exists the one page
     sent is Contact Us, so the don't-know answer still has its link. Anything
@@ -180,6 +188,14 @@ def _page(url: str) -> tuple[str, str] | None:
     if approved is not None:
         return approved.url, approved.title
     return indexed.url, indexed.title or path_of(indexed.url)
+
+
+def _source(p: Passage) -> str:
+    """How a search result names where it came from: a page by its title, a PDF
+    as a document, with the page the passage is on."""
+    if p.kind != "pdf":
+        return p.title
+    return f"{p.title} (PDF document, page {p.page})" if p.page else f"{p.title} (PDF document)"
 
 
 def _where_they_started(init: dict[str, Any]) -> str:
@@ -258,9 +274,9 @@ class KdemBrain(GeminiBrain):
 
     @needs_result_now
     async def search_kdem(self, request: SearchRequest) -> str:
-        """Search KDEM's approved website pages. Call it before answering any question
-        about KDEM, its programmes, policies, events, reports or news, and answer only
-        from what it returns."""
+        """Search KDEM's approved website pages and the PDF documents they link to.
+        Call it before answering any question about KDEM, its programmes, policies,
+        events, reports or news, and answer only from what it returns."""
         kb = KNOWLEDGE.kb
         if len(kb) == 0:
             logger.warning("kdem: search with an empty knowledge base")
@@ -277,7 +293,7 @@ class KdemBrain(GeminiBrain):
                 f"Contact Us page ({CONTACT_PATH}) with show_link."
             )
         found = "\n\n".join(
-            f"[{i}] {p.title}\nurl: {p.url}\n{p.snippet}" for i, p in enumerate(passages, 1)
+            f"[{i}] {_source(p)}\nurl: {p.url}\n{p.snippet}" for i, p in enumerate(passages, 1)
         )
         return (
             "From karnatakadigital.in. Answer only from this; if it does not answer the "
@@ -285,15 +301,16 @@ class KdemBrain(GeminiBrain):
         )
 
     async def show_link(self, request: LinkRequest) -> str:
-        """Put a link card to one KDEM page beside you; it opens in a new tab. Say your
-        one or two sentences and call this in the same response. Only approved
-        karnatakadigital.in pages are sent."""
+        """Put a link card to one KDEM page or PDF document beside you; it opens in a
+        new tab. Say your one or two sentences and call this in the same response.
+        Only approved karnatakadigital.in pages and the PDFs they link to are sent."""
         found = _page(request.url)
         if found is None:
             logger.info("kdem: show_link refused {!r}", request.url)
             return (
-                f"Not sent: {request.url!r} is not one of the approved KDEM pages. Offer a "
-                f"page search_kdem returned, or the Contact Us page ({CONTACT_PATH})."
+                f"Not sent: {request.url!r} is not one of the approved KDEM pages or "
+                "documents. Offer a page or PDF search_kdem returned, or the Contact Us "
+                f"page ({CONTACT_PATH})."
             )
         url, title = found
         self.session.dispatch(ShowLink(url=url, title=title))
