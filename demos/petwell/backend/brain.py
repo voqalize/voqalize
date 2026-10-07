@@ -519,7 +519,10 @@ class PetwellBrain(GeminiBrain):
             if step in ("details", "review"):
                 missing = self.missing_details()
                 parts.append(f"details still needed: {', '.join(missing) or 'none'}")
-            if self.viewing and self.viewing != step:
+            # The page names its steps visit/location/service/slot/details/review;
+            # the desk splits location into city and branch.
+            page_step = {"city": "location", "branch": "location"}.get(step, step)
+            if self.viewing and self.viewing != page_step:
                 parts.append(f"the visitor has gone back to look at the {self.viewing} step")
         if self.emergency_open:
             parts.append("the emergency sheet is OPEN")
@@ -613,7 +616,10 @@ class PetwellBrain(GeminiBrain):
             elif city != self.city:
                 self.city, self.branch_id = city, None
                 if city in OPENING_SOON:
-                    refused.append(f"{city} is opening soon — offer another city")
+                    refused.append(
+                        f"{city} is shown on screen with its opening-soon note, but it cannot "
+                        "be booked yet — offer another city"
+                    )
 
         # A city with one branch has nothing to ask: select it now.
         if self.city and self.branch_id is None and self.city not in OPENING_SOON:
@@ -712,7 +718,7 @@ class PetwellBrain(GeminiBrain):
         if refused:
             result["NOT DONE"] = refused
             result["note"] = (
-                "Nothing changed on screen for the items under NOT DONE. "
+                "The items under NOT DONE are not part of the booking. "
                 "Tell the visitor what is still needed and ask for it."
             )
         return str(result)

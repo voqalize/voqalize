@@ -746,3 +746,20 @@ async def test_showing_another_day_drops_the_chosen_time() -> None:
         assert isinstance(brain, PetwellBrain) and brain.time == FREE[0]
         await rig.driver.user_says("What about the day after?")
         assert brain.time is None and brain.booking_step() == "slot"
+
+
+async def test_going_back_is_reported_only_when_the_visitor_is_behind() -> None:
+    """The page calls the city and branch step "location"; the desk splits it in
+    two. Looking at the step the booking is on is not going back."""
+    async with demo("petwell", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain)
+        await brain.update_booking(BookingUpdate(visit_type="clinic", city="Mumbai"))
+        assert brain.booking_step() == "branch"
+        await rig.driver.send_ui_event("step_opened", {"step": "location"})
+        await asyncio.sleep(0.1)
+        assert "gone back" not in brain.screen_now(), brain.screen_now()
+        await rig.driver.send_ui_event("step_opened", {"step": "visit"})
+        await asyncio.sleep(0.1)
+        assert "gone back to look at the visit step" in brain.screen_now()
