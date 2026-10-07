@@ -27,6 +27,8 @@
   // Where @voqalize/client-transport keeps a live call for the next page.
   const SAVED_CALL = "voqalize-client-transport:call";
   const MUTED = "vq-aria:muted";
+  // The language the call is in (or the next one starts in): "en" or "kn".
+  const LANG = "vq-aria:lang";
 
   function boot() {
     // ── 2. Styles, scoped to #vq-aria ────────────────────────────────────────
@@ -43,6 +45,14 @@
       #vq-aria .vq-pic img { width: 100%; height: 100%; object-fit: cover; }
       #vq-aria .vq-panel { width: 320px; max-width: calc(100vw - 24px); border-radius: 16px; background: #fff;
         box-shadow: 0 12px 40px rgba(0,0,0,.22); overflow: hidden; }
+      #vq-aria .vq-lang { display: flex; gap: 4px; margin: 10px 14px; padding: 3px; border-radius: 999px;
+        background: #eef4fa; }
+      #vq-aria .vq-lang button { flex: 1; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 999px;
+        background: transparent; color: #0b4f8a; font-family: inherit; font-size: 14px; font-weight: 600;
+        line-height: 1.2; cursor: pointer; }
+      #vq-aria .vq-lang button[aria-pressed="true"] { background: #0b4f8a; color: #fff; cursor: default; }
+      #vq-aria .vq-lang button.vq-pending { opacity: .6; }
+      #vq-aria .vq-lang button:focus-visible { outline: 2px solid #0b4f8a; outline-offset: 2px; }
       #vq-aria .vq-face { height: 300px; background: #e8eef5; }
       #vq-aria .vq-status { padding: 10px 14px 0; font-size: 13px; color: #55575f; min-height: 28px; }
       #vq-aria .vq-links { padding: 0 14px; display: grid; gap: 6px; }
@@ -68,6 +78,10 @@
         <span class="vq-label">Talk to Aria</span>
       </button>
       <div class="vq-panel" role="dialog" aria-label="Aria, KDEM assistant" hidden>
+        <div class="vq-lang" role="group" aria-label="Language">
+          <button type="button" data-lang="en" lang="en" aria-pressed="true">English</button>
+          <button type="button" data-lang="kn" lang="kn" aria-pressed="false">ಕನ್ನಡ</button>
+        </div>
         <div class="vq-face"></div>
         <div class="vq-status" aria-live="polite"></div>
         <div class="vq-links"></div>
@@ -83,6 +97,7 @@
     const launch = $(".vq-launch"), panel = $(".vq-panel"), face = $(".vq-face");
     const statusEl = $(".vq-status"), links = $(".vq-links"), audio = $("audio");
     const muteBtn = $(".vq-mute"), endBtn = $(".vq-end"), label = $(".vq-label"), pic = $(".vq-pic");
+    const langBtns = [...root.querySelectorAll(".vq-lang button")];
 
     let libs = null, media = null, transport = null, client = null, avatar = null;
     let busy = false, muted = false;
@@ -102,6 +117,19 @@
       media = new t.VoqalizeMediaManager();
       media.bindOutputElement(audio);
       return libs;
+    }
+
+    // The toggle shows the language the call is in. In a call it moves only when
+    // the brain says so (language_changed), so a switch by voice moves it too, and
+    // a press it could not carry out leaves it where it was.
+    let lang = store.get(LANG) === "kn" ? "kn" : "en";
+    function showLang(next) {
+      lang = next;
+      store.set(LANG, next);
+      for (const b of langBtns) {
+        b.setAttribute("aria-pressed", String(b.dataset.lang === next));
+        b.classList.remove("vq-pending");
+      }
     }
 
     function setMuted(next) {
@@ -148,6 +176,10 @@
             // Aria can offer a KDEM page as a link card; it opens in a new tab
             // so the conversation keeps going here.
             onUICommand: ({ command, payload }) => {
+              if (command === "language_changed") {
+                if (payload?.language === "en" || payload?.language === "kn") showLang(payload.language);
+                return;
+              }
               if (command !== "show_link" || !payload?.url) return;
               const url = new URL(payload.url, location.origin);
               if (!/(^|\.)karnatakadigital\.in$/.test(url.hostname)) return;
@@ -173,7 +205,10 @@
             headers: new Headers({ Authorization: `Bearer ${VQ.publishableKey}` }),
             requestData: {
               agent_id: VQ.agentId,
-              init: { surface: "kdem-web", page: location.pathname, lang: document.documentElement.lang || "en" },
+              // The language picked on the toggle (this tab's last choice):
+              // "kn" opens the call in Kannada. A rejoin sends no init, and the
+              // call keeps the language it is in.
+              init: { surface: "kdem-web", page: location.pathname, lang },
             },
           });
           await next.connect(withRealHeaders(started));
@@ -213,6 +248,15 @@
     }
 
     launch.addEventListener("click", () => start(false));
+    for (const b of langBtns) {
+      b.addEventListener("click", () => {
+        const want = b.dataset.lang;
+        if (want === lang) return;
+        if (!client) { showLang(want); return; } // no call: the next one starts in it
+        b.classList.add("vq-pending");
+        try { client.sendUIEvent("language_requested", { language: want }); } catch { b.classList.remove("vq-pending"); }
+      });
+    }
     endBtn.addEventListener("click", () => stop(true));
     muteBtn.addEventListener("click", () => {
       if (!client) return;
@@ -241,7 +285,8 @@
         .catch(() => {});
     });
 
-    // A call that was live on the last page carries on here.
+    // A call that was live on the last page carries on here, in its language.
+    showLang(lang);
     muted = store.get(MUTED) === "1";
     if (store.get(SAVED_CALL)) start(true);
   }

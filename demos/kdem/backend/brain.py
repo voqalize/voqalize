@@ -55,13 +55,24 @@ from voqalize_demos import (
     landed,
     needs_result_now,
     phrase,
+    say_line,
 )
 
-from voqalize.sdk import Action, RTVIMessage, Session, Speech
+from voqalize.sdk import Action, RequestRejected, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
-from .app_events import KDEM_EVENTS, PageViewed
-from .content import CONTACT_PATH, OPENING, SPEECH, LanguageName, page_digest
+from .app_events import KDEM_EVENTS, LanguageRequested, PageViewed
+from .content import (
+    BY_CODE,
+    BY_TAG,
+    CONTACT_PATH,
+    OPENING,
+    SPEECH,
+    LanguageName,
+    LanguageTag,
+    page_digest,
+)
+from .content import Speech as LanguageSpeech
 from .knowledge import (
     ALLOWLIST,
     KNOWLEDGE,
@@ -142,11 +153,30 @@ _GREETING = (
 )
 
 
-def _prompt(where: str = "") -> str:
-    """The system prompt for a session starting now. THE PAGES lists only the
-    pages Aria may link at this moment, so the model is never offered one the
-    refresh has dropped."""
+#: The opener when the visitor picked ಕನ್ನಡ on the toggle before the call.
+#: Written, like the English one. To be checked by a native speaker.
+_GREETING_KN = "ನಮಸ್ಕಾರ, ನಾನು KDEM ನ ಆರಿಯಾ. ಕರ್ನಾಟಕದಲ್ಲಿ ನಿಮ್ಮ ವ್ಯವಹಾರ ಬೆಳೆಸಲು ನಾವು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?"
+
+#: What Aria says, at the start of her next turn, after the visitor switched the
+#: language on the toggle. Written, in the new language. The Kannada line is to be
+#: checked by a native speaker.
+TOGGLE_CONFIRM: dict[LanguageTag, str] = {
+    "en": "Sure, let's continue in English.",
+    "kn": "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ.",
+}
+
+
+def _prompt(where: str = "", spoken: Language = OPENING.code) -> str:
+    """The system prompt as things stand: THE PAGES lists only the pages Aria
+    may link at this moment, so the model is never offered one the refresh has
+    dropped; the call's language now, when it is not English; and where the
+    visitor is."""
     prompt = _SYSTEM_INSTRUCTION + page_digest(lambda url: _page(url) is not None)
+    if spoken == Language.KN:
+        prompt += (
+            "\n\nTHE CALL IS IN KANNADA NOW. Speak Kannada, in Kannada script, until the "
+            "visitor asks for English, speaks it, or switches it on the page."
+        )
     return f"{prompt}\n\nWHERE THEY ARE. {where}" if where else prompt
 
 
@@ -171,6 +201,14 @@ class SearchRequest(BaseModel):
         "the site is in English even when the call is in Kannada. Name the topic, "
         "e.g. 'seed fund for startups in Mysuru' or 'upcoming events'."
     )
+
+
+class LanguageChanged(Action, name="language_changed"):
+    """Brain → browser: the language the call is in now. The snippet's
+    English | ಕನ್ನಡ toggle shows this and nothing else, so it follows a switch
+    made by voice as well as one made on the toggle."""
+
+    language: LanguageTag
 
 
 class LinkRequest(BaseModel):
@@ -293,6 +331,10 @@ class KdemBrain(GeminiBrain):
         self._fallback = FallbackLine()
         #: The page the visitor has open, as a site URL; ``None`` until known.
         self.here: str | None = None
+        #: The WHERE THEY ARE line the prompt carries now.
+        self._where = ""
+        #: A toggle switch's written confirmation, said when Aria next has the floor.
+        self._confirm: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -300,19 +342,25 @@ class KdemBrain(GeminiBrain):
         # Aria's voice — not the page's to choose, so it is settled here rather
         # than sent with the connect request. Both legs move together; the voice
         # is gauri in English and Kannada alike. This lands before the greeting.
+        # The one thing the page may ask for is the language the visitor picked
+        # on the toggle before the call: "kn" opens in Kannada, anything else in
+        # English.
+        init = dict(session.init or {})
+        opening = BY_TAG["kn"] if init.get("lang") == "kn" else OPENING
         await session.configure(
             Config(
-                stt=SttConfig(language=OPENING.code, patience=2),
-                tts=TtsConfig(voice=OPENING.voice, language=OPENING.code),
+                stt=SttConfig(language=opening.code, patience=2),
+                tts=TtsConfig(voice=opening.voice, language=opening.code),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
+        self.spoken = opening.code
         # One keeper per process: the first session starts it, the rest find it
         # running. It never makes this session wait.
         KNOWLEDGE.start()
 
-        init = dict(session.init or {})
-        self.system_instruction = _prompt(_where_they_started(init))
+        self._where = _where_they_started(init)
+        self.system_instruction = _prompt(self._where, self.spoken)
         if isinstance(page := init.get("page"), str):
             self.here = normalize(page)
         logger.info(
@@ -324,12 +372,20 @@ class KdemBrain(GeminiBrain):
         )
 
     async def greet(self, session: Session) -> str:
-        """The opener, written not generated."""
-        return _GREETING
+        """The opener, written not generated, in the language the call opens in."""
+        return _GREETING_KN if self.spoken == Language.KN else _GREETING
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, and a line of Aria's own if it acted and said nothing.
-        See :mod:`voqalize_demos.silent_turn`."""
+        See :mod:`voqalize_demos.silent_turn`.
+
+        A language switched on the toggle is confirmed first, in the new language,
+        with its written line: a brain has no floor outside a turn, so this is the
+        first moment Aria may speak, and it never talks over anyone."""
+        if (line := self._confirm) is not None:
+            self._confirm = None
+            async for event in say_line(self, line):
+                yield event
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 
@@ -344,6 +400,46 @@ class KdemBrain(GeminiBrain):
         match event:
             case PageViewed():
                 self._viewed(event)
+            case LanguageRequested():
+                await self._requested(session, event)
+
+    async def _requested(self, session: Session, event: LanguageRequested) -> None:
+        """The visitor pressed the other language on the toggle. Switched in code,
+        not through the model: both legs move in one awaited request, the page
+        is told, and the written confirmation waits for Aria's next turn. Asking
+        for the language the call is already in does nothing."""
+        speech = BY_TAG[event.language]
+        if speech.code == self.spoken:
+            return
+        try:
+            await session.configure(
+                Config(
+                    stt=SttConfig(language=speech.code),
+                    tts=TtsConfig(voice=speech.voice, language=speech.code),
+                )
+            )
+        except RequestRejected as rejected:
+            logger.warning("kdem: toggle to {} refused: {}", speech.name, rejected)
+            # The toggle moved on the page; put it back to the language that holds.
+            session.dispatch(LanguageChanged(language=BY_CODE[self.spoken].tag))
+            return
+        self._switched(speech, by="the visitor, on the page's toggle")
+        self._confirm = TOGGLE_CONFIRM[speech.tag]
+
+    def _switched(self, speech: LanguageSpeech, *, by: str, note: bool = True) -> None:
+        """Record a switch that has been sent, tell the page, and (from a
+        callback) leave the model one line about it. Shared by the toggle and
+        ``set_language``, so the two cannot disagree about what a switch does.
+        A tool leaves no note: its own result is the model's record, and a line
+        filed mid-turn would land between a call and its result."""
+        logger.info("kdem: language {} -> {} (by {})", BY_CODE[self.spoken].name, speech.name, by)
+        self.spoken = speech.code
+        self._confirm = None
+        self.session.dispatch(LanguageChanged(language=speech.tag))
+        self.system_instruction = _prompt(self._where, self.spoken)
+        if note:
+            line = f"[The call is now in {speech.name.capitalize()}, switched by {by}.]"
+            self.append_to_context(types.Content(role="user", parts=[types.Part(text=line)]))
 
     def _viewed(self, event: PageViewed) -> None:
         here = normalize(event.path)
@@ -352,11 +448,11 @@ class KdemBrain(GeminiBrain):
             # on the page the call started on says nothing new.
             return
         self.here = here
-        line = _where_they_are(event.path, moved=True)
+        line = self._where = _where_they_are(event.path, moved=True)
         logger.info(
             "kdem: page_viewed {} ({})", path_of(here), "named" if _page(here) else "unnamed"
         )
-        self.system_instruction = _prompt(line)
+        self.system_instruction = _prompt(line, self.spoken)
         self.append_to_context(types.Content(role="user", parts=[types.Part(text=f"[{line}]")]))
 
     # ─── Tools ──────────────────────────────────────────────────────────
@@ -431,9 +527,8 @@ class KdemBrain(GeminiBrain):
                 tts=TtsConfig(voice=speech.voice, language=speech.code),
             ),
         )
-        self.spoken = speech.code
-        logger.info("kdem: language -> {}", request.language)
+        self._switched(speech, by="you", note=False)
         return "ok"
 
 
-__all__ = ["DONT_KNOW", "KdemBrain", "ShowLink"]
+__all__ = ["DONT_KNOW", "TOGGLE_CONFIRM", "KdemBrain", "LanguageChanged", "ShowLink"]

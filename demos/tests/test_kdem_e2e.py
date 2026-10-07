@@ -52,9 +52,11 @@ discover()
 
 from voqalize_demos._loaded.kdem.brain import (  # noqa: E402
     _GREETING,
+    _GREETING_KN,
     _SYSTEM_INSTRUCTION,
     DONT_KNOW,
     KANNADA_SAID,
+    TOGGLE_CONFIRM,
     KdemBrain,
 )
 from voqalize_demos._loaded.kdem.knowledge import (  # noqa: E402
@@ -631,3 +633,124 @@ def test_the_language_is_named_the_way_the_english_voice_says_it() -> None:
     assert f"Shall we continue in {KANNADA_SAID}?" in _SYSTEM_INSTRUCTION
     assert f'write it "{KANNADA_SAID}", never "Kannada"' in _SYSTEM_INSTRUCTION
     assert "call set_language with kannada" in _SYSTEM_INSTRUCTION
+
+
+# ─── The English | ಕನ್ನಡ toggle ────────────────────────────────────────────────
+
+
+async def _toggle(rig: object, payload: object) -> None:
+    await rig.driver.send_ui_event("language_requested", payload)  # type: ignore[attr-defined]
+    # `on_rtvi` takes no floor and there is nothing to await: give it a moment.
+    await asyncio.sleep(0.1)
+
+
+def _changes(rig: object) -> list[dict[str, object]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands  # type: ignore[attr-defined]
+        if c.get("command") == "language_changed"
+    ]
+
+
+async def test_the_toggle_switches_both_ways_and_aria_confirms_in_the_new_language() -> None:
+    """The visitor presses ಕನ್ನಡ: both legs move to Kannada at once, the page is
+    told, and Aria's next turn opens with the written Kannada line, before the
+    model's reply. Then back to English, the same way."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        before = len(llm.captured_contents)
+        await _toggle(rig, {"language": "kn"})
+        assert len(llm.captured_contents) == before  # in code, not through the model
+        check_voice_pair(rig, voice=VOICE, language="kn")
+        assert _changes(rig) == [{"language": "kn"}]
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain) and brain.spoken == Language.KN
+
+        turn = await rig.driver.user_says("Thank you.")
+        lines = [u.text for u in turn.units]
+        assert lines[0] == TOGGLE_CONFIRM["kn"] == "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ."
+        assert "You're welcome." in lines  # the model still answers, after it
+        assert "THE CALL IS IN KANNADA NOW" in llm.captured_system_instructions[-1]
+        seen = "\n".join(p.text or "" for c in llm.captured_contents[-1] for p in (c.parts or []))
+        assert "switched by the visitor, on the page's toggle" in seen
+
+        await _toggle(rig, {"language": "en"})
+        check_voice_pair(rig, voice=VOICE, language="en")
+        assert _changes(rig) == [{"language": "kn"}, {"language": "en"}]
+        turn = await rig.driver.user_says("Thank you.")
+        assert turn.units[0].text == TOGGLE_CONFIRM["en"] == "Sure, let's continue in English."
+        # Said once: the turn after that is the model's alone.
+        turn = await rig.driver.user_says("Thank you.")
+        assert all(u.text not in TOGGLE_CONFIRM.values() for u in turn.units)
+    assert "THE CALL IS IN KANNADA NOW" not in llm.captured_system_instructions[-1]
+
+
+async def test_asking_for_the_language_already_in_use_does_nothing() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session()
+        configured = len(rig.driver.requests)
+        await _toggle(rig, {"language": "en"})
+        assert _changes(rig) == []
+        assert len(rig.driver.requests) == configured
+        turn = await rig.driver.user_says("Thank you.")
+        assert [u.text for u in turn.units] == ["You're welcome."]
+
+
+async def test_a_refused_switch_puts_the_toggle_back() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session()
+        rig.driver.reject["configure"] = "no Kannada voice on this node"
+        await _toggle(rig, {"language": "kn"})
+        assert _changes(rig) == [{"language": "en"}]
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain) and brain.spoken == Language.EN
+        turn = await rig.driver.user_says("Thank you.")
+        assert [u.text for u in turn.units] == ["You're welcome."]
+
+
+async def test_a_switch_by_voice_tells_the_page_too() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Can we speak in Kannada?")
+        assert _changes(rig) == [{"language": "kn"}]
+        check_voice_pair(rig, voice=VOICE, language="kn")
+        # No written confirmation for a voice switch: the model said its own line.
+        turn = await rig.driver.user_says("Thank you.")
+        assert [u.text for u in turn.units] == ["You're welcome."]
+
+
+async def test_init_lang_kn_opens_in_kannada() -> None:
+    async with demo("kdem", _llm()) as rig:
+        greeting = await rig.driver.start_session(init={"page": "/", "lang": "kn"})
+        assert greeting is not None and greeting.text == _GREETING_KN
+        check_voice_pair(rig, voice=VOICE, language="kn")
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain) and brain.spoken == Language.KN
+        await _toggle(rig, {"language": "kn"})  # already Kannada: nothing
+        assert _changes(rig) == []
+
+
+@pytest.mark.parametrize("lang", ["en", None, "kannada", "kn-IN", 42, "", "ಕನ್ನಡ"])
+async def test_any_other_init_lang_opens_in_english(lang: object) -> None:
+    init: dict[str, object] = {"page": "/"}
+    if lang is not None:
+        init["lang"] = lang
+    async with demo("kdem", _llm()) as rig:
+        greeting = await rig.driver.start_session(init=init)
+        assert greeting is not None and greeting.text == _GREETING
+        check_voice_pair(rig, voice=VOICE, language="en")
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{}, {"language": "fr"}, {"language": "kannada"}, {"language": 1}, {"lang": "kn"}, ["kn"]],
+)
+async def test_a_malformed_language_request_is_ignored(payload: object) -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session()
+        await _toggle(rig, payload)
+        assert _changes(rig) == []
+        check_voice_pair(rig, voice=VOICE, language="en")
+        turn = await rig.driver.user_says("Thank you.")
+        assert [u.text for u in turn.units] == ["You're welcome."]

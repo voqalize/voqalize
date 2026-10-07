@@ -153,6 +153,18 @@ def landed(*lines: str) -> None:
         record.append(lines)
 
 
+async def say_line(brain: GeminiBrain, line: str) -> AsyncGenerator[Speech, None]:
+    """One written line, spoken as a unit of the brain's own inside a turn it
+    has been given. Like the fallback line, it is never in the model's context:
+    it joins the finalize queue, where the heard truth that comes back for it is
+    taken and let go. Yield from it inside ``respond``; outside a turn a brain
+    has no floor to speak on."""
+    yield SpeechStart()
+    brain._awaiting.append(_Unit(types.Content(role="model", parts=[])))  # pyright: ignore[reportPrivateUsage]
+    yield SpeechChunk(line)
+    yield SpeechEnd()
+
+
 class FallbackLine:
     """Speaks a landed call's line when the model's turn said nothing. One per brain."""
 
@@ -175,10 +187,8 @@ class FallbackLine:
                 return
             line = self._pick(record[-1])
             logger.warning("turn: acted on screen and said nothing; the brain says {!r}", line)
-            yield SpeechStart()
-            brain._awaiting.append(_Unit(types.Content(role="model", parts=[])))  # pyright: ignore[reportPrivateUsage]
-            yield SpeechChunk(line)
-            yield SpeechEnd()
+            async for event in say_line(brain, line):
+                yield event
         finally:
             await turn.aclose()
             # Closed from another context, the token cannot be reset — and there
