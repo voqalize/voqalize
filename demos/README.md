@@ -163,6 +163,12 @@ generated from `qween/backend/brain.py` with `pnpm gen`, and the extension warns
 on load about any Action the adapter cannot perform. The catalogue the brain quotes from is Qween's public product feed, read
 by `qween/backend/catalog.py` and never quoted once it is a day old.
 
+`kdem` is the same exception again. The agent is Aria, on karnatakadigital.in,
+and the page reaches her through a snippet pasted into that site
+(`kdem/embed/`), so there is no `frontend/` and no `manifest.json` entry. The pages
+she answers from are an approved list in `kdem/backend/knowledge/`, kept fresh
+from the site's sitemap by `kdem/backend/knowledge.py`. See `kdem/README.md`.
+
 ## Running it
 
 `pm2 start ecosystem.config.cjs` from the repo root is the supervised path: the
