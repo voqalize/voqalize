@@ -30,14 +30,24 @@ For the pilot the brain is hosted on dev: the agent's `brain_url` is
 and changing `api` in the script to `app.voqalize.com`. Aria's voice is
 `omnivoice/gauri` in both languages. The brain sets it on both legs in
 `on_session_start`, before the greeting. The opening line is written in the
-brain, not generated: "Hello, I'm Aria from KDEM. You can talk to me in English
-or Kannada. How can we help you grow your business in Karnataka?"
+brain, not generated: "Hello, I'm Aria from KDEM. How can we help you grow your
+business in Karnataka?" A call the visitor started with ಕನ್ನಡ picked on the
+toggle opens with a written Kannada greeting instead.
 
-English is the main language. When the visitor asks for Kannada, or a whole
-sentence is plainly Kannada, Aria switches at once. When she is not sure (a few
-words that may be Kannada, or a turn too short to tell), she answers in English
-and asks once, in both languages, "ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in
-Kannada?", and switches on a yes. One borrowed English word inside a Kannada
+English is the main language, and **Aria never says the name of the Kannada
+language in English**: the English voice cannot say it. Asked which languages
+she speaks, she says "I speak English, and Karnataka's own language too. Just
+speak to me in it, or tap ಕನ್ನಡ at the top of my panel."
+
+When the visitor asks for Kannada, or a turn looks like Kannada, she switches at
+once, without asking. The model calls `set_language` and says nothing itself.
+When its response has streamed, the brain moves both legs to Kannada in one
+awaited request and only then says a written Kannada line, in the Kannada
+voice, at the end of the same turn: "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ. ದಯವಿಟ್ಟು ನಿಮ್ಮ
+ಪ್ರಶ್ನೆಯನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳಿ." (asking them to say it again, since the English
+recognizer lost it). If she was wrong, the visitor speaks English, or taps
+English, and she switches back the same way, saying "Sure, let's continue in
+English." in the English voice. One borrowed English word inside a Kannada
 sentence does not count as switching.
 
 Recording audio is off, which is the agent default. The platform keeps the
@@ -120,10 +130,10 @@ The snippet and the brain share five things:
 - **`language_requested`** (page → brain, `{language: "en" | "kn"}`): the
   visitor pressed the toggle. The brain switches both legs in code, not through
   the model, in one awaited request, and tells the model with a line in its
-  context. Aria confirms with a written line in the new language ("Sure, let's
-  continue in English." or "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ."). A brain has no floor
-  outside a turn, so the line opens her next turn, before her reply, and never
-  talks over anyone. Asking for the language the call is already in, or a value
+  context. Aria confirms with a written line in the new language, read by the
+  new voice ("Sure, let's continue in English." or "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ
+  ಮಾತಾಡೋಣ."). A brain has no floor outside a turn, so the line opens her next
+  turn, before her reply, and never talks over anyone. Asking for the language the call is already in, or a value
   that is not `"en"` or `"kn"`, does nothing.
 - **`language_changed`** (brain → page, `{language: "en" | "kn"}`): the language
   the call is in now, sent after every switch, by the toggle or by voice. It is
