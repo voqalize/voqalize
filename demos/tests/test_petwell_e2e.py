@@ -461,3 +461,18 @@ async def test_a_silent_turn_in_hindi_is_covered_in_hindi() -> None:
         (line,) = (u.text for u in turn.units)
         assert line != "Petwell Powai it is. What's the visit for?"
         assert any("\u0900" <= ch <= "\u097f" for ch in line), line
+
+
+def test_the_health_hub_ids_match_the_page() -> None:
+    """The brain opens articles by id and the page renders them from its own copy
+    (``frontend/src/hub.ts``), so the two lists of ids must be the same list."""
+    import re
+    from pathlib import Path
+
+    from voqalize_demos._loaded.petwell.hub import ARTICLES
+
+    page = Path(__file__).resolve().parents[1] / "petwell" / "frontend" / "src" / "hub.ts"
+    ids_on_page = re.findall(r"^    id: '([a-z0-9-]+)',$", page.read_text(), re.M)
+    assert ids_on_page == [a["id"] for a in ARTICLES]
+    dental = {"periodontal-disease", "brushing-teeth", "dental-abscess", "tooth-extraction"}
+    assert dental <= set(ids_on_page)

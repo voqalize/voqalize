@@ -64,6 +64,61 @@ ARTICLES: list[HubArticle] = [
         ],
     },
     {
+        "id": "periodontal-disease",
+        "title": "Periodontal Disease in Dogs and Cats: The Four Stages and What Each Needs",
+        "service_id": "dental",
+        "facts": [
+            "The most common illness in adult pets; plaque hardens into tartar within days.",
+            "Four stages: gingivitis (reversible), then early, moderate and advanced bone loss.",
+            "Bad breath and chewing on one side are often the only signs.",
+            "Treatment is a clean under anaesthesia with dental X-rays; most pets need one every 1 to 2 years.",
+        ],
+    },
+    {
+        "id": "brushing-teeth",
+        "title": "How to Brush Your Pet's Teeth at Home: A Step-by-Step Guide",
+        "service_id": "dental",
+        "facts": [
+            "Brush daily or every other day; plaque sets into tartar in about 48 hours.",
+            "Use pet toothpaste only; human toothpaste is harmful when swallowed.",
+            "Build up over two weeks: taste, finger, finger brush, then toothbrush on the outer surfaces.",
+            "Brushing does not remove existing tartar; that needs a professional clean.",
+        ],
+    },
+    {
+        "id": "dental-abscess",
+        "title": "Dental Abscess in Dogs and Cats: Swelling Under the Eye and Other Signs",
+        "service_id": "dental",
+        "facts": [
+            "A swelling just below the eye is often a tooth-root abscess, not an eye problem.",
+            "Caused by fractured or worn teeth or advanced gum disease; very painful.",
+            "Facial swelling with fever or lethargy needs a vet the same day.",
+            "Antibiotics alone do not cure it; the tooth is treated or extracted.",
+        ],
+    },
+    {
+        "id": "tooth-extraction",
+        "title": "Tooth Extraction in Dogs and Cats: When Is It Necessary?",
+        "service_id": "dental",
+        "facts": [
+            "Needed for loose teeth, fractures with exposed pulp, abscesses and painful lesions in cats.",
+            "Done under anaesthesia with X-rays and a local block; most pets go home the same day.",
+            "Soft food for a few days and no hard chews for two weeks.",
+            "Pets eat normally, and often better, with fewer teeth.",
+        ],
+    },
+    {
+        "id": "rabbit-teeth",
+        "title": "Dental Disease in Rabbits and Small Pets: Signs and Vet Treatment",
+        "service_id": "exotic-pets",
+        "facts": [
+            "Rabbit teeth grow all their lives and are worn down by chewing hay.",
+            "Signs: eating less, drooling, fewer droppings, weepy eyes.",
+            "A rabbit that has not eaten for 12 hours is an emergency.",
+            "Prevention: unlimited hay, fresh greens, and dental checks with an exotic-pet vet.",
+        ],
+    },
+    {
         "id": "ticks-fleas",
         "title": "Ticks and Fleas After the Monsoon: A Prevention Plan",
         "service_id": "skin",

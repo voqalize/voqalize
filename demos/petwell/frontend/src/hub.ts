@@ -16,8 +16,13 @@ import dental from './assets/dental.webp';
 import seniorDog from './assets/senior-dog.webp';
 import atHome from './assets/at-home.webp';
 import grooming from './assets/grooming.webp';
+import dogMouth from './assets/dog-mouth.webp';
+import chewToy from './assets/chew-toy.webp';
+import catYawn from './assets/cat-yawn.webp';
+import dogYawn from './assets/dog-yawn.webp';
+import rabbit from './assets/rabbit.webp';
 
-export type HubTag = 'Dogs' | 'Cats' | 'Seasonal' | 'Prevention';
+export type HubTag = 'Dogs' | 'Cats' | 'Dental' | 'Seasonal' | 'Prevention';
 
 export interface Section {
   heading: string;
@@ -208,7 +213,7 @@ export const ARTICLES: Article[] = [
     dek: 'Bad breath is often the first sign of gum disease. Here is what a proper dental clean involves.',
     date: '2026-09-20',
     readMins: 5,
-    tags: ['Dogs', 'Cats', 'Prevention'],
+    tags: ['Dental', 'Dogs', 'Cats', 'Prevention'],
     image: dental,
     serviceId: 'dental',
     sections: [
@@ -237,6 +242,268 @@ export const ARTICLES: Article[] = [
       {
         q: 'How often should I brush?',
         a: 'Daily is ideal, with a pet toothpaste — human toothpaste is not safe for pets to swallow.',
+      },
+    ],
+  },
+  {
+    id: 'periodontal-disease',
+    title: 'Periodontal Disease in Dogs and Cats: The Four Stages and What Each Needs',
+    dek: 'Gum disease is the most common illness vets see in adult pets — and it is silent until it hurts. Here is how it progresses.',
+    date: '2026-09-30',
+    readMins: 6,
+    tags: ['Dental', 'Dogs', 'Cats'],
+    image: dogMouth,
+    serviceId: 'dental',
+    sections: [
+      {
+        heading: 'Overview',
+        body: [
+          'Periodontal disease starts as plaque — a film of bacteria on the teeth. Within days it hardens into tartar, which irritates the gums. Left alone, the infection works down along the root, loosening the tooth from the jaw.',
+          'Small breeds, flat-faced dogs and cats are most prone, but almost every pet over three years old has some degree of it.',
+        ],
+        callout: {
+          kind: 'warning',
+          text: 'Pets rarely stop eating because of dental pain. Bad breath and chewing on one side are often the only clues.',
+        },
+      },
+      {
+        heading: 'The four stages',
+        table: {
+          head: ['Stage', 'What the vet sees'],
+          rows: [
+            ['1 — Gingivitis', 'Red gum line, no bone loss. Fully reversible with a clean'],
+            ['2 — Early', 'Up to a quarter of the root support lost'],
+            ['3 — Moderate', 'A quarter to half of the support lost; pockets around roots'],
+            ['4 — Advanced', 'More than half lost; loose teeth, pus, often extraction'],
+          ],
+        },
+      },
+      {
+        heading: 'Why it matters beyond the mouth',
+        body: [
+          'Bacteria from infected gums enter the bloodstream every time the pet chews. Advanced dental disease is linked with strain on the heart, kidneys and liver, and with jaw fractures in small dogs whose bone has thinned.',
+        ],
+      },
+      {
+        heading: 'Treatment',
+        bullets: [
+          'A full clean under anaesthesia, scaling above and below the gum line',
+          'Dental X-rays to see the roots and bone that cannot be seen from outside',
+          'Extraction of teeth that cannot be saved',
+          'A home-care plan afterwards — brushing, dental chews or diets',
+        ],
+        callout: { kind: 'tip', text: 'Stage 1 and 2 are where treatment is quickest and cheapest. A yearly dental check catches them.' },
+      },
+    ],
+    faqs: [
+      {
+        q: 'Can periodontal disease be reversed?',
+        a: 'Gingivitis (stage 1) can. Once bone is lost it cannot grow back, but treatment stops it getting worse.',
+      },
+      {
+        q: 'How often does my pet need a professional clean?',
+        a: 'Most need one every one to two years; small breeds and cats with a history of gum disease often need it yearly.',
+      },
+    ],
+  },
+  {
+    id: 'brushing-teeth',
+    title: "How to Brush Your Pet's Teeth at Home: A Step-by-Step Guide",
+    dek: 'Two minutes a day does more for your pet’s teeth than anything else. Here is how to build the habit without a fight.',
+    date: '2026-09-24',
+    readMins: 5,
+    tags: ['Dental', 'Dogs', 'Cats', 'Prevention'],
+    image: chewToy,
+    serviceId: 'dental',
+    sections: [
+      {
+        heading: 'Overview',
+        body: [
+          'Plaque turns to tartar in about 48 hours, so brushing every day — or at least every other day — keeps it from setting. Most pets accept brushing if it is introduced slowly and paired with something they enjoy.',
+        ],
+      },
+      {
+        heading: 'What you need',
+        bullets: [
+          'A pet toothpaste — flavoured, safe to swallow',
+          'A soft pet toothbrush or a finger brush',
+          'A few small treats and a calm moment of the day',
+        ],
+        callout: {
+          kind: 'warning',
+          text: 'Never use human toothpaste. Fluoride and xylitol in it are harmful to pets when swallowed.',
+        },
+      },
+      {
+        heading: 'Step by step, over two weeks',
+        table: {
+          head: ['Days', 'What to do'],
+          rows: [
+            ['1–3', 'Let them lick a dab of pet toothpaste off your finger'],
+            ['4–6', 'Rub your finger along the outside of the teeth and gums'],
+            ['7–10', 'Swap to a finger brush; brush the back teeth gently'],
+            ['11–14', 'Use the toothbrush at a 45° angle to the gum line, outside surfaces only'],
+          ],
+        },
+        callout: { kind: 'tip', text: 'Focus on the big back teeth and the canines — that is where tartar builds fastest. The inner surfaces matter less.' },
+      },
+      {
+        heading: 'If brushing is not possible',
+        bullets: [
+          'Vet-approved dental chews or a dental diet',
+          'Water additives and dental gels, as a second best',
+          'More frequent professional cleans',
+        ],
+      },
+    ],
+    faqs: [
+      {
+        q: 'My pet already has tartar — will brushing remove it?',
+        a: 'No. Brushing stops new tartar forming; existing tartar needs a professional scale and clean first.',
+      },
+      {
+        q: 'What if my pet’s gums bleed?',
+        a: 'A little bleeding usually means gingivitis. Keep brushing gently and book a dental check to see how far it has gone.',
+      },
+    ],
+  },
+  {
+    id: 'dental-abscess',
+    title: 'Dental Abscess in Dogs and Cats: Swelling Under the Eye and Other Signs',
+    dek: 'A swelling below the eye is often a tooth problem, not an eye problem. How tooth-root abscesses show up and how they are treated.',
+    date: '2026-09-18',
+    readMins: 5,
+    tags: ['Dental', 'Dogs', 'Cats'],
+    image: catYawn,
+    serviceId: 'dental',
+    sections: [
+      {
+        heading: 'Overview',
+        body: [
+          'An abscess forms when infection reaches the root of a tooth — through a fracture, a worn tooth or advanced gum disease. Pus builds up at the root tip with nowhere to drain, which is intensely painful.',
+          'The large upper chewing tooth in dogs is the classic culprit: its roots sit just below the eye.',
+        ],
+      },
+      {
+        heading: 'Signs',
+        bullets: [
+          'A swelling on the face, often just below the eye',
+          'A draining wound on the cheek or under the chin',
+          'Dropping food, chewing on one side, or pawing at the mouth',
+          'Bad breath, drooling, or not wanting the face touched',
+        ],
+        callout: {
+          kind: 'warning',
+          text: 'A facial swelling with fever or lethargy needs a vet the same day — the infection can spread.',
+        },
+      },
+      {
+        heading: 'Treatment',
+        body: [
+          'Antibiotics and pain relief settle the infection, but they do not remove its cause. Under anaesthesia, the vet X-rays the tooth and either extracts it or, for some important teeth, treats the root.',
+        ],
+        callout: { kind: 'tip', text: 'Do not let a pet chew on bones, antlers or hard nylon toys — they are the most common cause of the fractures that lead to abscesses.' },
+      },
+    ],
+    faqs: [
+      {
+        q: 'Will antibiotics alone cure an abscess?',
+        a: 'They usually bring the swelling down, but it comes back unless the infected tooth is treated or removed.',
+      },
+    ],
+  },
+  {
+    id: 'tooth-extraction',
+    title: 'Tooth Extraction in Dogs and Cats: When Is It Necessary?',
+    dek: 'Pets manage very well with fewer teeth — and much better without painful ones. When a vet recommends taking a tooth out, and what recovery looks like.',
+    date: '2026-09-15',
+    readMins: 5,
+    tags: ['Dental', 'Dogs', 'Cats'],
+    image: dogYawn,
+    serviceId: 'dental',
+    sections: [
+      {
+        heading: 'When extraction is the right call',
+        bullets: [
+          'Advanced periodontal disease with a loose tooth',
+          'A fractured tooth with the pulp exposed',
+          'A tooth-root abscess',
+          'Resorptive lesions in cats — painful holes in the tooth',
+          'Baby teeth that did not fall out and crowd the adult ones',
+        ],
+      },
+      {
+        heading: 'What happens on the day',
+        body: [
+          'The pet is examined and usually has a pre-anaesthetic blood test. Under anaesthesia, the vet X-rays the mouth, numbs the area with a local block, removes the tooth — sectioning teeth with several roots — and closes the gum with dissolving stitches.',
+        ],
+        callout: { kind: 'tip', text: 'Most pets go home the same day and eat soft food that evening.' },
+      },
+      {
+        heading: 'Recovery',
+        table: {
+          head: ['When', 'What to expect'],
+          rows: [
+            ['First 2–3 days', 'Soft food; pain relief as prescribed'],
+            ['Up to 2 weeks', 'No hard chews or tug toys; stitches dissolve'],
+            ['After 2 weeks', 'Recheck; back to normal food for most pets'],
+          ],
+        },
+        callout: {
+          kind: 'warning',
+          text: 'Call the clinic if there is bleeding that does not stop, swelling that grows, or your pet will not eat after 24 hours.',
+        },
+      },
+    ],
+    faqs: [
+      {
+        q: 'Can my dog eat normally with missing teeth?',
+        a: 'Yes. Dogs and cats swallow most food with little chewing, and they eat better once a painful tooth is gone.',
+      },
+    ],
+  },
+  {
+    id: 'rabbit-teeth',
+    title: 'Dental Disease in Rabbits and Small Pets: Signs and Vet Treatment',
+    dek: 'Rabbit, guinea pig and chinchilla teeth grow all their lives. When they stop wearing down evenly, problems follow fast.',
+    date: '2026-09-10',
+    readMins: 4,
+    tags: ['Dental', 'Prevention'],
+    image: rabbit,
+    serviceId: 'exotic-pets',
+    sections: [
+      {
+        heading: 'Overview',
+        body: [
+          'A rabbit’s teeth grow two to three millimetres a week and are worn down by chewing hay. Without enough fibre, or with a misaligned jaw, they overgrow and form sharp spurs that cut the tongue and cheeks.',
+        ],
+      },
+      {
+        heading: 'Signs',
+        bullets: [
+          'Eating less, or picking out only soft foods',
+          'Drooling or a wet chin',
+          'Smaller or fewer droppings',
+          'Weepy eyes or a lump along the jaw',
+        ],
+        callout: {
+          kind: 'warning',
+          text: 'A rabbit that has not eaten for 12 hours is an emergency — its gut can stop working.',
+        },
+      },
+      {
+        heading: 'Prevention',
+        bullets: [
+          'Unlimited hay — about 80% of the diet',
+          'Fresh greens daily; pellets as a small extra only',
+          'A dental check with an exotic-pet vet once or twice a year',
+        ],
+      },
+    ],
+    faqs: [
+      {
+        q: 'Can overgrown teeth be trimmed?',
+        a: 'Yes — under sedation, with a dental burr. Clipping them with nail cutters can split the tooth and is not recommended.',
       },
     ],
   },

@@ -471,7 +471,7 @@ function LocationsPage() {
   );
 }
 
-const TAGS: HubTag[] = ['Dogs', 'Cats', 'Seasonal', 'Prevention'];
+const TAGS: HubTag[] = ['Dental', 'Dogs', 'Cats', 'Seasonal', 'Prevention'];
 
 function HubPage() {
   const s = useSite();
@@ -717,7 +717,8 @@ function Footer() {
       </div>
       <p className="pw-footer-small">
         © 2026 Petwell · {t.photos} (Wade Austin Ellis, Alexander Mass, Judy Beth Morris, Buddy AN, Jamie Street,
-        Nicholas Brownlow, Bill Stephan, Cédric VT, Robert Larsson)
+        Nicholas Brownlow, Bill Stephan, Cédric VT, Robert Larsson, Andriyko Podilnyk, Ben Griffiths, Anna
+        Karapetian, Erwin Bosman, Waranya Mooldee)
       </p>
     </footer>
   );
