@@ -26,6 +26,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { preloadAvatar } from '@voqalize/avatar';
 import type { TransportState, UICommandData } from '@pipecat-ai/client-js';
 import { RTVIEvent } from '@pipecat-ai/client-js';
 import {
@@ -93,6 +94,13 @@ function Kiosk() {
     setError(null);
     setJoined(true);
   }, []);
+
+  // Tanvi's face builds while the customer reads the gate, and the tile takes
+  // it at join; mounted cold there, her first frame landed on the greeting. The
+  // tile used it up, so each return to the gate builds the next customer's.
+  useEffect(() => {
+    if (!joined) preloadAvatar('tanvi');
+  }, [joined]);
 
   return (
     <>

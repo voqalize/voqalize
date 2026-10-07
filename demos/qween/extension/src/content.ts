@@ -26,7 +26,7 @@
 import "./qween-actions.js";
 
 import { type APIRequest, PipecatClient, type TransportState } from "@pipecat-ai/client-js";
-import { type AvatarInstance, createAvatar, listCharacters } from "@voqalize/avatar";
+import { type AvatarInstance, createAvatar, listCharacters, preloadAvatar } from "@voqalize/avatar";
 import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-transport";
 
 import { type AppEvent, asUiAction, sendAppEvent, UI_ACTION_COMMANDS } from "./actions.gen";
@@ -163,8 +163,8 @@ function start(): void {
     client = next;
 
     try {
-      // Mounted on the press so the face downloads during call setup and is
-      // there for the greeting's first audio.
+      // Mounted on the press. It takes the face the reach preloaded, or builds
+      // one during call setup, in time for the greeting's first audio.
       avatar?.destroy();
       avatar = createAvatar({ mount: widget.face, client: next, character: CHARACTER });
       const init: Record<string, unknown> = {
@@ -218,6 +218,12 @@ function start(): void {
   }
 
   widget.onCall(() => void connect(false));
+  // Her face builds once the shopper reaches for the invite, and the call's
+  // mount takes it. Not at page load: this runs on every page of the store, and
+  // most shoppers never call. Reaching again after a call builds the next one.
+  widget.onReach(() => {
+    if (!client) preloadAvatar(CHARACTER);
+  });
   widget.onHang(end);
   widget.onMute(() => {
     muted = !muted;
