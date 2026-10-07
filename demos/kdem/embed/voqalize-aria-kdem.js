@@ -15,7 +15,7 @@
     agentId: "REPLACE_WITH_KDEM_AGENT_ID",
     publishableKey: "pk_live_REPLACE_WITH_KDEM_KEY", // works only on karnatakadigital.in
     character: "tara",                                // female avatar; voice (Gauri) is set by Voqalize
-    api: "https://app.voqalize.com/api/v1/sessions.connect",
+    api: "https://app.dev.voqalize.com/api/v1/sessions.connect", // dev hosting for the pilot
   };
   // Exact versions, from jsDelivr. The transport imports the same pipecat URLs,
   // so the page holds one copy of each.

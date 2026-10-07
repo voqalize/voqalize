@@ -24,7 +24,10 @@ never looks for a frontend here and it is not a card on `/demos`.
 
 ## The brain
 
-The agent's `brain_url` is `wss://brain.voqalize.com/kdem`. Aria's voice is
+For the pilot the brain is hosted on dev: the agent's `brain_url` is
+`wss://brain.dev.voqalize.com/kdem`, and the script calls
+`app.dev.voqalize.com`. Moving to production means `wss://brain.voqalize.com/kdem`
+and changing `api` in the script to `app.voqalize.com`. Aria's voice is
 `omnivoice/gauri` in both languages. The brain sets it on both legs in
 `on_session_start`, before the greeting. The opening line is written in the
 brain, not generated: "Hello, I'm Aria from KDEM. You can talk to me in English
@@ -113,7 +116,7 @@ has to allow:
 
 ```text
 script-src  https://cdn.jsdelivr.net https://avatar.voqalize.com
-connect-src https://app.voqalize.com https://avatar.voqalize.com blob:
+connect-src https://app.dev.voqalize.com https://avatar.voqalize.com blob:
             and the media node each session names for its offer
 img-src     https://avatar.voqalize.com blob:
 ```
