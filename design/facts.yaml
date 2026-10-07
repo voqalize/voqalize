@@ -836,6 +836,20 @@ facts:
       - '\bended_by\b'
       - '\bsessions\.(end|terminate)\b'
 
+  session.rejoin_grace_secs:
+    value: 10
+    source: platform/backend/pygato/src/pygato/lifecycle.py:90 RESUME_GRACE_SECS
+    verified: 2026-10-07
+    reproduce: >-
+      grep -n 'RESUME_GRACE_SECS = '
+      ../platform/backend/pygato/src/pygato/lifecycle.py
+    note: >-
+      How long a call outlives its peer connection closing, for a fresh offer
+      with the same session token and no pc_id to take it back: a page load mid
+      call. A page that does not come back ends the call user_hung_up, dated at
+      the close. An expired token still rejoins a live call; an ended one is
+      refused with 410. Overridable per deployment, so this is the default.
+
   speech.idle.default_ms:
     value: 0
     source: platform/backend/pygato/src/pygato/session_config.py:108 DEFAULT_IDLE_TIMEOUT_MS

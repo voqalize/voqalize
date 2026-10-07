@@ -231,6 +231,76 @@ write reaches a browser as "Bad Request". Branch on `error.code`; show a person
 | `409` `agent_archived` | The agent is archived. Restore it before starting a new session. Sessions already in progress continue. |
 | `500` `missing_connect_params` | The session was minted but no worker is running for that agent. |
 
+## Keeping a call across a page load
+
+A full page load — a reload, or a link to another page of your site — closes
+the peer connection but not the call. The node holds a call for 10 seconds
+after its connection closes, and takes a fresh offer with the same session
+token and no `pc_id` as that call coming back. A new transport handed the
+params the last page connected with sends exactly that offer, even after the
+token has expired: expiry bounds when a session may start, not how long it may
+be rejoined.
+
+So keep those params where the next page can find them:
+
+```ts
+const CALL = "voice-call"; // sessionStorage key, yours to name
+
+// The "Start" button.
+async function start() {
+  const params = await fetch("/api/voice/start", {
+    method: "POST",
+    credentials: "include",
+  }).then((r) => r.json());
+  sessionStorage.setItem(CALL, JSON.stringify(params));
+  await client.connect(withRealHeaders(params));
+}
+
+// Every page load.
+const saved = sessionStorage.getItem(CALL);
+if (saved) {
+  client.connect(withRealHeaders(JSON.parse(saved))).catch(() => {
+    sessionStorage.removeItem(CALL); // the call ended while the page was away
+  });
+}
+
+// The "End call" button.
+async function end() {
+  sessionStorage.removeItem(CALL);
+  try {
+    client.disconnectBot();
+  } catch {
+    // Not connected: there is no call to end.
+  }
+  await client.disconnect();
+}
+```
+
+- **Save before you connect**, so a load in the middle of connecting still
+  finds the call.
+- **Don't call `sessions.connect` on a rejoin.** That starts a second session;
+  the saved params are the first one's.
+- **Don't hang up on `pagehide`.** The page going away is what this survives. A
+  page that never comes back ends the call when the hold runs out, dated at the
+  close.
+- **End with `disconnectBot()`.** It ends the call at once rather than after the
+  hold, and forgetting the params with it means a reload after End does not dial
+  back.
+- **A rejoin that fails means the call is over.** An offer for a call that has
+  ended is refused with `410`; one for a call the node no longer holds, with
+  another `4xx`. Either way, forget the params and show the page idle.
+- **Rejoin with the microphone on, without asking for a tap.** Construct the
+  client with `enableMic: true`: `connect()` opens the microphone before the
+  agent's audio arrives, and an open microphone is what lets the browser play
+  that audio on a page nobody has touched. A microphone opened after the audio
+  arrives leaves Chrome refusing to play it. For a user who was muted, call
+  `enableMic(false)` once connected rather than never opening it.
+- **`sessionStorage` is per tab**, so a second tab starts its own call. The
+  saved params carry the session token: they never leave your origin, but any
+  script on your page can read them, as it can read the live client.
+- **A page restored from the back/forward cache** brings back a client whose
+  connection is gone. Reload it on `pageshow` when `event.persisted` is true.
+
 ## Recording is a per-session decision
 
 Recording is `config.record`, a boolean in the same block as the voice and
@@ -263,8 +333,9 @@ agreed.
   transport, its release cadence, with nothing of ours lagging behind it.
 - **No polling for readiness.** The endpoint in the response is live when you
   receive it.
-- **No caching connect params.** They are one session, and the token expires in
-  minutes.
+- **No reusing connect params for a new session.** They are one session, and
+  the token expires in minutes. Keeping them to rejoin that session after a
+  page load is the one reuse, above.
 
 ## Read next
 
