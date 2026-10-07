@@ -196,7 +196,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
   const setService = useCallback((serviceId: string) => {
     if (!getService(serviceId)) return;
-    setState((s) => ({ ...s, bookingOpen: true, serviceId, step: 'slot' }));
+    // Without a branch there are no times to show: keep the reason and stay on the
+    // location step, which the branch then moves past (see setBranch).
+    setState((s) => ({ ...s, bookingOpen: true, serviceId, step: s.branchId ? 'slot' : 'location' }));
   }, []);
 
   const setSlot = useCallback((date: string, time: string) => {

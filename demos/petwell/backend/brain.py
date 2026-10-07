@@ -98,6 +98,7 @@ from .language import (
     GREETING,
     IDLE_MS,
     LANGUAGE_CODE,
+    NEXT_QUESTION,
     SWITCH_LINE,
     LanguageName,
     as_language,
@@ -115,6 +116,25 @@ _IST = ZoneInfo("Asia/Kolkata")
 
 # How long the visitor has to be quiet before the desk may answer a click.
 _IDLE_MS = IDLE_MS
+
+# After the language moves, how many of the visitor's turns pass before the
+# desk's own checks may move it again. Indian speech mixes English into every
+# language; one mixed sentence is not a request to switch back.
+_SETTLE_TURNS = 2
+
+_STEP_NAME = {
+    "city": "LOCATION — choose the city",
+    "branch": "LOCATION — choose the branch",
+    "service": "REASON — choose the reason for the visit",
+    "slot": "DAY AND TIME — choose a free time",
+    "details": "DETAILS — owner name, pet name, phone",
+    "review": "REVIEW — waiting for the visitor to tap Send Request",
+}
+
+
+def _not_done(why: str, ask: str) -> str:
+    """A refused tool call, worded so it cannot be glossed over in speech."""
+    return f"NOT DONE — {why}. Nothing changed on screen; do not say it was done. {ask}"
 
 
 def _today() -> dt.date:
@@ -145,6 +165,8 @@ EVERY RESPONSE STARTS WITH WORDS. Whenever you call a tool, the same response op
 
 YOU CONTROL THE SCREEN. Every answer goes on screen through its tool — never just say it. Several answers in one sentence → several calls in one response, in flow order.
 
+SAY WHAT YOU HAVE DONE. Whenever you tell the visitor something is selected, chosen, opened or booked, its tool call is in that same response. To move the booking on, call the tool and say the line with it; to find out what you still need, ask the question. Before every turn you are shown a [SCREEN NOW …] line: it is the truth about the page, and you continue from exactly there — a field marked NOT CHOSEN is the next thing to ask about or select. When a tool answers NOT DONE, tell the visitor what is still needed and ask for it. When the visitor says the screen has not changed, go by the SCREEN NOW line.
+
 THE VISITOR CAN ALSO CLICK. If you are told they opened a page, an article or the booking panel, or tapped a booking step, treat it as what they want and carry on from there — do not ask again.
 
 THE WEBSITE — pages you can open with navigate:
@@ -164,19 +186,20 @@ HEALTH HUB: when someone asks about a health topic an article covers, open it wi
 DATES YOU CAN BOOK (say the day, use the ISO date only in tool arguments):
 {_dates_for_prompt(today)}
 
-THE BOOKING FLOW — it happens in a booking panel over the page. One step at a time, skipping any step already answered:
-1. VISIT TYPE: clinic visit, or a vet at home (vaccination, minor illness or injury, blood sample, physiotherapy only). Call start_booking — it opens the panel.
-2. CITY: call choose_city. Kolkata is opening soon — say so warmly and offer another city; never book there.
-3. BRANCH: if the city has one branch, choose it straight away. Otherwise name the branches by area and ask which is closest. Call choose_branch. A home visit is sent from the nearest branch.
-4. REASON: map what they describe to one service and call choose_service. Clinic visits use Everyday or Specialty care; home visits use At home services only. If unclear, ask one short question.
-5. DAY AND TIME: call show_slots for the day they want (today if "as soon as possible"), offer two or three of the free times it returns, then call choose_slot with the one they pick. Never offer a time show_slots did not return.
-6. DETAILS: ask for the owner's name, the pet's name and kind of pet, and a phone number — one or two at a time. Email is optional; for a home visit also ask the address or locality. Call fill_details each time you learn something, with only the fields you learned. Read phone numbers back in groups to confirm.
-7. REVIEW: once name, pet name and phone are in, call show_review and ask them to check the summary and tap Send Request. Then stop. When they send it you'll be told the reference — read it out, say the branch will call to confirm, and wish the pet well.
+THE BOOKING FLOW — it happens in a booking panel over the page. Ask one question at a time, and put each answer on screen the moment you hear it:
+1. BOOKING ANSWERS — visit type, city, branch and reason. Each time the visitor gives any of them, call update_booking with ALL the answers you know so far, in the same response as your line. It opens the panel and moves the screen through each step; a city with one branch gets its branch selected too. Its reply says what is on screen and what is next — continue from there.
+   - Visit type: a clinic visit, or a vet at home (vaccination, minor illness or injury, blood sample, physiotherapy).
+   - City and branch: Kolkata is opening soon, so offer one of the other cities. In a city with several branches, name them by area and ask which is closest. A home visit is sent from the nearest branch.
+   - Reason: map what they describe to one service — clinic visits use Everyday or Specialty care, home visits the At home services. If it is unclear, ask one short question.
+2. DAY AND TIME: call show_slots for the day they want (today if "as soon as possible"), offer two or three of the free times it returns, then call choose_slot with the one they pick. Never offer a time show_slots did not return.
+3. DETAILS: ask for the owner's name, the pet's name and kind of pet, and a phone number — one or two at a time. Email is optional; for a home visit also ask the address or locality. Call fill_details each time you learn something, with only the fields you learned. Read phone numbers back in groups to confirm.
+4. REVIEW: once name, pet name and phone are in, call show_review and ask them to check the summary and tap Send Request. Then stop. When they send it you'll be told the reference — read it out, say the branch will call to confirm, and wish the pet well.
 
 EMERGENCIES COME FIRST. If the pet is bleeding heavily, not breathing, collapsed, having a seizure, hit by a vehicle, or has eaten poison, do NOT book. Call show_emergency with their city (if known) in the same response as a short, calm line: give the helpline for their region and tell them to come straight to the nearest 24x7 emergency branch now.
 
 LANGUAGE — it switches by itself; nobody picks a language on the page
 - You speak {languages}. You start in English. The visitor may speak English or any of these, and may change their mind at any point. The call is always in the language they are speaking, whatever the turn is — a request, a question or an answer. The moment they ask for a language, OR you can tell they are already speaking one, call switch_language with it — and call it ALONE, with no words at all. This is the one call that goes without a line: your voice is still in the old language when you write, so anything you say would come out in that one. The desk says the line itself, in the new language, once the voice has changed. Speak the new language from their next turn on. When you are sure, do not ask permission first; when you are not, see SURE, OR NOT SURE below.
+- switch_language is the one silent call. Every other response, in every language, opens with your spoken line in the visitor's language and then makes its calls — for example, in Tamil: "சரி, ஹைதராபாத் ஜூபிலி ஹில்ஸ் கிளையைத் தேர்வு செய்கிறேன். எதற்காக வருகிறீர்கள்?" with update_booking; in Hindi: "ठीक है, पवई ब्रांच चुन रहा हूँ। किस लिए आना है?" with update_booking.
 
 HOW TO TELL THEY ARE NOT SPEAKING ENGLISH — read this carefully, it is the part that goes wrong
 - While you are in English, the recognizer only knows English. It CANNOT write Hindi or any other Indian language. When a visitor speaks Hindi, you do not see Hindi — you see English words forced onto Hindi sounds, strung together in a way no English speaker would say. Examples of a visitor speaking Hindi:
@@ -211,6 +234,7 @@ SURE, OR NOT SURE
 - Sure — they asked for a language, or a whole sentence is plainly in another one: call switch_language at once, in that turn, without asking and without a word of your own.
 - Not sure — a few words look like another language but the rest does not, or the turn is too short to tell: do NOT switch yet. Answer in the current language, and end with one short question in BOTH languages: "क्या हम हिंदी में बात करें? Shall we talk in Hindi?". On a yes in either language, call switch_language. Ask this at most once per language; if they say no, stay.
 - This works in every direction, English included. Never stay in a language they have left.
+- Indian speech mixes English into every language ("mera dog ka appointment", "naan doctor-a paakanum"). Mixing is NOT a switch: stay in the current language. Once you have switched away from English, stay in that language unless the visitor asks for another one or speaks whole sentences in it for two turns in a row.
 - What does NOT count as switching: one borrowed English word inside a sentence in another language ("मुझे vaccination बुक करना है" is still Hindi). Judge by the whole sentence.
 - If they ask for a language not listed (Urdu, Odia…), say in the current language that you can continue in Hindi or English, and ask which.
 - Speak the visitor's language in its own script — Devanagari for Hindi and Marathi, Tamil script for Tamil, and so on — English loan words included: अपॉइंटमेंट, वैक्सीनेशन, क्लिनिक. Never write an Indian language in the Latin alphabet; the voice reads Latin as English.
@@ -297,6 +321,24 @@ class GoHome(Action):
     pass
 
 
+class BookingUpdate(BaseModel):
+    """What ``update_booking`` asks the model for: every booking answer known so
+    far. Leave a field empty only when the visitor has not said it yet."""
+
+    visit_type: Literal["clinic", "home", ""] = Field(
+        default="", description="'clinic' or 'home' once known, else empty."
+    )
+    city: str = Field(
+        default="", description="A city from the BRANCHES list once known, else empty."
+    )
+    branch_id: str = Field(
+        default="", description="A branch id from the BRANCHES list once chosen, else empty."
+    )
+    service_id: str = Field(
+        default="", description="A service id from SERVICES once the reason is clear, else empty."
+    )
+
+
 class SlotQuery(BaseModel):
     """What ``show_slots`` asks the model for."""
 
@@ -345,10 +387,25 @@ class PetwellBrain(GeminiBrain):
         self.service_id: str | None = None
         self.date: str | None = None
         self.time: str | None = None
+        # The rest of what is on screen, kept from the brain's own dispatches and
+        # the page's events. It is the ground truth the model is shown in front of
+        # every turn (``screen_now``): a model that said "I've selected Powai"
+        # without calling the tool is told, next turn, that no branch is chosen.
+        self.page: str = "home"
+        self.panel_open = False
+        self.details: set[str] = set()
+        self.review_shown = False
+        self.sent_ref: str | None = None
         # A switch the model asked for, made after its turn (see ``_switch_now``).
         self._switch_due: LanguageName | None = None
+        # The visitor's turns since the language last moved; the automatic checks
+        # wait two turns after a switch, so code-mixed speech cannot flap it.
+        self._turns_in_language = _SETTLE_TURNS
         # Set when a click wants answering; paid on the next idle tick.
         self._owed_a_reply = False
+        # The switch line, when the desk's own check moved the language before the
+        # model ran: said if the model's turn then says nothing.
+        self._switch_line_due: str | None = None
         self._fallback = FallbackLine()
 
     # ─── Tools ──────────────────────────────────────────────────────────
@@ -361,10 +418,7 @@ class PetwellBrain(GeminiBrain):
             self.navigate,
             self.show_branches,
             self.open_article,
-            self.start_booking,
-            self.choose_city,
-            self.choose_branch,
-            self.choose_service,
+            self.update_booking,
             self.show_slots,
             self.choose_slot,
             self.fill_details,
@@ -373,6 +427,62 @@ class PetwellBrain(GeminiBrain):
             self.go_home,
             self.switch_language,
         ]
+
+    def _reset_booking(self) -> None:
+        """The booking panel starts over — as the page's own reset does."""
+        self.city = self.branch_id = self.service_id = self.date = self.time = None
+        self.details = set()
+        self.review_shown = False
+        self.sent_ref = None
+
+    def booking_step(self) -> str | None:
+        """The step the booking panel is on, or ``None`` when it is closed."""
+        if not self.panel_open:
+            return None
+        if self.sent_ref:
+            return "sent"
+        if self.city is None:
+            return "city"
+        if self.branch_id is None:
+            return "branch"
+        if self.service_id is None:
+            return "service"
+        if self.time is None:
+            return "slot"
+        return "review" if self.review_shown else "details"
+
+    def screen_now(self) -> str:
+        """One line of ground truth, put in front of the model every turn: what
+        the website actually shows, kept from what landed — not from what was
+        said. Anything missing from it has not happened."""
+        page = self.page
+        if page.startswith("article:"):
+            article = get_article(page.removeprefix("article:"))
+            page = f"Health Hub article '{article['title'] if article else page}'"
+        parts = [f"page: {page.replace('_', ' ')}"]
+        step = self.booking_step()
+        if step is None:
+            parts.append("booking panel: CLOSED")
+        elif step == "sent":
+            parts.append(f"booking: request SENT, reference {self.sent_ref}")
+        else:
+            branch = get_branch(self.branch_id or "")
+            service = get_service(self.service_id or "")
+            parts += [
+                f"booking panel OPEN at step {_STEP_NAME[step]}",
+                f"visit: {'vet at home' if self.visit_type == 'home' else 'clinic visit'}",
+                f"city: {self.city or 'NOT CHOSEN'}",
+                f"branch: {branch['name'] if branch else 'NOT CHOSEN'}",
+                f"reason: {service['name'] if service else 'NOT CHOSEN'}",
+                f"day and time: {f'{self.date} {self.time}' if self.time else 'NOT CHOSEN'}",
+                f"details filled: {', '.join(sorted(self.details)) or 'none'}",
+            ]
+        return (
+            "[SCREEN NOW — what the website actually shows. Anything not listed here has "
+            "NOT happened; make it happen with its tool before you say it is done. "
+            + " · ".join(parts)
+            + "]"
+        )
 
     def _landed(self, kind: Phrase, *english: str) -> None:
         """The lines that say a dispatch landed, in the call's language: the
@@ -387,6 +497,7 @@ class PetwellBrain(GeminiBrain):
         """Open a page of the website: home, services, locations, health_hub or
         at_home. Closes the booking panel if it is open."""
         logger.info("petwell: navigate {}", action.page)
+        self.page, self.panel_open = action.page, False
         self.session.dispatch(action)
         self._landed("shown", "Here you go.", "This is that page.")
         return str({"status": "shown", "page": action.page})
@@ -396,8 +507,12 @@ class PetwellBrain(GeminiBrain):
         browsing — to book, use the booking flow."""
         city = as_city(action.city)
         if city is None:
-            return f"error: we have no branch in {action.city!r}"
+            return _not_done(
+                f"Petwell has no branch in {action.city!r}",
+                "Say so, and name only cities from the BRANCHES list.",
+            )
         logger.info("petwell: show_branches {}", city)
+        self.page, self.panel_open = "locations", False
         self.session.dispatch(ShowBranches(city=city))
         self._landed("shown", f"Here are our branches in {city}.")
         if city in OPENING_SOON:
@@ -410,74 +525,148 @@ class PetwellBrain(GeminiBrain):
         facts in the same response."""
         article = get_article(action.article_id)
         if article is None:
-            return f"error: no article {action.article_id!r}"
+            return _not_done(
+                f"there is no article {action.article_id!r}", "Use an id from the list."
+            )
         logger.info("petwell: open_article {}", action.article_id)
+        self.page, self.panel_open = f"article:{article['id']}", False
         self.session.dispatch(action)
         self._landed("shown", "Here's our article on that.", "I've opened the article.")
         return str({"status": "opened", "title": article["title"], "books": article["service_id"]})
 
-    async def start_booking(self, action: StartBooking) -> str:
-        """Open the booking panel: 'clinic' for a visit to a branch, 'home' for a
-        vet at home. Shows the location step."""
-        logger.info("petwell: start_booking {}", action.visit_type)
-        self.visit_type = action.visit_type
-        current = get_service(self.service_id or "")
-        if current is not None and current["visit"] != action.visit_type:
-            self.service_id = None
-        self.session.dispatch(action)
-        if action.visit_type == "home":
-            self._landed("over_to_you", "A vet at home — which city are you in?")
-        else:
-            self._landed("over_to_you", "A clinic visit — which city are you in?")
-        return str({"status": "started", "visit_type": action.visit_type})
+    async def update_booking(self, update: BookingUpdate) -> str:
+        """Put the visitor's booking answers on screen — visit type, city, branch
+        and reason — in this one call, with every answer you know so far. It opens
+        the booking panel and moves the screen through each step; a city with one
+        branch has that branch selected too. Call it whenever the visitor tells
+        you any of these, in the same response as your line. It answers with what
+        is on screen now and what is still needed."""
+        before = (self.visit_type, self.city, self.branch_id, self.service_id)
+        refused: list[str] = []
 
-    async def choose_city(self, action: ChooseCity) -> str:
-        """Select the visitor's city in the booking panel and show its branches."""
-        city = as_city(action.city)
-        if city is None:
-            return f"error: we have no branch in {action.city!r}"
-        logger.info("petwell: choose_city {}", city)
-        self.city = city
-        self.branch_id = None
-        self.session.dispatch(ChooseCity(city=city))
-        if city in OPENING_SOON:
-            self._landed(
-                "over_to_you", f"Our {city} hospital is opening soon — could another city work?"
+        if update.visit_type and update.visit_type != self.visit_type:
+            self.visit_type = update.visit_type
+            current = get_service(self.service_id or "")
+            if current is not None and current["visit"] != self.visit_type:
+                self.service_id = None
+
+        if update.branch_id:
+            branch = get_branch(update.branch_id)
+            if branch is None:
+                refused.append(f"no branch {update.branch_id!r} — use a branch id from the list")
+            elif branch["city"] in OPENING_SOON:
+                refused.append(f"{branch['name']} is opening soon — offer another city")
+            else:
+                self.city, self.branch_id = branch["city"], branch["id"]
+        elif update.city:
+            city = as_city(update.city)
+            if city is None:
+                refused.append(
+                    f"Petwell has no branch in {update.city!r} — offer the nearest Petwell city"
+                )
+            elif city != self.city:
+                self.city, self.branch_id = city, None
+                if city in OPENING_SOON:
+                    refused.append(f"{city} is opening soon — offer another city")
+
+        # A city with one branch has nothing to ask: select it now.
+        if self.city and self.branch_id is None and self.city not in OPENING_SOON:
+            only = branches_in(self.city)
+            if len(only) == 1:
+                self.branch_id = only[0]["id"]
+
+        if update.service_id:
+            service = get_service(update.service_id)
+            if service is None:
+                refused.append(f"no service {update.service_id!r} — use a service id from the list")
+            elif service["visit"] != self.visit_type:
+                refused.append(
+                    f"{service['name']} is a {service['visit']} service and this booking is a "
+                    f"{self.visit_type} visit — pass visit_type '{service['visit']}' with it, "
+                    "or pick a reason that fits"
+                )
+            else:
+                self.service_id = service["id"]
+
+        after = (self.visit_type, self.city, self.branch_id, self.service_id)
+        if after != before or (not self.panel_open and after[1:] != (None, None, None)):
+            self._show_booking(visit_changed=after[0] != before[0])
+        elif not self.panel_open and update.visit_type:
+            self._show_booking(visit_changed=True)
+
+        logger.info(
+            "petwell: update_booking {} → {} (refused {})",
+            update.model_dump(exclude_defaults=True),
+            after,
+            len(refused),
+        )
+        return self._booking_result(refused)
+
+    def _show_booking(self, *, visit_changed: bool) -> None:
+        """Bring the page's booking panel to what the desk holds, step by step.
+
+        The page's own setters each move it one step (a city shows its branches,
+        a branch moves to the reason, a reason with a branch moves to the times),
+        so the whole state is replayed in that order and the panel lands where the
+        desk is. A changed booking needs a new time."""
+        opening = not self.panel_open
+        self.panel_open, self.review_shown = True, False
+        self.date = self.time = None
+        if opening or visit_changed:
+            self.session.dispatch(StartBooking(visit_type=self.visit_type))
+        if self.city:
+            self.session.dispatch(ChooseCity(city=self.city))
+        if self.branch_id:
+            self.session.dispatch(ChooseBranch(branch_id=self.branch_id))
+        if self.service_id:
+            self.session.dispatch(ChooseService(service_id=self.service_id))
+        branch = get_branch(self.branch_id or "")
+        service = get_service(self.service_id or "")
+        step = self.booking_step() or ""
+        if self.language != "English":
+            # The visitor hears the next question in their own language.
+            question = NEXT_QUESTION[self.language].get(step)
+            if question:
+                landed(question)
+            else:
+                self._landed("over_to_you")
+            return
+        match step:
+            case "city":
+                self._landed("over_to_you", "Which city are you in?")
+            case "branch":
+                self._landed("over_to_you", f"{self.city} — which branch is closest?")
+            case "service" if branch:
+                self._landed("over_to_you", f"{branch['name']} it is. What's the visit for?")
+            case "slot" if service:
+                self._landed("over_to_you", f"{service['name']}. Which day works for you?")
+            case _:
+                self._landed("over_to_you", "Done.")
+
+    def _booking_result(self, refused: list[str]) -> str:
+        """What ``update_booking`` answers: the booking as the screen shows it, the
+        next thing to ask, and anything it could not do."""
+        branch = get_branch(self.branch_id or "")
+        service = get_service(self.service_id or "")
+        step = self.booking_step()
+        result: dict[str, object] = {
+            "on screen now": {
+                "visit": "vet at home" if self.visit_type == "home" else "clinic visit",
+                "city": self.city or "NOT CHOSEN",
+                "branch": branch["name"] if branch else "NOT CHOSEN",
+                "reason": service["name"] if service else "NOT CHOSEN",
+            },
+            "next": _STEP_NAME.get(step or "", "open the booking with update_booking"),
+        }
+        if step == "branch" and self.city:
+            result["branches to offer"] = {b["id"]: b["name"] for b in branches_in(self.city)}
+        if refused:
+            result["NOT DONE"] = refused
+            result["note"] = (
+                "Nothing changed on screen for the items under NOT DONE. "
+                "Tell the visitor what is still needed and ask for it."
             )
-            return str({"status": "opening_soon", "city": city})
-        branches = branches_in(city)
-        self._landed("over_to_you", f"{city} — which branch is closest?")
-        return str({"status": "shown", "city": city, "branches": [b["name"] for b in branches]})
-
-    async def choose_branch(self, action: ChooseBranch) -> str:
-        """Select the branch for the visit and move on to the reason."""
-        branch = get_branch(action.branch_id)
-        if branch is None:
-            return f"error: unknown branch {action.branch_id!r}"
-        if branch["city"] in OPENING_SOON:
-            return f"error: {branch['name']} is opening soon and not taking appointments"
-        logger.info("petwell: choose_branch {}", action.branch_id)
-        self.city = branch["city"]
-        self.branch_id = branch["id"]
-        self.session.dispatch(action)
-        self._landed("over_to_you", f"{branch['name']} it is. What's the visit for?")
-        return str({"status": "selected", "branch": branch["name"]})
-
-    async def choose_service(self, action: ChooseService) -> str:
-        """Select the reason for the visit and move on to picking a day and time."""
-        service = get_service(action.service_id)
-        if service is None:
-            return f"error: unknown service {action.service_id!r}"
-        if service["visit"] != self.visit_type:
-            return (
-                f"error: {service['name']} is a {service['visit']} service but this booking "
-                f"is a {self.visit_type} visit — pick a matching service, or start_booking again"
-            )
-        logger.info("petwell: choose_service {}", action.service_id)
-        self.service_id = service["id"]
-        self.session.dispatch(action)
-        self._landed("over_to_you", f"{service['name']}. Which day works for you?")
-        return str({"status": "selected", "service": service["name"]})
+        return str(result)
 
     @needs_result_now
     async def show_slots(self, query: SlotQuery) -> str:
@@ -485,13 +674,16 @@ class PetwellBrain(GeminiBrain):
         get them straight away, so say a short line with the call and offer two
         or three of the returned times after it."""
         if self.branch_id is None:
-            return "error: choose a branch first"
+            return _not_done("no branch is chosen yet", "Ask which branch first.")
         try:
             day = dt.date.fromisoformat(query.date)
         except ValueError:
-            return f"error: {query.date!r} is not an ISO date"
+            return _not_done(f"{query.date!r} is not an ISO date", "Use a date from the list.")
         if day not in booking_dates(self._today):
-            return "error: we can only book from today up to six days ahead"
+            return _not_done(
+                "that day is outside the booking window",
+                "Offer a day from today up to six days ahead.",
+            )
         times = slots_for(self.branch_id, day.isoformat(), self.visit_type)
         if day == self._today:
             now = dt.datetime.now(_IST).strftime("%H:%M")
@@ -516,11 +708,11 @@ class PetwellBrain(GeminiBrain):
     async def choose_slot(self, action: ChooseSlot) -> str:
         """Pick the day and time the visitor chose and move on to their details."""
         if self.branch_id is None:
-            return "error: choose a branch first"
+            return _not_done("no branch is chosen yet", "Ask which branch first.")
         if action.time not in slots_for(self.branch_id, action.date, self.visit_type):
-            return (
-                f"error: {action.time} on {action.date} is not free — "
-                "offer a time show_slots returned"
+            return _not_done(
+                f"{action.time} on {action.date} is not free",
+                "Call show_slots for that day and offer only the times it returns.",
             )
         logger.info("petwell: choose_slot {} {}", action.date, action.time)
         self.date, self.time = action.date, action.time
@@ -533,6 +725,7 @@ class PetwellBrain(GeminiBrain):
         the fields you learned; empty fields are left as they are."""
         filled = {k: v for k, v in action.model_dump().items() if v}
         logger.info("petwell: fill_details {}", sorted(filled))
+        self.details |= {k.replace("_", " ") for k in filled}
         self.session.dispatch(action)
         self._landed("done", "Noted.", "Got that down.")
         return str({"status": "filled", "fields": sorted(filled)})
@@ -542,6 +735,7 @@ class PetwellBrain(GeminiBrain):
         owner's name, pet's name and phone are in, in the same response that asks
         the visitor to check it and tap Send Request."""
         logger.info("petwell: show_review")
+        self.review_shown = True
         self.session.dispatch(ShowReview())
         self._landed(
             "over_to_you",
@@ -576,7 +770,8 @@ class PetwellBrain(GeminiBrain):
     async def go_home(self) -> str:
         """Clear the booking and go back to the home page."""
         logger.info("petwell: go_home")
-        self.city = self.branch_id = self.service_id = self.date = self.time = None
+        self._reset_booking()
+        self.page, self.panel_open = "home", False
         self.session.dispatch(GoHome())
         self._landed("shown", "Back to the start.")
         return str({"status": "home"})
@@ -616,6 +811,7 @@ class PetwellBrain(GeminiBrain):
             )
         logger.info("petwell: language {} -> {} (by {})", self.language, name, by)
         self.language = name
+        self._turns_in_language = 0
         self.session.dispatch(
             LanguageChanged(language=name, screen_language=screen_language_for(name))
         )
@@ -678,6 +874,10 @@ class PetwellBrain(GeminiBrain):
     async def _model_turn(self, session: Session) -> AsyncGenerator[Speech, None]:
         """Inside the fallback's watch, so a turn that switched in silence — as the
         prompt asks — is not also given a fallback line in the language being left."""
+        if self._switch_line_due is not None:
+            # Recorded as this turn's floor: spoken only if the model says nothing.
+            landed(self._switch_line_due)
+            self._switch_line_due = None
         async for event in super().respond(session):
             yield event
         async for event in self._switch_now():
@@ -694,10 +894,17 @@ class PetwellBrain(GeminiBrain):
         English one as Hindi in English letters. The plain cases are decided here
         (:func:`reads_as_english`, :func:`reads_as_latin_hindi`)."""
         self._owed_a_reply = False
-        if self.language != "English" and reads_as_english(msg.text):
+        self._turns_in_language += 1
+        settled = self._turns_in_language > _SETTLE_TURNS
+        was = self.language
+        if settled and self.language != "English" and reads_as_english(msg.text):
             self._append_note(await self._switch_to("English", by="the desk, which heard English"))
-        elif self.language == "English" and reads_as_latin_hindi(msg.text):
+        elif settled and self.language == "English" and reads_as_latin_hindi(msg.text):
             self._append_note(await self._switch_to("Hindi", by="the desk, which heard Hindi"))
+        if self.language != was:
+            self._switch_line_due = SWITCH_LINE[self.language]
+        # Ground truth goes in front of the visitor's words, never after them.
+        self._append_note(self.screen_now())
         self.append_to_context(types.Content(role="user", parts=[types.Part(text=msg.text)]))
         async for speech in self.respond(session):
             yield speech
@@ -710,6 +917,7 @@ class PetwellBrain(GeminiBrain):
             return _silence()
         self._owed_a_reply = False
         logger.info("petwell: idle -> answering what the visitor clicked")
+        self._append_note(self.screen_now())
         return self.respond(session)
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
@@ -733,13 +941,18 @@ class PetwellBrain(GeminiBrain):
         carry_on = "Carry on with the next step."
         match event:
             case PagePicked():
+                self.page, self.panel_open = event.page, False
                 return (f"[The visitor opened the {event.page.replace('_', ' ')} page.]", False)
             case ArticleOpened():
                 article = get_article(event.article_id)
                 if article is None:
                     return None
+                self.page, self.panel_open = f"article:{article['id']}", False
                 return (f"[The visitor is reading the article: {article['title']}.]", False)
             case BookingOpened():
+                # The page starts the panel over; so does the desk.
+                self._reset_booking()
+                self.panel_open = True
                 service = get_service(event.service_id)
                 if service is not None:
                     self.service_id = service["id"]
@@ -755,6 +968,7 @@ class PetwellBrain(GeminiBrain):
                 )
             case VisitTypePicked():
                 self.visit_type = event.visit_type
+                self.panel_open = True
                 kind = "a vet at home" if event.visit_type == "home" else "a clinic visit"
                 return (f"[The visitor tapped {kind}.] {carry_on}", True)
             case CityPicked():
@@ -780,6 +994,7 @@ class PetwellBrain(GeminiBrain):
                 return (f"[The visitor tapped {event.time} on {event.date}.] {carry_on}", True)
             case AppointmentRequested():
                 logger.info("petwell: appointment_requested ref={}", event.ref)
+                self.sent_ref = event.ref or "sent"
                 branch = get_branch(self.branch_id or "")
                 where = branch["name"] if branch else "the branch"
                 return (

@@ -57,6 +57,16 @@ CITIES: list[str] = [
 # Listed, but not taking appointments yet.
 OPENING_SOON: set[str] = {"Kolkata"}
 
+# The nearest Petwell cities for each part of the country — what the desk offers
+# when a caller names a city of their own. The prompt states what Petwell has and
+# where it is nearest; a call asked about Chennai was once offered "Hyderabad or
+# Bengaluru", because the list it had read as an example rather than the whole.
+NEAREST_BY_REGION: tuple[tuple[str, str], ...] = (
+    ("South India", "Hyderabad"),
+    ("West India", "Mumbai or Goa"),
+    ("North India", "New Delhi, Gurugram, Noida, Jaipur or Lucknow"),
+)
+
 BRANCHES: list[Branch] = [
     {
         "id": "goa-porvorim",
@@ -375,13 +385,21 @@ def helpline_for(city: str) -> Helpline:
 
 
 def catalog_for_prompt() -> str:
-    lines: list[str] = ["BRANCHES (city → branch [id] — address):"]
+    lines: list[str] = [
+        "BRANCHES — this is every Petwell hospital: nine cities, and these branches in "
+        "them (city → branch [id] — address):"
+    ]
     for city in CITIES:
         soon = " (OPENING SOON — not taking appointments yet)" if city in OPENING_SOON else ""
         lines.append(f"- {city}{soon}:")
         for b in branches_in(city):
             er = " · 24x7 emergency" if b["emergency"] else ""
             lines.append(f"    - {b['name']} [{b['id']}] — {b['address']}{er}")
+    lines.append(
+        "When a caller names a city of their own, offer the nearest of these Petwell cities: "
+        + "; ".join(f"{region} → {cities}" for region, cities in NEAREST_BY_REGION)
+        + ". Every city you name is one from the list above."
+    )
     lines.append("")
     lines.append("SERVICES (name [id] — what callers say):")
     for group in ("Everyday care", "Specialty care", "At home"):

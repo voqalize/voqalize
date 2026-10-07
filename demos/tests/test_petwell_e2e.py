@@ -37,7 +37,7 @@ discover()
 
 from voqalize_demos._loaded.petwell.brain import (  # noqa: E402
     _IDLE_MS,
-    ChooseBranch,
+    BookingUpdate,
     PetwellBrain,
 )
 from voqalize_demos._loaded.petwell.catalog import slots_for  # noqa: E402
@@ -67,14 +67,21 @@ def _results(contents: list[types.Content]) -> dict[str, str]:
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
-            # One sentence answers four steps: four calls under one line.
+            # One sentence answers four steps: one call carries all four, under one line.
             "I want to get my dog vaccinated at your Powai branch.": Reply(
                 text="Happy to help — a vaccination at Petwell Powai. Which day suits you?",
                 calls=(
-                    ("start_booking", {"action": {"visit_type": "clinic"}}),
-                    ("choose_city", {"action": {"city": "Mumbai"}}),
-                    ("choose_branch", {"action": {"branch_id": "mum-powai"}}),
-                    ("choose_service", {"action": {"service_id": "vaccination"}}),
+                    (
+                        "update_booking",
+                        {
+                            "update": {
+                                "visit_type": "clinic",
+                                "city": "Mumbai",
+                                "branch_id": "mum-powai",
+                                "service_id": "vaccination",
+                            }
+                        },
+                    ),
                 ),
             ),
             # The one read: the call, then — with the free times in hand — the offer.
@@ -115,8 +122,8 @@ def _llm() -> ScriptedGemini:
             ),
             "Book me in Kolkata.": reply_and_call(
                 "Our Kolkata hospital opens soon — could another city work?",
-                "choose_city",
-                action={"city": "Kolkata"},
+                "update_booking",
+                update={"city": "Kolkata"},
             ),
         }
     )
@@ -180,8 +187,16 @@ async def test_a_clinic_booking_drives_the_screen_to_send_request() -> None:
         assert len(rig.driver.ui_commands) == sent, "Send Request drove the screen"
         turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
         check_turn(rig, turn, units=1)
-        note = "".join(p.text or "" for p in (llm.captured_contents[-1][-1].parts or []))
+        told = [
+            p.text or ""
+            for c in llm.captured_contents[-1]
+            if c.role == "user"
+            for p in (c.parts or [])
+        ]
+        note = next(t for t in told if "Send Request" in t)
         assert "PW-123456" in note and "Petwell Powai" in note, note
+        # The screen line that follows it says the request went out.
+        assert "request SENT, reference PW-123456" in told[-1], told[-1]
 
 
 async def test_a_time_that_is_not_free_is_refused() -> None:
@@ -195,8 +210,10 @@ async def test_a_time_that_is_not_free_is_refused() -> None:
             "Powai, vaccination.": Reply(
                 text="Sure.",
                 calls=(
-                    ("start_booking", {"action": {"visit_type": "clinic"}}),
-                    ("choose_branch", {"action": {"branch_id": "mum-powai"}}),
+                    (
+                        "update_booking",
+                        {"update": {"visit_type": "clinic", "branch_id": "mum-powai"}},
+                    ),
                 ),
             ),
             "Book the taken one.": reply_and_call(
@@ -235,8 +252,9 @@ async def test_an_opening_soon_city_shows_but_cannot_be_booked() -> None:
         assert rig.command("choose_city") == {"city": "Kolkata"}
         brain = rig.brain
         assert isinstance(brain, PetwellBrain)
-        refused = await brain.choose_branch(ChooseBranch(branch_id="kol-ballygunge"))
-        assert refused.startswith("error:"), refused
+        refused = await brain.update_booking(BookingUpdate(branch_id="kol-ballygunge"))
+        assert "NOT DONE" in refused and "opening soon" in refused, refused
+        assert brain.branch_id is None
 
 
 async def test_a_tap_is_answered_on_the_next_idle_and_silence_otherwise() -> None:
@@ -246,10 +264,7 @@ async def test_a_tap_is_answered_on_the_next_idle_and_silence_otherwise() -> Non
         {
             "Clinic visit in Mumbai.": Reply(
                 text="Which branch is closest?",
-                calls=(
-                    ("start_booking", {"action": {"visit_type": "clinic"}}),
-                    ("choose_city", {"action": {"city": "Mumbai"}}),
-                ),
+                calls=(("update_booking", {"update": {"visit_type": "clinic", "city": "Mumbai"}}),),
             ),
             "tapped the Petwell Churchgate branch": reply(
                 "Churchgate it is. What's the visit for?"
@@ -276,7 +291,7 @@ async def test_a_branch_chosen_in_silence_is_still_said() -> None:
     own line, with no second request."""
     llm = ScriptedGemini(
         {
-            "Powai.": call("choose_branch", action={"branch_id": "mum-powai"}),
+            "Powai.": call("update_booking", update={"branch_id": "mum-powai"}),
         }
     )
     async with demo("petwell", llm) as rig:
@@ -454,7 +469,7 @@ async def test_there_is_no_language_event_from_the_page() -> None:
 async def test_a_silent_turn_in_hindi_is_covered_in_hindi() -> None:
     """The fallback line follows the call's language: a turn that moved the page
     and said nothing is covered with a written Hindi line, not the English one."""
-    llm = ScriptedGemini({"पवई": call("choose_branch", action={"branch_id": "mum-powai"})})
+    llm = ScriptedGemini({"पवई": call("update_booking", update={"branch_id": "mum-powai"})})
     async with demo("petwell", llm) as rig:
         await rig.driver.start_session(init={"language": "Hindi"})
         turn = await rig.driver.user_says("पवई")
@@ -476,3 +491,146 @@ def test_the_health_hub_ids_match_the_page() -> None:
     assert ids_on_page == [a["id"] for a in ARTICLES]
     dental = {"periodontal-disease", "brushing-teeth", "dental-abscess", "tooth-extraction"}
     assert dental <= set(ids_on_page)
+
+
+# ─── Grounding: what is said has to match what is on screen ───────────────────
+
+
+def _user_lines(contents: list[types.Content]) -> list[str]:
+    return [p.text or "" for c in contents if c.role == "user" for p in (c.parts or [])]
+
+
+async def test_a_branch_claimed_but_never_chosen_is_shown_as_not_chosen() -> None:
+    """The reported call: the desk said "I've started the booking at the Hyderabad
+    branch" with no call behind it, and the screen sat on location. Every turn now
+    opens with the screen as it actually is, so the next request is told the
+    branch is NOT CHOSEN — whatever was said before."""
+    llm = ScriptedGemini(
+        {
+            "Mumbai please.": Reply(
+                text="Done — I've selected our Powai branch for you.",
+                calls=(("update_booking", {"update": {"visit_type": "clinic", "city": "Mumbai"}}),),
+            ),
+            "The screen did not change.": reply("Sorry — which branch would you like?"),
+        }
+    )
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Mumbai please.")
+        await rig.driver.user_says("The screen did not change.")
+        screen = [t for t in _user_lines(llm.captured_contents[-1]) if t.startswith("[SCREEN NOW")]
+        assert screen, "no screen line in front of the turn"
+        latest = screen[-1]
+        assert "city: Mumbai" in latest and "branch: NOT CHOSEN" in latest, latest
+        assert "LOCATION — choose the branch" in latest, latest
+
+
+async def test_a_city_with_one_branch_selects_it_on_screen() -> None:
+    """Nothing to ask in Hyderabad, so the branch is selected in the same call —
+    the screen moves on without waiting on a branch the model may never name."""
+    llm = ScriptedGemini(
+        {
+            "Hyderabad.": Reply(
+                text="Our Jubilee Hills hospital. What's the visit for?",
+                calls=(
+                    (
+                        "update_booking",
+                        {"update": {"visit_type": "clinic", "city": "Hyderabad"}},
+                    ),
+                ),
+            )
+        }
+    )
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Hyderabad.")
+        assert rig.actions() == ["start_booking", "choose_city", "choose_branch"], rig.actions()
+        assert rig.command("choose_branch") == {"branch_id": "hyd-jubilee-hills"}
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain) and brain.booking_step() == "service"
+
+
+async def test_a_city_petwell_is_not_in_is_answered_with_the_nearest_one() -> None:
+    """The reported hallucination: asked about Chennai, the desk offered
+    "Hyderabad or Bengaluru". The prompt states what Petwell has — every branch,
+    and the nearest Petwell city for each region — and names no other city; a
+    booking anywhere else is refused with NOT DONE, the screen untouched."""
+    brain = PetwellBrain(client=ScriptedGemini({}))  # pyright: ignore[reportArgumentType]
+    prompt = brain.system_instruction
+    assert "this is every Petwell hospital" in prompt
+    assert "South India → Hyderabad" in prompt
+    assert "SAY WHAT YOU HAVE DONE" in prompt
+    for elsewhere in ("Bengaluru", "Bangalore", "Chennai", "Pune"):
+        assert elsewhere not in prompt, f"the prompt names {elsewhere}"
+
+    llm = ScriptedGemini(
+        {"Bengaluru.": reply_and_call("Checking.", "update_booking", update={"city": "Bengaluru"})}
+    )
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Bengaluru.")
+        assert rig.actions() == [], rig.actions()
+        await rig.driver.user_says("Okay.")
+        result = _results(llm.captured_contents[-1])["update_booking"]
+        assert "NOT DONE" in result and "nearest Petwell city" in result, result
+
+
+async def test_a_reason_before_a_branch_keeps_the_branch_missing() -> None:
+    """A reason named before the branch is kept, and the tool says plainly that
+    the branch is still to choose — the page stays on location."""
+    llm = ScriptedGemini(
+        {
+            "My dog has ticks, Mumbai.": Reply(
+                text="Skin and allergy, in Mumbai — which branch?",
+                calls=(
+                    (
+                        "update_booking",
+                        {
+                            "update": {
+                                "visit_type": "clinic",
+                                "city": "Mumbai",
+                                "service_id": "skin",
+                            }
+                        },
+                    ),
+                ),
+            ),
+            "Powai.": reply_and_call("Powai.", "update_booking", update={"branch_id": "mum-powai"}),
+        }
+    )
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("My dog has ticks, Mumbai.")
+        await rig.driver.user_says("Powai.")
+        first = next(
+            str((p.function_response.response or {})["result"])
+            for c in llm.captured_contents[-1]
+            for p in (c.parts or [])
+            if p.function_response is not None and p.function_response.name == "update_booking"
+        )
+        assert "'branch': 'NOT CHOSEN'" in first and "Skin & allergy" in first, first
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain) and brain.booking_step() == "slot"
+
+
+async def test_mixed_speech_right_after_a_switch_does_not_flip_the_language() -> None:
+    """The reported call flipped Tamil → Hindi → English → Tamil in two minutes.
+    After a switch the desk's own English check waits two turns, so one sentence
+    with English in it does not move the call back."""
+    english_in_devanagari = "आई वांट टू बुक एन अपॉइंटमेंट फॉर माय डॉग"
+    llm = ScriptedGemini(
+        {
+            "Mujhe Hindi mein baat karni hai.": call("switch_language", to={"language": "Hindi"}),
+            "": reply("ज़रूर।"),
+        }
+    )
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Mujhe Hindi mein baat karni hai.")
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain) and brain.language == "Hindi"
+        for _ in range(2):
+            await rig.driver.user_says(english_in_devanagari)
+            assert brain.language == "Hindi", "a mixed turn right after a switch moved it"
+        await rig.driver.user_says(english_in_devanagari)
+        assert brain.language == "English", "a settled call should still follow plain English"

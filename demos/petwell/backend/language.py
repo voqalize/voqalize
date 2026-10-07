@@ -21,6 +21,7 @@ from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 __all__ = [
     "GREETING",
     "LANGUAGE_CODE",
+    "NEXT_QUESTION",
     "SWITCH_LINE",
     "VOICE",
     "LanguageName",
@@ -125,3 +126,72 @@ SWITCH_LINE: dict[LanguageName, str] = {
 }
 
 assert set(SWITCH_LINE) == set(LANGUAGE_CODE), "a language with no switch line"
+
+
+#: The next booking question, in each language — what the desk says itself when
+#: a turn moved the booking on screen and the model said nothing, so the visitor
+#: hears where they are rather than a bare "go ahead".
+NEXT_QUESTION: dict[LanguageName, dict[str, str]] = {
+    "English": {
+        "city": "Which city are you in?",
+        "branch": "Which branch is closest to you?",
+        "service": "What's the visit for?",
+        "slot": "Which day would suit you?",
+    },
+    "Hindi": {
+        "city": "आप किस शहर में हैं?",
+        "branch": "आपके सबसे पास कौन सी ब्रांच है?",
+        "service": "किस लिए आना है?",
+        "slot": "कौन सा दिन ठीक रहेगा?",
+    },
+    "Bengali": {
+        "city": "আপনি কোন শহরে আছেন?",
+        "branch": "আপনার সবচেয়ে কাছের শাখা কোনটি?",
+        "service": "কী কারণে আসতে চান?",
+        "slot": "কোন দিনটা আপনার সুবিধা হবে?",
+    },
+    "Gujarati": {
+        "city": "તમે કયા શહેરમાં છો?",
+        "branch": "તમારી સૌથી નજીકની શાખા કઈ છે?",
+        "service": "શા માટે આવવું છે?",
+        "slot": "કયો દિવસ અનુકૂળ રહેશે?",
+    },
+    "Kannada": {
+        "city": "ನೀವು ಯಾವ ನಗರದಲ್ಲಿದ್ದೀರಿ?",
+        "branch": "ನಿಮಗೆ ಹತ್ತಿರದ ಶಾಖೆ ಯಾವುದು?",
+        "service": "ಯಾವ ಕಾರಣಕ್ಕೆ ಬರುತ್ತಿದ್ದೀರಿ?",
+        "slot": "ಯಾವ ದಿನ ನಿಮಗೆ ಅನುಕೂಲ?",
+    },
+    "Malayalam": {
+        "city": "നിങ്ങൾ ഏത് നഗരത്തിലാണ്?",
+        "branch": "നിങ്ങൾക്ക് അടുത്തുള്ള ബ്രാഞ്ച് ഏതാണ്?",
+        "service": "എന്തിനാണ് വരുന്നത്?",
+        "slot": "ഏത് ദിവസമാണ് സൗകര്യം?",
+    },
+    "Marathi": {
+        "city": "तुम्ही कोणत्या शहरात आहात?",
+        "branch": "तुमच्या जवळची शाखा कोणती?",
+        "service": "कशासाठी यायचं आहे?",
+        "slot": "कोणता दिवस सोयीचा आहे?",
+    },
+    "Punjabi": {
+        "city": "ਤੁਸੀਂ ਕਿਹੜੇ ਸ਼ਹਿਰ ਵਿੱਚ ਹੋ?",
+        "branch": "ਤੁਹਾਡੇ ਸਭ ਤੋਂ ਨੇੜੇ ਕਿਹੜੀ ਬ੍ਰਾਂਚ ਹੈ?",
+        "service": "ਕਿਸ ਲਈ ਆਉਣਾ ਹੈ?",
+        "slot": "ਕਿਹੜਾ ਦਿਨ ਠੀਕ ਰਹੇਗਾ?",
+    },
+    "Tamil": {
+        "city": "நீங்கள் எந்த ஊரில் இருக்கிறீர்கள்?",
+        "branch": "உங்களுக்கு அருகில் உள்ள கிளை எது?",
+        "service": "எதற்காக வருகிறீர்கள்?",
+        "slot": "எந்த நாள் உங்களுக்கு வசதியாக இருக்கும்?",
+    },
+    "Telugu": {
+        "city": "మీరు ఏ నగరంలో ఉన్నారు?",
+        "branch": "మీకు దగ్గరగా ఉన్న బ్రాంచ్ ఏది?",
+        "service": "దేని కోసం రావాలనుకుంటున్నారు?",
+        "slot": "ఏ రోజు మీకు వీలుగా ఉంటుంది?",
+    },
+}
+
+assert set(NEXT_QUESTION) == set(LANGUAGE_CODE), "a language with no next questions"
