@@ -171,6 +171,13 @@
               if (state === "disconnected") stop(false);
             },
             onBotReady: () => { if (client === next) reportPage(); },
+            // Aria's voice. The media manager keeps it playing (speaker routing,
+            // re-attaching it if the browser drops it), but the page attaches it.
+            onTrackStarted: (track, participant) => {
+              if (participant?.local || track.kind !== "audio") return;
+              audio.srcObject = new MediaStream([track]);
+              audio.play().catch(() => {});
+            },
             onBotStartedSpeaking: () => say("Aria is speaking…"),
             onBotStoppedSpeaking: () => say(muted ? "Muted." : "Listening. Just talk."),
             // Aria can offer a KDEM page as a link card; it opens in a new tab
