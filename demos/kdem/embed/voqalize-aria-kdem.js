@@ -12,8 +12,8 @@
 
   // ── 1. Configuration (filled in by Voqalize) ─────────────────────────────
   const VQ = {
-    agentId: "REPLACE_WITH_KDEM_AGENT_ID",
-    publishableKey: "pk_live_REPLACE_WITH_KDEM_KEY", // works only on karnatakadigital.in
+    agentId: "06ac5fe2-54d1-79b1-8000-c77b136e76ef",
+    publishableKey: "pk_live_eJOBDwN-zWHGqb9OPTYXeO5WPWzQhoYnlfRBnfR1tSY", // works only on karnatakadigital.in
     character: "tara",                                // female avatar; voice (Gauri) is set by Voqalize
     api: "https://app.dev.voqalize.com/api/v1/sessions.connect", // dev hosting for the pilot
   };
