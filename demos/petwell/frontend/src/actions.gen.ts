@@ -108,12 +108,23 @@ export interface ArticleOpened {
   article_id?: string;
 }
 
+/** The visitor closed the booking panel. What they chose is kept. */
+export type BookingClosed = Record<string, never>;
+
 /**
  * The visitor opened the booking panel — from the header, a service card or
  * an article's call to action, which may name the service to book.
  */
 export interface BookingOpened {
   service_id?: string;
+}
+
+/** The visitor tapped "Book another appointment": the panel starts over. */
+export type BookingRestarted = Record<string, never>;
+
+/** The visitor picked a city on the locations finder; empty for all cities. */
+export interface BranchesBrowsed {
+  city?: string;
 }
 
 /** The visitor tapped a branch in the booking panel. */
@@ -126,10 +137,34 @@ export interface CityPicked {
   city?: string;
 }
 
+/** The visitor tapped a day on the date strip; no time is chosen yet. */
+export interface DatePicked {
+  date?: string;
+}
+
+/**
+ * The visitor typed in a form field — sent once they pause or leave it, with
+ * the whole value as it now stands.
+ */
+export interface DetailEdited {
+  field?: 'owner_name' | 'pet_name' | 'pet_type' | 'phone' | 'email' | 'address' | 'notes';
+
+  value?: string;
+}
+
+/** The visitor closed the emergency sheet. */
+export type EmergencyClosed = Record<string, never>;
+
+/** The visitor opened the 24x7 emergency sheet. */
+export type EmergencyOpened = Record<string, never>;
+
 /** The visitor opened a page from the site's navigation. */
 export interface PagePicked {
   page?: 'home' | 'services' | 'locations' | 'health_hub' | 'at_home';
 }
+
+/** The visitor tapped Continue on their details and is checking the summary. */
+export type ReviewOpened = Record<string, never>;
 
 /** The visitor tapped a reason for the visit. */
 export interface ServicePicked {
@@ -141,6 +176,11 @@ export interface SlotPicked {
   date?: string;
 
   time?: string;
+}
+
+/** The visitor went back to a step — the Back link, the stepper, or a chip. */
+export interface StepOpened {
+  step?: 'visit' | 'location' | 'service' | 'slot' | 'details' | 'review';
 }
 
 /** The visitor tapped Clinic visit or Vet at home. */
@@ -208,12 +248,21 @@ export function unhandledUiAction(action: never): never {
 export type AppEvent =
   | { event: 'appointment_requested'; payload: AppointmentRequested }
   | { event: 'article_opened'; payload: ArticleOpened }
+  | { event: 'booking_closed'; payload: BookingClosed }
   | { event: 'booking_opened'; payload: BookingOpened }
+  | { event: 'booking_restarted'; payload: BookingRestarted }
+  | { event: 'branches_browsed'; payload: BranchesBrowsed }
   | { event: 'branch_picked'; payload: BranchPicked }
   | { event: 'city_picked'; payload: CityPicked }
+  | { event: 'date_picked'; payload: DatePicked }
+  | { event: 'detail_edited'; payload: DetailEdited }
+  | { event: 'emergency_closed'; payload: EmergencyClosed }
+  | { event: 'emergency_opened'; payload: EmergencyOpened }
   | { event: 'page_picked'; payload: PagePicked }
+  | { event: 'review_opened'; payload: ReviewOpened }
   | { event: 'service_picked'; payload: ServicePicked }
   | { event: 'slot_picked'; payload: SlotPicked }
+  | { event: 'step_opened'; payload: StepOpened }
   | { event: 'visit_type_picked'; payload: VisitTypePicked };
 
 export type AppEventName = AppEvent['event'];
@@ -221,12 +270,21 @@ export type AppEventName = AppEvent['event'];
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'appointment_requested',
   'article_opened',
+  'booking_closed',
   'booking_opened',
+  'booking_restarted',
+  'branches_browsed',
   'branch_picked',
   'city_picked',
+  'date_picked',
+  'detail_edited',
+  'emergency_closed',
+  'emergency_opened',
   'page_picked',
+  'review_opened',
   'service_picked',
   'slot_picked',
+  'step_opened',
   'visit_type_picked',
 ];
 

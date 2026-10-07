@@ -16,7 +16,7 @@ from typing import Literal
 
 from voqalize_demos import PHRASES, hello_for
 
-from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 __all__ = [
     "GREETING",
@@ -64,9 +64,6 @@ LANGUAGE_CODE: dict[LanguageName, Language] = {
 # the language the call is in.
 assert set(LANGUAGE_CODE.values()) <= set(PHRASES), "a language with no fallback phrases"
 
-#: How long the caller has to be quiet before the desk may answer a tap.
-IDLE_MS = 3000
-
 
 def config_for(name: LanguageName) -> Config:
     """Both legs in one language, in one request — never one without the other."""
@@ -74,7 +71,6 @@ def config_for(name: LanguageName) -> Config:
     return Config(
         stt=SttConfig(language=code),
         tts=TtsConfig(voice=VOICE, language=code),
-        idle=IdleConfig(timeout_ms=IDLE_MS),
     )
 
 

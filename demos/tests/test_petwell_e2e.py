@@ -11,9 +11,10 @@ free is something only the slot book knows, so that turn is two requests: the
 call, then the times offered. Every other tool shows what the model named from
 its prompt and says its line with the call, one request per turn.
 
-The browser→brain leg is the visitor's own clicks: browsing is only noted,
-booking taps and Send Request are answered on the next idle tick, and the page's
-language picker moves both legs at once.
+The browser→brain leg is everything the visitor does on the page — every
+click, each form field once they pause typing — and all of it is recorded
+quietly: a visitor driving the page is never talked at. What they did reaches
+the model as context, ahead of whatever they say next.
 
 Language follows the visitor the way the kiosk's does: ``switch_language`` only
 records the switch, the brain moves both legs after the turn and says a written
@@ -36,7 +37,6 @@ from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, chec
 discover()
 
 from voqalize_demos._loaded.petwell.brain import (  # noqa: E402
-    _IDLE_MS,
     BookingUpdate,
     PetwellBrain,
 )
@@ -105,16 +105,14 @@ def _llm() -> ScriptedGemini:
                                 "pet_name": "Bruno",
                                 "pet_type": "dog",
                                 "phone": "9820012345",
+                                "notes": "Annual vaccination",
                             }
                         },
                     ),
                     ("show_review", {}),
                 ),
             ),
-            # The idle tick after Send Request: the note's own phrase is the key.
-            "tapped Send Request": reply(
-                "Your reference is PW-123456. Powai will call you shortly."
-            ),
+            "What's my reference?": reply("It's PW-123456 — Powai will call you shortly."),
             "My dog ate rat poison!": reply_and_call(
                 "Please come in now — the helpline is on your screen.",
                 "show_emergency",
@@ -141,8 +139,8 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
 
 async def test_a_clinic_booking_drives_the_screen_to_send_request() -> None:
     """The whole clinic flow, by voice: the screen moves under every line, the
-    slot read takes the one extra request, and Send Request is answered on the
-    next idle tick with the reference the browser minted."""
+    slot read takes the one extra request, and Send Request — the visitor's own
+    tap — is recorded quietly, so the desk knows the reference when asked."""
     llm = _llm()
     async with demo("petwell", llm) as rig:
         await rig.driver.start_session()
@@ -185,7 +183,9 @@ async def test_a_clinic_booking_drives_the_screen_to_send_request() -> None:
         )
         await asyncio.sleep(0.1)
         assert len(rig.driver.ui_commands) == sent, "Send Request drove the screen"
-        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
+        quiet = await rig.driver.user_idle(level=1, idle_ms=3000, timeout=1.0)
+        assert quiet.units == [], "the desk spoke over a visitor's own tap"
+        turn = await rig.driver.user_says("What's my reference?")
         check_turn(rig, turn, units=1)
         told = [
             p.text or ""
@@ -195,8 +195,9 @@ async def test_a_clinic_booking_drives_the_screen_to_send_request() -> None:
         ]
         note = next(t for t in told if "Send Request" in t)
         assert "PW-123456" in note and "Petwell Powai" in note, note
-        # The screen line that follows it says the request went out.
-        assert "request SENT, reference PW-123456" in told[-1], told[-1]
+        # The screen line in front of the question says the request went out.
+        screen = [t for t in told if t.startswith("[SCREEN NOW")][-1]
+        assert "request SENT, reference PW-123456" in screen, screen
 
 
 async def test_a_time_that_is_not_free_is_refused() -> None:
@@ -257,33 +258,32 @@ async def test_an_opening_soon_city_shows_but_cannot_be_booked() -> None:
         assert brain.branch_id is None
 
 
-async def test_a_tap_is_answered_on_the_next_idle_and_silence_otherwise() -> None:
-    """A branch tapped on screen folds in silently and the next idle tick carries
-    on from it; with nothing tapped, idle ticks stay silent."""
+async def test_a_tap_is_recorded_quietly_and_used_on_the_next_turn() -> None:
+    """A branch tapped on screen changes the desk's picture of the screen and
+    says nothing; when the visitor next speaks, the desk carries on from it."""
     llm = ScriptedGemini(
         {
             "Clinic visit in Mumbai.": Reply(
                 text="Which branch is closest?",
                 calls=(("update_booking", {"update": {"visit_type": "clinic", "city": "Mumbai"}}),),
             ),
-            "tapped the Petwell Churchgate branch": reply(
-                "Churchgate it is. What's the visit for?"
-            ),
+            "What next?": reply("Churchgate it is — what's the visit for?"),
         }
     )
     async with demo("petwell", llm) as rig:
         await rig.driver.start_session()
         await rig.driver.user_says("Clinic visit in Mumbai.")
 
-        quiet = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS, timeout=1.0)
-        assert quiet.units == [], [u.text for u in quiet.units]
-
         await rig.driver.send_ui_event("branch_picked", {"branch_id": "mum-churchgate"})
         await asyncio.sleep(0.1)
-        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
-        check_turn(rig, turn, units=1)
+        quiet = await rig.driver.user_idle(level=1, idle_ms=3000, timeout=1.0)
+        assert quiet.units == [], [u.text for u in quiet.units]
         brain = rig.brain
         assert isinstance(brain, PetwellBrain) and brain.branch_id == "mum-churchgate"
+
+        await rig.driver.user_says("What next?")
+        screen = [t for t in _user_lines(llm.captured_contents[-1]) if t.startswith("[SCREEN NOW")]
+        assert "branch: Petwell Churchgate" in screen[-1], screen[-1]
 
 
 async def test_a_branch_chosen_in_silence_is_still_said() -> None:
@@ -346,25 +346,66 @@ async def test_the_desk_moves_the_visitor_around_the_site() -> None:
         assert rig.command("navigate") == {"page": "services"}
 
 
-async def test_reading_is_noted_but_a_booking_click_is_answered() -> None:
-    """A visitor reading an article is not talked at; opening the booking panel
-    from it is answered on the next idle tick, with the service already known."""
-    llm = ScriptedGemini(
-        {"opened the booking panel to book Vaccination": reply("Sure — which city?")}
-    )
+async def test_every_click_and_field_reaches_the_desk_and_none_is_answered() -> None:
+    """The reported gap: the visitor typed their name and the desk never knew.
+    Every click and every field they pause on reaches the desk — page, booking
+    choices, typing — and none of it makes the desk speak. The next time they
+    talk to it, it already knows."""
+    llm = ScriptedGemini({"What do you need from me?": reply("Just your pet's name and phone.")})
     async with demo("petwell", llm) as rig:
         await rig.driver.start_session()
-        await rig.driver.send_ui_event("article_opened", {"article_id": "parvovirus"})
-        await asyncio.sleep(0.1)
-        quiet = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS, timeout=1.0)
-        assert quiet.units == [], [u.text for u in quiet.units]
+        for event, payload in (
+            ("article_opened", {"article_id": "parvovirus"}),
+            ("booking_opened", {"service_id": "vaccination"}),
+            ("city_picked", {"city": "Mumbai"}),
+            ("branch_picked", {"branch_id": "mum-powai"}),
+            ("slot_picked", {"date": DAY, "time": FREE[0]}),
+            ("detail_edited", {"field": "owner_name", "value": "Abhishek"}),
+            ("detail_edited", {"field": "notes", "value": "Due for his booster"}),
+        ):
+            await rig.driver.send_ui_event(event, payload)
+        await asyncio.sleep(0.2)
+        quiet = await rig.driver.user_idle(level=1, idle_ms=3000, timeout=1.0)
+        assert quiet.units == [], "a visitor driving the page was talked at"
+        assert rig.actions() == [], "the visitor's clicks drove the screen from the brain"
 
-        await rig.driver.send_ui_event("booking_opened", {"service_id": "vaccination"})
-        await asyncio.sleep(0.1)
-        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
-        check_turn(rig, turn, units=1)
         brain = rig.brain
-        assert isinstance(brain, PetwellBrain) and brain.service_id == "vaccination"
+        assert isinstance(brain, PetwellBrain)
+        assert brain.details == {"owner_name": "Abhishek", "notes": "Due for his booster"}
+        assert brain.booking_step() == "details"
+
+        await rig.driver.user_says("What do you need from me?")
+        told = _user_lines(llm.captured_contents[-1])
+        assert any("typed their owner name: 'Abhishek'" in t for t in told), told
+        screen = [t for t in told if t.startswith("[SCREEN NOW")][-1]
+        assert "owner name 'Abhishek'" in screen, screen
+        assert "details still needed: pet name, phone" in screen, screen
+
+
+async def test_the_review_waits_for_every_required_field_including_the_message() -> None:
+    """The message is mandatory: the desk will not show the review until the
+    owner's name, pet's name, phone and message are on the form."""
+    async with demo("petwell", ScriptedGemini({})) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain)
+        await brain.update_booking(BookingUpdate(visit_type="clinic", branch_id="mum-powai"))
+        for field, value in (
+            ("owner_name", "Riya"),
+            ("pet_name", "Bruno"),
+            ("phone", "9820012345"),
+        ):
+            await rig.driver.send_ui_event("detail_edited", {"field": field, "value": value})
+        await asyncio.sleep(0.1)
+        refused = await brain.show_review()
+        assert "NOT DONE" in refused and "message" in refused, refused
+        assert "show_review" not in rig.actions()
+
+        await rig.driver.send_ui_event("detail_edited", {"field": "notes", "value": "Limping"})
+        await asyncio.sleep(0.1)
+        shown = await brain.show_review()
+        await asyncio.sleep(0.1)
+        assert "review_shown" in shown and "show_review" in rig.actions(), shown
 
 
 # ─── Language ──────────────────────────────────────────────────────────────────

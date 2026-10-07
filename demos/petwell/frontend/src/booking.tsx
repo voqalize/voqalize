@@ -329,6 +329,7 @@ function Field({
           name={name}
           value={b.details[name]}
           onChange={(e) => b.editDetail(name, e.target.value)}
+          onBlur={() => b.flushDetail(name)}
           inputMode={name === 'phone' ? 'tel' : undefined}
         />
       )}
@@ -340,7 +341,12 @@ function DetailsStep() {
   const b = useSite();
   const t = strings(b.lang);
   const d = b.details;
-  const ready = d.owner_name.trim() && d.pet_name.trim() && d.phone.trim();
+  const ready =
+    d.owner_name.trim() &&
+    d.pet_name.trim() &&
+    d.phone.trim() &&
+    d.notes.trim() &&
+    (b.visitType !== 'home' || d.address.trim());
   return (
     <>
       <Back to="slot" />
@@ -365,11 +371,18 @@ function DetailsStep() {
         <Field name="phone" label={t.phone} required />
         <Field name="email" label={t.email} />
         {b.visitType === 'home' && <Field name="address" label={t.address} required />}
-        <Field name="notes" label={t.message}>
-          <textarea name="notes" rows={2} value={d.notes} onChange={(e) => b.editDetail('notes', e.target.value)} />
+        <Field name="notes" label={t.message} required>
+          <textarea
+            name="notes"
+            rows={2}
+            value={d.notes}
+            placeholder={t.messageHint}
+            onChange={(e) => b.editDetail('notes', e.target.value)}
+            onBlur={() => b.flushDetail('notes')}
+          />
         </Field>
       </div>
-      <button className="pw-primary" disabled={!ready} onClick={b.reviewNow}>
+      <button className="pw-primary" disabled={!ready} onClick={b.continueToReview}>
         {t.continue}
       </button>
     </>

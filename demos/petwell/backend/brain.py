@@ -62,7 +62,6 @@ from voqalize.sdk import (
     SpeechChunk,
     SpeechEnd,
     SpeechStart,
-    UserIdle,
     UserMessage,
 )
 from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
@@ -71,14 +70,23 @@ from .app_events import (
     PETWELL_EVENTS,
     AppointmentRequested,
     ArticleOpened,
+    BookingClosed,
     BookingOpened,
+    BookingRestarted,
+    BranchesBrowsed,
     BranchPicked,
     CityPicked,
+    DatePicked,
+    DetailEdited,
+    EmergencyClosed,
+    EmergencyOpened,
     Page,
     PagePicked,
     PetwellEvent,
+    ReviewOpened,
     ServicePicked,
     SlotPicked,
+    StepOpened,
     VisitTypePicked,
 )
 from .catalog import (
@@ -96,7 +104,6 @@ from .catalog import (
 from .hub import get_article, hub_for_prompt
 from .language import (
     GREETING,
-    IDLE_MS,
     LANGUAGE_CODE,
     NEXT_QUESTION,
     SWITCH_LINE,
@@ -114,13 +121,21 @@ PetType = Literal["dog", "cat", "bird", "rabbit", "other", ""]
 
 _IST = ZoneInfo("Asia/Kolkata")
 
-# How long the visitor has to be quiet before the desk may answer a click.
-_IDLE_MS = IDLE_MS
-
 # After the language moves, how many of the visitor's turns pass before the
 # desk's own checks may move it again. Indian speech mixes English into every
 # language; one mixed sentence is not a request to switch back.
 _SETTLE_TURNS = 2
+
+#: The form's fields as a person says them.
+_FIELD_NAME = {
+    "owner_name": "owner name",
+    "pet_name": "pet name",
+    "pet_type": "pet type",
+    "phone": "phone",
+    "email": "email",
+    "address": "address",
+    "notes": "message",
+}
 
 _STEP_NAME = {
     "city": "LOCATION — choose the city",
@@ -167,7 +182,7 @@ YOU CONTROL THE SCREEN. Every answer goes on screen through its tool — never j
 
 SAY WHAT YOU HAVE DONE. Whenever you tell the visitor something is selected, chosen, opened or booked, its tool call is in that same response. To move the booking on, call the tool and say the line with it; to find out what you still need, ask the question. Before every turn you are shown a [SCREEN NOW …] line: it is the truth about the page, and you continue from exactly there — a field marked NOT CHOSEN is the next thing to ask about or select. When a tool answers NOT DONE, tell the visitor what is still needed and ask for it. When the visitor says the screen has not changed, go by the SCREEN NOW line.
 
-THE VISITOR CAN ALSO CLICK. If you are told they opened a page, an article or the booking panel, or tapped a booking step, treat it as what they want and carry on from there — do not ask again.
+THE VISITOR CAN ALSO USE THE PAGE THEMSELVES. Their clicks and typing reach you as [The visitor …] lines and in SCREEN NOW. Someone driving the page is getting on with it on their own: you reply only when they speak to you, and then you continue from exactly where they are — using what they have already typed or picked, and asking only for what is still missing.
 
 THE WEBSITE — pages you can open with navigate:
 - home: hero, care we offer, branches, Petwell@Home, testimonials, latest articles.
@@ -192,8 +207,8 @@ THE BOOKING FLOW — it happens in a booking panel over the page. Ask one questi
    - City and branch: Kolkata is opening soon, so offer one of the other cities. In a city with several branches, name them by area and ask which is closest. A home visit is sent from the nearest branch.
    - Reason: map what they describe to one service — clinic visits use Everyday or Specialty care, home visits the At home services. If it is unclear, ask one short question.
 2. DAY AND TIME: call show_slots for the day they want (today if "as soon as possible"), offer two or three of the free times it returns, then call choose_slot with the one they pick. Never offer a time show_slots did not return.
-3. DETAILS: ask for the owner's name, the pet's name and kind of pet, and a phone number — one or two at a time. Email is optional; for a home visit also ask the address or locality. Call fill_details each time you learn something, with only the fields you learned. Read phone numbers back in groups to confirm.
-4. REVIEW: once name, pet name and phone are in, call show_review and ask them to check the summary and tap Send Request. Then stop. When they send it you'll be told the reference — read it out, say the branch will call to confirm, and wish the pet well.
+3. DETAILS: the form needs the owner's name, the pet's name and kind of pet, a phone number, and a message for the vet (a sentence about why they are coming) — for a home visit, the address or locality too; email is optional. Ask for one or two at a time, starting with whatever SCREEN NOW lists as still needed. Call fill_details each time you learn something, with only the fields you learned. Read phone numbers back in groups to confirm.
+4. REVIEW: once SCREEN NOW lists no details still needed, call show_review and ask them to check the summary and tap Send Request. Then wait for them. When the request is sent you will see its reference in SCREEN NOW — if they ask, read it out and say the branch will call to confirm.
 
 EMERGENCIES COME FIRST. If the pet is bleeding heavily, not breathing, collapsed, having a seizure, hit by a vehicle, or has eaten poison, do NOT book. Call show_emergency with their city (if known) in the same response as a short, calm line: give the helpline for their region and tell them to come straight to the nearest 24x7 emergency branch now.
 
@@ -357,12 +372,6 @@ class SwitchLanguage(BaseModel):
     language: LanguageName = Field(description="The language to continue in.")
 
 
-async def _silence() -> AsyncGenerator[Any, None]:
-    """Yields nothing: an idle tick the desk has no reason to answer."""
-    for _ in ():
-        yield
-
-
 class PetwellBrain(GeminiBrain):
     """One per session. Owns this visitor's booking so far and the call's
     language; the inherited tool loop runs each turn, each tool below drives the
@@ -393,7 +402,12 @@ class PetwellBrain(GeminiBrain):
         # without calling the tool is told, next turn, that no branch is chosen.
         self.page: str = "home"
         self.panel_open = False
-        self.details: set[str] = set()
+        # The form, field by field, as the screen holds it — typed by the visitor
+        # (``DetailEdited``) or filled by the desk (``fill_details``).
+        self.details: dict[str, str] = {}
+        # The step the visitor went back to look at, until the booking moves on.
+        self.viewing: str | None = None
+        self.emergency_open = False
         self.review_shown = False
         self.sent_ref: str | None = None
         # A switch the model asked for, made after its turn (see ``_switch_now``).
@@ -401,8 +415,6 @@ class PetwellBrain(GeminiBrain):
         # The visitor's turns since the language last moved; the automatic checks
         # wait two turns after a switch, so code-mixed speech cannot flap it.
         self._turns_in_language = _SETTLE_TURNS
-        # Set when a click wants answering; paid on the next idle tick.
-        self._owed_a_reply = False
         # The switch line, when the desk's own check moved the language before the
         # model ran: said if the model's turn then says nothing.
         self._switch_line_due: str | None = None
@@ -431,7 +443,8 @@ class PetwellBrain(GeminiBrain):
     def _reset_booking(self) -> None:
         """The booking panel starts over — as the page's own reset does."""
         self.city = self.branch_id = self.service_id = self.date = self.time = None
-        self.details = set()
+        self.details = {}
+        self.viewing = None
         self.review_shown = False
         self.sent_ref = None
 
@@ -450,6 +463,13 @@ class PetwellBrain(GeminiBrain):
         if self.time is None:
             return "slot"
         return "review" if self.review_shown else "details"
+
+    def missing_details(self) -> list[str]:
+        """The form fields the review still needs — the page's required ones."""
+        needed = ["owner_name", "pet_name", "phone", "notes"]
+        if self.visit_type == "home":
+            needed.append("address")
+        return [_FIELD_NAME[f] for f in needed if not self.details.get(f, "").strip()]
 
     def screen_now(self) -> str:
         """One line of ground truth, put in front of the model every turn: what
@@ -475,8 +495,16 @@ class PetwellBrain(GeminiBrain):
                 f"branch: {branch['name'] if branch else 'NOT CHOSEN'}",
                 f"reason: {service['name'] if service else 'NOT CHOSEN'}",
                 f"day and time: {f'{self.date} {self.time}' if self.time else 'NOT CHOSEN'}",
-                f"details filled: {', '.join(sorted(self.details)) or 'none'}",
             ]
+            filled = [f"{_FIELD_NAME[k]} '{v}'" for k, v in self.details.items() if v.strip()]
+            parts.append(f"details on the form: {', '.join(filled) or 'none yet'}")
+            if step in ("details", "review"):
+                missing = self.missing_details()
+                parts.append(f"details still needed: {', '.join(missing) or 'none'}")
+            if self.viewing and self.viewing != step:
+                parts.append(f"the visitor has gone back to look at the {self.viewing} step")
+        if self.emergency_open:
+            parts.append("the emergency sheet is OPEN")
         return (
             "[SCREEN NOW — what the website actually shows. Anything not listed here has "
             "NOT happened; make it happen with its tool before you say it is done. "
@@ -725,15 +753,22 @@ class PetwellBrain(GeminiBrain):
         the fields you learned; empty fields are left as they are."""
         filled = {k: v for k, v in action.model_dump().items() if v}
         logger.info("petwell: fill_details {}", sorted(filled))
-        self.details |= {k.replace("_", " ") for k in filled}
+        self.details.update(filled)
         self.session.dispatch(action)
         self._landed("done", "Noted.", "Got that down.")
         return str({"status": "filled", "fields": sorted(filled)})
 
     async def show_review(self) -> str:
         """Show the booking summary with the Send Request button. Call once the
-        owner's name, pet's name and phone are in, in the same response that asks
-        the visitor to check it and tap Send Request."""
+        owner's name, pet's name, phone and message are in (and the address, for a
+        home visit), in the same response that asks the visitor to check it and
+        tap Send Request."""
+        missing = self.missing_details()
+        if missing:
+            return _not_done(
+                f"the form still needs: {', '.join(missing)}",
+                "Ask for these, put them in with fill_details, then show the review.",
+            )
         logger.info("petwell: show_review")
         self.review_shown = True
         self.session.dispatch(ShowReview())
@@ -893,7 +928,6 @@ class PetwellBrain(GeminiBrain):
         the Hindi one comes out as English in Devanagari, Hindi spoken to the
         English one as Hindi in English letters. The plain cases are decided here
         (:func:`reads_as_english`, :func:`reads_as_latin_hindi`)."""
-        self._owed_a_reply = False
         self._turns_in_language += 1
         settled = self._turns_in_language > _SETTLE_TURNS
         was = self.language
@@ -909,46 +943,39 @@ class PetwellBrain(GeminiBrain):
         async for speech in self.respond(session):
             yield speech
 
-    def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        """The visitor has gone quiet. A booking click or Send Request is
-        answered with the next step; anything else — a visitor reading — with
-        silence."""
-        if not self._owed_a_reply:
-            return _silence()
-        self._owed_a_reply = False
-        logger.info("petwell: idle -> answering what the visitor clicked")
-        self._append_note(self.screen_now())
-        return self.respond(session)
-
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
-        """A click on the website. Folded into the context without taking the
-        floor; :meth:`on_user_idle` answers the ones that want answering."""
+        """Something the visitor did on the page. The desk updates its picture
+        of the screen and leaves one line for the model, and says nothing: a
+        visitor driving the page is getting on with it. They hear from the desk
+        when they next speak to it."""
         event = PETWELL_EVENTS.parse(msg)
         if event is None:
             return
-        applied = self.apply_event(event)
-        if applied is None:
-            return
-        note, owed = applied
-        self._append_note(note)
-        self._owed_a_reply = self._owed_a_reply or owed
+        note = self.apply_event(event)
+        if note is not None:
+            logger.info("petwell: visitor {}", note)
+            self._append_note(note)
 
     # ─── Browser → brain ────────────────────────────────────────────────
 
-    def apply_event(self, event: PetwellEvent) -> tuple[str, bool] | None:
-        """Bring the desk up to date with a click: the note the model reads next,
-        and whether it is owed a reply. ``None`` for a click naming nothing real."""
-        carry_on = "Carry on with the next step."
+    def apply_event(self, event: PetwellEvent) -> str | None:
+        """Bring the desk up to date with something the visitor did, and return
+        the line the model reads next. ``None`` for an event naming nothing real.
+        Nothing here asks for a reply: the visitor is driving."""
         match event:
             case PagePicked():
                 self.page, self.panel_open = event.page, False
-                return (f"[The visitor opened the {event.page.replace('_', ' ')} page.]", False)
+                return f"[The visitor opened the {event.page.replace('_', ' ')} page.]"
             case ArticleOpened():
                 article = get_article(event.article_id)
                 if article is None:
                     return None
                 self.page, self.panel_open = f"article:{article['id']}", False
-                return (f"[The visitor is reading the article: {article['title']}.]", False)
+                return f"[The visitor opened the article: {article['title']}.]"
+            case BranchesBrowsed():
+                city = as_city(event.city)
+                self.page, self.panel_open = "locations", False
+                return f"[The visitor is looking at our branches in {city or 'every city'}.]"
             case BookingOpened():
                 # The page starts the panel over; so does the desk.
                 self._reset_booking()
@@ -957,50 +984,69 @@ class PetwellBrain(GeminiBrain):
                 if service is not None:
                     self.service_id = service["id"]
                     self.visit_type = service["visit"]
-                    return (
-                        f"[The visitor opened the booking panel to book {service['name']}.] "
-                        "Ask what you still need, starting with their city.",
-                        True,
-                    )
-                return (
-                    "[The visitor opened the booking panel.] Ask clinic visit or home visit.",
-                    True,
-                )
+                    return f"[The visitor opened the booking panel to book {service['name']}.]"
+                return "[The visitor opened the booking panel.]"
+            case BookingClosed():
+                self.panel_open = False
+                return "[The visitor closed the booking panel; what they chose is kept.]"
+            case BookingRestarted():
+                self._reset_booking()
+                self.panel_open = True
+                return "[The visitor started a new booking.]"
             case VisitTypePicked():
                 self.visit_type = event.visit_type
                 self.panel_open = True
+                self.viewing = None
                 kind = "a vet at home" if event.visit_type == "home" else "a clinic visit"
-                return (f"[The visitor tapped {kind}.] {carry_on}", True)
+                return f"[The visitor chose {kind}.]"
             case CityPicked():
                 city = as_city(event.city)
                 if city is None:
                     return None
-                self.city, self.branch_id = city, None
-                return (f"[The visitor tapped {city}.] {carry_on}", True)
+                self.city, self.branch_id, self.viewing = city, None, None
+                return f"[The visitor chose the city {city}.]"
             case BranchPicked():
                 branch = get_branch(event.branch_id)
                 if branch is None:
                     return None
-                self.city, self.branch_id = branch["city"], branch["id"]
-                return (f"[The visitor tapped the {branch['name']} branch.] {carry_on}", True)
+                self.city, self.branch_id, self.viewing = branch["city"], branch["id"], None
+                return f"[The visitor chose the {branch['name']} branch.]"
             case ServicePicked():
                 service = get_service(event.service_id)
                 if service is None:
                     return None
-                self.service_id = service["id"]
-                return (f"[The visitor tapped {service['name']}.] {carry_on}", True)
+                self.service_id, self.viewing = service["id"], None
+                return f"[The visitor chose {service['name']} as the reason.]"
+            case DatePicked():
+                self.date, self.time = event.date, None
+                return f"[The visitor is looking at the times on {event.date}.]"
             case SlotPicked():
-                self.date, self.time = event.date, event.time
-                return (f"[The visitor tapped {event.time} on {event.date}.] {carry_on}", True)
+                self.date, self.time, self.viewing = event.date, event.time, None
+                return f"[The visitor chose {event.time} on {event.date}.]"
+            case StepOpened():
+                self.viewing = event.step
+                self.review_shown = self.review_shown and event.step == "review"
+                return f"[The visitor went back to the {event.step} step.]"
+            case DetailEdited():
+                self.details[event.field] = event.value
+                label = _FIELD_NAME[event.field]
+                if event.value.strip():
+                    return f"[The visitor typed their {label}: '{event.value}'.]"
+                return f"[The visitor cleared the {label} field.]"
+            case ReviewOpened():
+                self.review_shown, self.viewing = True, None
+                return "[The visitor is checking the summary before Send Request.]"
             case AppointmentRequested():
-                logger.info("petwell: appointment_requested ref={}", event.ref)
                 self.sent_ref = event.ref or "sent"
                 branch = get_branch(self.branch_id or "")
                 where = branch["name"] if branch else "the branch"
                 return (
-                    f"[The visitor tapped Send Request. Reference {event.ref}.] Next time you "
-                    f"speak, read the reference out clearly, say {where} will call "
-                    f"{event.owner_name or 'them'} shortly to confirm, and wish "
-                    f"{event.pet_name or 'their pet'} well. Two sentences.",
-                    True,
+                    f"[The visitor tapped Send Request. Reference {event.ref}. {where} will call "
+                    f"{event.owner_name or 'them'} to confirm.]"
                 )
+            case EmergencyOpened():
+                self.emergency_open = True
+                return "[The visitor opened the 24x7 emergency sheet.]"
+            case EmergencyClosed():
+                self.emergency_open = False
+                return "[The visitor closed the emergency sheet.]"

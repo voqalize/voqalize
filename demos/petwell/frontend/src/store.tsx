@@ -11,10 +11,12 @@
  * steps, and the **language** — set only by Tushar's `language_changed`, never
  * picked: he hears which language the visitor speaks and the page follows.
  *
- * A click is also *told* to the brain: the `pick*`/`open*` actions emit a typed
- * `AppEvent` (declared in `backend/app_events.py`, generated into
- * `actions.gen.ts`). The agent's own commands call the same setters without
- * emitting — the brain already knows what it did.
+ * Everything the visitor does is *told* to the brain as a typed `AppEvent`
+ * (declared in `backend/app_events.py`, generated into `actions.gen.ts`): pages,
+ * articles, every booking choice, each form field once they pause typing, going
+ * back a step, closing the panel, the emergency sheet. The brain records them and
+ * stays quiet — a visitor driving the page is getting on with it. The agent's own
+ * commands call the same setters without emitting: the brain knows what it did.
  */
 
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
@@ -120,7 +122,12 @@ export interface SiteStore extends State {
   pickDate: (date: string) => void;
   pickSlot: (date: string, time: string) => void;
   editDetail: (field: keyof Details, value: string) => void;
+  /** The visitor left a field: send what they typed now rather than after the pause. */
+  flushDetail: (field: keyof Details) => void;
   goTo: (step: Step) => void;
+  /** The visitor tapped Continue on their details. */
+  continueToReview: () => void;
+  /** The desk's show_review: the same screen, nothing to report back. */
   reviewNow: () => void;
   sendRequest: () => string | null;
   restartBooking: () => void;
@@ -226,7 +233,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     },
     [setArticle, emit],
   );
-  const browse = useCallback((city: string | null) => setBrowse(city), [setBrowse]);
+  const browse = useCallback(
+    (city: string | null) => {
+      setBrowse(city);
+      emit({ event: 'branches_browsed', payload: { city: city ?? '' } });
+    },
+    [setBrowse, emit],
+  );
 
   const openBooking = useCallback(
     (serviceId?: string) => {
@@ -242,7 +255,10 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     },
     [emit],
   );
-  const closeBooking = useCallback(() => setState((s) => ({ ...s, bookingOpen: false })), []);
+  const closeBooking = useCallback(() => {
+    setState((s) => ({ ...s, bookingOpen: false }));
+    emit({ event: 'booking_closed', payload: {} });
+  }, [emit]);
 
   const pickVisitType = useCallback(
     (v: VisitType) => {
@@ -272,9 +288,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     },
     [setService, emit],
   );
-  const pickDate = useCallback((date: string) => {
-    setState((s) => ({ ...s, date, times: null, time: null }));
-  }, []);
+  const pickDate = useCallback(
+    (date: string) => {
+      setState((s) => ({ ...s, date, times: null, time: null }));
+      emit({ event: 'date_picked', payload: { date } });
+    },
+    [emit],
+  );
   const pickSlot = useCallback(
     (date: string, time: string) => {
       setSlot(date, time);
@@ -283,12 +303,51 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [setSlot, emit],
   );
 
-  const editDetail = useCallback((field: keyof Details, value: string) => {
-    setState((s) => ({ ...s, details: { ...s.details, [field]: value } }));
-  }, []);
+  // Typing reaches the desk as the whole field once the visitor pauses — not
+  // every keystroke — and straight away when they leave the field. A choice
+  // (the pet type) is sent at once.
+  const detailTimers = useRef<Partial<Record<keyof Details, number>>>({});
+  const sendDetail = useCallback(
+    (field: keyof Details) => {
+      window.clearTimeout(detailTimers.current[field]);
+      delete detailTimers.current[field];
+      emit({ event: 'detail_edited', payload: { field, value: stateRef.current.details[field] } });
+    },
+    [emit],
+  );
+  const editDetail = useCallback(
+    (field: keyof Details, value: string) => {
+      setState((s) => ({ ...s, details: { ...s.details, [field]: value } }));
+      stateRef.current = { ...stateRef.current, details: { ...stateRef.current.details, [field]: value } };
+      window.clearTimeout(detailTimers.current[field]);
+      if (field === 'pet_type') {
+        sendDetail(field);
+      } else {
+        detailTimers.current[field] = window.setTimeout(() => sendDetail(field), 700);
+      }
+    },
+    [sendDetail],
+  );
+  const flushDetail = useCallback(
+    (field: keyof Details) => {
+      if (detailTimers.current[field] !== undefined) sendDetail(field);
+    },
+    [sendDetail],
+  );
 
-  const goTo = useCallback((step: Step) => setState((s) => ({ ...s, step })), []);
+  const goTo = useCallback(
+    (step: Step) => {
+      setState((s) => ({ ...s, step }));
+      if (step !== 'done') emit({ event: 'step_opened', payload: { step } });
+    },
+    [emit],
+  );
   const reviewNow = useCallback(() => setState((s) => ({ ...s, bookingOpen: true, step: 'review' })), []);
+  const continueToReview = useCallback(() => {
+    for (const field of Object.keys(detailTimers.current) as (keyof Details)[]) sendDetail(field);
+    setState((s) => ({ ...s, step: 'review' }));
+    emit({ event: 'review_opened', payload: {} });
+  }, [emit, sendDetail]);
 
   const sendRequest = useCallback((): string | null => {
     const s = stateRef.current;
@@ -302,11 +361,18 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     return ref;
   }, [emit]);
 
-  const restartBooking = useCallback(() => setState((s) => ({ ...s, ...BOOKING_RESET })), []);
+  const restartBooking = useCallback(() => {
+    setState((s) => ({ ...s, ...BOOKING_RESET }));
+    emit({ event: 'booking_restarted', payload: {} });
+  }, [emit]);
   const openEmergency = useCallback(() => {
     setState((s) => ({ ...s, emergency: { city: s.city ?? s.browseCity ?? '', helpline: '', branchIds: [] } }));
-  }, []);
-  const closeEmergency = useCallback(() => setState((s) => ({ ...s, emergency: null })), []);
+    emit({ event: 'emergency_opened', payload: {} });
+  }, [emit]);
+  const closeEmergency = useCallback(() => {
+    setState((s) => ({ ...s, emergency: null }));
+    emit({ event: 'emergency_closed', payload: {} });
+  }, [emit]);
 
   // ── Agent → page ──────────────────────────────────────────────────────────
 
@@ -401,7 +467,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     pickDate,
     pickSlot,
     editDetail,
+    flushDetail,
     goTo,
+    continueToReview,
     reviewNow,
     sendRequest,
     restartBooking,
