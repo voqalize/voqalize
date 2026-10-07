@@ -170,6 +170,11 @@ const PRESENCE_STYLES = `
 .tv-tess.pstate-thinking{border-color:#C9A227}
 .tv-tess-stage{position:relative;aspect-ratio:1;background:radial-gradient(circle at 50% 40%,#FBF3E6,#EADFCB 75%)}
 .tv-tess-face{position:absolute;inset:0}
+/* Mounted before the call and kept out of sight until it is live (\`TessTile\`).
+   \`visibility\`, not \`display\`: the tile keeps its size, so the face is built and
+   drawn at the size she will be seen at, and the avatar draws only while its tile
+   is on screen, which a hidden tile still is. */
+.tv-tess[data-live="false"]{visibility:hidden}
 .tv-tess-caption{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
   padding:8px 12px;font-size:12px;color:#6E665C;font-family:system-ui,sans-serif}
 .tv-tess-caption strong{color:#1A1613;font-size:13px;font-weight:600}
@@ -187,11 +192,14 @@ const PRESENCE_STYLES = `
 
 // ── Tess, on screen ───────────────────────────────────────────────────────────
 // She sits bottom-right over the portal, the way a meeting tile does, and lip-syncs
-// to the bot's own audio track. The tile mounts only once a call is live, so the
-// avatar runtime and the `tess` character are not fetched before then.
-function TessTile({ client, activity }: { client: PipecatClient | null; activity: AmbientPresenceActivity }) {
+// to the bot's own audio track. The tile mounts as soon as there is a client, while
+// the visitor is still reading the gate, and stays hidden until the call is live.
+// Mounted on connect instead, the face's first frame — a new GPU context and every
+// shader compiled — landed on her greeting and held the page's main thread through
+// the visitor's first interruption.
+function TessTile({ client, activity, live }: { client: PipecatClient; activity: AmbientPresenceActivity; live: boolean }) {
   return (
-    <aside className={`tv-tess pstate-${activity}`} aria-label="Tess">
+    <aside className={`tv-tess pstate-${activity}`} data-live={live} aria-label="Tess">
       <div className="tv-tess-stage">
         <Avatar client={client} character="tess" className="tv-tess-face" aria-label="Tess" />
       </div>
@@ -302,7 +310,7 @@ function TravelSession({
       />
       <style dangerouslySetInnerHTML={{ __html: PRESENCE_STYLES }} />
       {children(presence)}
-      {isConnected ? <TessTile client={client ?? null} activity={activity} /> : null}
+      {client ? <TessTile client={client} activity={activity} live={isConnected} /> : null}
     </>
   );
 }

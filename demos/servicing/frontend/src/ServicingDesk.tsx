@@ -139,14 +139,16 @@ function LiveControls({
 }
 
 // ── Tess ──────────────────────────────────────────────────────────────────────
-// The tile mounts when the call goes live, and only then does the package fetch
-// the avatar runtime and her character: an advisor who never calls never
-// downloads her. Until she arrives the tile shows its own ground, which is what
-// it shows behind her anyway.
+// The tile mounts as soon as there is a client, while the advisor is still reading
+// the gate, and stays hidden until the call is live. Mounted on connect instead,
+// the face's first frame — a new GPU context and every shader compiled — landed on
+// her greeting and held the page's main thread through the first interruption.
+// Until she arrives the tile shows its own ground, which is what it shows behind
+// her anyway.
 
-function TessTile({ client, activity }: { client: PipecatClient | null; activity: AmbientPresenceActivity }) {
+function TessTile({ client, activity, live }: { client: PipecatClient; activity: AmbientPresenceActivity; live: boolean }) {
   return (
-    <aside className={`svc-tess pstate-${activity}`} aria-label="Tess">
+    <aside className={`svc-tess pstate-${activity}`} data-live={live} aria-label="Tess">
       <div className="svc-tess-stage">
         <Avatar client={client} character="tess" className="svc-tess-face" aria-label="Tess" />
       </div>
@@ -313,7 +315,7 @@ function ServicingSession({
         tempo={1.15}
       />
       {children(presence)}
-      {isConnected ? <TessTile client={client ?? null} activity={activity} /> : null}
+      {client ? <TessTile client={client} activity={activity} live={isConnected} /> : null}
       <PresenceStyles />
     </>
   );
@@ -359,6 +361,11 @@ const PRESENCE_STYLES = `
 .svc-tess.pstate-thinking{ border-color:#EA580C; }
 .svc-tess-stage{ position:relative; aspect-ratio:1; background:radial-gradient(circle at 50% 40%,#1A4A45,#0B2E2B 70%); }
 .svc-tess-face{ position:absolute; inset:0; }
+/* Mounted before the call and kept out of sight until it is live (TessTile).
+   visibility, not display: the tile keeps its size, so the face is built and drawn
+   at the size she will be seen at, and the avatar draws only while its tile is on
+   screen, which a hidden tile still is. */
+.svc-tess[data-live="false"]{ visibility:hidden; }
 .svc-tess-caption{ display:flex; align-items:baseline; justify-content:space-between; gap:8px;
   padding:8px 12px; font-size:12px; color:#9FD4CD; }
 .svc-tess-caption strong{ color:#EAF6F4; font-size:13px; font-weight:600; }
