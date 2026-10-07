@@ -291,6 +291,8 @@ None of this is needed for a first call, and each has a page:
   accept inbound connections.
 - [**Recording**](/operate/recordings/) — per agent as a default, per
   session as a decision.
+- [**Camera and screen**](/build/video/) — the same recording carries the
+  user's camera and screenshare when the page turns them on.
 - [**The avatar**](/build/avatar/) — a talking head in the page, driven by
   the same session. Every session already sends what the face needs, so this
   is a browser-side change.

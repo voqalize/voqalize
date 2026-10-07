@@ -816,6 +816,95 @@ facts:
       are enforced on the request DTO, so an out-of-range ttl_seconds is a 422
       rather than a clamp.
 
+  # ---- camera and screen recording (voqalize/platform#126) ------------------
+  #
+  # Every fact in this block was read off the platform's feat/video-recording
+  # branch and documented by docs/src/content/docs/build/video.md. That page
+  # must not reach production before the feature does.
+
+  recording.roles:
+    value: [user, agent, mixed, camera, screen, composite]
+    source: platform/backend/controlplane/app/domains/sessions/documents.py RecordingRole
+    verified: 2026-10-07
+    reproduce: >-
+      grep -n 'RecordingRole = \|RECORDING_FORMATS\|": ("' 
+      ../platform/backend/controlplane/app/domains/sessions/documents.py
+      ../platform/backend/controlplane/app/domains/sessions/storage_paths.py
+    note: >-
+      The audio roles are on every recorded session. camera and screen exist
+      only for a lane the page published, and composite only when a lane's file
+      and mixed both rendered. Stored types (storage_paths.RECORDING_FORMATS):
+      user/agent/mixed audio/webm, camera/screen video/webm (VP8, not
+      re-encoded), composite video/mp4 (H.264 + AAC). Only camera and screen
+      carry a `timeline` (documents.TIMELINE_ROLES).
+    forbid:
+      - 'one audio track per role'
+      - '\bAudio, one entry per\b'
+
+  video.codec:
+    value: VP8
+    source: platform/backend/pygato/src/pygato/_video.py
+    verified: 2026-10-07
+    reproduce: >-
+      grep -n -i 'vp8' ../platform/backend/pygato/src/pygato/_video.py
+      ../platform/backend/pygato/src/pygato/signaling.py
+    note: >-
+      The only video codec accepted on the wire and recorded, whatever the
+      offer lists. A browser that cannot send VP8 still connects with audio and
+      its video is not recorded.
+
+  video.max_kbps.default:
+    value: 5000
+    source: platform/backend/pygato/src/pygato/_video.py:141 DEFAULT_MAX_KBPS
+    verified: 2026-10-07
+    reproduce: >-
+      grep -n 'DEFAULT_MAX_KBPS\b.*=\|MIN_MAX_KBPS = '
+      ../platform/backend/pygato/src/pygato/_video.py
+    note: >-
+      Per lane, camera and screen alike, when requestData.video does not set a
+      cap. A safety ceiling, not a quality target: the browser sends what the
+      content needs under it. There is no maximum a developer may not exceed.
+
+  video.max_kbps.min:
+    value: 300
+    source: platform/backend/pygato/src/pygato/_video.py:145 MIN_MAX_KBPS
+    verified: 2026-10-07
+    reproduce: >-
+      grep -n 'MIN_MAX_KBPS' ../platform/backend/pygato/src/pygato/_video.py
+    note: >-
+      The lowest cap requestData.video.{camera,screen}.max_kbps may set. Below
+      it the first offer is refused with HTTP 400, code invalid_config, and an
+      `info` sentence naming the value (VideoSettingsError).
+
+  video.capture.recommended:
+    value: camera up to 1280×720; screen native, up to 1920×1080
+    source: platform/backend/pygato/src/pygato/recording_composite.py:162 CAMERA, :164 SCREEN
+    verified: 2026-10-07
+    reproduce: >-
+      grep -n '^CAMERA = \|^SCREEN = \|^SCREEN_CAMERA' 
+      ../platform/backend/pygato/src/pygato/recording_composite.py
+    note: >-
+      A recommendation, not a limit: Voqalize records whatever arrives. The
+      numbers are the composite's own canvases — a camera composite is
+      1280×720 and a screen (or screen-plus-camera) composite is 1920×1080 —
+      so capturing larger costs uplink and gains nothing in composite.mp4.
+
+  pipecat.small_webrtc.refused_offer_floor:
+    value: '1.10.8'
+    source: https://www.npmjs.com/package/@pipecat-ai/small-webrtc-transport + platform/docs/customer-guide/video.md
+    verified: 2026-10-07
+    reproduce: >-
+      npm pack @pipecat-ai/small-webrtc-transport@1.10.6
+      @pipecat-ai/small-webrtc-transport@1.10.8 and grep each
+      dist/index.module.js for 'status >= 400'
+    note: >-
+      The version build/video.md tells a page to use so a refused offer (a
+      bitrate cap below video.max_kbps.min) stops at the first 400 and
+      surfaces our `info` sentence. 1.10.6 — the floor the demos declare —
+      resends the offer and rejects with no message. 1.10.7 already carries
+      the 4xx check in its bundle; 1.10.8 is the release the feature was
+      verified against, so it is the number we print.
+
   session.max_duration_secs:
     value: 3600
     source: platform/backend/controlplane/app/domains/sessions/state_machine.py:76 MAX_SESSION_SECS
@@ -883,14 +972,15 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 32
+    value: 33
     source: docs/src/content/docs/
-    verified: 2026-09-21
+    verified: 2026-10-07
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
       Each page is served twice — rendered, and as the `.md` twin an agent
-      reads — plus llms.txt and 404.html. It was 34 until 2026-09-21, when the
+      reads — plus llms.txt and 404.html. It was 32 until 2026-10-07, when
+      `build/video` (camera and screen recording) was added. It was 34 until 2026-09-21, when the
       hosting trio (`build/hosting`, `build/inbound`, `build/outbound`) became
       one page and `reference/management-api` became `reference/http-api`: a
       reader met the hosting decision three times before reading a line about
@@ -1021,16 +1111,18 @@ facts:
       imply that a user can select a US region today.
 
   session.data.stored:
-    value: [session record, init, events, transcripts, logs, optional audio recordings]
+    value: [session record, init, events, transcripts, logs, optional audio and video recordings]
     source: platform/backend/controlplane/app/domains/sessions/documents.py + app/domains/logs/
-    verified: 2026-08-28
+    verified: 2026-10-07
     reproduce: >-
       sed -n '65,125p'
       ../platform/backend/controlplane/app/domains/sessions/documents.py
     note: >-
       Transcripts are carried in the stored wire-event artifact rather than a
       separate transcript database. Audio exists only when recording resolved
-      true for that session. The brain's own model history and logs remain in
+      true for that session; camera and screen video additionally only for a
+      lane the page published (RecordingRole, feat/video-recording,
+      voqalize/platform#126). The brain's own model history and logs remain in
       the developer's environment.
 
   session.data.retention:

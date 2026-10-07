@@ -29,6 +29,8 @@ that path in detail.
   session may be created.
 - [The avatar](/build/avatar/) — a talking head in the page, once the call path
   works.
+- [Camera and screen](/build/video/) — record the user's camera and
+  screenshare beside the audio, with pipecat's own calls.
 
 Once a call works end to end, [improving the agent](/design/) is what changes
 next, and [operating calls](/operate/) is how you read one back.

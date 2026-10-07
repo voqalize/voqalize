@@ -95,7 +95,7 @@ allowance. Talk to us before a launch that needs more than a plan carries.
 | Lifecycle and wire events | Yes |
 | Transcripts | Yes, as part of the wire-event record |
 | Voqalize logs | Yes |
-| Audio | Only when recording is enabled for that session |
+| Audio, and camera and screen video | Only when recording is enabled for that session; video only for a lane the page turned on |
 | Brain model history and brain logs | No; these remain in your environment |
 
 Stored session data, recordings included, is retained for 30 days. Send
