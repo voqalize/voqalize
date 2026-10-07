@@ -28,6 +28,7 @@ from .knowledge import ALLOWLIST, SITE, path_of
 # ─── The languages ─────────────────────────────────────────────────────────────
 
 LanguageName = Literal["english", "kannada"]
+LanguageTag = Literal["en", "kn"]
 """The languages the call can be conducted in. A ``Literal`` so a language the
 pilot does not serve is a validation error, not a configure the speech tier refuses."""
 
@@ -41,16 +42,22 @@ class Speech:
 
     name: LanguageName
     code: Language
+    tag: LanguageTag
+    """How the page names it: the snippet's toggle and ``init.lang``."""
     voice: Voice = VOICE
 
 
 SPEECH: dict[LanguageName, Speech] = {
-    "english": Speech("english", Language.EN),
-    "kannada": Speech("kannada", Language.KN),
+    "english": Speech("english", Language.EN, "en"),
+    "kannada": Speech("kannada", Language.KN, "kn"),
 }
 
+BY_TAG: dict[LanguageTag, Speech] = {s.tag: s for s in SPEECH.values()}
+BY_CODE: dict[Language, Speech] = {s.code: s for s in SPEECH.values()}
+
 OPENING = SPEECH["english"]
-"""Every call opens in English; the site is in English."""
+"""A call opens in English, the site's language, unless the visitor picked
+Kannada on the snippet's toggle before it started (``init.lang == "kn"``)."""
 
 
 # ─── The pages ────────────────────────────────────────────────────────────────

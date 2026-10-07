@@ -21,7 +21,7 @@ from voqalize.sdk.gemini import DEFAULT_MODEL, VOICE_THINKING, GeminiBrain, need
 from voqalize_demos.configure import configure_soon
 from voqalize_demos.greeting import hello_for
 from voqalize_demos.screen import ScreenState, screen_prose
-from voqalize_demos.silent_turn import PHRASES, FallbackLine, landed, phrase
+from voqalize_demos.silent_turn import PHRASES, FallbackLine, landed, phrase, say_line
 
 __all__ = [
     "DEFAULT_MODEL",
@@ -35,5 +35,6 @@ __all__ = [
     "landed",
     "needs_result_now",
     "phrase",
+    "say_line",
     "screen_prose",
 ]

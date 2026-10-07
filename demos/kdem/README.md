@@ -75,15 +75,26 @@ site lets the call end on its own. **End** sends `disconnectBot()`, which ends
 the call at once, so the next page does not dial back. A visitor who muted
 stays muted on the next page.
 
-The snippet and the brain share three things:
+At the top of the panel is an **English | ಕನ್ನಡ** toggle: two buttons with
+`aria-pressed`, usable from the keyboard. It always shows the language the call
+is actually in. Pressing the other side sends `language_requested`, and the
+toggle moves only when the brain answers `language_changed`, so a switch made by
+voice moves it too and a switch Voqalize refused leaves it where it was. The
+choice is remembered for the tab (`sessionStorage`, `vq-aria:lang`); pressed
+with no call, it picks the language the next call starts in.
+
+The snippet and the brain share five things:
 
 - **`init`**: the snippet sends `{surface: "kdem-web", page: location.pathname,
-  lang: <html lang>}` with `sessions.connect`. The brain reads `page` so it knows
-  which page the visitor started on. When `page` is a page Aria may link right
-  now, the prompt names it by its own title and path. Anything else, including
-  an excluded page or a path the index does not hold, is left out of the
-  prompt: the brain never quotes what the browser sent. `surface` and `lang`
-  are logged.
+  lang: "en" | "kn"}` with `sessions.connect`. `lang` is the toggle's choice:
+  `"kn"` opens the call in Kannada, with both legs on Kannada and a written
+  Kannada greeting; anything else opens in English. A rejoin after a page load
+  sends no `init`, and the call keeps the language it is in. The brain reads
+  `page` so it knows which page the visitor started on. When `page` is a page
+  Aria may link right now, the prompt names it by its own title and path.
+  Anything else, including an excluded page or a path the index does not hold,
+  is left out of the prompt: the brain never quotes what the browser sent.
+  `surface` and `lang` are logged.
 - **`show_link`**: the only command the snippet renders. Its payload is
   `{url, title}`. The brain fills it in itself: it canonicalises the page the
   model names and sends it only if the current index holds that page, using the
@@ -106,6 +117,18 @@ The snippet and the brain share three things:
   may link now; any other page is "a page of the site", and the title the
   browser sent is never quoted. A rejoin on the same page, and any event that
   does not fit, change nothing.
+- **`language_requested`** (page → brain, `{language: "en" | "kn"}`): the
+  visitor pressed the toggle. The brain switches both legs in code, not through
+  the model, in one awaited request, and tells the model with a line in its
+  context. Aria confirms with a written line in the new language ("Sure, let's
+  continue in English." or "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ."). A brain has no floor
+  outside a turn, so the line opens her next turn, before her reply, and never
+  talks over anyone. Asking for the language the call is already in, or a value
+  that is not `"en"` or `"kn"`, does nothing.
+- **`language_changed`** (brain → page, `{language: "en" | "kn"}`): the language
+  the call is in now, sent after every switch, by the toggle or by voice. It is
+  the toggle's only source of truth. A switch Voqalize refuses sends the
+  language that still holds, so the toggle goes back.
 
 The site has to allow the microphone for its own pages. If it sends a
 `Permissions-Policy` header, that header must include `microphone=(self)`.
