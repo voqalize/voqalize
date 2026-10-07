@@ -18,8 +18,8 @@ importers:
         specifier: ^0.5.6
         version: 0.5.6(@pipecat-ai/client-js@1.13.1)
       '@voqalize/client-transport':
-        specifier: 0.3.1
-        version: 0.3.1(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
+        specifier: 0.3.2
+        version: 0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
     devDependencies:
       esbuild:
         specifier: ^0.25.0
@@ -244,8 +244,8 @@ packages:
       react-dom:
         optional: true
 
-  '@voqalize/client-transport@0.3.1':
-    resolution: {integrity: sha512-xjdp0MyeJG6SmJvtPsjoj/JjDhIlHWW+9OoPKhs62VNSgc4yZHPR2hlYROEKm44zpb/FTJF/Sx5l5hbAR4f+5g==}
+  '@voqalize/client-transport@0.3.2':
+    resolution: {integrity: sha512-jgAvFBIXMFEvDF9C8Rc0Q1BP9Y2pjIdsqJVF0sLJ8YWT0N4Tudp1ZGuWUjZCmcPNa8UsSQHxikpuTCo/jigGgA==}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.13.0 <2'
       '@pipecat-ai/small-webrtc-transport': '>=1.10.0 <2'
@@ -447,7 +447,7 @@ snapshots:
     optionalDependencies:
       '@pipecat-ai/client-js': 1.13.1
 
-  '@voqalize/client-transport@0.3.1(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))':
+  '@voqalize/client-transport@0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))':
     dependencies:
       '@pipecat-ai/client-js': 1.13.1
       '@pipecat-ai/small-webrtc-transport': 1.10.8(@pipecat-ai/client-js@1.13.1)
