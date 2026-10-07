@@ -65,6 +65,11 @@
       "name": "kiosk",
       "title": "Vantage Bank Card Kiosk",
       "tagline": "A bilingual branch-kiosk assistant that talks a walk-in customer through four questions and ranks three credit cards on a totem screen."
+    },
+    {
+      "name": "petwell",
+      "title": "Petwell Appointment Desk",
+      "tagline": "A voice booking desk for a vet hospital chain — clinic or home visit, branch, reason and time, filled in on screen as the pet owner talks."
     }
   ]
 }
