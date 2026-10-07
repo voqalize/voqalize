@@ -58,7 +58,7 @@ It sits at the bottom left, clear of the site's own chat button on the right;
 on a phone it sits higher, above the site's chat strip.
 
 It loads three libraries from jsDelivr, each pinned to an exact version in the
-script: pipecat's `@pipecat-ai/client-js`, `@voqalize/client-transport` 0.3.0
+script: pipecat's `@pipecat-ai/client-js`, `@voqalize/client-transport` 0.3.1
 and the `@voqalize/avatar` the other demos use. The call is pipecat's client on our transport, whose
 media manager is ours rather than daily's, so daily's call machine is never
 loaded from `c.daily.co`.

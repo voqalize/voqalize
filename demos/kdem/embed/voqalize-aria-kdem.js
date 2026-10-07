@@ -21,7 +21,7 @@
   // so the page holds one copy of each.
   const LIBS = {
     client: "https://cdn.jsdelivr.net/npm/@pipecat-ai/client-js@1.13.1/+esm",
-    transport: "https://cdn.jsdelivr.net/npm/@voqalize/client-transport@0.3.0/+esm",
+    transport: "https://cdn.jsdelivr.net/npm/@voqalize/client-transport@0.3.1/+esm",
     avatar: "https://cdn.jsdelivr.net/npm/@voqalize/avatar@0.5.6/+esm",
   };
   // Where @voqalize/client-transport keeps a live call for the next page.
