@@ -9,10 +9,12 @@
  * to it, it scrolls you to the section it is answering from. The voice is a fast
  * path through the page rather than the only way in.
  *
- * **The whole browser half of a call is pipecat's.** `PipecatAppBase` does
- * pipecat's two-step connect and owns the client; everything below it is a stock
- * `PipecatClient`. The only Voqalize-specific code on the page is the request
- * that starts the call and the one line over its answer, both in `src/config.ts`.
+ * **The whole browser half of a call is pipecat's.** `useCall` below does
+ * pipecat's two-step connect on a stock `PipecatClient`, over the transport from
+ * `@voqalize/client-transport` with `keepAcrossPageLoads` on, so a reload in the
+ * middle of a call carries on with it. Apart from that option, the only
+ * Voqalize-specific code on the page is the request that starts the call and
+ * the one line over its answer, both in `src/config.ts`.
  * The avatar is `@voqalize/avatar` from npm, handed that same client and a
  * character name and nothing else — it reads the state, the gestures and the
  * mouth shapes off the data channel that is already open. The bot's captions are `voice-ui-kit`'s own
@@ -40,9 +42,10 @@
  * default face's voice, which reads immediately as the wrong person. The strip is therefore live before the call and locked during it.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
+import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type APIRequest, PipecatClient, RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import {
+  PipecatClientProvider,
   usePipecatClient,
   usePipecatClientMicControl,
   useRTVIClientEvent,
@@ -51,7 +54,6 @@ import {
   BotAudioControl,
   ControlBar,
   ControlBarDivider,
-  PipecatAppBase,
   TranscriptOverlayComponent,
   UserAudioControl,
   usePipecatConnectionState,
@@ -59,7 +61,8 @@ import {
 import "@pipecat-ai/voice-ui-kit/styles.scoped";
 import { type CharacterInfo, listCharacters } from "@voqalize/avatar";
 import { Avatar } from "@voqalize/avatar/react";
-import { useVoqalizeMedia } from "@voqalize/demo-kit";
+import { createVoqalizeTransport } from "@voqalize/client-transport";
+import { type VoqalizeMedia, useVoqalizeMedia } from "@voqalize/demo-kit";
 import { Github, PhoneOff } from "lucide-react";
 import { asUiAction, sendAppEvent, unhandledUiAction } from "./actions.gen";
 import { connectRequest, demo, withRealHeaders } from "./config";
@@ -600,13 +603,63 @@ function Stage({
 }
 
 /**
- * Mints the session and owns the client. `PipecatAppBase` builds the
- * `PipecatClient`, does pipecat's two-step connect (`startBot` against the
- * control plane, then `connect` the transport it returns) and mounts
- * `PipecatClientProvider` as soon as the client exists, not when the call
- * goes live. `connectOnMount` is off: nothing opens a microphone until the
- * visitor asks for it.
+ * Mints the session and owns the client: one `PipecatClient` for the page's
+ * life, built at mount so `PipecatClientProvider` has it before the call is
+ * live. Nothing opens a microphone until the visitor asks, with one exception:
+ * a reload in the middle of a call. The transport remembers, for the tab, the
+ * call it was on (`keepAcrossPageLoads`), and a bare `connect()` rejoins it
+ * with no tap; the microphone opens before her audio arrives, which is what
+ * lets the browser play it. A rejoin the server refuses means the call ended
+ * while the page was away, and the page simply starts idle.
+ *
+ * Hanging up sends `disconnectBot()` first. That ends the call at once rather
+ * than after the server's grace for a dropped connection, and it is what tells
+ * the transport to forget the call, so a reload after End does not dial back.
  */
+function useCall(media: VoqalizeMedia, params: APIRequest) {
+  const [call] = useState(() => {
+    const transport = createVoqalizeTransport({ mediaManager: media.manager, keepAcrossPageLoads: true });
+    const client = new PipecatClient({ transport, enableMic: true, enableCam: false });
+    media.onClient(client);
+    return { transport, client, rejoining: false };
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Once per page: StrictMode runs this effect twice in development.
+    if (call.rejoining || !call.transport.hasLiveCall) return;
+    call.rejoining = true;
+    call.client.connect().catch((err: unknown) => console.info("No call to rejoin:", err));
+  }, [call]);
+
+  const begin = useCallback(async () => {
+    const { client, transport } = call;
+    if (!["initialized", "disconnected", "error"].includes(client.state)) return;
+    setError(null);
+    try {
+      const response = await client.startBot({ ...params });
+      if (typeof response === "object" && response !== null && "iceConfig" in response) {
+        transport.iceServers = (response as { iceConfig: { iceServers: RTCIceServer[] } }).iceConfig.iceServers;
+      }
+      await client.connect(withRealHeaders(response));
+    } catch (err) {
+      console.error("Connection error:", err);
+      setError(`Failed to start session: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [call, params]);
+
+  const end = useCallback(async () => {
+    try {
+      await call.client.disconnectBot();
+    } catch {
+      // Not connected: there is no call to end on the server's side.
+    }
+    await call.client.disconnect();
+  }, [call]);
+
+  return { client: call.client, error, begin, end };
+}
+
 /** The face a link asked for — `?avatar=tess`, which is how the homepage's
  *  faces deep-link here — or the default. Read once, at mount: after that the
  *  strip is the only thing that picks. It is checked against the roster when
@@ -639,6 +692,14 @@ export function AvatarDemo() {
       init.avatar = entry.name;
       init.voice = entry.suggestedVoices[0];
       setAvatarKey(entry.name);
+      // The face goes into the URL, so a reload mid-call rejoins in the face
+      // the call was started with: the rejoin reuses the session, not the
+      // request that picked the face.
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("avatar") !== entry.name) {
+        url.searchParams.set("avatar", entry.name);
+        window.history.replaceState(window.history.state, "", url);
+      }
     },
     [init],
   );
@@ -672,6 +733,7 @@ export function AvatarDemo() {
   const unprovisioned = !demo.agentId || !demo.publishableKey;
 
   const media = useVoqalizeMedia();
+  const call = useCall(media, params);
   return (
     <div className="av-root">
       <style>{STYLES}</style>
@@ -696,26 +758,19 @@ export function AvatarDemo() {
           </p>
         </div>
       ) : (
-        <PipecatAppBase
-          transportType="smallwebrtc"
-          transportOptions={media.transportOptions}
-          onClient={media.onClient}
-          noAudioOutput
-          noThemeProvider
-          startBotParams={params}
-          startBotResponseTransformer={withRealHeaders}
-        >
-          {({ error, handleConnect, handleDisconnect }) => (
-            <Stage
-              error={error ?? rosterError}
-              roster={roster ?? []}
-              avatarKey={avatarKey}
-              onPick={onPick}
-              onBegin={roster?.length ? handleConnect : undefined}
-              onEnd={handleDisconnect}
-            />
-          )}
-        </PipecatAppBase>
+        // client-react ships its own copy of the `PipecatClient` declaration, so
+        // the client-js instance is not nominally its prop type; the two are the
+        // same class.
+        <PipecatClientProvider client={call.client as unknown as ComponentProps<typeof PipecatClientProvider>["client"]}>
+          <Stage
+            error={call.error ?? rosterError}
+            roster={roster ?? []}
+            avatarKey={avatarKey}
+            onPick={onPick}
+            onBegin={roster?.length ? call.begin : undefined}
+            onEnd={call.end}
+          />
+        </PipecatClientProvider>
       )}
     </div>
   );
