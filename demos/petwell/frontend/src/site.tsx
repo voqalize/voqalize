@@ -75,14 +75,14 @@ const SERVICE_ICON: Record<string, ReactNode> = {
   'home-physio': <Activity size={22} />,
 };
 
-export function Site({ presence, face }: { presence: ReactNode; face: ReactNode }) {
+export function Site({ dock }: { dock: ReactNode }) {
   const s = useSite();
   return (
-    <div className="pw-app" data-lang={s.lang} style={{ fontFamily: FONT[s.lang] }}>
+    <div className={`pw-app${s.bookingOpen ? ' has-drawer' : ''}`} data-lang={s.lang} style={{ fontFamily: FONT[s.lang] }}>
       <style>{BOOKING_CSS}</style>
       <style>{SITE_CSS}</style>
       <Ticker />
-      <Header presence={presence} />
+      <Header />
       <main className="pw-page" key={`${s.page}-${s.articleId ?? ''}`}>
         {s.page === 'home' && <HomePage />}
         {s.page === 'services' && <ServicesPage />}
@@ -92,7 +92,7 @@ export function Site({ presence, face }: { presence: ReactNode; face: ReactNode 
         {s.page === 'at_home' && <AtHomePage />}
       </main>
       <Footer />
-      <div className="pw-dock">{face}</div>
+      <div className="pw-dock">{dock}</div>
       <BookingDrawer />
       <EmergencyPanel />
     </div>
@@ -112,7 +112,7 @@ function Ticker() {
   );
 }
 
-function Header({ presence }: { presence: ReactNode }) {
+function Header() {
   const s = useSite();
   const t = strings(s.lang);
   const nav: [Parameters<typeof s.openPage>[0], string][] = [
@@ -154,7 +154,6 @@ function Header({ presence }: { presence: ReactNode }) {
           <button className="pw-cta" onClick={() => s.openBooking()}>
             {t.book}
           </button>
-          {presence}
         </div>
       </div>
     </header>
@@ -898,8 +897,13 @@ const SITE_CSS = `
 .pw-drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px 28px; }
 .pw-icon-btn { background: none; border: 0; cursor: pointer; color: var(--muted) !important; padding: 4px; }
 
-/* Tushar's dock — over the page, beside the booking drawer when it is open. */
-.pw-dock { position: fixed; right: 20px; bottom: 20px; z-index: 40; width: 204px; }
+/* Tushar's dock — the call's only surface, bottom right. Beside the booking
+   drawer when it is open, never over its Send Request button. */
+.pw-dock { position: fixed; right: 20px; bottom: 20px; z-index: 40; max-width: calc(100vw - 40px);
+  transition: right .25s ease; }
+.pw-dock .pw-dock-live { width: 300px; }
+.pw-app.has-drawer .pw-dock { right: calc(min(640px, 100vw) + 20px); }
+@media (max-height: 780px) { .pw-dock .pw-dock-live { width: 244px; } }
 
 /* Below a wide desktop the nav takes a row of its own, and the mic speaks for
    itself — its label yields first. */
@@ -907,10 +911,28 @@ const SITE_CSS = `
   .pw-nav { order: 3; flex-basis: 100%; margin: 0 -12px; }
   .pw-presence-label { display: none !important; }
 }
+/* Tablet and phone: the dock is a slim bar (see DeskDock), bottom right, and the
+   page and the drawer keep room for it at the end of their scroll. */
+@media (max-width: 1000px) {
+  .pw-dock, .pw-app.has-drawer .pw-dock { right: 16px; bottom: 16px; max-width: calc(100vw - 32px); }
+  .pw-dock .pw-dock-live { width: min(440px, calc(100vw - 32px)); }
+  .pw-footer { padding-bottom: 110px; }
+  .pw-drawer-body { padding-bottom: 110px; }
+}
 @media (max-width: 900px) {
   .pw-hero, .pw-care, .pw-band, .pw-testimonial, .pw-page-hero.has-image, .pw-article-layout { grid-template-columns: 1fr; }
   .pw-hero h1 { font-size: 36px; }
-  .pw-toc { position: static; }
+  .pw-toc { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .pw-toc > strong { flex-basis: 100%; margin-bottom: 0; }
+  .pw-toc > button { border: 1.5px solid var(--pw-line); border-radius: 999px; padding: 5px 12px; background: #fff; font-size: 13px; }
+  .pw-toc-cta { flex-basis: 100%; flex-direction: row; align-items: center; margin-top: 8px; }
+  .pw-toc-cta span { flex: 1; }
+  .pw-hero-art img { aspect-ratio: 16 / 10; max-height: 420px; border-radius: 24px 24px 24px 80px; }
+  .pw-hero-badge { left: 14px; bottom: 14px; }
+  .pw-care-photos { grid-template-columns: repeat(3, 1fr); grid-template-rows: none; min-height: 0; }
+  .pw-care-photos img { aspect-ratio: 4 / 3; height: auto; }
+  .pw-care-photos img:first-child { grid-row: auto; }
+  .pw-page-hero img { height: 220px; }
   .pw-why { grid-template-columns: 1fr 1fr; }
   .pw-footer-grid { grid-template-columns: 1fr 1fr; }
   .pw-testimonial img { width: 160px; height: 160px; }
@@ -929,13 +951,17 @@ const SITE_CSS = `
   .pw-stats { grid-template-columns: 1fr 1fr; }
   .pw-hero-badge { left: 10px; }
   .pw-section-head h2 { font-size: 24px; }
-  .pw-care-photos { min-height: 220px; }
+  .pw-care-photos { gap: 8px; }
+  .pw-care-photos img { border-radius: 14px; }
   .pw-band > div { padding: 24px; }
   .pw-article-body { padding: 20px 18px; }
   .pw-article h1, .pw-page-hero h1 { font-size: 28px; }
   .pw-svc-grid, .pw-articles, .pw-branches { grid-template-columns: 1fr; }
   .pw-footer-grid { grid-template-columns: 1fr; }
-  .pw-dock { right: 12px; bottom: 12px; width: 104px; }
-  .pw-footer { padding-bottom: 150px; }
+  .pw-dock, .pw-app.has-drawer .pw-dock { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+  .pw-dock .pw-dock-live { width: auto; }
+  /* The nav scrolls sideways on a phone; the fade says there is more. */
+  .pw-nav { -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, #000 82%, transparent); padding-right: 24px; }
 }
 `;

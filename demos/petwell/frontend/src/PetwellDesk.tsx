@@ -1,9 +1,10 @@
 /**
- * The Petwell Appointment Desk's voice layer — ambient presence, not a docked widget.
+ * The Petwell site's voice layer — a glow around the viewport and Tushar's dock.
  *
- * The booking page is the star: the assistant announces itself as a glow around
- * the whole viewport ({@link AmbientPresence}) plus one small control inside
- * Petwell's own top bar. Status is carried by the ring's hue and motion.
+ * The website is the star. The call shows itself two ways: a glow around the
+ * whole viewport ({@link AmbientPresence}) whose hue and motion carry its state,
+ * and Tushar's dock at the bottom right (`DeskDock.tsx`), which holds every
+ * control the call has — the button that starts it, his face, mute and end.
  *
  * Everything here is stock pipecat: `PipecatAppBase` does the two-step connect
  * and owns the client; the brain's `session.dispatch(...)` arrives on
@@ -24,7 +25,6 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import {
   usePipecatClient,
-  usePipecatClientMicControl,
   usePipecatClientTransportState,
   useRTVIClientEvent,
 } from "@pipecat-ai/client-react";
@@ -35,15 +35,13 @@ import {
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
 } from "@voqalize/demo-kit";
-import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "./config";
-import { DeskFace } from "./DeskFace";
-import { strings } from "./i18n";
+import { DeskInvite, DeskLive } from "./DeskDock";
 import { useSite } from "./store";
 
-/** The page, handed the two things the call contributes: the mic control for its
- * top bar, and Tushar's face for its side panel. */
-type RenderDesk = (presence: ReactNode, face: ReactNode) => ReactNode;
+/** The page, handed the one thing the call contributes: Tushar's dock — the call
+ * button, his face, and the mute and end controls, bottom right. */
+type RenderDesk = (dock: ReactNode) => ReactNode;
 
 const BRAND = "#5c42bf";
 
@@ -57,82 +55,6 @@ const PRESENCE: Partial<AmbientPresencePalette> = {
   speaking: BRAND,
   offline: "#e4defa",
 };
-
-const STATE_LABEL: Record<AmbientPresenceActivity, string> = {
-  idle: "Live",
-  listening: "Listening",
-  thinking: "Thinking",
-  speaking: "Speaking",
-};
-
-// ── The one voice affordance, dropped into the booking page's top bar ────────────
-
-function PresenceFrame({ children }: { children: ReactNode }) {
-  return (
-    <div className="pw-presence">
-      {children}
-      <style>{PRESENCE_CSS}</style>
-    </div>
-  );
-}
-
-// Not live: a short invitation, and a mic to start. Doubles as the error surface —
-// the label carries the message, the button retries.
-function BeginControl({
-  connecting,
-  error,
-  onBegin,
-}: {
-  connecting: boolean;
-  error: string;
-  onBegin: () => void | Promise<void>;
-}) {
-  const t = strings(useSite().lang);
-  const label = connecting ? "Connecting…" : error || t.talk;
-  return (
-    <PresenceFrame>
-      <span className={`pw-presence-label${error && !connecting ? " is-error" : ""}`} title={label}>
-        {label}
-      </span>
-      {connecting ? (
-        <button className="pw-presence-btn is-connecting" disabled title="Connecting…">
-          <Loader2 size={16} className="pw-spin" />
-        </button>
-      ) : (
-        <button
-          className="pw-presence-btn"
-          onClick={onBegin}
-          title={error ? "Try again" : t.talk}
-        >
-          <Mic size={16} />
-        </button>
-      )}
-    </PresenceFrame>
-  );
-}
-
-// Live: the mic doubles as a mute toggle; a small ghost control ends the call.
-function LiveControls({ activity, onEnd }: { activity: AmbientPresenceActivity; onEnd: () => void }) {
-  const { isMicEnabled, enableMic } = usePipecatClientMicControl();
-  const label = isMicEnabled ? STATE_LABEL[activity] : "Muted";
-  return (
-    <PresenceFrame>
-      <span className="pw-presence-label" title={label}>
-        {label}
-      </span>
-      <button
-        className={`pw-presence-btn is-live pstate-${activity}${isMicEnabled ? "" : " is-muted"}`}
-        onClick={() => enableMic(!isMicEnabled)}
-        title={isMicEnabled ? "Mute" : "Unmute"}
-      >
-        {isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />}
-      </button>
-      <button className="pw-presence-end" onClick={onEnd} title="End call">
-        <PhoneOff size={13} />
-      </button>
-    </PresenceFrame>
-  );
-}
 
 // ── Session owner ─────────────────────────────────────────────────────────────
 
@@ -165,10 +87,7 @@ export function PetwellDesk({
           onJoin={begin}
         />
         <AmbientPresence palette={PRESENCE} />
-        {children(
-          <BeginControl connecting={false} error="" onBegin={begin} />,
-          <DeskFace client={null} activity="idle" />,
-        )}
+        {children(<DeskInvite connecting={false} error="" onStart={begin} />)}
       </>
     );
   }
@@ -278,108 +197,21 @@ function CallBridge({
   };
 
   const connecting = !isLive && !error && transportState !== "error";
-  const presence = isLive ? (
-    <LiveControls activity={activity} onEnd={hangUp} />
-  ) : (
-    <BeginControl
-      connecting={connecting}
-      error={error || (transportState === "error" ? "Something went wrong." : "")}
-      onBegin={() => onRetry?.()}
-    />
-  );
+  const dock =
+    isLive && client ? (
+      <DeskLive client={client} activity={activity} onEnd={hangUp} />
+    ) : (
+      <DeskInvite
+        connecting={connecting}
+        error={error || (transportState === "error" ? "Something went wrong." : "")}
+        onStart={() => onRetry?.()}
+      />
+    );
 
   return (
     <>
       <AmbientPresence activity={activity} transportState={transportState} palette={PRESENCE} />
-      {children(presence, <DeskFace client={(isLive && client) || null} activity={activity} />)}
+      {children(dock)}
     </>
   );
 }
-
-const PRESENCE_CSS = `
-.pw-presence {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.pw-presence-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #6b7280;
-  text-align: right;
-  min-width: 62px;
-  max-width: 260px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.pw-presence-label.is-error { color: #dc2626; }
-.pw-presence-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1.5px solid ${BRAND};
-  background: ${BRAND};
-  color: white;
-  cursor: pointer;
-  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
-}
-.pw-presence-btn:hover { transform: scale(1.05); }
-.pw-presence-btn:active { transform: scale(.97); }
-.pw-presence-btn.is-connecting {
-  background: transparent;
-  color: ${BRAND};
-  cursor: default;
-}
-.pw-presence-btn.is-connecting:hover { transform: none; }
-.pw-presence-btn.is-live { box-shadow: 0 0 0 4px rgba(92,66,191,.14); }
-.pw-presence-btn.is-live.pstate-thinking {
-  background: #a78bfa;
-  border-color: #a78bfa;
-  box-shadow: 0 0 0 4px rgba(167,139,250,.24);
-}
-.pw-presence-btn.is-live.pstate-speaking { box-shadow: 0 0 0 5px rgba(92,66,191,.3); }
-.pw-presence-btn.is-muted {
-  background: white;
-  border-color: #d1d5db;
-  color: #6b7280;
-  box-shadow: none;
-}
-.pw-presence-end {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: #9ca3af;
-  cursor: pointer;
-  transition: color .15s ease, background .15s ease;
-}
-.pw-presence-end:hover { color: #dc2626; background: #f3f4f6; }
-.pw-spin { animation: pw-presence-spin .9s linear infinite; }
-@keyframes pw-presence-spin { to { transform: rotate(360deg); } }
-
-/* Phone: the ring already carries status, so the label yields space first. */
-@media (max-width: 640px) {
-  .pw-presence { gap: 6px; }
-  .pw-presence-label {
-    font-size: 11.5px;
-    min-width: 0;
-    max-width: 108px;
-  }
-  .pw-presence-btn { width: 34px; height: 34px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pw-spin { animation: none; }
-  .pw-presence-btn { transition: none; }
-}
-`;

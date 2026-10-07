@@ -18,7 +18,7 @@ function PetwellDemo() {
     <div className="pw-demo-root" style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
       <SiteProvider>
         <PetwellDesk>
-          {(presence, face) => <Site presence={presence} face={face} />}
+          {(dock) => <Site dock={dock} />}
         </PetwellDesk>
       </SiteProvider>
     </div>

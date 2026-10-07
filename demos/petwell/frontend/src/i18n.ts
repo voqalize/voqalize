@@ -47,7 +47,7 @@ const EN = {
   heroTitle: 'Expert vets, modern hospitals — and care that never closes',
   heroLead:
     'From vaccinations to advanced surgery, Petwell looks after dogs, cats and exotic pets in 15 hospitals across India.',
-  heroVoice: 'Prefer to talk? Tap the mic and just speak — Tushar switches to your language by himself.',
+  heroVoice: 'Prefer to talk? Tap Talk at the bottom right and just speak — Tushar switches to your language by himself.',
   speaking: 'Speaking',
   statVets: 'Qualified vets',
   statBranches: 'Branches',
@@ -153,12 +153,18 @@ const EN = {
   pets: { dog: 'Dog', cat: 'Cat', bird: 'Bird', rabbit: 'Rabbit', other: 'Other' } as Record<string, string>,
   // desk
   deskRole: 'AI front desk',
-  deskHint: 'Tap the mic to talk to Tushar',
+  deskLangs: 'speaks 10 languages',
+  call: 'Talk',
+  connecting: 'Connecting…',
+  retry: 'Try again',
+  mute: 'Mute',
+  unmute: 'Unmute',
+  muted: 'Muted',
+  endCall: 'End',
   deskState: { idle: 'Here to help', listening: 'Listening', thinking: 'Checking', speaking: 'Speaking' } as Record<
     string,
     string
   >,
-  deskOffline: 'Offline',
   speaks: 'Speaks English, हिन्दी, বাংলা, मराठी, தமிழ், తెలుగు and more',
 };
 
@@ -179,7 +185,7 @@ const HI: Strings = {
   heroTitle: 'अनुभवी डॉक्टर, आधुनिक हॉस्पिटल — और देखभाल जो कभी बंद नहीं होती',
   heroLead:
     'टीकाकरण से लेकर एडवांस सर्जरी तक, पेटवेल पूरे भारत में 15 हॉस्पिटलों में कुत्तों, बिल्लियों और एक्ज़ॉटिक पेट्स की देखभाल करता है।',
-  heroVoice: 'बोलकर बुक करना है? माइक दबाइए और बोलिए — तुषार अपने आप आपकी भाषा में बात करेंगे।',
+  heroVoice: 'बोलकर बुक करना है? नीचे दाईं ओर ‘बात करें’ दबाइए और बोलिए — तुषार अपने आप आपकी भाषा में बात करेंगे।',
   speaking: 'भाषा',
   statVets: 'योग्य डॉक्टर',
   statBranches: 'ब्रांच',
@@ -282,9 +288,15 @@ const HI: Strings = {
   sosBranches: '24x7 इमरजेंसी ब्रांच —',
   pets: { dog: 'कुत्ता', cat: 'बिल्ली', bird: 'पक्षी', rabbit: 'खरगोश', other: 'अन्य' },
   deskRole: 'AI फ़्रंट डेस्क',
-  deskHint: 'तुषार से बात करने के लिए माइक दबाइए',
+  deskLangs: '10 भाषाएँ बोलते हैं',
+  call: 'बात करें',
+  connecting: 'कनेक्ट हो रहा है…',
+  retry: 'फिर कोशिश करें',
+  mute: 'म्यूट',
+  unmute: 'अनम्यूट',
+  muted: 'म्यूट है',
+  endCall: 'बंद करें',
   deskState: { idle: 'मदद के लिए हाज़िर', listening: 'सुन रहे हैं', thinking: 'देख रहे हैं', speaking: 'बोल रहे हैं' },
-  deskOffline: 'ऑफ़लाइन',
   speaks: 'English, हिन्दी, বাংলা, मराठी, தமிழ், తెలుగు और कई भाषाएँ बोलते हैं',
 };
 
