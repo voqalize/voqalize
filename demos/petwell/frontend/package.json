@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Voqalize demo (Petwell Appointment Desk — Voqalize demo) — a standalone Vite app served at /demos/petwell.",
+  "description": "Voqalize demo (Petwell Appointment Desk \u2014 Voqalize demo) \u2014 a standalone Vite app served at /demos/petwell.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -15,7 +15,8 @@
     "@pipecat-ai/client-react": "^1.8.0",
     "@pipecat-ai/small-webrtc-transport": "^1.10.6",
     "@pipecat-ai/voice-ui-kit": "^0.13.0",
-    "@voqalize/avatar": "^0.5.4",
+    "@voqalize/avatar": "^0.5.6",
+    "@voqalize/client-transport": "0.3.1",
     "@voqalize/demo-kit": "file:../../shared",
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",

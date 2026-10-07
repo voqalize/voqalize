@@ -81,17 +81,24 @@ export function DeskLive({
   client,
   activity,
   onEnd,
+  live,
 }: {
   client: PipecatClient;
   activity: AmbientPresenceActivity;
   onEnd: () => void;
+  /** False while the call connects: mounted, hidden, the face warming up. */
+  live: boolean;
 }) {
   const site = useSite();
   const t = strings(site.lang);
   const { isMicEnabled, enableMic } = usePipecatClientMicControl();
   const state = isMicEnabled ? t.deskState[activity] : t.muted;
   return (
-    <figure className={`pw-dock-live is-${activity}${isMicEnabled ? '' : ' is-muted'}`} aria-label={DESK_NAME}>
+    <figure
+      className={`pw-dock-live is-${activity}${isMicEnabled ? '' : ' is-muted'}${live ? '' : ' is-pending'}`}
+      aria-label={DESK_NAME}
+      aria-hidden={!live}
+    >
       <div className="pw-dock-stage">
         <Avatar client={client} character="tushar" aria-label={`${DESK_NAME}, Petwell front desk`} />
         <span className="pw-dock-pill">
@@ -158,6 +165,8 @@ const CSS = `
 @keyframes pw-spin { to { transform: rotate(360deg); } }
 
 .pw-dock-live { margin: 0; border-radius: 22px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+/* Mounted before the call is live so the face warms up out of sight. */
+.pw-dock-live.is-pending { position: absolute; right: 0; bottom: 0; visibility: hidden; pointer-events: none; }
 .pw-dock-live.is-speaking { border-color: #5c42bf; box-shadow: 0 0 0 4px rgba(92,66,191,.2), 0 14px 40px rgba(31,27,46,.22); }
 .pw-dock-live.is-listening { border-color: #a78bfa; }
 .pw-dock-stage { position: relative; aspect-ratio: 1 / 1; background: linear-gradient(180deg, #f4f1ff, #e9e3ff); }

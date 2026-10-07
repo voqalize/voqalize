@@ -34,6 +34,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from "@voqalize/demo-kit";
 import { connectRequest, withRealHeaders } from "./config";
 import { DeskInvite, DeskLive } from "./DeskDock";
@@ -103,8 +104,9 @@ export function PetwellDesk({
  * Mints the session and owns the client for one call. `PipecatAppBase` builds
  * the `PipecatClient`, does pipecat's two-step connect (`startBot` against the
  * control plane, then `connect` the transport it returns) and mounts
- * `PipecatClientProvider` — with its own `BotAudioOutput` — as soon as the
- * client exists.
+ * `PipecatClientProvider` as soon as the client exists. The media is ours —
+ * `@voqalize/client-transport` through `useVoqalizeMedia` — so the base is told
+ * `noAudioOutput`, or Tushar would play twice.
  */
 function CallSession({
   children,
@@ -122,10 +124,14 @@ function CallSession({
   // No language rides the request: every call opens in English, and Tushar
   // switches by himself the moment he hears another language.
   const params = useMemo(() => connectRequest({ surface: "petwell-web" }), []);
+  const media = useVoqalizeMedia();
 
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       connectOnMount
       noThemeProvider
       startBotParams={params}
@@ -197,16 +203,23 @@ function CallBridge({
   };
 
   const connecting = !isLive && !error && transportState !== "error";
-  const dock =
-    isLive && client ? (
-      <DeskLive client={client} activity={activity} onEnd={hangUp} />
-    ) : (
-      <DeskInvite
-        connecting={connecting}
-        error={error || (transportState === "error" ? "Something went wrong." : "")}
-        onStart={() => onRetry?.()}
-      />
-    );
+  // Tushar's face mounts as soon as there is a client, hidden while the call
+  // connects: its first frame — a new GPU context and every shader compiled —
+  // then lands behind the connecting bar rather than on his greeting.
+  const dock = (
+    <>
+      {client ? (
+        <DeskLive client={client} activity={activity} onEnd={hangUp} live={isLive} />
+      ) : null}
+      {isLive ? null : (
+        <DeskInvite
+          connecting={connecting}
+          error={error || (transportState === "error" ? "Something went wrong." : "")}
+          onStart={() => onRetry?.()}
+        />
+      )}
+    </>
+  );
 
   return (
     <>
