@@ -239,10 +239,14 @@ Markdown renders the id rather than 17. -->
 
 ## The browser
 
-44. **We ship no client library.** The Voqalize-specific surface is the call
-    initialisation and nothing else; everything after it is stock pipecat —
-    client-js, client-react, voice-ui-kit. — *agreed, and carried out on
-    2026-08-24: `@voqalize/client-react` is deprecated on npm with no successor.*
+44. **We ship one client library, and it adds media, not an interface.**
+    `@voqalize/client-transport` replaces the media manager inside pipecat's
+    own transport; the client, hooks, signalling and RTVI stay pipecat's —
+    client-js, client-react, voice-ui-kit. — *agreed 2026-10-07, superseding
+    "we ship no client library" (agreed and carried out 2026-08-24, when
+    `@voqalize/client-react` was deprecated). The owner: "We now ship a client
+    library. And we need to make that the default." Stock pipecat stays
+    documented as the alternative for a couple more releases, then goes.*
 45. **All server communication is over stock pipecat.** RTVI `ui-event`,
     `server-message` and `ui-command`, on the data channel the transport already
     has. No second channel and no envelope of ours. — *agreed. What is ours is the
@@ -264,7 +268,9 @@ Markdown renders the id rather than 17. -->
     the client SDK renamed things, so it was not. — *agreed.*
 49. **The failure mode of a client wrapper is lag, not breakage.** Ours never
     crashed; it described a smaller pipecat than the one installed, and had to grow
-    a case for every event pipecat added. — *agreed.*
+    a case for every event pipecat added. — *agreed, and why 44's library sits
+    under pipecat's `MediaManager` interface rather than over its client: a
+    pipecat release that adds an event needs nothing from us.*
 
 ---
 

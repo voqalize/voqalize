@@ -190,8 +190,8 @@ naming the action and nesting its fields under `payload`:
 {"command": "show_results", "payload": {"query": "metformin", "result_ids": ["p1", "p2"], "highlight": "p1"}}
 ```
 
-That is pipecat's own message, so the browser half of an action is stock and
-nothing here has to be taught to a client library:
+That is pipecat's own message, so the browser half of an action is pipecat's
+own hook, with nothing of ours to learn:
 
 ```tsx
 useUICommandHandler<ShowResults>("show_results", (payload) => {

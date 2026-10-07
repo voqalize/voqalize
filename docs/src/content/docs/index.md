@@ -26,8 +26,8 @@ hero:
       variant: minimal
 ---
 
-You integrate on the frontend and on the backend: stock pipecat client
-libraries in the page, and one WebSocket endpoint on your server. Voqalize dials that endpoint when a call
+You integrate on the frontend and on the backend: pipecat's client with
+`@voqalize/client-transport` in the page, and one WebSocket endpoint on your server. Voqalize dials that endpoint when a call
 starts, and closes it when the call ends.
 
 The sections below explain the responsibility on each side.
@@ -59,12 +59,13 @@ directly; everything between them crosses our wire.
 | | You write | Voqalize runs |
 |---|---|---|
 | **Your server** | The brain: what to say, what to show, which tools to call, what to remember | The socket that dials it, one per call |
-| **Your page** | One HTTP request for the connect params, then stock [pipecat](/build/pipecat/) | WebRTC to the browser, and the data channel that carries actions and transcripts |
+| **Your page** | One HTTP request for the connect params, then pipecat's client on [our transport](/build/pipecat/) | WebRTC to the browser, and the data channel that carries actions and transcripts |
 | **Between them** | — | Recognition, synthesis, turn detection, interruption, recording |
 
-The browser half ships no library of ours. Pipecat provides JavaScript, React,
-React Native, native iOS and native Android clients for the same RTVI and
-SmallWebRTC surfaces; Voqalize currently ships complete examples for web.
+In a web page, the browser half is pipecat's client and transport, with
+`@voqalize/client-transport` handling the media. Pipecat also provides React
+Native, native iOS and native Android clients for the same RTVI and SmallWebRTC
+surfaces; Voqalize currently ships complete examples for web.
 [Current status](/overview/status/) lists the supported clients, and
 [connecting a page](/build/connect/) is the web implementation.
 

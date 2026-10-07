@@ -6,12 +6,22 @@ brain SDK (`sdk/python`), the runnable demos (`demos/`) and the docs site
 stack lives in `vql-speech`.
 
 There is no `sdk/react` any more — the React client package was deprecated and
-deleted on 2026-08-24. The browser half of a call is stock pipecat plus one
-`fetch`, written down in `docs/src/content/docs/client/handshake.md`. Do not
-reintroduce a client wrapper: it is a second surface to learn and a lag behind
-every pipecat release, which is what retired the last one.
+deleted on 2026-08-24. Do not reintroduce a client wrapper over pipecat's client
+or hooks: it is a second surface to learn and a lag behind every pipecat
+release, which is what retired the last one.
 
-The demos' **media** is not stock, on purpose (owner, 2026-10-06): pipecat's
+**We ship one client library, `@voqalize/client-transport`, and the docs make it
+the default** (owner, 2026-10-07): "We now ship a client library. And we need to
+make that the default. We should still document stock pipecat libraries for
+another couple of releases as well - but eventually we should remove them and
+only document our library." The browser half is pipecat's client on our
+transport plus one `fetch`, written down in `docs/src/content/docs/build/connect.md`
+and `build/pipecat.md`; the stock transport is the "Without our library"
+section there, and in `connect.md` the rejoin recipe under "On pipecat's stock
+transport". Delete both when the owner calls time on the stock path. The
+version printed in prose is `client.transport.version` in `design/facts.yaml`.
+
+The demos' **media** is ours, on purpose (owner, 2026-10-06): pipecat's
 default media manager loads daily's call machine from `c.daily.co` into the
 page, and we will not ship a black box our customers depend on. Every demo
 frontend and the qween extension pass `@voqalize/client-transport` (MIT, its

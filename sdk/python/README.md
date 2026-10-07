@@ -144,7 +144,7 @@ async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
 
 An `AppEvent` is `Action`'s mirror image: your fields are the payload, the class
 name is the wire name, and `voqalize types` generates the TypeScript half of both
-unions from the one module. On the browser side it is stock pipecat —
+unions from the one module. On the browser side it is pipecat's client —
 `client.sendUIEvent("quantity_set", { item_id, quantity })`.
 
 It takes the provider's own type on purpose — a `Content` here, a `UserInputStep`

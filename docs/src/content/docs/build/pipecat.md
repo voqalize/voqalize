@@ -1,53 +1,92 @@
 ---
-title: Voqalize and pipecat
-description: Pipecat is the browser half of a Voqalize call and the message layer between them. What is ours, what is theirs, and which versions we hold to.
+title: Client libraries
+description: The browser half of a Voqalize call is pipecat's client with @voqalize/client-transport handling the media. What is ours, what is pipecat's, the stock path that still works, and which versions we hold to.
 ---
 
-Pipecat sits at both ends of a Voqalize call, and at neither end is it wrapped.
+In the browser, a Voqalize call runs on pipecat's client and transport, with
+`@voqalize/client-transport` handling the microphone, camera and the agent's
+audio. Inside the voice tier, pipecat is what we build the pipeline out of. Its
+RTVI message format is what our wire carries between the two.
 
-In the browser it **is** your integration: one HTTP request of ours returns what a
-pipecat transport connects with, and every line after that is pipecat. Inside the
-voice tier it is what we build the pipeline out of — transport, voice activity
-detection, the speech services, the avatar processor. Between them, its RTVI
-message format is what our wire carries.
-
-The one place it is absent is your server. Installing the Python SDK pulls no
-pipecat at all.
+Your server has no pipecat. Installing the Python SDK pulls in none of it.
 
 ## The browser half
 
-`@pipecat-ai/client-js` and `@pipecat-ai/small-webrtc-transport` do the work:
+Install pipecat's client and transport, and our media manager:
+
+```bash
+pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport @voqalize/client-transport@0.3.0
+```
+
+```ts
+import { PipecatClient } from "@pipecat-ai/client-js";
+import { createVoqalizeTransport } from "@voqalize/client-transport";
+
+const client = new PipecatClient({
+  transport: createVoqalizeTransport(),
+  enableMic: true,
+});
+```
+
+`sessions.connect` returns the connect params, and `client.connect(params)`
+takes them. [The handshake](/build/connect/) covers that request and the one
+line of glue around it.
+
+`@voqalize/client-transport` is MIT and
+[public](https://github.com/voqalize/voqalize-client-transport). It is pipecat's
+own `SmallWebRTCTransport` with its `MediaManager` replaced. What that adds:
+
+- **Keeps the page free of daily.** Pipecat's default media manager downloads
+  daily's call machine from `c.daily.co` into your page on every call. Ours uses
+  `navigator.mediaDevices` and nothing else.
+- **Recovers a call that goes quiet.** It covers a microphone lost on reconnect,
+  a device unplugged mid-sentence, a blocked autoplay, and an Android element
+  that stops playing. Each case is measured in the package's `FINDINGS.md`.
+- **Keeps a call across a page load.** `keepAcrossPageLoads: true` lets a reload,
+  or a link to another page of your site, carry on with the same call.
+  [Connecting a page](/build/connect/#keeping-a-call-across-a-page-load) has the
+  code.
+
+Signalling, the client API, the hooks and RTVI stay pipecat's. `usePipecatConversation`
+for the transcript, `useUICommandHandler` for inbound actions and `sendUIEvent`
+for outbound context are documented by pipecat and behave the same against any
+pipecat server. The demos also use `@pipecat-ai/client-react` for hooks and
+`@pipecat-ai/voice-ui-kit` for components. Neither is required.
+
+## Without our library
+
+Pipecat's stock `SmallWebRTCTransport` still connects to Voqalize, and we
+document it for a couple more releases. Pass it where the example above passes
+`createVoqalizeTransport()`:
 
 ```bash
 pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport
 ```
 
-`sessions.connect` returns the connect params; `client.connect(params)` takes
-them. [The handshake](/build/connect/) is that request and the one line
-of glue around it, and it is the entire Voqalize-specific surface in your page.
+```ts
+import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
 
-The demos add `@pipecat-ai/client-react` for the hooks and
-`@pipecat-ai/voice-ui-kit` for components; neither is required. What every demo uses is
-declared in [`demos/shared/package.json`](https://github.com/voqalize/voqalize/blob/main/demos/shared/package.json).
+const client = new PipecatClient({ transport: new SmallWebRTCTransport(), enableMic: true });
+```
 
-Everything you learn here transfers. `usePipecatConversation` for the transcript,
-`useUICommandHandler` for inbound actions, `sendUIEvent` for outbound context —
-those are pipecat's APIs, documented by pipecat, and they behave the same against
-any pipecat server.
+On this path your page loads daily's call machine from `c.daily.co`, and none of
+the recoveries above apply. To keep a call across a page load, follow
+[the stock recipe](/build/connect/#on-pipecats-stock-transport). A later release
+drops this section, and from then on the docs cover only
+`@voqalize/client-transport`.
 
 ## Web, React Native and native mobile
 
-Pipecat publishes clients for JavaScript, React, React Native, native iOS and
-native Android, with SmallWebRTC transports for each environment. Because
-Voqalize uses those Pipecat interfaces directly, each of them is a supported
-client environment.
+`@voqalize/client-transport` is a browser package. Pipecat also publishes
+clients for React Native, native iOS and native Android, with SmallWebRTC
+transports for each. Voqalize uses those interfaces directly, so each of them is
+a supported client environment, on pipecat's own transport.
 
 Our runnable examples currently cover web only. For React Native, Swift or
 Kotlin, start with Pipecat's official
 [client SDK documentation](https://docs.pipecat.ai/client/introduction) and use
 the same `sessions.connect` response described in [connecting a
-page](/build/connect/). Use the transport package and lifecycle conventions for
-your target environment.
+page](/build/connect/).
 
 ## The message layer is RTVI
 
@@ -82,23 +121,17 @@ than by a video track. Voqalize sends the state and the mouth shapes from inside
 the call's pipeline; in the browser, `@voqalize/avatar` takes the
 `PipecatClient` you already have and renders them.
 
-## We ship no client library
-
-There was one — `@voqalize/client-react` — and it was deprecated on 2026-08-24
-with no successor. It wrapped the connect call and re-exported hooks that were
-already pipecat's, which made it a second surface to learn and a release behind
-every pipecat version.
-
-The class of problem it existed to hide is now handled where it belongs: the
-credential paths are [the same route with a different signer](/build/connect/),
-and a recording asked for on a key that may not record is refused when the
-session is minted rather than warned about in a console.
-
 ## Versions
 
-`@pipecat-ai/client-js` at `>=1.5.0 <2` is the floor, declared as a peer
-dependency in `demos/shared/package.json` and exercised by every demo in the
-repository. We track pipecat's 1.x line and pin no upper bound below the major.
+`@voqalize/client-transport` 0.3.0 needs `@pipecat-ai/client-js` at
+`>=1.13.0 <2` and `@pipecat-ai/small-webrtc-transport` at `>=1.10.0 <2`, as peer
+dependencies. Pin our package at an exact version. Its
+[CHANGELOG](https://github.com/voqalize/voqalize-client-transport/blob/main/CHANGELOG.md)
+says what each release changes.
+
+Without our library, the floor is `@pipecat-ai/client-js` at `>=1.5.0 <2`,
+declared as a peer dependency in `demos/shared/package.json`. We track
+pipecat's 1.x line and pin no upper bound below the major.
 
 The Python side pins `pipecat-ai` only inside the voice tier, which you do not
 install.
