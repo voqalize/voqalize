@@ -441,12 +441,30 @@ class PetwellBrain(GeminiBrain):
         ]
 
     def _reset_booking(self) -> None:
-        """The booking panel starts over — as the page's own reset does."""
-        self.city = self.branch_id = self.service_id = self.date = self.time = None
+        """The booking panel starts over — as the page's own reset does, which
+        puts the visit type back to a clinic visit too."""
+        self.visit_type = "clinic"
+        self.city = self.branch_id = self.service_id = None
+        self._clear_slot()
         self.details = {}
         self.viewing = None
-        self.review_shown = False
         self.sent_ref = None
+
+    def _clear_slot(self) -> None:
+        """The day and time no longer hold — the branch, visit or reason moved, or
+        another day's times are on screen. The page clears its own the same way."""
+        self.date = self.time = None
+        self.review_shown = False
+
+    def _free_times(self, branch_id: str, day: dt.date) -> list[str]:
+        """The times still free at ``branch_id`` on ``day`` — none already past,
+        when ``day`` is today. Both what show_slots offers and what choose_slot
+        accepts."""
+        times = slots_for(branch_id, day.isoformat(), self.visit_type)
+        if day == self._today:
+            now = dt.datetime.now(_IST).strftime("%H:%M")
+            times = [t for t in times if t > now]
+        return times
 
     def booking_step(self) -> str | None:
         """The step the booking panel is on, or ``None`` when it is closed."""
@@ -617,6 +635,9 @@ class PetwellBrain(GeminiBrain):
                 self.service_id = service["id"]
 
         after = (self.visit_type, self.city, self.branch_id, self.service_id)
+        if after != before:
+            # A changed booking needs a new time; the page drops its own the same way.
+            self._clear_slot()
         if after != before or (not self.panel_open and after[1:] != (None, None, None)):
             self._show_booking(visit_changed=after[0] != before[0])
         elif not self.panel_open and update.visit_type:
@@ -636,11 +657,11 @@ class PetwellBrain(GeminiBrain):
         The page's own setters each move it one step (a city shows its branches,
         a branch moves to the reason, a reason with a branch moves to the times),
         so the whole state is replayed in that order and the panel lands where the
-        desk is. A changed booking needs a new time."""
+        desk is. Starting the booking closes the emergency sheet, as on the page."""
         opening = not self.panel_open
         self.panel_open, self.review_shown = True, False
-        self.date = self.time = None
         if opening or visit_changed:
+            self.emergency_open = False
             self.session.dispatch(StartBooking(visit_type=self.visit_type))
         if self.city:
             self.session.dispatch(ChooseCity(city=self.city))
@@ -712,11 +733,11 @@ class PetwellBrain(GeminiBrain):
                 "that day is outside the booking window",
                 "Offer a day from today up to six days ahead.",
             )
-        times = slots_for(self.branch_id, day.isoformat(), self.visit_type)
-        if day == self._today:
-            now = dt.datetime.now(_IST).strftime("%H:%M")
-            times = [t for t in times if t > now]
+        times = self._free_times(self.branch_id, day)
         logger.info("petwell: show_slots {} {} → {}", self.branch_id, day, len(times))
+        # The page's slot step drops any chosen time when it shows a day's times.
+        self._clear_slot()
+        self.date = day.isoformat()
         self.session.dispatch(
             ShowSlots(
                 branch_id=self.branch_id,
@@ -737,7 +758,13 @@ class PetwellBrain(GeminiBrain):
         """Pick the day and time the visitor chose and move on to their details."""
         if self.branch_id is None:
             return _not_done("no branch is chosen yet", "Ask which branch first.")
-        if action.time not in slots_for(self.branch_id, action.date, self.visit_type):
+        try:
+            day = dt.date.fromisoformat(action.date)
+        except ValueError:
+            return _not_done(f"{action.date!r} is not an ISO date", "Use a date from the list.")
+        if day not in booking_dates(self._today) or action.time not in self._free_times(
+            self.branch_id, day
+        ):
             return _not_done(
                 f"{action.time} on {action.date} is not free",
                 "Call show_slots for that day and offer only the times it returns.",
@@ -785,10 +812,15 @@ class PetwellBrain(GeminiBrain):
         the pet is in danger right now."""
         city = as_city(query.city) or ""
         line = helpline_for(city) if city else None
-        er = [b["id"] for b in branches_in(city) if b["emergency"]] if city else []
+        er = [b for b in branches_in(city) if b["emergency"]]
         logger.info("petwell: show_emergency city={!r}", city)
+        self.emergency_open = True
         self.session.dispatch(
-            ShowEmergency(city=city, helpline=line["phone"] if line else "", branch_ids=er)
+            ShowEmergency(
+                city=city,
+                helpline=line["phone"] if line else "",
+                branch_ids=[b["id"] for b in er],
+            )
         )
         self._landed(
             "shown",
@@ -798,7 +830,7 @@ class PetwellBrain(GeminiBrain):
             {
                 "status": "emergency_shown",
                 "helpline": line["phone"] if line else "see screen for all regions",
-                "emergency_branches": [b["name"] for b in branches_in(city) if b["emergency"]],
+                "emergency_branches": [b["name"] for b in er],
             }
         )
 
@@ -886,8 +918,8 @@ class PetwellBrain(GeminiBrain):
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        """Open in the language the visitor picked on the page — English or
-        Hindi — and move both legs there before the greeting is spoken. Gaurav,
+        """Move both legs to the opening language before the greeting is spoken:
+        English, unless the connect request names Hindi — the page sends none. Gaurav,
         the voice, is the first the avatar runtime suggests for `tushar`, the face
         the page mounts — one person, heard and seen."""
         chosen = as_language(dict(session.init or {}).get("language"))
@@ -979,7 +1011,7 @@ class PetwellBrain(GeminiBrain):
             case BookingOpened():
                 # The page starts the panel over; so does the desk.
                 self._reset_booking()
-                self.panel_open = True
+                self.panel_open, self.emergency_open = True, False
                 service = get_service(event.service_id)
                 if service is not None:
                     self.service_id = service["id"]
@@ -994,8 +1026,14 @@ class PetwellBrain(GeminiBrain):
                 self.panel_open = True
                 return "[The visitor started a new booking.]"
             case VisitTypePicked():
+                if event.visit_type != self.visit_type:
+                    self._clear_slot()
+                    # The page drops a reason that does not fit the new visit type.
+                    service = get_service(self.service_id or "")
+                    if service is not None and service["visit"] != event.visit_type:
+                        self.service_id = None
                 self.visit_type = event.visit_type
-                self.panel_open = True
+                self.panel_open, self.emergency_open = True, False
                 self.viewing = None
                 kind = "a vet at home" if event.visit_type == "home" else "a clinic visit"
                 return f"[The visitor chose {kind}.]"
@@ -1003,18 +1041,25 @@ class PetwellBrain(GeminiBrain):
                 city = as_city(event.city)
                 if city is None:
                     return None
-                self.city, self.branch_id, self.viewing = city, None, None
+                if city != self.city:
+                    self.branch_id = None
+                    self._clear_slot()
+                self.city, self.viewing = city, None
                 return f"[The visitor chose the city {city}.]"
             case BranchPicked():
                 branch = get_branch(event.branch_id)
                 if branch is None:
                     return None
+                if branch["id"] != self.branch_id:
+                    self._clear_slot()
                 self.city, self.branch_id, self.viewing = branch["city"], branch["id"], None
                 return f"[The visitor chose the {branch['name']} branch.]"
             case ServicePicked():
                 service = get_service(event.service_id)
                 if service is None:
                     return None
+                if service["id"] != self.service_id:
+                    self._clear_slot()
                 self.service_id, self.viewing = service["id"], None
                 return f"[The visitor chose {service['name']} as the reason.]"
             case DatePicked():
@@ -1041,7 +1086,7 @@ class PetwellBrain(GeminiBrain):
                 branch = get_branch(self.branch_id or "")
                 where = branch["name"] if branch else "the branch"
                 return (
-                    f"[The visitor tapped Send Request. Reference {event.ref}. {where} will call "
+                    f"[The visitor tapped Send Request. Reference {self.sent_ref}. {where} will call "
                     f"{event.owner_name or 'them'} to confirm.]"
                 )
             case EmergencyOpened():

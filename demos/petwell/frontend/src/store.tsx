@@ -94,6 +94,9 @@ const BOOKING_RESET = {
   ref: null,
 };
 
+/** The day and time no longer hold: the visit, branch or reason changed. */
+const NO_SLOT = { date: null, times: null, time: null };
+
 const INITIAL: State = {
   lang: 'en',
   voiceLanguage: 'English',
@@ -180,6 +183,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       emergency: null,
       visitType,
       serviceId: getService(s.serviceId)?.visit === visitType ? s.serviceId : null,
+      ...(visitType === s.visitType ? {} : NO_SLOT),
       step: 'location',
     }));
   }, []);
@@ -190,6 +194,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       bookingOpen: true,
       city,
       branchId: getBranch(s.branchId)?.city === city ? s.branchId : null,
+      ...(city === s.city ? {} : NO_SLOT),
       step: 'location',
     }));
   }, []);
@@ -198,14 +203,27 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     const b = getBranch(branchId);
     if (!b || OPENING_SOON.has(b.city)) return;
     // A service chosen before the branch (from an article) skips its own step.
-    setState((s) => ({ ...s, bookingOpen: true, city: b.city, branchId, step: s.serviceId ? 'slot' : 'service' }));
+    setState((s) => ({
+      ...s,
+      bookingOpen: true,
+      city: b.city,
+      branchId,
+      ...(branchId === s.branchId ? {} : NO_SLOT),
+      step: s.serviceId ? 'slot' : 'service',
+    }));
   }, []);
 
   const setService = useCallback((serviceId: string) => {
     if (!getService(serviceId)) return;
     // Without a branch there are no times to show: keep the reason and stay on the
     // location step, which the branch then moves past (see setBranch).
-    setState((s) => ({ ...s, bookingOpen: true, serviceId, step: s.branchId ? 'slot' : 'location' }));
+    setState((s) => ({
+      ...s,
+      bookingOpen: true,
+      serviceId,
+      ...(serviceId === s.serviceId ? {} : NO_SLOT),
+      step: s.branchId ? 'slot' : 'location',
+    }));
   }, []);
 
   const setSlot = useCallback((date: string, time: string) => {

@@ -36,8 +36,15 @@ from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, chec
 
 discover()
 
+from voqalize_demos._loaded.petwell.app_events import (  # noqa: E402
+    BookingRestarted,
+    ServicePicked,
+    SlotPicked,
+    VisitTypePicked,
+)
 from voqalize_demos._loaded.petwell.brain import (  # noqa: E402
     BookingUpdate,
+    ChooseSlot,
     PetwellBrain,
 )
 from voqalize_demos._loaded.petwell.catalog import slots_for  # noqa: E402
@@ -675,3 +682,67 @@ async def test_mixed_speech_right_after_a_switch_does_not_flip_the_language() ->
             assert brain.language == "Hindi", "a mixed turn right after a switch moved it"
         await rig.driver.user_says(english_in_devanagari)
         assert brain.language == "English", "a settled call should still follow plain English"
+
+
+async def test_the_desk_drops_what_the_page_drops() -> None:
+    """The desk's picture follows the page's own setters: a new visit type drops
+    a reason that does not fit it and the chosen time, a new reason drops the
+    time, and a restart puts the visit back to a clinic visit."""
+    brain = PetwellBrain(client=ScriptedGemini({}))  # pyright: ignore[reportArgumentType]
+    brain.panel_open = True
+    brain.city, brain.branch_id, brain.service_id = "Mumbai", "mum-powai", "vaccination"
+    brain.apply_event(SlotPicked(date=DAY, time=FREE[0]))
+    assert brain.booking_step() == "details"
+
+    brain.apply_event(ServicePicked(service_id="dental"))
+    assert brain.time is None and brain.service_id == "dental"
+
+    brain.apply_event(SlotPicked(date=DAY, time=FREE[0]))
+    brain.apply_event(VisitTypePicked(visit_type="home"))
+    assert brain.service_id is None, "a clinic reason survived the switch to a home visit"
+    assert brain.time is None, "a clinic time survived the switch to a home visit"
+
+    brain.apply_event(BookingRestarted())
+    assert brain.visit_type == "clinic", "the page resets to a clinic visit; the desk did not"
+
+
+async def test_a_day_outside_the_window_cannot_be_chosen() -> None:
+    """choose_slot holds the same window show_slots does — no day past the
+    seventh, whatever the slot book would say for it."""
+    brain = PetwellBrain(client=ScriptedGemini({}))  # pyright: ignore[reportArgumentType]
+    brain.branch_id = "mum-powai"
+    far = (TOMORROW + dt.timedelta(days=30)).isoformat()
+    result = await brain.choose_slot(
+        ChooseSlot(date=far, time=slots_for("mum-powai", far, "clinic")[0])
+    )
+    assert result.startswith("NOT DONE"), result
+    assert brain.time is None
+
+
+async def test_showing_another_day_drops_the_chosen_time() -> None:
+    """The page clears a chosen time when show_slots puts a day's times up; so
+    does the desk, or SCREEN NOW would claim a time the page no longer holds."""
+    later = (TOMORROW + dt.timedelta(days=1)).isoformat()
+    llm = ScriptedGemini(
+        {
+            "Powai, for a vaccination.": reply_and_call(
+                "Petwell Powai it is.",
+                "update_booking",
+                update={"city": "Mumbai", "branch_id": "mum-powai", "service_id": "vaccination"},
+            ),
+            "The first one tomorrow.": reply_and_call(
+                "Done.", "choose_slot", action={"date": DAY, "time": FREE[0]}
+            ),
+            "What about the day after?": reply_and_call(
+                "Let me look.", "show_slots", query={"date": later}
+            ),
+        }
+    )
+    async with demo("petwell", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Powai, for a vaccination.")
+        await rig.driver.user_says("The first one tomorrow.")
+        brain = rig.brain
+        assert isinstance(brain, PetwellBrain) and brain.time == FREE[0]
+        await rig.driver.user_says("What about the day after?")
+        assert brain.time is None and brain.booking_step() == "slot"
