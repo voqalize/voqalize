@@ -17,12 +17,13 @@
  * two-step connect (`startBot` against the control plane, then `connect` the
  * transport) and owns the client's lifecycle; everything below it is a stock
  * `PipecatClient`: `usePipecatClientTransportState`/`usePipecatConnectionState`
- * report the call, RTVI events say who is speaking, `PipecatAppBase`'s own
- * `BotAudioOutput` plays the coach, and the brain's `session.dispatch(...)`
+ * report the call, RTVI events say who is speaking, the demo kit's
+ * `useVoqalizeMedia` plays the coach, and the brain's `session.dispatch(...)`
  * arrives on `RTVIEvent.UICommand` as `{ command, payload }`. The only
  * Voqalize-specific code on the page is the request that starts the call and
- * the one line over its answer, both in `src/config.ts` — there is no client
- * library to install.
+ * the one line over its answer, both in `src/config.ts`, and the media path:
+ * `@voqalize/client-transport` (MIT) in place of pipecat's default, which
+ * loads a third-party call machine into the page.
  *
  * Two bridges tie the call to the screen:
  *   - every `ui-command` replays onto the shared sugar store, so the coach drives
@@ -35,7 +36,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import { usePipecatClient, usePipecatClientMicControl, usePipecatClientTransportState, useRTVIClientEvent } from "@pipecat-ai/client-react";
 import { PipecatAppBase, usePipecatConnectionState } from "@pipecat-ai/voice-ui-kit";
-import { AmbientPresence, type AmbientPresenceActivity, type AmbientPresencePalette } from "@voqalize/demo-kit";
+import { AmbientPresence, type AmbientPresenceActivity, type AmbientPresencePalette, useVoqalizeMedia } from "@voqalize/demo-kit";
 import { Mic, MicOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "./config";
 import { COACH_NAME } from "./data";
@@ -87,8 +88,7 @@ function CallTimer() {
  * Mints the session and owns the client. `PipecatAppBase` builds the
  * `PipecatClient`, does pipecat's two-step connect (`startBot` against the
  * control plane, then `connect` the transport it returns) and mounts
- * `PipecatClientProvider` — with its own `BotAudioOutput` in place of a
- * hand-mounted `PipecatClientAudio` — as soon as the client exists, **not**
+ * `PipecatClientProvider` as soon as the client exists, **not**
  * when the call goes live: the bot's audio track is announced once, from the
  * remote track's `unmute` a few hundred milliseconds after the peer
  * connection is up, and `client.tracks()` only ever reports the local ones. A
@@ -123,9 +123,13 @@ export function SugarCallSession() {
     [brainPayload, sessionConfig],
   );
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       connectOnMount
       noThemeProvider
       startBotParams={params}

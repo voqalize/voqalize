@@ -80,9 +80,9 @@ demos/
 ```
 
 Each **frontend** is fully self-contained (its own `package.json` + lockfile +
-`node_modules`); it depends on stock `@pipecat-ai/client-react` plus
-`@voqalize/demo-kit` (`demos/shared`, the pre-call gate and ambient ring shared
-across the gallery) — there is no Voqalize-authored client wrapper any more.
+`node_modules`); it depends on `@pipecat-ai/client-react`, `@voqalize/client-transport` for the
+media, and `@voqalize/demo-kit` (`demos/shared`, the pre-call gate and ambient
+ring shared across the gallery).
 Each **backend** is thin and
 shares the one `voqalize_demos` package; the umbrella discovers routers by
 scanning `demos/*/backend`, so nothing binds names in a central registry.
@@ -163,6 +163,12 @@ generated from `qween/backend/brain.py` with `pnpm gen`, and the extension warns
 on load about any Action the adapter cannot perform. The catalogue the brain quotes from is Qween's public product feed, read
 by `qween/backend/catalog.py` and never quoted once it is a day old.
 
+`kdem` is the same exception again. The agent is Aria, on karnatakadigital.in,
+and the page reaches her through a snippet pasted into that site
+(`kdem/embed/`), so there is no `frontend/` and no `manifest.json` entry. The pages
+she answers from are an approved list in `kdem/backend/knowledge/`, kept fresh
+from the site's sitemap by `kdem/backend/knowledge.py`. See `kdem/README.md`.
+
 ## Running it
 
 `pm2 start ecosystem.config.cjs` from the repo root is the supervised path: the
@@ -200,8 +206,8 @@ ships separately, onto the pygato node.
 
 `travel` — the **Travel Advisor** — is the reference demo: a `voqalize.sdk.Brain`
 (`demos/travel/backend/`) driven over the inbound path, and a standalone Vite UI
-(`demos/travel/frontend/`) built on stock pipecat (`@pipecat-ai/client-react`) plus
-`@voqalize/demo-kit`. The remaining demos follow this same shape.
+(`demos/travel/frontend/`) built on pipecat (`@pipecat-ai/client-react`) with
+`@voqalize/client-transport`, plus `@voqalize/demo-kit`. The remaining demos follow this same shape.
 
 **Every demo has an end-to-end test** (`demos/tests/test_<name>_e2e.py`): the real
 brain on a real `brain_server` socket, driven by the conformance `VoqalizeDriver`,

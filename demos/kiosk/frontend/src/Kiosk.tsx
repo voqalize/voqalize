@@ -26,6 +26,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { preloadAvatar } from '@voqalize/avatar';
 import type { TransportState, UICommandData } from '@pipecat-ai/client-js';
 import { RTVIEvent } from '@pipecat-ai/client-js';
 import {
@@ -39,6 +40,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from '@voqalize/demo-kit';
 import { COLOR } from './brand';
 import { connectRequest, withRealHeaders } from './config';
@@ -93,6 +95,13 @@ function Kiosk() {
     setJoined(true);
   }, []);
 
+  // Tanvi's face builds while the customer reads the gate, and the tile takes
+  // it at join; mounted cold there, her first frame landed on the greeting. The
+  // tile used it up, so each return to the gate builds the next customer's.
+  useEffect(() => {
+    if (!joined) preloadAvatar('tanvi');
+  }, [joined]);
+
   return (
     <>
       <DemoGate
@@ -139,9 +148,13 @@ function CallSession(props: SessionProps) {
   // `PipecatAppBase`'s connect-on-mount effect, and a fresh object on every
   // render would re-mint the call on every render.
   const params = useMemo(() => connectRequest(INIT), []);
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       connectOnMount
       noThemeProvider
       startBotParams={params}

@@ -28,8 +28,9 @@ own shop before anything goes on it; it is not how a merchant would ship it.
   the microphone are untouched.
 - `src/dialogs.ts` — watches the page for open drawers and dialogs and reports
   where they will settle, not where they are mid-slide.
-- `src/content.ts` — the call: stock pipecat, one `sessions.connect`, the
-  avatar, and the glue between the adapter and the brain.
+- `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
+  as its media manager, one `sessions.connect`, the avatar, and the glue
+  between the adapter and the brain.
 
 The brain is `../backend/`: the prompt, the tools, and the catalogue index built
 from Qween's public product feed.

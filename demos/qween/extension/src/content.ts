@@ -10,7 +10,8 @@
  *     Actions into a move on Qween's page and reports every route change and
  *     dialog back, whoever caused it;
  *   - the corner widget (`widget.ts`);
- *   - the call: stock pipecat, one `sessions.connect`, and the avatar.
+ *   - the call: stock pipecat on `@voqalize/client-transport`'s media, one
+ *     `sessions.connect`, and the avatar.
  *
  * Nothing here decides what Trisha says or shows. The prompt, the tools and the
  * catalogue live in the brain, `demos/qween/backend/`.
@@ -25,8 +26,8 @@
 import "./qween-actions.js";
 
 import { type APIRequest, PipecatClient, type TransportState } from "@pipecat-ai/client-js";
-import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
-import { type AvatarInstance, createAvatar, listCharacters } from "@voqalize/avatar";
+import { type AvatarInstance, createAvatar, listCharacters, preloadAvatar } from "@voqalize/avatar";
+import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-transport";
 
 import { type AppEvent, asUiAction, sendAppEvent, UI_ACTION_COMMANDS } from "./actions.gen";
 import { watchDialogs } from "./dialogs";
@@ -94,6 +95,13 @@ function start(): void {
   if (missing.length) console.warn("voqalize: the adapter cannot perform", missing);
 
   const widget = mountWidget();
+  // Local media on `@voqalize/client-transport`, not pipecat's default, which
+  // loads a third-party call machine into Qween's page. One manager for the
+  // page's life, each call's transport takes it: it owns the widget's element,
+  // so it routes the speaker and re-attaches her track when the element stops
+  // playing it (Android Chrome does, on a call another page was carrying).
+  const media = new VoqalizeMediaManager();
+  media.bindOutputElement(widget.audio);
   // Qween's drawers open over the corner the widget sits in; it steps aside.
   watchDialogs((open) => widget.avoid(open));
   let client: PipecatClient | null = null;
@@ -115,7 +123,7 @@ function start(): void {
     paint("connecting", rejoin ? "Reconnecting" : undefined);
 
     const next: PipecatClient = new PipecatClient({
-      transport: new SmallWebRTCTransport(),
+      transport: createVoqalizeTransport({ mediaManager: media }),
       enableMic: true,
       enableCam: false,
       callbacks: {
@@ -155,8 +163,8 @@ function start(): void {
     client = next;
 
     try {
-      // Mounted on the press so the face downloads during call setup and is
-      // there for the greeting's first audio.
+      // Mounted on the press. It takes the face the reach preloaded, or builds
+      // one during call setup, in time for the greeting's first audio.
       avatar?.destroy();
       avatar = createAvatar({ mount: widget.face, client: next, character: CHARACTER });
       const init: Record<string, unknown> = {
@@ -210,6 +218,12 @@ function start(): void {
   }
 
   widget.onCall(() => void connect(false));
+  // Her face builds once the shopper reaches for the invite, and the call's
+  // mount takes it. Not at page load: this runs on every page of the store, and
+  // most shoppers never call. Reaching again after a call builds the next one.
+  widget.onReach(() => {
+    if (!client) preloadAvatar(CHARACTER);
+  });
   widget.onHang(end);
   widget.onMute(() => {
     muted = !muted;

@@ -1,6 +1,6 @@
 ---
 title: Connections and the handshake
-description: How a browser starts a Voqalize session — one HTTP request for the connect params, then stock pipecat. With a publishable key, or through your own backend.
+description: How a browser starts a Voqalize session — one HTTP request for the connect params, then pipecat's client on our transport. With a publishable key, or through your own backend.
 ---
 
 A session is one HTTP request that starts it and a WebRTC connection your
@@ -150,10 +150,10 @@ Both paths end in the same place.
 
 ```ts
 import { PipecatClient } from "@pipecat-ai/client-js";
-import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
+import { createVoqalizeTransport } from "@voqalize/client-transport";
 
 const client = new PipecatClient({
-  transport: new SmallWebRTCTransport(),
+  transport: createVoqalizeTransport(),
   enableMic: true,
 });
 
@@ -165,6 +165,10 @@ const params = await fetch("/api/voice/start", {
 
 await client.connect(withRealHeaders(params));
 ```
+
+`createVoqalizeTransport` is pipecat's `SmallWebRTCTransport` with our media
+manager in place of its default. [Client libraries](/build/pipecat/) says what
+that adds, and how to connect with pipecat's stock transport instead.
 
 ### The one line you write yourself
 
@@ -185,8 +189,8 @@ JSON has no such type, so the plain object `r.json()` gave you throws a
 headers. TypeScript will not catch it for you either: pipecat types connect
 params as `unknown`, so the whole path is unchecked.
 
-One line, in one place, and it is the only Voqalize-specific code in your
-browser. The fix upstream is one type — `HeadersInit` instead of `Headers` — and
+One line, in one place, and it is the only glue between our response and
+pipecat's transport. The fix upstream is one type — `HeadersInit` instead of `Headers` — and
 when it lands this line goes away and the parsed body passes straight through.
 
 ### Not `startBotAndConnect`
@@ -231,6 +235,112 @@ write reaches a browser as "Bad Request". Branch on `error.code`; show a person
 | `409` `agent_archived` | The agent is archived. Restore it before starting a new session. Sessions already in progress continue. |
 | `500` `missing_connect_params` | The session was minted but no worker is running for that agent. |
 
+## Keeping a call across a page load
+
+A full page load — a reload, or a link to another page of your site — closes
+the peer connection but not the call. The node holds a call for 10 seconds
+after its connection closes, and takes a fresh offer with the same session
+token and no `pc_id` as that call coming back. A new transport handed the
+params the last page connected with sends exactly that offer, even after the
+token has expired: expiry bounds when a session may start, not how long it may
+be rejoined.
+
+Turn on `keepAcrossPageLoads` and the transport does that for you:
+
+```ts
+const transport = createVoqalizeTransport({ keepAcrossPageLoads: true });
+const client = new PipecatClient({ transport, enableMic: true });
+
+// Every page load.
+if (transport.hasLiveCall) {
+  client.connect().catch(() => {
+    // The call ended while the page was away. hasLiveCall is now false.
+  });
+}
+
+// The "Start" button, as before.
+await client.connect(withRealHeaders(params));
+
+// The "End call" button.
+client.disconnectBot();
+await client.disconnect();
+```
+
+- **The transport saves the params each `connect()` used** in `sessionStorage`,
+  before it sends the offer. `connect()` with no arguments rejoins with them, and
+  params you pass always win.
+- **Don't call `sessions.connect` on a rejoin.** That starts a second session.
+- **It forgets the call** on `disconnectBot()`, and when the node refuses an
+  offer: `410` for a call that has ended, another `4xx` for one the node no
+  longer holds. A call that ended while the page was away makes `connect()`
+  reject once.
+- **Don't hang up on `pagehide`.** The page going away is what this survives. A
+  page that never comes back ends the call when the hold runs out, dated at the
+  close. The transport never connects or hangs up by itself.
+- **Rejoin with the microphone on, without asking for a tap.** Construct the
+  client with `enableMic: true`: `connect()` opens the microphone before the
+  agent's audio arrives, and an open microphone is what lets the browser play
+  that audio on a page nobody has touched. For a user who was muted, call
+  `enableMic(false)` once connected rather than never opening it. If the browser
+  still holds the audio back, the media manager plays it when the microphone
+  opens or on the next tap or key press.
+- **`sessionStorage` is per tab**, so a second tab starts its own call. The
+  saved params carry the session token: they never leave your origin, but any
+  script on your page can read them, as it can read the live client.
+- **A page restored from the back/forward cache** brings back a client whose
+  connection is gone. Reload it on `pageshow` when `event.persisted` is true.
+
+### On pipecat's stock transport
+
+Without our library, keep the params yourself:
+
+```ts
+const CALL = "voice-call"; // sessionStorage key, yours to name
+
+// The "Start" button.
+async function start() {
+  const params = await fetch("/api/voice/start", {
+    method: "POST",
+    credentials: "include",
+  }).then((r) => r.json());
+  sessionStorage.setItem(CALL, JSON.stringify(params));
+  await client.connect(withRealHeaders(params));
+}
+
+// Every page load.
+const saved = sessionStorage.getItem(CALL);
+if (saved) {
+  client.connect(withRealHeaders(JSON.parse(saved))).catch(() => {
+    sessionStorage.removeItem(CALL); // the call ended while the page was away
+  });
+}
+
+// The "End call" button.
+async function end() {
+  sessionStorage.removeItem(CALL);
+  try {
+    client.disconnectBot();
+  } catch {
+    // Not connected: there is no call to end.
+  }
+  await client.disconnect();
+}
+```
+
+- **Save before you connect**, so a load in the middle of connecting still
+  finds the call.
+- **End with `disconnectBot()`.** It ends the call at once rather than after the
+  hold, and forgetting the params with it means a reload after End does not dial
+  back.
+- **A rejoin that fails means the call is over.** An offer for a call that has
+  ended is refused with `410`; one for a call the node no longer holds, with
+  another `4xx`. Either way, forget the params and show the page idle.
+- **Rejoin with the microphone on**, as above. A microphone opened after the
+  agent's audio arrives leaves Chrome refusing to play it, and on this path
+  nothing plays it later.
+- **The rest is as above:** no `sessions.connect` on a rejoin, no hang-up on
+  `pagehide`, per tab, and a reload after a back/forward-cache restore.
+
 ## Recording is a per-session decision
 
 Recording is `config.record`, a boolean in the same block as the voice and
@@ -257,14 +367,14 @@ agreed.
 - **No relay past the handshake.** Once connected, the media is direct UDP and
   RTVI is on the data channel. Your server is not in the loop and does not want
   to be.
-- **No client library of ours.** The browser half is one `fetch`, one `Headers`
-  line and `client.connect`. Everything after that is
-  [pipecat](https://docs.pipecat.ai)'s own client, used directly — its hooks, its
-  transport, its release cadence, with nothing of ours lagging behind it.
+- **Pipecat's client, used directly.** `@voqalize/client-transport` replaces
+  the media manager inside pipecat's transport and nothing else. The client,
+  its hooks, signalling and RTVI are [pipecat](https://docs.pipecat.ai)'s own.
 - **No polling for readiness.** The endpoint in the response is live when you
   receive it.
-- **No caching connect params.** They are one session, and the token expires in
-  minutes.
+- **No reusing connect params for a new session.** They are one session, and
+  the token expires in minutes. Keeping them to rejoin that session after a
+  page load is the one reuse, above.
 
 ## Read next
 

@@ -48,6 +48,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from "@voqalize/demo-kit";
 import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "./config";
@@ -191,8 +192,7 @@ export function ReturnsAssistant({
  * Mints the session and owns the client for one call. `PipecatAppBase` builds
  * the `PipecatClient`, does pipecat's two-step connect (`startBot` against the
  * control plane, then `connect` the transport it returns) and mounts
- * `PipecatClientProvider` — with its own `BotAudioOutput` — as soon as the
- * client exists.
+ * `PipecatClientProvider` as soon as the client exists.
  */
 function CallSession({
   children,
@@ -209,9 +209,13 @@ function CallSession({
   // call) on every render.
   const params = useMemo(() => connectRequest({ surface: "orders-web" }), []);
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       connectOnMount
       noThemeProvider
       startBotParams={params}

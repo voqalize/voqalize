@@ -21,6 +21,11 @@ dependencies = [
     # alone can't verify RS256; the brain host is the party that verifies, so the
     # backend must pull it in explicitly.
     "pyjwt[crypto]>=2.8",
+    # KDEM's knowledge base reads the text of the site's PDFs (policies,
+    # guidelines, reports). Pure Python; AES-encrypted files decrypt through the
+    # `cryptography` backend pyjwt[crypto] already brings. 6.19 for the
+    # Configuration that bounds decompression.
+    "pypdf>=6.19",
 ]
 
 [tool.uv.sources]

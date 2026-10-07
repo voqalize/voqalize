@@ -75,10 +75,10 @@ Locally, put a tunnel in front of the route so the URL is reachable.
 
 ## 5. Open a page
 
-One `fetch` for the connect parameters, then stock pipecat. The runnable example
-is web; Pipecat also supplies React Native, native iOS and native Android clients
+One `fetch` for the connect parameters, then pipecat's client on
+`@voqalize/client-transport`. The runnable example is web; Pipecat also supplies React Native, native iOS and native Android clients
 for the same connect contract. See [Connecting a page](/build/connect/) and
-[Voqalize and pipecat](/build/pipecat/).
+[Client libraries](/build/pipecat/).
 
 ## Verify that your brain answered
 

@@ -41,8 +41,11 @@
  * cost. The face only renders; the server owns the intent.
  *
  * The package fetches the avatar runtime and her character from
- * `avatar.voqalize.com` when the tile mounts, so the bank page does not pay for
- * her until the call is live, and the pre-call sheet covers the load.
+ * `avatar.voqalize.com`. The dock preloads her face while the launcher is up,
+ * so the tile that mounts when the call goes live takes a face already built —
+ * mounted cold at that moment, her first frame landed on the greeting. The
+ * package holds one face, hidden and idle, and a call that ends lets the next
+ * one start the same way.
  *
  * Before the call there is no client to embody, so the launcher wears a **still**
  * of her — `portraits/tara-portrait.png`, a square crop of the reference she is
@@ -81,6 +84,7 @@ import {
   UserAudioControl,
 } from '@pipecat-ai/voice-ui-kit';
 import '@pipecat-ai/voice-ui-kit/styles.scoped';
+import { preloadAvatar } from '@voqalize/avatar';
 import { Avatar } from '@voqalize/avatar/react';
 import { Maximize2, MessageSquare, Minimize2, PhoneOff } from 'lucide-react';
 import type { AmbientPresenceActivity } from '@voqalize/demo-kit';
@@ -138,6 +142,11 @@ export function AuraDock({ client, activity, avatar, face, chat, phase, onStart,
   const name = agentName(face);
   const [chatOpen, setChatOpen] = useState(chat);
   const [size, setSize] = useState<'compact' | 'full'>('full');
+  // Built while the launcher is up; the live tile takes it. A mount used it up,
+  // so after a call the next one is built again.
+  useEffect(() => {
+    if (phase !== 'live') preloadAvatar(face);
+  }, [face, phase]);
 
   // Before the call: one launcher, and nothing else of ours on the page. A bank
   // site should look like a bank site until the customer asks for help.

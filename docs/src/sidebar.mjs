@@ -124,7 +124,7 @@ export const sidebar = [
       { label: "How a session works", slug: "build/session" },
       { label: "Quickstart: first call", slug: "build/quickstart" },
       { label: "Connect your app", slug: "build/connect" },
-      { label: "Pipecat client SDKs", slug: "build/pipecat" },
+      { label: "Client libraries", slug: "build/pipecat" },
       {
         label: "Your first brain",
         items: [

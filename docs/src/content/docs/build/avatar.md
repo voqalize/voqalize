@@ -152,5 +152,5 @@ never sent.
 
 ## Read next
 
-- [Voqalize and pipecat](/build/pipecat/) — what in the call is pipecat's.
+- [Client libraries](/build/pipecat/) — what in the call is pipecat's.
 - [The RTVI plane](/reference/rtvi/) — the whitelist this rides.

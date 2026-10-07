@@ -406,6 +406,10 @@ facts:
       every pipecat release. No page may carry an install line for it, and no
       page may promise a replacement. The source was deleted from this repo the
       same day, so there is nothing left to point a reader at either.
+      2026-10-07: we ship `@voqalize/client-transport` (client.transport.*
+      below), and it is the default. It is not this package's successor: it
+      re-exports nothing of pipecat's and wraps no connect call; it replaces
+      the media manager inside pipecat's own transport.
     forbid:
       - 'not yet on npm'
       - 'Not yet on npm'
@@ -415,6 +419,50 @@ facts:
     except:
       - '**/CHANGELOG.md'
       - '**/changelog.astro'
+
+  # ── The browser client ─────────────────────────────────────────────────────
+  #
+  # Owner, 2026-10-07: "We now ship a client library. And we need to make that
+  # the default. We should still document stock pipecat libraries for another
+  # couple of releases as well - but eventually we should remove them and only
+  # document our library." Its own public repo, so every fact here is attested.
+
+  client.transport.package:
+    value: '@voqalize/client-transport'
+    source: voqalize-client-transport/package.json
+    verified: 2026-10-07
+    reproduce: grep '"name"' ../voqalize-client-transport/package.json
+    note: >-
+      MIT, published to npm. Pipecat's SmallWebRTCTransport with an open
+      MediaManager in place of the default one, which loads daily's call
+      machine from c.daily.co. It is the documented default for a web page;
+      pipecat's stock transport is the documented alternative until a later
+      release drops it.
+    forbid:
+      - 'We ship no client library'
+      - 'No client library of ours'
+      - 'ships no library of ours'
+      - 'no client library of ours'
+
+  client.transport.version:
+    value: '0.3.0'
+    source: https://registry.npmjs.org/@voqalize/client-transport
+    verified: 2026-10-07
+    reproduce: npm view @voqalize/client-transport version
+    note: >-
+      The version every install line pins, exactly, and every demo here
+      depends on. Printed in build/pipecat.md and overview/status.md; bump
+      both in their own commit once npm serves the next release.
+
+  client.transport.pipecat_floor:
+    value: 'client-js >=1.13.0 <2, small-webrtc-transport >=1.10.0 <2'
+    source: voqalize-client-transport/package.json peerDependencies
+    verified: 2026-10-07
+    reproduce: grep -A3 peerDependencies ../voqalize-client-transport/package.json
+    note: >-
+      What a page on the default path must clear. pipecat.client.floor is the
+      lower floor of the stock path, and stays printed beside it until that
+      path leaves the docs.
 
   repo.voqalize.licence:
     value: Apache-2.0
@@ -835,6 +883,20 @@ facts:
       - '\btoken_expired\b'
       - '\bended_by\b'
       - '\bsessions\.(end|terminate)\b'
+
+  session.rejoin_grace_secs:
+    value: 10
+    source: platform/backend/pygato/src/pygato/lifecycle.py:90 RESUME_GRACE_SECS
+    verified: 2026-10-07
+    reproduce: >-
+      grep -n 'RESUME_GRACE_SECS = '
+      ../platform/backend/pygato/src/pygato/lifecycle.py
+    note: >-
+      How long a call outlives its peer connection closing, for a fresh offer
+      with the same session token and no pc_id to take it back: a page load mid
+      call. A page that does not come back ends the call user_hung_up, dated at
+      the close. An expired token still rejoins a live call; an ended one is
+      refused with 410. Overridable per deployment, so this is the default.
 
   speech.idle.default_ms:
     value: 0

@@ -38,6 +38,8 @@ export interface Widget {
   /** What on the page the widget must not cover; empty when nothing is open. */
   avoid(obstacles: readonly Rect[]): void;
   onCall(fn: () => void): void;
+  /** The shopper is reaching for the invite: a pointer over it, or focus. */
+  onReach(fn: () => void): void;
   onMute(fn: () => void): void;
   onHang(fn: () => void): void;
 }
@@ -441,6 +443,10 @@ export function mountWidget(): Widget {
       if (!drag?.moved) place(true);
     },
     onCall: (fn) => invite.addEventListener("click", fn),
+    onReach: (fn) => {
+      invite.addEventListener("pointerenter", fn);
+      invite.addEventListener("focus", fn);
+    },
     onMute: (fn) => mute.addEventListener("click", fn),
     onHang: (fn) => hang.addEventListener("click", fn),
   };

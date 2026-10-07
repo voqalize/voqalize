@@ -32,8 +32,9 @@
  * two places; a second "Ask Aura Support" button beside the launcher was two
  * doors to the same microphone.
  *
- * `PipecatAppBase` mounts its `PipecatClientProvider` (and `BotAudioOutput`, via
- * `noThemeProvider`) as soon as the client exists, not when the call goes live —
+ * `PipecatAppBase` mounts its `PipecatClientProvider` as soon as the client
+ * exists, not when the call goes live (Aria plays on the element
+ * `useVoqalizeMedia` owns, hence `noAudioOutput`) —
  * Aria's audio track is announced once, from the remote track's `unmute` a few
  * hundred milliseconds after the peer connection is up, so a listener that
  * subscribes late finds nothing to read. `connectOnMount` is off: nothing opens
@@ -97,6 +98,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from '@voqalize/demo-kit';
 import { useAura } from './store';
 import { connectRequest, withRealHeaders } from './config';
@@ -255,9 +257,13 @@ export function AuraAssistant({ children }: { children: (presence: ReactNode) =>
   }, []);
   const onFailed = useCallback(() => setWantCall(false), []);
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       noThemeProvider
       startBotParams={params}
       startBotResponseTransformer={withRealHeaders}

@@ -33,12 +33,16 @@ connecting a live call. See [bringing an agent you already have](/build/existing
 
 ## App clients
 
-Voqalize uses Pipecat's RTVI and SmallWebRTC client surfaces directly.
+Voqalize uses Pipecat's RTVI and SmallWebRTC client surfaces directly. In a
+browser, the media is `@voqalize/client-transport@0.3.0`, our open
+implementation of pipecat's media manager; pipecat's stock transport still
+works and is documented for a couple more releases. See
+[client libraries](/build/pipecat/).
 
 | Environment | Client | Voqalize example |
 |---|---|---|
-| Web | Pipecat JavaScript | Yes |
-| React web app | Pipecat React | Yes |
+| Web | Pipecat JavaScript with `@voqalize/client-transport` | Yes |
+| React web app | Pipecat React with `@voqalize/client-transport` | Yes |
 | React Native | Pipecat React Native with SmallWebRTC | Not yet |
 | Native iOS | Pipecat Swift with SmallWebRTC | Not yet |
 | Native Android | Pipecat Kotlin with SmallWebRTC | Not yet |

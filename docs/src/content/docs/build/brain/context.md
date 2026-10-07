@@ -42,7 +42,7 @@ class Desk(Brain):
                 self.cart.pop(e.item_id, None)
 ```
 
-The page half is stock pipecat, one line at the moment the person acts:
+The page half is pipecat's client, one line at the moment the person acts:
 
 ```ts
 client.sendUIEvent("quantity_set", { item_id: "li3", quantity: 5 });

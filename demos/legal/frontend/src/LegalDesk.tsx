@@ -17,12 +17,13 @@
  * two-step connect (`startBot` against the control plane, then `connect` the
  * transport) and owns the client's lifecycle; everything below it is a stock
  * `PipecatClient`: `usePipecatClientTransportState`/`usePipecatConnectionState`
- * report the call, RTVI events say who is speaking, `PipecatAppBase`'s own
- * `BotAudioOutput` plays counsel, and the brain's `session.dispatch(...)`
+ * report the call, RTVI events say who is speaking, the demo kit's
+ * `useVoqalizeMedia` plays counsel, and the brain's `session.dispatch(...)`
  * arrives on `RTVIEvent.UICommand` as `{ command, payload }`. The only
  * Voqalize-specific code on the page is the request that starts the call and
- * the one line over its answer, both in `src/config.ts` — there is no client
- * library to install.
+ * the one line over its answer, both in `src/config.ts`, and the media path:
+ * `@voqalize/client-transport` (MIT) in place of pipecat's default, which
+ * loads a third-party call machine into the page.
  *
  * Two bridges tie the call to the shared store: every `ui-command` replays onto
  * it (so the assistant drives the document), and the store's silent
@@ -43,6 +44,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from '@voqalize/demo-kit';
 import { useLegal } from './store';
 import { CLAUSES, DATA_ROOM, MATTER } from './content';
@@ -335,9 +337,8 @@ function LeftRail() {
  * Mints the session and owns the client. `PipecatAppBase` builds the
  * `PipecatClient`, does pipecat's two-step connect (`startBot` against the
  * control plane, then `connect` the transport it returns) and mounts
- * `PipecatClientProvider` — with its own `BotAudioOutput` — as soon as the
- * client exists, **not** when the call goes live: counsel's audio track is
- * announced once, from the remote track's `unmute` a few hundred milliseconds
+ * `PipecatClientProvider` as soon as the client exists, **not** when the call
+ * goes live: counsel's audio track is announced once, from the remote track's `unmute` a few hundred milliseconds
  * after the peer connection is up, and a listener that subscribes late finds
  * nothing to read. `connectOnMount` is off: nothing opens a microphone until
  * the visitor has read the notice and joined.
@@ -351,9 +352,13 @@ function LiveLayer() {
   const [agreed, setAgreed] = useState(false);
   const gate = useMemo(() => ({ joined, setJoined, agreed, setAgreed }), [joined, agreed]);
 
+  const media = useVoqalizeMedia();
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
+      transportOptions={media.transportOptions}
+      onClient={media.onClient}
+      noAudioOutput
       noThemeProvider
       startBotParams={params}
       startBotResponseTransformer={withRealHeaders}

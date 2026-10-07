@@ -57,7 +57,7 @@ same way. So `send-text` never reaches your brain as a message.
 client.sendText("where do I download my interest certificate?");
 ```
 
-Stock pipecat, no argument of ours. Voqalize interrupts whatever the agent was
+Pipecat's own method, no argument of ours. Voqalize interrupts whatever the agent was
 saying — the answer to the last question is over — and commits the sentence as a
 user turn. Your brain answers it in `on_user_message`, with no way to tell it was
 typed and nothing to write to receive it: a brain built before you added a text
@@ -104,7 +104,7 @@ speech you already yielded. Sending a type the app originates raises before
 anything reaches the socket.
 
 `session.dispatch(action)` is sugar over the same method: it rides `ui-command`,
-which a stock pipecat client reads with `useUICommandHandler` and no adapter of
+which a pipecat client reads with `useUICommandHandler` and no adapter of
 ours.
 
 ## To your brain
@@ -142,5 +142,5 @@ stripped before delivery.
 
 ## Read next
 
-- [Voqalize and pipecat](/build/pipecat/) — the browser packages that read these.
+- [Client libraries](/build/pipecat/) — the browser packages that read these.
 - [The wire](/reference/wire/) — the envelope RTVI is carried in.

@@ -1,0 +1,559 @@
+"""KdemBrain — Aria, the voice agent on karnatakadigital.in.
+
+A visitor to KDEM's site (the Karnataka Digital Economy Mission) clicks "Talk to
+Aria" and asks a question about doing business in Karnataka. Aria answers from
+the site's own approved pages and the PDF documents they link to (policies,
+guidelines, reports, newsletters), in a sentence or two, and offers the page or
+the PDF that says it in full as a link card beside her face.
+
+Three things shape every decision here.
+
+**She answers only from the pages KDEM approved.** :meth:`search_kdem` reads the
+in-memory index ``knowledge.py`` keeps of those pages — their visible text, one
+canonical URL per topic, refreshed from the sitemap about once a day — and of
+the text of the PDFs they link to, page by page, so she can say where in a
+document the answer is. The prompt holds her to what comes back. When nothing does, she says so in one fixed
+line and offers Contact Us. A government agency's assistant that improvises a
+scheme, a figure or a deadline is worse than one that says it does not know.
+
+**The model never supplies a URL the brain trusts.** :meth:`show_link` takes what
+the model names, canonicalises it, and sends it only if the index holds that page
+now — an approved page the last refresh read, a page it added, or a PDF an
+approved page links to and the refresh read — with the page's own title, not
+the model's. A listed page the refresh dropped (deleted,
+unpublished, or redirecting elsewhere) is not sent; before the first index
+exists, only Contact Us is. The browser snippet checks the host again, but the
+brain is where "only approved pages" is decided.
+
+**The page is someone else's.** There is no frontend here: the snippet in
+``demos/kdem/embed/`` is pasted into the site, connects with
+``init = {surface, page, lang}``, and renders exactly one command, ``show_link``.
+So that is the only Action this brain sends. The call carries on across page
+loads, and on every (re)connect the snippet sends ``page_viewed``
+(:mod:`.app_events`): Aria learns the visitor moved, silently, on their next turn.
+
+The knowledge base is one per process. The first session starts its keeper
+(:meth:`~.knowledge.KnowledgeService.start`, idempotent and non-blocking); every
+session after that reads the same index.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncGenerator
+from typing import Any
+
+from google import genai
+from google.genai import types
+from loguru import logger
+from pydantic import BaseModel, Field
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    PHRASES,
+    FallbackLine,
+    GeminiBrain,
+    landed,
+    needs_result_now,
+    phrase,
+    say_line,
+)
+
+from voqalize.sdk import Action, RequestRejected, RTVIMessage, Session, Speech
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
+
+from .app_events import KDEM_EVENTS, LanguageRequested, PageViewed
+from .content import (
+    BY_CODE,
+    BY_TAG,
+    CONTACT_PATH,
+    OPENING,
+    SPEECH,
+    LanguageName,
+    LanguageTag,
+    page_digest,
+)
+from .content import Speech as LanguageSpeech
+from .knowledge import (
+    ALLOWLIST,
+    KNOWLEDGE,
+    Passage,
+    host_of,
+    normalize,
+    off_site,
+    path_of,
+    pdf_url,
+)
+
+AGENT_NAME = "Aria"
+
+# The visitor is reading the site, not waiting on her. Nothing hangs up on a
+# quiet page — they may be reading the link she just offered.
+_IDLE_MS = 0
+
+#: How many passages one search hands back. Three is enough to answer from and
+#: few enough that a turn's context stays small.
+_PASSAGES = 3
+
+#: The line for anything the approved pages do not answer. Written once, here,
+#: so the prompt and the tool results say the same words.
+DONT_KNOW = "I don't have that on our website. The KDEM team can help."
+
+# Her own line for a silent turn is said in the language her voice speaks, so
+# each one needs a row in the shared phrases — held at import, not on a call.
+assert {s.code for s in SPEECH.values()} <= set(PHRASES), "a spoken language has no PHRASES row"
+
+# ─── System prompt ─────────────────────────────────────────────────────────────
+
+_SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the voice assistant on the website of KDEM, the Karnataka Digital Economy Mission, at karnatakadigital.in. A visitor is on the site right now, with you in the corner of the page. They are usually a founder, an investor, a company looking at Karnataka, a student or a job seeker.
+
+EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page, write your line first and make the call in that same response — the line is spoken as the link appears. A response that is only a tool call is silence: after show_link you do not speak again until the visitor does. For example:
+  Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. I've put the page beside me." — and show_link, in the same response.
+search_kdem and set_language are the two calls that take no line. search_kdem is silent and comes straight back to you in the same turn, so call it first and then answer from it. set_language is answered by a line of its own, in the new voice, so call it alone and say nothing.
+
+ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from what search_kdem returns. Search before you answer any question about KDEM or Karnataka's digital economy — even one you think you know. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer the Contact Us page with show_link ({CONTACT_PATH}).
+
+THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then offer the page that says it in full with show_link, in the same response. Do not read a page aloud; the link is there for that. Pass show_link a URL that search_kdem returned or one from THE PAGES below — never one you made up or one from outside karnatakadigital.in.
+
+DOCUMENTS. Many results come from the PDF documents KDEM's pages link to — policies, guidelines, reports and newsletters — and are marked "PDF document, page N". When you answer from one, say which document and where, in words, for example "the Startup Policy says so on page 12", and offer it with show_link, passing the url exactly as search_kdem gave it. For a document on KDEM's site that url is the PDF itself. For one hosted on another government site, marked "on <site>", the url is the KDEM page that links to it, and the card opens that page: name the document and the page in what you say, and say it is linked from that KDEM page.
+
+VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
+
+WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, the Contact Us page:
+- Politics, government decisions, ministers or officials, and opinions about any of them. You talk about what the site says, not about who decided it.
+- Commitments on behalf of KDEM or the Government of Karnataka: no promises of funding, approval, a meeting, a timeline or an outcome.
+- The status of any individual application, registration, payment or tender. You cannot see them; the KDEM team can.
+- Legal, tax or investment advice beyond what the site's own documents say. Say what the document says and suggest they take advice.
+- Personal data. Never ask for a name, phone number, email, address, ID number, OTP or password, and if they offer one, tell them you do not need it.
+- Anything unrelated to KDEM and doing business in Karnataka: say briefly that it is outside what you can help with here.
+
+LANGUAGE. The call starts in English, and English stays the main language. Besides English you speak Kannada, the language of Karnataka, in a Kannada voice.
+- NEVER SAY ITS NAME IN ENGLISH. In English speech, never say the name of the Kannada language: the English voice cannot say it. If you must refer to it, say "Karnataka's own language"; usually, simply switch. If they ask which languages you speak, or whether you speak it, say: "I speak English, and Karnataka's own language too. Just speak to me in it, or tap ಕನ್ನಡ at the top of my panel."
+- SWITCHING TO KANNADA. If the visitor asks for Kannada, or a turn looks like Kannada, call set_language with kannada at once, in that turn, and say NOTHING yourself: no line before the call and none after. The voice changes first, and then a written Kannada line is said for you, asking them to say it again. From their next turn on, speak Kannada, in Kannada script. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds; a turn that makes no sense as English is usually Kannada, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". Do not ask whether to switch: switch. If you were wrong, the visitor speaks English and you switch back, or they tap English on the page.
+- SWITCHING BACK. In Kannada mode English arrives spelled in Kannada script ("ಐ ವಾಂಟ್ ..." is "I want ..."); judge by the small grammar words, not by nouns. When they speak English or ask for it, call set_language with english, again saying nothing yourself: a written English line is said for you in the English voice.
+- What does NOT count as switching: one borrowed English word inside a Kannada sentence ("ನನಗೆ startup fund ಬೇಕು" is still Kannada), or one Kannada word inside an English sentence. Judge by the whole sentence, not a word.
+- Only English and Kannada are offered; if they ask for another language, say so in English. The site is in English, so always write search_kdem queries in English, whatever language the call is in.
+
+THE PAGES. These are the approved pages, by path, with their titles. Newer news and event pages may also come back from search_kdem; those are approved too.
+"""
+
+# The opener. Written, not generated: the visitor has just clicked, and a first
+# word that waits on a model makes the site feel slow.
+_GREETING = (
+    f"Hello, I'm {AGENT_NAME} from KDEM. How can we help you grow your business in Karnataka?"
+)
+
+
+#: The opener when the visitor picked ಕನ್ನಡ on the toggle before the call.
+#: Written, like the English one. To be checked by a native speaker.
+_GREETING_KN = "ನಮಸ್ಕಾರ, ನಾನು KDEM ನ ಆರಿಯಾ. ಕರ್ನಾಟಕದಲ್ಲಿ ನಿಮ್ಮ ವ್ಯವಹಾರ ಬೆಳೆಸಲು ನಾವು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?"
+
+#: What Aria says, at the start of her next turn, after the visitor switched the
+#: language on the toggle. Written, in the new language, read by the new voice.
+#: The Kannada line is to be checked by a native speaker.
+TOGGLE_CONFIRM: dict[LanguageTag, str] = {
+    "en": "Sure, let's continue in English.",
+    "kn": "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ.",
+}
+
+#: What Aria says when she switches by voice, after both legs have moved, so the
+#: new voice reads it, at the end of the turn that asked for it. The visitor's
+#: Kannada was heard by the English recognizer and lost, so the Kannada line asks
+#: them to say it again. Never the language's English name: the English voice
+#: cannot say it. The Kannada line is to be checked by a native speaker.
+SWITCH_LINE: dict[LanguageTag, str] = {
+    "en": "Sure, let's continue in English.",
+    "kn": "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳಿ.",
+}
+
+
+def _prompt(where: str = "", spoken: Language = OPENING.code) -> str:
+    """The system prompt as things stand: THE PAGES lists only the pages Aria
+    may link at this moment, so the model is never offered one the refresh has
+    dropped; the call's language now, when it is not English; and where the
+    visitor is."""
+    prompt = _SYSTEM_INSTRUCTION + page_digest(lambda url: _page(url) is not None)
+    if spoken == Language.KN:
+        prompt += (
+            "\n\nTHE CALL IS IN KANNADA NOW. Speak Kannada, in Kannada script, until the "
+            "visitor asks for English, speaks it, or switches it on the page."
+        )
+    return f"{prompt}\n\nWHERE THEY ARE. {where}" if where else prompt
+
+
+# ── The tool surface ──────────────────────────────────────────────────────────
+
+
+class ShowLink(Action, name="show_link"):
+    """Brain → browser: a link card to one KDEM page or PDF, opened in a new tab.
+
+    The snippet in ``demos/kdem/embed/`` renders this and nothing else."""
+
+    url: str
+    """An absolute ``https://karnatakadigital.in/...`` URL, chosen by the brain: a
+    page, or a PDF under ``/wp-content/uploads/``."""
+    title: str
+    """The page's own title, as the card shows it."""
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(
+        description="What the visitor wants to know, as a short search in English — "
+        "the site is in English even when the call is in Kannada. Name the topic, "
+        "e.g. 'seed fund for startups in Mysuru' or 'upcoming events'."
+    )
+
+
+class LanguageChanged(Action, name="language_changed"):
+    """Brain → browser: the language the call is in now. The snippet's
+    English | ಕನ್ನಡ toggle shows this and nothing else, so it follows a switch
+    made by voice as well as one made on the toggle."""
+
+    language: LanguageTag
+
+
+class LinkRequest(BaseModel):
+    url: str = Field(
+        description="The page or PDF to offer: a URL that search_kdem returned, or a "
+        "path from THE PAGES, e.g. '/policies/'. Only karnatakadigital.in pages and "
+        "documents are sent."
+    )
+    title: str = Field(
+        "",
+        description="A few words naming the page. The card uses the page's own title "
+        "when it has one.",
+    )
+
+
+class LanguageRequest(BaseModel):
+    language: LanguageName = Field(
+        description="The language to conduct the rest of the call in. Only English and "
+        "Kannada are offered; if they ask for another, say so rather than picking one."
+    )
+
+
+def _page(url: str) -> tuple[str, str] | None:
+    """The canonical URL and title of the page ``url`` names, if Aria may link it.
+
+    A page the index holds now (aliases fold into it): an approved page the last
+    refresh read, under the list's title, a news or event page it added, or a
+    PDF an approved page links to, under its link text. A PDF on another site is
+    sent as the approved page that links it. A
+    page on the list that the refresh dropped (gone from the sitemap, a 404, or a
+    redirect elsewhere) is ``None``. Until the first index exists the one page
+    sent is Contact Us, so the don't-know answer still has its link. Anything
+    else, including every URL off the site, is ``None``."""
+    if (theirs := pdf_url(url)) is not None and off_site(theirs):
+        # A PDF on another site: the snippet shows only karnatakadigital.in, so
+        # the card is the approved page that links it, if the index holds it.
+        return _via(theirs)
+    canonical = ALLOWLIST.canonical(url)
+    if canonical is None or ALLOWLIST.is_excluded(canonical):
+        return None
+    approved = ALLOWLIST.approved(canonical)
+    if not (KNOWLEDGE.snapshot.built_at or len(KNOWLEDGE.kb)):
+        if approved is not None and approved.url == ALLOWLIST.contact_url:
+            return approved.url, approved.title
+        return None
+    if (indexed := KNOWLEDGE.kb.page(canonical)) is None:
+        return None
+    if approved is not None:
+        return approved.url, approved.title
+    return indexed.url, indexed.title or path_of(indexed.url)
+
+
+def _source(p: Passage) -> str:
+    """How a search result names where it came from: a page by its title, a PDF
+    as a document, with the page the passage is on and, for a PDF on another
+    site, that site and the KDEM page that links it."""
+    if p.kind != "pdf":
+        return p.title
+    where = "PDF document"
+    if off_site(p.url):
+        where += f" on {host_of(p.url)}"
+    if p.page:
+        where += f", page {p.page}"
+    source = f"{p.title} ({where})"
+    if off_site(p.url) and (via := _via(p.url)) is not None:
+        source += f', linked from the KDEM page "{via[1]}"'
+    return source
+
+
+def _via(url: str) -> tuple[str, str] | None:
+    """For a PDF on another site that the index holds: the approved KDEM page
+    that links it, which is what the snippet can show."""
+    indexed = KNOWLEDGE.kb.page(url)
+    if indexed is None or indexed.kind != "pdf" or not off_site(indexed.url):
+        return None
+    return _page(indexed.via) if indexed.via else None
+
+
+def _link_url(p: Passage) -> str:
+    """The url a search result offers: the page or PDF itself, or for a PDF on
+    another site, the KDEM page that links it."""
+    if p.kind == "pdf" and off_site(p.url) and (via := _via(p.url)) is not None:
+        return via[0]
+    return p.url
+
+
+def _where_they_are(path: str, *, moved: bool) -> str:
+    """One line on the page the visitor has open: by its own title and path when
+    it is a page Aria may link now, else only "a page of the site". Nothing the
+    browser sent is quoted."""
+    known = _page(path)
+    if known is None:
+        return "The visitor is now on a page of the site." if moved else ""
+    url, title = known
+    if moved:
+        return f'The visitor is now on the page "{title}" ({path_of(url)}).'
+    return f'The visitor opened you on the page "{title}" ({path_of(url)}).'
+
+
+def _where_they_started(init: dict[str, Any]) -> str:
+    """One line on the page the visitor opened Aria from, for the prompt.
+
+    ``page`` comes from the visitor's browser, so it is named only when it is a
+    page Aria may link now, and then by that page's own title and path. Anything
+    else is left out: the prompt never quotes what the browser sent."""
+    raw = init.get("page")
+    if not isinstance(raw, str) or not raw:
+        return ""
+    return _where_they_are(raw, moved=False)
+
+
+class KdemBrain(GeminiBrain):
+    """One per session. Aria: KDEM's approved pages, and this visitor's call."""
+
+    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
+        super().__init__(client=client, system_instruction=_prompt(), model=model)
+        #: The language the voice is speaking, for the line the brain says when
+        #: the model's turn acted and said nothing.
+        self.spoken: Language = OPENING.code
+        self._fallback = FallbackLine()
+        #: The page the visitor has open, as a site URL; ``None`` until known.
+        self.here: str | None = None
+        #: The WHERE THEY ARE line the prompt carries now.
+        self._where = ""
+        #: A toggle switch's written confirmation, said when Aria next has the floor.
+        self._confirm: str | None = None
+        #: A switch the model asked for with ``set_language``, made when its
+        #: response has streamed, still inside the turn.
+        self._pending: LanguageSpeech | None = None
+
+    # ─── Callbacks ──────────────────────────────────────────────────────
+
+    async def on_session_start(self, session: Session) -> None:
+        # Aria's voice — not the page's to choose, so it is settled here rather
+        # than sent with the connect request. Both legs move together; the voice
+        # is gauri in English and Kannada alike. This lands before the greeting.
+        # The one thing the page may ask for is the language the visitor picked
+        # on the toggle before the call: "kn" opens in Kannada, anything else in
+        # English.
+        init = dict(session.init or {})
+        opening = BY_TAG["kn"] if init.get("lang") == "kn" else OPENING
+        await session.configure(
+            Config(
+                stt=SttConfig(language=opening.code, patience=2),
+                tts=TtsConfig(voice=opening.voice, language=opening.code),
+                idle=IdleConfig(timeout_ms=_IDLE_MS),
+            )
+        )
+        self.spoken = opening.code
+        # One keeper per process: the first session starts it, the rest find it
+        # running. It never makes this session wait.
+        KNOWLEDGE.start()
+
+        self._where = _where_they_started(init)
+        self.system_instruction = _prompt(self._where, self.spoken)
+        if isinstance(page := init.get("page"), str):
+            self.here = normalize(page)
+        logger.info(
+            "kdem: session start (surface={}, page={}, lang={}, pages indexed={})",
+            init.get("surface"),
+            init.get("page"),
+            init.get("lang"),
+            len(KNOWLEDGE.kb),
+        )
+
+    async def greet(self, session: Session) -> str:
+        """The opener, written not generated, in the language the call opens in."""
+        return _GREETING_KN if self.spoken == Language.KN else _GREETING
+
+    async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The model's turn, and a line of Aria's own if it acted and said nothing.
+        See :mod:`voqalize_demos.silent_turn`.
+
+        A language switched on the toggle is confirmed first, in the new language,
+        with its written line: a brain has no floor outside a turn, so this is the
+        first moment Aria may speak, and it never talks over anyone.
+
+        A language the model switched with ``set_language`` is switched last:
+        once its response has streamed (it says nothing with the call), both legs
+        move in one awaited request, and only then is the written line said, so
+        the new voice reads it. It is the end of the same turn, so there is no
+        dead air, and the visitor speaks next."""
+        if (left := self._pending) is not None:
+            # A switch asked for in a turn the visitor cut short: made now, quietly.
+            self._pending = None
+            await self._move(session, left, by="you, on what the visitor said")
+        if (line := self._confirm) is not None:
+            self._confirm = None
+            async for event in say_line(self, line):
+                yield event
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            yield event
+        if (speech := self._pending) is not None:
+            self._pending = None
+            if await self._move(session, speech, by="you, on what the visitor said"):
+                async for event in say_line(self, SWITCH_LINE[speech.tag]):
+                    yield event
+
+    async def _move(self, session: Session, speech: LanguageSpeech, *, by: str) -> bool:
+        """Move both legs to ``speech`` in one awaited request, and record it.
+        ``False`` when Voqalize refused it: the page is told the language that
+        still holds, and nothing else changes."""
+        try:
+            await session.configure(
+                Config(
+                    stt=SttConfig(language=speech.code),
+                    tts=TtsConfig(voice=speech.voice, language=speech.code),
+                )
+            )
+        except RequestRejected as rejected:
+            logger.warning("kdem: switch to {} refused: {}", speech.name, rejected)
+            session.dispatch(LanguageChanged(language=BY_CODE[self.spoken].tag))
+            return False
+        self._switched(speech, by=by, note=by.startswith("the visitor"))
+        return True
+
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """Browser→brain: the page the visitor has open. Folded in silently: no
+        floor taken and no turn, so a page load never makes Aria speak; the
+        model reads where they are with the visitor's next turn. Unknown events
+        and payloads that do not fit are dropped by the parser."""
+        event = KDEM_EVENTS.parse(msg)
+        if event is None:
+            return
+        match event:
+            case PageViewed():
+                self._viewed(event)
+            case LanguageRequested():
+                await self._requested(session, event)
+
+    async def _requested(self, session: Session, event: LanguageRequested) -> None:
+        """The visitor pressed the other language on the toggle. Switched in code,
+        not through the model: both legs move in one awaited request, the page
+        is told, and the written confirmation waits for Aria's next turn. Asking
+        for the language the call is already in does nothing."""
+        speech = BY_TAG[event.language]
+        if speech.code == self.spoken:
+            return
+        # A refusal puts the toggle back to the language that holds.
+        if await self._move(session, speech, by="the visitor, on the page's toggle"):
+            self._confirm = TOGGLE_CONFIRM[speech.tag]
+
+    def _switched(self, speech: LanguageSpeech, *, by: str, note: bool = True) -> None:
+        """Record a switch that has been sent, tell the page, and (from a
+        callback) leave the model one line about it. Shared by the toggle and
+        ``set_language``, so the two cannot disagree about what a switch does.
+        A tool leaves no note: its own result is the model's record, and a line
+        filed mid-turn would land between a call and its result."""
+        logger.info("kdem: language {} -> {} (by {})", BY_CODE[self.spoken].name, speech.name, by)
+        self.spoken = speech.code
+        self._confirm = None
+        self.session.dispatch(LanguageChanged(language=speech.tag))
+        self.system_instruction = _prompt(self._where, self.spoken)
+        if note:
+            line = f"[The call is now in {speech.name.capitalize()}, switched by {by}.]"
+            self.append_to_context(types.Content(role="user", parts=[types.Part(text=line)]))
+
+    def _viewed(self, event: PageViewed) -> None:
+        here = normalize(event.path)
+        if here is None or here == self.here:
+            # Not a page of this site, or the one already known: the reconnect
+            # on the page the call started on says nothing new.
+            return
+        self.here = here
+        line = self._where = _where_they_are(event.path, moved=True)
+        logger.info(
+            "kdem: page_viewed {} ({})", path_of(here), "named" if _page(here) else "unnamed"
+        )
+        self.system_instruction = _prompt(line, self.spoken)
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=f"[{line}]")]))
+
+    # ─── Tools ──────────────────────────────────────────────────────────
+    #
+    # All three read memory and return inside the tool budget. Only the search
+    # is marked: Aria cannot answer without what it returns. The link and the
+    # language switch are spoken with, in the same response.
+
+    @property
+    def tools(self) -> list[Any]:
+        """Search the approved pages, offer one as a link, change language."""
+        return [self.search_kdem, self.show_link, self.set_language]
+
+    @needs_result_now
+    async def search_kdem(self, request: SearchRequest) -> str:
+        """Search KDEM's approved website pages and the PDF documents they link to.
+        Call it before answering any question about KDEM, its programmes, policies,
+        events, reports or news, and answer only from what it returns."""
+        kb = KNOWLEDGE.kb
+        if len(kb) == 0:
+            logger.warning("kdem: search with an empty knowledge base")
+            return (
+                "The website's pages are not available right now, so there is nothing to "
+                f'answer from. Say: "{DONT_KNOW}" and offer the Contact Us page '
+                f"({CONTACT_PATH}) with show_link."
+            )
+        passages = kb.search(request.query, k=_PASSAGES)
+        logger.info("kdem: search {!r} -> {} passages", request.query, len(passages))
+        if not passages:
+            return (
+                f'Nothing on the approved pages matches. Say: "{DONT_KNOW}" and offer the '
+                f"Contact Us page ({CONTACT_PATH}) with show_link."
+            )
+        found = "\n\n".join(
+            f"[{i}] {_source(p)}\nurl: {_link_url(p)}\n{p.snippet}"
+            for i, p in enumerate(passages, 1)
+        )
+        return (
+            "From karnatakadigital.in. Answer only from this; if it does not answer the "
+            f'question, say: "{DONT_KNOW}"\n\n{found}'
+        )
+
+    async def show_link(self, request: LinkRequest) -> str:
+        """Put a link card to one KDEM page or PDF document beside you; it opens in a
+        new tab. Say your one or two sentences and call this in the same response.
+        Only approved karnatakadigital.in pages and the PDFs they link to are sent."""
+        found = _page(request.url)
+        if found is None:
+            logger.info("kdem: show_link refused {!r}", request.url)
+            return (
+                f"Not sent: {request.url!r} is not one of the approved KDEM pages or "
+                "documents. Offer a page or PDF search_kdem returned, or the Contact Us "
+                f"page ({CONTACT_PATH})."
+            )
+        url, title = found
+        self.session.dispatch(ShowLink(url=url, title=title))
+        landed(*phrase(self.spoken, "shown"))
+        return "ok"
+
+    async def set_language(self, request: LanguageRequest) -> str:
+        """Conduct the rest of the call in English or Kannada — both the listening and
+        the speaking. Call it when they ask, and when a turn looks like the other
+        one. Call it alone and say nothing: the voice changes when your response
+        ends, and then a written line is said for you in the new voice."""
+        speech = SPEECH[request.language]
+        if speech.code == self.spoken:
+            self._pending = None
+            return f"Already in {speech.name}. Carry on."
+        # Not sent here: a tool returns within its budget, and the switch has to
+        # land before the line the new voice says. respond() makes it, awaited,
+        # once this response has streamed.
+        self._pending = speech
+        logger.info("kdem: set_language {} (made when the response ends)", speech.name)
+        return (
+            f"Switching to {speech.name}. A written line is said for you in the new voice; "
+            f"say nothing more. Speak {speech.name} from the visitor's next turn."
+        )
+
+
+__all__ = ["DONT_KNOW", "SWITCH_LINE", "TOGGLE_CONFIRM", "KdemBrain", "LanguageChanged", "ShowLink"]

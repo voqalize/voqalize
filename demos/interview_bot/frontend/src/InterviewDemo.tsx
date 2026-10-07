@@ -34,6 +34,7 @@ import {
   DemoGate,
   type AmbientPresenceActivity,
   type AmbientPresencePalette,
+  useVoqalizeMedia,
 } from "@voqalize/demo-kit";
 import { connectRequest, demo, withRealHeaders } from "./config";
 import { asUiAction, unhandledUiAction, type SectionChanged } from "./actions.gen";
@@ -439,6 +440,7 @@ export function InterviewDemo() {
     setStep("connecting");
   };
 
+  const media = useVoqalizeMedia();
   return (
     <div
       style={{
@@ -559,6 +561,9 @@ export function InterviewDemo() {
         {step !== "form" && step !== "call-gate" && params && (
           <PipecatAppBase
             transportType="smallwebrtc"
+            transportOptions={media.transportOptions}
+            onClient={media.onClient}
+            noAudioOutput
             connectOnMount
             noThemeProvider
             startBotParams={params}
