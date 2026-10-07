@@ -28,7 +28,9 @@ brain is where "only approved pages" is decided.
 **The page is someone else's.** There is no frontend here: the snippet in
 ``demos/kdem/embed/`` is pasted into the site, connects with
 ``init = {surface, page, lang}``, and renders exactly one command, ``show_link``.
-So that is the only Action this brain sends.
+So that is the only Action this brain sends. The call carries on across page
+loads, and on every (re)connect the snippet sends ``page_viewed``
+(:mod:`.app_events`): Aria learns the visitor moved, silently, on their next turn.
 
 The knowledge base is one per process. The first session starts its keeper
 (:meth:`~.knowledge.KnowledgeService.start`, idempotent and non-blocking); every
@@ -41,6 +43,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from google import genai
+from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
@@ -54,11 +57,21 @@ from voqalize_demos import (
     phrase,
 )
 
-from voqalize.sdk import Action, Session, Speech
+from voqalize.sdk import Action, RTVIMessage, Session, Speech
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
+from .app_events import KDEM_EVENTS, PageViewed
 from .content import CONTACT_PATH, OPENING, SPEECH, LanguageName, page_digest
-from .knowledge import ALLOWLIST, KNOWLEDGE, Passage, host_of, off_site, path_of, pdf_url
+from .knowledge import (
+    ALLOWLIST,
+    KNOWLEDGE,
+    Passage,
+    host_of,
+    normalize,
+    off_site,
+    path_of,
+    pdf_url,
+)
 
 AGENT_NAME = "Aria"
 
@@ -235,6 +248,19 @@ def _link_url(p: Passage) -> str:
     return p.url
 
 
+def _where_they_are(path: str, *, moved: bool) -> str:
+    """One line on the page the visitor has open: by its own title and path when
+    it is a page Aria may link now, else only "a page of the site". Nothing the
+    browser sent is quoted."""
+    known = _page(path)
+    if known is None:
+        return "The visitor is now on a page of the site." if moved else ""
+    url, title = known
+    if moved:
+        return f'The visitor is now on the page "{title}" ({path_of(url)}).'
+    return f'The visitor opened you on the page "{title}" ({path_of(url)}).'
+
+
 def _where_they_started(init: dict[str, Any]) -> str:
     """One line on the page the visitor opened Aria from, for the prompt.
 
@@ -244,11 +270,7 @@ def _where_they_started(init: dict[str, Any]) -> str:
     raw = init.get("page")
     if not isinstance(raw, str) or not raw:
         return ""
-    known = _page(raw)
-    if known is None:
-        return ""
-    url, title = known
-    return f'The visitor opened you on the page "{title}" ({path_of(url)}).'
+    return _where_they_are(raw, moved=False)
 
 
 class KdemBrain(GeminiBrain):
@@ -260,6 +282,8 @@ class KdemBrain(GeminiBrain):
         #: the model's turn acted and said nothing.
         self.spoken: Language = OPENING.code
         self._fallback = FallbackLine()
+        #: The page the visitor has open, as a site URL; ``None`` until known.
+        self.here: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -280,6 +304,8 @@ class KdemBrain(GeminiBrain):
 
         init = dict(session.init or {})
         self.system_instruction = _prompt(_where_they_started(init))
+        if isinstance(page := init.get("page"), str):
+            self.here = normalize(page)
         logger.info(
             "kdem: session start (surface={}, page={}, lang={}, pages indexed={})",
             init.get("surface"),
@@ -297,6 +323,32 @@ class KdemBrain(GeminiBrain):
         See :mod:`voqalize_demos.silent_turn`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
+
+    async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
+        """Browser→brain: the page the visitor has open. Folded in silently: no
+        floor taken and no turn, so a page load never makes Aria speak; the
+        model reads where they are with the visitor's next turn. Unknown events
+        and payloads that do not fit are dropped by the parser."""
+        event = KDEM_EVENTS.parse(msg)
+        if event is None:
+            return
+        match event:
+            case PageViewed():
+                self._viewed(event)
+
+    def _viewed(self, event: PageViewed) -> None:
+        here = normalize(event.path)
+        if here is None or here == self.here:
+            # Not a page of this site, or the one already known: the reconnect
+            # on the page the call started on says nothing new.
+            return
+        self.here = here
+        line = _where_they_are(event.path, moved=True)
+        logger.info(
+            "kdem: page_viewed {} ({})", path_of(here), "named" if _page(here) else "unnamed"
+        )
+        self.system_instruction = _prompt(line)
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=f"[{line}]")]))
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #

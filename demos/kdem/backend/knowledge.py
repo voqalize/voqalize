@@ -1591,7 +1591,7 @@ async def read_pdf_isolated(
     max_chars: int = 1_000_000,
     page_timeout_s: float = 10.0,
     timeout_s: float = 120.0,
-    memory_mb: int = 768,
+    memory_mb: int = 384,
 ) -> PdfPart:
     """:func:`read_pdf` in a child process, on the file at ``path``, so no PDF
     can stall the brain or take its memory.
@@ -2034,7 +2034,7 @@ class RefreshPolicy:
     pdf_timeout_s: float = 120.0
     """Reading one PDF stops after this long a run, keeping what it read and
     carrying on next run; the process is killed a few seconds past it."""
-    pdf_memory_mb: int = 768
+    pdf_memory_mb: int = 384
     """The memory the process reading one PDF may take beyond the interpreter's
     own (Linux; elsewhere only the time limit holds)."""
     max_pdf_chars_total: int = 5_000_000

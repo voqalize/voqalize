@@ -16,10 +16,11 @@ never looks for a frontend here and it is not a card on `/demos`.
 | Path | What it is |
 |---|---|
 | `backend/brain.py` | Aria: the prompt, the greeting and three tools (`search_kdem`, `show_link`, `set_language`) |
+| `backend/app_events.py` | `page_viewed`, the one event the snippet sends the brain |
 | `backend/content.py` | The languages table and the page list in the prompt |
 | `backend/knowledge.py` | The approved-page list, visible-text extraction, PDF text extraction, sitemap and PDF refresh, and in-memory search |
 | `backend/knowledge/` | `approved_pages.json`, which KDEM reviews, and its README |
-| `embed/voqalize-aria-kdem.html` | The snippet that is pasted into the site |
+| `embed/voqalize-aria-kdem.js` | The snippet that is pasted into the site |
 
 ## The brain
 
@@ -41,12 +42,37 @@ transcripts.
 
 ## The snippet
 
-`embed/voqalize-aria-kdem.html` goes into Elementor Pro → Custom Code, with the
-location set to the end of `</body>`. Nothing loads until a visitor clicks. The
-agent id and the publishable key are placeholders (`REPLACE_WITH_...`). They are
-filled in when the snippet is handed over, and never committed.
+`embed/voqalize-aria-kdem.js` is plain JavaScript. It goes into any "Custom
+JavaScript" box as it is, or, inside a `<script>` tag, into Elementor Pro →
+Custom Code with the location set to the end of `</body>`. Nothing downloads
+until a visitor clicks "Talk to Aria", except Aria's picture for the button
+(her still image, from the avatar's `listCharacters()`), fetched once the page
+has settled. The agent id and the publishable key are placeholders
+(`REPLACE_WITH_...`). They are filled in when the snippet is handed over, and
+never committed.
 
-The snippet and the brain share two things:
+It sits at the bottom left, clear of the site's own chat button on the right;
+on a phone it sits higher, above the site's chat strip.
+
+It loads three libraries from jsDelivr, each pinned to an exact version in the
+script: pipecat's `@pipecat-ai/client-js`, `@voqalize/client-transport` 0.3.0
+and the `@voqalize/avatar` the other demos use. The call is pipecat's client on our transport, whose
+media manager is ours rather than daily's, so daily's call machine is never
+loaded from `c.daily.co`.
+
+**A call carries on across page loads.** The transport is created with
+`createVoqalizeTransport({ mediaManager, keepAcrossPageLoads: true })`. It keeps
+the call's connection request in `sessionStorage`, per tab, and the next page
+of the site rejoins the same call with a bare `connect()`: no new session, and
+the conversation goes on where it was. Voqalize holds a dropped call for a few
+seconds for exactly this. The snippet never hangs up on `pagehide`, since the
+page going away is what the call has to survive; a page restored from the
+back/forward cache is reloaded so it rejoins properly. A visitor who leaves the
+site lets the call end on its own. **End** sends `disconnectBot()`, which ends
+the call at once, so the next page does not dial back. A visitor who muted
+stays muted on the next page.
+
+The snippet and the brain share three things:
 
 - **`init`**: the snippet sends `{surface: "kdem-web", page: location.pathname,
   lang: <html lang>}` with `sessions.connect`. The brain reads `page` so it knows
@@ -69,10 +95,36 @@ The snippet and the brain share two things:
   another site (a government portal an approved page links to) is cited by
   name and page, but its card is the approved KDEM page that links it, since
   the snippet shows only karnatakadigital.in.
+- **`page_viewed`**: on every connect and rejoin, the snippet sends the RTVI UI
+  event `page_viewed` with `{path, title}`. Since the call follows the visitor
+  around the site, this is how Aria learns they moved. The brain takes it in
+  silently: Aria does not speak because a page changed, and her next turn knows
+  where they are. The page is named by its own title only when it is one Aria
+  may link now; any other page is "a page of the site", and the title the
+  browser sent is never quoted. A rejoin on the same page, and any event that
+  does not fit, change nothing.
 
 The site has to allow the microphone for its own pages. If it sends a
 `Permissions-Policy` header, that header must include `microphone=(self)`.
 Otherwise the browser blocks the microphone and Aria cannot hear the visitor.
+
+karnatakadigital.in sends no Content-Security-Policy today. If it adds one, it
+has to allow:
+
+```text
+script-src  https://cdn.jsdelivr.net https://avatar.voqalize.com
+connect-src https://app.voqalize.com https://avatar.voqalize.com blob:
+            and the media node each session names for its offer
+img-src     https://avatar.voqalize.com blob:
+```
+
+The media node is chosen per session, so ask Voqalize for the hosts to list.
+It does not need `c.daily.co` or `'unsafe-eval'`: those were for daily's call
+machine, which pipecat's transport only starts when it is given no media
+manager, and the snippet gives it ours. (The transport still imports daily's
+library module, from jsDelivr like the rest; it never creates a call with it.)
+The pipecat and transport bundles contain no `eval`, and the avatar's own
+sources are the ones its documentation lists, above.
 
 ## Keeping the pages fresh
 
@@ -95,7 +147,7 @@ bounded:
 
 - a PDF is streamed to a scratch file on disk, never held in memory. 150 MB is
   a safety ceiling, checked against Content-Length and again while downloading;
-- it is read in a child process of its own: 768 MB of memory beyond the
+- it is read in a child process of its own: 384 MB of memory beyond the
   interpreter's own (an address-space limit; Linux only), 120 seconds of
   reading per PDF per run, and the brain kills the process a few seconds past
   that whatever it is doing;
