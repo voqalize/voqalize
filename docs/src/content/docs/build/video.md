@@ -117,15 +117,20 @@ await client.connect({
 
 The first offer decides for the whole session. Pipecat resends `requestData`
 on every offer, including a reconnect, and a later offer with different values
-is ignored, not refused. A value below the minimum is refused at the offer
-with HTTP `400`, code `invalid_config`, and an `info` sentence saying why, and
-`client.connect` rejects. Use `@pipecat-ai/small-webrtc-transport` 1.10.8 or
+is ignored, not refused. The first offer's value is checked strictly:
+`requestData.video` takes only `camera` and `screen`, each takes only
+`max_kbps`, and `max_kbps` is a whole number at or above the minimum. Anything
+else, a value below the minimum, a string or decimal, or a field such as
+`max_fps`, is refused at the offer with HTTP `400`, code `invalid_config`, and
+an `info` sentence saying why, and `client.connect` rejects. Use `@pipecat-ai/small-webrtc-transport` 1.10.8 or
 later, which stops at a refused offer. An earlier release can resend the
 refused offer and then reject with no message, so the `info` sentence never
 reaches your page.
 
-Only the bitrate is enforced. Frame rate, resolution and how the browser
-trades them off under pressure are the browser's own choices.
+The bitrate is the only setting there is. Frame rate, resolution and how the
+browser trades them off under pressure are the browser's own choices, and
+asking for one in `requestData.video` refuses the session rather than being
+ignored.
 
 ## Recommended capture sizes
 
@@ -156,8 +161,10 @@ zero when the lane came on later. In ffmpeg that is `-copyts`.
 
 While a lane is off its file has no frames, and a player holds the last one,
 so a camera that was switched off and a camera whose picture froze look the
-same. Each `camera` and `screen` entry carries a `timeline` that tells them
-apart; on every other role it is `null`. Every time in it is in seconds from
+same. A `camera` or `screen` entry whose lane rendered carries a `timeline`
+that tells them apart. It is `null` on every other role, and also on a lane
+entry whose render failed or that was recorded before the field existed, so
+check for it before reading it. Every time in it is in seconds from
 the session's start, to the millisecond:
 
 ```json
@@ -198,7 +205,8 @@ the session's start, to the millisecond:
   assuming one size.
 - `sync` is a quality flag. `sr` means the lane is on the sender's own clock,
   in sync with the audio. `arrival` means some of it was placed by when its
-  frames arrived, so lip sync there is approximate.
+  frames arrived, so lip sync there is approximate. `null` means no frame of
+  the lane could be placed.
 - `truncated` is `true` only when a very long, troubled session filled one of
   the lists, and then only its earliest rows are kept.
 
@@ -226,7 +234,7 @@ ffmpeg -copyts -i screen.webm -i camera.webm -i mixed.webm -filter_complex "
 To build an `enable` from a lane's entry, saved as JSON:
 
 ```sh
-jq -r '[.timeline.episodes[] | "between(t,\(.start_secs),\(.end_secs))"] | join("+")' camera.json
+jq -r '[(.timeline.episodes // [])[] | "between(t,\(.start_secs),\(.end_secs))"] | join("+")' camera.json
 ```
 
 A session with only one lane leaves out the other's input and overlay.

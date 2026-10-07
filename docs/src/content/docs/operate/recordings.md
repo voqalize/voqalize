@@ -55,7 +55,8 @@ A session whose page turned on the camera or shared a screen also has video:
 `camera` and `screen` also carry a `timeline` — when the lane was on, when its
 picture froze and why, its resolution over time, and whether it is in sync with
 the audio — because a lane's file alone cannot tell "the camera was off" from
-"the picture froze". Every other role's `timeline` is `null`.
+"the picture froze". It is `null` on every other role, and on a lane whose
+render failed or that was recorded before the field existed.
 [Camera and screen](/build/video/#the-timeline-off-is-not-frozen) turns the
 lanes on, and reads the timeline field by field.
 
