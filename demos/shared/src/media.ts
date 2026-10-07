@@ -29,11 +29,7 @@
 
 import { RTVIEvent, type PipecatClient } from "@pipecat-ai/client-js";
 import type { SmallWebRTCTransportConstructorOptions } from "@pipecat-ai/small-webrtc-transport";
-import {
-  VoqalizeMediaManager,
-  attachTrackChangedHandler,
-  type VoqalizeMediaManagerOptions,
-} from "@voqalize/client-transport";
+import { VoqalizeMediaManager, attachTrackChangedHandler } from "@voqalize/client-transport";
 import { useEffect, useState } from "react";
 
 export interface VoqalizeMedia {
@@ -55,14 +51,14 @@ export interface VoqalizeMedia {
  * rebuilds its client (and transport) when its props change identity; each new
  * transport takes the same manager, and `onClient` re-points it at the new one.
  */
-export function useVoqalizeMedia(options?: VoqalizeMediaManagerOptions): VoqalizeMedia {
-  const [media] = useState(() => createVoqalizeMedia(options));
+export function useVoqalizeMedia(): VoqalizeMedia {
+  const [media] = useState(() => createVoqalizeMedia());
   useEffect(() => media.bind(), [media]);
   return media;
 }
 
-export function createVoqalizeMedia(options?: VoqalizeMediaManagerOptions): VoqalizeMedia {
-  const manager = new VoqalizeMediaManager(options);
+export function createVoqalizeMedia(): VoqalizeMedia {
+  const manager = new VoqalizeMediaManager();
   const audio = typeof document === "undefined" ? null : document.createElement("audio");
   if (audio) audio.autoplay = true;
   let current: PipecatClient | null = null;
@@ -85,7 +81,7 @@ export function createVoqalizeMedia(options?: VoqalizeMediaManagerOptions): Voqa
         const playing = (audio.srcObject as MediaStream | null)?.getAudioTracks()[0];
         if (playing?.id === track.id) return;
         audio.srcObject = new MediaStream([track]);
-        // A refusal is the manager's to report (`onPlaybackBlocked`).
+        // A refusal is the manager's: it retries on the next tap or key.
         void audio.play().catch(() => {});
       });
       client.on(RTVIEvent.TrackStopped, (track, participant) => {
