@@ -55,7 +55,7 @@ from voqalize_demos._loaded.kdem.brain import (  # noqa: E402
     _GREETING_KN,
     _SYSTEM_INSTRUCTION,
     DONT_KNOW,
-    KANNADA_SAID,
+    SWITCH_LINE,
     TOGGLE_CONFIRM,
     KdemBrain,
 )
@@ -81,7 +81,6 @@ UNINDEXED_PDF = f"{SITE}/wp-content/uploads/2026/01/not-in-the-index.pdf"
 # A PDF on another government site that the resources page links to: read and
 # cited, but the card is the KDEM page, which is all the snippet shows.
 STATE_PDF = "https://portal.example.gov/docs/sample-state-scheme.pdf"
-ASK_KANNADA = f"ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in {KANNADA_SAID}?"
 
 
 def _stored(url: str, title: str, section: str, *blocks: str) -> StoredPage:
@@ -235,13 +234,10 @@ def _llm() -> ScriptedGemini:
                     request={"url": STATE_PDF},
                 ),
             ],
-            # A few words that may be Kannada: answer in English, ask once in both.
-            "Naanu startup fund bagge": reply(
-                "We have the Beyond Bengaluru Cluster Seed Fund for startups. " + ASK_KANNADA
-            ),
-            "Haudu.": reply_and_call(
-                "Sure, let's continue in Kannada.", "set_language", request={"language": "kannada"}
-            ),
+            # Looks like Kannada through the English recognizer: switch, saying nothing.
+            "Naanu startup fund bagge beku": call("set_language", request={"language": "kannada"}),
+            # In Kannada mode, English arrives in Kannada script: switch back, silently.
+            "ಐ ವಾಂಟ್ ಇಂಗ್ಲಿಷ್": call("set_language", request={"language": "english"}),
             "Show me the other document.": [
                 reply_and_call("Here.", "show_link", request={"url": UNINDEXED_PDF}),
             ],
@@ -254,13 +250,8 @@ def _llm() -> ScriptedGemini:
                 call("search_kdem", request={"query": "seed fund"}),
                 reply(DONT_KNOW),
             ],
-            "Can we speak in Kannada?": [
-                reply_and_call(
-                    "Sure, let's continue in Kannada.",
-                    "set_language",
-                    request={"language": "kannada"},
-                ),
-            ],
+            # Asked for: the call alone, with no line of the model's own.
+            "Can we speak in Kannada?": call("set_language", request={"language": "kannada"}),
             # Called alone: the link lands and the brain says its own line.
             "Just show me the fund.": call("show_link", request={"url": "/cluster-seed-fund/"}),
             "How do I reach you?": call("show_link", request={"url": "/contact-us/"}),
@@ -283,9 +274,9 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text == _GREETING
         assert _GREETING == (
-            "Hello, I'm Aria from KDEM. You can talk to me in English or Kuh-nuh-daa. "
-            "How can we help you grow your business in Karnataka?"
+            "Hello, I'm Aria from KDEM. How can we help you grow your business in Karnataka?"
         )
+        assert "English" not in _GREETING and "language" not in _GREETING
         check_voice_pair(rig, voice=VOICE, language="en")
 
 
@@ -397,25 +388,36 @@ async def test_a_pdf_on_another_site_is_cited_and_its_kdem_page_is_the_card() ->
         assert rig.command("show_link") == {"url": RESOURCES, "title": "KDEM Resources and Reports"}
 
 
-async def test_not_sure_it_is_kannada_asks_once_in_both_languages_then_switches_on_yes() -> None:
-    """A turn that only might be Kannada is answered in English with one
-    bilingual question, and nothing switches; a yes switches both legs."""
+async def test_a_turn_that_looks_like_kannada_switches_without_asking() -> None:
+    """No "shall we?" question any more: a turn that looks like Kannada is
+    switched at once. The model's call carries no line; both legs move to
+    Kannada, and only then does the written Kannada line ask them to say it
+    again, in the Kannada voice, at the end of the same turn."""
     llm = _llm()
     async with demo("kdem", llm) as rig:
         await rig.driver.start_session()
-        turn = await rig.driver.user_says("Naanu startup fund bagge")
+        before = len(rig.driver.requests)
+        turn = await rig.driver.user_says("Naanu startup fund bagge beku")
         check_turn(rig, turn, units=1)
-        assert ASK_KANNADA in " ".join(u.text for u in turn.units)
-        check_voice_pair(rig, voice=VOICE, language="en")
-        brain = rig.brain
-        assert isinstance(brain, KdemBrain) and brain.spoken == Language.EN
-
-        turn = await rig.driver.user_says("Haudu.")
-        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == [SWITCH_LINE["kn"]]
+        assert len(rig.driver.requests) == before + 1  # one request, both legs
         check_voice_pair(rig, voice=VOICE, language="kn")
-        assert brain.spoken == Language.KN
+        # The switch reached the wire before the line did, so the Kannada clip
+        # reads it, not the English one.
+        frames = [r.frame for r in rig.driver.log]
+        configured = max(i for i, f in enumerate(frames) if type(f).__name__ == "ConfigureFrame")
+        spoken = next(
+            i
+            for i, f in enumerate(frames)
+            if type(f).__name__ == "SpeechChunkFrame"
+            and SWITCH_LINE["kn"] in str(getattr(f, "text", ""))
+        )
+        assert configured < spoken
+        assert _changes(rig) == [{"language": "kn"}]
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain) and brain.spoken == Language.KN
     prompt = llm.captured_system_instructions[-1]
-    assert "SURE, OR NOT SURE" in prompt and ASK_KANNADA in prompt
+    assert "ಮಾತಾಡೋಣವೇ" not in prompt and "Shall we continue" not in prompt
     assert "borrowed English word" in prompt
 
 
@@ -511,15 +513,26 @@ async def test_an_empty_knowledge_base_answers_with_the_fixed_line() -> None:
 
 async def test_switching_to_kannada_moves_both_legs_and_keeps_the_voice() -> None:
     """Aria is one woman in two languages: both legs move to Kannada in one
-    request, and the voice stays gauri."""
+    request, and the voice stays gauri. The only thing said is the written
+    Kannada line, after the switch: nothing in English names the language.
+    Asked to go back, the same: the written English line, in the English voice."""
     async with demo("kdem", _llm()) as rig:
         await rig.driver.start_session()
         turn = await rig.driver.user_says("Can we speak in Kannada?")
         check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == [
+            "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳಿ."
+        ]
         check_voice_pair(rig, voice=VOICE, language="kn")
         brain = rig.brain
         assert isinstance(brain, KdemBrain)
         assert brain.spoken == Language.KN
+
+        turn = await rig.driver.user_says("ಐ ವಾಂಟ್ ಇಂಗ್ಲಿಷ್")
+        assert [u.text for u in turn.units] == ["Sure, let's continue in English."]
+        check_voice_pair(rig, voice=VOICE, language="en")
+        assert brain.spoken == Language.EN
+        assert _changes(rig) == [{"language": "kn"}, {"language": "en"}]
 
 
 async def test_a_link_sent_in_silence_gets_her_line_in_the_language_she_speaks() -> None:
@@ -624,14 +637,31 @@ async def test_a_reconnect_on_the_start_page_says_nothing_new() -> None:
     assert "The visitor is now" not in _said(llm.captured_contents[-1])
 
 
-def test_the_language_is_named_the_way_the_english_voice_says_it() -> None:
-    """Written "Kannada", the English clip says the country "Canada". Every line
-    she speaks in English names the language by its respelling, and the prompt
-    tells the model to do the same; the tool argument stays "kannada"."""
-    assert KANNADA_SAID == "Kuh-nuh-daa"
-    assert "Kannada" not in _GREETING and KANNADA_SAID in _GREETING
-    assert f"Shall we continue in {KANNADA_SAID}?" in _SYSTEM_INSTRUCTION
-    assert f'write it "{KANNADA_SAID}", never "Kannada"' in _SYSTEM_INSTRUCTION
+def test_nothing_said_in_english_names_the_language() -> None:
+    """The English voice cannot say the language's name, so no line she says in
+    English carries it: not the greeting, not a written line, not a fallback
+    line, and not a line the prompt gives the model to say. The prompt tells the
+    model never to say it, and to say "Karnataka's own language" if it must."""
+    import re
+
+    english = [
+        _GREETING,
+        DONT_KNOW,
+        SWITCH_LINE["en"],
+        TOGGLE_CONFIRM["en"],
+        *(line for lines in PHRASES[Language.EN].values() for line in lines),
+    ]
+    # Every quoted line in the prompt that is not Kannada script.
+    english += [
+        q
+        for q in re.findall(r'"([^"]+)"', _SYSTEM_INSTRUCTION)
+        if not re.search("[\u0c80-\u0cff]", q)
+    ]
+    for line in english:
+        assert "kannada" not in line.lower() and "kuh-nuh" not in line.lower(), line
+    assert "I speak English, and Karnataka's own language too." in _SYSTEM_INSTRUCTION
+    assert "never say the name of the Kannada language" in _SYSTEM_INSTRUCTION
+    assert "SAYING ITS NAME" not in _SYSTEM_INSTRUCTION
     assert "call set_language with kannada" in _SYSTEM_INSTRUCTION
 
 
@@ -715,7 +745,7 @@ async def test_a_switch_by_voice_tells_the_page_too() -> None:
         await rig.driver.user_says("Can we speak in Kannada?")
         assert _changes(rig) == [{"language": "kn"}]
         check_voice_pair(rig, voice=VOICE, language="kn")
-        # No written confirmation for a voice switch: the model said its own line.
+        # Its written line was said with the switch; the next turn is the model's.
         turn = await rig.driver.user_says("Thank you.")
         assert [u.text for u in turn.units] == ["You're welcome."]
 

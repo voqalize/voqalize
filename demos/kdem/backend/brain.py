@@ -51,7 +51,6 @@ from voqalize_demos import (
     PHRASES,
     FallbackLine,
     GeminiBrain,
-    configure_soon,
     landed,
     needs_result_now,
     phrase,
@@ -86,14 +85,6 @@ from .knowledge import (
 
 AGENT_NAME = "Aria"
 
-#: The language's name, spelled the way the English voice says it right. Written
-#: "Kannada", the English clip reads the English word "Canada"; this respelling
-#: comes out as kuh-nuh-daa. Spoken English only: tool arguments keep "kannada",
-#: and in Kannada the name is written ಕನ್ನಡ, which the Kannada clip says right.
-#: The speech server takes per-word respellings itself (`pronunciations`), but the
-#: wire does not carry them yet, so the brain spells it where it speaks it.
-KANNADA_SAID = "Kuh-nuh-daa"
-
 # The visitor is reading the site, not waiting on her. Nothing hangs up on a
 # quiet page — they may be reading the link she just offered.
 _IDLE_MS = 0
@@ -114,9 +105,9 @@ assert {s.code for s in SPEECH.values()} <= set(PHRASES), "a spoken language has
 
 _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the voice assistant on the website of KDEM, the Karnataka Digital Economy Mission, at karnatakadigital.in. A visitor is on the site right now, with you in the corner of the page. They are usually a founder, an investor, a company looking at Karnataka, a student or a job seeker.
 
-EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page or switch the language, write your line first and make the call in that same response — the line is spoken as the link appears. A response that is only a tool call is silence: after show_link or set_language you do not speak again until the visitor does. For example:
+EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page, write your line first and make the call in that same response — the line is spoken as the link appears. A response that is only a tool call is silence: after show_link you do not speak again until the visitor does. For example:
   Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. I've put the page beside me." — and show_link, in the same response.
-search_kdem is the one call that takes no line: it is silent and comes straight back to you in the same turn, so call it first and then answer from it.
+search_kdem and set_language are the two calls that take no line. search_kdem is silent and comes straight back to you in the same turn, so call it first and then answer from it. set_language is answered by a line of its own, in the new voice, so call it alone and say nothing.
 
 ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from what search_kdem returns. Search before you answer any question about KDEM or Karnataka's digital economy — even one you think you know. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer the Contact Us page with show_link ({CONTACT_PATH}).
 
@@ -134,13 +125,12 @@ WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, 
 - Personal data. Never ask for a name, phone number, email, address, ID number, OTP or password, and if they offer one, tell them you do not need it.
 - Anything unrelated to KDEM and doing business in Karnataka: say briefly that it is outside what you can help with here.
 
-LANGUAGE. The call starts in English, and English stays the main language. If the visitor asks for Kannada, or you can tell they are speaking Kannada, call set_language with kannada — say the line you switch with in English, in the same response, because it is spoken before the voice changes — and speak Kannada, in Kannada script, from their next turn on. When you are sure, do not ask permission first; when you are not, see SURE, OR NOT SURE below. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds; a turn that makes no sense as English is usually Kannada, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". Ask them to say it again in your switch line, since those words were lost. In Kannada mode English arrives spelled in Kannada script ("ಐ ವಾಂಟ್ ..." is "I want ..."); judge by the small grammar words, not by nouns, and switch back to English with set_language when they speak or ask for English. Only English and Kannada are offered; if they ask for another language, say so in English. The site is in English, so always write search_kdem queries in English, whatever language the call is in.
-
-SURE, OR NOT SURE
-- Sure — they asked for Kannada, or a whole sentence is plainly Kannada: call set_language at once, in that turn, without asking, with one short line in the language the call is in now. Do not wait for a second turn.
-- Not sure — a few words look like Kannada but the rest does not, or the turn is too short to tell: do NOT switch yet. Answer in English as usual, and end with one short question in both languages: "ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in {KANNADA_SAID}?". On a yes in either language ("yes", "haudu", "ಹೌದು", "sari", "ಸರಿ"), call set_language with kannada. Ask this at most once in a call; if they say no, stay in English and do not ask again.
-- SAYING ITS NAME. Whenever you say the name of the language in English, write it "{KANNADA_SAID}", never "Kannada": the English voice reads "Kannada" as the country "Canada". So "Let's continue in {KANNADA_SAID}", "I can speak English or {KANNADA_SAID}". This is only how you write it in English speech; call set_language with kannada as always, and in Kannada write ಕನ್ನಡ.
+LANGUAGE. The call starts in English, and English stays the main language. Besides English you speak Kannada, the language of Karnataka, in a Kannada voice.
+- NEVER SAY ITS NAME IN ENGLISH. In English speech, never say the name of the Kannada language: the English voice cannot say it. If you must refer to it, say "Karnataka's own language"; usually, simply switch. If they ask which languages you speak, or whether you speak it, say: "I speak English, and Karnataka's own language too. Just speak to me in it, or tap ಕನ್ನಡ at the top of my panel."
+- SWITCHING TO KANNADA. If the visitor asks for Kannada, or a turn looks like Kannada, call set_language with kannada at once, in that turn, and say NOTHING yourself: no line before the call and none after. The voice changes first, and then a written Kannada line is said for you, asking them to say it again. From their next turn on, speak Kannada, in Kannada script. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds; a turn that makes no sense as English is usually Kannada, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". Do not ask whether to switch: switch. If you were wrong, the visitor speaks English and you switch back, or they tap English on the page.
+- SWITCHING BACK. In Kannada mode English arrives spelled in Kannada script ("ಐ ವಾಂಟ್ ..." is "I want ..."); judge by the small grammar words, not by nouns. When they speak English or ask for it, call set_language with english, again saying nothing yourself: a written English line is said for you in the English voice.
 - What does NOT count as switching: one borrowed English word inside a Kannada sentence ("ನನಗೆ startup fund ಬೇಕು" is still Kannada), or one Kannada word inside an English sentence. Judge by the whole sentence, not a word.
+- Only English and Kannada are offered; if they ask for another language, say so in English. The site is in English, so always write search_kdem queries in English, whatever language the call is in.
 
 THE PAGES. These are the approved pages, by path, with their titles. Newer news and event pages may also come back from search_kdem; those are approved too.
 """
@@ -148,8 +138,7 @@ THE PAGES. These are the approved pages, by path, with their titles. Newer news 
 # The opener. Written, not generated: the visitor has just clicked, and a first
 # word that waits on a model makes the site feel slow.
 _GREETING = (
-    f"Hello, I'm {AGENT_NAME} from KDEM. You can talk to me in English or {KANNADA_SAID}. "
-    "How can we help you grow your business in Karnataka?"
+    f"Hello, I'm {AGENT_NAME} from KDEM. How can we help you grow your business in Karnataka?"
 )
 
 
@@ -158,11 +147,21 @@ _GREETING = (
 _GREETING_KN = "ನಮಸ್ಕಾರ, ನಾನು KDEM ನ ಆರಿಯಾ. ಕರ್ನಾಟಕದಲ್ಲಿ ನಿಮ್ಮ ವ್ಯವಹಾರ ಬೆಳೆಸಲು ನಾವು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?"
 
 #: What Aria says, at the start of her next turn, after the visitor switched the
-#: language on the toggle. Written, in the new language. The Kannada line is to be
-#: checked by a native speaker.
+#: language on the toggle. Written, in the new language, read by the new voice.
+#: The Kannada line is to be checked by a native speaker.
 TOGGLE_CONFIRM: dict[LanguageTag, str] = {
     "en": "Sure, let's continue in English.",
     "kn": "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ.",
+}
+
+#: What Aria says when she switches by voice, after both legs have moved, so the
+#: new voice reads it, at the end of the turn that asked for it. The visitor's
+#: Kannada was heard by the English recognizer and lost, so the Kannada line asks
+#: them to say it again. Never the language's English name: the English voice
+#: cannot say it. The Kannada line is to be checked by a native speaker.
+SWITCH_LINE: dict[LanguageTag, str] = {
+    "en": "Sure, let's continue in English.",
+    "kn": "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳಿ.",
 }
 
 
@@ -335,6 +334,9 @@ class KdemBrain(GeminiBrain):
         self._where = ""
         #: A toggle switch's written confirmation, said when Aria next has the floor.
         self._confirm: str | None = None
+        #: A switch the model asked for with ``set_language``, made when its
+        #: response has streamed, still inside the turn.
+        self._pending: LanguageSpeech | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -381,13 +383,46 @@ class KdemBrain(GeminiBrain):
 
         A language switched on the toggle is confirmed first, in the new language,
         with its written line: a brain has no floor outside a turn, so this is the
-        first moment Aria may speak, and it never talks over anyone."""
+        first moment Aria may speak, and it never talks over anyone.
+
+        A language the model switched with ``set_language`` is switched last:
+        once its response has streamed (it says nothing with the call), both legs
+        move in one awaited request, and only then is the written line said, so
+        the new voice reads it. It is the end of the same turn, so there is no
+        dead air, and the visitor speaks next."""
+        if (left := self._pending) is not None:
+            # A switch asked for in a turn the visitor cut short: made now, quietly.
+            self._pending = None
+            await self._move(session, left, by="you, on what the visitor said")
         if (line := self._confirm) is not None:
             self._confirm = None
             async for event in say_line(self, line):
                 yield event
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
+        if (speech := self._pending) is not None:
+            self._pending = None
+            if await self._move(session, speech, by="you, on what the visitor said"):
+                async for event in say_line(self, SWITCH_LINE[speech.tag]):
+                    yield event
+
+    async def _move(self, session: Session, speech: LanguageSpeech, *, by: str) -> bool:
+        """Move both legs to ``speech`` in one awaited request, and record it.
+        ``False`` when Voqalize refused it: the page is told the language that
+        still holds, and nothing else changes."""
+        try:
+            await session.configure(
+                Config(
+                    stt=SttConfig(language=speech.code),
+                    tts=TtsConfig(voice=speech.voice, language=speech.code),
+                )
+            )
+        except RequestRejected as rejected:
+            logger.warning("kdem: switch to {} refused: {}", speech.name, rejected)
+            session.dispatch(LanguageChanged(language=BY_CODE[self.spoken].tag))
+            return False
+        self._switched(speech, by=by, note=by.startswith("the visitor"))
+        return True
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Browser→brain: the page the visitor has open. Folded in silently: no
@@ -411,20 +446,9 @@ class KdemBrain(GeminiBrain):
         speech = BY_TAG[event.language]
         if speech.code == self.spoken:
             return
-        try:
-            await session.configure(
-                Config(
-                    stt=SttConfig(language=speech.code),
-                    tts=TtsConfig(voice=speech.voice, language=speech.code),
-                )
-            )
-        except RequestRejected as rejected:
-            logger.warning("kdem: toggle to {} refused: {}", speech.name, rejected)
-            # The toggle moved on the page; put it back to the language that holds.
-            session.dispatch(LanguageChanged(language=BY_CODE[self.spoken].tag))
-            return
-        self._switched(speech, by="the visitor, on the page's toggle")
-        self._confirm = TOGGLE_CONFIRM[speech.tag]
+        # A refusal puts the toggle back to the language that holds.
+        if await self._move(session, speech, by="the visitor, on the page's toggle"):
+            self._confirm = TOGGLE_CONFIRM[speech.tag]
 
     def _switched(self, speech: LanguageSpeech, *, by: str, note: bool = True) -> None:
         """Record a switch that has been sent, tell the page, and (from a
@@ -514,21 +538,22 @@ class KdemBrain(GeminiBrain):
 
     async def set_language(self, request: LanguageRequest) -> str:
         """Conduct the rest of the call in English or Kannada — both the listening and
-        the speaking. Call it when they ask, and when you believe they are already
-        speaking the other one. In the same response, say one short line in the
-        language the call is in now, before calling."""
+        the speaking. Call it when they ask, and when a turn looks like the other
+        one. Call it alone and say nothing: the voice changes when your response
+        ends, and then a written line is said for you in the new voice."""
         speech = SPEECH[request.language]
-        # Sent, not awaited: the answer is a round trip and a tool has to return
-        # within the budget. A refusal is logged and the call goes on as it was.
-        configure_soon(
-            self.session,
-            Config(
-                stt=SttConfig(language=speech.code),
-                tts=TtsConfig(voice=speech.voice, language=speech.code),
-            ),
+        if speech.code == self.spoken:
+            self._pending = None
+            return f"Already in {speech.name}. Carry on."
+        # Not sent here: a tool returns within its budget, and the switch has to
+        # land before the line the new voice says. respond() makes it, awaited,
+        # once this response has streamed.
+        self._pending = speech
+        logger.info("kdem: set_language {} (made when the response ends)", speech.name)
+        return (
+            f"Switching to {speech.name}. A written line is said for you in the new voice; "
+            f"say nothing more. Speak {speech.name} from the visitor's next turn."
         )
-        self._switched(speech, by="you", note=False)
-        return "ok"
 
 
-__all__ = ["DONT_KNOW", "TOGGLE_CONFIRM", "KdemBrain", "LanguageChanged", "ShowLink"]
+__all__ = ["DONT_KNOW", "SWITCH_LINE", "TOGGLE_CONFIRM", "KdemBrain", "LanguageChanged", "ShowLink"]
