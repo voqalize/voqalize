@@ -50,7 +50,13 @@ from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.kdem.brain import _GREETING, DONT_KNOW, KdemBrain  # noqa: E402
+from voqalize_demos._loaded.kdem.brain import (  # noqa: E402
+    _GREETING,
+    _SYSTEM_INSTRUCTION,
+    DONT_KNOW,
+    KANNADA_SAID,
+    KdemBrain,
+)
 from voqalize_demos._loaded.kdem.knowledge import (  # noqa: E402
     ALLOWLIST,
     KNOWLEDGE,
@@ -73,7 +79,7 @@ UNINDEXED_PDF = f"{SITE}/wp-content/uploads/2026/01/not-in-the-index.pdf"
 # A PDF on another government site that the resources page links to: read and
 # cited, but the card is the KDEM page, which is all the snippet shows.
 STATE_PDF = "https://portal.example.gov/docs/sample-state-scheme.pdf"
-ASK_KANNADA = "ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in Kannada?"
+ASK_KANNADA = f"ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in {KANNADA_SAID}?"
 
 
 def _stored(url: str, title: str, section: str, *blocks: str) -> StoredPage:
@@ -275,7 +281,7 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text == _GREETING
         assert _GREETING == (
-            "Hello, I'm Aria from KDEM. You can talk to me in English or Kannada. "
+            "Hello, I'm Aria from KDEM. You can talk to me in English or Kuh-nuh-daa. "
             "How can we help you grow your business in Karnataka?"
         )
         check_voice_pair(rig, voice=VOICE, language="en")
@@ -614,3 +620,14 @@ async def test_a_reconnect_on_the_start_page_says_nothing_new() -> None:
         await _viewed(rig, {"path": "/cluster-seed-fund/", "title": "x"})
         await rig.driver.user_says("Thank you.")
     assert "The visitor is now" not in _said(llm.captured_contents[-1])
+
+
+def test_the_language_is_named_the_way_the_english_voice_says_it() -> None:
+    """Written "Kannada", the English clip says the country "Canada". Every line
+    she speaks in English names the language by its respelling, and the prompt
+    tells the model to do the same; the tool argument stays "kannada"."""
+    assert KANNADA_SAID == "Kuh-nuh-daa"
+    assert "Kannada" not in _GREETING and KANNADA_SAID in _GREETING
+    assert f"Shall we continue in {KANNADA_SAID}?" in _SYSTEM_INSTRUCTION
+    assert f'write it "{KANNADA_SAID}", never "Kannada"' in _SYSTEM_INSTRUCTION
+    assert "call set_language with kannada" in _SYSTEM_INSTRUCTION

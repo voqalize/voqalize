@@ -75,6 +75,14 @@ from .knowledge import (
 
 AGENT_NAME = "Aria"
 
+#: The language's name, spelled the way the English voice says it right. Written
+#: "Kannada", the English clip reads the English word "Canada"; this respelling
+#: comes out as kuh-nuh-daa. Spoken English only: tool arguments keep "kannada",
+#: and in Kannada the name is written ಕನ್ನಡ, which the Kannada clip says right.
+#: The speech server takes per-word respellings itself (`pronunciations`), but the
+#: wire does not carry them yet, so the brain spells it where it speaks it.
+KANNADA_SAID = "Kuh-nuh-daa"
+
 # The visitor is reading the site, not waiting on her. Nothing hangs up on a
 # quiet page — they may be reading the link she just offered.
 _IDLE_MS = 0
@@ -119,7 +127,8 @@ LANGUAGE. The call starts in English, and English stays the main language. If th
 
 SURE, OR NOT SURE
 - Sure — they asked for Kannada, or a whole sentence is plainly Kannada: call set_language at once, in that turn, without asking, with one short line in the language the call is in now. Do not wait for a second turn.
-- Not sure — a few words look like Kannada but the rest does not, or the turn is too short to tell: do NOT switch yet. Answer in English as usual, and end with one short question in both languages: "ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in Kannada?". On a yes in either language ("yes", "haudu", "ಹೌದು", "sari", "ಸರಿ"), call set_language with kannada. Ask this at most once in a call; if they say no, stay in English and do not ask again.
+- Not sure — a few words look like Kannada but the rest does not, or the turn is too short to tell: do NOT switch yet. Answer in English as usual, and end with one short question in both languages: "ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣವೇ? Shall we continue in {KANNADA_SAID}?". On a yes in either language ("yes", "haudu", "ಹೌದು", "sari", "ಸರಿ"), call set_language with kannada. Ask this at most once in a call; if they say no, stay in English and do not ask again.
+- SAYING ITS NAME. Whenever you say the name of the language in English, write it "{KANNADA_SAID}", never "Kannada": the English voice reads "Kannada" as the country "Canada". So "Let's continue in {KANNADA_SAID}", "I can speak English or {KANNADA_SAID}". This is only how you write it in English speech; call set_language with kannada as always, and in Kannada write ಕನ್ನಡ.
 - What does NOT count as switching: one borrowed English word inside a Kannada sentence ("ನನಗೆ startup fund ಬೇಕು" is still Kannada), or one Kannada word inside an English sentence. Judge by the whole sentence, not a word.
 
 THE PAGES. These are the approved pages, by path, with their titles. Newer news and event pages may also come back from search_kdem; those are approved too.
@@ -128,7 +137,7 @@ THE PAGES. These are the approved pages, by path, with their titles. Newer news 
 # The opener. Written, not generated: the visitor has just clicked, and a first
 # word that waits on a model makes the site feel slow.
 _GREETING = (
-    f"Hello, I'm {AGENT_NAME} from KDEM. You can talk to me in English or Kannada. "
+    f"Hello, I'm {AGENT_NAME} from KDEM. You can talk to me in English or {KANNADA_SAID}. "
     "How can we help you grow your business in Karnataka?"
 )
 
