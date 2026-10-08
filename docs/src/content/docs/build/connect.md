@@ -362,6 +362,10 @@ On Path B, `config.record: true` with an `sk_` is fine and is the right way to e
 per-user consent. Your backend is the party that actually knows the user
 agreed.
 
+The same decision covers video. A recorded session also records the user's
+camera and screen whenever the page turns them on; see
+[camera and screen](/build/video/).
+
 ## Integration constraints
 
 - **No relay past the handshake.** Once connected, the media is direct UDP and

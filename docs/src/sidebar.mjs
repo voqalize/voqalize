@@ -142,6 +142,7 @@ export const sidebar = [
       { label: "Testing a brain", slug: "build/testing" },
       { label: "Keys and authentication", slug: "build/keys" },
       { label: "Add an avatar", slug: "build/avatar" },
+      { label: "Record camera and screen", slug: "build/video" },
     ],
   },
   {
