@@ -25,6 +25,7 @@ from . import _frames_pb2 as pb
 from .frames import (
     WIRE_FRAME_CLASSES,
     CancelFrame,
+    Capability,
     Config,
     ConfigureFrame,
     EndFrame,
@@ -39,6 +40,7 @@ from .frames import (
     RTVIFrame,
     RTVIType,
     SessionStartFrame,
+    SpeechCancelFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
@@ -71,6 +73,11 @@ _RTVI_TO_PB: dict[RTVIType, int] = {
     RTVIType.UI_CANCEL_JOB_GROUP: pb.RTVI_TYPE_UI_CANCEL_JOB_GROUP,
 }
 _RTVI_FROM_PB: dict[int, RTVIType] = {v: k for k, v in _RTVI_TO_PB.items()}
+
+_CAPABILITY_TO_PB: dict[Capability, int] = {
+    Capability.SPEECH_CANCEL: pb.CAPABILITY_SPEECH_CANCEL,
+}
+_CAPABILITY_FROM_PB: dict[int, Capability] = {v: k for k, v in _CAPABILITY_TO_PB.items()}
 
 # Both catalogs are read out of the descriptor rather than written down again.
 # The StrEnums' values *are* the `iso_code` and `voice_id` options, and a table
@@ -111,6 +118,7 @@ def _enc_session_start(f: SessionStartFrame, env: pb.Envelope) -> None:
     m.session_id = f.session_id
     m.init = json.dumps(f.init)
     m.wire_version = f.wire_version
+    m.capabilities.extend(sorted(_CAPABILITY_TO_PB[c] for c in f.capabilities))
 
 
 def _enc_user_message(f: UserMessageFrame, env: pb.Envelope) -> None:
@@ -150,6 +158,10 @@ def _enc_speech_chunk(f: SpeechChunkFrame, env: pb.Envelope) -> None:
 
 def _enc_speech_end(f: SpeechEndFrame, env: pb.Envelope) -> None:
     env.speech_end.speech_id = f.speech_id
+
+
+def _enc_speech_cancel(f: SpeechCancelFrame, env: pb.Envelope) -> None:
+    env.speech_cancel.speech_id = f.speech_id
 
 
 # The op arm is set explicitly, so a request carrying no delta at all still names
@@ -219,6 +231,7 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     SpeechStartFrame: _enc_speech_start,
     SpeechChunkFrame: _enc_speech_chunk,
     SpeechEndFrame: _enc_speech_end,
+    SpeechCancelFrame: _enc_speech_cancel,
     ConfigureFrame: _enc_configure,
     ResponseFrame: _enc_response,
     RTVIFrame: _enc_rtvi,
@@ -238,6 +251,11 @@ def _dec_session_start(env: pb.Envelope) -> SessionStartFrame:
         turn_id=m.turn_id,
         init=json.loads(m.init) if m.init else {},
         wire_version=m.wire_version,
+        # A capability a newer Voqalize added is one this build cannot use, so
+        # it is dropped rather than refused — the same rule as an unknown body.
+        capabilities=frozenset(
+            _CAPABILITY_FROM_PB[c] for c in m.capabilities if c in _CAPABILITY_FROM_PB
+        ),
     )
 
 
@@ -275,6 +293,10 @@ def _dec_speech_chunk(env: pb.Envelope) -> SpeechChunkFrame:
 
 def _dec_speech_end(env: pb.Envelope) -> SpeechEndFrame:
     return SpeechEndFrame(speech_id=env.speech_end.speech_id)
+
+
+def _dec_speech_cancel(env: pb.Envelope) -> SpeechCancelFrame:
+    return SpeechCancelFrame(speech_id=env.speech_cancel.speech_id)
 
 
 def _dec_configure(req: pb.Request) -> ConfigureFrame:
@@ -359,6 +381,7 @@ _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
     "speech_start": _dec_speech_start,
     "speech_chunk": _dec_speech_chunk,
     "speech_end": _dec_speech_end,
+    "speech_cancel": _dec_speech_cancel,
     "request": _dec_request,
     "response": _dec_response,
     "rtvi": _dec_rtvi,

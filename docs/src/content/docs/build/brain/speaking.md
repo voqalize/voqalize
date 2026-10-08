@@ -28,8 +28,9 @@ it. The SDK mints the unit's id and stamps the turn on it, so you write neither.
 Yield anything else — an action, a bare string, a dict — and the SDK raises
 `WireError` rather than putting it on the wire. So does an unbalanced bracket:
 a `SpeechChunk` outside a unit, a `SpeechStart` inside an open one, a
-`SpeechEnd` with nothing open. The rule the errors enforce is that every unit
-you open closes exactly once, and the
+`SpeechEnd` with nothing open. A unit you cancelled with
+[`cancel_speech`](#stopping-your-own-speech) counts as closed. The rule the
+errors enforce is that every unit you open closes exactly once, and the
 [conformance harness](/build/testing/) checks it against your brain over the
 real wire.
 
@@ -184,6 +185,65 @@ async def on_user_idle(self, session, idle):
 Python decides generator-or-coroutine from the source, so that body is an
 ordinary coroutine however it is annotated. The SDK runs it either way. Leave the
 `yield` out when you have nothing to say; `on_user_idle` says nothing by default.
+
+## Stopping your own speech
+
+A guardrail that checks your model's output beside the stream decides a beat
+after the text went out. By then some of it has been spoken. `cancel_speech`
+stops the unit where playout has got to, drops the rest, and tells you how much
+the user heard:
+
+```python
+from voqalize.sdk import SpeechChunk, SpeechEnd, SpeechStart
+
+async def on_user_message(self, session, msg):
+    start = SpeechStart()
+    yield start                                   # the SDK writes start.speech_id
+    async for piece in self.model.stream(msg.text):
+        if session.can_cancel_speech and await self.guardrail.flags(piece):
+            await self.model.stop()               # Voqalize can only drop what it is sent
+            fin = await session.cancel_speech(start.speech_id)
+            self.history.append(fin.heard)        # what was said, not what was generated
+            yield SpeechStart()
+            yield SpeechChunk("Let me put that another way.")
+            yield SpeechEnd()
+            return
+        yield SpeechChunk(piece)
+    yield SpeechEnd()
+```
+
+Keep the `SpeechStart` you yield: the id the SDK minted for the unit is written
+onto it, and that id is what you cancel. The call returns the unit's
+`Finalize` — the same one `on_finalize` then receives — so `fin.heard` is a
+verbatim prefix of `fin.generated` and `fin.interrupted` says whether the cut
+landed before the end.
+
+- **The turn stays open.** This is not a barge-in. Open a new unit straight
+  away, as above, and it plays. A cancelled unit needs no `SpeechEnd`, and
+  anything you yield for it after the cancel is dropped by the SDK rather than
+  sent.
+- **`heard` is accurate to about one word either way.** It counts the words
+  Voqalize had handed to the outbound audio when the cut landed; audio already
+  on its way to the user still plays. A guardrail should assume one word more
+  than `heard` may have been heard.
+- **A cancel that lost the race returns at once.** If the unit had already
+  finished playing, you get the `Finalize` it already sent, with nothing cut. A
+  second cancel of the same unit does the same.
+- **Check `session.can_cancel_speech` first.** A Voqalize that does not
+  advertise it would skip the cancel and play the unit out, so the SDK raises
+  `Unsupported` before sending anything. An id this session never opened raises
+  `ValueError`; a `Finalize` that has not arrived after ten seconds raises
+  `TimeoutError`, and the unit still counts as open, so close it with
+  `SpeechEnd` as usual.
+- **Today the cut stops every unit still playing or queued**, not just the one
+  you named — an earlier unit of the same reply included, and a later one you
+  are still streaming, whose remaining yields the SDK drops as it does for the
+  unit you named. Each gets its own `Finalize` at `on_finalize`. A unit you
+  open after the cancel is unaffected.
+
+Call it from the turn, from `on_rtvi`, or from a task of your own. Not from
+`on_finalize` for another unit: that hook runs in line with incoming frames, so
+the `Finalize` it would wait for is queued behind it.
 
 ## What the user heard is not what you sent
 

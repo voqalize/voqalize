@@ -88,18 +88,35 @@ RTVI_TO_BRAIN = frozenset(
 )
 
 
+class Capability(StrEnum):
+    """Something Voqalize does beyond the wire version's baseline, advertised on
+    :class:`SessionStartFrame`.
+
+    A frame added after a wire version shipped is skipped, not refused, by a
+    Voqalize that predates it — so the only way a brain can tell "not honoured"
+    from "honoured, and nothing changed" is to be told up front. Adding a
+    capability is append-only and does not move :data:`WIRE_VERSION`.
+    """
+
+    #: Voqalize honours :class:`SpeechCancelFrame`.
+    SPEECH_CANCEL = "speech_cancel"
+
+
 # ─── Voqalize → Brain ────────────────────────────────────────────────────────────
 
 
 @dataclass
 class SessionStartFrame(Frame):
     """First frame of a session, and the session's first turn. ``init`` is
-    opaque customer init data."""
+    opaque customer init data; ``capabilities`` is what this Voqalize honours
+    beyond the wire version's baseline. A capability this build does not know is
+    dropped on decode rather than refused."""
 
     session_id: str = ""
     turn_id: int = 0
     init: dict[str, Any] = field(default_factory=dict)
     wire_version: int = WIRE_VERSION
+    capabilities: frozenset[Capability] = frozenset()
 
 
 @dataclass
@@ -168,6 +185,17 @@ class SpeechChunkFrame(Frame):
 @dataclass
 class SpeechEndFrame(Frame):
     """Closes one speech unit."""
+
+    speech_id: int = 0
+
+
+@dataclass
+class SpeechCancelFrame(Frame):
+    """Stops one speech unit now and closes it in place of its
+    :class:`SpeechEndFrame`. Nothing is acknowledged: the unit's
+    :class:`FinalizeFrame` is the answer, carrying what the user heard before the
+    cut. The turn stays open. Honoured only when the session advertised
+    :attr:`Capability.SPEECH_CANCEL`."""
 
     speech_id: int = 0
 
@@ -483,6 +511,7 @@ WIRE_FRAME_CLASSES: tuple[type[Frame], ...] = (
     SpeechStartFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
+    SpeechCancelFrame,
     ConfigureFrame,
     ResponseFrame,
     RTVIFrame,

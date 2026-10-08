@@ -7,6 +7,7 @@ import pytest
 from voqalize.sdk.wire import (
     WIRE_VERSION,
     CancelFrame,
+    Capability,
     Config,
     ConfigureFrame,
     EndFrame,
@@ -21,6 +22,7 @@ from voqalize.sdk.wire import (
     RTVIFrame,
     RTVIType,
     SessionStartFrame,
+    SpeechCancelFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
@@ -40,6 +42,11 @@ def _frames() -> list[Frame]:
             session_id="sess-123",
             init={"greet": "hello", "n": 7, "deep": {"k": [1, 2, 3]}},
         ),
+        SessionStartFrame(
+            turn_id=1,
+            session_id="sess-456",
+            capabilities=frozenset({Capability.SPEECH_CANCEL}),
+        ),
         UserMessageFrame(turn_id=4, text="hello there"),
         UserIdleFrame(turn_id=5, level=2, idle_ms=30000),
         InterruptionFrame(through_turn=9),
@@ -49,6 +56,7 @@ def _frames() -> list[Frame]:
         SpeechChunkFrame(speech_id=7, text="hi"),
         SpeechChunkFrame(speech_id=7, text=" world"),
         SpeechEndFrame(speech_id=7),
+        SpeechCancelFrame(speech_id=7),
         RTVIFrame(
             type=RTVIType.UI_COMMAND,
             data={"command": "open_panel", "payload": {"panel": "orders"}},
@@ -92,7 +100,7 @@ def _frames() -> list[Frame]:
 
 
 _FIELDS: dict[type[Frame], tuple[str, ...]] = {
-    SessionStartFrame: ("turn_id", "session_id", "init", "wire_version"),
+    SessionStartFrame: ("turn_id", "session_id", "init", "wire_version", "capabilities"),
     UserMessageFrame: ("turn_id", "text"),
     UserIdleFrame: ("turn_id", "level", "idle_ms"),
     InterruptionFrame: ("through_turn",),
@@ -100,6 +108,7 @@ _FIELDS: dict[type[Frame], tuple[str, ...]] = {
     SpeechStartFrame: ("speech_id", "turn_id"),
     SpeechChunkFrame: ("speech_id", "text"),
     SpeechEndFrame: ("speech_id",),
+    SpeechCancelFrame: ("speech_id",),
     RTVIFrame: ("type", "data", "id", "turn_id"),
     ConfigureFrame: ("request_id", "config"),
     ResponseFrame: ("request_id", "accepted", "detail"),
@@ -137,6 +146,31 @@ async def test_session_start_carries_the_wire_version() -> None:
     out = await ser.deserialize(await ser.serialize(SessionStartFrame(turn_id=1, session_id="s")))
     assert isinstance(out, SessionStartFrame)
     assert out.wire_version == WIRE_VERSION
+
+
+async def test_a_capability_this_build_does_not_know_is_dropped() -> None:
+    """A newer Voqalize may advertise something this SDK has no name for. It is
+    one this brain cannot use, so it is dropped — refusing the session over it
+    would make every capability a breaking change."""
+    from voqalize.sdk.wire import _frames_pb2 as pb
+
+    env = pb.Envelope()
+    env.session_start.session_id = "s"
+    env.session_start.turn_id = 1
+    env.session_start.capabilities.extend([pb.CAPABILITY_SPEECH_CANCEL, 999])
+    out = await WireSerializer().deserialize(env.SerializeToString())
+    assert isinstance(out, SessionStartFrame)
+    assert out.capabilities == frozenset({Capability.SPEECH_CANCEL})
+
+
+async def test_no_capabilities_decodes_as_none() -> None:
+    """A Voqalize that predates capabilities sends none, and that reads as the
+    empty set — the brain then refuses an optional frame rather than send it into
+    a skip."""
+    ser = WireSerializer()
+    out = await ser.deserialize(await ser.serialize(SessionStartFrame(turn_id=1, session_id="s")))
+    assert isinstance(out, SessionStartFrame)
+    assert out.capabilities == frozenset()
 
 
 async def test_rtvi_turn_id_is_absent_when_unset() -> None:

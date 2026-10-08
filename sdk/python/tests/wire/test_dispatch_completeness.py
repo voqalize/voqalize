@@ -23,3 +23,14 @@ def test_decoder_table_covers_every_body() -> None:
         f"proto bodies without decoders: {bodies - set(_DECODERS)}; "
         f"decoders without proto bodies: {set(_DECODERS) - bodies}"
     )
+
+
+def test_every_capability_has_a_name() -> None:
+    """Every capability the proto declares maps to a ``Capability`` member. One
+    left out would be dropped on decode, so a brain would refuse a frame Voqalize
+    said it honours."""
+    from voqalize.sdk.wire import _frames_pb2 as pb
+    from voqalize.sdk.wire.serializer import _CAPABILITY_FROM_PB
+
+    declared = {v.number for v in pb.Capability.DESCRIPTOR.values if v.number != 0}
+    assert declared == set(_CAPABILITY_FROM_PB)

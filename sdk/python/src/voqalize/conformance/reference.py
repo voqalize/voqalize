@@ -90,6 +90,13 @@ STORY_PREFIX = "tell me "  # "tell me beanstalk" → a long story about "beansta
 STORY_OPENING = "Once upon a time, the story of "  # heard-before-a-barge chunk
 STORY_TAIL = "unfolds to its conclusion. "  # the un-heard tail (+ BARGE_SENTINEL)
 
+# A response the brain takes back itself, the way a guardrail would: it speaks an
+# opening and the flagged text, cancels the unit, keeps "streaming" a tail the
+# SDK must drop, then answers again on the same turn.
+CANCEL_PREFIX = "cancel after "  # "cancel after secret" → flag "secret", cancel, correct
+CANCEL_OPENING = "Here is a hint: "  # the chunk the scenario finalizes as heard
+CANCEL_CORRECTION = "Let me put that differently."  # the new unit, same turn
+
 # A response that stays silent before speaking, so a barge-in can land *before
 # any audio plays* (heard-truth empty ⇒ no assistant message committed).
 SILENT_PREFIX = "wait then "
@@ -115,6 +122,7 @@ class ConformanceState(Action, name=CONFORMANCE_STATE_ACTION):
 
     messages: list[dict[str, Any]]
     app_messages: list[dict[str, Any]]
+    cancelled: list[dict[str, Any]]
 
 
 def story_opening(topic: str) -> str:
@@ -128,6 +136,7 @@ def conformance_state(brain: ConformanceBrain) -> dict[str, Any]:
     return {
         "messages": list(brain.messages),
         "app_messages": list(brain.app_messages),
+        "cancelled": list(brain.cancelled),
     }
 
 
@@ -137,6 +146,9 @@ class ConformanceBrain(Brain):
     def __init__(self) -> None:
         self.messages: list[dict[str, Any]] = []
         self.app_messages: list[dict[str, Any]] = []
+        # What each `session.cancel_speech` returned, so a scenario can hold it
+        # against the Finalize the driver sent.
+        self.cancelled: list[dict[str, Any]] = []
 
     async def greet(self, session: Session) -> str:
         return GREETING_TEXT
@@ -184,6 +196,25 @@ class ConformanceBrain(Brain):
             yield SpeechChunk(story_opening(text[len(STORY_PREFIX) :]))
             await asyncio.sleep(0.5)
             yield SpeechChunk(f"{STORY_TAIL}{BARGE_SENTINEL}")
+            yield SpeechEnd()
+            return
+
+        if text.startswith(CANCEL_PREFIX):
+            start = SpeechStart()
+            yield start
+            yield SpeechChunk(CANCEL_OPENING)
+            yield SpeechChunk(f"{text[len(CANCEL_PREFIX) :]}. ")
+            assert start.speech_id is not None
+            fin = await session.cancel_speech(start.speech_id)
+            self.cancelled.append(
+                {"speech_id": fin.speech_id, "heard": fin.heard, "generated": fin.generated}
+            )
+            # The model has not noticed yet. The unit is closed, so the SDK drops
+            # both of these and BARGE_SENTINEL never reaches the wire.
+            yield SpeechChunk(BARGE_SENTINEL)
+            yield SpeechEnd()
+            yield SpeechStart()
+            yield SpeechChunk(CANCEL_CORRECTION)
             yield SpeechEnd()
             return
 

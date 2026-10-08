@@ -65,12 +65,16 @@ the sites are on the RTVI plane: a type the app originates rather than the brain
 a payload that will not serialize to JSON, and a payload past the 64 KiB limit
 the browser's message size imposes. Off that plane there is a `SpeechStart`
 carrying no `speech_id`, which names nothing a `Finalize` could ever be matched
-against.
+against, and a `SpeechCancel` naming a unit the session never opened. A
+`SpeechChunk` or `SpeechEnd` for a unit you already cancelled is not one of
+them: it is ignored without an error, because a model may still be streaming
+when the cancel goes out.
 
 The frame is dropped, the error comes back non-fatal, and the turn continues.
 The SDK catches the app-owned type before it reaches the socket — `send_rtvi`
-raises `WireError` for a type outside the sendable set — so a `protocol` error
-in your logs usually means an oversized payload. See
+raises `WireError` for a type outside the sendable set — and refuses an unknown
+`cancel_speech` id with `ValueError`, so a `protocol` error in your logs usually
+means an oversized payload. See
 [The RTVI plane](/reference/rtvi/) for the whitelist and
 [Actions](/build/brain/actions/) for keeping payloads small.
 
@@ -201,9 +205,9 @@ What is *not* a `RequestRejected`:
   the configuration was legal and is being applied — never that the recognizer
   confirmed it. That correction arrives behind it, as an `internal` error.
 
-## `WireError` and `SessionRejected`, raised in your process
+## `WireError`, `Unsupported` and `SessionRejected`, raised in your process
 
-Neither crosses the wire. They are ordinary Python exceptions in the
+None of them crosses the wire. They are ordinary Python exceptions in the
 process you deploy.
 
 **`WireError`** — your brain broke one of its obligations. Almost always an
@@ -214,6 +218,14 @@ the body, because a message from the app never takes the floor. Raised inside a
 turn it is caught, logged and the turn dies; raised from `send_rtvi` it
 propagates into your own code. The obligations are listed in
 [Speaking](/build/brain/speaking/).
+
+**`Unsupported`** — you called something the Voqalize serving this session did
+not say it honours. Today that is `cancel_speech` when `session.can_cancel_speech`
+is false. It is raised before anything is sent, because a Voqalize that predates
+a frame skips it rather than refusing it — sent anyway, the cancel would do
+nothing and the unit would play out. `capability` names what was missing. Check
+the property first; see
+[stopping your own speech](/build/brain/speaking/#stopping-your-own-speech).
 
 **`SessionRejected`** — the brain-connection token on the incoming socket failed
 verification. `run_session` raises it before your brain is constructed, so no

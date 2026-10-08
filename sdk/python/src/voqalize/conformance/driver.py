@@ -9,6 +9,12 @@ interruption watermark. Everything the brain sends back is decoded, timestamped,
 and recorded so scenarios can assert the wire's MUSTs against a structured
 record.
 
+A brain's ``SpeechCancel`` is honoured the way real Voqalize honours it: the
+driver advertises the capability on ``SessionStart`` (clear
+:attr:`VoqalizeDriver.capabilities` to play a Voqalize that predates it), cuts
+the unit's simulated playout, and answers with the unit's ``Finalize`` and
+nothing else. The turn stays open.
+
 Turns end the way they end on a real call: the wire carries no "the brain is
 done" frame, so a turn is over when every speech unit it opened has closed
 and the brain has gone quiet. Real Voqalize has no more than that either.
@@ -22,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from websockets.exceptions import ConnectionClosed
@@ -29,9 +36,11 @@ from websockets.exceptions import ConnectionClosed
 from voqalize.sdk.wire import (
     WIRE_VERSION,
     CancelFrame,
+    Capability,
     ConfigureFrame,
     ConfigureRequest,
     EndFrame,
+    ErrorCode,
     ErrorFrame,
     FinalizeFrame,
     Frame,
@@ -40,6 +49,7 @@ from voqalize.sdk.wire import (
     RTVIFrame,
     RTVIType,
     SessionStartFrame,
+    SpeechCancelFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
@@ -97,6 +107,11 @@ class SpeechObs:
     ended_t: float | None = None
     texts: list[str] = field(default_factory=list)
     text_times: list[float] = field(default_factory=list)
+    # A ``SpeechCancel`` closed this unit — its own, or one naming an earlier
+    # unit of the turn, since the cut stops every unit queued so far. ``ended``
+    # is set too, and anything it sends for the unit afterwards is ignored
+    # rather than recorded.
+    cancelled: bool = False
 
     @property
     def text(self) -> str:
@@ -190,6 +205,17 @@ class VoqalizeDriver:
         # Ops to leave unanswered, for the one case the wire cannot promise
         # away: a Voqalize that stopped answering mid-call.
         self.withhold: set[str] = set()
+        # What ``SessionStart`` advertises. Clear it before ``start_session`` to
+        # play a Voqalize that predates a capability: the frame is then skipped,
+        # as an older Voqalize skips a body it does not know.
+        self.capabilities: set[Capability] = {Capability.SPEECH_CANCEL}
+        # Every ``SpeechCancel`` the brain sent, in wire order, honoured or not.
+        self.cancels: list[SpeechCancelFrame] = []
+        # The heard text a cancelled unit is finalized with. The default is
+        # everything that arrived before the cut — the unit played up to the
+        # cancel. A scenario that wants a cut mid-playout, which is the case a
+        # brain reads as interrupted, returns a shorter prefix.
+        self.heard_on_cancel: Callable[[SpeechObs], str] = lambda unit: unit.text
         self.turns: dict[int, TurnObs] = {}
         # Which turn each open speech unit belongs to: only ``SpeechStart``
         # names the turn, chunks and ends name the unit.
@@ -251,14 +277,18 @@ class VoqalizeDriver:
             self._speech_turn[frame.speech_id] = frame.turn_id
         elif isinstance(frame, SpeechChunkFrame):
             unit = self._unit_obs(frame.speech_id)
-            if unit is not None:
+            if unit is not None and not unit.cancelled:
                 unit.texts.append(frame.text)
                 unit.text_times.append(t)
         elif isinstance(frame, SpeechEndFrame):
             unit = self._unit_obs(frame.speech_id)
-            if unit is not None:
+            if unit is not None and not unit.cancelled:
                 unit.ended = True
                 unit.ended_t = t
+        elif isinstance(frame, SpeechCancelFrame):
+            self.cancels.append(frame)
+            if Capability.SPEECH_CANCEL in self.capabilities:
+                await self._cut(frame.speech_id, t)
         elif isinstance(frame, RTVIFrame):
             self.rtvi.append(frame)
             if frame.type is RTVIType.UI_COMMAND and isinstance(frame.data, dict):
@@ -278,6 +308,57 @@ class VoqalizeDriver:
     def _unit_obs(self, speech_id: int) -> SpeechObs | None:
         io = self.turns.get(self._speech_turn.get(speech_id, -1))
         return io.unit(speech_id) if io is not None else None
+
+    async def _cut(self, speech_id: int, t: float) -> None:
+        """Honour one ``SpeechCancel`` the way Voqalize does.
+
+        An id the session never opened is a non-fatal protocol error. A unit
+        already finalized, or already cancelled, is a no-op: its one Finalize has
+        gone. Otherwise the unit closes here, and its Finalize carries
+        :attr:`heard_on_cancel`. Units of the same turn opened before it and not
+        yet finalized are finalized first, played out — the driver's playout
+        model is "heard in full unless cut" — so Finalizes still go out oldest
+        first. Units opened after it are inside the fence too, as they are on
+        real Voqalize, whose cut stops the whole floor: queued behind the cut,
+        none of them was heard, and each is closed and finalized empty, still
+        streaming or not. Nothing else is sent: no acknowledgement and no
+        ``Interruption``.
+        """
+        io = self.turns.get(self._speech_turn.get(speech_id, -1))
+        unit = io.unit(speech_id) if io is not None else None
+        if io is None or unit is None:
+            await self._send(
+                ErrorFrame(
+                    code=ErrorCode.PROTOCOL,
+                    message=f"SpeechCancel names speech {speech_id}, which this session never opened",
+                    fatal=False,
+                )
+            )
+            return
+        if unit.cancelled or speech_id in io.finalized:
+            return
+        unit.cancelled = True
+        if not unit.ended:
+            unit.ended = True
+            unit.ended_t = t
+        index = io.units.index(unit)
+        for earlier in io.units[:index]:
+            if earlier.ended and earlier.speech_id not in io.finalized:
+                await self._send(
+                    FinalizeFrame(speech_id=earlier.speech_id, heard_text=earlier.text)
+                )
+                io.finalized.add(earlier.speech_id)
+        await self._send(FinalizeFrame(speech_id=speech_id, heard_text=self.heard_on_cancel(unit)))
+        io.finalized.add(speech_id)
+        for later in io.units[index + 1 :]:
+            if later.speech_id in io.finalized:
+                continue
+            later.cancelled = True
+            if not later.ended:
+                later.ended = True
+                later.ended_t = t
+            await self._send(FinalizeFrame(speech_id=later.speech_id, heard_text=""))
+            io.finalized.add(later.speech_id)
 
     # ─── sending ───────────────────────────────────────────────────────────────
 
@@ -344,6 +425,7 @@ class VoqalizeDriver:
                 turn_id=GREETING_TURN,
                 init=init or {},
                 wire_version=WIRE_VERSION,
+                capabilities=frozenset(self.capabilities),
             )
         )
         got = await self._wait_for(

@@ -254,10 +254,11 @@ facts:
   sdk.python.surface.tree:
     value: [Action, AppEvent, AppEvents, Brain, Channel, Chunk, Error, ErrorCode,
             Finalize, RTVIMessage, RTVIType, RequestRejected, Session, SessionRejected,
-            Speech, SpeechChunk, SpeechEnd, SpeechStart, UserIdle, UserMessage,
-            WireError, configure_logging, run_session, serve, session_context]
+            Speech, SpeechChunk, SpeechEnd, SpeechStart, Unsupported, UserIdle,
+            UserMessage, WireError, configure_logging, run_session, serve,
+            session_context]
     source: sdk/python/src/voqalize/sdk/__init__.py
-    verified: 2026-09-09
+    verified: 2026-10-08
     derive:
       file: sdk/python/src/voqalize/sdk/__init__.py
       within: '^__all__\s*=\s*\[(.*?)\]'
@@ -269,7 +270,9 @@ facts:
       `AppEvent`/`AppEvents` landed as `Action`'s symmetric twin for the
       app→brain direction. All twenty-five shipped in 0.3.0 on 2026-09-20, so
       `sdk.python.surface.published` is level with this list again; it falls
-      behind whenever an export lands on main, and that is not a defect. It was recorded as nine on 2026-08-24 while the hardening
+      behind whenever an export lands on main, and that is not a defect.
+      Twenty-six on 2026-10-08, when `Unsupported` landed with
+      `session.cancel_speech` — unreleased, so published is behind it again. It was recorded as nine on 2026-08-24 while the hardening
       agent held brain.py, and the nine were the ones the board had confirmed
       rather than the whole export. Two things are NOT in it and are asked for
       often: GeminiBrain lives in voqalize.sdk.gemini behind the `gemini` extra

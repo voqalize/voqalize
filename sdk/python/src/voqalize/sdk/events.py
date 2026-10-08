@@ -13,12 +13,14 @@ Three groups, and the split between them is the whole contract:
 
 Speech is bracketed because it can be cut mid-word: one ``SpeechStart`` …
 ``SpeechEnd`` pair is one *unit*, and a unit is the granularity at which Voqalize
-reports back what the user actually heard.
+reports back what the user actually heard. It is also the granularity at which a
+brain can take speech back: ``session.cancel_speech`` names a unit by the
+``speech_id`` the SDK writes onto its ``SpeechStart``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from .wire import ErrorCode, RTVIType
@@ -82,7 +84,23 @@ class RTVIMessage:
 
 @dataclass(frozen=True)
 class SpeechStart:
-    """Open a unit of speech."""
+    """Open a unit of speech.
+
+    Keep a reference to it when you might want to stop the unit later: the SDK
+    writes the id it minted onto ``speech_id`` as the unit opens, and that id is
+    what :meth:`Session.cancel_speech` and :class:`Finalize` name::
+
+        start = SpeechStart()
+        yield start
+        ...
+        fin = await session.cancel_speech(start.speech_id)
+
+    ``None`` until the SDK has consumed the yield. Not a constructor argument:
+    ids are minted by the SDK, never chosen. It plays no part in equality, so
+    every ``SpeechStart()`` still compares equal to every other.
+    """
+
+    speech_id: int | None = field(default=None, init=False, compare=False)
 
 
 @dataclass(frozen=True)
@@ -140,7 +158,9 @@ class Finalize:
 
     @property
     def interrupted(self) -> bool:
-        """``True`` when the user talked over this unit and it was cut short."""
+        """``True`` when the unit was cut short — the user talked over it, or the
+        brain cancelled it with :meth:`Session.cancel_speech` before it played
+        out."""
         return self.heard != self.generated
 
 

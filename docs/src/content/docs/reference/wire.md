@@ -111,7 +111,8 @@ a button is not the app taking the floor.
 
 **`speech_id` is brain-minted and names one unit of speech.** `SpeechStart`
 opens it and binds it to a turn; each `SpeechChunk` carries it; `SpeechEnd`
-closes it; the `Finalize` that reports what was heard names it back. Voqalize never
+closes it — or `SpeechCancel` does, when the brain takes it back; the `Finalize`
+that reports what was heard names it back. Voqalize never
 mints, orders or compares one — it quotes it back exactly as it arrived, so a
 brain may number units however it likes.
 
@@ -137,11 +138,34 @@ The version gates behaviour, not parsing — protobuf ignores fields it does not
 know without help. What a version buys is the ability to refuse rather than
 guess.
 
+## Capabilities
+
+`SessionStart.capabilities` lists what this Voqalize honours beyond the
+version's baseline. A frame added within a version is skipped, not refused, by a
+Voqalize that predates it, so a brain that sent one would see nothing happen and
+could not tell *ignored* from *too late*. The list says up front.
+
+```proto
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_SPEECH_CANCEL = 1;  // SpeechCancel is honoured
+}
+```
+
+| Capability | Means |
+|---|---|
+| `CAPABILITY_SPEECH_CANCEL` | `SpeechCancel` stops a unit and is answered by its `Finalize`. See [taking speech back](#taking-speech-back). |
+
+Check before sending an optional frame, and treat a value you do not recognise
+as absent. Adding a capability is append-only and does not move the version.
+The Python SDK reads it as `session.can_cancel_speech`, and refuses the call
+locally when it is false.
+
 ## Voqalize → brain
 
 | Message | Fields | Meaning |
 |---|---|---|
-| `SessionStart` | `turn_id`, `session_id`, `init` *(JSON)*, `wire_version` | First envelope of the session, and its first turn. `init` is your opaque init data, whatever the session was minted with, and reaches your brain as `session.init`. Who the agent is arrives on the connection's credential, verified, and never here. |
+| `SessionStart` | `turn_id`, `session_id`, `init` *(JSON)*, `wire_version`, `capabilities` | First envelope of the session, and its first turn. `init` is your opaque init data, whatever the session was minted with, and reaches your brain as `session.init`. `capabilities` is what this Voqalize honours beyond the version's baseline — see [capabilities](#capabilities). Who the agent is arrives on the connection's credential, verified, and never here. |
 | `UserMessage` | `turn_id`, `text` | The human finished an utterance. A new turn: the floor is the brain's. |
 | `UserIdle` | `turn_id`, `level`, `idle_ms` | The human has been silent past the configured timeout. Also a new turn. `level` counts consecutive escalations with no intervening speech (1 is the first nudge) and resets when they speak; `idle_ms` is the silence elapsed when it fired. |
 | `Interruption` | `through_turn` | Everything up to and including `through_turn` is dead — the user will not hear it. Stop generating for it. |
@@ -159,6 +183,7 @@ guess.
 | `SpeechStart` | `speech_id`, `turn_id` | Open a unit of speech, on the turn it answers. |
 | `SpeechChunk` | `speech_id`, `text` | Text to speak, inside an open unit. Stream them as they are produced. |
 | `SpeechEnd` | `speech_id` | Close the open unit. |
+| `SpeechCancel` | `speech_id` | Stop one unit now and close it. Answered by that unit's `Finalize`, and nothing else. Honoured when `SessionStart` lists `CAPABILITY_SPEECH_CANCEL`. |
 | `RTVIFrame` | `type`, `data` *(JSON)*, `id`, `turn_id` | Drive the screen. Relayed to the app unread. |
 | `Request` | `request_id`, one `op` | Change how the call behaves — today `configure`. Answered by exactly one `Response`. |
 | `End` | — | Hang up. |
@@ -181,6 +206,13 @@ So the message carries no verdict. Tag 3 held a `FinalizeReason` until
 what played, and the comparison is one subtraction away on the end that has both.
 A copy of that answer could disagree with it; the subtraction cannot. An older
 brain still decodes the message and reads the field as unset.
+
+"Played" means **released on Voqalize's playout clock** — handed to the
+outbound media — and it is word-granular. It is accurate to about one word
+either way: a word whose audio had only just been handed over counts as heard,
+and audio already on the network or in the user's jitter buffer keeps playing
+after a cut. Where that matters, as it does for a guardrail, read it as *the
+user may have heard one word more*.
 
 Feed `heard_text` back into your model's history rather than what you generated.
 A model that remembers the sentence it started is a model that references a
@@ -205,6 +237,55 @@ covers it.
 Nothing lowers a watermark. A turn above it simply outranks it, so the brain
 never has to reopen anything — the next `UserMessage` mints a higher turn, and
 speech on that turn is live by construction.
+
+### Taking speech back
+
+`SpeechCancel(speech_id)` is the brain's own cut. A guardrail running beside the
+model flags text that has already been sent; the brain stops its model, sends
+`SpeechCancel`, and Voqalize drops whatever of that unit has not played.
+
+**The answer is the unit's `Finalize`, and nothing else.** Voqalize already owes
+every unit exactly one, so there is no acknowledgement frame: its `heard_text`
+says how far playout got, and comparing it with what you sent says whether the
+cut landed in time.
+
+**It is not a barge-in.** No `Interruption` is sent, the watermark does not
+move, and the turn stays open — the brain may open a new unit on the same
+`turn_id` straight away, and that unit plays.
+
+```
+B→V  SpeechStart{speech_id: 7, turn_id: 3}
+B→V  SpeechChunk{7, "Good question. One approach is "}
+B→V  SpeechChunk{7, "to use binary search on…"}     ← the guardrail flags this
+B→V  SpeechCancel{7}                                ← closes unit 7; no SpeechEnd
+V→B  Finalize{7, heard_text: "Good question."}
+B→V  SpeechStart{speech_id: 8, turn_id: 3}          ← same turn, still open
+B→V  SpeechChunk{8, "Let's think about it differently."}
+B→V  SpeechEnd{8}
+V→B  Finalize{8, heard_text: "Let's think about it differently."}
+```
+
+| When the cancel arrives | What comes back |
+|---|---|
+| The unit is open, or closed and still playing or queued | Its `Finalize`, once the cut has happened — milliseconds |
+| Before any of it was spoken | Its `Finalize` with empty `heard_text` |
+| After its `Finalize` was sent, or a second time | Nothing: the one `Finalize` has already gone |
+| Naming `0` or a unit this session never opened | A non-fatal `PROTOCOL` `Error`; the call continues |
+| At a Voqalize that does not list the capability | Nothing; the unit plays out and its `Finalize` carries the full text |
+
+Socket order decides every race. A chunk sent before the cancel is part of what
+was cut; a `SpeechChunk` or `SpeechEnd` for the unit after it is **ignored, not
+an error**, because a model may still be streaming when the guardrail decides.
+A cancel and a barge-in arriving together converge: each unit still gets
+exactly one `Finalize`, and the barge-in's `Interruption` kills the turn as
+usual.
+
+Today the cut is the whole floor, not one unit: every unit still playing or
+queued when the cancel arrives is stopped — an earlier unit of the same reply
+included, and a later one still open, whose further chunks and `SpeechEnd` are
+ignored the same way — and each gets its own truthful `Finalize`, oldest first.
+A unit opened after the cancel plays. Stopping your model is still your job: Voqalize
+can only drop text it is sent.
 
 ## The control leg
 
@@ -451,7 +532,9 @@ connection would reach a fresh session with none of the first one's history.
 The [Python SDK](https://github.com/voqalize/voqalize/tree/main/sdk/python) is
 the wire with the bookkeeping removed. A brain implements callbacks and yields
 speech; nothing in its surface names a `turn_id`. The one `speech_id` it sees is
-on `Finalize`, which reports what a unit was heard as and needs to say which.
+on `Finalize`, which reports what a unit was heard as and needs to say which —
+and the SDK writes the same id onto the `SpeechStart` you yielded, so you can
+name the unit to `cancel_speech`.
 
 ```python
 class Greeter(Brain):
@@ -475,6 +558,7 @@ class Greeter(Brain):
 | `yield SpeechStart()` / `SpeechChunk` / `SpeechEnd()` | → `SpeechStart` / `SpeechChunk` / `SpeechEnd`, one minted `speech_id` per unit |
 | `session.send_rtvi(type, data)` / `session.dispatch(action)` | → `RTVIFrame` |
 | `await session.configure(Config(...))` | → `Request`, awaited until its `Response` |
+| `await session.cancel_speech(start.speech_id)` | → `SpeechCancel`, awaited until that unit's `Finalize`; refused locally unless `session.can_cancel_speech` |
 | `session.end()` | → `End` |
 
 `greet` returns a string or `None` — one unit of speech, on the turn
@@ -508,8 +592,11 @@ property of the message and needs nothing from the far end to decide.
 Both ends rely on these, and a brain that implements the wire directly owes them:
 
 - **`SessionStart` is first**, and nothing goes the other way before it.
-- **Brackets balance.** Every `SpeechStart` is closed by a `SpeechEnd`; a
-  `SpeechChunk` outside an open unit is an error.
+- **Brackets balance.** Every `SpeechStart` is closed by a `SpeechEnd` or a
+  `SpeechCancel`; a `SpeechChunk` outside an open unit is an error. A
+  `SpeechCancel` after the unit's `SpeechEnd` is legal — it cuts a unit still
+  playing — and a `SpeechChunk` or `SpeechEnd` after its `SpeechCancel` is
+  ignored.
 - **One `speech_id` per unit**, on every frame of that unit, brain-minted and
   never reused.
 - **Speech names its turn.** Every `SpeechStart` carries the `turn_id` of the
@@ -518,11 +605,12 @@ Both ends rely on these, and a brain that implements the wire directly owes them
   echoed, never lowered.
 - **Exactly one `Response` per `Request`**, matching on `request_id`.
 - **Nothing is emitted outside a turn except floor-free messages** —
-  `RTVIFrame`, `Request`, `End`, `Cancel`, `Error`.
+  `RTVIFrame`, `Request`, `SpeechCancel`, `End`, `Cancel`, `Error`.
 - **`heard_text` is the delivered prefix**, per unit, never a concatenation,
   and a verbatim prefix of that unit's own text.
 - **Exactly one `Finalize` per bracket the brain opened**, in that order —
-  including for a unit that turned out silent, which reports nothing heard.
+  including for a unit that turned out silent, which reports nothing heard, and
+  for a unit the brain cancelled, which reports what played before the cut.
   A brain cannot know in advance which of its units will be silent, and an
   absent report is indistinguishable from a late one.
 
