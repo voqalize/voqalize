@@ -306,7 +306,7 @@ class ShowSection(Action):
 
 
 ModalName = Literal[
-    "price_breakup", "size_guide", "delivery", "try_on", "diamond_details", "concierge", "assurance"
+    "price_breakup", "size_guide", "delivery", "try_on", "gemstone_details", "concierge", "assurance"
 ]
 AssuranceName = Literal["natural_stones", "igi_certified", "stone_value", "buyback_exchange"]
 
@@ -844,7 +844,13 @@ class QweenBrain(GeminiBrain):
         The cards are the page's answer to her search, in the page's order, and
         nobody but the browser knows that order — so this carries them, where a
         shopper's move is only named."""
-        if page.kind == "product" or not page.cards:
+        if page.kind == "product":
+            # The catalogue has the piece's golds and prices but not its stones'
+            # count and carat; only the page does.
+            if not page.composition:
+                return None
+            return f"The piece's page gives its composition: {page.composition}"
+        if not page.cards:
             return None
         shown = "; ".join(f"{c.n}. {c.text}" for c in page.cards[:_CARDS_IN_NOTE])
         return f"The page now shows these cards, in order: {shown}"
@@ -900,7 +906,7 @@ class QweenBrain(GeminiBrain):
             self.change_metal,
             self.show_price_breakup,
             self.show_details,
-            self.show_diamond_details,
+            self.show_gemstone_details,
             self.show_assurance,
             self.show_faq,
             self.show_size_guide,
@@ -1059,10 +1065,11 @@ class QweenBrain(GeminiBrain):
         self._move(ShowSection(section=section, tab=tab))
         return "ok"
 
-    async def show_diamond_details(self) -> str:
-        """Open the open piece's diamond details: count, carat, clarity and
-        colour, as Qween prints them."""
-        self._move(OpenModal(modal="diamond_details"))
+    async def show_gemstone_details(self) -> str:
+        """Open the open piece's gemstone details: each coloured stone's origin,
+        carat and count. Only for a piece with gemstones; its diamonds are on the
+        page's DIAMOND tab, show_details with 'diamond'."""
+        self._move(OpenModal(modal="gemstone_details"))
         return "ok"
 
     async def show_assurance(self, request: AssuranceRequest) -> str:
@@ -1143,6 +1150,8 @@ class QweenBrain(GeminiBrain):
             piece = catalog.by_slug.get(page.slug) if catalog is not None else None
             if piece is not None:
                 lines.append(_piece_facts(piece, piece.variant(page.variant_code)))
+            if page.composition:
+                lines.append(f"Its page's composition, in Qween's figures: {page.composition}")
         elif page.cards:
             lines.append("Cards, in order: " + "; ".join(f"{c.n}. {c.text}" for c in page.cards))
         elif page.kind in ("catalog", "category"):

@@ -368,6 +368,20 @@ async def test_the_price_breakup_is_read_from_the_dialog() -> None:
         assert "Gold ₹40,112" in _texts(llm.captured_contents[-1])
 
 
+async def test_the_diamonds_count_and_carat_come_from_the_page() -> None:
+    """The feed has no stone counts or carats; since Qween's 2026-10 refresh the
+    page prints them only in its composition block, and VIEW MORE is the
+    gemstones alone. The adapter reports the block with the page, so "how big
+    are the diamonds?" on the piece the shopper is on needs no dialog at all."""
+    composition = "DIAMOND: 22 ROUND, SI - HI, 0.2640 ct in all."
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await _page(rig, "page_changed", PIECE_PAGE | {"composition": composition})
+        await rig.driver.user_says("How big is each diamond?")
+        assert composition in _texts(llm.captured_contents[-1])
+
+
 async def test_the_shoppers_own_move_is_read_into_their_next_message() -> None:
     """A route change she did not make is read by the brain into the shopper's
     next message, so "this one" is answered in one model request, not a

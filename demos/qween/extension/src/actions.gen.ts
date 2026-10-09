@@ -42,7 +42,7 @@ export interface ShowSection {
 
 /** Open one of the open piece's dialogs — or the concierge's, on any page. */
 export interface OpenModal {
-  modal: 'price_breakup' | 'size_guide' | 'delivery' | 'try_on' | 'diamond_details' | 'concierge' | 'assurance';
+  modal: 'price_breakup' | 'size_guide' | 'delivery' | 'try_on' | 'gemstone_details' | 'concierge' | 'assurance';
 
   which: 'natural_stones' | 'igi_certified' | 'stone_value' | 'buyback_exchange' | null;
 }
@@ -95,6 +95,8 @@ export interface PageChanged {
   variant_code?: string | null;
 
   name?: string | null;
+
+  composition?: string | null;
 
   cards?: Card[];
 }

@@ -55,6 +55,10 @@ class PageChanged(AppEvent):
     """On a product page, the variant the URL names, if it names one."""
     name: str | None = None
     """On a product page, the piece's heading."""
+    composition: str | None = None
+    """On a product page, the open variant's metal, diamonds and gemstones —
+    count, shape, quality and carat — as the page's composition block gives them.
+    The catalogue feed has none of these figures."""
     cards: list[Card] = Field(default_factory=list)
     """On any other page, the product cards it has rendered so far."""
 

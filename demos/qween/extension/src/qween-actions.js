@@ -141,7 +141,7 @@
     size_guide: async () => button("CHOOSE YOUR SIZE"),
     delivery: async () => button("DELIVERY/STORE PICKUP"),
     try_on: async () => button("TRY IT ON"),
-    diamond_details: async () => button("VIEW MORE", await inSection("material_specs")),
+    gemstone_details: async () => button("VIEW MORE", await inSection("material_specs")),
     concierge: async () => document.querySelector('button[aria-label="CONCIERGE"]'),
   };
 
@@ -272,6 +272,44 @@
     return "page";
   }
 
+  // The open variant's composition, from the route's own loader data: the
+  // figures the page's composition block prints under its METAL, DIAMOND and
+  // GEMSTONE tabs. Read from data, not the DOM, because that block is empty
+  // until it is scrolled into view, and its tabs all render at once with
+  // nothing to say which figures are whose. Since the 2026-10 refresh the
+  // diamond count and carat are printed nowhere else: VIEW MORE opens the
+  // gemstones only, and KNOW YOUR DIAMOND is the diamond guide.
+  function composition(variantCode) {
+    try {
+      const data = router().state.loaderData["routes/product.$productSlug"];
+      const variants = data.product.variants;
+      const v = variants.find((x) => x.variantCode === variantCode) || variants[0];
+      const parts = [];
+      const c = v.variantComponents;
+      const size = [
+        c.weight && `gross weight ${c.weight}`,
+        c.height && `height ${c.height}`,
+        c.width && `width ${c.width}`,
+      ].filter(Boolean);
+      if (size.length) parts.push(size.join(", ") + ".");
+      for (const comp of c.components || []) {
+        const each = (comp.details || []).map((d) =>
+          comp.type === "METAL"
+            ? `${d.purity} ${d.colour}, ${d.weight}`
+            : comp.type === "DIAMOND"
+              ? `${d.quantity} ${d.shape}, ${d.quality}, ${d.weight} in all`
+              : `${d.quantity} ${d.name} (${d.shape}), ${d.weight} in all`,
+        );
+        if (!each.length) continue;
+        parts.push(`${comp.type}: ${each.join("; ")}.${comp.origin ? " " + clean(comp.origin) : ""}`);
+      }
+      return parts.join(" ") || null;
+    } catch {
+      // Qween's data is theirs and its shape may change; the page still reports.
+      return null;
+    }
+  }
+
   function context() {
     const { pathname, search } = window.location;
     const params = {};
@@ -282,6 +320,7 @@
       ctx.variant_code = (params.variantCode || [])[0] || null;
       const h1 = document.querySelector("h1");
       ctx.name = h1 ? clean(h1.innerText) : null;
+      ctx.composition = composition(ctx.variant_code);
     } else {
       ctx.cards = cards().map((c, i) => {
         const a = cardLink(c);
