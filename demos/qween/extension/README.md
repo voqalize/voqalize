@@ -46,9 +46,31 @@ pnpm build               # → dist/
 Then `chrome://extensions` → Developer mode → **Load unpacked** → `dist/`, and
 open www.qween.com. The first call asks for the microphone.
 
-The publishable key's allowed origins must be `https://www.qween.com`, which is
-where the session is minted from. The agent id and key are baked into the
+The publishable key's allowed origins must include `https://www.qween.com`,
+which is where the session is minted from. The agent id and key are baked into the
 bundle at build time and are never committed.
+
+## The embed: one script on Qween's own pages
+
+`pnpm build` also writes `dist/embed/qween-trisha.js`: the same bundle as the
+extension's content script, built for every shopper's browser rather than
+desktop Chrome alone. Qween adds it to their pages just before `</body>`:
+
+```html
+<script src="/path/they/host/it/at/qween-trisha.js"></script>
+```
+
+It names no domain. The adapter drives whichever of Qween's hosts serves it
+through that host's own router and paths, and reports `location.host` to the
+brain as the site, so their staging host behaves as `www.qween.com` does. What
+does have to know the host is the publishable key: its allowed origins must
+list every origin the script runs on, staging included, or `sessions.connect`
+refuses it. The agent id, the key and the control plane are baked in at build
+time from `.env`, as for the extension, so a bundle for production is built with
+production's.
+
+The widget joins the page once it has loaded, after React has hydrated it. If
+the extension is also installed, the two put up one widget between them.
 
 ## What survives a page load
 

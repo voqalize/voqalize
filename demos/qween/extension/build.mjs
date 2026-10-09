@@ -1,5 +1,7 @@
 // Builds the unpacked extension into dist/: one bundled content script and the
-// manifest, stamped with this package's version.
+// manifest, stamped with this package's version. Beside it, dist/embed/ holds
+// the same bundle as the one script Qween embeds on their own pages, before
+// `</body>`.
 //
 // The agent id and publishable key are read from the environment (or a local
 // .env beside this file) and baked into the bundle, exactly as the demo UIs'
@@ -40,18 +42,23 @@ if (!wiring.agentId || !wiring.publishableKey) {
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 
-await build({
+const bundle = {
   entryPoints: [join(here, "src/content.ts")],
-  outfile: join(out, "content.js"),
   bundle: true,
-  // A MAIN-world content script is a classic script, so the bundle is one
-  // IIFE. The avatar's runtime is still a dynamic import from its own host,
-  // which a classic script may make.
+  // A MAIN-world content script is a classic script, and so is a plain
+  // `<script src>`, so the bundle is one IIFE. The avatar's runtime is still a
+  // dynamic import from its own host, which a classic script may make.
   format: "iife",
-  target: "chrome120",
   minify: true,
   legalComments: "none",
   define: { __VOQALIZE__: JSON.stringify(wiring) },
+};
+await build({ ...bundle, outfile: join(out, "content.js"), target: "chrome120" });
+// The embed reaches every shopper's browser, not only desktop Chrome.
+await build({
+  ...bundle,
+  outfile: join(out, "embed", "qween-trisha.js"),
+  target: ["chrome100", "safari15", "firefox100"],
 });
 
 const pkg = JSON.parse(readFileSync(join(here, "package.json"), "utf8"));
@@ -60,4 +67,4 @@ manifest.version = pkg.version;
 writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 copyFileSync(join(here, "README.md"), join(out, "README.md"));
 
-console.log(`built ${out} (${wiring.apiBase})`);
+console.log(`built ${out} and ${join(out, "embed", "qween-trisha.js")} (${wiring.apiBase})`);

@@ -1,10 +1,12 @@
 /**
- * Trisha on www.qween.com — the whole browser half of the call.
+ * Trisha on Qween's site — the whole browser half of the call.
  *
  * Qween's page is theirs and we change nothing in it. This script is injected
  * into the page's own JavaScript world (the manifest's `"world": "MAIN"`)
  * because the site adapter drives Qween through their client-side router, which
- * only exists there. It brings three things:
+ * only exists there. The same bundle is also built as a plain script Qween can
+ * embed before `</body>` (see the README); it runs in the page either way, on
+ * whichever of Qween's hosts serves it, so nothing here names a domain. It brings three things:
  *
  *   - the site adapter (`qween-actions.js`), which turns each of the brain's
  *     Actions into a move on Qween's page and reports every route change and
@@ -85,9 +87,15 @@ function withRealHeaders(response: unknown) {
   };
 }
 
+/** Set once the widget is up, so the extension and Qween's own embed of this
+ *  bundle, both on one page, put up one widget between them. */
+const MOUNTED = "__voqalizeTrisha";
+
 function start(): void {
   const adapter = window.voqalizeQween;
-  if (!adapter) return;
+  const flags = window as unknown as Record<string, unknown>;
+  if (!adapter || flags[MOUNTED]) return;
+  flags[MOUNTED] = true;
   // The brain and the extension ship separately; an Action the adapter cannot
   // perform is reported back as `command_failed` when it arrives, and named
   // here once so it is found before a shopper finds it.
@@ -168,7 +176,7 @@ function start(): void {
       avatar?.destroy();
       avatar = createAvatar({ mount: widget.face, client: next, character: CHARACTER });
       const init: Record<string, unknown> = {
-        site: "www.qween.com",
+        site: location.host,
         path: location.pathname + location.search,
       };
       if (rejoin) init.rejoin = true;
@@ -257,4 +265,8 @@ function reason(error: unknown): string {
   return text.trim() ? `Could not start the call: ${text}` : "Could not start the call.";
 }
 
-start();
+// Qween's embed runs this from `</body>`, before React has hydrated the
+// document; the widget joins the page once that is done, which is when the
+// extension's `document_idle` runs it anyway.
+if (document.readyState === "complete") start();
+else window.addEventListener("load", start, { once: true });
