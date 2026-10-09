@@ -63,6 +63,7 @@ from voqalize.sdk import (
     SpeechChunk,
     SpeechEnd,
     SpeechStart,
+    UserIdle,
     UserMessage,
 )
 from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
@@ -84,6 +85,7 @@ from .catalog import (
     KARATS,
     METAL_PLAIN,
     METALS,
+    Catalog,
     CategoryName,
     CollectionName,
     KaratName,
@@ -104,8 +106,14 @@ from .catalog import (
 
 AGENT_NAME = "Trisha"
 
-# The shopper is browsing, not waiting. A quiet call is someone looking at a ring.
-_IDLE_MS = 0
+# A quiet call is someone looking at a ring, and a consultant beside them says
+# something after a while rather than standing mute: Qween asked for exactly
+# that (2026-10-09). Long enough that a shopper reading a page is not
+# interrupted mid-thought.
+_IDLE_MS = 20_000
+#: The quiet spells she speaks into before leaving them to browse. Every later
+#: one is silence: a third nudge is nagging.
+_IDLE_NUDGES = 2
 
 LanguageName = Literal["english", "hindi"]
 
@@ -144,6 +152,8 @@ _DIALOG_CHARS = 1500
 #: The most pieces named as coming in an asked-for purity: the same as a note's
 #: cards, for the same reason.
 _KARAT_NAMES = _CARDS_IN_NOTE
+#: The most pieces offered as going with the open one: a suggestion, not a list.
+_PAIRS = 2
 
 _KNOWLEDGE = (Path(__file__).parent / "knowledge" / "L1.md").read_text(encoding="utf-8")
 
@@ -197,7 +207,7 @@ _PATIENCE = 0
 
 _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the jewellery consultant on Qween's website, www.qween.com. A shopper is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open the listings, pieces, sections and dialogs Qween's own site has, and you point at things with a thin gold ring. You are the consultant who stands beside them in the boutique — warm, unhurried, knowledgeable, never pushy.
 
-SHOW, THEN SAY ONE LINE. The shopper can see the page. The shape of almost every turn is one short sentence and one move in the same response: they ask for rose gold hoops, you say "Here are our rose gold hoops." and call find_jewellery. Say it as done, not as about to be done — "Here's the price breakup.", never "Let me open the price breakup."; "Here it is in 14 karat.", never "Let me switch it for you." A line that starts "Let me" is always wrong. Never read the page aloud; never list what is on screen. Say what the page does not: why a piece suits what they told you, what a grade means, which of two is the better buy for them.
+SHOW IT, THEN TALK ABOUT IT. The shopper can see the page. A turn opens with a short sentence and one move in the same response: they ask for rose gold hoops, you say "Here are our rose gold hoops." and call find_jewellery. Say it as done, not as about to be done — "Here's the price breakup.", never "Let me open the price breakup."; "Here it is in 14 karat.", never "Let me switch it for you." A line that starts "Let me" is always wrong. Then talk like the consultant beside them, not a search box: a sentence on what the page does not say — why a piece suits what they told you, how a stone or a setting wears, what a grade means, which of two is the better buy for them — and, more often than not, a light question that takes them a step further: "Is it for everyday, or an occasion?" A reply that only confirms the move is too little. Never read the page aloud; never list what is on screen.
 
 EVERY MOVE COMES WITH WORDS. Whenever you move the screen, write your line first and make the call in the same response — the line is spoken while the page moves. A response that is only tool calls is silence: after such a call you do not speak again until the shopper does, and what the call returns reaches you on your next turn.
 
@@ -205,9 +215,13 @@ A READ COMES BEFORE ANY WORDS. get_screen and lookup_piece are silent reads: the
 
 NUMBERS COME FROM A SOURCE, NEVER FROM MEMORY. A price, weight, carat, grade or delivery time is spoken only from what a tool returned, a card on the screen, or a dialog's own text. Qween's prices move with the gold rate every day. If you do not have the figure, open the place it is (the piece, or its price breakup) and read it from what comes back; never estimate one. Say prices the way an Indian shopper does — "one lakh forty-three thousand rupees" — and round to the nearest thousand with "about" unless they ask for the exact figure.
 
+BE INTERESTED IN THEM. Ask who it is for, the occasion, the style they love, and remember the answer: bring it back later — "For your sister's engagement, this one has the sparkle." React to what they say like a person would, warmly and briefly, before you move on.
+
 HELP THEM NARROW. Most shoppers arrive with a feeling, not a filter: "something for my mother", "an everyday ring", "under fifty thousand". Ask one short question at a time when you need to — the occasion, a metal they like, a budget — and show something as soon as you can rather than interviewing them. When they react to what is on screen, narrow from there. Offer a view when they want one: which gold suits everyday wear, whether a diamond grade is worth the difference.
 
 WHAT IS ON SCREEN IS LIVE. The shopper clicks too. When they have moved the page, their next message comes with what their screen now shows — the piece with every gold, purity and price, or the cards in order. "This one", "that", "the second one" mean what it says: answer from it at once, in one reply, without calling get_screen. When the piece is one you opened and nothing has moved since, what show_piece returned is still true. Cards are numbered in the order the page shows them.
+
+COMPLETE THE LOOK. When a shopper lingers on a piece, asks about it twice, or says they like it, think as a stylist. Once per piece, offer one thing that goes with it: a piece from "Goes with it", by name — "It has matching earrings, the Close Circle studs. Shall I show you?" — or, when it fits what they told you, a step up: the same design in 18 karat, a larger solitaire, a gold that suits the occasion better. For a gift, mention Qween's gift packaging. Offer, then let them choose. One suggestion in a reply at most; never above a budget they gave without saying so plainly; never again once they have said no. Name only pieces a tool or the screen gave you.
 
 A PERSON IS ALWAYS ONE STEP AWAY. If they want to see a piece in person, talk to someone, book an appointment, or ask something you cannot answer — an order, a delivery already placed, a custom design, a repair — offer Qween's own people with connect_to_person: the concierge (call or WhatsApp), a live video consultation, or a boutique. Do it gladly, not as a failure.
 
@@ -217,7 +231,7 @@ THE FIRST SENTENCE IS A FEW WORDS. The shopper hears nothing until your whole fi
 
 SOUND LIKE A PERSON, NOT A SCRIPT. Before most replies the shopper has already heard a short acknowledgement of mine — "Sure.", "Right.", "I see.", "जी।", "अच्छा।" — the moment they stopped speaking. So never open with one, and never open with a filler: your first word is the answer. Inside a reply, now and then — in about one reply in three, never two in a row — let a small filler in where a person thinking aloud would pause, at a later sentence's start or before the word you are choosing: "Rose gold suits you. It's, well, the lighter of the two." "A pendant works. Or, hmm, a light chain." Use "hmm", "so", "um", "well", "I think"; in Hindi "हम्म", "अच्छा", "तो". Never inside or next to a price, weight, karat, grade or a piece's name — a pause there sounds unsure of the fact. Never on an apology, never twice in one reply, and never "uh-huh" or "like".
 
-VOICE STYLE. One or two sentences a turn, each under about fifteen words; take more only when they asked for an explanation. No markdown, lists or symbols in speech. No "Great question", no restating what they asked. Call the shopper "you".
+VOICE STYLE. Two or three sentences a turn, each under about fifteen words; take more only when they asked for an explanation. No markdown, lists or symbols in speech. No "Great question", no restating what they asked. Call the shopper "you".
 
 LANGUAGE. The call starts in English. Many shoppers speak Hinglish — Hindi with English words. When they speak Hindi or Hinglish, the call switches to Hindi by itself before you answer: simply answer in Hindi, and do what they asked in the same response — "हिंदी में बात करो, गोल्ड चेन दिखाओ" is one line in Hindi and one find_jewellery. Call set_language only when they ask for a language in words that are not already it ("Can you speak Hindi?"), or to go back to English. In Hindi:
 - The recognizer writes everything in Devanagari, English words included — "मुझे रोज़ गोल्ड में रिंग चाहिए" is Hinglish, answer it in Hindi.
@@ -584,6 +598,24 @@ def _piece_facts(p: Piece, current: Variant | None) -> str:
     return " ".join(lines)
 
 
+def _pairs_line(catalog: Catalog, piece: Piece) -> str | None:
+    """What goes with ``piece``, for her to offer once they like it."""
+    pairs = catalog.pairs(piece, _PAIRS)
+    if not pairs:
+        return None
+    named = "; ".join(
+        f"{p.name} ({p.category.lower()}, {why}, from {rupees(min(v.price for v in p.variants))})"
+        for p, why in pairs
+    )
+    return f"Goes with it: {named}."
+
+
+async def _silence() -> AsyncGenerator[Any, None]:
+    """Yields nothing: a quiet spell she lets ride."""
+    for _ in ():
+        yield
+
+
 class QweenBrain(GeminiBrain):
     """One per session. Trisha: Qween's catalogue, Qween's pages, and a mirror of
     what this shopper's screen shows.
@@ -686,6 +718,39 @@ class QweenBrain(GeminiBrain):
             return
         async for event in super().on_user_message(session, msg):
             yield event
+
+    def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
+        """The shopper has gone quiet: she speaks into the first quiet spells, as
+        a consultant beside them would, then lets them browse.
+
+        It is a turn of the model's, not a written line: what is worth saying
+        depends on the piece on screen and what they told her. What they did on
+        the page meanwhile is read in, as it is for a message of theirs, so a
+        shopper who clicked to a piece and went quiet hears about that piece."""
+        if idle.level > _IDLE_NUDGES:
+            return _silence()
+        quiet = f"The shopper has said nothing for about {round(idle.idle_ms / 1000)} seconds."
+        if self._shopper_moved:
+            quiet += f" They moved the page themselves. Now: {self._screen()}"
+        if idle.level == 1:
+            ask = (
+                "Speak into the quiet, briefly, as the consultant beside them would: one "
+                "useful thing about what is on their screen — something about it they may "
+                "not notice, what goes with it, a step that suits what they told you — or "
+                "one question that helps you narrow. Never ask whether they are still there, "
+                "and never repeat your last line."
+            )
+        else:
+            ask = (
+                "Still quiet. One last, light offer, different from your last: something "
+                "you could show them, or a person at Qween they can talk to. Then let them "
+                "browse."
+            )
+        logger.info("qween: idle level {} -> speaking into it", idle.level)
+        self.append_to_context(
+            types.Content(role="user", parts=[types.Part(text=f"{quiet} {ask}")])
+        )
+        return self.respond(session)
 
     async def _hold_the_floor(
         self, turn: AsyncGenerator[Speech, None], answered: Callable[[], None]
@@ -1011,7 +1076,8 @@ class QweenBrain(GeminiBrain):
             if variant is None and (request.metal or request.karat):
                 fallback = " It does not come in that combination; say so."
         self._move(OpenProduct(slug=piece.slug, variant_code=variant.code if variant else None))
-        return f"Opened: {_piece_facts(piece, variant)}{fallback}"
+        pairs = _pairs_line(catalog, piece) if (catalog := FEED.current()) else None
+        return f"Opened: {_piece_facts(piece, variant)}{fallback}" + (f" {pairs}" if pairs else "")
 
     def _listing_metal(self) -> str | None:
         """The one gold the listing on screen is filtered to, if it is filtered to
@@ -1154,8 +1220,10 @@ class QweenBrain(GeminiBrain):
         catalog = FEED.current()
         if page.kind == "product" and page.slug:
             piece = catalog.by_slug.get(page.slug) if catalog is not None else None
-            if piece is not None:
+            if piece is not None and catalog is not None:
                 lines.append(_piece_facts(piece, piece.variant(page.variant_code)))
+                if pairs := _pairs_line(catalog, piece):
+                    lines.append(pairs)
             if page.composition:
                 lines.append(f"Its page's composition, in Qween's figures: {page.composition}")
         elif page.cards:

@@ -49,7 +49,12 @@ from ._harness import DemoRig, _configs, check_greeting, check_turn, check_voice
 discover()
 
 from voqalize_demos._loaded.qween import acknowledge  # noqa: E402
-from voqalize_demos._loaded.qween.brain import _GREETING, _sounds_hindi  # noqa: E402
+from voqalize_demos._loaded.qween.brain import (  # noqa: E402
+    _GREETING,
+    _IDLE_MS,
+    _IDLE_NUDGES,
+    _sounds_hindi,
+)
 from voqalize_demos._loaded.qween.catalog import FEED, QUOTE_LIMIT_S, Catalog  # noqa: E402
 
 
@@ -105,6 +110,8 @@ FEED_XML = (
             "Snowfall White Gold", "18 KT Gold", 41000)
     + _item("G3", "orbit-band", "OB-R18", "Orbit Band", "Rings > Bands",
             "Rose Bloom Gold", "18 KT Gold", 143000)
+    + _item("G4", "petal-ring", "PR-R18", "Petal Ring", "Rings > Cocktail",
+            "Rose Bloom Gold", "18 KT Gold", 88000, "Diamond, Pink Sapphire")
     + "</channel></rss>"
 )  # fmt: skip
 
@@ -204,6 +211,9 @@ def _llm() -> ScriptedGemini:
                 call("lookup_piece", request={"piece": "orbit band"}),
                 reply("About one lakh forty-three thousand rupees."),
             ],
+            # A quiet spell: the brain's note is the newest user text.
+            "Speak into the quiet": reply("The Petal Ring is its pair, if you like a set."),
+            "One last, light offer": reply("I can show you the matching ring whenever you like."),
             "I'd rather talk to someone.": [
                 reply_and_call(
                     "Of course, here is our concierge.",
@@ -405,6 +415,62 @@ async def test_the_shoppers_own_move_is_read_into_their_next_message() -> None:
         # Nothing moved since: the next message carries no read.
         await rig.driver.user_says("How much is the Orbit Band?")
         assert _texts(llm.captured_contents[-1]).count("moved the page themselves") == 1
+
+
+async def test_the_piece_she_opens_comes_with_what_goes_with_it() -> None:
+    """Cross-sell from the catalogue, not the model's memory: opening a piece
+    hands the model its set's other pieces, by name and starting price, to
+    offer once the shopper likes it."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Show me rose gold earrings with pink sapphire under a lakh.")
+        await _page(rig, "page_changed", LISTING)
+        await rig.driver.user_says("Open the first one.")
+        await rig.driver.user_says("So what does the gold cost?")
+        opened = _results(llm.captured_contents[-1])["show_piece"]
+        assert "Goes with it: Petal Ring (rings, made as a set with it, from ₹88,000)." in opened
+
+
+async def test_the_idle_window_reaches_the_wire() -> None:
+    """Idle detection is off unless a brain asks; Qween asked for her to speak
+    into a quiet call, so it is armed from the start."""
+    async with demo("qween", _llm()) as rig:
+        await rig.driver.start_session()
+    timeouts = [c.idle.timeout_ms for c in _configs(rig) if c.idle is not None]
+    assert timeouts == [_IDLE_MS]
+
+
+async def test_a_quiet_shopper_hears_about_the_piece_they_went_to() -> None:
+    """The first quiet spell is a turn of the model's, with what the shopper
+    clicked to meanwhile read in, so what she says is about their screen."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await _page(rig, "page_changed", PIECE_PAGE)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
+        check_turn(rig, turn, units=1)
+        assert turn.units[0].text == "The Petal Ring is its pair, if you like a set."
+        texts = _texts(llm.captured_contents[-1])
+        assert "said nothing for about 20 seconds" in texts
+        assert "They moved the page themselves. Now: On a piece, Petal Hoops." in texts
+        assert "Goes with it: Petal Ring" in texts
+
+
+async def test_she_lets_a_quiet_shopper_browse_after_her_nudges() -> None:
+    """A nudge at each early quiet spell, then silence however long it lasts."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        for level in range(1, _IDLE_NUDGES + 1):
+            turn = await rig.driver.user_idle(level=level, idle_ms=_IDLE_MS * level)
+            check_turn(rig, turn, units=1)
+        assert "One last, light offer" in _texts(llm.captured_contents[-1])
+        before = len(llm.captured_contents)
+        for level in range(_IDLE_NUDGES + 1, _IDLE_NUDGES + 3):
+            turn = await rig.driver.user_idle(level=level, idle_ms=_IDLE_MS * level, timeout=1.0)
+            assert turn.units == [], f"level {level} spoke: {[u.text for u in turn.units]}"
+        assert len(llm.captured_contents) == before
 
 
 async def test_a_failed_command_is_never_claimed() -> None:

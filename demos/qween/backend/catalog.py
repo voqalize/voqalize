@@ -366,16 +366,66 @@ def _words(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", text.lower()))
 
 
+#: The words in a piece's name that say only what kind of piece it is. What is
+#: left is its family: Qween names a set's pieces alike — "Close Circle Ring",
+#: "Close Circle Earrings" — and the feed has no other link between them.
+_KIND_WORDS = frozenset(
+    [
+        "a",
+        "the",
+        "of",
+        "and",
+        "with",
+        "diamond",
+        "gold",
+        "ring",
+        "rings",
+        "band",
+        "bands",
+        "earring",
+        "earrings",
+        "stud",
+        "studs",
+        "hoop",
+        "hoops",
+        "drop",
+        "drops",
+        "jhumka",
+        "jhumkas",
+        "pendant",
+        "necklace",
+        "chain",
+        "bangle",
+        "bracelet",
+        "nose",
+        "pin",
+        "mangalsutra",
+    ]
+)
+#: Collections too broad to make two pieces a pair: the house line holds most of
+#: the catalogue, and a piece outside any collection has none to share.
+_HOUSE_COLLECTIONS = frozenset({"", "Classics"})
+
+
+def _family(name: str) -> str:
+    return " ".join(w for w in re.findall(r"[a-z]+", name.lower()) if w not in _KIND_WORDS)
+
+
 @dataclass
 class Catalog:
     pieces: list[Piece]
     fetched_at: float
     by_slug: dict[str, Piece] = field(init=False)
     by_code: dict[str, tuple[Piece, Variant]] = field(init=False)
+    by_family: dict[str, list[Piece]] = field(init=False)
 
     def __post_init__(self) -> None:
         self.by_slug = {p.slug: p for p in self.pieces}
         self.by_code = {v.code: (p, v) for p in self.pieces for v in p.variants}
+        self.by_family = {}
+        for p in self.pieces:
+            if family := _family(p.name):
+                self.by_family.setdefault(family, []).append(p)
 
     # ── Reading the feed ─────────────────────────────────────────────────
 
@@ -434,6 +484,46 @@ class Catalog:
             found.sort(key=lambda f: min(v.price for v in f[1]))
         elif q.sort == "price high to low":
             found.sort(key=lambda f: -max(v.price for v in f[1]))
+        return found
+
+    def pairs(self, piece: Piece, limit: int) -> list[tuple[Piece, str]]:
+        """Pieces of another kind that go with ``piece``, each with why: its own
+        set first — the same name made as another kind — then its collection,
+        when it has one of its own, then its stone in the same cut and style.
+        One of each kind, so earrings for a ring are not three pairs of
+        earrings."""
+        found: list[tuple[Piece, str]] = []
+        kinds = {piece.category}
+
+        def take(candidates: Iterable[Piece], why: str) -> None:
+            for p in candidates:
+                if p.category not in kinds and len(found) < limit:
+                    kinds.add(p.category)
+                    found.append((p, why))
+
+        if family := _family(piece.name):
+            take(self.by_family.get(family, []), "made as a set with it")
+        if (collection := piece.collection) not in _HOUSE_COLLECTIONS:
+            if "collection" not in collection.lower():
+                collection += " collection"
+            take(
+                (p for p in self.pieces if p.collection == piece.collection),
+                f"from the same {collection}",
+            )
+        # Otherwise, a stylist's match: its stone — the coloured one, when it
+        # has one — in the same cut and style, nearest it in price.
+        stones = set(piece.stones) - {"Diamond", "Solitaire"} or set(piece.stones)
+        if stones and len(found) < limit:
+            low = min(v.price for v in piece.variants)
+            alike = [
+                p
+                for p in self.pieces
+                if stones & set(p.stones)
+                and set(piece.shapes) & set(p.shapes)
+                and set(piece.styles) & set(p.styles)
+            ]
+            alike.sort(key=lambda p: abs(min(v.price for v in p.variants) - low))
+            take(alike, "the same stone and cut")
         return found
 
     def named(self, text: str, among: Iterable[Piece] | None = None) -> Piece | None:
