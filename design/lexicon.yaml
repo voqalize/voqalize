@@ -122,12 +122,10 @@ terms:
 internal_names:
   - name: pygato
     say_instead: Voqalize, or "the voice tier" where the half matters
-    except:
-      # Our own deployment topology, not a customer's integration: this file
-      # says which node the brains container lands on and which name fronts it.
-      # The rule is about the word a *reader* is taught for the thing they dial,
-      # and nobody dials a node. Every other README under demos/ is governed.
-      - demos/README.md
+  # PyGato's successor, the runtime dev runs since 2026-10-09. The same rule:
+  # which process holds the call is ours to change, and a customer never needs it.
+  - name: gato
+    say_instead: Voqalize, or "the voice tier" where the half matters
   - name: vql-stt
     say_instead: the recognizer
   - name: vql-speech

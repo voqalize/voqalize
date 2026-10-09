@@ -21,10 +21,11 @@ managed service, and everything you need to build against it is here.
 > against**, because pre-1.0 releases may change the brain callbacks.
 >
 > **`@voqalize/client-react` is deprecated (2026-08-24), takes no replacement,
-> and its source is no longer in this repo.** The browser half of a call is stock
-> [pipecat](https://docs.pipecat.ai) plus one `fetch`, and the server now answers
-> in the shape pipecat's transport connects with — so there is nothing left for a
-> package of ours to do. The published 0.1.x remains installable for anything
+> and its source is no longer in this repo.** The browser half of a call is
+> [pipecat](https://docs.pipecat.ai)'s client plus one `fetch`, with
+> `@voqalize/client-transport` handling the media, and the server answers in the
+> shape pipecat's transport connects with — so there is no client wrapper of ours
+> to learn. The published 0.1.x remains installable for anything
 > already built against it. See
 > [Connections and the handshake](https://docs.voqalize.com/build/connect/).
 
@@ -54,7 +55,7 @@ markdown at the same URL plus `.md`, indexed at
 project to a running voice agent: write a brain → create an agent → get a
 `brain_url` → wire a browser UI. Prefer to read code first? Start from
 [`sdk/python/examples/echo`](sdk/python/examples/echo) (the smallest complete
-brain) or [`sdk/python/examples/travel`](sdk/python/examples/travel) (a fuller
+brain) or [`demos/travel/backend`](demos/travel/backend) (a fuller
 one), and [Connections and the handshake](docs/src/content/docs/build/connect.md)
 for the browser side.
 

@@ -18,7 +18,7 @@ A demo's halves deploy to different places, and that split is the whole
 architecture:
 
 - **The backend brains** build into **one container** and deploy onto the
-  **pygato node**, fronted by Caddy at `brain.voqalize.com`
+  **voice node**, fronted by Caddy at `brain.voqalize.com`
   (`brain.dev.voqalize.com` for dev). A single umbrella FastAPI app
   (`voqalize_demos/umbrella.py`) discovers every co-located backend and hosts
   its brain WebSocket at `/{name}?session_id=…`. That's *all* this container
@@ -32,7 +32,7 @@ architecture:
 
 The **UI path** (`{apex}/demos/{name}`) and the **brain path**
 (`wss://brain.voqalize.com/{name}`) are independent: the brain socket lives
-on the pygato node because Voqalize dials it **server-side**, regardless of where
+on the voice node because Voqalize dials it **server-side**, regardless of where
 the browser loads the UI. So a demo's `brain_url` is `wss://brain.voqalize.com/{name}`
 — and moving the UI to the apex needed no agent re-provisioning at all.
 
@@ -40,7 +40,7 @@ the browser loads the UI. So a demo's `brain_url` is `wss://brain.voqalize.com/{
 |---|---|---|
 | `{apex}/demos/{name}` | the demo's UI (its own independent Vite build) | apex (Firebase Hosting) |
 | `{apex}/api/*` | session bootstrap → control plane (Hosting rewrite) | apex |
-| `wss://brain.<env>.voqalize.com/{name}` | the brain WebSocket (Voqalize dials here) | pygato node (brains container, behind Caddy) |
+| `wss://brain.<env>.voqalize.com/{name}` | the brain WebSocket (Voqalize dials here) | voice node (brains container, behind Caddy) |
 
 ## Structure
 
@@ -54,7 +54,7 @@ demos/
                          #   still SHIPS its own copy under /demos/<name>/ while
                          #   there is one file in the tree to keep current.
   Dockerfile                # brains-only Python image (no Node stage)
-  cloudbuild.brains-vm.yaml # Build A: brains image → pygato node (public repo trigger)
+  cloudbuild.brains-vm.yaml # Build A: brains image → voice node (public repo trigger)
   cloudbuild.web.yaml       # Build B: UIs + docs → versioned web artifact in GCS
   pyproject.toml         # ONE shared backend package (uv) for all demos
   voqalize_demos/        # the shared backend spine
@@ -200,7 +200,7 @@ node demos/build.mjs          # builds the SDK + every UI → demos/dist/demos/<
 In a deploy `cloudbuild.web.yaml` runs `build.mjs`, tars `demos/dist` + the built
 docs + `manifest.json` into a versioned artifact, and the private marketing build
 lays it under the apex. The brains image (`Dockerfile` / `cloudbuild.brains-vm.yaml`)
-ships separately, onto the pygato node.
+ships separately, onto the voice node.
 
 ## Status
 

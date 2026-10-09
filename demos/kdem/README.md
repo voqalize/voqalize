@@ -15,7 +15,7 @@ never looks for a frontend here and it is not a card on `/demos`.
 
 | Path | What it is |
 |---|---|
-| `backend/brain.py` | Aria: the prompt, the greeting and three tools (`search_kdem`, `show_link`, `set_language`) |
+| `backend/brain.py` | Aria: the prompt, the greeting and the tools (`search_kdem`, `show_link`, `set_language`) |
 | `backend/app_events.py` | `page_viewed`, the one event the snippet sends the brain |
 | `backend/content.py` | The languages table and the page list in the prompt |
 | `backend/knowledge.py` | The approved-page list, visible-text extraction, PDF text extraction, sitemap and PDF refresh, and in-memory search |
@@ -67,7 +67,7 @@ never committed.
 It sits at the bottom left, clear of the site's own chat button on the right;
 on a phone it sits higher, above the site's chat strip.
 
-It loads three libraries from jsDelivr, each pinned to an exact version in the
+It loads these libraries from jsDelivr, each pinned to an exact version in the
 script: pipecat's `@pipecat-ai/client-js`, `@voqalize/client-transport` 0.3.1
 and the `@voqalize/avatar` the other demos use. The call is pipecat's client on our transport, whose
 media manager is ours rather than daily's, so daily's call machine is never
@@ -93,7 +93,7 @@ voice moves it too and a switch Voqalize refused leaves it where it was. The
 choice is remembered for the tab (`sessionStorage`, `vq-aria:lang`); pressed
 with no call, it picks the language the next call starts in.
 
-The snippet and the brain share five things:
+The snippet and the brain share these:
 
 - **`init`**: the snippet sends `{surface: "kdem-web", page: location.pathname,
   lang: "en" | "kn"}` with `sessions.connect`. `lang` is the toggle's choice:
@@ -239,7 +239,7 @@ review and why.
 cd demos && uv run pytest tests/test_kdem_e2e.py tests/test_kdem_knowledge.py tests/test_kdem_pdfs.py
 ```
 
-All three files run without network access. The PDFs in the tests are built in
+The test files run without network access. The PDFs in the tests are built in
 the test from a few neutral sentences. The e2e tests load a small, made-up
 snapshot into the knowledge base, and `tests/conftest.py` turns the background
 refresh off for every test.

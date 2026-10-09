@@ -5,8 +5,8 @@ description: The browser half of a Voqalize call is pipecat's client with @voqal
 
 In the browser, a Voqalize call runs on pipecat's client and transport, with
 `@voqalize/client-transport` handling the microphone, camera and the agent's
-audio. Inside the voice tier, pipecat is what we build the pipeline out of. Its
-RTVI message format is what our wire carries between the two.
+audio. The voice tier answers in the shape pipecat's transport connects with,
+and pipecat's RTVI message format is what our wire carries between the two.
 
 Your server has no pipecat. Installing the Python SDK pulls in none of it.
 
@@ -107,8 +107,8 @@ enumeration of record is `RTVIType` in
 ## Your server has no pipecat in it
 
 `pip install voqalize-agent-sdk==0.6.0` installs websockets, protobuf, pydantic and the
-JWT library, and nothing else. A brain is callbacks over a socket. Pipecat runs
-on our side of that socket, where the audio is.
+JWT library, and nothing else. A brain is callbacks over a socket. The audio
+stays on our side of that socket.
 
 That matters when your brain is a route inside a service you already deploy: a
 voice integration adds no media dependency to a process that has never needed

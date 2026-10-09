@@ -2,7 +2,7 @@
 
 The **public developer surface** for Voqalize: the wire contract (`proto/`), the
 brain SDK (`sdk/python`), the runnable demos (`demos/`) and the docs site
-(`docs/`). The platform itself lives in the private `voqalcloud` repo; the speech
+(`docs/`). The platform itself lives in the private `voqalize/platform` repo; the speech
 stack lives in `vql-speech`.
 
 There is no `sdk/react` any more — the React client package was deprecated and
@@ -53,8 +53,8 @@ is built and deployed. This file is only the things that will bite you.
 | `build-demos-web` | `voqal-cloud-dev` | `^main$` | web artifact → `gs://voqal-cloud-dev-web-artifacts/web/latest.json` |
 | `build-demos-web` | `voqal-cloud-prod` | `^prod$` | web artifact → the prod bucket's `web/latest.json` |
 
-This is the same shape every other service already had (cortex, pygato,
-controlplane, marketing are all `main` → dev, `prod` → prod in `voqalcloud`). The
+This is the same shape every other service already had (cortex, the voice runtime,
+controlplane, marketing are all `main` → dev, `prod` → prod in `voqalize/platform`). The
 demos were the sole exception until 2026-08-07: both production triggers watched
 `^main$`, so one `git push origin main` had the brains behind `voqalize.com/demos/*`
 running your commit about four minutes later, with no gate, no soak and no canary
@@ -113,7 +113,7 @@ Consequences to internalize:
   ```
 - The web half is a two-step: `build-demos-web` only *stages* an artifact and moves
   `latest.json`. The apex site (`voqalize.com`) picks it up on the **next**
-  `deploy-marketing-prod` run (fired by `voqalcloud`'s `prod` branch), which reads
+  `deploy-marketing-prod` run (fired by `voqalize/platform`'s `prod` branch), which reads
   `latest.json` unless `_WEB_SHA` pins a version. So a UI change sits armed until
   someone deploys marketing for an unrelated reason — and then ships.
 - **Which trigger fires is decided by `includedFiles` on the trigger, not by
@@ -193,7 +193,8 @@ on purpose:**
   release, an SDK release and a redeploy to add a language.
 
 **The pairing is refused wherever a configuration is written down** — the
-control plane at `sessions.connect`, PyGato at `session_config.py`, and the
+control plane at `sessions.connect`, the voice runtime (PyGato's `session_config.py`,
+gato's `internal/brain/catalog.go`), and the
 speech tier itself as a backstop — and every tier says the same sentence,
 because none of them owns the roster. The speech tier publishes it at
 `/voices.json`; the others fetch it at boot, in the background, and a fetch that
@@ -208,7 +209,7 @@ control plane, and the display-name table beside it — are gone.
 The surface is **deliberately narrow: voice, language and `stt.patience`.**
 Voices and languages are protobuf enums, so an unserved value is unrepresentable
 rather than silently falling back to the English recognizer. The VAD knobs that
-left the wire in the rewrite stay off it and keep their internal PyGato
+left the wire in the rewrite stay off it and keep the voice runtime's internal
 defaults. `patience` came back in 0.5.0 as a step on a 0-to-10 scale rather than
 a duration, so it survives a retune of the tier underneath it; unset takes the
 deployment's calibration, which is 7. We widen as we learn.
@@ -228,7 +229,7 @@ documentation for every consumer, not just for whoever opens the file.
 ### The call a brain actually makes
 
 `await session.configure(Config(tts=…, stt=…, idle=…))` — one method, one wire
-op, three optional sections. `Config.__post_init__` raises `ConfigError` on the
+op, optional sections. `Config.__post_init__` raises `ConfigError` on the
 pairing rule, at the call site, before anything reaches the socket; the clip
 rule is not checked here and comes back as `RequestRejected`. Voice and language
 are the `Voice` / `Language` enums from `voqalize.sdk.wire`, whose members are
@@ -405,7 +406,7 @@ docs describe — so the page is compared there and only there; everywhere else 
 proto join still runs and the page check is skipped, because dev and prod are
 *supposed* to differ between a release and its promotion.
 
-Facts whose source is a registry or one of the three sibling repos cannot be
+Facts whose source is a registry or a sibling repo cannot be
 derived from this tree; they carry the command that re-earns the stamp, and
 `--attested` lists them with the age of the last check. Run `--sweep` when you
 want the retired synonyms too — mostly ordinary English, so it is advisory and a

@@ -267,7 +267,7 @@ agent in this order:
    the brain in text mode, with no audio and no human. Then talk to it live at the
    agent's `test_url`.
 6. **Embed in the browser** — `create_api_key(tenant, agent_id, label, kind="publishable", …)`
-   → `pk_…`, then [the handshake](/build/connect/) — no package to install.
+   → `pk_…`, then [the handshake](/build/connect/) — pipecat's client on `@voqalize/client-transport`.
 7. **Instrument it** — `on_finalize` / `on_error` brain-side, `list_sessions` /
    `get_call_record` / `get_session_logs` on ours.
 

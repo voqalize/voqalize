@@ -130,11 +130,11 @@ lookup replaces what it inferred.
 speech in and out, the brain WebSocket, teardown.
 
 `level` is a floor — start at `INFO`, drop to `DEBUG` once you know roughly where
-the problem is. `service` narrows to one surface: `service="pygato"` marks the
-lines written by the process that holds the call, and it is the one worth
-reading first. That string is an internal name — a log field, not vocabulary.
-The other place you will meet it is the `iss` claim on the brain-connection
-token, in [the wire](/reference/wire/).
+the problem is. `service` narrows to one surface. The lines written by the
+process that holds the call are the ones worth reading first; their `service`
+value is an internal name — a log field, not vocabulary — and it is changing as
+that process is replaced, so take it from a line you have read rather than
+hard-coding it.
 
 Do not write assertions against their wording. That is what the record is
 for.
