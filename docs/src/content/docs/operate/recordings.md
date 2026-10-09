@@ -40,8 +40,8 @@ See [keys and authentication](/build/keys/).
 ## What you get back
 
 `get_recordings(tenant, session_id)` returns one entry **per role**. Every
-recorded session has the audio roles: `user` (the user's microphone), `agent`
-(what was spoken back) and `mixed` (those summed). Each of them reports an entry
+recorded session has the audio roles: `user_audio` (the user's microphone),
+`agent_audio` (what was spoken back) and `audio` (those summed). Each of them reports an entry
 whatever happened to it — a caller who can only see the tracks that worked
 cannot tell "the agent never spoke" from "we never recorded the agent".
 
@@ -50,7 +50,7 @@ A session whose page turned on the camera or shared a screen also has video:
 | Role | `content_type` | What it is |
 |---|---|---|
 | `camera`, `screen` | `video/webm` | Each lane as the browser sent it, VP8. A lane the page never turned on has no entry. |
-| `composite` | `video/mp4` | The one to watch: the screen full-frame with the camera inset, or whichever lane the session had, over `mixed`. H.264 and AAC. A session with no video has none. |
+| `composite` | `video/mp4` | The one to watch: the screen full-frame with the camera inset, or whichever lane the session had, over `audio`. H.264 and AAC. A session with no video has none. |
 
 `camera` and `screen` also carry a `timeline` — when the lane was on, when its
 picture froze and why, its resolution over time, and whether it is in sync with
@@ -60,10 +60,10 @@ render failed or that was recorded before the field existed.
 [Camera and screen](/build/video/#the-timeline-off-is-not-frozen) turns the
 lanes on, and reads the timeline field by field.
 
-**`mixed` is the one to play back.** The separate tracks are what you inspect
+**`audio` is the one to play back.** The separate tracks are what you inspect
 when you need the channels apart, because missing agent audio is a different
-fault from missing user audio, and they are the primary sources `mixed` is
-rendered from. So `mixed` exists only when both of them rendered; when one did
+fault from missing user audio, and they are the primary sources `audio` is
+rendered from. So `audio` exists only when both of them rendered; when one did
 not, it reports the way an unrendered track does.
 
 All of them, video included, carry the same `started_at`, `ended_at` and
@@ -78,16 +78,16 @@ it has one.
 
 During the session the node writes the raw RTP of every recorded track to
 disk, undecoded — no codec work and no timestamp arithmetic on the call path.
-When the session ends it renders `user.webm` and `agent.webm`, each running from
+When the session ends it renders `user_audio.webm` and `agent_audio.webm`, each running from
 the moment the call connected to the moment it ended: gaps are padded with
 silence and they are sample-aligned, so both come out the same length and one
-offset names the same instant in both. `mixed.webm` is those summed. Connect and
+offset names the same instant in both. `audio.webm` is those summed. Connect and
 end are the instants `duration_secs` is measured between, so a completed track
 is as long as the session it came from — see [usage and limits](/operate/usage/).
 
 A video lane is placed on the same timeline and written as `camera.webm` or
 `screen.webm` without being re-encoded. `composite.mp4` is rendered after them,
-from the lanes and `mixed`.
+from the lanes and `audio`.
 
 The raw capture uploads beside the files as `capture.tar.gz` — a
 `capture-{role}.rtpcap` per captured track, `sender-reports.rtpcap` (the clock

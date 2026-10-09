@@ -877,9 +877,9 @@ facts:
   # must not reach production before the feature does.
 
   recording.roles:
-    value: [user, agent, mixed, camera, screen, composite]
+    value: [user_audio, agent_audio, audio, camera, screen, composite]
     source: platform/backend/controlplane/app/domains/sessions/documents.py RecordingRole
-    verified: 2026-10-07
+    verified: 2026-10-09
     reproduce: >-
       grep -n 'RecordingRole = \|RECORDING_FORMATS\|": ("' 
       ../platform/backend/controlplane/app/domains/sessions/documents.py
@@ -887,8 +887,8 @@ facts:
     note: >-
       The audio roles are on every recorded session. camera and screen exist
       only for a lane the page published, and composite only when a lane's file
-      and mixed both rendered. Stored types (storage_paths.RECORDING_FORMATS):
-      user/agent/mixed audio/webm, camera/screen video/webm (VP8, not
+      and audio both rendered. Stored types (storage_paths.RECORDING_FORMATS):
+      user_audio/agent_audio/audio audio/webm, camera/screen video/webm (VP8, not
       re-encoded), composite video/mp4 (H.264 + AAC). Only camera and screen
       carry a `timeline` (documents.TIMELINE_ROLES).
     forbid:

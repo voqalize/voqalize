@@ -150,7 +150,7 @@ records whatever arrives.
 | Role | What to take it for |
 | --- | --- |
 | `camera`, `screen` | The picture, each lane as the browser sent it (VP8 WebM). |
-| `mixed` | The sound, both sides in one mono track. Or take `user` and `agent` to place the two sides yourself. |
+| `audio` | The sound, both sides in one mono track. Or take `user_audio` and `agent_audio` to place the two sides yourself. |
 
 Every file starts at the session's start (`started_at`) and runs its whole
 length, so no offsets are needed: a moment is the same time in each. Keep each
@@ -215,14 +215,14 @@ while it is off.
 
 ### An ffmpeg example
 
-The camera inset bottom right over the screen, with the mixed audio. Each
+The camera inset bottom right over the screen, with the `audio` track. Each
 `enable` is that lane's `episodes`, one `between` per episode, so the canvas
 shows black while a lane is off instead of its last frame. The camera's spans
 are the example timeline's above; the screen's come from its own entry the
 same way:
 
 ```sh
-ffmpeg -copyts -i screen.webm -i camera.webm -i mixed.webm -filter_complex "
+ffmpeg -copyts -i screen.webm -i camera.webm -i audio.webm -filter_complex "
   color=black:size=1280x720:rate=30[bg];
   [0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:-1:-1[screen];
   [1:v]scale=-2:180[cam];
