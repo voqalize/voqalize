@@ -5,7 +5,7 @@ Pipecat-free: installing the SDK pulls no ``pipecat`` dependency. Only protobuf
 
 Public surface:
 - The frame dataclasses plus ``Frame``, and the enums they carry —
-  ``ErrorCode`` and ``RTVIType``.
+  ``ErrorCode``, ``RTVIType`` and ``Capability``.
 - ``Config`` and its three sections, the ``Voice`` and ``Language`` catalogs,
   and ``ConfigError`` — one configuration type used at session creation and for
   changes made by the brain while the call is running.
@@ -21,6 +21,7 @@ Public surface:
 from .frames import (
     WIRE_VERSION,
     CancelFrame,
+    Capability,
     Config,
     ConfigError,
     ConfigureFrame,
@@ -37,6 +38,7 @@ from .frames import (
     RTVIFrame,
     RTVIType,
     SessionStartFrame,
+    SpeechCancelFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
@@ -64,6 +66,7 @@ __all__ = [
     "WIRE_VERSION",
     "AuthRejected",
     "CancelFrame",
+    "Capability",
     "Config",
     "ConfigError",
     "ConfigureFrame",
@@ -83,6 +86,7 @@ __all__ = [
     "RTVIType",
     "ResponseFrame",
     "SessionStartFrame",
+    "SpeechCancelFrame",
     "SpeechChunkFrame",
     "SpeechEndFrame",
     "SpeechStartFrame",

@@ -64,6 +64,13 @@ message Envelope {
     // One tunnelled pipecat RTVI message.
     RTVIFrame rtvi = 11;
 
+    // Voice plane, B→V, appended after the RTVI plane because tags are
+    // append-only.
+
+    // Stops one speech unit now and closes it. Its Finalize says what was
+    // heard.
+    SpeechCancel speech_cancel = 15;
+
     // Lifecycle, both directions.
 
     // Hang up, having said everything already sent.
@@ -93,6 +100,22 @@ message SessionStart {
   // The wire version the runtime speaks. A brain that speaks another one must
   // refuse rather than guess.
   uint32 wire_version = 4;
+
+  // What this runtime does beyond the wire version's baseline. A brain checks
+  // it before relying on an optional frame: a runtime that predates a frame
+  // skips it rather than refusing it, so sending one it does not list is
+  // silently a no-op.
+  repeated Capability capabilities = 5;
+}
+
+// An optional behaviour a runtime may advertise in SessionStart. Adding one is
+// append-only and does not change the wire version.
+enum Capability {
+  // Never sent. Present because proto3 requires a zero value.
+  CAPABILITY_UNSPECIFIED = 0;
+
+  // The runtime honours SpeechCancel.
+  CAPABILITY_SPEECH_CANCEL = 1;
 }
 
 // A committed user utterance, on a turn of its own.
@@ -136,6 +159,12 @@ message Finalize {
   // cross-unit concatenation. Equal to what the brain generated means it played
   // out; shorter means it was cut off; empty against chunks that were sent means
   // nothing reached the ear.
+  //
+  // "Played" means released on the runtime's playout clock — handed to the
+  // outbound media — and it is word-granular. It is accurate to about one word
+  // either way: audio already in the network or the caller's jitter buffer
+  // still plays after a cut, so a cautious reader assumes the caller may have
+  // heard one word more.
   string heard_text = 2;
 
   // Was `FinalizeReason reason`, retired 2026-08-27. Whether a unit was cut is
@@ -169,9 +198,26 @@ message SpeechChunk {
   string text = 2;
 }
 
-// Closes one speech unit. A Finalize follows once the audio resolves.
+// Closes one speech unit. A Finalize follows once the audio resolves. Every
+// SpeechStart is closed by exactly one of SpeechEnd or SpeechCancel; a
+// SpeechEnd after a SpeechCancel for the same unit is ignored.
 message SpeechEnd {
   // The unit being closed.
+  uint64 speech_id = 1;
+}
+
+// Stops one speech unit now and closes it. Nothing more of it will be spoken:
+// text not yet played is dropped, and later SpeechChunk or SpeechEnd frames for
+// it are ignored rather than rejected, since a generator may race the cancel.
+// There is no acknowledgement — the unit's Finalize is the answer, carrying
+// what the caller heard before the cut. It does not end the turn: no
+// Interruption follows, and the brain may open a new unit on the same turn.
+//
+// Cancelling a unit that already finalized, or cancelling twice, changes
+// nothing and sends nothing; its one Finalize has arrived or is on its way.
+// A runtime honours this only if SessionStart lists CAPABILITY_SPEECH_CANCEL.
+message SpeechCancel {
+  // The unit to stop. Must name a unit this session opened.
   uint64 speech_id = 1;
 }
 

@@ -34,7 +34,7 @@ class; nothing here imports it.
 from ._logging import configure_logging, session_context
 from .actions import Action
 from .app_events import AppEvent, AppEvents
-from .brain import Brain, RequestRejected, Session, WireError, serve
+from .brain import Brain, RequestRejected, Session, Unsupported, WireError, serve
 from .events import (
     Chunk,
     Error,
@@ -69,6 +69,7 @@ __all__ = [
     "SpeechChunk",
     "SpeechEnd",
     "SpeechStart",
+    "Unsupported",
     "UserIdle",
     "UserMessage",
     "WireError",

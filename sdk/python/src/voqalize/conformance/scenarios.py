@@ -30,10 +30,15 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
+from voqalize.sdk.wire import SpeechChunkFrame, SpeechEndFrame
+
 from . import checks
 from .driver import VoqalizeDriver
 from .reference import (
     BARGE_SENTINEL,
+    CANCEL_CORRECTION,
+    CANCEL_OPENING,
+    CANCEL_PREFIX,
     COUNT_SLOWLY,
     DO_PREFIX,
     GREETING_TEXT,
@@ -386,6 +391,69 @@ async def scn_heard_truth_barge_in_before_audio(ctx: ScenarioContext) -> None:
     )
 
 
+async def scn_speech_cancel(ctx: ScenarioContext) -> None:
+    """The brain takes its own speech back mid-unit, then speaks again on the same
+    turn. (Reference grammar: ``cancel after <text>``.)
+
+    The cancel closes the unit — no ``SpeechEnd`` follows it and nothing the brain
+    generates for it afterwards reaches the wire. Voqalize answers with the unit's
+    one ``Finalize`` and nothing else: no acknowledgement, no ``Interruption``. The
+    driver finalizes the cut unit with its first chunk only, a cut mid-playout, so
+    the brain must read it as interrupted and commit only that prefix. The turn
+    stays open, and the next unit on it is heard in full."""
+    driver = await ctx.connect()
+    driver.heard_on_cancel = lambda unit: unit.texts[0] if unit.texts else ""
+    await driver.start_session()
+    turn = await driver.user_says(f"{CANCEL_PREFIX}the answer is 42")
+    checks.check_completed(turn)
+    checks.check_brackets_closed(turn)
+    checks.check_watermark_not_echoed(driver)
+    checks.require(
+        len(turn.units) == 2,
+        f"expected the cancelled unit and its correction, saw {len(turn.units)} units",
+    )
+    cut, correction = turn.units
+    checks.require(
+        cut.cancelled and [c.speech_id for c in driver.cancels] == [cut.speech_id],
+        f"expected one SpeechCancel for unit {cut.speech_id}, saw "
+        f"{[c.speech_id for c in driver.cancels]}",
+    )
+    checks.require(
+        not any(
+            isinstance(r.frame, SpeechEndFrame | SpeechChunkFrame)
+            and r.frame.speech_id == cut.speech_id
+            and r.t > (cut.ended_t or 0.0)
+            for r in driver.log
+        ),
+        f"unit {cut.speech_id} sent frames after its SpeechCancel — a cancel closes the unit",
+    )
+    checks.require(
+        correction.text == CANCEL_CORRECTION,
+        f"the unit after the cancel said {correction.text!r}, not {CANCEL_CORRECTION!r}",
+    )
+    state = await driver.dump_conversation()
+    checks.require(
+        state.get("cancelled")
+        == [
+            {
+                "speech_id": cut.speech_id,
+                "heard": CANCEL_OPENING,
+                "generated": f"{CANCEL_OPENING}the answer is 42. ",
+            }
+        ],
+        f"cancel_speech returned {state.get('cancelled')!r}, not the unit's Finalize",
+    )
+    checks.check_conversation_sequence(
+        state,
+        expected=[
+            {"role": "assistant", "content": GREETING_TEXT},
+            {"role": "user", "content": f"{CANCEL_PREFIX}the answer is 42"},
+            {"role": "assistant", "content": CANCEL_OPENING},
+            {"role": "assistant", "content": CANCEL_CORRECTION},
+        ],
+    )
+
+
 async def scn_action_dispatch(ctx: ScenarioContext) -> None:
     """The brain fires a UI action; it arrives as an RTVI ``ui-command`` naming
     the action, with its fields nested under ``payload``. (Reference grammar:
@@ -532,6 +600,14 @@ CATALOG: list[Scenario] = [
         "heard_truth_barge_in_before_audio",
         "Barge-in before any audio: no assistant message committed, user turn kept.",
         scn_heard_truth_barge_in_before_audio,
+        requires_reference=True,
+        tags=("interruption",),
+    ),
+    Scenario(
+        "speech_cancel",
+        "The brain cancels its own unit mid-play, reads its Finalize, and speaks "
+        "again on the same turn.",
+        scn_speech_cancel,
         requires_reference=True,
         tags=("interruption",),
     ),

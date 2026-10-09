@@ -37,6 +37,12 @@ it has no recognizer for becomes a :class:`RequestRejected` you handle, rather
 than a call that runs on sounding wrong and reports nothing. It is safe to await
 from anywhere a brain runs, including from inside a turn.
 
+``cancel_speech`` is the one way a brain takes speech back. It names a unit by
+the id the SDK wrote onto its ``SpeechStart``, stops it where playout has got
+to, and returns that unit's :class:`Finalize` — what the user heard before the
+cut. It is not a barge-in: the turn stays open, and the generator may go on to
+open another unit. A guardrail that flags text already sent is what it is for.
+
 The turn is over when the generator returns. **It does not wait for the audio to
 finish playing**, which is the part that surprises people: what the user actually
 heard arrives later, per speech unit, at :meth:`Brain.on_finalize`.
@@ -48,6 +54,7 @@ Mapping onto the wire:
 - ``on_rtvi``               ← ``RTVIFrame``
 - ``SpeechStart``/``SpeechEnd`` → ``Speech{Start,End}Frame`` (mints one ``speech_id``)
 - ``SpeechChunk``                 → ``SpeechChunkFrame``
+- ``session.cancel_speech`` → ``SpeechCancelFrame``, answered by that unit's ``FinalizeFrame``
 - ``on_finalize``           ← ``FinalizeFrame``
 - ``session.send_rtvi``     → ``RTVIFrame``
 - an ``Action``             → an RTVI ``ui-command``
@@ -63,6 +70,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections import OrderedDict
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextvars import ContextVar
 from typing import Any
@@ -85,6 +93,7 @@ from .events import (
 from .outbound import CortexAgent
 from .wire import (
     WIRE_VERSION,
+    Capability,
     Config,
     ConfigureFrame,
     ConfigureRequest,
@@ -98,6 +107,7 @@ from .wire import (
     RTVIFrame,
     RTVIType,
     SessionStartFrame,
+    SpeechCancelFrame,
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
@@ -110,6 +120,7 @@ __all__ = [
     "Brain",
     "RequestRejected",
     "Session",
+    "Unsupported",
     "WireError",
     "serve",
 ]
@@ -120,15 +131,23 @@ _current_turn: ContextVar[int | None] = ContextVar("voqalize_turn", default=None
 
 #: How long a `session.configure_*` call waits for Voqalize's answer. Comfortably
 #: past Voqalize's own wait on the recognizer, so a rejection in flight
-#: arrives as a rejection rather than as a timeout.
+#: arrives as a rejection rather than as a timeout. `session.cancel_speech`
+#: waits the same bound for its unit's Finalize.
 REQUEST_TIMEOUT_S = 10.0
+
+#: How many settled units `session.cancel_speech` still answers from memory. A
+#: guardrail's verdict on a unit lands seconds after it, not minutes, so this is
+#: the recent past; an id older than it raises rather than wait for a Finalize
+#: that already came.
+_SETTLED_KEPT = 64
 
 
 class WireError(RuntimeError):
     """A brain broke one of its four obligations:
 
     1. **Balanced brackets.** Every ``SpeechStart`` is followed by a
-       ``SpeechEnd``; a ``SpeechChunk`` outside a unit is a wire error.
+       ``SpeechEnd``, or cancelled with ``session.cancel_speech``; a
+       ``SpeechChunk`` outside a unit is a wire error.
     2. **You don't block.** A callback that stalls holds the floor open and the
        user hears nothing.
     3. **You don't speak outside a speaking callback.**
@@ -154,6 +173,26 @@ class RequestRejected(RuntimeError):
         self.detail = detail
 
 
+class Unsupported(RuntimeError):
+    """The Voqalize serving this session does not honour the call you made.
+
+    Raised before anything is sent. Voqalize says what it honours beyond the
+    wire version's baseline when the session opens, and a frame it did not list
+    would be skipped rather than refused — so the SDK refuses here, where the
+    difference is still visible. Check first with the matching ``session.can_*``
+    property; ``capability`` names what was missing.
+    """
+
+    def __init__(self, op: str, capability: Capability) -> None:
+        super().__init__(
+            f"{op}: the Voqalize serving this session does not support it "
+            f"(it did not advertise {capability.value!r}). Check the matching "
+            f"session.can_* property before calling."
+        )
+        self.op = op
+        self.capability = capability
+
+
 # ─── The session ──────────────────────────────────────────────────────────────
 
 
@@ -167,13 +206,23 @@ class Session:
     brain.
     """
 
-    def __init__(self, adapter: _BrainAdapter, session_id: str, init: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        adapter: _BrainAdapter,
+        session_id: str,
+        init: dict[str, Any],
+        capabilities: frozenset[Capability] = frozenset(),
+    ) -> None:
         self._adapter = adapter
         #: The session id Voqalize assigned.
         self.id = session_id
         #: The opaque init data Voqalize was handed at connect. Read your own keys
         #: out of it — the SDK never interprets it.
         self.init = init
+        #: What this Voqalize honours beyond the wire version's baseline, as it
+        #: said when the session opened. Read the ``can_*`` properties rather
+        #: than this set.
+        self.capabilities = capabilities
         # One id per speech unit, session-monotonic. Voqalize never reads it — it
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.
@@ -183,6 +232,17 @@ class Session:
         self._request_seq = 0
         self._awaiting: dict[int, asyncio.Future[ResponseFrame]] = {}
         self._ended = False
+        # Units opened and not yet finalized; the recently finalized, by id, so a
+        # cancel that lost the race to playout still has an answer; the units
+        # this end cancelled, whose later frames the adapter drops; and whoever
+        # is blocked on a cancelled unit's Finalize.
+        self._open: set[int] = set()
+        self._settled: OrderedDict[int, Finalize] = OrderedDict()
+        self._cancelled: set[int] = set()
+        # Cancelled units whose SpeechEnd the generator already yielded and the
+        # adapter held back. Sent after all if the cancel goes unanswered.
+        self._end_withheld: set[int] = set()
+        self._finals: dict[int, asyncio.Future[Finalize]] = {}
 
     # ─── The app ────────────────────────────────────────────────────────
 
@@ -224,6 +284,9 @@ class Session:
         for future in self._awaiting.values():
             future.cancel()
         self._awaiting.clear()
+        for final in self._finals.values():
+            final.cancel()
+        self._finals.clear()
 
     # ─── Ending the call ────────────────────────────────────────────────
 
@@ -334,11 +397,132 @@ class Session:
         if not future.done():
             future.set_result(frame)
 
+    # ─── Taking speech back ─────────────────────────────────────────────
+
+    @property
+    def can_cancel_speech(self) -> bool:
+        """Whether this Voqalize honours :meth:`cancel_speech`. Fixed for the
+        session's life — it is what Voqalize said when the session opened."""
+        return Capability.SPEECH_CANCEL in self.capabilities
+
+    async def cancel_speech(self, speech_id: int | None) -> Finalize:
+        """Stop one speech unit now, and return what the user heard of it.
+
+        Name the unit by the id the SDK wrote onto its ``SpeechStart``::
+
+            async def on_user_message(self, session, msg):
+                start = SpeechStart()
+                yield start
+                async for piece in self.llm.stream(msg.text):
+                    if self.guardrail.flags(piece):
+                        fin = await session.cancel_speech(start.speech_id)
+                        self.history.append(fin.heard)   # what was actually said
+                        break
+                    yield SpeechChunk(piece)
+                else:
+                    yield SpeechEnd()
+
+        Voqalize drops whatever of the unit has not played and answers with the
+        unit's :class:`Finalize` — the one it owes every unit, so there is no
+        second answer and no acknowledgement. ``fin.heard`` is a verbatim prefix
+        of ``fin.generated``, accurate to about a word either way; audio already
+        on its way to the user cannot be recalled, so a cautious reading is that
+        they may have heard one word more. :meth:`Brain.on_finalize` still fires
+        for the unit, as it does for every unit.
+
+        **The turn stays open.** This is not a barge-in: no other turn is cut and
+        the generator may go on to open a new unit on the same turn. A cancelled
+        unit needs no ``SpeechEnd``, and any ``SpeechChunk`` or ``SpeechEnd`` the
+        generator yields for it afterwards is dropped here, so stopping your own
+        model is the only thing left to do. Today the cut stops every unit still
+        playing or queued, not just this one — including a later unit still
+        streaming, whose remaining yields are dropped the same way; each gets its
+        own truthful :class:`Finalize`.
+
+        - A unit that already finished returns its :class:`Finalize` at once, and
+          sends nothing. So does a second cancel of the same unit.
+        - Raises :class:`Unsupported` before sending anything when
+          :attr:`can_cancel_speech` is false.
+        - Raises ``ValueError`` for an id this session never opened, or ``None``
+          — a ``SpeechStart`` the SDK has not consumed yet has no id.
+        - Raises ``TimeoutError`` if the Finalize has not arrived within
+          ``REQUEST_TIMEOUT_S``. The unit then counts as still open: a
+          ``SpeechEnd`` the generator already yielded is sent now, and otherwise
+          close it with ``SpeechEnd`` as usual.
+
+        Safe from a turn and from ``on_rtvi`` or a task of your own. Not from
+        :meth:`Brain.on_finalize` or :meth:`Brain.on_error` for a *different*
+        unit: those run in line with incoming frames, so the Finalize this waits
+        for queues behind the callback that is waiting for it.
+        """
+        if not self.can_cancel_speech:
+            raise Unsupported("cancel_speech", Capability.SPEECH_CANCEL)
+        if speech_id is None:
+            raise ValueError(
+                "cancel_speech: this SpeechStart has no speech_id yet. The SDK writes "
+                "it when it consumes the yield, so cancel after `yield start`."
+            )
+        settled = self._settled.get(speech_id)
+        if settled is not None:
+            return settled
+        if speech_id not in self._open:
+            if 0 < speech_id <= self._speech_seq:
+                raise ValueError(
+                    f"cancel_speech: speech {speech_id} finalized more than "
+                    f"{_SETTLED_KEPT} units ago, and its Finalize went to on_finalize"
+                )
+            raise ValueError(f"cancel_speech: speech {speech_id} was never opened by this session")
+        final = self._finals.get(speech_id)
+        if final is None:
+            final = asyncio.get_running_loop().create_future()
+            self._finals[speech_id] = final
+        if speech_id not in self._cancelled:
+            self._cancelled.add(speech_id)
+            self._adapter.emit(SpeechCancelFrame(speech_id=speech_id))
+        try:
+            # Shielded, because two callers may wait on one unit and a timeout in
+            # one of them must not cancel the answer for the other.
+            return await asyncio.wait_for(asyncio.shield(final), REQUEST_TIMEOUT_S)
+        except TimeoutError:
+            # Unanswered, so not evidently closed: stop suppressing the unit, and
+            # its SpeechEnd — the generator's, or the one a finished turn sends —
+            # still goes out to close it.
+            self._cancelled.discard(speech_id)
+            if speech_id in self._end_withheld:
+                self._end_withheld.discard(speech_id)
+                self._adapter.emit(SpeechEndFrame(speech_id=speech_id))
+            raise TimeoutError(
+                f"cancel_speech: Voqalize did not finalize speech {speech_id} within "
+                f"{REQUEST_TIMEOUT_S:g}s"
+            ) from None
+
     # ─── Internal ───────────────────────────────────────────────────────
 
     def _next_speech_id(self) -> int:
         self._speech_seq += 1
+        self._open.add(self._speech_seq)
         return self._speech_seq
+
+    def _is_closed(self, speech_id: int) -> bool:
+        """Whether nothing more of this unit may go on the wire: cancelled, or
+        already finalized while it was still open."""
+        return speech_id in self._cancelled or speech_id not in self._open
+
+    def _withhold_end(self, speech_id: int) -> None:
+        """The generator closed a unit whose cancel is still unanswered."""
+        if speech_id in self._cancelled and speech_id in self._open:
+            self._end_withheld.add(speech_id)
+
+    def _settle_unit(self, fin: Finalize) -> None:
+        """Record a unit's one Finalize, and wake whoever cancelled it."""
+        self._open.discard(fin.speech_id)
+        self._end_withheld.discard(fin.speech_id)
+        self._settled[fin.speech_id] = fin
+        while len(self._settled) > _SETTLED_KEPT:
+            self._settled.popitem(last=False)
+        final = self._finals.pop(fin.speech_id, None)
+        if final is not None and not final.done():
+            final.set_result(fin)
 
 
 # ─── The Brain contract ───────────────────────────────────────────────────────
@@ -522,6 +706,9 @@ class Brain:
 
         ``fin.generated`` is what you sent, kept by the SDK, so ``fin.interrupted``
         is the two of them differing rather than a flag you have to trust.
+
+        A unit you stopped with :meth:`Session.cancel_speech` is reported here
+        too, with the same :class:`Finalize` that call returned.
         """
 
 
@@ -594,14 +781,15 @@ class _BrainAdapter:
         elif isinstance(frame, InterruptionFrame):
             await self._raise_watermark(frame.through_turn)
         elif isinstance(frame, FinalizeFrame):
-            await self._brain.on_finalize(
-                session,
-                Finalize(
-                    speech_id=frame.speech_id,
-                    heard=frame.heard_text,
-                    generated=self._generated.pop(frame.speech_id, ""),
-                ),
+            fin = Finalize(
+                speech_id=frame.speech_id,
+                heard=frame.heard_text,
+                generated=self._generated.pop(frame.speech_id, ""),
             )
+            # Settled before the hook runs, so a cancel of this very unit from
+            # inside on_finalize answers from memory instead of waiting on itself.
+            session._settle_unit(fin)
+            await self._brain.on_finalize(session, fin)
         elif isinstance(frame, RTVIFrame):
             self._deliver_rtvi(session, frame)
         elif isinstance(frame, ErrorFrame):
@@ -627,7 +815,7 @@ class _BrainAdapter:
     # ─── Session start, then the opening line ───────────────────────────
 
     async def _start(self, frame: SessionStartFrame) -> None:
-        session = Session(self, frame.session_id, dict(frame.init))
+        session = Session(self, frame.session_id, dict(frame.init), frame.capabilities)
         self._session = session
         self._brain._session = session
         if frame.wire_version != WIRE_VERSION:
@@ -704,27 +892,46 @@ class _BrainAdapter:
         :class:`~voqalize.sdk.Finalize` as ``generated``. Voqalize reports the
         heard prefix and nothing more, so this end holds what the prefix is a
         prefix *of* — and a cut unit is the two of them differing.
+
+        The id minted for a unit is written onto the ``SpeechStart`` the brain
+        yielded, so the brain can name it to ``session.cancel_speech``. A unit
+        the brain cancelled is closed by that cancel: its later chunks and its
+        ``SpeechEnd`` are dropped here, and a new ``SpeechStart`` may follow it
+        directly. Dropped chunks are not ``generated`` — that is what went on
+        the wire.
+
+        A unit Voqalize finalized while it was still open is closed the same
+        way. That is how a cancel of an *earlier* unit lands on the one still
+        streaming, because the cut stops every unit queued so far: the unit has
+        had its one Finalize, so nothing more of it goes out.
         """
         speech_id: int | None = None
         cut = False
         try:
             async for event in gen:
+                closed = speech_id is not None and session._is_closed(speech_id)
                 if isinstance(event, SpeechStart):
-                    if speech_id is not None:
+                    if speech_id is not None and not closed:
                         raise WireError("SpeechStart inside an open speech unit")
                     speech_id = session._next_speech_id()
+                    # Frozen for the brain, written once here: the id is minted,
+                    # never chosen, and this is the one place it is minted.
+                    object.__setattr__(event, "speech_id", speech_id)
                     self._generated[speech_id] = ""
                     self.emit(SpeechStartFrame(speech_id=speech_id, turn_id=turn_id))
                 elif isinstance(event, SpeechChunk):
                     if speech_id is None:
                         raise WireError("SpeechChunk outside a speech unit")
-                    if event.text:
+                    if event.text and not closed:
                         self._generated[speech_id] += event.text
                         self.emit(SpeechChunkFrame(speech_id=speech_id, text=event.text))
                 elif isinstance(event, SpeechEnd):
                     if speech_id is None:
                         raise WireError("SpeechEnd with no open speech unit")
-                    self.emit(SpeechEndFrame(speech_id=speech_id))
+                    if closed:
+                        session._withhold_end(speech_id)
+                    else:
+                        self.emit(SpeechEndFrame(speech_id=speech_id))
                     speech_id = None
                 else:
                     raise WireError(f"a brain may not yield {type(event).__name__}")
@@ -733,7 +940,10 @@ class _BrainAdapter:
             raise
         finally:
             if speech_id is not None and not cut:
-                self.emit(SpeechEndFrame(speech_id=speech_id))
+                if session._is_closed(speech_id):
+                    session._withhold_end(speech_id)
+                else:
+                    self.emit(SpeechEndFrame(speech_id=speech_id))
             await gen.aclose()
 
     def _spawn_turn(

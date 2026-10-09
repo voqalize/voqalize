@@ -15,6 +15,42 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.8.0
+
+Additive on the wire and in the package API: a brain on 0.7.0 is served exactly
+as before, and the wire version stays 3.
+
+### Added
+
+- **`await session.cancel_speech(speech_id)` takes speech back.** It stops one
+  speech unit where playout has got to, drops the rest, and returns that unit's
+  `Finalize` — what the user heard before the cut, accurate to about a word.
+  It is the call a guardrail beside your model makes when it flags text already
+  sent. The turn stays open, so the brain can open a new unit straight away;
+  the cancelled unit needs no `SpeechEnd`, and anything yielded for it
+  afterwards is dropped rather than sent. `on_finalize` still fires for it. A
+  unit that already finished, or a second cancel, returns the `Finalize` already
+  received and sends nothing.
+- **`SpeechStart.speech_id`.** The SDK writes the id it minted onto the
+  `SpeechStart` you yielded, so you can name the unit later. It is not a
+  constructor argument and plays no part in equality.
+- **`session.capabilities` and `session.can_cancel_speech`**, from the new
+  `SessionStart.capabilities` field: what this Voqalize honours beyond the wire
+  version's baseline. `cancel_speech` raises the new **`Unsupported`** before
+  sending anything when the capability is absent, because a Voqalize that
+  predates the frame would skip it silently. An id the session never opened
+  raises `ValueError`; a `Finalize` that never arrives raises `TimeoutError`
+  after `REQUEST_TIMEOUT_S`.
+- **On the wire:** `SpeechCancel{speech_id}` (envelope tag 15, brain to
+  Voqalize), `SessionStart.capabilities` and the `Capability` enum, with
+  `SpeechCancelFrame` and `Capability` in `voqalize.sdk.wire`. A unit is now
+  closed by `SpeechEnd` or `SpeechCancel`. There is no acknowledgement frame:
+  the unit's `Finalize` is the answer.
+- **The conformance driver honours `SpeechCancel`** and advertises the
+  capability; clear `VoqalizeDriver.capabilities` to play a Voqalize that
+  predates it. A new `speech_cancel` scenario cancels mid-unit and speaks again
+  on the same turn.
+
 ## 0.7.0
 
 Breaking in the package API, not on the wire: a 0.7.0 brain and an older one

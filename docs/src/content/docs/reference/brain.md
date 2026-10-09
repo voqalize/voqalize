@@ -37,6 +37,7 @@ from any callback and from work that outlives one.
 | `RTVIType` | enum | The RTVI message types. See [The RTVI plane](/reference/rtvi/). |
 | `WireError` | exception | A brain broke a wire obligation. |
 | `RequestRejected` | exception | Voqalize refused a `configure` call. |
+| `Unsupported` | exception | The Voqalize serving this session does not honour the call — today, `cancel_speech` without `can_cancel_speech`. Raised before anything is sent. |
 | `SessionRejected` | exception | The connection's token failed verification. |
 | `Channel` | protocol | `send(bytes)` / `recv() -> bytes` — what `run_session` takes. |
 | `run_session` | function | Run one session over a socket your framework accepted. |
@@ -171,6 +172,8 @@ lifetime is exactly the socket's.
 |---|---|---|
 | `id` | `str` | The session id Voqalize assigned — the same string in `?session_id=`, in your logs, and in [the call record](/operate/reading-a-call/). |
 | `init` | `dict[str, Any]` | The opaque init data handed to Voqalize at connect. Read your own keys out of it; the SDK interprets none of it. |
+| `capabilities` | `frozenset[Capability]` | What this Voqalize said it honours beyond the wire version's baseline, at `SessionStart`. Read the `can_*` properties rather than the set. |
+| `can_cancel_speech` | `bool` | Whether `cancel_speech` is honoured. Fixed for the session's life. |
 
 There is no `SessionStart` object in the SDK. The frame's payload arrives as
 these attributes, and its turn id is the turn the greeting is bound to.
@@ -182,6 +185,7 @@ def dispatch(self, action: Action) -> None: ...
 def send_rtvi(self, type: RTVIType, data: Any = None, *, id: str | None = None) -> None: ...
 def end(self, reason: str = "agent_ended") -> None: ...
 async def configure(self, config: Config) -> None: ...
+async def cancel_speech(self, speech_id: int | None) -> Finalize: ...
 ```
 
 **`dispatch`** sends one action to the app and never blocks; nothing comes back.
@@ -237,6 +241,33 @@ is a field left `None` inside a section that is present.
   of the wire. Unset takes the deployment's own calibration, which is 7.
 - The call waits `REQUEST_TIMEOUT_S`, 10.0 seconds, then raises `TimeoutError`
   saying that whether it applied is unknown.
+
+**`cancel_speech`** stops one speech unit now and returns its `Finalize` — what
+the user heard before the cut. Name the unit by the id the SDK wrote onto the
+`SpeechStart` you yielded:
+
+```python
+start = SpeechStart()
+yield start
+...
+fin = await session.cancel_speech(start.speech_id)   # fin.heard, fin.interrupted
+```
+
+- **The answer is the unit's own `Finalize`**, the one Voqalize owes every unit.
+  `on_finalize` still receives it. There is no acknowledgement besides it.
+- **The turn stays open.** No other turn is cut, and the generator may open a
+  new unit straight away. The cancelled unit needs no `SpeechEnd`; anything
+  yielded for it afterwards is dropped by the SDK.
+- **Already finished, or cancelled twice:** returns the `Finalize` already
+  received, and sends nothing.
+- **Refused before sending:** `Unsupported` when `can_cancel_speech` is false;
+  `ValueError` for an id this session never opened, or `None` — a
+  `SpeechStart` the SDK has not consumed yet.
+- The call waits `REQUEST_TIMEOUT_S`, 10.0 seconds, for the `Finalize`, then
+  raises `TimeoutError`.
+- `heard` is accurate to about one word either way, and today the cut stops
+  every unit still playing or queued, each with its own `Finalize`. See
+  [stopping your own speech](/build/brain/speaking/#stopping-your-own-speech).
 
 Raise `patience` for a caller reading a number off a card, or thinking aloud in a
 language they are translating into. Lower it when the turns are short and known —
@@ -299,7 +330,7 @@ carries different names, and a reader moving between this page and
 | — | `interrupted` | Not on the wire either: `heard != generated`. |
 
 `heard` is a verbatim prefix of `generated`, so equal means the unit played out
-and shorter means the user cut it off. Voqalize used to send that verdict as
+and shorter means it was cut off — by the user, or by your own `cancel_speech`. Voqalize used to send that verdict as
 well — a `FinalizeReason` — and stopped, because the end that generated the text
 can work it out, and a copy of a fact you can derive is one more thing that can
 be wrong.
@@ -308,7 +339,8 @@ be wrong.
 
 ```python
 @dataclass(frozen=True)
-class SpeechStart: ...
+class SpeechStart:
+    speech_id: int | None   # not a constructor argument; the SDK writes it as the unit opens
 
 @dataclass(frozen=True)
 class SpeechChunk:
@@ -323,8 +355,13 @@ Speech = SpeechStart | SpeechChunk | SpeechEnd
 One `SpeechStart` … `SpeechEnd` pair is one unit, and a unit is the granularity
 at which Voqalize reports back what the user heard. Yielding anything else, a
 `SpeechChunk` outside a unit, a `SpeechStart` inside one, or a `SpeechEnd` with no unit
-open, raises `WireError`. A `SpeechChunk` with empty text is dropped. See
+open, raises `WireError`. A `SpeechChunk` with empty text is dropped. A unit
+closed by `cancel_speech` needs no `SpeechEnd`. See
 [Speaking](/build/brain/speaking/).
+
+`SpeechStart.speech_id` is `None` until the SDK consumes the yield, then the id
+it minted for that unit — the one `Finalize` names and `cancel_speech` takes. It
+plays no part in equality.
 
 ## Hosting
 
