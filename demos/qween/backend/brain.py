@@ -306,7 +306,13 @@ class ShowSection(Action):
 
 
 ModalName = Literal[
-    "price_breakup", "size_guide", "delivery", "try_on", "gemstone_details", "concierge", "assurance"
+    "price_breakup",
+    "size_guide",
+    "delivery",
+    "try_on",
+    "gemstone_details",
+    "concierge",
+    "assurance",
 ]
 AssuranceName = Literal["natural_stones", "igi_certified", "stone_value", "buyback_exchange"]
 
