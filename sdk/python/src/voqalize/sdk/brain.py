@@ -239,6 +239,9 @@ class Session:
         self._open: set[int] = set()
         self._settled: OrderedDict[int, Finalize] = OrderedDict()
         self._cancelled: set[int] = set()
+        # Cancelled units whose SpeechEnd the generator already yielded and the
+        # adapter held back. Sent after all if the cancel goes unanswered.
+        self._end_withheld: set[int] = set()
         self._finals: dict[int, asyncio.Future[Finalize]] = {}
 
     # ─── The app ────────────────────────────────────────────────────────
@@ -443,8 +446,9 @@ class Session:
         - Raises ``ValueError`` for an id this session never opened, or ``None``
           — a ``SpeechStart`` the SDK has not consumed yet has no id.
         - Raises ``TimeoutError`` if the Finalize has not arrived within
-          ``REQUEST_TIMEOUT_S``. The unit then counts as still open: close it
-          with ``SpeechEnd`` as usual.
+          ``REQUEST_TIMEOUT_S``. The unit then counts as still open: a
+          ``SpeechEnd`` the generator already yielded is sent now, and otherwise
+          close it with ``SpeechEnd`` as usual.
 
         Safe from a turn and from ``on_rtvi`` or a task of your own. Not from
         :meth:`Brain.on_finalize` or :meth:`Brain.on_error` for a *different*
@@ -484,6 +488,9 @@ class Session:
             # its SpeechEnd — the generator's, or the one a finished turn sends —
             # still goes out to close it.
             self._cancelled.discard(speech_id)
+            if speech_id in self._end_withheld:
+                self._end_withheld.discard(speech_id)
+                self._adapter.emit(SpeechEndFrame(speech_id=speech_id))
             raise TimeoutError(
                 f"cancel_speech: Voqalize did not finalize speech {speech_id} within "
                 f"{REQUEST_TIMEOUT_S:g}s"
@@ -496,9 +503,20 @@ class Session:
         self._open.add(self._speech_seq)
         return self._speech_seq
 
+    def _is_closed(self, speech_id: int) -> bool:
+        """Whether nothing more of this unit may go on the wire: cancelled, or
+        already finalized while it was still open."""
+        return speech_id in self._cancelled or speech_id not in self._open
+
+    def _withhold_end(self, speech_id: int) -> None:
+        """The generator closed a unit whose cancel is still unanswered."""
+        if speech_id in self._cancelled and speech_id in self._open:
+            self._end_withheld.add(speech_id)
+
     def _settle_unit(self, fin: Finalize) -> None:
         """Record a unit's one Finalize, and wake whoever cancelled it."""
         self._open.discard(fin.speech_id)
+        self._end_withheld.discard(fin.speech_id)
         self._settled[fin.speech_id] = fin
         while len(self._settled) > _SETTLED_KEPT:
             self._settled.popitem(last=False)
@@ -891,9 +909,7 @@ class _BrainAdapter:
         cut = False
         try:
             async for event in gen:
-                closed = speech_id is not None and (
-                    speech_id in session._cancelled or speech_id not in session._open
-                )
+                closed = speech_id is not None and session._is_closed(speech_id)
                 if isinstance(event, SpeechStart):
                     if speech_id is not None and not closed:
                         raise WireError("SpeechStart inside an open speech unit")
@@ -912,7 +928,9 @@ class _BrainAdapter:
                 elif isinstance(event, SpeechEnd):
                     if speech_id is None:
                         raise WireError("SpeechEnd with no open speech unit")
-                    if not closed:
+                    if closed:
+                        session._withhold_end(speech_id)
+                    else:
                         self.emit(SpeechEndFrame(speech_id=speech_id))
                     speech_id = None
                 else:
@@ -921,13 +939,11 @@ class _BrainAdapter:
             cut = True
             raise
         finally:
-            if (
-                speech_id is not None
-                and not cut
-                and speech_id in session._open
-                and speech_id not in session._cancelled
-            ):
-                self.emit(SpeechEndFrame(speech_id=speech_id))
+            if speech_id is not None and not cut:
+                if session._is_closed(speech_id):
+                    session._withhold_end(speech_id)
+                else:
+                    self.emit(SpeechEndFrame(speech_id=speech_id))
             await gen.aclose()
 
     def _spawn_turn(

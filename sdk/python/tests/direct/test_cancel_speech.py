@@ -103,6 +103,24 @@ class GuardrailBrain(Brain):
             yield SpeechEnd()
             return
 
+        if verb == "guard-unanswered":
+            # The guardrail runs in a task of its own and the model finishes the
+            # unit while the cancel is still waiting for its answer.
+            start = SpeechStart()
+            self.starts.append(start)
+            yield start
+            yield SpeechChunk(FLAGGED)
+            guard = asyncio.create_task(session.cancel_speech(start.speech_id))
+            await asyncio.sleep(0)
+            yield SpeechEnd()
+            try:
+                await guard
+            except TimeoutError as exc:
+                yield SpeechStart()
+                yield SpeechChunk(f"unanswered: {exc}")
+                yield SpeechEnd()
+            return
+
         if verb == "lag":
             # The guardrail is a sentence behind the model: it flags the first
             # unit while the second is already streaming.
@@ -358,6 +376,29 @@ async def test_an_unanswered_cancel_times_out_and_the_turn_goes_on(
     assert len(driver.cancels) == 1
     # Unanswered means not closed, so the generator's SpeechEnd for the unit
     # went out and the bracket closed on the wire, not just in the SDK.
+    cut = turn.units[0]
+    assert cut.ended and not cut.cancelled
+    assert len(_frames_for(driver, cut.speech_id, SpeechEndFrame)) == 1
+    assert turn.units[-1].text.startswith("unanswered: cancel_speech: Voqalize did not finalize")
+    assert turn.completed
+
+
+async def test_an_end_held_back_for_an_unanswered_cancel_is_sent_after_all(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The generator's SpeechEnd arrived while the cancel was pending, so it was
+    # held back as the cancel's to close. Unanswered, the cancel closed nothing,
+    # and that SpeechEnd is now the only thing that can close the bracket.
+    monkeypatch.setattr("voqalize.sdk.brain.REQUEST_TIMEOUT_S", 0.3)
+    driver, server = await _open(GuardrailBrain())
+    try:
+        await driver.start_session()
+        driver.capabilities.clear()
+        turn = await driver.user_says("guard-unanswered", timeout=1.5)
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
     cut = turn.units[0]
     assert cut.ended and not cut.cancelled
     assert len(_frames_for(driver, cut.speech_id, SpeechEndFrame)) == 1

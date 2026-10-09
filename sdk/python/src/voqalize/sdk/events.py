@@ -98,6 +98,10 @@ class SpeechStart:
     ``None`` until the SDK has consumed the yield. Not a constructor argument:
     ids are minted by the SDK, never chosen. It plays no part in equality, so
     every ``SpeechStart()`` still compares equal to every other.
+
+    Yield a fresh ``SpeechStart()`` for each unit you may cancel. The id is
+    written onto the instance each time it is yielded, so one instance shared
+    across units or sessions names only the unit it opened last.
     """
 
     speech_id: int | None = field(default=None, init=False, compare=False)

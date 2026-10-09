@@ -305,9 +305,12 @@ class VoqalizeDriver:
                 ResponseFrame(request_id=frame.request_id, accepted=not detail, detail=detail)
             )
 
-    def _unit_obs(self, speech_id: int) -> SpeechObs | None:
+    def _unit_at(self, speech_id: int) -> tuple[TurnObs | None, SpeechObs | None]:
         io = self.turns.get(self._speech_turn.get(speech_id, -1))
-        return io.unit(speech_id) if io is not None else None
+        return io, (io.unit(speech_id) if io is not None else None)
+
+    def _unit_obs(self, speech_id: int) -> SpeechObs | None:
+        return self._unit_at(speech_id)[1]
 
     async def _cut(self, speech_id: int, t: float) -> None:
         """Honour one ``SpeechCancel`` the way Voqalize does.
@@ -316,16 +319,16 @@ class VoqalizeDriver:
         already finalized, or already cancelled, is a no-op: its one Finalize has
         gone. Otherwise the unit closes here, and its Finalize carries
         :attr:`heard_on_cancel`. Units of the same turn opened before it and not
-        yet finalized are finalized first, played out — the driver's playout
-        model is "heard in full unless cut" — so Finalizes still go out oldest
-        first. Units opened after it are inside the fence too, as they are on
+        yet finalized are still playing, and Voqalize's cut stops them too: each
+        is finalized first, through the same :attr:`heard_on_cancel`, so
+        Finalizes still go out oldest first and a brain is not told an earlier
+        unit was heard in full because the driver said so. Units opened after it are inside the fence too, as they are on
         real Voqalize, whose cut stops the whole floor: queued behind the cut,
         none of them was heard, and each is closed and finalized empty, still
         streaming or not. Nothing else is sent: no acknowledgement and no
         ``Interruption``.
         """
-        io = self.turns.get(self._speech_turn.get(speech_id, -1))
-        unit = io.unit(speech_id) if io is not None else None
+        io, unit = self._unit_at(speech_id)
         if io is None or unit is None:
             await self._send(
                 ErrorFrame(
@@ -345,7 +348,9 @@ class VoqalizeDriver:
         for earlier in io.units[:index]:
             if earlier.ended and earlier.speech_id not in io.finalized:
                 await self._send(
-                    FinalizeFrame(speech_id=earlier.speech_id, heard_text=earlier.text)
+                    FinalizeFrame(
+                        speech_id=earlier.speech_id, heard_text=self.heard_on_cancel(earlier)
+                    )
                 )
                 io.finalized.add(earlier.speech_id)
         await self._send(FinalizeFrame(speech_id=speech_id, heard_text=self.heard_on_cancel(unit)))
