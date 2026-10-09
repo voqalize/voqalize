@@ -166,14 +166,17 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.7.0'
+    value: '0.8.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-09-26
+    verified: 2026-10-09
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.7.0 on 2026-09-26 for the speak-first tool loop: GeminiBrain
+      Bumped to 0.8.0 on 2026-10-09 for SpeechCancel: Session.cancel_speech,
+      can_cancel_speech and Unsupported, with SessionStart.capabilities on the
+      wire. Additive in the package API and on the wire (version stays 3); it
+      takes the minor because it adds a public call. Bumped to 0.7.0 on 2026-09-26 for the speak-first tool loop: GeminiBrain
       drops automatic function calling, a tool's result waits for the next
       request unless the tool is marked @needs_result_now, and there is no
       opt-out. Breaking in the package API, not on the wire — a changed default

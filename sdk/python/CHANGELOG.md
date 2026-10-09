@@ -15,7 +15,7 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
-## Unreleased
+## 0.8.0
 
 Additive on the wire and in the package API: a brain on 0.7.0 is served exactly
 as before, and the wire version stays 3.
