@@ -4,8 +4,8 @@
     uv run uvicorn examples.fastapi_inbound.app:app --host 0.0.0.0 --port 8080
 
 This is how a customer hosts a brain in production: your web framework owns the
-WebSocket listener and the upgrade, and hands the SDK the connected socket. PyGato
-dials your ``brain_url`` verbatim with ``?session_id=`` appended — one connection
+WebSocket listener and the upgrade, and hands the SDK the connected socket. The
+voice runtime dials your ``brain_url`` verbatim with ``?session_id=`` appended — one connection
 per session, opened just-in-time, torn down when the call ends. No Cortex relay,
 no SDK-owned server.
 
@@ -18,9 +18,10 @@ The three moving parts:
 2. The ``@app.websocket("/voice")`` route accepts the upgrade, pulls the
    ``session_id`` from the query string and the token from the ``Authorization``
    header, and calls :func:`run_session`.
-3. Close-code discipline: a rejected token → close **4000** (permanent,
-   non-retriable — PyGato gives up); an unexpected error → **1011** (retriable —
-   PyGato reconnects); a clean end or peer close → normal close.
+3. Close-code discipline: a rejected token → close **4000**; an unexpected error →
+   **1011**; a clean end or peer close → normal close. Once the socket is
+   accepted, the voice runtime ends the session on any close and never redials;
+   the code names why, for its logs and the session's failure reason.
 
 The brain here is the same ``EchoBrain`` from ``examples/echo`` (greet, then echo)
 so the example stays dependency-free — swap it for your own ``Brain`` subclass.
@@ -67,12 +68,13 @@ class EchoBrain(Brain):
 
 # ─── Transport: FastAPI WebSocket → SDK Channel ───────────────────────────────
 
-# PyGato treats a 4000 close as permanent (non-retriable); 1011 as retriable.
+# Either close ends the session — the voice runtime never redials an accepted
+# socket. The code tells it why: 4000 the brain refused, 1011 the brain failed.
 _CLOSE_PERMANENT = 4000
 _CLOSE_RETRIABLE = 1011
 
 # Local dev signs brain tokens with a dev key, so skip verification locally.
-# In production leave this unset/false: the SDK verifies PyGato's RS256 token
+# In production leave this unset/false: the SDK verifies Voqalize's RS256 token
 # against the embedded Voqalize public keys with zero config.
 _ALLOW_UNVERIFIED = os.environ.get("VOQAL_ALLOW_UNVERIFIED", "").lower() in ("1", "true", "yes")
 

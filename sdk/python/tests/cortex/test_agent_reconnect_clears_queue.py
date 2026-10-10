@@ -1,6 +1,8 @@
-"""On wire reconnect the SDK tears down every active session; pygato re-sends
-SessionStartFrame for each live session, which builds a fresh SessionRunner + adapter
-instance.
+"""On wire reconnect the SDK tears down every active session, and a later
+SessionStartFrame for the same id builds a fresh SessionRunner + adapter instance
+rather than reviving the old one. The voice runtime never sends that second
+SessionStart — it ends a session whose brain socket closed — so this pins the SDK's
+own state, not a runtime behaviour.
 """
 
 from __future__ import annotations
@@ -82,7 +84,7 @@ async def test_reconnect_drops_active_sessions_and_new_start_spins_fresh_adapter
         # The in-flight handle_frame on the first session must be cancelled.
         await wait_for(lambda: "data#1:cancelled:2" in timeline, timeout=3.0)
 
-        # Pygato re-sends SessionStart for the same session — fresh adapter.
+        # A second SessionStart for the same id gets a fresh adapter, not the old one.
         await pygato_wire.send(
             await serializer.serialize(
                 SessionStartFrame(turn_id=1, session_id="s1", init={"which": "second"})

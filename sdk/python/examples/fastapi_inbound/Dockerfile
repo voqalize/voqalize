@@ -4,7 +4,7 @@
 # The image carries only the SDK + FastAPI + uvicorn (no pipecat, no audio libs):
 # the voice runtime lives on the far side of the socket, so a brain image stays
 # small. Cloud Run terminates TLS and upgrades WebSockets for you, so the app
-# speaks plain HTTP/WS on $PORT and PyGato reaches it over wss://.
+# speaks plain HTTP/WS on $PORT and Voqalize reaches it over wss://.
 FROM python:3.12-slim
 
 WORKDIR /app

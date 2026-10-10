@@ -40,8 +40,8 @@ async def voice(websocket, session_id):
 `run_session` verifies the brain-connection token, runs one session, and returns
 when the call ends or the socket closes. It never closes the socket — the route
 owns that, using the close codes Voqalize understands: **4000** on a rejected
-token (permanent, Voqalize gives up), **1011** on an unexpected error
-(retriable, Voqalize reconnects).
+token, **1011** on an unexpected error. Either ends the session — Voqalize never
+redials a socket it has connected — and the code tells it why.
 
 > Modeled on the control plane's own `app/entrypoints/http/routes/brains.py`,
 > which hosts Voqalize's demo brains over the identical `_WsChannel` seam — we

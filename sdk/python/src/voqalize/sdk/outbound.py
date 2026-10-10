@@ -26,7 +26,10 @@ Per-session guarantees, by construction:
    condemns (system lane), dispatched ahead of queued data; the adapter raises
    the session's watermark and cancels in-flight work. Nothing goes back.
 5. **Reconnect** (via ``MultiplexedWire``): on reconnect all sessions are torn
-   down; Voqalize re-sends each ``SessionStartFrame``, creating fresh runners.
+   down, and they stay down. Cortex closes each of their runtime legs when this
+   connection drops, and the voice runtime ends a session whose brain socket
+   closed rather than redialling it, so no ``SessionStartFrame`` is re-sent. Only
+   sessions that start after the reconnect get runners.
 """
 
 from __future__ import annotations

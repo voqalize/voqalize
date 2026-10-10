@@ -21,6 +21,10 @@ Close codes:
   - anything else         → transient, reconnect with backoff
   - 1000 from us (close()) → no reconnect
 
+Cortex sends 4000 and 4001 only on a runtime leg (`?session_id=`), which a
+`Wire` plays in this package's tests and nowhere else. The `/agent` leg a
+`MultiplexedWire` holds receives neither, so any close it sees reconnects.
+
 A rejection at the *HTTP handshake* is not a close code at all — the relay
 answers `401`/`403` before the upgrade, so there is no websocket to carry a
 code. Those are terminal too (`AuthRejected`): a credential it refuses will not
@@ -46,8 +50,8 @@ from loguru import logger
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
 
-CLOSE_NO_AGENT = 4000  # permanent
-CLOSE_AGENT_GONE = 4001  # transient
+CLOSE_NO_AGENT = 4000  # permanent; runtime leg only
+CLOSE_AGENT_GONE = 4001  # transient; runtime leg only
 
 # HTTP statuses Cortex answers the upgrade with when the credential itself is
 # the problem. Retrying these is pointless — the key is missing, revoked, or
