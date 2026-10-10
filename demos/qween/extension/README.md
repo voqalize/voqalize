@@ -57,8 +57,17 @@ extension's content script, built for every shopper's browser rather than
 desktop Chrome alone. Qween adds it to their pages just before `</body>`:
 
 ```html
-<script src="/path/they/host/it/at/qween-trisha.js"></script>
+<script async src="https://cdn.dev.voqalize.com/sites/qween.com.js"></script>
 ```
+
+We host it. `./publish-embed.sh` builds it with the key in `.env.embed` (same
+shape as `.env`, never committed) into a scratch directory, so `dist/` and the
+extension are untouched, and uploads it to the dev asset host twice: at
+`/sites/qween.com/<hash>.js`, immutable, and at `/sites/qween.com.js`, served
+`no-cache`, which is the URL the page carries. A new upload reaches a page on its
+next load, and the hashed copies are never overwritten, so an earlier build can
+be put back. That key's allowed origins are `https://*.qween.com`, which admits
+every Qween subdomain, staging included, and not `qween.com` itself.
 
 It names no domain. The adapter drives whichever of Qween's hosts serves it
 through that host's own router and paths, and reports `location.host` to the
@@ -66,8 +75,8 @@ brain as the site, so their staging host behaves as `www.qween.com` does. What
 does have to know the host is the publishable key: its allowed origins must
 list every origin the script runs on, staging included, or `sessions.connect`
 refuses it. The agent id, the key and the control plane are baked in at build
-time from `.env`, as for the extension, so a bundle for production is built with
-production's.
+time from `.env` (`.env.embed` for the hosted copy), so a bundle for
+production is built with production's.
 
 The widget joins the page once it has loaded, after React has hydrated it. If
 the extension is also installed, the two put up one widget between them.

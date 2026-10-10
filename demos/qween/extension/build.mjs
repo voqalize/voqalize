@@ -7,6 +7,10 @@
 // .env beside this file) and baked into the bundle, exactly as the demo UIs'
 // Vite builds bake theirs. A build without them fails, because an extension
 // that loads and then cannot start a call looks like a broken site.
+//
+// VOQALIZE_ENV_FILE and VOQALIZE_OUT_DIR point a build at another key and
+// another directory, so publish-embed.sh can build the hosted embed with its
+// own key without touching the extension in dist/.
 
 import { build } from "esbuild";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -14,11 +18,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const out = join(here, "dist");
+const out = process.env.VOQALIZE_OUT_DIR || join(here, "dist");
 
 function readEnv() {
   const env = { ...process.env };
-  const file = join(here, ".env");
+  const file = process.env.VOQALIZE_ENV_FILE || join(here, ".env");
   if (existsSync(file)) {
     for (const line of readFileSync(file, "utf8").split("\n")) {
       const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
