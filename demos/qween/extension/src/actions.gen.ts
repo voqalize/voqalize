@@ -101,6 +101,17 @@ export interface PageChanged {
   cards?: Card[];
 }
 
+/**
+ * Every open tab of the store, and the one in front, sent whole on each
+ * change. The call follows the shopper across tabs; the page events come from
+ * the tab in front, and the Actions go to it.
+ */
+export interface TabsChanged {
+  tabs: Tab[];
+
+  active: string;
+}
+
 // ── Shapes used by the messages above ──────────────────────────────
 
 /** One product card in a listing, in the order the page shows them. */
@@ -110,6 +121,15 @@ export interface Card {
   slug?: string | null;
 
   text?: string;
+}
+
+/** One open tab of the store. */
+export interface Tab {
+  tab_id: string;
+
+  url: string;
+
+  title?: string;
 }
 
 /** Everything the brain can put on screen, discriminated by `command`. */
@@ -167,7 +187,8 @@ export type AppEvent =
   | { event: 'command_failed'; payload: CommandFailed }
   | { event: 'dialog_closed'; payload: DialogClosed }
   | { event: 'dialog_opened'; payload: DialogOpened }
-  | { event: 'page_changed'; payload: PageChanged };
+  | { event: 'page_changed'; payload: PageChanged }
+  | { event: 'tabs_changed'; payload: TabsChanged };
 
 export type AppEventName = AppEvent['event'];
 
@@ -176,6 +197,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'dialog_closed',
   'dialog_opened',
   'page_changed',
+  'tabs_changed',
 ];
 
 /**

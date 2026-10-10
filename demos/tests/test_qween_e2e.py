@@ -417,6 +417,41 @@ async def test_the_shoppers_own_move_is_read_into_their_next_message() -> None:
         assert _texts(llm.captured_contents[-1]).count("moved the page themselves") == 1
 
 
+async def test_the_other_open_tabs_are_read_with_the_page() -> None:
+    """The call follows the shopper across the store's tabs. The page is the
+    tab in front; the others are named with it, and the list is context that
+    takes no turn of its own."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await _page(
+            rig,
+            "page_changed",
+            PIECE_PAGE | {"slug": "orbit-band", "variant_code": "OB-R18", "name": "Orbit Band"},
+        )
+        before = len(llm.captured_contents)
+        await _page(
+            rig,
+            "tabs_changed",
+            {
+                "tabs": [
+                    {"tab_id": "a", "url": "https://qween.test/rings", "title": "Rings"},
+                    {
+                        "tab_id": "b",
+                        "url": "https://qween.test/p/orbit-band",
+                        "title": "Orbit Band",
+                    },
+                ],
+                "active": "b",
+            },
+        )
+        assert len(llm.captured_contents) == before
+        await rig.driver.user_says("What's this one?")
+        texts = _texts(llm.captured_contents[-1])
+        assert "also has these tabs open: Rings (https://qween.test/rings)" in texts
+        assert "Orbit Band (https://qween.test/p/orbit-band)" not in texts
+
+
 async def test_the_piece_she_opens_comes_with_what_goes_with_it() -> None:
     """Cross-sell from the catalogue, not the model's memory: opening a piece
     hands the model its set's other pieces, by name and starting price, to

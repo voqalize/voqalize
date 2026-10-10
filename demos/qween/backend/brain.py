@@ -78,6 +78,7 @@ from .app_events import (
     DialogOpened,
     PageChanged,
     QweenEvent,
+    TabsChanged,
 )
 from .catalog import (
     COLLECTION_PAGES,
@@ -632,6 +633,8 @@ class QweenBrain(GeminiBrain):
         self._shopper_moved = False
         self.page: PageChanged | None = None
         self.dialog: DialogOpened | None = None
+        #: The store's open tabs; the page above is the one in front.
+        self.tabs: TabsChanged | None = None
         #: When Trisha last moved the page, so the route change that follows is
         #: known to be hers.
         self._moved_at = 0.0
@@ -880,6 +883,10 @@ class QweenBrain(GeminiBrain):
                 return f"{who} reads, in the page's own words:\n{text}"
             case DialogClosed():
                 self.dialog = None
+                return None
+            case TabsChanged():
+                # Context, not news: read into the next screen, never spoken to.
+                self.tabs = event
                 return None
             case CommandFailed():
                 return (
@@ -1232,6 +1239,12 @@ class QweenBrain(GeminiBrain):
             lines.append("No cards on screen: the listing is empty or still loading.")
         if self.dialog is not None:
             lines.append(f"Open dialog: {self.dialog.text[:_DIALOG_CHARS]}")
+        if self.tabs is not None and len(self.tabs.tabs) > 1:
+            others = [t for t in self.tabs.tabs if t.tab_id != self.tabs.active]
+            lines.append(
+                "That page is the tab in front. The shopper also has these tabs open: "
+                + "; ".join(f"{t.title or t.url} ({t.url})" for t in others)
+            )
         return "\n".join(lines)
 
     @needs_result_now

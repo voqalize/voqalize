@@ -27,6 +27,8 @@ __all__ = [
     "DialogOpened",
     "PageChanged",
     "QweenEvent",
+    "Tab",
+    "TabsChanged",
 ]
 
 PageKind = Literal["home", "catalog", "category", "collection", "product", "page"]
@@ -81,6 +83,25 @@ class CommandFailed(AppEvent):
     error: str
 
 
-type QweenEvent = PageChanged | DialogOpened | DialogClosed | CommandFailed
+class Tab(BaseModel):
+    """One open tab of the store."""
 
-QWEEN_EVENTS = AppEvents[QweenEvent](PageChanged, DialogOpened, DialogClosed, CommandFailed)
+    tab_id: str
+    url: str
+    title: str = ""
+
+
+class TabsChanged(AppEvent):
+    """Every open tab of the store, and the one in front, sent whole on each
+    change. The call follows the shopper across tabs; the page events come from
+    the tab in front, and the Actions go to it."""
+
+    tabs: list[Tab]
+    active: str
+
+
+type QweenEvent = PageChanged | DialogOpened | DialogClosed | CommandFailed | TabsChanged
+
+QWEEN_EVENTS = AppEvents[QweenEvent](
+    PageChanged, DialogOpened, DialogClosed, CommandFailed, TabsChanged
+)
