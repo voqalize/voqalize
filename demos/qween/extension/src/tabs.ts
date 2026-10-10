@@ -20,6 +20,11 @@
  * Followers → holder: where each tab is and whether it is in front, the front
  * tab's page events for the brain, Mute, End, and the avatar's reports.
  *
+ * One store and one agent have one call. A Web Lock named for the agent is held
+ * by the tab holding the call (`takeCall`), so a tab that cannot take it follows
+ * the call there is instead of starting another; and every tab that knows of
+ * the call answers a newcomer, even while the holder is between pages.
+ *
  * This is the Qween prove-out of `apps/voqalize/multi-tab/DESIGN.md`. It lives
  * in the demo on purpose: nothing in `@voqalize/client-transport` or
  * `@voqalize/avatar` changes until we know what the libraries should offer.
@@ -47,10 +52,14 @@ export interface TabInfo {
 }
 
 export type Relay =
-  // Any tab, on load: is there a call, and is my id taken? (A tab opened from
-  // a link can start with a copy of its opener's sessionStorage.)
-  | { k: "hello"; from: string; instance: string }
+  // Any tab, on load: is my id taken? (A tab opened from a link can start with
+  // a copy of its opener's sessionStorage.)
+  | { k: "id?"; from: string; instance: string }
   | { k: "dup"; id: string; instance: string }
+  // Any tab: is there a call? The holder answers with its state; a follower
+  // waiting out the holder's page load answers `away`.
+  | { k: "hello"; from: string }
+  | { k: "away"; from: string }
   // The holder's state, on every change and in answer to a hello.
   | { k: "holder"; from: string; status: Status; muted: boolean; activity: Activity | null }
   // The holder's page is going away. `navigating` when the Navigation API saw
@@ -73,8 +82,49 @@ export type Relay =
 
 export const wall = (): number => performance.timeOrigin + performance.now();
 
-export function openChannel(): BroadcastChannel {
-  return new BroadcastChannel("voqalize.qween.call");
+/** The store's channel for one agent's call. */
+export function openChannel(agent: string): BroadcastChannel {
+  return new BroadcastChannel(`voqalize.call.${agent}`);
+}
+
+/**
+ * Take the agent's call for this tab: the release, or `null` when another tab
+ * of the store holds it. Held until released or the page goes away, which is
+ * what lets the holder's next page take it again. Without Web Locks every tab
+ * may take it; the hello still finds a live call first.
+ */
+export function takeCall(agent: string): Promise<(() => void) | null> {
+  if (!navigator.locks) return Promise.resolve(() => {});
+  return new Promise((resolve) => {
+    void navigator.locks.request(`voqalize.call.${agent}`, { ifAvailable: true }, (lock) => {
+      if (!lock) return void resolve(null);
+      return new Promise<void>((release) => resolve(() => release()));
+    });
+  });
+}
+
+/** client-transport's record of this tab's call, which a tab opened from a
+ *  link may have copied from the holder. Rejoining it would take the holder's
+ *  connection, so a tab that finds the call held elsewhere drops it. The key is
+ *  the library's own (`STORAGE_KEY` in its `transport.ts`). */
+export function forgetCopiedCall(): void {
+  try {
+    sessionStorage.removeItem("voqalize-client-transport:call");
+  } catch {
+    /* Nothing stored. */
+  }
+}
+
+/** An AudioContext for the holder's pulse, made inside the click that starts
+ *  the call, before anything is awaited: Safari runs one only from a gesture. */
+export function gestureContext(): AudioContext | undefined {
+  try {
+    const ac = new AudioContext();
+    void ac.resume().catch(() => {});
+    return ac;
+  } catch {
+    return undefined;
+  }
 }
 
 function freshId(): string {
@@ -103,7 +153,7 @@ export async function tabId(chan: BroadcastChannel): Promise<{ id: string; insta
         resolve(v);
       };
       chan.addEventListener("message", on);
-      chan.postMessage({ k: "hello", from: asked, instance } satisfies Relay);
+      chan.postMessage({ k: "id?", from: asked, instance } satisfies Relay);
       setTimeout(() => done(false), 150);
     });
     if (taken) id = null;
@@ -131,9 +181,9 @@ export interface Holding {
   /** The client to hand this tab's own avatar: the real one, with its sync
    *  channel tapped and its reports sent only while this tab is in front. */
   readonly avatarClient: PipecatClient;
-  /** Start the AudioWorklet pulse; call from the click that starts the call,
-   *  which is what lets an AudioContext run. */
-  pulse(): Promise<void>;
+  /** Start the AudioWorklet pulse, on the context the click made
+   *  (`gestureContext`), or on a new one, which may wait for a touch. */
+  pulse(made?: AudioContext): Promise<void>;
   stop(): void;
 }
 
@@ -257,10 +307,10 @@ export function holdCall(
 
   return {
     avatarClient,
-    async pulse() {
-      if (ac || stopped) return;
+    async pulse(made) {
+      if (ac || stopped) return void made?.close().catch(() => {});
       try {
-        ac = new AudioContext();
+        ac = made ?? new AudioContext();
         await ac.resume().catch(() => {});
         // The audio thread runs while audio plays, hidden or not: a muted
         // worklet posting every eighth render quantum (about 21 ms) wakes the

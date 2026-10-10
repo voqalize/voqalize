@@ -18,16 +18,16 @@
  * Nothing here decides what Trisha says or shows. The prompt, the tools and the
  * catalogue live in the brain, `demos/qween/backend/`.
  *
- * A full page load ends the call — a WebRTC session does not survive the
- * document. Most of Qween's navigation is client-side and keeps it, and the
- * adapter reroutes the one link we found that reloads. For the rest, the widget
- * remembers for this tab that a call was live and dials again on the next page,
- * with `rejoin` in its init so her opener says what happened.
+ * One store and one agent have one call, in every tab (`tabs.ts`). The tab it
+ * started in holds it; every other open tab follows it: her face, the mute and
+ * the call's state, relayed from the holder. A tab that finds a call already
+ * held follows it rather than starting another. The brain's Actions are
+ * performed by whichever tab is in front, and that tab's page is the one she
+ * sees. Closing the call's tab ends the call everywhere.
  *
- * Every other open tab of the store follows the call (`tabs.ts`): her face, the
- * mute and the call's state, relayed from the tab that holds it. The brain's
- * Actions are performed by whichever tab is in front, and that tab's page is
- * the one she sees. Closing the call's tab ends the call everywhere.
+ * Most of Qween's navigation is client-side and keeps the call. A full page
+ * load in the holder rejoins the same session on the next page
+ * (`keepAcrossPageLoads`), so the conversation carries on.
  */
 
 import "./qween-actions.js";
@@ -39,33 +39,17 @@ import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-
 import { type AppEvent, asUiAction, sendAppEvent, UI_ACTION_COMMANDS } from "./actions.gen";
 import { watchDialogs } from "./dialogs";
 import {
-  followCall, type Following, here, holdCall, type Holding, inFront, openChannel, type Relay,
-  type TabInfo, tabId,
+  followCall, type Following, forgetCopiedCall, gestureContext, here, holdCall, type Holding,
+  inFront, openChannel, type Relay, type TabInfo, tabId, takeCall,
 } from "./tabs";
 import { type Activity, mountWidget, type Status } from "./widget";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
 
 const CHARACTER = "trisha";
-/** Set while a call is live in this tab; read on the next page load. */
-const LIVE_FLAG = "voqalize.qween.live";
-
-function remembered(): boolean {
-  try {
-    return sessionStorage.getItem(LIVE_FLAG) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function remember(live: boolean): void {
-  try {
-    if (live) sessionStorage.setItem(LIVE_FLAG, "1");
-    else sessionStorage.removeItem(LIVE_FLAG);
-  } catch {
-    /* Storage blocked: the call still works, it just will not rejoin. */
-  }
-}
+/** The call is one per store and agent: the channel and the lock are named
+ *  for the agent. */
+const AGENT = __VOQALIZE__.agentId;
 
 /** The request that mints a session — see `docs/client/handshake`. */
 function connectRequest(init: Record<string, unknown>): APIRequest {
@@ -104,9 +88,6 @@ const MOUNTED = "__voqalizeTrisha";
  *  another page, and after a close the Navigation API did not see as one. */
 const BACK_FROM_LOAD_MS = 12_000;
 const BACK_FROM_CLOSE_MS = 1_500;
-/** How long a page load waits to hear of a call held elsewhere before it dials
- *  again on its own. */
-const ASK_MS = 300;
 
 async function start(): Promise<void> {
   const adapter = window.voqalizeQween;
@@ -131,7 +112,7 @@ async function start(): Promise<void> {
   watchDialogs((open) => widget.avoid(open));
 
   // Every tab of the store on one channel; see `tabs.ts`.
-  const chan = openChannel();
+  const chan = openChannel(AGENT);
   const { id: me, instance } = await tabId(chan);
 
   /** This tab's part in the call. */
@@ -147,6 +128,11 @@ async function start(): Promise<void> {
   let activity: Activity | null = null;
   let muted = false;
   let leaving = false;
+  /** The agent's call lock, while this tab holds the call. */
+  let release: (() => void) | null = null;
+  /** A client built ahead of the call: at load, to ask its transport whether
+   *  this tab has a call to rejoin. */
+  let spare: Prepared | null = null;
   /** Set when this page is leaving for another document, not closing. */
   let navigating = false;
   /** Held by the holder: every open tab of the store, and the one in front. */
@@ -224,25 +210,18 @@ async function start(): Promise<void> {
     else if (role === "follower") post({ k: "app", from: me, event: event.event, payload: event.payload });
   }
 
-  async function connect(rejoin: boolean): Promise<void> {
-    if (role !== "idle" || status === "connecting") return;
-    role = "holder";
-    active = me;
-    tabs.clear();
-    paint("connecting", rejoin ? "Reconnecting" : undefined);
-    if (rejoin) post({ k: "coming", from: me });
-
+  /** A client for the next call, its transport keeping the call across this
+   *  tab's page loads. */
+  function prepare(): Prepared {
+    const transport = createVoqalizeTransport({ mediaManager: media, keepAcrossPageLoads: true });
     const next: PipecatClient = new PipecatClient({
-      transport: createVoqalizeTransport({ mediaManager: media }),
+      transport,
       enableMic: true,
       enableCam: false,
       callbacks: {
         onTransportStateChanged: (state: TransportState) => {
           if (client !== next) return;
-          if ((state === "connected" || state === "ready") && status !== "live") {
-            paint("live");
-            remember(true);
-          }
+          if ((state === "connected" || state === "ready") && status !== "live") paint("live");
           if (state === "disconnected" && status === "live") end();
         },
         // The page reports only once the brain can hear it; before that an
@@ -270,24 +249,54 @@ async function start(): Promise<void> {
         onUICommand: ({ command, payload }) => void route(next, command, payload),
       },
     });
+    return { client: next, transport };
+  }
+
+  /**
+   * Hold the agent's call in this tab: a new one, or, after a page load, the
+   * one this tab was holding. Another tab holding it already wins, and this
+   * tab follows that call instead.
+   */
+  async function connect(rejoin: boolean, made?: AudioContext): Promise<void> {
+    if (role !== "idle" || status === "connecting") return void made?.close();
+    const lock = await takeCall(AGENT);
+    if (!lock || role !== "idle") {
+      lock?.();
+      void made?.close();
+      // A tab opened from the holder's link carries a copy of its call; the
+      // holder answers the hello and this tab follows.
+      forgetCopiedCall();
+      spare = null;
+      if (role === "idle") post({ k: "hello", from: me });
+      return;
+    }
+    release = lock;
+    role = "holder";
+    active = me;
+    tabs.clear();
+    paint("connecting", rejoin ? "Reconnecting" : undefined);
+    if (rejoin) post({ k: "coming", from: me });
+
+    const { client: next } = spare ?? prepare();
+    spare = null;
     client = next;
     watchActivity(next);
     holding = holdCall(next, chan, () => active === me);
-    // Before the first await, so the AudioContext is made inside the click.
-    void holding.pulse();
+    void holding.pulse(made);
 
     try {
       // Mounted on the press. It takes the face the reach preloaded, or builds
       // one during call setup, in time for the greeting's first audio.
       avatar?.destroy();
       avatar = createAvatar({ mount: widget.face, client: holding.avatarClient, character: CHARACTER });
-      const init: Record<string, unknown> = {
-        site: location.host,
-        path: location.pathname + location.search,
-      };
-      if (rejoin) init.rejoin = true;
-      const started = await next.startBot(connectRequest(init));
-      await next.connect(withRealHeaders(started));
+      if (rejoin) {
+        // The same session: the transport remembers the request for this tab.
+        await next.connect();
+      } else {
+        const init = { site: location.host, path: location.pathname + location.search };
+        const started = await next.startBot(connectRequest(init));
+        await next.connect(withRealHeaders(started));
+      }
     } catch (error) {
       if (client !== next) return;
       client = null;
@@ -295,9 +304,13 @@ async function start(): Promise<void> {
       holding = null;
       avatar?.destroy();
       avatar = null;
-      remember(false);
-      paint("error", reason(error));
+      // A rejoin the server refuses is a call that ended while the page was
+      // away: the page simply starts idle.
+      if (rejoin) paint("idle");
+      else paint("error", reason(error));
       role = "idle";
+      release?.();
+      release = null;
       await next.disconnect().catch(() => {});
     }
   }
@@ -328,9 +341,6 @@ async function start(): Promise<void> {
     stopAdapter?.();
     stopAdapter = null;
     reporting = null;
-    // A call that ends because the page is going away is one to pick up on the
-    // next page; one the shopper or the brain ended is over.
-    if (!leaving) remember(false);
     const live = client;
     client = null;
     holding?.stop();
@@ -342,6 +352,18 @@ async function start(): Promise<void> {
     paint("idle");
     role = "idle";
     tabs.clear();
+    release?.();
+    release = null;
+    // A call that ends because the page is going away is picked up on the next
+    // page; one the shopper or the brain ended is over, and `disconnectBot`
+    // ends it at once and tells the transport to forget it.
+    if (!leaving) {
+      try {
+        live?.disconnectBot();
+      } catch {
+        // Not connected: there is no call to end on the server's side.
+      }
+    }
     void live?.disconnect().catch(() => {});
   }
 
@@ -420,9 +442,18 @@ async function start(): Promise<void> {
   chan.onmessage = (e: MessageEvent) => {
     const r = e.data as Relay;
     switch (r.k) {
-      case "hello":
+      case "id?":
         if (r.from === me && r.instance !== instance) post({ k: "dup", id: me, instance: r.instance });
+        return;
+      case "hello":
         announce();
+        // The holder is between pages: the call is still there.
+        if (role === "follower" && status === "connecting") post({ k: "away", from: me });
+        return;
+      case "away":
+        if (role !== "idle") return;
+        follow({ status: "connecting", muted: false, activity: null });
+        waiting = setTimeout(unfollow, BACK_FROM_LOAD_MS);
         return;
       case "holder":
         if (role === "idle" && (r.status === "live" || r.status === "connecting")) follow(r);
@@ -478,7 +509,7 @@ async function start(): Promise<void> {
     }
   };
 
-  widget.onCall(() => void connect(false));
+  widget.onCall(() => void connect(false, gestureContext()));
   // Her face builds once the shopper reaches for the invite, and the call's
   // mount takes it. Not at page load: this runs on every page of the store, and
   // most shoppers never call. Reaching again after a call builds the next one.
@@ -525,16 +556,17 @@ async function start(): Promise<void> {
   });
 
   paint("idle");
+  spare = prepare();
+  // This tab held the call before its page load, or a tab opened from the
+  // holder's link copied that: the lock tells them apart.
+  if (spare.transport.hasLiveCall) void connect(true);
   // A call held in another tab answers this; this tab then follows it.
-  post({ k: "hello", from: me, instance });
-  if (remembered()) {
-    // A tab opened from the holder's link can carry a copy of its live flag:
-    // only a tab that hears of no call elsewhere dials again.
-    setTimeout(() => {
-      if (role === "idle") void connect(true);
-      else remember(false);
-    }, ASK_MS);
-  }
+  else post({ k: "hello", from: me });
+}
+
+interface Prepared {
+  client: PipecatClient;
+  transport: ReturnType<typeof createVoqalizeTransport>;
 }
 
 function reason(error: unknown): string {
