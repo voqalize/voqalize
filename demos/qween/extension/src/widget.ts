@@ -66,9 +66,9 @@ const BUBBLE = 76;
 const GAP = 16;
 /** Pointer travel below this is a click, above it a drag. */
 const DRAG_PX = 5;
-/** Where the shopper last left the widget, as gaps from the right and bottom
- *  edges, so it keeps its corner when the window is resized. Per browser. */
-const HOME_KEY = "voqalize.qween.home";
+/** Where the widget used to be remembered across pages. It is not any more:
+ *  a stray drag left the card mid-page on every page after. Cleared on load. */
+const OLD_HOME_KEY = "voqalize.qween.home";
 
 const STYLES = `
 :host { all: initial; }
@@ -174,22 +174,16 @@ interface Home {
   bottom: number;
 }
 
-function loadHome(): Home {
+/** Every page starts with the widget in the bottom-right corner. A drag moves
+ *  it for this page only, as gaps from the right and bottom edges, so it keeps
+ *  its corner when the window is resized. */
+function startHome(): Home {
   try {
-    const saved = JSON.parse(localStorage.getItem(HOME_KEY) ?? "null") as Home | null;
-    if (saved && Number.isFinite(saved.right) && Number.isFinite(saved.bottom)) return saved;
+    localStorage.removeItem(OLD_HOME_KEY);
   } catch {
-    /* Storage blocked or garbled: the default corner. */
+    /* Storage blocked: nothing was saved there either. */
   }
   return { right: 24, bottom: 24 };
-}
-
-function saveHome(home: Home): void {
-  try {
-    localStorage.setItem(HOME_KEY, JSON.stringify(home));
-  } catch {
-    /* It still moves; it just will not remember. */
-  }
 }
 
 function overlaps(a: Rect, b: Rect): boolean {
@@ -248,7 +242,7 @@ export function mountWidget(): Widget {
 
   // ─── Where it sits ────────────────────────────────────────────────────
 
-  let home = loadHome();
+  let home = startHome();
   let obstacles: readonly Rect[] = [];
   /** The shopper minimised it. */
   let minimised = false;
@@ -371,7 +365,6 @@ export function mountWidget(): Widget {
       right: window.innerWidth - at.x - root.offsetWidth,
       bottom: window.innerHeight - at.y - root.offsetHeight,
     };
-    saveHome(home);
     openedAnyway = squeezed || openedAnyway;
     place(true);
   };
