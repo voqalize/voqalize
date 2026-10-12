@@ -14,8 +14,9 @@ the screen change while she starts speaking. Only if that request is silent too 
 she say a written line, recorded by the tool that moved the page (:func:`landed`);
 that line makes no model call.
 
-The written-line half is adapted from the public demos' ``voqalize_demos/silent_turn.py``
-(Apache-2.0, github.com/voqalize/voqalize), trimmed to English.
+The written-line half is adapted from the public demos' ``voqalize_demos/silent_turn.py``,
+now the SDK's ``voqalize.sdk.voice_helpers`` (Apache-2.0, github.com/voqalize/voqalize),
+trimmed to English.
 """
 
 from __future__ import annotations

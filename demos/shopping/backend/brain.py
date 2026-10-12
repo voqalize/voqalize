@@ -31,16 +31,10 @@ from typing import Any, Literal
 from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import (
-    DEFAULT_MODEL,
-    PATIENCE,
-    FallbackLine,
-    GeminiBrain,
-    landed,
-    needs_result_now,
-)
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, GeminiBrain, needs_result_now
 
 from voqalize.sdk import Action, Session, Speech
+from voqalize.sdk.voice_helpers import FallbackLine, landed
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .catalog import (
@@ -279,7 +273,7 @@ class ShoppingBrain(GeminiBrain):
         The prompt has the model speak and call in the same response, and on a
         dialled call it sometimes called alone, leaving the shopper in silence
         with the screen changed. Each tool that moves the screen records the line
-        that says it landed. See :mod:`voqalize_demos.silent_turn`."""
+        that says it landed. See :mod:`voqalize.sdk.voice_helpers`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 

@@ -57,14 +57,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import (
-    DEFAULT_MODEL,
-    PATIENCE,
-    FallbackLine,
-    GeminiBrain,
-    landed,
-    needs_result_now,
-)
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, GeminiBrain, needs_result_now
 
 from voqalize.sdk import (
     Action,
@@ -78,6 +71,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.voice_helpers import FallbackLine, landed
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import AVATAR_EVENTS, Ready
@@ -148,7 +142,7 @@ _GESTURE_IDS: dict[str, str] = {
 }
 
 #: What the avatar says for a gesture it made in silence — see
-#: :mod:`voqalize_demos.silent_turn`. Each is what a person says while making
+#: :mod:`voqalize.sdk.voice_helpers`. Each is what a person says while making
 #: that gesture, never a caption of it: "That's a nod." turns the face into a
 #: slide narrating itself, which is the illusion breaking out loud (owner,
 #: 2026-09-29).
@@ -614,7 +608,7 @@ class AvatarBrain(GeminiBrain):
         the sign-off rather than a model turn that ran over.
 
         A turn that gestured and said nothing gets a line of the avatar's own
-        first; see :mod:`voqalize_demos.silent_turn`. A stage direction the model
+        first; see :mod:`voqalize.sdk.voice_helpers`. A stage direction the model
         wrote anyway is lifted out of the speech on the way; see
         :class:`_StageDirections`."""
         stage = _StageDirections(self._act)

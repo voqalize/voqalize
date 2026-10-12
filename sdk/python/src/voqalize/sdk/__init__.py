@@ -28,7 +28,9 @@ application hosts it:
 The same Brain runs on either. Installing this SDK pulls **no** ``pipecat``
 dependency — the wire is plain protobuf and the Brain surface is plain
 dataclasses. ``voqalize.sdk.gemini`` (extra: ``gemini``) adds a Gemini-backed base
-class; nothing here imports it.
+class, and ``voqalize.sdk.voice_helpers`` (same extra) the written line a
+``GeminiBrain`` says when a turn acted on screen and said nothing; nothing here
+imports either.
 """
 
 from ._logging import configure_logging, session_context

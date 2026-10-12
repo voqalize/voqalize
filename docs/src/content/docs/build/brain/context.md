@@ -208,6 +208,41 @@ resolve them against your own store the way the snippet above does. See
 [current status and supported environments](/overview/status/) for what is
 stored.
 
+## State for one request: `tail_notes`
+
+An act stays true, so it goes in the record. State does not: the page the user
+is on, or a background search that has just come back, is true when the request
+is sent and stale a turn later, and a line appended to the context goes on
+asserting it. On `GeminiBrain`, override `tail_notes()` for that kind of fact:
+
+```python
+from google.genai import types
+from voqalize.sdk.gemini import GeminiBrain
+
+
+class Shop(GeminiBrain):
+    def tail_notes(self) -> list[types.Content]:
+        if self.page is None:
+            return []
+        note = f"[Page now] {self.page.title} · {self.page.price}"
+        return [types.Content(role="user", parts=[types.Part(text=note)])]
+```
+
+It is called before every request of a turn, the follow-up after a
+`@needs_result_now` tool included, and what it returns goes in just before the
+latest user turn, for that request only. On a turn the brain opens itself with
+nothing appended, it goes after the context the turn began with. Nothing is
+kept: the next request renders it again from what is true then, or goes without
+it. The system prompt and the history ahead of it do not change, so the cached
+prefix holds.
+
+Keep it small and keep it in memory. It runs while the user waits for the first
+word, so it is synchronous (a plain `def`) and timed against `TOOL_BUDGET_MS`
+like a tool. Return `user` text only, with the role set as above; a hook that
+raises, or returns anything else, sends the request without a tail and logs why.
+Record the act beside it as usual: when a search lands, `append_to_context` the
+fact that it finished, and let the tail carry what it found.
+
 ## History is yours
 
 The SDK holds no conversation store. `Session` owns exactly what dies with the

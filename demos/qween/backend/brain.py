@@ -43,17 +43,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import (
-    DEFAULT_MODEL,
-    PATIENCE,
-    PHRASES,
-    FallbackLine,
-    GeminiBrain,
-    configure_soon,
-    landed,
-    needs_result_now,
-    phrase,
-)
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, GeminiBrain, configure_soon, needs_result_now
 
 from voqalize.sdk import (
     Action,
@@ -68,6 +58,7 @@ from voqalize.sdk import (
     UserMessage,
 )
 from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
+from voqalize.sdk.voice_helpers import PHRASES, FallbackLine, landed, phrase
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from . import acknowledge
@@ -859,7 +850,7 @@ class QweenBrain(GeminiBrain):
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, and a line of Trisha's own if it acted and said
-        nothing. See :mod:`voqalize_demos.silent_turn`.
+        nothing. See :mod:`voqalize.sdk.voice_helpers`.
 
         A unit is opened only once its first words are known, so the voice
         follows the model's own choice of language. The English recognizer

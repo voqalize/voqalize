@@ -15,6 +15,37 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## Unreleased
+
+Additive in the package API: a brain on 0.8.0 sends exactly the requests it
+sent before, and the wire is unchanged at version 3.
+
+### Added
+
+- **`GeminiBrain.tail_notes()`: content for one request only.** Override it to
+  put facts that are true *now* in front of the model — the page the user is
+  on, a background result that has just landed — without writing them into the
+  context, where they would go on asserting something that stopped being true.
+  It is rendered fresh before every request of a turn, including the follow-up
+  after a `needs_result_now` tool and the one retry, placed just before the
+  latest user turn (the user's words, or the latest `append_to_context` note),
+  and never kept. On a turn the brain opens with nothing appended, it goes
+  after the context the turn began with instead. The system prompt and the
+  history are untouched, so the cached prefix is too. It runs while the user
+  waits, so it is synchronous, reads memory only, and is timed against
+  `TOOL_BUDGET_MS`. A hook that raises, is `async`, or returns anything but
+  `user` text (role set, at least one part, no function call or response)
+  sends the request without a tail and logs why. The default returns nothing, and a brain that leaves it alone sends
+  byte-identical requests. `GeminiInteractionsBrain` has no equivalent: its
+  conversation is held on the server, so "this request only" has no meaning
+  there.
+- **`voqalize.sdk.voice_helpers`** (with the `gemini` extra): `FallbackLine`,
+  `landed`, `say_line`, `phrase`, `PHRASES` and the `Phrase` type, the floor under a turn that
+  acted on screen and said nothing. When the model calls a tool without
+  speaking, the brain says one written line from the last call that landed,
+  with no second model request, and the line never enters the model's context.
+  Moved unchanged from the demos, where every brain already used it.
+
 ## 0.8.0
 
 Additive on the wire and in the package API: a brain on 0.7.0 is served exactly

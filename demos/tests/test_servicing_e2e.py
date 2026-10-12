@@ -313,3 +313,34 @@ async def test_a_packet_edit_on_a_console_the_advisor_moved_is_refused_until_it_
         assert rig.actions() == ["update_packet_field"], rig.actions()
 
     assert "the screen moved since you last read it" in _tool_results(llm)
+
+
+async def test_servicing_says_the_case_is_open_when_the_call_came_alone() -> None:
+    """Over the real wire: the call lands once, the brain's line is what the
+    advisor hears, the turn is one request, and the line never reaches the
+    context."""
+    from servicing.backend.brain import _LINES, OpenCase  # pyright: ignore[reportPrivateUsage]
+
+    llm = ScriptedGemini(
+        {
+            "Open Daniel Cho's case.": call("open_case", action={"ref": "MS-1042"}),
+            "Thanks.": reply("Anytime."),
+        }
+    )
+    async with demo("servicing", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("Open Daniel Cho's case.")
+        check_turn(rig, turn, units=1)
+        (line,) = (u.text for u in turn.units)
+        assert line in _LINES[OpenCase], line
+        assert rig.actions() == ["open_case"]
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+        await rig.driver.user_says("Thanks.")
+        spoken = " ".join(
+            part.text or ""
+            for content in llm.captured_contents[-1]
+            if content.role == "model"
+            for part in content.parts or []
+        )
+        assert line not in spoken, f"the brain's line {line!r} reached the context"

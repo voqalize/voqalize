@@ -78,18 +78,14 @@ from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
     PATIENCE,
-    PHRASES,
-    FallbackLine,
     GeminiBrain,
     ScreenState,
-    landed,
     needs_result_now,
-    phrase,
     screen_prose,
 )
-from voqalize_demos.silent_turn import Phrase
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk.voice_helpers import PHRASES, FallbackLine, Phrase, landed, phrase
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import (
@@ -1245,7 +1241,7 @@ type ScreenMove = (
 )
 
 #: What Aria says for a command that landed, when the model's turn said nothing —
-#: see :mod:`voqalize_demos.silent_turn`. A phrase, not a line, because the line is
+#: see :mod:`voqalize.sdk.voice_helpers`. A phrase, not a line, because the line is
 #: said in the call's language: something put on screen is ``shown``, a change
 #: made for the customer is ``done``.
 _PHRASE: dict[type[ScreenMove], Phrase] = {
@@ -1428,7 +1424,7 @@ class AuraBrain(GeminiBrain):
 
         The prompt has the model speak and call in the same response, and on a
         dialled call it sometimes called alone, leaving the customer in silence
-        with the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        with the screen changed. See :mod:`voqalize.sdk.voice_helpers`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 

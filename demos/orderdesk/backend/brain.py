@@ -79,17 +79,10 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
-from voqalize_demos import (
-    DEFAULT_MODEL,
-    PATIENCE,
-    FallbackLine,
-    GeminiBrain,
-    hello_for,
-    landed,
-    needs_result_now,
-)
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, GeminiBrain, hello_for, needs_result_now
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech
+from voqalize.sdk.voice_helpers import FallbackLine, landed
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .desk_events import (
@@ -538,7 +531,7 @@ class OrderNote(Action):
 
 
 #: What the pharmacist hears for a row the model moved and said nothing about — the
-#: floor under the prompt's first rule (:mod:`voqalize_demos.silent_turn`). Keyed by
+#: floor under the prompt's first rule (:mod:`voqalize.sdk.voice_helpers`). Keyed by
 #: the action, since every tool routes through ``OrderDesk._dispatch`` and the last
 #: action of a call is what his screen now shows. No medicine names: the TTS cannot
 #: say them, and the screen already does. ``RowOpened`` is always followed by the
@@ -1885,7 +1878,7 @@ class OrderDeskBrain(GeminiBrain):
 
         The prompt has the model speak and call in the same reply, and on a dialled
         call it sometimes called alone, leaving the pharmacist in silence with his
-        rows moving. See :mod:`voqalize_demos.silent_turn`."""
+        rows moving. See :mod:`voqalize.sdk.voice_helpers`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 

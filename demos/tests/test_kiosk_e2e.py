@@ -41,11 +41,11 @@ import re
 import time
 from typing import Any, NamedTuple
 
-from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.gemini import _needs_result_now
+from voqalize.sdk.voice_helpers import PHRASES
 from voqalize.sdk.wire import Language
 
 from ._harness import DemoRig, _configs, _last, check_greeting, check_turn, check_voice_pair, demo

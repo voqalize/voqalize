@@ -287,7 +287,8 @@ detail; what binds a demo:
   "taking longer" line. The `turn:` log line's `speechless=yes` counts them.
   The prompt alone does not hold, so every demo has a floor under it:
   `landed(...)` beside each dispatch, and `FallbackLine` speaks one of those
-  written lines when the turn said nothing (`voqalize_demos/silent_turn.py`).
+  written lines when the turn said nothing (`voqalize.sdk.voice_helpers`, which
+  moved there unchanged from `voqalize_demos/silent_turn.py`).
   Never a second model request for it — the owner rejected that on 2026-09-26.
 
 ## Every demo has an e2e, and one of them is a sweep

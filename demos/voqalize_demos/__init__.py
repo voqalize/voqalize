@@ -17,11 +17,19 @@ base. The demos dogfood the article a customer installs.
 See ``demos/README.md`` for the routing contract and the add-a-demo checklist.
 """
 
+import sys
+
+from voqalize.sdk import voice_helpers
 from voqalize.sdk.gemini import DEFAULT_MODEL, VOICE_THINKING, GeminiBrain, needs_result_now
+from voqalize.sdk.voice_helpers import PHRASES, FallbackLine, landed, phrase, say_line
 from voqalize_demos.configure import PATIENCE, configure_soon
 from voqalize_demos.greeting import hello_for
 from voqalize_demos.screen import ScreenState, screen_prose
-from voqalize_demos.silent_turn import PHRASES, FallbackLine, landed, phrase, say_line
+
+# The floor under a silent turn moved into the SDK as ``voqalize.sdk.voice_helpers``.
+# The names stay importable from here, and the old module path still resolves to
+# the SDK's module, so a brain written against either keeps working.
+sys.modules.setdefault(f"{__name__}.silent_turn", voice_helpers)
 
 __all__ = [
     "DEFAULT_MODEL",

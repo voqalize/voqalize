@@ -23,10 +23,10 @@ import asyncio
 import re
 from typing import Any
 
-from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
+from voqalize.sdk.voice_helpers import PHRASES
 from voqalize.sdk.wire import ConfigureFrame, Language
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo

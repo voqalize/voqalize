@@ -607,9 +607,18 @@ class GeminiBrain(Brain):
         clock = _Clock(started=time.monotonic())
         retried = note = False
         followups = 0
+        # A turn the brain opened with no user turn of its own keeps its tail
+        # after the context it began with, not in front of an exchange already
+        # answered.
+        opened_after = self._history[-1] if self._history else None
+        userless = opened_after is None or not _is_user_turn(opened_after)
         try:
             while True:
                 contents = list(self._history)
+                # Fresh on every request, never kept in the history.
+                if tail := self._tail():
+                    at = _tail_at(contents, opened_after if userless else None, userless=userless)
+                    contents[at:at] = tail
                 if note:
                     # On the retry's request only, and never into the context.
                     contents.append(_RETRY_NOTE)
@@ -732,6 +741,78 @@ class GeminiBrain(Brain):
                 # streaming: none of the call was heard.
                 self._strip(unit)
             _log_turn(self._model, tally, usage, clock)
+
+    def tail_notes(self) -> list[types.Content]:
+        """Content for this request only, rendered fresh before every request.
+
+        Default: nothing. Override it for facts that are true *now* and stale a
+        turn later — the page the user is on, a background result that has just
+        landed — when a line kept in the context would go on asserting them
+        after they stopped being true::
+
+            def tail_notes(self):
+                if self.page is None:
+                    return []
+                text = f"[Page now] {self.page.summary()}"
+                return [types.Content(role="user", parts=[types.Part(text=text)])]
+
+        It runs before every request of a turn, including the follow-up after a
+        tool marked :func:`needs_result_now` and the one retry, so each request
+        carries what is true when it is sent. What it returns goes in just
+        before the latest user turn — the user's words, or the latest
+        :meth:`append_to_context` note, whichever is later — and **never into
+        the context**: the next request renders it again or goes without it.
+        A turn the brain opens with no user turn of its own (``respond``
+        called with nothing appended) has its tail after the context the turn
+        began with. The system prompt and the history before that point are
+        untouched, so the prompt-cache prefix stays the same.
+
+        Synchronous and memory-only, like a tool: it runs while the user waits
+        for the first word, so it reads state the brain already holds and
+        returns. It is timed against :data:`TOOL_BUDGET_MS` and logged when
+        slower. Each content is text the model reads: ``role="user"``, set
+        explicitly, with at least one part and no function call or response.
+        A hook that raises, is ``async``, or returns anything else sends the
+        request without a tail, and the failure is logged.
+
+        Prefer :meth:`append_to_context` for anything that happened: an act is
+        true forever and belongs in the record. This is for state, which is not.
+        """
+        return []
+
+    def _tail(self) -> list[types.Content]:
+        """:meth:`tail_notes`, checked, timed, and never fatal to the turn."""
+        started = time.monotonic()
+        try:
+            rendered: Any = self.tail_notes()
+            if inspect.isawaitable(rendered):
+                if inspect.iscoroutine(rendered):
+                    rendered.close()
+                logger.error(
+                    "tail_notes {} is async; it must be a plain def that returns a list, "
+                    "so this request goes without a tail",
+                    type(self).__name__,
+                )
+                return []
+            tail = list(rendered)
+        except Exception:
+            logger.exception("tail_notes failed; this request goes without a tail")
+            return []
+        took = (time.monotonic() - started) * 1000
+        if took > TOOL_BUDGET_MS:
+            logger.warning(
+                "tail_notes {} took {}ms, over the {}ms budget; the user waited for it",
+                type(self).__name__,
+                round(took),
+                TOOL_BUDGET_MS,
+            )
+        for content in tail:
+            if problem := _not_a_note(content):
+                logger.warning(
+                    "tail_notes returned {}, so this request goes without a tail", problem
+                )
+                return []
+        return tail
 
     def _speak(self, unit: _Unit, pieces: list[str]) -> Iterator[Speech]:
         """Released text as speech, opening the unit on its first piece.
@@ -1068,6 +1149,54 @@ def _ready(fn: Callable[..., Any]) -> Callable[..., Any]:
         if isinstance(annotation, type) and issubclass(annotation, BaseModel):
             annotation.model_rebuild()
     return tool
+
+
+def _is_user_turn(content: types.Content) -> bool:
+    """User content that is not only function responses: the user's words or
+    an appended note. Function responses answer the call just before them."""
+    parts = content.parts or []
+    return content.role == "user" and not (parts and all(p.function_response for p in parts))
+
+
+def _not_a_note(content: Any) -> str | None:
+    """Why ``content`` cannot go in a request's tail, or None when it can."""
+    if not isinstance(content, types.Content):
+        return f"a {type(content).__name__}; tail content must be types.Content"
+    if content.role != "user":
+        return f"role={content.role!r}; tail content must be user content, built with role='user'"
+    if not content.parts:
+        return "content with no parts; tail content must carry text"
+    if any(p.function_call or p.function_response for p in content.parts):
+        return "a function call or response; tail content is text, never a tool-loop turn"
+    return None
+
+
+def _tail_at(
+    contents: list[types.Content],
+    opened_after: types.Content | None = None,
+    *,
+    userless: bool = False,
+) -> int:
+    """Where a request's tail goes.
+
+    Normally just before the latest user turn — the user's words or an appended
+    note — so a tool call and its responses stay together after it. On a turn
+    the brain opened with no user turn of its own (``userless``), right after
+    ``opened_after``, the last content of the context when the turn began (the
+    start, when the context was empty): the latest user turn there belongs to
+    an exchange already answered. If that content has since left the context,
+    the end."""
+    if userless:
+        if opened_after is None:
+            return 0
+        for i, c in enumerate(contents):
+            if c is opened_after:
+                return i + 1
+        return len(contents)
+    for i in range(len(contents) - 1, -1, -1):
+        if _is_user_turn(contents[i]):
+            return i
+    return len(contents)
 
 
 def _finished(chunk: types.GenerateContentResponse) -> bool:

@@ -257,6 +257,38 @@ its own. The `turn:` line `GeminiBrain` logs for every turn reports
 `speechless=yes` when it happened, beside `hops=`, `calls=` and `awaited=`, so you
 can count how often it does.
 
+The prompt alone does not always hold, so put a floor under it.
+`voqalize.sdk.voice_helpers` (with the `gemini` extra) is the one every demo
+uses: record, beside each dispatch, the lines that would say it landed, and let
+`FallbackLine` say one of them when the turn said nothing. It makes no second
+model request — the line is already written — and the line never enters the
+model's context:
+
+```python
+from voqalize.sdk.gemini import GeminiBrain
+from voqalize.sdk.voice_helpers import FallbackLine, landed
+
+
+class Coach(GeminiBrain):
+    def __init__(self) -> None:
+        super().__init__(client=genai.Client(), system_instruction=PROMPT)
+        self._fallback = FallbackLine()
+
+    async def show(self, args: Section) -> str:
+        """Put a section of the screen in front of the user."""
+        self.session.dispatch(ShowSection(name=args.name))
+        landed("Here it is.", "There you go.")
+        return "shown"
+
+    async def respond(self, session):
+        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            yield event
+```
+
+A brain that speaks more than one language takes its lines from `PHRASES` —
+`phrase(language, "shown")` — so the line is said in the language the voice is
+speaking.
+
 ### `@needs_result_now`, for the result the model must read first
 
 Some results *are* the reply: the balance the user asked for, what is in the
