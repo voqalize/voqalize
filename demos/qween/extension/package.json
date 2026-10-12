@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Puts Trisha, the qween demo brain's jewellery consultant, on www.qween.com: a Chrome extension that injects the call widget and the site adapter into Qween's own page.",
   "scripts": {
-    "build": "tsc --noEmit && node build.mjs",
+    "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
     "typecheck": "tsc --noEmit",
     "gen": "cd ../.. && uv run voqalize types qween/backend/brain.py -o qween/extension/src/actions.gen.ts",
     "build:prod": "tsc --noEmit && VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs"

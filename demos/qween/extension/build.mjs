@@ -11,6 +11,14 @@
 // VOQALIZE_ENV_FILE and VOQALIZE_OUT_DIR point a build at another key and
 // another directory, so publish-embed.sh can build the hosted embed with its
 // own key without touching the extension in dist/.
+//
+// AVATAR_RUNTIME, when set, swaps the avatar runtime the npm shim names for
+// another — `pnpm build` and `publish-embed.sh dev` set it to the dev host's
+// `current.js`, so the dev extension and the dev embed run the last dev upload
+// (see ../../shared/avatar-runtime.mjs, the same override for the Vite demos).
+// Unset, as in `build:prod` and `publish-embed.sh prod`, the bundle is exactly
+// what npm gives a customer. Read from the process alone, never from a .env
+// file, so a production build cannot pick it up by accident.
 
 import { build } from "esbuild";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -33,6 +41,7 @@ function readEnv() {
 }
 
 const env = readEnv();
+const avatarRuntime = process.env.AVATAR_RUNTIME || "";
 const wiring = {
   apiBase: env.VOQALIZE_API_BASE || "https://app.dev.voqalize.com/api/v1",
   agentId: env.VOQALIZE_AGENT_ID || "",
@@ -46,6 +55,21 @@ if (!wiring.agentId || !wiring.publishableKey) {
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 
+// The shim names its runtime in one module, `@voqalize/avatar/dist/pin.js`.
+const PIN = /[\\/]@voqalize[\\/]avatar[\\/]dist[\\/]pin\.js$/;
+const URL_LINE = /export const RUNTIME_URL = "[^"]*";/;
+const runtimeOverride = {
+  name: "voqalize-avatar-runtime",
+  setup(b) {
+    b.onLoad({ filter: PIN }, ({ path }) => {
+      const source = readFileSync(path, "utf8");
+      if (!URL_LINE.test(source)) throw new Error(`${path}: no RUNTIME_URL to override`);
+      const url = JSON.stringify(avatarRuntime);
+      return { contents: source.replace(URL_LINE, `export const RUNTIME_URL = ${url};`), loader: "js" };
+    });
+  },
+};
+
 const bundle = {
   entryPoints: [join(here, "src/content.ts")],
   bundle: true,
@@ -56,6 +80,7 @@ const bundle = {
   minify: true,
   legalComments: "none",
   define: { __VOQALIZE__: JSON.stringify(wiring) },
+  plugins: avatarRuntime ? [runtimeOverride] : [],
 };
 await build({ ...bundle, outfile: join(out, "content.js"), target: "chrome120" });
 // The embed reaches every shopper's browser, not only desktop Chrome.
@@ -72,3 +97,4 @@ writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\
 copyFileSync(join(here, "README.md"), join(out, "README.md"));
 
 console.log(`built ${out} and ${join(out, "embed", "qween-trisha.js")} (${wiring.apiBase})`);
+console.log(`avatar runtime: ${avatarRuntime || "the npm pin"}`);

@@ -16,15 +16,17 @@ here="$(cd "$(dirname "$0")" && pwd)"
 SITE="qween.com"
 ACCOUNT="sripathi@recruit41.com"
 case "${1:-dev}" in
-  dev) ENV_FILE="$here/.env.embed"; BUCKET="gs://voqal-cloud-dev-avatar-host-asia-south1"; HOST="https://cdn.dev.voqalize.com" ;;
-  prod) ENV_FILE="$here/.env.embed.prod"; BUCKET="gs://voqal-cloud-prod-avatar-host-asia-south1"; HOST="https://cdn.voqalize.com" ;;
+  dev) ENV_FILE="$here/.env.embed"; BUCKET="gs://voqal-cloud-dev-avatar-host-asia-south1"; HOST="https://cdn.dev.voqalize.com"
+       RUNTIME="https://avatar.dev.voqalize.com/runtime/current.js" ;;
+  prod) ENV_FILE="$here/.env.embed.prod"; BUCKET="gs://voqal-cloud-prod-avatar-host-asia-south1"; HOST="https://cdn.voqalize.com"
+       RUNTIME="" ;;
   *) echo "usage: $0 [dev|prod]" >&2; exit 2 ;;
 esac
 
 [[ -f "$ENV_FILE" ]] || { echo "no $(basename "$ENV_FILE") (see README)" >&2; exit 1; }
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
-(cd "$here" && pnpm exec tsc --noEmit && VOQALIZE_ENV_FILE="$ENV_FILE" VOQALIZE_OUT_DIR="$out" node build.mjs)
+(cd "$here" && pnpm exec tsc --noEmit && AVATAR_RUNTIME="$RUNTIME" VOQALIZE_ENV_FILE="$ENV_FILE" VOQALIZE_OUT_DIR="$out" node build.mjs)
 
 file="$out/embed/qween-trisha.js"
 hash=$(shasum -a 256 "$file" | cut -c1-10)
