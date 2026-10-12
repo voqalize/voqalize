@@ -1,0 +1,186 @@
+[
+  {
+    "id": "shift",
+    "title": "Why voice, why now",
+    "chip": "What changed?",
+    "said": "What changed?",
+    "clicks": 7,
+    "line": "People already talk to their phones, their cars and their notes. Most software still waits for a click.",
+    "follow": "What does your app do today?",
+    "try": {
+      "said": "Show me the flight booking",
+      "target": "shift.scene3"
+    },
+    "keys": [
+      "what changed",
+      "problem",
+      "why",
+      "what is voqalize",
+      "what do you do",
+      "what does voqalize",
+      "shift"
+    ],
+    "status": "built",
+    "notes": "shift.md",
+    "tint": "",
+    "ideas": []
+  },
+  {
+    "id": "action",
+    "title": "How it works",
+    "chip": "Show me how it works",
+    "said": "Show me how it works.",
+    "clicks": 6,
+    "line": "Watch one sentence go across. I hear it, your brain decides, and the app does the clicking.",
+    "follow": "Want to see how you would add it to your app?",
+    "try": {
+      "said": "Jump to the brain step",
+      "target": "action.step3"
+    },
+    "keys": [
+      "how it works",
+      "how does it work",
+      "how",
+      "work",
+      "architecture",
+      "brain"
+    ],
+    "status": "built",
+    "notes": "action.md",
+    "tint": "",
+    "ideas": []
+  },
+  {
+    "id": "ways",
+    "title": "Two ways to integrate",
+    "chip": "How do I add it?",
+    "said": "How would I add this to my app?",
+    "clicks": 5,
+    "line": "There are two ways. Give us your web address and we run it, or connect the agent you already have.",
+    "follow": "Do you already have an agent, or should we run it for you?",
+    "try": {
+      "said": "Show me the developer way",
+      "target": "ways.developer"
+    },
+    "keys": [
+      "add it",
+      "add this",
+      "add",
+      "integrat",
+      "install",
+      "script",
+      "sdk",
+      "developer",
+      "plug",
+      "go live",
+      "set up",
+      "setup",
+      "how long",
+      "how fast"
+    ],
+    "status": "built",
+    "notes": "ways.md",
+    "tint": "",
+    "ideas": []
+  },
+  {
+    "id": "handled",
+    "title": "Why voice is hard to build",
+    "chip": "What if I interrupt you?",
+    "said": "What if there is noise, or I interrupt you?",
+    "clicks": 3,
+    "line": "Go ahead and interrupt me. Listening is the hard part, and it's the part we built.",
+    "follow": "Want to see it working in a real app?",
+    "keys": [
+      "noise",
+      "noisy",
+      "interrupt",
+      "accent",
+      "language",
+      "listen",
+      "hard part",
+      "latency"
+    ],
+    "status": "built",
+    "notes": "handled.md",
+    "tint": "",
+    "ideas": []
+  },
+  {
+    "id": "worlds",
+    "title": "Use cases",
+    "chip": "Show me use cases",
+    "said": "Where would I use this?",
+    "clicks": 6,
+    "line": "Pick any of these. Same app, but now it listens.",
+    "follow": "What kind of app do you run?",
+    "try": {
+      "said": "Show me the banking one",
+      "target": "worlds.banking"
+    },
+    "keys": [
+      "use case",
+      "where",
+      "example",
+      "jewel",
+      "bank",
+      "form",
+      "contract",
+      "cab",
+      "food"
+    ],
+    "status": "built",
+    "notes": "worlds.md",
+    "tint": "",
+    "ideas": []
+  },
+  {
+    "id": "cast",
+    "title": "Characters",
+    "chip": "Meet the characters",
+    "said": "Who else is there?",
+    "clicks": 3,
+    "line": "I'm one of the cast. Every face here nods along while you talk.",
+    "follow": "Which one feels right for your brand?",
+    "try": {
+      "said": "Which one is Tess?",
+      "target": "cast.tess"
+    },
+    "keys": [
+      "character",
+      "avatar",
+      "face",
+      "cast",
+      "who else"
+    ],
+    "status": "built",
+    "notes": "cast.md",
+    "tint": "",
+    "ideas": []
+  },
+  {
+    "id": "pricing",
+    "title": "Pricing",
+    "chip": "What does it cost?",
+    "said": "What does it cost?",
+    "clicks": 2,
+    "line": "It's priced per minute of conversation, and the first three hundred minutes are free.",
+    "follow": "Want it in rupees, or billed monthly?",
+    "try": {
+      "said": "Show it in rupees",
+      "target": "pricing.inr"
+    },
+    "keys": [
+      "price",
+      "pricing",
+      "cost",
+      "plan",
+      "buy",
+      "free"
+    ],
+    "status": "built",
+    "notes": "pricing.md",
+    "tint": "",
+    "ideas": []
+  }
+]
