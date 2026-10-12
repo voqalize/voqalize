@@ -45,7 +45,8 @@ pnpm build               # → dist/
 ```
 
 Then `chrome://extensions` → Developer mode → **Load unpacked** → `dist/`, and
-open www.qween.com or shop.qweendom.in. The first call asks for the microphone.
+open www.qween.com or shop.qweendom.in. `pnpm build:prod` builds the same
+extension against production into `dist-prod/`, from `.env.prod`. The first call asks for the microphone.
 
 The publishable key's allowed origins must include `https://www.qween.com` and
 `https://shop.qweendom.in`, which are where the session is minted from. The agent id and key are baked into the
@@ -58,12 +59,14 @@ extension's content script, built for every shopper's browser rather than
 desktop Chrome alone. Qween adds it to their pages just before `</body>`:
 
 ```html
-<script async src="https://cdn.dev.voqalize.com/sites/qween.com.js"></script>
+<script async src="https://cdn.voqalize.com/sites/qween.com.js"></script>
 ```
 
-We host it. `./publish-embed.sh` builds it with the key in `.env.embed` (same
+That is production. Dev's copy is at `https://cdn.dev.voqalize.com/sites/qween.com.js`.
+
+We host it, on dev and on production. `./publish-embed.sh [dev|prod]` builds it with the key in `.env.embed` (`.env.embed.prod` for production; same
 shape as `.env`, never committed) into a scratch directory, so `dist/` and the
-extension are untouched, and uploads it to the dev asset host twice: at
+extension are untouched, and uploads it to that environment's asset host twice: at
 `/sites/qween.com/<hash>.js`, immutable, and at `/sites/qween.com.js`, served
 `no-cache`, which is the URL the page carries. A new upload reaches a page on its
 next load, and the hashed copies are never overwritten, so an earlier build can

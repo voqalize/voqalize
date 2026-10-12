@@ -39,3 +39,6 @@ proto/gen/
 *.swp
 .idea/
 .vscode/
+
+# The qween extension built against prod (demos/qween/extension, `pnpm build:prod`).
+dist-prod/

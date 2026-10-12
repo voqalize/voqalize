@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc --noEmit && node build.mjs",
     "typecheck": "tsc --noEmit",
-    "gen": "cd ../.. && uv run voqalize types qween/backend/brain.py -o qween/extension/src/actions.gen.ts"
+    "gen": "cd ../.. && uv run voqalize types qween/backend/brain.py -o qween/extension/src/actions.gen.ts",
+    "build:prod": "tsc --noEmit && VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs"
   },
   "dependencies": {
     "@pipecat-ai/client-js": "^1.13.0",
