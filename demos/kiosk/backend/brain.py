@@ -56,6 +56,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     PHRASES,
     FallbackLine,
     GeminiBrain,
@@ -204,11 +205,11 @@ assert set(HINDI_VOICED) == {name for name, s in _SPEECH.items() if s.spoken != 
 )
 
 
-#: How long the recognizer waits through a pause, on the 0-to-10 scale. Quick for
-#: the four questions, which are answered in a word or two; patient while a
-#: mobile number or PAN is being dictated, because people read those out in groups
-#: and a partial one is rejected outright rather than read back.
-_PATIENCE_QUICK = 3
+#: How long the recognizer waits through a pause, on the 0-to-10 scale. Every
+#: demo's floor for the questions, which are answered in a word or two; patient
+#: while a mobile number or PAN is being dictated, because people read those out
+#: in groups and a partial one is rejected outright rather than read back.
+_PATIENCE_QUICK = PATIENCE
 _PATIENCE_DICTATION = 8
 
 

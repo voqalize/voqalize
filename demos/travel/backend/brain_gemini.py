@@ -54,6 +54,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     FallbackLine,
     GeminiBrain,
     ScreenState,
@@ -758,7 +759,7 @@ class TravelBrain(GeminiBrain):
             self.drafts = [d for d in map(_draft, rows) if d is not None]
         await session.configure(
             Config(
-                stt=SttConfig(language=Language.EN),
+                stt=SttConfig(language=Language.EN, patience=PATIENCE),
                 tts=TtsConfig(voice=Voice.KOKORO_SARAH, language=Language.EN),
             )
         )

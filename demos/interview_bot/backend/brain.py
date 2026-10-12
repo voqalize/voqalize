@@ -42,7 +42,7 @@ from typing import Any
 from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, FallbackLine, GeminiBrain, landed
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, FallbackLine, GeminiBrain, landed
 
 from voqalize.sdk import Action, Session, Speech
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
@@ -321,7 +321,7 @@ class InterviewBotBrain(GeminiBrain):
         await session.configure(
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
-                stt=SttConfig(language=Language.EN),
+                stt=SttConfig(language=Language.EN, patience=PATIENCE),
             )
         )
 

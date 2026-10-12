@@ -45,6 +45,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     PHRASES,
     FallbackLine,
     GeminiBrain,
@@ -187,17 +188,6 @@ def _sounds_hindi(text: str) -> bool:
 
 def _golds() -> str:
     return "; ".join(f"{name} = {plain}" for name, plain in METAL_PLAIN.items())
-
-
-#: How long the recognizer waits through a pause, on the 0-to-10 scale: the
-#: floor. A shopper asks short things about what is on screen and judges the
-#: consultant by how quickly she answers, so this demo is the most responsive
-#: setting there is and runs below the other desks' shared 2 on purpose (the
-#: owner's call). The cost is a shopper cut off mid-sentence when they pause to
-#: think: on the first dialled call at 0 (2026-09-29), a shopper who spoke in
-#: phrases had each half-formed reply cancelled by their next phrase and heard
-#: nothing for as long as they kept going. The owner kept it at 0 having seen it.
-_PATIENCE = 0
 
 
 # ─── System prompt ─────────────────────────────────────────────────────────────
@@ -651,7 +641,7 @@ class QweenBrain(GeminiBrain):
         speech = SPEECH[OPENING]
         await session.configure(
             Config(
-                stt=SttConfig(language=speech.heard, patience=_PATIENCE),
+                stt=SttConfig(language=speech.heard, patience=PATIENCE),
                 tts=TtsConfig(voice=speech.voice, language=speech.spoken),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
@@ -1280,7 +1270,7 @@ class QweenBrain(GeminiBrain):
         self.spoken = speech.spoken
         return Config(
             # Carried on every switch: unset, it drops back to the deployment's 7.
-            stt=SttConfig(language=speech.heard, patience=_PATIENCE),
+            stt=SttConfig(language=speech.heard, patience=PATIENCE),
             tts=TtsConfig(voice=speech.voice, language=speech.spoken),
         )
 

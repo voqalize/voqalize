@@ -18,13 +18,14 @@ See ``demos/README.md`` for the routing contract and the add-a-demo checklist.
 """
 
 from voqalize.sdk.gemini import DEFAULT_MODEL, VOICE_THINKING, GeminiBrain, needs_result_now
-from voqalize_demos.configure import configure_soon
+from voqalize_demos.configure import PATIENCE, configure_soon
 from voqalize_demos.greeting import hello_for
 from voqalize_demos.screen import ScreenState, screen_prose
 from voqalize_demos.silent_turn import PHRASES, FallbackLine, landed, phrase, say_line
 
 __all__ = [
     "DEFAULT_MODEL",
+    "PATIENCE",
     "PHRASES",
     "VOICE_THINKING",
     "FallbackLine",

@@ -33,6 +33,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     FallbackLine,
     GeminiBrain,
     landed,
@@ -263,7 +264,7 @@ class ShoppingBrain(GeminiBrain):
         await session.configure(
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV, language=Language.EN),
-                stt=SttConfig(language=Language.EN),
+                stt=SttConfig(language=Language.EN, patience=PATIENCE),
             )
         )
 

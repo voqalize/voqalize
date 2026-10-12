@@ -48,6 +48,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     PHRASES,
     FallbackLine,
     GeminiBrain,
@@ -351,7 +352,7 @@ class KdemBrain(GeminiBrain):
         opening = BY_TAG["kn"] if init.get("lang") == "kn" else OPENING
         await session.configure(
             Config(
-                stt=SttConfig(language=opening.code, patience=2),
+                stt=SttConfig(language=opening.code, patience=PATIENCE),
                 tts=TtsConfig(voice=opening.voice, language=opening.code),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
@@ -413,7 +414,7 @@ class KdemBrain(GeminiBrain):
         try:
             await session.configure(
                 Config(
-                    stt=SttConfig(language=speech.code),
+                    stt=SttConfig(language=speech.code, patience=PATIENCE),
                     tts=TtsConfig(voice=speech.voice, language=speech.code),
                 )
             )

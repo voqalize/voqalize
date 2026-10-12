@@ -94,16 +94,16 @@ async def test_every_direction_moves_both_legs_and_comes_back() -> None:
             }
 
 
-async def test_patience_is_three_and_a_switch_keeps_it() -> None:
-    """The kiosk listens with patience 3 from the first word, and every language
+async def test_patience_is_the_floor_and_a_switch_keeps_it() -> None:
+    """The kiosk listens with patience 0 from the first word, and every language
     switch re-sends the recognizer's settings — so a switch must carry it too,
     or the kiosk quietly falls back to the deployment's 7 in Kannada."""
     llm = ScriptedGemini()
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
-        assert _last(_configs(rig), lambda c: c.stt.patience if c.stt else None) == 3
+        assert _last(_configs(rig), lambda c: c.stt.patience if c.stt else None) == 0
         await _by_hand(rig, "language_picked", {"language": "Kannada"})
-        assert _last(_configs(rig), lambda c: c.stt.patience if c.stt else None) == 3
+        assert _last(_configs(rig), lambda c: c.stt.patience if c.stt else None) == 0
 
 
 def _patience(rig: DemoRig) -> int | None:
@@ -116,7 +116,7 @@ async def test_dictation_waits_longer_and_the_questions_do_not() -> None:
     the customer start again. Start over brings the quick pace back."""
     async with demo("kiosk", ScriptedGemini()) as rig:
         await rig.driver.start_session()
-        assert _patience(rig) == 3
+        assert _patience(rig) == 0
         for step in _BY_HAND:
             await _by_hand(rig, step.event, step.payload)
             if step.event == "consent_given":
@@ -124,7 +124,7 @@ async def test_dictation_waits_longer_and_the_questions_do_not() -> None:
         assert rig.brain.view["screen"] == "value"
         assert _patience(rig) == 8, "the mobile number is asked for at the quick pace"
         await _by_hand(rig, "restart_pressed")
-        assert _patience(rig) == 3
+        assert _patience(rig) == 0
 
 
 async def test_an_answer_before_any_question_moves_on_and_is_not_asked_again() -> None:

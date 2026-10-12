@@ -81,6 +81,7 @@ from loguru import logger
 from pydantic import BaseModel, ValidationInfo, field_validator
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     FallbackLine,
     GeminiBrain,
     hello_for,
@@ -1909,7 +1910,7 @@ class OrderDeskBrain(GeminiBrain):
         await session.configure(
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.HI),
-                stt=SttConfig(language=Language.HI, patience=2),
+                stt=SttConfig(language=Language.HI, patience=PATIENCE),
             )
         )
         self.desk.session = session

@@ -51,6 +51,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     FallbackLine,
     GeminiBrain,
     ScreenState,
@@ -515,7 +516,7 @@ class ForgeBrain(GeminiBrain):
         # legs at once, and this lands before the greeting.
         await session.configure(
             Config(
-                stt=SttConfig(language=Language.EN),
+                stt=SttConfig(language=Language.EN, patience=PATIENCE),
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURI, language=Language.EN),
             )
         )

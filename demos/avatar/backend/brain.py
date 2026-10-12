@@ -57,7 +57,14 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, FallbackLine, GeminiBrain, landed, needs_result_now
+from voqalize_demos import (
+    DEFAULT_MODEL,
+    PATIENCE,
+    FallbackLine,
+    GeminiBrain,
+    landed,
+    needs_result_now,
+)
 
 from voqalize.sdk import (
     Action,
@@ -528,7 +535,7 @@ class AvatarBrain(GeminiBrain):
                 # measures is one setting. A visitor here asks short questions
                 # about the page in front of them, and a long wait after each
                 # reads as a slow demo.
-                stt=SttConfig(language=Language.EN, patience=2),
+                stt=SttConfig(language=Language.EN, patience=PATIENCE),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )

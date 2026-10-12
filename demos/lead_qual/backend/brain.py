@@ -39,6 +39,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     PHRASES,
     FallbackLine,
     GeminiBrain,
@@ -95,7 +96,7 @@ def _config(language_name: LanguageName) -> Config:
     language = _LANG_BY_NAME[language_name]
     return Config(
         tts=TtsConfig(language=language, voice=Voice.OMNIVOICE_GAURI),
-        stt=SttConfig(language=language),
+        stt=SttConfig(language=language, patience=PATIENCE),
     )
 
 

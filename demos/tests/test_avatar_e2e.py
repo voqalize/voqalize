@@ -241,7 +241,7 @@ async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() ->
         only = configs[0]
         assert only.tts is not None and only.stt is not None
         assert only.tts.language == "en" and only.stt.language == "en"
-        assert only.stt.patience == 2, only.stt
+        assert only.stt.patience == 0, only.stt
 
 
 async def test_the_voice_the_page_sends_is_the_voice_spoken() -> None:

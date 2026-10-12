@@ -77,6 +77,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     PHRASES,
     FallbackLine,
     GeminiBrain,
@@ -423,7 +424,7 @@ def _config(language_name: LanguageName, voice: Voice = Voice.OMNIVOICE_GAURI) -
         # show first, and a half-read account number is the thing to watch for.
         # If it turns up, raise this desk rather than the speech tier: the
         # mapping from the scale to frames is the tier's, and it re-tunes.
-        stt=SttConfig(language=language, patience=2),
+        stt=SttConfig(language=language, patience=PATIENCE),
         tts=TtsConfig(voice=voice, language=language),
         idle=IdleConfig(timeout_ms=_IDLE_MS),
     )

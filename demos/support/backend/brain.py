@@ -42,7 +42,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, FallbackLine, GeminiBrain, landed
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, FallbackLine, GeminiBrain, landed
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserIdle, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
@@ -377,7 +377,7 @@ class SupportBrain(GeminiBrain):
         await session.configure(
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV, language=Language.EN),
-                stt=SttConfig(language=Language.EN),
+                stt=SttConfig(language=Language.EN, patience=PATIENCE),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )

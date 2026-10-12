@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from voqalize_demos import PHRASES, hello_for
+from voqalize_demos import PATIENCE, PHRASES, hello_for
 
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
@@ -69,7 +69,7 @@ def config_for(name: LanguageName) -> Config:
     """Both legs in one language, in one request — never one without the other."""
     code = LANGUAGE_CODE[name]
     return Config(
-        stt=SttConfig(language=code),
+        stt=SttConfig(language=code, patience=PATIENCE),
         tts=TtsConfig(voice=VOICE, language=code),
     )
 

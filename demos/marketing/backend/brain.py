@@ -34,6 +34,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
+from voqalize_demos import PATIENCE
 
 from voqalize.sdk import Action, AppEvent, AppEvents, RTVIMessage, Session, Speech, SpeechChunk
 from voqalize.sdk.gemini import (
@@ -370,7 +371,7 @@ class TanviBrain(GeminiBrain):
         # low: this is a shop window, and a pause reads as a slow product.
         await session.configure(
             Config(
-                stt=SttConfig(language=Language.EN, patience=3),
+                stt=SttConfig(language=Language.EN, patience=PATIENCE),
                 tts=TtsConfig(voice=VOICE, language=Language.EN),
                 idle=IdleConfig(timeout_ms=0),
             )

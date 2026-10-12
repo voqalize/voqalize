@@ -41,6 +41,7 @@ from loguru import logger
 from pydantic import BaseModel, Field, computed_field
 from voqalize_demos import (
     DEFAULT_MODEL,
+    PATIENCE,
     PHRASES,
     FallbackLine,
     GeminiBrain,
@@ -69,7 +70,7 @@ def _config(language: Language) -> Config:
     as the page's connect-time ``config``, before this brain is dialled.
     """
     return Config(
-        stt=SttConfig(language=language),
+        stt=SttConfig(language=language, patience=PATIENCE),
         tts=TtsConfig(language=language, voice=Voice.OMNIVOICE_GAURI),
     )
 
