@@ -30,6 +30,7 @@ from typing import Any
 
 import pytest
 from google.genai import types
+from voqalize_demos import PATIENCE
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
@@ -241,7 +242,7 @@ async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() ->
         only = configs[0]
         assert only.tts is not None and only.stt is not None
         assert only.tts.language == "en" and only.stt.language == "en"
-        assert only.stt.patience == 0, only.stt
+        assert only.stt.patience == PATIENCE, only.stt
 
 
 async def test_the_voice_the_page_sends_is_the_voice_spoken() -> None:

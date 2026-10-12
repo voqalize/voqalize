@@ -33,6 +33,7 @@ from collections.abc import Iterator
 
 import pytest
 from google.genai import types
+from voqalize_demos import PATIENCE
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
@@ -625,8 +626,8 @@ async def test_a_reply_written_in_hindi_opens_in_the_hindi_voice() -> None:
         assert switch < opened
 
 
-async def test_patience_stays_at_the_floor_through_a_language_switch() -> None:
-    """Every request that states the recognizer states patience 0 with it: one
+async def test_patience_stays_at_the_demos_through_a_language_switch() -> None:
+    """Every request that states the recognizer states the demos' patience with it: one
     that left it out would drop the call back to the deployment's 7 at the
     first Hindi word."""
     async with demo("qween", _llm()) as rig:
@@ -634,7 +635,7 @@ async def test_patience_stays_at_the_floor_through_a_language_switch() -> None:
         await rig.driver.user_says("Hindi mein baat karo, mujhe rings dikhao.")
         stated = [c.stt for c in _configs(rig) if c.stt is not None]
         assert len(stated) >= 2, "expected the opening configure and the switch"
-        assert all(stt.patience == 0 for stt in stated), stated
+        assert all(stt.patience == PATIENCE for stt in stated), stated
 
 
 @pytest.mark.parametrize(
