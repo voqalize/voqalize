@@ -1,7 +1,8 @@
 # Trisha for Qween — the extension
 
 A Chrome extension that puts Trisha, a voice jewellery consultant, on
-[www.qween.com](https://www.qween.com). She finds pieces, opens them, switches
+[www.qween.com](https://www.qween.com) and on Qween's staging shop,
+[shop.qweendom.in](https://shop.qweendom.in). She finds pieces, opens them, switches
 metals, and opens Qween's own price breakup, details and FAQs while she talks
 about them. Everything she shows is a page, section or dialog Qween already has;
 the extension adds nothing to their page except a corner widget and the gold ring
@@ -38,16 +39,16 @@ from Qween's public product feed.
 ## Build and load
 
 ```sh
-cp .env.example .env     # the agent id and a publishable key for www.qween.com
+cp .env.example .env     # the agent id and a publishable key for Qween's sites
 pnpm install --ignore-workspace
 pnpm build               # → dist/
 ```
 
 Then `chrome://extensions` → Developer mode → **Load unpacked** → `dist/`, and
-open www.qween.com. The first call asks for the microphone.
+open www.qween.com or shop.qweendom.in. The first call asks for the microphone.
 
-The publishable key's allowed origins must include `https://www.qween.com`,
-which is where the session is minted from. The agent id and key are baked into the
+The publishable key's allowed origins must include `https://www.qween.com` and
+`https://shop.qweendom.in`, which are where the session is minted from. The agent id and key are baked into the
 bundle at build time and are never committed.
 
 ## The embed: one script on Qween's own pages
@@ -67,11 +68,16 @@ extension are untouched, and uploads it to the dev asset host twice: at
 `no-cache`, which is the URL the page carries. A new upload reaches a page on its
 next load, and the hashed copies are never overwritten, so an earlier build can
 be put back. That key's allowed origins are `https://*.qween.com`, which admits
-every Qween subdomain, staging included, and not `qween.com` itself.
+every Qween subdomain and not `qween.com` itself, and `https://shop.qweendom.in`,
+their staging shop, which is on a domain of its own.
 
 It names no domain. The adapter drives whichever of Qween's hosts serves it
 through that host's own router and paths, and reports `location.host` to the
-brain as the site, so their staging host behaves as `www.qween.com` does. What
+brain as the site. The brain answers from the catalogue of the site the call was
+placed from: staging publishes a feed of its own, with pieces the live shop does
+not have, and the brain fetches only the feeds of the hosts it lists
+(`FEED_URLS` in `../backend/catalog.py`), so a host it does not list is answered
+from the live shop's. What
 does have to know the host is the publishable key: its allowed origins must
 list every origin the script runs on, staging included, or `sessions.connect`
 refuses it. The agent id, the key and the control plane are baked in at build

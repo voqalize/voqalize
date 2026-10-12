@@ -37,7 +37,15 @@ from typing import Literal, get_args
 
 from loguru import logger
 
-FEED_URL = "https://www.qween.com/feed-products.xml"
+#: Each of Qween's sites by host, and the feed it publishes. Their staging site
+#: runs its own catalogue, which shares almost nothing with the live one, so a
+#: call indexes the feed of the site it was placed from. Only a host named here
+#: is ever fetched: the site comes from the page, and the page is not ours.
+FEED_URLS: dict[str, str] = {
+    "www.qween.com": "https://www.qween.com/feed-products.xml",
+    "shop.qweendom.in": "https://shop.qweendom.in/feed-products.xml",
+}
+FEED_URL = FEED_URLS["www.qween.com"]
 
 #: Refresh the index once it is this old. Their prices move with the gold rate.
 REFRESH_AFTER_S = 6 * 3600
@@ -625,13 +633,14 @@ def _download(url: str) -> bytes:
         return response.read()
 
 
-async def _fetch_feed() -> Catalog:
+async def _fetch_feed(url: str = FEED_URL) -> Catalog:
     started = time.monotonic()
-    xml = await asyncio.to_thread(_download, FEED_URL)
+    xml = await asyncio.to_thread(_download, url)
     catalog = await asyncio.to_thread(Catalog.parse, xml)
     logger.info(
-        "qween: feed indexed — {} pieces in {:.1f}s",
+        "qween: feed indexed — {} pieces from {} in {:.1f}s",
         len(catalog.pieces),
+        url,
         time.monotonic() - started,
     )
     return catalog
@@ -685,8 +694,19 @@ class FeedCache:
         return self.current()
 
 
-#: Shared by every session in the process.
+#: The live site's index, shared by every session in the process.
 FEED = FeedCache()
+#: One shared index per site in :data:`FEED_URLS`.
+FEEDS: dict[str, FeedCache] = {
+    host: FEED if url == FEED_URL else FeedCache(lambda url=url: _fetch_feed(url))
+    for host, url in FEED_URLS.items()
+}
+
+
+def feed_for(site: object) -> FeedCache:
+    """The index for the site a call was placed from: the live site's for a host
+    not in :data:`FEED_URLS`, or for a call that named none."""
+    return FEEDS.get(site, FEED) if isinstance(site, str) else FEED
 
 
 def rupees(amount: int) -> str:

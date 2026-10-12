@@ -8,7 +8,7 @@
 #                            this URL picks up the next upload on its next load
 #
 # The key in .env.embed is not the extension's: its allowed origins are every
-# origin the embed runs on (https://*.qween.com). Usage: ./publish-embed.sh
+# origin the embed runs on (https://*.qween.com, https://shop.qweendom.in). Usage: ./publish-embed.sh
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"

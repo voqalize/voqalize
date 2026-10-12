@@ -55,7 +55,13 @@ from voqalize_demos._loaded.qween.brain import (  # noqa: E402
     _IDLE_NUDGES,
     _sounds_hindi,
 )
-from voqalize_demos._loaded.qween.catalog import FEED, QUOTE_LIMIT_S, Catalog  # noqa: E402
+from voqalize_demos._loaded.qween.catalog import (  # noqa: E402
+    FEED,
+    FEEDS,
+    QUOTE_LIMIT_S,
+    Catalog,
+    feed_for,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -136,10 +142,20 @@ PIECE_PAGE = {
 }
 
 
+# The staging site's catalogue is its own, and shares no piece with the live one.
+STAGING_FEED_XML = (
+    '<rss xmlns:g="http://base.google.com/ns/1.0"><channel>'
+    + _item("S1", "trial-hoops", "TH-R18", "Trial Hoops", "Earrings > Hoops",
+            "Rose Bloom Gold", "18 KT Gold", 71000, "Diamond, Pink Sapphire")
+    + "</channel></rss>"
+)  # fmt: skip
+
+
 @pytest.fixture(autouse=True)
 def _feed() -> Iterator[None]:
-    """Every test starts from the invented feed, fetched just now."""
+    """Every test starts from the invented feeds, fetched just now."""
     FEED.prime(Catalog.parse(FEED_XML.encode()))
+    FEEDS["shop.qweendom.in"].prime(Catalog.parse(STAGING_FEED_XML.encode()))
     yield
     FEED.prime(Catalog.parse(FEED_XML.encode()))
 
@@ -291,6 +307,26 @@ async def test_find_resolves_names_to_the_grids_codes() -> None:
         await rig.driver.user_says("So what does the gold cost?")
         found = _results(llm.captured_contents[-1])["find_jewellery"]
         assert "1 pieces match" in found and "₹52,000 to ₹64,000" in found
+
+
+async def test_a_call_from_staging_searches_stagings_catalogue() -> None:
+    """The page names its own host at connect, and a call placed from Qween's
+    staging site is answered from the feed that site publishes."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session(init={"site": "shop.qweendom.in", "path": "/"})
+        await rig.driver.user_says("Show me rose gold earrings with pink sapphire under a lakh.")
+        await rig.driver.user_says("So what does the gold cost?")
+        found = _results(llm.captured_contents[-1])["find_jewellery"]
+        assert "₹71,000" in found and "₹64,000" not in found, found
+
+
+def test_a_site_not_on_the_list_reads_the_live_catalogue() -> None:
+    """The site is the page's word, so only a listed host picks a feed."""
+    assert feed_for("shop.qweendom.in") is FEEDS["shop.qweendom.in"]
+    assert feed_for("www.qween.com") is FEED
+    assert feed_for("evil.example") is FEED
+    assert feed_for(None) is FEED
 
 
 async def test_a_kind_is_a_word_the_grid_searches() -> None:

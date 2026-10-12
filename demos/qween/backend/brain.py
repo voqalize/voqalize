@@ -90,6 +90,7 @@ from .catalog import (
     Catalog,
     CategoryName,
     CollectionName,
+    FeedCache,
     KaratName,
     KindName,
     MetalName,
@@ -101,6 +102,7 @@ from .catalog import (
     StyleName,
     Variant,
     catalog_params,
+    feed_for,
     price_span,
     rupees,
     upper_snake,
@@ -631,6 +633,9 @@ class QweenBrain(GeminiBrain):
         self.spoken: Language = SPEECH[OPENING].spoken
         self._fallback = FallbackLine()
         self._ack = Acknowledger()
+        #: The catalogue of the site this call was placed from, set at session
+        #: start; the live site's until then.
+        self._feed: FeedCache = FEED
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -646,9 +651,10 @@ class QweenBrain(GeminiBrain):
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
-        # The catalogue index is shared and refreshed in the background; a call
-        # never waits on it.
-        FEED.warm()
+        # The catalogue index is shared per site and refreshed in the
+        # background; a call never waits on it.
+        self._feed = feed_for((session.init or {}).get("site"))
+        self._feed.warm()
         logger.info("qween: session start")
 
     async def greet(self, session: Session) -> str:
@@ -931,7 +937,7 @@ class QweenBrain(GeminiBrain):
 
     def _resolve(self, name: str, card: int | None) -> Piece | str:
         """The piece the model means, or the sentence that says why not."""
-        catalog = FEED.current()
+        catalog = self._feed.current()
         if catalog is None:
             return "the catalogue is still loading; use the cards on screen, by position"
         if card is not None:
@@ -1006,7 +1012,7 @@ class QweenBrain(GeminiBrain):
             sort=request.sort,
         )
         self._move(OpenCatalog(params=catalog_params(query)))
-        catalog = FEED.current()
+        catalog = self._feed.current()
         if catalog is None:
             return "Listing opened. The catalogue index is loading; the cards will follow."
         found = catalog.search(query)
@@ -1050,7 +1056,7 @@ class QweenBrain(GeminiBrain):
         if slug is None:
             return f"There is no card {request.card} on screen; call get_screen."
         self._move(HighlightCard(index=request.card))
-        catalog = FEED.current()
+        catalog = self._feed.current()
         piece = catalog.by_slug.get(slug) if catalog is not None else None
         return f"Ringed {piece.name}." if piece is not None else "ok"
 
@@ -1073,7 +1079,7 @@ class QweenBrain(GeminiBrain):
             if variant is None and (request.metal or request.karat):
                 fallback = " It does not come in that combination; say so."
         self._move(OpenProduct(slug=piece.slug, variant_code=variant.code if variant else None))
-        pairs = _pairs_line(catalog, piece) if (catalog := FEED.current()) else None
+        pairs = _pairs_line(catalog, piece) if (catalog := self._feed.current()) else None
         return f"Opened: {_piece_facts(piece, variant)}{fallback}" + (f" {pairs}" if pairs else "")
 
     def _listing_metal(self) -> str | None:
@@ -1094,7 +1100,7 @@ class QweenBrain(GeminiBrain):
         get_screen or lookup_piece gave you; if you have neither, read first,
         before any words. Made in it: say "Here it is in yellow gold." and call
         this. Not made in it: say so, and do not call."""
-        catalog = FEED.current()
+        catalog = self._feed.current()
         page = self.page
         if page is None or page.kind != "product" or not page.slug:
             return "No piece is open. Open one with show_piece first."
@@ -1214,7 +1220,7 @@ class QweenBrain(GeminiBrain):
         if page is None:
             return "The page has not reported yet."
         lines = [f"On {self._where(page)}."]
-        catalog = FEED.current()
+        catalog = self._feed.current()
         if page.kind == "product" and page.slug:
             piece = catalog.by_slug.get(page.slug) if catalog is not None else None
             if piece is not None and catalog is not None:
