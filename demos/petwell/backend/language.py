@@ -14,8 +14,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from voqalize_demos import PATIENCE, PHRASES, hello_for
+from voqalize_demos import PATIENCE, hello_for
 
+from voqalize.sdk.voice_helpers import PHRASES
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 __all__ = [

@@ -28,7 +28,7 @@ Most English lines are in gayatri's phrase cache on speech.dev, so each is
 heard about one network round trip after the turn ends. The "let me see" lines
 and every Hindi line are not, and cost a synthesis of ~300 ms — still well
 ahead of the model.
-Like :class:`~voqalize_demos.FallbackLine`'s line, it never enters the model's
+Like :class:`~voqalize.sdk.voice_helpers.FallbackLine`'s line, it never enters the model's
 context: it is the brain's, not the model's.
 """
 

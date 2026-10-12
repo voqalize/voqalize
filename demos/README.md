@@ -61,11 +61,10 @@ demos/
     umbrella.py           # the single FastAPI app: discovers + mounts brain routers
     discovery.py          # scans demos/*/backend, loads each router from source
     session.py            # the shared per-session WebSocket handler (make_brain_router)
-    __init__.py           # re-exports GeminiBrain and needs_result_now from voqalize.sdk.gemini
+    __init__.py           # re-exports GeminiBrain and needs_result_now from voqalize.sdk.gemini, and landed, FallbackLine, say_line, phrase, PHRASES from voqalize.sdk.voice_helpers; voqalize_demos.silent_turn stays an alias of that module until the alias is removed
     configure.py          # configure_soon: a config change from a tool, without waiting on the answer
     greeting.py           # hello_for: a one-word hello per demo language
     screen.py             # ScreenState, screen_prose: the screen is read, never remembered
-    silent_turn.py        # landed, FallbackLine, PHRASES: a turn that acted and said nothing gets a line of the brain's own
     testing.py            # ScriptedGemini: a fake genai.Client for the tests
   <name>/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/

@@ -42,16 +42,17 @@ from typing import Any
 from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, PATIENCE, FallbackLine, GeminiBrain, landed
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, GeminiBrain
 
 from voqalize.sdk import Action, Session, Speech
+from voqalize.sdk.voice_helpers import FallbackLine, landed
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 _RESUME_CHARS = 4000
 _FIELD_CHARS = 600
 
 #: What the interviewer says for a close that landed when the model's turn said
-#: nothing — see :mod:`voqalize_demos.silent_turn`. A section move says its own
+#: nothing — see :mod:`voqalize.sdk.voice_helpers`. A section move says its own
 #: line, naming the section it moved to.
 _THANKS = ("Thank you for your time today. That's the end of the interview.",)
 
@@ -361,6 +362,6 @@ class InterviewBotBrain(GeminiBrain):
 
         The prompt has the model speak and call in the same response; a response
         of the call alone would leave the candidate in silence with the screen
-        moved on. See :mod:`voqalize_demos.silent_turn`."""
+        moved on. See :mod:`voqalize.sdk.voice_helpers`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event

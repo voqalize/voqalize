@@ -3,10 +3,10 @@
 The loop runs a tool call and files its result for the *next* request, so a
 response made of calls alone ends the turn in silence: the screen changes and the
 user hears nothing until the runtime's watchdog apologises ten seconds later.
-Every prompt here has the model say a short line and call in the same response,
-and that line is the fast path — it is heard as the screen moves. On a dialled
-call the model still sometimes called alone (tool-loop program, D2, 2026-09-26).
-A prompt is a request; this is the floor under it.
+A brain's prompt should have the model say a short line and call in the same
+response, and that line is the fast path — it is heard as the screen moves. On
+a real call the model still sometimes calls alone. A prompt is a request; this
+is the floor under it.
 
 The floor makes no model call. Beside each dispatch the user sees, the brain
 records the lines that would say it landed — :func:`landed` — and when the turn
@@ -21,9 +21,10 @@ the brain. It is still a unit Voqalize will finalize, so it joins the finalize
 queue after the model's own, where the heard truth that comes back for it is
 taken and let go.
 
-A demo that speaks more than one language says the line in the one its voice is
-speaking. :data:`PHRASES` holds the few lines every such demo needs, per spoken
-language: a demo names the phrase, and the language it is in, when the call lands.
+A brain that speaks more than one language says the line in the one its voice
+is speaking. :data:`PHRASES` holds the few lines every such brain needs, per
+spoken language: a brain names the phrase, and the language it is in, when the
+call lands.
 
 What a brain does to use it::
 
@@ -54,17 +55,19 @@ from voqalize.sdk import Speech, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.gemini import GeminiBrain, _Unit  # pyright: ignore[reportPrivateUsage]
 from voqalize.sdk.wire import Language
 
+__all__ = ["PHRASES", "FallbackLine", "Phrase", "landed", "phrase", "say_line"]
+
 #: The lines of each call that landed in the turn under way, in order. Per turn,
 #: not per brain: each turn runs in its own task, and turns overlap when the user
 #: speaks again before the last response has finished streaming, so a record on
 #: the brain would hand one turn's dispatch to the other.
-_LANDED: ContextVar[list[tuple[str, ...]] | None] = ContextVar("silent_turn_landed", default=None)
+_LANDED: ContextVar[list[tuple[str, ...]] | None] = ContextVar("voice_helpers_landed", default=None)
 
-#: What a multilingual demo can say for a call, in any language it speaks:
+#: What a multilingual brain can say for a call, in any language it speaks:
 #: ``shown`` for something put on screen, ``done`` for a change made, ``thanks``
 #: for a call that ends the conversation, and ``over_to_you`` for a call that puts
 #: a question in front of the user and waits for their answer. None of them names
-#: the screen: the user can see it, and some demos never narrate it.
+#: the screen: the user can see it, and some brains never narrate it.
 Phrase = Literal["shown", "done", "thanks", "over_to_you"]
 
 #: The phrases, by the language the voice speaks — which, for a language no voice
@@ -138,7 +141,7 @@ PHRASES: Mapping[Language, Mapping[Phrase, tuple[str, ...]]] = {
 def phrase(language: Language, what: Phrase) -> tuple[str, ...]:
     """The lines for ``what`` in the spoken ``language``.
 
-    A language with no row raises: a multilingual demo holds its spoken languages
+    A language with no row raises: a multilingual brain holds its spoken languages
     to :data:`PHRASES` at import, so this is found in CI, not on a call."""
     return PHRASES[language][what]
 

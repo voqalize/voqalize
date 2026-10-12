@@ -42,9 +42,10 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import DEFAULT_MODEL, PATIENCE, FallbackLine, GeminiBrain, landed
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, GeminiBrain
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk.voice_helpers import FallbackLine, landed
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import SUPPORT_EVENTS, PhotoUploaded, ReturnSubmitted, SupportEvent

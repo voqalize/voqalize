@@ -28,10 +28,10 @@ Run: ``cd demos && uv run pytest tests/test_sugar_e2e.py``
 from __future__ import annotations
 
 from google.genai import types
-from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
+from voqalize.sdk.voice_helpers import PHRASES
 from voqalize.sdk.wire import Language
 
 from ._harness import (

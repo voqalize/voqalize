@@ -233,6 +233,11 @@ speak. Rejection is all-or-nothing, and `detail` is written to be shown.
   streamed turn, the tool loop it runs itself (`needs_result_now`,
   `TOOL_BUDGET_MS`), and the finalize that rewrites it to what was heard. `gemini_interactions.py` is the same
   turn against the Interactions API.
+- `src/voqalize/sdk/voice_helpers.py` — the floor under a `GeminiBrain` turn that
+  acted on screen and said nothing (`[gemini]` extra): `landed()` beside each
+  dispatch, `FallbackLine` to say one of those written lines with no second
+  model request, and `PHRASES` / `phrase()` for those lines in each spoken
+  language.
 - `src/voqalize/conformance/` — the wire-level conformance harness: `VoqalizeDriver`
   (drives a brain over a real socket from the voice-runtime side, no runtime
   needed), `brain_server` (a brain on an ephemeral localhost port, for tests that

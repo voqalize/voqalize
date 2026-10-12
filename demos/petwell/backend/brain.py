@@ -43,15 +43,7 @@ from google import genai
 from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import (
-    DEFAULT_MODEL,
-    FallbackLine,
-    GeminiBrain,
-    landed,
-    needs_result_now,
-    phrase,
-)
-from voqalize_demos.silent_turn import Phrase
+from voqalize_demos import DEFAULT_MODEL, GeminiBrain, needs_result_now
 
 from voqalize.sdk import (
     Action,
@@ -65,6 +57,7 @@ from voqalize.sdk import (
     UserMessage,
 )
 from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
+from voqalize.sdk.voice_helpers import FallbackLine, Phrase, landed, phrase
 
 from .app_events import (
     PETWELL_EVENTS,

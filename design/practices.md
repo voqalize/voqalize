@@ -46,7 +46,7 @@ subset.
    "Sorry — that's taking longer than I expected." The fix is the prompt, and
    under it a line the brain speaks itself when the turn called and said nothing
    — written, from the calls that landed, never a second model request (every
-   demo, through `demos/voqalize_demos/silent_turn.py`). The prompt alone did not
+   demo, through `voqalize.sdk.voice_helpers`). The prompt alone did not
    hold: on dialled calls the model called an action tool in silence in most
    demos (2026-09-26). The framework fills nothing, because a silent call can be
    right: the screen may already be the answer. — *agreed, 2026-09-25; the
@@ -166,6 +166,21 @@ Markdown renders the id rather than 17. -->
     "grounding beats a tool for anything on screen," which was written when the
     screen was in the context; it no longer is, and tier 2 carries the notice while
     tier 3 serves the content.*
+    **One recorded exception: a tail note may carry values when it never
+    persists.** When the page itself is the only source of item facts — an
+    assistant on a site whose catalogue it does not hold, where price, stock and
+    options exist nowhere else — the brain renders at most two `[Page now] …`
+    lines from its own mirror (the current page, and the previous one only if
+    the user moved within the last turn), plus a background result that has just
+    landed, through `GeminiBrain.tail_notes()`. They go in just before the latest
+    user turn on every request and are **never written to the context**, so the
+    next request carries what is true then or nothing; what goes stale is gone,
+    not contradicted. The act itself still enters the record as a naming line
+    ("the search for 'x' finished"), so the context shows why the agent spoke
+    and holds no value. A note appended with `append_to_context` stays under the
+    rule. — *contested until a brain ships on it: the bet is that re-rendering
+    per request is what made the snapshot safe, and the size cap (two notes, a
+    listing of at most eight cards) is what keeps it from becoming the old dump.*
 29. **An app message may never take the floor.** Enforced by `on_rtvi` not being a
     generator — nothing to yield speech into, and no turn minted. — *agreed,
     enforced by the type.*
@@ -437,11 +452,13 @@ asking again are `respond`'s.
   read tool's name and the actor's word are things only a brain can supply. Whether
   the discipline it encodes deserves more than a demo helper is open.
 - Whether the SDK ships a **line per tool**, spoken when the model calls in
-  silence. Today the prompt carries the rule (rule 7) and every demo speaks its
-  own floor through `voqalize_demos.silent_turn`, which reaches into the SDK's
-  private finalize queue to keep the line out of the context. A workaround every
-  demo shares is a feature the SDK owes them; whether it becomes one is open.
-  Deferred, 2026-09-25.
+  silence. The prompt carries the rule (rule 7), and the floor every demo spoke
+  through `voqalize_demos.silent_turn` moved unchanged into the SDK as
+  `voqalize.sdk.voice_helpers` (`landed`, `FallbackLine`, `PHRASES`; with the
+  `gemini` extra), so a brain outside the demos gets the same floor. It still
+  reaches into `GeminiBrain`'s private finalize queue, now from inside the SDK.
+  What stays open is whether the line becomes part of the tool itself rather than
+  a helper beside it. Deferred, 2026-09-25; the helper moved for SDK 0.9.0.
 - Whether a turn that **ends speechless should end quietly**. It ends without
   text, so the watchdog (`brain.watchdog_secs`) apologises for a delay that is
   not one — unless the user speaks first. Nothing on the wire says "this turn is

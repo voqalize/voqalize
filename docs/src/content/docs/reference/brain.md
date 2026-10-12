@@ -511,6 +511,7 @@ and offer the same members to override, read or call:
 | `tools` | property | The tools the model may call, read once per turn. A list of bound `async def` methods, each returning within `TOOL_BUDGET_MS`. |
 | `system_instruction` | property, settable | The prompt every request carries. Set it from `on_session_start`, where this user's facts are in hand. |
 | `append_to_context(…)` | method | Add to the conversation the model sees, in the provider's own type. |
+| `tail_notes()` | method | `GeminiBrain` only. Content for the next request alone, placed just before the latest user turn and never kept. Default: nothing. |
 | `respond(session)` | async generator | Stream one turn, however many requests it takes. |
 
 Both run their own tool loop, and they run it differently. `GeminiBrain` makes
@@ -541,8 +542,35 @@ from voqalize.sdk.gemini import TOOL_BUDGET_MS, needs_result_now
 Neither is exported from `voqalize.sdk`, because nothing there imports
 `google-genai`. `append_to_context`
 takes a `types.Content` on `GeminiBrain` and a `gi.UserInputStep` on
-`GeminiInteractionsBrain` — that is the one place a brain written for one does
+`GeminiInteractionsBrain` — that is one place a brain written for one does
 not paste into the other.
+
+`tail_notes()` is another: `GeminiBrain` has it and `GeminiInteractionsBrain`
+does not, because the latter keeps its conversation on the server, where "this
+request only" has no meaning. `GeminiBrain` calls it before every request of a
+turn, the follow-up after a marked tool and the one retry included, and puts
+what it returns just before the latest user turn, for that request only. A turn
+the brain opens with nothing appended has it after the context the turn began
+with. It is for state that goes stale (the page the user is on, a result that
+has just landed); an act belongs in `append_to_context`. It is synchronous and
+timed against `TOOL_BUDGET_MS`. Each content is `user` text: role set, at least
+one part, no function call or response. A hook that raises, is `async`, or
+returns anything else sends the request without it.
+
+`voqalize.sdk.voice_helpers`, also behind the `gemini` extra, is the floor under a
+`GeminiBrain` turn that called a tool and said nothing:
+
+```python
+from voqalize.sdk.voice_helpers import PHRASES, FallbackLine, landed, phrase, say_line
+```
+
+| Name | Kind | What it does |
+|---|---|---|
+| `landed(*lines)` | function | Call it beside a dispatch the user sees: records the lines that would say it landed. Outside a turn it does nothing. |
+| `FallbackLine` | class | One per brain. `speak_if_silent(brain, super().respond(session))` passes the turn through, and if it spoke nothing and something landed, says one line of the last call that did. No model request; the line never enters the context. |
+| `say_line(brain, line)` | async generator | One written line, spoken as a unit of the brain's own inside a turn it has been given. |
+| `PHRASES`, `phrase(language, what)` | mapping, function | The written lines for `shown`, `done`, `thanks` and `over_to_you`, per spoken `Language`. |
+| `Phrase` | type | The four names `phrase` takes, as a `Literal`. |
 
 `DEFAULT_MODEL` reads `VOQAL_GEMINI_MODEL` from the environment, falling back to
 `gemini-3.5-flash`. Both classes force the model's minimum reasoning level: a

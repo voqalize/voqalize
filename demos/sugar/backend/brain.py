@@ -42,19 +42,15 @@ from pydantic import BaseModel, Field, computed_field
 from voqalize_demos import (
     DEFAULT_MODEL,
     PATIENCE,
-    PHRASES,
-    FallbackLine,
     GeminiBrain,
     ScreenState,
     configure_soon,
-    landed,
     needs_result_now,
-    phrase,
     screen_prose,
 )
-from voqalize_demos.silent_turn import Phrase
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech
+from voqalize.sdk.voice_helpers import PHRASES, FallbackLine, Phrase, landed, phrase
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import SUGAR_EVENTS, SensorOrderConfirmed, SugarEvent, VideoClosed
@@ -338,7 +334,7 @@ so a command added and not mirrored is a type error rather than a
 picture that has quietly stopped agreeing with the screen."""
 
 #: What the coach says for a command that landed, when the model's turn said
-#: nothing — see :mod:`voqalize_demos.silent_turn`. A phrase, not a line: it is
+#: nothing — see :mod:`voqalize.sdk.voice_helpers`. A phrase, not a line: it is
 #: said in the language the call is in when the command lands.
 _PHRASE: dict[type[ScreenMove], Phrase] = {
     LogMeal: "done",
@@ -484,7 +480,7 @@ class SugarBrain(GeminiBrain):
 
         The prompt has the model speak and call in the same response, and on a
         dialled call it sometimes called alone, leaving the patient in silence with
-        the screen changed. See :mod:`voqalize_demos.silent_turn`."""
+        the screen changed. See :mod:`voqalize.sdk.voice_helpers`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 

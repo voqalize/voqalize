@@ -55,15 +55,14 @@ from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
     PATIENCE,
-    FallbackLine,
     GeminiBrain,
     ScreenState,
-    landed,
     needs_result_now,
     screen_prose,
 )
 
 from voqalize.sdk import Action, RTVIMessage, Session, Speech
+from voqalize.sdk.voice_helpers import FallbackLine, landed
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 from .app_events import (
@@ -457,7 +456,7 @@ this, so a command added here and not mirrored is a type error rather than a
 picture that has quietly stopped agreeing with the screen."""
 
 #: What Tess says for a command that landed, when the model's turn said nothing —
-#: see :mod:`voqalize_demos.silent_turn`. By then the command has run, so each
+#: see :mod:`voqalize.sdk.voice_helpers`. By then the command has run, so each
 #: line says it is done. Drafts speak in maker-checker terms, like the prompt.
 _LINES: dict[type[ScreenMove], tuple[str, ...]] = {
     OpenBoard: ("Here's the board.", "Back on the board."),
@@ -555,7 +554,7 @@ class ServicingBrain(GeminiBrain):
 
         The prompt has the model speak and call in the same response, and on a
         dialled call it sometimes called alone, leaving the advisor in silence
-        with the console changed. See :mod:`voqalize_demos.silent_turn`."""
+        with the console changed. See :mod:`voqalize.sdk.voice_helpers`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 

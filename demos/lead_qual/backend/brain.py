@@ -37,19 +37,10 @@ from typing import Any, Literal
 from google import genai
 from loguru import logger
 from pydantic import BaseModel, Field
-from voqalize_demos import (
-    DEFAULT_MODEL,
-    PATIENCE,
-    PHRASES,
-    FallbackLine,
-    GeminiBrain,
-    configure_soon,
-    landed,
-    needs_result_now,
-    phrase,
-)
+from voqalize_demos import DEFAULT_MODEL, PATIENCE, GeminiBrain, configure_soon, needs_result_now
 
 from voqalize.sdk import Action, Session, Speech
+from voqalize.sdk.voice_helpers import PHRASES, FallbackLine, landed, phrase
 from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
 
 # ─── Language tables ───────────────────────────────────────────────────────────
@@ -375,7 +366,7 @@ class LeadQualBrain(GeminiBrain):
 
         The prompt has the model speak and call in the same response, and on a
         dialled call it sometimes called alone — here that is ``end_call`` with no
-        goodbye, the call closed in silence. See :mod:`voqalize_demos.silent_turn`."""
+        goodbye, the call closed in silence. See :mod:`voqalize.sdk.voice_helpers`."""
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
             yield event
 

@@ -1,8 +1,7 @@
 """A turn that acted on screen and said nothing gets a line of the brain's own.
 
-On a dialled call (tool-loop program, D2) the model called an action tool alone in
-most of the demos, and the user heard nothing until the runtime's watchdog
-apologised. :mod:`voqalize_demos.silent_turn` is the floor under the prompt's rule
+On real calls the model sometimes calls an action tool alone, and the user
+hears nothing until the runtime's watchdog apologises. :mod:`voqalize.sdk.voice_helpers` is the floor under the prompt's rule
 — a written line, no second request; these pin what it does and, as much, what it
 leaves alone.
 """
@@ -15,12 +14,9 @@ from collections.abc import AsyncGenerator
 from itertools import pairwise
 from typing import Any, cast
 
-from voqalize_demos import PHRASES, FallbackLine, GeminiBrain, landed
-from voqalize_demos.testing import ScriptedGemini, call, reply
-
 from voqalize.sdk import Speech, SpeechChunk, SpeechEnd, SpeechStart
-
-from ._harness import check_turn, demo
+from voqalize.sdk.gemini import GeminiBrain
+from voqalize.sdk.voice_helpers import PHRASES, FallbackLine, landed
 
 _OPEN = ("It's open.", "Here it is.")
 
@@ -117,34 +113,3 @@ def test_every_language_has_every_phrase() -> None:
     for language, row in PHRASES.items():
         assert set(row) == kinds, language
         assert all(row.values()), language
-
-
-async def test_servicing_says_the_case_is_open_when_the_call_came_alone() -> None:
-    """Over the real wire: the call lands once, the brain's line is what the
-    advisor hears, the turn is one request, and the line never reaches the
-    context."""
-    from servicing.backend.brain import _LINES, OpenCase  # pyright: ignore[reportPrivateUsage]
-
-    llm = ScriptedGemini(
-        {
-            "Open Daniel Cho's case.": call("open_case", action={"ref": "MS-1042"}),
-            "Thanks.": reply("Anytime."),
-        }
-    )
-    async with demo("servicing", llm) as rig:
-        await rig.driver.start_session()
-        turn = await rig.driver.user_says("Open Daniel Cho's case.")
-        check_turn(rig, turn, units=1)
-        (line,) = (u.text for u in turn.units)
-        assert line in _LINES[OpenCase], line
-        assert rig.actions() == ["open_case"]
-        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
-
-        await rig.driver.user_says("Thanks.")
-        spoken = " ".join(
-            part.text or ""
-            for content in llm.captured_contents[-1]
-            if content.role == "model"
-            for part in content.parts or []
-        )
-        assert line not in spoken, f"the brain's line {line!r} reached the context"
