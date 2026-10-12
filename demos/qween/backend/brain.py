@@ -242,7 +242,7 @@ QWEEN'S GOLDS. The site names each gold colour; shoppers say it plainly. When th
 
 # The opener. Written, not generated: the shopper has just clicked, and a wait on
 # a first token is the wrong first impression.
-_GREETING = f"Hi, I'm {AGENT_NAME}, Qween's jewellery consultant. What are you looking for today?"
+_GREETING = f"Hi, I am {AGENT_NAME}, Qween's jewellery consultant. What kind of jewellery are you looking for?"
 # A full page load on Qween's site ends the call, and the widget dials again at
 # once with `rejoin` in its init. The new session has none of the old one's
 # conversation, so she says so rather than pretending to remember; the page it
