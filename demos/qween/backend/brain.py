@@ -162,6 +162,29 @@ _PAIRS = 2
 #: middle and the dearest — enough to show the range, few enough to say.
 _PICKS = 3
 
+#: Her written line for a silent turn whose move answers a question of its own.
+#: The generic "There you go." to "how do I know my size?" says the screen moved
+#: and nothing else (47ee8dd8, 2026-10-12); these say what the dialog is for. The
+#: 3D line offers rather than claims: many pieces have no 3D view, and only the
+#: page knows which.
+_LANDED_LINES: dict[str, dict[Language, tuple[str, ...]]] = {
+    "size_guide": {
+        Language.EN: ("Here's the size guide. It shows how to measure.",),
+        Language.HI: ("यह रही साइज़ गाइड। इसमें नापने का तरीका है।",),
+    },
+    "delivery": {
+        Language.EN: ("Here are the delivery options. Your pincode gives the date.",),
+        Language.HI: ("ये रहे डिलीवरी के ऑप्शन। पिनकोड डालने पर तारीख दिखेगी।",),
+    },
+    "view_3d": {
+        Language.EN: ("Its 3D view, if this piece has one.",),
+        Language.HI: ("अगर इस पीस का 3D व्यू है, तो वह यह रहा।",),
+    },
+}
+assert all({s.spoken for s in SPEECH.values()} <= set(v) for v in _LANDED_LINES.values()), (
+    "a spoken language has no written line for a move"
+)
+
 _KNOWLEDGE = (Path(__file__).parent / "knowledge" / "L1.md").read_text(encoding="utf-8")
 
 
@@ -207,17 +230,21 @@ SHOW IT, THEN TALK ABOUT IT. The shopper can see the page. A turn opens with a s
 
 EVERY MOVE COMES WITH WORDS. Whenever you move the screen, write your line first and make the call in the same response — the line is spoken while the page moves. A response that is only tool calls is silence: after such a call you do not speak again until the shopper does, and what the call returns reaches you on your next turn. Opening a piece and finding jewellery are the moves that come back to you at once: see the next paragraphs.
 
+A QUESTION GETS ITS ANSWER IN WORDS. When the shopper asks something — how to know their size, how long delivery takes, what the price is made of, whether it is certified — your line is the answer, and a dialog or section you open is shown beside it, in the same response, never instead of it. A dialog's own words reach you only after your turn, so answer from QWEEN KNOWLEDGE, from what a tool already gave you, and from what any good consultant knows: "Here's the size guide. Measure the inside of a bangle that fits you, and match it on the chart." "Here are the delivery options. Your pincode there gives the exact date, and shipping is free and insured." Never a figure you do not have: point to where it is on screen instead.
+
 A PIECE YOU OPEN IS A PIECE YOU SELL. When you call show_piece, the line before it is only the piece's name, said as done: "Here are the Petal Hoops." What it returns — the stone, the gold, the weight, the price, what goes with it — comes back to you within this same turn, and you speak again: two or three sentences that make them want it. Pick the one or two things that make this piece special — a stone's colour or fire, how it is set, the design and what it is like to wear, how it catches the light — and tie them to what they told you: who it is for, the occasion, their style. Then end with a light question that takes them a step further, or, when it fits, offer one piece from "Goes with it" by name. Speak about it like you love it, not like a spec sheet: never list its facts, never repeat its name, and give the price only if they asked or named a budget. Opening a piece and saying nothing more about it is never enough.
 
 A LISTING YOU SHOW, YOU TALK THROUGH. When you call find_jewellery, the line before it is only what you are showing: "Here are rose gold hoops." What matched comes back to you within this same turn, and you speak again, in two or three sentences, like a consultant looking at the tray with them. When pieces match: give the range in a word ("they run from about forty to ninety thousand"), then bring out one or two of the pieces it names — what sets each apart, and which suits what they told you — and end with a light question or an offer to open one. When nothing matches their budget: say so plainly and kindly, say where those pieces start, and offer to show them anyway or to change something else — a lighter stone, another gold, a different style. When nothing matches at all: say so, and suggest loosening one thing. Never list every piece, never read prices off as a list.
 
 A READ COMES BEFORE ANY WORDS. get_screen and lookup_piece are silent reads: they come straight back to you within this same turn. When you need one, call it first, with nothing written before it, then give your one reply — the answer, and any move — once it is back. Words before a read are often all the shopper hears. Never say a line that promises more to come — "let me check", "let me get the details", "I'll see if" — because nothing comes after it: either you already know, or you read first and then answer, or you make the move and your line is the whole reply.
 
-NUMBERS COME FROM A SOURCE, NEVER FROM MEMORY. A price, weight, carat, grade or delivery time is spoken only from what a tool returned, a card on the screen, or a dialog's own text. Qween's prices move with the gold rate every day. If you do not have the figure, open the place it is (the piece, or its price breakup) and read it from what comes back; never estimate one. Say prices the way an Indian shopper does — "one lakh forty-three thousand rupees" — and round to the nearest thousand with "about" unless they ask for the exact figure.
+NUMBERS COME FROM A SOURCE, NEVER FROM MEMORY. A price, weight, carat, grade or delivery time — and any share, rarity or statistic, like "one percent of diamonds" — is spoken only from what a tool returned, a card on the screen, or a dialog's own text. Qween's prices move with the gold rate every day. If you do not have the figure, open the place it is (the piece, or its price breakup) and read it from what comes back; never estimate one. Say prices the way an Indian shopper does — "one lakh forty-three thousand rupees" — and round to the nearest thousand with "about" unless they ask for the exact figure.
 
 BE INTERESTED IN THEM. Ask who it is for, the occasion, the style they love, and remember the answer: bring it back later — "For your sister's engagement, this one has the sparkle." React to what they say like a person would, warmly and briefly, before you move on.
 
 HELP THEM NARROW. Most shoppers arrive with a feeling, not a filter: "something for my mother", "an everyday ring", "under fifty thousand". Ask one short question at a time when you need to — the occasion, a metal they like, a budget — and show something as soon as you can rather than interviewing them. When they react to what is on screen, narrow from there. Offer a view when they want one: which gold suits everyday wear, whether a diamond grade is worth the difference.
+
+SEVERAL MESSAGES IN A ROW ARE ONE PERSON TALKING. The recognizer sometimes splits what the shopper says into pieces, and they reach you as several messages one after another, the last perhaps only a word. The latest one carries what they want now; the earlier ones are its setup. Answer the latest question, about what they are looking at now, and never one they have moved past.
 
 WHAT IS ON SCREEN IS LIVE. The shopper clicks too. When they have moved the page, their next message comes with what their screen now shows — the piece with every gold, purity and price, or the cards in order. "This one", "that", "the second one" mean what it says: answer from it at once, in one reply, without calling get_screen. When the piece is one you opened and nothing has moved since, what show_piece returned is still true. Cards are numbered in the order the page shows them.
 
@@ -225,7 +252,7 @@ COMPLETE THE LOOK. When you open a piece, or a shopper lingers on one, asks abou
 
 A PERSON IS ALWAYS ONE STEP AWAY. If they want to see a piece in person, talk to someone, book an appointment, or ask something you cannot answer — an order, a delivery already placed, a custom design, a repair — offer Qween's own people with connect_to_person: the concierge (call or WhatsApp), a live video consultation, or a boutique. Do it gladly, not as a failure.
 
-WHAT YOU DO NOT DO. You do not place orders, take payment or personal details, hold stock, promise delivery dates, or offer discounts. You do not invent a piece, a collection, a policy or a figure. Qween sells only natural diamonds and gemstones — never say lab-grown. If something is not in QWEEN KNOWLEDGE and no tool gives it to you, say you are not sure and offer the concierge. What a gemstone or a gold is, you may explain; how Qween sets its own prices — how making charges are worked out, when the gold rate is taken, what a certificate or card includes — you know only from QWEEN KNOWLEDGE or the page's own words.
+WHAT YOU DO NOT DO. You do not place orders, take payment or personal details, hold stock, promise delivery dates, or offer discounts. You do not invent a piece, a collection, a policy or a figure. Name a Qween policy in QWEEN KNOWLEDGE's own words — "5-year stone price protection", never a name of your own like "price promise". You do not describe a boutique — its floors, layout, displays or stock — beyond what QWEEN KNOWLEDGE says; to visit one, open the store locator with connect_to_person. Asked about Qween's margins or profit, answer plainly and kindly, once: Qween does not publish its margins; what you can show is what the price is made of — the price breakup separates gold, stones, making and tax — and that Qween buys its diamonds from one partner, Rosy Blue, with no middlemen. Then offer the breakup or the concierge. Qween sells only natural diamonds and gemstones — never say lab-grown. If something is not in QWEEN KNOWLEDGE and no tool gives it to you, say you are not sure and offer the concierge. What a gemstone or a gold is, you may explain; how Qween sets its own prices — how making charges are worked out, when the gold rate is taken, what a certificate or card includes — you know only from QWEEN KNOWLEDGE or the page's own words.
 
 THE FIRST SENTENCE IS A FEW WORDS. The shopper hears nothing until your whole first sentence has been voiced, and a long one is a long silence first. So open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, then say the rest in the next sentence. Put the answer in it, not a preamble: "Yes, it's hallmarked. Every Qween piece carries the BIS mark." — not "Every piece we make is hallmarked by BIS, which certifies the purity of the gold, so you can…". "A cluster, for her. It looks larger than a solitaire for the price." Never join clauses with commas or a semicolon to stretch the first sentence.
 
@@ -598,6 +625,20 @@ def _piece_facts(p: Piece, current: Variant | None) -> str:
     return " ".join(lines)
 
 
+#: The close of a result that comes back within the turn. The re-ask came back
+#: with no words in about a third of these turns on 2026-10-12, and the shopper
+#: heard "Let me see.", "One moment." and "Here it is." and nothing more: a bare
+#: fact reads as done, so the result says what is wanted of it.
+_TALK_LISTING = (
+    "Now speak to the shopper about this listing, as the prompt says: the range, one or "
+    "two pieces that suit them, a light question."
+)
+_TALK_PIECE = (
+    "Now speak to the shopper about this piece, as the prompt says: two or three "
+    "sentences that make them want it, and a light question."
+)
+
+
 def _picks_line(found: list[tuple[Piece, list[Variant]]]) -> str:
     """A few matching pieces across the price range, for her to talk about."""
     by_price = sorted(found, key=lambda f: min(v.price for v in f[1]))
@@ -937,10 +978,13 @@ class QweenBrain(GeminiBrain):
     def _own_move(self) -> bool:
         return time.monotonic() - self._moved_at < _OWN_MOVE_S
 
-    def _move(self, action: Action) -> None:
+    def _move(self, action: Action, lines: str | None = None) -> None:
+        """Dispatch ``action``, with the written line for it should the turn say
+        nothing: its own, under ``lines``, or the plain "shown"."""
         self._moved_at = time.monotonic()
         self.session.dispatch(action)
-        landed(*phrase(self.spoken, "shown"))
+        own = _LANDED_LINES[lines][self.spoken] if lines is not None else None
+        landed(*(own or phrase(self.spoken, "shown")))
 
     @staticmethod
     def _where(page: PageChanged) -> str:
@@ -1075,17 +1119,20 @@ class QweenBrain(GeminiBrain):
             f"{_picks_line(found)}"
         )
         if request.karat is None:
-            return opened
+            return f"{opened} {_TALK_LISTING}"
         # The listing has no purity facet (the site's `supportedFilters` carry
         # none), so the page shows every purity and the index says which pieces
         # on it come in the one asked for.
         karat = KARATS[request.karat]
         named = [p.name for p, vs in found if any(v.karat == karat for v in vs)]
         if not named:
-            return f"{opened} The page shows every purity; none of these comes in {karat}."
+            return (
+                f"{opened} The page shows every purity; none of these comes in {karat}. "
+                f"{_TALK_LISTING}"
+            )
         return (
             f"{opened} The page shows every purity; the ones that come in {karat}: "
-            f"{', '.join(named[:_KARAT_NAMES])}."
+            f"{', '.join(named[:_KARAT_NAMES])}. {_TALK_LISTING}"
         )
 
     async def open_collection(self, request: CollectionRequest) -> str:
@@ -1131,7 +1178,11 @@ class QweenBrain(GeminiBrain):
                 fallback = " It does not come in that combination; say so."
         self._move(OpenProduct(slug=piece.slug, variant_code=variant.code if variant else None))
         pairs = _pairs_line(catalog, piece) if (catalog := self._feed.current()) else None
-        return f"Opened: {_piece_facts(piece, variant)}{fallback}" + (f" {pairs}" if pairs else "")
+        return (
+            f"Opened: {_piece_facts(piece, variant)}{fallback}"
+            + (f" {pairs}" if pairs else "")
+            + f" {_TALK_PIECE}"
+        )
 
     def _listing_metal(self) -> str | None:
         """The one gold the listing on screen is filtered to, if it is filtered to
@@ -1181,12 +1232,15 @@ class QweenBrain(GeminiBrain):
 
     async def show_price_breakup(self) -> str:
         """Open the open piece's price breakup: gold, stones, making and tax. Its
-        figures come back to you as the dialog's text."""
+        figures come back to you as the dialog's text, after your turn: say a
+        line with the call, and quote a figure from it only once you have it."""
         self._move(OpenModal(modal="price_breakup"))
         return "ok"
 
     async def show_details(self, request: DetailRequest) -> str:
-        """Scroll the open piece's page to one of its sections and ring it."""
+        """Scroll the open piece's page to one of its sections and ring it. It
+        shows; it does not answer. If they asked something, answer it in your
+        line, in this same response."""
         section, tab = _DETAILS[request.what]
         self._move(ShowSection(section=section, tab=tab))
         return "ok"
@@ -1194,33 +1248,45 @@ class QweenBrain(GeminiBrain):
     async def show_gemstone_details(self) -> str:
         """Open the open piece's gemstone details: each coloured stone's origin,
         carat and count. Only for a piece with gemstones; its diamonds are on the
-        page's DIAMOND tab, show_details with 'diamond'."""
+        page's DIAMOND tab, show_details with 'diamond'. Its words reach you only after your turn: if they asked a question, answer it in your line, in this same response."""
         self._move(OpenModal(modal="gemstone_details"))
         return "ok"
 
     async def show_assurance(self, request: AssuranceRequest) -> str:
-        """Open one of Qween's assurances on the open piece's page."""
+        """Open one of Qween's assurances on the open piece's page. Its words reach you only after your turn: if they asked a question, answer it in your line, in this same response.
+        Name the assurance as QWEEN KNOWLEDGE does."""
         self._move(OpenModal(modal="assurance", which=request.which))
         return "ok"
 
     async def show_faq(self, request: FaqRequest) -> str:
-        """Open one of the FAQs on the open piece's page."""
+        """Open one of the FAQs on the open piece's page. Its words reach you only after your turn: if they asked a question, answer it in your line, in this same response."""
         self._move(OpenFaq(topic=_FAQS[request.topic]))
         return "ok"
 
     async def show_size_guide(self) -> str:
-        """Open the open piece's size chooser, for rings and bangles."""
-        self._move(OpenModal(modal="size_guide"))
+        """Open the open piece's size chooser, for rings and bangles. Asked "how
+        do I know my size?", the answer is your line, in this same response: how
+        to measure — the inside of a ring or bangle that fits them, against the
+        chart — or that a boutique can size them. The chart's words reach you
+        only after your turn."""
+        self._move(OpenModal(modal="size_guide"), "size_guide")
         return "ok"
 
     async def show_delivery_options(self) -> str:
-        """Open the open piece's delivery and store-pickup options."""
-        self._move(OpenModal(modal="delivery"))
+        """Open the open piece's delivery and store-pickup options. Asked how
+        long delivery takes, the answer is your line, in this same response:
+        their pincode there gives the date, and shipping in India is free and
+        insured. Never a number of days you have not read; the dialog's words
+        reach you only after your turn."""
+        self._move(OpenModal(modal="delivery"), "delivery")
         return "ok"
 
     async def show_in_3d(self) -> str:
-        """Turn the open piece's photos into its 3D view."""
-        self._move(View3D())
+        """Turn the open piece's photos into its 3D view, if it has one. Many
+        pieces have none, and you cannot know until the page tries: offer, never
+        claim — "Here's its 3D view, if this piece has one." If the page reports
+        that it failed, say so plainly."""
+        self._move(View3D(), "view_3d")
         return "ok"
 
     async def open_try_on(self) -> str:

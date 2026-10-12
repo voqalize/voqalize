@@ -607,6 +607,45 @@ async def test_a_failed_command_is_never_claimed() -> None:
         assert "no Clover Green Gold swatch" in _texts(llm.captured_contents[-1])
 
 
+async def test_a_question_answered_only_by_a_dialog_says_what_the_dialog_is_for() -> None:
+    """The model opened the size guide and said nothing (47ee8dd8, 2026-10-12):
+    the written line names what the guide shows, not a bare "There you go.", and
+    it is still one request, never a re-ask."""
+    llm = ScriptedGemini({"How do I know my size?": call("show_size_guide")})
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await _page(rig, "page_changed", PIECE_PAGE)
+        turn = await rig.driver.user_says("How do I know my size?")
+        (line,) = (u.text for u in turn.units)
+        assert line == "Here's the size guide. It shows how to measure.", line
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+
+async def test_a_3d_view_is_offered_never_claimed() -> None:
+    """Many pieces have no 3D view and only the page knows which (6320e6d8,
+    2026-10-12): a silent call's line does not say it is there."""
+    llm = ScriptedGemini({"Can I see it in 3D?": call("show_in_3d")})
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await _page(rig, "page_changed", PIECE_PAGE)
+        turn = await rig.driver.user_says("Can I see it in 3D?")
+        (line,) = (u.text for u in turn.units)
+        assert "if this piece has one" in line, line
+        assert rig.actions() == ["view_3d"], rig.actions()
+
+
+async def test_a_listing_that_comes_back_asks_her_to_speak() -> None:
+    """A bare "Listing opened" read as done, and the re-ask came back with no
+    words: the result says what is wanted of it."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Show me rose gold earrings with pink sapphire under a lakh.")
+        result = _results(llm.captured_contents[-1])["find_jewellery"]
+        assert result.startswith("Listing opened:"), result
+        assert "Now speak to the shopper" in result, result
+
+
 async def test_no_price_from_an_index_a_day_old() -> None:
     """Past the quote limit the index is not read at all."""
     llm = _llm()
