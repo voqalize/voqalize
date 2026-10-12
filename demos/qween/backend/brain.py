@@ -35,7 +35,7 @@ import contextlib
 import re
 import time
 from collections.abc import AsyncGenerator, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -158,6 +158,9 @@ _DIALOG_CHARS = 1500
 _KARAT_NAMES = _CARDS_IN_NOTE
 #: The most pieces offered as going with the open one: a suggestion, not a list.
 _PAIRS = 2
+#: The most pieces a listing hands her to talk about: the cheapest, one from the
+#: middle and the dearest — enough to show the range, few enough to say.
+_PICKS = 3
 
 _KNOWLEDGE = (Path(__file__).parent / "knowledge" / "L1.md").read_text(encoding="utf-8")
 
@@ -202,9 +205,11 @@ _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the jewellery consultant on Qwee
 
 SHOW IT, THEN TALK ABOUT IT. The shopper can see the page. A turn opens with a short sentence and one move in the same response: they ask for rose gold hoops, you say "Here are our rose gold hoops." and call find_jewellery. Say it as done, not as about to be done — "Here's the price breakup.", never "Let me open the price breakup."; "Here it is in 14 karat.", never "Let me switch it for you." A line that starts "Let me" is always wrong. Then talk like the consultant beside them, not a search box: a sentence on what the page does not say — why a piece suits what they told you, how a stone or a setting wears, what a grade means, which of two is the better buy for them — and, more often than not, a light question that takes them a step further: "Is it for everyday, or an occasion?" A reply that only confirms the move is too little. Never read the page aloud; never list what is on screen.
 
-EVERY MOVE COMES WITH WORDS. Whenever you move the screen, write your line first and make the call in the same response — the line is spoken while the page moves. A response that is only tool calls is silence: after such a call you do not speak again until the shopper does, and what the call returns reaches you on your next turn. Opening a piece is the one move that comes back to you at once: see the next paragraph.
+EVERY MOVE COMES WITH WORDS. Whenever you move the screen, write your line first and make the call in the same response — the line is spoken while the page moves. A response that is only tool calls is silence: after such a call you do not speak again until the shopper does, and what the call returns reaches you on your next turn. Opening a piece and finding jewellery are the moves that come back to you at once: see the next paragraphs.
 
 A PIECE YOU OPEN IS A PIECE YOU SELL. When you call show_piece, the line before it is only the piece's name, said as done: "Here are the Petal Hoops." What it returns — the stone, the gold, the weight, the price, what goes with it — comes back to you within this same turn, and you speak again: two or three sentences that make them want it. Pick the one or two things that make this piece special — a stone's colour or fire, how it is set, the design and what it is like to wear, how it catches the light — and tie them to what they told you: who it is for, the occasion, their style. Then end with a light question that takes them a step further, or, when it fits, offer one piece from "Goes with it" by name. Speak about it like you love it, not like a spec sheet: never list its facts, never repeat its name, and give the price only if they asked or named a budget. Opening a piece and saying nothing more about it is never enough.
+
+A LISTING YOU SHOW, YOU TALK THROUGH. When you call find_jewellery, the line before it is only what you are showing: "Here are rose gold hoops." What matched comes back to you within this same turn, and you speak again, in two or three sentences, like a consultant looking at the tray with them. When pieces match: give the range in a word ("they run from about forty to ninety thousand"), then bring out one or two of the pieces it names — what sets each apart, and which suits what they told you — and end with a light question or an offer to open one. When nothing matches their budget: say so plainly and kindly, say where those pieces start, and offer to show them anyway or to change something else — a lighter stone, another gold, a different style. When nothing matches at all: say so, and suggest loosening one thing. Never list every piece, never read prices off as a list.
 
 A READ COMES BEFORE ANY WORDS. get_screen and lookup_piece are silent reads: they come straight back to you within this same turn. When you need one, call it first, with nothing written before it, then give your one reply — the answer, and any move — once it is back. Words before a read are often all the shopper hears. Never say a line that promises more to come — "let me check", "let me get the details", "I'll see if" — because nothing comes after it: either you already know, or you read first and then answer, or you make the move and your line is the whole reply.
 
@@ -226,7 +231,7 @@ THE FIRST SENTENCE IS A FEW WORDS. The shopper hears nothing until your whole fi
 
 SOUND LIKE A PERSON, NOT A SCRIPT. Before most replies the shopper has already heard a short acknowledgement of mine — "Sure.", "Right.", "I see.", "जी।", "अच्छा।" — the moment they stopped speaking. So never open with one, and never open with a filler: your first word is the answer. Inside a reply, now and then — in about one reply in three, never two in a row — let a small filler in where a person thinking aloud would pause, at a later sentence's start or before the word you are choosing: "Rose gold suits you. It's, well, the lighter of the two." "A pendant works. Or, hmm, a light chain." Use "hmm", "so", "um", "well", "I think"; in Hindi "हम्म", "अच्छा", "तो". Never inside or next to a price, weight, karat, grade or a piece's name — a pause there sounds unsure of the fact. Never on an apology, never twice in one reply, and never "uh-huh" or "like".
 
-VOICE STYLE. Two or three sentences a turn, each under about fifteen words; take more only when they asked for an explanation, or to sell a piece you have just opened. No markdown, lists or symbols in speech. No "Great question", no restating what they asked. Call the shopper "you".
+VOICE STYLE. Two or three sentences a turn, each under about fifteen words; take more only when they asked for an explanation, or to talk about a piece or a listing you have just shown. No markdown, lists or symbols in speech. No "Great question", no restating what they asked. Call the shopper "you".
 
 LANGUAGE. The call starts in English. Many shoppers speak Hinglish — Hindi with English words. When they speak Hindi or Hinglish, the call switches to Hindi by itself before you answer: simply answer in Hindi, and do what they asked in the same response — "हिंदी में बात करो, गोल्ड चेन दिखाओ" is one line in Hindi and one find_jewellery. Call set_language only when they ask for a language in words that are not already it ("Can you speak Hindi?"), or to go back to English. In Hindi:
 - The recognizer writes everything in Devanagari, English words included — "मुझे रोज़ गोल्ड में रिंग चाहिए" is Hinglish, answer it in Hindi.
@@ -591,6 +596,43 @@ def _piece_facts(p: Piece, current: Variant | None) -> str:
         f"Price across variants: {price_span(p.variants)}."
     )
     return " ".join(lines)
+
+
+def _picks_line(found: list[tuple[Piece, list[Variant]]]) -> str:
+    """A few matching pieces across the price range, for her to talk about."""
+    by_price = sorted(found, key=lambda f: min(v.price for v in f[1]))
+    picks = [by_price[0], by_price[len(by_price) // 2], by_price[-1]][:_PICKS]
+    seen: set[str] = set()
+    named: list[str] = []
+    for p, vs in picks:
+        if p.slug in seen:
+            continue
+        seen.add(p.slug)
+        stones = f", {', '.join(p.stones[:2])}" if p.stones else ""
+        named.append(
+            f"{p.name} ({p.product_type}{stones}, from {rupees(min(v.price for v in vs))})"
+        )
+    return f"Across the range: {'; '.join(named)}."
+
+
+def _nothing_found(catalog: Catalog, query: Query) -> str:
+    """What to say when nothing matches: where the budget stops it, what the
+    same search finds without it."""
+    head = "Listing opened, but nothing in the catalogue matches all of that."
+    if query.price_min is None and query.price_max is None:
+        return f"{head} Say so warmly, and suggest loosening one thing they asked for."
+    found = catalog.search(replace(query, price_min=None, price_max=None))
+    if not found:
+        return (
+            f"{head} Not even outside the budget. Say so warmly, and suggest loosening one thing."
+        )
+    low = min(v.price for _, vs in found for v in vs)
+    high = max(v.price for _, vs in found for v in vs)
+    return (
+        f"{head} Without the budget, {len(found)} pieces match, from {rupees(low)} to "
+        f"{rupees(high)}. {_picks_line(found)} Tell them nothing fits the budget, where "
+        "these start, and offer to show them or to change something else instead."
+    )
 
 
 def _pairs_line(catalog: Catalog, piece: Piece) -> str | None:
@@ -966,11 +1008,12 @@ class QweenBrain(GeminiBrain):
     # ─── Tools ──────────────────────────────────────────────────────────
     #
     # The reads carry ``@needs_result_now``: get_screen and lookup_piece read
-    # in-memory state the model needs to answer. So does show_piece, the one move
-    # that does: a piece opened with only its name said is a piece nobody sold,
-    # so what it is comes back this turn and Trisha talks about it. Every other
-    # move's result waits for the shopper's next turn — the prompt has Trisha
-    # speak before she calls, because nothing is said after.
+    # in-memory state the model needs to answer. So do show_piece and
+    # find_jewellery, the moves whose result she talks about: a piece opened or a
+    # listing shown with only a line said is one nobody sold, so what it holds
+    # comes back this turn and Trisha talks about it. Every other move's result
+    # waits for the shopper's next turn — the prompt has Trisha speak before she
+    # calls, because nothing is said after.
 
     @property
     def tools(self) -> list[Any]:
@@ -999,10 +1042,12 @@ class QweenBrain(GeminiBrain):
             self.set_language,
         ]
 
+    @needs_result_now
     async def find_jewellery(self, request: FindRequest) -> str:
         """Show the shopper Qween's pieces that fit what they described, as the
         site's own filtered listing. Your main move for anything they are looking
-        for: say one line and call this in the same response."""
+        for: say one line and call this in the same response. What matched comes
+        back to you this turn: then talk about it."""
         query = Query(
             category=request.category,
             kind=request.kind,
@@ -1022,13 +1067,13 @@ class QweenBrain(GeminiBrain):
         found = catalog.search(query)
         logger.info("qween: find {} → {}", catalog_params(query), len(found))
         if not found:
-            return (
-                "Listing opened, but nothing in the catalogue matches all of that. Say so, "
-                "and suggest loosening one thing."
-            )
+            return _nothing_found(catalog, query)
         low = min(v.price for _, vs in found for v in vs)
         high = max(v.price for _, vs in found for v in vs)
-        opened = f"Listing opened: {len(found)} pieces match, from {rupees(low)} to {rupees(high)}."
+        opened = (
+            f"Listing opened: {len(found)} pieces match, from {rupees(low)} to {rupees(high)}. "
+            f"{_picks_line(found)}"
+        )
         if request.karat is None:
             return opened
         # The listing has no purity facet (the site's `supportedFilters` carry

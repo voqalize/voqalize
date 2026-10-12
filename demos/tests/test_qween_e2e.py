@@ -178,6 +178,7 @@ def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
             # One line and one move, in one response: find_jewellery is not a read.
+            # A move that comes back: the line with the call, then the talk.
             "Show me rose gold earrings with pink sapphire under a lakh.": [
                 reply_and_call(
                     "Here are rose gold earrings with pink sapphire.",
@@ -189,6 +190,19 @@ def _llm() -> ScriptedGemini:
                         "price_max": 100000,
                     },
                 ),
+                reply("The Petal Hoops are the one, light enough for every day."),
+            ],
+            "Rose gold earrings under twenty thousand?": [
+                reply_and_call(
+                    "Here are rose gold earrings.",
+                    "find_jewellery",
+                    request={
+                        "category": "earrings",
+                        "metals": ["rose bloom"],
+                        "price_max": 20000,
+                    },
+                ),
+                reply("Nothing under twenty thousand, I'm afraid."),
             ],
             # A purity is not a facet the listing has: the search goes out
             # without it, and the result says which pieces come in it.
@@ -198,9 +212,11 @@ def _llm() -> ScriptedGemini:
                     "find_jewellery",
                     request={"category": "earrings", "karat": "14"},
                 ),
+                reply("The Petal Hoops come in 14 karat."),
             ],
             "Just hoops please.": [
                 reply_and_call("Only the hoops.", "find_jewellery", request={"kind": "hoops"}),
+                reply("The Petal Hoops lead them."),
             ],
             # A move that comes back: the name with the call, then the sell.
             "Open the first one.": [
@@ -254,6 +270,7 @@ def _llm() -> ScriptedGemini:
                 reply_and_call(
                     "ज़रूर, ये रहीं हमारी रिंग्स।", "find_jewellery", request={"category": "rings"}
                 ),
+                reply("ऑर्बिट बैंड सबसे ख़ास है।"),
             ],
         }
     )
@@ -286,8 +303,8 @@ async def test_a_rejoin_after_a_reload_says_so() -> None:
 
 async def test_find_resolves_names_to_the_grids_codes() -> None:
     """The model names a gold and a stone; the page is sent Qween's facet codes,
-    and the model is told what the index matched — one request, since finding is
-    a move and not a read."""
+    and the model is told what the index matched within the turn, and talks
+    about it."""
     llm = _llm()
     async with demo("qween", llm) as rig:
         await rig.driver.start_session()
@@ -295,8 +312,8 @@ async def test_find_resolves_names_to_the_grids_codes() -> None:
         turn = await rig.driver.user_says(
             "Show me rose gold earrings with pink sapphire under a lakh."
         )
-        check_turn(rig, turn, units=1)
-        assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
+        check_turn(rig, turn, units=2)
+        assert len(llm.captured_contents) - before == 2, "find_jewellery's result waited a turn"
 
         assert rig.actions() == ["open_catalog"]
         assert rig.command("open_catalog")["params"] == {
@@ -306,10 +323,21 @@ async def test_find_resolves_names_to_the_grids_codes() -> None:
             "fpc": ["0-100000"],
         }
 
-        # The result waits for the next request, and carries the index's figures.
-        await rig.driver.user_says("So what does the gold cost?")
         found = _results(llm.captured_contents[-1])["find_jewellery"]
         assert "1 pieces match" in found and "₹52,000 to ₹64,000" in found
+        assert "Across the range: Petal Hoops (" in found, found
+
+
+async def test_a_budget_nothing_fits_says_where_the_pieces_start() -> None:
+    """Nothing under the budget: she is told what the same search finds without
+    it, so she can say where those pieces start rather than only "no"."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Rose gold earrings under twenty thousand?")
+        found = _results(llm.captured_contents[-1])["find_jewellery"]
+        assert "nothing in the catalogue matches" in found
+        assert "Without the budget" in found and "Petal Hoops" in found, found
 
 
 async def test_a_call_from_staging_searches_stagings_catalogue() -> None:
@@ -683,8 +711,8 @@ async def test_a_nod_is_heard_before_the_model_and_kept_out_of_its_context(
         turn = await rig.driver.user_says(
             "Show me rose gold earrings with pink sapphire under a lakh."
         )
-        check_turn(rig, turn, units=2)
-        nod, answer = (u.text for u in turn.units)
+        check_turn(rig, turn, units=3)
+        nod, answer, _ = (u.text for u in turn.units)
         assert nod in acknowledge.LINES[acknowledge.Language.EN]["request"]
         assert answer != nod
         said = [
@@ -703,7 +731,7 @@ async def test_a_nod_is_in_the_voice_now_speaking(monkeypatch: pytest.MonkeyPatc
     async with demo("qween", _llm()) as rig:
         await rig.driver.start_session()
         turn = await rig.driver.user_says("Hindi mein baat karo, mujhe rings dikhao.")
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=3)
         assert turn.units[0].text in acknowledge.LINES[acknowledge.Language.HI]["request"]
 
 
