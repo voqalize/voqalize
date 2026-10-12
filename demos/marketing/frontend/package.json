@@ -19,7 +19,7 @@
   "dependencies": {
     "@pipecat-ai/client-js": "1.13.1",
     "@pipecat-ai/small-webrtc-transport": "1.10.8",
-    "@voqalize/avatar": "0.5.6",
+    "@voqalize/avatar": "0.5.7",
     "@voqalize/client-transport": "0.3.2",
     "astro": "^7.2.8",
     "posthog-js": "1.438.7"
